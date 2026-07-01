@@ -1,0 +1,1269 @@
+{
+  "schema": "daily_verses@1",
+  "note": "text=null 表示由 CNV 经库按 book/chapter/verse_* 解析填充；references 为正典真实坐标。",
+  "count": 124,
+  "themes": [
+    "信靠",
+    "力量",
+    "勇气",
+    "喜乐",
+    "安慰",
+    "平安",
+    "应许",
+    "引导",
+    "忍耐",
+    "恩典",
+    "感恩",
+    "敬拜",
+    "智慧",
+    "永生",
+    "爱",
+    "盼望",
+    "祷告",
+    "谦卑",
+    "赦免",
+    "顺服"
+  ],
+  "verses": [
+    {
+      "day": 1,
+      "ref": "耶利米书 29:11",
+      "book": "JER",
+      "chapter": 29,
+      "verse_start": 11,
+      "verse_end": 11,
+      "theme": "盼望",
+      "text": null
+    },
+    {
+      "day": 2,
+      "ref": "罗马书 15:13",
+      "book": "ROM",
+      "chapter": 15,
+      "verse_start": 13,
+      "verse_end": 13,
+      "theme": "盼望",
+      "text": null
+    },
+    {
+      "day": 3,
+      "ref": "耶利米哀歌 3:22-23",
+      "book": "LAM",
+      "chapter": 3,
+      "verse_start": 22,
+      "verse_end": 23,
+      "theme": "盼望",
+      "text": null
+    },
+    {
+      "day": 4,
+      "ref": "罗马书 8:28",
+      "book": "ROM",
+      "chapter": 8,
+      "verse_start": 28,
+      "verse_end": 28,
+      "theme": "盼望",
+      "text": null
+    },
+    {
+      "day": 5,
+      "ref": "希伯来书 11:1",
+      "book": "HEB",
+      "chapter": 11,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "盼望",
+      "text": null
+    },
+    {
+      "day": 6,
+      "ref": "诗篇 42:11",
+      "book": "PSA",
+      "chapter": 42,
+      "verse_start": 11,
+      "verse_end": 11,
+      "theme": "盼望",
+      "text": null
+    },
+    {
+      "day": 7,
+      "ref": "罗马书 5:5",
+      "book": "ROM",
+      "chapter": 5,
+      "verse_start": 5,
+      "verse_end": 5,
+      "theme": "盼望",
+      "text": null
+    },
+    {
+      "day": 8,
+      "ref": "约翰福音 14:27",
+      "book": "JHN",
+      "chapter": 14,
+      "verse_start": 27,
+      "verse_end": 27,
+      "theme": "平安",
+      "text": null
+    },
+    {
+      "day": 9,
+      "ref": "腓立比书 4:7",
+      "book": "PHP",
+      "chapter": 4,
+      "verse_start": 7,
+      "verse_end": 7,
+      "theme": "平安",
+      "text": null
+    },
+    {
+      "day": 10,
+      "ref": "以赛亚书 26:3",
+      "book": "ISA",
+      "chapter": 26,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "平安",
+      "text": null
+    },
+    {
+      "day": 11,
+      "ref": "诗篇 4:8",
+      "book": "PSA",
+      "chapter": 4,
+      "verse_start": 8,
+      "verse_end": 8,
+      "theme": "平安",
+      "text": null
+    },
+    {
+      "day": 12,
+      "ref": "歌罗西书 3:15",
+      "book": "COL",
+      "chapter": 3,
+      "verse_start": 15,
+      "verse_end": 15,
+      "theme": "平安",
+      "text": null
+    },
+    {
+      "day": 13,
+      "ref": "约翰福音 16:33",
+      "book": "JHN",
+      "chapter": 16,
+      "verse_start": 33,
+      "verse_end": 33,
+      "theme": "平安",
+      "text": null
+    },
+    {
+      "day": 14,
+      "ref": "帖撒罗尼迦后书 3:16",
+      "book": "2TH",
+      "chapter": 3,
+      "verse_start": 16,
+      "verse_end": 16,
+      "theme": "平安",
+      "text": null
+    },
+    {
+      "day": 15,
+      "ref": "箴言 3:5-6",
+      "book": "PRO",
+      "chapter": 3,
+      "verse_start": 5,
+      "verse_end": 6,
+      "theme": "信靠",
+      "text": null
+    },
+    {
+      "day": 16,
+      "ref": "诗篇 56:3",
+      "book": "PSA",
+      "chapter": 56,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "信靠",
+      "text": null
+    },
+    {
+      "day": 17,
+      "ref": "以赛亚书 41:10",
+      "book": "ISA",
+      "chapter": 41,
+      "verse_start": 10,
+      "verse_end": 10,
+      "theme": "信靠",
+      "text": null
+    },
+    {
+      "day": 18,
+      "ref": "诗篇 37:5",
+      "book": "PSA",
+      "chapter": 37,
+      "verse_start": 5,
+      "verse_end": 5,
+      "theme": "信靠",
+      "text": null
+    },
+    {
+      "day": 19,
+      "ref": "那鸿书 1:7",
+      "book": "NAM",
+      "chapter": 1,
+      "verse_start": 7,
+      "verse_end": 7,
+      "theme": "信靠",
+      "text": null
+    },
+    {
+      "day": 20,
+      "ref": "诗篇 9:10",
+      "book": "PSA",
+      "chapter": 9,
+      "verse_start": 10,
+      "verse_end": 10,
+      "theme": "信靠",
+      "text": null
+    },
+    {
+      "day": 21,
+      "ref": "诗篇 125:1",
+      "book": "PSA",
+      "chapter": 125,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "信靠",
+      "text": null
+    },
+    {
+      "day": 22,
+      "ref": "腓立比书 4:13",
+      "book": "PHP",
+      "chapter": 4,
+      "verse_start": 13,
+      "verse_end": 13,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 23,
+      "ref": "以赛亚书 40:31",
+      "book": "ISA",
+      "chapter": 40,
+      "verse_start": 31,
+      "verse_end": 31,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 24,
+      "ref": "诗篇 46:1",
+      "book": "PSA",
+      "chapter": 46,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 25,
+      "ref": "以弗所书 6:10",
+      "book": "EPH",
+      "chapter": 6,
+      "verse_start": 10,
+      "verse_end": 10,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 26,
+      "ref": "哥林多后书 12:9",
+      "book": "2CO",
+      "chapter": 12,
+      "verse_start": 9,
+      "verse_end": 9,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 27,
+      "ref": "诗篇 28:7",
+      "book": "PSA",
+      "chapter": 28,
+      "verse_start": 7,
+      "verse_end": 7,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 28,
+      "ref": "尼希米记 8:10",
+      "book": "NEH",
+      "chapter": 8,
+      "verse_start": 10,
+      "verse_end": 10,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 29,
+      "ref": "哈巴谷书 3:19",
+      "book": "HAB",
+      "chapter": 3,
+      "verse_start": 19,
+      "verse_end": 19,
+      "theme": "力量",
+      "text": null
+    },
+    {
+      "day": 30,
+      "ref": "约翰福音 3:16",
+      "book": "JHN",
+      "chapter": 3,
+      "verse_start": 16,
+      "verse_end": 16,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 31,
+      "ref": "罗马书 8:38-39",
+      "book": "ROM",
+      "chapter": 8,
+      "verse_start": 38,
+      "verse_end": 39,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 32,
+      "ref": "哥林多前书 13:4-7",
+      "book": "1CO",
+      "chapter": 13,
+      "verse_start": 4,
+      "verse_end": 7,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 33,
+      "ref": "约翰一书 4:19",
+      "book": "1JN",
+      "chapter": 4,
+      "verse_start": 19,
+      "verse_end": 19,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 34,
+      "ref": "约翰福音 13:34",
+      "book": "JHN",
+      "chapter": 13,
+      "verse_start": 34,
+      "verse_end": 34,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 35,
+      "ref": "罗马书 5:8",
+      "book": "ROM",
+      "chapter": 5,
+      "verse_start": 8,
+      "verse_end": 8,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 36,
+      "ref": "耶利米书 31:3",
+      "book": "JER",
+      "chapter": 31,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 37,
+      "ref": "约翰一书 4:7",
+      "book": "1JN",
+      "chapter": 4,
+      "verse_start": 7,
+      "verse_end": 7,
+      "theme": "爱",
+      "text": null
+    },
+    {
+      "day": 38,
+      "ref": "诗篇 16:11",
+      "book": "PSA",
+      "chapter": 16,
+      "verse_start": 11,
+      "verse_end": 11,
+      "theme": "喜乐",
+      "text": null
+    },
+    {
+      "day": 39,
+      "ref": "腓立比书 4:4",
+      "book": "PHP",
+      "chapter": 4,
+      "verse_start": 4,
+      "verse_end": 4,
+      "theme": "喜乐",
+      "text": null
+    },
+    {
+      "day": 40,
+      "ref": "诗篇 118:24",
+      "book": "PSA",
+      "chapter": 118,
+      "verse_start": 24,
+      "verse_end": 24,
+      "theme": "喜乐",
+      "text": null
+    },
+    {
+      "day": 41,
+      "ref": "加拉太书 5:22-23",
+      "book": "GAL",
+      "chapter": 5,
+      "verse_start": 22,
+      "verse_end": 23,
+      "theme": "喜乐",
+      "text": null
+    },
+    {
+      "day": 42,
+      "ref": "约翰福音 15:11",
+      "book": "JHN",
+      "chapter": 15,
+      "verse_start": 11,
+      "verse_end": 11,
+      "theme": "喜乐",
+      "text": null
+    },
+    {
+      "day": 43,
+      "ref": "诗篇 30:5",
+      "book": "PSA",
+      "chapter": 30,
+      "verse_start": 5,
+      "verse_end": 5,
+      "theme": "喜乐",
+      "text": null
+    },
+    {
+      "day": 44,
+      "ref": "雅各书 1:5",
+      "book": "JAS",
+      "chapter": 1,
+      "verse_start": 5,
+      "verse_end": 5,
+      "theme": "智慧",
+      "text": null
+    },
+    {
+      "day": 45,
+      "ref": "箴言 9:10",
+      "book": "PRO",
+      "chapter": 9,
+      "verse_start": 10,
+      "verse_end": 10,
+      "theme": "智慧",
+      "text": null
+    },
+    {
+      "day": 46,
+      "ref": "箴言 2:6",
+      "book": "PRO",
+      "chapter": 2,
+      "verse_start": 6,
+      "verse_end": 6,
+      "theme": "智慧",
+      "text": null
+    },
+    {
+      "day": 47,
+      "ref": "歌罗西书 2:3",
+      "book": "COL",
+      "chapter": 2,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "智慧",
+      "text": null
+    },
+    {
+      "day": 48,
+      "ref": "诗篇 111:10",
+      "book": "PSA",
+      "chapter": 111,
+      "verse_start": 10,
+      "verse_end": 10,
+      "theme": "智慧",
+      "text": null
+    },
+    {
+      "day": 49,
+      "ref": "雅各书 3:17",
+      "book": "JAS",
+      "chapter": 3,
+      "verse_start": 17,
+      "verse_end": 17,
+      "theme": "智慧",
+      "text": null
+    },
+    {
+      "day": 50,
+      "ref": "诗篇 32:8",
+      "book": "PSA",
+      "chapter": 32,
+      "verse_start": 8,
+      "verse_end": 8,
+      "theme": "引导",
+      "text": null
+    },
+    {
+      "day": 51,
+      "ref": "以赛亚书 30:21",
+      "book": "ISA",
+      "chapter": 30,
+      "verse_start": 21,
+      "verse_end": 21,
+      "theme": "引导",
+      "text": null
+    },
+    {
+      "day": 52,
+      "ref": "诗篇 119:105",
+      "book": "PSA",
+      "chapter": 119,
+      "verse_start": 105,
+      "verse_end": 105,
+      "theme": "引导",
+      "text": null
+    },
+    {
+      "day": 53,
+      "ref": "诗篇 23:3",
+      "book": "PSA",
+      "chapter": 23,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "引导",
+      "text": null
+    },
+    {
+      "day": 54,
+      "ref": "约翰福音 16:13",
+      "book": "JHN",
+      "chapter": 16,
+      "verse_start": 13,
+      "verse_end": 13,
+      "theme": "引导",
+      "text": null
+    },
+    {
+      "day": 55,
+      "ref": "诗篇 48:14",
+      "book": "PSA",
+      "chapter": 48,
+      "verse_start": 14,
+      "verse_end": 14,
+      "theme": "引导",
+      "text": null
+    },
+    {
+      "day": 56,
+      "ref": "马太福音 5:4",
+      "book": "MAT",
+      "chapter": 5,
+      "verse_start": 4,
+      "verse_end": 4,
+      "theme": "安慰",
+      "text": null
+    },
+    {
+      "day": 57,
+      "ref": "哥林多后书 1:3-4",
+      "book": "2CO",
+      "chapter": 1,
+      "verse_start": 3,
+      "verse_end": 4,
+      "theme": "安慰",
+      "text": null
+    },
+    {
+      "day": 58,
+      "ref": "诗篇 34:18",
+      "book": "PSA",
+      "chapter": 34,
+      "verse_start": 18,
+      "verse_end": 18,
+      "theme": "安慰",
+      "text": null
+    },
+    {
+      "day": 59,
+      "ref": "马太福音 11:28",
+      "book": "MAT",
+      "chapter": 11,
+      "verse_start": 28,
+      "verse_end": 28,
+      "theme": "安慰",
+      "text": null
+    },
+    {
+      "day": 60,
+      "ref": "诗篇 147:3",
+      "book": "PSA",
+      "chapter": 147,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "安慰",
+      "text": null
+    },
+    {
+      "day": 61,
+      "ref": "启示录 21:4",
+      "book": "REV",
+      "chapter": 21,
+      "verse_start": 4,
+      "verse_end": 4,
+      "theme": "安慰",
+      "text": null
+    },
+    {
+      "day": 62,
+      "ref": "约翰一书 1:9",
+      "book": "1JN",
+      "chapter": 1,
+      "verse_start": 9,
+      "verse_end": 9,
+      "theme": "赦免",
+      "text": null
+    },
+    {
+      "day": 63,
+      "ref": "以弗所书 1:7",
+      "book": "EPH",
+      "chapter": 1,
+      "verse_start": 7,
+      "verse_end": 7,
+      "theme": "赦免",
+      "text": null
+    },
+    {
+      "day": 64,
+      "ref": "诗篇 103:12",
+      "book": "PSA",
+      "chapter": 103,
+      "verse_start": 12,
+      "verse_end": 12,
+      "theme": "赦免",
+      "text": null
+    },
+    {
+      "day": 65,
+      "ref": "弥迦书 7:19",
+      "book": "MIC",
+      "chapter": 7,
+      "verse_start": 19,
+      "verse_end": 19,
+      "theme": "赦免",
+      "text": null
+    },
+    {
+      "day": 66,
+      "ref": "歌罗西书 1:14",
+      "book": "COL",
+      "chapter": 1,
+      "verse_start": 14,
+      "verse_end": 14,
+      "theme": "赦免",
+      "text": null
+    },
+    {
+      "day": 67,
+      "ref": "使徒行传 3:19",
+      "book": "ACT",
+      "chapter": 3,
+      "verse_start": 19,
+      "verse_end": 19,
+      "theme": "赦免",
+      "text": null
+    },
+    {
+      "day": 68,
+      "ref": "帖撒罗尼迦前书 5:18",
+      "book": "1TH",
+      "chapter": 5,
+      "verse_start": 18,
+      "verse_end": 18,
+      "theme": "感恩",
+      "text": null
+    },
+    {
+      "day": 69,
+      "ref": "诗篇 107:1",
+      "book": "PSA",
+      "chapter": 107,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "感恩",
+      "text": null
+    },
+    {
+      "day": 70,
+      "ref": "歌罗西书 3:17",
+      "book": "COL",
+      "chapter": 3,
+      "verse_start": 17,
+      "verse_end": 17,
+      "theme": "感恩",
+      "text": null
+    },
+    {
+      "day": 71,
+      "ref": "诗篇 100:4",
+      "book": "PSA",
+      "chapter": 100,
+      "verse_start": 4,
+      "verse_end": 4,
+      "theme": "感恩",
+      "text": null
+    },
+    {
+      "day": 72,
+      "ref": "以弗所书 5:20",
+      "book": "EPH",
+      "chapter": 5,
+      "verse_start": 20,
+      "verse_end": 20,
+      "theme": "感恩",
+      "text": null
+    },
+    {
+      "day": 73,
+      "ref": "诗篇 136:1",
+      "book": "PSA",
+      "chapter": 136,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "感恩",
+      "text": null
+    },
+    {
+      "day": 74,
+      "ref": "雅各书 4:6",
+      "book": "JAS",
+      "chapter": 4,
+      "verse_start": 6,
+      "verse_end": 6,
+      "theme": "谦卑",
+      "text": null
+    },
+    {
+      "day": 75,
+      "ref": "腓立比书 2:3",
+      "book": "PHP",
+      "chapter": 2,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "谦卑",
+      "text": null
+    },
+    {
+      "day": 76,
+      "ref": "彼得前书 5:6",
+      "book": "1PE",
+      "chapter": 5,
+      "verse_start": 6,
+      "verse_end": 6,
+      "theme": "谦卑",
+      "text": null
+    },
+    {
+      "day": 77,
+      "ref": "箴言 11:2",
+      "book": "PRO",
+      "chapter": 11,
+      "verse_start": 2,
+      "verse_end": 2,
+      "theme": "谦卑",
+      "text": null
+    },
+    {
+      "day": 78,
+      "ref": "弥迦书 6:8",
+      "book": "MIC",
+      "chapter": 6,
+      "verse_start": 8,
+      "verse_end": 8,
+      "theme": "谦卑",
+      "text": null
+    },
+    {
+      "day": 79,
+      "ref": "马太福音 23:12",
+      "book": "MAT",
+      "chapter": 23,
+      "verse_start": 12,
+      "verse_end": 12,
+      "theme": "谦卑",
+      "text": null
+    },
+    {
+      "day": 80,
+      "ref": "约书亚记 1:9",
+      "book": "JOS",
+      "chapter": 1,
+      "verse_start": 9,
+      "verse_end": 9,
+      "theme": "勇气",
+      "text": null
+    },
+    {
+      "day": 81,
+      "ref": "申命记 31:6",
+      "book": "DEU",
+      "chapter": 31,
+      "verse_start": 6,
+      "verse_end": 6,
+      "theme": "勇气",
+      "text": null
+    },
+    {
+      "day": 82,
+      "ref": "诗篇 27:1",
+      "book": "PSA",
+      "chapter": 27,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "勇气",
+      "text": null
+    },
+    {
+      "day": 83,
+      "ref": "哥林多前书 16:13",
+      "book": "1CO",
+      "chapter": 16,
+      "verse_start": 13,
+      "verse_end": 13,
+      "theme": "勇气",
+      "text": null
+    },
+    {
+      "day": 84,
+      "ref": "提摩太后书 1:7",
+      "book": "2TI",
+      "chapter": 1,
+      "verse_start": 7,
+      "verse_end": 7,
+      "theme": "勇气",
+      "text": null
+    },
+    {
+      "day": 85,
+      "ref": "诗篇 31:24",
+      "book": "PSA",
+      "chapter": 31,
+      "verse_start": 24,
+      "verse_end": 24,
+      "theme": "勇气",
+      "text": null
+    },
+    {
+      "day": 86,
+      "ref": "马太福音 28:20",
+      "book": "MAT",
+      "chapter": 28,
+      "verse_start": 20,
+      "verse_end": 20,
+      "theme": "应许",
+      "text": null
+    },
+    {
+      "day": 87,
+      "ref": "希伯来书 13:5",
+      "book": "HEB",
+      "chapter": 13,
+      "verse_start": 5,
+      "verse_end": 5,
+      "theme": "应许",
+      "text": null
+    },
+    {
+      "day": 88,
+      "ref": "以赛亚书 43:2",
+      "book": "ISA",
+      "chapter": 43,
+      "verse_start": 2,
+      "verse_end": 2,
+      "theme": "应许",
+      "text": null
+    },
+    {
+      "day": 89,
+      "ref": "哥林多后书 1:20",
+      "book": "2CO",
+      "chapter": 1,
+      "verse_start": 20,
+      "verse_end": 20,
+      "theme": "应许",
+      "text": null
+    },
+    {
+      "day": 90,
+      "ref": "诗篇 37:4",
+      "book": "PSA",
+      "chapter": 37,
+      "verse_start": 4,
+      "verse_end": 4,
+      "theme": "应许",
+      "text": null
+    },
+    {
+      "day": 91,
+      "ref": "罗马书 8:31",
+      "book": "ROM",
+      "chapter": 8,
+      "verse_start": 31,
+      "verse_end": 31,
+      "theme": "应许",
+      "text": null
+    },
+    {
+      "day": 92,
+      "ref": "腓立比书 4:6",
+      "book": "PHP",
+      "chapter": 4,
+      "verse_start": 6,
+      "verse_end": 6,
+      "theme": "祷告",
+      "text": null
+    },
+    {
+      "day": 93,
+      "ref": "帖撒罗尼迦前书 5:17",
+      "book": "1TH",
+      "chapter": 5,
+      "verse_start": 17,
+      "verse_end": 17,
+      "theme": "祷告",
+      "text": null
+    },
+    {
+      "day": 94,
+      "ref": "马太福音 7:7",
+      "book": "MAT",
+      "chapter": 7,
+      "verse_start": 7,
+      "verse_end": 7,
+      "theme": "祷告",
+      "text": null
+    },
+    {
+      "day": 95,
+      "ref": "雅各书 5:16",
+      "book": "JAS",
+      "chapter": 5,
+      "verse_start": 16,
+      "verse_end": 16,
+      "theme": "祷告",
+      "text": null
+    },
+    {
+      "day": 96,
+      "ref": "马可福音 11:24",
+      "book": "MRK",
+      "chapter": 11,
+      "verse_start": 24,
+      "verse_end": 24,
+      "theme": "祷告",
+      "text": null
+    },
+    {
+      "day": 97,
+      "ref": "马太福音 6:6",
+      "book": "MAT",
+      "chapter": 6,
+      "verse_start": 6,
+      "verse_end": 6,
+      "theme": "祷告",
+      "text": null
+    },
+    {
+      "day": 98,
+      "ref": "歌罗西书 4:2",
+      "book": "COL",
+      "chapter": 4,
+      "verse_start": 2,
+      "verse_end": 2,
+      "theme": "祷告",
+      "text": null
+    },
+    {
+      "day": 99,
+      "ref": "诗篇 95:6",
+      "book": "PSA",
+      "chapter": 95,
+      "verse_start": 6,
+      "verse_end": 6,
+      "theme": "敬拜",
+      "text": null
+    },
+    {
+      "day": 100,
+      "ref": "诗篇 100:2",
+      "book": "PSA",
+      "chapter": 100,
+      "verse_start": 2,
+      "verse_end": 2,
+      "theme": "敬拜",
+      "text": null
+    },
+    {
+      "day": 101,
+      "ref": "约翰福音 4:24",
+      "book": "JHN",
+      "chapter": 4,
+      "verse_start": 24,
+      "verse_end": 24,
+      "theme": "敬拜",
+      "text": null
+    },
+    {
+      "day": 102,
+      "ref": "诗篇 29:2",
+      "book": "PSA",
+      "chapter": 29,
+      "verse_start": 2,
+      "verse_end": 2,
+      "theme": "敬拜",
+      "text": null
+    },
+    {
+      "day": 103,
+      "ref": "罗马书 12:1",
+      "book": "ROM",
+      "chapter": 12,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "敬拜",
+      "text": null
+    },
+    {
+      "day": 104,
+      "ref": "约翰福音 11:25",
+      "book": "JHN",
+      "chapter": 11,
+      "verse_start": 25,
+      "verse_end": 25,
+      "theme": "永生",
+      "text": null
+    },
+    {
+      "day": 105,
+      "ref": "约翰福音 17:3",
+      "book": "JHN",
+      "chapter": 17,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "永生",
+      "text": null
+    },
+    {
+      "day": 106,
+      "ref": "罗马书 6:23",
+      "book": "ROM",
+      "chapter": 6,
+      "verse_start": 23,
+      "verse_end": 23,
+      "theme": "永生",
+      "text": null
+    },
+    {
+      "day": 107,
+      "ref": "约翰一书 5:13",
+      "book": "1JN",
+      "chapter": 5,
+      "verse_start": 13,
+      "verse_end": 13,
+      "theme": "永生",
+      "text": null
+    },
+    {
+      "day": 108,
+      "ref": "约翰福音 10:28",
+      "book": "JHN",
+      "chapter": 10,
+      "verse_start": 28,
+      "verse_end": 28,
+      "theme": "永生",
+      "text": null
+    },
+    {
+      "day": 109,
+      "ref": "罗马书 12:2",
+      "book": "ROM",
+      "chapter": 12,
+      "verse_start": 2,
+      "verse_end": 2,
+      "theme": "顺服",
+      "text": null
+    },
+    {
+      "day": 110,
+      "ref": "撒母耳记上 15:22",
+      "book": "1SA",
+      "chapter": 15,
+      "verse_start": 22,
+      "verse_end": 22,
+      "theme": "顺服",
+      "text": null
+    },
+    {
+      "day": 111,
+      "ref": "约翰福音 14:15",
+      "book": "JHN",
+      "chapter": 14,
+      "verse_start": 15,
+      "verse_end": 15,
+      "theme": "顺服",
+      "text": null
+    },
+    {
+      "day": 112,
+      "ref": "雅各书 1:22",
+      "book": "JAS",
+      "chapter": 1,
+      "verse_start": 22,
+      "verse_end": 22,
+      "theme": "顺服",
+      "text": null
+    },
+    {
+      "day": 113,
+      "ref": "箴言 16:3",
+      "book": "PRO",
+      "chapter": 16,
+      "verse_start": 3,
+      "verse_end": 3,
+      "theme": "顺服",
+      "text": null
+    },
+    {
+      "day": 114,
+      "ref": "雅各书 1:2-4",
+      "book": "JAS",
+      "chapter": 1,
+      "verse_start": 2,
+      "verse_end": 4,
+      "theme": "忍耐",
+      "text": null
+    },
+    {
+      "day": 115,
+      "ref": "罗马书 5:3-4",
+      "book": "ROM",
+      "chapter": 5,
+      "verse_start": 3,
+      "verse_end": 4,
+      "theme": "忍耐",
+      "text": null
+    },
+    {
+      "day": 116,
+      "ref": "加拉太书 6:9",
+      "book": "GAL",
+      "chapter": 6,
+      "verse_start": 9,
+      "verse_end": 9,
+      "theme": "忍耐",
+      "text": null
+    },
+    {
+      "day": 117,
+      "ref": "希伯来书 12:1",
+      "book": "HEB",
+      "chapter": 12,
+      "verse_start": 1,
+      "verse_end": 1,
+      "theme": "忍耐",
+      "text": null
+    },
+    {
+      "day": 118,
+      "ref": "罗马书 12:12",
+      "book": "ROM",
+      "chapter": 12,
+      "verse_start": 12,
+      "verse_end": 12,
+      "theme": "忍耐",
+      "text": null
+    },
+    {
+      "day": 119,
+      "ref": "雅各书 5:7-8",
+      "book": "JAS",
+      "chapter": 5,
+      "verse_start": 7,
+      "verse_end": 8,
+      "theme": "忍耐",
+      "text": null
+    },
+    {
+      "day": 120,
+      "ref": "以弗所书 2:8-9",
+      "book": "EPH",
+      "chapter": 2,
+      "verse_start": 8,
+      "verse_end": 9,
+      "theme": "恩典",
+      "text": null
+    },
+    {
+      "day": 121,
+      "ref": "提多书 2:11",
+      "book": "TIT",
+      "chapter": 2,
+      "verse_start": 11,
+      "verse_end": 11,
+      "theme": "恩典",
+      "text": null
+    },
+    {
+      "day": 122,
+      "ref": "希伯来书 4:16",
+      "book": "HEB",
+      "chapter": 4,
+      "verse_start": 16,
+      "verse_end": 16,
+      "theme": "恩典",
+      "text": null
+    },
+    {
+      "day": 123,
+      "ref": "罗马书 3:24",
+      "book": "ROM",
+      "chapter": 3,
+      "verse_start": 24,
+      "verse_end": 24,
+      "theme": "恩典",
+      "text": null
+    },
+    {
+      "day": 124,
+      "ref": "哥林多后书 9:8",
+      "book": "2CO",
+      "chapter": 9,
+      "verse_start": 8,
+      "verse_end": 8,
+      "theme": "恩典",
+      "text": null
+    }
+  ]
+}

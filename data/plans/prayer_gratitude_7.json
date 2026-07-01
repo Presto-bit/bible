@@ -1,0 +1,14 @@
+{
+  "plan_id": "prayer_gratitude_7",
+  "title": "感恩祷告 · 7 天",
+  "model": "ACTS",
+  "days": [
+    {"day": 1, "title": "数算恩典", "scripture": {"ref": "诗篇 103:2", "book": "PSA", "chapter": 103, "verse": 2}, "acts": {"adoration": "称颂祂的慈爱长阔高深。", "confession": "为常常忘记祂的恩惠认罪。", "thanksgiving": "数出今天三件可感恩的小事。", "supplication": "求祂让感恩成为你的习惯。"}, "prompt": "今天最不起眼、却最该感恩的是什么？"},
+    {"day": 2, "title": "凡事谢恩", "scripture": {"ref": "帖撒罗尼迦前书 5:18", "book": "1TH", "chapter": 5, "verse": 18}, "acts": {"adoration": "称祂为一切美善的源头。", "confession": "承认你常在困难中只看见缺乏。", "thanksgiving": "为一件看似平常却真实的祝福献上感谢。", "supplication": "求祂帮你在难处里仍看见恩典。"}, "prompt": "有没有一件事，你还没为它感谢过神？"},
+    {"day": 3, "title": "因信喜乐", "scripture": {"ref": "腓立比书 4:4", "book": "PHP", "chapter": 4, "verse": 4}, "acts": {"adoration": "称祂为可倚靠的喜乐之源。", "confession": "为把情绪凌驾于信实之上认罪。", "thanksgiving": "感谢祂在你还不明白时仍与你同在。", "supplication": "求祂赐下超越环境的平安。"}, "prompt": "什么在偷走你此刻的喜乐？"},
+    {"day": 4, "title": "家庭与关系", "scripture": {"ref": "歌罗西书 3:15", "book": "COL", "chapter": 3, "verse": 15}, "acts": {"adoration": "称祂为和平的君王。", "confession": "为关系里的自私或冷漠认罪。", "thanksgiving": "为一位具体的人献上感谢。", "supplication": "求祂医治或坚固一段你在意的关系。"}, "prompt": "你想为谁祷告，却迟迟没开口？"},
+    {"day": 5, "title": "供应与信靠", "scripture": {"ref": "马太福音 6:11", "book": "MAT", "chapter": 6, "verse": 11}, "acts": {"adoration": "称祂为日用的饮食也供应的主。", "confession": "为对将来过度的焦虑认罪。", "thanksgiving": "感谢祂今天已够用的恩典。", "supplication": "把一项实际的需要带到祂面前。"}, "prompt": "你最担心哪一项需要还没被满足？"},
+    {"day": 6, "title": "救赎之恩", "scripture": {"ref": "以弗所书 2:8", "book": "EPH", "chapter": 2, "verse": 8}, "acts": {"adoration": "称颂救恩完全是神的礼物。", "confession": "为试图靠行为换取接纳认罪。", "thanksgiving": "为十字架的恩典深深感谢。", "supplication": "求祂让你更明白被爱的确据。"}, "prompt": "你最近一次为救恩感恩是什么时候？"},
+    {"day": 7, "title": "持续感恩", "scripture": {"ref": "希伯来书 13:15", "book": "HEB", "chapter": 13, "verse": 15}, "acts": {"adoration": "称祂配得永远的赞美。", "confession": "为祷告变成清单而非关系认罪。", "thanksgiving": "回顾这 7 天，写一句总结性的感谢。", "supplication": "求祂让你带着感恩进入下一周。"}, "prompt": "这 7 天里，神最触动你的是什么？"}
+  ]
+}

@@ -1,0 +1,6 @@
+# FastAPI 服务目录
+#
+# 初始化：
+#   python -m venv .venv
+#   pip install fastapi uvicorn
+#   RAG 核心移植自 minimax_aipodcast/services/orchestrator/app/rag_core.py

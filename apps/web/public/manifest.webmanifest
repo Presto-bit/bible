@@ -1,0 +1,19 @@
+{
+  "name": "PrestoAI 读经",
+  "short_name": "读经",
+  "description": "安静读经，遇见话语。AI 解经与默想陪伴。",
+  "start_url": "/2sc",
+  "scope": "/2sc/",
+  "display": "standalone",
+  "background_color": "#f7f4ee",
+  "theme_color": "#4f6b5d",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "/2sc/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

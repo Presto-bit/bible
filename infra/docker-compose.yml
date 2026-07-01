@@ -1,0 +1,26 @@
+name: bible-app
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bible-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bible
+      POSTGRES_PASSWORD: bible
+      POSTGRES_DB: bible
+    ports:
+      # 宿主 5433 → 容器 5432（避让本机其他占用 5432 的 Postgres）
+      - "5433:5432"
+    volumes:
+      - bible_pg_data:/var/lib/postgresql/data
+      # 首次初始化时按文件名顺序执行（仅当 data 卷为空）
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bible -d bible"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  bible_pg_data:

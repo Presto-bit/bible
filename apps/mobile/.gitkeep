@@ -1,0 +1,6 @@
+# Flutter 应用目录
+#
+# 初始化命令：
+#   cd apps && flutter create --org com.bible.app --project-name bible_app mobile
+#
+# 然后将 lib/ 按 docs/ARCHITECTURE.md 拆分 features。

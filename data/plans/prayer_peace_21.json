@@ -1,0 +1,28 @@
+{
+  "plan_id": "prayer_peace_21",
+  "title": "平安交托 · 21 天",
+  "model": "ACTS",
+  "days": [
+    {"day": 1, "title": "卸下重担", "scripture": {"ref": "彼得前书 5:7", "book": "1PE", "chapter": 5, "verse": 7}, "acts": {"adoration": "称祂为顾念你的神。", "confession": "为把忧虑抓在自己手里认罪。", "thanksgiving": "感谢祂愿意替你承担。", "supplication": "把最重的忧虑卸给祂。"}, "prompt": "今天你最想交给神的是什么？"},
+    {"day": 2, "title": "不要忧虑", "scripture": {"ref": "腓立比书 4:6", "book": "PHP", "chapter": 4, "verse": 6}, "acts": {"adoration": "称祂为赐平安的神。", "confession": "承认担忧代替了祷告。", "thanksgiving": "凡事谢恩。", "supplication": "列出忧虑交给祂。"}, "prompt": "你的清单上有几项可以删掉？"},
+    {"day": 3, "title": "心得安息", "scripture": {"ref": "马太福音 11:29", "book": "MAT", "chapter": 11, "verse": 29}, "acts": {"adoration": "称祂为温柔的主。", "confession": "为心劳碌认罪。", "thanksgiving": "感谢祂的轭是轻省的。", "supplication": "求祂赐安息。"}, "prompt": "你多久没有真正休息？"},
+    {"day": 4, "title": "信靠供应", "scripture": {"ref": "马太福音 6:11", "book": "MAT", "chapter": 6, "verse": 11}, "acts": {"adoration": "称祂为供应者。", "confession": "为对缺乏的恐惧认罪。", "thanksgiving": "感谢今日所需。", "supplication": "求日用的饮食与信心。"}, "prompt": "什么需要让你最焦虑？"},
+    {"day": 5, "title": "在患难中盼望", "scripture": {"ref": "罗马书 5:3", "book": "ROM", "chapter": 5, "verse": 3}, "acts": {"adoration": "称祂为患难中的盼望。", "confession": "为埋怨处境认罪。", "thanksgiving": "感谢祂在难处中做工。", "supplication": "求忍耐与盼望。"}, "prompt": "当前的难处可能在塑造什么？"},
+    {"day": 6, "title": "刚强壮胆", "scripture": {"ref": "约书亚记 1:9", "book": "JOS", "chapter": 1, "verse": 9}, "acts": {"adoration": "称祂为同行的神。", "confession": "为被惧怕捆锁认罪。", "thanksgiving": "感谢祂与你同去。", "supplication": "求勇气跨出一步。"}, "prompt": "因害怕，你迟迟没做什么？"},
+    {"day": 7, "title": "一周小结", "scripture": {"ref": "诗篇 23:1", "book": "PSA", "chapter": 23, "verse": 1}, "acts": {"adoration": "称祂为牧者。", "confession": "为这一周的不信认罪。", "thanksgiving": "回顾一周的恩典。", "supplication": "求继续被祂引导。"}, "prompt": "这周神如何作你的牧者？"},
+    {"day": 8, "title": "饶恕", "scripture": {"ref": "歌罗西书 3:13", "book": "COL", "chapter": 3, "verse": 13}, "acts": {"adoration": "称颂祂先饶恕了你。", "confession": "承认心里未放下的人。", "thanksgiving": "感谢十字架的赦免。", "supplication": "求饶恕的力量。"}, "prompt": "饶恕谁对你最难？"},
+    {"day": 9, "title": "彼此相爱", "scripture": {"ref": "约翰福音 13:34", "book": "JHN", "chapter": 13, "verse": 34}, "acts": {"adoration": "称祂为爱的源头。", "confession": "为冷漠认罪。", "thanksgiving": "感谢祂先爱了你。", "supplication": "求今天向一人显明爱。"}, "prompt": "今天你可以向谁走一步？"},
+    {"day": 10, "title": "为家人", "scripture": {"ref": "约书亚记 24:15", "book": "JOS", "chapter": 24, "verse": 15}, "acts": {"adoration": "称祂为家之主。", "confession": "为家中失态认罪。", "thanksgiving": "感谢所赐家人。", "supplication": "逐一提名代求。"}, "prompt": "今天为谁特别守望？"},
+    {"day": 11, "title": "舌头", "scripture": {"ref": "诗篇 141:3", "book": "PSA", "chapter": 141, "verse": 3}, "acts": {"adoration": "称祂为鉴察者。", "confession": "为伤人的话认罪。", "thanksgiving": "感谢能说出造就话。", "supplication": "求把守你的口。"}, "prompt": "哪句话需要收回？"},
+    {"day": 12, "title": "知足", "scripture": {"ref": "腓立比书 4:11", "book": "PHP", "chapter": 4, "verse": 11}, "acts": {"adoration": "称祂为你一生的份。", "confession": "为攀比认罪。", "thanksgiving": "数算已有恩典。", "supplication": "求知足的心。"}, "prompt": "你还在追什么不能填满的？"},
+    {"day": 13, "title": "更新", "scripture": {"ref": "罗马书 12:2", "book": "ROM", "chapter": 12, "verse": 2}, "acts": {"adoration": "称祂为更新者。", "confession": "为效法世界认罪。", "thanksgiving": "感谢能心意更新。", "supplication": "求改变一个想法。"}, "prompt": "哪种观念需要被更新？"},
+    {"day": 14, "title": "两周回顾", "scripture": {"ref": "诗篇 103:2", "book": "PSA", "chapter": 103, "verse": 2}, "acts": {"adoration": "称颂祂一切恩惠。", "confession": "为忘记恩典认罪。", "thanksgiving": "回顾 14 天。", "supplication": "求继续同行。"}, "prompt": "最大的变化是什么？"},
+    {"day": 15, "title": "圣灵引导", "scripture": {"ref": "加拉太书 5:25", "book": "GAL", "chapter": 5, "verse": 25}, "acts": {"adoration": "称颂内住圣灵。", "confession": "为消灭感动认罪。", "thanksgiving": "感谢引导。", "supplication": "求顺着圣灵而行。"}, "prompt": "上次感动，你听了么？"},
+    {"day": 16, "title": "谦卑", "scripture": {"ref": "雅各书 4:6", "book": "JAS", "chapter": 4, "verse": 6}, "acts": {"adoration": "称祂赐恩给谦卑人。", "confession": "为骄傲认罪。", "thanksgiving": "感谢恩典。", "supplication": "求服事的心。"}, "prompt": "今天哪里可以选择不争？"},
+    {"day": 17, "title": "试探", "scripture": {"ref": "哥林多前书 10:13", "book": "1CO", "chapter": 10, "verse": 13}, "acts": {"adoration": "称祂为信实者。", "confession": "承认反复试探。", "thanksgiving": "感谢必开出路。", "supplication": "求今天得胜。"}, "prompt": "哪里最容易跌倒？"},
+    {"day": 18, "title": "施予", "scripture": {"ref": "使徒行传 20:35", "book": "ACT", "chapter": 20, "verse": 35}, "acts": {"adoration": "称祂为厚赐者。", "confession": "为吝啬认罪。", "thanksgiving": "施比受更有福。", "supplication": "求指一条给出去的路。"}, "prompt": "今天能给出什么？"},
+    {"day": 19, "title": "永恒眼光", "scripture": {"ref": "哥林多后书 4:18", "book": "2CO", "chapter": 4, "verse": 18}, "acts": {"adoration": "称祂掌管永恒。", "confession": "为只顾眼前认罪。", "thanksgiving": "感谢永恒产业。", "supplication": "求调整眼光。"}, "prompt": "用永恒尺度看，烦恼还重吗？"},
+    {"day": 20, "title": "交托明天", "scripture": {"ref": "马太福音 6:34", "book": "MAT", "chapter": 6, "verse": 34}, "acts": {"adoration": "称祂掌管未来。", "confession": "为又把明天抓回手里认罪。", "thanksgiving": "感谢今日够用。", "supplication": "把明天交给祂。"}, "prompt": "你愿意把明天交给祂吗？"},
+    {"day": 21, "title": "不住祷告", "scripture": {"ref": "帖撒罗尼迦前书 5:17", "book": "1TH", "chapter": 5, "verse": 17}, "acts": {"adoration": "称颂 21 天同行。", "confession": "为断续认罪。", "thanksgiving": "感谢一路看顾。", "supplication": "求祷告成为呼吸。"}, "prompt": "这 21 天，心有什么变化？"}
+  ]
+}

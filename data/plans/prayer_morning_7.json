@@ -1,0 +1,14 @@
+{
+  "plan_id": "prayer_morning_7",
+  "title": "清晨祷告 · 7 天",
+  "model": "ACTS",
+  "days": [
+    {"day": 1, "title": "来到祂面前", "scripture": {"ref": "诗篇 95:6", "book": "PSA", "chapter": 95, "verse": 6}, "acts": {"adoration": "称颂祂是创造你、也认识你的主。", "confession": "承认这些日子里你忽略了与祂安静相处。", "thanksgiving": "为今天仍有亲近祂的机会献上感谢。", "supplication": "求祂在这 7 天里教你祷告。"}, "prompt": "今天，你愿意把祷告当作关系，而不是任务吗？"},
+    {"day": 2, "title": "祂的名为圣", "scripture": {"ref": "马太福音 6:9", "book": "MAT", "chapter": 6, "verse": 9}, "acts": {"adoration": "尊祂的名为圣，高过你一切的需要。", "confession": "为口中轻率提到神的时刻认罪。", "thanksgiving": "感谢祂愿意被你称为父。", "supplication": "求祂的名在你的生活方式里被尊崇。"}, "prompt": "什么事最容易抢走神在你心里的首位？"},
+    {"day": 3, "title": "倾心吐意", "scripture": {"ref": "诗篇 62:8", "book": "PSA", "chapter": 62, "verse": 8}, "acts": {"adoration": "称祂为随时可投靠的避难所。", "confession": "承认你常把心事憋着，不带到祂面前。", "thanksgiving": "感谢祂愿意听你最真实的声音。", "supplication": "把此刻最重的一件事向祂倾倒。"}, "prompt": "有没有一件事，你一直没敢对神说？"},
+    {"day": 4, "title": "认罪与洁净", "scripture": {"ref": "诗篇 51:10", "book": "PSA", "chapter": 51, "verse": 10}, "acts": {"adoration": "称颂祂是赦免与更新的神。", "confession": "具体而诚实地承认一项你知道的罪。", "thanksgiving": "感谢宝血的洁净大过你的过犯。", "supplication": "求祂造清洁的心、重新坚定的灵。"}, "prompt": "认罪不是自责，而是回家。你愿意回家吗？"},
+    {"day": 5, "title": "数算恩典", "scripture": {"ref": "诗篇 103:2", "book": "PSA", "chapter": 103, "verse": 2}, "acts": {"adoration": "称颂祂的慈爱长阔高深。", "confession": "为常常忘记祂的恩惠认罪。", "thanksgiving": "数出今天三件可感恩的小事。", "supplication": "求祂让感恩成为你的习惯。"}, "prompt": "今天最不起眼、却最该感恩的是什么？"},
+    {"day": 6, "title": "依靠而非倚靠自己", "scripture": {"ref": "箴言 3:5", "book": "PRO", "chapter": 3, "verse": 5}, "acts": {"adoration": "称祂为全知全善的引导者。", "confession": "承认你常凭自己的聪明做决定。", "thanksgiving": "感谢祂从不撇下不顾。", "supplication": "把一个正在纠结的决定交托给祂。"}, "prompt": "哪件事你还紧抓在手里不肯交出？"},
+    {"day": 7, "title": "安息", "scripture": {"ref": "马太福音 11:28", "book": "MAT", "chapter": 11, "verse": 28}, "acts": {"adoration": "称祂为劳苦者的安息。", "confession": "为用忙碌填满灵魂的空洞认罪。", "thanksgiving": "感谢祂邀请疲乏的你来到祂面前。", "supplication": "求祂卸下你扛得太久的重担。"}, "prompt": "你已经累了多久，却假装还撑得住？"}
+  ]
+}

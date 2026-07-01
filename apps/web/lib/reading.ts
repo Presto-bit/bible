@@ -1,0 +1,372 @@
+// H5 阅读日志（本地优先，localStorage）。与 App reading_log（minutes/chapters）对齐：
+// 按日期聚合，供「读经回顾」报告页计算本月磁贴 / 近 6 月趋势 / 累计。
+
+export interface DayLog {
+  minutes: number;
+  chapters: number;
+}
+
+const KEY = 'presto_reading_log';
+const CHAPTER_MINUTES = 3; // 每章估算阅读时长（H5 无精确计时，估算保持趋势）
+
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+    d.getDate(),
+  ).padStart(2, '0')}`;
+}
+
+function read(): Record<string, DayLog> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(KEY) || '{}') as Record<string, DayLog>;
+  } catch {
+    return {};
+  }
+}
+
+function write(logs: Record<string, DayLog>) {
+  localStorage.setItem(KEY, JSON.stringify(logs));
+}
+
+// 上次阅读位置（进入圣经默认续读）。
+const LAST_KEY = 'presto_last_read';
+
+export interface LastRead {
+  bookId: string;
+  chapter: number;
+}
+
+const LAST_VERSE_KEY = 'presto_last_verse';
+
+export function setLastReadVerse(verse: number) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LAST_VERSE_KEY, String(verse));
+}
+
+export function getLastReadVerse(): number | null {
+  if (typeof window === 'undefined') return null;
+  const v = Number(localStorage.getItem(LAST_VERSE_KEY));
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+export function setLastRead(bookId: string, chapter: number) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LAST_KEY, JSON.stringify({ bookId, chapter }));
+}
+
+export function getLastRead(): LastRead | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(LAST_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw);
+    if (v && typeof v.bookId === 'string' && typeof v.chapter === 'number') return v;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// 阅读一章：当日 chapters +1、minutes + 估算。
+export function logChapterRead() {
+  if (typeof window === 'undefined') return;
+  const logs = read();
+  const k = ymd(new Date());
+  const cur = logs[k] || { minutes: 0, chapters: 0 };
+  logs[k] = {
+    minutes: cur.minutes + CHAPTER_MINUTES,
+    chapters: cur.chapters + 1,
+  };
+  write(logs);
+}
+
+// ── 章节级阅读明细（供日历回顾「常读卷/章」与读经进度） ──
+const EVENTS_KEY = 'presto_read_events';
+
+export interface ReadEvent {
+  ts: number; // 毫秒时间戳
+  book: string; // 卷 id（如 JHN）
+  chapter: number;
+}
+
+function readEvents(): ReadEvent[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+// 记录一次具体章节阅读（去抖：同卷章 30 分钟内只记一次，避免来回翻页刷量）。
+export function logChapterDetail(book: string, chapter: number) {
+  if (typeof window === 'undefined') return;
+  const events = readEvents();
+  const now = Date.now();
+  const recent = events.find(
+    (e) => e.book === book && e.chapter === chapter && now - e.ts < 30 * 60 * 1000,
+  );
+  if (recent) return;
+  events.push({ ts: now, book, chapter });
+  // 仅保留最近 2000 条，控制体积。
+  const trimmed = events.slice(-2000);
+  localStorage.setItem(EVENTS_KEY, JSON.stringify(trimmed));
+}
+
+/** 若该卷刚读完一遍，触发知识挑战弱推送（仅首次）。 */
+export function maybeNotifyBookComplete(
+  bookId: string,
+  bookName: string,
+  chapterCount: number,
+) {
+  if (typeof window === 'undefined' || chapterCount <= 0) return;
+  const prog = bookProgressMap({ [bookId]: chapterCount })[bookId];
+  if (prog && prog.passes >= 1) {
+    import('./challenge_progress').then(({ setPendingBookChallenge }) => {
+      setPendingBookChallenge(bookId, bookName);
+    });
+  }
+}
+
+// ── 金句（常读经节）记录：阅读时选中/聚焦某节即记一次 ──
+const VERSE_EVENTS_KEY = 'presto_verse_events';
+
+export interface VerseEvent {
+  ts: number;
+  ref: string; // 形如 JHN.3.16
+}
+
+function readVerseEvents(): VerseEvent[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(VERSE_EVENTS_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+export function logVerseRead(ref: string) {
+  if (typeof window === 'undefined' || !ref) return;
+  const events = readVerseEvents();
+  const now = Date.now();
+  const recent = events.find((e) => e.ref === ref && now - e.ts < 10 * 1000);
+  if (recent) return;
+  events.push({ ts: now, ref });
+  localStorage.setItem(VERSE_EVENTS_KEY, JSON.stringify(events.slice(-3000)));
+}
+
+// 某卷最近一次阅读到的章（供「读经进度」点击跳到最新进度，而非开头）。
+export function lastChapterOf(book: string): number | null {
+  let best: ReadEvent | null = null;
+  for (const e of readEvents()) {
+    if (e.book !== book) continue;
+    if (!best || e.ts > best.ts) best = e;
+  }
+  return best ? best.chapter : null;
+}
+
+export interface RankItem {
+  key: string;
+  count: number;
+}
+
+// 日期范围 [startMs, endMs) 内的统计：分钟、常读卷/章/金句。
+export interface RangeStats {
+  minutes: number;
+  chapters: number;
+  days: number;
+  topBooks: RankItem[]; // key = book id
+  topChapters: RankItem[]; // key = book.chapter
+  topVerses: RankItem[]; // key = ref
+}
+
+export function rangeStats(startMs: number, endMs: number): RangeStats {
+  const logs = read();
+  let minutes = 0;
+  let chapters = 0;
+  let days = 0;
+  for (const [date, log] of Object.entries(logs)) {
+    const t = new Date(`${date}T00:00:00`).getTime();
+    if (t >= startMs && t < endMs) {
+      minutes += log.minutes;
+      chapters += log.chapters;
+      if (log.minutes > 0 || log.chapters > 0) days += 1;
+    }
+  }
+  const bookCount: Record<string, number> = {};
+  const chapCount: Record<string, number> = {};
+  for (const e of readEvents()) {
+    if (e.ts >= startMs && e.ts < endMs) {
+      bookCount[e.book] = (bookCount[e.book] || 0) + 1;
+      const ck = `${e.book}.${e.chapter}`;
+      chapCount[ck] = (chapCount[ck] || 0) + 1;
+    }
+  }
+  const verseCount: Record<string, number> = {};
+  for (const e of readVerseEvents()) {
+    if (e.ts >= startMs && e.ts < endMs) {
+      verseCount[e.ref] = (verseCount[e.ref] || 0) + 1;
+    }
+  }
+  const rank = (m: Record<string, number>, n: number): RankItem[] =>
+    Object.entries(m)
+      .map(([key, count]) => ({ key, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, n);
+  return {
+    minutes,
+    chapters,
+    days,
+    topBooks: rank(bookCount, 5),
+    topChapters: rank(chapCount, 5),
+    topVerses: rank(verseCount, 3),
+  };
+}
+
+// 今日阅读分钟数（供「阅读时长」卡片）。
+export function todayMinutes(): number {
+  const logs = read();
+  return logs[ymd(new Date())]?.minutes || 0;
+}
+
+// 每日分钟映射（供日历热力）。
+export function dailyMinutes(): Record<string, number> {
+  const logs = read();
+  const out: Record<string, number> = {};
+  for (const [date, log] of Object.entries(logs)) out[date] = log.minutes;
+  return out;
+}
+
+// 读经进度：每卷已读「遍数 + 余下百分比」。totalChapters 由调用方传入（books 接口）。
+export interface BookProgress {
+  passes: number; // 完整读完遍数
+  remainderPct: number; // 当前这一遍的百分比（0–99）
+  distinctChapters: number; // 不同章数（本年度/全部）
+}
+
+export function bookProgressMap(
+  totals: Record<string, number>,
+  startMs?: number,
+  endMs?: number,
+): Record<string, BookProgress> {
+  const reads: Record<string, number> = {};
+  for (const e of readEvents()) {
+    if (startMs != null && (e.ts < startMs || e.ts >= endMs!)) continue;
+    reads[e.book] = (reads[e.book] || 0) + 1;
+  }
+  const distinct: Record<string, Set<number>> = {};
+  for (const e of readEvents()) {
+    if (startMs != null && (e.ts < startMs || e.ts >= endMs!)) continue;
+    (distinct[e.book] ||= new Set()).add(e.chapter);
+  }
+  const out: Record<string, BookProgress> = {};
+  for (const [book, total] of Object.entries(totals)) {
+    const r = reads[book] || 0;
+    if (r === 0 || total <= 0) {
+      out[book] = { passes: 0, remainderPct: 0, distinctChapters: 0 };
+      continue;
+    }
+    const passes = Math.floor(r / total);
+    const remainderPct = Math.round(((r % total) / total) * 100);
+    out[book] = {
+      passes,
+      remainderPct,
+      distinctChapters: distinct[book]?.size || 0,
+    };
+  }
+  return out;
+}
+
+const PRAYER_KEY = 'presto_prayer_log';
+
+function readPrayer(): Record<string, number> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(PRAYER_KEY) || '{}') as Record<string, number>;
+  } catch {
+    return {};
+  }
+}
+
+// 祷告打卡：当日计数 +1。供报告统计「本月祷告次数」。
+export function logPrayer() {
+  if (typeof window === 'undefined') return;
+  const logs = readPrayer();
+  const k = ymd(new Date());
+  logs[k] = (logs[k] || 0) + 1;
+  localStorage.setItem(PRAYER_KEY, JSON.stringify(logs));
+}
+
+export function prayedToday(): boolean {
+  return (readPrayer()[ymd(new Date())] || 0) > 0;
+}
+
+function monthPrayerCount(): number {
+  const now = new Date();
+  const cur = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  let n = 0;
+  for (const [date, c] of Object.entries(readPrayer())) {
+    if (date.startsWith(cur)) n += c;
+  }
+  return n;
+}
+
+export interface ReadingReport {
+  monthMinutes: number;
+  monthDays: number;
+  monthChapters: number;
+  monthPrayers: number;
+  totalMinutes: number;
+  totalChapters: number;
+  monthly: { label: string; minutes: number; chapters: number }[];
+}
+
+export function buildReport(): ReadingReport {
+  const logs = read();
+  const now = new Date();
+  const curMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  let monthMinutes = 0;
+  let monthChapters = 0;
+  let monthDays = 0;
+  let totalMinutes = 0;
+  let totalChapters = 0;
+
+  for (const [date, log] of Object.entries(logs)) {
+    totalMinutes += log.minutes;
+    totalChapters += log.chapters;
+    if (date.startsWith(curMonth)) {
+      monthMinutes += log.minutes;
+      monthChapters += log.chapters;
+      if (log.minutes > 0 || log.chapters > 0) monthDays += 1;
+    }
+  }
+
+  // 近 6 个月趋势
+  const monthly: { label: string; minutes: number; chapters: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    let minutes = 0;
+    let chapters = 0;
+    for (const [date, log] of Object.entries(logs)) {
+      if (date.startsWith(key)) {
+        minutes += log.minutes;
+        chapters += log.chapters;
+      }
+    }
+    monthly.push({ label: `${d.getMonth() + 1}月`, minutes, chapters });
+  }
+
+  return {
+    monthMinutes,
+    monthDays,
+    monthChapters,
+    monthPrayers: monthPrayerCount(),
+    totalMinutes,
+    totalChapters,
+    monthly,
+  };
+}

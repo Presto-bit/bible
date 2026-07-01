@@ -1,0 +1,8 @@
+plan_id,day,book,book_name,chapter_start,chapter_end,title
+gospels_7,1,MAT,马太福音,5,7,登山宝训
+gospels_7,2,MRK,马可福音,1,1,马可福音 1
+gospels_7,3,LUK,路加福音,2,2,路加福音 2
+gospels_7,4,JHN,约翰福音,1,1,约翰福音 1
+gospels_7,5,MAT,马太福音,28,28,复活
+gospels_7,6,LUK,路加福音,15,15,失丧的比喻
+gospels_7,7,JHN,约翰福音,14,14,我是道路

@@ -1,0 +1,21 @@
+{
+  "plan_id": "prayer_psalms_14",
+  "title": "诗篇祷告 · 14 天",
+  "model": "ACTS",
+  "days": [
+    {"day": 1, "title": "遵行祂道", "scripture": {"ref": "诗篇 1:1", "book": "PSA", "chapter": 1, "verse": 1}, "acts": {"adoration": "称颂祂是赐福的源头。", "confession": "为随从世俗道路认罪。", "thanksgiving": "感谢话语如树旁河水滋养你。", "supplication": "求祂让你喜爱祂的律法。"}, "prompt": "今天你愿意在哪一处选择上顺服祂？"},
+    {"day": 2, "title": "投靠子", "scripture": {"ref": "诗篇 2:12", "book": "PSA", "chapter": 2, "verse": 12}, "acts": {"adoration": "称颂祂是掌权的王。", "confession": "承认有时你仍想自己作主。", "thanksgiving": "感谢在祂里面得庇护。", "supplication": "求祂保守你存敬畏的心。"}, "prompt": "哪件事让你最难交托主权？"},
+    {"day": 3, "title": "蒙恩安眠", "scripture": {"ref": "诗篇 3:5", "book": "PSA", "chapter": 3, "verse": 5}, "acts": {"adoration": "称祂为持守你的神。", "confession": "为因焦虑失眠认罪。", "thanksgiving": "感谢祂赐安息。", "supplication": "把今夜的心事交给祂。"}, "prompt": "什么念头最常搅扰你的睡眠？"},
+    {"day": 4, "title": "求告", "scripture": {"ref": "诗篇 4:3", "book": "PSA", "chapter": 4, "verse": 3}, "acts": {"adoration": "称祂为听祷告的神。", "confession": "为很少向祂呼求认罪。", "thanksgiving": "感谢祂侧耳。", "supplication": "诚实说出此刻的需要。"}, "prompt": "你最久没有带到神面前的需要是什么？"},
+    {"day": 5, "title": "清晨转向", "scripture": {"ref": "诗篇 5:3", "book": "PSA", "chapter": 5, "verse": 3}, "acts": {"adoration": "称颂清晨的同在。", "confession": "为匆忙开始一天认罪。", "thanksgiving": "感谢新的一天从祂开始。", "supplication": "求祂引导今天的脚步。"}, "prompt": "今天第一件事，能否先转向祂？"},
+    {"day": 6, "title": "义人呼求", "scripture": {"ref": "诗篇 6:9", "book": "PSA", "chapter": 6, "verse": 9}, "acts": {"adoration": "称祂为听哀求的主。", "confession": "为隐藏眼泪认罪。", "thanksgiving": "感谢祂不轻看眼泪。", "supplication": "把伤心事带到祂面前。"}, "prompt": "有什么伤，你还没对神说过？"},
+    {"day": 7, "title": "避难所", "scripture": {"ref": "诗篇 7:1", "book": "PSA", "chapter": 7, "verse": 1}, "acts": {"adoration": "称祂为避难所。", "confession": "承认你曾靠别的保护。", "thanksgiving": "感谢祂是真实保障。", "supplication": "求祂在你惧怕时作盾。"}, "prompt": "此刻你最需要躲藏在哪里？"},
+    {"day": 8, "title": "荣耀归神", "scripture": {"ref": "诗篇 8:1", "book": "PSA", "chapter": 8, "verse": 1}, "acts": {"adoration": "称颂全地充满祂的荣耀。", "confession": "为窃取荣耀认罪。", "thanksgiving": "感谢祂记念人。", "supplication": "求祂让你生活归荣耀于祂。"}, "prompt": "今天哪件事可以只为祂荣耀？"},
+    {"day": 9, "title": "公义审判", "scripture": {"ref": "诗篇 9:9", "book": "PSA", "chapter": 9, "verse": 9}, "acts": {"adoration": "称祂为受欺压者的高台。", "confession": "为对不公义冷漠认罪。", "thanksgiving": "感谢祂必伸冤。", "supplication": "为世上受苦的人代求。"}, "prompt": "谁的需要，今天你可以代祷？"},
+    {"day": 10, "title": "不忘记", "scripture": {"ref": "诗篇 10:17", "book": "PSA", "chapter": 10, "verse": 17}, "acts": {"adoration": "称祂为听谦卑人。", "confession": "为觉得被忽视时的苦毒认罪。", "thanksgiving": "感谢祂看见你。", "supplication": "求祂安慰谦卑的心。"}, "prompt": "你是否感到被忽视？交给祂。"},
+    {"day": 11, "title": "仍看顾", "scripture": {"ref": "诗篇 11:4", "book": "PSA", "chapter": 11, "verse": 4}, "acts": {"adoration": "称颂祂在天上垂看。", "confession": "为以为神不管认罪。", "thanksgiving": "感谢祂的眼目看顾。", "supplication": "求信心在混乱中站稳。"}, "prompt": "什么新闻或消息让你最难信靠？"},
+    {"day": 12, "title": "纯净言语", "scripture": {"ref": "诗篇 12:6", "book": "PSA", "chapter": 12, "verse": 6}, "acts": {"adoration": "称祂的言语纯净。", "confession": "为言语不洁净认罪。", "thanksgiving": "感谢话语真实可靠。", "supplication": "求祂保守你的口。"}, "prompt": "今天哪句话需要收回或修正？"},
+    {"day": 13, "title": "仍与我同在", "scripture": {"ref": "诗篇 13:5", "book": "PSA", "chapter": 13, "verse": 5}, "acts": {"adoration": "称祂为救恩的源头。", "confession": "为怀疑祂同在认罪。", "thanksgiving": "感谢祂的慈爱不改变。", "supplication": "在等候中重新倚靠。"}, "prompt": "你在等候什么答案？"},
+    {"day": 14, "title": "寻求面容", "scripture": {"ref": "诗篇 14:2", "book": "PSA", "chapter": 14, "verse": 2}, "acts": {"adoration": "称颂祂寻找寻求祂的人。", "confession": "为冷淡的心认罪。", "thanksgiving": "感谢 14 天同行的恩典。", "supplication": "求祷告成为习惯。"}, "prompt": "这 14 天，你最大的收获是什么？"}
+  ]
+}

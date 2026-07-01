@@ -1,0 +1,16 @@
+plan_id,day,book,book_name,chapter_start,chapter_end,title
+wisdom_15,1,PRO,箴言,1,3,箴言 1-3
+wisdom_15,2,PRO,箴言,4,6,箴言 4-6
+wisdom_15,3,PRO,箴言,7,9,箴言 7-9
+wisdom_15,4,PRO,箴言,10,12,箴言 10-12
+wisdom_15,5,PRO,箴言,31,31,箴言 31
+wisdom_15,6,ECC,传道书,1,3,传道书 1-3
+wisdom_15,7,ECC,传道书,4,6,传道书 4-6
+wisdom_15,8,ECC,传道书,7,9,传道书 7-9
+wisdom_15,9,ECC,传道书,10,12,传道书 10-12
+wisdom_15,10,SNG,雅歌,1,3,雅歌 1-3
+wisdom_15,11,SNG,雅歌,4,6,雅歌 4-6
+wisdom_15,12,SNG,雅歌,7,8,雅歌 7-8
+wisdom_15,13,JOB,约伯记,1,3,约伯记 1-3
+wisdom_15,14,JOB,约伯记,38,40,约伯记 38-40
+wisdom_15,15,JOB,约伯记,41,42,约伯记 41-42
