@@ -23,7 +23,7 @@ if grep -qE '^DB_NAME=' "$ENV_FILE" 2>/dev/null; then
   DB_NAME="$(grep -E '^DB_NAME=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ' \"\047')"
 fi
 
-compose=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE)
+compose=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
 if ! "${compose[@]}" ps -q --status running postgres &>/dev/null; then
   die "postgres 容器未运行，请先 docker compose up -d postgres"
