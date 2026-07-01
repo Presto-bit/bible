@@ -28,6 +28,21 @@ docker compose version >/dev/null 2>&1 || die "未找到 docker compose v2"
 command -v curl >/dev/null 2>&1 || die "未找到 curl"
 
 [[ -d "$APP_DIR" ]] || die "项目目录不存在: $APP_DIR"
+
+# root 操作 presto 属主的仓库会触发 git「dubious ownership」；自动切到目录属主
+if [[ "${EUID:-0}" -eq 0 && "${RELEASE_AS_ROOT:-0}" != "1" ]]; then
+  repo_owner="$(stat -c '%U' "$APP_DIR" 2>/dev/null || true)"
+  if [[ -n "$repo_owner" && "$repo_owner" != "root" ]] && id -u "$repo_owner" &>/dev/null; then
+    release_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+    log "检测到 root 运行但 $APP_DIR 属主为 $repo_owner，切换用户后继续（请改用 presto 登录发版）"
+    exec sudo -u "$repo_owner" -H \
+      APP_DIR="$APP_DIR" REMOTE="$REMOTE" BRANCH="$BRANCH" \
+      GIT_PULL="$GIT_PULL" COMPOSE_BUILD_PULL="${COMPOSE_BUILD_PULL:-1}" \
+      NEXT_PUBLIC_APP_VERSION="${NEXT_PUBLIC_APP_VERSION:-}" \
+      bash "$release_script"
+  fi
+fi
+
 cd "$APP_DIR" || die "无法进入: $APP_DIR"
 [[ -f "$COMPOSE_FILE" ]] || die "缺少 $COMPOSE_FILE"
 [[ -f "$ENV_FILE" ]] || die "缺少 $ENV_FILE（从 .env.production.example 复制）"
@@ -89,6 +104,14 @@ done
 if [[ "$web_ok" -ne 1 ]]; then
   "${compose[@]}" logs --tail 80 web >&2 || true
   die "Web 健康检查失败"
+fi
+
+log "健康检查 Web 静态资源（CSS）"
+css_path="$(curl -fsS --connect-timeout 3 --max-time 15 "http://127.0.0.1:${WEB_HOST_PORT}/" \
+  | grep -oE '/_next/static/css/[^" ]+\.css' | head -1 || true)"
+if [[ -z "$css_path" ]] || ! curl -fsS --connect-timeout 3 --max-time 15 -o /dev/null \
+  "http://127.0.0.1:${WEB_HOST_PORT}${css_path}" 2>/dev/null; then
+  die "Web 静态资源不可访问（CSS 404）。请执行: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE build --no-cache web && ... up -d web"
 fi
 
 for svc in postgres api web; do

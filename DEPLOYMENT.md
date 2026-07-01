@@ -85,7 +85,7 @@ curl -sI https://2sc.prestoai.cn/ | head -5
 
 ## 四、后续发版
 
-**本地 push + 服务器 pull：**
+**本地 push + 服务器 pull（请用 `presto` 用户，勿用 root）：**
 
 ```bash
 # 本地
@@ -137,5 +137,7 @@ DEPLOY_APP_DIR=/opt/bible
 | `port is already allocated` | `ss -tlnp \| grep 3002` 查占用；改 `WEB_HOST_PORT` 并同步 Nginx `proxy_pass` |
 | API 404 | Nginx 是否加载 `nginx-2sc.prestoai.cn.conf` |
 | git pull 失败 | `git status`，勿在生产机改代码 |
+| 页面无样式 / 一直「加载中」 | 静态资源 404：`curl -I http://127.0.0.1:3002/_next/static/css/`；容器内 `docker exec bible-web ls .next/static/css/`；无文件则 `build --no-cache web` 后重启 |
+| `dubious ownership` | 勿用 root 发版；`ssh presto@...` 后 `bash release.sh`，或 `sudo -u presto -H bash -c 'cd /opt/bible && bash release.sh'` |
 
 旧版 `www.prestoai.cn/2sc` 路径已弃用；H5 现部署在独立子域根路径。

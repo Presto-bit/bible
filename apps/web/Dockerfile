@@ -31,6 +31,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# standalone 镜像必须包含 .next/static，否则页面无样式
+RUN test -n "$(ls -1 .next/static/css/*.css 2>/dev/null | head -1)"
+
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]
