@@ -85,6 +85,11 @@ export default function HomePageClient() {
   useEffect(() => {
     loadDailyVerse();
   }, [loadDailyVerse]);
+
+  useEffect(() => {
+    const img = new Image();
+    img.src = VERSE_BG;
+  }, []);
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [shareCount, setShareCount] = useState(0);
@@ -162,6 +167,18 @@ export default function HomePageClient() {
     setPage(Math.max(0, Math.min(rail.length - 1, i)));
   };
 
+  const openVerseFull = () => {
+    const img = new Image();
+    img.src = VERSE_BG;
+    const show = () => setVerseFull(true);
+    if (img.complete) {
+      show();
+    } else {
+      img.onload = show;
+      img.onerror = show;
+    }
+  };
+
   return (
     <main className="container">
       <header className="greet">
@@ -208,7 +225,8 @@ export default function HomePageClient() {
         className="card card-3 card-tint hero-verse"
         role="button"
         tabIndex={0}
-        onClick={() => setVerseFull(true)}
+        onClick={openVerseFull}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openVerseFull(); }}
       >
         <div className="hero-scene" aria-hidden />
         <div className="hero-inner">
@@ -345,9 +363,9 @@ export default function HomePageClient() {
       {verseFull && (
         <div
           className="verse-full"
-          style={{ backgroundImage: `url(${VERSE_BG})` }}
           onClick={() => setVerseFull(false)}
         >
+          <img src={VERSE_BG} alt="" className="verse-full-bg" decoding="sync" fetchPriority="high" />
           <div className="verse-full-scrim" />
           <div className="verse-full-glow" aria-hidden />
           <button type="button" className="verse-full-close" aria-label="关闭" onClick={() => setVerseFull(false)}>

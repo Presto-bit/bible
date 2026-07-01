@@ -588,7 +588,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${hasSel ? 'reader-focus-on' : ''} ${poetry ? 'reader-poetry' : 'reader-prose'}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}`}
       onClick={() => {
         // 忽略长按/双击后的余波点击，避免立即取消选中。
         if (Date.now() - lastSelectAt.current < 500) return;
@@ -727,7 +727,7 @@ export default function ReaderView({
                           <span
                             key={v.verse}
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)}`}
+                            className={`verse-inline verse-token ${highlightClass(mark)}`}
                           >
                             {verseNo !== 'hidden' && (
                               <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -776,7 +776,7 @@ export default function ReaderView({
                     <span
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)}`}
+                      className={`verse-inline verse-token ${highlightClass(mark)}`}
                     >
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
