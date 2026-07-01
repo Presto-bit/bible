@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import PwaRegister from '@/components/PwaRegister';
+import StaleShellGuard from '@/components/StaleShellGuard';
 import InstallBanner from '@/components/InstallBanner';
 import BottomTabs from '@/components/BottomTabs';
 
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body>
         <div className="app-body">{children}</div>
         <BottomTabs />
+        <StaleShellGuard />
         <PwaRegister />
         <InstallBanner />
       </body>

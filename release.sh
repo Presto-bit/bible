@@ -151,10 +151,14 @@ fi
 
 if [[ -n "$pub_url" ]]; then
   pub_home="$(curl -fsS --connect-timeout 5 --max-time 20 "${pub_url%/}/" 2>/dev/null || true)"
+  pub_home_bust="$(curl -fsS --connect-timeout 5 --max-time 20 "${pub_url%/}/?_nc=$(date +%s)" 2>/dev/null || true)"
   if [[ -n "$pub_home" ]]; then
     if echo "$pub_home" | grep -q '3,842'; then
-      log "⚠️  公网首页仍是旧版（含 3,842），本机已更新 → Nginx/宝塔缓存了 /"
-      log "   处理：宝塔 → 网站 → 清缓存；或按 DEPLOYMENT.md §首页缓存 更新 location = / 后 nginx -s reload"
+      log "⚠️  公网 / 仍是旧版（含 3,842）"
+      if [[ -n "$pub_home_bust" ]] && ! echo "$pub_home_bust" | grep -q '3,842'; then
+        log "   但 /?_nc=… 已是新版 → 宝塔/Nginx 仅缓存了精确路径 /"
+        log "   处理：① 宝塔关闭全站缓存 ② 加入 location = /（见 deploy/nginx-baota-2sc.full-server.conf）③ nginx -s reload"
+      fi
     elif ! echo "$pub_home" | grep -q '每日问答'; then
       log "⚠️  公网首页未含「每日问答」，请检查宝塔反代是否指向 ${WEB_HOST_PORT}"
     else

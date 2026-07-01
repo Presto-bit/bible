@@ -20,6 +20,7 @@ import { bookProgressMap } from '@/lib/reading';
 import { computeAllBadges } from '@/lib/badges';
 import { readingStreak } from '@/lib/gamification';
 import { buildReport } from '@/lib/reading';
+import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
@@ -64,6 +65,7 @@ export default function ProfilePage() {
   const [badges, setBadges] = useState<ReturnType<typeof computeAllBadges>>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [clearCacheBusy, setClearCacheBusy] = useState(false);
 
   useEffect(() => {
     setUid(currentUserId());
@@ -229,6 +231,21 @@ export default function ProfilePage() {
       setTimeout(() => setIdCopied(false), 1600);
     } catch {
       // ignore
+    }
+  };
+
+  const handleClearCache = async () => {
+    if (clearCacheBusy) return;
+    const ok = window.confirm(
+      '将清除页面与离线缓存并刷新应用，不会删除你的读经记录、笔记与账号登录状态。',
+    );
+    if (!ok) return;
+    setClearCacheBusy(true);
+    try {
+      await clearAppCacheAndReload();
+    } catch {
+      setClearCacheBusy(false);
+      alert('清除失败，请尝试在浏览器设置中清除站点数据后重开');
     }
   };
 
@@ -471,20 +488,28 @@ export default function ProfilePage() {
               <p className="muted" style={{ fontSize: 12 }}>当前 ID：{idValue || '—'}（免注册即用）</p>
               <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                 <button type="button" className="font-pill" onClick={changePassword}>修改密码</button>
-                {uid ? (
-                  <button
-                    type="button"
-                    className="font-pill"
-                    onClick={() => {
-                      logout();
-                      setUid(null);
-                      setSettingsOpen(false);
-                    }}
-                  >
-                    退出登录
-                  </button>
-                ) : null}
               </div>
+              <button
+                type="button"
+                className="clear-cache-btn"
+                onClick={handleClearCache}
+                disabled={clearCacheBusy}
+              >
+                {clearCacheBusy ? '清除中…' : '清除缓存'}
+              </button>
+              {uid ? (
+                <button
+                  type="button"
+                  className="logout-btn settings-logout-btn"
+                  onClick={() => {
+                    logout();
+                    setUid(null);
+                    setSettingsOpen(false);
+                  }}
+                >
+                  退出登录
+                </button>
+              ) : null}
             </div>
           </div>
         </div>

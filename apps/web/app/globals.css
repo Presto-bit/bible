@@ -1828,6 +1828,27 @@ body.reader-immersive .tabbar {
   cursor: pointer;
 }
 
+.clear-cache-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.clear-cache-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.settings-logout-btn {
+  margin-top: 10px;
+}
+
 /* 阅读器：段落间分段标题 */
 .section-title {
   font-size: 14.5px;

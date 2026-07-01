@@ -193,18 +193,12 @@ DEPLOY_APP_DIR=/opt/bible
 **立即处理（任选）**：
 
 1. 宝塔 → **网站** → `2sc.prestoai.cn` → **缓存** → **清除全站缓存**
-2. SSH 更新 Nginx，在 `server { listen 443 ... }` 内、`location /` **之前**加入（见 `deploy/nginx-baota-2sc.snippet.conf`）：
-   ```nginx
-   location = / {
-       proxy_pass http://127.0.0.1:3002;
-       proxy_no_cache 1;
-       proxy_cache_bypass 1;
-       add_header Cache-Control "no-cache, no-store, must-revalidate" always;
-       # ... 其余 proxy_set_header 同 location /
-   }
-   ```
+2. 宝塔 → **网站** → **性能优化** → 关闭 **静态缓存 / 全站加速**（否则只改 `location /` 无效）
+3. SSH 更新 Nginx：注释 `root`/`index`、加入 `location = /`（完整示例见 `deploy/nginx-baota-2sc.full-server.conf`），并**注释** `include extension/*.conf` 若其中有 proxy_cache
    然后 `nginx -t && nginx -s reload`
-3. 用户端 **Ctrl+Shift+R** 强刷，或清除站点数据后重开
+4. 用户端 **Ctrl+Shift+R** 强刷，或清除站点数据 / 卸载 PWA 后重装（旧 Service Worker 也会 cache-first 首页）
+
+**典型症状**：`https://2sc.prestoai.cn/` 是旧版（`知识闯关`），`https://2sc.prestoai.cn/?v=1` 是新版（`每日问答`）——说明仅精确路径 `/` 被缓存，知识问答 H5 其实已部署，只是首页入口未更新。
 
 **验证**：
 
