@@ -13,13 +13,9 @@ import {
 } from '@/lib/api';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import ReadingProgress from '@/components/ReadingProgress';
-import BadgeGallery from '@/components/BadgeGallery';
 import { todayMinutes } from '@/lib/reading';
 import { api } from '@/lib/api';
-import { bookProgressMap } from '@/lib/reading';
-import { computeAllBadges } from '@/lib/badges';
 import { readingStreak } from '@/lib/gamification';
-import { buildReport } from '@/lib/reading';
 import { favoriteReviewCards } from '@/lib/favorite_review';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { syncNow } from '@/lib/sync';
@@ -27,19 +23,8 @@ import { syncNow } from '@/lib/sync';
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
-const THEME_KEY = 'app_theme';
 const PWD_KEY = 'account_pwd';
 
-const FONTS: { label: string; px: number }[] = [
-  { label: '中', px: 17 },
-  { label: '大', px: 20 },
-  { label: '特大', px: 24 },
-];
-const THEMES: { id: string; label: string }[] = [
-  { id: 'system', label: '跟随系统' },
-  { id: 'light', label: '浅色' },
-  { id: 'dark', label: '深色' },
-];
 const BIBLICAL_NAMES = ['以勒', '以诺', '提阿非罗', '路加', '亚居拉', '百基拉', '司提反', '巴拿巴', '马利亚', '约拿单'];
 
 export default function ProfilePage() {
@@ -56,19 +41,15 @@ export default function ProfilePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
-  const [fontPx, setFontPx] = useState(17);
-  const [theme, setTheme] = useState('system');
   // 首次引导：设置名称 + 密码
   const [onboardOpen, setOnboardOpen] = useState(false);
   const [obName, setObName] = useState('');
   const [obPwd, setObPwd] = useState('');
   const [obErr, setObErr] = useState<string | null>(null);
   const [obBusy, setObBusy] = useState(false);
-  const [badges, setBadges] = useState<ReturnType<typeof computeAllBadges>>([]);
-  const [badgeOpen, setBadgeOpen] = useState(false);
-  const [streak, setStreak] = useState(0);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     setReviewCards(favoriteReviewCards(3));
@@ -88,59 +69,12 @@ export default function ProfilePage() {
     setAvatarId(saved || defaultAvatarId(currentUserId() || guestId() || undefined));
     setName(localStorage.getItem(NAME_KEY) || '');
     setBio(localStorage.getItem(BIO_KEY) || '');
-    setFontPx(Number(localStorage.getItem('readerFont')) || 17);
-    setTheme(localStorage.getItem(THEME_KEY) || 'system');
     setMins(todayMinutes());
     setStreak(readingStreak());
     if (!isOnboarded()) {
       setObName(localStorage.getItem(NAME_KEY) || '');
       setOnboardOpen(true);
     }
-    api.books().then(async (d) => {
-      const { highlightCount } = await import('@/lib/reader_highlights');
-      const totals: Record<string, number> = {};
-      for (const b of d.books) totals[b.id] = b.chapter_count;
-      const prog = bookProgressMap(totals);
-      const readBooks = Object.values(prog).filter(
-        (p) => p.distinctChapters > 0 || p.passes >= 1,
-      ).length;
-      let noteCount = 0;
-      try {
-        noteCount = JSON.parse(localStorage.getItem('presto_notes') || '[]').length;
-      } catch { /* ignore */ }
-      const report = buildReport();
-      setBadges(
-        computeAllBadges({
-          streak: readingStreak(),
-          readBooks,
-          totalBooks: d.books.length,
-          noteCount,
-          monthDays: report.monthDays,
-          totalMinutes: report.totalMinutes,
-          totalChapters: report.totalChapters,
-          highlightCount: highlightCount(),
-          planDays: 0,
-          friendCount: 0,
-        }),
-      );
-    }).catch(async () => {
-      const { highlightCount } = await import('@/lib/reader_highlights');
-      const report = buildReport();
-      setBadges(
-        computeAllBadges({
-          streak: readingStreak(),
-          readBooks: 0,
-          totalBooks: 66,
-          noteCount: 0,
-          monthDays: report.monthDays,
-          totalMinutes: report.totalMinutes,
-          totalChapters: report.totalChapters,
-          highlightCount: highlightCount(),
-          planDays: 0,
-          friendCount: 0,
-        }),
-      );
-    });
   }, []);
 
   const submitOnboard = async (skip = false) => {
@@ -184,14 +118,6 @@ export default function ProfilePage() {
     const t = v.slice(0, 15);
     setBio(t);
     localStorage.setItem(BIO_KEY, t);
-  };
-  const saveFont = (px: number) => {
-    setFontPx(px);
-    localStorage.setItem('readerFont', String(px));
-  };
-  const saveTheme = (id: string) => {
-    setTheme(id);
-    localStorage.setItem(THEME_KEY, id);
   };
   const changePassword = async () => {
     const stored = localStorage.getItem(PWD_KEY);
@@ -336,43 +262,6 @@ export default function ProfilePage() {
         </span>
       </Link>
 
-      <Link href="/wrapped" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
-        <span style={{ flex: 1 }}>月/年度回顾</span>
-        <span className="muted">Wrapped ›</span>
-      </Link>
-
-      <Link href="/dictionary" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
-        <span style={{ flex: 1 }}>圣经词典</span>
-        <span className="muted">专名查阅 ›</span>
-      </Link>
-
-      <Link href="/profile/reminders" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
-        <span style={{ flex: 1 }}>推送提醒</span>
-        <span className="muted">设置 ›</span>
-      </Link>
-
-      <button
-        type="button"
-        className="card row-card"
-        style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
-        onClick={async () => {
-          if (!currentUserId()) {
-            alert('请先登录再同步');
-            return;
-          }
-          try {
-            const { syncNow, pendingCount } = await import('@/lib/sync');
-            const r = await syncNow();
-            alert(`同步完成：推送 ${r.pushed} 条，拉取 ${r.pulled} 条${pendingCount() ? `（仍有 ${pendingCount()} 条待推）` : ''}`);
-          } catch (e) {
-            alert(String(e));
-          }
-        }}
-      >
-        <span style={{ flex: 1 }}>云同步</span>
-        <span className="muted">笔记/高亮/收藏 ›</span>
-      </button>
-
       {reviewCards.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
           <div className="section-row">
@@ -399,30 +288,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div
-        className="card"
-        style={{ marginTop: 12, cursor: 'pointer' }}
-        role="button"
-        tabIndex={0}
-        onClick={() => setBadgeOpen(true)}
-        onKeyDown={(e) => { if (e.key === 'Enter') setBadgeOpen(true); }}
-      >
-        <div className="section-row">
-          <span style={{ fontWeight: 600 }}>成就徽章</span>
-          <span className="muted">查看全部 ›</span>
-        </div>
-        <div className="badge-row">
-          {badges.slice(0, 4).map((b) => (
-            <div key={b.id} className="badge-item">
-              <div className={`badge-circle ${b.done ? 'badge-done' : ''}`}>
-                {b.icon}
-              </div>
-              <span>{b.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <Link href="/challenge" className="card row-card challenge-card" style={{ display: 'flex', marginTop: 12 }}>
         <span className="pill pill-active">知识挑战</span>
         <span style={{ flex: 1 }}>
@@ -431,8 +296,6 @@ export default function ProfilePage() {
         </span>
         <span className="muted">去闯关 ›</span>
       </Link>
-
-      {badgeOpen && <BadgeGallery badges={badges} onClose={() => setBadgeOpen(false)} />}
 
       <div style={{ marginTop: 12 }}>
         <ReadingProgress />
@@ -511,38 +374,15 @@ export default function ProfilePage() {
             </div>
 
             <div className="settings-card">
-              <p className="settings-title">阅读</p>
-              <p className="muted" style={{ fontSize: 12 }}>字体大小</p>
-              <div className="font-pills">
-                {FONTS.map((f) => (
-                  <button
-                    key={f.px}
-                    type="button"
-                    className={`font-pill ${fontPx === f.px ? 'font-pill-active' : ''}`}
-                    style={{ flex: 1 }}
-                    onClick={() => saveFont(f.px)}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="settings-card">
-              <p className="settings-title">外观</p>
-              <div className="font-pills">
-                {THEMES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    className={`font-pill ${theme === t.id ? 'font-pill-active' : ''}`}
-                    style={{ flex: 1 }}
-                    onClick={() => saveTheme(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <p className="settings-title">工具</p>
+              <Link href="/dictionary" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+                <span style={{ flex: 1 }}>圣经词典</span>
+                <span className="muted">›</span>
+              </Link>
+              <Link href="/profile/reminders" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+                <span style={{ flex: 1 }}>推送提醒</span>
+                <span className="muted">›</span>
+              </Link>
             </div>
 
             <div className="settings-card">

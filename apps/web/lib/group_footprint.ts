@@ -8,7 +8,7 @@ import { getLastRead } from './reading';
 export interface FootprintRef {
   ref: string;
   label: string;
-  source: 'recent' | 'plan' | 'favorite' | 'last';
+  source: 'recent' | 'plan' | 'favorite' | 'last' | 'task';
 }
 
 const EVENTS_KEY = 'presto_read_events';
@@ -76,9 +76,25 @@ export function syncFootprintRefs(): FootprintRef[] {
 }
 
 /** 含今日计划经节的完整足迹列表。 */
-export async function loadFootprintRefs(): Promise<FootprintRef[]> {
+export async function loadFootprintRefs(opts?: {
+  taskRef?: string | null;
+  taskTitle?: string | null;
+}): Promise<FootprintRef[]> {
   const out = syncFootprintRefs();
   const seen = new Set(out.map((f) => f.ref));
+
+  if (opts?.taskRef) {
+    const ref = opts.taskRef;
+    if (!seen.has(ref)) {
+      seen.add(ref);
+      out.unshift({
+        ref,
+        label: opts.taskTitle ? `任务 · ${opts.taskTitle}` : `任务 · ${ref}`,
+        source: 'task',
+      });
+    }
+  }
+
   const plan = getActivePlan();
   if (!plan) return out;
 

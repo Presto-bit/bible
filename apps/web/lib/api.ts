@@ -419,7 +419,9 @@ export interface GroupTask {
   id: string;
   title: string;
   ref?: string | null;
+  due_at?: string | null;
   completed?: boolean;
+  pinned?: boolean;
 }
 export interface GroupMember {
   user_id?: string;
@@ -449,6 +451,10 @@ export interface GroupDetail {
   members_on_plan?: number;
   my_plan_day?: number;
   icebreaker_done?: boolean;
+  pinned_task_id?: string | null;
+  muted?: boolean;
+  weekly_checkins?: number;
+  weekly_active_days?: number;
 }
 export interface GroupMessage {
   id: string;
@@ -460,6 +466,7 @@ export interface GroupMessage {
   reactions: Record<string, string[]>;
   created_at: string;
   task_id?: string | null;
+  task_due_at?: string | null;
   my_task_done?: boolean;
 }
 export interface DiscoverSummary {
@@ -647,8 +654,15 @@ export const api = {
     }),
   dissolveGroup: (gid: string) =>
     authed<{ ok: boolean }>(`/social/groups/${gid}`, { method: 'DELETE' }),
-  groupFeed: (gid: string) =>
-    authed<{ messages: GroupMessage[] }>(`/social/groups/${gid}/feed`),
+  groupFeed: (gid: string, opts?: { before?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (opts?.before) q.set('before', opts.before);
+    if (opts?.limit) q.set('limit', String(opts.limit));
+    const qs = q.toString();
+    return authed<{ messages: GroupMessage[]; has_more: boolean }>(
+      `/social/groups/${gid}/feed${qs ? `?${qs}` : ''}`,
+    );
+  },
   checkin: (gid: string, body: { body?: string; ref?: string; task_id?: string }) =>
     authed<{ id: string }>(`/social/groups/${gid}/checkin`, {
       method: 'POST',
@@ -660,11 +674,16 @@ export const api = {
       body: { title, ref, ...opts },
     }),
   nudgeGroup: (gid: string) =>
-    authed<{ ok: boolean; pending_members: number }>(`/social/groups/${gid}/nudge`, {
-      method: 'POST',
-    }),
+    authed<{ ok: boolean; pending_members: number; message?: string }>(
+      `/social/groups/${gid}/nudge`,
+      { method: 'POST' },
+    ),
   muteGroup: (gid: string, muted: boolean) =>
-    authed<{ ok: boolean }>(`/social/groups/${gid}/mute?muted=${muted ? 'true' : 'false'}`, {
+    authed<{ ok: boolean; muted: boolean }>(`/social/groups/${gid}/mute?muted=${muted ? 'true' : 'false'}`, {
+      method: 'PATCH',
+    }),
+  pinTask: (gid: string, tid: string) =>
+    authed<{ ok: boolean; pinned_task_id: string }>(`/social/groups/${gid}/tasks/${tid}/pin`, {
       method: 'PATCH',
     }),
   react: (mid: string, emoji: string) =>

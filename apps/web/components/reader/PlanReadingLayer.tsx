@@ -45,6 +45,23 @@ export default function PlanReadingLayer({
     isLastChapterOfStep(currentStep, chapter) &&
     !meta.session.stepsDone.includes(currentStep.id);
 
+  // 翻章时自动标记已读过的段（无需逐段点「继续读」）
+  useEffect(() => {
+    const bid = bookId.toUpperCase();
+    let session = meta.session;
+    let changed = false;
+    for (const step of meta.steps) {
+      if (session.stepsDone.includes(step.id)) continue;
+      if (step.bookId !== bid) continue;
+      if (chapter > step.chapterEnd) {
+        session = markStepDone(session, step.id, meta.steps);
+        changed = true;
+      }
+    }
+    if (changed) persist(session);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId, chapter]);
+
   const nextStep = nextIncompleteStep(meta.steps, meta.session.stepsDone);
   const allDone = allStepsDone(meta.steps, meta.session.stepsDone);
 
@@ -116,20 +133,28 @@ export default function PlanReadingLayer({
         onJumpStep={handleJumpStep}
       />
 
-      {showSegmentDone && nextStep && nextStep.id !== currentStep?.id && (
+      {showSegmentDone && (
         <div className="plan-segment-done card">
           <p className="plan-segment-done-title">✓ {currentStep?.label} 已读完</p>
-          <p className="muted" style={{ fontSize: 13, margin: '4px 0 12px' }}>
-            下一段：{nextStep.label}
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button type="button" className="btn" style={{ flex: 1 }} onClick={handleContinueSegment}>
-              继续读 {nextStep.label.split(' ')[0] ?? '下一段'} ›
+          {nextStep && nextStep.id !== currentStep?.id ? (
+            <>
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 12px' }}>
+                下一段：{nextStep.label}
+              </p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" className="btn" style={{ flex: 1 }} onClick={handleContinueSegment}>
+                  继续读 {nextStep.label.split(' ')[0] ?? '下一段'} ›
+                </button>
+                <button type="button" className="book-chip" style={{ flex: 1 }} onClick={() => setSheetOpen(true)}>
+                  稍后继续
+                </button>
+              </div>
+            </>
+          ) : (
+            <button type="button" className="btn" style={{ width: '100%', marginTop: 8 }} onClick={handleCompleteDay}>
+              完成今天
             </button>
-            <button type="button" className="book-chip" style={{ flex: 1 }} onClick={() => setSheetOpen(true)}>
-              稍后继续
-            </button>
-          </div>
+          )}
         </div>
       )}
 

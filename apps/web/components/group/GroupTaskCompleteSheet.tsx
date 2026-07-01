@@ -36,7 +36,9 @@ export function GroupTaskCompleteSheet({ title, refLabel, onSubmit, onClose }: P
           <strong>完成并分享</strong>
           <button type="button" className="text-link" onClick={onClose}>关闭</button>
         </div>
-        <p style={{ margin: '8px 0', fontWeight: 600 }}>{title}</p>
+        <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
+          将显示为「已完成任务·{title}」
+        </p>
         {refLabel && <p className="muted" style={{ fontSize: 12 }}>关联：{refLabel}</p>}
         <div className="group-chip-row" style={{ marginTop: 10 }}>
           {GROUP_CHECKIN_CHIPS.map((chip) => (

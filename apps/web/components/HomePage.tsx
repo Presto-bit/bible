@@ -405,12 +405,7 @@ export default function HomePageClient() {
         </div>
       </div>
 
-      <div className="seg-tabs home-plan-toggle" style={{ marginTop: 14, marginBottom: 4 }}>
-        <Link href="/plans" className="seg-tab seg-tab-active">今日读经</Link>
-        <Link href="/plans?tab=prayer" className="seg-tab">今日祷告</Link>
-      </div>
-
-      <div className="rail home-rail" ref={railRef} onScroll={onScroll}>
+      <div className="rail home-rail" ref={railRef} onScroll={onScroll} style={{ marginTop: 18 }}>
         {rail.map((c, i) => (
           <a
             key={i}

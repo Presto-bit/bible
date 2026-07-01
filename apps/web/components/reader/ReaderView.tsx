@@ -9,13 +9,10 @@ import {
   type Verse,
 } from '@/lib/api';
 import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
-import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
-import { StrongSheet } from '@/components/reader/StrongSheet';
 import SummarySheet from '@/components/reader/SummarySheet';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
-import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
 import { listNotes, createNote, type LocalNote } from '@/lib/notes';
@@ -138,8 +135,6 @@ export default function ReaderView({
   const [markMenuOpen, setMarkMenuOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
-  const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'compare'>(null);
-  const [strongOpen, setStrongOpen] = useState(false);
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
   const [summarySheet, setSummarySheet] = useState<null | { title: string; load: () => Promise<string> }>(null);
@@ -150,7 +145,6 @@ export default function ReaderView({
   const [thoughtListSheet, setThoughtListSheet] = useState<null | { ref: string; label: string; text: string }>(null);
   const [thoughtRevision, setThoughtRevision] = useState(0);
   const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
-  const [shareSocialOpen, setShareSocialOpen] = useState(false);
   const [hasGroups, setHasGroups] = useState(false);
   const [groupCtx, setGroupCtx] = useState<{
     groupId?: string;
@@ -388,11 +382,15 @@ export default function ReaderView({
   };
 
   const applyMarkChoice = useCallback((color: HighlightColor, style: HighlightStyleKey = 'color') => {
-    const added = pickHighlightColor(book.id, chapter, sortedSel, color, style);
+    if (!underlinesOn) {
+      setUnderlinesOn(true);
+      persistUnderlinesOn(true);
+    }
+    pickHighlightColor(book.id, chapter, sortedSel, color, style);
     setHighlightMap(getHighlightMap());
-    flashToast(added ? '已划线' : '已取消划线');
+    flashToast('已划线');
     setMarkMenuOpen(false);
-  }, [book.id, chapter, sortedSel]);
+  }, [book.id, chapter, sortedSel, underlinesOn]);
 
   const clearMark = useCallback(() => {
     const ok = clearHighlightForSelection(book.id, chapter, sortedSel);
@@ -644,17 +642,6 @@ export default function ReaderView({
       {!chromeHidden && (
         <div className="reader-topbar">
           <div className="reader-topbar-left">
-            <Link
-              href="/search"
-              className="reader-icon-btn"
-              aria-label="搜索"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4-4" />
-              </svg>
-            </Link>
             <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
               {bookAbbr(book.name)} {chapter}
             </button>
@@ -671,6 +658,17 @@ export default function ReaderView({
             </button>
           </div>
           <div className="reader-topbar-right">
+            <Link
+              href="/search?from=/reader"
+              className="reader-icon-btn"
+              aria-label="搜索"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4-4" />
+              </svg>
+            </Link>
             <button type="button" className="reader-more" onClick={(e) => { e.stopPropagation(); setShowSettings(true); }} aria-label="阅读设置">
               ⋮
             </button>
@@ -844,11 +842,11 @@ export default function ReaderView({
       {!chromeHidden && !hasSel && hasGroups && (
         <button
           type="button"
-          className="reader-fab reader-fab-group"
+          className="reader-fab reader-fab-group reader-fab-sm"
           onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
           aria-label="打卡到共读群"
         >
-          🤝 打卡
+          打卡
         </button>
       )}
 
@@ -860,6 +858,7 @@ export default function ReaderView({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="reader-focus-row">
+            <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
             {underlinesOn && (
               <div className="reader-mark-wrap">
                 <button
@@ -912,15 +911,10 @@ export default function ReaderView({
               flashToast('已存笔记');
               clearSelection();
             }}>笔记</button>
-            <button type="button" className="vsb-item" onClick={() => setToolsSheet('crossrefs')}>串珠</button>
-            <button type="button" className="vsb-item" onClick={() => setToolsSheet('compare')}>对照</button>
-            <button type="button" className="vsb-item" onClick={() => setStrongOpen(true)}>原文</button>
             <button type="button" className={`vsb-item ${favActive ? 'vsb-item-active' : ''}`} onClick={saveFavorite}>
               {englishUI ? 'Save' : '收藏'}
             </button>
-            <button type="button" className="vsb-item" onClick={() => setShareSocialOpen(true)}>分享</button>
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
-            <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
           </div>
         </div>
       )}
@@ -1019,19 +1013,6 @@ export default function ReaderView({
           selectionText={effSelectionText}
           onClose={() => setAiSheet(false)}
         />
-      )}
-
-      {toolsSheet && (
-        <ReaderToolsSheet
-          refParam={selRef || refParam}
-          refLabel={effRefLabel}
-          initialTab={toolsSheet}
-          onClose={() => setToolsSheet(null)}
-        />
-      )}
-
-      {strongOpen && (
-        <StrongSheet refLabel={effRefLabel} onClose={() => setStrongOpen(false)} />
       )}
 
       {bookCelebrate && (
@@ -1138,19 +1119,6 @@ export default function ReaderView({
             </button>
           </div>
         </div>
-      )}
-
-      {shareSocialOpen && (
-        <ShareToSocialSheet
-          ref={selRef || refParam}
-          refLabel={effRefLabel}
-          body={effSelectionText}
-          onClose={() => {
-            setShareSocialOpen(false);
-            clearSelection();
-          }}
-          onDone={() => flashToast(englishUI ? 'Shared' : '已分享')}
-        />
       )}
 
       {groupCheckinOpen && (

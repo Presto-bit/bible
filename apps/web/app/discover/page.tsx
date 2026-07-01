@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   api,
@@ -14,7 +15,6 @@ import {
 import { groupPlanProgressLabel } from '@/lib/group_plan';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { assistantHref } from '@/lib/assistant_prefill';
-import { LIFE_TOPICS } from '@/lib/discover_topics';
 
 function reactionTotal(reactions: Record<string, string[]>): number {
   return Object.values(reactions).reduce((n, users) => n + users.length, 0);
@@ -48,6 +48,7 @@ function summaryLinkTarget(
 }
 
 export default function DiscoverPage() {
+  const router = useRouter();
   const [uid, setUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -183,12 +184,38 @@ export default function DiscoverPage() {
               const planSub = g.plan_id
                 ? groupPlanProgressLabel(g)
                 : `${members} 位成员`;
+              const openTasks = g.open_tasks ?? 0;
+              const cardClass = [
+                'rail-card',
+                'card',
+                'card-2',
+                'group-card',
+                'group-card-clickable',
+                badge.tone === 'pending' ? 'group-card-pending' : '',
+                g.my_checked_in_today ? 'group-card-done' : '',
+                openTasks > 0 ? 'group-card-has-tasks' : '',
+              ]
+                .filter(Boolean)
+                .join(' ');
               return (
-                <Link
+                <div
                   key={g.id}
-                  href={`/discover/group/${g.id}`}
-                  className="rail-card card card-2 group-card"
+                  className={cardClass}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push(`/discover/group/${g.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      router.push(`/discover/group/${g.id}`);
+                    }
+                  }}
                 >
+                  {openTasks > 0 && (
+                    <span className="group-card-task-badge" aria-label={`${openTasks} 个任务`}>
+                      {openTasks}
+                    </span>
+                  )}
                   <div className="group-card-head">
                     <strong>{g.name}</strong>
                     {g.role === 'owner' && <span className="rail-cta">群主</span>}
@@ -204,11 +231,24 @@ export default function DiscoverPage() {
                   </div>
                   <div className="group-card-foot">
                     <span className="muted">今日 {checked}/{members}</span>
-                    <span className={`group-badge group-badge-${badge.tone}`}>
-                      {badge.label}
-                    </span>
+                    {badge.tone === 'pending' ? (
+                      <button
+                        type="button"
+                        className="font-pill accent group-card-cta"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/discover/group/${g.id}?focus=checkin`);
+                        }}
+                      >
+                        去打卡
+                      </button>
+                    ) : (
+                      <span className={`group-badge group-badge-${badge.tone}`}>
+                        {badge.label}
+                      </span>
+                    )}
                   </div>
-                </Link>
+                </div>
               );
             })}
             <Link href="/group/create" className="rail-card card card-2 group-card group-card-add">
@@ -218,23 +258,6 @@ export default function DiscoverPage() {
           </div>
         </>
       )}
-
-      <div className="section-row" style={{ marginTop: 18 }}>
-        <span>人生主题</span>
-      </div>
-      <div className="topic-grid" style={{ marginTop: 8 }}>
-        {LIFE_TOPICS.map((t) => (
-          <Link
-            key={t.id}
-            href={`/discover/topic/${t.id}`}
-            className="topic-tile card card-2"
-            style={{ borderLeftColor: t.color }}
-          >
-            <strong>{t.title}</strong>
-            <span className="muted" style={{ fontSize: 12 }}>{t.subtitle}</span>
-          </Link>
-        ))}
-      </div>
 
       <div className="section-row" style={{ marginTop: 18 }}>
         <span>好友动态</span>

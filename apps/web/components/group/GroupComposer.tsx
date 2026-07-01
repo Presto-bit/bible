@@ -5,15 +5,18 @@ import type { GroupTask } from '@/lib/api';
 import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
 import { GROUP_TASK_TEMPLATES } from '@/lib/group_task_templates';
 import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
+import { groupFootprintsBySource } from '@/lib/group_ui';
 import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
 
 type Mode = 'checkin' | 'task';
 
 type Props = {
+  gid?: string;
   isOwner: boolean;
   tasks: GroupTask[];
   busy?: boolean;
+  groupName?: string;
   onCheckin: (payload: { ref?: string; task_id?: string; body?: string }) => Promise<void>;
   onCreateTask: (payload: {
     title: string;
@@ -24,9 +27,11 @@ type Props = {
 };
 
 export function GroupComposer({
+  gid,
   isOwner,
   tasks,
   busy = false,
+  groupName,
   onCheckin,
   onCreateTask,
 }: Props) {
@@ -34,7 +39,6 @@ export function GroupComposer({
   const [footprints, setFootprints] = useState<FootprintRef[]>([]);
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
-  const [customRef, setCustomRef] = useState('');
   const [body, setBody] = useState('');
   const [taskTitle, setTaskTitle] = useState('');
   const [taskRef, setTaskRef] = useState('');
@@ -42,18 +46,39 @@ export function GroupComposer({
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    loadFootprintRefs().then(setFootprints);
-  }, []);
+    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+    const taskId = params.get('task');
+    const taskTitle = params.get('taskTitle');
+    const book = params.get('book');
+    const chapter = params.get('chapter');
+    const verse = params.get('verse');
+    const taskRef =
+      book && chapter
+        ? `${book}.${chapter}${verse ? `.${verse}` : ''}`
+        : params.get('ref') || undefined;
+    loadFootprintRefs({
+      taskRef,
+      taskTitle: taskTitle || undefined,
+    }).then((refs) => {
+      setFootprints(refs);
+      const fromTask = refs.find((f) => f.source === 'task');
+      if (fromTask) {
+        setSelectedRef(fromTask.ref);
+      }
+      if (taskId) {
+        setSelectedTaskId(taskId);
+      }
+    });
+  }, [gid]);
 
   const openTasks = tasks.filter((t) => !t.completed);
-  const effectiveRef = selectedRef || customRef.trim() || null;
+  const effectiveRef = selectedRef;
   const canSendCheckin = Boolean(effectiveRef || selectedTaskId);
   const canSendTask = taskTitle.trim().length > 0;
 
   const resetCheckin = () => {
     setSelectedRef(null);
     setSelectedTaskId(null);
-    setCustomRef('');
     setBody('');
     setErr(null);
   };
@@ -76,8 +101,15 @@ export function GroupComposer({
   const shareCheckinCard = async () => {
     const text = body.trim() || GROUP_CHECKIN_DEFAULT_BODY;
     const title = effectiveRef ? `今日打卡 · ${effectiveRef}` : '今日打卡';
-    await shareCard({ title, body: text, footer: BRAND_NAME });
+    await shareCard({
+      title,
+      body: text,
+      footer: BRAND_NAME,
+      subtitle: groupName,
+    });
   };
+
+  const footprintGroups = groupFootprintsBySource(footprints);
 
   const sendTask = async () => {
     if (!canSendTask || busy) return;
@@ -123,12 +155,12 @@ export function GroupComposer({
           {openTasks.length > 0 && (
             <div className="group-composer-section">
               <div className="group-composer-label">关联任务</div>
-              <div className="group-chip-row">
+              <div className="chip-swipe group-chip-swipe">
                 {openTasks.map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    className={`group-chip${selectedTaskId === t.id ? ' selected' : ''}`}
+                    className={`group-chip chip-swipe-item${selectedTaskId === t.id ? ' selected' : ''}`}
                     onClick={() => {
                       setSelectedTaskId(selectedTaskId === t.id ? null : t.id);
                       if (selectedTaskId !== t.id) setSelectedRef(null);
@@ -143,61 +175,48 @@ export function GroupComposer({
 
           <div className="group-composer-section">
             <div className="group-composer-label">关联经文</div>
-            {footprints.length > 0 ? (
-              <div className="group-chip-row">
-                {footprints.map((f) => (
-                  <button
-                    key={`${f.source}-${f.ref}`}
-                    type="button"
-                    className={`group-chip${selectedRef === f.ref ? ' selected' : ''}`}
-                    onClick={() => {
-                      setSelectedRef(selectedRef === f.ref ? null : f.ref);
-                      if (selectedRef !== f.ref) setSelectedTaskId(null);
-                    }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+            {footprintGroups.length > 0 ? (
+              footprintGroups.map((g) => (
+                <div key={g.source} className="group-footprint-group">
+                  <span className="group-footprint-source">{g.label}</span>
+                  <div className="chip-swipe group-chip-swipe">
+                    {g.items.map((f) => (
+                      <button
+                        key={`${f.source}-${f.ref}`}
+                        type="button"
+                        className={`group-chip chip-swipe-item${selectedRef === f.ref ? ' selected' : ''}`}
+                        onClick={() => {
+                          setSelectedRef(selectedRef === f.ref ? null : f.ref);
+                          if (selectedRef !== f.ref) setSelectedTaskId(null);
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))
             ) : (
               <p className="muted" style={{ fontSize: 12, margin: '4px 0' }}>
                 读经或收藏经节后，会出现在这里供快速关联。
               </p>
             )}
-            <input
-              className="search-input"
-              style={{ marginTop: 8 }}
-              placeholder="或手动输入经节，如 JHN.3.16"
-              value={customRef}
-              onChange={(e) => {
-                setCustomRef(e.target.value);
-                if (e.target.value.trim()) {
-                  setSelectedRef(null);
-                  setSelectedTaskId(null);
-                }
-              }}
-            />
           </div>
 
-          <textarea
-            className="group-composer-text"
-            placeholder="写点感想（可选）"
-            rows={2}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
-
-          <div className="group-chip-row" style={{ marginBottom: 8 }}>
-            {GROUP_CHECKIN_CHIPS.map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                className={`group-chip${body === chip ? ' selected' : ''}`}
-                onClick={() => setBody(body === chip ? '' : chip)}
-              >
-                {chip}
-              </button>
-            ))}
+          <div className="group-composer-section">
+            <div className="group-composer-label">快捷感想</div>
+            <div className="chip-swipe group-chip-swipe">
+              {GROUP_CHECKIN_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  className={`group-chip chip-swipe-item${body === chip ? ' selected' : ''}`}
+                  onClick={() => setBody(body === chip ? '' : chip)}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
@@ -223,12 +242,12 @@ export function GroupComposer({
         </>
       ) : (
         <>
-          <div className="group-chip-row" style={{ marginBottom: 8 }}>
+          <div className="chip-swipe group-chip-swipe" style={{ marginBottom: 8 }}>
             {GROUP_TASK_TEMPLATES.map((t) => (
               <button
                 key={t.id}
                 type="button"
-                className="group-chip"
+                className="group-chip chip-swipe-item"
                 onClick={() => {
                   setTaskTitle(t.title);
                   setTaskRef(t.ref || '');
@@ -243,13 +262,6 @@ export function GroupComposer({
             placeholder="任务内容"
             value={taskTitle}
             onChange={(e) => setTaskTitle(e.target.value)}
-          />
-          <input
-            className="search-input"
-            style={{ marginTop: 8 }}
-            placeholder="关联经文（可选，如 JHN.3.16）"
-            value={taskRef}
-            onChange={(e) => setTaskRef(e.target.value)}
           />
           <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
             截止：{taskDueDays} 天后

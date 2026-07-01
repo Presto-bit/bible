@@ -40,6 +40,7 @@ MIGRATIONS=(
   infra/postgres/init/007_user_share.sql
   infra/postgres/init/008_social_extras.sql
   infra/postgres/init/009_push_subscription.sql
+  infra/postgres/init/010_group_enhance.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do

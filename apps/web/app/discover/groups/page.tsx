@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   api,
@@ -21,6 +22,7 @@ function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' |
 }
 
 export default function DiscoverGroupsPage() {
+  const router = useRouter();
   const [uid, setUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -93,13 +95,37 @@ export default function DiscoverGroupsPage() {
               ? (g.plan_progress_pct ?? 0)
               : Math.round((checked / members) * 100);
             const planSub = g.plan_id ? groupPlanProgressLabel(g) : `${members} 位成员`;
+            const openTasks = g.open_tasks ?? 0;
+            const cardClass = [
+              'card',
+              'card-2',
+              'group-card',
+              'group-card-clickable',
+              badge.tone === 'pending' ? 'group-card-pending' : '',
+              g.my_checked_in_today ? 'group-card-done' : '',
+              openTasks > 0 ? 'group-card-has-tasks' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
             return (
-              <Link
+              <div
                 key={g.id}
-                href={`/discover/group/${g.id}`}
-                className="card card-2 group-card"
-                style={{ display: 'block' }}
+                className={cardClass}
+                role="button"
+                tabIndex={0}
+                onClick={() => router.push(`/discover/group/${g.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    router.push(`/discover/group/${g.id}`);
+                  }
+                }}
               >
+                {openTasks > 0 && (
+                  <span className="group-card-task-badge" aria-label={`${openTasks} 个任务`}>
+                    {openTasks}
+                  </span>
+                )}
                 <div className="group-card-head">
                   <strong>{g.name}</strong>
                   {g.role === 'owner' && <span className="rail-cta">群主</span>}
@@ -115,11 +141,24 @@ export default function DiscoverGroupsPage() {
                 </div>
                 <div className="group-card-foot">
                   <span className="muted">今日 {checked}/{members}</span>
-                  <span className={`group-badge group-badge-${badge.tone}`}>
-                    {badge.label}
-                  </span>
+                  {badge.tone === 'pending' ? (
+                    <button
+                      type="button"
+                      className="font-pill accent group-card-cta"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/discover/group/${g.id}?focus=checkin`);
+                      }}
+                    >
+                      去打卡
+                    </button>
+                  ) : (
+                    <span className={`group-badge group-badge-${badge.tone}`}>
+                      {badge.label}
+                    </span>
+                  )}
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

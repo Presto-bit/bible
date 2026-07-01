@@ -2,24 +2,39 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { GroupChatFeed } from '@/components/group/GroupChatFeed';
-import { GroupComposer } from '@/components/group/GroupComposer';
+import { GroupCollapsibleMeta } from '@/components/group/GroupCollapsibleMeta';
+import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
+import { GroupHeaderBar } from '@/components/group/GroupHeaderBar';
+import { GroupIcebreakerWizard } from '@/components/group/GroupIcebreakerWizard';
+import { GroupMemberAvatars } from '@/components/group/GroupMemberAvatars';
 import { GroupMembersPanel } from '@/components/group/GroupMembersPanel';
-import { GroupPlanStrip } from '@/components/group/GroupPlanStrip';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
+import { GroupTodayActionZone } from '@/components/group/GroupTodayActionZone';
+import { GroupToast } from '@/components/group/GroupToast';
 import { api, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
+import { GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
+import { loadFootprintRefs } from '@/lib/group_footprint';
+import { myDisplayName } from '@/lib/group_ui';
 
 export default function GroupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
   const gid = params.id;
   const [detail, setDetail] = useState<GroupDetail | null>(null);
   const [feed, setFeed] = useState<GroupMessage[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [nudgeBusy, setNudgeBusy] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [headerScrolled, setHeaderScrolled] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [announceDraft, setAnnounceDraft] = useState('');
   const [planDraft, setPlanDraft] = useState('');
@@ -30,12 +45,21 @@ export default function GroupPage() {
     ref?: string | null;
   } | null>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
+  const feedWrapRef = useRef<HTMLDivElement>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2400);
+  }, []);
 
   const reload = useCallback(async () => {
     try {
       const [d, f] = await Promise.all([api.groupDetail(gid), api.groupFeed(gid)]);
       setDetail(d);
       setFeed(f.messages);
+      setHasMore(f.has_more);
       setErr(null);
     } catch (e) {
       setErr(String(e));
@@ -51,6 +75,20 @@ export default function GroupPage() {
   }, [feed.length]);
 
   useEffect(() => {
+    if (searchParams.get('focus') === 'checkin') {
+      setComposerOpen(true);
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    const el = feedWrapRef.current;
+    if (!el) return;
+    const onScroll = () => setHeaderScrolled(el.scrollTop > 6);
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [detail]);
+
+  useEffect(() => {
     if (detail) {
       setAnnounceDraft(detail.announcement || '');
       setPlanDraft(detail.plan_id || '');
@@ -63,6 +101,40 @@ export default function GroupPage() {
       api.plans().then((r) => setPlans(r.plans)).catch(() => setPlans([]));
     }
   }, [showSettings]);
+
+  const loadMore = async () => {
+    if (!feed.length || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const f = await api.groupFeed(gid, { before: feed[0].created_at });
+      setFeed((prev) => [...f.messages, ...prev]);
+      setHasMore(f.has_more);
+    } catch {
+      /* ignore */
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const appendOptimisticCheckin = (payload: {
+    ref?: string;
+    task_id?: string;
+    body?: string;
+  }) => {
+    const temp: GroupMessage = {
+      id: `temp-${Date.now()}`,
+      author: myDisplayName(),
+      mine: true,
+      kind: 'checkin',
+      ref: payload.ref,
+      body: payload.body,
+      reactions: {},
+      created_at: new Date().toISOString(),
+      task_id: payload.task_id,
+    };
+    setFeed((prev) => [...prev, temp]);
+    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   if (err) {
     return (
@@ -80,9 +152,8 @@ export default function GroupPage() {
   }
 
   const isOwner = detail.role === 'owner';
-  const members = detail.members.length;
-  const checkedToday = detail.checked_in_today ?? 0;
-  const progressPct = members > 0 ? Math.round((checkedToday / members) * 100) : 0;
+  const pendingMembers = detail.members.filter((m) => !m.checked_in_today).length;
+  const pinnedTask = detail.tasks.find((t) => t.pinned || t.id === detail.pinned_task_id);
 
   const react = async (mid: string, emoji: string) => {
     try {
@@ -120,11 +191,21 @@ export default function GroupPage() {
 
   const submitTaskComplete = async (body: string) => {
     if (!taskComplete) return;
+    const extra = body.trim();
+    const taskBody = extra
+      ? `已完成任务·${taskComplete.title} · ${extra}`
+      : `已完成任务·${taskComplete.title}`;
+    appendOptimisticCheckin({
+      task_id: taskComplete.taskId,
+      ref: taskComplete.ref || undefined,
+      body: taskBody,
+    });
     await api.checkin(gid, {
       task_id: taskComplete.taskId,
       ref: taskComplete.ref || undefined,
-      body,
+      body: taskBody,
     });
+    showToast('任务完成并已分享 ✓');
     await reload();
   };
 
@@ -134,8 +215,38 @@ export default function GroupPage() {
     body?: string;
   }) => {
     setBusy(true);
+    appendOptimisticCheckin(payload);
     try {
       await api.checkin(gid, payload);
+      showToast('打卡已发送 ✓');
+      setComposerOpen(false);
+      await reload();
+    } catch (e) {
+      await reload();
+      throw e;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const quickCheckin = async () => {
+    if (detail.my_checked_in_today || busy) return;
+    const openTask = detail.tasks.find((t) => !t.completed);
+    if (openTask) {
+      completeTask(openTask.id, openTask.title, openTask.ref);
+      return;
+    }
+    const refs = await loadFootprintRefs();
+    const ref = refs[0]?.ref;
+    if (!ref) {
+      setComposerOpen(true);
+      return;
+    }
+    setBusy(true);
+    appendOptimisticCheckin({ ref, body: GROUP_CHECKIN_DEFAULT_BODY });
+    try {
+      await api.checkin(gid, { ref, body: GROUP_CHECKIN_DEFAULT_BODY });
+      showToast('打卡已发送 ✓');
       await reload();
     } finally {
       setBusy(false);
@@ -154,6 +265,8 @@ export default function GroupPage() {
         due_at: payload.due_at,
         template_id: payload.template_id,
       });
+      showToast('任务已发布 ✓');
+      setComposerOpen(false);
       await reload();
     } finally {
       setBusy(false);
@@ -177,6 +290,44 @@ export default function GroupPage() {
     }
   };
 
+  const toggleMute = async () => {
+    setBusy(true);
+    try {
+      await api.muteGroup(gid, !detail.muted);
+      showToast(detail.muted ? '已恢复本群提醒' : '已关闭本群提醒');
+      await reload();
+    } catch (e) {
+      alert(`设置失败：${e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const nudgeMembers = async () => {
+    setNudgeBusy(true);
+    try {
+      const r = await api.nudgeGroup(gid);
+      alert(r.message || `已提醒 ${r.pending_members} 位伙伴`);
+    } catch (e) {
+      alert(`催打卡失败：${e}`);
+    } finally {
+      setNudgeBusy(false);
+    }
+  };
+
+  const pinTask = async (tid: string) => {
+    setBusy(true);
+    try {
+      await api.pinTask(gid, tid);
+      showToast('已更新置顶任务');
+      await reload();
+    } catch (e) {
+      alert(`置顶失败：${e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const dissolve = async () => {
     if (!window.confirm('确定解散此共读群？所有成员将被移出，此操作不可撤销。')) return;
     setBusy(true);
@@ -192,43 +343,42 @@ export default function GroupPage() {
 
   return (
     <main className="group-page">
-      <header className="group-header">
-        <Link href="/discover" className="icon-btn" aria-label="返回">
-          ‹
-        </Link>
-        <div className="group-header-main">
-          <h1>{detail.name}</h1>
-          <p className="muted">
-            {members} 人 · 今日 {checkedToday}/{members} 已打卡
-            {detail.plan_title && ` · ${detail.plan_title}`}
-            {isOwner && ` · 邀请码 ${detail.join_code}`}
-          </p>
+      <div className={`group-sticky-zone${headerScrolled ? ' scrolled' : ''}`}>
+        <div className="group-nav-bar">
+          <Link href="/discover" className="icon-btn" aria-label="返回">
+            ‹
+          </Link>
         </div>
-        {isOwner && (
-          <button
-            type="button"
-            className="icon-btn"
-            aria-label="群设置"
-            onClick={() => {
-              setShowSettings((v) => !v);
-              setShowMembers(false);
-            }}
-          >
-            设置
-          </button>
-        )}
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="成员"
-          onClick={() => {
-              setShowMembers((v) => !v);
+
+        <GroupHeaderBar
+          detail={detail}
+          scrolled={headerScrolled}
+          onToggleMute={toggleMute}
+          onShowMembers={() => {
+            setShowMembers(true);
+            setShowSettings(false);
+          }}
+          onShowSettings={
+            isOwner
+              ? () => {
+                  setShowSettings((v) => !v);
+                  setShowMembers(false);
+                }
+              : undefined
+          }
+        />
+
+        {!showSettings && (
+          <GroupMemberAvatars
+            members={detail.members}
+            isOwner={isOwner}
+            onShowMembers={() => {
+              setShowMembers(true);
               setShowSettings(false);
             }}
-        >
-          成员
-        </button>
-      </header>
+          />
+        )}
+      </div>
 
       {showMembers && (
         <GroupMembersPanel
@@ -280,7 +430,32 @@ export default function GroupPage() {
             value={announceDraft}
             onChange={(e) => setAnnounceDraft(e.target.value)}
           />
-          <button type="button" className="btn" style={{ width: '100%', marginTop: 8 }} disabled={busy} onClick={saveSettings}>
+          {detail.tasks.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <span className="group-composer-label">置顶任务</span>
+              <div className="group-pin-list">
+                {detail.tasks.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={`group-pin-item${t.pinned ? ' active' : ''}`}
+                    disabled={busy}
+                    onClick={() => pinTask(t.id)}
+                  >
+                    {t.pinned ? '📌 ' : ''}
+                    {t.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn"
+            style={{ width: '100%', marginTop: 8 }}
+            disabled={busy}
+            onClick={saveSettings}
+          >
             {busy ? '保存中…' : '保存设置'}
           </button>
           <button
@@ -295,45 +470,64 @@ export default function GroupPage() {
         </div>
       )}
 
-      {detail.announcement && !showSettings && (
-        <div className="group-announcement card card-2">
-          <span className="group-composer-label">群公告</span>
-          <p style={{ margin: '6px 0 0', lineHeight: 1.55 }}>{detail.announcement}</p>
+      {!showSettings && (
+        <div className="group-page-sections">
+          <GroupTodayActionZone
+            detail={detail}
+            gid={gid}
+            pinnedTask={pinnedTask}
+            busy={busy}
+            onQuickCheckin={quickCheckin}
+            onCompleteTask={completeTask}
+            onOpenComposer={() => setComposerOpen(true)}
+          />
+
+          <GroupCollapsibleMeta
+            detail={detail}
+            isOwner={isOwner}
+            checkinsThisWeek={detail.weekly_checkins ?? 0}
+            activeDays={detail.weekly_active_days ?? 0}
+            pendingMembers={pendingMembers}
+            nudgeBusy={nudgeBusy}
+            onNudge={nudgeMembers}
+            onShowMembers={() => {
+              setShowMembers(true);
+              setShowSettings(false);
+            }}
+          />
+
+          {detail.announcement && (
+            <div className="group-announcement card card-2">
+              <span className="group-composer-label">群公告</span>
+              <p style={{ margin: '6px 0 0', lineHeight: 1.55 }}>{detail.announcement}</p>
+            </div>
+          )}
+
+          {!detail.icebreaker_done && (
+            <GroupIcebreakerWizard
+              busy={busy}
+              onComplete={async (payload) => {
+                setBusy(true);
+                try {
+                  await handleCheckin(payload);
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+          )}
         </div>
       )}
 
-      {!detail.icebreaker_done && (
-        <div className="card card-tint card-2 icebreaker-card" style={{ margin: '8px 12px' }}>
-          <strong>欢迎加入共读群</strong>
-          <p className="muted" style={{ fontSize: 13, margin: '6px 0 10px' }}>
-            发第一条打卡，和大家打个招呼吧。可分享今日经文或一句感想。
-          </p>
-        </div>
-      )}
-
-      <GroupPlanStrip
-        detail={detail}
-        onShowMembers={() => {
-          setShowMembers(true);
-          setShowSettings(false);
-        }}
-      />
-
-      <div className="group-progress-strip">
-        <div className="progress-bar">
-          <div className="progress-fill" style={{ width: `${progressPct}%` }} />
-        </div>
-        <span className="muted" style={{ fontSize: 12 }}>
-          {detail.my_checked_in_today ? '今日已打卡 ✓' : '今日待打卡'}
-          {(detail.open_tasks ?? 0) > 0 && ` · ${detail.open_tasks} 个任务待完成`}
-        </span>
-      </div>
-
-      <div className="group-feed-wrap">
+      <div className="group-feed-wrap" ref={feedWrapRef}>
         <GroupChatFeed
           gid={gid}
           messages={feed}
           isOwner={isOwner}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={loadMore}
+          onOpenComposer={() => setComposerOpen(true)}
           onReact={react}
           onReport={reportMsg}
           onDelete={deleteMsg}
@@ -342,15 +536,17 @@ export default function GroupPage() {
         <div ref={feedEndRef} />
       </div>
 
-      <div className="group-composer-wrap">
-        <GroupComposer
-          isOwner={isOwner}
-          tasks={detail.tasks}
-          busy={busy}
-          onCheckin={handleCheckin}
-          onCreateTask={handleCreateTask}
-        />
-      </div>
+      <GroupComposerSheet
+        open={composerOpen}
+        onOpenChange={setComposerOpen}
+        gid={gid}
+        isOwner={isOwner}
+        tasks={detail.tasks}
+        busy={busy}
+        groupName={detail.name}
+        onCheckin={handleCheckin}
+        onCreateTask={handleCreateTask}
+      />
 
       {taskComplete && (
         <GroupTaskCompleteSheet
@@ -360,6 +556,8 @@ export default function GroupPage() {
           onClose={() => setTaskComplete(null)}
         />
       )}
+
+      <GroupToast message={toast} />
     </main>
   );
 }

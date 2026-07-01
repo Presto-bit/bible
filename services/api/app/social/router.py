@@ -132,6 +132,48 @@ def _group_plan_progress(
     }
 
 
+def _weekly_group_stats(conn, gid: str) -> dict:
+    checkins = conn.execute(
+        "SELECT count(*)::int FROM group_message WHERE group_id = %s "
+        "AND kind = 'checkin' AND created_at >= date_trunc('week', CURRENT_DATE)",
+        (gid,),
+    ).fetchone()[0]
+    active_days = conn.execute(
+        "SELECT count(DISTINCT created_at::date)::int FROM group_message "
+        "WHERE group_id = %s AND kind IN ('checkin', 'task', 'system') "
+        "AND created_at >= date_trunc('week', CURRENT_DATE)",
+        (gid,),
+    ).fetchone()[0]
+    return {"weekly_checkins": checkins, "weekly_active_days": active_days}
+
+
+def _maybe_milestone_all_checked(conn, gid: str, owner_id: str) -> None:
+    mc = conn.execute(
+        "SELECT count(*)::int FROM group_member WHERE group_id = %s", (gid,),
+    ).fetchone()[0]
+    if mc <= 0:
+        return
+    cc = conn.execute(
+        "SELECT count(DISTINCT user_id)::int FROM group_message "
+        "WHERE group_id = %s AND kind = 'checkin' AND created_at::date = CURRENT_DATE",
+        (gid,),
+    ).fetchone()[0]
+    if cc < mc:
+        return
+    exists = conn.execute(
+        "SELECT 1 FROM group_message WHERE group_id = %s AND kind = 'system' "
+        "AND created_at::date = CURRENT_DATE AND body LIKE %s",
+        (gid, "%全员打卡%"),
+    ).fetchone()
+    if exists:
+        return
+    conn.execute(
+        "INSERT INTO group_message (group_id, user_id, kind, body) "
+        "VALUES (%s, %s, 'system', %s)",
+        (gid, owner_id, "🎉 今日全员打卡达成，一起感谢坚持！"),
+    )
+
+
 def _plan_label(plan_id: str | None) -> str | None:
     if not plan_id:
         return None
@@ -250,7 +292,7 @@ def discover_summary(user_id: str = Depends(get_current_user)) -> dict:
     with pool.connection() as conn:
         rows = conn.execute(
             "SELECT g.id FROM social_group g JOIN group_member m ON m.group_id = g.id "
-            "WHERE m.user_id = %s",
+            "WHERE m.user_id = %s AND COALESCE(m.muted, false) = false",
             (user_id,),
         ).fetchall()
         groups_pending_checkin = 0
@@ -424,32 +466,57 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
     with pool.connection() as conn:
         role = _require_member(conn, gid, user_id)
         g = conn.execute(
-            "SELECT name, intro, join_code, plan_id, announcement, icebreaker_done "
-            "FROM social_group WHERE id = %s", (gid,)
+            "SELECT name, intro, join_code, plan_id, announcement, icebreaker_done, "
+            "pinned_task_id, owner_id FROM social_group WHERE id = %s", (gid,)
         ).fetchone()
         if not g:
             raise HTTPException(404, "群不存在")
-        members = conn.execute(
-            "SELECT u.id, u.display_name, m.role, "
-            "  EXISTS ("
-            "    SELECT 1 FROM group_message gm "
-            "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
-            "    AND gm.created_at::date = CURRENT_DATE"
-            "  ) AS checked_today, "
-            "  COALESCE(pp.day, 0) AS plan_day "
-            "FROM group_member m "
-            "JOIN users u ON u.id = m.user_id "
-            "LEFT JOIN plan_progress pp ON pp.user_id = u.id AND pp.plan_id = %s "
-            "WHERE m.group_id = %s "
-            "ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END, m.joined_at ASC",
-            (gid, g[3] or '', gid),
-        ).fetchall()
+        plan_id = g[3]
+        if plan_id:
+            members = conn.execute(
+                "SELECT u.id, u.display_name, m.role, "
+                "  EXISTS ("
+                "    SELECT 1 FROM group_message gm "
+                "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
+                "    AND gm.created_at::date = CURRENT_DATE"
+                "  ) AS checked_today, "
+                "  COALESCE(pp.day, 0) AS plan_day "
+                "FROM group_member m "
+                "JOIN users u ON u.id = m.user_id "
+                "LEFT JOIN plan_progress pp ON pp.user_id = u.id AND pp.plan_id = %s "
+                "WHERE m.group_id = %s "
+                "ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END, m.joined_at ASC",
+                (gid, plan_id, gid),
+            ).fetchall()
+        else:
+            members = conn.execute(
+                "SELECT u.id, u.display_name, m.role, "
+                "  EXISTS ("
+                "    SELECT 1 FROM group_message gm "
+                "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
+                "    AND gm.created_at::date = CURRENT_DATE"
+                "  ) AS checked_today, "
+                "  0 AS plan_day "
+                "FROM group_member m "
+                "JOIN users u ON u.id = m.user_id "
+                "WHERE m.group_id = %s "
+                "ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END, m.joined_at ASC",
+                (gid, gid),
+            ).fetchall()
         tasks = conn.execute(
-            "SELECT id, title, ref FROM group_task WHERE group_id = %s ORDER BY created_at DESC",
+            "SELECT id, title, ref, due_at FROM group_task WHERE group_id = %s "
+            "ORDER BY created_at DESC",
             (gid,),
         ).fetchall()
         stats = _group_today_stats(conn, gid, user_id)
         plan_stats = _group_plan_progress(conn, gid, g[3], user_id)
+        weekly = _weekly_group_stats(conn, gid)
+        muted_row = conn.execute(
+            "SELECT muted FROM group_member WHERE group_id = %s AND user_id = %s",
+            (gid, user_id),
+        ).fetchone()
+        muted = bool(muted_row[0]) if muted_row else False
+        pinned_task_id = str(g[6]) if g[6] else None
         task_rows = []
         for t in tasks:
             tid = str(t[0])
@@ -460,12 +527,20 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 (gid, user_id, tid),
             ).fetchone() is not None
             task_rows.append({
-                "id": tid, "title": t[1], "ref": t[2], "completed": done,
+                "id": tid,
+                "title": t[1],
+                "ref": t[2],
+                "due_at": t[3].isoformat() if t[3] else None,
+                "completed": done,
+                "pinned": tid == pinned_task_id,
             })
     return {
         "id": gid, "name": g[0], "intro": g[1], "join_code": g[2], "role": role,
         "plan_id": g[3], "plan_title": _plan_label(g[3]), "announcement": g[4],
         "icebreaker_done": bool(g[5]),
+        "pinned_task_id": pinned_task_id,
+        "muted": muted,
+        **weekly,
         "members": [
             {
                 "user_id": str(m[0]),
@@ -602,21 +677,47 @@ def dissolve_group(gid: str, user_id: str = Depends(get_current_user)) -> dict:
 
 
 @router.get("/groups/{gid}/feed")
-def group_feed(gid: str, user_id: str = Depends(get_current_user)) -> dict:
+def group_feed(
+    gid: str,
+    before: str | None = None,
+    limit: int = 40,
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """群动态 Feed；默认返回最新 limit 条，before 加载更早消息。"""
+    limit = max(1, min(limit, 100))
     pool = get_pool()
     with pool.connection() as conn:
         _require_member(conn, gid, user_id)
         _ensure_report_table(conn)
-        rows = conn.execute(
+        base_sql = (
             "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
-            "  m.reactions, m.created_at, m.task_id "
+            "  m.reactions, m.created_at, m.task_id, gt.due_at "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
+            "LEFT JOIN group_task gt ON gt.id = m.task_id "
             "WHERE m.group_id = %s "
             "  AND (SELECT count(DISTINCT r.reporter_id) FROM message_report r "
             "       WHERE r.message_id = m.id) < %s "
-            "ORDER BY m.created_at ASC LIMIT 200",
-            (gid, REPORT_HIDE_THRESHOLD),
-        ).fetchall()
+        )
+        if before:
+            rows = conn.execute(
+                base_sql + "AND m.created_at < %s::timestamptz "
+                "ORDER BY m.created_at DESC LIMIT %s",
+                (gid, REPORT_HIDE_THRESHOLD, before, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                base_sql + "ORDER BY m.created_at DESC LIMIT %s",
+                (gid, REPORT_HIDE_THRESHOLD, limit),
+            ).fetchall()
+        has_more = False
+        if rows:
+            oldest_ts = rows[-1][7]
+            has_more = conn.execute(
+                "SELECT 1 FROM group_message m WHERE m.group_id = %s "
+                "AND m.created_at < %s LIMIT 1",
+                (gid, oldest_ts),
+            ).fetchone() is not None
+        rows = list(reversed(rows))
         messages = []
         for r in rows:
             task_id = str(r[8]) if r[8] else None
@@ -628,14 +729,16 @@ def group_feed(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                     "AND task_id = %s LIMIT 1",
                     (gid, user_id, task_id),
                 ).fetchone() is not None
+            author = "系统" if r[3] == "system" else r[1]
             messages.append({
-                "id": str(r[0]), "author": r[1], "mine": str(r[2]) == user_id,
+                "id": str(r[0]), "author": author, "mine": str(r[2]) == user_id,
                 "kind": r[3], "ref": r[4], "body": r[5],
                 "reactions": r[6] or {}, "created_at": r[7].isoformat(),
                 "task_id": task_id,
+                "task_due_at": r[9].isoformat() if r[9] else None,
                 "my_task_done": my_task_done,
             })
-    return {"messages": messages}
+    return {"messages": messages, "has_more": has_more}
 
 
 @router.post("/groups/{gid}/checkin")
@@ -654,6 +757,10 @@ def checkin(gid: str, body: Checkin, user_id: str = Depends(get_current_user)) -
             "VALUES (%s, %s, 'checkin', %s, %s, %s) RETURNING id",
             (gid, user_id, body.ref, body.task_id, body.body),
         ).fetchone()
+        owner = conn.execute(
+            "SELECT owner_id FROM social_group WHERE id = %s", (gid,),
+        ).fetchone()[0]
+        _maybe_milestone_all_checked(conn, gid, str(owner))
         conn.execute(
             "UPDATE social_group SET icebreaker_done = true WHERE id = %s",
             (gid,),
@@ -686,6 +793,25 @@ def create_task(gid: str, body: CreateTask, user_id: str = Depends(get_current_u
         )
         conn.commit()
     return {"id": str(task_id), "title": body.title.strip(), "ref": body.ref}
+
+
+@router.patch("/groups/{gid}/tasks/{tid}/pin")
+def pin_task(gid: str, tid: str, user_id: str = Depends(get_current_user)) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        role = _require_member(conn, gid, user_id)
+        if role != "owner":
+            raise HTTPException(403, "仅群主可置顶任务")
+        row = conn.execute(
+            "SELECT 1 FROM group_task WHERE id = %s AND group_id = %s", (tid, gid),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "任务不存在")
+        conn.execute(
+            "UPDATE social_group SET pinned_task_id = %s WHERE id = %s", (tid, gid),
+        )
+        conn.commit()
+    return {"ok": True, "pinned_task_id": tid}
 
 
 @router.post("/messages/{mid}/report")
@@ -798,7 +924,11 @@ def nudge_group(gid: str, user_id: str = Depends(get_current_user)) -> dict:
             (gid, gid),
         ).fetchone()[0]
         conn.commit()
-    return {"ok": True, "pending_members": pending, "message": "已记录轻推（推送聚合待接）"}
+    return {
+        "ok": True,
+        "pending_members": pending,
+        "message": f"已提醒 {pending} 位伙伴完成今日打卡",
+    }
 
 
 @router.patch("/groups/{gid}/mute")

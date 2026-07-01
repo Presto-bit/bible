@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { api, type BibleSearchHit } from '@/lib/api';
-import { LIFE_TOPICS } from '@/lib/discover_topics';
 import { listNotes, type LocalNote } from '@/lib/notes';
 
 const THEME_TAGS = ['盼望', '焦虑', '祷告', '家庭', '工作', '悲伤', '信心', '宽恕'];
@@ -34,6 +34,8 @@ function saveHistory(q: string) {
 }
 
 export default function SearchPage() {
+  const router = useRouter();
+  const [backHref, setBackHref] = useState('/reader');
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [hits, setHits] = useState<BibleSearchHit[]>([]);
@@ -44,6 +46,8 @@ export default function SearchPage() {
   useEffect(() => {
     setHistory(loadHistory());
     setNotes(listNotes());
+    const from = new URLSearchParams(window.location.search).get('from');
+    if (from) setBackHref(from);
   }, []);
 
   const noteHits = useMemo(() => {
@@ -104,16 +108,24 @@ export default function SearchPage() {
   return (
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <a href="/" className="icon-btn" aria-label="返回">
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="返回"
+          onClick={() => {
+            if (backHref.startsWith('/')) router.push(backHref);
+            else router.back();
+          }}
+        >
           ←
-        </a>
+        </button>
         <h2 style={{ margin: 0, fontSize: 18 }}>搜索</h2>
       </header>
 
       <input
         className="search-input"
         autoFocus
-        placeholder="搜索经文、人生主题…"
+        placeholder="搜索经文…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -150,7 +162,7 @@ export default function SearchPage() {
           {loading && <p className="muted">搜索中…</p>}
           {err && <p className="muted">搜索失败：{err}</p>}
           {!loading && !err && hits.length === 0 && (
-            <p className="muted">未找到匹配经文，试试下方人生主题</p>
+            <p className="muted">未找到匹配经文</p>
           )}
           {hits.map((h) => (
             <div
@@ -214,19 +226,11 @@ export default function SearchPage() {
         </section>
       )}
 
-      <section style={{ marginTop: 18 }}>
-        <h3 style={{ fontSize: 14, margin: '0 0 10px' }}>人生主题</h3>
-        <div className="theme-grid">
-          {THEME_TAGS.map((t) => {
-            const topic = LIFE_TOPICS.find((x) => x.title === t);
-            if (topic) {
-              return (
-                <Link key={t} href={`/discover/topic/${topic.id}`} className="card card-2 theme-chip">
-                  {t}
-                </Link>
-              );
-            }
-            return (
+      {query.trim().length === 0 && (
+        <section style={{ marginTop: 18 }}>
+          <h3 style={{ fontSize: 14, margin: '0 0 10px' }}>热门关键词</h3>
+          <div className="theme-grid">
+            {THEME_TAGS.map((t) => (
               <button
                 key={t}
                 type="button"
@@ -238,10 +242,10 @@ export default function SearchPage() {
               >
                 {t}
               </button>
-            );
-          })}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   );
 }
