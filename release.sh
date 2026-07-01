@@ -32,7 +32,14 @@ cd "$APP_DIR" || die "无法进入: $APP_DIR"
 [[ -f "$COMPOSE_FILE" ]] || die "缺少 $COMPOSE_FILE"
 [[ -f "$ENV_FILE" ]] || die "缺少 $ENV_FILE（从 .env.production.example 复制）"
 
+WEB_HOST_PORT=3002
+if grep -qE '^WEB_HOST_PORT=' "$ENV_FILE" 2>/dev/null; then
+  WEB_HOST_PORT="$(grep -E '^WEB_HOST_PORT=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ' \"\047')"
+fi
+WEB_HOST_PORT="${WEB_HOST_PORT:-3002}"
+
 log "发布目录: $APP_DIR"
+log "Web 宿主机端口: $WEB_HOST_PORT"
 log "远端/分支: $REMOTE/$BRANCH"
 
 if [[ "$GIT_PULL" == "1" ]]; then
@@ -72,7 +79,7 @@ done
 log "健康检查 Web /"
 web_ok=0
 for i in $(seq 1 30); do
-  if curl -fsS --connect-timeout 3 --max-time 15 -o /dev/null http://127.0.0.1:3000/ 2>/dev/null; then
+  if curl -fsS --connect-timeout 3 --max-time 15 -o /dev/null "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null; then
     web_ok=1
     break
   fi
@@ -93,5 +100,5 @@ done
 
 log "发布成功"
 log "  API: http://127.0.0.1:8011/health"
-log "  Web: http://127.0.0.1:3000/  →  https://2sc.prestoai.cn/"
+log "  Web: http://127.0.0.1:${WEB_HOST_PORT}/  →  https://2sc.prestoai.cn/"
 log "若前有 Nginx/CDN，请确认反代与缓存策略（见 DEPLOYMENT.md）"

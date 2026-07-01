@@ -18,7 +18,7 @@
 |------|------------------|------|
 | Postgres | 127.0.0.1:5433 | — |
 | FastAPI | 127.0.0.1:8011 | 经 Nginx |
-| Next.js | 127.0.0.1:3000 | **https://2sc.prestoai.cn** |
+| Next.js | 127.0.0.1:3002 | **https://2sc.prestoai.cn** |
 
 ---
 
@@ -41,7 +41,7 @@
 - TCP **22**（SSH，建议仅办公 IP）
 - TCP **80**、**443**（Web）
 
-**不要**对公网开放 5433 / 8011 / 3000。
+**不要**对公网开放 5433 / 8011 / 3002。
 
 ---
 
@@ -76,7 +76,7 @@ sudo certbot --nginx -d 2sc.prestoai.cn
 
 ```bash
 curl -s http://127.0.0.1:8011/health
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3002/
 curl -sI https://2sc.prestoai.cn/ | head -5
 ```
 
@@ -132,7 +132,8 @@ DEPLOY_APP_DIR=/opt/bible
 | 现象 | 处理 |
 |------|------|
 | 域名无法访问 | 查 DNS A 记录、安全组 80/443 |
-| 502 Bad Gateway | `docker compose ps`；`curl 127.0.0.1:3000` |
+| 502 Bad Gateway | `docker compose ps`；`curl 127.0.0.1:3002` |
+| `port is already allocated` | `ss -tlnp \| grep 3002` 查占用；改 `WEB_HOST_PORT` 并同步 Nginx `proxy_pass` |
 | API 404 | Nginx 是否加载 `nginx-2sc.prestoai.cn.conf` |
 | git pull 失败 | `git status`，勿在生产机改代码 |
 
