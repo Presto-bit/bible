@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# 对已存在的 Postgres 卷补跑 init 脚本（001–005，幂等）
+# 用法：cd /opt/bible && bash scripts/ensure_pg_schema.sh
+set -euo pipefail
+
+APP_DIR="${APP_DIR:-/opt/bible}"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+ENV_FILE="${ENV_FILE:-.env.production}"
+
+log() { echo "[ensure_pg_schema] $*"; }
+die() { echo "[ensure_pg_schema] ❌ $*" >&2; exit 1; }
+
+cd "$APP_DIR"
+[[ -f "$COMPOSE_FILE" ]] || die "缺少 $COMPOSE_FILE"
+[[ -f "$ENV_FILE" ]] || die "缺少 $ENV_FILE"
+
+DB_USER=bible
+DB_NAME=bible
+if grep -qE '^DB_USER=' "$ENV_FILE" 2>/dev/null; then
+  DB_USER="$(grep -E '^DB_USER=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ' \"\047')"
+fi
+if grep -qE '^DB_NAME=' "$ENV_FILE" 2>/dev/null; then
+  DB_NAME="$(grep -E '^DB_NAME=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ' \"\047')"
+fi
+
+compose=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE)
+
+if ! "${compose[@]}" ps -q --status running postgres &>/dev/null; then
+  die "postgres 容器未运行，请先 docker compose up -d postgres"
+fi
+
+MIGRATIONS=(
+  infra/postgres/init/001_bible_rag.sql
+  infra/postgres/init/002_user_sync.sql
+  infra/postgres/init/003_social.sql
+  infra/postgres/init/003_plan_session.sql
+  infra/postgres/init/004_accounts.sql
+  infra/postgres/init/005_daily_verse_engagement.sql
+)
+
+for sql in "${MIGRATIONS[@]}"; do
+  [[ -f "$sql" ]] || die "缺少迁移文件: $sql"
+  log "应用 $sql"
+  "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" < "$sql"
+done
+
+log "校验关键表与列"
+"${compose[@]}" exec -T postgres psql -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
+SELECT CASE WHEN COUNT(*) = 6 THEN 'ok' ELSE 'missing' END AS check_core_tables
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN (
+    'users', 'accounts', 'social_group',
+    'daily_verse_like', 'daily_verse_share', 'plan_progress'
+  );
+
+SELECT CASE WHEN COUNT(*) = 1 THEN 'ok' ELSE 'missing' END AS check_plan_session_col
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'plan_progress'
+  AND column_name = 'session';
+SQL
+
+log "完成 — 可验证："
+log "  curl -s -X POST http://127.0.0.1:8011/content/daily-verse/like -H 'X-User-Code: 1234567890'"
+log "  curl -s http://127.0.0.1:8011/social/groups -H 'X-User-Code: 1234567890'"

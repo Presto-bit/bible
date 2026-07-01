@@ -91,6 +91,29 @@ for i in $(seq 1 18); do
 done
 [[ "$api_ok" -eq 1 ]] || die "API 健康检查失败"
 
+if [[ -f "$APP_DIR/scripts/ensure_pg_schema.sh" ]]; then
+  log "补跑 PG 迁移（点赞表等）"
+  bash "$APP_DIR/scripts/ensure_pg_schema.sh" || log "⚠️  ensure_pg_schema 失败，请手动 bash scripts/ensure_pg_schema.sh"
+fi
+
+like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8011/content/daily-verse/like" \
+  -H "Content-Type: application/json" -H "X-User-Code: 1234567890" 2>/dev/null || echo "000")"
+if [[ "$like_code" == "503" ]]; then
+  die "点赞 API 仍 503，请检查 PG 是否已应用 005_daily_verse_engagement.sql"
+fi
+if [[ "$like_code" != "200" && "$like_code" != "000" ]]; then
+  log "⚠️  点赞 API 返回 HTTP $like_code（期望 200）"
+fi
+
+social_code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8011/social/groups" \
+  -H "X-User-Code: 1234567890" 2>/dev/null || echo "000")"
+if [[ "$social_code" == "401" ]]; then
+  die "社交 API 仍 401（建群会失败），请确认 API 镜像已更新"
+fi
+if [[ "$social_code" != "200" && "$social_code" != "000" ]]; then
+  log "⚠️  社交 API 返回 HTTP $social_code（期望 200）"
+fi
+
 log "健康检查 Web /"
 web_ok=0
 for i in $(seq 1 30); do

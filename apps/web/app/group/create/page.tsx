@@ -18,8 +18,11 @@ export default function CreateGroupPage() {
     try {
       const g = await api.createGroup(n, intro.trim() || undefined);
       setMsg(`已建群：${g.name} · 邀请码 ${g.join_code}`);
-    } catch {
-      setMsg('建群失败：服务暂不可用');
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      setMsg(detail.includes('未登录') || detail.includes('未认证')
+        ? '建群失败：请先完成账号引导（我的 → 设置用户名）'
+        : `建群失败：${detail}`);
     } finally {
       setBusy(false);
     }

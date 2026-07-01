@@ -354,8 +354,11 @@ export async function chatStream(
 // ── 带认证头的请求（X-User-Id / X-Guest-Id；登录用户服务端为准） ──
 function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
-  const uid = currentUserId();
-  if (uid) h['X-User-Id'] = uid;
+  const code = effectiveId();
+  if (code) {
+    h['X-User-Code'] = code;
+    h['X-User-Id'] = code;
+  }
   const g = guestId();
   if (g) h['X-Guest-Id'] = g;
   return h;

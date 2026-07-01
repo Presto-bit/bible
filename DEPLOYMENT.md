@@ -180,6 +180,9 @@ DEPLOY_APP_DIR=/opt/bible
 | `port is already allocated` | `ss -tlnp \| grep 3002` 查占用；改 `WEB_HOST_PORT` 并同步 Nginx `proxy_pass` |
 | API 404 | Nginx 是否加载 `nginx-2sc.prestoai.cn.conf` |
 | git pull 失败 | `git status`，勿在生产机改代码 |
+| **建群失败 / 401 未认证** | 生产未配 orchestrator 时 API 须识别 `X-User-Code`（需最新 API 镜像）；H5 请求须带 10 位用户 ID |
+| **每日经文点赞无效 / API 503** | 已有库未跑 `005_daily_verse_engagement.sql` → `bash scripts/ensure_pg_schema.sh`（`release.sh` 会自动尝试，覆盖 001–005） |
+| **计划进度云同步失败** | 缺 `plan_progress.session` 列 → 同上脚本会应用 `003_plan_session.sql` |
 | 页面无样式 / 一直「加载中」 | 本机 `curl 127.0.0.1:3002` CSS=200 但公网 404 → **宝塔反代改 3002**（见 §宝塔）；否则 `docker exec bible-web ls .next/static/css/` |
 | **发版后仅首页仍旧**（仍见 `3,842`、`知识闯关`；其它页如 `/challenge` 已是新版） | **Nginx/宝塔缓存了 `/`**。本机 `curl -s http://127.0.0.1:3002/ \| grep 每日问答` 有新内容、但 `curl -s https://2sc.prestoai.cn/ \| grep 3,842` 仍有旧内容即属此类。见下方 §首页缓存 |
 | `dubious ownership` | 勿用 root 发版；`ssh presto@...` 后 `bash release.sh`，或 `sudo -u presto -H bash -c 'cd /opt/bible && bash release.sh'` |

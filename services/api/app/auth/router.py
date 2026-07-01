@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
 import secrets
 import uuid
 
@@ -13,18 +12,13 @@ from pydantic import BaseModel
 from ..config import get_settings
 from ..db import get_pool
 from .session import get_current_user
+from .user_code import CODE_RE as _CODE_RE
+from .user_code import uuid_for_code as _uuid_for_code
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _DEV_NS = uuid.UUID("6f1a0c2e-9b3d-4e7a-8c1f-b1b1e0000000")
-# 10 位数字用户ID → 稳定 UUID（云端数据归属），与 dev 命名空间一致。
-_CODE_NS = uuid.UUID("6f1a0c2e-9b3d-4e7a-8c1f-b1b1e0000001")
-_CODE_RE = re.compile(r"^\d{10}$")
-
-
-def _uuid_for_code(code: str) -> str:
-    return str(uuid.uuid5(_CODE_NS, code))
 
 
 def _hash_pwd(password: str, salt: str) -> str:
