@@ -5,7 +5,8 @@ import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dir = dirname(fileURLToPath(import.meta.url));
-const out = join(__dir, '../data/challenge/question_bank.json');
+const out = join(__dir, '../apps/web/data/question_bank.json');
+const outLegacy = join(__dir, '../data/challenge/question_bank.json');
 
 const THEMES = [
   { id: 'gospel', name: '福音核心', refs: ['JHN.3.16', 'ROM.3.23', 'EPH.2.8', 'GAL.2.20', '1CO.15.3'] },
@@ -108,9 +109,9 @@ for (let i = 0; i < PLACES.length; i++) {
   }
 }
 
+const payload = JSON.stringify({ schema: 'question_bank@1', count: questions.length, themes: THEMES.map((t) => ({ id: t.id, name: t.name })), questions }, null, 0);
 mkdirSync(dirname(out), { recursive: true });
-writeFileSync(
-  out,
-  JSON.stringify({ schema: 'question_bank@1', count: questions.length, themes: THEMES.map((t) => ({ id: t.id, name: t.name })), questions }, null, 0),
-);
+mkdirSync(dirname(outLegacy), { recursive: true });
+writeFileSync(out, payload);
+writeFileSync(outLegacy, payload);
 console.log(`Wrote ${questions.length} questions → ${out}`);

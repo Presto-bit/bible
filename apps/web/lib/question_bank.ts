@@ -1,6 +1,6 @@
 // 题库：1150+ 道，按主题分类 + 随机模式
 
-import bankData from '../../../data/challenge/question_bank.json';
+import bankData from '@/data/question_bank.json';
 import type { ChallengeQuestion } from './challenge_levels';
 
 export interface QuestionBankEntry extends ChallengeQuestion {
