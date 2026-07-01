@@ -1,16 +1,14 @@
 'use client';
 
 import { useEffect } from 'react';
+import { BASE_PATH } from '@/lib/basePath';
 
-// 注册 Service Worker（App Shell 预缓存 + 离线兜底）。
 export default function PwaRegister() {
   useEffect(() => {
-    if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
-    const url = '/2sc/sw.js';
-    navigator.serviceWorker.register(url, { scope: '/2sc/' }).catch(() => {
-      // 注册失败不影响主流程
-    });
+    const scope = `${BASE_PATH || ''}/`;
+    const url = `${BASE_PATH || ''}/sw.js`;
+    navigator.serviceWorker.register(url, { scope }).catch(() => {});
   }, []);
   return null;
 }

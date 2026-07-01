@@ -4,10 +4,12 @@ import PwaRegister from '@/components/PwaRegister';
 import InstallBanner from '@/components/InstallBanner';
 import BottomTabs from '@/components/BottomTabs';
 
+import { BASE_PATH } from '@/lib/basePath';
+
 export const metadata: Metadata = {
   title: 'PrestoAI 读经',
   description: '安静读经，遇见话语。AI 解经与默想陪伴。',
-  manifest: '/2sc/manifest.webmanifest',
+  manifest: `${BASE_PATH || ''}/manifest.webmanifest`,
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'PrestoAI 读经' },
 };
 

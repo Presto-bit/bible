@@ -118,7 +118,7 @@ export default function NotesPage() {
   return (
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <a href="/2sc/profile" className="icon-btn" aria-label="返回">
+        <a href="/profile" className="icon-btn" aria-label="返回">
           ←
         </a>
         <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>我的笔记</h2>
@@ -198,7 +198,7 @@ export default function NotesPage() {
                 </span>
                 <a
                   className="text-link"
-                  href={`/2sc/reader?book=${f.bookId}&chapter=${f.chapter}`}
+                  href={`/reader?book=${f.bookId}&chapter=${f.chapter}`}
                 >
                   阅读
                 </a>

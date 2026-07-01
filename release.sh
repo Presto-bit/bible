@@ -13,7 +13,7 @@
 #   COMPOSE_BUILD_PULL=0|1
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/bible-app}"
+APP_DIR="${APP_DIR:-/opt/bible}"
 REMOTE="${REMOTE:-origin}"
 BRANCH="${BRANCH:-main}"
 GIT_PULL="${GIT_PULL:-1}"
@@ -69,14 +69,14 @@ for i in $(seq 1 18); do
 done
 [[ "$api_ok" -eq 1 ]] || die "API 健康检查失败"
 
-log "健康检查 Web /2sc"
+log "健康检查 Web /"
 web_ok=0
 for i in $(seq 1 30); do
-  if curl -fsS --connect-timeout 3 --max-time 15 -o /dev/null http://127.0.0.1:3000/2sc 2>/dev/null; then
+  if curl -fsS --connect-timeout 3 --max-time 15 -o /dev/null http://127.0.0.1:3000/ 2>/dev/null; then
     web_ok=1
     break
   fi
-  log "Web /2sc 未就绪 (${i}/30)…"
+  log "Web / 未就绪 (${i}/30)…"
   sleep 3
 done
 if [[ "$web_ok" -ne 1 ]]; then
@@ -93,5 +93,5 @@ done
 
 log "发布成功"
 log "  API: http://127.0.0.1:8011/health"
-log "  Web: http://127.0.0.1:3000/2sc"
+log "  Web: http://127.0.0.1:3000/  →  https://2sc.prestoai.cn/"
 log "若前有 Nginx/CDN，请确认反代与缓存策略（见 DEPLOYMENT.md）"

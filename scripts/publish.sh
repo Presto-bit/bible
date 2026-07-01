@@ -13,7 +13,7 @@ cd "$ROOT"
 
 REMOTE="${REMOTE:-origin}"
 BRANCH="${BRANCH:-main}"
-DEPLOY_APP_DIR="${DEPLOY_APP_DIR:-/opt/bible-app}"
+DEPLOY_APP_DIR="${DEPLOY_APP_DIR:-/opt/bible}"
 
 if [[ -f "$ROOT/deploy/publish.env" ]]; then
   # shellcheck source=/dev/null

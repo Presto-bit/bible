@@ -1,13 +1,17 @@
 /** @type {import('next').NextConfig} */
-// H5 部署在 www.prestoai.cn/2sc，故 basePath/assetPrefix 指向 /2sc。
+// 生产：https://2sc.prestoai.cn 根路径（BASE_PATH 为空）
+// 旧路径兼容：NEXT_PUBLIC_BASE_PATH=/2sc
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 const nextConfig = {
-  basePath: '/2sc',
-  assetPrefix: '/2sc',
+  basePath,
+  assetPrefix: basePath || undefined,
   output: 'standalone',
   reactStrictMode: true,
   env: {
+    NEXT_PUBLIC_BASE_PATH: basePath,
     NEXT_PUBLIC_API_BASE:
-      process.env.NEXT_PUBLIC_API_BASE || 'https://www.prestoai.cn',
+      process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn',
   },
 };
 

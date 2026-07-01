@@ -48,7 +48,7 @@ function buildRail(
       title: '约翰福音 3',
       sub: '从上次继续 · 约 3 分钟',
       cta: '读 ›',
-      href: '/2sc/reader',
+      href: '/reader',
     },
     {
       tag: '小爱',
@@ -56,7 +56,7 @@ function buildRail(
       title: '小爱想问你',
       sub: '「这段经文里，神的应许对你意味着什么？」',
       cta: '聊聊 ›',
-      href: '/2sc/assistant',
+      href: '/assistant',
     },
   ];
 }
@@ -137,7 +137,7 @@ export default function HomePage() {
           </span>
         </div>
         <div className="greet-actions">
-          <a href="/2sc/search" aria-label="搜索" className="icon-btn">
+          <a href="/search" aria-label="搜索" className="icon-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4-4" />
@@ -235,12 +235,12 @@ export default function HomePage() {
         ))}
       </div>
 
-      <a href="/2sc/profile" className="card row-card" style={{ display: 'flex' }}>
+      <a href="/profile" className="card row-card" style={{ display: 'flex' }}>
         <span>今日 12 分钟 · 本月已读 9 天</span>
         <span className="muted">›</span>
       </a>
 
-      <a href="/2sc/discover" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
+      <a href="/discover" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
         <span className="pill">小组</span>
         <span style={{ flex: 1 }}>新约共读群 · 今日 6 人已打卡</span>
         <span className="muted">去发现 ›</span>
@@ -254,17 +254,17 @@ export default function HomePage() {
           <span className="rail-cta">去闯关 ›</span>
         </Link>
       )}
-      <a href="/2sc/reader" className="card card-2 card-tint card-accent row-card" style={{ display: 'flex' }}>
+      <a href="/reader" className="card card-2 card-tint card-accent row-card" style={{ display: 'flex' }}>
         <span className="pill pill-active">就快读完</span>
         <span style={{ flex: 1, fontWeight: 600 }}>马可福音还剩 2 章就读完啦</span>
         <span className="rail-cta">读完它 ›</span>
       </a>
-      <a href="/2sc/reader" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
+      <a href="/reader" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
         <span className="pill">去年今日</span>
         <span style={{ flex: 1 }}>去年今日你读了诗篇 23，还划了线</span>
         <span className="muted">看看 ›</span>
       </a>
-      <a href="/2sc/profile" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
+      <a href="/profile" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
         <span className="pill">回顾</span>
         <span style={{ flex: 1 }}>6 月回顾 · 已读 9 天 · 标记 14 处</span>
         <span className="muted">生成回顾 ›</span>

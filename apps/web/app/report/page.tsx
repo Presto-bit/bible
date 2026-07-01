@@ -186,7 +186,7 @@ export default function ReportPage() {
 
   const bookName = (id: string) => books[id]?.name || id;
   const go = (bookId: string, chapter = 1) => {
-    window.location.href = `/2sc/reader?book=${bookId}&chapter=${chapter}`;
+    window.location.href = `/reader?book=${bookId}&chapter=${chapter}`;
   };
 
   const isCalendar = mode === 'day';
@@ -195,7 +195,7 @@ export default function ReportPage() {
   return (
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <a href="/2sc/profile" className="icon-btn" aria-label="返回">←</a>
+        <a href="/profile" className="icon-btn" aria-label="返回">←</a>
         <h2 style={{ margin: 0, fontSize: 18 }}>读经回顾</h2>
       </header>
 

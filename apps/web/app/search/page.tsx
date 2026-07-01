@@ -89,20 +89,20 @@ export default function SearchPage() {
 
   const openReader = (hit: BibleSearchHit) => {
     onSubmit(query);
-    window.location.href = `/2sc/reader?book=${encodeURIComponent(hit.book)}&chapter=${hit.chapter}`;
+    window.location.href = `/reader?book=${encodeURIComponent(hit.book)}&chapter=${hit.chapter}`;
   };
 
   const openAssistant = (hit: BibleSearchHit) => {
     onSubmit(query);
     const snippet = hit.text.length > 24 ? `${hit.text.slice(0, 24)}…` : hit.text;
     const question = encodeURIComponent(`请解释：${snippet}`);
-    window.location.href = `/2sc/assistant?ref=${encodeURIComponent(hit.osis)}&q=${question}`;
+    window.location.href = `/assistant?ref=${encodeURIComponent(hit.osis)}&q=${question}`;
   };
 
   return (
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <a href="/2sc" className="icon-btn" aria-label="返回">
+        <a href="/" className="icon-btn" aria-label="返回">
           ←
         </a>
         <h2 style={{ margin: 0, fontSize: 18 }}>搜索</h2>

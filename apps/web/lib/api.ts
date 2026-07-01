@@ -1,6 +1,6 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
 export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || 'https://www.prestoai.cn';
+  process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn';
 
 export interface BibleBook {
   id: string;

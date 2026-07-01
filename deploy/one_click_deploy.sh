@@ -149,7 +149,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "Bible App 部署完成"
 echo "  目录:   $DEPLOY_ROOT"
 echo "  API:    curl -s http://127.0.0.1:8011/health"
-echo "  Web:    http://127.0.0.1:3000/2sc"
+echo "  Web:    http://127.0.0.1:3000/  →  https://2sc.prestoai.cn/"
 echo "  发版:   cd $DEPLOY_ROOT && bash release.sh"
 echo "  日志:   docker compose -f $COMPOSE_FILE --env-file $ENV_FILE logs -f --tail=200"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
