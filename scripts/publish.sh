@@ -5,7 +5,7 @@
 # 2. bash scripts/publish.sh
 #
 # 也可直接：
-#   DEPLOY_SSH=ubuntu@1.2.3.4 DEPLOY_APP_DIR=/opt/bible-app bash scripts/publish.sh
+#   DEPLOY_SSH=presto@8.152.6.105 DEPLOY_APP_DIR=/opt/bible bash scripts/publish.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -21,7 +21,7 @@ if [[ -f "$ROOT/deploy/publish.env" ]]; then
 fi
 
 if [[ -z "${DEPLOY_SSH:-}" ]]; then
-  echo "请配置 DEPLOY_SSH（例 ubuntu@your-ecs-ip）"
+  echo "请配置 DEPLOY_SSH（例 presto@your-ecs-ip）"
   echo "  cp deploy/publish.env.example deploy/publish.env"
   echo "  Git 仓库: https://github.com/Presto-bit/bible"
   exit 1

@@ -4,6 +4,7 @@
 |----|-----|
 | Git | https://github.com/Presto-bit/bible |
 | 服务器 | `8.152.6.105` |
+| SSH 用户 | `presto` |
 | 代码目录 | `/opt/bible` |
 | H5 域名 | **https://2sc.prestoai.cn** |
 | API | 同域 `https://2sc.prestoai.cn`（Nginx 反代 `/bible` 等） |
@@ -108,7 +109,7 @@ DEPLOY_SSH=presto@8.152.6.105
 DEPLOY_APP_DIR=/opt/bible
 ```
 
-若 SSH 用户不是 `presto`，按实际用户名修改。
+若 SSH 用户不是 `presto`，在 `deploy/publish.env` 中修改 `DEPLOY_SSH`。
 
 ---
 

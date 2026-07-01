@@ -3,8 +3,8 @@
 # Bible App：Docker Compose 一键部署（阿里云 ECS 首次上线）
 #
 # 用法：
-#   cd /opt/bible-app
-#   sudo bash deploy.sh --yes --user ubuntu --root /opt/bible-app
+#   cd /opt/bible
+#   sudo bash deploy.sh --yes --user presto --root /opt/bible
 #
 # 非交互：复制 deploy/deploy.env.example → deploy/deploy.env 后修改
 #==============================================================================
@@ -56,7 +56,11 @@ prompt() {
 }
 
 if [[ -z "${SUDO_USER:-}" || "$SUDO_USER" == "root" ]]; then
-  SUGGEST_USER="$(getent passwd | awk -F: '$3>=1000 && $1!="nobody" {print $1; exit}')"
+  if id -u presto &>/dev/null; then
+    SUGGEST_USER=presto
+  else
+    SUGGEST_USER="$(getent passwd | awk -F: '$3>=1000 && $1!="nobody" {print $1; exit}')"
+  fi
 else
   SUGGEST_USER="$SUDO_USER"
 fi

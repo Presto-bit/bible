@@ -2,11 +2,11 @@
 # 服务器快速发版：git pull → docker compose build → up → 健康检查
 #
 # 用法（SSH 登录 ECS 后）：
-#   cd /opt/bible-app
+#   cd /opt/bible
 #   bash release.sh
 #
 # 环境变量：
-#   APP_DIR=/opt/bible-app
+#   APP_DIR=/opt/bible
 #   REMOTE=origin
 #   BRANCH=main
 #   GIT_PULL=0          跳过 git pull（离线包发版）
