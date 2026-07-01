@@ -13,6 +13,15 @@ const nextConfig = {
     NEXT_PUBLIC_API_BASE:
       process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn',
   },
+  async headers() {
+    // 避免首页等 HTML 被 CDN/Nginx 按 s-maxage=31536000 缓存导致发版后仍显示旧版
+    return [
+      {
+        source: '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js).*)',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

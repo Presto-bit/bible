@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   icons: {
     apple: `${BASE_PATH || ''}/apple-touch-icon.png`,
   },
+  other: {
+    'app-version': process.env.NEXT_PUBLIC_APP_VERSION || 'dev',
+  },
 };
 
 export const viewport: Viewport = {

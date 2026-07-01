@@ -181,6 +181,38 @@ DEPLOY_APP_DIR=/opt/bible
 | API 404 | Nginx 是否加载 `nginx-2sc.prestoai.cn.conf` |
 | git pull 失败 | `git status`，勿在生产机改代码 |
 | 页面无样式 / 一直「加载中」 | 本机 `curl 127.0.0.1:3002` CSS=200 但公网 404 → **宝塔反代改 3002**（见 §宝塔）；否则 `docker exec bible-web ls .next/static/css/` |
+| **发版后仅首页仍旧**（仍见 `3,842`、`知识闯关`；其它页如 `/challenge` 已是新版） | **Nginx/宝塔缓存了 `/`**。本机 `curl -s http://127.0.0.1:3002/ \| grep 每日问答` 有新内容、但 `curl -s https://2sc.prestoai.cn/ \| grep 3,842` 仍有旧内容即属此类。见下方 §首页缓存 |
 | `dubious ownership` | 勿用 root 发版；`ssh presto@...` 后 `bash release.sh`，或 `sudo -u presto -H bash -c 'cd /opt/bible && bash release.sh'` |
+
+### 首页缓存（发版后仅 `/` 仍旧）
+
+**现象**：`/reader`、`/challenge` 已是新版，但打开 `https://2sc.prestoai.cn/` 仍显示 `3,842 人点赞`、`知识闯关` 等旧文案。
+
+**原因**：首页曾被 Next 静态预渲染并带 `s-maxage=31536000`，宝塔/Nginx 把 **精确路径 `/`** 缓存了一年；带查询参数的请求（如 `/?v=1`）会绕过缓存拿到新版。
+
+**立即处理（任选）**：
+
+1. 宝塔 → **网站** → `2sc.prestoai.cn` → **缓存** → **清除全站缓存**
+2. SSH 更新 Nginx，在 `server { listen 443 ... }` 内、`location /` **之前**加入（见 `deploy/nginx-baota-2sc.snippet.conf`）：
+   ```nginx
+   location = / {
+       proxy_pass http://127.0.0.1:3002;
+       proxy_no_cache 1;
+       proxy_cache_bypass 1;
+       add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+       # ... 其余 proxy_set_header 同 location /
+   }
+   ```
+   然后 `nginx -t && nginx -s reload`
+3. 用户端 **Ctrl+Shift+R** 强刷，或清除站点数据后重开
+
+**验证**：
+
+```bash
+curl -s https://2sc.prestoai.cn/ | grep -E '3,842|每日问答'   # 应只有「每日问答」
+curl -s "https://2sc.prestoai.cn/?nocache=$(date +%s)" | grep -E '3,842|每日问答'
+```
+
+**长期**：仓库已把首页改为 `force-dynamic` + `next.config` HTML `no-cache`；发版后新构建不再写入一年期 `s-maxage`。
 
 旧版 `www.prestoai.cn/2sc` 路径已弃用；H5 现部署在独立子域根路径。

@@ -134,6 +134,35 @@ for svc in postgres api web; do
   fi
 done
 
+# 首页 HTML 须为新版本（旧版含假数据「3,842 人点赞」）
+home_html="$(curl -fsS "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null || true)"
+if [[ -z "$home_html" ]]; then
+  die "无法拉取首页 HTML"
+fi
+if echo "$home_html" | grep -q '3,842'; then
+  die "首页仍是旧版（含 3,842 假点赞），请 docker compose build --no-cache web 后重试"
+fi
+if ! echo "$home_html" | grep -q '每日问答'; then
+  die "首页未含「每日问答」，可能构建未更新，请检查 git pull 与 web 镜像"
+fi
+if ! echo "$home_html" | grep -q "$NEXT_PUBLIC_APP_VERSION"; then
+  log "⚠️  本机首页 meta app-version 与构建 $NEXT_PUBLIC_APP_VERSION 不一致"
+fi
+
+if [[ -n "$pub_url" ]]; then
+  pub_home="$(curl -fsS --connect-timeout 5 --max-time 20 "${pub_url%/}/" 2>/dev/null || true)"
+  if [[ -n "$pub_home" ]]; then
+    if echo "$pub_home" | grep -q '3,842'; then
+      log "⚠️  公网首页仍是旧版（含 3,842），本机已更新 → Nginx/宝塔缓存了 /"
+      log "   处理：宝塔 → 网站 → 清缓存；或按 DEPLOYMENT.md §首页缓存 更新 location = / 后 nginx -s reload"
+    elif ! echo "$pub_home" | grep -q '每日问答'; then
+      log "⚠️  公网首页未含「每日问答」，请检查宝塔反代是否指向 ${WEB_HOST_PORT}"
+    else
+      log "公网首页版本校验通过"
+    fi
+  fi
+fi
+
 log "发布成功"
 log "  API: http://127.0.0.1:8011/health"
 log "  Web: http://127.0.0.1:${WEB_HOST_PORT}/  →  https://2sc.prestoai.cn/"
