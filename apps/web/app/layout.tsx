@@ -11,6 +11,9 @@ export const metadata: Metadata = {
   description: '安静读经，遇见话语。AI 解经与默想陪伴。',
   manifest: `${BASE_PATH || ''}/manifest.webmanifest`,
   appleWebApp: { capable: true, statusBarStyle: 'default', title: 'PrestoAI 读经' },
+  icons: {
+    apple: `${BASE_PATH || ''}/apple-touch-icon.png`,
+  },
 };
 
 export const viewport: Viewport = {

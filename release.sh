@@ -114,6 +114,19 @@ if [[ -z "$css_path" ]] || ! curl -fsS --connect-timeout 3 --max-time 15 -o /dev
   die "Web 静态资源不可访问（CSS 404）。请执行: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE build --no-cache web && ... up -d web"
 fi
 
+pub_url=""
+if grep -qE '^PUBLIC_WEB_URL=' "$ENV_FILE" 2>/dev/null; then
+  pub_url="$(grep -E '^PUBLIC_WEB_URL=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ' \"\047')"
+fi
+if [[ -n "$pub_url" && -n "$css_path" ]]; then
+  pub_code="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 20 \
+    "${pub_url%/}${css_path}" 2>/dev/null || echo "000")"
+  if [[ "$pub_code" != "200" ]]; then
+    log "⚠️  本机 ${WEB_HOST_PORT} CSS 正常，但公网 ${pub_url}${css_path} 返回 HTTP ${pub_code}"
+    log "   宝塔/Nginx 反代很可能仍指向 3000 或其它端口，请改为 127.0.0.1:${WEB_HOST_PORT}（见 DEPLOYMENT.md §宝塔）"
+  fi
+fi
+
 for svc in postgres api web; do
   if [[ -z "$("${compose[@]}" ps -q --status running "$svc" 2>/dev/null || true)" ]]; then
     "${compose[@]}" ps -a >&2 || true

@@ -79,7 +79,50 @@ sudo certbot --nginx -d 2sc.prestoai.cn
 curl -s http://127.0.0.1:8011/health
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3002/
 curl -sI https://2sc.prestoai.cn/ | head -5
+# 本机与公网 CSS 都应为 200（见下方「宝塔」）
+CSS=$(curl -s http://127.0.0.1:3002/ | grep -oE '/_next/static/css/[^"]+\.css' | head -1)
+curl -s -o /dev/null -w "本机3002 CSS: %{http_code}\n" "http://127.0.0.1:3002${CSS}"
+curl -s -o /dev/null -w "公网 HTTPS CSS: %{http_code}\n" "https://2sc.prestoai.cn${CSS}"
 ```
+
+### 宝塔面板反代（必查）
+
+`release.sh` 只保证 **Docker 本机 `127.0.0.1:3002`** 正常。域名 `https://2sc.prestoai.cn` 能否加载样式，取决于宝塔是否把流量转到 **3002**。
+
+1. 宝塔 → **网站** → `2sc.prestoai.cn` → **设置**
+2. **反向代理**（或「配置文件」）里，目标 URL 必须是：
+   ```text
+   http://127.0.0.1:3002
+   ```
+   **不要**再用 `3000`（该端口常被其它 Node 占用，且静态资源 404）。
+3. **HTTP 与 HTTPS** 两套 server 块都要改（只改 80 不够，浏览器走 443）。
+4. 保存后 **重载 Nginx**。
+
+配置文件常见路径（供 SSH 排查）：
+
+```text
+/www/server/panel/vhost/nginx/2sc.prestoai.cn.conf
+```
+
+在 `server { listen 443 ssl; ... }` 内应有类似：
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3002;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+改完后执行：
+
+```bash
+nginx -t && nginx -s reload
+CSS=$(curl -s http://127.0.0.1:3002/ | grep -oE '/_next/static/css/[^"]+\.css' | head -1)
+curl -s -o /dev/null -w "公网 CSS: %{http_code}\n" "https://2sc.prestoai.cn${CSS}"
+```
+
+公网 CSS 为 **200** 后，浏览器 **Ctrl+Shift+R** 强刷即可看到 H5 布局。
 
 ---
 
@@ -137,7 +180,7 @@ DEPLOY_APP_DIR=/opt/bible
 | `port is already allocated` | `ss -tlnp \| grep 3002` 查占用；改 `WEB_HOST_PORT` 并同步 Nginx `proxy_pass` |
 | API 404 | Nginx 是否加载 `nginx-2sc.prestoai.cn.conf` |
 | git pull 失败 | `git status`，勿在生产机改代码 |
-| 页面无样式 / 一直「加载中」 | 静态资源 404：`curl -I http://127.0.0.1:3002/_next/static/css/`；容器内 `docker exec bible-web ls .next/static/css/`；无文件则 `build --no-cache web` 后重启 |
+| 页面无样式 / 一直「加载中」 | 本机 `curl 127.0.0.1:3002` CSS=200 但公网 404 → **宝塔反代改 3002**（见 §宝塔）；否则 `docker exec bible-web ls .next/static/css/` |
 | `dubious ownership` | 勿用 root 发版；`ssh presto@...` 后 `bash release.sh`，或 `sudo -u presto -H bash -c 'cd /opt/bible && bash release.sh'` |
 
 旧版 `www.prestoai.cn/2sc` 路径已弃用；H5 现部署在独立子域根路径。
