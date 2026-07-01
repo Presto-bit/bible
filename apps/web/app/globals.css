@@ -3152,6 +3152,27 @@ body.reader-immersive .tabbar {
   animation: resume-breath 1.6s ease-in-out infinite;
 }
 
+.verse-resume-lead-flash {
+  display: inline;
+  border-radius: 4px;
+  animation: verse-resume-lead-flash 2.4s ease-out 1;
+}
+
+@keyframes verse-resume-lead-flash {
+  0% {
+    background: rgba(45, 106, 79, 0.45);
+    box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.4);
+  }
+  40% {
+    background: rgba(45, 106, 79, 0.28);
+    box-shadow: 0 0 0 4px rgba(45, 106, 79, 0.1);
+  }
+  100% {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
 .verse-resume-flash {
   animation: verse-resume-flash 2.4s ease-out 1;
   border-radius: 10px;

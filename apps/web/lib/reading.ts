@@ -67,25 +67,33 @@ export function getLastRead(): LastRead | null {
   }
 }
 
-/** 底部 Tab 进入圣经时标记，用于续读闪动（每会话每位置每天最多一次） */
+/** 是否展示首次续读提示（仅第一次从底部 Tab 进入圣经时闪动一次） */
+const FIRST_TAB_HINT_KEY = 'presto_reader_tab_hint_shown';
+const TAB_ENTRY_KEY = 'reader_tab_entry';
+
 export function markReaderTabEntry() {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem('reader_tab_resume', '1');
+  sessionStorage.setItem(TAB_ENTRY_KEY, '1');
 }
 
-function resumeFlashKey(bookId: string, chapter: number, verse: number) {
-  return `resume_flash_${bookId}.${chapter}.${verse}`;
-}
-
-export function shouldResumeFlash(bookId: string, chapter: number, verse: number): boolean {
+function consumeReaderTabEntry(): boolean {
   if (typeof window === 'undefined') return false;
-  if (sessionStorage.getItem('reader_tab_resume') !== '1') return false;
-  sessionStorage.removeItem('reader_tab_resume');
-  const today = new Date().toDateString();
-  const key = resumeFlashKey(bookId, chapter, verse);
-  if (localStorage.getItem(key) === today) return false;
-  localStorage.setItem(key, today);
+  const fromTab = sessionStorage.getItem(TAB_ENTRY_KEY) === '1';
+  sessionStorage.removeItem(TAB_ENTRY_KEY);
+  return fromTab;
+}
+
+export function shouldShowResumeHint(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (!consumeReaderTabEntry()) return false;
+  if (localStorage.getItem(FIRST_TAB_HINT_KEY) === '1') return false;
+  localStorage.setItem(FIRST_TAB_HINT_KEY, '1');
   return true;
+}
+
+/** @deprecated 使用 shouldShowResumeHint */
+export function shouldResumeFlash(_bookId: string, _chapter: number, _verse: number): boolean {
+  return shouldShowResumeHint();
 }
 
 // 阅读一章：当日 chapters +1、minutes + 估算。

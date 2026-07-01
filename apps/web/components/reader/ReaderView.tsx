@@ -44,7 +44,7 @@ import {
   maybeNotifyBookComplete,
   setLastRead,
   setLastReadVerse,
-  shouldResumeFlash,
+  shouldShowResumeHint,
 } from '@/lib/reading';
 import { outlineFor } from '@/lib/outlines';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
@@ -154,6 +154,7 @@ export default function ReaderView({
   const lastSelectAt = useRef(0);
   const syncingSelection = useRef(false);
   const readStartRef = useRef(Date.now());
+  const saveVerseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshChapterNotes = useCallback(() => {
     setChapterNotes(notesForChapter(listNotes(), book.id, chapter));
@@ -255,6 +256,21 @@ export default function ReaderView({
     if (storageRef) return highlightMap[storageRef] ?? null;
     return highlightMap[selRef] ?? null;
   }, [highlightMap, selRef, book.id, chapter, sortedSel]);
+
+  const renderVerseBody = useCallback(
+    (text: string, keyBase: string, flashLead: boolean) => {
+      if (!flashLead || !text) return renderVerseText(text, keyBase);
+      const lead = text.slice(0, 2);
+      const tail = text.slice(2);
+      return (
+        <>
+          <span className="verse-resume-lead-flash">{lead}</span>
+          {tail ? renderVerseText(tail, `${keyBase}-tail`) : null}
+        </>
+      );
+    },
+    [renderVerseText],
+  );
 
   const updateFocusBarPosition = useCallback(() => {
     if (!hasSel || minV == null) return;
@@ -451,17 +467,16 @@ export default function ReaderView({
       setLastRead(book.id, chapter);
       scheduleChromeHide();
 
-      const lastV = getLastReadVerse();
-      const last = getLastRead();
-      if (last && last.bookId === book.id && last.chapter === chapter && lastV) {
-        requestAnimationFrame(() => {
-          document.getElementById(`verse-anchor-${lastV}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          if (shouldResumeFlash(book.id, chapter, lastV)) {
-            setResumeFlashVerse(lastV);
-            window.setTimeout(() => setResumeFlashVerse(null), 2600);
-          }
-        });
-      }
+      requestAnimationFrame(() => {
+        if (contentRef.current) contentRef.current.scrollTop = 0;
+        const lastV = getLastReadVerse();
+        const last = getLastRead();
+        if (last && last.bookId === book.id && last.chapter === chapter && lastV && shouldShowResumeHint()) {
+          document.getElementById(`verse-anchor-${lastV}`)?.scrollIntoView({ behavior: 'auto', block: 'start' });
+          setResumeFlashVerse(lastV);
+          window.setTimeout(() => setResumeFlashVerse(null), 2600);
+        }
+      });
     };
     void load().catch(() => flashToast('加载失败'));
   }, [book, chapter, mainVersionId, scheduleChromeHide, bookAbbr]);
@@ -470,13 +485,28 @@ export default function ReaderView({
     const el = contentRef.current;
     if (!el) return;
     const onScroll = () => {
-      // 上滑（往回读）即恢复顶栏 + 底部 Tab；下滑继续沉浸。
       const cur = el.scrollTop;
       if (cur < lastScrollTop.current - 4) scheduleChromeHide();
       lastScrollTop.current = cur;
 
+      if (saveVerseTimer.current) clearTimeout(saveVerseTimer.current);
+      saveVerseTimer.current = setTimeout(() => {
+        const mid = el.scrollTop + el.clientHeight * 0.2;
+        let bestVerse: number | null = null;
+        let bestDist = Infinity;
+        for (const v of verses) {
+          const anchor = document.getElementById(`verse-anchor-${v.verse}`);
+          if (!anchor) continue;
+          const dist = Math.abs(anchor.offsetTop - mid);
+          if (dist < bestDist) {
+            bestDist = dist;
+            bestVerse = v.verse;
+          }
+        }
+        if (bestVerse != null) setLastReadVerse(bestVerse);
+      }, 200);
+
       if (bookDone) return;
-      // 仅在「读完整卷」（滚动到本卷最后一章末尾）时给出庆祝，避免每章都打扰。
       if (chapter < book.chapter_count) return;
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom && verses.length > 0) {
@@ -485,7 +515,10 @@ export default function ReaderView({
       }
     };
     el.addEventListener('scroll', onScroll);
-    return () => el.removeEventListener('scroll', onScroll);
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      if (saveVerseTimer.current) clearTimeout(saveVerseTimer.current);
+    };
   }, [verses, bookDone, chapter, book.chapter_count, book.name, scheduleChromeHide]);
 
   const navChapter = (delta: number) => {
@@ -694,12 +727,12 @@ export default function ReaderView({
                           <span
                             key={v.verse}
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)} ${resumeFlashVerse === v.verse ? 'verse-resume-flash' : ''}`}
+                            className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)}`}
                           >
                             {verseNo !== 'hidden' && (
                               <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                             )}
-                            {renderVerseText(text, `p${v.verse}`)}
+                            {renderVerseBody(text, `p${v.verse}`, resumeFlashVerse === v.verse)}
                             {renderNotePin(v.verse)}{' '}
                           </span>
                         );
@@ -743,12 +776,16 @@ export default function ReaderView({
                     <span
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)} ${resumeFlashVerse === v.verse ? 'verse-resume-flash' : ''}`}
+                      className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)}`}
                     >
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                       )}
-                      {renderVerseText(verseDisplayText(v.verse, v.text), `v${v.verse}`)}
+                      {renderVerseBody(
+                        verseDisplayText(v.verse, v.text),
+                        `v${v.verse}`,
+                        resumeFlashVerse === v.verse,
+                      )}
                       {renderNotePin(v.verse)}{' '}
                     </span>
                     );
@@ -831,7 +868,6 @@ export default function ReaderView({
             </button>
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
-            <button type="button" className="vsb-item reader-focus-close" onClick={clearSelection} aria-label="关闭">✕</button>
           </div>
         </div>
       )}
