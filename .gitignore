@@ -5,6 +5,12 @@ node_modules/
 build/
 .flutter-plugins
 .flutter-plugins-dependencies
+apps/mobile/build/
+
+# Frontend build cache
+.next/
+*.tsbuildinfo
+out/
 
 # IDE
 .idea/
@@ -16,6 +22,7 @@ build/
 .env.*
 !.env.example
 !.env.production.example
+apps/web/.env.local
 
 deploy/deploy.env
 deploy/publish.env
@@ -28,8 +35,13 @@ content/**/*
 !content/README.md
 !content/commentary/.gitkeep
 
+# SQLite WAL sidecars
+*.sqlite-shm
+*.sqlite-wal
+
 # OS
 .DS_Store
+**/.DS_Store
 Thumbs.db
 
 # Python
@@ -42,3 +54,7 @@ venv/
 
 # Logs
 *.log
+*.log.*
+
+# Offline pack output
+build/offline_pack/

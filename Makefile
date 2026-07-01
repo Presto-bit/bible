@@ -58,6 +58,14 @@ rag-index: ## 注释入库（需 PG + DashScope Key）
 offline-pack: ## 打离线包（经库 + 内容 → zip）
 	$(PY) scripts/build_offline_pack.py
 
+.PHONY: clean
+clean: ## 清理构建缓存与临时文件（见 scripts/clean.sh）
+	bash scripts/clean.sh
+
+.PHONY: clean-deps
+clean-deps: ## 清理缓存并删除 node_modules / .venv
+	CLEAN_DEPS=1 bash scripts/clean.sh
+
 # ── 服务 / 测试 ──
 .PHONY: api
 api: ## 启动 FastAPI（localhost:8000）
