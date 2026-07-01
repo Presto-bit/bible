@@ -1,6 +1,6 @@
 'use client';
 
-import type { BadgeDef } from '@/lib/gamification';
+import type { BadgeDef } from '@/lib/badges';
 
 export default function BadgeGallery({
   badges,
@@ -23,10 +23,11 @@ export default function BadgeGallery({
           {badges.map((b) => (
             <div key={b.id} className={`badge-gallery-item ${b.done ? 'badge-gallery-done' : ''}`}>
               <div className={`badge-circle ${b.done ? 'badge-done' : ''}`}>
-                {b.done ? b.icon : b.progress}
+                {b.icon}
               </div>
               <strong>{b.label}</strong>
               <span className="muted">{b.desc}</span>
+              {!b.done && <span className="muted" style={{ fontSize: 10 }}>{b.progress}</span>}
             </div>
           ))}
         </div>

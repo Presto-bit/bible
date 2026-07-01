@@ -18,6 +18,10 @@ export interface DailyVerse {
   ref: string;
   theme: string;
   text: string;
+  day?: number;
+  likes_count?: number;
+  liked?: boolean;
+  shares_count?: number;
 }
 
 export interface DailyDevotional {
@@ -42,10 +46,18 @@ export interface PrayerToday {
   prompt?: string;
 }
 
-async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' });
+async function getJson<T>(path: string, headers?: Record<string, string>): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    cache: 'no-store',
+    headers: headers ? { ...headers } : undefined,
+  });
   if (!res.ok) throw new Error(`请求失败 ${res.status}: ${path}`);
   return res.json() as Promise<T>;
+}
+
+function userCodeHeader(): Record<string, string> {
+  const code = currentUserId() || guestId();
+  return code ? { 'X-User-Code': code } : {};
 }
 
 // ── 身份（本地优先：免注册 10 位数字 ID 即唯一标识） ──
@@ -351,13 +363,14 @@ function authHeaders(): Record<string, string> {
 
 async function authed<T>(
   path: string,
-  opts: { method?: string; body?: unknown } = {},
+  opts: { method?: string; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: opts.method || 'GET',
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(),
+      ...opts.headers,
     },
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     cache: 'no-store',
@@ -490,7 +503,17 @@ export interface GuideResult {
 }
 
 export const api = {
-  dailyVerse: () => getJson<DailyVerse>('/content/daily-verse'),
+  dailyVerse: () => getJson<DailyVerse>('/content/daily-verse', userCodeHeader()),
+  toggleDailyVerseLike: () =>
+    authed<{ liked: boolean; likes_count: number; shares_count: number }>(
+      '/content/daily-verse/like',
+      { method: 'POST', headers: userCodeHeader() },
+    ),
+  recordDailyVerseShare: () =>
+    authed<{ ok: boolean; likes_count: number; shares_count: number }>(
+      '/content/daily-verse/share',
+      { method: 'POST', headers: userCodeHeader() },
+    ),
   dailyDevotional: () => getJson<DailyDevotional>('/content/daily-devotional'),
   prayerToday: () => getJson<PrayerToday>('/content/prayer-today'),
   books: () => getJson<{ books: BibleBook[] }>('/bible/books'),

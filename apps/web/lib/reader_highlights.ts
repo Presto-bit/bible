@@ -188,6 +188,10 @@ export function markForVerse(
   return null;
 }
 
+export function highlightCount(): number {
+  return Object.keys(getHighlights()).length;
+}
+
 export function highlightClass(mark: HighlightMark | null): string {
   if (!mark) return '';
   return `verse-mark verse-mark-${mark.style} verse-mark-${mark.color}`;

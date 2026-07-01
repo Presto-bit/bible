@@ -1,16 +1,20 @@
 """静态内容接口。经库可解析时填充经文正文。"""
 from __future__ import annotations
 
+import re
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from ..db import get_pool
 from . import loader
 from .planner import SCOPE_LABELS, generate_plan
 
 router = APIRouter(prefix="/content", tags=["content"])
+
+_USER_CODE_RE = re.compile(r"^\d{10}$")
 
 
 class GeneratePlanBody(BaseModel):
@@ -74,8 +78,7 @@ def plan_day(plan_id: str, day: int) -> dict:
 
 
 # ── 每日经文 ──
-@router.get("/daily-verse")
-def daily_verse(day: int | None = Query(None, ge=1)) -> dict:
+def _resolve_verse_day(day: int | None) -> tuple[int, dict]:
     data = loader.daily_verses()
     verses = data.get("verses", [])
     if not verses:
@@ -85,14 +88,119 @@ def daily_verse(day: int | None = Query(None, ge=1)) -> dict:
     item = next((v for v in verses if v.get("day") == day), None)
     if item is None:
         item = verses[(day - 1) % len(verses)]
+    return int(item.get("day") or day), item
+
+
+def _pick_user_code(x_user_code: str | None, x_user_id: str | None) -> str | None:
+    for raw in (x_user_code, x_user_id):
+        code = (raw or "").strip()
+        if _USER_CODE_RE.match(code):
+            return code
+    return None
+
+
+def _daily_verse_engagement(verse_day: int, user_code: str | None) -> dict:
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            likes_row = conn.execute(
+                "SELECT COUNT(*)::int FROM daily_verse_like WHERE verse_day = %s",
+                (verse_day,),
+            ).fetchone()
+            likes_count = int(likes_row[0]) if likes_row else 0
+            liked = False
+            if user_code:
+                liked_row = conn.execute(
+                    "SELECT 1 FROM daily_verse_like WHERE verse_day = %s AND user_code = %s",
+                    (verse_day, user_code),
+                ).fetchone()
+                liked = liked_row is not None
+            shares_row = conn.execute(
+                "SELECT COUNT(*)::int FROM daily_verse_share WHERE verse_day = %s",
+                (verse_day,),
+            ).fetchone()
+            shares_count = int(shares_row[0]) if shares_row else 0
+        return {"likes_count": likes_count, "liked": liked, "shares_count": shares_count}
+    except Exception:
+        return {"likes_count": 0, "liked": False, "shares_count": 0}
+
+
+@router.get("/daily-verse")
+def daily_verse(
+    day: int | None = Query(None, ge=1),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> dict:
+    verse_day, item = _resolve_verse_day(day)
     text = item.get("text") or loader.resolve_ref_text(
         item.get("ref"), item.get("book"), item.get("chapter"),
         item.get("verse_start"), item.get("verse_end"),
     )
-    return {**item, "text": text}
+    user_code = _pick_user_code(x_user_code, x_user_id)
+    stats = _daily_verse_engagement(verse_day, user_code)
+    return {**item, "text": text, "day": verse_day, **stats}
 
 
-@router.get("/themes")
+@router.post("/daily-verse/like")
+def toggle_daily_verse_like(
+    day: int | None = Query(None, ge=1),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> dict:
+    user_code = _pick_user_code(x_user_code, x_user_id)
+    if not user_code:
+        raise HTTPException(status_code=400, detail="需要 10 位用户标识（X-User-Code）")
+    verse_day, _ = _resolve_verse_day(day)
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            exists = conn.execute(
+                "SELECT 1 FROM daily_verse_like WHERE verse_day = %s AND user_code = %s",
+                (verse_day, user_code),
+            ).fetchone()
+            if exists:
+                conn.execute(
+                    "DELETE FROM daily_verse_like WHERE verse_day = %s AND user_code = %s",
+                    (verse_day, user_code),
+                )
+                liked = False
+            else:
+                conn.execute(
+                    "INSERT INTO daily_verse_like (verse_day, user_code) VALUES (%s, %s)",
+                    (verse_day, user_code),
+                )
+                liked = True
+            conn.commit()
+        stats = _daily_verse_engagement(verse_day, user_code)
+        return {"liked": liked, **stats}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="点赞服务暂不可用") from exc
+
+
+@router.post("/daily-verse/share")
+def record_daily_verse_share(
+    day: int | None = Query(None, ge=1),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> dict:
+    user_code = _pick_user_code(x_user_code, x_user_id) or "anonymous"
+    verse_day, _ = _resolve_verse_day(day)
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            conn.execute(
+                "INSERT INTO daily_verse_share (verse_day, user_code) VALUES (%s, %s)",
+                (verse_day, user_code),
+            )
+            conn.commit()
+        stats = _daily_verse_engagement(verse_day, _pick_user_code(x_user_code, x_user_id))
+        return {"ok": True, **stats}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="分享记录暂不可用") from exc
+
+
 def themes() -> dict:
     return {"themes": loader.daily_verses().get("themes", [])}
 

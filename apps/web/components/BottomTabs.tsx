@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { markReaderTabEntry } from '@/lib/reading';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
 // outline 为未选中态，filled 为选中态（与 App 的 NavigationDestination 行为一致）。
@@ -59,6 +60,9 @@ export default function BottomTabs() {
             key={t.href}
             href={t.href}
             className={`tab ${active ? 'tab-active' : ''}`}
+            onClick={() => {
+              if (t.href === '/reader') markReaderTabEntry();
+            }}
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
               <path d={active ? t.filled : t.outline} />

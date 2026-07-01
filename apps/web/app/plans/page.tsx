@@ -53,6 +53,8 @@ function PlanRow({
 export default function PlansPage() {
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [scopes, setScopes] = useState<{ id: string; label: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [listErr, setListErr] = useState<string | null>(null);
   const [scope, setScope] = useState<string | null>(null);
   const [days, setDays] = useState(30);
   const [prompt, setPrompt] = useState('');
@@ -64,10 +66,24 @@ export default function PlansPage() {
   const [tab, setTab] = useState<'reading' | 'prayer'>('reading');
   const [active, setActive] = useState<ActivePlan | null>(null);
   const [savedPlans, setSavedPlans] = useState<GeneratedPlan[]>([]);
+  const [prayerSheet, setPrayerSheet] = useState<Awaited<ReturnType<typeof api.prayerToday>> | null>(null);
+  const [toast, setToast] = useState('');
+
+  const flashToast = (t: string) => {
+    setToast(t);
+    window.setTimeout(() => setToast(''), 2000);
+  };
 
   useEffect(() => {
-    api.plans().then((d) => setPlans(d.plans)).catch((e) => setErr(String(e)));
-    api.planScopes().then((d) => setScopes(d.scopes)).catch(() => {});
+    setLoading(true);
+    setListErr(null);
+    Promise.all([api.plans(), api.planScopes()])
+      .then(([p, s]) => {
+        setPlans(p.plans);
+        setScopes(s.scopes);
+      })
+      .catch((e) => setListErr(String(e)))
+      .finally(() => setLoading(false));
     setActive(getActivePlan());
     try {
       setSavedPlans(JSON.parse(localStorage.getItem('presto_generated_plans') || '[]'));
@@ -87,11 +103,24 @@ export default function PlansPage() {
   const activeDay = active ? getPlanDay(active.planId) : 0;
 
   const goReadPlan = async (plan: ActivePlan, day: number) => {
+    if (plan.kind === 'prayer') {
+      try {
+        setPrayerSheet(await api.prayerToday());
+      } catch (e) {
+        flashToast(`祷告内容加载失败：${e}`);
+      }
+      return;
+    }
     setActivePlan(plan);
     setPlanDay(plan.planId, day);
     setActive(plan);
-    const meta = await buildPlanReadingMeta(plan, day);
-    if (meta) window.location.href = readerHref(meta);
+    try {
+      const meta = await buildPlanReadingMeta(plan, day);
+      if (meta) window.location.href = readerHref(meta);
+      else flashToast('今日计划暂无内容，请换一天或重新选择计划');
+    } catch (e) {
+      flashToast(String(e));
+    }
   };
 
   useEffect(() => {
@@ -127,6 +156,11 @@ export default function PlansPage() {
     };
     if (ap.kind === 'prayer') {
       startPlan(p, source);
+      try {
+        setPrayerSheet(await api.prayerToday());
+      } catch (e) {
+        flashToast(`祷告内容加载失败：${e}`);
+      }
       return;
     }
     const day = getPlanDay(planId) || 1;
@@ -220,8 +254,18 @@ export default function PlansPage() {
 
       <div className="plans-section-head">
         <h3>热门计划</h3>
-        <span>{featured.length} 个</span>
+        <span>{loading ? '…' : `${featured.length} 个`}</span>
       </div>
+
+      {loading && <p className="muted" style={{ marginBottom: 12 }}>加载计划中…</p>}
+      {listErr && (
+        <p style={{ color: '#b1554a', marginBottom: 12 }}>
+          计划加载失败，请检查网络后刷新。
+        </p>
+      )}
+      {!loading && !listErr && featured.length === 0 && (
+        <p className="muted" style={{ marginBottom: 12 }}>暂无计划，请稍后重试或联系管理员检查服务端数据。</p>
+      )}
 
       {grouped.map((group) => (
         <section key={group.label}>
@@ -291,7 +335,11 @@ export default function PlansPage() {
                   <div key={d.day} className="verse-row"><span className="verse-no">{d.day}</span>{d.title}</div>
                 ))}
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <button type="button" className="btn" style={{ flex: 1 }} onClick={() => { startPlan({ id: preview.id, title: preview.title, days_count: preview.days_count }, 'generated'); setShowGenerate(false); }}>
+                  <button type="button" className="btn" style={{ flex: 1 }} onClick={() => {
+                    saveGenerated();
+                    startPlan({ id: preview.id, title: preview.title, days_count: preview.days_count }, 'generated');
+                    setShowGenerate(false);
+                  }}>
                     设为当前计划
                   </button>
                   <button type="button" className="book-chip" style={{ flex: 1 }} onClick={saveGenerated}>保存</button>
@@ -301,6 +349,41 @@ export default function PlansPage() {
           </div>
         </div>
       )}
+
+      {prayerSheet && (
+        <div className="sheet-backdrop" onClick={() => setPrayerSheet(null)}>
+          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
+            <div className="section-row" style={{ marginTop: 0 }}>
+              <strong>{prayerSheet.title}</strong>
+              <button type="button" className="text-link" onClick={() => setPrayerSheet(null)}>关闭</button>
+            </div>
+            {prayerSheet.scripture?.ref && (
+              <p className="muted" style={{ fontSize: 13 }}>{prayerSheet.scripture.ref}</p>
+            )}
+            {prayerSheet.scripture?.text && (
+              <blockquote style={{ margin: '10px 0', paddingLeft: 12, borderLeft: '3px solid var(--accent)' }}>
+                {prayerSheet.scripture.text}
+              </blockquote>
+            )}
+            {(['adoration', 'confession', 'thanksgiving', 'supplication'] as const).map((k) => {
+              const label = { adoration: '敬拜', confession: '认罪', thanksgiving: '感恩', supplication: '祈求' }[k];
+              const text = prayerSheet.acts?.[k];
+              if (!text) return null;
+              return (
+                <div key={k} style={{ marginTop: 10 }}>
+                  <strong style={{ fontSize: 13 }}>{label}</strong>
+                  <p style={{ margin: '4px 0 0', lineHeight: 1.7 }}>{text}</p>
+                </div>
+              );
+            })}
+            {prayerSheet.prompt && (
+              <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>{prayerSheet.prompt}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
     </main>
   );
 }

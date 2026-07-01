@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
+import { stripFollowups } from '@/lib/assistant_format';
 
 // 轻量 Markdown 渲染（无第三方依赖）：支持 ## 标题、**加粗**、- / 1. 列表、
 // 【背景】这类小标题、引用经文（> 开头）。用于小爱输出，增强可读性与视觉。
 
 function renderInline(text: string, keyBase: string): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  // **加粗** 与 「引号」高亮
   const re = /\*\*([^*]+)\*\*|“([^”]+)”|「([^」]+)」/g;
   let last = 0;
   let m: RegExpExecArray | null;
@@ -39,10 +39,12 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
 }
 
 const LABEL_RE = /^【([^】]+)】\s*(.*)$/;
+const FOLLOWUP_HEAD = /^[【\[]?\s*相关追问\s*[】\]]?[:：]?\s*$/;
 
 export default function AnswerText({ text }: { text: string }) {
   if (!text) return null;
-  const lines = text.split('\n');
+  const body = stripFollowups(text);
+  const lines = body.split('\n');
   const blocks: React.ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
 
@@ -72,8 +74,11 @@ export default function AnswerText({ text }: { text: string }) {
     const key = String(idx);
     if (!line.trim()) {
       flushList(key);
+      blocks.push(<div key={`sp-${key}`} className="ans-spacer" aria-hidden />);
       return;
     }
+    if (FOLLOWUP_HEAD.test(line.trim())) return;
+
     const heading = line.match(/^#{1,4}\s+(.*)$/);
     const labelM = line.match(LABEL_RE);
     const bullet = line.match(/^\s*[-•·]\s+(.*)$/);

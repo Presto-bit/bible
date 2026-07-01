@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   api,
   type BibleBook,
@@ -43,6 +44,7 @@ import {
   maybeNotifyBookComplete,
   setLastRead,
   setLastReadVerse,
+  shouldResumeFlash,
 } from '@/lib/reading';
 import { outlineFor } from '@/lib/outlines';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
@@ -57,6 +59,7 @@ import {
   markForVerse,
   pickHighlightColor,
   type HighlightColor,
+  type HighlightStyleKey,
 } from '@/lib/reader_highlights';
 import {
   addThought,
@@ -128,6 +131,7 @@ export default function ReaderView({
   const [mainVersionId, setMainVersionId] = useState<string | null>(null);
   const [chapterAnim, setChapterAnim] = useState('');
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
+  const [markMenuOpen, setMarkMenuOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
@@ -147,8 +151,8 @@ export default function ReaderView({
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const lastScrollTop = useRef(0);
   const chromeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSelectAt = useRef(0);
+  const syncingSelection = useRef(false);
   const readStartRef = useRef(Date.now());
 
   const refreshChapterNotes = useCallback(() => {
@@ -336,10 +340,11 @@ export default function ReaderView({
     setTimeout(() => setToast(''), 1800);
   };
 
-  const applyMarkChoice = useCallback((color: HighlightColor) => {
-    const added = pickHighlightColor(book.id, chapter, sortedSel, color, 'color');
+  const applyMarkChoice = useCallback((color: HighlightColor, style: HighlightStyleKey = 'color') => {
+    const added = pickHighlightColor(book.id, chapter, sortedSel, color, style);
     setHighlightMap(getHighlightMap());
     flashToast(added ? '已划线' : '已取消划线');
+    setMarkMenuOpen(false);
   }, [book.id, chapter, sortedSel]);
 
   const clearMark = useCallback(() => {
@@ -358,7 +363,6 @@ export default function ReaderView({
   useEffect(
     () => () => {
       if (chromeTimer.current) clearTimeout(chromeTimer.current);
-      if (longPressTimer.current) clearTimeout(longPressTimer.current);
     },
     [],
   );
@@ -452,8 +456,10 @@ export default function ReaderView({
       if (last && last.bookId === book.id && last.chapter === chapter && lastV) {
         requestAnimationFrame(() => {
           document.getElementById(`verse-anchor-${lastV}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          setResumeFlashVerse(lastV);
-          window.setTimeout(() => setResumeFlashVerse(null), 2600);
+          if (shouldResumeFlash(book.id, chapter, lastV)) {
+            setResumeFlashVerse(lastV);
+            window.setTimeout(() => setResumeFlashVerse(null), 2600);
+          }
         });
       }
     };
@@ -496,43 +502,46 @@ export default function ReaderView({
     return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
   };
 
-  const markRead = (v: number) => {
-    lastSelectAt.current = Date.now();
-    logVerseRead(`${book.id}.${chapter}.${v}`);
-    setLastReadVerse(v);
-  };
-
-  // 长按：进入选中（单节）。
-  const primarySelect = (v: number) => {
-    window.getSelection()?.removeAllRanges();
-    lastSelectAt.current = Date.now();
-    setSelected([v]);
-    markRead(v);
-    scheduleChromeHide();
-  };
-
-  // 点按：扩展为连续区间（方案 A）。
-  const tapSelect = (v: number) => {
-    if (Date.now() - lastSelectAt.current < 500) return;
-    if (selected.length === 0) return;
-    window.getSelection()?.removeAllRanges();
-    lastSelectAt.current = Date.now();
-    const lo = Math.min(...selected, v);
-    const hi = Math.max(...selected, v);
-    setSelected(versesInRange(lo, hi));
-    markRead(v);
-    scheduleChromeHide();
-  };
-
-  const startLongPress = (v: number) => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = setTimeout(() => primarySelect(v), 420);
-  };
-  const cancelLongPress = () => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
+  const verseFromNode = (node: Node | null): number | null => {
+    if (!node || !contentRef.current) return null;
+    let el: Element | null = node instanceof Element ? node : node.parentElement;
+    while (el && contentRef.current.contains(el)) {
+      const m = el.id?.match(/^verse-anchor-(\d+)$/);
+      if (m) return Number(m[1]);
+      el = el.parentElement;
     }
+    return null;
+  };
+
+  const syncSelectionFromDom = useCallback(() => {
+    if (syncingSelection.current) return;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !contentRef.current) return;
+    const anchor = verseFromNode(sel.anchorNode);
+    const focus = verseFromNode(sel.focusNode);
+    if (anchor == null && focus == null) return;
+    const lo = Math.min(anchor ?? focus!, focus ?? anchor!);
+    const hi = Math.max(anchor ?? focus!, focus ?? anchor!);
+    const next = versesInRange(lo, hi);
+    syncingSelection.current = true;
+    setSelected(next);
+    setLastReadVerse(hi);
+    lastSelectAt.current = Date.now();
+    logVerseRead(`${book.id}.${chapter}.${hi}`);
+    scheduleChromeHide();
+    syncingSelection.current = false;
+  }, [book.id, chapter, scheduleChromeHide]);
+
+  useEffect(() => {
+    const onSel = () => syncSelectionFromDom();
+    document.addEventListener('selectionchange', onSel);
+    return () => document.removeEventListener('selectionchange', onSel);
+  }, [syncSelectionFromDom]);
+
+  const clearSelection = () => {
+    window.getSelection()?.removeAllRanges();
+    setSelected([]);
+    setMarkMenuOpen(false);
   };
 
   const saveFavorite = () => {
@@ -559,7 +568,7 @@ export default function ReaderView({
           return;
         }
         if (summarySheet) return;
-        if (hasSel) setSelected([]);
+        if (hasSel) clearSelection();
         scheduleChromeHide();
       }}
     >
@@ -570,6 +579,17 @@ export default function ReaderView({
       {!chromeHidden && (
         <div className="reader-topbar">
           <div className="reader-topbar-left">
+            <Link
+              href="/search"
+              className="reader-icon-btn"
+              aria-label="搜索"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M21 21l-4-4" />
+              </svg>
+            </Link>
             <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
               {bookAbbr(book.name)} {chapter}
             </button>
@@ -675,10 +695,6 @@ export default function ReaderView({
                             key={v.verse}
                             id={`verse-anchor-${v.verse}`}
                             className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)} ${resumeFlashVerse === v.verse ? 'verse-resume-flash' : ''}`}
-                            onClick={(e) => { if (hasSel) { e.stopPropagation(); tapSelect(v.verse); } }}
-                            onTouchStart={() => startLongPress(v.verse)}
-                            onTouchEnd={cancelLongPress}
-                            onTouchMove={cancelLongPress}
                           >
                             {verseNo !== 'hidden' && (
                               <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -728,10 +744,6 @@ export default function ReaderView({
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
                       className={`verse-inline verse-token ${selected.includes(v.verse) ? 'verse-selected' : ''} ${hasSel && !selected.includes(v.verse) ? 'reader-dimmed' : ''} ${highlightClass(mark)} ${resumeFlashVerse === v.verse ? 'verse-resume-flash' : ''}`}
-                      onClick={(e) => { if (hasSel) { e.stopPropagation(); tapSelect(v.verse); } }}
-                      onTouchStart={() => startLongPress(v.verse)}
-                      onTouchEnd={cancelLongPress}
-                      onTouchMove={cancelLongPress}
                     >
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -768,34 +780,58 @@ export default function ReaderView({
           onClick={(e) => e.stopPropagation()}
         >
           <div className="reader-focus-row">
-            <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
             {underlinesOn && (
-              <div className="reader-weread-colors" role="group" aria-label="划线颜色">
-                {(['yellow', 'green', 'blue', 'pink', 'orange'] as HighlightColor[]).map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
-                    aria-label={`${c} 划线`}
-                    onClick={() => applyMarkChoice(c)}
-                  />
-                ))}
-                {currentMark && (
-                  <button type="button" className="reader-weread-clear" onClick={clearMark} aria-label="清除划线">⌫</button>
+              <div className="reader-mark-wrap">
+                <button
+                  type="button"
+                  className={`vsb-item ${currentMark ? 'vsb-item-active' : ''}`}
+                  onClick={() => setMarkMenuOpen((v) => !v)}
+                >
+                  划线
+                </button>
+                {markMenuOpen && (
+                  <div className="reader-mark-popover" role="dialog" aria-label="划线样式">
+                    {([
+                      { key: 'color' as HighlightStyleKey, label: '荧光' },
+                      { key: 'solid' as HighlightStyleKey, label: '实线' },
+                      { key: 'dashed' as HighlightStyleKey, label: '虚线' },
+                    ]).map((style) => (
+                      <div key={style.key} className="reader-mark-style-row">
+                        <span className="reader-mark-style-label">{style.label}</span>
+                        <div className="reader-weread-colors">
+                          {(['yellow', 'green', 'blue', 'pink', 'orange'] as HighlightColor[]).map((c) => (
+                            <button
+                              key={`${style.key}-${c}`}
+                              type="button"
+                              className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c && currentMark?.style === style.key ? 'reader-weread-dot-active' : ''}`}
+                              aria-label={`${style.label} ${c}`}
+                              onClick={() => applyMarkChoice(c, style.key)}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {currentMark && (
+                      <button type="button" className="reader-weread-clear reader-mark-clear-btn" onClick={clearMark}>
+                        清除划线
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             )}
             {thoughtsOn && (
               <button type="button" className="vsb-item" onClick={() => {
                 setWriteThoughtSheet({ ref: selRef, label: effRefLabel });
-                setSelected([]);
+                clearSelection();
               }}>写想法</button>
             )}
             <button type="button" className={`vsb-item ${favActive ? 'vsb-item-active' : ''}`} onClick={saveFavorite}>
               {englishUI ? 'Save' : '收藏'}
             </button>
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
-            <button type="button" className="vsb-item reader-focus-close" onClick={() => setSelected([])} aria-label="关闭">✕</button>
+            <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
+            <button type="button" className="vsb-item reader-focus-close" onClick={clearSelection} aria-label="关闭">✕</button>
           </div>
         </div>
       )}

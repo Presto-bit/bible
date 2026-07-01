@@ -5,13 +5,15 @@ import Link from 'next/link';
 import {
   api,
   type DailyVerse,
+  getUserName,
 } from '@/lib/api';
 import { currentSeasonalEvents } from '@/lib/gamification';
-import { challengeSummary, getPendingBookChallenge, levelsIncludingPending } from '@/lib/challenge_progress';
+import { getPendingBookChallenge } from '@/lib/challenge_progress';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
+import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
 import PlusMenu from '@/components/PlusMenu';
 
 // 每日经文全屏背景图（按主题挑选；可在此配置更多背景）。
@@ -19,9 +21,8 @@ const VERSE_BG =
   'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1200&q=80';
 
 function buildRail(
-  challengeTitle: string,
-  challengeSub: string,
   plan?: { title: string; sub: string; href: string },
+  resume?: { title: string; sub: string; href: string },
 ) {
   return [
     {
@@ -34,21 +35,21 @@ function buildRail(
       accent: true,
     },
     {
-      tag: '挑战',
-      reason: '知识闯关',
-      title: challengeTitle,
-      sub: challengeSub,
-      cta: '闯关 ›',
+      tag: '问答',
+      reason: '每日问答',
+      title: '今日 5 题',
+      sub: '复习错题 · 巩固所学',
+      cta: '开始 ›',
       href: '/challenge',
       accent: false,
     },
     {
       tag: '继续',
       reason: '你上次读到这里',
-      title: '约翰福音 3',
-      sub: '从上次继续 · 约 3 分钟',
+      title: resume?.title ?? '开始读经',
+      sub: resume?.sub ?? '从圣经 Tab 继续',
       cta: '读 ›',
-      href: '/reader',
+      href: resume?.href ?? '/reader',
     },
     {
       tag: '小爱',
@@ -64,8 +65,32 @@ function buildRail(
 export default function HomePage() {
   const [dv, setDv] = useState<DailyVerse | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [dvLoading, setDvLoading] = useState(true);
+
+  const loadDailyVerse = useCallback(() => {
+    setDvLoading(true);
+    setErr(null);
+    api
+      .dailyVerse()
+      .then((v) => {
+        setDv(v);
+        setLiked(Boolean(v.liked));
+        setLikeCount(v.likes_count ?? 0);
+        setShareCount(v.shares_count ?? 0);
+      })
+      .catch((e) => setErr(String(e)))
+      .finally(() => setDvLoading(false));
+  }, []);
+
+  useEffect(() => {
+    loadDailyVerse();
+  }, [loadDailyVerse]);
   const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [shareCount, setShareCount] = useState(0);
+  const [likeBusy, setLikeBusy] = useState(false);
   const [shared, setShared] = useState(false);
+  const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
   const [page, setPage] = useState(0);
   const railRef = useRef<HTMLDivElement>(null);
   const plusBtnRef = useRef<HTMLButtonElement>(null);
@@ -73,12 +98,18 @@ export default function HomePage() {
   const [verseFull, setVerseFull] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
-  const [rail, setRail] = useState(() => buildRail('第 1 关 · 福音核心', '开始闯关'));
+  const [rail, setRail] = useState(() => buildRail());
+  const [userName, setUserName] = useState('');
   const seasonal = currentSeasonalEvents();
+
+  useEffect(() => {
+    setUserName(getUserName());
+  }, []);
 
   const refreshRail = useCallback(async () => {
     setPendingBook(getPendingBookChallenge());
-    const sum = challengeSummary(levelsIncludingPending());
+    const report = buildReport();
+    setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
     let planCard: { title: string; sub: string; href: string } | undefined;
     const active = getActivePlan();
     if (active && active.kind !== 'prayer') {
@@ -97,27 +128,32 @@ export default function HomePage() {
         };
       }
     }
-    setRail(
-      buildRail(
-        sum.nextLevel
-          ? `${sum.nextLevel.title} · ${sum.nextLevel.subtitle}`
-          : '全部通关 · 复习巩固',
-        `已掌握 ${sum.correctQ} / ${sum.totalQ} 题`,
-        planCard,
-      ),
-    );
+    let resumeCard: { title: string; sub: string; href: string } | undefined;
+    const last = getLastRead();
+    if (last) {
+      try {
+        const { books } = await api.books();
+        const book = books.find((b) => b.id === last.bookId);
+        const name = book?.name ?? last.bookId;
+        resumeCard = {
+          title: `${name} ${last.chapter}`,
+          sub: '从上次继续',
+          href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+        };
+      } catch {
+        resumeCard = {
+          title: `第 ${last.chapter} 章`,
+          sub: '从上次继续',
+          href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+        };
+      }
+    }
+    setRail(buildRail(planCard, resumeCard));
   }, []);
 
   useEffect(() => {
     refreshRail();
   }, [refreshRail]);
-
-  useEffect(() => {
-    api
-      .dailyVerse()
-      .then(setDv)
-      .catch((e) => setErr(String(e)));
-  }, []);
 
   const onScroll = () => {
     const el = railRef.current;
@@ -133,7 +169,7 @@ export default function HomePage() {
           <span className="greet-prefix">早安</span>
           <span className="greet-name">
             <i className="greet-bar" />
-            读经伙伴
+            {userName || '朋友'}
           </span>
         </div>
         <div className="greet-actions">
@@ -183,28 +219,61 @@ export default function HomePage() {
           {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
           <p className="verse-text">
             {err
-              ? '内容加载失败，请稍后重试。'
+              ? '内容加载失败'
               : dv
                 ? `「${dv.text}」`
-                : '加载中…'}
+                : dvLoading
+                  ? '加载中…'
+                  : '暂无经文'}
           </p>
+          {err && (
+            <button
+              type="button"
+              className="text-link"
+              style={{ marginTop: 8, fontSize: 13 }}
+              onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
+            >
+              点击重试
+            </button>
+          )}
           <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className="hero-like"
-              onClick={() => setLiked((v) => !v)}
+              disabled={likeBusy}
+              onClick={async () => {
+                if (likeBusy) return;
+                setLikeBusy(true);
+                try {
+                  const r = await api.toggleDailyVerseLike();
+                  setLiked(r.liked);
+                  setLikeCount(r.likes_count);
+                } catch {
+                  /* 静默失败，保留本地状态 */
+                } finally {
+                  setLikeBusy(false);
+                }
+              }}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" style={{ color: liked ? 'var(--accent-deep)' : 'var(--ink-faint)' }}>
                 <path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.5 6 6 6c2 0 3.2 1.2 4 2.3C10.8 7.2 12 6 14 6c3.5 0 5 3.6 3.3 6.6C19 16.4 12 21 12 21z" />
               </svg>
-              <span>{(3842 + (liked ? 1 : 0)).toLocaleString()} 人点赞</span>
+              <span>{likeCount.toLocaleString()} 人点赞</span>
             </button>
             <button
               type="button"
               className={`hero-share ${shared ? 'hero-share-active' : ''}`}
-              onClick={() => setShared((v) => !v)}
+              onClick={async () => {
+                setShared(true);
+                try {
+                  const r = await api.recordDailyVerseShare();
+                  setShareCount(r.shares_count);
+                } catch {
+                  /* ignore */
+                }
+              }}
             >
-              {shared ? '已生成图 ✓' : '分享 / 壁纸'}
+              {shared ? `已分享 · ${shareCount}` : '分享 / 壁纸'}
             </button>
           </div>
         </div>
@@ -236,13 +305,15 @@ export default function HomePage() {
       </div>
 
       <a href="/profile" className="card row-card" style={{ display: 'flex' }}>
-        <span>今日 12 分钟 · 本月已读 9 天</span>
+        <span>
+          今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
+        </span>
         <span className="muted">›</span>
       </a>
 
       <a href="/discover" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
         <span className="pill">小组</span>
-        <span style={{ flex: 1 }}>新约共读群 · 今日 6 人已打卡</span>
+        <span style={{ flex: 1 }}>去发现 · 加入共读打卡</span>
         <span className="muted">去发现 ›</span>
       </a>
 
@@ -255,18 +326,19 @@ export default function HomePage() {
         </Link>
       )}
       <a href="/reader" className="card card-2 card-tint card-accent row-card" style={{ display: 'flex' }}>
-        <span className="pill pill-active">就快读完</span>
-        <span style={{ flex: 1, fontWeight: 600 }}>马可福音还剩 2 章就读完啦</span>
-        <span className="rail-cta">读完它 ›</span>
-      </a>
-      <a href="/reader" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
-        <span className="pill">去年今日</span>
-        <span style={{ flex: 1 }}>去年今日你读了诗篇 23，还划了线</span>
-        <span className="muted">看看 ›</span>
+        <span className="pill pill-active">继续读经</span>
+        <span style={{ flex: 1, fontWeight: 600 }}>
+          {getLastRead()
+            ? `上次读到第 ${getLastRead()!.chapter} 章`
+            : '打开圣经，开始今日阅读'}
+        </span>
+        <span className="rail-cta">去读 ›</span>
       </a>
       <a href="/profile" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
         <span className="pill">回顾</span>
-        <span style={{ flex: 1 }}>6 月回顾 · 已读 9 天 · 标记 14 处</span>
+        <span style={{ flex: 1 }}>
+          {new Date().getMonth() + 1} 月回顾 · 已读 {readingSummary.monthDays} 天
+        </span>
         <span className="muted">生成回顾 ›</span>
       </a>
 

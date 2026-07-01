@@ -67,6 +67,27 @@ export function getLastRead(): LastRead | null {
   }
 }
 
+/** 底部 Tab 进入圣经时标记，用于续读闪动（每会话每位置每天最多一次） */
+export function markReaderTabEntry() {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem('reader_tab_resume', '1');
+}
+
+function resumeFlashKey(bookId: string, chapter: number, verse: number) {
+  return `resume_flash_${bookId}.${chapter}.${verse}`;
+}
+
+export function shouldResumeFlash(bookId: string, chapter: number, verse: number): boolean {
+  if (typeof window === 'undefined') return false;
+  if (sessionStorage.getItem('reader_tab_resume') !== '1') return false;
+  sessionStorage.removeItem('reader_tab_resume');
+  const today = new Date().toDateString();
+  const key = resumeFlashKey(bookId, chapter, verse);
+  if (localStorage.getItem(key) === today) return false;
+  localStorage.setItem(key, today);
+  return true;
+}
+
 // 阅读一章：当日 chapters +1、minutes + 估算。
 export function logChapterRead() {
   if (typeof window === 'undefined') return;

@@ -35,7 +35,11 @@ export default function ReaderPage() {
 
   const dictByName = useMemo(() => {
     const m = new Map<string, DictEntity>();
-    for (const e of dict) if (e.name) m.set(e.name, e);
+    for (const e of dict) {
+      if (e.name) m.set(e.name, e);
+      const aliases = (e as DictEntity & { aliases?: string[] }).aliases;
+      if (aliases) for (const a of aliases) if (a) m.set(a, e);
+    }
     return m;
   }, [dict]);
 

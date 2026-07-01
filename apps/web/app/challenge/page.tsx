@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import ChallengeFlipPlay from '@/components/ChallengeFlipPlay';
 import {
   challengeSummary,
   clearPendingBookChallenge,
@@ -10,86 +11,92 @@ import {
   levelsIncludingPending,
   markLevelProgress,
 } from '@/lib/challenge_progress';
-import type { ChallengeLevel, ChallengeQuestion } from '@/lib/challenge_levels';
+import type { ChallengeLevel } from '@/lib/challenge_levels';
+import {
+  dailyQuizDone,
+  dailyQuizQuestions,
+  markDailyQuizDone,
+  recordAnswer,
+} from '@/lib/daily_quiz';
+import {
+  QUESTION_BANK_SIZE,
+  QUESTION_THEMES,
+  randomQuestions,
+  themeLevelQuestions,
+  type QuestionBankEntry,
+} from '@/lib/question_bank';
+
+type PlayMode =
+  | { kind: 'daily' }
+  | { kind: 'random' }
+  | { kind: 'theme'; themeId: string; title: string }
+  | { kind: 'level'; level: ChallengeLevel };
 
 export default function ChallengePage() {
   const levels = useMemo(() => levelsIncludingPending(), []);
   const summary = useMemo(() => challengeSummary(levels), [levels]);
-  const [activeLevel, setActiveLevel] = useState<ChallengeLevel | null>(null);
-  const [qIdx, setQIdx] = useState(0);
-  const [picked, setPicked] = useState<number | null>(null);
-  const [correctCount, setCorrectCount] = useState(0);
+  const [play, setPlay] = useState<PlayMode | null>(null);
   const [prog, setProg] = useState(levelProgress());
+  const [dailyDone, setDailyDone] = useState(false);
   const pending = getPendingBookChallenge();
 
-  useEffect(() => setProg(levelProgress()), []);
+  useEffect(() => {
+    setDailyDone(dailyQuizDone());
+  }, [play]);
 
-  const play = activeLevel;
-  const q: ChallengeQuestion | null = play ? play.questions[qIdx] : null;
+  const playQuestions: QuestionBankEntry[] | null = useMemo(() => {
+    if (!play) return null;
+    if (play.kind === 'daily') return dailyQuizQuestions(5);
+    if (play.kind === 'random') return randomQuestions(10);
+    if (play.kind === 'theme') return themeLevelQuestions(play.themeId, 8);
+    return play.level.questions as QuestionBankEntry[];
+  }, [play]);
 
-  const finishLevel = (correct: number) => {
-    if (!play) return;
-    markLevelProgress(play.id, correct, play.questions.length);
-    setProg(levelProgress());
-    if (play.bookId) clearPendingBookChallenge();
-    setActiveLevel(null);
-    setQIdx(0);
-    setPicked(null);
-    setCorrectCount(0);
-  };
-
-  const pick = (i: number) => {
-    if (!q || picked != null) return;
-    setPicked(i);
-    const ok = i === q.answer;
-    const nextCorrect = correctCount + (ok ? 1 : 0);
-    if (qIdx + 1 >= (play?.questions.length ?? 0)) {
-      setTimeout(() => finishLevel(nextCorrect), 700);
-    } else {
-      setTimeout(() => {
-        setCorrectCount(nextCorrect);
-        setQIdx((x) => x + 1);
-        setPicked(null);
-      }, 700);
+  const finishPlay = (correct: number, total: number) => {
+    if (play?.kind === 'level') {
+      markLevelProgress(play.level.id, correct, total);
+      if (play.level.bookId) clearPendingBookChallenge();
     }
+    if (play?.kind === 'daily') {
+      markDailyQuizDone();
+    }
+    if (playQuestions) {
+      playQuestions.forEach((q, i) => {
+        const pickedCorrect = i < correct; // approximate per-session; flip play tracks sequentially
+        void q;
+      });
+    }
+    setProg(levelProgress());
+    setPlay(null);
   };
 
-  if (play && q) {
+  if (play && playQuestions) {
+    const title =
+      play.kind === 'daily'
+        ? '每日问答'
+        : play.kind === 'random'
+          ? '随机挑战'
+          : play.kind === 'theme'
+            ? play.title
+            : play.level.title;
+    const sub =
+      play.kind === 'daily'
+        ? '今日 5 题'
+        : play.kind === 'random'
+          ? '全库随机'
+          : play.kind === 'theme'
+            ? '主题闯关'
+            : play.level.subtitle;
+
     return (
-      <main className="container challenge-play">
-        <header className="challenge-play-head">
-          <button type="button" className="text-link" onClick={() => setActiveLevel(null)}>← 关卡</button>
-          <span className="muted">{play.title} · {qIdx + 1}/{play.questions.length}</span>
-        </header>
-        <div className="challenge-progress-bar">
-          <div style={{ width: `${((qIdx + (picked != null ? 1 : 0)) / play.questions.length) * 100}%` }} />
-        </div>
-        <div className="card challenge-q-card">
-          <span className="pill">{play.subtitle}</span>
-          <p className="quiz-q">{q.question}</p>
-          <div className="quiz-options">
-            {q.options.map((o, i) => {
-              const show = picked != null;
-              const isAns = i === q.answer;
-              const isPick = i === picked;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  className={`quiz-opt ${show && isAns ? 'quiz-opt-correct' : ''} ${show && isPick && !isAns ? 'quiz-opt-wrong' : ''}`}
-                  onClick={() => pick(i)}
-                  disabled={picked != null}
-                >
-                  {o}
-                </button>
-              );
-            })}
-          </div>
-          {picked != null && (
-            <p style={{ marginTop: 14, lineHeight: 1.7, fontSize: 14 }}>{q.explain}</p>
-          )}
-        </div>
-      </main>
+      <ChallengeFlipPlay
+        title={title}
+        subtitle={sub}
+        questions={playQuestions}
+        onBack={() => setPlay(null)}
+        onFinish={finishPlay}
+        onEachAnswer={(id, correct) => recordAnswer(id, correct)}
+      />
     );
   }
 
@@ -97,32 +104,58 @@ export default function ChallengePage() {
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Link href="/" className="icon-btn">←</Link>
-        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>圣经知识闯关</h2>
+        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>每日问答</h2>
       </header>
 
-      <div className="challenge-hero card">
-        <div className="challenge-hero-ring">
-          <span>{summary.progressPct}%</span>
-        </div>
-        <div>
-          <strong>已通关 {summary.completedLevels} / {summary.totalLevels} 关</strong>
-          <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
-            答对 {summary.correctQ} / {summary.totalQ} 题
+      <button
+        type="button"
+        className="challenge-daily-hero card"
+        onClick={() => setPlay({ kind: 'daily' })}
+      >
+        <div className="challenge-daily-badge">{dailyDone ? '✓' : '☀'}</div>
+        <div style={{ flex: 1, textAlign: 'left' }}>
+          <strong>每日问答</strong>
+          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+            {dailyDone ? '今日已完成 · 明天再来' : '5 道随机题 · 优先复习错题'}
           </p>
+        </div>
+        <span className="rail-cta">{dailyDone ? '复习 ›' : '开始 ›'}</span>
+      </button>
+
+      <div className="challenge-mode-row">
+        <button
+          type="button"
+          className="card challenge-mode-card"
+          onClick={() => setPlay({ kind: 'random' })}
+        >
+          <span className="challenge-level-icon">🎲</span>
+          <strong>随机挑战</strong>
+          <span className="muted" style={{ fontSize: 11 }}>从 {QUESTION_BANK_SIZE} 题中抽 10 题</span>
+        </button>
+        <div className="challenge-hero card" style={{ flex: 1 }}>
+          <div className="challenge-hero-ring">
+            <span>{summary.progressPct}%</span>
+          </div>
+          <div>
+            <strong>关卡 {summary.completedLevels}/{summary.totalLevels}</strong>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+              答对 {summary.correctQ} 题
+            </p>
+          </div>
         </div>
       </div>
 
       {pending && (
         <div className="challenge-nudge card">
           <span className="pill pill-active">读完 {pending.bookName}</span>
-          <p style={{ margin: '8px 0 0', fontSize: 14 }}>来一关巩固挑战，检验一下掌握程度？</p>
+          <p style={{ margin: '8px 0 0', fontSize: 14 }}>来一关巩固挑战？</p>
           <button
             type="button"
             className="btn"
             style={{ marginTop: 10 }}
             onClick={() => {
               const lv = levels.find((l) => l.id === pending.levelId);
-              if (lv) setActiveLevel(lv);
+              if (lv) setPlay({ kind: 'level', level: lv });
             }}
           >
             开始巩固关 ›
@@ -130,6 +163,23 @@ export default function ChallengePage() {
         </div>
       )}
 
+      <p className="section-label">按主题闯关</p>
+      <div className="challenge-level-grid">
+        {QUESTION_THEMES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className="challenge-level-card"
+            onClick={() => setPlay({ kind: 'theme', themeId: t.id, title: t.name })}
+          >
+            <span className="challenge-level-icon">📚</span>
+            <strong>{t.name}</strong>
+            <span className="challenge-level-meta">8 题</span>
+          </button>
+        ))}
+      </div>
+
+      <p className="section-label">经典关卡</p>
       <div className="challenge-level-grid">
         {levels.map((lv, i) => {
           const p = prog[lv.id];
@@ -141,7 +191,7 @@ export default function ChallengePage() {
               type="button"
               className={`challenge-level-card ${done ? 'challenge-level-done' : ''} ${locked ? 'challenge-level-locked' : ''}`}
               disabled={locked}
-              onClick={() => !locked && setActiveLevel(lv)}
+              onClick={() => !locked && setPlay({ kind: 'level', level: lv })}
             >
               <span className="challenge-level-icon">{done ? '✓' : lv.icon}</span>
               <strong>{lv.title}</strong>

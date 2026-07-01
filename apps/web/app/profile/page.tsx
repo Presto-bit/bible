@@ -17,7 +17,9 @@ import BadgeGallery from '@/components/BadgeGallery';
 import { todayMinutes } from '@/lib/reading';
 import { api } from '@/lib/api';
 import { bookProgressMap } from '@/lib/reading';
-import { computeBadges, readingStreak } from '@/lib/gamification';
+import { computeAllBadges } from '@/lib/badges';
+import { readingStreak } from '@/lib/gamification';
+import { buildReport } from '@/lib/reading';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
@@ -59,7 +61,7 @@ export default function ProfilePage() {
   const [obPwd, setObPwd] = useState('');
   const [obErr, setObErr] = useState<string | null>(null);
   const [obBusy, setObBusy] = useState(false);
-  const [badges, setBadges] = useState<ReturnType<typeof computeBadges>>([]);
+  const [badges, setBadges] = useState<ReturnType<typeof computeAllBadges>>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [streak, setStreak] = useState(0);
 
@@ -78,7 +80,8 @@ export default function ProfilePage() {
       setObName(localStorage.getItem(NAME_KEY) || '');
       setOnboardOpen(true);
     }
-    api.books().then((d) => {
+    api.books().then(async (d) => {
+      const { highlightCount } = await import('@/lib/reader_highlights');
       const totals: Record<string, number> = {};
       for (const b of d.books) totals[b.id] = b.chapter_count;
       const prog = bookProgressMap(totals);
@@ -89,15 +92,39 @@ export default function ProfilePage() {
       try {
         noteCount = JSON.parse(localStorage.getItem('presto_notes') || '[]').length;
       } catch { /* ignore */ }
+      const report = buildReport();
       setBadges(
-        computeBadges({
+        computeAllBadges({
           streak: readingStreak(),
           readBooks,
           totalBooks: d.books.length,
           noteCount,
+          monthDays: report.monthDays,
+          totalMinutes: report.totalMinutes,
+          totalChapters: report.totalChapters,
+          highlightCount: highlightCount(),
+          planDays: 0,
+          friendCount: 0,
         }),
       );
-    }).catch(() => setBadges(computeBadges({ streak: readingStreak(), readBooks: 0, totalBooks: 66 })));
+    }).catch(async () => {
+      const { highlightCount } = await import('@/lib/reader_highlights');
+      const report = buildReport();
+      setBadges(
+        computeAllBadges({
+          streak: readingStreak(),
+          readBooks: 0,
+          totalBooks: 66,
+          noteCount: 0,
+          monthDays: report.monthDays,
+          totalMinutes: report.totalMinutes,
+          totalChapters: report.totalChapters,
+          highlightCount: highlightCount(),
+          planDays: 0,
+          friendCount: 0,
+        }),
+      );
+    });
   }, []);
 
   const submitOnboard = async (skip = false) => {
@@ -301,7 +328,7 @@ export default function ProfilePage() {
           {badges.slice(0, 4).map((b) => (
             <div key={b.id} className="badge-item">
               <div className={`badge-circle ${b.done ? 'badge-done' : ''}`}>
-                {b.done ? b.icon : b.progress}
+                {b.icon}
               </div>
               <span>{b.label}</span>
             </div>

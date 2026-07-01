@@ -1,17 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
+import { followupsOf, stripFollowups } from '@/lib/assistant_format';
+import { personalizedAssistantChips } from '@/lib/assistant_personalize';
+import { readingStreak } from '@/lib/gamification';
 
 // 输入框上方的可右滑 chip 行（意图 + 场景 + 译本/原文）。
-const CHIPS: { label: string; mode: string; q: string }[] = [
-  { label: '经文背景', mode: 'explain', q: '请介绍这段经文的背景' },
+const STATIC_CHIPS: { label: string; mode: string; q: string }[] = [
   { label: '解释经文', mode: 'explain', q: '请解释这段经文' },
   { label: '应用', mode: 'apply', q: '请把这段经文应用到生活' },
   { label: '预备查经', mode: 'understand', q: '请帮我预备查经' },
-  { label: '预备讲道', mode: 'understand', q: '请帮我预备讲道' },
   { label: '译本对照', mode: 'compare', q: '请对照不同译本解释这节' },
   { label: '原文释义', mode: 'original', q: '请从原文角度解释这节' },
 ];
@@ -32,26 +33,6 @@ interface Session {
 }
 
 const SESSIONS_KEY = 'assistant_sessions_v1';
-
-// 从回答末尾解析【相关追问】列表，供渲染可点击的追问 chip。
-function followupsOf(text: string): string[] {
-  const idx = text.search(/[【\[]?\s*相关追问\s*[】\]]?[:：]?/);
-  if (idx < 0) return [];
-  const tail = text.slice(idx);
-  const lines = tail.split('\n').slice(1);
-  const out: string[] = [];
-  for (const raw of lines) {
-    const m = raw.match(/^\s*(?:[-*•]|\d+[.)、])\s*(.+?)\s*$/);
-    if (m && m[1]) out.push(m[1].replace(/^["“]|["”]$/g, '').trim());
-  }
-  return out.slice(0, 3);
-}
-
-// 复制/分享时去掉末尾的相关追问段落，只保留正文。
-function stripFollowups(text: string): string {
-  const idx = text.search(/\n?\s*[【\[]?\s*相关追问\s*[】\]]?[:：]?/);
-  return idx >= 0 ? text.slice(0, idx).trim() : text.trim();
-}
 
 function loadSessions(): Session[] {
   if (typeof window === 'undefined') return [];
@@ -79,10 +60,24 @@ export default function AssistantPage() {
   const [activeId, setActiveId] = useState<string>('current');
   const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const seedBoot = useRef(false);
   const rafRef = useRef<number | null>(null);
 
   const [toast, setToast] = useState('');
+  const personalized = useMemo(
+    () =>
+      personalizedAssistantChips({
+        ref: ref || undefined,
+        streak: readingStreak(),
+      }),
+    [ref],
+  );
+  const composerChips = useMemo(
+    () => [...personalized.slice(0, 2), ...STATIC_CHIPS],
+    [personalized],
+  );
+
   const flashToast = (t: string) => {
     setToast(t);
     setTimeout(() => setToast(''), 1800);
@@ -306,7 +301,7 @@ export default function AssistantPage() {
   const composer = (
     <div className="assistant-composer">
       <div className="chip-swipe">
-        {CHIPS.map((c) => (
+        {composerChips.map((c) => (
           <button
             key={c.label}
             type="button"
@@ -334,6 +329,7 @@ export default function AssistantPage() {
             </button>
           ) : (
             <input
+              ref={inputRef}
               className="compose-input"
               placeholder={quotaExhausted ? '今日次数已用完' : ref ? `关于 ${ref}，问小爱…` : '问小爱…'}
               value={input}
@@ -407,27 +403,18 @@ export default function AssistantPage() {
       {msgs.length === 0 ? (
         <div className="assistant-empty-fill">
           <div className="assistant-empty-hint">
-            <p className="muted">带着经节锚点，继续深问</p>
-            <p className="rail-cta">
-              {ref ? `已预读 ${ref}，点下面即秒回` : '输入锚定经文后可秒回'}
-            </p>
             <div className="empty-pills">
-              <button
-                type="button"
-                className="font-pill"
-                disabled={quotaExhausted}
-                onClick={() => send('请介绍今天这段经文的背景', 'explain')}
-              >
-                问今天这段经文的背景
-              </button>
-              <button
-                type="button"
-                className="font-pill"
-                disabled={quotaExhausted}
-                onClick={() => send('这节里的「永生」是什么意思？', 'explain')}
-              >
-                永生是什么意思？
-              </button>
+              {personalized.map((c) => (
+                <button
+                  key={c.label}
+                  type="button"
+                  className="font-pill"
+                  disabled={quotaExhausted}
+                  onClick={() => send(c.q, c.mode)}
+                >
+                  {c.label}
+                </button>
+              ))}
             </div>
           </div>
           {composer}
@@ -445,7 +432,7 @@ export default function AssistantPage() {
                 </div>
                 {m.role === 'assistant' ? (
                   m.text ? (
-                    <AnswerText text={m.text} />
+                    <AnswerText text={stripFollowups(m.text)} />
                   ) : (
                     <div className="muted">…</div>
                   )

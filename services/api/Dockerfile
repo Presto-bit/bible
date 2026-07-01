@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir -r /app/services/api/requirements.txt
 
 COPY services/api /app/services/api
 COPY scripts/import_bible.py /app/scripts/import_bible.py
-COPY data/bible /app/data/bible
+COPY data /app/data
 COPY deploy/api-entrypoint.sh /app/deploy/api-entrypoint.sh
 RUN chmod +x /app/deploy/api-entrypoint.sh && mkdir -p /app/build
 
