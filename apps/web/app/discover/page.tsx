@@ -6,60 +6,68 @@ import {
   api,
   currentUserId,
   guestId,
+  type DiscoverSummary,
   type Friend,
+  type FriendActivity,
   type Group,
 } from '@/lib/api';
+import { groupPlanProgressLabel } from '@/lib/group_plan';
+import { readerHrefFromRef } from '@/lib/group_footprint';
+import { assistantHref } from '@/lib/assistant_prefill';
+import { LIFE_TOPICS } from '@/lib/discover_topics';
 
-type Activity = {
-  id: string;
-  who: string;
-  what: string;
-  excerpt?: string;
-  likes: number;
-  ref?: string;
-};
+function reactionTotal(reactions: Record<string, string[]>): number {
+  return Object.values(reactions).reduce((n, users) => n + users.length, 0);
+}
 
-async function loadFriendActivity(groups: Group[]): Promise<Activity[]> {
-  const items: Activity[] = [];
-  for (const g of groups.slice(0, 5)) {
-    try {
-      const { messages } = await api.groupFeed(g.id);
-      for (const m of messages) {
-        if (m.mine || m.kind !== 'checkin') continue;
-        const likes = Object.values(m.reactions).reduce(
-          (n, users) => n + users.length,
-          0,
-        );
-        items.push({
-          id: m.id,
-          who: m.author,
-          what: m.ref || '打卡',
-          excerpt: m.body ?? undefined,
-          likes,
-          ref: m.ref ?? undefined,
-        });
-      }
-    } catch {
-      // ignore single group failure
-    }
+function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' | 'task' } {
+  if ((g.open_tasks ?? 0) > 0) {
+    return { label: `任务 ${g.open_tasks}`, tone: 'task' };
   }
-  return items.slice(0, 5);
+  if (g.my_checked_in_today) {
+    return { label: '已打卡 ✓', tone: 'done' };
+  }
+  return { label: '去打卡', tone: 'pending' };
+}
+
+function summaryLinkTarget(
+  summary: DiscoverSummary | null,
+  groups: Group[],
+): string | null {
+  if (!summary) return null;
+  if (summary.first_pending_group_id) {
+    return `/discover/group/${summary.first_pending_group_id}`;
+  }
+  if (
+    (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0) &&
+    groups.length > 0
+  ) {
+    return '/discover/groups';
+  }
+  return null;
 }
 
 export default function DiscoverPage() {
   const [uid, setUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [shares, setShares] = useState<Activity[]>([]);
-  const [liked, setLiked] = useState<Record<string, boolean>>({});
-  const [, setErr] = useState<string | null>(null);
+  const [summary, setSummary] = useState<DiscoverSummary | null>(null);
+  const [shares, setShares] = useState<FriendActivity[]>([]);
+  const [reacted, setReacted] = useState<Record<string, string>>({});
+  const [err, setErr] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const [g, f] = await Promise.all([api.myGroups(), api.friends()]);
+      const [g, f, s, activity] = await Promise.all([
+        api.myGroups(),
+        api.friends(),
+        api.discoverSummary(),
+        api.friendsActivity(),
+      ]);
       setGroups(g.groups);
       setFriends(f.friends);
-      setShares(await loadFriendActivity(g.groups));
+      setSummary(s);
+      setShares(activity.items);
       setErr(null);
     } catch (e) {
       setErr(String(e));
@@ -67,49 +75,19 @@ export default function DiscoverPage() {
   }, []);
 
   useEffect(() => {
-    // 游客身份即可浏览发现（与 App / canvas 一致）；登录仅影响服务端身份。
     const id = currentUserId() || guestId();
     setUid(id);
     if (id) reload();
   }, [reload]);
 
-  const createGroup = async () => {
-    const name = prompt('共读群名称');
-    if (!name) return;
+  const toggleReact = async (item: FriendActivity) => {
+    const prev = reacted[item.id];
+    setReacted((r) => ({ ...r, [item.id]: prev === '❤️' ? '' : '❤️' }));
     try {
-      await api.createGroup(name);
+      await api.react(item.id, '❤️');
       reload();
-    } catch (e) {
-      alert(`建群失败：${e}`);
-    }
-  };
-  const joinGroup = async () => {
-    const code = prompt('输入邀请码');
-    if (!code) return;
-    try {
-      await api.joinGroup(code);
-      reload();
-    } catch (e) {
-      alert(`加入失败：${e}`);
-    }
-  };
-  const addFriend = async () => {
-    const handle = prompt('输入好友账号（handle）');
-    if (!handle) return;
-    try {
-      await api.addFriend(handle);
-      reload();
-    } catch (e) {
-      alert(`添加失败：${e}`);
-    }
-  };
-
-  const toggleLike = async (id: string) => {
-    setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
-    try {
-      await api.react(id, liked[id] ? '👍' : '❤️');
     } catch {
-      // ignore
+      setReacted((r) => ({ ...r, [item.id]: prev || '' }));
     }
   };
 
@@ -126,117 +104,211 @@ export default function DiscoverPage() {
     );
   }
 
-  const todayText =
-    groups.length === 0
-      ? '还没有共读群 · 受邀或创建一个，和大家一起开始'
-      : `${groups.length} 个共读群 · 今天 ${shares.length} 条好友动态`;
+  const coldStart = groups.length === 0 && friends.length === 0;
+
+  const summaryText = (() => {
+    if (!summary) return '加载中…';
+    if (coldStart) return '还没有共读群 · 受邀或创建一个开始';
+    const parts: string[] = [];
+    if (summary.groups_pending_checkin > 0) {
+      parts.push(`${summary.groups_pending_checkin} 个群待打卡`);
+    }
+    if (summary.groups_pending_tasks > 0) {
+      parts.push(`${summary.groups_pending_tasks} 个群任务待完成`);
+    }
+    if (summary.friends_checked_in_today > 0) {
+      parts.push(`今天 ${summary.friends_checked_in_today} 位好友打卡`);
+    }
+    return parts.length > 0 ? parts.join(' · ') : '今日已全部打卡，继续保持';
+  })();
+
+  const todayHref = summaryLinkTarget(summary, groups);
+
+  const todayInner = (
+    <>
+      <div className="today-title">今日</div>
+      <p className="today-sub">{summaryText}</p>
+      {todayHref && <span className="today-cta muted">去看看 ›</span>}
+    </>
+  );
 
   return (
-    <main className="container">
-      <div className="card card-tint card-2 card-accent today-card">
-        <div className="today-title">今日</div>
-        <p className="today-sub">{todayText}</p>
-      </div>
+    <main className="container discover-page">
+      {err && <p className="muted" style={{ marginBottom: 8 }}>{err}</p>}
+
+      {todayHref ? (
+        <Link
+          href={todayHref}
+          className="card card-tint card-2 card-accent today-card today-card-link"
+        >
+          {todayInner}
+        </Link>
+      ) : (
+        <div className="card card-tint card-2 card-accent today-card">
+          {todayInner}
+        </div>
+      )}
 
       {groups.length === 0 ? (
-        <div className="card card-tint card-2 card-accent" style={{ marginTop: 14 }}>
+        <div className="card card-tint card-2 card-accent discover-hero">
           <strong>共读群 · 一起读</strong>
           <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
             受好友邀请，或自己创建一个群，和大家按计划一起读、彼此打卡。
           </p>
-          <button className="btn" style={{ marginTop: 12 }} onClick={createGroup}>
-            创建共读群
-          </button>
-          <button
-            className="font-pill"
-            style={{ marginTop: 8, marginLeft: 8 }}
-            onClick={joinGroup}
-          >
-            邀请码加入
-          </button>
+          <div className="discover-hero-actions">
+            <Link className="btn" href="/group/create">
+              创建共读群
+            </Link>
+            <Link className="font-pill" href="/discover/join">
+              邀请码加入
+            </Link>
+          </div>
         </div>
       ) : (
         <>
           <div className="section-row" style={{ marginTop: 14 }}>
             <span>我的共读</span>
-            <Link href="/discover" className="muted">
+            <Link href="/discover/groups" className="muted">
               查看全部 ›
             </Link>
           </div>
-          <div className="rail" style={{ marginTop: 8 }}>
-            {groups.map((g) => (
-              <Link
-                key={g.id}
-                href={`/discover/group/${g.id}`}
-                className="rail-card card card-2 group-card"
-              >
-                <div className="group-card-head">
-                  <strong>{g.name}</strong>
-                  {g.role === 'owner' && (
-                    <span className="rail-cta">群主</span>
-                  )}
-                </div>
-                <p className="muted">{g.members} 位成员</p>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: '42%' }} />
-                </div>
-                <div className="group-card-foot">
-                  <span className="muted">进入群聊 ›</span>
-                  <span className="rail-cta">去打卡 ›</span>
-                </div>
-              </Link>
-            ))}
+          <div className="rail discover-group-rail" style={{ marginTop: 8 }}>
+            {groups.map((g) => {
+              const badge = groupStatusBadge(g);
+              const members = g.members || 1;
+              const checked = g.checked_in_today ?? 0;
+              const barPct = g.plan_id
+                ? (g.plan_progress_pct ?? 0)
+                : Math.round((checked / members) * 100);
+              const planSub = g.plan_id
+                ? groupPlanProgressLabel(g)
+                : `${members} 位成员`;
+              return (
+                <Link
+                  key={g.id}
+                  href={`/discover/group/${g.id}`}
+                  className="rail-card card card-2 group-card"
+                >
+                  <div className="group-card-head">
+                    <strong>{g.name}</strong>
+                    {g.role === 'owner' && <span className="rail-cta">群主</span>}
+                  </div>
+                  <p className="muted" style={{ fontSize: 12, margin: '4px 0' }}>
+                    {g.plan_title || planSub}
+                  </p>
+                  <div className="progress-bar">
+                    <div
+                      className={`progress-fill${g.plan_id ? ' plan-fill' : ''}`}
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                  <div className="group-card-foot">
+                    <span className="muted">今日 {checked}/{members}</span>
+                    <span className={`group-badge group-badge-${badge.tone}`}>
+                      {badge.label}
+                    </span>
+                  </div>
+                </Link>
+              );
+            })}
+            <Link href="/group/create" className="rail-card card card-2 group-card group-card-add">
+              <span className="group-add-plus">+</span>
+              <span>新建群</span>
+            </Link>
           </div>
         </>
       )}
 
       <div className="section-row" style={{ marginTop: 18 }}>
+        <span>人生主题</span>
+      </div>
+      <div className="topic-grid" style={{ marginTop: 8 }}>
+        {LIFE_TOPICS.map((t) => (
+          <Link
+            key={t.id}
+            href={`/discover/topic/${t.id}`}
+            className="topic-tile card card-2"
+            style={{ borderLeftColor: t.color }}
+          >
+            <strong>{t.title}</strong>
+            <span className="muted" style={{ fontSize: 12 }}>{t.subtitle}</span>
+          </Link>
+        ))}
+      </div>
+
+      <div className="section-row" style={{ marginTop: 18 }}>
         <span>好友动态</span>
-        {friends.length > 0 && shares.length > 0 && (
-          <span className="muted">查看全部 ›</span>
-        )}
+        <Link href="/friend/add" className="muted">
+          加好友 ›
+        </Link>
       </div>
 
       {friends.length === 0 ? (
         <div className="card" style={{ marginTop: 8 }}>
           <strong>添加好友后可见动态</strong>
           <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
-            好友的经文打卡与笔记会出现在这里。
+            好友的经文打卡会出现在这里，可点赞、问小爱或跳转同章阅读。
           </p>
-          <button className="font-pill" onClick={addFriend}>
+          <Link className="font-pill" href="/friend/add">
             加好友
-          </button>
+          </Link>
         </div>
       ) : shares.length === 0 ? (
         <p className="muted" style={{ marginTop: 8 }}>
           暂无好友动态，去群里打卡或等好友分享吧
         </p>
       ) : (
-        shares.map((s) => (
-          <div key={s.id} className="card share-card">
-            <strong>{s.who}</strong>
-            <p className="muted">{s.what}</p>
-            {s.excerpt && <p style={{ marginTop: 6, lineHeight: 1.5 }}>{s.excerpt}</p>}
-            <button
-              type="button"
-              className="like-btn"
-              onClick={() => toggleLike(s.id)}
-            >
-              {liked[s.id] ? '❤️' : '🤍'} {s.likes + (liked[s.id] ? 1 : 0)}
-            </button>
-            <div className="share-actions">
-              <Link
-                className="font-pill"
-                href={`/assistant?ref=${encodeURIComponent(s.ref || '')}`}
-              >
-                问小爱
-              </Link>
-              <Link className="font-pill" href="/reader">
-                我也在读
-              </Link>
+        shares.map((s) => {
+          const isShare = s.source === 'share';
+          const canReact = true;
+          const likes = reactionTotal(s.reactions) + (canReact && reacted[s.id] === '❤️' ? 1 : 0);
+          const refHref = s.ref ? readerHrefFromRef(s.ref) : null;
+          const sourceLabel = isShare
+            ? (s.kind === 'thought' ? '分享了想法' : '分享了笔记')
+            : s.group_name;
+          return (
+            <div key={`${s.source}-${s.id}`} className="card share-card">
+              <div className="share-card-head">
+                <strong>{s.author}</strong>
+                {sourceLabel && (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {sourceLabel}
+                  </span>
+                )}
+              </div>
+              <p className="muted">{s.ref || (isShare ? '想法' : '打卡')}</p>
+              {s.body && <p style={{ marginTop: 6, lineHeight: 1.5 }}>{s.body}</p>}
+              {canReact && (
+                <button
+                  type="button"
+                  className="like-btn"
+                  onClick={() => toggleReact(s)}
+                >
+                  {reacted[s.id] === '❤️' ? '❤️' : '🤍'} {likes}
+                </button>
+              )}
+              <div className="share-actions">
+                {s.ref && (
+                  <Link
+                    className="font-pill"
+                    href={assistantHref(s.ref, { excerpt: s.body || undefined })}
+                  >
+                    问小爱
+                  </Link>
+                )}
+                {refHref ? (
+                  <Link className="font-pill" href={refHref}>
+                    我也在读
+                  </Link>
+                ) : (
+                  <Link className="font-pill" href="/reader">
+                    我也在读
+                  </Link>
+                )}
+              </div>
             </div>
-          </div>
-        ))
+          );
+        })
       )}
     </main>
   );

@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
+import { createNote } from '@/lib/notes';
 import { followupsOf, stripFollowups } from '@/lib/assistant_format';
+import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
 import { readingStreak } from '@/lib/gamification';
 
@@ -15,6 +17,7 @@ const STATIC_CHIPS: { label: string; mode: string; q: string }[] = [
   { label: '预备查经', mode: 'understand', q: '请帮我预备查经' },
   { label: '译本对照', mode: 'compare', q: '请对照不同译本解释这节' },
   { label: '原文释义', mode: 'original', q: '请从原文角度解释这节' },
+  { label: '讲道大纲', mode: 'preach', q: '请为这段经文生成讲道大纲要点' },
 ];
 
 interface Msg {
@@ -188,12 +191,20 @@ export default function AssistantPage() {
   }, []);
 
   const persist = (nextMsgs: Msg[], anchor: string) => {
+    let sid = activeId;
+    if (sid === 'current') {
+      sid =
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `s-${Date.now()}`;
+      setActiveId(sid);
+    }
     const title = nextMsgs.find((m) => m.role === 'user')?.text.slice(0, 18) || anchor || '新会话';
     const preview = nextMsgs[nextMsgs.length - 1]?.text.slice(0, 40) || '';
     setSessions((prev) => {
-      const rest = prev.filter((s) => s.id !== activeId);
+      const rest = prev.filter((s) => s.id !== sid);
       const next: Session = {
-        id: activeId,
+        id: sid,
         title,
         ref: anchor,
         preview,
@@ -202,6 +213,7 @@ export default function AssistantPage() {
       };
       const list = [next, ...rest];
       saveSessions(list);
+      bumpAndEnqueueAiSession(sid, title, anchor);
       return list;
     });
   };
@@ -278,14 +290,17 @@ export default function AssistantPage() {
     const params = new URLSearchParams(window.location.search);
     const r = params.get('ref');
     const seedQ = params.get('q');
-    if (r && seedQ && !seedBoot.current) {
+    const autoSend = params.get('auto_send') !== '0';
+    if (r) setRef(r);
+    if (seedQ) setInput(decodeURIComponent(seedQ));
+    if (r && seedQ && autoSend && !seedBoot.current) {
       seedBoot.current = true;
       void sendRef.current(decodeURIComponent(seedQ), 'understand', r);
     }
   }, []);
 
   const startNewSession = () => {
-    setActiveId(`s-${Date.now()}`);
+    setActiveId('current');
     setMsgs([]);
     setInput('');
     setHistoryOpen(false);
@@ -466,6 +481,16 @@ export default function AssistantPage() {
                     <div className="msg-actions">
                       <button type="button" className="msg-action" onClick={() => copyText(m.text)}>
                         复制
+                      </button>
+                      <button
+                        type="button"
+                        className="msg-action"
+                        onClick={() => {
+                          createNote(stripFollowups(m.text), ref || undefined, ['小爱']);
+                          flashToast('已存笔记');
+                        }}
+                      >
+                        存笔记
                       </button>
                       <button type="button" className="msg-action" onClick={() => shareText(m.text)}>
                         分享

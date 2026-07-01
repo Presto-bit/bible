@@ -20,7 +20,9 @@ import { bookProgressMap } from '@/lib/reading';
 import { computeAllBadges } from '@/lib/badges';
 import { readingStreak } from '@/lib/gamification';
 import { buildReport } from '@/lib/reading';
+import { favoriteReviewCards } from '@/lib/favorite_review';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
+import { syncNow } from '@/lib/sync';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
@@ -66,6 +68,18 @@ export default function ProfilePage() {
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [streak, setStreak] = useState(0);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
+  const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
+
+  useEffect(() => {
+    setReviewCards(favoriteReviewCards(3));
+  }, []);
+
+  useEffect(() => {
+    if (currentUserId()) {
+      void import('@/lib/post_login').then((m) => m.mergeGuest());
+      void syncNow().catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     setUid(currentUserId());
@@ -321,6 +335,62 @@ export default function ProfilePage() {
           今日 {mins} 分钟 · 读经回顾 ›
         </span>
       </Link>
+
+      <Link href="/wrapped" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+        <span style={{ flex: 1 }}>月/年度回顾</span>
+        <span className="muted">Wrapped ›</span>
+      </Link>
+
+      <Link href="/dictionary" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+        <span style={{ flex: 1 }}>圣经词典</span>
+        <span className="muted">专名查阅 ›</span>
+      </Link>
+
+      <Link href="/profile/reminders" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+        <span style={{ flex: 1 }}>推送提醒</span>
+        <span className="muted">设置 ›</span>
+      </Link>
+
+      <button
+        type="button"
+        className="card row-card"
+        style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
+        onClick={async () => {
+          if (!currentUserId()) {
+            alert('请先登录再同步');
+            return;
+          }
+          try {
+            const { syncNow, pendingCount } = await import('@/lib/sync');
+            const r = await syncNow();
+            alert(`同步完成：推送 ${r.pushed} 条，拉取 ${r.pulled} 条${pendingCount() ? `（仍有 ${pendingCount()} 条待推）` : ''}`);
+          } catch (e) {
+            alert(String(e));
+          }
+        }}
+      >
+        <span style={{ flex: 1 }}>云同步</span>
+        <span className="muted">笔记/高亮/收藏 ›</span>
+      </button>
+
+      {reviewCards.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="section-row">
+            <span style={{ fontWeight: 600 }}>收藏复习</span>
+            <Link href="/notes" className="muted">全部 ›</Link>
+          </div>
+          {reviewCards.map((c) => (
+            <Link
+              key={c.ref}
+              href={`/reader?ref=${encodeURIComponent(c.ref)}`}
+              className="muted"
+              style={{ display: 'block', marginTop: 8, fontSize: 13 }}
+            >
+              {c.label}
+            </Link>
+          ))}
+        </div>
+      )}
 
       {streak > 0 && (
         <div className="streak-banner" style={{ marginTop: 12 }}>

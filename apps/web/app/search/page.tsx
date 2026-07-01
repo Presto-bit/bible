@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { api, type BibleSearchHit } from '@/lib/api';
+import { LIFE_TOPICS } from '@/lib/discover_topics';
 import { listNotes, type LocalNote } from '@/lib/notes';
 
 const THEME_TAGS = ['盼望', '焦虑', '祷告', '家庭', '工作', '悲伤', '信心', '宽恕'];
@@ -215,19 +217,29 @@ export default function SearchPage() {
       <section style={{ marginTop: 18 }}>
         <h3 style={{ fontSize: 14, margin: '0 0 10px' }}>人生主题</h3>
         <div className="theme-grid">
-          {THEME_TAGS.map((t) => (
-            <button
-              key={t}
-              type="button"
-              className="card card-2 theme-chip"
-              onClick={() => {
-                setQuery(t);
-                onSubmit(t);
-              }}
-            >
-              {t}
-            </button>
-          ))}
+          {THEME_TAGS.map((t) => {
+            const topic = LIFE_TOPICS.find((x) => x.title === t);
+            if (topic) {
+              return (
+                <Link key={t} href={`/discover/topic/${topic.id}`} className="card card-2 theme-chip">
+                  {t}
+                </Link>
+              );
+            }
+            return (
+              <button
+                key={t}
+                type="button"
+                className="card card-2 theme-chip"
+                onClick={() => {
+                  setQuery(t);
+                  onSubmit(t);
+                }}
+              >
+                {t}
+              </button>
+            );
+          })}
         </div>
       </section>
     </main>

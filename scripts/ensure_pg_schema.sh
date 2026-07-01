@@ -36,6 +36,10 @@ MIGRATIONS=(
   infra/postgres/init/003_plan_session.sql
   infra/postgres/init/004_accounts.sql
   infra/postgres/init/005_daily_verse_engagement.sql
+  infra/postgres/init/006_social_group_meta.sql
+  infra/postgres/init/007_user_share.sql
+  infra/postgres/init/008_social_extras.sql
+  infra/postgres/init/009_push_subscription.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do
@@ -53,6 +57,10 @@ WHERE table_schema = 'public'
     'users', 'accounts', 'social_group',
     'daily_verse_like', 'daily_verse_share', 'plan_progress'
   );
+
+SELECT CASE WHEN COUNT(*) = 1 THEN 'ok' ELSE 'missing' END AS check_user_share
+FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name = 'user_share';
 
 SELECT CASE WHEN COUNT(*) = 1 THEN 'ok' ELSE 'missing' END AS check_plan_session_col
 FROM information_schema.columns

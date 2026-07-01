@@ -1,0 +1,10 @@
+-- 008：社交扩展（分享 reactions、任务截止、群静音、破冰标记）
+ALTER TABLE user_share ADD COLUMN IF NOT EXISTS reactions JSONB NOT NULL DEFAULT '{}';
+
+ALTER TABLE group_task ADD COLUMN IF NOT EXISTS due_at TIMESTAMPTZ;
+ALTER TABLE group_task ADD COLUMN IF NOT EXISTS template_id TEXT;
+
+ALTER TABLE group_member ADD COLUMN IF NOT EXISTS muted BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE group_member ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member';
+
+ALTER TABLE social_group ADD COLUMN IF NOT EXISTS icebreaker_done BOOLEAN NOT NULL DEFAULT false;

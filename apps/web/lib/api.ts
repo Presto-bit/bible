@@ -188,6 +188,7 @@ export async function setCredentials(username: string, password: string): Promis
   } catch {
     /* 后端不可用：本地已生效 */
   }
+  void import('./post_login').then((m) => m.afterLogin());
 }
 
 // 登录：标识符可为 10 位用户ID，或用户名（需配密码）。
@@ -208,6 +209,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
         localStorage.setItem(USER_KEY, d.user_code || idf);
         if (d.username) localStorage.setItem(NAME_KEY, d.username);
         markOnboarded();
+        void import('./post_login').then((m) => m.afterLogin());
         return d.user_code || idf;
       }
       if (res.status === 401) throw new Error('密码不正确');
@@ -217,6 +219,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
     }
     localStorage.setItem(USER_KEY, idf);
     markOnboarded();
+    void import('./post_login').then((m) => m.afterLogin());
     return idf;
   }
 
@@ -230,6 +233,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
     localStorage.setItem(USER_KEY, entry.id);
     localStorage.setItem(NAME_KEY, idf);
     markOnboarded();
+    void import('./post_login').then((m) => m.afterLogin());
     return entry.id;
   }
   // 后端登录
@@ -244,6 +248,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
       localStorage.setItem(USER_KEY, d.user_code);
       localStorage.setItem(NAME_KEY, d.username || idf);
       markOnboarded();
+      void import('./post_login').then((m) => m.afterLogin());
       return d.user_code as string;
     }
   } catch {
@@ -352,7 +357,7 @@ export async function chatStream(
 }
 
 // ── 带认证头的请求（X-User-Id / X-Guest-Id；登录用户服务端为准） ──
-function authHeaders(): Record<string, string> {
+export function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
   const code = effectiveId();
   if (code) {
@@ -399,15 +404,30 @@ export interface Group {
   join_code: string;
   role: string;
   members: number;
+  plan_id?: string | null;
+  plan_title?: string | null;
+  checked_in_today?: number;
+  my_checked_in_today?: boolean;
+  open_tasks?: number;
+  plan_days_total?: number;
+  plan_progress_pct?: number;
+  plan_day_avg?: number;
+  members_on_plan?: number;
+  my_plan_day?: number;
 }
 export interface GroupTask {
   id: string;
   title: string;
   ref?: string | null;
+  completed?: boolean;
 }
 export interface GroupMember {
+  user_id?: string;
   name: string;
   role: string;
+  checked_in_today?: boolean;
+  plan_day?: number;
+  is_me?: boolean;
 }
 export interface GroupDetail {
   id: string;
@@ -417,6 +437,18 @@ export interface GroupDetail {
   role: string;
   members: GroupMember[];
   tasks: GroupTask[];
+  plan_id?: string | null;
+  plan_title?: string | null;
+  announcement?: string | null;
+  checked_in_today?: number;
+  my_checked_in_today?: boolean;
+  open_tasks?: number;
+  plan_days_total?: number;
+  plan_progress_pct?: number;
+  plan_day_avg?: number;
+  members_on_plan?: number;
+  my_plan_day?: number;
+  icebreaker_done?: boolean;
 }
 export interface GroupMessage {
   id: string;
@@ -427,6 +459,26 @@ export interface GroupMessage {
   body?: string | null;
   reactions: Record<string, string[]>;
   created_at: string;
+  task_id?: string | null;
+  my_task_done?: boolean;
+}
+export interface DiscoverSummary {
+  groups_pending_checkin: number;
+  groups_pending_tasks: number;
+  friends_checked_in_today: number;
+  first_pending_group_id?: string | null;
+}
+export interface FriendActivity {
+  id: string;
+  author: string;
+  ref?: string | null;
+  body?: string | null;
+  reactions: Record<string, string[]>;
+  created_at: string;
+  source: 'group' | 'share';
+  kind?: string;
+  group_id?: string | null;
+  group_name?: string | null;
 }
 export interface Friend {
   user_id: string;
@@ -554,14 +606,47 @@ export const api = {
     ),
   // 社交
   myGroups: () => authed<{ groups: Group[] }>('/social/groups'),
-  createGroup: (name: string, intro?: string) =>
-    authed<Group>('/social/groups', { method: 'POST', body: { name, intro } }),
+  discoverSummary: () => authed<DiscoverSummary>('/social/discover/summary'),
+  pushDigest: () => authed<{ title: string; body: string; href: string }>('/social/push/digest'),
+  deliverPushDigest: () => authed<{ ok: boolean; sent: number }>('/push/deliver-digest', { method: 'POST' }),
+  friendsActivity: () => authed<{ items: FriendActivity[] }>('/social/friends/activity'),
+  createGroup: (name: string, intro?: string, plan_id?: string) =>
+    authed<Group>('/social/groups', { method: 'POST', body: { name, intro, plan_id } }),
+  createGroupFromPlan: (plan_id: string, name?: string) =>
+    authed<Group>('/social/groups/from-plan', {
+      method: 'POST',
+      body: { plan_id, name },
+    }),
   joinGroup: (join_code: string) =>
     authed<{ id: string; name: string }>('/social/groups/join', {
       method: 'POST',
       body: { join_code },
     }),
   groupDetail: (gid: string) => authed<GroupDetail>(`/social/groups/${gid}`),
+  updateGroup: (
+    gid: string,
+    body: {
+      name?: string;
+      plan_id?: string | null;
+      announcement?: string | null;
+      clear_plan?: boolean;
+    },
+  ) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}`, {
+      method: 'PATCH',
+      body,
+    }),
+  transferGroup: (gid: string, newOwnerId: string) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/transfer`, {
+      method: 'POST',
+      body: { new_owner_id: newOwnerId },
+    }),
+  removeGroupMember: (gid: string, userId: string) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/members/${userId}`, {
+      method: 'DELETE',
+    }),
+  dissolveGroup: (gid: string) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}`, { method: 'DELETE' }),
   groupFeed: (gid: string) =>
     authed<{ messages: GroupMessage[] }>(`/social/groups/${gid}/feed`),
   checkin: (gid: string, body: { body?: string; ref?: string; task_id?: string }) =>
@@ -569,10 +654,18 @@ export const api = {
       method: 'POST',
       body,
     }),
-  createTask: (gid: string, title: string, ref?: string) =>
+  createTask: (gid: string, title: string, ref?: string, opts?: { due_at?: string; template_id?: string }) =>
     authed<GroupTask>(`/social/groups/${gid}/tasks`, {
       method: 'POST',
-      body: { title, ref },
+      body: { title, ref, ...opts },
+    }),
+  nudgeGroup: (gid: string) =>
+    authed<{ ok: boolean; pending_members: number }>(`/social/groups/${gid}/nudge`, {
+      method: 'POST',
+    }),
+  muteGroup: (gid: string, muted: boolean) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/mute?muted=${muted ? 'true' : 'false'}`, {
+      method: 'PATCH',
     }),
   react: (mid: string, emoji: string) =>
     authed<{ reactions: Record<string, string[]> }>(`/social/messages/${mid}/react`, {
@@ -589,4 +682,9 @@ export const api = {
   friends: () => authed<{ friends: Friend[] }>('/social/friends'),
   addFriend: (handle: string) =>
     authed<Friend>('/social/friends', { method: 'POST', body: { handle } }),
+  publishShare: (body: { ref?: string; body: string; kind?: string }) =>
+    authed<{ id: string; created_at: string }>('/social/shares', {
+      method: 'POST',
+      body,
+    }),
 };

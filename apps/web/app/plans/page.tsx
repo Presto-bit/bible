@@ -12,6 +12,7 @@ import {
   setPlanDay,
   type ActivePlan,
 } from '@/lib/plan_progress';
+import { logPrayer } from '@/lib/reading';
 import { buildPlanReadingMeta, readerHref } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
@@ -90,6 +91,11 @@ export default function PlansPage() {
     } catch {
       setSavedPlans([]);
     }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'prayer') setTab('prayer');
   }, []);
 
   const featured = useMemo(
@@ -240,6 +246,23 @@ export default function PlansPage() {
             >
               {active.kind === 'prayer' ? '去祷告' : '去读 ›'}
             </button>
+            {active.kind !== 'prayer' && (
+              <button
+                type="button"
+                className="font-pill"
+                style={{ marginTop: 8 }}
+                onClick={async () => {
+                  try {
+                    const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
+                    window.location.href = `/discover/group/${g.id}`;
+                  } catch (e) {
+                    flashToast(String(e));
+                  }
+                }}
+              >
+                邀请组队共读
+              </button>
+            )}
             <button type="button" className="text-link" style={{ fontSize: 12, whiteSpace: 'nowrap' }} onClick={() => { advancePlanDay(active.planId, active.days); setActive({ ...active }); }}>
               完成
             </button>
@@ -379,6 +402,23 @@ export default function PlansPage() {
             {prayerSheet.prompt && (
               <p className="muted" style={{ marginTop: 12, fontSize: 13 }}>{prayerSheet.prompt}</p>
             )}
+            <button
+              type="button"
+              className="btn"
+              style={{ marginTop: 16, width: '100%' }}
+              onClick={() => {
+                logPrayer();
+                const activePrayer = getActivePlan();
+                if (activePrayer?.kind === 'prayer') {
+                  advancePlanDay(activePrayer.planId, activePrayer.days);
+                  setActive({ ...activePrayer });
+                }
+                setPrayerSheet(null);
+                flashToast('已记录今日祷告');
+              }}
+            >
+              完成今日祷告
+            </button>
           </div>
         </div>
       )}

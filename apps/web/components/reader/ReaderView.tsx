@@ -9,12 +9,16 @@ import {
   type Verse,
 } from '@/lib/api';
 import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
+import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
+import { StrongSheet } from '@/components/reader/StrongSheet';
 import SummarySheet from '@/components/reader/SummarySheet';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
+import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
+import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
-import { listNotes, type LocalNote } from '@/lib/notes';
+import { listNotes, createNote, type LocalNote } from '@/lib/notes';
 import { notesForChapter } from '@/lib/notes_for_chapter';
 import { isFavorite, toggleFavorite } from '@/lib/favorites';
 import {
@@ -134,6 +138,9 @@ export default function ReaderView({
   const [markMenuOpen, setMarkMenuOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
+  const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'compare'>(null);
+  const [strongOpen, setStrongOpen] = useState(false);
+  const [bookCelebrate, setBookCelebrate] = useState(false);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
   const [summarySheet, setSummarySheet] = useState<null | { title: string; load: () => Promise<string> }>(null);
   const [chapterNotes, setChapterNotes] = useState<Map<number, LocalNote[]>>(new Map());
@@ -142,6 +149,14 @@ export default function ReaderView({
   const [writeThoughtSheet, setWriteThoughtSheet] = useState<null | { ref: string; label: string }>(null);
   const [thoughtListSheet, setThoughtListSheet] = useState<null | { ref: string; label: string; text: string }>(null);
   const [thoughtRevision, setThoughtRevision] = useState(0);
+  const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
+  const [shareSocialOpen, setShareSocialOpen] = useState(false);
+  const [hasGroups, setHasGroups] = useState(false);
+  const [groupCtx, setGroupCtx] = useState<{
+    groupId?: string;
+    taskId?: string;
+    taskTitle?: string;
+  }>({});
   const [underlinesOn, setUnderlinesOn] = useState(true);
   const [thoughtsOn, setThoughtsOn] = useState(true);
   const [fontFamily, setFontFamilyState] = useState<ReaderFontFamily>('serif');
@@ -169,6 +184,22 @@ export default function ReaderView({
   useEffect(() => {
     refreshChapterNotes();
   }, [refreshChapterNotes]);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const groupId = p.get('group') || undefined;
+    const taskId = p.get('task') || undefined;
+    const taskTitle = p.get('taskTitle') || undefined;
+    setGroupCtx({ groupId, taskId, taskTitle });
+    if (groupId && taskId) setGroupCheckinOpen(true);
+    api.myGroups()
+      .then((r) => setHasGroups(r.groups.length > 0))
+      .catch(() => setHasGroups(false));
+  }, []);
+
+  useEffect(() => {
+    setBookDone(false);
+  }, [book.id, chapter]);
 
   const renderNotePin = (verse: number) => {
     const pins = chapterNotes.get(verse);
@@ -511,6 +542,7 @@ export default function ReaderView({
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom && verses.length > 0) {
         setBookDone(true);
+        setBookCelebrate(true);
         flashToast(`🎉 恭喜读完《${book.name}》`);
       }
     };
@@ -809,6 +841,17 @@ export default function ReaderView({
         </button>
       )}
 
+      {!chromeHidden && !hasSel && hasGroups && (
+        <button
+          type="button"
+          className="reader-fab reader-fab-group"
+          onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
+          aria-label="打卡到共读群"
+        >
+          🤝 打卡
+        </button>
+      )}
+
       {hasSel && (
         <div
           ref={focusBarRef}
@@ -863,9 +906,19 @@ export default function ReaderView({
                 clearSelection();
               }}>写想法</button>
             )}
+            <button type="button" className="vsb-item" onClick={() => {
+              createNote(effSelectionText || effRefLabel, selRef, ['读经']);
+              refreshChapterNotes();
+              flashToast('已存笔记');
+              clearSelection();
+            }}>笔记</button>
+            <button type="button" className="vsb-item" onClick={() => setToolsSheet('crossrefs')}>串珠</button>
+            <button type="button" className="vsb-item" onClick={() => setToolsSheet('compare')}>对照</button>
+            <button type="button" className="vsb-item" onClick={() => setStrongOpen(true)}>原文</button>
             <button type="button" className={`vsb-item ${favActive ? 'vsb-item-active' : ''}`} onClick={saveFavorite}>
               {englishUI ? 'Save' : '收藏'}
             </button>
+            <button type="button" className="vsb-item" onClick={() => setShareSocialOpen(true)}>分享</button>
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
           </div>
@@ -968,6 +1021,29 @@ export default function ReaderView({
         />
       )}
 
+      {toolsSheet && (
+        <ReaderToolsSheet
+          refParam={selRef || refParam}
+          refLabel={effRefLabel}
+          initialTab={toolsSheet}
+          onClose={() => setToolsSheet(null)}
+        />
+      )}
+
+      {strongOpen && (
+        <StrongSheet refLabel={effRefLabel} onClose={() => setStrongOpen(false)} />
+      )}
+
+      {bookCelebrate && (
+        <div className="book-complete-overlay" onClick={() => setBookCelebrate(false)}>
+          <div className="book-complete-card">
+            <span className="book-complete-icon">📖</span>
+            <strong>读完 {book.name}！</strong>
+            <p className="muted">愿话语继续在你心里动工</p>
+          </div>
+        </div>
+      )}
+
       {summarySheet && (
         <SummarySheet
           title={summarySheet.title}
@@ -1062,6 +1138,33 @@ export default function ReaderView({
             </button>
           </div>
         </div>
+      )}
+
+      {shareSocialOpen && (
+        <ShareToSocialSheet
+          ref={selRef || refParam}
+          refLabel={effRefLabel}
+          body={effSelectionText}
+          onClose={() => {
+            setShareSocialOpen(false);
+            clearSelection();
+          }}
+          onDone={() => flashToast(englishUI ? 'Shared' : '已分享')}
+        />
+      )}
+
+      {groupCheckinOpen && (
+        <GroupCheckinSheet
+          bookId={book.id}
+          bookName={book.name}
+          chapter={chapter}
+          verse={getLastReadVerse()}
+          presetGroupId={groupCtx.groupId}
+          presetTaskId={groupCtx.taskId}
+          presetTaskTitle={groupCtx.taskTitle}
+          onClose={() => setGroupCheckinOpen(false)}
+          onDone={() => flashToast(englishUI ? 'Shared to group' : '已分享到共读群')}
+        />
       )}
     </main>
   );

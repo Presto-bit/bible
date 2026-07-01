@@ -1,4 +1,4 @@
-// 阅读划线与样式（本地）。
+import { enqueueHighlight } from './highlight_sync';
 
 export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
 export type HighlightStyleKey = 'color' | 'solid' | 'dashed';
@@ -99,11 +99,13 @@ export function findHighlightStorageRef(
 export function removeHighlight(ref: string): boolean {
   const colors = getHighlights();
   if (!(ref in colors)) return false;
+  const prevColor = colors[ref];
   const styles = getHighlightStyles();
   delete colors[ref];
   delete styles[ref];
   localStorage.setItem(HL_KEY, JSON.stringify(colors));
   localStorage.setItem(STYLE_KEY, JSON.stringify(styles));
+  enqueueHighlight(ref, prevColor, true);
   return true;
 }
 
@@ -114,6 +116,7 @@ export function setHighlight(ref: string, color: HighlightColor, style: Highligh
   styles[ref] = style;
   localStorage.setItem(HL_KEY, JSON.stringify(colors));
   localStorage.setItem(STYLE_KEY, JSON.stringify(styles));
+  enqueueHighlight(ref, color, false);
 }
 
 /** 微信读书式：点色即应用；再点同色删除。 */

@@ -1,4 +1,6 @@
-// 经文想法（本地 JSON）。
+// 经文想法（本地 JSON + 可选同步好友动态）。
+
+import { api } from './api';
 
 export type ThoughtRow = {
   id: string;
@@ -87,6 +89,9 @@ export function addThought(ref: string, body: string): ThoughtRow {
   const all = readAll();
   all.push(row);
   writeAll(all);
+  if (typeof window !== 'undefined') {
+    void api.publishShare({ ref, body: row.body, kind: 'thought' }).catch(() => {});
+  }
   return row;
 }
 

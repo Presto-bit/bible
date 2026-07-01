@@ -72,7 +72,7 @@ export default function InstallBanner() {
       ? '微信内无法安装应用，请点击右上角「…」在浏览器中打开'
       : mode === 'ios'
         ? '添加到主屏幕：点 Safari 底部分享 →「添加到主屏幕」'
-        : '把「读经」添加到主屏幕，离线也能打开';
+        : '把「彼爱」添加到主屏幕，离线也能打开';
 
   return (
     <div

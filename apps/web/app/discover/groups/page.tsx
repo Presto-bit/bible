@@ -1,0 +1,129 @@
+'use client';
+
+import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  api,
+  currentUserId,
+  guestId,
+  type Group,
+} from '@/lib/api';
+import { groupPlanProgressLabel } from '@/lib/group_plan';
+
+function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' | 'task' } {
+  if ((g.open_tasks ?? 0) > 0) {
+    return { label: `任务 ${g.open_tasks}`, tone: 'task' };
+  }
+  if (g.my_checked_in_today) {
+    return { label: '已打卡 ✓', tone: 'done' };
+  }
+  return { label: '去打卡', tone: 'pending' };
+}
+
+export default function DiscoverGroupsPage() {
+  const [uid, setUid] = useState<string | null>(null);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [err, setErr] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    try {
+      const g = await api.myGroups();
+      setGroups(g.groups);
+      setErr(null);
+    } catch (e) {
+      setErr(String(e));
+    }
+  }, []);
+
+  useEffect(() => {
+    const id = currentUserId() || guestId();
+    setUid(id);
+    if (id) reload();
+  }, [reload]);
+
+  if (!uid) {
+    return (
+      <main className="container">
+        <div className="card card-2">
+          <p>登录后即可查看共读群。</p>
+          <Link className="btn" href="/profile">
+            去登录
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="container discover-page">
+      <div className="section-row" style={{ marginTop: 0 }}>
+        <Link href="/discover" className="muted">
+          ‹ 发现
+        </Link>
+        <span>我的共读群</span>
+        <Link className="btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: 13 }} href="/group/create">
+          新建
+        </Link>
+      </div>
+
+      {err && <p className="muted" style={{ marginTop: 8 }}>{err}</p>}
+
+      {groups.length === 0 ? (
+        <div className="card card-tint card-2 card-accent" style={{ marginTop: 12 }}>
+          <strong>还没有共读群</strong>
+          <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
+            创建群或凭邀请码加入，和大家一起读经打卡。
+          </p>
+          <div className="discover-hero-actions">
+            <Link className="btn" href="/group/create">
+              创建共读群
+            </Link>
+            <Link className="font-pill" href="/discover/join">
+              邀请码加入
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {groups.map((g) => {
+            const badge = groupStatusBadge(g);
+            const members = g.members || 1;
+            const checked = g.checked_in_today ?? 0;
+            const barPct = g.plan_id
+              ? (g.plan_progress_pct ?? 0)
+              : Math.round((checked / members) * 100);
+            const planSub = g.plan_id ? groupPlanProgressLabel(g) : `${members} 位成员`;
+            return (
+              <Link
+                key={g.id}
+                href={`/discover/group/${g.id}`}
+                className="card card-2 group-card"
+                style={{ display: 'block' }}
+              >
+                <div className="group-card-head">
+                  <strong>{g.name}</strong>
+                  {g.role === 'owner' && <span className="rail-cta">群主</span>}
+                </div>
+                <p className="muted" style={{ fontSize: 12, margin: '4px 0' }}>
+                  {g.plan_title || planSub}
+                </p>
+                <div className="progress-bar">
+                  <div
+                    className={`progress-fill${g.plan_id ? ' plan-fill' : ''}`}
+                    style={{ width: `${barPct}%` }}
+                  />
+                </div>
+                <div className="group-card-foot">
+                  <span className="muted">今日 {checked}/{members}</span>
+                  <span className={`group-badge group-badge-${badge.tone}`}>
+                    {badge.label}
+                  </span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </main>
+  );
+}

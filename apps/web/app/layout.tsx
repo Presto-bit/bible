@@ -6,12 +6,13 @@ import InstallBanner from '@/components/InstallBanner';
 import BottomTabs from '@/components/BottomTabs';
 
 import { BASE_PATH } from '@/lib/basePath';
+import { BRAND_FULL, BRAND_TAGLINE } from '@/lib/brand';
 
 export const metadata: Metadata = {
-  title: 'PrestoAI 读经',
-  description: '安静读经，遇见话语。AI 解经与默想陪伴。',
+  title: BRAND_FULL,
+  description: BRAND_TAGLINE,
   manifest: `${BASE_PATH || ''}/manifest.webmanifest`,
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'PrestoAI 读经' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: BRAND_FULL },
   icons: {
     apple: `${BASE_PATH || ''}/apple-touch-icon.png`,
   },

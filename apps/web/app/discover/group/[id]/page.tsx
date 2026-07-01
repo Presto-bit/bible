@@ -1,21 +1,35 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
-import {
-  api,
-  type GroupDetail,
-  type GroupMessage,
-} from '@/lib/api';
-
-const EMOJIS = ['🙏', '❤️', '👍', '🔥'];
+import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { GroupChatFeed } from '@/components/group/GroupChatFeed';
+import { GroupComposer } from '@/components/group/GroupComposer';
+import { GroupMembersPanel } from '@/components/group/GroupMembersPanel';
+import { GroupPlanStrip } from '@/components/group/GroupPlanStrip';
+import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
+import { api, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
 
 export default function GroupPage() {
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const gid = params.id;
   const [detail, setDetail] = useState<GroupDetail | null>(null);
   const [feed, setFeed] = useState<GroupMessage[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [showMembers, setShowMembers] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [announceDraft, setAnnounceDraft] = useState('');
+  const [planDraft, setPlanDraft] = useState('');
+  const [nameDraft, setNameDraft] = useState('');
+  const [taskComplete, setTaskComplete] = useState<{
+    taskId: string;
+    title: string;
+    ref?: string | null;
+  } | null>(null);
+  const feedEndRef = useRef<HTMLDivElement>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -32,44 +46,43 @@ export default function GroupPage() {
     reload();
   }, [reload]);
 
-  if (err) return <main className="container"><p className="muted">{err}</p></main>;
-  if (!detail) return <main className="container"><p className="muted">加载中…</p></main>;
+  useEffect(() => {
+    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [feed.length]);
+
+  useEffect(() => {
+    if (detail) {
+      setAnnounceDraft(detail.announcement || '');
+      setPlanDraft(detail.plan_id || '');
+      setNameDraft(detail.name);
+    }
+  }, [detail]);
+
+  useEffect(() => {
+    if (showSettings) {
+      api.plans().then((r) => setPlans(r.plans)).catch(() => setPlans([]));
+    }
+  }, [showSettings]);
+
+  if (err) {
+    return (
+      <main className="container">
+        <p className="muted">{err}</p>
+      </main>
+    );
+  }
+  if (!detail) {
+    return (
+      <main className="container">
+        <p className="muted">加载中…</p>
+      </main>
+    );
+  }
 
   const isOwner = detail.role === 'owner';
-
-  const newTask = async () => {
-    const title = prompt('任务内容（仅群主）');
-    if (!title) return;
-    const ref = prompt('关联经文（可选，如 JHN.3.16）') || undefined;
-    try {
-      await api.createTask(gid, title, ref);
-      reload();
-    } catch (e) {
-      alert(`发布失败：${e}`);
-    }
-  };
-
-  const checkinWithTask = async (taskId: string, title: string) => {
-    const body = prompt(`打卡：${title}\n写点感想（可选）`) ?? '';
-    try {
-      await api.checkin(gid, { task_id: taskId, body });
-      reload();
-    } catch (e) {
-      alert(`打卡失败：${e}`);
-    }
-  };
-
-  const checkinWithRef = async () => {
-    const ref = prompt('打卡关联经文（如 JHN.3.16）');
-    if (!ref) return;
-    const body = prompt('写点感想（可选）') ?? '';
-    try {
-      await api.checkin(gid, { ref, body });
-      reload();
-    } catch (e) {
-      alert(`打卡失败（须挂经文或任务）：${e}`);
-    }
-  };
+  const members = detail.members.length;
+  const checkedToday = detail.checked_in_today ?? 0;
+  const progressPct = members > 0 ? Math.round((checkedToday / members) * 100) : 0;
 
   const react = async (mid: string, emoji: string) => {
     try {
@@ -81,7 +94,7 @@ export default function GroupPage() {
   };
 
   const reportMsg = async (mid: string) => {
-    const reason = prompt('举报原因（可选）') ?? '';
+    const reason = window.prompt('举报原因（可选）') ?? '';
     try {
       const r = await api.reportMessage(mid, reason);
       alert(r.hidden ? '已举报，该内容已被隐藏待复核' : '已举报，感谢反馈');
@@ -92,7 +105,7 @@ export default function GroupPage() {
   };
 
   const deleteMsg = async (mid: string) => {
-    if (!confirm('确定删除这条内容？')) return;
+    if (!window.confirm('确定删除这条内容？')) return;
     try {
       await api.deleteMessage(mid);
       reload();
@@ -101,99 +114,251 @@ export default function GroupPage() {
     }
   };
 
-  return (
-    <main className="container">
-      <h2 className="page-title">{detail.name}</h2>
-      <p className="muted" style={{ marginBottom: 12 }}>
-        {detail.members.length} 人 · 邀请码 {detail.join_code} ·{' '}
-        {isOwner ? '群主' : '成员'}
-      </p>
+  const completeTask = (taskId: string, title: string, ref?: string | null) => {
+    setTaskComplete({ taskId, title, ref });
+  };
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-        <button className="btn" style={{ marginTop: 0 }} onClick={checkinWithRef}>
-          经文打卡
-        </button>
+  const submitTaskComplete = async (body: string) => {
+    if (!taskComplete) return;
+    await api.checkin(gid, {
+      task_id: taskComplete.taskId,
+      ref: taskComplete.ref || undefined,
+      body,
+    });
+    await reload();
+  };
+
+  const handleCheckin = async (payload: {
+    ref?: string;
+    task_id?: string;
+    body?: string;
+  }) => {
+    setBusy(true);
+    try {
+      await api.checkin(gid, payload);
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCreateTask = async (payload: {
+    title: string;
+    ref?: string;
+    due_at?: string;
+    template_id?: string;
+  }) => {
+    setBusy(true);
+    try {
+      await api.createTask(gid, payload.title, payload.ref, {
+        due_at: payload.due_at,
+        template_id: payload.template_id,
+      });
+      await reload();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveSettings = async () => {
+    setBusy(true);
+    try {
+      await api.updateGroup(gid, {
+        name: nameDraft.trim(),
+        announcement: announceDraft,
+        ...(planDraft ? { plan_id: planDraft } : { clear_plan: true }),
+      });
+      setShowSettings(false);
+      await reload();
+    } catch (e) {
+      alert(`保存失败：${e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dissolve = async () => {
+    if (!window.confirm('确定解散此共读群？所有成员将被移出，此操作不可撤销。')) return;
+    setBusy(true);
+    try {
+      await api.dissolveGroup(gid);
+      router.push('/discover');
+    } catch (e) {
+      alert(`解散失败：${e}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="group-page">
+      <header className="group-header">
+        <Link href="/discover" className="icon-btn" aria-label="返回">
+          ‹
+        </Link>
+        <div className="group-header-main">
+          <h1>{detail.name}</h1>
+          <p className="muted">
+            {members} 人 · 今日 {checkedToday}/{members} 已打卡
+            {detail.plan_title && ` · ${detail.plan_title}`}
+            {isOwner && ` · 邀请码 ${detail.join_code}`}
+          </p>
+        </div>
         {isOwner && (
           <button
-            className="btn"
-            style={{ marginTop: 0, background: 'var(--gold)' }}
-            onClick={newTask}
+            type="button"
+            className="icon-btn"
+            aria-label="群设置"
+            onClick={() => {
+              setShowSettings((v) => !v);
+              setShowMembers(false);
+            }}
           >
-            + 发任务
+            设置
           </button>
         )}
-      </div>
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="成员"
+          onClick={() => {
+              setShowMembers((v) => !v);
+              setShowSettings(false);
+            }}
+        >
+          成员
+        </button>
+      </header>
 
-      {detail.tasks.length > 0 && (
-        <>
-          <h3 style={{ margin: '6px 0' }}>任务</h3>
-          {detail.tasks.map((t) => (
-            <div key={t.id} className="card" style={{ marginBottom: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center' }}>
-                <div style={{ flex: 1 }}>
-                  {t.title}
-                  {t.ref && <span className="muted"> · {t.ref}</span>}
-                </div>
-                <button
-                  className="book-chip"
-                  style={{ width: 'auto' }}
-                  onClick={() => checkinWithTask(t.id, t.title)}
-                >
-                  去打卡
-                </button>
-              </div>
-            </div>
-          ))}
-        </>
+      {showMembers && (
+        <GroupMembersPanel
+          gid={gid}
+          members={detail.members}
+          isOwner={isOwner}
+          joinCode={isOwner ? detail.join_code : undefined}
+          planDaysTotal={detail.plan_days_total}
+          onChanged={reload}
+        />
       )}
 
-      <h3 style={{ margin: '16px 0 6px' }}>动态</h3>
-      {feed.length === 0 ? (
-        <p className="muted">还没有打卡，来发第一条吧。</p>
-      ) : (
-        feed.map((m) => (
-          <div key={m.id} className="card" style={{ marginBottom: 8 }}>
-            <div className="muted" style={{ marginBottom: 4 }}>
-              {m.author} · {m.kind === 'checkin' ? '打卡' : m.kind}
-              {m.ref ? ` · ${m.ref}` : ''}
-            </div>
-            {m.body && <div>{m.body}</div>}
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              {EMOJIS.map((e) => {
-                const count = m.reactions[e]?.length || 0;
-                return (
-                  <button
-                    key={e}
-                    className="book-chip"
-                    style={{ width: 'auto', padding: '4px 8px' }}
-                    onClick={() => react(m.id, e)}
-                  >
-                    {e} {count > 0 ? count : ''}
-                  </button>
-                );
-              })}
-              <span style={{ flex: 1 }} />
-              {(m.mine || isOwner) && (
-                <button
-                  className="text-link"
-                  style={{ color: '#b1554a', fontSize: 12 }}
-                  onClick={() => deleteMsg(m.id)}
-                >
-                  删除
-                </button>
-              )}
-              {!m.mine && (
-                <button
-                  className="text-link"
-                  style={{ color: 'var(--ink-faint)', fontSize: 12 }}
-                  onClick={() => reportMsg(m.id)}
-                >
-                  举报
-                </button>
-              )}
-            </div>
-          </div>
-        ))
+      {showSettings && isOwner && (
+        <div className="group-settings-panel card card-2">
+          <strong>群设置</strong>
+          <label className="group-composer-label" htmlFor="group-name" style={{ marginTop: 10 }}>
+            群名称
+          </label>
+          <input
+            id="group-name"
+            className="search-input"
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+          />
+          <label className="group-composer-label" htmlFor="group-plan" style={{ marginTop: 10 }}>
+            绑定读经计划
+          </label>
+          <select
+            id="group-plan"
+            className="search-input"
+            value={planDraft}
+            onChange={(e) => setPlanDraft(e.target.value)}
+          >
+            <option value="">不绑定计划</option>
+            {plans.map((p) => (
+              <option key={p.plan_id} value={p.plan_id}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+          <label className="group-composer-label" htmlFor="group-announce" style={{ marginTop: 10 }}>
+            群公告
+          </label>
+          <textarea
+            id="group-announce"
+            className="group-composer-text"
+            rows={3}
+            placeholder="发布群公告（全员可见）"
+            value={announceDraft}
+            onChange={(e) => setAnnounceDraft(e.target.value)}
+          />
+          <button type="button" className="btn" style={{ width: '100%', marginTop: 8 }} disabled={busy} onClick={saveSettings}>
+            {busy ? '保存中…' : '保存设置'}
+          </button>
+          <button
+            type="button"
+            className="font-pill danger-pill"
+            style={{ width: '100%', marginTop: 12 }}
+            disabled={busy}
+            onClick={dissolve}
+          >
+            解散共读群
+          </button>
+        </div>
+      )}
+
+      {detail.announcement && !showSettings && (
+        <div className="group-announcement card card-2">
+          <span className="group-composer-label">群公告</span>
+          <p style={{ margin: '6px 0 0', lineHeight: 1.55 }}>{detail.announcement}</p>
+        </div>
+      )}
+
+      {!detail.icebreaker_done && (
+        <div className="card card-tint card-2 icebreaker-card" style={{ margin: '8px 12px' }}>
+          <strong>欢迎加入共读群</strong>
+          <p className="muted" style={{ fontSize: 13, margin: '6px 0 10px' }}>
+            发第一条打卡，和大家打个招呼吧。可分享今日经文或一句感想。
+          </p>
+        </div>
+      )}
+
+      <GroupPlanStrip
+        detail={detail}
+        onShowMembers={() => {
+          setShowMembers(true);
+          setShowSettings(false);
+        }}
+      />
+
+      <div className="group-progress-strip">
+        <div className="progress-bar">
+          <div className="progress-fill" style={{ width: `${progressPct}%` }} />
+        </div>
+        <span className="muted" style={{ fontSize: 12 }}>
+          {detail.my_checked_in_today ? '今日已打卡 ✓' : '今日待打卡'}
+          {(detail.open_tasks ?? 0) > 0 && ` · ${detail.open_tasks} 个任务待完成`}
+        </span>
+      </div>
+
+      <div className="group-feed-wrap">
+        <GroupChatFeed
+          gid={gid}
+          messages={feed}
+          isOwner={isOwner}
+          onReact={react}
+          onReport={reportMsg}
+          onDelete={deleteMsg}
+          onCompleteTask={completeTask}
+        />
+        <div ref={feedEndRef} />
+      </div>
+
+      <div className="group-composer-wrap">
+        <GroupComposer
+          isOwner={isOwner}
+          tasks={detail.tasks}
+          busy={busy}
+          onCheckin={handleCheckin}
+          onCreateTask={handleCreateTask}
+        />
+      </div>
+
+      {taskComplete && (
+        <GroupTaskCompleteSheet
+          title={taskComplete.title}
+          refLabel={taskComplete.ref}
+          onSubmit={submitTaskComplete}
+          onClose={() => setTaskComplete(null)}
+        />
       )}
     </main>
   );

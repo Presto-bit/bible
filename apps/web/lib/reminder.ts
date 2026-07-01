@@ -1,6 +1,7 @@
-// H5 每日读经提醒（与 App 本地通知对齐的轻量版）。
-// 浏览器无后台推送时，使用 Notification API 在页面打开期间到点提醒；
-// 设置（开关 + 时间）持久化到 localStorage，登录后未来可接 Web Push。
+// H5 每日读经提醒 + F1 聚合摘要（前台 Notification，每日 ≤2 条）。
+
+import { fetchPushDigest, isStreakRecallEnabled, markDigestSent } from './push_digest';
+import { readingStreak } from './gamification';
 
 export interface ReminderPref {
   enabled: boolean;
@@ -26,6 +27,7 @@ export function getReminder(): ReminderPref {
 export function setReminder(p: ReminderPref) {
   localStorage.setItem(KEY, JSON.stringify(p));
   reschedule();
+  void import('./web_push').then((m) => m.subscribeWebPush().catch(() => {}));
 }
 
 export async function ensurePermission(): Promise<boolean> {
@@ -44,7 +46,23 @@ function msUntil(hour: number, minute: number): number {
   return next.getTime() - now.getTime();
 }
 
-// 在页面打开期间调度下一次提醒；触发后自动续约到次日同一时间。
+async function fireReminder() {
+  if (Notification.permission !== 'granted') return;
+  const digest = await fetchPushDigest();
+  if (digest?.body) {
+    new Notification(digest.title, { body: digest.body, tag: 'presto-digest' });
+    markDigestSent();
+    void import('./web_push').then((m) => m.deliverPushDigest());
+    return;
+  }
+  const streak = readingStreak();
+  const body =
+    isStreakRecallEnabled() && streak === 0
+      ? '今天只需 5 分钟，从一节经文开始就好。'
+      : '愿话语成为你脚前的灯，点开继续今天的阅读。';
+  new Notification('今日读经', { body });
+}
+
 export function reschedule() {
   if (typeof window === 'undefined') return;
   if (timer) {
@@ -54,11 +72,7 @@ export function reschedule() {
   const p = getReminder();
   if (!p.enabled || !('Notification' in window)) return;
   timer = setTimeout(() => {
-    if (Notification.permission === 'granted') {
-      new Notification('今日读经', {
-        body: '愿话语成为你脚前的灯，点开继续今天的阅读。',
-      });
-    }
+    void fireReminder();
     reschedule();
   }, msUntil(p.hour, p.minute));
 }

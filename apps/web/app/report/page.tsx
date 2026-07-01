@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook } from '@/lib/api';
 import { dailyMinutes, rangeStats, type RangeStats } from '@/lib/reading';
@@ -196,7 +197,8 @@ export default function ReportPage() {
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <a href="/profile" className="icon-btn" aria-label="返回">←</a>
-        <h2 style={{ margin: 0, fontSize: 18 }}>读经回顾</h2>
+        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>读经回顾</h2>
+        <Link href="/wrapped" className="muted" style={{ fontSize: 13 }}>Wrapped ›</Link>
       </header>
 
       <div className="seg-tabs" style={{ marginBottom: 12 }}>
@@ -271,10 +273,11 @@ export default function ReportPage() {
         })}
       </div>
 
-      <div className="report-tiles" style={{ marginTop: 16 }}>
+      <div className="report-tiles report-tiles-4" style={{ marginTop: 16 }}>
         <Tile value={stats.minutes} unit="分钟" label="阅读时长" />
         <Tile value={stats.days} unit="天" label="阅读天数" />
         <Tile value={stats.chapters} unit="章" label="完成章节" />
+        <Tile value={stats.prayers} unit="次" label="祷告打卡" />
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
         当前统计：{statLabel}

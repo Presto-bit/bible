@@ -93,7 +93,7 @@ done
 
 if [[ -f "$APP_DIR/scripts/ensure_pg_schema.sh" ]]; then
   log "补跑 PG 迁移（点赞表等）"
-  bash "$APP_DIR/scripts/ensure_pg_schema.sh" || log "⚠️  ensure_pg_schema 失败，请手动 bash scripts/ensure_pg_schema.sh"
+  bash "$APP_DIR/scripts/ensure_pg_schema.sh" || die "PG 迁移失败，点赞/社交功能不可用"
 fi
 
 like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8011/content/daily-verse/like" \
@@ -112,6 +112,18 @@ if [[ "$social_code" == "401" ]]; then
 fi
 if [[ "$social_code" != "200" && "$social_code" != "000" ]]; then
   log "⚠️  社交 API 返回 HTTP $social_code（期望 200）"
+fi
+
+if [[ -d "$APP_DIR/content/commentary/study-bible" ]]; then
+  log "RAG 种子索引（study-bible，需 RAG_EMBEDDING_API_KEY）"
+  if ! "${compose[@]}" exec -T api python /app/scripts/rag_index.py \
+    --dir /app/content/commentary/study-bible \
+    --source-type study-bible 2>&1; then
+    log "⚠️  RAG 索引跳过或失败（无 Key 或网络问题时不影响发版）"
+  else
+    rag_chunks="$(curl -fsS http://127.0.0.1:8011/ai/rag/status 2>/dev/null | grep -oE '"chunks":[0-9]+' | cut -d: -f2 || echo 0)"
+    log "RAG 块数: ${rag_chunks:-?}"
+  fi
 fi
 
 log "健康检查 Web /"

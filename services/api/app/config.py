@@ -61,6 +61,12 @@ class Settings(BaseSettings):
     api_base_url: str = "https://www.prestoai.cn"
     public_web_url: str = "https://www.prestoai.cn/2sc"
 
+    # ── Web Push（VAPID）──
+    vapid_public_key: str = ""
+    vapid_private_key: str = ""
+    vapid_subject: str = "mailto:support@prestoai.cn"
+    push_cron_secret: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

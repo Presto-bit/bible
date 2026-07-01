@@ -5,6 +5,24 @@
 import { API_BASE, currentUserId, guestId } from './api';
 import { applyRemoteNote, type LocalNote } from './notes';
 import { applyRemotePlanProgress } from './plan_sync';
+import {
+  clearHighlightSyncMeta,
+  recordRemoteHighlight,
+  remoteVersionForRef,
+} from './highlight_sync';
+import {
+  applyRemoteFavorite,
+} from './favorites';
+import {
+  clearBookmarkSyncMeta,
+  recordRemoteBookmark,
+  syncVersionForRef,
+} from './bookmark_sync';
+import {
+  applyRemoteAiSessionPull,
+  type RemoteAiSession,
+} from './ai_session_sync';
+import { removeHighlight, setHighlight, type HighlightColor } from './reader_highlights';
 
 export interface Envelope {
   entity: string;
@@ -106,7 +124,7 @@ async function push(): Promise<number> {
 async function pull(): Promise<number> {
   const since = Number(localStorage.getItem(CURSOR_KEY) || '0');
   const res = await fetch(
-    `${API_BASE}/sync/pull?since=${since}&entities=note,plan_progress`,
+    `${API_BASE}/sync/pull?since=${since}&entities=note,plan_progress,highlight,bookmark,ai_session`,
     { headers: authHeaders(), cache: 'no-store' },
   );
   if (!res.ok) throw new Error(`拉取失败 ${res.status}`);
@@ -124,9 +142,11 @@ async function pull(): Promise<number> {
       day?: number;
       status?: string;
       session?: Record<string, unknown> | null;
+      color?: string;
     } | null;
     keys?: { plan_id?: string };
   }>;
+  const aiSessionChanges: RemoteAiSession[] = [];
   for (const c of changes) {
     if (c.entity === 'note' && c.id) applyRemoteNote({ ...c, id: c.id });
     if (c.entity === 'plan_progress' && c.keys?.plan_id) {
@@ -137,6 +157,43 @@ async function pull(): Promise<number> {
         session: c.data?.session,
       });
     }
+    if (c.entity === 'highlight' && c.id) {
+      const ref = c.data?.ref;
+      if (!ref) continue;
+      const incoming = c.version ?? 1;
+      if (remoteVersionForRef(ref) > incoming && c.op !== 'delete') continue;
+      if (c.op === 'delete') {
+        removeHighlight(ref);
+        clearHighlightSyncMeta(ref);
+      } else {
+        setHighlight(ref, (c.data?.color || 'yellow') as HighlightColor, 'color');
+        recordRemoteHighlight(ref, c.id, incoming);
+      }
+    }
+    if (c.entity === 'bookmark' && c.id) {
+      const ref = c.data?.ref;
+      if (!ref) continue;
+      const incoming = c.version ?? 1;
+      if (syncVersionForRef(ref) > incoming && c.op !== 'delete') continue;
+      if (c.op === 'delete') {
+        applyRemoteFavorite(ref, false);
+        clearBookmarkSyncMeta(ref);
+      } else {
+        applyRemoteFavorite(ref, true);
+        recordRemoteBookmark(ref, c.id, incoming);
+      }
+    }
+    if (c.entity === 'ai_session' && c.id) {
+      aiSessionChanges.push({
+        id: c.id,
+        op: c.op,
+        version: c.version,
+        data: c.data as RemoteAiSession['data'],
+      });
+    }
+  }
+  if (aiSessionChanges.length > 0) {
+    applyRemoteAiSessionPull(aiSessionChanges);
   }
   if (data.cursor != null) localStorage.setItem(CURSOR_KEY, String(data.cursor));
   return changes.length;

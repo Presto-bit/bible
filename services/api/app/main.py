@@ -14,6 +14,7 @@ from .config import get_settings
 from .content.router import router as content_router
 from .db import close_pool, ping
 from .guide.router import router as guide_router
+from .push.router import router as push_router
 from .social.router import router as social_router
 from .sync.router import router as sync_router
 
@@ -46,6 +47,7 @@ app.include_router(auth_router)
 app.include_router(sync_router)
 app.include_router(content_router)
 app.include_router(social_router)
+app.include_router(push_router)
 
 
 @app.get("/health")

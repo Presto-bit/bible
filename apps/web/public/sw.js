@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML
-const CACHE = 'presto-bible-v2';
+const CACHE = 'presto-bible-v3';
 const SHELL = [
   '/manifest.webmanifest',
   '/icon.svg',
@@ -62,5 +62,38 @@ self.addEventListener('fetch', (e) => {
           return res;
         }),
     ),
+  );
+});
+
+self.addEventListener('push', (event) => {
+  let data = { title: '彼爱', body: '愿话语成为你脚前的灯', href: '/' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {
+    /* ignore */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || '彼爱', {
+      body: data.body || '',
+      tag: 'presto-push',
+      data: { href: data.href || '/' },
+      icon: '/icon-192.png',
+    }),
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const href = event.notification.data?.href || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      for (const c of clients) {
+        if ('focus' in c) {
+          c.navigate(href);
+          return c.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(href);
+    }),
   );
 });

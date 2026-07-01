@@ -14,6 +14,8 @@ import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_re
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
 import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
+import { groupPlanProgressLabel } from '@/lib/group_plan';
+import { nextReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
 
 // 每日经文全屏背景图（按主题挑选；可在此配置更多背景）。
@@ -23,17 +25,44 @@ const VERSE_BG =
 function buildRail(
   plan?: { title: string; sub: string; href: string },
   resume?: { title: string; sub: string; href: string },
+  group?: { title: string; sub: string; href: string },
+  prayer?: { title: string; sub: string; href: string },
+  suggest?: { title: string; sub: string; href: string },
 ) {
-  return [
+  const cards = [
     {
-      tag: '计划',
+      tag: prayer ? '祷告' : '计划',
       reason: '今日计划',
-      title: plan?.title ?? '开始读经计划',
-      sub: plan?.sub ?? '热门计划 · 个性定制',
-      cta: plan ? '去读 ›' : '去看看 ›',
-      href: plan?.href ?? '/plans',
+      title: plan?.title ?? prayer?.title ?? '开始读经计划',
+      sub: plan?.sub ?? prayer?.sub ?? '热门计划 · 个性定制',
+      cta: plan || prayer ? '去读 ›' : '去看看 ›',
+      href: plan?.href ?? prayer?.href ?? '/plans',
       accent: true,
     },
+  ];
+  if (group) {
+    cards.push({
+      tag: '小组',
+      reason: '群待打卡',
+      title: group.title,
+      sub: group.sub,
+      cta: '去打卡 ›',
+      href: group.href,
+      accent: false,
+    });
+  }
+  if (suggest) {
+    cards.push({
+      tag: '推荐',
+      reason: suggest.sub,
+      title: suggest.title,
+      sub: '智能推荐',
+      cta: '去读 ›',
+      href: suggest.href,
+      accent: false,
+    });
+  }
+  cards.push(
     {
       tag: '问答',
       reason: '每日问答',
@@ -50,6 +79,7 @@ function buildRail(
       sub: resume?.sub ?? '从圣经 Tab 继续',
       cta: '读 ›',
       href: resume?.href ?? '/reader',
+      accent: false,
     },
     {
       tag: '小爱',
@@ -58,8 +88,10 @@ function buildRail(
       sub: '「这段经文里，神的应许对你意味着什么？」',
       cta: '聊聊 ›',
       href: '/assistant',
+      accent: false,
     },
-  ];
+  );
+  return cards;
 }
 
 export default function HomePageClient() {
@@ -94,6 +126,7 @@ export default function HomePageClient() {
   const [likeCount, setLikeCount] = useState(0);
   const [shareCount, setShareCount] = useState(0);
   const [likeBusy, setLikeBusy] = useState(false);
+  const [likeErr, setLikeErr] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
   const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
   const [page, setPage] = useState(0);
@@ -105,6 +138,10 @@ export default function HomePageClient() {
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [rail, setRail] = useState(() => buildRail());
   const [userName, setUserName] = useState('');
+  const [groupSummary, setGroupSummary] = useState<{
+    line: string;
+    href: string;
+  } | null>(null);
   const seasonal = currentSeasonalEvents();
 
   useEffect(() => {
@@ -116,8 +153,16 @@ export default function HomePageClient() {
     const report = buildReport();
     setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
     let planCard: { title: string; sub: string; href: string } | undefined;
+    let prayerCard: { title: string; sub: string; href: string } | undefined;
     const active = getActivePlan();
-    if (active && active.kind !== 'prayer') {
+    if (active?.kind === 'prayer') {
+      const day = getPlanDay(active.planId) || 1;
+      prayerCard = {
+        title: `${active.title} · 第 ${day} 天`,
+        sub: '今日祷告',
+        href: '/plans?tab=prayer',
+      };
+    } else if (active) {
       const day = getPlanDay(active.planId) || 1;
       const meta = await buildPlanReadingMeta(active, day);
       if (meta) {
@@ -153,7 +198,63 @@ export default function HomePageClient() {
         };
       }
     }
-    setRail(buildRail(planCard, resumeCard));
+    let groupCard: { title: string; sub: string; href: string } | undefined;
+    let summaryLine: { line: string; href: string } | null = null;
+    try {
+      const [groupsRes, summary] = await Promise.all([
+        api.myGroups(),
+        api.discoverSummary(),
+      ]);
+      const groups = groupsRes.groups;
+      const pending = groups.find((g) => !g.my_checked_in_today)
+        ?? groups.find((g) => (g.open_tasks ?? 0) > 0);
+      if (pending && (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0)) {
+        const parts: string[] = [];
+        if (!pending.my_checked_in_today) parts.push('待打卡');
+        if ((pending.open_tasks ?? 0) > 0) parts.push(`${pending.open_tasks} 个任务`);
+        if (pending.plan_id) {
+          const planLine = groupPlanProgressLabel(pending);
+          if (planLine) parts.push(planLine);
+        }
+        groupCard = {
+          title: pending.name,
+          sub: parts.join(' · ') || '共读群动态',
+          href: `/discover/group/${pending.id}`,
+        };
+      }
+      if (groups.length > 0) {
+        const checked = groups.reduce((n, g) => n + (g.checked_in_today ?? 0), 0);
+        const parts: string[] = [];
+        if (summary.groups_pending_checkin > 0) {
+          parts.push(`${summary.groups_pending_checkin} 个群待打卡`);
+        }
+        if (summary.groups_pending_tasks > 0) {
+          parts.push(`${summary.groups_pending_tasks} 个群任务`);
+        }
+        if (summary.friends_checked_in_today > 0) {
+          parts.push(`今天 ${summary.friends_checked_in_today} 位好友打卡`);
+        }
+        summaryLine = {
+          line: parts.length > 0
+            ? parts.join(' · ')
+            : `${groups[0].name} · 今日 ${checked} 人已打卡`,
+          href: pending ? `/discover/group/${pending.id}` : '/discover',
+        };
+      } else {
+        summaryLine = { line: '去发现 · 创建或加入共读群', href: '/discover' };
+      }
+    } catch {
+      summaryLine = { line: '去发现 · 加入共读打卡', href: '/discover' };
+    }
+    setGroupSummary(summaryLine);
+    const suggest = nextReadingSuggestion();
+    setRail(buildRail(
+      planCard,
+      resumeCard,
+      groupCard,
+      prayerCard,
+      suggest ? { title: suggest.title, sub: suggest.reason, href: suggest.href } : undefined,
+    ));
   }, []);
 
   useEffect(() => {
@@ -262,12 +363,16 @@ export default function HomePageClient() {
               onClick={async () => {
                 if (likeBusy) return;
                 setLikeBusy(true);
+                setLikeErr(null);
                 try {
                   const r = await api.toggleDailyVerseLike();
                   setLiked(r.liked);
                   setLikeCount(r.likes_count);
-                } catch {
-                  /* 静默失败，保留本地状态 */
+                } catch (e) {
+                  const msg = e instanceof Error ? e.message : String(e);
+                  setLikeErr(msg.includes('503') || msg.includes('暂不可用')
+                    ? '点赞服务未就绪，请稍后在设置中清除缓存或联系管理员执行数据库迁移'
+                    : `点赞失败：${msg}`);
                 } finally {
                   setLikeBusy(false);
                 }
@@ -278,6 +383,9 @@ export default function HomePageClient() {
               </svg>
               <span>{likeCount.toLocaleString()} 人点赞</span>
             </button>
+            {likeErr && (
+              <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
+            )}
             <button
               type="button"
               className={`hero-share ${shared ? 'hero-share-active' : ''}`}
@@ -297,7 +405,12 @@ export default function HomePageClient() {
         </div>
       </div>
 
-      <div className="rail home-rail" ref={railRef} onScroll={onScroll} style={{ marginTop: 18 }}>
+      <div className="seg-tabs home-plan-toggle" style={{ marginTop: 14, marginBottom: 4 }}>
+        <Link href="/plans" className="seg-tab seg-tab-active">今日读经</Link>
+        <Link href="/plans?tab=prayer" className="seg-tab">今日祷告</Link>
+      </div>
+
+      <div className="rail home-rail" ref={railRef} onScroll={onScroll}>
         {rail.map((c, i) => (
           <a
             key={i}
@@ -329,9 +442,9 @@ export default function HomePageClient() {
         <span className="muted">›</span>
       </a>
 
-      <a href="/discover" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
+      <a href={groupSummary?.href ?? '/discover'} className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
         <span className="pill">小组</span>
-        <span style={{ flex: 1 }}>去发现 · 加入共读打卡</span>
+        <span style={{ flex: 1 }}>{groupSummary?.line ?? '去发现 · 加入共读打卡'}</span>
         <span className="muted">去发现 ›</span>
       </a>
 

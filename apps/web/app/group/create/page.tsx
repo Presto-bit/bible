@@ -1,10 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api } from '@/lib/api';
 
 export default function CreateGroupPage() {
+  const router = useRouter();
   const [name, setName] = useState('');
   const [intro, setIntro] = useState('');
   const [msg, setMsg] = useState('');
@@ -17,7 +19,7 @@ export default function CreateGroupPage() {
     setMsg('');
     try {
       const g = await api.createGroup(n, intro.trim() || undefined);
-      setMsg(`已建群：${g.name} · 邀请码 ${g.join_code}`);
+      router.push(`/discover/group/${g.id}`);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       setMsg(detail.includes('未登录') || detail.includes('未认证')

@@ -10,7 +10,8 @@ import {
 } from '@/lib/notes';
 import { loadFavoriteRefs, toggleFavorite } from '@/lib/favorites';
 import { api, currentUserId, type BibleBook } from '@/lib/api';
-import { syncNow } from '@/lib/sync';
+import { syncNow, pendingCount } from '@/lib/sync';
+import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 
 interface Favorite {
   ref: string;
@@ -31,12 +32,14 @@ type Tab = 'notes' | 'favorites';
 export default function NotesPage() {
   const [tab, setTab] = useState<Tab>('notes');
   const [query, setQuery] = useState('');
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [notes, setNotes] = useState<LocalNote[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [bookNames, setBookNames] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<LocalNote | null>(null);
   const [draft, setDraft] = useState('');
   const [open, setOpen] = useState(false);
+  const [shareTarget, setShareTarget] = useState<null | { ref: string; label: string; body: string }>(null);
 
   const refresh = () => {
     setNotes(listNotes());
@@ -96,15 +99,24 @@ export default function NotesPage() {
     return `${name} ${f.chapter}${f.verse ? `:${f.verse}` : ''}`;
   };
 
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    notes.forEach((n) => n.tags?.forEach((t) => t && set.add(t)));
+    return [...set].sort();
+  }, [notes]);
+
   const filteredNotes = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return notes;
-    return notes.filter(
-      (n) =>
+    return notes.filter((n) => {
+      if (tagFilter && !(n.tags || []).includes(tagFilter)) return false;
+      if (!q) return true;
+      return (
         n.body.toLowerCase().includes(q) ||
-        (n.ref || '').toLowerCase().includes(q),
-    );
-  }, [notes, query]);
+        (n.ref || '').toLowerCase().includes(q) ||
+        (n.tags || []).some((t) => t.toLowerCase().includes(q))
+      );
+    });
+  }, [notes, query, tagFilter]);
 
   const filteredFavorites = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -135,6 +147,28 @@ export default function NotesPage() {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
+
+      {tab === 'notes' && allTags.length > 0 && (
+        <div className="tag-filter-row" style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            className={`pill ${tagFilter === null ? 'pill-active' : ''}`}
+            onClick={() => setTagFilter(null)}
+          >
+            全部
+          </button>
+          {allTags.map((t) => (
+            <button
+              key={t}
+              type="button"
+              className={`pill ${tagFilter === t ? 'pill-active' : ''}`}
+              onClick={() => setTagFilter(tagFilter === t ? null : t)}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="seg-tabs" style={{ marginBottom: 12 }}>
         <button
@@ -171,6 +205,15 @@ export default function NotesPage() {
                 <button type="button" className="text-link" onClick={() => openEdit(n)}>
                   编辑
                 </button>
+                {n.ref && (
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => setShareTarget({ ref: n.ref!, label: n.ref!, body: n.body })}
+                  >
+                    分享
+                  </button>
+                )}
                 <button
                   type="button"
                   className="text-link"
@@ -205,6 +248,13 @@ export default function NotesPage() {
                 <button
                   type="button"
                   className="text-link"
+                  onClick={() => setShareTarget({ ref: f.ref, label: favLabel(f), body: '' })}
+                >
+                  分享
+                </button>
+                <button
+                  type="button"
+                  className="text-link"
                   style={{ color: '#b1554a' }}
                   onClick={() => removeFavorite(f.ref)}
                 >
@@ -232,6 +282,16 @@ export default function NotesPage() {
             </button>
           </div>
         </div>
+      )}
+
+      {shareTarget && (
+        <ShareToSocialSheet
+          ref={shareTarget.ref}
+          refLabel={shareTarget.label}
+          body={shareTarget.body}
+          kind="note"
+          onClose={() => setShareTarget(null)}
+        />
       )}
     </main>
   );

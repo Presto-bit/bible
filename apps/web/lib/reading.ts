@@ -206,9 +206,19 @@ export interface RangeStats {
   minutes: number;
   chapters: number;
   days: number;
-  topBooks: RankItem[]; // key = book id
-  topChapters: RankItem[]; // key = book.chapter
-  topVerses: RankItem[]; // key = ref
+  prayers: number;
+  topBooks: RankItem[];
+  topChapters: RankItem[];
+  topVerses: RankItem[];
+}
+
+function prayersInRange(startMs: number, endMs: number): number {
+  let n = 0;
+  for (const [date, c] of Object.entries(readPrayer())) {
+    const t = new Date(`${date}T00:00:00`).getTime();
+    if (t >= startMs && t < endMs) n += c;
+  }
+  return n;
 }
 
 export function rangeStats(startMs: number, endMs: number): RangeStats {
@@ -248,6 +258,7 @@ export function rangeStats(startMs: number, endMs: number): RangeStats {
     minutes,
     chapters,
     days,
+    prayers: prayersInRange(startMs, endMs),
     topBooks: rank(bookCount, 5),
     topChapters: rank(chapCount, 5),
     topVerses: rank(verseCount, 3),
@@ -330,6 +341,10 @@ export function logPrayer() {
 
 export function prayedToday(): boolean {
   return (readPrayer()[ymd(new Date())] || 0) > 0;
+}
+
+export function prayerCountInRange(startMs: number, endMs: number): number {
+  return prayersInRange(startMs, endMs);
 }
 
 function monthPrayerCount(): number {

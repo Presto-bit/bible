@@ -17,6 +17,7 @@ import {
 } from '@/lib/plan_session';
 import { advancePlanDay, setPlanDay } from '@/lib/plan_progress';
 import { enqueuePlanProgress } from '@/lib/plan_sync';
+import { savePlanReflection } from '@/lib/plan_reflection';
 import PlanBar from '@/components/reader/PlanBar';
 
 export default function PlanReadingLayer({
@@ -33,6 +34,8 @@ export default function PlanReadingLayer({
   onJump: (bookId: string, chapter: number) => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [reflectionOpen, setReflectionOpen] = useState(false);
+  const [reflectionText, setReflectionText] = useState('');
   const stepIdx = meta.steps.findIndex(
     (s) => s.bookId === bookId.toUpperCase() && chapter >= s.chapterStart && chapter <= s.chapterEnd,
   );
@@ -73,15 +76,24 @@ export default function PlanReadingLayer({
   };
 
   const handleCompleteDay = () => {
+    setReflectionText('');
+    setReflectionOpen(true);
+  };
+
+  const confirmCompleteDay = () => {
     let session = meta.session;
     if (currentStep && !session.stepsDone.includes(currentStep.id)) {
       session = markStepDone(session, currentStep.id, meta.steps);
     }
     savePlanSession(session);
+    if (reflectionText.trim()) {
+      savePlanReflection(meta.planId, meta.day, reflectionText.trim());
+    }
     setPlanDay(meta.planId, meta.day);
     enqueuePlanProgress(meta.planId, meta.day, 'done', session);
     advancePlanDay(meta.planId, meta.totalDays);
     onMetaChange({ ...meta, session });
+    setReflectionOpen(false);
   };
 
   useEffect(() => {
@@ -127,6 +139,30 @@ export default function PlanReadingLayer({
           <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={handleCompleteDay}>
             完成今天
           </button>
+        </div>
+      )}
+
+      {reflectionOpen && (
+        <div className="sheet-backdrop" onClick={() => setReflectionOpen(false)}>
+          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
+            <div className="section-row" style={{ marginTop: 0 }}>
+              <strong>今日反思（可选）</strong>
+              <button type="button" className="text-link" onClick={() => setReflectionOpen(false)}>跳过</button>
+            </div>
+            <p className="muted" style={{ fontSize: 13, marginBottom: 10 }}>
+              用一两句话记下今天的感动或应用。
+            </p>
+            <textarea
+              className="group-composer-text"
+              rows={3}
+              placeholder="今天神对我说…"
+              value={reflectionText}
+              onChange={(e) => setReflectionText(e.target.value)}
+            />
+            <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={confirmCompleteDay}>
+              完成今天
+            </button>
+          </div>
         </div>
       )}
 

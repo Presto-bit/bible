@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
+import { createNote } from '@/lib/notes';
+import { assistantHref as buildAssistantHref } from '@/lib/assistant_prefill';
 
 const ASK_PROMPT =
   '请用通顺、自然的简体中文解读这段经文。严格按【背景】【经文解释】两段输出，' +
@@ -38,6 +40,7 @@ export default function XiaoAiSheet({
 }) {
   const [answer, setAnswer] = useState('');
   const [done, setDone] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -115,9 +118,16 @@ export default function XiaoAiSheet({
     }
   };
 
-  const assistantHref = `/assistant?ref=${encodeURIComponent(refParam)}&q=${encodeURIComponent(
-    selectionText ? `请解读这段经文：${selectionText.slice(0, 80)}` : '请继续深入解读这段经文',
-  )}`;
+  const assistantHref = buildAssistantHref(refParam, {
+    excerpt: selectionText || refLabel,
+  });
+
+  const saveNote = () => {
+    if (!clean || hasError) return;
+    createNote(clean, refParam, ['小爱', '半屏']);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 1800);
+  };
 
   const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -177,9 +187,14 @@ export default function XiaoAiSheet({
         </div>
         <div className="half-sheet-foot half-sheet-actions">
           {done && clean && !hasError && (
-            <button type="button" className="half-sheet-action-btn" onClick={() => void copyAnswer()}>
-              {copied ? '已复制' : '复制'}
-            </button>
+            <>
+              <button type="button" className="half-sheet-action-btn" onClick={() => void copyAnswer()}>
+                {copied ? '已复制' : '复制'}
+              </button>
+              <button type="button" className="half-sheet-action-btn" onClick={saveNote}>
+                {saved ? '已存笔记' : '存笔记'}
+              </button>
+            </>
           )}
           <Link
             href={assistantHref}
