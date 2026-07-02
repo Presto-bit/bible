@@ -13,6 +13,7 @@ from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
 from .llm import stream_chat
+from .parse_output import extract_sections, split_body_and_followups
 from .usage import consume_quota
 
 logger = logging.getLogger(__name__)
@@ -70,6 +71,7 @@ class ChatRequest(BaseModel):
     ref: str | None = None
     question: str | None = None
     mode: str = "understand"
+    scene: str | None = None
     # 多轮上下文（客户端本地持有；local-first，不落服务端）
     history: list[Turn] | None = None
     # 契约对齐字段（当前仅透传/记录，不改变检索逻辑）
@@ -108,20 +110,39 @@ def chat(
         )
 
     history = [t.model_dump() for t in body.history] if body.history else None
-    prep = prepare(ref_raw=body.ref, question=body.question, mode=body.mode, history=history)
+    prep = prepare(
+        ref_raw=body.ref,
+        question=body.question,
+        mode=body.mode,
+        scene=body.scene,
+        history=history,
+    )
 
     def gen():
         yield _sse("meta", {**prep["meta"], "quota": {"used": used, "limit": limit}})
         full = []
         try:
-            for piece in stream_chat(prep["messages"]):
+            for piece in stream_chat(prep["messages"], max_tokens=prep["max_tokens"]):
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
             yield _sse("error", {"message": f"小爱暂时无法回应：{exc}"})
             return
-        yield _sse("done", {"length": len("".join(full))})
+        text = "".join(full)
+        body_text, followups = split_body_and_followups(text)
+        sections = extract_sections(body_text)
+        if followups:
+            yield _sse("followups", {"items": followups})
+        yield _sse(
+            "done",
+            {
+                "length": len(text),
+                "word_count": len(body_text),
+                "sections": sections,
+                "followups": followups,
+            },
+        )
 
     return StreamingResponse(
         gen(),

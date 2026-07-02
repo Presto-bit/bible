@@ -1,30 +1,45 @@
 /// 小爱（AI 释经）模型。
 library;
 
-/// 五种模式（与后端 ai/prompts MODES 对齐）。
+/// 六种模式（与后端 ai/prompts MODES 对齐）。
 enum AssistantMode {
   understand('understand', '读懂经文'),
   explain('explain', '释经解释'),
   apply('apply', '默想应用'),
   compare('compare', '译本对照'),
-  original('original', '原文释义');
+  original('original', '原文释义'),
+  preach('preach', '讲道大纲');
 
   const AssistantMode(this.id, this.label);
   final String id;
   final String label;
+
+  static AssistantMode? fromId(String id) {
+    for (final m in AssistantMode.values) {
+      if (m.id == id) return m;
+    }
+    return null;
+  }
 }
 
 /// 引用脚注。
 class Citation {
-  Citation({required this.n, required this.title, required this.score});
+  Citation({
+    required this.n,
+    required this.title,
+    required this.score,
+    this.snippet,
+  });
   final int n;
   final String title;
   final double score;
+  final String? snippet;
 
   factory Citation.fromJson(Map<String, dynamic> j) => Citation(
         n: (j['n'] ?? 0) as int,
         title: (j['title'] ?? '') as String,
         score: ((j['score'] ?? 0) as num).toDouble(),
+        snippet: j['snippet'] as String?,
       );
 }
 
@@ -37,6 +52,8 @@ class ChatMeta {
     required this.citations,
     required this.quotaUsed,
     required this.quotaLimit,
+    this.scene,
+    this.sceneLabel,
   });
 
   final String mode;
@@ -45,6 +62,8 @@ class ChatMeta {
   final List<Citation> citations;
   final int quotaUsed;
   final int quotaLimit;
+  final String? scene;
+  final String? sceneLabel;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -52,6 +71,8 @@ class ChatMeta {
       mode: (j['mode'] ?? '') as String,
       modeLabel: (j['mode_label'] ?? '') as String,
       display: (j['display'] ?? '') as String,
+      scene: j['scene'] as String?,
+      sceneLabel: j['scene_label'] as String?,
       citations: ((j['citations'] ?? []) as List)
           .map((e) => Citation.fromJson(e as Map<String, dynamic>))
           .toList(),
@@ -61,7 +82,7 @@ class ChatMeta {
   }
 }
 
-/// 流式事件（meta / delta / done / error）。
+/// 流式事件（meta / delta / followups / done / error）。
 sealed class ChatEvent {
   const ChatEvent();
 }
@@ -76,9 +97,15 @@ class DeltaEvent extends ChatEvent {
   final String text;
 }
 
+class FollowupsEvent extends ChatEvent {
+  const FollowupsEvent(this.items);
+  final List<String> items;
+}
+
 class DoneEvent extends ChatEvent {
-  const DoneEvent(this.length);
+  const DoneEvent({this.length = 0, this.followups = const []});
   final int length;
+  final List<String> followups;
 }
 
 class ErrorEvent extends ChatEvent {
@@ -88,8 +115,18 @@ class ErrorEvent extends ChatEvent {
 
 /// 一轮对话（本地持有，用于多轮 history 与 UI 渲染）。
 class ChatTurn {
-  ChatTurn({required this.role, required this.content, this.meta});
+  ChatTurn({
+    required this.role,
+    required this.content,
+    this.meta,
+    this.followups = const [],
+    this.scene,
+    this.sceneLabel,
+  });
   final String role; // user / assistant
   String content;
   ChatMeta? meta;
+  List<String> followups;
+  String? scene;
+  String? sceneLabel;
 }

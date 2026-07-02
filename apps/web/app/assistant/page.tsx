@@ -5,8 +5,10 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
+import { CitationBar } from '@/components/CitationBar';
 import { createNote } from '@/lib/notes';
-import { followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
+import { bodyText, followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
+import { resolveScene, SCENES, type AssistantScene } from '@/lib/assistant_scenes';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
 import { staticAssistantChips } from '@/lib/assistant_chip_prompts';
@@ -23,6 +25,9 @@ interface Msg {
   role: 'user' | 'assistant';
   text: string;
   citations?: Citation[];
+  followups?: string[];
+  scene?: string;
+  sceneLabel?: string;
 }
 
 interface Session {
@@ -85,6 +90,7 @@ function AssistantPageInner() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const seedBoot = useRef(false);
   const hydratedRef = useRef(false);
+  const [citationOpen, setCitationOpen] = useState<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
   const [toast, setToast] = useState('');
@@ -268,25 +274,41 @@ function AssistantPageInner() {
     refOverride?: string,
     /** 气泡展示文案；不传则与 question 相同 */
     displayText?: string,
+    nextScene?: AssistantScene,
   ) => {
     const q = (question ?? input).trim();
     if (!q || busy) return;
     const shown = (displayText ?? q).trim() || q;
     const m = nextMode ?? mode;
+    const scene = nextScene ?? resolveScene(undefined, m);
     const anchor = (refOverride ?? ref).trim() || null;
     setMode(m);
     setInput('');
+    const history = msgs
+      .filter((msg) => msg.text.trim())
+      .map((msg) => ({
+        role: msg.role,
+        content: msg.role === 'assistant' ? bodyText(msg.text) : msg.text,
+      }));
     const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
     setMsgs(base);
     setBusy(true);
     let acc = '';
     let cites: Citation[] = [];
-    // rAF 节流：合并逐字增量，减少重渲染与滚动抖动（防闪屏）。
+    let serverFollowups: string[] = [];
+    let sceneLabel = SCENES[scene].label;
     const applyAcc = () => {
       rafRef.current = null;
       setMsgs((prev) => {
         const copy = [...prev];
-        copy[copy.length - 1] = { role: 'assistant', text: acc, citations: cites };
+        copy[copy.length - 1] = {
+          role: 'assistant',
+          text: acc,
+          citations: cites,
+          followups: serverFollowups,
+          scene,
+          sceneLabel,
+        };
         return copy;
       });
       if (scrollRef.current) {
@@ -298,18 +320,25 @@ function AssistantPageInner() {
       rafRef.current = requestAnimationFrame(applyAcc);
     };
     await chatStream(
-      { ref: anchor, question: q, mode: m },
+      { ref: anchor, question: q, mode: m, scene, history },
       {
         onMeta: (meta) => {
           cites = meta.citations || [];
+          if (meta.scene_label) sceneLabel = meta.scene_label;
         },
         onDelta: (t) => {
           acc += t;
           scheduleApply();
         },
+        onFollowups: (items) => {
+          serverFollowups = items;
+        },
         onError: (msg) => {
           acc = `⚠️ ${msg}`;
           applyAcc();
+        },
+        onDone: (payload) => {
+          if (payload?.followups?.length) serverFollowups = payload.followups;
         },
       },
     );
@@ -341,6 +370,7 @@ function AssistantPageInner() {
     let autoSend = autoSendParam;
     let skipInputPrefill = false;
     let handled = false;
+    let prefillScene: AssistantScene | undefined;
 
     if (sid) {
       const payload = consumeAssistantPrefill(sid);
@@ -354,6 +384,10 @@ function AssistantPageInner() {
           question = payload.question;
         }
         if (payload.autoSend) autoSend = true;
+        if (payload.scene) {
+          prefillScene = resolveScene(payload.scene, mode);
+          setMode(SCENES[prefillScene].mode);
+        }
       }
     } else {
       const draft = loadAssistantDraft();
@@ -377,8 +411,15 @@ function AssistantPageInner() {
     else if (!handled && refParam) setRef(refParam);
 
     if (refVal && question && autoSend && !seedBoot.current) {
+      const scene = prefillScene ?? 'chat_explain';
       seedBoot.current = true;
-      void sendRef.current(question, 'understand', refVal, userVisibleQuestion(question, refVal));
+      void sendRef.current(
+        question,
+        SCENES[scene].mode,
+        refVal,
+        userVisibleQuestion(question, refVal),
+        scene,
+      );
     }
 
     if (sid || legacyQ || autoSendParam) {
@@ -423,7 +464,7 @@ function AssistantPageInner() {
             type="button"
             className="chip-swipe-item"
             disabled={busy}
-            onClick={() => send(c.q, c.mode, undefined, c.label)}
+            onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
           >
             {c.label}
           </button>
@@ -519,7 +560,7 @@ function AssistantPageInner() {
                   type="button"
                   className="font-pill"
                   disabled={busy}
-                  onClick={() => send(c.q, c.mode, undefined, c.label)}
+                  onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
                 >
                   {c.label}
                 </button>
@@ -535,21 +576,40 @@ function AssistantPageInner() {
               const isLastAssistant = m.role === 'assistant' && i === lastAssistantIdx;
               const showFollowups = isLastAssistant && m.text && !busy;
               const followups = showFollowups
-                ? followupsForMessage(m.text, priorFollowupContext(msgs.length))
+                ? followupsForMessage(m.text, {
+                    ...priorFollowupContext(i + 1),
+                    priorFollowups: [
+                      ...priorFollowupContext(i + 1).priorFollowups,
+                      ...(m.followups ?? []),
+                    ],
+                  })
+                : m.followups ?? [];
+              const displayFollowups = showFollowups
+                ? (m.followups?.length ? m.followups : followups)
                 : [];
               const showActions = m.role === 'assistant' && m.text && !busy;
+              const isStreaming = isLastAssistant && busy;
               return (
               <div
                 key={i}
                 className={`assistant-msg ${m.role === 'user' ? 'assistant-msg-user' : ''}`}
               >
-                <div className="muted" style={{ marginBottom: 4 }}>
-                  {m.role === 'user' ? '你' : '小爱'}
+                <div className="muted assistant-msg-meta">
+                  <span>{m.role === 'user' ? '你' : '小爱'}</span>
+                  {m.role === 'assistant' && m.sceneLabel && (
+                    <span className="assistant-scene-tag">{m.sceneLabel}</span>
+                  )}
                 </div>
                 {m.role === 'assistant' ? (
                   m.text ? (
                     <div className="assistant-answer">
-                      <AnswerText text={m.text} />
+                      <AnswerText
+                        text={m.text}
+                        streaming={isStreaming}
+                        dense={Boolean(m.scene?.startsWith('summary_'))}
+                        citations={m.citations}
+                        onCitationClick={(n) => setCitationOpen(n)}
+                      />
                     </div>
                   ) : (
                     <div className="muted">…</div>
@@ -560,21 +620,24 @@ function AssistantPageInner() {
                   </div>
                 )}
                 {m.citations && m.citations.length > 0 && (
-                  <div className="muted" style={{ marginTop: 6, fontSize: 11 }}>
-                    {m.citations.map((c) => `[${c.n}] ${c.title}`).join(' · ')}
-                  </div>
+                  <CitationBar
+                    citations={m.citations}
+                    activeN={isLastAssistant ? citationOpen : null}
+                    onActiveChange={isLastAssistant ? setCitationOpen : undefined}
+                  />
                 )}
                 {showActions && (
                   <>
-                    {showFollowups && followups.length > 0 && (
+                    {displayFollowups.length > 0 && (
                       <div className="followup-row">
-                        {followups.map((q) => (
+                        <span className="followup-row-label">相关追问</span>
+                        {displayFollowups.map((q) => (
                           <button
                             key={q}
                             type="button"
                             className="followup-chip"
                             disabled={busy}
-                            onClick={() => send(q, 'explain')}
+                            onClick={() => send(q, m.scene ? SCENES[resolveScene(m.scene, mode)].mode : 'explain', undefined, q, resolveScene(m.scene, mode))}
                           >
                             {q}
                           </button>

@@ -1,6 +1,7 @@
 // 经卷/章节总结：静态种子 + localStorage 缓存 + 小爱按需生成。
 
 import { chatStream } from './api';
+import { bodyText } from './assistant_format';
 
 const CACHE_KEY = 'presto_bible_summaries_v1';
 
@@ -61,11 +62,15 @@ export function getCachedChapterSummary(bookId: string, chapter: number): string
   return readCache()[chapterKey(k, chapter)] ?? CHAPTER_SEEDS[k]?.[chapter] ?? null;
 }
 
-async function streamAsk(question: string, ref?: string): Promise<string> {
+async function streamAsk(
+  question: string,
+  ref?: string,
+  scene: 'summary_chapter' | 'summary_book' = 'summary_chapter',
+): Promise<string> {
   let text = '';
   let err: string | null = null;
   await chatStream(
-    { ref: ref ?? null, question, mode: 'explain' },
+    { ref: ref ?? null, question, mode: 'explain', scene },
     {
       onDelta: (t) => {
         text += t;
@@ -76,7 +81,7 @@ async function streamAsk(question: string, ref?: string): Promise<string> {
     },
   );
   if (err && !text.trim()) throw new Error(err);
-  return text.replace(/\n?\s*【相关追问】[\s\S]*/, '').trim();
+  return bodyText(text);
 }
 
 export async function loadBookSummary(bookId: string, bookName: string): Promise<string> {
@@ -92,8 +97,9 @@ export async function loadBookSummary(bookId: string, bookName: string): Promise
   }
 
   const body = await streamAsk(
-    `请用150-200字简体中文概括《${bookName}》整卷的主旨、结构与核心主题，适合读经前导读，通顺自然，不要分条编号。`,
+    `请概括《${bookName}》整卷的主旨、结构与核心主题。`,
     bookId,
+    'summary_book',
   );
   const map = readCache();
   map[bookKey(bookId)] = body;
@@ -118,8 +124,9 @@ export async function loadChapterSummary(
   }
 
   const body = await streamAsk(
-    `请用80-120字简体中文概括《${bookName}》第${chapter}章的核心内容与要点，适合读经前导读，通顺自然，不要分条编号。`,
+    `请概括《${bookName}》第${chapter}章的核心内容与要点。`,
     `${bookId}.${chapter}`,
+    'summary_chapter',
   );
   const map = readCache();
   map[chapterKey(bookId, chapter)] = body;

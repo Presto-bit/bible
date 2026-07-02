@@ -12,7 +12,9 @@ import '../../core/api_client.dart' show prefsProvider;
 import '../../core/gamification.dart' show maybeNotifyBookComplete;
 import '../../core/theme.dart';
 import '../assistant/answer_text.dart';
+import '../assistant/assistant_format.dart';
 import '../assistant/assistant_repository.dart';
+import '../assistant/assistant_scenes.dart';
 import '../assistant/assistant_seed.dart';
 import '../assistant/models.dart' as am;
 import '../search/search_screen.dart';
@@ -151,6 +153,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         });
 
     return Scaffold(
+      backgroundColor: ref.watch(readerExperienceThemeProvider).background,
       appBar: _chromeHidden
           ? null
           : AppBar(
@@ -501,7 +504,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     final picked = await showModalBottomSheet<({BibleBook book, int chapter})>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.paper,
+      backgroundColor: AppColors.surface,
       builder: (_) => _BookSheet(books: books),
     );
     if (picked != null) {
@@ -632,7 +635,7 @@ class _BookSheetState extends State<_BookSheet> {
   Future<void> _pickChapter(BibleBook book) async {
     final chapter = await showModalBottomSheet<int>(
       context: context,
-      backgroundColor: AppColors.paper,
+      backgroundColor: AppColors.surface,
       builder: (_) => _ChapterGrid(book: book),
     );
     if (chapter != null && mounted) {
@@ -733,36 +736,37 @@ class _XiaoAiHalfSheet extends ConsumerStatefulWidget {
 }
 
 class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
-  // 综合解读：一次性给出背景 / 解释 / 应用，无需逐项点击。
-  static const _combinedPrompt =
-      '请用通顺、自然的简体中文解读这段经文。要求：\n'
-      '1. 严格按【背景】【经文解释】两段输出，每段 2–4 句，句子完整、避免堆砌术语；\n'
-      '2. 【背景】交代历史与上下文；【经文解释】说清经文原意与关键词；\n'
-      '3. 总篇幅 180–280 字，不要输出【应用】或【相关追问】。';
-
-  static const _explainPrompt =
-      '用 3–5 句通顺自然的简体中文解释这段经文的原意与关键词，避免术语堆砌，不要输出【应用】或【相关追问】。';
-
-  String get _question {
-    final base = widget.explainOnly ? _explainPrompt : _combinedPrompt;
-    return widget.selectionText.isEmpty
-        ? base
-        : '$base\n\n经文：${widget.selectionText}';
-  }
-
+  late final AssistantScene _scene;
+  late final String _userQuestion;
   late final String _lockedQuestion;
+
   String _answer = '';
   bool _busy = false;
   bool _copied = false;
+  bool _expanded = false;
+  List<am.Citation> _citations = const [];
   StreamSubscription<am.ChatEvent>? _sub;
-  // 节流：累积增量后合并刷新，避免逐字 setState 造成闪烁。
   String _pending = '';
   bool _scheduled = false;
 
   @override
   void initState() {
     super.initState();
-    _lockedQuestion = _question;
+    _scene = widget.explainOnly
+        ? AssistantScene.verseQuick
+        : AssistantScene.verseFull;
+    final snippet = widget.selectionText.trim();
+    if (snippet.isNotEmpty) {
+      final short =
+          snippet.length > 80 ? '${snippet.substring(0, 80)}…' : snippet;
+      _userQuestion = '请解读：${widget.refLabel}\n「$short」';
+    } else {
+      _userQuestion = '请解读：${widget.refLabel}';
+    }
+    _lockedQuestion = snippet.isEmpty
+        ? _userQuestion
+        : '$_userQuestion\n\n经文：$snippet';
+    _expanded = !widget.explainOnly;
     WidgetsBinding.instance.addPostFrameCallback((_) => _ask());
   }
 
@@ -790,15 +794,19 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
       _answer = '';
       _pending = '';
       _busy = true;
+      _citations = const [];
     });
     final stream = ref.read(assistantRepoProvider).chat(
           ref: widget.refStr,
           question: _lockedQuestion,
           mode: am.AssistantMode.explain,
+          scene: _scene,
         );
     _sub = stream.listen((evt) {
       if (!mounted) return;
       switch (evt) {
+        case am.MetaEvent(:final meta):
+          setState(() => _citations = meta.citations);
         case am.DeltaEvent(:final text):
           _pending += text;
           _schedule();
@@ -827,7 +835,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
         });
       }
     });
-    Future.delayed(const Duration(seconds: 45), () {
+    Future.delayed(Duration(milliseconds: _scene.timeoutMs), () {
       if (!mounted || !_busy) return;
       _sub?.cancel();
       setState(() {
@@ -845,13 +853,13 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     Navigator.of(context).pop();
     ref.read(assistantSeedProvider.notifier).open(
           ref: widget.refStr,
-          question: '请继续深入解读这段经文',
+          question: _userQuestion,
         );
     ref.read(navIndexProvider.notifier).set(2);
   }
 
   Future<void> _copyAnswer() async {
-    final text = _answer.replaceAll(RegExp(r'\n?\s*【相关追问】[\s\S]*'), '');
+    final text = bodyText(_answer);
     if (text.isEmpty || text.startsWith('⚠️')) return;
     await Clipboard.setData(ClipboardData(text: text));
     if (!mounted) return;
@@ -861,10 +869,18 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
     });
   }
 
-  String get _cleanAnswer => _answer
-      .replaceAll(RegExp(r'\n?\s*【相关追问】[\s\S]*'), '')
-      .replaceAll(RegExp(r'\n?\s*【应用】[\s\S]*'), '')
-      .trim();
+  String get _cleanAnswer => bodyText(_answer);
+
+  String? get _summary {
+    final m = RegExp(r'【摘要】\s*([^\n【]+)').firstMatch(_cleanAnswer);
+    return m?.group(1)?.trim();
+  }
+
+  bool get _showCollapsed =>
+      !_expanded &&
+      !_cleanAnswer.startsWith('⚠️') &&
+      (_summary?.isNotEmpty ?? false) &&
+      _cleanAnswer.length > (_summary?.length ?? 0) + 20;
 
   @override
   Widget build(BuildContext context) {
@@ -955,6 +971,25 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                         SizedBox(width: 10),
                         Text('小爱正在解读…',
                             style: TextStyle(color: AppColors.inkFaint)),
+                      ],
+                    )
+                  else if (_showCollapsed)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _summary!,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            height: 1.7,
+                            color: AppColors.ink,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () => setState(() => _expanded = true),
+                          child: const Text('展开完整解读'),
+                        ),
                       ],
                     )
                   else

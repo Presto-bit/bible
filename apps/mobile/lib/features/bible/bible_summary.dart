@@ -6,7 +6,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../assistant/assistant_format.dart';
 import '../assistant/assistant_repository.dart';
+import '../assistant/assistant_scenes.dart';
 import '../assistant/models.dart' as am;
 
 const _cacheKey = 'presto_bible_summaries_v1';
@@ -43,12 +45,14 @@ Future<String> _streamAsk(
   WidgetRef ref, {
   required String question,
   String? refStr,
+  required AssistantScene scene,
 }) async {
   final buf = StringBuffer();
   await for (final evt in ref.read(assistantRepoProvider).chat(
         ref: refStr,
         question: question,
         mode: am.AssistantMode.explain,
+        scene: scene,
       )) {
     switch (evt) {
       case am.DeltaEvent(:final text):
@@ -59,7 +63,7 @@ Future<String> _streamAsk(
         break;
     }
   }
-  return buf.toString().replaceAll(RegExp(r'\n?\s*【相关追问】[\s\S]*'), '').trim();
+  return bodyText(buf.toString());
 }
 
 Future<String> loadBookSummary(
@@ -79,10 +83,12 @@ Future<String> loadBookSummary(
     return seed;
   }
 
-  final body = await _streamAsk(ref,
-      question:
-          '请用150-200字简体中文概括《$bookName》整卷的主旨、结构与核心主题，适合读经前导读，通顺自然，不要分条编号。',
-      refStr: bookId);
+  final body = await _streamAsk(
+    ref,
+    question: '请概括《$bookName》整卷的主旨、结构与核心主题。',
+    refStr: bookId,
+    scene: AssistantScene.summaryBook,
+  );
   map[key] = body;
   await _writeCache(prefs, map);
   return body;
@@ -106,10 +112,12 @@ Future<String> loadChapterSummary(
     return seed;
   }
 
-  final body = await _streamAsk(ref,
-      question:
-          '请用80-120字简体中文概括《$bookName》第$chapter章的核心内容与要点，适合读经前导读，通顺自然，不要分条编号。',
-      refStr: '$bookId.$chapter');
+  final body = await _streamAsk(
+    ref,
+    question: '请概括《$bookName》第$chapter章的核心内容与要点。',
+    refStr: '$bookId.$chapter',
+    scene: AssistantScene.summaryChapter,
+  );
   map[key] = body;
   await _writeCache(prefs, map);
   return body;

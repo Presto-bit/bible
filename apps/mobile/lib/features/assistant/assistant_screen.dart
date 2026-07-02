@@ -10,33 +10,14 @@ import '../../app/app_shell.dart';
 import '../../core/database/app_database.dart';
 import '../../core/theme.dart';
 import 'answer_text.dart';
+import 'assistant_format.dart';
+import 'assistant_scenes.dart';
 import 'assistant_seed.dart';
 import 'assistant_repository.dart';
 import 'models.dart';
 import 'session_repository.dart';
 
-// 从回答末尾解析【相关追问】列表，供渲染可点击的追问 chip。
-List<String> followupsOf(String text) {
-  final idx = text.indexOf(RegExp(r'[【\[]?\s*相关追问\s*[】\]]?[:：]?'));
-  if (idx < 0) return const [];
-  final tail = text.substring(idx).split('\n').skip(1);
-  final out = <String>[];
-  final re = RegExp(r'^\s*(?:[-*•]|\d+[.)、])\s*(.+?)\s*$');
-  for (final line in tail) {
-    final m = re.firstMatch(line);
-    if (m != null && (m.group(1) ?? '').isNotEmpty) {
-      out.add(m.group(1)!.replaceAll(RegExp(r'^["“]|["”]$'), '').trim());
-    }
-  }
-  return out.take(3).toList();
-}
-
-// 复制/分享时去掉末尾相关追问段落，只保留正文。
-String stripFollowups(String text) {
-  final idx = text.indexOf(RegExp(r'\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])'));
-  return idx >= 0 ? text.substring(0, idx).trim() : text.trim();
-}
-
+// 从回答末尾解析【相关追问】列表，供渲染可点击的追问 chip（服务端 followups 优先）。
 class AssistantScreen extends ConsumerStatefulWidget {
   const AssistantScreen({super.key, this.seedRef, this.seedQuestion});
 
@@ -53,6 +34,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   final _scroll = ScrollController();
   final List<ChatTurn> _turns = [];
   AssistantMode _mode = AssistantMode.understand;
+  AssistantScene? _scene;
   bool _streaming = false;
   ChatMeta? _lastMeta;
   String? _anchorRef;
@@ -171,24 +153,43 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     });
   }
 
-  Future<void> _send({String? seedQuestion}) async {
+  Future<void> _send({String? seedQuestion, AssistantScene? scene}) async {
     final text = (seedQuestion ?? _input.text).trim();
     final hasRef = (_anchorRef ?? '').isNotEmpty && _turns.isEmpty;
     if (text.isEmpty && !hasRef) return;
     if (_streaming) return;
+
+    final activeScene = scene ?? _scene ?? resolveScene(mode: _mode.id);
+    _scene = activeScene;
+    final modeFromScene =
+        AssistantMode.fromId(activeScene.mode) ?? _mode;
+    setState(() => _mode = modeFromScene);
 
     final repo = ref.read(sessionRepoProvider);
     _sessionId ??= await repo.createSession(anchorRef: _anchorRef);
     final sid = _sessionId!;
 
     _input.clear();
-    final history = List<ChatTurn>.from(_turns);
+    final history = _turns
+        .where((t) => t.content.trim().isNotEmpty)
+        .map(
+          (t) => ChatTurn(
+            role: t.role,
+            content:
+                t.role == 'assistant' ? bodyText(t.content) : t.content,
+          ),
+        )
+        .toList();
     if (text.isNotEmpty) {
       _turns.add(ChatTurn(role: 'user', content: text));
       await repo.addMessage(sid, 'user', text);
       await repo.maybeTitleFromFirst(sid, text);
     }
-    final reply = ChatTurn(role: 'assistant', content: '');
+    final reply = ChatTurn(
+      role: 'assistant',
+      content: '',
+      scene: activeScene.id,
+    );
     setState(() {
       _turns.add(reply);
       _streaming = true;
@@ -198,7 +199,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     final stream = ref.read(assistantRepoProvider).chat(
           ref: _turns.length <= 2 ? _anchorRef : null,
           question: text.isEmpty ? null : text,
-          mode: _mode,
+          mode: modeFromScene,
+          scene: activeScene,
           history: history,
         );
 
@@ -208,29 +210,35 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         case MetaEvent(:final meta):
           setState(() {
             reply.meta = meta;
+            reply.sceneLabel = meta.sceneLabel;
             _lastMeta = meta;
           });
         case DeltaEvent(:final text):
           setState(() => reply.content += text);
           _autoScroll();
-        case DoneEvent():
-          break;
+        case FollowupsEvent(:final items):
+          setState(() => reply.followups = items);
+        case DoneEvent(:final followups):
+          if (followups.isNotEmpty) {
+            setState(() => reply.followups = followups);
+          }
         case ErrorEvent(:final message):
           setState(() => reply.content =
               reply.content.isEmpty ? message : '${reply.content}\n\n⚠️ $message');
       }
     }
     if (reply.content.isNotEmpty) {
-      await repo.addMessage(sid, 'assistant', reply.content,
+      await repo.addMessage(sid, 'assistant', bodyText(reply.content),
           citations: reply.meta?.citations ?? const []);
     }
     if (mounted) setState(() => _streaming = false);
     _autoScroll();
   }
 
-  Future<void> _sendChip(String text, {AssistantMode? mode}) async {
+  Future<void> _sendChip(String text, {AssistantMode? mode, AssistantScene? scene}) async {
+    final s = scene ?? chipSceneForLabel(text);
     if (mode != null) setState(() => _mode = mode);
-    await _send(seedQuestion: text);
+    await _send(seedQuestion: text, scene: s);
   }
 
   bool get _quotaExhausted =>
@@ -265,21 +273,21 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
     final anchorLabel = _anchorRef ?? widget.seedRef ?? '未锚定经文';
     final intentChips = _turns.isEmpty
-        ? const [
-            ('经文背景', AssistantMode.explain, '请介绍这段经文的背景'),
-            ('解释经文', AssistantMode.explain, '请解释这段经文'),
-            ('应用', AssistantMode.apply, '请把这段经文应用到生活'),
-            ('预备查经', AssistantMode.understand, '请帮我预备查经'),
-            ('预备讲道', AssistantMode.understand, '请帮我预备讲道'),
-            ('译本对照', AssistantMode.compare, '请对照不同译本解释这节'),
-            ('原文释义', AssistantMode.original, '请从原文角度解释这节'),
+        ? [
+            ('经文背景', AssistantMode.explain, chipUserQuestion('经文背景', ref: anchorLabel)),
+            ('解释经文', AssistantMode.explain, chipUserQuestion('解释经文', ref: anchorLabel)),
+            ('应用', AssistantMode.apply, chipUserQuestion('生活应用', ref: anchorLabel)),
+            ('预备查经', AssistantMode.understand, chipUserQuestion('预备查经', ref: anchorLabel)),
+            ('预备讲道', AssistantMode.preach, chipUserQuestion('讲道大纲', ref: anchorLabel)),
+            ('译本对照', AssistantMode.compare, chipUserQuestion('译本对照', ref: anchorLabel)),
+            ('原文释义', AssistantMode.original, chipUserQuestion('原文释义', ref: anchorLabel)),
           ]
-        : const [
-            ('经文背景', AssistantMode.explain, '请介绍这段经文的背景'),
-            ('解释经文', AssistantMode.explain, '请解释这段经文'),
-            ('应用', AssistantMode.apply, '请把这段经文应用到生活'),
-            ('译本对照', AssistantMode.compare, '请对照不同译本解释这节'),
-            ('原文释义', AssistantMode.original, '请从原文角度解释这节'),
+        : [
+            ('经文背景', AssistantMode.explain, chipUserQuestion('经文背景', ref: anchorLabel)),
+            ('解释经文', AssistantMode.explain, chipUserQuestion('解释经文', ref: anchorLabel)),
+            ('应用', AssistantMode.apply, chipUserQuestion('生活应用', ref: anchorLabel)),
+            ('译本对照', AssistantMode.compare, chipUserQuestion('译本对照', ref: anchorLabel)),
+            ('原文释义', AssistantMode.original, chipUserQuestion('原文释义', ref: anchorLabel)),
             ('和「信」的关系？', AssistantMode.explain, '和「信」有什么关系？'),
             ('日常焦虑里？', AssistantMode.apply, '怎样用在日常焦虑里？'),
           ];
@@ -397,7 +405,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                     streaming: _streaming,
                     onFollowup: _quotaExhausted
                         ? null
-                        : (q) => _sendChip(q, mode: AssistantMode.explain),
+                        : (q) => _sendChip(q, scene: AssistantScene.chatExplain),
                   ),
                 ),
               ),
@@ -421,7 +429,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 class _EmptyHint extends StatelessWidget {
   const _EmptyHint({required this.anchor, this.onChip});
   final String anchor;
-  final void Function(String text, {AssistantMode? mode})? onChip;
+  final void Function(String text, {AssistantMode? mode, AssistantScene? scene})? onChip;
 
   @override
   Widget build(BuildContext context) {
@@ -625,7 +633,13 @@ class _Bubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = turn.role == 'user';
-    final followups = isUser ? const <String>[] : followupsOf(turn.content);
+    final followups = isUser
+        ? const <String>[]
+        : (turn.followups.isNotEmpty
+            ? turn.followups
+            : followupsOf(turn.content));
+    final displayText =
+        isUser ? turn.content : bodyText(turn.content);
     final showActions = !isUser && turn.content.isNotEmpty && !streaming;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -647,10 +661,10 @@ class _Bubble extends StatelessWidget {
                     style: TextStyle(
                         height: 1.7, fontSize: 15, color: AppColors.inkFaint))
                 : (isUser
-                    ? Text(turn.content,
+                    ? Text(displayText,
                         style: const TextStyle(
                             height: 1.7, fontSize: 15, color: AppColors.ink))
-                    : AnswerText(text: turn.content)),
+                    : AnswerText(text: displayText)),
           ),
           if (!isUser && (turn.meta?.citations.isNotEmpty ?? false))
             _Citations(citations: turn.meta!.citations),
@@ -762,7 +776,7 @@ class _Composer extends StatefulWidget {
   final bool docked;
   final VoidCallback onSend;
   final List<(String, AssistantMode, String)> chips;
-  final void Function(String text, {AssistantMode? mode})? onChip;
+  final void Function(String text, {AssistantMode? mode, AssistantScene? scene})? onChip;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -870,7 +884,11 @@ class _ComposerState extends State<_Composer> {
                       side: const BorderSide(color: AppColors.line),
                       onPressed: widget.disabled || widget.onChip == null
                           ? null
-                          : () => widget.onChip!(c.$3, mode: c.$2),
+                          : () => widget.onChip!(
+                                c.$3,
+                                mode: c.$2,
+                                scene: chipSceneForLabel(c.$1),
+                              ),
                     );
                   },
                 ),

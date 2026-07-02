@@ -8,6 +8,7 @@ from ..bible import reader
 from ..bible.refs import parse_ref
 from ..rag.retrieve import retrieve
 from .prompts import DEFAULT_MODE, MODES, build_messages
+from .scenes import resolve_scene
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,14 @@ def _passage_text(ref) -> str:
 _VALID_ROLES = {"user", "assistant"}
 MAX_HISTORY_TURNS = 12
 
+_FOLLOWUP_TAIL_RE = re.compile(
+    r"\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$"
+)
+
+
+def _strip_followups_for_history(content: str) -> str:
+    return _FOLLOWUP_TAIL_RE.sub("", content).strip()
+
 
 def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
     """客户端本地持有的多轮对话（local-first），裁剪并校验后拼入上下文。"""
@@ -37,7 +46,11 @@ def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
     for turn in history[-MAX_HISTORY_TURNS:]:
         role = str(turn.get("role") or "").strip().lower()
         content = str(turn.get("content") or "").strip()
-        if role in _VALID_ROLES and content:
+        if role not in _VALID_ROLES or not content:
+            continue
+        if role == "assistant":
+            content = _strip_followups_for_history(content)
+        if content:
             out.append({"role": role, "content": content})
     return out
 
@@ -47,15 +60,10 @@ _STOP = {"什么", "怎么", "为什么", "如何", "这节", "这段", "经文"
 
 
 def _keywords(text: str, limit: int = 8) -> list[str]:
-    """从中文/英文查询抽取关键词用于 ILIKE 预过滤。
-
-    中文无分词器：取连续 CJK 串本身 + 其相邻二元组，配合英文长词；去停用词、去重。
-    """
     kws: list[str] = []
     for run in re.findall(r"[\u4e00-\u9fff]{2,}", text):
         if run not in _STOP:
             kws.append(run)
-        # 二元组提升召回（如 “因信称义” → 因信/信称/称义）
         for i in range(len(run) - 1):
             bigram = run[i:i + 2]
             if bigram not in _STOP:
@@ -69,7 +77,6 @@ def _keywords(text: str, limit: int = 8) -> list[str]:
 
 
 def _retrieve_hits(query: str, book_name: str | None) -> list[dict]:
-    """注释检索：有书卷先按卷过滤；命中 0（语料缺卷）或无 ref 时回退关键词全库检索。"""
     if not query:
         return []
     try:
@@ -82,7 +89,6 @@ def _retrieve_hits(query: str, book_name: str | None) -> list[dict]:
                 title_contains=book_name,
             )
         if not hits:
-            # 全库回退：关键词预过滤 → 主题相关候选 → 混合重排
             hits = retrieve(
                 query,
                 top_k=MAX_CITATIONS,
@@ -92,7 +98,6 @@ def _retrieve_hits(query: str, book_name: str | None) -> list[dict]:
             )
         return hits
     except Exception as exc:
-        # 注释库/向量库不可用时降级为无脚注作答
         logger.warning("注释检索不可用，降级无脚注：%s", exc)
         return []
 
@@ -102,13 +107,12 @@ def prepare(
     ref_raw: str | None,
     question: str | None,
     mode: str,
+    scene: str | None = None,
     history: list[dict] | None = None,
 ) -> dict:
-    """返回 {meta, messages}；meta 含 ref/display/citations 供前端展示脚注。
-
-    history：客户端持有的既往对话（[{role,content}]），用于多轮跟进保持上下文。
-    """
-    mode = mode if mode in MODES else DEFAULT_MODE
+    """返回 {meta, messages, max_tokens}。"""
+    spec = resolve_scene(scene, mode)
+    effective_mode = spec.mode if spec.mode in MODES else DEFAULT_MODE
     ref = parse_ref(ref_raw) if ref_raw else None
 
     passage_display = ref.display if ref else "（未指定经文）"
@@ -128,20 +132,30 @@ def prepare(
         )
 
     base = build_messages(
-        mode=mode,
+        scene=spec,
         passage_display=passage_display,
         passage_text=passage_text,
         question=question,
         citations=citations,
     )
-    # [system] + 既往多轮 + [本轮 user]
     prior = _sanitize_history(history)
     messages = [base[0], *prior, base[1]]
     meta = {
-        "mode": mode,
-        "mode_label": MODES.get(mode),
+        "scene": spec.id,
+        "scene_label": spec.label,
+        "mode": effective_mode,
+        "mode_label": MODES.get(effective_mode),
+        "wants_followups": spec.wants_followups,
         "ref": ref.osis if ref else None,
         "display": passage_display,
-        "citations": [{"n": c["n"], "title": c["title"], "score": c["score"]} for c in citations],
+        "citations": [
+            {
+                "n": c["n"],
+                "title": c["title"],
+                "score": c["score"],
+                "snippet": c["snippet"],
+            }
+            for c in citations
+        ],
     }
-    return {"meta": meta, "messages": messages}
+    return {"meta": meta, "messages": messages, "max_tokens": spec.max_tokens}

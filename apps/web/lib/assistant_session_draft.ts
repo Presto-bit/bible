@@ -8,6 +8,9 @@ export interface AssistantDraftMsg {
   role: 'user' | 'assistant';
   text: string;
   citations?: Citation[];
+  followups?: string[];
+  scene?: string;
+  sceneLabel?: string;
 }
 
 export interface AssistantDraft {

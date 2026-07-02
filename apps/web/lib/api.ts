@@ -381,18 +381,51 @@ export interface Citation {
   n: number;
   title: string;
   score: number;
+  snippet?: string;
+}
+
+export interface ChatHistoryTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatStreamBody {
+  ref?: string | null;
+  question: string;
+  mode: string;
+  scene?: string;
+  history?: ChatHistoryTurn[];
+}
+
+export interface ChatMetaPayload {
+  citations: Citation[];
+  scene?: string;
+  scene_label?: string;
+  mode?: string;
+  mode_label?: string;
+  display?: string;
+  wants_followups?: boolean;
+  quota?: { used: number; limit: number };
+}
+
+export interface ChatDonePayload {
+  length?: number;
+  word_count?: number;
+  followups?: string[];
+  sections?: { id: string; title: string }[];
 }
 
 export interface ChatCallbacks {
-  onMeta?: (meta: { citations: Citation[]; quota?: { used: number; limit: number } }) => void;
+  onMeta?: (meta: ChatMetaPayload) => void;
   onDelta?: (text: string) => void;
+  onFollowups?: (items: string[]) => void;
   onError?: (msg: string) => void;
-  onDone?: () => void;
+  onDone?: (payload?: ChatDonePayload) => void;
 }
 
 // SSE over POST（浏览器 EventSource 不支持 POST，手动解析流）。
 export async function chatStream(
-  body: { ref?: string | null; question: string; mode: string },
+  body: ChatStreamBody,
   cb: ChatCallbacks,
   opts?: { signal?: AbortSignal },
 ): Promise<void> {
@@ -454,8 +487,11 @@ export async function chatStream(
         else if (event === 'delta') {
           gotDelta = true;
           cb.onDelta?.(d.text ?? '');
+        } else if (event === 'followups') {
+          const items = Array.isArray(d.items) ? (d.items as string[]) : [];
+          if (items.length) cb.onFollowups?.(items);
         } else if (event === 'error') cb.onError?.(d.message ?? '出错了');
-        else if (event === 'done') cb.onDone?.();
+        else if (event === 'done') cb.onDone?.(d as ChatDonePayload);
       } catch {
         /* 跳过不完整片段 */
       }

@@ -7,6 +7,7 @@ export interface AssistantPrefill {
   ref: string;
   question: string;
   autoSend?: boolean;
+  scene?: string;
   seedMessages?: { role: 'user' | 'assistant'; text: string }[];
 }
 
@@ -55,7 +56,7 @@ export function consumeAssistantPrefill(sid: string): AssistantPrefill | null {
   try {
     const row = JSON.parse(raw) as AssistantPrefill & { ts?: number };
     if (row.ts && Date.now() - row.ts > SEED_TTL_MS) return null;
-    return { ref: row.ref, question: row.question, autoSend: row.autoSend, seedMessages: row.seedMessages };
+    return { ref: row.ref, question: row.question, autoSend: row.autoSend, scene: row.scene, seedMessages: row.seedMessages };
   } catch {
     return null;
   }
@@ -71,6 +72,7 @@ export function assistantHref(
     excerpt?: string;
     question?: string;
     autoSend?: boolean;
+    scene?: string;
     seedMessages?: { role: 'user' | 'assistant'; text: string }[];
   },
 ): string {
@@ -82,6 +84,7 @@ export function assistantHref(
       ref,
       question: q,
       autoSend: opts?.autoSend,
+      scene: opts?.scene,
       seedMessages: opts?.seedMessages,
     });
     params.set('sid', sid);
@@ -97,6 +100,7 @@ export function navigateToAssistant(
     excerpt?: string;
     question?: string;
     autoSend?: boolean;
+    scene?: string;
     seedMessages?: { role: 'user' | 'assistant'; text: string }[];
   },
 ) {

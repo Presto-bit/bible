@@ -24,7 +24,7 @@ export function followupsOf(text: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const raw of lines) {
-    const m = raw.match(/^\s*(?:[-*•]|\d+[.)、])\s*(.+?)\s*$/);
+    const m = raw.match(/^\s*(?:[-*•]|\d+[.)、]|①|②|③|④|⑤)\s*(.+?)\s*$/);
     if (!m?.[1]) continue;
     const q = m[1].replace(/^["“]|["”]$/g, '').trim();
     const key = normalizeQuestion(q);
@@ -34,6 +34,33 @@ export function followupsOf(text: string): string[] {
     if (out.length >= 3) break;
   }
   return out;
+}
+
+export function bodyText(text: string): string {
+  return stripFollowups(text);
+}
+
+export interface ParsedAnswer {
+  body: string;
+  followups: string[];
+}
+
+export function parseAnswer(text: string, serverFollowups?: string[]): ParsedAnswer {
+  const body = stripFollowups(text);
+  const followups =
+    serverFollowups && serverFollowups.length > 0 ? serverFollowups : followupsOf(text);
+  return { body, followups };
+}
+
+/** 流式未完成时，隐藏半截【标签行 */
+export function streamingSafeBody(text: string): string {
+  const t = stripFollowups(text);
+  const lines = t.split('\n');
+  const last = lines[lines.length - 1] ?? '';
+  if (/^【[^】]*$/.test(last.trim()) || (last.includes('【') && !last.includes('】'))) {
+    return lines.slice(0, -1).join('\n').trimEnd();
+  }
+  return t;
 }
 
 /** 过滤已与用户问过、或历史追问出现过的建议 */

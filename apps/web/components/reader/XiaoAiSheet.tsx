@@ -4,24 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
+import { CitationBar } from '@/components/CitationBar';
 import { createNote } from '@/lib/notes';
+import { bodyText } from '@/lib/assistant_format';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
-import { stripFollowups } from '@/lib/assistant_format';
-
-const ASK_PROMPT =
-  '请用通顺、自然的简体中文解读这段经文。严格按【背景】【经文解释】两段输出，' +
-  '每段 2–4 句，句子完整、避免堆砌术语；【背景】交代历史与上下文；【经文解释】说清经文原意与关键词；' +
-  '总篇幅 180–280 字，不要输出【应用】或【相关追问】。';
-
-const EXPLAIN_PROMPT =
-  '用 3–5 句通顺自然的简体中文解释这段经文的原意与关键词，避免术语堆砌，不要输出【应用】或【相关追问】。';
-
-const CHAT_TIMEOUT_MS = 90000;
+import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 
 function stripAnswer(raw: string): string {
-  return stripFollowups(raw)
-    .replace(/\n[ \t]*【应用】[\s\S]*?(?=\n【|$)/, '')
-    .trim();
+  return bodyText(raw);
 }
 
 export default function XiaoAiSheet({
@@ -37,20 +27,33 @@ export default function XiaoAiSheet({
   selectionText: string;
   onClose: () => void;
 }) {
+  const scene: AssistantScene = mode === 'ask' ? 'verse_full' : 'verse_quick';
+  const userQuestion = useMemo(() => {
+    const snippet = selectionText.trim();
+    if (snippet) {
+      const short = snippet.length > 80 ? `${snippet.slice(0, 80)}…` : snippet;
+      return `请解读：${refLabel}\n「${short}」`;
+    }
+    return `请解读：${refLabel}`;
+  }, [refLabel, selectionText]);
+
   const [answer, setAnswer] = useState('');
   const [done, setDone] = useState(false);
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [expanded, setExpanded] = useState(mode === 'ask');
+  const [citationOpen, setCitationOpen] = useState<number | null>(null);
+  const [citations, setCitations] = useState<import('@/lib/api').Citation[]>([]);
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
   const fetchStartedRef = useRef(false);
-  const lockedRef = useRef({ mode, refParam, selectionText });
+  const lockedRef = useRef({ scene, refParam, selectionText, userQuestion });
 
   useEffect(() => {
-    lockedRef.current = { mode, refParam, selectionText };
-  }, [mode, refParam, selectionText]);
+    lockedRef.current = { scene, refParam, selectionText, userQuestion };
+  }, [scene, refParam, selectionText, userQuestion]);
 
   useEffect(() => setMounted(true), []);
 
@@ -59,15 +62,16 @@ export default function XiaoAiSheet({
     setAnswer('');
     setDone(false);
     setCopied(false);
-    const { mode: m, refParam: ref, selectionText: sel } = lockedRef.current;
-    const base = m === 'ask' ? ASK_PROMPT : EXPLAIN_PROMPT;
-    const question = sel ? `${base}\n\n经文：${sel}` : base;
+    setCitations([]);
+    const { scene: s, refParam: ref, selectionText: sel, userQuestion: q } = lockedRef.current;
+    const question = sel ? `${q}\n\n经文：${sel}` : q;
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+    const timer = window.setTimeout(() => controller.abort(), sceneTimeout(s));
     let cancelled = false;
     void chatStream(
-      { ref, question, mode: 'explain' },
+      { ref, question, mode: 'explain', scene: s },
       {
+        onMeta: (meta) => setCitations(meta.citations || []),
         onDelta: (t) => {
           if (cancelled) return;
           accRef.current += t;
@@ -109,6 +113,12 @@ export default function XiaoAiSheet({
 
   const clean = stripAnswer(answer);
   const hasError = clean.startsWith('⚠️');
+  const summaryMatch = clean.match(/【摘要】\s*([^\n【]+)/);
+  const summary = summaryMatch?.[1]?.trim() ?? '';
+  const bodyWithoutSummary = summary
+    ? clean.replace(/【摘要】\s*[^\n【]+/, '').trim()
+    : clean;
+  const showCollapsed = !expanded && !hasError && summary && bodyWithoutSummary;
 
   const copyAnswer = async () => {
     if (!clean || hasError) return;
@@ -121,22 +131,14 @@ export default function XiaoAiSheet({
     }
   };
 
-  const userChatPreview = useMemo(() => {
-    const sel = selectionText;
-    if (sel) {
-      const snippet = sel.length > 80 ? `${sel.slice(0, 80)}…` : sel;
-      return `请解读：${refLabel}\n「${snippet}」`;
-    }
-    return `请解读：${refLabel}`;
-  }, [refLabel, selectionText]);
-
   const continueWithAssistant = () => {
     if (done && clean && !hasError) {
       navigateToAssistant(refParam, {
         seedMessages: [
-          { role: 'user', text: userChatPreview },
+          { role: 'user', text: userQuestion },
           { role: 'assistant', text: clean },
         ],
+        scene,
       });
     } else {
       navigateToAssistant(refParam);
@@ -178,15 +180,43 @@ export default function XiaoAiSheet({
           )}
           <div className="half-sheet-answer half-sheet-answer-rich">
             <span className="half-sheet-badge">
-              {mode === 'ask' ? '小爱解读 · 背景·经文解释' : '小爱解释'}
+              {mode === 'ask' ? '小爱解读 · 摘要·背景·解释' : '小爱解释'}
             </span>
             <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
               {clean ? (
-                <AnswerText text={clean} />
+                <>
+                  {showCollapsed ? (
+                    <>
+                      <p className="xiaoai-summary-lead">{summary}</p>
+                      <button
+                        type="button"
+                        className="text-link xiaoai-expand-btn"
+                        onClick={() => setExpanded(true)}
+                      >
+                        展开完整解读
+                      </button>
+                    </>
+                  ) : (
+                    <AnswerText
+                      text={clean}
+                      streaming={!done}
+                      dense={mode === 'explain'}
+                      citations={citations}
+                      onCitationClick={(n) => setCitationOpen(n)}
+                    />
+                  )}
+                </>
               ) : (
                 <p className="muted">小爱正在解读…</p>
               )}
             </div>
+            {citations.length > 0 && (
+              <CitationBar
+                citations={citations}
+                activeN={citationOpen}
+                onActiveChange={setCitationOpen}
+              />
+            )}
           </div>
           {hasError && (
             <button
@@ -202,8 +232,8 @@ export default function XiaoAiSheet({
             </button>
           )}
           {done && clean && !hasError && (
-            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-              内容由 AI 生成，请以圣经原文为准。请用下方「复制」按钮，避免拖选文字。
+            <p className="muted xiaoai-disclaimer">
+              内容由 AI 生成，请以圣经原文为准。
             </p>
           )}
         </div>

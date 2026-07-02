@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import 'assistant_scenes.dart';
 import 'models.dart';
 
 class AssistantRepository {
@@ -22,14 +23,30 @@ class AssistantRepository {
     required AssistantMode mode,
     List<ChatTurn> history = const [],
     String? conversationId,
+    AssistantScene? scene,
   }) async* {
-    final body = <String, dynamic>{'mode': mode.id, 'surface': 'mobile'};
+    final resolved = scene ?? resolveScene(mode: mode.id);
+    final body = <String, dynamic>{
+      'mode': mode.id,
+      'scene': resolved.id,
+      'surface': 'mobile',
+    };
     if (ref != null && ref.isNotEmpty) body['ref'] = ref;
     if (question != null && question.isNotEmpty) body['question'] = question;
     if (conversationId != null) body['conversation_id'] = conversationId;
     if (history.isNotEmpty) {
-      body['history'] =
-          history.map((t) => {'role': t.role, 'content': t.content}).toList();
+      body['history'] = history
+          .map((t) => {
+                'role': t.role,
+                'content': t.role == 'assistant'
+                    ? t.content.replaceAll(
+                        RegExp(
+                            r'\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$'),
+                        '',
+                      )
+                    : t.content,
+              })
+          .toList();
     }
 
     final Response<ResponseBody> res;
@@ -40,7 +57,6 @@ class AssistantRepository {
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Accept': 'text/event-stream'},
-          // 429 等非 2xx 不抛异常，自行处理
           validateStatus: (s) => s != null && s < 500,
         ),
       );
@@ -58,7 +74,6 @@ class AssistantRepository {
       return;
     }
 
-    // 按 SSE 帧（\n\n 分隔）解析
     var buffer = '';
     await for (final chunk in res.data!.stream) {
       buffer += utf8.decode(chunk, allowMalformed: true);
@@ -102,8 +117,23 @@ class AssistantRepository {
         return MetaEvent(ChatMeta.fromJson(data));
       case 'delta':
         return DeltaEvent((data['text'] ?? '') as String);
+      case 'followups':
+        final items = (data['items'] as List?)
+                ?.map((e) => e.toString())
+                .where((s) => s.isNotEmpty)
+                .toList() ??
+            const <String>[];
+        return FollowupsEvent(items);
       case 'done':
-        return DoneEvent((data['length'] ?? 0) as int);
+        final followups = (data['followups'] as List?)
+                ?.map((e) => e.toString())
+                .where((s) => s.isNotEmpty)
+                .toList() ??
+            const <String>[];
+        return DoneEvent(
+          length: (data['length'] ?? 0) as int,
+          followups: followups,
+        );
       case 'error':
         return ErrorEvent((data['message'] ?? '小爱暂时无法回应') as String);
       default:
