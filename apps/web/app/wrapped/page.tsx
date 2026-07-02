@@ -16,7 +16,7 @@ function WrappedInner() {
     const ok = await shareCard({
       title: w.highlight,
       subtitle: w.label,
-      body: `活跃 ${w.activeDays} 天 · 阅读 ${w.totalMinutes} 分钟 · 连续 ${w.streak} 天 · 笔记 ${w.notesCount} 条`,
+      body: `活跃 ${w.activeDays} 天 · 阅读 ${w.totalMinutes} 分钟 · 连续 ${w.streak} 天 · 笔记 ${w.notesCount} 条 · 划线 ${w.marksCount} 处`,
       footer: BRAND_NAME,
     });
     if (!ok) {
@@ -42,6 +42,7 @@ function WrappedInner() {
           <div><strong>{w.totalMinutes}</strong><span>阅读分钟</span></div>
           <div><strong>{w.streak}</strong><span>连续天</span></div>
           <div><strong>{w.notesCount}</strong><span>笔记</span></div>
+          <div><strong>{w.marksCount}</strong><span>划线</span></div>
         </div>
         <button type="button" className="btn" onClick={() => void share()}>
           分享回顾

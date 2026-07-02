@@ -54,6 +54,9 @@ import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import PlanReadingLayer from '@/components/reader/PlanReadingLayer';
 import type { PlanReadingMeta } from '@/lib/plan_reading';
 import { readerUi } from '@/lib/reader_i18n';
+import MarkNoteBar from '@/components/reader/MarkNoteBar';
+import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
+import { parseMarkRef } from '@/lib/mark_ref';
 import {
   clearHighlightForSelection,
   findHighlightStorageRef,
@@ -61,8 +64,8 @@ import {
   highlightClass,
   markForVerse,
   pickHighlightColor,
+  selectionRef as markSelectionRef,
   type HighlightColor,
-  type HighlightStyleKey,
 } from '@/lib/reader_highlights';
 import {
   addThought,
@@ -103,6 +106,7 @@ export default function ReaderView({
   onPlanMetaChange,
   onPlanJump,
   externalOverlayOpen = false,
+  flashRef = null,
 }: {
   book: BibleBook;
   books: BibleBook[];
@@ -115,6 +119,7 @@ export default function ReaderView({
   onPlanMetaChange?: (m: PlanReadingMeta) => void;
   onPlanJump?: (bookId: string, chapter: number) => void;
   externalOverlayOpen?: boolean;
+  flashRef?: string | null;
 }) {
   const [verses, setVerses] = useState<Verse[]>([]);
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
@@ -137,7 +142,8 @@ export default function ReaderView({
   const [chapterAnim, setChapterAnim] = useState('');
   const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
-  const [markMenuOpen, setMarkMenuOpen] = useState(false);
+  const [selectionSpan, setSelectionSpan] = useState<{ start: number; end: number } | null>(null);
+  const [markNotePrompt, setMarkNotePrompt] = useState<null | { ref: string; label: string }>(null);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
   const [bookCelebrate, setBookCelebrate] = useState(false);
@@ -315,28 +321,62 @@ export default function ReaderView({
   );
 
   const selRef = useMemo(
-    () => selectionRef(book.id, chapter, sortedSel),
-    [book.id, chapter, sortedSel],
+    () => markSelectionRef(book.id, chapter, sortedSel, selectionSpan),
+    [book.id, chapter, sortedSel, selectionSpan],
   );
 
   const currentMark = useMemo(() => {
     if (!selRef || !sortedSel.length) return null;
-    const storageRef = findHighlightStorageRef(book.id, chapter, sortedSel, highlightMap);
+    const storageRef = findHighlightStorageRef(
+      book.id,
+      chapter,
+      sortedSel,
+      highlightMap,
+      selectionSpan,
+    );
     if (storageRef) return highlightMap[storageRef] ?? null;
     return highlightMap[selRef] ?? null;
-  }, [highlightMap, selRef, book.id, chapter, sortedSel]);
+  }, [highlightMap, selRef, book.id, chapter, sortedSel, selectionSpan]);
 
   const renderVerseBody = useCallback(
-    (text: string, keyBase: string, flashLead: boolean) => {
-      if (!flashLead || !text) return renderVerseText(text, keyBase);
-      const lead = text.slice(0, 2);
-      const tail = text.slice(2);
-      return (
-        <>
-          <span className="verse-resume-lead-flash">{lead}</span>
-          {tail ? renderVerseText(tail, `${keyBase}-tail`) : null}
-        </>
-      );
+    (
+      text: string,
+      keyBase: string,
+      flashLead: boolean,
+      markInfo?: ReturnType<typeof markForVerse>,
+    ) => {
+      const span = markInfo?.span;
+      const mark = markInfo?.mark ?? null;
+      const renderText = (t: string, suffix: string) =>
+        renderVerseText(t, `${keyBase}-${suffix}`);
+
+      if (span && mark && span.end > span.start && span.start >= 0 && span.end <= text.length) {
+        const before = text.slice(0, span.start);
+        const mid = text.slice(span.start, span.end);
+        const after = text.slice(span.end);
+        return (
+          <>
+            {before ? renderText(before, 'pre') : null}
+            <span className={`verse-mark-span ${highlightClass(mark)}${flashLead ? ' verse-mark-flash' : ''}`}>
+              {renderText(mid, 'mid')}
+            </span>
+            {after ? renderText(after, 'post') : null}
+          </>
+        );
+      }
+
+      if (flashLead && text) {
+        const lead = text.slice(0, 2);
+        const tail = text.slice(2);
+        return (
+          <>
+            <span className="verse-resume-lead-flash">{lead}</span>
+            {tail ? renderText(tail, 'tail') : null}
+          </>
+        );
+      }
+
+      return renderVerseText(text, keyBase);
     },
     [renderVerseText],
   );
@@ -425,23 +465,25 @@ export default function ReaderView({
     setTimeout(() => setToast(''), 1800);
   };
 
-  const applyMarkChoice = useCallback((color: HighlightColor, style: HighlightStyleKey = 'color') => {
+  const applyMarkChoice = useCallback((color: HighlightColor) => {
     if (!underlinesOn) {
       setUnderlinesOn(true);
       persistUnderlinesOn(true);
     }
-    pickHighlightColor(book.id, chapter, sortedSel, color, style);
+    const added = pickHighlightColor(book.id, chapter, sortedSel, color, selectionSpan);
     setHighlightMap(getHighlightMap());
-    flashToast('已划线');
-    setMarkMenuOpen(false);
-  }, [book.id, chapter, sortedSel, underlinesOn]);
+    flashToast(added ? '已划线' : '已取消划线');
+    if (added) {
+      setMarkNotePrompt({ ref: selRef, label: effRefLabel });
+    }
+  }, [book.id, chapter, sortedSel, selectionSpan, selRef, effRefLabel, underlinesOn]);
 
   const clearMark = useCallback(() => {
-    const ok = clearHighlightForSelection(book.id, chapter, sortedSel);
+    const ok = clearHighlightForSelection(book.id, chapter, sortedSel, selectionSpan);
     if (!ok) return;
     setHighlightMap(getHighlightMap());
     flashToast('已取消划线');
-  }, [book.id, chapter, sortedSel]);
+  }, [book.id, chapter, sortedSel, selectionSpan]);
 
   const enterImmersive = useCallback(() => {
     if (overlayOpenRef.current) return;
@@ -598,6 +640,22 @@ export default function ReaderView({
 
         requestAnimationFrame(() => {
           if (contentRef.current) contentRef.current.scrollTop = 0;
+          const flashParsed = flashRef ? parseMarkRef(flashRef) : null;
+          const flashVerse =
+            flashParsed &&
+            flashParsed.bookId === book.id &&
+            flashParsed.chapter === chapter
+              ? flashParsed.verseStart ?? null
+              : null;
+          if (flashVerse) {
+            document.getElementById(`verse-anchor-${flashVerse}`)?.scrollIntoView({
+              behavior: 'auto',
+              block: 'center',
+            });
+            setResumeFlashVerse(flashVerse);
+            window.setTimeout(() => setResumeFlashVerse(null), 2600);
+            return;
+          }
           const lastV = getLastReadVerse();
           const last = getLastRead();
           if (last && last.bookId === book.id && last.chapter === chapter && lastV && shouldShowResumeHint()) {
@@ -616,7 +674,7 @@ export default function ReaderView({
     return () => {
       cancelled = true;
     };
-  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome]);
+  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome, flashRef]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -715,15 +773,26 @@ export default function ReaderView({
     const lo = Math.min(anchor ?? focus!, focus ?? anchor!);
     const hi = Math.max(anchor ?? focus!, focus ?? anchor!);
     const next = versesInRange(lo, hi);
+    let span: { start: number; end: number } | null = null;
+    if (lo === hi) {
+      const verseText = verses.find((v) => v.verse === lo)?.text ?? '';
+      const picked = sel.toString().replace(/\s+/g, ' ').trim();
+      const normalized = verseText.replace(/\s+/g, ' ').trim();
+      if (picked && picked.length < normalized.length) {
+        const start = normalized.indexOf(picked);
+        if (start >= 0) span = { start, end: start + picked.length };
+      }
+    }
     syncingSelection.current = true;
     setSelected(next);
+    setSelectionSpan(span);
     setLastReadVerse(hi);
     lastSelectAt.current = Date.now();
     logVerseRead(`${book.id}.${chapter}.${hi}`);
     readingEngagedRef.current = true;
     enterImmersive();
     syncingSelection.current = false;
-  }, [book.id, chapter, enterImmersive]);
+  }, [book.id, chapter, enterImmersive, verses]);
 
   useEffect(() => {
     const onSel = () => syncSelectionFromDom();
@@ -734,13 +803,11 @@ export default function ReaderView({
   const clearSelection = () => {
     window.getSelection()?.removeAllRanges();
     setSelected([]);
-    setMarkMenuOpen(false);
+    setSelectionSpan(null);
   };
 
   useEffect(() => {
-    if (!hasSel) {
-      setMarkMenuOpen(false);
-    }
+    if (!hasSel) setMarkNotePrompt(null);
   }, [hasSel]);
 
   const saveFavorite = () => {
@@ -886,17 +953,25 @@ export default function ReaderView({
                     <div className="reader-parallel-primary">
                       {para.verses.map((v) => {
                         const text = verseDisplayText(v.verse, v.text);
-                        const mark = underlinesOn ? markForVerse(highlightMap, book.id, chapter, v.verse) : null;
+                        const markInfo = underlinesOn
+                          ? markForVerse(highlightMap, book.id, chapter, v.verse)
+                          : null;
+                        const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
                         return (
                           <span
                             key={v.verse}
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token ${highlightClass(mark)}`}
+                            className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
                           >
                             {verseNo !== 'hidden' && (
                               <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                             )}
-                            {renderVerseBody(text, `p${v.verse}`, resumeFlashVerse === v.verse)}
+                            {renderVerseBody(
+                              text,
+                              `p${v.verse}`,
+                              resumeFlashVerse === v.verse,
+                              markInfo ?? undefined,
+                            )}
                             {renderNotePin(v.verse)}{' '}
                           </span>
                         );
@@ -935,12 +1010,15 @@ export default function ReaderView({
                   style={verseBlockStyle}
                 >
                   {para.verses.map((v) => {
-                    const mark = underlinesOn ? markForVerse(highlightMap, book.id, chapter, v.verse) : null;
+                    const markInfo = underlinesOn
+                      ? markForVerse(highlightMap, book.id, chapter, v.verse)
+                      : null;
+                    const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
                     return (
                     <span
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${highlightClass(mark)}`}
+                      className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
                     >
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -949,6 +1027,7 @@ export default function ReaderView({
                         verseDisplayText(v.verse, v.text),
                         `v${v.verse}`,
                         resumeFlashVerse === v.verse,
+                        markInfo ?? undefined,
                       )}
                       {renderNotePin(v.verse)}{' '}
                     </span>
@@ -994,14 +1073,31 @@ export default function ReaderView({
           <div className="reader-focus-row">
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
             {underlinesOn && (
-              <button
-                type="button"
-                className={`vsb-item ${currentMark ? 'vsb-item-active' : ''}`}
-                onClick={() => setMarkMenuOpen((v) => !v)}
-              >
-                划线
-              </button>
+              <>
+                {MARK_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
+                    title={MARK_COLOR_SEMANTICS[c].label}
+                    aria-label={MARK_COLOR_SEMANTICS[c].label}
+                    onClick={() => applyMarkChoice(c)}
+                  />
+                ))}
+                {currentMark && (
+                  <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
+                )}
+              </>
             )}
+            <button
+              type="button"
+              className="vsb-item"
+              onClick={() => {
+                setMarkNotePrompt({ ref: selRef, label: effRefLabel });
+              }}
+            >
+              写笔记
+            </button>
             {thoughtsOn && (
               <button type="button" className="vsb-item" onClick={() => {
                 setWriteThoughtSheet({
@@ -1013,40 +1109,20 @@ export default function ReaderView({
               }}>写想法</button>
             )}
             <button type="button" className={`vsb-item ${favActive ? 'vsb-item-active' : ''}`} onClick={saveFavorite}>
-              {englishUI ? 'Save' : '收藏'}
+              {englishUI ? 'Save' : '书签'}
             </button>
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
           </div>
-          {markMenuOpen && underlinesOn && (
-            <div className="reader-mark-popover" role="dialog" aria-label="划线样式">
-              {([
-                { key: 'color' as HighlightStyleKey, label: '颜色' },
-                { key: 'solid' as HighlightStyleKey, label: '实线' },
-                { key: 'dashed' as HighlightStyleKey, label: '虚线' },
-              ]).map((style) => (
-                <div key={style.key} className="reader-mark-style-row">
-                  <span className="reader-mark-style-label">{style.label}</span>
-                  <div className="reader-weread-colors">
-                    {(['yellow', 'green', 'blue', 'pink', 'orange'] as HighlightColor[]).map((c) => (
-                      <button
-                        key={`${style.key}-${c}`}
-                        type="button"
-                        className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c && currentMark?.style === style.key ? 'reader-weread-dot-active' : ''}`}
-                        aria-label={`${style.label} ${c}`}
-                        onClick={() => applyMarkChoice(c, style.key)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {currentMark && (
-                <button type="button" className="reader-weread-clear reader-mark-clear-btn" onClick={clearMark}>
-                  清除划线
-                </button>
-              )}
-            </div>
-          )}
         </div>
+      )}
+
+      {markNotePrompt && (
+        <MarkNoteBar
+          refStr={markNotePrompt.ref}
+          refLabel={markNotePrompt.label}
+          onSaved={() => flashToast('笔记已保存')}
+          onDismiss={() => setMarkNotePrompt(null)}
+        />
       )}
 
       {writeThoughtSheet && (

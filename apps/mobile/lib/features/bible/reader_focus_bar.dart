@@ -14,6 +14,7 @@ class ReaderFocusBar extends StatelessWidget {
     required this.onBookmark,
     required this.onCopy,
     required this.onThought,
+    required this.onWriteNote,
     required this.onPickColor,
     required this.onClearMark,
     required this.onClose,
@@ -25,6 +26,7 @@ class ReaderFocusBar extends StatelessWidget {
   final VoidCallback onBookmark;
   final VoidCallback onCopy;
   final VoidCallback onThought;
+  final VoidCallback onWriteNote;
   final void Function(String color) onPickColor;
   final VoidCallback onClearMark;
   final VoidCallback onClose;
@@ -53,15 +55,18 @@ class ReaderFocusBar extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 6),
                     child: GestureDetector(
                       onTap: () => onPickColor(c),
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: chipColor(c),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: active ? AppColors.accentDeep : AppColors.line,
-                            width: active ? 2.5 : 1,
+                      child: Tooltip(
+                        message: markColorSemantics[c] ?? c,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: chipColor(c),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: active ? AppColors.accentDeep : AppColors.line,
+                              width: active ? 2.5 : 1,
+                            ),
                           ),
                         ),
                       ),
@@ -78,8 +83,9 @@ class ReaderFocusBar extends StatelessWidget {
                 Container(width: 1, height: 22, color: AppColors.line),
                 const SizedBox(width: 4),
               ],
+              _btn('写笔记', onWriteNote),
               _btn('写想法', onThought),
-              _btn('收藏', onBookmark),
+              _btn('书签', onBookmark),
               _btn('复制', onCopy),
               IconButton(
                 onPressed: onClose,

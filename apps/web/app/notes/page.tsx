@@ -14,6 +14,11 @@ import { syncNow } from '@/lib/sync';
 import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 import { listAllThoughts, type ThoughtRow } from '@/lib/reader_thoughts';
 import { listHighlightRefs, removeHighlight, type HighlightMark } from '@/lib/reader_highlights';
+import { formatMarkRefLabel, readerMarkHref } from '@/lib/mark_ref';
+import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
+import { noteForMarkRef } from '@/lib/mark_notes';
+import { listMarksDetailed } from '@/lib/mark_stats';
+import Link from 'next/link';
 
 interface Favorite {
   ref: string;
@@ -29,19 +34,15 @@ function loadFavorites(): Favorite[] {
   });
 }
 
-type Tab = 'all' | 'notes' | 'thoughts' | 'favorites' | 'highlights';
+type Tab = 'all' | 'notes' | 'thoughts' | 'bookmarks' | 'highlights';
 
 type FeedItem =
   | { kind: 'note'; id: string; ref?: string | null; body: string; ts: number; note: LocalNote }
   | { kind: 'thought'; id: string; ref: string; body: string; ts: number }
-  | { kind: 'favorite'; id: string; ref: string; label: string }
-  | { kind: 'highlight'; id: string; ref: string; mark: HighlightMark };
+  | { kind: 'bookmark'; id: string; ref: string; label: string }
+  | { kind: 'highlight'; id: string; ref: string; mark: HighlightMark; notePreview?: string; ts: number };
 
-const STYLE_LABEL: Record<HighlightMark['style'], string> = {
-  color: '颜色',
-  solid: '实线',
-  dashed: '虚线',
-};
+const COLOR_FILTER_ALL = 'all';
 
 export default function NotesPage() {
   const [tab, setTab] = useState<Tab>('all');
@@ -55,7 +56,11 @@ export default function NotesPage() {
   const [editing, setEditing] = useState<LocalNote | null>(null);
   const [draft, setDraft] = useState('');
   const [open, setOpen] = useState(false);
+  const [colorFilter, setColorFilter] = useState<string>(COLOR_FILTER_ALL);
+
   const [shareTarget, setShareTarget] = useState<null | { ref: string; label: string; body: string }>(null);
+
+  const markDetails = useMemo(() => listMarksDetailed(), [highlights]);
 
   const refresh = () => {
     setNotes(listNotes());
@@ -153,16 +158,18 @@ export default function NotesPage() {
         ts: t.createdAtMs,
       })),
       ...favorites.map((f) => ({
-        kind: 'favorite' as const,
+        kind: 'bookmark' as const,
         id: f.ref,
         ref: f.ref,
         label: favLabel(f),
       })),
-      ...highlights.map((h) => ({
+      ...markDetails.map((h) => ({
         kind: 'highlight' as const,
         id: h.ref,
         ref: h.ref,
-        mark: h.mark,
+        mark: { color: h.color },
+        notePreview: h.notePreview,
+        ts: h.createdAt,
       })),
     ];
     items.sort((a, b) => {
@@ -172,15 +179,23 @@ export default function NotesPage() {
     });
     return items;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notes, thoughts, favorites, highlights, bookNames]);
+  }, [notes, thoughts, favorites, markDetails, bookNames]);
 
   const filteredFeed = useMemo(() => {
     const q = query.trim().toLowerCase();
     return feed.filter((item) => {
       if (tab === 'notes' && item.kind !== 'note') return false;
       if (tab === 'thoughts' && item.kind !== 'thought') return false;
-      if (tab === 'favorites' && item.kind !== 'favorite') return false;
+      if (tab === 'bookmarks' && item.kind !== 'bookmark') return false;
       if (tab === 'highlights' && item.kind !== 'highlight') return false;
+      if (
+        tab === 'highlights' &&
+        colorFilter !== COLOR_FILTER_ALL &&
+        item.kind === 'highlight' &&
+        item.mark.color !== colorFilter
+      ) {
+        return false;
+      }
       if (item.kind === 'note' && tab === 'notes' && tagFilter && !(item.note.tags || []).includes(tagFilter)) return false;
       if (!q) return true;
       if (item.kind === 'note') {
@@ -193,18 +208,24 @@ export default function NotesPage() {
       if (item.kind === 'thought') {
         return item.body.toLowerCase().includes(q) || item.ref.toLowerCase().includes(q);
       }
-      if (item.kind === 'favorite') {
+      if (item.kind === 'bookmark') {
         return item.ref.toLowerCase().includes(q) || item.label.toLowerCase().includes(q);
       }
-      return item.ref.toLowerCase().includes(q);
+      if (item.kind === 'highlight') {
+        return (
+          item.ref.toLowerCase().includes(q) ||
+          (item.notePreview || '').toLowerCase().includes(q)
+        );
+      }
+      return false;
     });
-  }, [feed, tab, query, tagFilter]);
+  }, [feed, tab, query, tagFilter, colorFilter]);
 
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: 'all', label: '全部', count: feed.length },
     { id: 'notes', label: '笔记', count: notes.length },
     { id: 'thoughts', label: '想法', count: thoughts.length },
-    { id: 'favorites', label: '收藏', count: favorites.length },
+    { id: 'bookmarks', label: '书签', count: favorites.length },
     { id: 'highlights', label: '划线', count: highlights.length },
   ];
 
@@ -214,7 +235,7 @@ export default function NotesPage() {
         <a href="/profile" className="icon-btn" aria-label="返回">
           ←
         </a>
-        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>我的笔记</h2>
+        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>经文记忆</h2>
         <button type="button" className="font-pill" onClick={openNew}>
           + 新建
         </button>
@@ -223,7 +244,7 @@ export default function NotesPage() {
       <div className="search-bar" style={{ marginBottom: 12 }}>
         <input
           className="search-input"
-          placeholder="搜索笔记、想法、收藏或划线…"
+          placeholder="搜索笔记、想法、划线或书签…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -246,6 +267,28 @@ export default function NotesPage() {
               onClick={() => setTagFilter(tagFilter === t ? null : t)}
             >
               {t}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'highlights' && (
+        <div className="tag-filter-row" style={{ marginBottom: 12 }}>
+          <button
+            type="button"
+            className={`pill ${colorFilter === COLOR_FILTER_ALL ? 'pill-active' : ''}`}
+            onClick={() => setColorFilter(COLOR_FILTER_ALL)}
+          >
+            全部
+          </button>
+          {MARK_COLORS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              className={`pill ${colorFilter === c ? 'pill-active' : ''}`}
+              onClick={() => setColorFilter(colorFilter === c ? COLOR_FILTER_ALL : c)}
+            >
+              {MARK_COLOR_SEMANTICS[c].label}
             </button>
           ))}
         </div>
@@ -276,13 +319,21 @@ export default function NotesPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span className="pill" style={{ fontSize: 10 }}>笔记</span>
                   {item.ref && (
-                    <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}>
-                      {item.ref}
-                    </span>
+                    <Link
+                      href={readerMarkHref(item.ref)}
+                      style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}
+                    >
+                      {formatMarkRefLabel(item.ref, bookNames)}
+                    </Link>
                   )}
                 </div>
                 <p style={{ margin: '6px 0 10px', lineHeight: 1.6 }}>{item.body}</p>
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  {item.ref && (
+                    <Link href={readerMarkHref(item.ref)} className="text-link">
+                      跳转经文
+                    </Link>
+                  )}
                   <button type="button" className="text-link" onClick={() => openEdit(item.note)}>
                     编辑
                   </button>
@@ -312,23 +363,23 @@ export default function NotesPage() {
                   </span>
                 </div>
                 <p style={{ margin: '6px 0 10px', lineHeight: 1.6 }}>{item.body}</p>
-                <a className="text-link" href={`/reader?ref=${encodeURIComponent(item.ref)}`}>
-                  阅读原文
+                <a className="text-link" href={readerMarkHref(item.ref)}>
+                  跳转经文
                 </a>
               </div>
             );
           }
-          if (item.kind === 'favorite') {
+          if (item.kind === 'bookmark') {
             return (
               <div key={`fav-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span className="pill" style={{ fontSize: 10 }}>收藏</span>
+                  <span className="pill" style={{ fontSize: 10 }}>书签</span>
                   <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
                     ★ {item.label}
                   </span>
-                  <a className="text-link" href={`/reader?book=${item.ref.split('.')[0]}&chapter=${item.ref.split('.')[1]}`}>
-                    阅读
-                  </a>
+                  <Link className="text-link" href={readerMarkHref(item.ref)}>
+                    跳转
+                  </Link>
                   <button
                     type="button"
                     className="text-link"
@@ -343,20 +394,47 @@ export default function NotesPage() {
               </div>
             );
           }
-          const [bookId, ch] = item.ref.split('.');
+          const sem = MARK_COLOR_SEMANTICS[item.mark.color];
+          const note = noteForMarkRef(item.ref);
           return (
             <div key={`hl-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                 <span className="pill" style={{ fontSize: 10 }}>划线</span>
-                <span className={`verse-mark verse-mark-${item.mark.style} verse-mark-${item.mark.color}`} style={{ fontSize: 12 }}>
-                  {STYLE_LABEL[item.mark.style]}
+                <span className={`verse-mark verse-mark-color verse-mark-${item.mark.color}`} style={{ fontSize: 12, padding: '2px 8px' }}>
+                  {sem.label}
                 </span>
                 <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
-                  {refLabel(item.ref)}
+                  {formatMarkRefLabel(item.ref, bookNames)}
                 </span>
-                <a className="text-link" href={`/reader?book=${bookId}&chapter=${ch}`}>
-                  阅读
-                </a>
+              </div>
+              {(item.notePreview || note?.body) && (
+                <p className="muted" style={{ margin: '0 0 8px', fontSize: 13, lineHeight: 1.5 }}>
+                  {item.notePreview || note?.body}
+                </p>
+              )}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <Link className="text-link" href={readerMarkHref(item.ref)}>
+                  跳转经文
+                </Link>
+                <Link
+                  className="text-link"
+                  href={`/assistant?ref=${encodeURIComponent(item.ref)}&q=${encodeURIComponent(`帮我理解这段${sem.label}经文：${item.ref}`)}`}
+                >
+                  问小爱
+                </Link>
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() =>
+                    setShareTarget({
+                      ref: item.ref,
+                      label: formatMarkRefLabel(item.ref, bookNames),
+                      body: note?.body || sem.hint,
+                    })
+                  }
+                >
+                  分享
+                </button>
                 <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeHighlightItem(item.ref)}>
                   移除
                 </button>

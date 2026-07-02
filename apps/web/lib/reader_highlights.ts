@@ -1,60 +1,74 @@
 import { enqueueHighlight } from './highlight_sync';
+import { parseMarkRef, selectionRef as buildSelectionRef, syncRef } from './mark_ref';
+import { touchMarkMeta } from './mark_stats';
+import { unbindMarkRef } from './mark_notes';
 
 export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
-export type HighlightStyleKey = 'color' | 'solid' | 'dashed';
 
-export type HighlightMark = { color: HighlightColor; style: HighlightStyleKey };
+/** 划线 Mark：仅颜色底纹，语义见 mark_semantics.ts */
+export type HighlightMark = { color: HighlightColor };
 
-const HL_KEY = 'reader_highlights_v1';
-const STYLE_KEY = 'reader_highlight_styles_v1';
+const HL_KEY = 'reader_highlights_v2';
+const LEGACY_HL_KEY = 'reader_highlights_v1';
+const LEGACY_STYLE_KEY = 'reader_highlight_styles_v1';
 
-export function getHighlights(): Record<string, HighlightColor> {
+function migrateLegacy(): Record<string, HighlightMark> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(HL_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-export function getHighlightStyles(): Record<string, HighlightStyleKey> {
-  if (typeof window === 'undefined') return {};
-  try {
-    return JSON.parse(localStorage.getItem(STYLE_KEY) || '{}');
+    const legacy = JSON.parse(
+      localStorage.getItem(LEGACY_HL_KEY) || '{}',
+    ) as Record<string, HighlightColor>;
+    if (!Object.keys(legacy).length) return {};
+    const map: Record<string, HighlightMark> = {};
+    for (const [ref, color] of Object.entries(legacy)) {
+      map[ref] = { color };
+      touchMarkMeta(ref);
+    }
+    localStorage.setItem(HL_KEY, JSON.stringify(map));
+    localStorage.removeItem(LEGACY_HL_KEY);
+    localStorage.removeItem(LEGACY_STYLE_KEY);
+    return map;
   } catch {
     return {};
   }
 }
 
 export function getHighlightMap(): Record<string, HighlightMark> {
-  const colors = getHighlights();
-  const styles = getHighlightStyles();
-  const map: Record<string, HighlightMark> = {};
-  for (const ref of Object.keys(colors)) {
-    map[ref] = { color: colors[ref], style: styles[ref] ?? 'color' };
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem(HL_KEY);
+    if (!raw) return migrateLegacy();
+    return JSON.parse(raw) as Record<string, HighlightMark>;
+  } catch {
+    return {};
   }
-  return map;
 }
 
-export function selectionRef(bookId: string, chapter: number, verses: number[]): string {
-  const sel = [...verses].sort((a, b) => a - b);
-  if (!sel.length) return `${bookId}.${chapter}`;
-  if (sel[0] === sel[sel.length - 1]) return `${bookId}.${chapter}.${sel[0]}`;
-  return `${bookId}.${chapter}.${sel[0]}-${sel[sel.length - 1]}`;
+function writeMap(map: Record<string, HighlightMark>) {
+  localStorage.setItem(HL_KEY, JSON.stringify(map));
 }
 
-/** 查找 localStorage 中实际存储划线的 ref（兼容单节/区间 key 不一致）。 */
+export function selectionRef(
+  bookId: string,
+  chapter: number,
+  verses: number[],
+  span?: { start: number; end: number } | null,
+): string {
+  return buildSelectionRef(bookId, chapter, verses, span);
+}
+
 export function findHighlightStorageRef(
   bookId: string,
   chapter: number,
   verses: number[],
   map?: Record<string, HighlightMark>,
+  span?: { start: number; end: number } | null,
 ): string | null {
   const hl = map ?? getHighlightMap();
   const sel = [...verses].sort((a, b) => a - b);
   if (!sel.length) return null;
 
-  const selRef = selectionRef(bookId, chapter, sel);
+  const selRef = selectionRef(bookId, chapter, sel, span);
   if (hl[selRef]) return selRef;
 
   for (const v of sel) {
@@ -66,30 +80,17 @@ export function findHighlightStorageRef(
   const max = sel[sel.length - 1];
 
   for (const ref of Object.keys(hl)) {
-    const parts = ref.split('.');
-    if (parts.length < 3 || parts[0] !== bookId || Number(parts[1]) !== chapter) continue;
-    const tail = parts[2];
-    if (tail.includes('-')) {
-      const [a, b] = tail.split('-').map(Number);
-      if (!Number.isNaN(a) && !Number.isNaN(b) && a === min && b === max) return ref;
-    }
+    const p = parseMarkRef(ref);
+    if (!p || p.bookId !== bookId || p.chapter !== chapter) continue;
+    if (p.verseStart === min && (p.verseEnd ?? p.verseStart) === max) return ref;
   }
 
   for (const ref of Object.keys(hl)) {
-    const parts = ref.split('.');
-    if (parts.length < 3 || parts[0] !== bookId || Number(parts[1]) !== chapter) continue;
-    const tail = parts[2];
-    let start: number;
-    let end: number;
-    if (tail.includes('-')) {
-      const [a, b] = tail.split('-').map(Number);
-      if (Number.isNaN(a) || Number.isNaN(b)) continue;
-      start = a;
-      end = b;
-    } else {
-      start = end = Number(tail);
-      if (Number.isNaN(start)) continue;
-    }
+    const p = parseMarkRef(ref);
+    if (!p || p.bookId !== bookId || p.chapter !== chapter) continue;
+    const start = p.verseStart;
+    const end = p.verseEnd ?? p.verseStart;
+    if (start == null || end == null) continue;
     if (start <= min && end >= max) return ref;
   }
 
@@ -97,26 +98,22 @@ export function findHighlightStorageRef(
 }
 
 export function removeHighlight(ref: string): boolean {
-  const colors = getHighlights();
-  if (!(ref in colors)) return false;
-  const prevColor = colors[ref];
-  const styles = getHighlightStyles();
-  delete colors[ref];
-  delete styles[ref];
-  localStorage.setItem(HL_KEY, JSON.stringify(colors));
-  localStorage.setItem(STYLE_KEY, JSON.stringify(styles));
-  enqueueHighlight(ref, prevColor, true);
+  const map = getHighlightMap();
+  if (!(ref in map)) return false;
+  const prevColor = map[ref].color;
+  delete map[ref];
+  writeMap(map);
+  unbindMarkRef(ref);
+  enqueueHighlight(syncRef(ref), prevColor, true);
   return true;
 }
 
-export function setHighlight(ref: string, color: HighlightColor, style: HighlightStyleKey = 'color') {
-  const colors = getHighlights();
-  const styles = getHighlightStyles();
-  colors[ref] = color;
-  styles[ref] = style;
-  localStorage.setItem(HL_KEY, JSON.stringify(colors));
-  localStorage.setItem(STYLE_KEY, JSON.stringify(styles));
-  enqueueHighlight(ref, color, false);
+export function setHighlight(ref: string, color: HighlightColor) {
+  const map = getHighlightMap();
+  map[ref] = { color };
+  writeMap(map);
+  touchMarkMeta(ref);
+  enqueueHighlight(syncRef(ref), color, false);
 }
 
 /** 微信读书式：点色即应用；再点同色删除。 */
@@ -125,23 +122,23 @@ export function pickHighlightColor(
   chapter: number,
   verses: number[],
   color: HighlightColor,
-  style: HighlightStyleKey = 'color',
+  span?: { start: number; end: number } | null,
 ): boolean {
   const sorted = [...verses].sort((a, b) => a - b);
-  const targetRef = selectionRef(bookId, chapter, sorted);
+  const targetRef = selectionRef(bookId, chapter, sorted, span);
   const map = getHighlightMap();
-  const existingRef = findHighlightStorageRef(bookId, chapter, sorted, map);
+  const existingRef = findHighlightStorageRef(bookId, chapter, sorted, map, span);
 
   if (existingRef) {
     const mark = map[existingRef];
-    if (mark.color === color && mark.style === style) {
+    if (mark.color === color) {
       removeHighlight(existingRef);
       return false;
     }
     if (existingRef !== targetRef) removeHighlight(existingRef);
   }
 
-  setHighlight(targetRef, color, style);
+  setHighlight(targetRef, color);
   return true;
 }
 
@@ -149,26 +146,11 @@ export function clearHighlightForSelection(
   bookId: string,
   chapter: number,
   verses: number[],
+  span?: { start: number; end: number } | null,
 ): boolean {
-  const ref = findHighlightStorageRef(bookId, chapter, verses);
+  const ref = findHighlightStorageRef(bookId, chapter, verses, undefined, span);
   if (!ref) return false;
   return removeHighlight(ref);
-}
-
-/** @deprecated 使用 pickHighlightColor */
-export function toggleHighlight(
-  ref: string,
-  color: HighlightColor,
-  style: HighlightStyleKey,
-): boolean {
-  const colors = getHighlights();
-  const styles = getHighlightStyles();
-  if (colors[ref] === color && (styles[ref] ?? 'color') === style) {
-    removeHighlight(ref);
-    return false;
-  }
-  setHighlight(ref, color, style);
-  return true;
 }
 
 export function markForVerse(
@@ -176,16 +158,22 @@ export function markForVerse(
   bookId: string,
   chapter: number,
   verse: number,
-): HighlightMark | null {
+): { mark: HighlightMark; ref: string; span?: { start: number; end: number } } | null {
   const exact = map[`${bookId}.${chapter}.${verse}`];
-  if (exact) return exact;
+  if (exact) return { mark: exact, ref: `${bookId}.${chapter}.${verse}` };
+
   for (const [ref, mark] of Object.entries(map)) {
-    const parts = ref.split('.');
-    if (parts.length < 3 || parts[0] !== bookId || Number(parts[1]) !== chapter) continue;
-    const tail = parts[2];
-    if (tail.includes('-')) {
-      const [a, b] = tail.split('-').map(Number);
-      if (!Number.isNaN(a) && !Number.isNaN(b) && verse >= a && verse <= b) return mark;
+    const p = parseMarkRef(ref);
+    if (!p || p.bookId !== bookId || p.chapter !== chapter) continue;
+    const start = p.verseStart;
+    const end = p.verseEnd ?? p.verseStart;
+    if (start == null || end == null) continue;
+    if (verse >= start && verse <= end) {
+      const span =
+        p.spanStart != null && p.spanEnd != null
+          ? { start: p.spanStart, end: p.spanEnd }
+          : undefined;
+      return { mark, ref, span };
     }
   }
   return null;
@@ -199,15 +187,15 @@ export function listHighlightRefs(): { ref: string; mark: HighlightMark }[] {
 }
 
 export function highlightCount(): number {
-  return Object.keys(getHighlights()).length;
+  return Object.keys(getHighlightMap()).length;
 }
 
 export function highlightClass(mark: HighlightMark | null): string {
   if (!mark) return '';
-  return `verse-mark verse-mark-${mark.style} verse-mark-${mark.color}`;
+  return `verse-mark verse-mark-color verse-mark-${mark.color}`;
 }
 
-// 边缘批注（旧 API，保留兼容）
+// 边缘批注（旧 API，保留兼容 → 请用 mark_notes）
 const NOTE_KEY = 'reader_margin_notes_v1';
 
 export function getMarginNotes(): Record<string, string> {
@@ -224,4 +212,35 @@ export function setMarginNote(ref: string, text: string) {
   if (text.trim()) m[ref] = text.trim();
   else delete m[ref];
   localStorage.setItem(NOTE_KEY, JSON.stringify(m));
+}
+
+/** @deprecated 样式已移除，始终返回 color */
+export type HighlightStyleKey = 'color';
+
+export function getHighlights(): Record<string, HighlightColor> {
+  const map = getHighlightMap();
+  const out: Record<string, HighlightColor> = {};
+  for (const [ref, mark] of Object.entries(map)) out[ref] = mark.color;
+  return out;
+}
+
+export function getHighlightStyles(): Record<string, HighlightStyleKey> {
+  const map = getHighlightMap();
+  const out: Record<string, HighlightStyleKey> = {};
+  for (const ref of Object.keys(map)) out[ref] = 'color';
+  return out;
+}
+
+export function toggleHighlight(
+  ref: string,
+  color: HighlightColor,
+  _style?: HighlightStyleKey,
+): boolean {
+  const map = getHighlightMap();
+  if (map[ref]?.color === color) {
+    removeHighlight(ref);
+    return false;
+  }
+  setHighlight(ref, color);
+  return true;
 }

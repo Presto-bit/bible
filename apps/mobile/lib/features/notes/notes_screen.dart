@@ -9,7 +9,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api_client.dart';
 import '../../core/database/app_database.dart';
 import '../../core/theme.dart';
-import '../bible/markings_repository.dart';
+import '../bible/reader_marking_models.dart';
+import '../../core/mark_ref.dart' show parseMarkRef, markColorSemantics;
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../../app/app_shell.dart' show navIndexProvider;
 import 'notes_repository.dart';
@@ -23,7 +24,7 @@ class NotesScreen extends ConsumerStatefulWidget {
 
 class _NotesScreenState extends ConsumerState<NotesScreen> {
   bool _autoSynced = false;
-  int _tab = 0; // 0=笔记 1=收藏
+  int _tab = 0; // 0=笔记 1=划线 2=书签
   String _query = '';
 
   @override
@@ -44,12 +45,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   @override
   Widget build(BuildContext context) {
     final notes = ref.watch(notesStreamProvider);
+    final highlights = ref.watch(highlightMapProvider);
     final bookmarks = ref.watch(bookmarksProvider);
     final q = _query.trim().toLowerCase();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('我的笔记'),
+        title: const Text('经文记忆'),
       ),
       floatingActionButton: _tab == 0
           ? FloatingActionButton(
@@ -64,7 +66,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               decoration: InputDecoration(
-                hintText: '搜索笔记或收藏…',
+                hintText: '搜索笔记、划线或书签…',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 isDense: true,
                 filled: true,
@@ -83,7 +85,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
               index: _tab,
               labels: [
                 '笔记${notes.maybeWhen(data: (l) => l.isNotEmpty ? ' · ${l.length}' : '', orElse: () => '')}',
-                '收藏${bookmarks.maybeWhen(data: (l) => l.isNotEmpty ? ' · ${l.length}' : '', orElse: () => '')}',
+                '划线${highlights.maybeWhen(data: (m) => m.isNotEmpty ? ' · ${m.length}' : '', orElse: () => '')}',
+                '书签${bookmarks.maybeWhen(data: (l) => l.isNotEmpty ? ' · ${l.length}' : '', orElse: () => '')}',
               ],
               onChanged: (i) => setState(() => _tab = i),
             ),
@@ -115,13 +118,53 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                         itemBuilder: (_, i) => _NoteCard(
                           note: filtered[i],
                           onEdit: () => _editSheet(context, filtered[i]),
+                          onOpenRef: (filtered[i].ref ?? '').isNotEmpty
+                              ? () => _openRef(filtered[i].ref!)
+                              : null,
                           onDelete: () =>
                               ref.read(notesRepoProvider).remove(filtered[i]),
                         ),
                       );
                     },
                   )
-                : bookmarks.when(
+                : _tab == 1
+                    ? highlights.when(
+                        loading: () => const Center(
+                            child: CircularProgressIndicator()),
+                        error: (e, _) =>
+                            Center(child: Text('读取失败：$e')),
+                        data: (map) {
+                          var entries = map.entries.toList()
+                            ..sort((a, b) => a.key.compareTo(b.key));
+                          if (q.isNotEmpty) {
+                            entries = entries
+                                .where((e) =>
+                                    e.key.toLowerCase().contains(q))
+                                .toList();
+                          }
+                          if (entries.isEmpty) {
+                            return _Empty(
+                                text: q.isEmpty
+                                    ? '还没有划线。阅读时长按经文选色即可标记。'
+                                    : '没有匹配的划线。');
+                          }
+                          return ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: entries.length,
+                            separatorBuilder: (_, i) =>
+                                const SizedBox(height: 10),
+                            itemBuilder: (_, i) {
+                              final e = entries[i];
+                              return _HighlightCard(
+                                refStr: e.key,
+                                color: e.value.color,
+                                onOpen: () => _openRef(e.key),
+                              );
+                            },
+                          );
+                        },
+                      )
+                    : bookmarks.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(child: Text('读取失败：$e')),
@@ -134,8 +177,8 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                       if (filtered.isEmpty) {
                         return _Empty(
                             text: q.isEmpty
-                                ? '还没有收藏。阅读时点经文「收藏」即可加入。'
-                                : '没有匹配的收藏。');
+                                ? '还没有书签。阅读时点「书签」即可加入。'
+                                : '没有匹配的书签。');
                       }
                       return ListView.separated(
                         padding: const EdgeInsets.all(16),
@@ -158,12 +201,9 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   }
 
   void _openRef(String refStr) {
-    // refStr 形如 JHN.3.16 → 跳转圣经 Tab 对应章。
-    final parts = refStr.split('.');
-    if (parts.isEmpty || parts[0].isEmpty) return;
-    final book = parts[0];
-    final chapter = parts.length > 1 ? int.tryParse(parts[1]) ?? 1 : 1;
-    ref.read(readerJumpProvider.notifier).jump(book, chapter);
+    final parsed = parseMarkRef(refStr);
+    if (parsed == null) return;
+    ref.read(readerJumpProvider.notifier).jump(parsed.bookId, parsed.chapter);
     ref.read(navIndexProvider.notifier).set(1);
   }
 
@@ -240,10 +280,12 @@ class _NoteCard extends StatelessWidget {
     required this.note,
     required this.onEdit,
     required this.onDelete,
+    this.onOpenRef,
   });
   final Note note;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  final VoidCallback? onOpenRef;
 
   @override
   Widget build(BuildContext context) {
@@ -296,6 +338,14 @@ class _NoteCard extends StatelessWidget {
                             style: const TextStyle(
                                 color: AppColors.inkFaint, fontSize: 12)))
                         .toList(),
+                  ),
+                ),
+              if (onOpenRef != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: TextButton(
+                    onPressed: onOpenRef,
+                    child: const Text('跳转经文'),
                   ),
                 ),
             ],
@@ -367,6 +417,56 @@ class _SegTabs extends StatelessWidget {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _HighlightCard extends StatelessWidget {
+  const _HighlightCard({
+    required this.refStr,
+    required this.color,
+    required this.onOpen,
+  });
+  final String refStr;
+  final String color;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: chipColor(color),
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(markColorSemantics[color] ?? '划线',
+                    style: const TextStyle(
+                        fontSize: 11, color: AppColors.inkFaint)),
+                Text(refStr,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w600, color: AppColors.ink)),
+              ],
+            ),
+          ),
+          TextButton(onPressed: onOpen, child: const Text('跳转')),
+        ],
       ),
     );
   }

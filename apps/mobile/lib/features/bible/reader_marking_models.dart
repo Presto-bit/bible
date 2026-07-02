@@ -1,42 +1,25 @@
-/// 阅读划线：样式与颜色常量。
+/// 阅读划线：颜色语义与渲染（仅底纹，无实线/虚线）。
 library;
 
 import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 
-enum HighlightStyle {
-  colorLine,
-  solid,
-  dashed,
-}
-
-extension HighlightStyleX on HighlightStyle {
-  String get key => switch (this) {
-        HighlightStyle.colorLine => 'color',
-        HighlightStyle.solid => 'solid',
-        HighlightStyle.dashed => 'dashed',
-      };
-
-  String get label => switch (this) {
-        HighlightStyle.colorLine => '色线',
-        HighlightStyle.solid => '直线',
-        HighlightStyle.dashed => '虚线',
-      };
-
-  static HighlightStyle fromKey(String? raw) => switch (raw) {
-        'solid' => HighlightStyle.solid,
-        'dashed' => HighlightStyle.dashed,
-        _ => HighlightStyle.colorLine,
-      };
-}
-
 const highlightColorKeys = ['yellow', 'green', 'blue', 'pink', 'orange'];
 
+const markColorSemantics = {
+  'yellow': '金句',
+  'green': '应许',
+  'blue': '教导',
+  'pink': '疑问',
+  'orange': '应用',
+};
+
 class HighlightMark {
-  const HighlightMark({required this.color, required this.style});
+  const HighlightMark({required this.color});
   final String color;
-  final HighlightStyle style;
+
+  String get semanticLabel => markColorSemantics[color] ?? '划线';
 }
 
 Color highlightInk(String color) => switch (color) {
@@ -55,29 +38,26 @@ Color highlightFill(String color) => switch (color) {
       _ => const Color(0xFFF6E7A8),
     };
 
-TextDecorationStyle decorationStyleFor(HighlightStyle style) =>
-    style == HighlightStyle.dashed
-        ? TextDecorationStyle.dashed
-        : TextDecorationStyle.solid;
-
 TextStyle applyHighlightStyle(
   TextStyle base, {
   required HighlightMark? mark,
   required bool disabled,
+  bool flash = false,
 }) {
   if (disabled || mark == null) return base;
-  final ink = highlightInk(mark.color);
-  if (mark.style == HighlightStyle.colorLine) {
-    return base.copyWith(
-      backgroundColor: highlightFill(mark.color).withValues(alpha: 0.62),
-    );
-  }
   return base.copyWith(
-    decoration: TextDecoration.underline,
-    decorationColor: ink,
-    decorationStyle: decorationStyleFor(mark.style),
-    decorationThickness: mark.style == HighlightStyle.solid ? 1.8 : 1.4,
+    backgroundColor: highlightFill(mark.color).withValues(
+      alpha: flash ? 0.88 : 0.62,
+    ),
   );
 }
 
 Color chipColor(String key) => highlightFill(key);
+
+class VerseMarkInfo {
+  const VerseMarkInfo({required this.mark, required this.ref, this.spanStart, this.spanEnd});
+  final HighlightMark mark;
+  final String ref;
+  final int? spanStart;
+  final int? spanEnd;
+}

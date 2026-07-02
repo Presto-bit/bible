@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api_client.dart' show prefsProvider;
+import '../../core/mark_notes.dart';
 import 'bible_summary.dart';
 import '../../core/database/app_database.dart';
 import '../../core/theme.dart';
@@ -495,7 +496,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final added = await ref.read(markingsRepoProvider).toggleHighlight(
           storageRef,
           color: color,
-          style: HighlightStyle.colorLine,
         );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -505,6 +505,64 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         behavior: SnackBarBehavior.floating,
       ),
     );
+    if (added) _promptMarkNote(storageRef);
+  }
+
+  Future<void> _promptMarkNote(String refStr) async {
+    final controller = TextEditingController();
+    final body = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 18,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('写灵修笔记 · $_refLabel',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.ink)),
+            const SizedBox(height: 10),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: '记录领受、疑问或祷告…',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx, controller.text),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.accentDeep),
+                child: const Text('保存'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (body == null || body.trim().isEmpty) return;
+    final note = await ref.read(notesRepoProvider).create(body: body.trim(), ref: refStr);
+    await bindNoteToMark(ref.read(prefsProvider), refStr, note.id);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('笔记已保存'), behavior: SnackBarBehavior.floating),
+      );
+    }
   }
 
   Future<void> _clearHighlight() async {
@@ -516,7 +574,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     await ref.read(markingsRepoProvider).toggleHighlight(
           storageRef,
           color: map[storageRef]?.color ?? 'yellow',
-          style: map[storageRef]?.style ?? HighlightStyle.colorLine,
         );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -950,6 +1007,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   );
                 },
                 onThought: () => _writeThought(async.value),
+                onWriteNote: () => _promptMarkNote(_selectionRefStr),
                 onPickColor: _pickHighlightColor,
                 onClearMark: _clearHighlight,
                 onClose: _clearSelection,
@@ -1489,10 +1547,11 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
     for (final v in widget.paragraph.verses) {
       final rec = _recognizerFor(v.verse, selectionActive);
       final isSel = widget.selected.contains(v.verse);
-      final mark = widget.underlinesEnabled
+      final markInfo = widget.underlinesEnabled
           ? markForVerse(
               widget.highlightMarks, widget.book.id, widget.chapter, v.verse)
           : null;
+      final mark = markInfo?.mark;
       if (widget.thoughtsEnabled &&
           (widget.thoughtsByVerse[v.verse] ?? 0) > 0) {
         hasThoughtLine = true;

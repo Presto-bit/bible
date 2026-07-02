@@ -171,7 +171,7 @@ async function pull(): Promise<number> {
         removeHighlight(ref);
         clearHighlightSyncMeta(ref);
       } else {
-        setHighlight(ref, (c.data?.color || 'yellow') as HighlightColor, 'color');
+        setHighlight(ref, (c.data?.color || 'yellow') as HighlightColor);
         recordRemoteHighlight(ref, c.id, incoming);
       }
     }

@@ -4,6 +4,8 @@ import { dailyMinutes, rangeStats } from './reading';
 import { readingStreak } from './gamification';
 import { listNotes } from './notes';
 import { loadFavoriteRefs } from './favorites';
+import { highlightCount } from './reader_highlights';
+import { statsByBook, topColorLabel } from './mark_stats';
 
 export interface WrappedStats {
   period: 'month' | 'year';
@@ -13,6 +15,9 @@ export interface WrappedStats {
   streak: number;
   notesCount: number;
   favoritesCount: number;
+  marksCount: number;
+  topMarkBook?: string;
+  topMarkColorLabel?: string;
   highlight: string;
 }
 
@@ -51,8 +56,13 @@ export function buildWrapped(period: 'month' | 'year'): WrappedStats {
   const streak = readingStreak();
   const notesCount = listNotes().filter((n) => n.updatedAt >= start && n.updatedAt < end).length;
   const favoritesCount = loadFavoriteRefs().length;
+  const marksCount = highlightCount();
+  const byBook = statsByBook();
+  const topMarkColorLabel = topColorLabel();
   const highlight =
-    activeDays >= 20
+    marksCount >= 50
+      ? `你今年标记了 ${marksCount} 处经文，${topMarkColorLabel ? `以「${topMarkColorLabel}」最多` : '记忆深刻'}`
+      : activeDays >= 20
       ? '你是持之以恒的读经伙伴'
       : activeDays >= 7
         ? '这个月你留下了稳定的足迹'
@@ -68,6 +78,9 @@ export function buildWrapped(period: 'month' | 'year'): WrappedStats {
     streak,
     notesCount,
     favoritesCount,
+    marksCount,
+    topMarkBook: byBook[0]?.bookId,
+    topMarkColorLabel: topMarkColorLabel || undefined,
     highlight,
   };
 }

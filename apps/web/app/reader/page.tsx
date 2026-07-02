@@ -7,6 +7,7 @@ import ReaderView from '@/components/reader/ReaderView';
 import { getLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
 import { clearReaderChrome } from '@/lib/reader_chrome';
+import { parseMarkRef } from '@/lib/mark_ref';
 
 const BOOK_ABBR: Record<string, string> = {
   创世记: '创', 出埃及记: '出', 利未记: '利', 民数记: '民', 申命记: '申',
@@ -35,6 +36,7 @@ export default function ReaderPage() {
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<DictEntity | null>(null);
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
+  const [flashRef, setFlashRef] = useState<string | null>(null);
 
   const dictByName = useMemo(() => {
     const m = new Map<string, DictEntity>();
@@ -105,8 +107,20 @@ export default function ReaderPage() {
       .then(async (d) => {
         setBooks(d.books);
         const params = new URLSearchParams(window.location.search);
-        const bookId = params.get('book');
-        const ch = Number(params.get('chapter') || '1');
+        const refParam = params.get('ref');
+        const flashParam = params.get('flash');
+        if (flashParam) setFlashRef(flashParam);
+        else if (refParam) setFlashRef(refParam);
+
+        const parsedRef = refParam ? parseMarkRef(refParam) : null;
+        const bookId =
+          params.get('book') ||
+          parsedRef?.bookId ||
+          null;
+        const ch = Number(
+          params.get('chapter') ||
+            (parsedRef ? String(parsedRef.chapter) : '1'),
+        );
         const planId = params.get('plan');
         const planDay = Number(params.get('day') || '1');
 
@@ -222,6 +236,7 @@ export default function ReaderPage() {
         onPlanMetaChange={setPlanMeta}
         onPlanJump={handlePlanJump}
         externalOverlayOpen={Boolean(dictPopup)}
+        flashRef={flashRef}
       />
       {dictPopup && (
         <div className="sheet-backdrop" onClick={() => setDictPopup(null)}>
