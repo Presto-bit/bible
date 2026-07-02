@@ -5,7 +5,7 @@ import type { GroupTask } from '@/lib/api';
 import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
 import { GROUP_TASK_TEMPLATES } from '@/lib/group_task_templates';
 import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
-import { groupFootprintsBySource } from '@/lib/group_ui';
+import { asGroupTasks, groupFootprintsBySource } from '@/lib/group_ui';
 import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
 
@@ -71,7 +71,7 @@ export function GroupComposer({
     });
   }, [gid]);
 
-  const openTasks = tasks.filter((t) => !t.completed);
+  const openTasks = asGroupTasks(tasks).filter((t) => !t.completed);
   const effectiveRef = selectedRef;
   const canSendCheckin = Boolean(effectiveRef || selectedTaskId);
   const canSendTask = taskTitle.trim().length > 0;

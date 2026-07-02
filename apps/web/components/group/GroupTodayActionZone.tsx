@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { GroupDetail, GroupTask } from '@/lib/api';
-import { formatDueCountdown } from '@/lib/group_ui';
+import { formatDueCountdown, groupMemberCount } from '@/lib/group_ui';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 
 type Props = {
@@ -24,7 +24,7 @@ export function GroupTodayActionZone({
   onCompleteTask,
   onOpenComposer,
 }: Props) {
-  const members = detail.members?.length ?? 0;
+  const members = groupMemberCount(detail);
   const checked = detail.checked_in_today ?? 0;
   const openTasks = detail.open_tasks ?? 0;
   const pct = members > 0 ? Math.round((checked / members) * 100) : 0;

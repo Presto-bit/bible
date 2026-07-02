@@ -1,5 +1,29 @@
-import { effectiveId } from './api';
+import { effectiveId, type GroupDetail, type GroupMember, type GroupTask } from './api';
 import type { FootprintRef } from './group_footprint';
+
+export function asGroupMembers(v: unknown): GroupMember[] {
+  return Array.isArray(v) ? v : [];
+}
+
+export function asGroupTasks(v: unknown): GroupTask[] {
+  return Array.isArray(v) ? v : [];
+}
+
+/** 群详情 members 字段：成员列表；列表接口里 members 是人数。 */
+export function groupMemberCount(detail: Pick<GroupDetail, 'members'>): number {
+  const m = detail.members as unknown;
+  if (Array.isArray(m)) return m.length;
+  if (typeof m === 'number' && Number.isFinite(m)) return m;
+  return 0;
+}
+
+export function normalizeGroupDetail(detail: GroupDetail): GroupDetail {
+  return {
+    ...detail,
+    members: asGroupMembers(detail.members),
+    tasks: asGroupTasks(detail.tasks),
+  };
+}
 
 export function memberAvatarInitial(name: string | null | undefined): string {
   const t = (name ?? '').trim();

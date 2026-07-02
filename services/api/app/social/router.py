@@ -552,6 +552,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         "pinned_task_id": pinned_task_id,
         "muted": muted,
         **weekly,
+        **stats, **plan_stats,
         "members": [
             {
                 "user_id": str(m[0]),
@@ -564,7 +565,6 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
             for m in members
         ],
         "tasks": task_rows,
-        **stats, **plan_stats,
     }
 
 

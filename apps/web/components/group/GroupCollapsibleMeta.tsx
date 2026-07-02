@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { GroupDetail } from '@/lib/api';
+import { groupMemberCount } from '@/lib/group_ui';
 import { GroupPlanStrip } from './GroupPlanStrip';
 import { GroupWeeklySummary } from './GroupWeeklySummary';
 
@@ -46,7 +47,7 @@ export function GroupCollapsibleMeta({
           <GroupWeeklySummary
             checkinsThisWeek={checkinsThisWeek}
             activeDays={activeDays}
-            memberCount={detail.members?.length ?? 0}
+            memberCount={groupMemberCount(detail)}
             isOwner={isOwner}
             onNudge={onNudge}
             nudgeBusy={nudgeBusy}

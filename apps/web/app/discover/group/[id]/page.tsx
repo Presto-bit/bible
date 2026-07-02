@@ -16,7 +16,7 @@ import { GroupToast } from '@/components/group/GroupToast';
 import { api, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
 import { loadFootprintRefs } from '@/lib/group_footprint';
-import { myDisplayName } from '@/lib/group_ui';
+import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
 
 function GroupPageInner() {
   const router = useRouter();
@@ -62,8 +62,8 @@ function GroupPageInner() {
     }
     try {
       const [d, f] = await Promise.all([api.groupDetail(gid), api.groupFeed(gid)]);
-      setDetail(d);
-      setFeed(f.messages ?? []);
+      setDetail(normalizeGroupDetail(d));
+      setFeed(Array.isArray(f.messages) ? f.messages : []);
       setHasMore(Boolean(f.has_more));
       setErr(null);
     } catch (e) {
@@ -112,7 +112,8 @@ function GroupPageInner() {
     setLoadingMore(true);
     try {
       const f = await api.groupFeed(gid, { before: feed[0].created_at });
-      setFeed((prev) => [...f.messages, ...prev]);
+      const older = Array.isArray(f.messages) ? f.messages : [];
+      setFeed((prev) => [...older, ...prev]);
       setHasMore(f.has_more);
     } catch {
       /* ignore */

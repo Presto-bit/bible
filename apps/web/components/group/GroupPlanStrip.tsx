@@ -9,6 +9,7 @@ import {
   groupPlanReaderHref,
   isOnGroupPlan,
 } from '@/lib/group_plan';
+import { groupMemberCount } from '@/lib/group_ui';
 
 type Props = {
   detail: GroupDetail;
@@ -29,7 +30,7 @@ export function GroupPlanStrip({ detail, onShowMembers }: Props) {
     plan_days_total: detail.plan_days_total,
     my_plan_day: detail.my_plan_day,
     members_on_plan: detail.members_on_plan,
-    members: detail.members?.length ?? 0,
+    members: groupMemberCount(detail),
   });
 
   const adoptAndRead = async () => {

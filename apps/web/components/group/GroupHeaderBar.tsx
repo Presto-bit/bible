@@ -1,6 +1,7 @@
 'use client';
 
 import type { GroupDetail } from '@/lib/api';
+import { groupMemberCount } from '@/lib/group_ui';
 
 type Props = {
   detail: GroupDetail;
@@ -43,7 +44,7 @@ export function GroupHeaderBar({
         </div>
         <div className="group-header-actions">
           <button type="button" className="group-members-link" onClick={onShowMembers}>
-            成员 {detail.members?.length ?? 0} ›
+            成员 {groupMemberCount(detail)} ›
           </button>
           {onToggleMute && (
             <button type="button" className="icon-btn" aria-label="提醒设置" onClick={onToggleMute}>
