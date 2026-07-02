@@ -71,6 +71,10 @@ class AssistantRepository {
         if (evt != null) yield evt;
       }
     }
+    if (buffer.trim().isNotEmpty) {
+      final evt = _parseFrame(buffer.trim());
+      if (evt != null) yield evt;
+    }
   }
 
   ChatEvent? _parseFrame(String raw) {

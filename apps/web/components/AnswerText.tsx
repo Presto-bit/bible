@@ -39,7 +39,7 @@ function renderInline(text: string, keyBase: string): React.ReactNode[] {
 }
 
 const LABEL_RE = /^【([^】]+)】\s*(.*)$/;
-const FOLLOWUP_HEAD = /^[【\[]?\s*相关追问\s*[】\]]?[:：]?\s*$/;
+const FOLLOWUP_HEAD = /^[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])\s*$/;
 
 export default function AnswerText({ text }: { text: string }) {
   if (!text) return null;

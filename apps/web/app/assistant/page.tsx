@@ -549,7 +549,7 @@ function AssistantPageInner() {
                 {m.role === 'assistant' ? (
                   m.text ? (
                     <div className="assistant-answer">
-                      <AnswerText text={stripFollowups(m.text)} />
+                      <AnswerText text={m.text} />
                     </div>
                   ) : (
                     <div className="muted">…</div>

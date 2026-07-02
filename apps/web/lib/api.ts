@@ -441,33 +441,38 @@ export async function chatStream(
   let buf = '';
   let event = '';
   let gotDelta = false;
+
+  const processLine = (line: string) => {
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim();
+    } else if (line.startsWith('data:')) {
+      const json = line.slice(5).trim();
+      if (!json) return;
+      try {
+        const d = JSON.parse(json);
+        if (event === 'meta') cb.onMeta?.(d);
+        else if (event === 'delta') {
+          gotDelta = true;
+          cb.onDelta?.(d.text ?? '');
+        } else if (event === 'error') cb.onError?.(d.message ?? '出错了');
+        else if (event === 'done') cb.onDone?.();
+      } catch {
+        /* 跳过不完整片段 */
+      }
+    }
+  };
+
   try {
     // eslint-disable-next-line no-constant-condition
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
+      if (value) buf += decoder.decode(value, { stream: true });
+      if (done) buf += decoder.decode();
+
       const lines = buf.split('\n');
-      buf = lines.pop() ?? '';
-      for (const line of lines) {
-        if (line.startsWith('event:')) {
-          event = line.slice(6).trim();
-        } else if (line.startsWith('data:')) {
-          const json = line.slice(5).trim();
-          if (!json) continue;
-          try {
-            const d = JSON.parse(json);
-            if (event === 'meta') cb.onMeta?.(d);
-            else if (event === 'delta') {
-              gotDelta = true;
-              cb.onDelta?.(d.text ?? '');
-            } else if (event === 'error') cb.onError?.(d.message ?? '出错了');
-            else if (event === 'done') cb.onDone?.();
-          } catch {
-            /* 跳过不完整片段 */
-          }
-        }
-      }
+      buf = done ? '' : (lines.pop() ?? '');
+      for (const line of lines) processLine(line);
+      if (done) break;
     }
   } catch (e) {
     if (opts?.signal?.aborted) {

@@ -1,7 +1,10 @@
 /** 小爱回答正文解析：追问剥离与去重 */
 
+/** 「相关追问」须单独成行，避免正文中含该词时被误截断。 */
+export const FOLLOWUP_SECTION_RE = /\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])/;
+
 export function stripFollowups(text: string): string {
-  const idx = text.search(/\n?\s*[【\[]?\s*相关追问\s*[】\]]?[:：]?/);
+  const idx = text.search(FOLLOWUP_SECTION_RE);
   return idx >= 0 ? text.slice(0, idx).trim() : text.trim();
 }
 
@@ -14,9 +17,9 @@ export function normalizeQuestion(q: string): string {
 }
 
 export function followupsOf(text: string): string[] {
-  const idx = text.search(/[【\[]?\s*相关追问\s*[】\]]?[:：]?/);
-  if (idx < 0) return [];
-  const tail = text.slice(idx);
+  const m = text.match(FOLLOWUP_SECTION_RE);
+  if (!m || m.index == null) return [];
+  const tail = text.slice(m.index);
   const lines = tail.split('\n').slice(1);
   const seen = new Set<string>();
   const out: string[] = [];

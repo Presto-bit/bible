@@ -33,7 +33,7 @@ List<String> followupsOf(String text) {
 
 // 复制/分享时去掉末尾相关追问段落，只保留正文。
 String stripFollowups(String text) {
-  final idx = text.indexOf(RegExp(r'\n?\s*[【\[]?\s*相关追问\s*[】\]]?[:：]?'));
+  final idx = text.indexOf(RegExp(r'\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])'));
   return idx >= 0 ? text.substring(0, idx).trim() : text.trim();
 }
 

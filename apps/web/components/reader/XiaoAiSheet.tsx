@@ -6,6 +6,7 @@ import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { createNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
+import { stripFollowups } from '@/lib/assistant_format';
 
 const ASK_PROMPT =
   '请用通顺、自然的简体中文解读这段经文。严格按【背景】【经文解释】两段输出，' +
@@ -15,12 +16,11 @@ const ASK_PROMPT =
 const EXPLAIN_PROMPT =
   '用 3–5 句通顺自然的简体中文解释这段经文的原意与关键词，避免术语堆砌，不要输出【应用】或【相关追问】。';
 
-const CHAT_TIMEOUT_MS = 45000;
+const CHAT_TIMEOUT_MS = 90000;
 
 function stripAnswer(raw: string): string {
-  return raw
-    .replace(/\n?\s*【相关追问】[\s\S]*/, '')
-    .replace(/\n?\s*【应用】[\s\S]*?(?=\n【|$)/, '')
+  return stripFollowups(raw)
+    .replace(/\n[ \t]*【应用】[\s\S]*?(?=\n【|$)/, '')
     .trim();
 }
 
