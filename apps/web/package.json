@@ -5,8 +5,8 @@
   "description": "PrestoAI 读经 H5 / PWA（https://2sc.prestoai.cn）",
   "scripts": {
     "dev": "next dev",
-    "prepare-offline": "bash ../../scripts/prepare_web_offline.sh",
-    "prebuild": "bash ../../scripts/prepare_web_offline.sh",
+    "prepare-offline": "node scripts/prepare-offline.mjs",
+    "prebuild": "node scripts/prepare-offline.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
