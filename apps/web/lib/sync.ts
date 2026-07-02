@@ -2,7 +2,7 @@
 // 与 App（apps/mobile/lib/core/sync/sync_engine.dart）和后端 registry 对齐。
 // 登录后（X-User-Id）才会真正同步；游客仅本地排队，登录后一次推送。
 
-import { API_BASE, currentUserId, ensureAccountReady, guestId, getDeviceId } from './api';
+import { API_BASE, currentUserId, effectiveId, ensureAccountReady, getDeviceId } from './api';
 import { applyRemoteNote, type LocalNote } from './notes';
 import { applyRemotePlanProgress } from './plan_sync';
 import {
@@ -104,7 +104,7 @@ function authHeaders(): Record<string, string> {
     h['X-Guest-Id'] = device;
     h['X-Device-Id'] = device;
   }
-  const uid = currentUserId() || guestId();
+  const uid = effectiveId();
   if (uid) {
     h['X-User-Id'] = uid;
     h['X-User-Code'] = uid;
@@ -212,7 +212,7 @@ export interface SyncResult {
 // 完整一轮同步：先推后拉。静默建档后可用。
 export async function syncNow(): Promise<SyncResult> {
   await ensureAccountReady();
-  const uid = currentUserId();
+  const uid = effectiveId();
   if (!uid) throw new Error('未登录');
   const pushed = await push();
   const pulled = await pull();

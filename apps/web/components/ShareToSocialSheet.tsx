@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api, currentUserId, guestId } from '@/lib/api';
+import { api, effectiveId, ensureAccountReady } from '@/lib/api';
 import { GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
 
 type Tab = 'group' | 'friends';
@@ -30,7 +30,7 @@ export function ShareToSocialSheet({
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
 
-  const uid = currentUserId() || guestId();
+  const uid = effectiveId();
 
   const reload = useCallback(async () => {
     try {

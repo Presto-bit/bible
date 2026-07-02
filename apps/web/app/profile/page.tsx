@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   changePassword,
   currentUserId,
+  effectiveId,
   guestId,
   hasPassword,
   isOnboarded,
@@ -80,7 +81,7 @@ export default function ProfilePage() {
     setUid(currentUserId());
     setGid(guestId());
     const saved = localStorage.getItem(AVATAR_KEY);
-    setAvatarId(saved || defaultAvatarId(currentUserId() || guestId() || undefined));
+    setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
     setName(localStorage.getItem(NAME_KEY) || '');
     setBio(localStorage.getItem(BIO_KEY) || '');
     setMins(todayMinutes());

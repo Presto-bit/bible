@@ -1,6 +1,6 @@
 // 经文想法（本地 JSON + 可选同步好友动态）。
 
-import { api } from './api';
+import { api, effectiveId, getDisplayName, getUserName } from './api';
 
 export type ThoughtRow = {
   id: string;
@@ -15,21 +15,17 @@ export type ThoughtRow = {
 };
 
 const KEY = 'verse_thoughts_v1';
-const USER_KEY = 'presto_user_id';
 
 function userId(): string {
   if (typeof window === 'undefined') return 'me';
-  let id = localStorage.getItem(USER_KEY);
-  if (!id) {
-    id = `u_${Date.now()}`;
-    localStorage.setItem(USER_KEY, id);
-  }
-  return id;
+  return effectiveId() || 'me';
 }
 
 function userName(): string {
   if (typeof window === 'undefined') return '我';
-  return localStorage.getItem('onboarding_name') || '我';
+  const name = getUserName().trim();
+  if (name) return name;
+  return getDisplayName();
 }
 
 function readAll(): ThoughtRow[] {
@@ -114,5 +110,3 @@ export function toggleThoughtLike(id: string) {
 export function isThoughtLiked(t: ThoughtRow): boolean {
   return t.likedBy.includes(userId());
 }
-
-export { userId };

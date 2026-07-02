@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { api, guestId } from '@/lib/api';
+import { api, effectiveId, ensureAccountReady } from '@/lib/api';
 
 export default function CreateGroupPage() {
   const router = useRouter();
@@ -11,9 +11,10 @@ export default function CreateGroupPage() {
   const [intro, setIntro] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    guestId();
+    void ensureAccountReady().then(() => setReady(Boolean(effectiveId())));
   }, []);
 
   const submit = async () => {
@@ -22,14 +23,15 @@ export default function CreateGroupPage() {
     setBusy(true);
     setMsg('');
     try {
-      guestId();
+      await ensureAccountReady();
+      if (!effectiveId()) throw new Error('身份未就绪');
       const g = await api.createGroup(n, intro.trim() || undefined);
       if (!g?.id) throw new Error('服务器未返回群 ID');
       router.push(`/discover/group/${encodeURIComponent(g.id)}`);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       setMsg(
-        detail.includes('未登录') || detail.includes('未认证')
+        detail.includes('未登录') || detail.includes('未认证') || detail.includes('身份未就绪')
           ? '建群失败：身份未就绪，请返回「我的」刷新后重试'
           : `建群失败：${detail}`,
       );
@@ -52,8 +54,14 @@ export default function CreateGroupPage() {
         value={intro}
         onChange={(e) => setIntro(e.target.value)}
       />
-      <button type="button" className="btn" style={{ width: '100%', marginTop: 14 }} disabled={busy || !name.trim()} onClick={submit}>
-        {busy ? '创建中…' : '创建共读群'}
+      <button
+        type="button"
+        className="btn"
+        style={{ width: '100%', marginTop: 14 }}
+        disabled={busy || !ready || !name.trim()}
+        onClick={submit}
+      >
+        {busy ? '创建中…' : ready ? '创建共读群' : '准备账号…'}
       </button>
       {msg && <p style={{ marginTop: 14 }}>{msg}</p>}
     </main>

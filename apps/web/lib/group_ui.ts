@@ -1,3 +1,4 @@
+import { effectiveId } from './api';
 import type { FootprintRef } from './group_footprint';
 
 export function memberAvatarInitial(name: string | null | undefined): string {
@@ -54,6 +55,6 @@ export function myDisplayName(): string {
   if (typeof window === 'undefined') return '我';
   const name = localStorage.getItem('profile_name')?.trim();
   if (name) return name;
-  const id = localStorage.getItem('presto_user_id') || localStorage.getItem('presto_guest_id') || '';
+  const id = effectiveId();
   return id ? `用户${id.slice(-4)}` : '我';
 }

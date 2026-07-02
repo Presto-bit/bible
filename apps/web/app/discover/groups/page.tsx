@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   api,
-  currentUserId,
-  guestId,
+  effectiveId,
+  ensureAccountReady,
   type Group,
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
@@ -39,9 +39,11 @@ export default function DiscoverGroupsPage() {
   }, []);
 
   useEffect(() => {
-    const id = currentUserId() || guestId();
-    setUid(id);
-    if (id) reload();
+    void ensureAccountReady().then(() => {
+      const id = effectiveId();
+      setUid(id || null);
+      if (id) reload();
+    });
   }, [reload]);
 
   if (!uid) {

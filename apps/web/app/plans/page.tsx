@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { api, type GeneratedPlan, type PlanSummary } from '@/lib/api';
+import { api, ensureAccountReady, type GeneratedPlan, type PlanSummary } from '@/lib/api';
 import { PlanScheduleSheet } from '@/components/plans/PlanScheduleSheet';
 import { PlanCategoryGrid } from '@/components/plans/PlanCategoryGrid';
 import {
@@ -284,6 +284,7 @@ export default function PlansPage() {
                 style={{ marginTop: 8 }}
                 onClick={async () => {
                   try {
+                    await ensureAccountReady();
                     const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
                     window.location.href = `/discover/group/${g.id}`;
                   } catch (e) {

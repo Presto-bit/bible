@@ -67,7 +67,7 @@ async function getJson<T>(path: string, headers?: Record<string, string>): Promi
 }
 
 function userCodeHeader(): Record<string, string> {
-  const code = currentUserId() || guestId();
+  const code = effectiveId();
   return code ? { 'X-User-Code': code } : {};
 }
 
@@ -121,7 +121,8 @@ export async function ensureAccountReady(): Promise<void> {
   ensureAccountPromise = (async () => {
     const code = guestId();
     if (!code) return;
-    if (!currentUserId()) localStorage.setItem(USER_KEY, code);
+    const loggedIn = currentUserId();
+    if (!loggedIn) localStorage.setItem(USER_KEY, code);
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -188,13 +189,19 @@ export function registrationYear(): number {
   return new Date().getFullYear();
 }
 
-// 当前生效的用户 ID：登录后的 ID，否则免注册游客 ID（8 位；兼容 10 位）。
+// 当前登录用户 ID（须为 8/10 位数字；非法值如 u_* 会被清除）。
 export function currentUserId(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(USER_KEY);
+  const raw = localStorage.getItem(USER_KEY);
+  if (!raw) return null;
+  if (!isUserCode(raw)) {
+    localStorage.removeItem(USER_KEY);
+    return null;
+  }
+  return raw;
 }
 
-// 对外统一的「我的用户ID」（始终有值：登录 ID 或游客 ID）。
+// 对外统一的「我的用户ID」（始终为有效 8/10 位：登录 ID 或游客 ID）。
 export function effectiveId(): string {
   return currentUserId() || guestId();
 }
