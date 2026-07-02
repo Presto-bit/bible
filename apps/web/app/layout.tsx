@@ -3,7 +3,7 @@ import './globals.css';
 import PwaRegister from '@/components/PwaRegister';
 import StaleShellGuard from '@/components/StaleShellGuard';
 import InstallBanner from '@/components/InstallBanner';
-import AccountBootstrap from '@/components/AccountBootstrap';
+import IdentityShell from '@/components/IdentityShell';
 import BottomTabs from '@/components/BottomTabs';
 
 import { BASE_PATH } from '@/lib/basePath';
@@ -38,12 +38,13 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <div className="app-body">{children}</div>
-        <AccountBootstrap />
-        <BottomTabs />
-        <StaleShellGuard />
-        <PwaRegister />
-        <InstallBanner />
+        <IdentityShell>
+          <div className="app-body">{children}</div>
+          <BottomTabs />
+          <StaleShellGuard />
+          <PwaRegister />
+          <InstallBanner />
+        </IdentityShell>
       </body>
     </html>
   );

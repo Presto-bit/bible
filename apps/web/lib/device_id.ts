@@ -12,10 +12,44 @@ const IDB_USER_CODE_KEY = 'user_code';
 const IDB_DEVICE_ID_KEY = 'device_id';
 const IDB_GUEST_MAP_KEY = 'device_guest_map';
 
+let resolvedDeviceId: string | null = null;
+let identityBootstrapped = false;
+
 export interface IdentityBackup {
   userCode: string | null;
   deviceId: string | null;
   guestMap: Record<string, string> | null;
+}
+
+export function isIdentityBootstrapped(): boolean {
+  return identityBootstrapped;
+}
+
+export function markIdentityBootstrapped(): void {
+  identityBootstrapped = true;
+}
+
+/** 浏览器/设备稳定指纹（PWA 重装后 localStorage/IDB 清空时仍一致） */
+export function stableDeviceFingerprint(): string {
+  if (typeof window === 'undefined') return '';
+  const parts = [
+    navigator.userAgent,
+    navigator.platform,
+    navigator.language,
+    String(screen.width),
+    String(screen.height),
+    String(screen.colorDepth),
+    String(window.devicePixelRatio),
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    String(navigator.hardwareConcurrency ?? 0),
+  ];
+  let hash = 0;
+  const s = parts.join('\0');
+  for (let i = 0; i < s.length; i += 1) {
+    hash = (Math.imul(31, hash) + s.charCodeAt(i)) | 0;
+  }
+  const hex = (hash >>> 0).toString(16).padStart(8, '0');
+  return `fp-${hex}`;
 }
 
 function readMap(): Record<string, string> {
@@ -141,19 +175,29 @@ export async function hydrateIdentityFromIdb(): Promise<void> {
   }
 }
 
-/** 本设备 UUID（首次生成后不变；清 localStorage 后从 IDB 恢复） */
-export function getDeviceId(): string {
+/**
+ * 解析并持久化 device_id：IDB → localStorage → 稳定指纹（不再随机 UUID）。
+ * 必须在 guestId / register 之前 await。
+ */
+export async function resolveDeviceId(): Promise<string> {
+  if (resolvedDeviceId) return resolvedDeviceId;
   if (typeof window === 'undefined') return '';
+
+  await hydrateIdentityFromIdb();
+
   let d = localStorage.getItem(DEVICE_KEY);
-  if (!d) {
-    d =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-    localStorage.setItem(DEVICE_KEY, d);
-    void backupIdentity({ deviceId: d });
-  }
+  if (!d) d = stableDeviceFingerprint();
+  localStorage.setItem(DEVICE_KEY, d);
+  resolvedDeviceId = d;
+  await backupIdentity({ deviceId: d });
   return d;
+}
+
+/** 已解析的设备 ID；未 bootstrap 前不创建新 ID */
+export function getDeviceId(): string {
+  if (resolvedDeviceId) return resolvedDeviceId;
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(DEVICE_KEY) || '';
 }
 
 export function getDeviceBoundGuestId(): string | null {

@@ -226,24 +226,45 @@ def username_available(u: str) -> dict:
 
 
 @router.get("/device-user")
-def device_user(device_id: str) -> dict:
+def device_user(device_id: str, fingerprint: str | None = None) -> dict:
     """按设备指纹找回已绑定的 user_code（PWA 重装后恢复身份）。"""
-    fp = (device_id or "").strip()
-    if not fp or len(fp) > 128:
+    keys = []
+    for raw in (device_id, fingerprint):
+        fp = (raw or "").strip()
+        if fp and len(fp) <= 128 and fp not in keys:
+            keys.append(fp)
+    if not keys:
         raise HTTPException(status_code=400, detail="无效设备标识")
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            row = conn.execute(
-                "SELECT user_code FROM device_user_bindings WHERE device_fingerprint = %s",
-                (fp,),
-            ).fetchone()
-        if not row:
-            return {"user_code": None}
-        return {"user_code": row[0]}
+            for fp in keys:
+                row = conn.execute(
+                    "SELECT user_code FROM device_user_bindings WHERE device_fingerprint = %s",
+                    (fp,),
+                ).fetchone()
+                if row:
+                    return {"user_code": row[0]}
+        return {"user_code": None}
     except Exception as exc:
         logger.warning("device-user 查询失败：%s", exc)
         raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
+def _lookup_bound_user_code(conn, *fingerprints: str | None) -> str | None:
+    seen: set[str] = set()
+    for raw in fingerprints:
+        fp = (raw or "").strip()
+        if not fp or len(fp) > 128 or fp in seen:
+            continue
+        seen.add(fp)
+        row = conn.execute(
+            "SELECT user_code FROM device_user_bindings WHERE device_fingerprint = %s",
+            (fp,),
+        ).fetchone()
+        if row:
+            return row[0]
+    return None
 
 
 def _bind_device_user(conn, device_id: str | None, user_code: str) -> None:
@@ -254,9 +275,7 @@ def _bind_device_user(conn, device_id: str | None, user_code: str) -> None:
         """
         INSERT INTO device_user_bindings (device_fingerprint, user_code, updated_at)
         VALUES (%s, %s, now())
-        ON CONFLICT (device_fingerprint) DO UPDATE SET
-          user_code = EXCLUDED.user_code,
-          updated_at = now()
+        ON CONFLICT (device_fingerprint) DO NOTHING
         """,
         (fp, user_code),
     )
@@ -266,6 +285,7 @@ def _bind_device_user(conn, device_id: str | None, user_code: str) -> None:
 def register(
     body: RegisterBody,
     x_device_id: str | None = Header(default=None),
+    x_device_fingerprint: str | None = Header(default=None),
 ) -> dict:
     """按 10 位用户ID 建档（免注册即用），可同时设置用户名 + 密码。"""
     code = body.user_code.strip()
@@ -280,6 +300,10 @@ def register(
     try:
         pool = get_pool()
         with pool.connection() as conn:
+            bound = _lookup_bound_user_code(conn, x_device_id, x_device_fingerprint)
+            if bound:
+                code = bound
+                user_id = _uuid_for_code(code)
             if name:
                 taken = conn.execute(
                     "SELECT user_code FROM accounts WHERE lower(username) = lower(%s)",
@@ -304,6 +328,7 @@ def register(
                 (code, user_id, name, pwd_hash, pwd_salt),
             )
             _bind_device_user(conn, x_device_id, code)
+            _bind_device_user(conn, x_device_fingerprint, code)
             conn.commit()
         return {"ok": True, **_account_payload(code, name, pwd_hash)}
     except HTTPException:
@@ -314,7 +339,11 @@ def register(
 
 
 @router.post("/login")
-def login(body: LoginBody) -> dict:
+def login(
+    body: LoginBody,
+    x_device_id: str | None = Header(default=None),
+    x_device_fingerprint: str | None = Header(default=None),
+) -> dict:
     """登录：identifier 为 10 位用户ID（可空密码）或用户名（需密码）。"""
     idf = body.identifier.strip()
     if not idf:
@@ -329,6 +358,9 @@ def login(body: LoginBody) -> dict:
                 ).fetchone()
                 # 免注册：未建档的 ID 也允许直接登录（采用该身份）
                 if row is None:
+                    _bind_device_user(conn, x_device_id, idf)
+                    _bind_device_user(conn, x_device_fingerprint, idf)
+                    conn.commit()
                     return _account_payload(idf, None, None)
             else:
                 row = conn.execute(
@@ -344,6 +376,9 @@ def login(body: LoginBody) -> dict:
             elif not is_user_code(idf):
                 # 用户名账号但未设密码 → 不允许用户名登录
                 raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID登录")
+            _bind_device_user(conn, x_device_id, code)
+            _bind_device_user(conn, x_device_fingerprint, code)
+            conn.commit()
             return _account_payload(code, username, pwd_hash)
     except HTTPException:
         raise

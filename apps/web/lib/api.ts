@@ -3,11 +3,13 @@ import {
   bindDeviceGuestId,
   getDeviceBoundGuestId,
   getDeviceId,
-  hydrateIdentityFromIdb,
+  markIdentityBootstrapped,
+  resolveDeviceId,
+  stableDeviceFingerprint,
 } from './device_id';
 import { deviceIdToUserCode, isUserCode, USER_CODE_RE } from './user_code';
 
-export { getDeviceId } from './device_id';
+export { getDeviceId, stableDeviceFingerprint } from './device_id';
 export { deviceIdToUserCode, isUserCode, USER_CODE_LEN, USER_CODE_RE } from './user_code';
 
 export const API_BASE =
@@ -114,38 +116,61 @@ async function refreshAccountStatus(code: string): Promise<void> {
   }
 }
 
+function deviceHeaders(): Record<string, string> {
+  const h: Record<string, string> = {};
+  const deviceId = getDeviceId();
+  const fingerprint = stableDeviceFingerprint();
+  if (deviceId) h['X-Device-Id'] = deviceId;
+  if (fingerprint) h['X-Device-Fingerprint'] = fingerprint;
+  return h;
+}
+
+function applyServerUserCode(code: string): void {
+  if (!isUserCode(code)) return;
+  localStorage.setItem(GUEST_KEY, code);
+  bindDeviceGuestId(code);
+  if (!currentUserId()) localStorage.setItem(USER_KEY, code);
+}
+
 let ensureIdentityPromise: Promise<void> | null = null;
 
-/** 启动时：IDB 恢复 → 服务端按 device_id 找回 user_code */
+/** 启动时：解析 device_id → IDB 恢复 → 服务端找回 user_code */
 export async function ensureIdentityReady(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (ensureIdentityPromise) return ensureIdentityPromise;
   ensureIdentityPromise = (async () => {
-    await hydrateIdentityFromIdb();
+    await resolveDeviceId();
+
     let g = localStorage.getItem(GUEST_KEY);
     if (g && isUserCode(g)) {
       bindDeviceGuestId(g);
+      markIdentityBootstrapped();
       return;
     }
+
     const bound = getDeviceBoundGuestId();
     if (bound) {
       localStorage.setItem(GUEST_KEY, bound);
       ensureFirstSeen();
+      markIdentityBootstrapped();
       return;
     }
+
     const deviceId = getDeviceId();
+    const fingerprint = stableDeviceFingerprint();
     if (deviceId) {
       try {
-        const res = await fetch(
-          `${API_BASE}/auth/device-user?device_id=${encodeURIComponent(deviceId)}`,
-          { cache: 'no-store' },
-        );
+        const params = new URLSearchParams({ device_id: deviceId });
+        if (fingerprint && fingerprint !== deviceId) {
+          params.set('fingerprint', fingerprint);
+        }
+        const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
         if (res.ok) {
           const d = (await res.json()) as { user_code?: string | null };
           if (d.user_code && isUserCode(d.user_code)) {
-            localStorage.setItem(GUEST_KEY, d.user_code);
-            bindDeviceGuestId(d.user_code);
+            applyServerUserCode(d.user_code);
             ensureFirstSeen();
+            markIdentityBootstrapped();
             return;
           }
         }
@@ -153,7 +178,12 @@ export async function ensureIdentityReady(): Promise<void> {
         /* 离线：走本地确定性 ID */
       }
     }
-    guestId();
+
+    g = deviceIdToUserCode(deviceId);
+    localStorage.setItem(GUEST_KEY, g);
+    bindDeviceGuestId(g);
+    ensureFirstSeen();
+    markIdentityBootstrapped();
   })();
   return ensureIdentityPromise;
 }
@@ -173,12 +203,13 @@ export async function ensureAccountReady(): Promise<void> {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Device-Id': getDeviceId(),
+          ...deviceHeaders(),
         },
         body: JSON.stringify({ user_code: code }),
       });
       if (res.ok) {
         const d = await res.json();
+        if (d.user_code && isUserCode(d.user_code)) applyServerUserCode(d.user_code);
         if (d.username) localStorage.setItem(NAME_KEY, d.username);
         setHasPasswordCached(Boolean(d.has_password));
       }
@@ -191,7 +222,7 @@ export async function ensureAccountReady(): Promise<void> {
   return ensureAccountPromise;
 }
 
-/** 游客 ID：绑定本设备；清 localStorage 后尝试 IndexedDB 恢复 */
+/** 游客 ID：须先 await ensureIdentityReady；同步调用时仅读已恢复值 */
 export function guestId(): string {
   if (typeof window === 'undefined') return '';
   let g = localStorage.getItem(GUEST_KEY);
@@ -206,10 +237,8 @@ export function guestId(): string {
     return bound;
   }
   const deviceId = getDeviceId();
+  if (!deviceId) return '';
   g = deviceIdToUserCode(deviceId);
-  localStorage.setItem(GUEST_KEY, g);
-  bindDeviceGuestId(g);
-  ensureFirstSeen();
   return g;
 }
 
@@ -328,7 +357,7 @@ export async function setCredentials(username: string, password: string): Promis
   try {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...deviceHeaders() },
       body: JSON.stringify({
         user_code: id,
         username: u || null,
@@ -337,6 +366,7 @@ export async function setCredentials(username: string, password: string): Promis
     });
     if (res.ok) {
       const d = await res.json();
+      if (d.user_code && isUserCode(d.user_code)) applyServerUserCode(d.user_code);
       setHasPasswordCached(Boolean(d.has_password));
     } else if (password) {
       throw new Error('保存失败，请检查网络');
@@ -388,7 +418,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
   try {
     res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...deviceHeaders() },
       body: JSON.stringify({ identifier: idf, password: password || null }),
     });
   } catch {
