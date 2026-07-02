@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { Group } from './api';
+import { groupInactiveMs } from './group_policy';
 
 const DIRTY_KEY = 'presto_groups_dirty';
 const PENDING_GROUPS_KEY = 'presto_pending_groups';
@@ -37,7 +38,7 @@ export function clearGroupsListDirty() {
   localStorage.removeItem(DIRTY_KEY);
 }
 
-/** 建群/加群后立即写入 localStorage；不设过期，也不自动清除，仅用户手动移除。 */
+/** 建群/加群后立即写入 localStorage；服务端未确认的条目超过 30 天无动态规则后自动清理。 */
 export function stashCreatedGroup(g: PendingGroup) {
   if (typeof window === 'undefined') return;
   const rows = readPendingRows().filter((row) => row.id !== g.id);
@@ -54,6 +55,21 @@ export function dismissPendingGroup(id: string) {
   markGroupsListDirty();
 }
 
+/** 静默清理超过 30 天且服务端仍未确认的乐观群（与服务端幽灵群策略一致）。 */
+export function pruneStalePendingGroups(confirmedIds: string[]) {
+  if (typeof window === 'undefined') return;
+  const confirmed = new Set(confirmedIds);
+  const cutoff = Date.now() - groupInactiveMs();
+  const rows = readPendingRows().filter((row) => {
+    if (confirmed.has(row.id)) return true;
+    return (row.ts || 0) > cutoff;
+  });
+  if (rows.length !== readPendingRows().length) {
+    writePendingRows(rows);
+    markGroupsListDirty();
+  }
+}
+
 /** 尚未被 API 确认的乐观群 id，用于列表展示「移除」入口。 */
 export function getPendingOnlyIds(confirmedIds: string[]): string[] {
   const confirmed = new Set(confirmedIds);
@@ -62,6 +78,8 @@ export function getPendingOnlyIds(confirmedIds: string[]): string[] {
 
 export function mergePendingGroups(groups: Group[]): Group[] {
   if (typeof window === 'undefined') return groups;
+  const confirmedIds = groups.map((g) => g.id);
+  pruneStalePendingGroups(confirmedIds);
   const pending = readPendingRows();
   if (!pending.length) return groups;
 

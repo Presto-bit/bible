@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, ensureAccountReady, type GeneratedPlan, type PlanSummary } from '@/lib/api';
-import { markGroupsListDirty } from '@/lib/groups_refresh';
+import { markGroupsListDirty, stashCreatedGroup } from '@/lib/groups_refresh';
+import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
 import { PlanScheduleSheet } from '@/components/plans/PlanScheduleSheet';
 import { PlanCategoryGrid } from '@/components/plans/PlanCategoryGrid';
 import {
@@ -284,9 +285,16 @@ export default function PlansPage() {
                 className="font-pill plan-invite-btn"
                 style={{ marginTop: 8 }}
                 onClick={async () => {
+                  if (!window.confirm(`将创建共读群并邀请好友加入。\n\n${GROUP_INACTIVE_NOTICE}\n\n继续创建？`)) return;
                   try {
                     await ensureAccountReady();
                     const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
+                    stashCreatedGroup({
+                      id: g.id,
+                      name: g.name || `${active.title} · 共读`,
+                      join_code: g.join_code,
+                      role: g.role || 'owner',
+                    });
                     markGroupsListDirty();
                     window.location.href = `/discover/group/${g.id}`;
                   } catch (e) {

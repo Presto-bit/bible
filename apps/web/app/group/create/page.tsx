@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, effectiveId, ensureAccountReady } from '@/lib/api';
 import { stashCreatedGroup } from '@/lib/groups_refresh';
+import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
 
 export default function CreateGroupPage() {
   const router = useRouter();
@@ -61,6 +62,9 @@ export default function CreateGroupPage() {
         value={intro}
         onChange={(e) => setIntro(e.target.value)}
       />
+      <p className="muted" style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>
+        {GROUP_INACTIVE_NOTICE}
+      </p>
       <button
         type="button"
         className="btn"

@@ -7,12 +7,15 @@ from __future__ import annotations
 import json
 import secrets
 
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, Header, HTTPException
 from psycopg import errors as pg_errors
 from pydantic import BaseModel
 
 from ..auth.session import get_current_user
 from ..auth.user_code import pick_user_code, uuid_for_code
+from ..config import get_settings
 from ..content import loader
 from ..db import get_pool
 from .moderation import ModerationError, moderate_text
@@ -187,6 +190,20 @@ def _plan_label(plan_id: str | None) -> str | None:
 # 被 N 个不同用户举报后，消息在 feed 中自动隐藏（待人工复核）。
 REPORT_HIDE_THRESHOLD = 3
 
+# 群超过该天数无任何动态后，由定时任务静默删除（不通知用户）。
+GROUP_INACTIVE_DAYS = 30
+
+_PRUNE_INACTIVE_GROUPS_SQL = """
+DELETE FROM social_group g
+WHERE GREATEST(
+  g.created_at,
+  COALESCE((SELECT MAX(created_at) FROM group_message WHERE group_id = g.id), g.created_at),
+  COALESCE((SELECT MAX(created_at) FROM group_task WHERE group_id = g.id), g.created_at),
+  COALESCE((SELECT MAX(joined_at) FROM group_member WHERE group_id = g.id), g.created_at)
+) < now() - make_interval(days => %s)
+RETURNING id
+"""
+
 
 def _ensure_report_table(conn) -> None:
     conn.execute(
@@ -235,7 +252,13 @@ def create_group(body: CreateGroup, user_id: str = Depends(get_current_user)) ->
             (gid, user_id),
         )
         conn.commit()
-    return {"id": str(gid), "name": name, "join_code": code, "role": "owner"}
+    return {
+        "id": str(gid),
+        "name": name,
+        "join_code": code,
+        "role": "owner",
+        "inactive_policy_days": GROUP_INACTIVE_DAYS,
+    }
 
 
 @router.post("/groups/from-plan")
@@ -1008,3 +1031,25 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
     return {"friends": [
         {"user_id": str(r[0]), "handle": r[1], "display_name": r[2]} for r in rows
     ]}
+
+
+@router.post("/cron/prune-inactive-groups")
+def cron_prune_inactive_groups(
+    x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),
+) -> dict:
+    """定时任务：静默删除超过 N 天无任何动态的共读群（需配置 PUSH_CRON_SECRET）。"""
+    s = get_settings()
+    if not s.push_cron_secret or x_cron_secret != s.push_cron_secret:
+        raise HTTPException(403, "无效 cron 密钥")
+    pool = get_pool()
+    with pool.connection() as conn:
+        rows = conn.execute(_PRUNE_INACTIVE_GROUPS_SQL, (GROUP_INACTIVE_DAYS,)).fetchall()
+        conn.commit()
+    deleted = [str(r[0]) for r in rows]
+    return {
+        "ok": True,
+        "deleted_count": len(deleted),
+        "deleted_ids": deleted,
+        "inactive_days": GROUP_INACTIVE_DAYS,
+        "ran_at": datetime.now(timezone.utc).isoformat(),
+    }

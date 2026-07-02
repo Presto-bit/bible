@@ -63,7 +63,14 @@ function GroupPageInner() {
       setHasMore(Boolean(f.has_more));
       setErr(null);
     } catch (e) {
-      setErr(String(e));
+      const detail = e instanceof Error ? e.message : String(e);
+      if (detail.includes('404')) {
+        dismissPendingGroup(gid);
+        markGroupsListDirty();
+        router.replace('/discover/groups');
+        return;
+      }
+      setErr(detail);
     }
   }, [gid]);
 
