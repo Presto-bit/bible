@@ -37,7 +37,17 @@ export function answerStats() {
     if (v.correct) correct++;
     else wrong++;
   }
-  return { correct, wrong, total: correct + wrong };
+  const total = correct + wrong;
+  const accuracyPct = total > 0 ? Math.round((correct / total) * 100) : 0;
+  return { correct, wrong, total, accuracyPct };
+}
+
+/** 答错过的题目 ID（最近一次答错） */
+export function wrongQuestionIds(): string[] {
+  const h = readHistory();
+  return Object.entries(h)
+    .filter(([, v]) => !v.correct)
+    .map(([id]) => id);
 }
 
 /** 今日 5 题：未答或答错优先；不足则从全库补 */

@@ -141,7 +141,11 @@ export default function ReaderView({
   const [chapterNotes, setChapterNotes] = useState<Map<number, LocalNote[]>>(new Map());
   const [, setFavRev] = useState(0);
   const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
-  const [writeThoughtSheet, setWriteThoughtSheet] = useState<null | { ref: string; label: string }>(null);
+  const [writeThoughtSheet, setWriteThoughtSheet] = useState<null | {
+    ref: string;
+    label: string;
+    verseText?: string;
+  }>(null);
   const [thoughtListSheet, setThoughtListSheet] = useState<null | { ref: string; label: string; text: string }>(null);
   const [thoughtRevision, setThoughtRevision] = useState(0);
   const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
@@ -687,9 +691,12 @@ export default function ReaderView({
           (contentRef.current as HTMLDivElement & { _tx?: number })._tx = e.touches[0].clientX;
         } : undefined}
         onTouchEnd={pageTurn === 'swipe' ? (e) => {
+          const sel = window.getSelection();
+          if (sel && !sel.isCollapsed) return;
           const tx = (contentRef.current as HTMLDivElement & { _tx?: number })._tx;
           if (tx == null) return;
           const dx = e.changedTouches[0].clientX - tx;
+          if (Math.abs(dx) < 60) return;
           if (dx < -60) navChapter(1);
           else if (dx > 60) navChapter(-1);
         } : undefined}
@@ -901,7 +908,11 @@ export default function ReaderView({
             )}
             {thoughtsOn && (
               <button type="button" className="vsb-item" onClick={() => {
-                setWriteThoughtSheet({ ref: selRef, label: effRefLabel });
+                setWriteThoughtSheet({
+                  ref: selRef,
+                  label: effRefLabel,
+                  verseText: effSelectionText || undefined,
+                });
                 clearSelection();
               }}>写想法</button>
             )}
@@ -922,6 +933,7 @@ export default function ReaderView({
       {writeThoughtSheet && (
         <ThoughtWriteSheet
           refLabel={writeThoughtSheet.label}
+          verseText={writeThoughtSheet.verseText}
           onPublish={(body) => {
             addThought(writeThoughtSheet.ref, body);
             setThoughtRevision((n) => n + 1);

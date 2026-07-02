@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import ChallengeFlipPlay from '@/components/ChallengeFlipPlay';
 import {
-  challengeSummary,
   clearPendingBookChallenge,
   getPendingBookChallenge,
   levelProgress,
@@ -13,13 +12,15 @@ import {
 } from '@/lib/challenge_progress';
 import type { ChallengeLevel } from '@/lib/challenge_levels';
 import {
+  answerStats,
   dailyQuizDone,
   dailyQuizQuestions,
   markDailyQuizDone,
   recordAnswer,
+  wrongQuestionIds,
 } from '@/lib/daily_quiz';
 import {
-  QUESTION_BANK_SIZE,
+  QUESTION_BANK,
   QUESTION_THEMES,
   randomQuestions,
   themeLevelQuestions,
@@ -30,14 +31,16 @@ type PlayMode =
   | { kind: 'daily' }
   | { kind: 'random' }
   | { kind: 'theme'; themeId: string; title: string }
-  | { kind: 'level'; level: ChallengeLevel };
+  | { kind: 'level'; level: ChallengeLevel }
+  | { kind: 'wrong' };
 
 export default function ChallengePage() {
   const levels = useMemo(() => levelsIncludingPending(), []);
-  const summary = useMemo(() => challengeSummary(levels), [levels]);
+  const stats = useMemo(() => answerStats(), []);
   const [play, setPlay] = useState<PlayMode | null>(null);
   const [prog, setProg] = useState(levelProgress());
   const [dailyDone, setDailyDone] = useState(false);
+  const [showWrongList, setShowWrongList] = useState(false);
   const pending = getPendingBookChallenge();
 
   useEffect(() => {
@@ -48,6 +51,11 @@ export default function ChallengePage() {
     if (!play) return null;
     if (play.kind === 'daily') return dailyQuizQuestions(5);
     if (play.kind === 'random') return randomQuestions(10);
+    if (play.kind === 'wrong') {
+      const ids = new Set(wrongQuestionIds());
+      const qs = QUESTION_BANK.filter((q) => ids.has(q.id));
+      return qs.length > 0 ? qs.slice(0, 10) : randomQuestions(5);
+    }
     if (play.kind === 'theme') return themeLevelQuestions(play.themeId, 8);
     return play.level.questions as QuestionBankEntry[];
   }, [play]);
@@ -60,12 +68,6 @@ export default function ChallengePage() {
     if (play?.kind === 'daily') {
       markDailyQuizDone();
     }
-    if (playQuestions) {
-      playQuestions.forEach((q, i) => {
-        const pickedCorrect = i < correct; // approximate per-session; flip play tracks sequentially
-        void q;
-      });
-    }
     setProg(levelProgress());
     setPlay(null);
   };
@@ -76,29 +78,36 @@ export default function ChallengePage() {
         ? '每日问答'
         : play.kind === 'random'
           ? '随机挑战'
-          : play.kind === 'theme'
-            ? play.title
-            : play.level.title;
+          : play.kind === 'wrong'
+            ? '错题重练'
+            : play.kind === 'theme'
+              ? play.title
+              : play.level.title;
     const sub =
       play.kind === 'daily'
-        ? '今日 5 题'
+        ? '今日问答'
         : play.kind === 'random'
-          ? '全库随机'
-          : play.kind === 'theme'
-            ? '主题闯关'
-            : play.level.subtitle;
+          ? '随机抽题'
+          : play.kind === 'wrong'
+            ? '巩固错题'
+            : play.kind === 'theme'
+              ? '主题闯关'
+              : play.level.subtitle;
 
     return (
       <ChallengeFlipPlay
         title={title}
         subtitle={sub}
         questions={playQuestions}
+        hideProgress
         onBack={() => setPlay(null)}
         onFinish={finishPlay}
         onEachAnswer={(id, correct) => recordAnswer(id, correct)}
       />
     );
   }
+
+  const wrongIds = wrongQuestionIds();
 
   return (
     <main className="container">
@@ -107,22 +116,20 @@ export default function ChallengePage() {
         <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>每日问答</h2>
       </header>
 
-      <button
-        type="button"
-        className="challenge-daily-hero card"
-        onClick={() => setPlay({ kind: 'daily' })}
-      >
-        <div className="challenge-daily-badge">{dailyDone ? '✓' : '☀'}</div>
-        <div style={{ flex: 1, textAlign: 'left' }}>
-          <strong>每日问答</strong>
-          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-            {dailyDone ? '今日已完成 · 明天再来' : '5 道随机题 · 优先复习错题'}
-          </p>
-        </div>
-        <span className="rail-cta">{dailyDone ? '复习 ›' : '开始 ›'}</span>
-      </button>
-
-      <div className="challenge-mode-row">
+      <div className="challenge-mode-row challenge-mode-row-2">
+        <button
+          type="button"
+          className="card challenge-daily-compact"
+          onClick={() => setPlay({ kind: 'daily' })}
+        >
+          <span className="challenge-daily-badge">{dailyDone ? '✓' : '☀'}</span>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <strong>每日问答</strong>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+              {dailyDone ? '今日已完成' : '优先复习错题'}
+            </p>
+          </div>
+        </button>
         <button
           type="button"
           className="card challenge-mode-card"
@@ -130,20 +137,43 @@ export default function ChallengePage() {
         >
           <span className="challenge-level-icon">🎲</span>
           <strong>随机挑战</strong>
-          <span className="muted" style={{ fontSize: 11 }}>从 {QUESTION_BANK_SIZE} 题中抽 10 题</span>
         </button>
-        <div className="challenge-hero card" style={{ flex: 1 }}>
-          <div className="challenge-hero-ring">
-            <span>{summary.progressPct}%</span>
-          </div>
-          <div>
-            <strong>关卡 {summary.completedLevels}/{summary.totalLevels}</strong>
-            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-              答对 {summary.correctQ} 题
-            </p>
-          </div>
-        </div>
       </div>
+
+      <button
+        type="button"
+        className="card challenge-stats-card"
+        style={{ width: '100%', marginTop: 10 }}
+        onClick={() => setShowWrongList((v) => !v)}
+      >
+        <div className="challenge-hero-ring challenge-stats-ring">
+          <span>{stats.accuracyPct}%</span>
+        </div>
+        <div style={{ flex: 1, textAlign: 'left' }}>
+          <strong>答题统计</strong>
+          <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+            共答 {stats.total} 题 · 正确 {stats.correct} · 错误 {stats.wrong}
+          </p>
+        </div>
+        <span className="muted">{showWrongList ? '▾' : '▸'}</span>
+      </button>
+
+      {showWrongList && (
+        <div className="card" style={{ marginTop: 8, padding: 12 }}>
+          {wrongIds.length === 0 ? (
+            <p className="muted" style={{ margin: 0, fontSize: 13 }}>暂无错题，继续保持！</p>
+          ) : (
+            <>
+              <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
+                {wrongIds.length} 道错题待巩固
+              </p>
+              <button type="button" className="btn" style={{ width: '100%' }} onClick={() => setPlay({ kind: 'wrong' })}>
+                重练错题
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {pending && (
         <div className="challenge-nudge card">
@@ -174,7 +204,6 @@ export default function ChallengePage() {
           >
             <span className="challenge-level-icon">📚</span>
             <strong>{t.name}</strong>
-            <span className="challenge-level-meta">8 题</span>
           </button>
         ))}
       </div>
@@ -196,7 +225,6 @@ export default function ChallengePage() {
               <span className="challenge-level-icon">{done ? '✓' : lv.icon}</span>
               <strong>{lv.title}</strong>
               <span className="muted" style={{ fontSize: 11 }}>{lv.subtitle}</span>
-              <span className="challenge-level-meta">{lv.questions.length} 题</span>
             </button>
           );
         })}

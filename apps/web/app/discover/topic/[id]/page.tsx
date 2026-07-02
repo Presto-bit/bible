@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { topicById } from '@/lib/discover_topics';
-import { assistantHref } from '@/lib/assistant_prefill';
+import { AssistantLink } from '@/components/AssistantLink';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 
 export default function TopicPage() {
@@ -48,9 +48,9 @@ export default function TopicPage() {
             <p className="muted">{v.ref.replace(/\./g, ' ')}</p>
             <p style={{ lineHeight: 1.6 }}>{v.text}</p>
             <div className="share-actions">
-              <Link className="font-pill" href={assistantHref(v.ref, { excerpt: v.text })}>
+              <AssistantLink className="font-pill" refParam={v.ref} excerpt={v.text}>
                 问小爱
-              </Link>
+              </AssistantLink>
               {href && (
                 <Link className="font-pill" href={href}>
                   我也在读

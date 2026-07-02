@@ -255,7 +255,14 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <Link href="/report" className="card row-card" style={{ display: 'flex' }}>
+      {streak > 0 && (
+        <div className="streak-banner" style={{ marginTop: 12 }}>
+          <span className="streak-flame">🔥</span>
+          <span>连续读经 <strong>{streak}</strong> 天</span>
+        </div>
+      )}
+
+      <Link href="/report" className="card row-card" style={{ display: 'flex', marginTop: streak > 0 ? 12 : 0 }}>
         <span style={{ flex: 1 }}>阅读时长</span>
         <span className="muted">
           今日 {mins} 分钟 · 读经回顾 ›
@@ -281,18 +288,11 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {streak > 0 && (
-        <div className="streak-banner" style={{ marginTop: 12 }}>
-          <span className="streak-flame">🔥</span>
-          <span>连续读经 <strong>{streak}</strong> 天</span>
-        </div>
-      )}
-
       <Link href="/challenge" className="card row-card challenge-card" style={{ display: 'flex', marginTop: 12 }}>
         <span className="pill pill-active">知识挑战</span>
         <span style={{ flex: 1 }}>
           <strong>圣经知识闯关</strong>
-          <span className="muted" style={{ display: 'block', fontSize: 12 }}>关卡制答题 · 巩固所学</span>
+          <span className="muted" style={{ display: 'block', fontSize: 12 }}>每日问答 · 答题统计</span>
         </span>
         <span className="muted">去闯关 ›</span>
       </Link>
@@ -305,19 +305,6 @@ export default function ProfilePage() {
         <span style={{ flex: 1 }}>我的笔记</span>
         <span className="muted">收藏 · 笔记 ›</span>
       </Link>
-
-      {uid && (
-        <button
-          type="button"
-          className="logout-btn"
-          onClick={() => {
-            logout();
-            setUid(null);
-          }}
-        >
-          退出登录
-        </button>
-      )}
 
       {settingsOpen && (
         <div className="sheet-backdrop" onClick={() => setSettingsOpen(false)}>

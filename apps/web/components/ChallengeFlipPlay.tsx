@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ChallengeQuestion } from '@/lib/challenge_levels';
+import { refToChineseLabel } from '@/lib/ref_label';
 
 type Phase = 'pick' | 'flip' | 'answer';
 
@@ -12,6 +13,7 @@ export default function ChallengeFlipPlay({
   onBack,
   onFinish,
   onEachAnswer,
+  hideProgress,
 }: {
   title: string;
   subtitle: string;
@@ -19,6 +21,7 @@ export default function ChallengeFlipPlay({
   onBack: () => void;
   onFinish: (correct: number, total: number) => void;
   onEachAnswer?: (questionId: string, correct: boolean) => void;
+  hideProgress?: boolean;
 }) {
   const [qIdx, setQIdx] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
@@ -66,15 +69,20 @@ export default function ChallengeFlipPlay({
     <main className="container challenge-play">
       <header className="challenge-play-head">
         <button type="button" className="text-link" onClick={onBack}>← 返回</button>
-        <span className="muted">{title} · {qIdx + 1}/{questions.length}</span>
+        <span className="muted">{title}</span>
       </header>
-      <div className="challenge-progress-bar">
-        <div style={{ width: `${((qIdx + (flipped ? 1 : 0)) / questions.length) * 100}%` }} />
-      </div>
+      {!hideProgress && (
+        <div className="challenge-progress-bar">
+          <div style={{ width: `${((qIdx + (flipped ? 1 : 0)) / questions.length) * 100}%` }} />
+        </div>
+      )}
       <div className={`challenge-flip-wrap ${phase === 'flip' || flipped ? 'challenge-flip-active' : ''}`}>
         <div className="challenge-flip-inner">
           <div className="challenge-flip-front card challenge-q-card">
             <span className="pill">{subtitle}</span>
+            {q.ref && (
+              <p className="challenge-q-ref muted">{refToChineseLabel(q.ref) ?? q.ref}</p>
+            )}
             <p className="quiz-q">{q.question}</p>
             <div className="quiz-options">
               {q.options.map((o, i) => (

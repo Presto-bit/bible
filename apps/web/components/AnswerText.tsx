@@ -44,7 +44,10 @@ const FOLLOWUP_HEAD = /^[【\[]?\s*相关追问\s*[】\]]?[:：]?\s*$/;
 export default function AnswerText({ text }: { text: string }) {
   if (!text) return null;
   const body = stripFollowups(text);
-  const lines = body.split('\n');
+  const normalized = body
+    .replace(/([。；！？])(?=[^\n])/g, '$1\n')
+    .replace(/([.!?])(?=\s*[^\n])/g, '$1\n');
+  const lines = normalized.split('\n');
   const blocks: React.ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
 

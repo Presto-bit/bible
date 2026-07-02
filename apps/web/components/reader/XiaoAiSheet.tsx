@@ -118,9 +118,15 @@ export default function XiaoAiSheet({
     }
   };
 
-  const assistantHref = buildAssistantHref(refParam, {
-    excerpt: selectionText || refLabel,
-  });
+  const [assistantHref, setAssistantHref] = useState(
+    () => `/assistant?ref=${encodeURIComponent(refParam)}`,
+  );
+
+  useEffect(() => {
+    setAssistantHref(
+      buildAssistantHref(refParam, { excerpt: selectionText || refLabel }),
+    );
+  }, [refParam, selectionText, refLabel]);
 
   const saveNote = () => {
     if (!clean || hasError) return;

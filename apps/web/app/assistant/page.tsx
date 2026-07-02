@@ -2,13 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { createNote } from '@/lib/notes';
-import { followupsOf, stripFollowups } from '@/lib/assistant_format';
+import { followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
 import { readingStreak } from '@/lib/gamification';
+import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
 
 // 输入框上方的可右滑 chip 行（意图 + 场景 + 译本/原文）。
 const STATIC_CHIPS: { label: string; mode: string; q: string }[] = [
@@ -63,7 +65,7 @@ export default function AssistantPage() {
   const [activeId, setActiveId] = useState<string>('current');
   const [historyOpen, setHistoryOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const seedBoot = useRef(false);
   const rafRef = useRef<number | null>(null);
 
@@ -80,6 +82,24 @@ export default function AssistantPage() {
     () => [...personalized.slice(0, 2), ...STATIC_CHIPS],
     [personalized],
   );
+
+  const lastAssistantIdx = useMemo(() => {
+    for (let i = msgs.length - 1; i >= 0; i -= 1) {
+      if (msgs[i].role === 'assistant') return i;
+    }
+    return -1;
+  }, [msgs]);
+
+  const adjustInputHeight = () => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
+  };
+
+  useEffect(() => {
+    adjustInputHeight();
+  }, [input]);
 
   const flashToast = (t: string) => {
     setToast(t);
@@ -285,19 +305,40 @@ export default function AssistantPage() {
 
   const sendRef = useRef(send);
   sendRef.current = send;
+  const router = useRouter();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const r = params.get('ref');
-    const seedQ = params.get('q');
-    const autoSend = params.get('auto_send') !== '0';
-    if (r) setRef(r);
-    if (seedQ) setInput(decodeURIComponent(seedQ));
-    if (r && seedQ && autoSend && !seedBoot.current) {
-      seedBoot.current = true;
-      void sendRef.current(decodeURIComponent(seedQ), 'understand', r);
+    const sid = params.get('sid');
+    const legacyQ = params.get('q');
+    const autoSendParam = params.get('auto_send') === '1';
+
+    let refVal = params.get('ref') || '';
+    let question: string | null = null;
+    let autoSend = autoSendParam;
+
+    if (sid) {
+      const payload = consumeAssistantPrefill(sid);
+      if (payload) {
+        refVal = payload.ref || refVal;
+        question = payload.question;
+        if (payload.autoSend) autoSend = true;
+      }
     }
-  }, []);
+    if (!question && legacyQ) question = decodeURIComponent(legacyQ);
+    if (!question && refVal) question = explainVerseQuestion(refVal);
+
+    if (refVal) setRef(refVal);
+    if (question) setInput(question);
+    if (refVal && question && autoSend && !seedBoot.current) {
+      seedBoot.current = true;
+      void sendRef.current(question, 'understand', refVal);
+    }
+
+    if (sid || legacyQ || autoSendParam) {
+      router.replace('/assistant', { scroll: false });
+    }
+  }, [router]);
 
   const startNewSession = () => {
     setActiveId('current');
@@ -311,6 +352,17 @@ export default function AssistantPage() {
     setMsgs(s.msgs);
     setRef(s.ref);
     setHistoryOpen(false);
+  };
+
+  const priorFollowupContext = (uptoIdx: number) => {
+    const priorUserQuestions: string[] = [];
+    const priorFollowups: string[] = [];
+    for (let i = 0; i < uptoIdx; i += 1) {
+      const m = msgs[i];
+      if (m.role === 'user') priorUserQuestions.push(m.text);
+      if (m.role === 'assistant' && m.text) priorFollowups.push(...followupsOf(m.text));
+    }
+    return { priorUserQuestions, priorFollowups };
   };
 
   const composer = (
@@ -343,15 +395,19 @@ export default function AssistantPage() {
               {recording ? (cancelArmed ? '松开取消' : '松开发送 · 上滑取消') : '按住 说话'}
             </button>
           ) : (
-            <input
+            <textarea
               ref={inputRef}
-              className="compose-input"
+              rows={1}
+              className="compose-input compose-textarea"
               placeholder={quotaExhausted ? '今日次数已用完' : ref ? `关于 ${ref}，问小爱…` : '问小爱…'}
               value={input}
               disabled={quotaExhausted}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') send();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
               }}
             />
           )}
@@ -435,9 +491,16 @@ export default function AssistantPage() {
           {composer}
         </div>
       ) : (
-        <>
+        <div className="assistant-body">
           <div ref={scrollRef} className="assistant-thread">
-            {msgs.map((m, i) => (
+            {msgs.map((m, i) => {
+              const isLastAssistant = m.role === 'assistant' && i === lastAssistantIdx;
+              const showFollowups = isLastAssistant && m.text && !busy;
+              const followups = showFollowups
+                ? followupsForMessage(m.text, priorFollowupContext(msgs.length))
+                : [];
+              const showActions = m.role === 'assistant' && m.text && !busy;
+              return (
               <div
                 key={i}
                 className={`assistant-msg ${m.role === 'user' ? 'assistant-msg-user' : ''}`}
@@ -452,7 +515,7 @@ export default function AssistantPage() {
                     <div className="muted">…</div>
                   )
                 ) : (
-                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                  <div className="assistant-user-text">
                     {m.text || '…'}
                   </div>
                 )}
@@ -461,13 +524,13 @@ export default function AssistantPage() {
                     {m.citations.map((c) => `[${c.n}] ${c.title}`).join(' · ')}
                   </div>
                 )}
-                {m.role === 'assistant' && m.text && !busy && (
+                {showActions && (
                   <>
-                    {followupsOf(m.text).length > 0 && (
+                    {showFollowups && followups.length > 0 && (
                       <div className="followup-row">
-                        {followupsOf(m.text).map((q, qi) => (
+                        {followups.map((q) => (
                           <button
-                            key={qi}
+                            key={q}
                             type="button"
                             className="followup-chip"
                             disabled={quotaExhausted}
@@ -499,10 +562,11 @@ export default function AssistantPage() {
                   </>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
           {composer}
-        </>
+        </div>
       )}
 
       {historyOpen && (

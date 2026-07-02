@@ -1,17 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, type GeneratedPlan, type PlanSummary } from '@/lib/api';
+import { PlanScheduleSheet } from '@/components/plans/PlanScheduleSheet';
 import {
-  advancePlanDay,
   cancelActivePlan,
   getActivePlan,
+  getCompletedPlanDays,
   getPlanDay,
+  isPlanDayUnlocked,
+  markPlanDayCompleted,
   setActivePlan,
   setPlanDay,
+  tryAutoCompletePlan,
+  advancePlanDay,
   type ActivePlan,
 } from '@/lib/plan_progress';
+import { loadPlanSchedule, planCompletionPct, type PlanDayScheduleItem } from '@/lib/plan_schedule';
 import { logPrayer } from '@/lib/reading';
 import { buildPlanReadingMeta, readerHref } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
@@ -24,6 +30,20 @@ function groupPlans(plans: PlanSummary[]) {
     { label: '长期通读', items: plans.filter((p) => p.days > 30) },
   ];
   return groups.filter((g) => g.items.length > 0);
+}
+
+function toActivePlan(
+  p: { planId?: string; id?: string; title: string; type?: string; days?: number; days_count?: number },
+  source: 'featured' | 'generated',
+): ActivePlan {
+  const planId = p.planId ?? p.id ?? '';
+  return {
+    planId,
+    title: p.title,
+    kind: p.type === 'prayer' ? 'prayer' : 'reading',
+    days: p.days ?? p.days_count ?? 0,
+    source,
+  };
 }
 
 function PlanRow({
@@ -69,6 +89,10 @@ export default function PlansPage() {
   const [savedPlans, setSavedPlans] = useState<GeneratedPlan[]>([]);
   const [prayerSheet, setPrayerSheet] = useState<Awaited<ReturnType<typeof api.prayerToday>> | null>(null);
   const [toast, setToast] = useState('');
+  const [schedulePlan, setSchedulePlan] = useState<ActivePlan | null>(null);
+  const [scheduleItems, setScheduleItems] = useState<PlanDayScheduleItem[]>([]);
+  const [scheduleBusyDay, setScheduleBusyDay] = useState<number | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   const flashToast = (t: string) => {
     setToast(t);
@@ -107,9 +131,56 @@ export default function PlansPage() {
 
   const [activeProgress, setActiveProgress] = useState<string | null>(null);
   const activeDay = active ? getPlanDay(active.planId) : 0;
+  const activeCompletedDays = active ? getCompletedPlanDays(active.planId).length : 0;
+  const activePct = active ? planCompletionPct(active.planId, active.days) : 0;
+
+  const openSchedule = useCallback(async (ap: ActivePlan) => {
+    if (tryAutoCompletePlan(ap.planId, ap.days)) {
+      setActive(null);
+      flashToast('计划已全部完成 🎉');
+      return;
+    }
+    setActivePlan(ap);
+    if (getPlanDay(ap.planId) === 0) setPlanDay(ap.planId, 1);
+    setActive(ap);
+    setSchedulePlan(ap);
+    setScheduleLoading(true);
+    setScheduleItems([]);
+    try {
+      const items = await loadPlanSchedule(ap);
+      setScheduleItems(items);
+    } catch (e) {
+      flashToast(String(e));
+      setSchedulePlan(null);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const highlight = params.get('highlight');
+    if (!highlight || loading) return;
+    const fromFeatured = plans.find((p) => p.plan_id === highlight);
+    if (fromFeatured) {
+      void openSchedule(toActivePlan(
+        { planId: fromFeatured.plan_id, title: fromFeatured.title, type: fromFeatured.type, days: fromFeatured.days },
+        'featured',
+      ));
+      return;
+    }
+    const fromSaved = savedPlans.find((p) => p.id === highlight);
+    if (fromSaved) {
+      void openSchedule(toActivePlan(
+        { id: fromSaved.id, title: fromSaved.title, days_count: fromSaved.days_count },
+        'generated',
+      ));
+    }
+  }, [loading, plans, savedPlans, openSchedule]);
 
   const goReadPlan = async (plan: ActivePlan, day: number) => {
     if (plan.kind === 'prayer') {
+      setPlanDay(plan.planId, day);
       try {
         setPrayerSheet(await api.prayerToday());
       } catch (e) {
@@ -129,12 +200,28 @@ export default function PlansPage() {
     }
   };
 
+  const handleScheduleDay = async (day: number) => {
+    if (!schedulePlan) return;
+    if (!isPlanDayUnlocked(schedulePlan.planId, day) && !scheduleItems.find((d) => d.day === day)?.completed) {
+      flashToast(`请先完成第 ${day - 1} 天`);
+      return;
+    }
+    setScheduleBusyDay(day);
+    setSchedulePlan(null);
+    await goReadPlan(schedulePlan, day);
+    setScheduleBusyDay(null);
+  };
+
   useEffect(() => {
     if (!active) {
       setActiveProgress(null);
       return;
     }
     const day = getPlanDay(active.planId) || 1;
+    if (active.kind === 'prayer') {
+      setActiveProgress(null);
+      return;
+    }
     buildPlanReadingMeta(active, day)
       .then((meta) => {
         if (!meta) {
@@ -147,36 +234,6 @@ export default function PlansPage() {
       })
       .catch(() => setActiveProgress(null));
   }, [active, activeDay]);
-
-  const startPlanAndRead = async (
-    p: { planId?: string; id?: string; title: string; type?: string; days?: number; days_count?: number },
-    source: 'featured' | 'generated',
-  ) => {
-    const planId = p.planId ?? p.id ?? '';
-    const ap: ActivePlan = {
-      planId,
-      title: p.title,
-      kind: p.type === 'prayer' ? 'prayer' : 'reading',
-      days: p.days ?? p.days_count ?? 0,
-      source,
-    };
-    if (ap.kind === 'prayer') {
-      startPlan(p, source);
-      try {
-        setPrayerSheet(await api.prayerToday());
-      } catch (e) {
-        flashToast(`祷告内容加载失败：${e}`);
-      }
-      return;
-    }
-    const day = getPlanDay(planId) || 1;
-    await goReadPlan(ap, day);
-  };
-
-  const cancelPlan = () => {
-    cancelActivePlan();
-    setActive(null);
-  };
 
   const saveGenerated = () => {
     if (!preview) return;
@@ -202,17 +259,15 @@ export default function PlansPage() {
   };
 
   const startPlan = (p: { planId?: string; id?: string; title: string; type?: string; days?: number; days_count?: number }, source: 'featured' | 'generated') => {
-    const planId = p.planId ?? p.id ?? '';
-    const ap: ActivePlan = {
-      planId,
-      title: p.title,
-      kind: p.type === 'prayer' ? 'prayer' : 'reading',
-      days: p.days ?? p.days_count ?? 0,
-      source,
-    };
+    const ap = toActivePlan(p, source);
     setActivePlan(ap);
-    if (getPlanDay(planId) === 0) setPlanDay(planId, 1);
+    if (getPlanDay(ap.planId) === 0) setPlanDay(ap.planId, 1);
     setActive(ap);
+  };
+
+  const cancelPlan = () => {
+    cancelActivePlan();
+    setActive(null);
   };
 
   return (
@@ -220,7 +275,7 @@ export default function PlansPage() {
       <header className="plans-page-head">
         <Link href="/" className="icon-btn" aria-label="返回">←</Link>
         <h2 className="page-title" style={{ margin: 0, flex: 1 }}>读经计划</h2>
-        <button type="button" className="text-link" onClick={() => setShowGenerate(true)}>定制</button>
+        <button type="button" className="text-link plans-customize-btn" onClick={() => setShowGenerate(true)}>个性定制</button>
       </header>
 
       {active && (
@@ -232,19 +287,19 @@ export default function PlansPage() {
           <strong className="plan-active-title">{active.title}</strong>
           <div className="plan-active-foot">
             <span className="plan-active-meta">
-              {active.kind === 'prayer' ? '祷告' : '读经'} · 第 {activeDay}/{active.days} 天
+              {active.kind === 'prayer' ? '祷告' : '读经'} · 已完成 {activeCompletedDays}/{active.days} 天
               {activeProgress ? ` · ${activeProgress}` : ''}
             </span>
             <div className="plan-progress-bar">
-              <div className="plan-progress-fill" style={{ width: `${active.days ? Math.round((activeDay / active.days) * 100) : 0}%` }} />
+              <div className="plan-progress-fill" style={{ width: `${activePct}%` }} />
             </div>
             <button
               type="button"
               className="text-link"
               style={{ fontSize: 12, whiteSpace: 'nowrap' }}
-              onClick={() => goReadPlan(active, activeDay || 1)}
+              onClick={() => openSchedule(active)}
             >
-              {active.kind === 'prayer' ? '去祷告' : '去读 ›'}
+              日程表 ›
             </button>
             {active.kind !== 'prayer' && (
               <button
@@ -263,9 +318,6 @@ export default function PlansPage() {
                 邀请组队共读
               </button>
             )}
-            <button type="button" className="text-link" style={{ fontSize: 12, whiteSpace: 'nowrap' }} onClick={() => { advancePlanDay(active.planId, active.days); setActive({ ...active }); }}>
-              完成
-            </button>
           </div>
         </div>
       )}
@@ -300,7 +352,10 @@ export default function PlansPage() {
                 title={p.title}
                 days={p.days}
                 kind={p.type === 'prayer' ? 'prayer' : 'reading'}
-                onClick={() => startPlanAndRead({ planId: p.plan_id, title: p.title, type: p.type, days: p.days }, 'featured')}
+                onClick={() => openSchedule(toActivePlan(
+                  { planId: p.plan_id, title: p.title, type: p.type, days: p.days },
+                  'featured',
+                ))}
               />
             ))}
           </div>
@@ -320,11 +375,32 @@ export default function PlansPage() {
                 title={p.title}
                 days={p.days_count}
                 kind="reading"
-                onClick={() => startPlanAndRead({ id: p.id, title: p.title, days_count: p.days_count }, 'generated')}
+                onClick={() => openSchedule(toActivePlan(
+                  { id: p.id, title: p.title, days_count: p.days_count },
+                  'generated',
+                ))}
               />
             ))}
           </div>
         </>
+      )}
+
+      {schedulePlan && (
+        scheduleLoading ? (
+          <div className="sheet-backdrop" onClick={() => setSchedulePlan(null)}>
+            <div className="sheet card plan-schedule-sheet" onClick={(e) => e.stopPropagation()}>
+              <p className="muted" style={{ textAlign: 'center', padding: 24 }}>加载日程…</p>
+            </div>
+          </div>
+        ) : (
+          <PlanScheduleSheet
+            plan={schedulePlan}
+            items={scheduleItems}
+            busyDay={scheduleBusyDay}
+            onClose={() => setSchedulePlan(null)}
+            onStartDay={handleScheduleDay}
+          />
+        )
       )}
 
       {showGenerate && (
@@ -360,8 +436,10 @@ export default function PlansPage() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                   <button type="button" className="btn" style={{ flex: 1 }} onClick={() => {
                     saveGenerated();
+                    const ap = toActivePlan({ id: preview.id, title: preview.title, days_count: preview.days_count }, 'generated');
                     startPlan({ id: preview.id, title: preview.title, days_count: preview.days_count }, 'generated');
                     setShowGenerate(false);
+                    void openSchedule(ap);
                   }}>
                     设为当前计划
                   </button>
@@ -410,11 +488,20 @@ export default function PlansPage() {
                 logPrayer();
                 const activePrayer = getActivePlan();
                 if (activePrayer?.kind === 'prayer') {
+                  const day = getPlanDay(activePrayer.planId) || 1;
+                  markPlanDayCompleted(activePrayer.planId, day);
                   advancePlanDay(activePrayer.planId, activePrayer.days);
-                  setActive({ ...activePrayer });
+                  if (tryAutoCompletePlan(activePrayer.planId, activePrayer.days)) {
+                    setActive(null);
+                    flashToast('计划已全部完成 🎉');
+                  } else {
+                    setActive({ ...activePrayer });
+                    flashToast('已记录今日祷告');
+                  }
+                } else {
+                  flashToast('已记录今日祷告');
                 }
                 setPrayerSheet(null);
-                flashToast('已记录今日祷告');
               }}
             >
               完成今日祷告

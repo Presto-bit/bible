@@ -14,7 +14,7 @@ import {
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
 import { readerHrefFromRef } from '@/lib/group_footprint';
-import { assistantHref } from '@/lib/assistant_prefill';
+import { AssistantLink } from '@/components/AssistantLink';
 
 function reactionTotal(reactions: Record<string, string[]>): number {
   return Object.values(reactions).reduce((n, users) => n + users.length, 0);
@@ -157,10 +157,12 @@ export default function DiscoverPage() {
             受好友邀请，或自己创建一个群，和大家按计划一起读、彼此打卡。
           </p>
           <div className="discover-hero-actions">
-            <Link className="btn" href="/group/create">
+            <Link className="btn discover-hero-btn" href="/group/create">
+              <span className="discover-hero-icon" aria-hidden>👥</span>
               创建共读群
             </Link>
-            <Link className="font-pill" href="/discover/join">
+            <Link className="font-pill discover-hero-btn" href="/discover/join">
+              <span className="discover-hero-icon" aria-hidden>🔑</span>
               邀请码加入
             </Link>
           </div>
@@ -312,12 +314,13 @@ export default function DiscoverPage() {
               )}
               <div className="share-actions">
                 {s.ref && (
-                  <Link
+                  <AssistantLink
                     className="font-pill"
-                    href={assistantHref(s.ref, { excerpt: s.body || undefined })}
+                    refParam={s.ref}
+                    excerpt={s.body || undefined}
                   >
                     问小爱
-                  </Link>
+                  </AssistantLink>
                 )}
                 {refHref ? (
                   <Link className="font-pill" href={refHref}>

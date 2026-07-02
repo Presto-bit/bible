@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, type BibleSearchHit } from '@/lib/api';
 import { listNotes, type LocalNote } from '@/lib/notes';
+import { navigateToAssistant } from '@/lib/assistant_prefill';
 
 const THEME_TAGS = ['盼望', '焦虑', '祷告', '家庭', '工作', '悲伤', '信心', '宽恕'];
 const HISTORY_KEY = 'search_history';
@@ -101,8 +102,7 @@ export default function SearchPage() {
   const openAssistant = (hit: BibleSearchHit) => {
     onSubmit(query);
     const snippet = hit.text.length > 24 ? `${hit.text.slice(0, 24)}…` : hit.text;
-    const question = encodeURIComponent(`请解释：${snippet}`);
-    window.location.href = `/assistant?ref=${encodeURIComponent(hit.osis)}&q=${question}`;
+    navigateToAssistant(hit.osis, { question: `请解释：${snippet}` });
   };
 
   return (

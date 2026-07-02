@@ -22,9 +22,11 @@ export default function CreateGroupPage() {
       router.push(`/discover/group/${g.id}`);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
-      setMsg(detail.includes('未登录') || detail.includes('未认证')
-        ? '建群失败：请先完成账号引导（我的 → 设置用户名）'
-        : `建群失败：${detail}`);
+      setMsg(
+        detail.includes('未登录') || detail.includes('未认证')
+          ? `建群失败：网络或身份异常，请稍后重试（你的 ID：${typeof window !== 'undefined' ? localStorage.getItem('presto_user_id') || localStorage.getItem('presto_guest_id') : ''}）`
+          : `建群失败：${detail}`,
+      );
     } finally {
       setBusy(false);
     }

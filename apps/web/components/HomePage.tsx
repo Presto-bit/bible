@@ -7,6 +7,7 @@ import {
   type DailyVerse,
   getUserName,
 } from '@/lib/api';
+import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getPendingBookChallenge } from '@/lib/challenge_progress';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
@@ -28,6 +29,7 @@ function buildRail(
   group?: { title: string; sub: string; href: string },
   prayer?: { title: string; sub: string; href: string },
   suggest?: { title: string; sub: string; href: string },
+  assistant?: { title: string; sub: string; href: string },
 ) {
   const cards = [
     {
@@ -84,10 +86,10 @@ function buildRail(
     {
       tag: '小爱',
       reason: '基于今日经文',
-      title: '小爱想问你',
-      sub: '「这段经文里，神的应许对你意味着什么？」',
+      title: assistant?.title ?? '小爱想问你',
+      sub: assistant?.sub ?? '「这段经文里，神的应许对你意味着什么？」',
       cta: '聊聊 ›',
-      href: '/assistant',
+      href: assistant?.href ?? '/assistant',
       accent: false,
     },
   );
@@ -137,6 +139,7 @@ export default function HomePageClient() {
   const [plusOpen, setPlusOpen] = useState(false);
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [rail, setRail] = useState(() => buildRail());
+  const [featuredPlans, setFeaturedPlans] = useState<{ plan_id: string; title: string; days: number }[]>([]);
   const [userName, setUserName] = useState('');
   const [groupSummary, setGroupSummary] = useState<{
     line: string;
@@ -248,12 +251,33 @@ export default function HomePageClient() {
     }
     setGroupSummary(summaryLine);
     const suggest = nextReadingSuggestion();
+    let assistantCard: { title: string; sub: string; href: string } | undefined;
+    try {
+      const dv = await api.dailyVerse();
+      if (dv?.ref) {
+        const q = '这段经文里，神的应许对你意味着什么？';
+        assistantCard = {
+          title: '小爱想问你',
+          sub: `「${q}」`,
+          href: assistantHref(dv.ref, { question: q, autoSend: true }),
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const p = await api.plans();
+      setFeaturedPlans(p.plans.filter((x) => x.type !== 'prayer').slice(0, 9));
+    } catch {
+      setFeaturedPlans([]);
+    }
     setRail(buildRail(
       planCard,
       resumeCard,
       groupCard,
       prayerCard,
       suggest ? { title: suggest.title, sub: suggest.reason, href: suggest.href } : undefined,
+      assistantCard,
     ));
   }, []);
 
@@ -430,7 +454,24 @@ export default function HomePageClient() {
         ))}
       </div>
 
-      <a href="/profile" className="card row-card" style={{ display: 'flex' }}>
+      {featuredPlans.length > 0 && (
+        <>
+          <div className="section-row" style={{ marginTop: 18 }}>
+            <span>读经计划</span>
+            <Link href="/plans" className="text-link plans-customize-link">个性定制 ›</Link>
+          </div>
+          <div className="home-plans-grid">
+            {featuredPlans.map((p) => (
+              <Link key={p.plan_id} href={`/plans?highlight=${p.plan_id}`} className="home-plan-card card card-2">
+                <strong>{p.title}</strong>
+                <span className="muted" style={{ fontSize: 11 }}>{p.days} 天</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+
+      <a href="/profile" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
         <span>
           今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
         </span>

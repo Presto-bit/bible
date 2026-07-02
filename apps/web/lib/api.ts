@@ -1,4 +1,13 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
+import {
+  bindDeviceGuestId,
+  deviceIdToUserCode,
+  getDeviceBoundGuestId,
+  getDeviceId,
+} from './device_id';
+
+export { getDeviceId } from './device_id';
+
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn';
 
@@ -69,25 +78,33 @@ const ONBOARDED_KEY = 'account_onboarded';
 // 本地账号注册表：用户名 → { id, pwd }，用于离线唯一校验与用户名+密码登录。
 const REGISTRY_KEY = 'account_registry';
 
-// 随机 10 位数字用户ID（首位非 0）。免注册即用，作为持久身份。
-function gen10DigitId(): string {
-  let s = String(1 + Math.floor(Math.random() * 9));
-  for (let i = 0; i < 9; i += 1) s += Math.floor(Math.random() * 10);
-  return s;
-}
-
 const FIRST_SEEN_KEY = 'presto_first_seen';
 
+function ensureFirstSeen() {
+  if (!localStorage.getItem(FIRST_SEEN_KEY)) {
+    localStorage.setItem(FIRST_SEEN_KEY, String(Date.now()));
+  }
+}
+
+/** 游客 ID：绑定本设备，清缓存前保持不变；设密码后 USER_KEY 与之相同 */
 export function guestId(): string {
   if (typeof window === 'undefined') return '';
   let g = localStorage.getItem(GUEST_KEY);
-  if (!g || !/^\d{10}$/.test(g)) {
-    g = gen10DigitId();
-    localStorage.setItem(GUEST_KEY, g);
-    if (!localStorage.getItem(FIRST_SEEN_KEY)) {
-      localStorage.setItem(FIRST_SEEN_KEY, String(Date.now()));
-    }
+  if (g && /^\d{10}$/.test(g)) {
+    bindDeviceGuestId(g);
+    return g;
   }
+  const bound = getDeviceBoundGuestId();
+  if (bound) {
+    localStorage.setItem(GUEST_KEY, bound);
+    ensureFirstSeen();
+    return bound;
+  }
+  const deviceId = getDeviceId();
+  g = deviceIdToUserCode(deviceId);
+  localStorage.setItem(GUEST_KEY, g);
+  bindDeviceGuestId(g);
+  ensureFirstSeen();
   return g;
 }
 
@@ -366,6 +383,8 @@ export function authHeaders(): Record<string, string> {
   }
   const g = guestId();
   if (g) h['X-Guest-Id'] = g;
+  const device = getDeviceId();
+  if (device) h['X-Device-Id'] = device;
   return h;
 }
 
