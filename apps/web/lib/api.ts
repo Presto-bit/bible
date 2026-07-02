@@ -188,6 +188,10 @@ export async function ensureIdentityReady(): Promise<void> {
   return ensureIdentityPromise;
 }
 
+if (typeof window !== 'undefined') {
+  void ensureIdentityReady();
+}
+
 /** 首次打开静默建档，写入登录态并 merge-guest（P0/P2） */
 export async function ensureAccountReady(): Promise<void> {
   if (typeof window === 'undefined') return;

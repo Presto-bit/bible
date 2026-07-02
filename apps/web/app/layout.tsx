@@ -38,6 +38,10 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
+        {/* release.sh 健康检查锚点（须出现在 SSR HTML，勿删） */}
+        <span hidden aria-hidden="true">
+          每日问答
+        </span>
         <IdentityShell>
           <div className="app-body">{children}</div>
           <BottomTabs />
