@@ -10,7 +10,7 @@ import {
   type Group,
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
-import { clearGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
+import { clearGroupsListDirty, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
 function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' | 'task' } {
@@ -33,7 +33,7 @@ export default function DiscoverGroupsPage() {
   const reload = useCallback(async () => {
     try {
       const g = await api.myGroups();
-      setGroups(Array.isArray(g.groups) ? g.groups : []);
+      setGroups(mergePendingGroups(Array.isArray(g.groups) ? g.groups : []));
       clearGroupsListDirty();
       setErr(null);
     } catch (e) {

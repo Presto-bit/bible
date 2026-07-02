@@ -122,10 +122,6 @@ export default function XiaoAiSheet({
     }
   };
 
-  const [assistantHref, setAssistantHref] = useState(
-    () => `/assistant?ref=${encodeURIComponent(refParam)}`,
-  );
-
   const userChatPreview = useMemo(() => {
     const sel = lockedRef.current.selectionText;
     if (sel) {
@@ -135,19 +131,16 @@ export default function XiaoAiSheet({
     return `请解读：${refLabel}`;
   }, [refLabel, done, clean]);
 
-  useEffect(() => {
+  const assistantHref = useMemo(() => {
     if (!done || !clean || hasError) {
-      setAssistantHref(`/assistant?ref=${encodeURIComponent(refParam)}`);
-      return;
+      return buildAssistantHref(refParam);
     }
-    setAssistantHref(
-      buildAssistantHref(refParam, {
-        seedMessages: [
-          { role: 'user', text: userChatPreview },
-          { role: 'assistant', text: clean },
-        ],
-      }),
-    );
+    return buildAssistantHref(refParam, {
+      seedMessages: [
+        { role: 'user', text: userChatPreview },
+        { role: 'assistant', text: clean },
+      ],
+    });
   }, [refParam, userChatPreview, done, clean, hasError]);
 
   const saveNote = () => {

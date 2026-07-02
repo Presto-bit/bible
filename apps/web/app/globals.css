@@ -3449,6 +3449,70 @@ a.today-card-link {
   transition: width 0.4s ease;
 }
 
+.reader-content-turn {
+  overflow: hidden;
+  padding: 0;
+}
+
+.reader-turn-viewport {
+  height: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.reader-turn-track {
+  display: flex;
+  width: 300%;
+  height: 100%;
+  will-change: transform;
+}
+
+.reader-turn-panel {
+  flex: 0 0 33.3333%;
+  width: 33.3333%;
+  box-sizing: border-box;
+  padding: 0 2px 12px;
+}
+
+.reader-turn-panel-active {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  height: 100%;
+}
+
+.reader-turn-panel-active::-webkit-scrollbar {
+  display: none;
+}
+
+.reader-turn-panel-peek {
+  overflow: hidden;
+  opacity: 0.94;
+  pointer-events: none;
+}
+
+.reader-turn-peek {
+  padding: 0 10px 24px;
+  height: 100%;
+  overflow: hidden;
+}
+
+.reader-turn-peek-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  font-size: 13px;
+  padding: 24px;
+}
+
+.reader-turn-peek-hint {
+  text-align: center;
+  font-size: 11px;
+  margin-top: 16px;
+}
+
 .reader-content {
   max-height: calc(100dvh - 96px);
   overflow-y: auto;
@@ -4125,6 +4189,18 @@ a.today-card-link {
   flex-wrap: wrap;
   gap: 4px;
   overflow: visible;
+}
+
+.reader-focus-row-mark {
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.reader-focus-row-actions {
+  justify-content: center;
+  gap: 4px;
 }
 .reader-mark-popover {
   position: relative;
@@ -5097,6 +5173,30 @@ a.today-card-link {
   flex-direction: column;
   gap: 8px;
   padding: 0 12px 8px;
+}
+
+.group-zone-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 4px 4px;
+}
+
+.group-zone-header-feed {
+  padding: 12px 16px 6px;
+  background: var(--bg-soft, #f7f4ef);
+  border-top: 1px solid var(--line);
+}
+
+.group-zone-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.group-zone-hint {
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .group-pinned-task {

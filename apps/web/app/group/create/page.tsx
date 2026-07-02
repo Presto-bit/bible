@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, effectiveId, ensureAccountReady } from '@/lib/api';
-import { markGroupsListDirty } from '@/lib/groups_refresh';
+import { stashCreatedGroup } from '@/lib/groups_refresh';
 
 export default function CreateGroupPage() {
   const router = useRouter();
@@ -28,7 +28,12 @@ export default function CreateGroupPage() {
       if (!effectiveId()) throw new Error('身份未就绪');
       const g = await api.createGroup(n, intro.trim() || undefined);
       if (!g?.id) throw new Error('服务器未返回群 ID');
-      markGroupsListDirty();
+      stashCreatedGroup({
+        id: g.id,
+        name: g.name || n,
+        join_code: g.join_code,
+        role: g.role || 'owner',
+      });
       router.replace(`/discover/group/${encodeURIComponent(g.id)}`);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);

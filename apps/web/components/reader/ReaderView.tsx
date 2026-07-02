@@ -17,7 +17,6 @@ import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { notesForChapter } from '@/lib/notes_for_chapter';
-import { isFavorite, toggleFavorite } from '@/lib/favorites';
 import {
   getParallelVersion,
   getMainVersion,
@@ -52,6 +51,8 @@ import {
 import { outlineFor } from '@/lib/outlines';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import PlanReadingLayer from '@/components/reader/PlanReadingLayer';
+import ReaderChapterPeek from '@/components/reader/ReaderChapterPeek';
+import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
 import type { PlanReadingMeta } from '@/lib/plan_reading';
 import { readerUi } from '@/lib/reader_i18n';
 import MarkNoteBar from '@/components/reader/MarkNoteBar';
@@ -143,6 +144,8 @@ export default function ReaderView({
   const [parallelVer, setParallelVer] = useState('kjv');
   const [mainVersionId, setMainVersionId] = useState<string | null>(null);
   const [chapterAnim, setChapterAnim] = useState('');
+  const [peekPrevVerses, setPeekPrevVerses] = useState<Verse[] | null>(null);
+  const [peekNextVerses, setPeekNextVerses] = useState<Verse[] | null>(null);
   const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [selectionSpan, setSelectionSpan] = useState<{ start: number; end: number } | null>(null);
@@ -154,7 +157,6 @@ export default function ReaderView({
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
   const [summarySheet, setSummarySheet] = useState<null | { title: string; load: () => Promise<string> }>(null);
   const [chapterNotes, setChapterNotes] = useState<Map<number, LocalNote[]>>(new Map());
-  const [, setFavRev] = useState(0);
   const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
   const [writeThoughtSheet, setWriteThoughtSheet] = useState<null | {
     ref: string;
@@ -175,6 +177,7 @@ export default function ReaderView({
   const [thoughtsOn, setThoughtsOn] = useState(true);
   const [fontFamily, setFontFamilyState] = useState<ReaderFontFamily>('serif');
   const [pageTurn, setPageTurnState] = useState<PageTurnMode>('swipe');
+  const swipeTurn = pageTurn === 'swipe';
   const contentRef = useRef<HTMLDivElement>(null);
   const focusBarRef = useRef<HTMLDivElement>(null);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
@@ -619,10 +622,38 @@ export default function ReaderView({
   }, [layout, mainVersionId, book.id, chapter, parallelVer]);
 
   useEffect(() => {
+    if (!swipeTurn) return;
+    let cancelled = false;
+    const loadPeek = async (ch: number): Promise<Verse[] | null> => {
+      if (ch < 1 || ch > book.chapter_count) return null;
+      const cached = getCachedChapter(book.id, ch);
+      if (cached?.length) return cached;
+      try {
+        const data = mainVersionId
+          ? await api.chapter(book.id, ch, mainVersionId)
+          : await api.chapter(book.id, ch);
+        if (!mainVersionId) setCachedChapter(book.id, ch, data.verses);
+        return data.verses;
+      } catch {
+        return null;
+      }
+    };
+    void loadPeek(chapter - 1).then((v) => {
+      if (!cancelled) setPeekPrevVerses(v);
+    });
+    void loadPeek(chapter + 1).then((v) => {
+      if (!cancelled) setPeekNextVerses(v);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [book.id, book.chapter_count, chapter, mainVersionId, swipeTurn]);
+
+  useEffect(() => {
     setSelected([]);
     setBookDone(false);
     readStartRef.current = Date.now();
-    setChapterAnim('chapter-enter');
+    setChapterAnim(swipeTurn ? '' : 'chapter-enter');
 
     const cached = getCachedChapter(book.id, chapter);
     const hasCached = Boolean(cached?.length);
@@ -756,15 +787,36 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
+  const changeChapter = useCallback(
+    (delta: number) => {
+      readingEngagedRef.current = true;
+      enterImmersive();
+      onChapterChange(Math.min(book.chapter_count, Math.max(1, chapter + delta)));
+    },
+    [book.chapter_count, chapter, enterImmersive, onChapterChange],
+  );
+
   const navChapter = (delta: number) => {
+    if (pageTurn === 'swipe') {
+      changeChapter(delta);
+      return;
+    }
     readingEngagedRef.current = true;
     enterImmersive();
     setChapterAnim(delta > 0 ? 'chapter-exit-left' : 'chapter-exit-right');
     setTimeout(() => {
-      onChapterChange(Math.min(book.chapter_count, Math.max(1, chapter + delta)));
-      setChapterAnim('chapter-enter');
+      changeChapter(delta);
+      setChapterAnim(swipeTurn ? '' : 'chapter-enter');
     }, 180);
   };
+
+  const turn = useReaderPageTurn({
+    enabled: swipeTurn,
+    chapter,
+    chapterCount: book.chapter_count,
+    blocked: overlayOpen || hasSel,
+    onChapterChange: changeChapter,
+  });
 
   const versesInRange = (a: number, b: number) => {
     const lo = Math.min(a, b);
@@ -830,14 +882,156 @@ export default function ReaderView({
     if (!hasSel) setMarkNotePrompt(null);
   }, [hasSel]);
 
-  const saveFavorite = () => {
-    const ref = effSelectedRef || refParam;
-    const added = toggleFavorite(ref);
-    setFavRev((n) => n + 1);
-    flashToast(added ? (englishUI ? 'Saved' : '已收藏') : (englishUI ? 'Removed' : '已取消收藏'));
-  };
+  const renderChapterMain = () => (
+    <>
+      {planMeta && onPlanMetaChange && onPlanJump && (
+        <PlanReadingLayer
+          meta={planMeta}
+          bookId={book.id}
+          chapter={chapter}
+          chapterBottomTick={chapterBottomTick}
+          onMetaChange={onPlanMetaChange}
+          onJump={onPlanJump}
+          onOverlayChange={setPlanOverlayOpen}
+        />
+      )}
+      <div className="reader-chapter-head">
+        <button
+          type="button"
+          className="reader-head-link"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSummarySheet({
+              title: `${book.name} · 整卷概览`,
+              load: () => loadBookSummary(book.id, book.name),
+            });
+          }}
+        >
+          {book.name}
+        </button>
+        <span className="reader-head-sep">·</span>
+        <button
+          type="button"
+          className="reader-head-link reader-head-chapter"
+          onClick={(e) => {
+            e.stopPropagation();
+            setSummarySheet({
+              title: `${book.name} ${englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}`,
+              load: () => loadChapterSummary(book.id, book.name, chapter),
+            });
+          }}
+        >
+          {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
+        </button>
+      </div>
 
-  const favActive = isFavorite(effSelectedRef || refParam);
+      {verses.length === 0 && chapterLoading ? (
+        <p className="muted">{ui.loading}</p>
+      ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId && parallelVerses.length > 0 ? (
+        <div className="reader-parallel">
+          {paragraphs.map((para) => {
+            const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
+            const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
+            return (
+              <div key={para.startVerse} className="reader-parallel-block">
+                {firstMark && firstMark.verse === para.startVerse && (
+                  <div className="section-title">{firstMark.title}</div>
+                )}
+                <div
+                  className={`reader-parallel-row verse-paragraph verse-no-${verseNo}`}
+                  style={verseBlockStyle}
+                >
+                  <div className="reader-parallel-primary">
+                    {para.verses.map((v) => {
+                      const text = verseDisplayText(v.verse, v.text);
+                      const markInfo = underlinesOn
+                        ? markForVerse(highlightMap, book.id, chapter, v.verse)
+                        : null;
+                      const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+                      return (
+                        <span
+                          key={v.verse}
+                          id={`verse-anchor-${v.verse}`}
+                          className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                        >
+                          {verseNo !== 'hidden' && (
+                            <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                          )}
+                          {renderVerseBody(
+                            text,
+                            `p${v.verse}`,
+                            resumeFlashVerse === v.verse,
+                            markInfo ?? undefined,
+                          )}
+                          {renderNotePin(v.verse)}{' '}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <div className="reader-parallel-secondary muted">
+                    {para.verses.map((v) => {
+                      const p2 = parallelVerses.find((x) => x.verse === v.verse);
+                      return (
+                        <span key={v.verse} className="verse-inline">
+                          {verseNo !== 'hidden' && (
+                            <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                          )}
+                          {p2?.text ?? '—'}{' '}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+                {renderThoughtLine(para)}
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        paragraphs.map((para) => {
+          const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
+          const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
+          return (
+            <div key={para.startVerse}>
+              {firstMark && firstMark.verse === para.startVerse && (
+                <div className="section-title">{firstMark.title}</div>
+              )}
+              <div
+                className={`verse-paragraph verse-no-${verseNo}`}
+                style={verseBlockStyle}
+              >
+                {para.verses.map((v) => {
+                  const markInfo = underlinesOn
+                    ? markForVerse(highlightMap, book.id, chapter, v.verse)
+                    : null;
+                  const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+                  return (
+                    <span
+                      key={v.verse}
+                      id={`verse-anchor-${v.verse}`}
+                      className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                    >
+                      {verseNo !== 'hidden' && (
+                        <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                      )}
+                      {renderVerseBody(
+                        verseDisplayText(v.verse, v.text),
+                        `v${v.verse}`,
+                        resumeFlashVerse === v.verse,
+                        markInfo ?? undefined,
+                      )}
+                      {renderNotePin(v.verse)}{' '}
+                    </span>
+                  );
+                })}
+              </div>
+              {renderThoughtLine(para)}
+            </div>
+          );
+        })
+      )}
+    </>
+  );
 
   return (
     <main
@@ -893,172 +1087,58 @@ export default function ReaderView({
       )}
 
       <div
-        ref={contentRef}
-        className={`reader-content ${chapterAnim}`}
+        className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}`}
         style={{
           marginTop: chromeHidden ? 0 : 12,
           maxHeight: chromeHidden ? 'calc(100dvh - 28px)' : 'calc(100dvh - 88px)',
         }}
         onContextMenu={(e) => e.preventDefault()}
-        onTouchStart={pageTurn === 'swipe' ? (e) => {
-          (contentRef.current as HTMLDivElement & { _tx?: number })._tx = e.touches[0].clientX;
-        } : undefined}
-        onTouchEnd={pageTurn === 'swipe' ? (e) => {
-          const sel = window.getSelection();
-          if (sel && !sel.isCollapsed) return;
-          const tx = (contentRef.current as HTMLDivElement & { _tx?: number })._tx;
-          if (tx == null) return;
-          const dx = e.changedTouches[0].clientX - tx;
-          if (Math.abs(dx) < 60) return;
-          if (dx < -60) navChapter(1);
-          else if (dx > 60) navChapter(-1);
-        } : undefined}
       >
-        {planMeta && onPlanMetaChange && onPlanJump && (
-          <PlanReadingLayer
-            meta={planMeta}
-            bookId={book.id}
-            chapter={chapter}
-            chapterBottomTick={chapterBottomTick}
-            onMetaChange={onPlanMetaChange}
-            onJump={onPlanJump}
-            onOverlayChange={setPlanOverlayOpen}
-          />
-        )}
-        <div className="reader-chapter-head">
-          <button
-            type="button"
-            className="reader-head-link"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSummarySheet({
-                title: `${book.name} · 整卷概览`,
-                load: () => loadBookSummary(book.id, book.name),
-              });
-            }}
+        {swipeTurn ? (
+          <div
+            className="reader-turn-viewport"
+            ref={turn.viewportRef}
+            onTouchStart={turn.onTouchStart}
+            onTouchMove={turn.onTouchMove}
+            onTouchEnd={turn.onTouchEnd}
+            onTouchCancel={turn.onTouchCancel}
           >
-            {book.name}
-          </button>
-          <span className="reader-head-sep">·</span>
-          <button
-            type="button"
-            className="reader-head-link reader-head-chapter"
-            onClick={(e) => {
-              e.stopPropagation();
-              setSummarySheet({
-                title: `${book.name} ${englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}`,
-                load: () => loadChapterSummary(book.id, book.name, chapter),
-              });
-            }}
-          >
-            {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
-          </button>
-        </div>
-
-        {verses.length === 0 && chapterLoading ? (
-          <p className="muted">{ui.loading}</p>
-        ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId && parallelVerses.length > 0 ? (
-          <div className="reader-parallel">
-            {paragraphs.map((para) => {
-              const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
-              const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
-              return (
-                <div key={para.startVerse} className="reader-parallel-block">
-                  {firstMark && firstMark.verse === para.startVerse && (
-                    <div className="section-title">{firstMark.title}</div>
-                  )}
-                  <div
-                    className={`reader-parallel-row verse-paragraph verse-no-${verseNo}`}
-                    style={verseBlockStyle}
-                  >
-                    <div className="reader-parallel-primary">
-                      {para.verses.map((v) => {
-                        const text = verseDisplayText(v.verse, v.text);
-                        const markInfo = underlinesOn
-                          ? markForVerse(highlightMap, book.id, chapter, v.verse)
-                          : null;
-                        const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                        return (
-                          <span
-                            key={v.verse}
-                            id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
-                          >
-                            {verseNo !== 'hidden' && (
-                              <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                            )}
-                            {renderVerseBody(
-                              text,
-                              `p${v.verse}`,
-                              resumeFlashVerse === v.verse,
-                              markInfo ?? undefined,
-                            )}
-                            {renderNotePin(v.verse)}{' '}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    <div className="reader-parallel-secondary muted">
-                      {para.verses.map((v) => {
-                        const p2 = parallelVerses.find((x) => x.verse === v.verse);
-                        return (
-                          <span key={v.verse} className="verse-inline">
-                            {verseNo !== 'hidden' && (
-                              <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                            )}
-                            {p2?.text ?? '—'}{' '}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                  {renderThoughtLine(para)}
-                </div>
-              );
-            })}
+            <div className="reader-turn-track" style={turn.trackStyle}>
+              <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                <ReaderChapterPeek
+                  bookId={book.id}
+                  bookName={book.name}
+                  bookAbbr={bookAbbr}
+                  chapter={chapter - 1}
+                  verses={peekPrevVerses}
+                  englishUI={englishUI}
+                  fontPx={fontPx}
+                  fontFamilyCss={fontFamilyCss(fontFamily)}
+                  verseNo={verseNo}
+                />
+              </div>
+              <div ref={contentRef} className="reader-turn-panel reader-turn-panel-active">
+                {renderChapterMain()}
+              </div>
+              <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                <ReaderChapterPeek
+                  bookId={book.id}
+                  bookName={book.name}
+                  bookAbbr={bookAbbr}
+                  chapter={chapter + 1}
+                  verses={peekNextVerses}
+                  englishUI={englishUI}
+                  fontPx={fontPx}
+                  fontFamilyCss={fontFamilyCss(fontFamily)}
+                  verseNo={verseNo}
+                />
+              </div>
+            </div>
           </div>
         ) : (
-          paragraphs.map((para) => {
-            const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
-            const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
-            return (
-              <div key={para.startVerse}>
-                {firstMark && firstMark.verse === para.startVerse && (
-                  <div className="section-title">{firstMark.title}</div>
-                )}
-                <div
-                  className={`verse-paragraph verse-no-${verseNo}`}
-                  style={verseBlockStyle}
-                >
-                  {para.verses.map((v) => {
-                    const markInfo = underlinesOn
-                      ? markForVerse(highlightMap, book.id, chapter, v.verse)
-                      : null;
-                    const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                    return (
-                    <span
-                      key={v.verse}
-                      id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
-                    >
-                      {verseNo !== 'hidden' && (
-                        <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                      )}
-                      {renderVerseBody(
-                        verseDisplayText(v.verse, v.text),
-                        `v${v.verse}`,
-                        resumeFlashVerse === v.verse,
-                        markInfo ?? undefined,
-                      )}
-                      {renderNotePin(v.verse)}{' '}
-                    </span>
-                    );
-                  })}
-                </div>
-                {renderThoughtLine(para)}
-              </div>
-            );
-          })
+          <div ref={contentRef}>
+            {renderChapterMain()}
+          </div>
         )}
       </div>
 
@@ -1091,25 +1171,24 @@ export default function ReaderView({
           style={focusBarStyle}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="reader-focus-row">
-            <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
-            {underlinesOn && (
-              <>
-                {MARK_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
-                    title={MARK_COLOR_SEMANTICS[c].label}
-                    aria-label={MARK_COLOR_SEMANTICS[c].label}
-                    onClick={() => applyMarkChoice(c)}
-                  />
-                ))}
-                {currentMark && (
-                  <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
-                )}
-              </>
-            )}
+          {underlinesOn && (
+            <div className="reader-focus-row reader-focus-row-mark">
+              {MARK_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
+                  title={MARK_COLOR_SEMANTICS[c].label}
+                  aria-label={MARK_COLOR_SEMANTICS[c].label}
+                  onClick={() => applyMarkChoice(c)}
+                />
+              ))}
+              {currentMark && (
+                <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
+              )}
+            </div>
+          )}
+          <div className="reader-focus-row reader-focus-row-actions">
             <button
               type="button"
               className="vsb-item"
@@ -1129,10 +1208,8 @@ export default function ReaderView({
                 clearSelection();
               }}>写想法</button>
             )}
-            <button type="button" className={`vsb-item ${favActive ? 'vsb-item-active' : ''}`} onClick={saveFavorite}>
-              {englishUI ? 'Save' : '书签'}
-            </button>
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
+            <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
           </div>
         </div>
       )}

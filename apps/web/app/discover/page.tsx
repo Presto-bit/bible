@@ -14,7 +14,7 @@ import {
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
 import { readerHrefFromRef } from '@/lib/group_footprint';
-import { clearGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
+import { clearGroupsListDirty, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { AssistantLink } from '@/components/AssistantLink';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
@@ -69,7 +69,7 @@ export default function DiscoverPage() {
         api.discoverSummary(),
         api.friendsActivity(),
       ]);
-      setGroups(Array.isArray(g.groups) ? g.groups : []);
+      setGroups(mergePendingGroups(Array.isArray(g.groups) ? g.groups : []));
       setFriends(Array.isArray(f.friends) ? f.friends : []);
       setSummary(s);
       setShares(Array.isArray(activity.items) ? activity.items : []);

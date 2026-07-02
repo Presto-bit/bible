@@ -483,6 +483,10 @@ function GroupPageInner() {
 
       {!showSettings && (
         <div className="group-page-sections">
+          <div className="group-zone-header">
+            <span className="group-zone-label">今日与任务</span>
+            <span className="group-zone-hint muted">打卡进度、置顶任务与一键打卡</span>
+          </div>
           <GroupTodayActionZone
             detail={safeDetail}
             gid={gid}
@@ -493,6 +497,10 @@ function GroupPageInner() {
             onOpenComposer={() => setComposerOpen(true)}
           />
 
+          <div className="group-zone-header">
+            <span className="group-zone-label">群概况</span>
+            <span className="group-zone-hint muted">成员、计划与本周统计</span>
+          </div>
           <GroupCollapsibleMeta
             detail={safeDetail}
             isOwner={isOwner}
@@ -530,6 +538,10 @@ function GroupPageInner() {
         </div>
       )}
 
+      <div className="group-zone-header group-zone-header-feed">
+        <span className="group-zone-label">打卡动态</span>
+        <span className="group-zone-hint muted">成员打卡与任务完成记录 · 点右下「+ 打卡」发感想</span>
+      </div>
       <div className="group-feed-wrap" ref={feedWrapRef}>
         <GroupChatFeed
           gid={gid}

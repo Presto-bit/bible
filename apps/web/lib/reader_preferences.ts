@@ -19,7 +19,7 @@ export const FONT_FAMILIES: { id: ReaderFontFamily; label: string; css: string }
 ];
 
 export const PAGE_TURN_MODES: { id: PageTurnMode; label: string }[] = [
-  { id: 'swipe', label: '左右滑动' },
+  { id: 'swipe', label: '跟手翻页' },
   { id: 'scroll', label: '上下滚动' },
 ];
 

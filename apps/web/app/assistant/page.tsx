@@ -9,18 +9,9 @@ import { createNote } from '@/lib/notes';
 import { followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
+import { staticAssistantChips } from '@/lib/assistant_chip_prompts';
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
-
-// 输入框上方的可右滑 chip 行（意图 + 场景 + 译本/原文）。
-const STATIC_CHIPS: { label: string; mode: string; q: string }[] = [
-  { label: '解释经文', mode: 'explain', q: '请解释这段经文' },
-  { label: '应用', mode: 'apply', q: '请把这段经文应用到生活' },
-  { label: '预备查经', mode: 'understand', q: '请帮我预备查经' },
-  { label: '译本对照', mode: 'compare', q: '请对照不同译本解释这节' },
-  { label: '原文释义', mode: 'original', q: '请从原文角度解释这节' },
-  { label: '讲道大纲', mode: 'preach', q: '请为这段经文生成讲道大纲要点' },
-];
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -78,8 +69,8 @@ export default function AssistantPage() {
     [ref],
   );
   const composerChips = useMemo(
-    () => [...personalized.slice(0, 2), ...STATIC_CHIPS],
-    [personalized],
+    () => [...personalized.slice(0, 2), ...staticAssistantChips(ref || undefined)],
+    [personalized, ref],
   );
 
   const lastAssistantIdx = useMemo(() => {
@@ -305,6 +296,7 @@ export default function AssistantPage() {
     let refVal = params.get('ref') || '';
     let question: string | null = null;
     let autoSend = autoSendParam;
+    let skipInputPrefill = false;
 
     if (sid) {
       const payload = consumeAssistantPrefill(sid);
@@ -312,17 +304,19 @@ export default function AssistantPage() {
         refVal = payload.ref || refVal;
         if (payload.seedMessages?.length) {
           setMsgs(payload.seedMessages.map((m) => ({ role: m.role, text: m.text })));
+          skipInputPrefill = true;
         } else {
           question = payload.question;
         }
         if (payload.autoSend) autoSend = true;
       }
     }
-    if (!question && legacyQ) question = decodeURIComponent(legacyQ);
-    if (!question && refVal) question = explainVerseQuestion(refVal);
-
+    if (!skipInputPrefill) {
+      if (!question && legacyQ) question = decodeURIComponent(legacyQ);
+      if (!question && refVal) question = explainVerseQuestion(refVal);
+      if (question) setInput(question);
+    }
     if (refVal) setRef(refVal);
-    if (question) setInput(question);
     if (refVal && question && autoSend && !seedBoot.current) {
       seedBoot.current = true;
       void sendRef.current(question, 'understand', refVal);
