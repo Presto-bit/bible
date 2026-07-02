@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api, type GroupMember } from '@/lib/api';
+import { displayMemberName, memberAvatarInitial } from '@/lib/group_ui';
+import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 
 type Props = {
   gid: string;
@@ -41,14 +43,14 @@ export function GroupMembersPanel({
   };
 
   const removeMember = (m: GroupMember) => {
-    if (!window.confirm(`确定将「${m.name || '成员'}」移出群？`)) return;
+    if (!window.confirm(`确定将「${displayMemberName(m)}」移出群？`)) return;
     void run(`rm-${m.user_id}`, async () => {
       await api.removeGroupMember(gid, m.user_id!);
     });
   };
 
   const transferTo = (m: GroupMember) => {
-    if (!window.confirm(`确定将群主转让给「${m.name || '成员'}」？转让后你将成为普通成员。`)) return;
+    if (!window.confirm(`确定将群主转让给「${displayMemberName(m)}」？转让后你将成为普通成员。`)) return;
     void run(`xfer-${m.user_id}`, async () => {
       await api.transferGroup(gid, m.user_id!);
     });
@@ -58,24 +60,28 @@ export function GroupMembersPanel({
     if (!window.confirm('确定退出此共读群？')) return;
     void run('leave', async () => {
       await api.removeGroupMember(gid, me!.user_id!);
+      dismissPendingGroup(gid);
+      markGroupsListDirty();
       router.push('/discover');
     });
   };
 
   return (
-    <div className="group-members-panel card card-2">
-      <div className="section-row" style={{ marginBottom: 8 }}>
-        <strong>成员 · {members.length}</strong>
-        {joinCode && isOwner && (
-          <span className="muted" style={{ fontSize: 12 }}>邀请码 {joinCode}</span>
-        )}
-      </div>
+    <div className="group-members-panel">
+      {joinCode && isOwner && (
+        <p className="muted group-members-invite" style={{ fontSize: 12, margin: '0 0 10px' }}>
+          邀请码 <strong>{joinCode}</strong>
+        </p>
+      )}
 
       {members.map((m) => (
-        <div key={m.user_id} className="group-member-row">
+        <div key={m.user_id || displayMemberName(m)} className="group-member-row group-member-row-avatar">
+          <div className={`group-member-avatar-inline${m.checked_in_today ? ' checked' : ''}${m.is_me ? ' me' : ''}`}>
+            <span>{memberAvatarInitial(m)}</span>
+          </div>
           <div className="group-member-info">
-            <span>{m.name || '成员'}{m.is_me ? '（我）' : ''}</span>
-            <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>
+            <span className="group-member-name">{displayMemberName(m)}</span>
+            <span className="muted group-member-sub">
               {m.checked_in_today ? '今日已打卡 ✓' : '今日未打卡'}
               {planDaysTotal && planDaysTotal > 0 && (m.plan_day ?? 0) > 0
                 ? ` · 第 ${m.plan_day}/${planDaysTotal} 天`
@@ -94,7 +100,7 @@ export function GroupMembersPanel({
                   disabled={busy !== null}
                   onClick={() => transferTo(m)}
                 >
-                  {busy === `xfer-${m.user_id}` ? '…' : '转让群主'}
+                  {busy === `xfer-${m.user_id}` ? '…' : '转让'}
                 </button>
                 <button
                   type="button"

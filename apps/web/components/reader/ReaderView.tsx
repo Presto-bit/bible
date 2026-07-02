@@ -15,6 +15,11 @@ import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
 import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
+import {
+  chapterCacheVersion,
+  loadChapterVerses,
+  prefetchAdjacentChapters,
+} from '@/lib/chapter_prefetch';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { notesForChapter } from '@/lib/notes_for_chapter';
 import {
@@ -624,26 +629,23 @@ export default function ReaderView({
   useEffect(() => {
     if (!swipeTurn) return;
     let cancelled = false;
-    const loadPeek = async (ch: number): Promise<Verse[] | null> => {
-      if (ch < 1 || ch > book.chapter_count) return null;
-      const cached = getCachedChapter(book.id, ch);
-      if (cached?.length) return cached;
-      try {
-        const data = mainVersionId
-          ? await api.chapter(book.id, ch, mainVersionId)
-          : await api.chapter(book.id, ch);
-        if (!mainVersionId) setCachedChapter(book.id, ch, data.verses);
-        return data.verses;
-      } catch {
-        return null;
+    const hydratePeek = async (ch: number, setter: (v: Verse[] | null) => void) => {
+      if (ch < 1 || ch > book.chapter_count) {
+        setter(null);
+        return;
       }
+      const version = chapterCacheVersion(mainVersionId);
+      const cached = getCachedChapter(book.id, ch, version);
+      if (cached?.length) {
+        setter(cached);
+        return;
+      }
+      const verses = await loadChapterVerses(book.id, ch, mainVersionId);
+      if (!cancelled) setter(verses);
     };
-    void loadPeek(chapter - 1).then((v) => {
-      if (!cancelled) setPeekPrevVerses(v);
-    });
-    void loadPeek(chapter + 1).then((v) => {
-      if (!cancelled) setPeekNextVerses(v);
-    });
+    void hydratePeek(chapter - 1, setPeekPrevVerses);
+    void hydratePeek(chapter + 1, setPeekNextVerses);
+    prefetchAdjacentChapters(book.id, chapter, book.chapter_count, mainVersionId, 2);
     return () => {
       cancelled = true;
     };
@@ -655,14 +657,22 @@ export default function ReaderView({
     readStartRef.current = Date.now();
     setChapterAnim(swipeTurn ? '' : 'chapter-enter');
 
-    const cached = getCachedChapter(book.id, chapter);
+    const version = chapterCacheVersion(mainVersionId);
+    const cached = getCachedChapter(book.id, chapter, version);
     const hasCached = Boolean(cached?.length);
     if (hasCached && cached) {
       setLayoutVerses(cached);
-      if (!mainVersionId) setVerses(cached);
+      setVerses(cached);
       setChapterLoading(false);
+    } else if (swipeTurn) {
+      // 跟手翻页：保留当前正文，后台刷新，避免出现空白停顿
+      setChapterLoading(true);
     } else {
       setChapterLoading(true);
+    }
+
+    if (swipeTurn) {
+      prefetchAdjacentChapters(book.id, chapter, book.chapter_count, mainVersionId, 2);
     }
 
     let cancelled = false;
@@ -677,7 +687,7 @@ export default function ReaderView({
           setVerses(alt.verses);
         } else {
           setVerses(chinese.verses);
-          setCachedChapter(book.id, chapter, chinese.verses);
+          setCachedChapter(book.id, chapter, chinese.verses, version);
         }
         logChapterRead();
         logChapterDetail(book.id, chapter);
@@ -725,7 +735,7 @@ export default function ReaderView({
     return () => {
       cancelled = true;
     };
-  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome, flashRef]);
+  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome, flashRef, swipeTurn]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -789,11 +799,36 @@ export default function ReaderView({
 
   const changeChapter = useCallback(
     (delta: number) => {
+      const nextCh = Math.min(book.chapter_count, Math.max(1, chapter + delta));
+      const version = chapterCacheVersion(mainVersionId);
+      const peek = delta > 0 ? peekNextVerses : delta < 0 ? peekPrevVerses : null;
+      const cached = getCachedChapter(book.id, nextCh, version);
+      const instant = peek?.length ? peek : cached;
+      if (instant?.length) {
+        setLayoutVerses(instant);
+        setVerses(instant);
+        setChapterLoading(false);
+        if (!cached?.length) {
+          setCachedChapter(book.id, nextCh, instant, version);
+        }
+      } else if (swipeTurn) {
+        setChapterLoading(true);
+      }
       readingEngagedRef.current = true;
       enterImmersive();
-      onChapterChange(Math.min(book.chapter_count, Math.max(1, chapter + delta)));
+      onChapterChange(nextCh);
     },
-    [book.chapter_count, chapter, enterImmersive, onChapterChange],
+    [
+      book.id,
+      book.chapter_count,
+      chapter,
+      peekNextVerses,
+      peekPrevVerses,
+      mainVersionId,
+      swipeTurn,
+      enterImmersive,
+      onChapterChange,
+    ],
   );
 
   const navChapter = (delta: number) => {
@@ -1171,24 +1206,25 @@ export default function ReaderView({
           style={focusBarStyle}
           onClick={(e) => e.stopPropagation()}
         >
-          {underlinesOn && (
-            <div className="reader-focus-row reader-focus-row-mark">
-              {MARK_COLORS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
-                  title={MARK_COLOR_SEMANTICS[c].label}
-                  aria-label={MARK_COLOR_SEMANTICS[c].label}
-                  onClick={() => applyMarkChoice(c)}
-                />
-              ))}
-              {currentMark && (
-                <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
-              )}
-            </div>
-          )}
-          <div className="reader-focus-row reader-focus-row-actions">
+          <div className="reader-focus-row reader-focus-row-single">
+            {underlinesOn && (
+              <>
+                {MARK_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
+                    title={MARK_COLOR_SEMANTICS[c].label}
+                    aria-label={MARK_COLOR_SEMANTICS[c].label}
+                    onClick={() => applyMarkChoice(c)}
+                  />
+                ))}
+                {currentMark && (
+                  <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
+                )}
+                <span className="reader-focus-divider" aria-hidden />
+              </>
+            )}
             <button
               type="button"
               className="vsb-item"

@@ -2,63 +2,90 @@ import { useEffect } from 'react';
 import type { Group } from './api';
 
 const DIRTY_KEY = 'presto_groups_dirty';
-const PENDING_GROUP_KEY = 'presto_pending_group';
-const PENDING_TTL_MS = 10 * 60 * 1000;
+const PENDING_GROUPS_KEY = 'presto_pending_groups';
 
 export type PendingGroup = Pick<Group, 'id' | 'name' | 'join_code' | 'role'>;
+
+type PendingRow = PendingGroup & { ts: number };
+
+function readPendingRows(): PendingRow[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(PENDING_GROUPS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((row) => row?.id);
+  } catch {
+    return [];
+  }
+}
+
+function writePendingRows(rows: PendingRow[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(PENDING_GROUPS_KEY, JSON.stringify(rows));
+}
 
 /** 群列表有变更（建群/加群/解散），返回发现页时需重新拉取。 */
 export function markGroupsListDirty() {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(DIRTY_KEY, '1');
+  localStorage.setItem(DIRTY_KEY, '1');
   window.dispatchEvent(new Event('groups:list-dirty'));
 }
 
 export function clearGroupsListDirty() {
   if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(DIRTY_KEY);
+  localStorage.removeItem(DIRTY_KEY);
 }
 
-/** 建群/加群后立即写入，API 尚未同步时列表可乐观展示。 */
+/** 建群/加群后立即写入 localStorage；不设过期，也不自动清除，仅用户手动移除。 */
 export function stashCreatedGroup(g: PendingGroup) {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(PENDING_GROUP_KEY, JSON.stringify({ ...g, ts: Date.now() }));
+  const rows = readPendingRows().filter((row) => row.id !== g.id);
+  rows.unshift({ ...g, ts: Date.now() });
+  writePendingRows(rows);
   markGroupsListDirty();
+}
+
+/** 用户从列表移除乐观缓存的群（如建群失败后的残留条目）。 */
+export function dismissPendingGroup(id: string) {
+  if (typeof window === 'undefined') return;
+  const rows = readPendingRows().filter((row) => row.id !== id);
+  writePendingRows(rows);
+  markGroupsListDirty();
+}
+
+/** 尚未被 API 确认的乐观群 id，用于列表展示「移除」入口。 */
+export function getPendingOnlyIds(confirmedIds: string[]): string[] {
+  const confirmed = new Set(confirmedIds);
+  return readPendingRows().filter((row) => !confirmed.has(row.id)).map((row) => row.id);
 }
 
 export function mergePendingGroups(groups: Group[]): Group[] {
   if (typeof window === 'undefined') return groups;
-  const raw = sessionStorage.getItem(PENDING_GROUP_KEY);
-  if (!raw) return groups;
-  try {
-    const pending = JSON.parse(raw) as PendingGroup & { ts?: number };
-    if (pending.ts && Date.now() - pending.ts > PENDING_TTL_MS) {
-      sessionStorage.removeItem(PENDING_GROUP_KEY);
-      return groups;
-    }
-    if (groups.some((item) => item.id === pending.id)) {
-      sessionStorage.removeItem(PENDING_GROUP_KEY);
-      return groups;
-    }
-    const optimistic: Group = {
-      id: pending.id,
-      name: pending.name,
-      join_code: pending.join_code,
-      role: pending.role || 'owner',
+  const pending = readPendingRows();
+  if (!pending.length) return groups;
+
+  const merged = [...groups];
+  for (const row of pending) {
+    if (merged.some((item) => item.id === row.id)) continue;
+    merged.unshift({
+      id: row.id,
+      name: row.name,
+      join_code: row.join_code,
+      role: row.role || 'owner',
       members: 1,
       checked_in_today: 0,
       my_checked_in_today: false,
       open_tasks: 0,
-    };
-    return [optimistic, ...groups];
-  } catch {
-    return groups;
+    });
   }
+
+  return merged;
 }
 
 function isGroupsListDirty(): boolean {
   if (typeof window === 'undefined') return false;
-  return sessionStorage.getItem(DIRTY_KEY) === '1';
+  return localStorage.getItem(DIRTY_KEY) === '1';
 }
 
 /** 路由重新进入、页面恢复或列表脏标记时刷新群列表。 */
@@ -71,9 +98,7 @@ export function useGroupsListRefresh(reload: () => void, enabled = true) {
     const onVis = () => {
       if (document.visibilityState === 'visible' && isGroupsListDirty()) run();
     };
-    const onPageShow = (e: PageTransitionEvent) => {
-      if (e.persisted || isGroupsListDirty()) run();
-    };
+    const onPageShow = () => run();
     const onFocus = () => {
       if (isGroupsListDirty()) run();
     };

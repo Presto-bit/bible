@@ -4191,6 +4191,87 @@ a.today-card-link {
   overflow: visible;
 }
 
+.reader-focus-row-single {
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.reader-focus-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--line);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.plan-day-complete-solid {
+  background: var(--bg, #fff);
+  opacity: 1;
+}
+
+.plan-day-complete-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.plan-reflection-backdrop {
+  z-index: 60;
+}
+
+.plan-reflection-sheet {
+  background: var(--bg, #fff);
+}
+
+.group-custom-plan-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  background: var(--surface, #f5f2ec);
+}
+
+.group-member-row-avatar {
+  align-items: center;
+}
+
+.group-member-avatar-inline {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.group-member-avatar-inline.checked {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.group-member-avatar-inline.me {
+  background: var(--accent);
+  color: #fff;
+}
+
+.group-member-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.group-member-sub {
+  display: block;
+  font-size: 11px;
+  margin-top: 2px;
+}
+
 .reader-focus-row-mark {
   justify-content: center;
   align-items: center;

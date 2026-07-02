@@ -1,6 +1,8 @@
 'use client';
 
-import type { GroupDetail, PlanSummary } from '@/lib/api';
+import { useState } from 'react';
+import { api, type GeneratedPlan, type GroupDetail, type PlanSummary } from '@/lib/api';
+import { saveGeneratedPlan } from '@/lib/generated_plans';
 import { GroupMembersPanel } from './GroupMembersPanel';
 
 type Props = {
@@ -11,6 +13,8 @@ type Props = {
   members: GroupDetail['members'];
   tasks: GroupDetail['tasks'];
   plans: PlanSummary[];
+  generatedPlans: GeneratedPlan[];
+  planScopes: { id: string; label: string }[];
   busy?: boolean;
   nameDraft: string;
   planDraft: string;
@@ -19,6 +23,7 @@ type Props = {
   onNameChange: (v: string) => void;
   onPlanChange: (v: string) => void;
   onAnnounceChange: (v: string) => void;
+  onGeneratedPlansChange: (plans: GeneratedPlan[]) => void;
   onSaveSettings: () => void;
   onPinTask: (taskId: string) => void;
   onToggleMute: () => void;
@@ -34,6 +39,8 @@ export function GroupSettingsSheet({
   members = [],
   tasks = [],
   plans,
+  generatedPlans,
+  planScopes,
   busy,
   nameDraft,
   planDraft,
@@ -42,13 +49,50 @@ export function GroupSettingsSheet({
   onNameChange,
   onPlanChange,
   onAnnounceChange,
+  onGeneratedPlansChange,
   onSaveSettings,
   onPinTask,
   onToggleMute,
   onDissolve,
   onMembersChanged,
 }: Props) {
+  const [customScope, setCustomScope] = useState<string | null>(null);
+  const [customDays, setCustomDays] = useState(30);
+  const [customRefs, setCustomRefs] = useState('');
+  const [customTheme, setCustomTheme] = useState('');
+  const [genBusy, setGenBusy] = useState(false);
+  const [genErr, setGenErr] = useState<string | null>(null);
+
   if (!open) return null;
+
+  const allPlanOptions = [
+    ...plans.map((p) => ({ id: p.plan_id, title: p.title, tag: '精选' })),
+    ...generatedPlans.map((p) => ({ id: p.id, title: p.title, tag: '定制' })),
+  ];
+
+  const generateCustomPlan = async () => {
+    if (!customScope && !customRefs.trim()) {
+      setGenErr('请选择范围或填写经节');
+      return;
+    }
+    setGenBusy(true);
+    setGenErr(null);
+    try {
+      const preview = await api.generatePlan(
+        customScope,
+        customDays,
+        customTheme.trim() || undefined,
+        customRefs.trim() || undefined,
+      );
+      const next = saveGeneratedPlan(preview);
+      onGeneratedPlansChange(next);
+      onPlanChange(preview.id);
+    } catch (e) {
+      setGenErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setGenBusy(false);
+    }
+  };
 
   return (
     <div className="sheet-backdrop group-settings-backdrop" onClick={onClose}>
@@ -95,6 +139,7 @@ export function GroupSettingsSheet({
               className="search-input"
               value={nameDraft}
               onChange={(e) => onNameChange(e.target.value)}
+              placeholder="修改群名称"
             />
             <label className="group-composer-label" htmlFor="gs-plan" style={{ marginTop: 10 }}>
               绑定读经计划
@@ -106,12 +151,67 @@ export function GroupSettingsSheet({
               onChange={(e) => onPlanChange(e.target.value)}
             >
               <option value="">不绑定计划</option>
-              {plans.map((p) => (
-                <option key={p.plan_id} value={p.plan_id}>
-                  {p.title}
+              {allPlanOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  [{p.tag}] {p.title}
                 </option>
               ))}
             </select>
+
+            <div className="group-custom-plan-box">
+              <span className="group-composer-label">定制共读计划</span>
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
+                选择读经范围与天数，生成后绑定到本群。
+              </p>
+              <div className="chip-swipe group-chip-swipe" style={{ marginBottom: 8 }}>
+                {planScopes.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className={`group-chip chip-swipe-item${customScope === s.id ? ' selected' : ''}`}
+                    onClick={() => setCustomScope(customScope === s.id ? null : s.id)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="search-input"
+                placeholder="或填写经节，如 JHN.1-JHN.3"
+                value={customRefs}
+                onChange={(e) => setCustomRefs(e.target.value)}
+              />
+              <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                天数：{customDays} 天
+              </p>
+              <input
+                type="range"
+                min={7}
+                max={90}
+                step={1}
+                value={customDays}
+                onChange={(e) => setCustomDays(Number(e.target.value))}
+                style={{ width: '100%' }}
+              />
+              <input
+                className="search-input"
+                style={{ marginTop: 8 }}
+                placeholder="主题（可选）"
+                value={customTheme}
+                onChange={(e) => setCustomTheme(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn"
+                style={{ width: '100%', marginTop: 10 }}
+                disabled={genBusy || busy}
+                onClick={() => void generateCustomPlan()}
+              >
+                {genBusy ? '生成中…' : '生成并选用定制计划'}
+              </button>
+              {genErr && <p className="group-composer-err">{genErr}</p>}
+            </div>
+
             <label className="group-composer-label" htmlFor="gs-announce" style={{ marginTop: 10 }}>
               群公告
             </label>

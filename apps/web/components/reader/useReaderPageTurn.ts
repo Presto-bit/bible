@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, type CSSProperties, type TouchEvent } fr
 
 const THRESHOLD = 0.25;
 const EDGE_RESIST = 0.28;
-const ANIM_MS = 280;
+const ANIM_MS = 220;
 
 export function useReaderPageTurn({
   enabled,

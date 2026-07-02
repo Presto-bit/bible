@@ -14,7 +14,7 @@ import {
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
 import { readerHrefFromRef } from '@/lib/group_footprint';
-import { clearGroupsListDirty, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
+import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { AssistantLink } from '@/components/AssistantLink';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
@@ -55,6 +55,7 @@ export default function DiscoverPage() {
   const pathname = usePathname();
   const [uid, setUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [pendingOnlyIds, setPendingOnlyIds] = useState<Set<string>>(() => new Set());
   const [friends, setFriends] = useState<Friend[]>([]);
   const [summary, setSummary] = useState<DiscoverSummary | null>(null);
   const [shares, setShares] = useState<FriendActivity[]>([]);
@@ -69,7 +70,9 @@ export default function DiscoverPage() {
         api.discoverSummary(),
         api.friendsActivity(),
       ]);
-      setGroups(mergePendingGroups(Array.isArray(g.groups) ? g.groups : []));
+      const serverGroups = Array.isArray(g.groups) ? g.groups : [];
+      setPendingOnlyIds(new Set(getPendingOnlyIds(serverGroups.map((item) => item.id))));
+      setGroups(mergePendingGroups(serverGroups));
       setFriends(Array.isArray(f.friends) ? f.friends : []);
       setSummary(s);
       setShares(Array.isArray(activity.items) ? activity.items : []);
@@ -182,6 +185,7 @@ export default function DiscoverPage() {
           <div className="rail discover-group-rail" style={{ marginTop: 8 }}>
             {groups.map((g) => {
               const badge = groupStatusBadge(g);
+              const isPendingOnly = pendingOnlyIds.has(g.id);
               const members = g.members || 1;
               const checked = g.checked_in_today ?? 0;
               const barPct = g.plan_id
@@ -236,8 +240,28 @@ export default function DiscoverPage() {
                     />
                   </div>
                   <div className="group-card-foot">
-                    <span className="muted">今日 {checked}/{members}</span>
-                    {badge.tone === 'pending' ? (
+                    <span className="muted">
+                      {isPendingOnly ? '同步中…' : `今日 ${checked}/${members}`}
+                    </span>
+                    {isPendingOnly ? (
+                      <button
+                        type="button"
+                        className="text-link group-card-cta"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!window.confirm(`从列表移除「${g.name}」？`)) return;
+                          dismissPendingGroup(g.id);
+                          setGroups((prev) => prev.filter((item) => item.id !== g.id));
+                          setPendingOnlyIds((prev) => {
+                            const next = new Set(prev);
+                            next.delete(g.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        移除
+                      </button>
+                    ) : badge.tone === 'pending' ? (
                       <button
                         type="button"
                         className="font-pill accent group-card-cta"

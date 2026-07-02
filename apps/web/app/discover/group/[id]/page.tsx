@@ -10,9 +10,10 @@ import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupTasksZone } from '@/components/group/GroupTasksZone';
 import { GroupToast } from '@/components/group/GroupToast';
-import { api, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
+import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
+import { loadGeneratedPlans } from '@/lib/generated_plans';
 import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
-import { markGroupsListDirty } from '@/lib/groups_refresh';
+import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 
 function GroupPageInner() {
   const router = useRouter();
@@ -30,6 +31,8 @@ function GroupPageInner() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
+  const [generatedPlans, setGeneratedPlans] = useState<GeneratedPlan[]>([]);
+  const [planScopes, setPlanScopes] = useState<{ id: string; label: string }[]>([]);
   const [announceDraft, setAnnounceDraft] = useState('');
   const [planDraft, setPlanDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
@@ -88,7 +91,16 @@ function GroupPageInner() {
 
   useEffect(() => {
     if (settingsOpen) {
-      api.plans().then((r) => setPlans(r.plans)).catch(() => setPlans([]));
+      void Promise.all([api.plans(), api.planScopes()])
+        .then(([p, s]) => {
+          setPlans(p.plans);
+          setPlanScopes(s.scopes);
+        })
+        .catch(() => {
+          setPlans([]);
+          setPlanScopes([]);
+        });
+      setGeneratedPlans(loadGeneratedPlans());
     }
   }, [settingsOpen]);
 
@@ -290,6 +302,7 @@ function GroupPageInner() {
     setBusy(true);
     try {
       await api.dissolveGroup(gid);
+      dismissPendingGroup(gid);
       markGroupsListDirty();
       router.push('/discover/groups');
     } catch (e) {
@@ -351,6 +364,9 @@ function GroupPageInner() {
         members={members}
         tasks={tasks}
         plans={plans}
+        generatedPlans={generatedPlans}
+        planScopes={planScopes}
+        onGeneratedPlansChange={setGeneratedPlans}
         busy={busy}
         nameDraft={nameDraft}
         planDraft={planDraft}

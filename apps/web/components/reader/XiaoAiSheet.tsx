@@ -2,11 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
 import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { createNote } from '@/lib/notes';
-import { assistantHref as buildAssistantHref } from '@/lib/assistant_prefill';
+import { navigateToAssistant } from '@/lib/assistant_prefill';
 
 const ASK_PROMPT =
   '请用通顺、自然的简体中文解读这段经文。严格按【背景】【经文解释】两段输出，' +
@@ -123,25 +122,27 @@ export default function XiaoAiSheet({
   };
 
   const userChatPreview = useMemo(() => {
-    const sel = lockedRef.current.selectionText;
+    const sel = selectionText;
     if (sel) {
       const snippet = sel.length > 80 ? `${sel.slice(0, 80)}…` : sel;
       return `请解读：${refLabel}\n「${snippet}」`;
     }
     return `请解读：${refLabel}`;
-  }, [refLabel, done, clean]);
+  }, [refLabel, selectionText]);
 
-  const assistantHref = useMemo(() => {
-    if (!done || !clean || hasError) {
-      return buildAssistantHref(refParam);
+  const continueWithAssistant = () => {
+    if (done && clean && !hasError) {
+      navigateToAssistant(refParam, {
+        seedMessages: [
+          { role: 'user', text: userChatPreview },
+          { role: 'assistant', text: clean },
+        ],
+      });
+    } else {
+      navigateToAssistant(refParam);
     }
-    return buildAssistantHref(refParam, {
-      seedMessages: [
-        { role: 'user', text: userChatPreview },
-        { role: 'assistant', text: clean },
-      ],
-    });
-  }, [refParam, userChatPreview, done, clean, hasError]);
+    onClose();
+  };
 
   const saveNote = () => {
     if (!clean || hasError) return;
@@ -217,13 +218,13 @@ export default function XiaoAiSheet({
               </button>
             </>
           )}
-          <Link
-            href={assistantHref}
+          <button
+            type="button"
             className="half-sheet-action-btn half-sheet-action-primary"
-            onClick={onClose}
+            onClick={continueWithAssistant}
           >
             与小爱继续聊
-          </Link>
+          </button>
         </div>
       </div>
     </div>

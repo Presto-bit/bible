@@ -1,7 +1,7 @@
 'use client';
 
 import type { GroupMember } from '@/lib/api';
-import { memberAvatarInitial } from '@/lib/group_ui';
+import { memberAvatarInitial, displayMemberName } from '@/lib/group_ui';
 
 type Props = {
   members: GroupMember[];
@@ -24,10 +24,10 @@ export function GroupMemberAvatars({ members, isOwner, onShowMembers }: Props) {
               key={key}
               type="button"
               className={`group-member-avatar${checked ? ' checked' : ' pending'}${pulse ? ' pulse' : ''}${m.is_me ? ' me' : ''}`}
-              title={`${m.name}${checked ? ' · 已打卡' : ' · 待打卡'}`}
+              title={`${displayMemberName(m)}${checked ? ' · 已打卡' : ' · 待打卡'}`}
               onClick={onShowMembers}
             >
-              <span className="group-member-avatar-letter">{memberAvatarInitial(m.name)}</span>
+              <span className="group-member-avatar-letter">{memberAvatarInitial(m)}</span>
               {checked && <span className="group-member-avatar-check" aria-hidden>✓</span>}
             </button>
           );

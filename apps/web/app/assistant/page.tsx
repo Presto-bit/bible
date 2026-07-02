@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { createNote } from '@/lib/notes';
@@ -46,6 +46,18 @@ function saveSessions(list: Session[]) {
 }
 
 export default function AssistantPage() {
+  return (
+    <Suspense fallback={(
+      <main className="container">
+        <p className="muted">加载中…</p>
+      </main>
+    )}>
+      <AssistantPageInner />
+    </Suspense>
+  );
+}
+
+function AssistantPageInner() {
   const [mode, setMode] = useState('understand');
   const [ref, setRef] = useState('');
   const [input, setInput] = useState('');
@@ -286,14 +298,14 @@ export default function AssistantPage() {
   const sendRef = useRef(send);
   sendRef.current = send;
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const sid = params.get('sid');
-    const legacyQ = params.get('q');
-    const autoSendParam = params.get('auto_send') === '1';
+    const sid = searchParams.get('sid');
+    const legacyQ = searchParams.get('q');
+    const autoSendParam = searchParams.get('auto_send') === '1';
 
-    let refVal = params.get('ref') || '';
+    let refVal = searchParams.get('ref') || '';
     let question: string | null = null;
     let autoSend = autoSendParam;
     let skipInputPrefill = false;
@@ -325,7 +337,7 @@ export default function AssistantPage() {
     if (sid || legacyQ || autoSendParam) {
       router.replace('/assistant', { scroll: false });
     }
-  }, [router]);
+  }, [searchParams, router]);
 
   const startNewSession = () => {
     setActiveId('current');

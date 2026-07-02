@@ -25,10 +25,29 @@ export function normalizeGroupDetail(detail: GroupDetail): GroupDetail {
   };
 }
 
-export function memberAvatarInitial(name: string | null | undefined): string {
-  const t = (name ?? '').trim();
-  if (!t) return '?';
-  return t.slice(0, 1);
+export function displayMemberName(m: GroupMember): string {
+  if (m.is_me) {
+    if (typeof window !== 'undefined') {
+      const profile = localStorage.getItem('profile_name')?.trim();
+      if (profile) return profile;
+    }
+    return '我';
+  }
+  const raw = (m.name ?? '').trim();
+  if (!raw) return '书友';
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(raw)) return '书友';
+  if (/^用户[0-9a-f]{4,}$/i.test(raw)) return '书友';
+  return raw;
+}
+
+export function memberAvatarInitial(m: GroupMember | string | null | undefined): string {
+  const label = typeof m === 'string'
+    ? m.trim()
+    : m
+      ? displayMemberName(m)
+      : '';
+  if (!label || label === '书友') return '书';
+  return label.slice(0, 1);
 }
 
 export function formatDueCountdown(dueAt: string | null | undefined): string | null {

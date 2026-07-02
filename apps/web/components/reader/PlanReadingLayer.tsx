@@ -15,12 +15,7 @@ import {
   updateSessionRef,
   type PlanSession,
 } from '@/lib/plan_session';
-import {
-  advancePlanDay,
-  markPlanDayCompleted,
-  setPlanDay,
-  tryAutoCompletePlan,
-} from '@/lib/plan_progress';
+import { advancePlanDay, isPlanDayCompleted, markPlanDayCompleted, setPlanDay, tryAutoCompletePlan } from '@/lib/plan_progress';
 import { enqueuePlanProgress } from '@/lib/plan_sync';
 import { savePlanReflection } from '@/lib/plan_reflection';
 import PlanBar from '@/components/reader/PlanBar';
@@ -51,6 +46,7 @@ export default function PlanReadingLayer({
   const [completedDayNum, setCompletedDayNum] = useState<number | null>(null);
   const [nextStepHint, setNextStepHint] = useState<string | null>(null);
   const bottomHandledRef = useRef(0);
+  const finishedDayRef = useRef<number | null>(null);
 
   useEffect(() => {
     onOverlayChange?.(sheetOpen || reflectionOpen);
@@ -84,6 +80,10 @@ export default function PlanReadingLayer({
   };
 
   const finishDay = (session: PlanSession) => {
+    if (isPlanDayCompleted(meta.planId, meta.day) || finishedDayRef.current === meta.day) {
+      return;
+    }
+    finishedDayRef.current = meta.day;
     const finishedDay = meta.day;
     markPlanDayCompleted(meta.planId, finishedDay);
     setPlanDay(meta.planId, finishedDay);
@@ -143,14 +143,15 @@ export default function PlanReadingLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterBottomTick, chapter, currentStep?.id, dayCompleted]);
 
-  // 全部段已读完时兜底自动完成
+  // 全部段已读完时兜底自动完成（当日仅触发一次）
   useEffect(() => {
     if (dayCompleted) return;
+    if (isPlanDayCompleted(meta.planId, meta.day)) return;
     if (!allStepsDone(meta.steps, meta.session.stepsDone)) return;
     const timer = window.setTimeout(() => finishDay(meta.session), 400);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta.session.stepsDone, dayCompleted]);
+  }, [meta.session.stepsDone, meta.day, dayCompleted]);
 
   // 庆祝卡片自动消失
   useEffect(() => {
@@ -183,8 +184,22 @@ export default function PlanReadingLayer({
       />
 
       {dayCompleted && completedDayNum != null && (
-        <div className="plan-day-complete card plan-day-complete-toast">
-          <p className="plan-segment-done-title">🎉 第 {completedDayNum} 天已完成</p>
+        <div className="plan-day-complete card plan-day-complete-toast plan-day-complete-solid">
+          <div className="plan-day-complete-head">
+            <p className="plan-segment-done-title">🎉 第 {completedDayNum} 天已完成</p>
+            <button
+              type="button"
+              className="text-link"
+              aria-label="关闭"
+              onClick={() => {
+                setDayCompleted(false);
+                setCompletedDayNum(null);
+                setReflectionOpen(false);
+              }}
+            >
+              关闭
+            </button>
+          </div>
           <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
             {prog.total}/{prog.total} 段已读完
             {completedDayNum < meta.totalDays
@@ -211,11 +226,11 @@ export default function PlanReadingLayer({
       )}
 
       {reflectionOpen && (
-        <div className="sheet-backdrop" onClick={() => setReflectionOpen(false)}>
-          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-backdrop plan-reflection-backdrop" onClick={() => setReflectionOpen(false)}>
+          <div className="sheet card plan-reflection-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="section-row" style={{ marginTop: 0 }}>
               <strong>今日反思（可选）</strong>
-              <button type="button" className="text-link" onClick={() => setReflectionOpen(false)}>跳过</button>
+              <button type="button" className="text-link" onClick={() => setReflectionOpen(false)}>关闭</button>
             </div>
             <p className="muted" style={{ fontSize: 13, marginBottom: 10 }}>
               用一两句话记下今天的感动或应用。
