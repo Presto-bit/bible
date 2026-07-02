@@ -102,9 +102,34 @@ a {
   transition: transform 0.28s ease;
 }
 
+/* 沉浸阅读：阅读器激活时顶/底与经文区同色。 */
+body.reader-active {
+  background: var(--reader-surface-bg) !important;
+}
+
+body.reader-active .app-body {
+  background: var(--reader-surface-bg);
+}
+
+body.reader-active .tabbar {
+  background: var(--reader-surface-bg);
+  border-top-color: rgba(43, 42, 39, 0.08);
+  box-shadow: none;
+}
+
+body.reader-active.reader-theme-night .tabbar,
+body.reader-body-night .tabbar {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+body.reader-active.reader-immersive .app-body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* 沉浸阅读：阅读器顶栏隐藏时，底部 5-Tab 同步下滑隐藏。 */
 body.reader-immersive .tabbar {
   transform: translateY(110%);
+  pointer-events: none;
 }
 
 .tab {
@@ -2134,7 +2159,18 @@ a.today-card-link {
   justify-content: space-between;
   gap: 8px;
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--line);
+  background: transparent;
+  border-bottom: 1px solid rgba(43, 42, 39, 0.08);
+}
+
+.reader-theme-paper .reader-topbar,
+.reader-theme-morning .reader-topbar {
+  border-bottom-color: rgba(43, 42, 39, 0.08);
+}
+
+.reader-theme-paper .reader-loc,
+.reader-theme-morning .reader-loc {
+  border-right-color: rgba(43, 42, 39, 0.1);
 }
 
 .reader-topbar-left {
@@ -3299,6 +3335,11 @@ a.today-card-link {
 }
 
 /* ─── 阅读体验增强（P0/P1/P2，不含听读同步） ─── */
+.container.reader-page {
+  max-width: min(720px, 100vw);
+  padding: max(10px, env(safe-area-inset-top, 0px)) 16px 0;
+}
+
 .reader-page {
   position: relative;
   min-height: 100dvh;

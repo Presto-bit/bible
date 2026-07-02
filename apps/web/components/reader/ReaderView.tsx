@@ -30,6 +30,7 @@ import {
   setReaderTheme,
   setReadingLayout,
   setVerseNumberMode,
+  readerThemeBackground,
   VERSE_NUMBER_MODES,
   type ReaderTheme,
   type ReadingLayout,
@@ -101,6 +102,7 @@ export default function ReaderView({
   planMeta,
   onPlanMetaChange,
   onPlanJump,
+  externalOverlayOpen = false,
 }: {
   book: BibleBook;
   books: BibleBook[];
@@ -112,6 +114,7 @@ export default function ReaderView({
   planMeta?: PlanReadingMeta | null;
   onPlanMetaChange?: (m: PlanReadingMeta) => void;
   onPlanJump?: (bookId: string, chapter: number) => void;
+  externalOverlayOpen?: boolean;
 }) {
   const [verses, setVerses] = useState<Verse[]>([]);
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
@@ -152,6 +155,7 @@ export default function ReaderView({
   const [thoughtListSheet, setThoughtListSheet] = useState<null | { ref: string; label: string; text: string }>(null);
   const [thoughtRevision, setThoughtRevision] = useState(0);
   const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
+  const [planOverlayOpen, setPlanOverlayOpen] = useState(false);
   const [hasGroups, setHasGroups] = useState(false);
   const [groupCtx, setGroupCtx] = useState<{
     groupId?: string;
@@ -171,6 +175,23 @@ export default function ReaderView({
   const syncingSelection = useRef(false);
   const readStartRef = useRef(Date.now());
   const saveVerseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const readingEngagedRef = useRef(false);
+  const overlayOpenRef = useRef(false);
+
+  const overlayOpen = Boolean(
+    externalOverlayOpen
+    || planOverlayOpen
+    || showSettings
+    || showVersions
+    || aiSheet
+    || summarySheet
+    || viewNote
+    || writeThoughtSheet
+    || thoughtListSheet
+    || groupCheckinOpen
+    || bookCelebrate,
+  );
+  overlayOpenRef.current = overlayOpen;
 
   const refreshChapterNotes = useCallback(() => {
     setChapterNotes(notesForChapter(listNotes(), book.id, chapter));
@@ -422,11 +443,29 @@ export default function ReaderView({
     flashToast('已取消划线');
   }, [book.id, chapter, sortedSel]);
 
-  const scheduleChromeHide = useCallback(() => {
+  const enterImmersive = useCallback(() => {
+    if (overlayOpenRef.current) return;
+    if (chromeTimer.current) clearTimeout(chromeTimer.current);
+    setChromeHidden(true);
+  }, []);
+
+  const peekChrome = useCallback((autoHideMs = 2500) => {
+    if (overlayOpenRef.current) return;
     if (chromeTimer.current) clearTimeout(chromeTimer.current);
     setChromeHidden(false);
-    chromeTimer.current = setTimeout(() => setChromeHidden(true), 3000);
+    chromeTimer.current = setTimeout(() => {
+      if (!overlayOpenRef.current) setChromeHidden(true);
+    }, autoHideMs);
   }, []);
+
+  const showChrome = useCallback(() => {
+    if (chromeTimer.current) clearTimeout(chromeTimer.current);
+    setChromeHidden(false);
+  }, []);
+
+  const scheduleChromeHide = useCallback(() => {
+    peekChrome(2500);
+  }, [peekChrome]);
 
   useEffect(
     () => () => {
@@ -435,12 +474,38 @@ export default function ReaderView({
     [],
   );
 
-  // 沉浸阅读：顶栏隐藏（进入 3s 后）时，底部 5-Tab 一并下滑隐藏；点按页面恢复。
+  // 沉浸阅读：同步全屏背景色，顶/底栏与经文区一致；隐藏时收起底部 5-Tab。
+  useEffect(() => {
+    const bg = readerThemeBackground(theme);
+    document.body.classList.add('reader-active');
+    document.body.style.setProperty('--reader-surface-bg', bg);
+    document.body.style.background = bg;
+    document.documentElement.style.background = bg;
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const prevTheme = meta?.getAttribute('content') ?? '';
+    meta?.setAttribute('content', theme === 'night' ? '#12181c' : bg);
+    return () => {
+      document.body.classList.remove('reader-active', 'reader-immersive');
+      document.body.style.removeProperty('--reader-surface-bg');
+      document.body.style.background = '';
+      document.documentElement.style.background = '';
+      if (meta && prevTheme) meta.setAttribute('content', prevTheme);
+    };
+  }, [theme]);
+
   useEffect(() => {
     if (chromeHidden) document.body.classList.add('reader-immersive');
     else document.body.classList.remove('reader-immersive');
-    return () => document.body.classList.remove('reader-immersive');
   }, [chromeHidden]);
+
+  // 半屏面板打开时保持顶栏与底部 Tab；关闭后回到阅读沉浸态。
+  useEffect(() => {
+    if (overlayOpen) {
+      showChrome();
+      return;
+    }
+    if (readingEngagedRef.current) enterImmersive();
+  }, [overlayOpen, showChrome, enterImmersive]);
 
   useEffect(() => {
     setTheme(getReaderTheme());
@@ -525,7 +590,11 @@ export default function ReaderView({
         logChapterDetail(book.id, chapter);
         maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
         setLastRead(book.id, chapter);
-        scheduleChromeHide();
+        if (readingEngagedRef.current) {
+          enterImmersive();
+        } else {
+          peekChrome(1800);
+        }
 
         requestAnimationFrame(() => {
           if (contentRef.current) contentRef.current.scrollTop = 0;
@@ -547,14 +616,24 @@ export default function ReaderView({
     return () => {
       cancelled = true;
     };
-  }, [book, chapter, mainVersionId, scheduleChromeHide, bookAbbr]);
+  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome]);
 
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
     const onScroll = () => {
+      if (overlayOpenRef.current) {
+        lastScrollTop.current = el.scrollTop;
+        return;
+      }
       const cur = el.scrollTop;
-      if (cur < lastScrollTop.current - 4) scheduleChromeHide();
+      if (cur > lastScrollTop.current + 6) {
+        readingEngagedRef.current = true;
+        enterImmersive();
+      } else if (cur < lastScrollTop.current - 6) {
+        readingEngagedRef.current = true;
+        peekChrome();
+      }
       lastScrollTop.current = cur;
 
       if (saveVerseTimer.current) clearTimeout(saveVerseTimer.current);
@@ -591,7 +670,7 @@ export default function ReaderView({
       el.removeEventListener('scroll', onScroll);
       if (saveVerseTimer.current) clearTimeout(saveVerseTimer.current);
     };
-  }, [verses, bookDone, chapter, book.chapter_count, book.name, scheduleChromeHide]);
+  }, [verses, bookDone, chapter, book.chapter_count, book.name, enterImmersive, peekChrome]);
 
   useEffect(() => {
     if (!bookCelebrate) return;
@@ -600,6 +679,8 @@ export default function ReaderView({
   }, [bookCelebrate]);
 
   const navChapter = (delta: number) => {
+    readingEngagedRef.current = true;
+    enterImmersive();
     setChapterAnim(delta > 0 ? 'chapter-exit-left' : 'chapter-exit-right');
     setTimeout(() => {
       onChapterChange(Math.min(book.chapter_count, Math.max(1, chapter + delta)));
@@ -639,9 +720,10 @@ export default function ReaderView({
     setLastReadVerse(hi);
     lastSelectAt.current = Date.now();
     logVerseRead(`${book.id}.${chapter}.${hi}`);
-    scheduleChromeHide();
+    readingEngagedRef.current = true;
+    enterImmersive();
     syncingSelection.current = false;
-  }, [book.id, chapter, scheduleChromeHide]);
+  }, [book.id, chapter, enterImmersive]);
 
   useEffect(() => {
     const onSel = () => syncSelectionFromDom();
@@ -676,17 +758,14 @@ export default function ReaderView({
       onClick={() => {
         // 忽略长按/双击后的余波点击，避免立即取消选中。
         if (Date.now() - lastSelectAt.current < 500) return;
-        if (aiSheet) {
-          scheduleChromeHide();
-          return;
-        }
+        if (overlayOpen) return;
         if (viewNote) {
           setViewNote(null);
           return;
         }
-        if (summarySheet) return;
         if (hasSel) clearSelection();
-        scheduleChromeHide();
+        if (readingEngagedRef.current) peekChrome();
+        else scheduleChromeHide();
       }}
     >
       {!chromeHidden && (
@@ -755,6 +834,7 @@ export default function ReaderView({
             chapterBottomTick={chapterBottomTick}
             onMetaChange={onPlanMetaChange}
             onJump={onPlanJump}
+            onOverlayChange={setPlanOverlayOpen}
           />
         )}
         <div className="reader-chapter-head">

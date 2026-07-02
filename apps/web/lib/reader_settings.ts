@@ -16,6 +16,16 @@ export const READER_THEMES: { id: ReaderTheme; label: string; desc: string }[] =
   { id: 'night', label: '夜深', desc: '深色护眼' },
 ];
 
+const READER_THEME_BG: Record<ReaderTheme, string> = {
+  paper: '#f7f2e8',
+  morning: '#ffffff',
+  night: '#12181c',
+};
+
+export function readerThemeBackground(theme: ReaderTheme): string {
+  return READER_THEME_BG[theme];
+}
+
 export const VERSE_NUMBER_MODES: { id: VerseNumberMode; label: string }[] = [
   { id: 'inline', label: '内嵌' },
   { id: 'margin', label: '行首' },

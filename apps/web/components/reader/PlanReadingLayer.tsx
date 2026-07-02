@@ -34,6 +34,7 @@ export default function PlanReadingLayer({
   chapterBottomTick,
   onMetaChange,
   onJump,
+  onOverlayChange,
 }: {
   meta: PlanReadingMeta;
   bookId: string;
@@ -41,6 +42,7 @@ export default function PlanReadingLayer({
   chapterBottomTick?: number;
   onMetaChange: (m: PlanReadingMeta) => void;
   onJump: (bookId: string, chapter: number) => void;
+  onOverlayChange?: (open: boolean) => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
@@ -49,6 +51,10 @@ export default function PlanReadingLayer({
   const [completedDayNum, setCompletedDayNum] = useState<number | null>(null);
   const [nextStepHint, setNextStepHint] = useState<string | null>(null);
   const bottomHandledRef = useRef(0);
+
+  useEffect(() => {
+    onOverlayChange?.(sheetOpen || reflectionOpen);
+  }, [sheetOpen, reflectionOpen, onOverlayChange]);
 
   const stepIdx = meta.steps.findIndex(
     (s) => s.bookId === bookId.toUpperCase() && chapter >= s.chapterStart && chapter <= s.chapterEnd,

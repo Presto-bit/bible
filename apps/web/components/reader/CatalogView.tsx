@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import type { BibleBook } from '@/lib/api';
+import { clearReaderChrome } from '@/lib/reader_chrome';
 
 type CatalogProps = {
   books: BibleBook[];
@@ -20,6 +21,10 @@ function CatalogView({
   onPickBook,
   bookAbbr,
 }: CatalogProps) {
+  useEffect(() => {
+    clearReaderChrome();
+  }, []);
+
   useEffect(() => {
     if (!currentBookId) return;
     const el = document.getElementById(`catalog-book-${currentBookId}`);

@@ -6,6 +6,7 @@ import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
 import { getLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
+import { clearReaderChrome } from '@/lib/reader_chrome';
 
 const BOOK_ABBR: Record<string, string> = {
   创世记: '创', 出埃及记: '出', 利未记: '利', 民数记: '民', 申命记: '申',
@@ -90,6 +91,12 @@ export default function ReaderPage() {
     },
     [books],
   );
+
+  const inScriptureReading = Boolean(book && !catalogOpen && !chapterPick);
+
+  useEffect(() => {
+    if (!inScriptureReading) clearReaderChrome();
+  }, [inScriptureReading]);
 
   useEffect(() => {
     api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
@@ -214,6 +221,7 @@ export default function ReaderPage() {
         planMeta={planMeta}
         onPlanMetaChange={setPlanMeta}
         onPlanJump={handlePlanJump}
+        externalOverlayOpen={Boolean(dictPopup)}
       />
       {dictPopup && (
         <div className="sheet-backdrop" onClick={() => setDictPopup(null)}>
