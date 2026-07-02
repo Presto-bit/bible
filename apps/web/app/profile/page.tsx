@@ -15,6 +15,7 @@ import {
   usernameAvailable,
 } from '@/lib/api';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
+import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import ReadingProgress from '@/components/ReadingProgress';
 import { todayMinutes } from '@/lib/reading';
 import { api } from '@/lib/api';
@@ -459,6 +460,7 @@ export default function ProfilePage() {
 
             <div className="settings-card">
               <p className="settings-title">工具</p>
+              <OfflineBibleCard />
               <Link href="/dictionary" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
                 <span style={{ flex: 1 }}>圣经词典</span>
                 <span className="muted">›</span>

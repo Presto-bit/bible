@@ -225,8 +225,48 @@ def username_available(u: str) -> dict:
         return {"available": True, "degraded": True}
 
 
+@router.get("/device-user")
+def device_user(device_id: str) -> dict:
+    """按设备指纹找回已绑定的 user_code（PWA 重装后恢复身份）。"""
+    fp = (device_id or "").strip()
+    if not fp or len(fp) > 128:
+        raise HTTPException(status_code=400, detail="无效设备标识")
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT user_code FROM device_user_bindings WHERE device_fingerprint = %s",
+                (fp,),
+            ).fetchone()
+        if not row:
+            return {"user_code": None}
+        return {"user_code": row[0]}
+    except Exception as exc:
+        logger.warning("device-user 查询失败：%s", exc)
+        raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
+def _bind_device_user(conn, device_id: str | None, user_code: str) -> None:
+    fp = (device_id or "").strip()
+    if not fp or not is_user_code(user_code):
+        return
+    conn.execute(
+        """
+        INSERT INTO device_user_bindings (device_fingerprint, user_code, updated_at)
+        VALUES (%s, %s, now())
+        ON CONFLICT (device_fingerprint) DO UPDATE SET
+          user_code = EXCLUDED.user_code,
+          updated_at = now()
+        """,
+        (fp, user_code),
+    )
+
+
 @router.post("/register")
-def register(body: RegisterBody) -> dict:
+def register(
+    body: RegisterBody,
+    x_device_id: str | None = Header(default=None),
+) -> dict:
     """按 10 位用户ID 建档（免注册即用），可同时设置用户名 + 密码。"""
     code = body.user_code.strip()
     if not is_user_code(code):
@@ -263,6 +303,7 @@ def register(body: RegisterBody) -> dict:
                 """,
                 (code, user_id, name, pwd_hash, pwd_salt),
             )
+            _bind_device_user(conn, x_device_id, code)
             conn.commit()
         return {"ok": True, **_account_payload(code, name, pwd_hash)}
     except HTTPException:

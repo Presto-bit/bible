@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, type BibleSearchHit } from '@/lib/api';
+import { type BibleSearchHit } from '@/lib/api';
+import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 
@@ -73,10 +74,9 @@ export default function SearchPage() {
     let cancelled = false;
     setLoading(true);
     setErr(null);
-    api
-      .search(q)
-      .then((d) => {
-        if (!cancelled) setHits(d.hits);
+    bibleSearch(q)
+      .then((rows) => {
+        if (!cancelled) setHits(rows);
       })
       .catch((e) => {
         if (!cancelled) setErr(String(e));

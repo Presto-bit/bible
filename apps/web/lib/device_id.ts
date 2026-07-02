@@ -1,4 +1,4 @@
-/** 设备级持久标识（浏览器 localStorage；用于游客 ID 绑定） */
+/** 设备级持久标识 + IndexedDB 备份（PWA 删书签后尽量恢复同一用户 ID） */
 
 import { deviceIdToUserCode, isUserCode } from './user_code';
 
@@ -9,6 +9,14 @@ const DEVICE_GUEST_MAP_KEY = 'presto_device_guest_map';
 const IDB_NAME = 'presto_identity';
 const IDB_STORE = 'kv';
 const IDB_USER_CODE_KEY = 'user_code';
+const IDB_DEVICE_ID_KEY = 'device_id';
+const IDB_GUEST_MAP_KEY = 'device_guest_map';
+
+export interface IdentityBackup {
+  userCode: string | null;
+  deviceId: string | null;
+  guestMap: Record<string, string> | null;
+}
 
 function readMap(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -27,21 +35,39 @@ function openIdb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(IDB_NAME, 1);
     req.onupgradeneeded = () => {
-      req.result.createObjectStore(IDB_STORE);
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) {
+        req.result.createObjectStore(IDB_STORE);
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-/** IndexedDB 备份 user_code，清 localStorage 后仍可恢复（P2） */
-export async function backupUserCode(code: string): Promise<void> {
-  if (typeof indexedDB === 'undefined' || !isUserCode(code)) return;
+async function idbGet(key: string): Promise<string | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  try {
+    const db = await openIdb();
+    const value = await new Promise<unknown>((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result ?? null);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return typeof value === 'string' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+async function idbSet(key: string, value: string): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
   try {
     const db = await openIdb();
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(IDB_STORE, 'readwrite');
-      tx.objectStore(IDB_STORE).put(code, IDB_USER_CODE_KEY);
+      tx.objectStore(IDB_STORE).put(value, key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -51,25 +77,71 @@ export async function backupUserCode(code: string): Promise<void> {
   }
 }
 
-/** 从 IndexedDB 恢复 user_code */
+/** 将 device_id / user_code / 映射表写入 IndexedDB */
+export async function backupIdentity(opts?: {
+  userCode?: string | null;
+  deviceId?: string | null;
+  guestMap?: Record<string, string> | null;
+}): Promise<void> {
+  const userCode = opts?.userCode ?? null;
+  const deviceId = opts?.deviceId ?? null;
+  const guestMap = opts?.guestMap ?? null;
+  if (userCode && isUserCode(userCode)) await idbSet(IDB_USER_CODE_KEY, userCode);
+  if (deviceId) await idbSet(IDB_DEVICE_ID_KEY, deviceId);
+  if (guestMap) await idbSet(IDB_GUEST_MAP_KEY, JSON.stringify(guestMap));
+}
+
+/** @deprecated 使用 backupIdentity */
+export async function backupUserCode(code: string): Promise<void> {
+  await backupIdentity({ userCode: code });
+}
+
+/** 从 IndexedDB 读取完整身份备份 */
+export async function restoreIdentity(): Promise<IdentityBackup> {
+  const [userCode, deviceId, mapRaw] = await Promise.all([
+    idbGet(IDB_USER_CODE_KEY),
+    idbGet(IDB_DEVICE_ID_KEY),
+    idbGet(IDB_GUEST_MAP_KEY),
+  ]);
+  let guestMap: Record<string, string> | null = null;
+  if (mapRaw) {
+    try {
+      guestMap = JSON.parse(mapRaw) as Record<string, string>;
+    } catch {
+      guestMap = null;
+    }
+  }
+  return {
+    userCode: userCode && isUserCode(userCode) ? userCode : null,
+    deviceId: deviceId || null,
+    guestMap,
+  };
+}
+
+/** @deprecated 使用 restoreIdentity */
 export async function restoreUserCode(): Promise<string | null> {
-  if (typeof indexedDB === 'undefined') return null;
-  try {
-    const db = await openIdb();
-    const code = await new Promise<string | null>((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, 'readonly');
-      const req = tx.objectStore(IDB_STORE).get(IDB_USER_CODE_KEY);
-      req.onsuccess = () => resolve(typeof req.result === 'string' ? req.result : null);
-      req.onerror = () => reject(req.error);
-    });
-    db.close();
-    return code && isUserCode(code) ? code : null;
-  } catch {
-    return null;
+  const id = await restoreIdentity();
+  return id.userCode;
+}
+
+/**
+ * 启动时从 IndexedDB 恢复 localStorage（PWA 删书签后 localStorage 常丢，IDB 往往还在）。
+ */
+export async function hydrateIdentityFromIdb(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const backup = await restoreIdentity();
+  if (backup.deviceId && !localStorage.getItem(DEVICE_KEY)) {
+    localStorage.setItem(DEVICE_KEY, backup.deviceId);
+  }
+  if (backup.guestMap && !localStorage.getItem(DEVICE_GUEST_MAP_KEY)) {
+    writeMap(backup.guestMap);
+  }
+  if (backup.userCode && !localStorage.getItem('presto_guest_id')) {
+    localStorage.setItem('presto_guest_id', backup.userCode);
   }
 }
 
-/** 本设备 UUID（首次生成后不变，清站点数据会重置） */
+/** 本设备 UUID（首次生成后不变；清 localStorage 后从 IDB 恢复） */
 export function getDeviceId(): string {
   if (typeof window === 'undefined') return '';
   let d = localStorage.getItem(DEVICE_KEY);
@@ -79,6 +151,7 @@ export function getDeviceId(): string {
         ? crypto.randomUUID()
         : `dev-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     localStorage.setItem(DEVICE_KEY, d);
+    void backupIdentity({ deviceId: d });
   }
   return d;
 }
@@ -97,5 +170,5 @@ export function bindDeviceGuestId(guestCode: string) {
   const map = readMap();
   map[deviceId] = guestCode;
   writeMap(map);
-  void backupUserCode(guestCode);
+  void backupIdentity({ userCode: guestCode, deviceId, guestMap: map });
 }

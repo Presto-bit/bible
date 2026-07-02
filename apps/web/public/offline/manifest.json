@@ -1,0 +1,214 @@
+{
+  "version": "2026.07.02",
+  "zip": "bible_offline_2026.07.02.zip",
+  "zip_sha256": "2b43c4927e81a1e351adbac192abb043040f0295b09653f28a40af2f8b03b7c7",
+  "files": [
+    {
+      "path": "bible/bible_cnv.sqlite",
+      "bytes": 12316672,
+      "sha256": "1d475222ffef33463a5ec0e389f6bf5725e01d44c79116620d28494086e7e23e"
+    },
+    {
+      "path": "content/plans/bible_year_365.csv",
+      "bytes": 23440,
+      "sha256": "4bedb74fbf6e8d5688647737e886ea24e3307ff6086b53480876d29f78e9dec6"
+    },
+    {
+      "path": "content/plans/genesis_7.csv",
+      "bytes": 353,
+      "sha256": "f0dd23217b48c5e4b8728a17960c58f8f8cdf35eb83baed3e59313b7dbd745e8"
+    },
+    {
+      "path": "content/plans/gospels_30.csv",
+      "bytes": 1871,
+      "sha256": "3bf722fe454651de625488eb3c23038bda8988ff794427b4ea2a55a0ddc451e7"
+    },
+    {
+      "path": "content/plans/gospels_7.csv",
+      "bytes": 390,
+      "sha256": "559d1053ab0e3fe9872bf2bd6ea30b4c97884bbe2129df22175dc2ccae1e8d55"
+    },
+    {
+      "path": "content/plans/jhn_7.csv",
+      "bytes": 367,
+      "sha256": "1f0c3b0469f092fad7b526b53216f7347701a7e9657adf4e3eea1f6493c24386"
+    },
+    {
+      "path": "content/plans/new_testament_90.csv",
+      "bytes": 6659,
+      "sha256": "e3a49b89113257c1bf6bb54e9f8ec054f1bbeed56e819da7e5daafce1abe00f9"
+    },
+    {
+      "path": "content/plans/pentateuch_40.csv",
+      "bytes": 2210,
+      "sha256": "2cf10217119583e780f56110e5ca1f79bf23fdc474ecd533063d9ae8bf32b4d9"
+    },
+    {
+      "path": "content/plans/prophets_21.csv",
+      "bytes": 1155,
+      "sha256": "fae17d6f33c09de10bd493c9cff0e0a25327fb5906e2a6df6d2f572ff8a3a60b"
+    },
+    {
+      "path": "content/plans/psalms_30.csv",
+      "bytes": 1223,
+      "sha256": "fd013dcdd6a73be8cfeb59cf250deb556e7a3b087460d08b5d4b7713c9662c82"
+    },
+    {
+      "path": "content/plans/psalms_7.csv",
+      "bytes": 322,
+      "sha256": "172a0fa77c563abdda82406974a170b4660a01cd43d9c657e6c25c8994c710d8"
+    },
+    {
+      "path": "content/plans/wisdom_15.csv",
+      "bytes": 694,
+      "sha256": "651ba564371b844691e8d2e9123f1e646bc28086832a7b81fc78ddf08fa96393"
+    },
+    {
+      "path": "content/plans/prayer_acts_30.json",
+      "bytes": 13359,
+      "sha256": "9c106446cacba78cae4de19e95b13b6af14758cacc0ac0feccba354b7657e33a"
+    },
+    {
+      "path": "content/plans/prayer_gratitude_7.json",
+      "bytes": 3106,
+      "sha256": "b2e0f026044d1768ed2de40794cc117d7851d9c0dec887767620eb3716a0778f"
+    },
+    {
+      "path": "content/plans/prayer_morning_7.json",
+      "bytes": 3184,
+      "sha256": "489b46451a2ea542ecda59ab7c7430f1fb92576bbba03f1d8eeb6c402f16e65c"
+    },
+    {
+      "path": "content/plans/prayer_peace_21.json",
+      "bytes": 7419,
+      "sha256": "af119b6c1d83d431c4d359710aaff6d7f4e9ffb53778b4a920c6a5d265857160"
+    },
+    {
+      "path": "content/plans/prayer_psalms_14.json",
+      "bytes": 5285,
+      "sha256": "714738596d331f8a96c0593b575c9d53805aa825da860d06ee180eaef8677071"
+    },
+    {
+      "path": "content/daily-verses/daily_verses.json",
+      "bytes": 24660,
+      "sha256": "0c0533cee972e3dfa332e3af6ba28de98ba758e32b5a45db854ea39c7d4af630"
+    },
+    {
+      "path": "content/crossrefs/cross_references.json",
+      "bytes": 3647,
+      "sha256": "afe9ba5bbf4cb1a1d66b340db0c94ce421eb1aa005cd5c72c677116ebbe26594"
+    },
+    {
+      "path": "content/dictionary/entities.json",
+      "bytes": 36729,
+      "sha256": "287d576b2c9ced1e58d566b4dd96ba61fdc6bab022d91887db27ee21f2a36452"
+    },
+    {
+      "path": "content/illustrations/index.json",
+      "bytes": 2763,
+      "sha256": "4aa8612774b3fe6d68d04c89a3d943e5247f4dbe185f65e73be0837b0f879ab3"
+    },
+    {
+      "path": "content/illustrations/theme_信靠.svg",
+      "bytes": 698,
+      "sha256": "78a5516f27d81a6c6a9d2d3e69d070787d2c77a1c3d4ebdd9486acbe79443eae"
+    },
+    {
+      "path": "content/illustrations/theme_力量.svg",
+      "bytes": 698,
+      "sha256": "eb5a4a860671e1cac92498dd19ce285b4842bb11ea2cd763cae5686a519928c3"
+    },
+    {
+      "path": "content/illustrations/theme_勇气.svg",
+      "bytes": 698,
+      "sha256": "78a5516f27d81a6c6a9d2d3e69d070787d2c77a1c3d4ebdd9486acbe79443eae"
+    },
+    {
+      "path": "content/illustrations/theme_喜乐.svg",
+      "bytes": 1992,
+      "sha256": "61822e444d0c5f43c5a36d78ac1edf81a6ab8b6dd938331cdf0d2be73b18f083"
+    },
+    {
+      "path": "content/illustrations/theme_安慰.svg",
+      "bytes": 1088,
+      "sha256": "628de79fd293a86285db7154a2e9fbb1fcb0c65dfbfd6aaeb345dbb93629fe42"
+    },
+    {
+      "path": "content/illustrations/theme_平安.svg",
+      "bytes": 1088,
+      "sha256": "628de79fd293a86285db7154a2e9fbb1fcb0c65dfbfd6aaeb345dbb93629fe42"
+    },
+    {
+      "path": "content/illustrations/theme_应许.svg",
+      "bytes": 745,
+      "sha256": "86f576b4691ff3ca4cf13577cbd748b8be2d2610dc4ad62d8b1c345453be4c38"
+    },
+    {
+      "path": "content/illustrations/theme_引导.svg",
+      "bytes": 759,
+      "sha256": "3cda3088f84db5c3d5448b63fb56969f40d2e4018b900cdbc6f1aa9726c9f7ca"
+    },
+    {
+      "path": "content/illustrations/theme_忍耐.svg",
+      "bytes": 2942,
+      "sha256": "bb50d3ace2af5c4570c9c38e54fe36bcb3a5cb976e964fd1be5df62648bbccda"
+    },
+    {
+      "path": "content/illustrations/theme_恩典.svg",
+      "bytes": 1311,
+      "sha256": "9343af4d1b88fa5fd3922f72e58d2b9d1e6a0f50468fd84749166a740b304e86"
+    },
+    {
+      "path": "content/illustrations/theme_感恩.svg",
+      "bytes": 2942,
+      "sha256": "bb50d3ace2af5c4570c9c38e54fe36bcb3a5cb976e964fd1be5df62648bbccda"
+    },
+    {
+      "path": "content/illustrations/theme_敬拜.svg",
+      "bytes": 1992,
+      "sha256": "aec61105152b784bc4a5b38f9b389c8d9349accb9e0cb2e9899147a0ea60dd1f"
+    },
+    {
+      "path": "content/illustrations/theme_智慧.svg",
+      "bytes": 789,
+      "sha256": "f7546c26c3fadccfe32ddb20e21a21507f92abb1a23bb786c3452cbecc86ee8b"
+    },
+    {
+      "path": "content/illustrations/theme_永生.svg",
+      "bytes": 745,
+      "sha256": "9af4fbe46ec054b8f190540a4824f7855ff0fcf560648112345abc780fc733eb"
+    },
+    {
+      "path": "content/illustrations/theme_爱.svg",
+      "bytes": 756,
+      "sha256": "6c5893a27d5989fadfd468a0ab591572d5ab0c7919b6f38c3e90b1d753006c7f"
+    },
+    {
+      "path": "content/illustrations/theme_盼望.svg",
+      "bytes": 1992,
+      "sha256": "aec61105152b784bc4a5b38f9b389c8d9349accb9e0cb2e9899147a0ea60dd1f"
+    },
+    {
+      "path": "content/illustrations/theme_祷告.svg",
+      "bytes": 789,
+      "sha256": "6851e6fea5d7e1eec0f9bbbe5110d4b561cc0e3518fd97cd9e202ab8f8e82797"
+    },
+    {
+      "path": "content/illustrations/theme_谦卑.svg",
+      "bytes": 759,
+      "sha256": "4b3afc98b9c2ee3be1c15eaa0138bdca0f3390076de3e3c82022755f77b892fc"
+    },
+    {
+      "path": "content/illustrations/theme_赦免.svg",
+      "bytes": 1311,
+      "sha256": "f6e8554950620645770142d0196e04fd6366ce1217c3ab584c016642f53b2ce3"
+    },
+    {
+      "path": "content/illustrations/theme_顺服.svg",
+      "bytes": 759,
+      "sha256": "3cda3088f84db5c3d5448b63fb56969f40d2e4018b900cdbc6f1aa9726c9f7ca"
+    }
+  ],
+  "schema": "offline_pack@1",
+  "translation": "cnv"
+}

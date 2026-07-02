@@ -366,7 +366,13 @@ function GroupPageInner() {
           onCheckin={() => setComposerOpen(true)}
           onCompleteTask={completeTask}
         />
-        <GroupCheckinWall detail={safeDetail} onOpenMembers={() => setSettingsOpen(true)} />
+        <GroupCheckinWall
+          groupId={gid}
+          detail={safeDetail}
+          messages={feed}
+          isOwner={isOwner}
+          onOpenMembers={() => setSettingsOpen(true)}
+        />
       </div>
 
       <div className="group-feed-wrap group-checkin-feed" ref={feedWrapRef}>

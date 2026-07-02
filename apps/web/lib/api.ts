@@ -3,7 +3,7 @@ import {
   bindDeviceGuestId,
   getDeviceBoundGuestId,
   getDeviceId,
-  restoreUserCode,
+  hydrateIdentityFromIdb,
 } from './device_id';
 import { deviceIdToUserCode, isUserCode, USER_CODE_RE } from './user_code';
 
@@ -114,11 +114,56 @@ async function refreshAccountStatus(code: string): Promise<void> {
   }
 }
 
+let ensureIdentityPromise: Promise<void> | null = null;
+
+/** 启动时：IDB 恢复 → 服务端按 device_id 找回 user_code */
+export async function ensureIdentityReady(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (ensureIdentityPromise) return ensureIdentityPromise;
+  ensureIdentityPromise = (async () => {
+    await hydrateIdentityFromIdb();
+    let g = localStorage.getItem(GUEST_KEY);
+    if (g && isUserCode(g)) {
+      bindDeviceGuestId(g);
+      return;
+    }
+    const bound = getDeviceBoundGuestId();
+    if (bound) {
+      localStorage.setItem(GUEST_KEY, bound);
+      ensureFirstSeen();
+      return;
+    }
+    const deviceId = getDeviceId();
+    if (deviceId) {
+      try {
+        const res = await fetch(
+          `${API_BASE}/auth/device-user?device_id=${encodeURIComponent(deviceId)}`,
+          { cache: 'no-store' },
+        );
+        if (res.ok) {
+          const d = (await res.json()) as { user_code?: string | null };
+          if (d.user_code && isUserCode(d.user_code)) {
+            localStorage.setItem(GUEST_KEY, d.user_code);
+            bindDeviceGuestId(d.user_code);
+            ensureFirstSeen();
+            return;
+          }
+        }
+      } catch {
+        /* 离线：走本地确定性 ID */
+      }
+    }
+    guestId();
+  })();
+  return ensureIdentityPromise;
+}
+
 /** 首次打开静默建档，写入登录态并 merge-guest（P0/P2） */
 export async function ensureAccountReady(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (ensureAccountPromise) return ensureAccountPromise;
   ensureAccountPromise = (async () => {
+    await ensureIdentityReady();
     const code = guestId();
     if (!code) return;
     const loggedIn = currentUserId();
@@ -126,7 +171,10 @@ export async function ensureAccountReady(): Promise<void> {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Device-Id': getDeviceId(),
+        },
         body: JSON.stringify({ user_code: code }),
       });
       if (res.ok) {
@@ -165,18 +213,12 @@ export function guestId(): string {
   return g;
 }
 
-/** 异步恢复：localStorage 无 ID 时从 IndexedDB 恢复 */
+/** 异步恢复：localStorage 无 ID 时从 IndexedDB / 服务端恢复 */
 export async function guestIdAsync(): Promise<string> {
   if (typeof window === 'undefined') return '';
+  await ensureIdentityReady();
   const cur = localStorage.getItem(GUEST_KEY);
   if (cur && isUserCode(cur)) return cur;
-  const restored = await restoreUserCode();
-  if (restored) {
-    localStorage.setItem(GUEST_KEY, restored);
-    bindDeviceGuestId(restored);
-    ensureFirstSeen();
-    return restored;
-  }
   return guestId();
 }
 
@@ -628,6 +670,7 @@ export interface GroupMessage {
   id: string;
   author: string;
   mine: boolean;
+  user_id?: string;
   kind: string;
   ref?: string | null;
   body?: string | null;

@@ -802,6 +802,7 @@ def group_feed(
             author = "系统" if r[3] == "system" else ((r[1] or "").strip() or f"用户{str(r[2])[-4:]}")
             messages.append({
                 "id": str(r[0]), "author": author, "mine": str(r[2]) == user_id,
+                "user_id": str(r[2]),
                 "kind": r[3], "ref": r[4], "body": r[5],
                 "reactions": r[6] or {}, "created_at": r[7].isoformat(),
                 "task_id": task_id,

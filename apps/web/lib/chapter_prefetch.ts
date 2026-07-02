@@ -1,11 +1,12 @@
-import { api, type Verse } from './api';
+import { bibleChapter } from './bible_client';
+import type { Verse } from './api';
 import { getCachedChapter, setCachedChapter } from './chapter_cache';
 
 export function chapterCacheVersion(mainVersionId: string | null | undefined): string {
   return mainVersionId || 'cnv';
 }
 
-/** 读缓存或拉取一章经文，并写入本地缓存。 */
+/** 读本地经包 / 章节缓存 / 在线 API。 */
 export async function loadChapterVerses(
   bookId: string,
   chapter: number,
@@ -15,18 +16,14 @@ export async function loadChapterVerses(
   const version = chapterCacheVersion(mainVersionId);
   const cached = getCachedChapter(bookId, chapter, version);
   if (cached?.length) return cached;
-  try {
-    const data = mainVersionId
-      ? await api.chapter(bookId, chapter, mainVersionId)
-      : await api.chapter(bookId, chapter);
-    setCachedChapter(bookId, chapter, data.verses, version);
-    return data.verses;
-  } catch {
-    return null;
+  const verses = await bibleChapter(bookId, chapter, mainVersionId);
+  if (verses?.length) {
+    setCachedChapter(bookId, chapter, verses, version);
+    return verses;
   }
+  return null;
 }
 
-/** 后台预取相邻章节，减少跟手翻页后的等待。 */
 export function prefetchAdjacentChapters(
   bookId: string,
   centerChapter: number,
@@ -42,7 +39,6 @@ export function prefetchAdjacentChapters(
   }
 }
 
-/** 同步读缓存（翻页瞬间灌入，不发起网络）。 */
 export function getChapterVersesSync(
   bookId: string,
   chapter: number,

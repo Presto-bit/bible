@@ -5,19 +5,24 @@
   "description": "PrestoAI 读经 H5 / PWA（https://2sc.prestoai.cn）",
   "scripts": {
     "dev": "next dev",
+    "prepare-offline": "bash ../../scripts/prepare_web_offline.sh",
+    "prebuild": "bash ../../scripts/prepare_web_offline.sh",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "next": "15.1.6",
     "react": "19.0.0",
-    "react-dom": "19.0.0"
+    "react-dom": "19.0.0",
+    "sql.js": "^1.14.1"
   },
   "devDependencies": {
     "@types/node": "22.10.7",
     "@types/react": "19.0.7",
     "@types/react-dom": "19.0.3",
+    "@types/sql.js": "^1.4.11",
     "typescript": "5.7.3"
   }
 }

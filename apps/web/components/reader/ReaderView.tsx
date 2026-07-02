@@ -682,22 +682,23 @@ export default function ReaderView({
     let cancelled = false;
     const load = async () => {
       try {
-        const chinese = hasCached
-          ? { verses: cached! }
-          : await api.chapter(book.id, chapter);
-        if (cancelled) return;
-        setLayoutVerses(chinese.verses);
+        const chineseVerses = hasCached
+          ? cached!
+          : await loadChapterVerses(book.id, chapter);
+        if (cancelled || !chineseVerses) {
+          if (!cancelled) {
+            if (!chineseVerses) flashToast('加载失败');
+            setChapterLoading(false);
+          }
+          return;
+        }
+        setLayoutVerses(chineseVerses);
         if (mainVersionId) {
-          const altCached = getCachedChapter(book.id, chapter, version);
-          const alt = altCached?.length
-            ? { verses: altCached }
-            : await api.chapter(book.id, chapter, mainVersionId);
+          const altVerses = await loadChapterVerses(book.id, chapter, mainVersionId);
           if (cancelled) return;
-          setVerses(alt.verses);
-          setCachedChapter(book.id, chapter, alt.verses, version);
+          setVerses(altVerses ?? chineseVerses);
         } else {
-          setVerses(chinese.verses);
-          setCachedChapter(book.id, chapter, chinese.verses, version);
+          setVerses(chineseVerses);
         }
         setChapterLoading(false);
         scheduleChapterProgress(book.id, chapter, false, () => {

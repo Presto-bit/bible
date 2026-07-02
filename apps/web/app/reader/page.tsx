@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
+import { bibleBooks } from '@/lib/bible_client';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
 import { getLastRead } from '@/lib/reading';
@@ -102,9 +103,9 @@ export default function ReaderPage() {
 
   useEffect(() => {
     api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
-    api
-      .books()
-      .then(async (d) => {
+    bibleBooks()
+      .then(async (bookList) => {
+        const d = { books: bookList };
         setBooks(d.books);
         const params = new URLSearchParams(window.location.search);
         const refParam = params.get('ref');
