@@ -139,7 +139,6 @@ export default function HomePageClient() {
   const [plusOpen, setPlusOpen] = useState(false);
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [rail, setRail] = useState(() => buildRail());
-  const [featuredPlans, setFeaturedPlans] = useState<{ plan_id: string; title: string; days: number }[]>([]);
   const [userName, setUserName] = useState('');
   const [groupSummary, setGroupSummary] = useState<{
     line: string;
@@ -264,12 +263,6 @@ export default function HomePageClient() {
       }
     } catch {
       /* ignore */
-    }
-    try {
-      const p = await api.plans();
-      setFeaturedPlans(p.plans.filter((x) => x.type !== 'prayer').slice(0, 9));
-    } catch {
-      setFeaturedPlans([]);
     }
     setRail(buildRail(
       planCard,
@@ -453,23 +446,6 @@ export default function HomePageClient() {
           <span key={i} className={i === page ? 'dot dot-active' : 'dot'} />
         ))}
       </div>
-
-      {featuredPlans.length > 0 && (
-        <>
-          <div className="section-row" style={{ marginTop: 18 }}>
-            <span>读经计划</span>
-            <Link href="/plans" className="text-link plans-customize-link">个性定制 ›</Link>
-          </div>
-          <div className="home-plans-grid">
-            {featuredPlans.map((p) => (
-              <Link key={p.plan_id} href={`/plans?highlight=${p.plan_id}`} className="home-plan-card card card-2">
-                <strong>{p.title}</strong>
-                <span className="muted" style={{ fontSize: 11 }}>{p.days} 天</span>
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
 
       <a href="/profile" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
         <span>

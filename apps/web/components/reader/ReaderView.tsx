@@ -15,11 +15,10 @@ import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
 import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
-import { listNotes, createNote, type LocalNote } from '@/lib/notes';
+import { listNotes, type LocalNote } from '@/lib/notes';
 import { notesForChapter } from '@/lib/notes_for_chapter';
 import { isFavorite, toggleFavorite } from '@/lib/favorites';
 import {
-  bookProgressInBible,
   getParallelVersion,
   getMainVersion,
   getReaderTheme,
@@ -136,6 +135,7 @@ export default function ReaderView({
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
   const [bookCelebrate, setBookCelebrate] = useState(false);
+  const [chapterBottomTick, setChapterBottomTick] = useState(0);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
   const [summarySheet, setSummarySheet] = useState<null | { title: string; load: () => Promise<string> }>(null);
   const [chapterNotes, setChapterNotes] = useState<Map<number, LocalNote[]>>(new Map());
@@ -221,8 +221,6 @@ export default function ReaderView({
   };
   const poetry = isPoetryBook(book.id);
   const outline = outlineFor(book.id, chapter);
-  const biblePct = bookProgressInBible(books, book.id, chapter);
-
   const structureVerses = layoutVerses.length ? layoutVerses : verses;
   const paragraphs = useMemo(
     () =>
@@ -539,9 +537,12 @@ export default function ReaderView({
         if (bestVerse != null) setLastReadVerse(bestVerse);
       }, 200);
 
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      if (nearBottom && verses.length > 0) {
+        setChapterBottomTick((t) => t + 1);
+      }
       if (bookDone) return;
       if (chapter < book.chapter_count) return;
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom && verses.length > 0) {
         setBookDone(true);
         setBookCelebrate(true);
@@ -554,6 +555,12 @@ export default function ReaderView({
       if (saveVerseTimer.current) clearTimeout(saveVerseTimer.current);
     };
   }, [verses, bookDone, chapter, book.chapter_count, book.name, scheduleChromeHide]);
+
+  useEffect(() => {
+    if (!bookCelebrate) return;
+    const timer = window.setTimeout(() => setBookCelebrate(false), 4200);
+    return () => window.clearTimeout(timer);
+  }, [bookCelebrate]);
 
   const navChapter = (delta: number) => {
     setChapterAnim(delta > 0 ? 'chapter-exit-left' : 'chapter-exit-right');
@@ -611,6 +618,14 @@ export default function ReaderView({
     setMarkMenuOpen(false);
   };
 
+  useEffect(() => {
+    if (hasSel && underlinesOn) {
+      setMarkMenuOpen(true);
+    } else if (!hasSel) {
+      setMarkMenuOpen(false);
+    }
+  }, [hasSel, underlinesOn]);
+
   const saveFavorite = () => {
     const ref = effSelectedRef || refParam;
     const added = toggleFavorite(ref);
@@ -639,10 +654,6 @@ export default function ReaderView({
         scheduleChromeHide();
       }}
     >
-      <div className="reader-book-progress">
-        <div className="reader-book-progress-fill" style={{ width: `${biblePct}%` }} />
-      </div>
-
       {!chromeHidden && (
         <div className="reader-topbar">
           <div className="reader-topbar-left">
@@ -706,6 +717,7 @@ export default function ReaderView({
             meta={planMeta}
             bookId={book.id}
             chapter={chapter}
+            chapterBottomTick={chapterBottomTick}
             onMetaChange={onPlanMetaChange}
             onJump={onPlanJump}
           />
@@ -867,44 +879,13 @@ export default function ReaderView({
           <div className="reader-focus-row">
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
             {underlinesOn && (
-              <div className="reader-mark-wrap">
-                <button
-                  type="button"
-                  className={`vsb-item ${currentMark ? 'vsb-item-active' : ''}`}
-                  onClick={() => setMarkMenuOpen((v) => !v)}
-                >
-                  划线
-                </button>
-                {markMenuOpen && (
-                  <div className="reader-mark-popover" role="dialog" aria-label="划线样式">
-                    {([
-                      { key: 'color' as HighlightStyleKey, label: '荧光' },
-                      { key: 'solid' as HighlightStyleKey, label: '实线' },
-                      { key: 'dashed' as HighlightStyleKey, label: '虚线' },
-                    ]).map((style) => (
-                      <div key={style.key} className="reader-mark-style-row">
-                        <span className="reader-mark-style-label">{style.label}</span>
-                        <div className="reader-weread-colors">
-                          {(['yellow', 'green', 'blue', 'pink', 'orange'] as HighlightColor[]).map((c) => (
-                            <button
-                              key={`${style.key}-${c}`}
-                              type="button"
-                              className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c && currentMark?.style === style.key ? 'reader-weread-dot-active' : ''}`}
-                              aria-label={`${style.label} ${c}`}
-                              onClick={() => applyMarkChoice(c, style.key)}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                    {currentMark && (
-                      <button type="button" className="reader-weread-clear reader-mark-clear-btn" onClick={clearMark}>
-                        清除划线
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
+              <button
+                type="button"
+                className={`vsb-item ${currentMark ? 'vsb-item-active' : ''}`}
+                onClick={() => setMarkMenuOpen((v) => !v)}
+              >
+                划线
+              </button>
             )}
             {thoughtsOn && (
               <button type="button" className="vsb-item" onClick={() => {
@@ -916,17 +897,40 @@ export default function ReaderView({
                 clearSelection();
               }}>写想法</button>
             )}
-            <button type="button" className="vsb-item" onClick={() => {
-              createNote(effSelectionText || effRefLabel, selRef, ['读经']);
-              refreshChapterNotes();
-              flashToast('已存笔记');
-              clearSelection();
-            }}>笔记</button>
             <button type="button" className={`vsb-item ${favActive ? 'vsb-item-active' : ''}`} onClick={saveFavorite}>
               {englishUI ? 'Save' : '收藏'}
             </button>
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
           </div>
+          {markMenuOpen && underlinesOn && (
+            <div className="reader-mark-popover" role="dialog" aria-label="划线样式">
+              {([
+                { key: 'color' as HighlightStyleKey, label: '荧光' },
+                { key: 'solid' as HighlightStyleKey, label: '实线' },
+                { key: 'dashed' as HighlightStyleKey, label: '虚线' },
+              ]).map((style) => (
+                <div key={style.key} className="reader-mark-style-row">
+                  <span className="reader-mark-style-label">{style.label}</span>
+                  <div className="reader-weread-colors">
+                    {(['yellow', 'green', 'blue', 'pink', 'orange'] as HighlightColor[]).map((c) => (
+                      <button
+                        key={`${style.key}-${c}`}
+                        type="button"
+                        className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c && currentMark?.style === style.key ? 'reader-weread-dot-active' : ''}`}
+                        aria-label={`${style.label} ${c}`}
+                        onClick={() => applyMarkChoice(c, style.key)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {currentMark && (
+                <button type="button" className="reader-weread-clear reader-mark-clear-btn" onClick={clearMark}>
+                  清除划线
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

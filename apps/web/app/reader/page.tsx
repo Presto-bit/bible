@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
+import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
 import { getLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
@@ -28,6 +29,7 @@ export default function ReaderPage() {
   const [book, setBook] = useState<BibleBook | null>(null);
   const [chapter, setChapter] = useState(1);
   const [chapterPick, setChapterPick] = useState<BibleBook | null>(null);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<DictEntity | null>(null);
@@ -149,7 +151,7 @@ export default function ReaderPage() {
       <main className="container">
         <div className="reader-bar" style={{ marginBottom: 14 }}>
           <h2 style={{ margin: 0 }}>
-            <button type="button" className="text-link" style={{ fontSize: 22, marginRight: 8 }} onClick={() => setChapterPick(null)}>‹</button>
+            <button type="button" className="icon-btn" style={{ marginRight: 8 }} onClick={() => setChapterPick(null)} aria-label="返回">‹</button>
             {b.name}
             <span className="muted" style={{ fontSize: 13, marginLeft: 8 }}>共 {b.chapter_count} 章</span>
           </h2>
@@ -159,11 +161,12 @@ export default function ReaderPage() {
             <button
               key={n}
               type="button"
-              className="chapter-cell"
+              className={`chapter-cell${book?.id === b.id && chapter === n ? ' chapter-cell-active' : ''}`}
               onClick={() => {
                 setChapter(n);
                 setBook(b);
                 setChapterPick(null);
+                setCatalogOpen(false);
               }}
             >
               {n}
@@ -174,31 +177,27 @@ export default function ReaderPage() {
     );
   }
 
-  if (!book) {
-    const ot = books.filter((b) => b.testament.toUpperCase().startsWith('O'));
-    const nt = books.filter((b) => !b.testament.toUpperCase().startsWith('O'));
-    const renderGroup = (label: string, list: BibleBook[]) => (
-      <>
-        <p className="section-head">{label}</p>
-        <div className="catalog-grid">
-          {list.map((b) => (
-            <button key={b.id} type="button" className="catalog-card" onClick={() => setChapterPick(b)}>
-              <span className="catalog-abbr">{bookAbbr(b.name)}</span>
-              <span className="catalog-name">{b.name}</span>
-              <span className="catalog-ch">{b.chapter_count} 章</span>
-            </button>
-          ))}
-        </div>
-      </>
-    );
+  if (catalogOpen && book) {
     return (
-      <main className="container">
-        <div className="reader-bar" style={{ marginBottom: 14 }}>
-          <h2 style={{ margin: 0, fontSize: 18 }}>圣经目录</h2>
-        </div>
-        {ot.length > 0 && renderGroup('旧约', ot)}
-        {nt.length > 0 && renderGroup('新约', nt)}
-      </main>
+      <CatalogView
+        books={books}
+        currentBookId={book.id}
+        showBack
+        onBack={() => setCatalogOpen(false)}
+        onPickBook={setChapterPick}
+        bookAbbr={bookAbbr}
+      />
+    );
+  }
+
+  if (!book) {
+    return (
+      <CatalogView
+        books={books}
+        showBack={false}
+        onPickBook={setChapterPick}
+        bookAbbr={bookAbbr}
+      />
     );
   }
 
@@ -209,7 +208,7 @@ export default function ReaderPage() {
         books={books}
         chapter={chapter}
         onChapterChange={setChapter}
-        onPickBook={() => setBook(null)}
+        onPickBook={() => setCatalogOpen(true)}
         bookAbbr={bookAbbr}
         renderVerseText={renderVerseText}
         planMeta={planMeta}

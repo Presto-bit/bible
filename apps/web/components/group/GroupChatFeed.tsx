@@ -30,11 +30,13 @@ function formatTime(iso: string): string {
   }
 }
 
-function reactionCount(reactions: Record<string, string[]>): number {
+function reactionCount(reactions: Record<string, string[]> | null | undefined): number {
+  if (!reactions) return 0;
   return Object.values(reactions).reduce((n, users) => n + users.length, 0);
 }
 
-function formatReactions(reactions: Record<string, string[]>): string {
+function formatReactions(reactions: Record<string, string[]> | null | undefined): string {
+  if (!reactions) return '';
   const parts: string[] = [];
   for (const [key, users] of Object.entries(reactions)) {
     if (!users.length) continue;
@@ -93,7 +95,7 @@ function FeedBubble({
   return (
     <div className={`group-bubble-row ${m.mine ? 'mine' : 'theirs'}`}>
       <div className={`group-bubble ${isTask ? 'task' : isTaskDone ? 'task-done' : 'checkin'}`}>
-        {!m.mine && <div className="group-bubble-author">{m.author}</div>}
+        {!m.mine && <div className="group-bubble-author">{m.author || '群友'}</div>}
         <div className="group-bubble-kind">
           {kindLabel}
           {dueLabel && <span className="group-task-due-badge">{dueLabel}</span>}

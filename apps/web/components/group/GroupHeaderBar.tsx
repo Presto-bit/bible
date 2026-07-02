@@ -43,7 +43,7 @@ export function GroupHeaderBar({
         </div>
         <div className="group-header-actions">
           <button type="button" className="group-members-link" onClick={onShowMembers}>
-            成员 {detail.members.length} ›
+            成员 {detail.members?.length ?? 0} ›
           </button>
           {onToggleMute && (
             <button type="button" className="icon-btn" aria-label="提醒设置" onClick={onToggleMute}>

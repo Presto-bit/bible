@@ -25,8 +25,6 @@ const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
 const PWD_KEY = 'account_pwd';
 
-const BIBLICAL_NAMES = ['以勒', '以诺', '提阿非罗', '路加', '亚居拉', '百基拉', '司提反', '巴拿巴', '马利亚', '约拿单'];
-
 export default function ProfilePage() {
   const [uid, setUid] = useState<string | null>(null);
   const [gid, setGid] = useState<string>('');
@@ -48,6 +46,8 @@ export default function ProfilePage() {
   const [obErr, setObErr] = useState<string | null>(null);
   const [obBusy, setObBusy] = useState(false);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
+  const [nameBusy, setNameBusy] = useState(false);
+  const [nameMsg, setNameMsg] = useState<string | null>(null);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
   const [streak, setStreak] = useState(0);
 
@@ -119,6 +119,34 @@ export default function ProfilePage() {
     setBio(t);
     localStorage.setItem(BIO_KEY, t);
   };
+
+  const confirmName = async () => {
+    const u = name.trim();
+    if (u.length < 2) {
+      setNameMsg('用户名至少 2 个字');
+      return;
+    }
+    setNameBusy(true);
+    setNameMsg(null);
+    try {
+      const prev = localStorage.getItem(NAME_KEY) || '';
+      if (u !== prev) {
+        const ok = await usernameAvailable(u);
+        if (!ok) {
+          setNameMsg('该用户名已被占用');
+          return;
+        }
+      }
+      const pwd = localStorage.getItem(PWD_KEY) || '';
+      await setCredentials(u, pwd);
+      setNameMsg('已保存');
+    } catch (e) {
+      setNameMsg(e instanceof Error ? e.message : String(e));
+    } finally {
+      setNameBusy(false);
+    }
+  };
+
   const changePassword = async () => {
     const stored = localStorage.getItem(PWD_KEY);
     if (stored) {
@@ -190,6 +218,7 @@ export default function ProfilePage() {
   };
 
   const displayName = name.trim() || '读经伙伴';
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 
   return (
     <main className="container">
@@ -341,11 +370,23 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   className="font-pill"
-                  onClick={() => saveName(BIBLICAL_NAMES[Math.floor(Math.random() * BIBLICAL_NAMES.length)])}
+                  disabled={nameBusy}
+                  onClick={() => void confirmName()}
                 >
-                  换一个
+                  {nameBusy ? '…' : '确认'}
                 </button>
               </div>
+              {nameMsg && (
+                <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>{nameMsg}</p>
+              )}
+              <button
+                type="button"
+                className="text-link"
+                style={{ marginTop: 10, fontSize: 13, padding: 0 }}
+                onClick={() => void changePassword()}
+              >
+                修改密码
+              </button>
               <div className="section-row" style={{ marginTop: 10 }}>
                 <span className="muted" style={{ fontSize: 12 }}>签名</span>
                 <span className="muted" style={{ fontSize: 12 }}>{bio.length}/15</span>
@@ -373,19 +414,8 @@ export default function ProfilePage() {
             </div>
 
             <div className="settings-card">
-              <p className="settings-title">关于</p>
-              <div className="section-row" style={{ marginTop: 0 }}>
-                <span>版本</span>
-                <span className="muted">v1.0</span>
-              </div>
-            </div>
-
-            <div className="settings-card">
               <p className="settings-title">账号</p>
               <p className="muted" style={{ fontSize: 12 }}>当前 ID：{idValue || '—'}（免注册即用）</p>
-              <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                <button type="button" className="font-pill" onClick={changePassword}>修改密码</button>
-              </div>
               <button
                 type="button"
                 className="clear-cache-btn"
@@ -407,6 +437,7 @@ export default function ProfilePage() {
                   退出登录
                 </button>
               ) : null}
+              <p className="muted settings-version-line">版本 {appVersion}</p>
             </div>
           </div>
         </div>

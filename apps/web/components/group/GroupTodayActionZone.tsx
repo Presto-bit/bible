@@ -24,7 +24,7 @@ export function GroupTodayActionZone({
   onCompleteTask,
   onOpenComposer,
 }: Props) {
-  const members = detail.members.length;
+  const members = detail.members?.length ?? 0;
   const checked = detail.checked_in_today ?? 0;
   const openTasks = detail.open_tasks ?? 0;
   const pct = members > 0 ? Math.round((checked / members) * 100) : 0;

@@ -10,6 +10,7 @@ import {
   type Group,
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
+import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
 function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' | 'task' } {
   if ((g.open_tasks ?? 0) > 0) {
@@ -76,14 +77,7 @@ export default function DiscoverGroupsPage() {
           <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
             创建群或凭邀请码加入，和大家一起读经打卡。
           </p>
-          <div className="discover-hero-actions">
-            <Link className="btn" href="/group/create">
-              创建共读群
-            </Link>
-            <Link className="font-pill" href="/discover/join">
-              邀请码加入
-            </Link>
-          </div>
+          <DiscoverGroupActions />
         </div>
       ) : (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>

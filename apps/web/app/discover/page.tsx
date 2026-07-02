@@ -15,6 +15,7 @@ import {
 import { groupPlanProgressLabel } from '@/lib/group_plan';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { AssistantLink } from '@/components/AssistantLink';
+import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
 function reactionTotal(reactions: Record<string, string[]>): number {
   return Object.values(reactions).reduce((n, users) => n + users.length, 0);
@@ -156,16 +157,7 @@ export default function DiscoverPage() {
           <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
             受好友邀请，或自己创建一个群，和大家按计划一起读、彼此打卡。
           </p>
-          <div className="discover-hero-actions">
-            <Link className="btn discover-hero-btn" href="/group/create">
-              <span className="discover-hero-icon" aria-hidden>👥</span>
-              创建共读群
-            </Link>
-            <Link className="font-pill discover-hero-btn" href="/discover/join">
-              <span className="discover-hero-icon" aria-hidden>🔑</span>
-              邀请码加入
-            </Link>
-          </div>
+          <DiscoverGroupActions />
         </div>
       ) : (
         <>

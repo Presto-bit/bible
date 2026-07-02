@@ -8,6 +8,7 @@ import json
 import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
+from psycopg import errors as pg_errors
 from pydantic import BaseModel
 
 from ..auth.session import get_current_user
@@ -212,13 +213,23 @@ def create_group(body: CreateGroup, user_id: str = Depends(get_current_user)) ->
         raise HTTPException(400, "群名不能为空")
     pool = get_pool()
     with pool.connection() as conn:
-        code = _gen_code()
-        row = conn.execute(
-            "INSERT INTO social_group (name, intro, owner_id, join_code, plan_id) "
-            "VALUES (%s, %s, %s, %s, %s) RETURNING id",
-            (name, body.intro, user_id, code, body.plan_id),
-        ).fetchone()
-        gid = row[0]
+        gid = None
+        code = None
+        for _ in range(8):
+            code = _gen_code()
+            try:
+                row = conn.execute(
+                    "INSERT INTO social_group (name, intro, owner_id, join_code, plan_id) "
+                    "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+                    (name, body.intro, user_id, code, body.plan_id),
+                ).fetchone()
+                gid = row[0]
+                break
+            except pg_errors.UniqueViolation:
+                conn.rollback()
+                continue
+        if gid is None or code is None:
+            raise HTTPException(500, "生成邀请码失败，请重试")
         conn.execute(
             "INSERT INTO group_member (group_id, user_id, role) VALUES (%s, %s, 'owner')",
             (gid, user_id),
@@ -544,7 +555,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         "members": [
             {
                 "user_id": str(m[0]),
-                "name": m[1],
+                "name": (m[1] or "").strip() or f"用户{str(m[0])[:4]}",
                 "role": m[2],
                 "checked_in_today": bool(m[3]),
                 "plan_day": int(m[4] or 0),
@@ -729,7 +740,7 @@ def group_feed(
                     "AND task_id = %s LIMIT 1",
                     (gid, user_id, task_id),
                 ).fetchone() is not None
-            author = "系统" if r[3] == "system" else r[1]
+            author = "系统" if r[3] == "system" else ((r[1] or "").strip() or f"用户{str(r[2])[-4:]}")
             messages.append({
                 "id": str(r[0]), "author": author, "mine": str(r[2]) == user_id,
                 "kind": r[3], "ref": r[4], "body": r[5],

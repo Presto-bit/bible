@@ -1,7 +1,7 @@
 import type { FootprintRef } from './group_footprint';
 
-export function memberAvatarInitial(name: string): string {
-  const t = name.trim();
+export function memberAvatarInitial(name: string | null | undefined): string {
+  const t = (name ?? '').trim();
   if (!t) return '?';
   return t.slice(0, 1);
 }

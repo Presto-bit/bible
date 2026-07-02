@@ -46,7 +46,7 @@ export function GroupCollapsibleMeta({
           <GroupWeeklySummary
             checkinsThisWeek={checkinsThisWeek}
             activeDays={activeDays}
-            memberCount={detail.members.length}
+            memberCount={detail.members?.length ?? 0}
             isOwner={isOwner}
             onNudge={onNudge}
             nudgeBusy={nudgeBusy}

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, type GeneratedPlan, type PlanSummary } from '@/lib/api';
 import { PlanScheduleSheet } from '@/components/plans/PlanScheduleSheet';
+import { PlanCategoryGrid } from '@/components/plans/PlanCategoryGrid';
 import {
   cancelActivePlan,
   getActivePlan,
@@ -44,31 +45,6 @@ function toActivePlan(
     days: p.days ?? p.days_count ?? 0,
     source,
   };
-}
-
-function PlanRow({
-  title,
-  days,
-  kind,
-  onClick,
-}: {
-  title: string;
-  days: number;
-  kind: 'reading' | 'prayer';
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" className="plan-row" onClick={onClick}>
-      <div className="plan-row-main">
-        <span className="plan-row-title">{title}</span>
-        <span className="plan-row-meta">{days} 天</span>
-      </div>
-      <span className={`pill plan-row-tag ${kind === 'reading' ? 'pill-active' : ''}`}>
-        {kind === 'prayer' ? '祷告' : '读经'}
-      </span>
-      <span className="plan-row-chevron" aria-hidden>›</span>
-    </button>
-  );
 }
 
 export default function PlansPage() {
@@ -345,20 +321,18 @@ export default function PlansPage() {
       {grouped.map((group) => (
         <section key={group.label}>
           <p className="plan-section-label">{group.label}</p>
-          <div className="plan-list" style={{ marginBottom: 10 }}>
-            {group.items.map((p) => (
-              <PlanRow
-                key={p.plan_id}
-                title={p.title}
-                days={p.days}
-                kind={p.type === 'prayer' ? 'prayer' : 'reading'}
-                onClick={() => openSchedule(toActivePlan(
-                  { planId: p.plan_id, title: p.title, type: p.type, days: p.days },
-                  'featured',
-                ))}
-              />
-            ))}
-          </div>
+          <PlanCategoryGrid
+            items={group.items.map((p) => ({
+              id: p.plan_id,
+              title: p.title,
+              days: p.days,
+              kind: p.type === 'prayer' ? 'prayer' : 'reading',
+              onClick: () => openSchedule(toActivePlan(
+                { planId: p.plan_id, title: p.title, type: p.type, days: p.days },
+                'featured',
+              )),
+            }))}
+          />
         </section>
       ))}
 
@@ -368,20 +342,18 @@ export default function PlansPage() {
             <h3>我的定制</h3>
             <span>{savedPlans.length} 个</span>
           </div>
-          <div className="plan-list">
-            {savedPlans.map((p) => (
-              <PlanRow
-                key={p.id}
-                title={p.title}
-                days={p.days_count}
-                kind="reading"
-                onClick={() => openSchedule(toActivePlan(
-                  { id: p.id, title: p.title, days_count: p.days_count },
-                  'generated',
-                ))}
-              />
-            ))}
-          </div>
+          <PlanCategoryGrid
+            items={savedPlans.map((p) => ({
+              id: p.id,
+              title: p.title,
+              days: p.days_count,
+              kind: 'reading' as const,
+              onClick: () => openSchedule(toActivePlan(
+                { id: p.id, title: p.title, days_count: p.days_count },
+                'generated',
+              )),
+            }))}
+          />
         </>
       )}
 

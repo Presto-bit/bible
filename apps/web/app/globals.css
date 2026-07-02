@@ -325,6 +325,17 @@ body.reader-immersive .tabbar {
   border-color: var(--accent);
 }
 
+.catalog-card-active {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.reader-catalog-page {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
 .catalog-flag {
   position: absolute;
   top: 6px;
@@ -382,6 +393,13 @@ body.reader-immersive .tabbar {
 .chapter-cell:active {
   border-color: var(--accent);
   background: var(--accent-wash);
+}
+
+.chapter-cell-active {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-weight: 700;
 }
 
 .book-chip {
@@ -3954,8 +3972,30 @@ a.today-card-link {
   cursor: pointer;
 }
 
-.reader-focus-bar-ext { flex-direction: column; align-items: stretch; gap: 8px; height: auto; max-height: none; overflow: visible; }
-.reader-focus-row { display: flex; gap: 2px; overflow-x: auto; overflow-y: visible; }
+.reader-focus-bar-ext {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  overflow-x: visible;
+}
+.reader-focus-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  overflow: visible;
+}
+.reader-mark-popover {
+  position: relative;
+  left: auto;
+  top: auto;
+  bottom: auto;
+  transform: none;
+  width: 100%;
+  box-sizing: border-box;
+}
 .reader-mark-picker { padding-top: 4px; border-top: 1px solid var(--line); }
 .reader-mark-styles { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 6px; }
 .reader-focus-bar-near {
@@ -4300,8 +4340,42 @@ a.today-card-link {
 .discover-hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
   margin-top: 12px;
+}
+
+.discover-action-btn {
+  flex: 1;
+  min-width: 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.discover-action-primary {
+  background: var(--accent-deep, #4f6b5d);
+  border-color: var(--accent-deep, #4f6b5d);
+  color: #fff;
+}
+
+.discover-action-secondary {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.discover-action-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .discover-group-rail .group-card {
@@ -5454,6 +5528,89 @@ a.today-card-link {
   background: rgba(60, 140, 90, 0.08);
 }
 
+.plan-day-complete-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  width: min(360px, calc(100vw - 36px));
+  z-index: 55;
+  box-shadow: var(--elev-2, 0 8px 24px rgba(0, 0, 0, 0.12));
+  animation: plan-celebrate-in 0.28s ease;
+}
+
+@keyframes plan-celebrate-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.plan-segment-hint {
+  margin: 8px 12px;
+  padding: 10px 12px;
+  border: 1px dashed var(--line);
+  background: var(--accent-wash);
+}
+
+.plan-category-scroll {
+  display: grid;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - 16px) / 3);
+  gap: 8px;
+  overflow-x: auto;
+  margin-bottom: 14px;
+  padding-bottom: 4px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+
+.plan-category-card {
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-height: 88px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--elev-1), var(--hi);
+  text-align: left;
+  cursor: pointer;
+}
+
+.plan-category-title {
+  font-size: 12px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.plan-category-days {
+  font-size: 11px;
+  margin-top: auto;
+}
+
+.plan-category-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.settings-version-line {
+  margin: 12px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+
 .challenge-mode-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -5491,48 +5648,10 @@ a.today-card-link {
   margin: 4px 0 0;
 }
 
-.home-plans-grid {
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: calc(33.33% - 6px);
-  gap: 8px;
-  overflow-x: auto;
-  margin-top: 8px;
-  padding-bottom: 4px;
-  scroll-snap-type: x mandatory;
-}
-
-.home-plan-card {
-  scroll-snap-align: start;
-  padding: 10px 8px;
-  min-height: 72px;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  text-decoration: none;
-  color: inherit;
-}
-
-.home-plan-card strong {
-  font-size: 12px;
-  line-height: 1.35;
-}
-
 .plans-customize-link,
 .plans-customize-btn {
   font-size: 14px !important;
   font-weight: 700 !important;
-}
-
-.discover-hero-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.discover-hero-icon {
-  font-size: 16px;
-  line-height: 1;
 }
 
 .reader-settings-sheet h3 {

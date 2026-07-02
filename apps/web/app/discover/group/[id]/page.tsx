@@ -22,7 +22,8 @@ export default function GroupPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
-  const gid = params.id;
+  const rawId = params.id;
+  const gid = Array.isArray(rawId) ? rawId[0] : rawId ?? '';
   const [detail, setDetail] = useState<GroupDetail | null>(null);
   const [feed, setFeed] = useState<GroupMessage[]>([]);
   const [hasMore, setHasMore] = useState(false);
@@ -55,11 +56,15 @@ export default function GroupPage() {
   }, []);
 
   const reload = useCallback(async () => {
+    if (!gid) {
+      setErr('群 ID 无效');
+      return;
+    }
     try {
       const [d, f] = await Promise.all([api.groupDetail(gid), api.groupFeed(gid)]);
       setDetail(d);
-      setFeed(f.messages);
-      setHasMore(f.has_more);
+      setFeed(f.messages ?? []);
+      setHasMore(Boolean(f.has_more));
       setErr(null);
     } catch (e) {
       setErr(String(e));
@@ -152,8 +157,11 @@ export default function GroupPage() {
   }
 
   const isOwner = detail.role === 'owner';
-  const pendingMembers = detail.members.filter((m) => !m.checked_in_today).length;
-  const pinnedTask = detail.tasks.find((t) => t.pinned || t.id === detail.pinned_task_id);
+  const members = detail.members ?? [];
+  const tasks = detail.tasks ?? [];
+  const pendingMembers = members.filter((m) => !m.checked_in_today).length;
+  const pinnedTask = tasks.find((t) => t.pinned || t.id === detail.pinned_task_id);
+  const safeDetail = { ...detail, members, tasks };
 
   const react = async (mid: string, emoji: string) => {
     try {
@@ -231,7 +239,7 @@ export default function GroupPage() {
 
   const quickCheckin = async () => {
     if (detail.my_checked_in_today || busy) return;
-    const openTask = detail.tasks.find((t) => !t.completed);
+    const openTask = tasks.find((t) => !t.completed);
     if (openTask) {
       completeTask(openTask.id, openTask.title, openTask.ref);
       return;
@@ -351,7 +359,7 @@ export default function GroupPage() {
         </div>
 
         <GroupHeaderBar
-          detail={detail}
+          detail={safeDetail}
           scrolled={headerScrolled}
           onToggleMute={toggleMute}
           onShowMembers={() => {
@@ -370,7 +378,7 @@ export default function GroupPage() {
 
         {!showSettings && (
           <GroupMemberAvatars
-            members={detail.members}
+            members={members}
             isOwner={isOwner}
             onShowMembers={() => {
               setShowMembers(true);
@@ -383,7 +391,7 @@ export default function GroupPage() {
       {showMembers && (
         <GroupMembersPanel
           gid={gid}
-          members={detail.members}
+          members={members}
           isOwner={isOwner}
           joinCode={isOwner ? detail.join_code : undefined}
           planDaysTotal={detail.plan_days_total}
@@ -430,11 +438,11 @@ export default function GroupPage() {
             value={announceDraft}
             onChange={(e) => setAnnounceDraft(e.target.value)}
           />
-          {detail.tasks.length > 0 && (
+          {tasks.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <span className="group-composer-label">置顶任务</span>
               <div className="group-pin-list">
-                {detail.tasks.map((t) => (
+                {tasks.map((t) => (
                   <button
                     key={t.id}
                     type="button"
@@ -473,7 +481,7 @@ export default function GroupPage() {
       {!showSettings && (
         <div className="group-page-sections">
           <GroupTodayActionZone
-            detail={detail}
+            detail={safeDetail}
             gid={gid}
             pinnedTask={pinnedTask}
             busy={busy}
@@ -483,7 +491,7 @@ export default function GroupPage() {
           />
 
           <GroupCollapsibleMeta
-            detail={detail}
+            detail={safeDetail}
             isOwner={isOwner}
             checkinsThisWeek={detail.weekly_checkins ?? 0}
             activeDays={detail.weekly_active_days ?? 0}
@@ -541,7 +549,7 @@ export default function GroupPage() {
         onOpenChange={setComposerOpen}
         gid={gid}
         isOwner={isOwner}
-        tasks={detail.tasks}
+        tasks={tasks}
         busy={busy}
         groupName={detail.name}
         onCheckin={handleCheckin}

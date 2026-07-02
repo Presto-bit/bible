@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { api } from '@/lib/api';
+import { api, guestId } from '@/lib/api';
 
 export default function CreateGroupPage() {
   const router = useRouter();
@@ -18,13 +18,15 @@ export default function CreateGroupPage() {
     setBusy(true);
     setMsg('');
     try {
+      guestId();
       const g = await api.createGroup(n, intro.trim() || undefined);
+      if (!g?.id) throw new Error('服务器未返回群 ID');
       router.push(`/discover/group/${g.id}`);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       setMsg(
         detail.includes('未登录') || detail.includes('未认证')
-          ? `建群失败：网络或身份异常，请稍后重试（你的 ID：${typeof window !== 'undefined' ? localStorage.getItem('presto_user_id') || localStorage.getItem('presto_guest_id') : ''}）`
+          ? '建群失败：身份未就绪，请返回「我的」刷新后重试'
           : `建群失败：${detail}`,
       );
     } finally {
