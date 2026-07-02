@@ -1,6 +1,7 @@
 // 打卡「足迹候选」：刚读完 / 今日计划 / 收藏经节（PRODUCT §5.4.3）
 
 import { loadFavoriteRefs } from './favorites';
+import { formatGroupRefLabel } from './ref_label';
 import { chapterRef } from './group_checkin';
 import { getActivePlan, getPlanDay } from './plan_progress';
 import { getLastRead } from './reading';
@@ -59,17 +60,17 @@ export function syncFootprintRefs(): FootprintRef[] {
 
   for (const { book, chapter } of todayChapterRefs()) {
     const ref = chapterRefFromBook(book, chapter);
-    push(ref, `今天读过 · ${book} ${chapter}`, 'recent');
+    push(ref, `今天读过 · ${formatGroupRefLabel(ref)}`, 'recent');
   }
 
   const last = getLastRead();
   if (last) {
     const ref = chapterRefFromBook(last.bookId, last.chapter);
-    push(ref, `续读位置 · ${last.bookId} ${last.chapter}`, 'last');
+    push(ref, `续读位置 · ${formatGroupRefLabel(ref)}`, 'last');
   }
 
   for (const ref of loadFavoriteRefs().slice(0, 8)) {
-    push(ref, `收藏 · ${ref}`, 'favorite');
+    push(ref, `收藏 · ${formatGroupRefLabel(ref)}`, 'favorite');
   }
 
   return out.slice(0, 12);
@@ -89,7 +90,9 @@ export async function loadFootprintRefs(opts?: {
       seen.add(ref);
       out.unshift({
         ref,
-        label: opts.taskTitle ? `任务 · ${opts.taskTitle}` : `任务 · ${ref}`,
+        label: opts.taskTitle
+          ? `任务 · ${opts.taskTitle}`
+          : `任务 · ${formatGroupRefLabel(ref)}`,
         source: 'task',
       });
     }

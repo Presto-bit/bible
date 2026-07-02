@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { GroupMessage } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
   GROUP_CANNED_PHRASES,
   GROUP_EMOJIS,
@@ -85,10 +86,11 @@ function FeedBubble({
   const kindLabel = isTask ? '任务' : isTaskDone ? '任务完成' : '打卡';
   const dueLabel = isTask ? formatDueCountdown(m.task_due_at) : null;
   const completeTitle = isTaskDone ? taskCompleteTitle(m.body) : null;
+  const refLabel = m.ref ? formatGroupRefLabel(m.ref) : '';
   const refHref = m.ref ? readerHrefFromRef(m.ref) : null;
 
   const shareMessageCard = async () => {
-    const title = m.ref ? `今日打卡 · ${m.ref}` : '今日打卡';
+    const title = m.ref ? `今日打卡 · ${refLabel}` : '今日打卡';
     await shareCard({ title, body: m.body || '', footer: BRAND_NAME });
   };
 
@@ -104,13 +106,13 @@ function FeedBubble({
         {m.ref && refHref && (
           <Link href={refHref} className="group-ref-card">
             <span className="group-ref-card-label">经文</span>
-            <strong>{m.ref}</strong>
+            <strong>{refLabel}</strong>
           </Link>
         )}
         {m.ref && !refHref && (
           <div className="group-ref-card static">
             <span className="group-ref-card-label">经文</span>
-            <strong>{m.ref}</strong>
+            <strong>{refLabel}</strong>
           </div>
         )}
 

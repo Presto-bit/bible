@@ -10,7 +10,7 @@ import {
   type Group,
 } from '@/lib/api';
 import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
-import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, markGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
+import { clearGroupsListDirty, dismissPendingGroup, hideGroupFromList, getPendingOnlyIds, mergePendingGroups, markGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 
@@ -68,6 +68,7 @@ export default function DiscoverGroupsPage() {
       } else {
         await api.leaveGroup(g.id);
       }
+      hideGroupFromList(g.id);
       dismissPendingGroup(g.id);
       markGroupsListDirty();
       setGroups((prev) => prev.filter((item) => item.id !== g.id));
@@ -140,18 +141,10 @@ export default function DiscoverGroupsPage() {
                 disabled={false}
                 deleteLabel={g.role === 'owner' && !isPendingOnly ? '解散' : '移除'}
                 onDelete={() => void removeGroupFromList(g, isPendingOnly)}
+                onContentClick={() => router.push(`/discover/group/${g.id}`)}
               >
               <div
                 className={cardClass}
-                role="button"
-                tabIndex={0}
-                onClick={() => router.push(`/discover/group/${g.id}`)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    router.push(`/discover/group/${g.id}`);
-                  }
-                }}
               >
                 {openTasks > 0 && (
                   <span className="group-card-task-badge" aria-label={`${openTasks} 个任务`}>

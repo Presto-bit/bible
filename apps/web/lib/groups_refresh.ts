@@ -4,6 +4,7 @@ import { groupInactiveMs } from './group_policy';
 
 const DIRTY_KEY = 'presto_groups_dirty';
 const PENDING_GROUPS_KEY = 'presto_pending_groups';
+const HIDDEN_GROUPS_KEY = 'presto_groups_hidden';
 
 export type PendingGroup = Pick<Group, 'id' | 'name' | 'join_code' | 'role'>;
 
@@ -52,7 +53,50 @@ export function dismissPendingGroup(id: string) {
   if (typeof window === 'undefined') return;
   const rows = readPendingRows().filter((row) => row.id !== id);
   writePendingRows(rows);
+  hideGroupFromList(id);
   markGroupsListDirty();
+}
+
+function readHiddenGroupIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = JSON.parse(sessionStorage.getItem(HIDDEN_GROUPS_KEY) || '[]');
+    return new Set(Array.isArray(raw) ? raw.filter(Boolean) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function writeHiddenGroupIds(ids: Set<string>) {
+  if (typeof window === 'undefined') return;
+  sessionStorage.setItem(HIDDEN_GROUPS_KEY, JSON.stringify([...ids]));
+}
+
+/** 列表左滑移除后，在服务端确认前不再被 merge/刷新带回。 */
+export function hideGroupFromList(id: string) {
+  if (typeof window === 'undefined' || !id) return;
+  const hidden = readHiddenGroupIds();
+  hidden.add(id);
+  writeHiddenGroupIds(hidden);
+}
+
+function pruneHiddenGroupIds(serverIds: string[]) {
+  const server = new Set(serverIds);
+  const hidden = readHiddenGroupIds();
+  let changed = false;
+  for (const id of hidden) {
+    if (!server.has(id)) {
+      hidden.delete(id);
+      changed = true;
+    }
+  }
+  if (changed) writeHiddenGroupIds(hidden);
+}
+
+function filterHiddenGroups(groups: Group[]): Group[] {
+  const hidden = readHiddenGroupIds();
+  if (!hidden.size) return groups;
+  return groups.filter((g) => !hidden.has(g.id));
 }
 
 /** 静默清理超过 30 天且服务端仍未确认的乐观群（与服务端幽灵群策略一致）。 */
@@ -80,12 +124,15 @@ export function mergePendingGroups(groups: Group[]): Group[] {
   if (typeof window === 'undefined') return groups;
   const confirmedIds = groups.map((g) => g.id);
   pruneStalePendingGroups(confirmedIds);
+  pruneHiddenGroupIds(confirmedIds);
+  const base = filterHiddenGroups(groups);
   const pending = readPendingRows();
-  if (!pending.length) return groups;
+  if (!pending.length) return base;
 
-  const merged = [...groups];
+  const merged = [...base];
   for (const row of pending) {
     if (merged.some((item) => item.id === row.id)) continue;
+    if (readHiddenGroupIds().has(row.id)) continue;
     merged.unshift({
       id: row.id,
       name: row.name,

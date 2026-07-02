@@ -5,6 +5,7 @@ import { useRef, useState, type ReactNode } from 'react';
 type Props = {
   children: ReactNode;
   onDelete: () => void;
+  onContentClick?: () => void;
   deleteLabel?: string;
   disabled?: boolean;
 };
@@ -15,12 +16,19 @@ const OPEN_THRESHOLD = 36;
 export function SwipeRevealRow({
   children,
   onDelete,
+  onContentClick,
   deleteLabel = '删除',
   disabled = false,
 }: Props) {
   const [offset, setOffset] = useState(0);
+  const offsetRef = useRef(0);
   const startX = useRef(0);
   const dragging = useRef(false);
+
+  const setOffsetSafe = (next: number) => {
+    offsetRef.current = next;
+    setOffset(next);
+  };
 
   const onTouchStart = (e: React.TouchEvent) => {
     if (disabled) return;
@@ -31,13 +39,22 @@ export function SwipeRevealRow({
   const onTouchMove = (e: React.TouchEvent) => {
     if (!dragging.current || disabled) return;
     const dx = e.touches[0].clientX - startX.current;
-    if (dx < 0) setOffset(Math.max(dx, -REVEAL_PX));
-    else setOffset(0);
+    if (dx < 0) setOffsetSafe(Math.max(dx, -REVEAL_PX));
+    else setOffsetSafe(0);
   };
 
   const onTouchEnd = () => {
     dragging.current = false;
-    setOffset(offset < -OPEN_THRESHOLD ? -REVEAL_PX : 0);
+    const cur = offsetRef.current;
+    setOffsetSafe(cur < -OPEN_THRESHOLD ? -REVEAL_PX : 0);
+  };
+
+  const handleContentClick = () => {
+    if (offsetRef.current < -10) {
+      setOffsetSafe(0);
+      return;
+    }
+    onContentClick?.();
   };
 
   return (
@@ -48,7 +65,7 @@ export function SwipeRevealRow({
         onClick={(e) => {
           e.stopPropagation();
           onDelete();
-          setOffset(0);
+          setOffsetSafe(0);
         }}
       >
         {deleteLabel}
@@ -60,6 +77,7 @@ export function SwipeRevealRow({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
+        onClick={handleContentClick}
       >
         {children}
       </div>

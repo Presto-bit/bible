@@ -14,6 +14,7 @@ import {
 } from '@/lib/api';
 import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { AssistantLink } from '@/components/AssistantLink';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
@@ -321,7 +322,7 @@ export default function DiscoverPage() {
                   </span>
                 )}
               </div>
-              <p className="muted">{s.ref || (isShare ? '想法' : '打卡')}</p>
+              <p className="muted">{s.ref ? formatGroupRefLabel(s.ref) : (isShare ? '想法' : '打卡')}</p>
               {s.body && <p style={{ marginTop: 6, lineHeight: 1.5 }}>{s.body}</p>}
               {canReact && (
                 <button

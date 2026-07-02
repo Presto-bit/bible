@@ -20,9 +20,24 @@ const BOOK_ID_TO_CN: Record<string, string> = {
 
 export function refToChineseLabel(ref: string | undefined | null): string | null {
   if (!ref) return null;
+  const range = ref.match(/^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$/);
+  if (range) {
+    const b1 = range[1].toUpperCase();
+    const b2 = range[3].toUpperCase();
+    const n1 = BOOK_ID_TO_CN[b1] ?? b1;
+    const n2 = BOOK_ID_TO_CN[b2] ?? b2;
+    if (b1 === b2) return `${n1} ${range[2]}–${range[4]}章`;
+    return `${n1} ${range[2]}章 – ${n2} ${range[4]}章`;
+  }
   const m = ref.match(/^([A-Za-z0-9]+)\.(\d+)(?:\.(\d+))?$/);
   if (!m) return ref;
   const name = BOOK_ID_TO_CN[m[1].toUpperCase()] ?? m[1];
   if (m[3]) return `${name} ${m[2]}:${m[3]}`;
   return `${name} ${m[2]}章`;
+}
+
+/** 群动态/足迹等场景的统一经文展示 */
+export function formatGroupRefLabel(ref: string | undefined | null): string {
+  if (!ref) return '';
+  return refToChineseLabel(ref) ?? ref;
 }

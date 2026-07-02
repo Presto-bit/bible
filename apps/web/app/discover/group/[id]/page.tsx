@@ -15,6 +15,7 @@ import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type Plan
 import { loadGeneratedPlans } from '@/lib/generated_plans';
 import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 
 function GroupPageInner() {
   const router = useRouter();
@@ -410,7 +411,7 @@ function GroupPageInner() {
       {taskComplete && (
         <GroupTaskCompleteSheet
           title={taskComplete.title}
-          refLabel={taskComplete.ref}
+          refLabel={taskComplete.ref ? formatGroupRefLabel(taskComplete.ref) : undefined}
           onSubmit={submitTaskComplete}
           onClose={() => setTaskComplete(null)}
         />

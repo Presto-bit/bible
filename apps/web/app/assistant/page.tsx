@@ -17,6 +17,7 @@ import {
 } from '@/lib/assistant_session_draft';
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
+import { refToChineseLabel } from '@/lib/ref_label';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -60,6 +61,15 @@ export default function AssistantPage() {
       <AssistantPageInner />
     </Suspense>
   );
+}
+
+function userVisibleQuestion(question: string, refVal: string): string {
+  const isInternalPrompt =
+    question.length > 120 ||
+    /严格按以下|【经文原意】|不要输出【相关追问】/.test(question);
+  if (!isInternalPrompt) return question;
+  const cn = refToChineseLabel(refVal);
+  return cn ? `关于 ${cn}` : '请教这段经文';
 }
 
 function AssistantPageInner() {
@@ -252,14 +262,21 @@ function AssistantPageInner() {
     });
   };
 
-  const send = async (question?: string, nextMode?: string, refOverride?: string) => {
+  const send = async (
+    question?: string,
+    nextMode?: string,
+    refOverride?: string,
+    /** 气泡展示文案；不传则与 question 相同 */
+    displayText?: string,
+  ) => {
     const q = (question ?? input).trim();
     if (!q || busy) return;
+    const shown = (displayText ?? q).trim() || q;
     const m = nextMode ?? mode;
     const anchor = (refOverride ?? ref).trim() || null;
     setMode(m);
     setInput('');
-    const base: Msg[] = [...msgs, { role: 'user', text: q }, { role: 'assistant', text: '' }];
+    const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
     setMsgs(base);
     setBusy(true);
     let acc = '';
@@ -351,7 +368,7 @@ function AssistantPageInner() {
       }
     }
 
-    if (!skipInputPrefill) {
+    if (!skipInputPrefill && !autoSend) {
       if (!question && legacyQ) question = decodeURIComponent(legacyQ);
       if (!question && refVal) question = explainVerseQuestion(refVal);
       if (question) setInput(question);
@@ -361,7 +378,7 @@ function AssistantPageInner() {
 
     if (refVal && question && autoSend && !seedBoot.current) {
       seedBoot.current = true;
-      void sendRef.current(question, 'understand', refVal);
+      void sendRef.current(question, 'understand', refVal, userVisibleQuestion(question, refVal));
     }
 
     if (sid || legacyQ || autoSendParam) {
@@ -406,7 +423,7 @@ function AssistantPageInner() {
             type="button"
             className="chip-swipe-item"
             disabled={busy}
-            onClick={() => send(c.q, c.mode)}
+            onClick={() => send(c.q, c.mode, undefined, c.label)}
           >
             {c.label}
           </button>
@@ -431,7 +448,7 @@ function AssistantPageInner() {
               ref={inputRef}
               rows={1}
               className="compose-input compose-textarea"
-              placeholder={ref ? `关于 ${ref}，问小爱…` : '问小爱…'}
+              placeholder={ref ? `关于 ${refToChineseLabel(ref) ?? ref}，问小爱…` : '问小爱…'}
               value={input}
               disabled={busy}
               onChange={(e) => setInput(e.target.value)}
@@ -481,7 +498,7 @@ function AssistantPageInner() {
         <div className="assistant-head-actions">
           {ref ? (
             <Link href="/reader" className="rail-cta">
-              {ref} ›
+              {refToChineseLabel(ref) ?? ref} ›
             </Link>
           ) : (
             <span />
@@ -502,7 +519,7 @@ function AssistantPageInner() {
                   type="button"
                   className="font-pill"
                   disabled={busy}
-                  onClick={() => send(c.q, c.mode)}
+                  onClick={() => send(c.q, c.mode, undefined, c.label)}
                 >
                   {c.label}
                 </button>
