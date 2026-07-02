@@ -191,6 +191,13 @@ export function markForVerse(
   return null;
 }
 
+export function listHighlightRefs(): { ref: string; mark: HighlightMark }[] {
+  const map = getHighlightMap();
+  return Object.entries(map)
+    .map(([ref, mark]) => ({ ref, mark }))
+    .sort((a, b) => a.ref.localeCompare(b.ref));
+}
+
 export function highlightCount(): number {
   return Object.keys(getHighlights()).length;
 }

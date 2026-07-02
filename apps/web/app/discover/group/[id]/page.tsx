@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { GroupChatFeed } from '@/components/group/GroupChatFeed';
 import { GroupCollapsibleMeta } from '@/components/group/GroupCollapsibleMeta';
@@ -18,7 +18,7 @@ import { GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
 import { loadFootprintRefs } from '@/lib/group_footprint';
 import { myDisplayName } from '@/lib/group_ui';
 
-export default function GroupPage() {
+function GroupPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
@@ -567,5 +567,17 @@ export default function GroupPage() {
 
       <GroupToast message={toast} />
     </main>
+  );
+}
+
+export default function GroupPage() {
+  return (
+    <Suspense fallback={(
+      <main className="container">
+        <p className="muted">加载中…</p>
+      </main>
+    )}>
+      <GroupPageInner />
+    </Suspense>
   );
 }

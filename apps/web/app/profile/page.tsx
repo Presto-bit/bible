@@ -25,6 +25,17 @@ const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
 const PWD_KEY = 'account_pwd';
 
+const RANDOM_NAME_CHARS = '云星月晨露松竹明道喜乐平安恩典信望爱光泉石兰桂';
+
+function randomDisplayName(): string {
+  const len = 2 + Math.floor(Math.random() * 2);
+  let s = '';
+  for (let i = 0; i < len; i += 1) {
+    s += RANDOM_NAME_CHARS[Math.floor(Math.random() * RANDOM_NAME_CHARS.length)];
+  }
+  return s;
+}
+
 export default function ProfilePage() {
   const [uid, setUid] = useState<string | null>(null);
   const [gid, setGid] = useState<string>('');
@@ -36,6 +47,7 @@ export default function ProfilePage() {
   const [idCopied, setIdCopied] = useState(false);
   const [avatarId, setAvatarId] = useState('a1');
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [settingsAvatarOpen, setSettingsAvatarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
@@ -171,6 +183,7 @@ export default function ProfilePage() {
     setAvatarId(id);
     localStorage.setItem(AVATAR_KEY, id);
     setPickerOpen(false);
+    setSettingsAvatarOpen(false);
   };
 
   const login = async () => {
@@ -291,9 +304,9 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <Link href="/report" className="card row-card" style={{ display: 'flex', marginTop: streak > 0 ? 12 : 0 }}>
-        <span style={{ flex: 1 }}>阅读时长</span>
-        <span className="muted">
+      <Link href="/report" className="card row-card profile-reading-card" style={{ display: 'flex', marginTop: streak > 0 ? 12 : 0 }}>
+        <span className="profile-reading-label">阅读时长</span>
+        <span className="muted profile-reading-meta">
           今日 {mins} 分钟 · 读经回顾 ›
         </span>
       </Link>
@@ -332,7 +345,7 @@ export default function ProfilePage() {
 
       <Link href="/notes" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
         <span style={{ flex: 1 }}>我的笔记</span>
-        <span className="muted">收藏 · 笔记 ›</span>
+        <span className="muted">想法 · 收藏 · 划线 ›</span>
       </Link>
 
       {settingsOpen && (
@@ -345,28 +358,51 @@ export default function ProfilePage() {
 
             <div className="settings-card">
               <p className="settings-title">个人资料</p>
-              <p className="muted" style={{ fontSize: 12 }}>头像（{PRESET_AVATARS.length} 款预设 · 点选切换）</p>
-              <div className="avatar-grid" style={{ maxHeight: 160, overflowY: 'auto' }}>
-                {PRESET_AVATARS.map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    className={`avatar-cell ${a.id === avatarId ? 'avatar-cell-active' : ''}`}
-                    onClick={() => chooseAvatar(a.id)}
-                  >
-                    <Avatar id={a.id} size={40} />
-                  </button>
-                ))}
+              <p className="muted" style={{ fontSize: 12 }}>头像</p>
+              <div className="settings-avatar-row">
+                <Avatar id={avatarId} size={48} />
+                <button
+                  type="button"
+                  className="font-pill"
+                  onClick={() => setSettingsAvatarOpen((v) => !v)}
+                >
+                  {settingsAvatarOpen ? '收起' : '更换头像'}
+                </button>
               </div>
+              {settingsAvatarOpen && (
+                <div className="avatar-grid" style={{ maxHeight: 160, overflowY: 'auto', marginTop: 10 }}>
+                  {PRESET_AVATARS.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      className={`avatar-cell ${a.id === avatarId ? 'avatar-cell-active' : ''}`}
+                      onClick={() => chooseAvatar(a.id)}
+                    >
+                      <Avatar id={a.id} size={40} />
+                    </button>
+                  ))}
+                </div>
+              )}
               <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>用户名</p>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  className="book-chip"
-                  style={{ flex: 1, textAlign: 'left' }}
-                  placeholder="显示名称"
-                  value={name}
-                  onChange={(e) => saveName(e.target.value)}
-                />
+                <div className="settings-input-wrap">
+                  <input
+                    className="book-chip"
+                    style={{ textAlign: 'left' }}
+                    placeholder="显示名称"
+                    value={name}
+                    onChange={(e) => saveName(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="settings-random-btn"
+                    aria-label="随机生成名称"
+                    title="随机生成名称"
+                    onClick={() => saveName(randomDisplayName())}
+                  >
+                    🎲
+                  </button>
+                </div>
                 <button
                   type="button"
                   className="font-pill"
@@ -379,14 +415,6 @@ export default function ProfilePage() {
               {nameMsg && (
                 <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>{nameMsg}</p>
               )}
-              <button
-                type="button"
-                className="text-link"
-                style={{ marginTop: 10, fontSize: 13, padding: 0 }}
-                onClick={() => void changePassword()}
-              >
-                修改密码
-              </button>
               <div className="section-row" style={{ marginTop: 10 }}>
                 <span className="muted" style={{ fontSize: 12 }}>签名</span>
                 <span className="muted" style={{ fontSize: 12 }}>{bio.length}/15</span>
@@ -399,6 +427,18 @@ export default function ProfilePage() {
                 maxLength={15}
                 onChange={(e) => saveBio(e.target.value)}
               />
+              <button
+                type="button"
+                className="settings-icon-btn"
+                style={{ marginTop: 10 }}
+                onClick={() => void changePassword()}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <rect x="5" y="11" width="14" height="10" rx="2" />
+                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+                </svg>
+                修改密码
+              </button>
             </div>
 
             <div className="settings-card">

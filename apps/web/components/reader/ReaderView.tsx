@@ -42,6 +42,8 @@ import {
   logChapterRead,
   logVerseRead,
   maybeNotifyBookComplete,
+  readerDwellPause,
+  readerDwellResume,
   setLastRead,
   setLastReadVerse,
   shouldShowResumeHint,
@@ -130,6 +132,7 @@ export default function ReaderView({
   const [parallelVer, setParallelVer] = useState('kjv');
   const [mainVersionId, setMainVersionId] = useState<string | null>(null);
   const [chapterAnim, setChapterAnim] = useState('');
+  const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [markMenuOpen, setMarkMenuOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
@@ -182,6 +185,24 @@ export default function ReaderView({
   useEffect(() => {
     refreshChapterNotes();
   }, [refreshChapterNotes]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') readerDwellPause();
+      else readerDwellResume();
+    };
+    readerDwellResume();
+    document.addEventListener('visibilitychange', onVis);
+    const tick = window.setInterval(() => {
+      readerDwellPause();
+      readerDwellResume();
+    }, 30000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.clearInterval(tick);
+      readerDwellPause();
+    };
+  }, []);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -471,45 +492,61 @@ export default function ReaderView({
   }, [layout, mainVersionId, book.id, chapter, parallelVer]);
 
   useEffect(() => {
-    setVerses([]);
-    setLayoutVerses([]);
     setSelected([]);
     setBookDone(false);
     readStartRef.current = Date.now();
     setChapterAnim('chapter-enter');
 
     const cached = getCachedChapter(book.id, chapter);
-    if (cached?.length) setLayoutVerses(cached);
-    if (cached?.length && !mainVersionId) setVerses(cached);
+    const hasCached = Boolean(cached?.length);
+    if (hasCached && cached) {
+      setLayoutVerses(cached);
+      if (!mainVersionId) setVerses(cached);
+      setChapterLoading(false);
+    } else {
+      setChapterLoading(true);
+    }
 
+    let cancelled = false;
     const load = async () => {
-      const chinese = await api.chapter(book.id, chapter);
-      setLayoutVerses(chinese.verses);
-      if (mainVersionId) {
-        const alt = await api.chapter(book.id, chapter, mainVersionId);
-        setVerses(alt.verses);
-      } else {
-        setVerses(chinese.verses);
-        setCachedChapter(book.id, chapter, chinese.verses);
-      }
-      logChapterRead();
-      logChapterDetail(book.id, chapter);
-      maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
-      setLastRead(book.id, chapter);
-      scheduleChromeHide();
-
-      requestAnimationFrame(() => {
-        if (contentRef.current) contentRef.current.scrollTop = 0;
-        const lastV = getLastReadVerse();
-        const last = getLastRead();
-        if (last && last.bookId === book.id && last.chapter === chapter && lastV && shouldShowResumeHint()) {
-          document.getElementById(`verse-anchor-${lastV}`)?.scrollIntoView({ behavior: 'auto', block: 'start' });
-          setResumeFlashVerse(lastV);
-          window.setTimeout(() => setResumeFlashVerse(null), 2600);
+      try {
+        const chinese = await api.chapter(book.id, chapter);
+        if (cancelled) return;
+        setLayoutVerses(chinese.verses);
+        if (mainVersionId) {
+          const alt = await api.chapter(book.id, chapter, mainVersionId);
+          if (cancelled) return;
+          setVerses(alt.verses);
+        } else {
+          setVerses(chinese.verses);
+          setCachedChapter(book.id, chapter, chinese.verses);
         }
-      });
+        logChapterRead();
+        logChapterDetail(book.id, chapter);
+        maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+        setLastRead(book.id, chapter);
+        scheduleChromeHide();
+
+        requestAnimationFrame(() => {
+          if (contentRef.current) contentRef.current.scrollTop = 0;
+          const lastV = getLastReadVerse();
+          const last = getLastRead();
+          if (last && last.bookId === book.id && last.chapter === chapter && lastV && shouldShowResumeHint()) {
+            document.getElementById(`verse-anchor-${lastV}`)?.scrollIntoView({ behavior: 'auto', block: 'start' });
+            setResumeFlashVerse(lastV);
+            window.setTimeout(() => setResumeFlashVerse(null), 2600);
+          }
+        });
+      } catch {
+        if (!cancelled) flashToast('加载失败');
+      } finally {
+        if (!cancelled) setChapterLoading(false);
+      }
     };
-    void load().catch(() => flashToast('加载失败'));
+    void load();
+    return () => {
+      cancelled = true;
+    };
   }, [book, chapter, mainVersionId, scheduleChromeHide, bookAbbr]);
 
   useEffect(() => {
@@ -619,12 +656,10 @@ export default function ReaderView({
   };
 
   useEffect(() => {
-    if (hasSel && underlinesOn) {
-      setMarkMenuOpen(true);
-    } else if (!hasSel) {
+    if (!hasSel) {
       setMarkMenuOpen(false);
     }
-  }, [hasSel, underlinesOn]);
+  }, [hasSel]);
 
   const saveFavorite = () => {
     const ref = effSelectedRef || refParam;
@@ -752,9 +787,9 @@ export default function ReaderView({
           </button>
         </div>
 
-        {verses.length === 0 ? (
+        {verses.length === 0 && chapterLoading ? (
           <p className="muted">{ui.loading}</p>
-        ) : layout === 'parallel' && !mainVersionId && parallelVerses.length > 0 ? (
+        ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId && parallelVerses.length > 0 ? (
           <div className="reader-parallel">
             {paragraphs.map((para) => {
               const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
@@ -905,7 +940,7 @@ export default function ReaderView({
           {markMenuOpen && underlinesOn && (
             <div className="reader-mark-popover" role="dialog" aria-label="划线样式">
               {([
-                { key: 'color' as HighlightStyleKey, label: '荧光' },
+                { key: 'color' as HighlightStyleKey, label: '颜色' },
                 { key: 'solid' as HighlightStyleKey, label: '实线' },
                 { key: 'dashed' as HighlightStyleKey, label: '虚线' },
               ]).map((style) => (

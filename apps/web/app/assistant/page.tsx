@@ -60,7 +60,6 @@ export default function AssistantPage() {
   const [input, setInput] = useState('');
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [busy, setBusy] = useState(false);
-  const [quota, setQuota] = useState<{ used: number; limit: number } | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeId, setActiveId] = useState<string>('current');
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -142,7 +141,6 @@ export default function AssistantPage() {
   const cancelRef = useRef(false);
 
   const startVoice = (e: React.PointerEvent) => {
-    if (quotaExhausted) return;
     const SR =
       (window as unknown as { SpeechRecognition?: unknown; webkitSpeechRecognition?: unknown })
         .SpeechRecognition ||
@@ -238,17 +236,9 @@ export default function AssistantPage() {
     });
   };
 
-  const quotaExhausted =
-    quota != null && quota.limit > 0 && quota.used >= quota.limit;
-  const quotaLow =
-    quota != null &&
-    quota.limit > 0 &&
-    !quotaExhausted &&
-    quota.used >= quota.limit - 2;
-
   const send = async (question?: string, nextMode?: string, refOverride?: string) => {
     const q = (question ?? input).trim();
-    if (!q || busy || quotaExhausted) return;
+    if (!q || busy) return;
     const m = nextMode ?? mode;
     const anchor = (refOverride ?? ref).trim() || null;
     setMode(m);
@@ -279,7 +269,6 @@ export default function AssistantPage() {
       {
         onMeta: (meta) => {
           cites = meta.citations || [];
-          if (meta.quota) setQuota(meta.quota);
         },
         onDelta: (t) => {
           acc += t;
@@ -321,7 +310,11 @@ export default function AssistantPage() {
       const payload = consumeAssistantPrefill(sid);
       if (payload) {
         refVal = payload.ref || refVal;
-        question = payload.question;
+        if (payload.seedMessages?.length) {
+          setMsgs(payload.seedMessages.map((m) => ({ role: m.role, text: m.text })));
+        } else {
+          question = payload.question;
+        }
         if (payload.autoSend) autoSend = true;
       }
     }
@@ -373,7 +366,7 @@ export default function AssistantPage() {
             key={c.label}
             type="button"
             className="chip-swipe-item"
-            disabled={quotaExhausted || busy}
+            disabled={busy}
             onClick={() => send(c.q, c.mode)}
           >
             {c.label}
@@ -386,7 +379,7 @@ export default function AssistantPage() {
             <button
               type="button"
               className={`voice-hold ${recording ? (cancelArmed ? 'voice-cancel' : 'voice-active') : ''}`}
-              disabled={quotaExhausted}
+              disabled={busy}
               onPointerDown={startVoice}
               onPointerMove={onVoiceMove}
               onPointerUp={endVoice}
@@ -399,9 +392,9 @@ export default function AssistantPage() {
               ref={inputRef}
               rows={1}
               className="compose-input compose-textarea"
-              placeholder={quotaExhausted ? '今日次数已用完' : ref ? `关于 ${ref}，问小爱…` : '问小爱…'}
+              placeholder={ref ? `关于 ${ref}，问小爱…` : '问小爱…'}
               value={input}
-              disabled={quotaExhausted}
+              disabled={busy}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -415,7 +408,7 @@ export default function AssistantPage() {
             type="button"
             className="compose-mode-inner"
             aria-label={voiceMode ? '切换键盘' : '切换语音'}
-            disabled={quotaExhausted}
+            disabled={busy}
             onClick={() => setVoiceMode((v) => !v)}
           >
             {voiceMode ? (
@@ -455,22 +448,6 @@ export default function AssistantPage() {
         )}
       </header>
 
-      {quota && (
-        <p className="muted" style={{ fontSize: 11, marginBottom: 6 }}>
-          今日 {quota.used}/{quota.limit}
-        </p>
-      )}
-      {quotaLow && (
-        <p style={{ color: '#b8860b', fontSize: 12, marginBottom: 6 }}>
-          今日 AI 次数即将用完
-        </p>
-      )}
-      {quotaExhausted && (
-        <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>
-          今日 AI 次数已用完，明日恢复；仍可使用注释指南与阅读。
-        </p>
-      )}
-
       {msgs.length === 0 ? (
         <div className="assistant-empty-fill">
           <div className="assistant-empty-hint">
@@ -480,7 +457,7 @@ export default function AssistantPage() {
                   key={c.label}
                   type="button"
                   className="font-pill"
-                  disabled={quotaExhausted}
+                  disabled={busy}
                   onClick={() => send(c.q, c.mode)}
                 >
                   {c.label}
@@ -533,7 +510,7 @@ export default function AssistantPage() {
                             key={q}
                             type="button"
                             className="followup-chip"
-                            disabled={quotaExhausted}
+                            disabled={busy}
                             onClick={() => send(q, 'explain')}
                           >
                             {q}

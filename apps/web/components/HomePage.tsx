@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   api,
   type DailyVerse,
-  getUserName,
+  getDisplayName,
 } from '@/lib/api';
 import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
@@ -147,7 +147,14 @@ export default function HomePageClient() {
   const seasonal = currentSeasonalEvents();
 
   useEffect(() => {
-    setUserName(getUserName());
+    const refreshName = () => {
+      setUserName(getDisplayName());
+      const report = buildReport();
+      setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
+    };
+    refreshName();
+    window.addEventListener('focus', refreshName);
+    return () => window.removeEventListener('focus', refreshName);
   }, []);
 
   const refreshRail = useCallback(async () => {
@@ -304,7 +311,7 @@ export default function HomePageClient() {
           <span className="greet-prefix">早安</span>
           <span className="greet-name">
             <i className="greet-bar" />
-            {userName || '朋友'}
+            {userName}
           </span>
         </div>
         <div className="greet-actions">
@@ -375,17 +382,24 @@ export default function HomePageClient() {
           <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className="hero-like"
+              className={`hero-like${liked ? ' hero-like-active' : ''}`}
               disabled={likeBusy}
+              aria-pressed={liked}
               onClick={async () => {
                 if (likeBusy) return;
+                const prevLiked = liked;
+                const prevCount = likeCount;
                 setLikeBusy(true);
                 setLikeErr(null);
+                setLiked(!prevLiked);
+                setLikeCount(Math.max(0, prevCount + (prevLiked ? -1 : 1)));
                 try {
                   const r = await api.toggleDailyVerseLike();
-                  setLiked(r.liked);
-                  setLikeCount(r.likes_count);
+                  setLiked(Boolean(r.liked));
+                  setLikeCount(r.likes_count ?? prevCount);
                 } catch (e) {
+                  setLiked(prevLiked);
+                  setLikeCount(prevCount);
                   const msg = e instanceof Error ? e.message : String(e);
                   setLikeErr(msg.includes('503') || msg.includes('暂不可用')
                     ? '点赞服务未就绪，请稍后在设置中清除缓存或联系管理员执行数据库迁移'
@@ -395,7 +409,7 @@ export default function HomePageClient() {
                 }
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" style={{ color: liked ? 'var(--accent-deep)' : 'var(--ink-faint)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
                 <path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.5 6 6 6c2 0 3.2 1.2 4 2.3C10.8 7.2 12 6 14 6c3.5 0 5 3.6 3.3 6.6C19 16.4 12 21 12 21z" />
               </svg>
               <span>{likeCount.toLocaleString()} 人点赞</span>
@@ -477,12 +491,12 @@ export default function HomePageClient() {
         </span>
         <span className="rail-cta">去读 ›</span>
       </a>
-      <a href="/profile" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
+      <a href="/report" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
         <span className="pill">回顾</span>
         <span style={{ flex: 1 }}>
           {new Date().getMonth() + 1} 月回顾 · 已读 {readingSummary.monthDays} 天
         </span>
-        <span className="muted">生成回顾 ›</span>
+        <span className="muted">读经回顾 ›</span>
       </a>
 
       {verseFull && (

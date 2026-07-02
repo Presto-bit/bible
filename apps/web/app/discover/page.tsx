@@ -17,7 +17,8 @@ import { readerHrefFromRef } from '@/lib/group_footprint';
 import { AssistantLink } from '@/components/AssistantLink';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
-function reactionTotal(reactions: Record<string, string[]>): number {
+function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
+  if (!reactions) return 0;
   return Object.values(reactions).reduce((n, users) => n + users.length, 0);
 }
 

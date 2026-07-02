@@ -50,14 +50,18 @@ export default function ReadingProgress() {
   const progress = useMemo(() => bookProgressMap(totals), [totals]);
 
   const totalBooks = books.length;
-  const readBooks = useMemo(
+  const doneBooks = useMemo(
+    () => Object.values(progress).filter((p) => p.passes >= 1).length,
+    [progress],
+  );
+  const readingBooks = useMemo(
     () =>
-      Object.values(progress).filter((p) => p.distinctChapters > 0 || p.passes >= 1)
+      Object.values(progress).filter((p) => p.passes === 0 && p.distinctChapters > 0)
         .length,
     [progress],
   );
   const overallPct =
-    totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0;
+    totalBooks > 0 ? Math.round((doneBooks / totalBooks) * 100) : 0;
 
   const ot = books.filter((b) => b.testament.toUpperCase().startsWith('O'));
   const nt = books.filter((b) => !b.testament.toUpperCase().startsWith('O'));
@@ -103,7 +107,7 @@ export default function ReadingProgress() {
           </div>
           <div style={{ flex: 1, textAlign: 'left' }}>
             <p style={{ margin: 0, fontWeight: 600 }}>
-              已读 {readBooks} / {totalBooks} 卷
+              读完 {doneBooks} · 已读 {readingBooks} · 共 {totalBooks} 卷
             </p>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
               点击查看目录与进度

@@ -7,6 +7,7 @@ export interface AssistantPrefill {
   ref: string;
   question: string;
   autoSend?: boolean;
+  seedMessages?: { role: 'user' | 'assistant'; text: string }[];
 }
 
 export function explainVerseQuestion(ref: string, excerpt?: string): string {
@@ -54,7 +55,7 @@ export function consumeAssistantPrefill(sid: string): AssistantPrefill | null {
   try {
     const row = JSON.parse(raw) as AssistantPrefill & { ts?: number };
     if (row.ts && Date.now() - row.ts > SEED_TTL_MS) return null;
-    return { ref: row.ref, question: row.question, autoSend: row.autoSend };
+    return { ref: row.ref, question: row.question, autoSend: row.autoSend, seedMessages: row.seedMessages };
   } catch {
     return null;
   }
@@ -66,7 +67,12 @@ export function consumeAssistantPrefill(sid: string): AssistantPrefill | null {
  */
 export function assistantHref(
   ref: string,
-  opts?: { excerpt?: string; question?: string; autoSend?: boolean },
+  opts?: {
+    excerpt?: string;
+    question?: string;
+    autoSend?: boolean;
+    seedMessages?: { role: 'user' | 'assistant'; text: string }[];
+  },
 ): string {
   const q = opts?.question ?? explainVerseQuestion(ref, opts?.excerpt);
   const params = new URLSearchParams();
@@ -76,6 +82,7 @@ export function assistantHref(
       ref,
       question: q,
       autoSend: opts?.autoSend,
+      seedMessages: opts?.seedMessages,
     });
     params.set('sid', sid);
     if (opts?.autoSend) params.set('auto_send', '1');
@@ -86,7 +93,12 @@ export function assistantHref(
 /** 编程式跳转（搜索页等） */
 export function navigateToAssistant(
   ref: string,
-  opts?: { excerpt?: string; question?: string; autoSend?: boolean },
+  opts?: {
+    excerpt?: string;
+    question?: string;
+    autoSend?: boolean;
+    seedMessages?: { role: 'user' | 'assistant'; text: string }[];
+  },
 ) {
   if (typeof window === 'undefined') return;
   window.location.href = assistantHref(ref, opts);

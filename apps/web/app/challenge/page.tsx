@@ -132,11 +132,16 @@ export default function ChallengePage() {
         </button>
         <button
           type="button"
-          className="card challenge-mode-card"
+          className="card challenge-mode-card-compact"
           onClick={() => setPlay({ kind: 'random' })}
         >
-          <span className="challenge-level-icon">🎲</span>
-          <strong>随机挑战</strong>
+          <span className="challenge-daily-badge">🎲</span>
+          <div style={{ flex: 1, textAlign: 'left' }}>
+            <strong>随机挑战</strong>
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+              随机抽题
+            </p>
+          </div>
         </button>
       </div>
 

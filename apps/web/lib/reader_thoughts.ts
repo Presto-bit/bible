@@ -74,6 +74,10 @@ export function sortedThoughts(ref: string): ThoughtRow[] {
   return [...mine, ...others];
 }
 
+export function listAllThoughts(): ThoughtRow[] {
+  return readAll().sort((a, b) => b.createdAtMs - a.createdAtMs);
+}
+
 export function addThought(ref: string, body: string): ThoughtRow {
   const row: ThoughtRow = {
     id: `t_${Date.now()}`,

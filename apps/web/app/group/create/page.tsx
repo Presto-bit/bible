@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, guestId } from '@/lib/api';
 
 export default function CreateGroupPage() {
@@ -11,6 +11,10 @@ export default function CreateGroupPage() {
   const [intro, setIntro] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    guestId();
+  }, []);
 
   const submit = async () => {
     const n = name.trim();
@@ -21,7 +25,7 @@ export default function CreateGroupPage() {
       guestId();
       const g = await api.createGroup(n, intro.trim() || undefined);
       if (!g?.id) throw new Error('服务器未返回群 ID');
-      router.push(`/discover/group/${g.id}`);
+      router.push(`/discover/group/${encodeURIComponent(g.id)}`);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       setMsg(

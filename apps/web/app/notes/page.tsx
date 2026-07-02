@@ -10,8 +10,10 @@ import {
 } from '@/lib/notes';
 import { loadFavoriteRefs, toggleFavorite } from '@/lib/favorites';
 import { api, currentUserId, type BibleBook } from '@/lib/api';
-import { syncNow, pendingCount } from '@/lib/sync';
+import { syncNow } from '@/lib/sync';
 import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
+import { listAllThoughts, type ThoughtRow } from '@/lib/reader_thoughts';
+import { listHighlightRefs, removeHighlight, type HighlightMark } from '@/lib/reader_highlights';
 
 interface Favorite {
   ref: string;
@@ -27,13 +29,27 @@ function loadFavorites(): Favorite[] {
   });
 }
 
-type Tab = 'notes' | 'favorites';
+type Tab = 'all' | 'notes' | 'thoughts' | 'favorites' | 'highlights';
+
+type FeedItem =
+  | { kind: 'note'; id: string; ref?: string | null; body: string; ts: number; note: LocalNote }
+  | { kind: 'thought'; id: string; ref: string; body: string; ts: number }
+  | { kind: 'favorite'; id: string; ref: string; label: string }
+  | { kind: 'highlight'; id: string; ref: string; mark: HighlightMark };
+
+const STYLE_LABEL: Record<HighlightMark['style'], string> = {
+  color: '颜色',
+  solid: '实线',
+  dashed: '虚线',
+};
 
 export default function NotesPage() {
-  const [tab, setTab] = useState<Tab>('notes');
+  const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const [notes, setNotes] = useState<LocalNote[]>([]);
+  const [thoughts, setThoughts] = useState<ThoughtRow[]>([]);
+  const [highlights, setHighlights] = useState<{ ref: string; mark: HighlightMark }[]>([]);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [bookNames, setBookNames] = useState<Record<string, string>>({});
   const [editing, setEditing] = useState<LocalNote | null>(null);
@@ -43,6 +59,8 @@ export default function NotesPage() {
 
   const refresh = () => {
     setNotes(listNotes());
+    setThoughts(listAllThoughts());
+    setHighlights(listHighlightRefs());
     setFavorites(loadFavorites());
   };
 
@@ -94,9 +112,21 @@ export default function NotesPage() {
     refresh();
   };
 
+  const removeHighlightItem = (ref: string) => {
+    removeHighlight(ref);
+    refresh();
+  };
+
   const favLabel = (f: Favorite) => {
     const name = bookNames[f.bookId] || f.bookId;
     return `${name} ${f.chapter}${f.verse ? `:${f.verse}` : ''}`;
+  };
+
+  const refLabel = (ref: string) => {
+    const [bookId, ch, tail] = ref.split('.');
+    const name = bookNames[bookId] || bookId;
+    if (!tail) return `${name} ${ch}`;
+    return `${name} ${ch}:${tail.replace('-', '–')}`;
   };
 
   const allTags = useMemo(() => {
@@ -105,27 +135,78 @@ export default function NotesPage() {
     return [...set].sort();
   }, [notes]);
 
-  const filteredNotes = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return notes.filter((n) => {
-      if (tagFilter && !(n.tags || []).includes(tagFilter)) return false;
-      if (!q) return true;
-      return (
-        n.body.toLowerCase().includes(q) ||
-        (n.ref || '').toLowerCase().includes(q) ||
-        (n.tags || []).some((t) => t.toLowerCase().includes(q))
-      );
+  const feed = useMemo((): FeedItem[] => {
+    const items: FeedItem[] = [
+      ...notes.map((n) => ({
+        kind: 'note' as const,
+        id: n.id,
+        ref: n.ref,
+        body: n.body,
+        ts: n.updatedAt,
+        note: n,
+      })),
+      ...thoughts.map((t) => ({
+        kind: 'thought' as const,
+        id: t.id,
+        ref: t.ref,
+        body: t.body,
+        ts: t.createdAtMs,
+      })),
+      ...favorites.map((f) => ({
+        kind: 'favorite' as const,
+        id: f.ref,
+        ref: f.ref,
+        label: favLabel(f),
+      })),
+      ...highlights.map((h) => ({
+        kind: 'highlight' as const,
+        id: h.ref,
+        ref: h.ref,
+        mark: h.mark,
+      })),
+    ];
+    items.sort((a, b) => {
+      const ta = 'ts' in a ? a.ts : 0;
+      const tb = 'ts' in b ? b.ts : 0;
+      return tb - ta;
     });
-  }, [notes, query, tagFilter]);
-
-  const filteredFavorites = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return favorites;
-    return favorites.filter(
-      (f) => f.ref.toLowerCase().includes(q) || favLabel(f).toLowerCase().includes(q),
-    );
+    return items;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [favorites, query, bookNames]);
+  }, [notes, thoughts, favorites, highlights, bookNames]);
+
+  const filteredFeed = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return feed.filter((item) => {
+      if (tab === 'notes' && item.kind !== 'note') return false;
+      if (tab === 'thoughts' && item.kind !== 'thought') return false;
+      if (tab === 'favorites' && item.kind !== 'favorite') return false;
+      if (tab === 'highlights' && item.kind !== 'highlight') return false;
+      if (item.kind === 'note' && tab === 'notes' && tagFilter && !(item.note.tags || []).includes(tagFilter)) return false;
+      if (!q) return true;
+      if (item.kind === 'note') {
+        return (
+          item.body.toLowerCase().includes(q) ||
+          (item.ref || '').toLowerCase().includes(q) ||
+          (item.note.tags || []).some((t) => t.toLowerCase().includes(q))
+        );
+      }
+      if (item.kind === 'thought') {
+        return item.body.toLowerCase().includes(q) || item.ref.toLowerCase().includes(q);
+      }
+      if (item.kind === 'favorite') {
+        return item.ref.toLowerCase().includes(q) || item.label.toLowerCase().includes(q);
+      }
+      return item.ref.toLowerCase().includes(q);
+    });
+  }, [feed, tab, query, tagFilter]);
+
+  const tabs: { id: Tab; label: string; count: number }[] = [
+    { id: 'all', label: '全部', count: feed.length },
+    { id: 'notes', label: '笔记', count: notes.length },
+    { id: 'thoughts', label: '想法', count: thoughts.length },
+    { id: 'favorites', label: '收藏', count: favorites.length },
+    { id: 'highlights', label: '划线', count: highlights.length },
+  ];
 
   return (
     <main className="container">
@@ -142,7 +223,7 @@ export default function NotesPage() {
       <div className="search-bar" style={{ marginBottom: 12 }}>
         <input
           className="search-input"
-          placeholder="搜索笔记或收藏…"
+          placeholder="搜索笔记、想法、收藏或划线…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -170,100 +251,120 @@ export default function NotesPage() {
         </div>
       )}
 
-      <div className="seg-tabs" style={{ marginBottom: 12 }}>
-        <button
-          type="button"
-          className={`seg-tab ${tab === 'notes' ? 'seg-tab-active' : ''}`}
-          onClick={() => setTab('notes')}
-        >
-          笔记 {notes.length > 0 ? `· ${notes.length}` : ''}
-        </button>
-        <button
-          type="button"
-          className={`seg-tab ${tab === 'favorites' ? 'seg-tab-active' : ''}`}
-          onClick={() => setTab('favorites')}
-        >
-          收藏 {favorites.length > 0 ? `· ${favorites.length}` : ''}
-        </button>
+      <div className="seg-tabs notes-seg-tabs" style={{ marginBottom: 12 }}>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`seg-tab ${tab === t.id ? 'seg-tab-active' : ''}`}
+            onClick={() => setTab(t.id)}
+          >
+            {t.label}{t.count > 0 ? ` · ${t.count}` : ''}
+          </button>
+        ))}
       </div>
 
-      {tab === 'notes' &&
-        (filteredNotes.length === 0 ? (
-          <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
-            {query ? '没有匹配的笔记。' : '还没有笔记。阅读时点经文「写笔记」，或点上方新建。'}
-          </p>
-        ) : (
-          filteredNotes.map((n) => (
-            <div key={n.id} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
-              {n.ref && (
-                <div style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}>
-                  {n.ref}
+      {filteredFeed.length === 0 ? (
+        <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
+          {query ? '没有匹配的内容。' : '还没有内容。阅读时可写想法、收藏经文或划线。'}
+        </p>
+      ) : (
+        filteredFeed.map((item) => {
+          if (item.kind === 'note') {
+            return (
+              <div key={`note-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span className="pill" style={{ fontSize: 10 }}>笔记</span>
+                  {item.ref && (
+                    <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}>
+                      {item.ref}
+                    </span>
+                  )}
                 </div>
-              )}
-              <p style={{ margin: '6px 0 10px', lineHeight: 1.6 }}>{n.body}</p>
-              <div style={{ display: 'flex', gap: 12 }}>
-                <button type="button" className="text-link" onClick={() => openEdit(n)}>
-                  编辑
-                </button>
-                {n.ref && (
+                <p style={{ margin: '6px 0 10px', lineHeight: 1.6 }}>{item.body}</p>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button type="button" className="text-link" onClick={() => openEdit(item.note)}>
+                    编辑
+                  </button>
+                  {item.ref && (
+                    <button
+                      type="button"
+                      className="text-link"
+                      onClick={() => setShareTarget({ ref: item.ref!, label: item.ref!, body: item.body })}
+                    >
+                      分享
+                    </button>
+                  )}
+                  <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => del(item.id)}>
+                    删除
+                  </button>
+                </div>
+              </div>
+            );
+          }
+          if (item.kind === 'thought') {
+            return (
+              <div key={`thought-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                  <span className="pill pill-active" style={{ fontSize: 10 }}>想法</span>
+                  <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}>
+                    {refLabel(item.ref)}
+                  </span>
+                </div>
+                <p style={{ margin: '6px 0 10px', lineHeight: 1.6 }}>{item.body}</p>
+                <a className="text-link" href={`/reader?ref=${encodeURIComponent(item.ref)}`}>
+                  阅读原文
+                </a>
+              </div>
+            );
+          }
+          if (item.kind === 'favorite') {
+            return (
+              <div key={`fav-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="pill" style={{ fontSize: 10 }}>收藏</span>
+                  <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
+                    ★ {item.label}
+                  </span>
+                  <a className="text-link" href={`/reader?book=${item.ref.split('.')[0]}&chapter=${item.ref.split('.')[1]}`}>
+                    阅读
+                  </a>
                   <button
                     type="button"
                     className="text-link"
-                    onClick={() => setShareTarget({ ref: n.ref!, label: n.ref!, body: n.body })}
+                    onClick={() => setShareTarget({ ref: item.ref, label: item.label, body: '' })}
                   >
                     分享
                   </button>
-                )}
-                <button
-                  type="button"
-                  className="text-link"
-                  style={{ color: '#b1554a' }}
-                  onClick={() => del(n.id)}
-                >
-                  删除
-                </button>
+                  <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeFavorite(item.ref)}>
+                    移除
+                  </button>
+                </div>
               </div>
-            </div>
-          ))
-        ))}
-
-      {tab === 'favorites' &&
-        (filteredFavorites.length === 0 ? (
-          <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
-            {query ? '没有匹配的收藏。' : '还没有收藏。阅读时点经文「收藏」即可加入。'}
-          </p>
-        ) : (
-          filteredFavorites.map((f) => (
-            <div key={f.ref} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
+            );
+          }
+          const [bookId, ch] = item.ref.split('.');
+          return (
+            <div key={`hl-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
-                  ★ {favLabel(f)}
+                <span className="pill" style={{ fontSize: 10 }}>划线</span>
+                <span className={`verse-mark verse-mark-${item.mark.style} verse-mark-${item.mark.color}`} style={{ fontSize: 12 }}>
+                  {STYLE_LABEL[item.mark.style]}
                 </span>
-                <a
-                  className="text-link"
-                  href={`/reader?book=${f.bookId}&chapter=${f.chapter}`}
-                >
+                <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
+                  {refLabel(item.ref)}
+                </span>
+                <a className="text-link" href={`/reader?book=${bookId}&chapter=${ch}`}>
                   阅读
                 </a>
-                <button
-                  type="button"
-                  className="text-link"
-                  onClick={() => setShareTarget({ ref: f.ref, label: favLabel(f), body: '' })}
-                >
-                  分享
-                </button>
-                <button
-                  type="button"
-                  className="text-link"
-                  style={{ color: '#b1554a' }}
-                  onClick={() => removeFavorite(f.ref)}
-                >
+                <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeHighlightItem(item.ref)}>
                   移除
                 </button>
               </div>
             </div>
-          ))
-        ))}
+          );
+        })
+      )}
 
       {open && (
         <div className="sheet-backdrop" onClick={() => setOpen(false)}>

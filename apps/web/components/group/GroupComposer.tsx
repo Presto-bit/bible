@@ -29,7 +29,7 @@ type Props = {
 export function GroupComposer({
   gid,
   isOwner,
-  tasks,
+  tasks = [],
   busy = false,
   groupName,
   onCheckin,

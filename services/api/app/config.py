@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     rag_hybrid_keyword_weight: float = 0.45
 
     # ── AI 额度（游客）──
-    ai_guest_daily_limit: int = 10
+    ai_guest_daily_limit: int = 0
 
     # ── 认证（复用 minimax orchestrator opaque session）──
     orchestrator_base_url: str = ""  # 例 https://orchestrator.internal

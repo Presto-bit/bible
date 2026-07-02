@@ -280,7 +280,7 @@ export default function PlansPage() {
             {active.kind !== 'prayer' && (
               <button
                 type="button"
-                className="font-pill"
+                className="font-pill plan-invite-btn"
                 style={{ marginTop: 8 }}
                 onClick={async () => {
                   try {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { chatStream } from '@/lib/api';
@@ -48,6 +48,10 @@ export default function XiaoAiSheet({
   const rafRef = useRef<number | null>(null);
   const fetchStartedRef = useRef(false);
   const lockedRef = useRef({ mode, refParam, selectionText });
+
+  useEffect(() => {
+    lockedRef.current = { mode, refParam, selectionText };
+  }, [mode, refParam, selectionText]);
 
   useEffect(() => setMounted(true), []);
 
@@ -122,11 +126,29 @@ export default function XiaoAiSheet({
     () => `/assistant?ref=${encodeURIComponent(refParam)}`,
   );
 
+  const userChatPreview = useMemo(() => {
+    const sel = lockedRef.current.selectionText;
+    if (sel) {
+      const snippet = sel.length > 80 ? `${sel.slice(0, 80)}…` : sel;
+      return `请解读：${refLabel}\n「${snippet}」`;
+    }
+    return `请解读：${refLabel}`;
+  }, [refLabel, done, clean]);
+
   useEffect(() => {
+    if (!done || !clean || hasError) {
+      setAssistantHref(`/assistant?ref=${encodeURIComponent(refParam)}`);
+      return;
+    }
     setAssistantHref(
-      buildAssistantHref(refParam, { excerpt: selectionText || refLabel }),
+      buildAssistantHref(refParam, {
+        seedMessages: [
+          { role: 'user', text: userChatPreview },
+          { role: 'assistant', text: clean },
+        ],
+      }),
     );
-  }, [refParam, selectionText, refLabel]);
+  }, [refParam, userChatPreview, done, clean, hasError]);
 
   const saveNote = () => {
     if (!clean || hasError) return;

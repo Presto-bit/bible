@@ -7,7 +7,7 @@ export interface DayLog {
 }
 
 const KEY = 'presto_reading_log';
-const CHAPTER_MINUTES = 3; // 每章估算阅读时长（H5 无精确计时，估算保持趋势）
+const SEC_BUFFER_KEY = 'presto_read_sec_buffer';
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
@@ -26,6 +26,43 @@ function read(): Record<string, DayLog> {
 
 function write(logs: Record<string, DayLog>) {
   localStorage.setItem(KEY, JSON.stringify(logs));
+}
+
+function addDwellSeconds(sec: number) {
+  if (sec <= 0 || typeof window === 'undefined') return;
+  const day = ymd(new Date());
+  let buffers: Record<string, number> = {};
+  try {
+    buffers = JSON.parse(localStorage.getItem(SEC_BUFFER_KEY) || '{}') as Record<string, number>;
+  } catch {
+    buffers = {};
+  }
+  const totalSec = (buffers[day] || 0) + sec;
+  const addMin = Math.floor(totalSec / 60);
+  buffers[day] = totalSec % 60;
+  localStorage.setItem(SEC_BUFFER_KEY, JSON.stringify(buffers));
+  if (addMin <= 0) return;
+  const logs = read();
+  const cur = logs[day] || { minutes: 0, chapters: 0 };
+  logs[day] = { ...cur, minutes: cur.minutes + addMin };
+  write(logs);
+}
+
+let dwellActiveSince: number | null = null;
+
+/** 开始统计在圣经经文页的停留时长（可见且在前台时）。 */
+export function readerDwellResume() {
+  if (typeof window === 'undefined' || document.visibilityState === 'hidden') return;
+  if (dwellActiveSince != null) return;
+  dwellActiveSince = Date.now();
+}
+
+/** 暂停停留计时并写入当日阅读分钟。 */
+export function readerDwellPause() {
+  if (dwellActiveSince == null) return;
+  const sec = Math.floor((Date.now() - dwellActiveSince) / 1000);
+  dwellActiveSince = null;
+  addDwellSeconds(sec);
 }
 
 // 上次阅读位置（进入圣经默认续读）。
@@ -96,14 +133,14 @@ export function shouldResumeFlash(_bookId: string, _chapter: number, _verse: num
   return shouldShowResumeHint();
 }
 
-// 阅读一章：当日 chapters +1、minutes + 估算。
+// 阅读一章：当日 chapters +1（分钟由经文页停留时长统计）。
 export function logChapterRead() {
   if (typeof window === 'undefined') return;
   const logs = read();
   const k = ymd(new Date());
   const cur = logs[k] || { minutes: 0, chapters: 0 };
   logs[k] = {
-    minutes: cur.minutes + CHAPTER_MINUTES,
+    minutes: cur.minutes,
     chapters: cur.chapters + 1,
   };
   write(logs);

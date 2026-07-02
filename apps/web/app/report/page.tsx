@@ -198,7 +198,7 @@ export default function ReportPage() {
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <a href="/profile" className="icon-btn" aria-label="返回">←</a>
         <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>读经回顾</h2>
-        <Link href="/wrapped" className="muted" style={{ fontSize: 13 }}>Wrapped ›</Link>
+        <Link href="/wrapped" className="muted" style={{ fontSize: 13 }}>读经报告 ›</Link>
       </header>
 
       <div className="seg-tabs" style={{ marginBottom: 12 }}>

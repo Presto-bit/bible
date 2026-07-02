@@ -149,6 +149,14 @@ export function getUserName(): string {
   return localStorage.getItem(NAME_KEY) || '';
 }
 
+/** 首页问候等展示名：优先用户名，否则游客 ID 后缀。 */
+export function getDisplayName(): string {
+  const name = getUserName().trim();
+  if (name) return name;
+  const g = guestId();
+  return g ? `用户${g.slice(-4)}` : '朋友';
+}
+
 export function isOnboarded(): boolean {
   if (typeof window === 'undefined') return true;
   return localStorage.getItem(ONBOARDED_KEY) === '1';

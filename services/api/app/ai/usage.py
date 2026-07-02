@@ -33,7 +33,10 @@ def consume_quota(device_id: str | None, limit: int) -> tuple[bool, int, int]:
     """预扣一次额度。返回 (allowed, used_after, limit)。
 
     allowed=False 时表示已达上限、未计数。
+    limit <= 0 表示不限流。
     """
+    if limit <= 0:
+        return True, 0, 0
     if not device_id:
         return True, 0, limit
     try:

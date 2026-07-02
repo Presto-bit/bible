@@ -28,7 +28,7 @@ function WrappedInner() {
   return (
     <main className="container wrapped-page">
       <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/report" className="muted">‹ 阅读报告</Link>
+        <Link href="/report" className="muted">‹ 读经回顾</Link>
         <div className="wrapped-tabs">
           <Link href="/wrapped?period=month" className={period === 'month' ? 'active' : ''}>本月</Link>
           <Link href="/wrapped?period=year" className={period === 'year' ? 'active' : ''}>今年</Link>
