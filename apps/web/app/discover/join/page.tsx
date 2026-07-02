@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { markGroupsListDirty } from '@/lib/groups_refresh';
 
 export default function JoinGroupPage() {
   const router = useRouter();
@@ -18,7 +19,8 @@ export default function JoinGroupPage() {
     setMsg('');
     try {
       const g = await api.joinGroup(c);
-      router.push(`/discover/group/${g.id}`);
+      markGroupsListDirty();
+      router.replace(`/discover/group/${g.id}`);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     } finally {

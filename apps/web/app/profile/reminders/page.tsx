@@ -16,65 +16,57 @@ const SLOTS = [
   { key: 'evening', label: '晚读', hour: 21, minute: 0 },
 ] as const;
 
-const EXTRA_KEY = 'presto_reminder_extra';
-
-function readExtra(): Record<string, boolean> {
-  try {
-    return JSON.parse(localStorage.getItem(EXTRA_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function writeExtra(v: Record<string, boolean>) {
-  localStorage.setItem(EXTRA_KEY, JSON.stringify(v));
+function slotActive(pref: ReminderPref, hour: number, minute: number) {
+  return pref.hour === hour && pref.minute === minute;
 }
 
 export default function RemindersPage() {
   const [pref, setPref] = useState<ReminderPref>({ enabled: false, hour: 8, minute: 0 });
-  const [extra, setExtra] = useState<Record<string, boolean>>({});
+  const [customHour, setCustomHour] = useState(8);
+  const [customMinute, setCustomMinute] = useState(0);
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
-    setPref(getReminder());
-    setExtra(readExtra());
+    const p = getReminder();
+    setPref(p);
+    setCustomHour(p.hour);
+    setCustomMinute(p.minute);
     reschedule();
   }, []);
+
+  const applyTime = async (hour: number, minute: number, enabled = true) => {
+    const h = Math.min(23, Math.max(0, hour));
+    const m = Math.min(59, Math.max(0, minute));
+    const next = { enabled, hour: h, minute: m };
+    if (enabled && !pref.enabled) {
+      const ok = await ensurePermission();
+      if (!ok) {
+        setMsg('请在浏览器或系统设置中允许通知');
+        return;
+      }
+    }
+    setPref(next);
+    setCustomHour(h);
+    setCustomMinute(m);
+    setReminder(next);
+    setMsg(`已设为每天 ${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  };
 
   const toggleMain = async (enabled: boolean) => {
     if (enabled) {
       const ok = await ensurePermission();
       if (!ok) {
-        setMsg('请在浏览器设置中允许通知');
+        setMsg('请在浏览器或系统设置中允许通知');
         return;
       }
     }
     const next = { ...pref, enabled };
     setPref(next);
     setReminder(next);
-    setMsg(enabled ? '已开启每日提醒' : '已关闭');
+    setMsg(enabled ? '已开启每日提醒' : '已关闭提醒');
   };
 
-  const pickSlot = async (hour: number, minute: number) => {
-    const next = { ...pref, hour, minute, enabled: true };
-    if (!pref.enabled) {
-      const ok = await ensurePermission();
-      if (!ok) {
-        setMsg('需要通知权限');
-        return;
-      }
-    }
-    setPref(next);
-    setReminder(next);
-    setMsg(`已设为 ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`);
-  };
-
-  const toggleExtra = (key: string) => {
-    const next = { ...extra, [key]: !extra[key] };
-    setExtra(next);
-    writeExtra(next);
-    void import('@/lib/web_push').then((m) => m.subscribeWebPush().catch(() => {}));
-  };
+  const presetActive = SLOTS.some((s) => slotActive(pref, s.hour, s.minute));
 
   return (
     <main className="container">
@@ -96,45 +88,76 @@ export default function RemindersPage() {
             {pref.enabled ? '开' : '关'}
           </button>
         </div>
-        <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
-          温柔提醒，不羞辱。开启后将登记 Web Push，应用关闭时也可收到摘要（需服务器配置 VAPID）。
+        <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.55 }}>
+          在你设定的时间，用一条温柔通知提醒你打开圣经继续阅读。
         </p>
       </div>
 
-      <p className="muted" style={{ marginTop: 14, fontSize: 13 }}>推荐时段（最多 3 个）</p>
+      <p className="muted" style={{ marginTop: 14, fontSize: 13 }}>推荐时段</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {SLOTS.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            className="card card-2 reminder-slot"
-            onClick={() => void pickSlot(s.hour, s.minute)}
-          >
-            <strong>{s.label}</strong>
-            <span className="muted">
-              {String(s.hour).padStart(2, '0')}:{String(s.minute).padStart(2, '0')}
-            </span>
-          </button>
-        ))}
+        {SLOTS.map((s) => {
+          const active = pref.enabled && slotActive(pref, s.hour, s.minute);
+          return (
+            <button
+              key={s.key}
+              type="button"
+              className={`card card-2 reminder-slot${active ? ' reminder-slot-active' : ''}`}
+              onClick={() => void applyTime(s.hour, s.minute)}
+            >
+              <strong>{s.label}</strong>
+              <span className="muted">
+                {String(s.hour).padStart(2, '0')}:{String(s.minute).padStart(2, '0')}
+                {active ? ' · 当前' : ''}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="card card-2" style={{ marginTop: 14 }}>
-        <p className="muted" style={{ fontSize: 12 }}>可选召回（默认关）</p>
-        {[
-          ['streak', '断签温和召回'],
-          ['group', '群待打卡摘要'],
-        ].map(([k, label]) => (
-          <div key={k} className="section-row" style={{ marginTop: 8 }}>
-            <span>{label}</span>
-            <button
-              type="button"
-              className={`toggle ${extra[k] ? 'on' : ''}`}
-              onClick={() => toggleExtra(k)}
-            >
-              {extra[k] ? '开' : '关'}
-            </button>
-          </div>
-        ))}
+        <strong style={{ fontSize: 14 }}>自定义时间</strong>
+        <p className="muted" style={{ fontSize: 12, marginTop: 6, marginBottom: 10 }}>
+          选择更适合你的提醒时刻
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <label className="muted" style={{ fontSize: 12 }}>
+            时
+            <input
+              className="search-input"
+              type="number"
+              min={0}
+              max={23}
+              value={customHour}
+              onChange={(e) => setCustomHour(Number(e.target.value))}
+              style={{ width: 72, marginLeft: 6, textAlign: 'center' }}
+            />
+          </label>
+          <label className="muted" style={{ fontSize: 12 }}>
+            分
+            <input
+              className="search-input"
+              type="number"
+              min={0}
+              max={59}
+              value={customMinute}
+              onChange={(e) => setCustomMinute(Number(e.target.value))}
+              style={{ width: 72, marginLeft: 6, textAlign: 'center' }}
+            />
+          </label>
+          <button
+            type="button"
+            className="btn"
+            style={{ marginTop: 0, padding: '8px 14px', flexShrink: 0 }}
+            onClick={() => void applyTime(customHour, customMinute)}
+          >
+            应用
+          </button>
+        </div>
+        {pref.enabled && !presetActive && (
+          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
+            当前：每天 {String(pref.hour).padStart(2, '0')}:{String(pref.minute).padStart(2, '0')}
+          </p>
+        )}
       </div>
     </main>
   );

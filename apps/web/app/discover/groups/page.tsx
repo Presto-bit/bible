@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   api,
@@ -10,6 +10,7 @@ import {
   type Group,
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
+import { clearGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
 function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' | 'task' } {
@@ -24,6 +25,7 @@ function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' |
 
 export default function DiscoverGroupsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [uid, setUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -31,7 +33,8 @@ export default function DiscoverGroupsPage() {
   const reload = useCallback(async () => {
     try {
       const g = await api.myGroups();
-      setGroups(g.groups);
+      setGroups(Array.isArray(g.groups) ? g.groups : []);
+      clearGroupsListDirty();
       setErr(null);
     } catch (e) {
       setErr(String(e));
@@ -42,9 +45,15 @@ export default function DiscoverGroupsPage() {
     void ensureAccountReady().then(() => {
       const id = effectiveId();
       setUid(id || null);
-      if (id) reload();
     });
-  }, [reload]);
+  }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+    void reload();
+  }, [uid, pathname, reload]);
+
+  useGroupsListRefresh(reload, Boolean(uid));
 
   if (!uid) {
     return (

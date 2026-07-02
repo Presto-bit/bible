@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import { effectiveId } from '@/lib/api';
 import {
+  deleteThought,
   isThoughtLiked,
   sortedThoughts,
   toggleThoughtLike,
@@ -18,18 +20,27 @@ export default function ThoughtsListSheet({
   refStr,
   refLabel,
   verseText,
+  onChanged,
   onClose,
 }: {
   refStr: string;
   refLabel: string;
   verseText: string;
+  onChanged?: () => void;
   onClose: () => void;
 }) {
   const [thoughts, setThoughts] = useState<ThoughtRow[]>(() => sortedThoughts(refStr));
+  const uid = effectiveId() || 'me';
 
   const refresh = useCallback(() => {
     setThoughts(sortedThoughts(refStr));
-  }, [refStr]);
+    onChanged?.();
+  }, [refStr, onChanged]);
+
+  const removeMine = (id: string) => {
+    if (!window.confirm('删除这条想法？')) return;
+    if (deleteThought(id)) refresh();
+  };
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -39,7 +50,7 @@ export default function ThoughtsListSheet({
       >
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
-          <strong>今日安排 · 想法</strong>
+          <strong>本节想法</strong>
           <button type="button" className="text-link" onClick={onClose}>关闭</button>
         </div>
 
@@ -56,23 +67,36 @@ export default function ThoughtsListSheet({
           ) : (
             thoughts.map((t) => {
               const liked = isThoughtLiked(t);
+              const mine = t.authorId === uid;
               return (
                 <div key={t.id} className="thought-item">
                   <div className="thought-item-head">
-                    <strong>{t.authorName}</strong>
+                    <strong>{t.authorName}{mine ? ' · 我' : ''}</strong>
                     <span className="muted">{timeLabel(t.createdAtMs)}</span>
                   </div>
                   <p className="thought-item-body">{t.body}</p>
-                  <button
-                    type="button"
-                    className={`thought-like-btn ${liked ? 'thought-like-active' : ''}`}
-                    onClick={() => {
-                      toggleThoughtLike(t.id);
-                      refresh();
-                    }}
-                  >
-                    {liked ? '♥' : '♡'} {t.likesCount}
-                  </button>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className={`thought-like-btn ${liked ? 'thought-like-active' : ''}`}
+                      onClick={() => {
+                        toggleThoughtLike(t.id);
+                        refresh();
+                      }}
+                    >
+                      {liked ? '♥' : '♡'} {t.likesCount}
+                    </button>
+                    {mine && (
+                      <button
+                        type="button"
+                        className="text-link"
+                        style={{ color: '#b1554a', fontSize: 13 }}
+                        onClick={() => removeMine(t.id)}
+                      >
+                        删除
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })

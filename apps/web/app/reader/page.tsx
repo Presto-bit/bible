@@ -30,7 +30,6 @@ export default function ReaderPage() {
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [book, setBook] = useState<BibleBook | null>(null);
   const [chapter, setChapter] = useState(1);
-  const [chapterPick, setChapterPick] = useState<BibleBook | null>(null);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [dict, setDict] = useState<DictEntity[]>([]);
@@ -94,7 +93,7 @@ export default function ReaderPage() {
     [books],
   );
 
-  const inScriptureReading = Boolean(book && !catalogOpen && !chapterPick);
+  const inScriptureReading = Boolean(book && !catalogOpen);
 
   useEffect(() => {
     if (!inScriptureReading) clearReaderChrome();
@@ -166,46 +165,21 @@ export default function ReaderPage() {
     );
   }
 
-  if (chapterPick) {
-    const b = chapterPick;
-    return (
-      <main className="container">
-        <div className="reader-bar" style={{ marginBottom: 14 }}>
-          <h2 style={{ margin: 0 }}>
-            <button type="button" className="icon-btn" style={{ marginRight: 8 }} onClick={() => setChapterPick(null)} aria-label="返回">‹</button>
-            {b.name}
-            <span className="muted" style={{ fontSize: 13, marginLeft: 8 }}>共 {b.chapter_count} 章</span>
-          </h2>
-        </div>
-        <div className="chapter-grid">
-          {Array.from({ length: b.chapter_count }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`chapter-cell${book?.id === b.id && chapter === n ? ' chapter-cell-active' : ''}`}
-              onClick={() => {
-                setChapter(n);
-                setBook(b);
-                setChapterPick(null);
-                setCatalogOpen(false);
-              }}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-      </main>
-    );
-  }
+  const handlePickChapter = useCallback((b: BibleBook, ch: number) => {
+    setBook(b);
+    setChapter(Math.min(Math.max(1, ch), b.chapter_count));
+    setCatalogOpen(false);
+  }, []);
 
   if (catalogOpen && book) {
     return (
       <CatalogView
         books={books}
         currentBookId={book.id}
+        currentChapter={chapter}
         showBack
         onBack={() => setCatalogOpen(false)}
-        onPickBook={setChapterPick}
+        onPickChapter={handlePickChapter}
         bookAbbr={bookAbbr}
       />
     );
@@ -216,7 +190,7 @@ export default function ReaderPage() {
       <CatalogView
         books={books}
         showBack={false}
-        onPickBook={setChapterPick}
+        onPickChapter={handlePickChapter}
         bookAbbr={bookAbbr}
       />
     );

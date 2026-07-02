@@ -9,14 +9,14 @@ import {
   type LocalNote,
 } from '@/lib/notes';
 import { loadFavoriteRefs, toggleFavorite } from '@/lib/favorites';
-import { api, currentUserId, type BibleBook } from '@/lib/api';
+import { api, currentUserId, effectiveId, type BibleBook } from '@/lib/api';
 import { syncNow } from '@/lib/sync';
 import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
-import { listAllThoughts, type ThoughtRow } from '@/lib/reader_thoughts';
+import { listAllThoughts, deleteThought, updateThought, type ThoughtRow } from '@/lib/reader_thoughts';
 import { listHighlightRefs, removeHighlight, type HighlightMark } from '@/lib/reader_highlights';
 import { formatMarkRefLabel, readerMarkHref } from '@/lib/mark_ref';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
-import { noteForMarkRef } from '@/lib/mark_notes';
+import { noteForMarkRef, upsertMarkNote } from '@/lib/mark_notes';
 import { listMarksDetailed } from '@/lib/mark_stats';
 import Link from 'next/link';
 
@@ -38,7 +38,7 @@ type Tab = 'all' | 'notes' | 'thoughts' | 'bookmarks' | 'highlights';
 
 type FeedItem =
   | { kind: 'note'; id: string; ref?: string | null; body: string; ts: number; note: LocalNote }
-  | { kind: 'thought'; id: string; ref: string; body: string; ts: number }
+  | { kind: 'thought'; id: string; ref: string; body: string; ts: number; thought: ThoughtRow }
   | { kind: 'bookmark'; id: string; ref: string; label: string }
   | { kind: 'highlight'; id: string; ref: string; mark: HighlightMark; notePreview?: string; ts: number };
 
@@ -58,13 +58,17 @@ export default function NotesPage() {
   const [open, setOpen] = useState(false);
   const [colorFilter, setColorFilter] = useState<string>(COLOR_FILTER_ALL);
 
-  const [shareTarget, setShareTarget] = useState<null | { ref: string; label: string; body: string }>(null);
+  const [shareTarget, setShareTarget] = useState<null | { ref: string; label: string; body: string; kind: 'thought' | 'note' }>(null);
+  const [editingThought, setEditingThought] = useState<ThoughtRow | null>(null);
+  const [thoughtDraft, setThoughtDraft] = useState('');
+  const [editingHighlightRef, setEditingHighlightRef] = useState<string | null>(null);
+  const [highlightNoteDraft, setHighlightNoteDraft] = useState('');
 
   const markDetails = useMemo(() => listMarksDetailed(), [highlights]);
 
   const refresh = () => {
     setNotes(listNotes());
-    setThoughts(listAllThoughts());
+    setThoughts(listAllThoughts().filter((t) => t.authorId === (effectiveId() || 'me')));
     setHighlights(listHighlightRefs());
     setFavorites(loadFavorites());
   };
@@ -122,6 +126,41 @@ export default function NotesPage() {
     refresh();
   };
 
+  const openThoughtEdit = (t: ThoughtRow) => {
+    setEditingThought(t);
+    setThoughtDraft(t.body);
+  };
+
+  const saveThoughtEdit = () => {
+    if (!editingThought) return;
+    const body = thoughtDraft.trim();
+    if (!body) return;
+    updateThought(editingThought.id, body);
+    setEditingThought(null);
+    refresh();
+  };
+
+  const removeThought = (id: string) => {
+    if (!window.confirm('删除这条想法？')) return;
+    deleteThought(id);
+    refresh();
+  };
+
+  const openHighlightEdit = (ref: string) => {
+    const note = noteForMarkRef(ref);
+    setEditingHighlightRef(ref);
+    setHighlightNoteDraft(note?.body || '');
+  };
+
+  const saveHighlightNote = () => {
+    if (!editingHighlightRef) return;
+    const body = highlightNoteDraft.trim();
+    if (!body) return;
+    upsertMarkNote(editingHighlightRef, body);
+    setEditingHighlightRef(null);
+    refresh();
+  };
+
   const favLabel = (f: Favorite) => {
     const name = bookNames[f.bookId] || f.bookId;
     return `${name} ${f.chapter}${f.verse ? `:${f.verse}` : ''}`;
@@ -156,6 +195,7 @@ export default function NotesPage() {
         ref: t.ref,
         body: t.body,
         ts: t.createdAtMs,
+        thought: t,
       })),
       ...favorites.map((f) => ({
         kind: 'bookmark' as const,
@@ -341,7 +381,7 @@ export default function NotesPage() {
                     <button
                       type="button"
                       className="text-link"
-                      onClick={() => setShareTarget({ ref: item.ref!, label: item.ref!, body: item.body })}
+                      onClick={() => setShareTarget({ ref: item.ref!, label: item.ref!, body: item.body, kind: 'note' })}
                     >
                       分享
                     </button>
@@ -358,37 +398,57 @@ export default function NotesPage() {
               <div key={`thought-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span className="pill pill-active" style={{ fontSize: 10 }}>想法</span>
-                  <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}>
+                  <Link
+                    href={readerMarkHref(item.ref)}
+                    style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}
+                  >
                     {refLabel(item.ref)}
-                  </span>
+                  </Link>
                 </div>
                 <p style={{ margin: '6px 0 10px', lineHeight: 1.6 }}>{item.body}</p>
-                <a className="text-link" href={readerMarkHref(item.ref)}>
-                  跳转经文
-                </a>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <Link href={readerMarkHref(item.ref)} className="text-link">
+                    跳转经文
+                  </Link>
+                  <button type="button" className="text-link" onClick={() => openThoughtEdit(item.thought)}>
+                    编辑
+                  </button>
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => setShareTarget({ ref: item.ref, label: refLabel(item.ref), body: item.body, kind: 'thought' })}
+                  >
+                    分享
+                  </button>
+                  <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeThought(item.id)}>
+                    删除
+                  </button>
+                </div>
               </div>
             );
           }
           if (item.kind === 'bookmark') {
             return (
               <div key={`fav-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span className="pill" style={{ fontSize: 10 }}>书签</span>
-                  <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--accent-deep)' }}>
                     ★ {item.label}
                   </span>
+                </div>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                   <Link className="text-link" href={readerMarkHref(item.ref)}>
-                    跳转
+                    跳转经文
                   </Link>
                   <button
                     type="button"
                     className="text-link"
-                    onClick={() => setShareTarget({ ref: item.ref, label: item.label, body: '' })}
+                    onClick={() => setShareTarget({ ref: item.ref, label: item.label, body: '', kind: 'note' })}
                   >
                     分享
                   </button>
                   <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeFavorite(item.ref)}>
-                    移除
+                    删除
                   </button>
                 </div>
               </div>
@@ -416,12 +476,9 @@ export default function NotesPage() {
                 <Link className="text-link" href={readerMarkHref(item.ref)}>
                   跳转经文
                 </Link>
-                <Link
-                  className="text-link"
-                  href={`/assistant?ref=${encodeURIComponent(item.ref)}&q=${encodeURIComponent(`帮我理解这段${sem.label}经文：${item.ref}`)}`}
-                >
-                  问小爱
-                </Link>
+                <button type="button" className="text-link" onClick={() => openHighlightEdit(item.ref)}>
+                  编辑
+                </button>
                 <button
                   type="button"
                   className="text-link"
@@ -430,13 +487,14 @@ export default function NotesPage() {
                       ref: item.ref,
                       label: formatMarkRefLabel(item.ref, bookNames),
                       body: note?.body || sem.hint,
+                      kind: 'note',
                     })
                   }
                 >
                   分享
                 </button>
                 <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeHighlightItem(item.ref)}>
-                  移除
+                  删除
                 </button>
               </div>
             </div>
@@ -468,9 +526,48 @@ export default function NotesPage() {
           ref={shareTarget.ref}
           refLabel={shareTarget.label}
           body={shareTarget.body}
-          kind="note"
+          kind={shareTarget.kind}
           onClose={() => setShareTarget(null)}
         />
+      )}
+
+      {editingThought && (
+        <div className="sheet-backdrop" onClick={() => setEditingThought(null)}>
+          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>编辑想法</h3>
+            <p className="muted" style={{ fontSize: 12 }}>{refLabel(editingThought.ref)}</p>
+            <textarea
+              className="search-input"
+              style={{ minHeight: 100, resize: 'vertical' }}
+              autoFocus
+              value={thoughtDraft}
+              onChange={(e) => setThoughtDraft(e.target.value)}
+            />
+            <button className="btn" style={{ marginTop: 12 }} onClick={saveThoughtEdit}>
+              保存
+            </button>
+          </div>
+        </div>
+      )}
+
+      {editingHighlightRef && (
+        <div className="sheet-backdrop" onClick={() => setEditingHighlightRef(null)}>
+          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0 }}>编辑划线笔记</h3>
+            <p className="muted" style={{ fontSize: 12 }}>{formatMarkRefLabel(editingHighlightRef, bookNames)}</p>
+            <textarea
+              className="search-input"
+              style={{ minHeight: 100, resize: 'vertical' }}
+              autoFocus
+              placeholder="记录与这段经文相关的灵修笔记…"
+              value={highlightNoteDraft}
+              onChange={(e) => setHighlightNoteDraft(e.target.value)}
+            />
+            <button className="btn" style={{ marginTop: 12 }} onClick={saveHighlightNote}>
+              保存
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );

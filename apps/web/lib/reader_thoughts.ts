@@ -48,16 +48,40 @@ export function selectionRef(bookId: string, chapter: number, verses: number[]):
   return `${bookId}.${chapter}.${sel[0]}-${sel[sel.length - 1]}`;
 }
 
-export function thoughtsForChapter(bookId: string, chapter: number): Record<number, number> {
+function verseFromRef(ref: string, bookId: string, chapter: number): number | null {
   const prefix = `${bookId}.${chapter}.`;
+  if (!ref.startsWith(prefix)) return null;
+  const tail = ref.split('.')[2] ?? '';
+  const v = tail.includes('-') ? Number(tail.split('-')[0]) : Number(tail);
+  return Number.isNaN(v) ? null : v;
+}
+
+export function thoughtsForChapter(bookId: string, chapter: number): Record<number, number> {
   const map: Record<number, number> = {};
   for (const t of readAll()) {
-    if (!t.ref.startsWith(prefix)) continue;
-    const tail = t.ref.split('.')[2] ?? '';
-    const v = tail.includes('-') ? Number(tail.split('-')[0]) : Number(tail);
-    if (!Number.isNaN(v)) map[v] = (map[v] ?? 0) + 1;
+    const v = verseFromRef(t.ref, bookId, chapter);
+    if (v != null) map[v] = (map[v] ?? 0) + 1;
   }
   return map;
+}
+
+/** 当前用户在章内各节的想法数（用于虚线标注）。 */
+export function myThoughtsForChapter(bookId: string, chapter: number): Record<number, number> {
+  const uid = userId();
+  const map: Record<number, number> = {};
+  for (const t of readAll()) {
+    if (t.authorId !== uid) continue;
+    const v = verseFromRef(t.ref, bookId, chapter);
+    if (v != null) map[v] = (map[v] ?? 0) + 1;
+  }
+  return map;
+}
+
+export function myThoughtsForRef(ref: string): ThoughtRow[] {
+  const uid = userId();
+  return readAll()
+    .filter((t) => t.ref === ref && t.authorId === uid)
+    .sort((a, b) => b.createdAtMs - a.createdAtMs);
 }
 
 export function sortedThoughts(ref: string): ThoughtRow[] {
@@ -109,4 +133,25 @@ export function toggleThoughtLike(id: string) {
 
 export function isThoughtLiked(t: ThoughtRow): boolean {
   return t.likedBy.includes(userId());
+}
+
+export function deleteThought(id: string): boolean {
+  const uid = userId();
+  const all = readAll();
+  const row = all.find((t) => t.id === id);
+  if (!row || row.authorId !== uid) return false;
+  writeAll(all.filter((t) => t.id !== id));
+  return true;
+}
+
+export function updateThought(id: string, body: string): boolean {
+  const uid = userId();
+  const trimmed = body.trim();
+  if (!trimmed) return false;
+  const all = readAll();
+  const i = all.findIndex((t) => t.id === id && t.authorId === uid);
+  if (i < 0) return false;
+  all[i] = { ...all[i], body: trimmed };
+  writeAll(all);
+  return true;
 }

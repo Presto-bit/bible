@@ -69,6 +69,9 @@ import {
 } from '@/lib/reader_highlights';
 import {
   addThought,
+  deleteThought,
+  myThoughtsForChapter,
+  myThoughtsForRef,
   selectionRef,
   thoughtsForChapter,
 } from '@/lib/reader_thoughts';
@@ -319,6 +322,10 @@ export default function ReaderView({
     () => (thoughtsOn ? thoughtsForChapter(book.id, chapter) : {}),
     [book.id, chapter, thoughtsOn, thoughtRevision],
   );
+  const myChapterThoughts = useMemo(
+    () => (thoughtsOn ? myThoughtsForChapter(book.id, chapter) : {}),
+    [book.id, chapter, thoughtsOn, thoughtRevision],
+  );
 
   const selRef = useMemo(
     () => markSelectionRef(book.id, chapter, sortedSel, selectionSpan),
@@ -434,18 +441,34 @@ export default function ReaderView({
     });
   };
 
+  const handleThoughtLineClick = (verse: number, text: string) => {
+    const ref = `${book.id}.${chapter}.${verse}`;
+    const mine = myThoughtsForRef(ref);
+    const total = chapterThoughts[verse] ?? 0;
+    if (mine.length === 1 && total === 1) {
+      if (window.confirm('删除这条想法？')) {
+        deleteThought(mine[0].id);
+        setThoughtRevision((n) => n + 1);
+        flashToast('已删除想法');
+      }
+      return;
+    }
+    openThoughtListForVerse(verse, text);
+  };
+
   const renderThoughtLine = (para: { verses: { verse: number; text: string }[] }) => {
     if (!thoughtsOn) return null;
     const v = para.verses.find((x) => (chapterThoughts[x.verse] ?? 0) > 0);
     if (!v) return null;
+    const mine = (myChapterThoughts[v.verse] ?? 0) > 0;
     return (
       <button
         type="button"
-        className="verse-thought-line"
-        aria-label="查看想法"
+        className={`verse-thought-line${mine ? ' verse-thought-line-mine' : ''}`}
+        aria-label={mine ? '我的想法' : '查看想法'}
         onClick={(e) => {
           e.stopPropagation();
-          openThoughtListForVerse(v.verse, verseDisplayText(v.verse, v.text));
+          handleThoughtLineClick(v.verse, verseDisplayText(v.verse, v.text));
         }}
       />
     );
@@ -473,10 +496,7 @@ export default function ReaderView({
     const added = pickHighlightColor(book.id, chapter, sortedSel, color, selectionSpan);
     setHighlightMap(getHighlightMap());
     flashToast(added ? '已划线' : '已取消划线');
-    if (added) {
-      setMarkNotePrompt({ ref: selRef, label: effRefLabel });
-    }
-  }, [book.id, chapter, sortedSel, selectionSpan, selRef, effRefLabel, underlinesOn]);
+  }, [book.id, chapter, sortedSel, selectionSpan, underlinesOn]);
 
   const clearMark = useCallback(() => {
     const ok = clearHighlightForSelection(book.id, chapter, sortedSel, selectionSpan);
@@ -879,6 +899,7 @@ export default function ReaderView({
           marginTop: chromeHidden ? 0 : 12,
           maxHeight: chromeHidden ? 'calc(100dvh - 28px)' : 'calc(100dvh - 88px)',
         }}
+        onContextMenu={(e) => e.preventDefault()}
         onTouchStart={pageTurn === 'swipe' ? (e) => {
           (contentRef.current as HTMLDivElement & { _tx?: number })._tx = e.touches[0].clientX;
         } : undefined}
@@ -1144,6 +1165,7 @@ export default function ReaderView({
           refStr={thoughtListSheet.ref}
           refLabel={thoughtListSheet.label}
           verseText={thoughtListSheet.text}
+          onChanged={() => setThoughtRevision((n) => n + 1)}
           onClose={() => setThoughtListSheet(null)}
         />
       )}

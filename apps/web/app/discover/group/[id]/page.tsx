@@ -17,6 +17,7 @@ import { api, type GroupDetail, type GroupMessage, type PlanSummary } from '@/li
 import { GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
 import { loadFootprintRefs } from '@/lib/group_footprint';
 import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
+import { markGroupsListDirty } from '@/lib/groups_refresh';
 
 function GroupPageInner() {
   const router = useRouter();
@@ -342,7 +343,8 @@ function GroupPageInner() {
     setBusy(true);
     try {
       await api.dissolveGroup(gid);
-      router.push('/discover');
+      markGroupsListDirty();
+      router.push('/discover/groups');
     } catch (e) {
       alert(`解散失败：${e}`);
     } finally {
@@ -354,7 +356,7 @@ function GroupPageInner() {
     <main className="group-page">
       <div className={`group-sticky-zone${headerScrolled ? ' scrolled' : ''}`}>
         <div className="group-nav-bar">
-          <Link href="/discover" className="icon-btn" aria-label="返回">
+          <Link href="/discover/groups" className="icon-btn" aria-label="返回">
             ‹
           </Link>
         </div>

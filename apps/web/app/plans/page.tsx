@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, ensureAccountReady, type GeneratedPlan, type PlanSummary } from '@/lib/api';
+import { markGroupsListDirty } from '@/lib/groups_refresh';
 import { PlanScheduleSheet } from '@/components/plans/PlanScheduleSheet';
 import { PlanCategoryGrid } from '@/components/plans/PlanCategoryGrid';
 import {
@@ -286,6 +287,7 @@ export default function PlansPage() {
                   try {
                     await ensureAccountReady();
                     const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
+                    markGroupsListDirty();
                     window.location.href = `/discover/group/${g.id}`;
                   } catch (e) {
                     flashToast(String(e));

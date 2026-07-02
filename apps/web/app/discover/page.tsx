@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
   api,
@@ -14,6 +14,7 @@ import {
 } from '@/lib/api';
 import { groupPlanProgressLabel } from '@/lib/group_plan';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { clearGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { AssistantLink } from '@/components/AssistantLink';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
@@ -51,6 +52,7 @@ function summaryLinkTarget(
 
 export default function DiscoverPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [uid, setUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -67,10 +69,11 @@ export default function DiscoverPage() {
         api.discoverSummary(),
         api.friendsActivity(),
       ]);
-      setGroups(g.groups);
-      setFriends(f.friends);
+      setGroups(Array.isArray(g.groups) ? g.groups : []);
+      setFriends(Array.isArray(f.friends) ? f.friends : []);
       setSummary(s);
-      setShares(activity.items);
+      setShares(Array.isArray(activity.items) ? activity.items : []);
+      clearGroupsListDirty();
       setErr(null);
     } catch (e) {
       setErr(String(e));
@@ -81,9 +84,15 @@ export default function DiscoverPage() {
     void ensureAccountReady().then(() => {
       const id = effectiveId();
       setUid(id || null);
-      if (id) reload();
     });
-  }, [reload]);
+  }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+    void reload();
+  }, [uid, pathname, reload]);
+
+  useGroupsListRefresh(reload, Boolean(uid));
 
   const toggleReact = async (item: FriendActivity) => {
     const prev = reacted[item.id];

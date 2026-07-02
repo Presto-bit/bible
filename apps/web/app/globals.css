@@ -316,8 +316,8 @@ body.reader-immersive .tabbar {
 
 .catalog-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
 }
 
 .catalog-card {
@@ -325,7 +325,7 @@ body.reader-immersive .tabbar {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 12px 8px;
+  padding: 10px 4px;
   border-radius: 10px;
   border: 1px solid var(--line);
   background: var(--surface);
@@ -380,15 +380,20 @@ body.reader-immersive .tabbar {
 }
 
 .catalog-abbr {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.2;
-  color: var(--ink);
+  color: var(--accent-deep);
 }
 
 .catalog-name {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--ink-soft);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .catalog-ch {
@@ -400,6 +405,35 @@ body.reader-immersive .tabbar {
   display: grid;
   grid-template-columns: repeat(6, 1fr);
   gap: 8px;
+}
+
+.catalog-seg-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
+  padding-bottom: 4px;
+}
+
+.catalog-chapters-panel {
+  padding-bottom: 24px;
+}
+
+.catalog-chapters-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.catalog-chapters-head .text-link {
+  margin-left: auto;
+  font-size: 13px;
+}
+
+.catalog-chapter-grid {
+  grid-template-columns: repeat(5, 1fr);
 }
 
 .chapter-cell {
@@ -3423,6 +3457,7 @@ a.today-card-link {
   padding: 0 2px 12px;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  -webkit-touch-callout: none;
 }
 
 .reader-content::-webkit-scrollbar {
@@ -3434,7 +3469,7 @@ a.today-card-link {
 .verse-token {
   -webkit-user-select: text;
   user-select: text;
-  -webkit-touch-callout: default;
+  -webkit-touch-callout: none;
 }
 
 .reader-content.chapter-enter {
@@ -4340,8 +4375,19 @@ a.today-card-link {
   opacity: 0.45;
 }
 
+.verse-thought-line-mine {
+  opacity: 0.72;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--accent-deep) 0,
+    var(--accent-deep) 4px,
+    transparent 4px,
+    transparent 7px
+  );
+}
+
 .verse-thought-line:hover {
-  opacity: 0.75;
+  opacity: 0.85;
 }
 
 .reader-focus-close {
@@ -4923,6 +4969,11 @@ a.today-card-link {
   width: 100%;
   text-align: left;
   cursor: pointer;
+}
+
+.reminder-slot-active {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
 }
 .toggle {
   border: 1px solid var(--line);
