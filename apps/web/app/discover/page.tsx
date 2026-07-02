@@ -107,9 +107,9 @@ export default function DiscoverPage() {
     return (
       <main className="container">
         <div className="card card-2">
-          <p>登录后即可加入共读群、添加好友、一起打卡。</p>
+          <p>正在准备本机账号，稍候即可加入共读群、添加好友。</p>
           <Link className="btn" href="/profile">
-            去登录
+            前往我的
           </Link>
         </div>
       </main>

@@ -79,6 +79,7 @@ const USER_KEY = 'presto_user_id';
 const NAME_KEY = 'profile_name';
 const HAS_PWD_KEY = 'account_has_password';
 const ONBOARDED_KEY = 'account_onboarded';
+const PHONE_KEY = 'account_phone';
 // 本地用户名 → user_code 映射（不含密码，仅离线查 ID）
 const REGISTRY_KEY = 'account_registry';
 
@@ -110,6 +111,7 @@ async function refreshAccountStatus(code: string): Promise<void> {
     if (!res.ok) return;
     const d = await res.json();
     if (d.username) localStorage.setItem(NAME_KEY, d.username);
+    if (d.phone) localStorage.setItem(PHONE_KEY, d.phone);
     setHasPasswordCached(Boolean(d.has_password));
   } catch {
     /* 离线跳过 */
@@ -119,7 +121,7 @@ async function refreshAccountStatus(code: string): Promise<void> {
 function deviceHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
   const deviceId = getDeviceId();
-  const fingerprint = stableDeviceFingerprint();
+  const fingerprint = stableDeviceFingerprint() || deviceId;
   if (deviceId) h['X-Device-Id'] = deviceId;
   if (fingerprint) h['X-Device-Fingerprint'] = fingerprint;
   return h;
@@ -304,6 +306,55 @@ function writeRegistry(r: Record<string, RegistryEntry>) {
 export function getUserName(): string {
   if (typeof window === 'undefined') return '';
   return localStorage.getItem(NAME_KEY) || '';
+}
+
+export function getBoundPhone(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem(PHONE_KEY) || '';
+}
+
+export interface BoundDevice {
+  id: string;
+  label: string;
+  updated_at?: string | null;
+}
+
+export async function bindPhone(phone: string, password?: string | null): Promise<string> {
+  const res = await fetch(`${API_BASE}/auth/bind-phone`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...deviceHeaders(), ...authHeaders() },
+    body: JSON.stringify({ phone, password: password || null }),
+  });
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      detail = (await res.json()).detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail);
+  }
+  const d = await res.json();
+  if (d.phone) localStorage.setItem(PHONE_KEY, d.phone);
+  return d.phone as string;
+}
+
+export async function listDevices(): Promise<BoundDevice[]> {
+  const res = await fetch(`${API_BASE}/auth/devices`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) return [];
+  const d = await res.json();
+  return Array.isArray(d.devices) ? (d.devices as BoundDevice[]) : [];
+}
+
+export async function unbindDevice(deviceId: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/devices/${encodeURIComponent(deviceId)}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('解绑失败');
 }
 
 /** 首页问候等展示名：优先用户名，否则游客 ID 后缀。 */
@@ -536,7 +587,7 @@ export async function chatStream(
     cb.onError?.(
       currentUserId()
         ? '今日 AI 使用已达上限，请明日再试'
-        : '今日免费次数已用完，登录后可继续使用',
+        : '今日免费次数已用完，明日继续',
     );
     return;
   }
@@ -605,6 +656,8 @@ export function authHeaders(): Record<string, string> {
     h['X-Guest-Id'] = device;
     h['X-Device-Id'] = device;
   }
+  const fp = stableDeviceFingerprint();
+  if (fp) h['X-Device-Fingerprint'] = fp;
   const code = effectiveId();
   if (code) {
     h['X-User-Code'] = code;

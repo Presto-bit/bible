@@ -6,15 +6,15 @@ import {
   changePassword,
   currentUserId,
   effectiveId,
+  getDisplayName,
   guestId,
   hasPassword,
-  isOnboarded,
-  loginWithIdentifier,
   logout,
   setCredentials,
   usernameAvailable,
 } from '@/lib/api';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
+import AccountSecurityCard from '@/components/AccountSecurityCard';
 import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import ReadingProgress from '@/components/ReadingProgress';
 import { todayMinutes } from '@/lib/reading';
@@ -43,10 +43,6 @@ export default function ProfilePage() {
   const [uid, setUid] = useState<string | null>(null);
   const [gid, setGid] = useState<string>('');
   const [mins, setMins] = useState(0);
-  const [identifier, setIdentifier] = useState('');
-  const [loginPwd, setLoginPwd] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [idCopied, setIdCopied] = useState(false);
   const [avatarId, setAvatarId] = useState('a1');
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -54,19 +50,13 @@ export default function ProfilePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
-  // 首次引导：设置名称 + 密码
-  const [onboardOpen, setOnboardOpen] = useState(false);
-  const [obName, setObName] = useState('');
-  const [obPwd, setObPwd] = useState('');
-  const [obErr, setObErr] = useState<string | null>(null);
-  const [obBusy, setObBusy] = useState(false);
-  const [clearCacheBusy, setClearCacheBusy] = useState(false);
-  const [hasPwd, setHasPwd] = useState(false);
+  // 设置内修改用户名
   const [nameBusy, setNameBusy] = useState(false);
   const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const [clearCacheBusy, setClearCacheBusy] = useState(false);
+  const [hasPwd, setHasPwd] = useState(false);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
   const [streak, setStreak] = useState(0);
-  const [accountGuideOpen, setAccountGuideOpen] = useState(false);
 
   useEffect(() => {
     setReviewCards(favoriteReviewCards(3));
@@ -89,48 +79,7 @@ export default function ProfilePage() {
     setMins(todayMinutes());
     setStreak(readingStreak());
     setHasPwd(hasPassword());
-    setAccountGuideOpen(!isOnboarded());
-    if (!isOnboarded()) {
-      setObName(localStorage.getItem(NAME_KEY) || '');
-      setOnboardOpen(true);
-    }
   }, []);
-
-  const submitOnboard = async (skip = false) => {
-    if (skip) {
-      await setCredentials('', '');
-      setUid(currentUserId());
-      setAccountGuideOpen(false);
-      setOnboardOpen(false);
-      return;
-    }
-    const u = obName.trim();
-    if (u.length < 2) {
-      setObErr('名称至少 2 个字');
-      return;
-    }
-    if (obPwd.length < 6) {
-      setObErr('密码至少 6 位');
-      return;
-    }
-    setObBusy(true);
-    setObErr(null);
-    try {
-      const ok = await usernameAvailable(u);
-      if (!ok) {
-        setObErr('该用户名已被占用，请换一个');
-        return;
-      }
-      await setCredentials(u, obPwd);
-      setName(u);
-      setUid(currentUserId());
-      setHasPwd(Boolean(obPwd));
-      setAccountGuideOpen(false);
-      setOnboardOpen(false);
-    } finally {
-      setObBusy(false);
-    }
-  };
 
   const saveName = (v: string) => {
     setName(v);
@@ -195,25 +144,6 @@ export default function ProfilePage() {
     setSettingsAvatarOpen(false);
   };
 
-  const login = async () => {
-    if (!identifier.trim()) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      const id = await loginWithIdentifier(identifier.trim(), loginPwd);
-      setUid(id);
-      setGid(guestId());
-      setName(localStorage.getItem(NAME_KEY) || '');
-      setHasPwd(hasPassword());
-      setAccountGuideOpen(false);
-      setLoginPwd('');
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const idValue = uid || gid;
 
   const copyId = async () => {
@@ -265,7 +195,7 @@ export default function ProfilePage() {
             </button>
           )}
           <span className="muted" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
-            {hasPwd ? '已设密码 · 可换机登录' : '未设密码 · 建议设置以便换机'}
+            {hasPwd ? '已设密码 · 换机可恢复' : '建议设置用户名，换机更方便'}
           </span>
         </div>
         <button
@@ -281,38 +211,7 @@ export default function ProfilePage() {
         </button>
       </header>
 
-      {accountGuideOpen && (
-      <div className="card card-2" style={{ marginBottom: 12 }}>
-        <strong>账号与换机</strong>
-        <p className="muted" style={{ margin: '6px 0 12px', lineHeight: 1.5 }}>
-          你的用户 ID：<strong>{idValue || '—'}</strong>
-          {hasPwd ? ' · 已设密码' : ' · 未设密码，建议设置'}
-          。换机时输入 ID 或「用户名 + 密码」登录。
-        </p>
-        <input
-          className="book-chip"
-          style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-          placeholder="切换账号：用户ID 或 用户名"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-        />
-        <input
-          className="book-chip"
-          type="password"
-          style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-          placeholder="密码（仅 ID 登录且未设密码时可留空）"
-          value={loginPwd}
-          onChange={(e) => setLoginPwd(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') login();
-          }}
-        />
-        {err && <p style={{ color: '#b1554a', marginBottom: 8 }}>{err}</p>}
-        <button className="btn" style={{ marginTop: 0 }} onClick={login} disabled={busy}>
-          {busy ? '登录中…' : '登录 / 切换账号'}
-        </button>
-      </div>
-      )}
+      <AccountSecurityCard />
 
       {streak > 0 && (
         <div className="streak-banner" style={{ marginTop: 12 }}>
@@ -473,12 +372,8 @@ export default function ProfilePage() {
 
             <div className="settings-card">
               <p className="settings-title">账号</p>
-              <p className="muted" style={{ fontSize: 12 }}>当前 ID：{idValue || '—'}（免注册即用）</p>
-              <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                {hasPwd ? '已设密码，可在新设备用 ID 或用户名登录' : '未设密码，换机请凭用户 ID 登录'}
-              </p>
               <Link href="/login" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
-                <span style={{ flex: 1 }}>切换账号</span>
+                <span style={{ flex: 1 }}>在其他设备恢复账号</span>
                 <span className="muted">›</span>
               </Link>
               <button
@@ -532,43 +427,6 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {onboardOpen && (
-        <div className="sheet-backdrop" style={{ alignItems: 'center', zIndex: 130 }}>
-          <div className="sheet card" style={{ borderRadius: 18, maxWidth: 360 }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>设置你的名称和密码</h3>
-            <p className="muted" style={{ fontSize: 12, marginTop: -6, marginBottom: 12 }}>
-              免注册即用，你的用户ID 是 {gid}。设置用户名（不可重复）与密码后，可在其它设备用「用户名 + 密码」登录。
-            </p>
-            <input
-              className="book-chip"
-              style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-              placeholder="用户名（≥2 字，不可重复）"
-              value={obName}
-              onChange={(e) => setObName(e.target.value)}
-            />
-            <input
-              className="book-chip"
-              type="password"
-              style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-              placeholder="密码（≥6 位）"
-              value={obPwd}
-              onChange={(e) => setObPwd(e.target.value)}
-            />
-            {obErr && <p style={{ color: '#b1554a', marginBottom: 8, fontSize: 13 }}>{obErr}</p>}
-            <button className="btn" style={{ marginTop: 0 }} onClick={() => submitOnboard(false)} disabled={obBusy}>
-              {obBusy ? '保存中…' : '保存并继续'}
-            </button>
-            <button
-              type="button"
-              className="text-link"
-              style={{ display: 'block', margin: '12px auto 0' }}
-              onClick={() => submitOnboard(true)}
-            >
-              暂时跳过
-            </button>
-          </div>
-        </div>
-      )}
     </main>
   );
 }

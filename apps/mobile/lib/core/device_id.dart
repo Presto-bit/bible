@@ -1,8 +1,10 @@
-/// 设备级标识与用户码生成（与 Web `device_id.ts` 算法一致）。
+/// 设备级标识：原生硬件 ID（Android ID / iOS identifierForVendor）+ 服务端绑定。
 library;
 
 import 'dart:convert';
+import 'dart:io' show Platform;
 
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -19,13 +21,31 @@ class DeviceIdentity {
 
   final SharedPreferences _prefs;
 
+  Future<String> _nativeHardwareDeviceId() async {
+    try {
+      final plugin = DeviceInfoPlugin();
+      if (Platform.isAndroid) {
+        final a = await plugin.androidInfo;
+        return 'hw-a-${a.id}';
+      }
+      if (Platform.isIOS) {
+        final i = await plugin.iosInfo;
+        final v = i.identifierForVendor;
+        if (v != null && v.isNotEmpty) return 'hw-i-$v';
+      }
+    } catch (_) {
+      /* 模拟器或权限异常 */
+    }
+    return 'hw-u-${const Uuid().v4()}';
+  }
+
   Future<String> getDeviceId() async {
     var d = await _secure.read(key: _deviceKey);
     if (d == null || d.isEmpty) {
       d = _prefs.getString(_deviceKey);
     }
     if (d == null || d.isEmpty) {
-      d = const Uuid().v4();
+      d = await _nativeHardwareDeviceId();
       await _secure.write(key: _deviceKey, value: d);
       await _prefs.setString(_deviceKey, d);
     }

@@ -1,8 +1,8 @@
 // H5 云同步客户端：outbox 上行（/sync/push）+ 游标下行（/sync/pull）。
-// 与 App（apps/mobile/lib/core/sync/sync_engine.dart）和后端 registry 对齐。
-// 登录后（X-User-Id）才会真正同步；游客仅本地排队，登录后一次推送。
+// 隐式账号（user_code）默认可同步；本地 outbox 有网时自动推送。
 
-import { API_BASE, currentUserId, effectiveId, ensureAccountReady, getDeviceId } from './api';
+import { API_BASE, effectiveId, ensureAccountReady, authHeaders } from './api';
+import { markSyncDone, markSyncStart } from './sync_status';
 import { applyRemoteNote, type LocalNote } from './notes';
 import { applyRemotePlanProgress } from './plan_sync';
 import {
@@ -36,7 +36,6 @@ export interface Envelope {
 
 const OUTBOX_KEY = 'presto_outbox';
 const CURSOR_KEY = 'presto_sync_cursor';
-const DEVICE_KEY = 'presto_device_id';
 
 function iso(ms: number): string {
   return new Date(ms).toISOString();
@@ -85,54 +84,34 @@ export function pendingCount(): number {
   return readOutbox().length;
 }
 
-function deviceId(): string {
-  let d = localStorage.getItem(DEVICE_KEY);
-  if (!d) {
-    d =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `web-${Date.now()}`;
-    localStorage.setItem(DEVICE_KEY, d);
-  }
-  return d;
-}
-
-function authHeaders(): Record<string, string> {
-  const h: Record<string, string> = { 'Content-Type': 'application/json' };
-  const device = getDeviceId();
-  if (device) {
-    h['X-Guest-Id'] = device;
-    h['X-Device-Id'] = device;
-  }
-  const uid = effectiveId();
-  if (uid) {
-    h['X-User-Id'] = uid;
-    h['X-User-Code'] = uid;
-  }
-  return h;
-}
-
 async function push(): Promise<number> {
   const outbox = readOutbox();
   if (outbox.length === 0) return 0;
-  const res = await fetch(`${API_BASE}/sync/push`, {
-    method: 'POST',
-    headers: authHeaders(),
-    body: JSON.stringify({ changes: outbox }),
-  });
-  if (!res.ok) throw new Error(`推送失败 ${res.status}`);
-  writeOutbox([]); // 服务端已用 LWW 合并，清空本地待推送
-  const data = await res.json();
-  return (data.applied ?? 0) as number;
+  markSyncStart();
+  try {
+    const res = await fetch(`${API_BASE}/sync/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ changes: outbox }),
+    });
+    if (!res.ok) throw new Error(`推送失败 ${res.status}`);
+    writeOutbox([]);
+    const data = await res.json();
+    return (data.applied ?? 0) as number;
+  } finally {
+    markSyncDone();
+  }
 }
 
 async function pull(): Promise<number> {
-  const since = Number(localStorage.getItem(CURSOR_KEY) || '0');
-  const res = await fetch(
-    `${API_BASE}/sync/pull?since=${since}&entities=note,plan_progress,highlight,bookmark,ai_session`,
-    { headers: authHeaders(), cache: 'no-store' },
-  );
-  if (!res.ok) throw new Error(`拉取失败 ${res.status}`);
+  markSyncStart();
+  try {
+    const since = Number(localStorage.getItem(CURSOR_KEY) || '0');
+    const res = await fetch(
+      `${API_BASE}/sync/pull?since=${since}&entities=note,plan_progress,highlight,bookmark,ai_session`,
+      { headers: authHeaders(), cache: 'no-store' },
+    );
+    if (!res.ok) throw new Error(`拉取失败 ${res.status}`);
   const data = await res.json();
   const changes = (data.changes ?? []) as Array<{
     entity: string;
@@ -202,6 +181,9 @@ async function pull(): Promise<number> {
   }
   if (data.cursor != null) localStorage.setItem(CURSOR_KEY, String(data.cursor));
   return changes.length;
+  } finally {
+    markSyncDone();
+  }
 }
 
 export interface SyncResult {
@@ -209,11 +191,11 @@ export interface SyncResult {
   pulled: number;
 }
 
-// 完整一轮同步：先推后拉。静默建档后可用。
+// 完整一轮同步：先推后拉。隐式账号就绪后可用。
 export async function syncNow(): Promise<SyncResult> {
   await ensureAccountReady();
   const uid = effectiveId();
-  if (!uid) throw new Error('未登录');
+  if (!uid) throw new Error('账号未就绪');
   const pushed = await push();
   const pulled = await pull();
   return { pushed, pulled };

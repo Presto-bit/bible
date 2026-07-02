@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, effectiveId, ensureAccountReady } from '@/lib/api';
+import { markLocalDataCreated } from '@/lib/account_guide';
 import { stashCreatedGroup } from '@/lib/groups_refresh';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
 
@@ -35,6 +36,7 @@ export default function CreateGroupPage() {
         join_code: g.join_code,
         role: g.role || 'owner',
       });
+      markLocalDataCreated();
       router.replace(`/discover/group/${encodeURIComponent(g.id)}`);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);

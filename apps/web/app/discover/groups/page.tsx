@@ -81,9 +81,9 @@ export default function DiscoverGroupsPage() {
     return (
       <main className="container">
         <div className="card card-2">
-          <p>登录后即可查看共读群。</p>
+          <p>正在准备本机账号，稍候即可查看共读群。</p>
           <Link className="btn" href="/profile">
-            去登录
+            前往我的
           </Link>
         </div>
       </main>

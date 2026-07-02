@@ -1,5 +1,7 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML
-const CACHE = 'presto-bible-v3';
+const CACHE = 'presto-bible-v4';
+const IDENTITY_CACHE = 'presto-identity-v1';
+const IDENTITY_KEY = '/__presto_identity__';
 const SHELL = [
   '/manifest.webmanifest',
   '/icon.svg',
@@ -63,6 +65,37 @@ self.addEventListener('fetch', (e) => {
         }),
     ),
   );
+});
+
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type === 'identity-save' && data.deviceId) {
+    event.waitUntil(
+      caches.open(IDENTITY_CACHE).then((c) =>
+        c.put(
+          IDENTITY_KEY,
+          new Response(JSON.stringify({ deviceId: data.deviceId, userCode: data.userCode || null }), {
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        ),
+      ),
+    );
+    return;
+  }
+  if (data.type === 'identity-load' && event.ports && event.ports[0]) {
+    event.waitUntil(
+      caches
+        .open(IDENTITY_CACHE)
+        .then((c) => c.match(IDENTITY_KEY))
+        .then((r) => (r ? r.json() : { deviceId: null }))
+        .then((payload) => {
+          event.ports[0].postMessage(payload);
+        })
+        .catch(() => {
+          event.ports[0].postMessage({ deviceId: null });
+        }),
+    );
+  }
 });
 
 self.addEventListener('push', (event) => {

@@ -86,8 +86,8 @@ export function ShareToSocialSheet({
     return (
       <div className="sheet-backdrop" onClick={onClose}>
         <div className="sheet card" onClick={(e) => e.stopPropagation()}>
-          <p>登录后即可分享到共读群或好友动态。</p>
-          <a className="btn" href="/profile">去登录</a>
+          <p>本机账号就绪后即可分享到共读群或好友动态。</p>
+          <a className="btn" href="/profile">前往我的</a>
         </div>
       </div>
     );

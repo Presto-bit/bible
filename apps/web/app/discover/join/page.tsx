@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import { markLocalDataCreated } from '@/lib/account_guide';
 import { stashCreatedGroup } from '@/lib/groups_refresh';
 
 export default function JoinGroupPage() {
@@ -25,6 +26,7 @@ export default function JoinGroupPage() {
         join_code: c.trim().toUpperCase(),
         role: 'member',
       });
+      markLocalDataCreated();
       router.replace(`/discover/group/${g.id}`);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));

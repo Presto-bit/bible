@@ -121,19 +121,32 @@ class ChangePasswordBody(BaseModel):
     new_password: str
 
 
+class BindPhoneBody(BaseModel):
+    phone: str
+    password: str | None = None
+
+
+_PHONE_RE = __import__("re").compile(r"^1[3-9]\d{9}$")
+
+
+def _normalize_phone(raw: str) -> str:
+    return (raw or "").strip().replace(" ", "").replace("-", "")
+
+
 def _account_row(conn, user_code: str):
     return conn.execute(
-        "SELECT user_code, username, pwd_hash, pwd_salt FROM accounts WHERE user_code = %s",
+        "SELECT user_code, username, pwd_hash, pwd_salt, phone FROM accounts WHERE user_code = %s",
         (user_code,),
     ).fetchone()
 
 
-def _account_payload(code: str, username: str | None, pwd_hash: str | None) -> dict:
+def _account_payload(code: str, username: str | None, pwd_hash: str | None, phone: str | None = None) -> dict:
     return {
         "user_code": code,
         "user_id": _uuid_for_code(code),
         "username": username,
         "has_password": bool(pwd_hash),
+        "phone": phone,
     }
 
 
@@ -148,9 +161,9 @@ def account_status(user_code: str) -> dict:
         with pool.connection() as conn:
             row = _account_row(conn, code)
         if row is None:
-            return _account_payload(code, None, None)
-        c, username, pwd_hash, _ = row
-        return _account_payload(c, username, pwd_hash)
+            return _account_payload(code, None, None, None)
+        c, username, pwd_hash, _, phone = row
+        return _account_payload(c, username, pwd_hash, phone)
     except HTTPException:
         raise
     except Exception as exc:
@@ -176,7 +189,7 @@ def change_password(
             row = _account_row(conn, code)
             pwd_hash = pwd_salt = None
             if row:
-                _, _, pwd_hash, pwd_salt = row
+                _, _, pwd_hash, pwd_salt, _ = row
             if pwd_hash:
                 if not body.old_password or _hash_pwd(body.old_password, pwd_salt or "") != pwd_hash:
                     raise HTTPException(status_code=401, detail="当前密码不正确")
@@ -344,44 +357,164 @@ def login(
     x_device_id: str | None = Header(default=None),
     x_device_fingerprint: str | None = Header(default=None),
 ) -> dict:
-    """登录：identifier 为 10 位用户ID（可空密码）或用户名（需密码）。"""
+    """登录/恢复：用户ID、用户名、或手机号 + 密码。"""
     idf = body.identifier.strip()
     if not idf:
-        raise HTTPException(status_code=400, detail="请输入用户ID或用户名")
+        raise HTTPException(status_code=400, detail="请输入用户名、手机号或用户ID")
     try:
         pool = get_pool()
         with pool.connection() as conn:
+            row = None
             if is_user_code(idf):
                 row = conn.execute(
-                    "SELECT user_code, username, pwd_hash, pwd_salt FROM accounts WHERE user_code = %s",
+                    "SELECT user_code, username, pwd_hash, pwd_salt, phone FROM accounts WHERE user_code = %s",
                     (idf,),
                 ).fetchone()
-                # 免注册：未建档的 ID 也允许直接登录（采用该身份）
                 if row is None:
                     _bind_device_user(conn, x_device_id, idf)
                     _bind_device_user(conn, x_device_fingerprint, idf)
                     conn.commit()
-                    return _account_payload(idf, None, None)
+                    return _account_payload(idf, None, None, None)
             else:
-                row = conn.execute(
-                    "SELECT user_code, username, pwd_hash, pwd_salt FROM accounts WHERE lower(username) = lower(%s)",
-                    (idf,),
-                ).fetchone()
+                phone = _normalize_phone(idf)
+                if _PHONE_RE.match(phone):
+                    row = conn.execute(
+                        "SELECT user_code, username, pwd_hash, pwd_salt, phone FROM accounts WHERE phone = %s",
+                        (phone,),
+                    ).fetchone()
+                else:
+                    row = conn.execute(
+                        "SELECT user_code, username, pwd_hash, pwd_salt, phone FROM accounts WHERE lower(username) = lower(%s)",
+                        (idf,),
+                    ).fetchone()
                 if row is None:
-                    raise HTTPException(status_code=401, detail="用户名或密码错误")
-            code, username, pwd_hash, pwd_salt = row
+                    raise HTTPException(status_code=401, detail="账号或密码错误")
+            code, username, pwd_hash, pwd_salt, phone = row
             if pwd_hash:
                 if not body.password or _hash_pwd(body.password, pwd_salt or "") != pwd_hash:
                     raise HTTPException(status_code=401, detail="密码不正确")
             elif not is_user_code(idf):
-                # 用户名账号但未设密码 → 不允许用户名登录
                 raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID登录")
             _bind_device_user(conn, x_device_id, code)
             _bind_device_user(conn, x_device_fingerprint, code)
             conn.commit()
-            return _account_payload(code, username, pwd_hash)
+            return _account_payload(code, username, pwd_hash, phone)
     except HTTPException:
         raise
     except Exception as exc:
         logger.warning("login 失败（DB 不可用）：%s", exc)
+        raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
+def _require_user_code(
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> str:
+    code = pick_user_code(x_user_code, x_user_id)
+    if not code:
+        raise HTTPException(status_code=401, detail="未认证")
+    return code
+
+
+@router.post("/bind-phone")
+def bind_phone(
+    body: BindPhoneBody,
+    user_code: str = Depends(_require_user_code),
+    x_device_id: str | None = Header(default=None),
+    x_device_fingerprint: str | None = Header(default=None),
+) -> dict:
+    """绑定手机号（换机恢复）；若已设密码需验证。"""
+    phone = _normalize_phone(body.phone)
+    if not _PHONE_RE.match(phone):
+        raise HTTPException(status_code=400, detail="请输入有效的大陆手机号")
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            row = _account_row(conn, user_code)
+            if row is None:
+                raise HTTPException(status_code=404, detail="账号不存在")
+            code, username, pwd_hash, pwd_salt, _ = row
+            if pwd_hash:
+                if not body.password or _hash_pwd(body.password, pwd_salt or "") != pwd_hash:
+                    raise HTTPException(status_code=401, detail="密码不正确")
+            taken = conn.execute(
+                "SELECT user_code FROM accounts WHERE phone = %s AND user_code <> %s",
+                (phone, user_code),
+            ).fetchone()
+            if taken:
+                raise HTTPException(status_code=409, detail="该手机号已被其他账号绑定")
+            conn.execute(
+                "UPDATE accounts SET phone = %s, updated_at = now() WHERE user_code = %s",
+                (phone, user_code),
+            )
+            _bind_device_user(conn, x_device_id, code)
+            _bind_device_user(conn, x_device_fingerprint, code)
+            conn.commit()
+        return {"ok": True, "phone": phone, **_account_payload(code, username, pwd_hash, phone)}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("bind-phone 失败：%s", exc)
+        raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
+@router.get("/devices")
+def list_devices(user_code: str = Depends(_require_user_code)) -> dict:
+    """列出已绑定到本账号的设备指纹（不含完整隐私信息）。"""
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            rows = conn.execute(
+                """
+                SELECT device_fingerprint, updated_at
+                FROM device_user_bindings
+                WHERE user_code = %s
+                ORDER BY updated_at DESC
+                LIMIT 20
+                """,
+                (user_code,),
+            ).fetchall()
+        devices = [
+            {
+                "id": r[0],
+                "label": _device_label(r[0]),
+                "updated_at": r[1].isoformat() if r[1] else None,
+            }
+            for r in rows
+        ]
+        return {"devices": devices}
+    except Exception as exc:
+        logger.warning("devices 查询失败：%s", exc)
+        raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
+def _device_label(fp: str) -> str:
+    if fp.startswith("hw-a-"):
+        return "Android 设备"
+    if fp.startswith("hw-i-"):
+        return "iPhone / iPad"
+    if fp.startswith("dev-"):
+        return "本机 / PWA"
+    if fp.startswith("fp-"):
+        return "浏览器"
+    return "未知设备"
+
+
+@router.delete("/devices/{device_fingerprint}")
+def unbind_device(device_fingerprint: str, user_code: str = Depends(_require_user_code)) -> dict:
+    """解绑指定设备（无法在该设备上自动恢复此账号）。"""
+    fp = (device_fingerprint or "").strip()
+    if not fp or len(fp) > 128:
+        raise HTTPException(status_code=400, detail="无效设备标识")
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            conn.execute(
+                "DELETE FROM device_user_bindings WHERE user_code = %s AND device_fingerprint = %s",
+                (user_code, fp),
+            )
+            conn.commit()
+        return {"ok": True}
+    except Exception as exc:
+        logger.warning("unbind device 失败：%s", exc)
         raise HTTPException(status_code=503, detail="云端暂不可用") from exc

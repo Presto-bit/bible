@@ -17,23 +17,41 @@ class AuthApi {
   static const _kHasPwd = 'account_has_password';
   static const _kOnboarded = 'account_onboarded';
 
-  Map<String, String> _authHeaders() {
+  Map<String, String> _deviceHeaders() {
     final code = _session.effectiveUserCode;
     final device = _session.deviceFingerprint;
     return {
       if (device.isNotEmpty) 'X-Guest-Id': device,
       if (device.isNotEmpty) 'X-Device-Id': device,
+      if (device.isNotEmpty) 'X-Device-Fingerprint': device,
       if (code.isNotEmpty) ...{'X-User-Code': code, 'X-User-Id': code},
     };
   }
 
   Future<void> ensureAccountReady() async {
+    final deviceId = await _device.getDeviceId();
+    try {
+      final res = await _dio.get(
+        '/auth/device-user',
+        queryParameters: {'device_id': deviceId, 'fingerprint': deviceId},
+      );
+      final bound = res.data['user_code'] as String?;
+      if (bound != null && bound.isNotEmpty) {
+        await _device.bindGuestId(bound);
+      }
+    } on DioException {
+      /* 离线 */
+    }
     final code = await _device.resolveGuestId();
     if (_session.userId == null || _session.userId!.isEmpty) {
       await _session.devSignIn(code);
     }
     try {
-      final res = await _dio.post('/auth/register', data: {'user_code': code});
+      final res = await _dio.post(
+        '/auth/register',
+        data: {'user_code': code},
+        options: Options(headers: _deviceHeaders()),
+      );
       final d = res.data as Map<String, dynamic>;
       final username = d['username'] as String?;
       if (username != null && username.isNotEmpty) {
@@ -44,7 +62,7 @@ class AuthApi {
       /* 离线可用 */
     }
     try {
-      await _dio.post('/auth/merge-guest', options: Options(headers: _authHeaders()));
+      await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
     } on DioException {
       /* 忽略 */
     }
@@ -72,15 +90,19 @@ class AuthApi {
     }
     await _session.prefs.setBool(_kOnboarded, true);
     await _session.devSignIn(code);
-    final res = await _dio.post('/auth/register', data: {
-      'user_code': code,
-      'username': u.isEmpty ? null : u,
-      'password': password.isEmpty ? null : password,
-    });
+    final res = await _dio.post(
+      '/auth/register',
+      data: {
+        'user_code': code,
+        'username': u.isEmpty ? null : u,
+        'password': password.isEmpty ? null : password,
+      },
+      options: Options(headers: _deviceHeaders()),
+    );
     final d = res.data as Map<String, dynamic>;
     await _session.prefs.setBool(_kHasPwd, d['has_password'] == true);
     try {
-      await _dio.post('/auth/merge-guest', options: Options(headers: _authHeaders()));
+      await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
     } on DioException {
       /* 忽略 */
     }
@@ -89,10 +111,14 @@ class AuthApi {
   Future<String> loginWithIdentifier(String identifier, String password) async {
     final idf = identifier.trim();
     if (idf.isEmpty) throw Exception('请输入用户ID或用户名');
-    final res = await _dio.post('/auth/login', data: {
-      'identifier': idf,
-      'password': password.isEmpty ? null : password,
-    });
+    final res = await _dio.post(
+      '/auth/login',
+      data: {
+        'identifier': idf,
+        'password': password.isEmpty ? null : password,
+      },
+      options: Options(headers: _deviceHeaders()),
+    );
     final d = res.data as Map<String, dynamic>;
     final code = d['user_code'] as String;
     await _device.bindGuestId(code);
@@ -104,7 +130,7 @@ class AuthApi {
     await _session.prefs.setBool(_kHasPwd, d['has_password'] == true);
     await _session.prefs.setBool(_kOnboarded, true);
     try {
-      await _dio.post('/auth/merge-guest', options: Options(headers: _authHeaders()));
+      await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
     } on DioException {
       /* 忽略 */
     }
@@ -123,7 +149,7 @@ class AuthApi {
         'old_password': oldPassword,
         'new_password': newPassword,
       },
-      options: Options(headers: _authHeaders()),
+      options: Options(headers: _deviceHeaders()),
     );
     await _session.prefs.setBool(_kHasPwd, true);
   }

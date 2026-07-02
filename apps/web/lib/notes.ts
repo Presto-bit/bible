@@ -2,6 +2,7 @@
 // 数据形态与 App（drift `notes` 表）对齐：id / ref / body / tags / version / updatedAt。
 // 写操作同时登记到 sync outbox，登录后由 syncNow() 推送到后端 /sync。
 
+import { markLocalDataCreated } from './account_guide';
 import { enqueue, noteEnvelope } from './sync';
 
 export interface LocalNote {
@@ -80,6 +81,7 @@ export function createNote(body: string, ref?: string | null, tags: string[] = [
   };
   write([note, ...read()]);
   enqueue(noteEnvelope(note, false));
+  markLocalDataCreated();
   return note;
 }
 

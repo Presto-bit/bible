@@ -7214,8 +7214,69 @@ a.today-card-link {
   flex-wrap: wrap;
 }
 
-.group-activity-respond {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--line);
+
+/* ── 账号体系 Phase1/2 ── */
+.sync-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.sync-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #6e8b6e;
+}
+
+.sync-status-badge[data-state='pending'] .sync-status-dot {
+  background: #b08953;
+}
+
+.sync-status-badge[data-state='offline'] .sync-status-dot {
+  background: #9a938a;
+}
+
+.sync-status-badge[data-state='syncing'] .sync-status-dot {
+  background: #52684f;
+  animation: sync-pulse 1s ease infinite;
+}
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.account-security-card {
+  margin-top: 12px;
+}
+
+.account-promo-banner {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--surface-sunken);
+  margin-top: 8px;
+}
+
+.account-export-card .account-export-body {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.account-export-qr {
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.device-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
 }
