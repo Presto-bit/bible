@@ -9,6 +9,15 @@ export function asGroupTasks(v: unknown): GroupTask[] {
   return Array.isArray(v) ? v : [];
 }
 
+/** 消息时间戳 → 本地日历日（YYYY-MM-DD），避免 UTC 分组把打卡归到昨天。 */
+export function localDayKey(iso: string | Date): string {
+  const d = iso instanceof Date ? iso : new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /** 群详情 members 字段：成员列表；列表接口里 members 是人数。 */
 export function groupMemberCount(detail: Pick<GroupDetail, 'members'>): number {
   const m = detail.members as unknown;

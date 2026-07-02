@@ -61,7 +61,25 @@ function GroupPageInner() {
     try {
       const [d, f] = await Promise.all([api.groupDetail(gid), api.groupFeed(gid)]);
       setDetail(normalizeGroupDetail(d));
-      setFeed(Array.isArray(f.messages) ? f.messages : []);
+      const incoming = Array.isArray(f.messages) ? f.messages : [];
+      setFeed((prev) => {
+        const temps = prev.filter((m) => m.id.startsWith('temp-'));
+        if (!temps.length) return incoming;
+        const merged = [...incoming];
+        for (const t of temps) {
+          const dup = merged.some(
+            (m) =>
+              m.mine
+              && m.kind === t.kind
+              && (m.body || '') === (t.body || '')
+              && (m.ref || '') === (t.ref || '')
+              && Math.abs(new Date(m.created_at).getTime() - new Date(t.created_at).getTime()) < 120000,
+          );
+          if (!dup) merged.push(t);
+        }
+        merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
+        return merged;
+      });
       setHasMore(Boolean(f.has_more));
       setErr(null);
     } catch (e) {

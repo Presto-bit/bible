@@ -56,6 +56,7 @@ export default function PlanReadingLayer({
   const [nextStepHint, setNextStepHint] = useState<string | null>(null);
   const bottomHandledRef = useRef(0);
   const finishedDayRef = useRef<number | null>(null);
+  const celebrationDismissedRef = useRef<Set<number>>(new Set());
 
   useEffect(() => {
     onOverlayChange?.(sheetOpen || reflectionOpen || shareOpen || planAllDone);
@@ -94,23 +95,32 @@ export default function PlanReadingLayer({
   };
 
   const finishDay = (session: PlanSession) => {
-    if (isPlanDayCompleted(meta.planId, meta.day) || finishedDayRef.current === meta.day) {
+    const dayToFinish = session.day;
+    if (dayToFinish !== meta.day) return;
+    if (isPlanDayCompleted(meta.planId, dayToFinish) || finishedDayRef.current === dayToFinish) {
       return;
     }
-    finishedDayRef.current = meta.day;
-    const finishedDay = meta.day;
-    markPlanDayCompleted(meta.planId, finishedDay);
-    setPlanDay(meta.planId, finishedDay);
-    enqueuePlanProgress(meta.planId, finishedDay, 'done', session);
+    if (celebrationDismissedRef.current.has(dayToFinish)) return;
+    finishedDayRef.current = dayToFinish;
+    markPlanDayCompleted(meta.planId, dayToFinish);
+    setPlanDay(meta.planId, dayToFinish);
+    enqueuePlanProgress(meta.planId, dayToFinish, 'done', session);
     advancePlanDay(meta.planId, meta.totalDays);
     const allDone = tryAutoCompletePlan(meta.planId, meta.totalDays);
-    setCompletedDayNum(finishedDay);
-    onMetaChange({ ...meta, session, day: Math.min(meta.totalDays, finishedDay + 1) });
+    setCompletedDayNum(dayToFinish);
+    onMetaChange({ ...meta, session, day: Math.min(meta.totalDays, dayToFinish + 1) });
     setDayCompleted(true);
-    if (allDone || finishedDay >= meta.totalDays) {
+    if (allDone || dayToFinish >= meta.totalDays) {
       setPlanAllDone(true);
     }
     setNextStepHint(null);
+  };
+
+  const dismissDayCelebration = () => {
+    if (completedDayNum != null) celebrationDismissedRef.current.add(completedDayNum);
+    setDayCompleted(false);
+    setCompletedDayNum(null);
+    setReflectionOpen(false);
   };
 
   const handleJumpStep = (index: number) => {
@@ -137,6 +147,9 @@ export default function PlanReadingLayer({
   // 滑到章末：自动标记段完成 / 今日完成
   useEffect(() => {
     if (!chapterBottomTick || dayCompleted) return;
+    if (meta.session.day !== meta.day) return;
+    if (isPlanDayCompleted(meta.planId, meta.day)) return;
+    if (finishedDayRef.current === meta.day) return;
     if (bottomHandledRef.current === chapterBottomTick) return;
     if (!currentStep || !isLastChapterOfStep(currentStep, chapter)) return;
 
@@ -160,25 +173,30 @@ export default function PlanReadingLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterBottomTick, chapter, currentStep?.id, dayCompleted]);
 
-  // 全部段已读完时兜底自动完成（当日仅触发一次）
+  // 全部段已读完时兜底自动完成（当日仅触发一次，且会话日与计划日一致）
   useEffect(() => {
     if (dayCompleted) return;
+    if (meta.session.day !== meta.day) return;
     if (isPlanDayCompleted(meta.planId, meta.day)) return;
+    if (finishedDayRef.current === meta.day) return;
     if (!allStepsDone(meta.steps, meta.session.stepsDone)) return;
     const timer = window.setTimeout(() => finishDay(meta.session), 400);
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta.session.stepsDone, meta.day, dayCompleted]);
+  }, [meta.session.stepsDone, meta.session.day, meta.day, dayCompleted]);
 
-  // 庆祝卡片自动消失
+  // 庆祝卡片自动消失（已关闭的当日不再弹出）
   useEffect(() => {
-    if (!dayCompleted) return;
-    const timer = window.setTimeout(() => {
+    if (!dayCompleted || completedDayNum == null) return;
+    if (celebrationDismissedRef.current.has(completedDayNum)) {
       setDayCompleted(false);
-      setCompletedDayNum(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      dismissDayCelebration();
     }, CELEBRATE_MS);
     return () => window.clearTimeout(timer);
-  }, [dayCompleted]);
+  }, [dayCompleted, completedDayNum]);
 
   useEffect(() => {
     const ref = `${bookId}.${chapter}`;
@@ -231,7 +249,8 @@ export default function PlanReadingLayer({
         </div>
       )}
 
-      {dayCompleted && completedDayNum != null && !planAllDone && (
+      {dayCompleted && completedDayNum != null && !planAllDone
+        && !celebrationDismissedRef.current.has(completedDayNum) && (
         <div className="plan-day-complete card plan-day-complete-toast plan-day-complete-solid">
           <div className="plan-day-complete-head">
             <p className="plan-segment-done-title">🎉 第 {completedDayNum} 天已完成</p>
@@ -239,11 +258,7 @@ export default function PlanReadingLayer({
               type="button"
               className="text-link"
               aria-label="关闭"
-              onClick={() => {
-                setDayCompleted(false);
-                setCompletedDayNum(null);
-                setReflectionOpen(false);
-              }}
+              onClick={dismissDayCelebration}
             >
               关闭
             </button>

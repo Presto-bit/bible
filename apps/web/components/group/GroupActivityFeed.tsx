@@ -10,13 +10,13 @@ import {
   GROUP_EMOJIS,
   cannedPhraseLabel,
 } from '@/lib/group_reactions';
-import { formatDueCountdown } from '@/lib/group_ui';
+import { formatDueCountdown, localDayKey } from '@/lib/group_ui';
 import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
 
 function dayLabel(dayKey: string): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const today = localDayKey(new Date());
+  const yesterday = localDayKey(new Date(Date.now() - 86400000));
   if (dayKey === today) return '今天';
   if (dayKey === yesterday) return '昨天';
   return dayKey.replace(/-/g, '/');
@@ -223,12 +223,12 @@ export function GroupActivityFeed({
   onDelete,
   onCompleteTask,
 }: Props) {
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = localDayKey(new Date());
 
   const dayGroups = useMemo(() => {
     const map = new Map<string, GroupMessage[]>();
     for (const m of messages) {
-      const key = m.created_at.slice(0, 10);
+      const key = localDayKey(m.created_at);
       const list = map.get(key) ?? [];
       list.push(m);
       map.set(key, list);
@@ -267,7 +267,8 @@ export function GroupActivityFeed({
       )}
 
       {dayGroups.map(([dayKey, items]) => {
-        const isCollapsed = collapsed[dayKey] ?? dayKey !== todayKey;
+        const hasMine = items.some((m) => m.mine);
+        const isCollapsed = collapsed[dayKey] ?? (dayKey !== todayKey && !hasMine);
         return (
           <section key={dayKey} className="group-activity-day">
             <button
