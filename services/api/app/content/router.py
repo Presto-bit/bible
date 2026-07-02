@@ -1,10 +1,11 @@
 """静态内容接口。经库可解析时填充经文正文。"""
 from __future__ import annotations
 
+import logging
 import re
 from datetime import date
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -12,6 +13,8 @@ from ..auth.user_code import is_user_code
 from ..db import get_pool
 from . import loader
 from .planner import SCOPE_LABELS, generate_plan
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/content", tags=["content"])
 
@@ -121,15 +124,23 @@ def _daily_verse_engagement(verse_day: int, user_code: str | None) -> dict:
             shares_count = int(shares_row[0]) if shares_row else 0
         return {"likes_count": likes_count, "liked": liked, "shares_count": shares_count}
     except Exception:
+        logger.exception("daily verse engagement query failed for day=%s", verse_day)
         return {"likes_count": 0, "liked": False, "shares_count": 0}
+
+
+def _no_store_headers(response: Response) -> None:
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
 
 
 @router.get("/daily-verse")
 def daily_verse(
+    response: Response,
     day: int | None = Query(None, ge=1),
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ) -> dict:
+    _no_store_headers(response)
     verse_day, item = _resolve_verse_day(day)
     text = item.get("text") or loader.resolve_ref_text(
         item.get("ref"), item.get("book"), item.get("chapter"),
@@ -142,10 +153,12 @@ def daily_verse(
 
 @router.post("/daily-verse/like")
 def toggle_daily_verse_like(
+    response: Response,
     day: int | None = Query(None, ge=1),
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
 ) -> dict:
+    _no_store_headers(response)
     user_code = _pick_user_code(x_user_code, x_user_id)
     if not user_code:
         raise HTTPException(status_code=400, detail="需要 8 位用户标识（X-User-Code）")

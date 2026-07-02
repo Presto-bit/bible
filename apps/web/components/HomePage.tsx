@@ -8,10 +8,7 @@ import {
   ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
-import {
-  readLocalDailyVerseLike,
-  writeLocalDailyVerseLike,
-} from '@/lib/daily_verse_engagement';
+import { writeLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getPendingBookChallenge } from '@/lib/challenge_progress';
@@ -120,13 +117,10 @@ export default function HomePageClient() {
       .then((v) => {
         setDv(v);
         const day = v.day ?? 0;
-        const localLiked = day ? readLocalDailyVerseLike(day) : null;
-        const serverLiked = Boolean(v.liked);
-        const mergedLiked = serverLiked || localLiked === true;
-        setLiked(mergedLiked);
-        if (day && mergedLiked) writeLocalDailyVerseLike(day, true);
+        setLiked(Boolean(v.liked));
         setLikeCount(v.likes_count ?? 0);
         setShareCount(v.shares_count ?? 0);
+        if (day) writeLocalDailyVerseLike(day, Boolean(v.liked));
       })
       .catch((e) => setErr(String(e)))
       .finally(() => setDvLoading(false));
@@ -137,11 +131,15 @@ export default function HomePageClient() {
   }, [loadDailyVerse]);
 
   useEffect(() => {
-    const onVisible = () => {
+    const refresh = () => {
       if (document.visibilityState === 'visible') loadDailyVerse();
     };
-    document.addEventListener('visibilitychange', onVisible);
-    return () => document.removeEventListener('visibilitychange', onVisible);
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
   }, [loadDailyVerse]);
 
   useEffect(() => {
@@ -406,13 +404,11 @@ export default function HomePageClient() {
                 const prevCount = likeCount;
                 setLikeBusy(true);
                 setLikeErr(null);
-                setLiked(!prevLiked);
-                setLikeCount(Math.max(0, prevCount + (prevLiked ? -1 : 1)));
                 try {
                   const verseDay = dv?.day;
                   const r = await api.toggleDailyVerseLike(verseDay);
                   setLiked(Boolean(r.liked));
-                  setLikeCount(r.likes_count ?? prevCount);
+                  setLikeCount(r.likes_count ?? 0);
                   if (verseDay != null) writeLocalDailyVerseLike(verseDay, Boolean(r.liked));
                 } catch (e) {
                   setLiked(prevLiked);

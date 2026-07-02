@@ -7,12 +7,13 @@ import {
   GROUP_CHECKIN_DEFAULT_BODY,
   chapterRef,
 } from '@/lib/group_checkin';
+import { getLastReadVerse } from '@/lib/reading';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 
 type Props = {
   bookId: string;
   bookName: string;
   chapter: number;
-  verse?: number | null;
   presetGroupId?: string | null;
   presetTaskId?: string | null;
   presetTaskTitle?: string | null;
@@ -24,7 +25,6 @@ export default function GroupCheckinSheet({
   bookId,
   bookName,
   chapter,
-  verse,
   presetGroupId,
   presetTaskId,
   presetTaskTitle,
@@ -39,8 +39,15 @@ export default function GroupCheckinSheet({
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
-  const ref = chapterRef(bookId, chapter, verse ?? undefined);
-  const label = verse ? `${bookName} ${chapter}:${verse}` : `${bookName} ${chapter}`;
+  const checkinRef = () => {
+    const verse = getLastReadVerse(bookId, chapter);
+    return chapterRef(bookId, chapter, verse ?? undefined);
+  };
+
+  const checkinLabel = () => {
+    const ref = checkinRef();
+    return formatGroupRefLabel(ref) || `${bookName} ${chapter}`;
+  };
 
   useEffect(() => {
     api
@@ -61,7 +68,7 @@ export default function GroupCheckinSheet({
     setErr(null);
     try {
       await api.checkin(gid, {
-        ref,
+        ref: checkinRef(),
         task_id: presetTaskId || undefined,
         body: (quickBody ?? body).trim() || GROUP_CHECKIN_DEFAULT_BODY,
       });
@@ -86,7 +93,7 @@ export default function GroupCheckinSheet({
           </button>
         </div>
         <p className="muted" style={{ fontSize: 11, marginBottom: 8 }}>
-          {label}
+          {checkinLabel()}
         </p>
         {presetTaskTitle && (
           <p className="group-checkin-task-hint" style={{ fontSize: 12, padding: '6px 8px' }}>

@@ -75,14 +75,22 @@ export interface LastRead {
 
 const LAST_VERSE_KEY = 'presto_last_verse';
 
-export function setLastReadVerse(verse: number) {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem(LAST_VERSE_KEY, String(verse));
+function lastVerseStorageKey(bookId: string, chapter: number): string {
+  return `${LAST_VERSE_KEY}:${bookId.toUpperCase()}:${chapter}`;
 }
 
-export function getLastReadVerse(): number | null {
-  if (typeof window === 'undefined') return null;
-  const v = Number(localStorage.getItem(LAST_VERSE_KEY));
+/** 记录本章已读到的最高经节（只增不减，按卷章隔离）。 */
+export function setLastReadVerse(bookId: string, chapter: number, verse: number) {
+  if (typeof window === 'undefined' || !bookId || chapter < 1 || verse < 1) return;
+  const key = lastVerseStorageKey(bookId, chapter);
+  const prev = getLastReadVerse(bookId, chapter);
+  const next = prev != null ? Math.max(prev, verse) : verse;
+  localStorage.setItem(key, String(next));
+}
+
+export function getLastReadVerse(bookId: string, chapter: number): number | null {
+  if (typeof window === 'undefined' || !bookId || chapter < 1) return null;
+  const v = Number(localStorage.getItem(lastVerseStorageKey(bookId, chapter)));
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 

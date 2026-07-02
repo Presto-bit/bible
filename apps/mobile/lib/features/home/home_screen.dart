@@ -65,22 +65,8 @@ final dailyVerseProvider = FutureProvider<DailyVerse>((ref) async {
   final res = await dio.get('/content/daily-verse');
   final v = DailyVerse.fromJson(res.data as Map<String, dynamic>);
   if (v.day < 1) return v;
-  final localLiked = readLocalDailyVerseLike(prefs, session, v.day);
-  final mergedLiked = v.liked || localLiked == true;
-  if (mergedLiked) {
-    await writeLocalDailyVerseLike(prefs, session, v.day, true);
-  }
-  if (mergedLiked == v.liked) return v;
-  return DailyVerse(
-    ref: v.ref,
-    theme: v.theme,
-    text: v.text,
-    osisRef: v.osisRef,
-    day: v.day,
-    liked: mergedLiked,
-    likesCount: v.likesCount,
-    sharesCount: v.sharesCount,
-  );
+  await writeLocalDailyVerseLike(prefs, session, v.day, v.liked);
+  return v;
 });
 
 /// 今日祷告（ACTS 计划）。
@@ -839,11 +825,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     if (_likeBusy) return;
     final prevLiked = _liked;
     final prevCount = _likeCount;
-    setState(() {
-      _likeBusy = true;
-      _liked = !prevLiked;
-      _likeCount = (_likeCount + (prevLiked ? -1 : 1)).clamp(0, 1 << 30);
-    });
+    setState(() => _likeBusy = true);
     try {
       final dio = ref.read(dioProvider);
       final session = ref.read(sessionProvider);
@@ -853,7 +835,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       final res = await dio.post(path);
       final data = res.data as Map<String, dynamic>;
       final liked = (data['liked'] ?? false) as bool;
-      final count = (data['likes_count'] ?? prevCount) as int;
+      final count = (data['likes_count'] ?? 0) as int;
       if (day > 0) {
         await writeLocalDailyVerseLike(prefs, session, day, liked);
       }

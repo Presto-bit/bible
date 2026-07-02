@@ -2216,13 +2216,28 @@ a.today-card-link {
 
 /* ─── 圣经阅读顶栏（对齐 canvas） ─── */
 .reader-topbar {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  z-index: 95;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding-bottom: 8px;
-  background: transparent;
+  width: min(720px, 100vw);
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: max(10px, env(safe-area-inset-top, 0px)) 16px 8px;
+  background: var(--reader-bg, #ffffff);
   border-bottom: 1px solid rgba(43, 42, 39, 0.08);
+  transform: translateX(-50%) translateY(0);
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.reader-page.reader-chrome-hidden .reader-topbar {
+  transform: translateX(-50%) translateY(-110%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .reader-theme-morning .reader-topbar {
@@ -2434,7 +2449,13 @@ a.today-card-link {
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  transition: opacity 0.35s;
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.reader-fab.is-hidden {
+  transform: translateY(120%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .reader-fab-dim {
@@ -3397,17 +3418,33 @@ a.today-card-link {
 /* ─── 阅读体验增强（P0/P1/P2，不含听读同步） ─── */
 .container.reader-page {
   max-width: min(720px, 100vw);
-  padding: max(10px, env(safe-area-inset-top, 0px)) 16px 0;
+  padding: 0 16px;
 }
 
 .reader-page {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
   min-height: 100dvh;
   padding-bottom: 0;
   font-family: Georgia, 'Songti SC', 'STSong', serif;
   transition: background 0.35s ease, color 0.35s ease;
-  overflow-x: hidden;
+  overflow: hidden;
   max-width: 100vw;
+  box-sizing: border-box;
+}
+
+.reader-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.reader-page.reader-chrome-hidden .reader-body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* 清晨：纯白清爽，默认阅读主题。 */
@@ -3450,6 +3487,7 @@ a.today-card-link {
 
 .reader-theme-night .reader-topbar {
   border-bottom-color: rgba(255, 255, 255, 0.08);
+  background: var(--reader-bg, #12181c);
 }
 
 .reader-theme-night .reader-loc {
@@ -3480,6 +3518,8 @@ a.today-card-link {
 .reader-content-turn {
   overflow: hidden;
   padding: 0;
+  flex: 1;
+  min-height: 0;
 }
 
 .reader-turn-viewport {
@@ -3542,14 +3582,29 @@ a.today-card-link {
 }
 
 .reader-content {
-  max-height: calc(100dvh - 96px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  overflow: hidden;
   padding: 0 2px 12px;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-touch-callout: none;
+}
+
+.reader-scroll-panel {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.reader-scroll-panel::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .reader-content::-webkit-scrollbar {
@@ -3666,7 +3721,8 @@ a.today-card-link {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 6px 8px;
-  margin-bottom: 14px;
+  flex-shrink: 0;
+  margin-bottom: 10px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--line);
 }

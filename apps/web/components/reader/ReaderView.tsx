@@ -200,12 +200,11 @@ export default function ReaderView({
   const focusBarRef = useRef<HTMLDivElement>(null);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const lastScrollTop = useRef(0);
-  const chromeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSelectAt = useRef(0);
   const syncingSelection = useRef(false);
   const readStartRef = useRef(Date.now());
-  const saveVerseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readingEngagedRef = useRef(false);
+  const skipResumeOnLoadRef = useRef(false);
   const overlayOpenRef = useRef(false);
 
   const overlayOpen = Boolean(
@@ -423,7 +422,7 @@ export default function ReaderView({
     ) / 2;
     const barH = focusBarRef.current?.offsetHeight ?? 56;
     const margin = 10;
-    const topReserve = chromeHidden ? 12 : 52;
+    const topReserve = chromeHidden ? 12 : 58;
     const bottomReserve = chromeHidden ? 24 : 76;
     let top = selTop - barH - margin;
     if (top < topReserve) top = selBottom + margin;
@@ -526,38 +525,17 @@ export default function ReaderView({
     flashToast('已取消划线');
   }, [book.id, chapter, sortedSel, selectionSpan]);
 
-  const enterImmersive = useCallback(() => {
+  const scrollToChapterStart = useCallback(() => {
+    requestAnimationFrame(() => {
+      if (contentRef.current) contentRef.current.scrollTop = 0;
+    });
+  }, []);
+
+  const toggleChrome = useCallback(() => {
     if (overlayOpenRef.current) return;
-    if (chromeTimer.current) clearTimeout(chromeTimer.current);
-    setChromeHidden(true);
+    setChromeHidden((hidden) => !hidden);
   }, []);
 
-  const peekChrome = useCallback((autoHideMs = 2500) => {
-    if (overlayOpenRef.current) return;
-    if (chromeTimer.current) clearTimeout(chromeTimer.current);
-    setChromeHidden(false);
-    chromeTimer.current = setTimeout(() => {
-      if (!overlayOpenRef.current) setChromeHidden(true);
-    }, autoHideMs);
-  }, []);
-
-  const showChrome = useCallback(() => {
-    if (chromeTimer.current) clearTimeout(chromeTimer.current);
-    setChromeHidden(false);
-  }, []);
-
-  const scheduleChromeHide = useCallback(() => {
-    peekChrome(2500);
-  }, [peekChrome]);
-
-  useEffect(
-    () => () => {
-      if (chromeTimer.current) clearTimeout(chromeTimer.current);
-    },
-    [],
-  );
-
-  // 沉浸阅读：同步全屏背景色，顶/底栏与经文区一致；隐藏时收起底部 5-Tab。
   useEffect(() => {
     const bg = readerThemeBackground(theme);
     document.body.classList.add('reader-active');
@@ -581,14 +559,10 @@ export default function ReaderView({
     else document.body.classList.remove('reader-immersive');
   }, [chromeHidden]);
 
-  // 半屏面板打开时保持顶栏与底部 Tab；关闭后回到阅读沉浸态。
+  // 半屏面板打开时显示顶栏与底部 Tab。
   useEffect(() => {
-    if (overlayOpen) {
-      showChrome();
-      return;
-    }
-    if (readingEngagedRef.current) enterImmersive();
-  }, [overlayOpen, showChrome, enterImmersive]);
+    if (overlayOpen) setChromeHidden(false);
+  }, [overlayOpen]);
 
   useEffect(() => {
     setTheme(getReaderTheme());
@@ -730,11 +704,6 @@ export default function ReaderView({
           maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
         });
         setLastRead(book.id, chapter);
-        if (readingEngagedRef.current) {
-          enterImmersive();
-        } else {
-          peekChrome(1800);
-        }
 
         requestAnimationFrame(() => {
           if (contentRef.current) contentRef.current.scrollTop = 0;
@@ -754,7 +723,11 @@ export default function ReaderView({
             window.setTimeout(() => setResumeFlashVerse(null), 2600);
             return;
           }
-          const lastV = getLastReadVerse();
+          if (skipResumeOnLoadRef.current) {
+            skipResumeOnLoadRef.current = false;
+            return;
+          }
+          const lastV = getLastReadVerse(book.id, chapter);
           const last = getLastRead();
           if (last && last.bookId === book.id && last.chapter === chapter && lastV && shouldShowResumeHint()) {
             document.getElementById(`verse-anchor-${lastV}`)?.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -773,7 +746,7 @@ export default function ReaderView({
       cancelled = true;
       cancelPendingChapterProgress();
     };
-  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome, flashRef, swipeTurn, books, prefetchTarget]);
+  }, [book, chapter, mainVersionId, bookAbbr, flashRef, swipeTurn, books, prefetchTarget]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -789,32 +762,32 @@ export default function ReaderView({
         confirmChapterProgress(book.id, chapter, () => {
           maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
         });
-        enterImmersive();
       } else if (cur < lastScrollTop.current - 6) {
         readingEngagedRef.current = true;
         confirmChapterProgress(book.id, chapter, () => {
           maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
         });
-        peekChrome();
       }
       lastScrollTop.current = cur;
 
-      if (saveVerseTimer.current) clearTimeout(saveVerseTimer.current);
-      saveVerseTimer.current = setTimeout(() => {
-        const mid = el.scrollTop + el.clientHeight * 0.2;
-        let bestVerse: number | null = null;
-        let bestDist = Infinity;
-        for (const v of verses) {
-          const anchor = document.getElementById(`verse-anchor-${v.verse}`);
-          if (!anchor) continue;
-          const dist = Math.abs(anchor.offsetTop - mid);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestVerse = v.verse;
-          }
+      const mid = el.scrollTop + el.clientHeight * 0.35;
+      const bottom = el.scrollTop + el.clientHeight;
+      let bestVerse: number | null = null;
+      let bestDist = Infinity;
+      let maxPassed = 0;
+      for (const v of verses) {
+        const anchor = document.getElementById(`verse-anchor-${v.verse}`);
+        if (!anchor) continue;
+        const top = anchor.offsetTop;
+        if (top <= bottom) maxPassed = Math.max(maxPassed, v.verse);
+        const dist = Math.abs(top - mid);
+        if (dist < bestDist) {
+          bestDist = dist;
+          bestVerse = v.verse;
         }
-        if (bestVerse != null) setLastReadVerse(bestVerse);
-      }, 200);
+      }
+      const progressVerse = maxPassed || bestVerse;
+      if (progressVerse != null) setLastReadVerse(book.id, chapter, progressVerse);
 
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom && verses.length > 0) {
@@ -831,9 +804,8 @@ export default function ReaderView({
     el.addEventListener('scroll', onScroll);
     return () => {
       el.removeEventListener('scroll', onScroll);
-      if (saveVerseTimer.current) clearTimeout(saveVerseTimer.current);
     };
-  }, [verses, bookDone, chapter, book.chapter_count, book.name, enterImmersive, peekChrome]);
+  }, [verses, bookDone, chapter, book.chapter_count, book.name, book.id]);
 
   useEffect(() => {
     if (!bookCelebrate) return;
@@ -860,7 +832,8 @@ export default function ReaderView({
         setChapterLoading(true);
       }
       readingEngagedRef.current = true;
-      enterImmersive();
+      skipResumeOnLoadRef.current = true;
+      scrollToChapterStart();
       onNavigate(target.book, target.chapter);
     },
     [
@@ -870,7 +843,7 @@ export default function ReaderView({
       peekPrevVerses,
       mainVersionId,
       swipeTurn,
-      enterImmersive,
+      scrollToChapterStart,
       onNavigate,
     ],
   );
@@ -881,7 +854,7 @@ export default function ReaderView({
       return;
     }
     readingEngagedRef.current = true;
-    enterImmersive();
+    skipResumeOnLoadRef.current = true;
     setChapterAnim(delta > 0 ? 'chapter-exit-left' : 'chapter-exit-right');
     setTimeout(() => {
       navigateByDelta(delta);
@@ -942,13 +915,12 @@ export default function ReaderView({
     syncingSelection.current = true;
     setSelected(next);
     setSelectionSpan(span);
-    setLastReadVerse(hi);
+    setLastReadVerse(book.id, chapter, hi);
     lastSelectAt.current = Date.now();
     logVerseRead(`${book.id}.${chapter}.${hi}`);
     readingEngagedRef.current = true;
-    enterImmersive();
     syncingSelection.current = false;
-  }, [book.id, chapter, enterImmersive, verses]);
+  }, [book.id, chapter, verses]);
 
   useEffect(() => {
     const onSel = () => syncSelectionFromDom();
@@ -966,50 +938,55 @@ export default function ReaderView({
     if (!hasSel) setMarkNotePrompt(null);
   }, [hasSel]);
 
-  const renderChapterMain = () => (
-    <>
-      {planMeta && onPlanMetaChange && onPlanJump && (
-        <PlanReadingLayer
-          meta={planMeta}
-          bookId={book.id}
-          chapter={chapter}
-          chapterBottomTick={chapterBottomTick}
-          checkinGroupId={checkinGroupId ?? groupCtx.groupId}
-          onMetaChange={onPlanMetaChange}
-          onJump={onPlanJump}
-          onOverlayChange={setPlanOverlayOpen}
-        />
-      )}
-      <div className="reader-chapter-head">
-        <button
-          type="button"
-          className="reader-head-link"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSummarySheet({
-              title: `${book.name} · 整卷概览`,
-              load: () => loadBookSummary(book.id, book.name),
-            });
-          }}
-        >
-          {book.name}
-        </button>
-        <span className="reader-head-sep">·</span>
-        <button
-          type="button"
-          className="reader-head-link reader-head-chapter"
-          onClick={(e) => {
-            e.stopPropagation();
-            setSummarySheet({
-              title: `${book.name} ${englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}`,
-              load: () => loadChapterSummary(book.id, book.name, chapter),
-            });
-          }}
-        >
-          {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
-        </button>
-      </div>
+  const renderPlanLayer = () => (
+    planMeta && onPlanMetaChange && onPlanJump ? (
+      <PlanReadingLayer
+        meta={planMeta}
+        bookId={book.id}
+        chapter={chapter}
+        chapterBottomTick={chapterBottomTick}
+        checkinGroupId={checkinGroupId ?? groupCtx.groupId}
+        onMetaChange={onPlanMetaChange}
+        onJump={onPlanJump}
+        onOverlayChange={setPlanOverlayOpen}
+      />
+    ) : null
+  );
 
+  const renderChapterHead = () => (
+    <div className="reader-chapter-head">
+      <button
+        type="button"
+        className="reader-head-link"
+        onClick={(e) => {
+          e.stopPropagation();
+          setSummarySheet({
+            title: `${book.name} · 整卷概览`,
+            load: () => loadBookSummary(book.id, book.name),
+          });
+        }}
+      >
+        {book.name}
+      </button>
+      <span className="reader-head-sep">·</span>
+      <button
+        type="button"
+        className="reader-head-link reader-head-chapter"
+        onClick={(e) => {
+          e.stopPropagation();
+          setSummarySheet({
+            title: `${book.name} ${englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}`,
+            load: () => loadChapterSummary(book.id, book.name, chapter),
+          });
+        }}
+      >
+        {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
+      </button>
+    </div>
+  );
+
+  const renderChapterVerses = () => (
+    <>
       {verses.length === 0 && chapterLoading ? (
         <p className="muted">{ui.loading}</p>
       ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId && parallelVerses.length > 0 ? (
@@ -1120,7 +1097,7 @@ export default function ReaderView({
 
   return (
     <main
-      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}`}
+      className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}`}
       onClick={() => {
         // 忽略长按/双击后的余波点击，避免立即取消选中。
         if (Date.now() - lastSelectAt.current < 500) return;
@@ -1129,124 +1106,127 @@ export default function ReaderView({
           setViewNote(null);
           return;
         }
-        if (hasSel) clearSelection();
-        if (readingEngagedRef.current) peekChrome();
-        else scheduleChromeHide();
+        if (hasSel) {
+          clearSelection();
+          return;
+        }
+        toggleChrome();
       }}
     >
-      {!chromeHidden && (
-        <div className="reader-topbar">
-          <div className="reader-topbar-left">
-            <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
-              {bookAbbr(book.name)} {chapter}
-            </button>
-            <button type="button" className="reader-version" onClick={(e) => {
-              e.stopPropagation();
-              const primaryId = versions?.find((v) => v.primary)?.id ?? 'cnv';
-              if (mainVersionId) setCheckedVers([mainVersionId]);
-              else if (layout === 'parallel') setCheckedVers([primaryId, parallelVer]);
-              else setCheckedVers([primaryId]);
-              setShowVersions(true);
-              if (!versions) api.versions().then((d) => setVersions(d.versions)).catch(() => setVersions([]));
-            }}>
-              {versionLabel}
-            </button>
-          </div>
-          <div className="reader-topbar-right">
-            <Link
-              href="/search?from=/reader"
-              className="reader-icon-btn"
-              aria-label="搜索"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                <circle cx="11" cy="11" r="7" />
-                <path d="M21 21l-4-4" />
-              </svg>
-            </Link>
-            <button type="button" className="reader-more" onClick={(e) => { e.stopPropagation(); setShowSettings(true); }} aria-label="阅读设置">
-              ⋮
-            </button>
-          </div>
+      <div className="reader-topbar" aria-hidden={chromeHidden}>
+        <div className="reader-topbar-left">
+          <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
+            {bookAbbr(book.name)} {chapter}
+          </button>
+          <button type="button" className="reader-version" onClick={(e) => {
+            e.stopPropagation();
+            const primaryId = versions?.find((v) => v.primary)?.id ?? 'cnv';
+            if (mainVersionId) setCheckedVers([mainVersionId]);
+            else if (layout === 'parallel') setCheckedVers([primaryId, parallelVer]);
+            else setCheckedVers([primaryId]);
+            setShowVersions(true);
+            if (!versions) api.versions().then((d) => setVersions(d.versions)).catch(() => setVersions([]));
+          }}>
+            {versionLabel}
+          </button>
         </div>
-      )}
-
-      <div
-        className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}`}
-        style={{
-          marginTop: chromeHidden ? 0 : 12,
-          maxHeight: chromeHidden ? 'calc(100dvh - 28px)' : 'calc(100dvh - 88px)',
-        }}
-        onContextMenu={(e) => e.preventDefault()}
-      >
-        {swipeTurn ? (
-          <div
-            className="reader-turn-viewport"
-            ref={turn.viewportRef}
-            onTouchStart={turn.onTouchStart}
-            onTouchMove={turn.onTouchMove}
-            onTouchEnd={turn.onTouchEnd}
-            onTouchCancel={turn.onTouchCancel}
+        <div className="reader-topbar-right">
+          <Link
+            href="/search?from=/reader"
+            className="reader-icon-btn"
+            aria-label="搜索"
+            onClick={(e) => e.stopPropagation()}
           >
-            <div className="reader-turn-track" style={turn.trackStyle}>
-              <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
-                <ReaderChapterPeek
-                  bookId={peekPrevBook?.id ?? book.id}
-                  bookName={peekPrevBook?.name ?? book.name}
-                  bookAbbr={bookAbbr}
-                  chapter={peekPrevChapter}
-                  verses={peekPrevVerses}
-                  englishUI={englishUI}
-                  fontPx={fontPx}
-                  fontFamilyCss={fontFamilyCss(fontFamily)}
-                  verseNo={verseNo}
-                />
-              </div>
-              <div ref={contentRef} className="reader-turn-panel reader-turn-panel-active">
-                {renderChapterMain()}
-              </div>
-              <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
-                <ReaderChapterPeek
-                  bookId={peekNextBook?.id ?? book.id}
-                  bookName={peekNextBook?.name ?? book.name}
-                  bookAbbr={bookAbbr}
-                  chapter={peekNextChapter}
-                  verses={peekNextVerses}
-                  englishUI={englishUI}
-                  fontPx={fontPx}
-                  fontFamilyCss={fontFamilyCss(fontFamily)}
-                  verseNo={verseNo}
-                />
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div ref={contentRef}>
-            {renderChapterMain()}
-          </div>
-        )}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4-4" />
+            </svg>
+          </Link>
+          <button type="button" className="reader-more" onClick={(e) => { e.stopPropagation(); setShowSettings(true); }} aria-label="阅读设置">
+            ⋮
+          </button>
+        </div>
       </div>
 
-      {!chromeHidden && !hasSel && (
-        <button
-          type="button"
-          className="reader-fab"
-          onClick={(e) => { e.stopPropagation(); setAiSheet(true); }}
-          aria-label="问小爱"
-        >
-          ✦ 小爱
-        </button>
-      )}
+      <div className="reader-body">
+        {renderPlanLayer()}
+        {renderChapterHead()}
 
-      {!chromeHidden && !hasSel && hasGroups && (
-        <button
-          type="button"
-          className="reader-fab reader-fab-group reader-fab-sm"
-          onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
-          aria-label="打卡到共读群"
+        <div
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}`}
+          onContextMenu={(e) => e.preventDefault()}
         >
-          {groupCtx.groupId ? '打卡到群' : '打卡'}
-        </button>
+          {swipeTurn ? (
+            <div
+              className="reader-turn-viewport"
+              ref={turn.viewportRef}
+              onTouchStart={turn.onTouchStart}
+              onTouchMove={turn.onTouchMove}
+              onTouchEnd={turn.onTouchEnd}
+              onTouchCancel={turn.onTouchCancel}
+            >
+              <div className="reader-turn-track" style={turn.trackStyle}>
+                <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                  <ReaderChapterPeek
+                    bookId={peekPrevBook?.id ?? book.id}
+                    bookName={peekPrevBook?.name ?? book.name}
+                    bookAbbr={bookAbbr}
+                    chapter={peekPrevChapter}
+                    verses={peekPrevVerses}
+                    englishUI={englishUI}
+                    fontPx={fontPx}
+                    fontFamilyCss={fontFamilyCss(fontFamily)}
+                    verseNo={verseNo}
+                    hideHead
+                  />
+                </div>
+                <div ref={contentRef} className="reader-turn-panel reader-turn-panel-active">
+                  {renderChapterVerses()}
+                </div>
+                <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                  <ReaderChapterPeek
+                    bookId={peekNextBook?.id ?? book.id}
+                    bookName={peekNextBook?.name ?? book.name}
+                    bookAbbr={bookAbbr}
+                    chapter={peekNextChapter}
+                    verses={peekNextVerses}
+                    englishUI={englishUI}
+                    fontPx={fontPx}
+                    fontFamilyCss={fontFamilyCss(fontFamily)}
+                    verseNo={verseNo}
+                    hideHead
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div ref={contentRef} className="reader-scroll-panel">
+              {renderChapterVerses()}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className={`reader-fab${chromeHidden || hasSel ? ' is-hidden' : ''}`}
+        onClick={(e) => { e.stopPropagation(); setAiSheet(true); }}
+        aria-label="问小爱"
+        aria-hidden={chromeHidden || hasSel}
+      >
+        ✦ 小爱
+      </button>
+
+      {hasGroups && (
+      <button
+        type="button"
+        className={`reader-fab reader-fab-group reader-fab-sm${chromeHidden || hasSel ? ' is-hidden' : ''}`}
+        onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
+        aria-label="打卡到共读群"
+        aria-hidden={chromeHidden || hasSel}
+      >
+        {groupCtx.groupId ? '打卡到群' : '打卡'}
+      </button>
       )}
 
       {hasSel && (
@@ -1517,7 +1497,6 @@ export default function ReaderView({
           bookId={book.id}
           bookName={book.name}
           chapter={chapter}
-          verse={getLastReadVerse()}
           presetGroupId={groupCtx.groupId}
           presetTaskId={groupCtx.taskId}
           presetTaskTitle={groupCtx.taskTitle}

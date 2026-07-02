@@ -14,6 +14,7 @@ type Props = {
   fontPx: number;
   fontFamilyCss: string;
   verseNo: VerseNumberMode;
+  hideHead?: boolean;
 };
 
 export default function ReaderChapterPeek({
@@ -26,6 +27,7 @@ export default function ReaderChapterPeek({
   fontPx,
   fontFamilyCss,
   verseNo,
+  hideHead = false,
 }: Props) {
   if (chapter < 1 || !verses?.length) {
     return (
@@ -43,13 +45,15 @@ export default function ReaderChapterPeek({
       className={`reader-turn-peek ${poetry ? 'reader-poetry' : 'reader-prose'}`}
       style={{ fontSize: fontPx, fontFamily: fontFamilyCss }}
     >
-      <div className="reader-chapter-head">
-        <span className="reader-head-link">{bookName}</span>
-        <span className="reader-head-sep">·</span>
-        <span className="reader-head-link reader-head-chapter">
-          {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
-        </span>
-      </div>
+      {!hideHead && (
+        <div className="reader-chapter-head">
+          <span className="reader-head-link">{bookName}</span>
+          <span className="reader-head-sep">·</span>
+          <span className="reader-head-link reader-head-chapter">
+            {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
+          </span>
+        </div>
+      )}
       {paragraphs.map((para) => (
         <div key={para.startVerse} className="verse-paragraph">
           {para.verses.map((v) => (
