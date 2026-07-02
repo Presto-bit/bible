@@ -132,6 +132,21 @@ function GroupPageInner() {
     task_id?: string;
     body?: string;
   }) => {
+    setDetail((d) => {
+      if (!d) return d;
+      const members = Array.isArray(d.members)
+        ? d.members.map((m) => (m.is_me ? { ...m, checked_in_today: true } : m))
+        : d.members;
+      return d.my_checked_in_today
+        ? { ...d, members }
+        : {
+            ...d,
+            my_checked_in_today: true,
+            checked_in_today: (d.checked_in_today ?? 0) + 1,
+            members,
+          };
+    });
+    markGroupsListDirty();
     const temp: GroupMessage = {
       id: `temp-${Date.now()}`,
       author: myDisplayName(),

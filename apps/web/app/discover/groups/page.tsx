@@ -10,8 +10,9 @@ import {
   type Group,
 } from '@/lib/api';
 import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
-import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
+import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, markGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
+import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 
 function groupStatusBadge(g: Group) {
   return groupListStatusBadge(g);
@@ -51,6 +52,29 @@ export default function DiscoverGroupsPage() {
   }, [uid, pathname, reload]);
 
   useGroupsListRefresh(reload, Boolean(uid));
+
+  const removeGroupFromList = async (g: Group, isPendingOnly: boolean) => {
+    const label = g.role === 'owner' && !isPendingOnly ? '解散' : '移除';
+    if (!window.confirm(`确定${label}「${g.name}」？`)) return;
+    if (isPendingOnly) {
+      dismissPendingGroup(g.id);
+      setGroups((prev) => prev.filter((item) => item.id !== g.id));
+      return;
+    }
+    try {
+      if (g.role === 'owner') {
+        if (!window.confirm('解散后所有成员将被移出，且不可恢复。确定解散？')) return;
+        await api.dissolveGroup(g.id);
+      } else {
+        await api.leaveGroup(g.id);
+      }
+      dismissPendingGroup(g.id);
+      markGroupsListDirty();
+      setGroups((prev) => prev.filter((item) => item.id !== g.id));
+    } catch (e) {
+      setErr(String(e));
+    }
+  };
 
   if (!uid) {
     return (
@@ -111,8 +135,13 @@ export default function DiscoverGroupsPage() {
               .filter(Boolean)
               .join(' ');
             return (
-              <div
+              <SwipeRevealRow
                 key={g.id}
+                disabled={false}
+                deleteLabel={g.role === 'owner' && !isPendingOnly ? '解散' : '移除'}
+                onDelete={() => void removeGroupFromList(g, isPendingOnly)}
+              >
+              <div
                 className={cardClass}
                 role="button"
                 tabIndex={0}
@@ -182,6 +211,7 @@ export default function DiscoverGroupsPage() {
                   )}
                 </div>
               </div>
+              </SwipeRevealRow>
             );
           })}
         </div>

@@ -424,7 +424,11 @@ export async function chatStream(
     return;
   }
   if (res.status === 429) {
-    cb.onError?.('今日免费次数已用完，登录后可继续使用');
+    cb.onError?.(
+      currentUserId()
+        ? '今日 AI 使用已达上限，请明日再试'
+        : '今日免费次数已用完，登录后可继续使用',
+    );
     return;
   }
   if (!res.ok || !res.body) {
@@ -628,6 +632,7 @@ export interface GeneratedPlan {
   days_count: number;
   chapters_total: number;
   days: { day: number; title: string; refs: string[] }[];
+  saved_at?: number;
 }
 export interface DictEntity {
   name: string;
@@ -779,8 +784,15 @@ export const api = {
     authed<{ ok: boolean }>(`/social/groups/${gid}/members/${userId}`, {
       method: 'DELETE',
     }),
+  leaveGroup: (gid: string) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/members/me`, { method: 'DELETE' }),
   dissolveGroup: (gid: string) =>
     authed<{ ok: boolean }>(`/social/groups/${gid}`, { method: 'DELETE' }),
+  updateGroupMemberName: (gid: string, display_name: string) =>
+    authed<{ ok: boolean; display_name: string }>(`/social/groups/${gid}/members/me`, {
+      method: 'PATCH',
+      body: { display_name },
+    }),
   groupFeed: (gid: string, opts?: { before?: string; limit?: number }) => {
     const q = new URLSearchParams();
     if (opts?.before) q.set('before', opts.before);

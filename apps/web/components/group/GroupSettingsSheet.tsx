@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { api, type GeneratedPlan, type GroupDetail, type PlanSummary } from '@/lib/api';
-import { saveGeneratedPlan } from '@/lib/generated_plans';
+import { loadGeneratedPlans, saveGeneratedPlan } from '@/lib/generated_plans';
 import { GroupMembersPanel } from './GroupMembersPanel';
+import { GroupMemberNickname } from './GroupMemberNickname';
 
 type Props = {
   open: boolean;
@@ -84,8 +85,8 @@ export function GroupSettingsSheet({
         customTheme.trim() || undefined,
         customRefs.trim() || undefined,
       );
-      const next = saveGeneratedPlan(preview);
-      onGeneratedPlansChange(next);
+      saveGeneratedPlan(preview);
+      onGeneratedPlansChange(loadGeneratedPlans());
       onPlanChange(preview.id);
     } catch (e) {
       setGenErr(e instanceof Error ? e.message : String(e));
@@ -110,6 +111,7 @@ export function GroupSettingsSheet({
 
         <div className="group-settings-section">
           <h3 className="group-settings-section-title">群成员</h3>
+          <GroupMemberNickname gid={gid} members={members} onChanged={onMembersChanged} />
           <GroupMembersPanel
             gid={gid}
             members={members}

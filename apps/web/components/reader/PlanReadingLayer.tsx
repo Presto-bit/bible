@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import type { Group } from '@/lib/api';
 import type { PlanReadingMeta } from '@/lib/plan_reading';
 import {
   allStepsDone,
@@ -19,6 +20,8 @@ import {
 import { advancePlanDay, isPlanDayCompleted, markPlanDayCompleted, setPlanDay, tryAutoCompletePlan } from '@/lib/plan_progress';
 import { enqueuePlanProgress } from '@/lib/plan_sync';
 import { savePlanReflection } from '@/lib/plan_reflection';
+import { groupCheckinHref, groupsBoundToPlan, loadOwnerGroups } from '@/lib/plan_group_share';
+import { PlanShareToGroupSheet } from '@/components/plans/PlanShareToGroupSheet';
 import PlanBar from '@/components/reader/PlanBar';
 
 const CELEBRATE_MS = 4200;
@@ -47,13 +50,21 @@ export default function PlanReadingLayer({
   const [reflectionText, setReflectionText] = useState('');
   const [dayCompleted, setDayCompleted] = useState(false);
   const [completedDayNum, setCompletedDayNum] = useState<number | null>(null);
+  const [planAllDone, setPlanAllDone] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [boundGroups, setBoundGroups] = useState<Group[]>([]);
   const [nextStepHint, setNextStepHint] = useState<string | null>(null);
   const bottomHandledRef = useRef(0);
   const finishedDayRef = useRef<number | null>(null);
 
   useEffect(() => {
-    onOverlayChange?.(sheetOpen || reflectionOpen);
-  }, [sheetOpen, reflectionOpen, onOverlayChange]);
+    onOverlayChange?.(sheetOpen || reflectionOpen || shareOpen || planAllDone);
+  }, [sheetOpen, reflectionOpen, shareOpen, planAllDone, onOverlayChange]);
+
+  useEffect(() => {
+    if (!dayCompleted && !planAllDone) return;
+    void loadOwnerGroups().then((gs) => setBoundGroups(groupsBoundToPlan(gs, meta.planId)));
+  }, [dayCompleted, planAllDone, meta.planId]);
 
   const stepIdx = meta.steps.findIndex(
     (s) => s.bookId === bookId.toUpperCase() && chapter >= s.chapterStart && chapter <= s.chapterEnd,
@@ -92,10 +103,13 @@ export default function PlanReadingLayer({
     setPlanDay(meta.planId, finishedDay);
     enqueuePlanProgress(meta.planId, finishedDay, 'done', session);
     advancePlanDay(meta.planId, meta.totalDays);
-    tryAutoCompletePlan(meta.planId, meta.totalDays);
+    const allDone = tryAutoCompletePlan(meta.planId, meta.totalDays);
     setCompletedDayNum(finishedDay);
     onMetaChange({ ...meta, session, day: Math.min(meta.totalDays, finishedDay + 1) });
     setDayCompleted(true);
+    if (allDone || finishedDay >= meta.totalDays) {
+      setPlanAllDone(true);
+    }
     setNextStepHint(null);
   };
 
@@ -177,6 +191,8 @@ export default function PlanReadingLayer({
   }, [bookId, chapter]);
 
   const prog = sessionProgress(meta.steps, meta.session.stepsDone);
+  const checkinGid = checkinGroupId || boundGroups[0]?.id;
+  const checkinRef = `${bookId}.${chapter}`;
 
   return (
     <>
@@ -186,7 +202,36 @@ export default function PlanReadingLayer({
         onJumpStep={handleJumpStep}
       />
 
-      {dayCompleted && completedDayNum != null && (
+      {planAllDone && (
+        <div className="plan-day-complete card plan-plan-complete-sheet plan-day-complete-solid">
+          <p className="plan-segment-done-title">🎉 「{meta.planTitle}」已全部完成</p>
+          <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.5 }}>
+            共 {meta.totalDays} 天 · 可在计划页「已完成」中查看或再读一遍
+          </p>
+          <div className="plan-complete-actions">
+            <Link href="/plans?tab=completed" className="font-pill">查看计划</Link>
+            {checkinGid ? (
+              <Link href={groupCheckinHref(checkinGid, checkinRef)} className="font-pill accent">
+                去群里打卡 ›
+              </Link>
+            ) : (
+              <button type="button" className="font-pill accent" onClick={() => setShareOpen(true)}>
+                分享到群打卡
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            className="text-link"
+            style={{ marginTop: 10 }}
+            onClick={() => setPlanAllDone(false)}
+          >
+            继续浏览经文
+          </button>
+        </div>
+      )}
+
+      {dayCompleted && completedDayNum != null && !planAllDone && (
         <div className="plan-day-complete card plan-day-complete-toast plan-day-complete-solid">
           <div className="plan-day-complete-head">
             <p className="plan-segment-done-title">🎉 第 {completedDayNum} 天已完成</p>
@@ -209,23 +254,27 @@ export default function PlanReadingLayer({
               ? ` · 明天解锁第 ${completedDayNum + 1} 天`
               : ' · 计划已全部完成'}
           </p>
-          {checkinGroupId && (
-            <Link
-              href={`/discover/group/${encodeURIComponent(checkinGroupId)}?focus=checkin&ref=${encodeURIComponent(`${bookId}.${chapter}`)}`}
-              className="font-pill accent"
-              style={{ marginTop: 10, display: 'inline-block' }}
+          <div className="plan-complete-actions" style={{ marginTop: 10 }}>
+            {checkinGid ? (
+              <Link
+                href={groupCheckinHref(checkinGid, checkinRef)}
+                className="font-pill accent"
+              >
+                去群里打卡 ›
+              </Link>
+            ) : (
+              <button type="button" className="font-pill accent" onClick={() => setShareOpen(true)}>
+                分享到群打卡
+              </button>
+            )}
+            <button
+              type="button"
+              className="font-pill"
+              onClick={() => setReflectionOpen(true)}
             >
-              去群里打卡 ›
-            </Link>
-          )}
-          <button
-            type="button"
-            className="font-pill accent"
-            style={{ marginTop: 10 }}
-            onClick={() => setReflectionOpen(true)}
-          >
-            写今日反思（可选）
-          </button>
+              写今日反思
+            </button>
+          </div>
         </div>
       )}
 
@@ -260,6 +309,18 @@ export default function PlanReadingLayer({
           </div>
         </div>
       )}
+
+      <PlanShareToGroupSheet
+        open={shareOpen}
+        planId={meta.planId}
+        planTitle={meta.planTitle}
+        checkinRef={checkinRef}
+        onClose={() => setShareOpen(false)}
+        onBound={(gid) => {
+          setShareOpen(false);
+          window.location.href = groupCheckinHref(gid, checkinRef);
+        }}
+      />
 
       {sheetOpen && (
         <div className="sheet-backdrop" onClick={() => setSheetOpen(false)}>

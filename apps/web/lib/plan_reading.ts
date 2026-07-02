@@ -66,7 +66,7 @@ export async function buildPlanReadingMeta(
   };
 }
 
-export function readerHref(meta: PlanReadingMeta, stepIndex?: number): string {
+export function readerHref(meta: PlanReadingMeta, stepIndex?: number, groupId?: string): string {
   const idx = stepIndex ?? meta.session.currentStepIndex;
   const step = meta.steps[idx] ?? meta.steps[0];
   const params = new URLSearchParams({
@@ -75,6 +75,7 @@ export function readerHref(meta: PlanReadingMeta, stepIndex?: number): string {
     plan: meta.planId,
     day: String(meta.day),
   });
+  if (groupId) params.set('group', groupId);
   return `/reader?${params.toString()}`;
 }
 
@@ -96,6 +97,20 @@ export async function hydratePlanFromUrl(
     return buildPlanReadingMeta(active, day);
   }
   try {
+    const raw = localStorage.getItem('presto_generated_plans');
+    const generated = raw ? (JSON.parse(raw) as Array<{ id: string; title: string; days_count: number }>) : [];
+    const saved = generated.find((p) => p.id === planId);
+    if (saved) {
+      const plan: ActivePlan = {
+        planId: saved.id,
+        title: saved.title,
+        kind: 'reading',
+        days: saved.days_count,
+        source: 'generated',
+      };
+      setPlanDay(planId, day);
+      return buildPlanReadingMeta(plan, day);
+    }
     const plans = await api.plans();
     const p = plans.plans.find((x) => x.plan_id === planId);
     if (p) {

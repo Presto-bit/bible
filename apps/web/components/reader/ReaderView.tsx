@@ -48,8 +48,10 @@ import {
 import {
   getLastRead,
   getLastReadVerse,
+  cancelPendingChapterProgress,
+  confirmChapterProgress,
   logChapterDetail,
-  logChapterRead,
+  scheduleChapterProgress,
   logVerseRead,
   maybeNotifyBookComplete,
   readerDwellPause,
@@ -686,6 +688,8 @@ export default function ReaderView({
     setSelected([]);
     setBookDone(false);
     readStartRef.current = Date.now();
+    readingEngagedRef.current = false;
+    cancelPendingChapterProgress();
     setChapterAnim(swipeTurn ? '' : 'chapter-enter');
 
     const version = chapterCacheVersion(mainVersionId);
@@ -722,9 +726,9 @@ export default function ReaderView({
           setCachedChapter(book.id, chapter, chinese.verses, version);
         }
         setChapterLoading(false);
-        logChapterRead();
-        logChapterDetail(book.id, chapter);
-        maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+        scheduleChapterProgress(book.id, chapter, false, () => {
+          maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+        });
         setLastRead(book.id, chapter);
         if (readingEngagedRef.current) {
           enterImmersive();
@@ -767,6 +771,7 @@ export default function ReaderView({
     void load();
     return () => {
       cancelled = true;
+      cancelPendingChapterProgress();
     };
   }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome, flashRef, swipeTurn, books, prefetchTarget]);
 
@@ -781,9 +786,15 @@ export default function ReaderView({
       const cur = el.scrollTop;
       if (cur > lastScrollTop.current + 6) {
         readingEngagedRef.current = true;
+        confirmChapterProgress(book.id, chapter, () => {
+          maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+        });
         enterImmersive();
       } else if (cur < lastScrollTop.current - 6) {
         readingEngagedRef.current = true;
+        confirmChapterProgress(book.id, chapter, () => {
+          maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+        });
         peekChrome();
       }
       lastScrollTop.current = cur;
@@ -1270,7 +1281,7 @@ export default function ReaderView({
                 setMarkNotePrompt({ ref: selRef, label: effRefLabel });
               }}
             >
-              写笔记
+              笔记
             </button>
             {thoughtsOn && (
               <button type="button" className="vsb-item" onClick={() => {
@@ -1280,7 +1291,7 @@ export default function ReaderView({
                   verseText: effSelectionText || undefined,
                 });
                 clearSelection();
-              }}>写想法</button>
+              }}>想法</button>
             )}
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>

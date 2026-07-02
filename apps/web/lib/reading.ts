@@ -223,6 +223,60 @@ export function logVerseRead(ref: string) {
   localStorage.setItem(VERSE_EVENTS_KEY, JSON.stringify(events.slice(-3000)));
 }
 
+/** 快速翻页不计进度：未滚动/停留不足时不记入章节进度。 */
+export const MIN_CHAPTER_DWELL_SEC = 20;
+export const MIN_CHAPTER_ENGAGED_SEC = 8;
+
+let pendingChapterLog: {
+  book: string;
+  chapter: number;
+  timer: ReturnType<typeof setTimeout>;
+} | null = null;
+
+export function cancelPendingChapterProgress() {
+  if (pendingChapterLog?.timer) clearTimeout(pendingChapterLog.timer);
+  pendingChapterLog = null;
+}
+
+/** 章节加载后延迟记入进度；已滚动阅读时缩短等待。 */
+export function scheduleChapterProgress(
+  book: string,
+  chapter: number,
+  engaged: boolean,
+  onLogged?: () => void,
+) {
+  if (typeof window === 'undefined') return;
+  cancelPendingChapterProgress();
+  const delayMs = (engaged ? MIN_CHAPTER_ENGAGED_SEC : MIN_CHAPTER_DWELL_SEC) * 1000;
+  const timer = setTimeout(() => {
+    logChapterRead();
+    logChapterDetail(book, chapter);
+    pendingChapterLog = null;
+    onLogged?.();
+  }, delayMs);
+  pendingChapterLog = { book, chapter, timer };
+}
+
+/** 滚动阅读后立即确认本章进度（仍受 logChapterDetail 去抖保护）。 */
+export function confirmChapterProgress(
+  book: string,
+  chapter: number,
+  onLogged?: () => void,
+) {
+  if (typeof window === 'undefined') return;
+  if (
+    !pendingChapterLog
+    || pendingChapterLog.book !== book
+    || pendingChapterLog.chapter !== chapter
+  ) {
+    return;
+  }
+  cancelPendingChapterProgress();
+  logChapterRead();
+  logChapterDetail(book, chapter);
+  onLogged?.();
+}
+
 // 某卷最近一次阅读到的章（供「读经进度」点击跳到最新进度，而非开头）。
 export function lastChapterOf(book: string): number | null {
   let best: ReadEvent | null = null;

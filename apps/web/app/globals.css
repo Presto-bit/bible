@@ -4211,12 +4211,28 @@ a.today-card-link {
   max-height: none;
   overflow: visible;
   overflow-x: visible;
+  min-width: min(100vw - 24px, 400px);
+  max-width: min(100vw - 16px, 420px);
+  padding: 8px 12px;
 }
 .reader-focus-row {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 4px;
   overflow: visible;
+}
+
+.reader-focus-row-actions {
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.reader-focus-row-actions .vsb-item {
+  flex: 1 1 0;
+  min-width: 52px;
+  font-size: 12px;
+  white-space: nowrap;
+  padding: 6px 8px;
 }
 
 .reader-focus-row-single {
@@ -4300,17 +4316,44 @@ a.today-card-link {
   margin-top: 2px;
 }
 
+.swipe-reveal-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius, 12px);
+}
+
+.swipe-reveal-delete {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 72px;
+  border: none;
+  background: #c45c5c;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 0;
+}
+
+.swipe-reveal-content {
+  position: relative;
+  z-index: 1;
+  transition: transform 0.18s ease-out;
+  background: inherit;
+  touch-action: pan-y;
+}
+
 .reader-focus-row-mark {
   justify-content: center;
   align-items: center;
   gap: 6px;
   padding-bottom: 6px;
   border-bottom: 1px solid var(--line);
+  flex-wrap: nowrap;
 }
-.reader-focus-row-actions {
-  justify-content: center;
-  gap: 4px;
-}
+
 .reader-mark-popover {
   position: relative;
   left: auto;
@@ -6226,6 +6269,155 @@ a.today-card-link {
   font-size: 11px !important;
   padding: 4px 10px !important;
   line-height: 1.3;
+}
+
+.plan-active-share-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.plan-custom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.plan-custom-card {
+  padding: 14px 16px;
+}
+
+.plan-custom-card-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent-wash, rgba(180, 140, 60, 0.15));
+}
+
+.plan-custom-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.plan-custom-active-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  background: var(--accent-wash, #faf6ee);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+
+.plan-custom-title {
+  display: block;
+  font-size: 15px;
+}
+
+.plan-custom-meta {
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.plan-custom-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.plan-custom-btn-main {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+}
+
+.plan-custom-add {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding: 10px;
+}
+
+.plan-gen-scope-chip.active {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+}
+
+.plan-gen-preview {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.plan-gen-preview-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.plan-share-group-sheet {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.plan-share-bound-block {
+  margin-bottom: 14px;
+}
+
+.plan-share-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.plan-share-group-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.plan-share-group-pick {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg, #fff);
+}
+
+.plan-share-group-pick.bound {
+  border-color: var(--accent);
+}
+
+.plan-complete-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-plan-complete-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 90;
+  width: min(92vw, 400px);
+  padding: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
+}
+
+.chip-swipe-item.selected {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  font-weight: 600;
 }
 
 .notes-seg-tabs {

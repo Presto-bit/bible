@@ -8,6 +8,7 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
+from ..auth.session import try_get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
@@ -85,14 +86,22 @@ def _sse(event: str, data: dict) -> str:
 def chat(
     body: ChatRequest,
     x_guest_id: str | None = Header(default=None),
+    authorization: str | None = Header(default=None),
+    x_user_id: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    cookie: str | None = Header(default=None),
 ):
     settings = get_settings()
-    allowed, used, limit = consume_quota(x_guest_id, settings.ai_guest_daily_limit)
+    logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
+    if logged_in:
+        allowed, used, limit = True, 0, 0
+    else:
+        allowed, used, limit = consume_quota(x_guest_id, settings.ai_guest_daily_limit)
     if not allowed:
         return JSONResponse(
             status_code=429,
             content={
-                "error": "今日免费次数已用完，登录后可继续使用",
+                "error": "今日免费次数已用完，请明日再试",
                 "used": used,
                 "limit": limit,
             },

@@ -5,12 +5,17 @@ import Link from 'next/link';
 import { api, ensureAccountReady, type GeneratedPlan, type PlanSummary } from '@/lib/api';
 import { markGroupsListDirty, stashCreatedGroup } from '@/lib/groups_refresh';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
+import { loadGeneratedPlans, removeGeneratedPlan } from '@/lib/generated_plans';
 import { PlanScheduleSheet } from '@/components/plans/PlanScheduleSheet';
 import { PlanCategoryGrid } from '@/components/plans/PlanCategoryGrid';
+import { PlanCustomCard } from '@/components/plans/PlanCustomCard';
+import { PlanGenerateSheet } from '@/components/plans/PlanGenerateSheet';
+import { PlanShareToGroupSheet } from '@/components/plans/PlanShareToGroupSheet';
 import {
   cancelActivePlan,
   getActivePlan,
   getCompletedPlanDays,
+  getCompletedPlanIds,
   getPlanDay,
   isPlanDayUnlocked,
   markPlanDayCompleted,
@@ -18,6 +23,7 @@ import {
   setPlanDay,
   tryAutoCompletePlan,
   advancePlanDay,
+  restartPlan,
   type ActivePlan,
 } from '@/lib/plan_progress';
 import { loadPlanSchedule, planCompletionPct, type PlanDayScheduleItem } from '@/lib/plan_schedule';
@@ -54,15 +60,9 @@ export default function PlansPage() {
   const [scopes, setScopes] = useState<{ id: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [listErr, setListErr] = useState<string | null>(null);
-  const [scope, setScope] = useState<string | null>(null);
-  const [days, setDays] = useState(30);
-  const [prompt, setPrompt] = useState('');
-  const [customRefs, setCustomRefs] = useState('');
-  const [preview, setPreview] = useState<GeneratedPlan | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [tab, setTab] = useState<'reading' | 'prayer'>('reading');
+  const [listTab, setListTab] = useState<'featured' | 'custom' | 'completed'>('featured');
   const [active, setActive] = useState<ActivePlan | null>(null);
   const [savedPlans, setSavedPlans] = useState<GeneratedPlan[]>([]);
   const [prayerSheet, setPrayerSheet] = useState<Awaited<ReturnType<typeof api.prayerToday>> | null>(null);
@@ -71,6 +71,7 @@ export default function PlansPage() {
   const [scheduleItems, setScheduleItems] = useState<PlanDayScheduleItem[]>([]);
   const [scheduleBusyDay, setScheduleBusyDay] = useState<number | null>(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [sharePlan, setSharePlan] = useState<{ planId: string; title: string } | null>(null);
 
   const flashToast = (t: string) => {
     setToast(t);
@@ -88,16 +89,20 @@ export default function PlansPage() {
       .catch((e) => setListErr(String(e)))
       .finally(() => setLoading(false));
     setActive(getActivePlan());
-    try {
-      setSavedPlans(JSON.parse(localStorage.getItem('presto_generated_plans') || '[]'));
-    } catch {
-      setSavedPlans([]);
-    }
+    setSavedPlans(loadGeneratedPlans());
   }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('tab') === 'prayer') setTab('prayer');
+    const list = params.get('tab');
+    if (list === 'custom' || list === 'completed' || list === 'featured') {
+      setListTab(list);
+    }
+    if (params.get('generate') === '1') {
+      setListTab('custom');
+      setShowGenerate(true);
+    }
   }, []);
 
   const featured = useMemo(
@@ -106,6 +111,36 @@ export default function PlansPage() {
   );
 
   const grouped = useMemo(() => groupPlans(featured), [featured]);
+
+  const completedPlans = useMemo(() => {
+    const items: ActivePlan[] = [];
+    for (const id of getCompletedPlanIds()) {
+      const fromFeatured = plans.find((p) => p.plan_id === id);
+      if (fromFeatured) {
+        items.push(toActivePlan(
+          { planId: fromFeatured.plan_id, title: fromFeatured.title, type: fromFeatured.type, days: fromFeatured.days },
+          'featured',
+        ));
+        continue;
+      }
+      const fromSaved = savedPlans.find((p) => p.id === id);
+      if (fromSaved) {
+        items.push(toActivePlan(
+          { id: fromSaved.id, title: fromSaved.title, days_count: fromSaved.days_count },
+          'generated',
+        ));
+      }
+    }
+    return items;
+  }, [plans, savedPlans, active]);
+
+  const handleRestartPlan = (ap: ActivePlan) => {
+    restartPlan(ap.planId);
+    setActivePlan(ap);
+    setActive(ap);
+    flashToast('已重置进度，可重新开始');
+    void openSchedule(ap);
+  };
 
   const [activeProgress, setActiveProgress] = useState<string | null>(null);
   const activeDay = active ? getPlanDay(active.planId) : 0;
@@ -213,27 +248,32 @@ export default function PlansPage() {
       .catch(() => setActiveProgress(null));
   }, [active, activeDay]);
 
-  const saveGenerated = () => {
-    if (!preview) return;
-    const next = [preview, ...savedPlans.filter((x) => x.id !== preview.id)].slice(0, 12);
-    localStorage.setItem('presto_generated_plans', JSON.stringify(next));
-    setSavedPlans(next);
+  const openCustomize = () => {
+    setListTab('custom');
+    setShowGenerate(true);
   };
 
-  const generate = async () => {
-    if (!scope && !customRefs.trim()) {
-      setErr('请选择读经范围，或填写自定义经节');
-      return;
+  const handleGeneratedSaved = (plan: GeneratedPlan, mode: 'start' | 'save') => {
+    setSavedPlans(loadGeneratedPlans());
+    setListTab('custom');
+    if (mode === 'start') {
+      const ap = toActivePlan({ id: plan.id, title: plan.title, days_count: plan.days_count }, 'generated');
+      startPlan({ id: plan.id, title: plan.title, days_count: plan.days_count }, 'generated');
+      void openSchedule(ap);
+    } else {
+      flashToast('已保存到「我的定制」');
     }
-    setBusy(true);
-    setErr(null);
-    try {
-      setPreview(await api.generatePlan(scope, days, prompt.trim() || undefined, customRefs.trim() || undefined));
-    } catch (e) {
-      setErr(String(e));
-    } finally {
-      setBusy(false);
+  };
+
+  const deleteCustomPlan = (planId: string) => {
+    if (!window.confirm('确定删除这个定制计划？进度将一并清除。')) return;
+    removeGeneratedPlan(planId);
+    setSavedPlans(loadGeneratedPlans());
+    if (active?.planId === planId) {
+      cancelActivePlan();
+      setActive(null);
     }
+    flashToast('已删除');
   };
 
   const startPlan = (p: { planId?: string; id?: string; title: string; type?: string; days?: number; days_count?: number }, source: 'featured' | 'generated') => {
@@ -253,7 +293,7 @@ export default function PlansPage() {
       <header className="plans-page-head">
         <Link href="/" className="icon-btn" aria-label="返回">←</Link>
         <h2 className="page-title" style={{ margin: 0, flex: 1 }}>读经计划</h2>
-        <button type="button" className="text-link plans-customize-btn" onClick={() => setShowGenerate(true)}>个性定制</button>
+        <button type="button" className="text-link plans-customize-btn" onClick={openCustomize}>个性定制</button>
       </header>
 
       {active && (
@@ -280,40 +320,58 @@ export default function PlansPage() {
               日程表 ›
             </button>
             {active.kind !== 'prayer' && (
-              <button
-                type="button"
-                className="font-pill plan-invite-btn"
-                style={{ marginTop: 8 }}
-                onClick={async () => {
-                  if (!window.confirm(`将创建共读群并邀请好友加入。\n\n${GROUP_INACTIVE_NOTICE}\n\n继续创建？`)) return;
-                  try {
-                    await ensureAccountReady();
-                    const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
-                    stashCreatedGroup({
-                      id: g.id,
-                      name: g.name || `${active.title} · 共读`,
-                      join_code: g.join_code,
-                      role: g.role || 'owner',
-                    });
-                    markGroupsListDirty();
-                    window.location.href = `/discover/group/${g.id}`;
-                  } catch (e) {
-                    flashToast(String(e));
-                  }
-                }}
-              >
-                邀请组队共读
-              </button>
+              <div className="plan-active-share-row">
+                <button
+                  type="button"
+                  className="font-pill"
+                  onClick={() => setSharePlan({ planId: active.planId, title: active.title })}
+                >
+                  分享到群
+                </button>
+                <button
+                  type="button"
+                  className="font-pill plan-invite-btn"
+                  onClick={async () => {
+                    if (!window.confirm(`将创建共读群并邀请好友加入。\n\n${GROUP_INACTIVE_NOTICE}\n\n继续创建？`)) return;
+                    try {
+                      await ensureAccountReady();
+                      const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
+                      stashCreatedGroup({
+                        id: g.id,
+                        name: g.name || `${active.title} · 共读`,
+                        join_code: g.join_code,
+                        role: g.role || 'owner',
+                      });
+                      markGroupsListDirty();
+                      window.location.href = `/discover/group/${g.id}`;
+                    } catch (e) {
+                      flashToast(String(e));
+                    }
+                  }}
+                >
+                  新建共读群
+                </button>
+              </div>
             )}
           </div>
         </div>
       )}
 
-      <div className="mode-row" style={{ marginBottom: 12 }}>
-        <button type="button" className={`mode-chip ${tab === 'reading' ? 'mode-chip-active' : ''}`} onClick={() => setTab('reading')}>读经计划</button>
-        <button type="button" className={`mode-chip ${tab === 'prayer' ? 'mode-chip-active' : ''}`} onClick={() => setTab('prayer')}>祷告计划</button>
+      <div className="mode-row" style={{ marginBottom: 8 }}>
+        <button type="button" className={`mode-chip ${listTab === 'featured' ? 'mode-chip-active' : ''}`} onClick={() => setListTab('featured')}>热门</button>
+        <button type="button" className={`mode-chip ${listTab === 'custom' ? 'mode-chip-active' : ''}`} onClick={() => setListTab('custom')}>我的定制</button>
+        <button type="button" className={`mode-chip ${listTab === 'completed' ? 'mode-chip-active' : ''}`} onClick={() => setListTab('completed')}>已完成</button>
       </div>
 
+      {listTab === 'featured' && (
+        <div className="mode-row" style={{ marginBottom: 12 }}>
+          <button type="button" className={`mode-chip ${tab === 'reading' ? 'mode-chip-active' : ''}`} onClick={() => setTab('reading')}>读经计划</button>
+          <button type="button" className={`mode-chip ${tab === 'prayer' ? 'mode-chip-active' : ''}`} onClick={() => setTab('prayer')}>祷告计划</button>
+        </div>
+      )}
+
+      {listTab === 'featured' && (
+        <>
       <div className="plans-section-head">
         <h3>热门计划</h3>
         <span>{loading ? '…' : `${featured.length} 个`}</span>
@@ -346,25 +404,81 @@ export default function PlansPage() {
           />
         </section>
       ))}
+        </>
+      )}
 
-      {savedPlans.length > 0 && (
+      {listTab === 'custom' && (
         <>
-          <div className="plans-section-head" style={{ marginTop: 8 }}>
+          <div className="plans-section-head">
             <h3>我的定制</h3>
             <span>{savedPlans.length} 个</span>
           </div>
-          <PlanCategoryGrid
-            items={savedPlans.map((p) => ({
-              id: p.id,
-              title: p.title,
-              days: p.days_count,
-              kind: 'reading' as const,
-              onClick: () => openSchedule(toActivePlan(
-                { id: p.id, title: p.title, days_count: p.days_count },
-                'generated',
-              )),
-            }))}
-          />
+          {savedPlans.length === 0 ? (
+            <div className="card card-2 plan-custom-empty" style={{ marginBottom: 12 }}>
+              <strong>创建你的专属读经计划</strong>
+              <p className="muted" style={{ margin: '8px 0 0', lineHeight: 1.55 }}>
+                选范围、定天数，系统自动排好每日章节。保存后可单独管理、分享到共读群。
+              </p>
+              <button type="button" className="btn" style={{ marginTop: 14, width: '100%' }} onClick={openCustomize}>
+                开始定制
+              </button>
+            </div>
+          ) : (
+            <div className="plan-custom-list">
+              {savedPlans.map((p) => (
+                <PlanCustomCard
+                  key={p.id}
+                  plan={p}
+                  isActive={active?.planId === p.id}
+                  onContinue={() => void openSchedule(toActivePlan(
+                    { id: p.id, title: p.title, days_count: p.days_count },
+                    'generated',
+                  ))}
+                  onShare={() => setSharePlan({ planId: p.id, title: p.title })}
+                  onDelete={() => deleteCustomPlan(p.id)}
+                />
+              ))}
+              <button type="button" className="text-link plan-custom-add" onClick={openCustomize}>
+                + 再定制一个计划
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {listTab === 'completed' && (
+        <>
+          <div className="plans-section-head">
+            <h3>已完成</h3>
+            <span>{completedPlans.length} 个</span>
+          </div>
+          {completedPlans.length === 0 ? (
+            <p className="muted" style={{ marginBottom: 12 }}>完成计划后会出现在这里，可随时查看日程或重新开始。</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {completedPlans.map((p) => (
+                <div key={p.planId} className="card card-2 plan-completed-card">
+                  <strong>{p.title}</strong>
+                  <p className="muted" style={{ fontSize: 12, margin: '4px 0 10px' }}>
+                    {p.kind === 'prayer' ? '祷告' : '读经'} · {p.days} 天 · 已全部完成
+                  </p>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button type="button" className="font-pill" onClick={() => void openSchedule(p)}>
+                      查看日程
+                    </button>
+                    <button type="button" className="font-pill accent" onClick={() => handleRestartPlan(p)}>
+                      再读一遍
+                    </button>
+                    {p.kind !== 'prayer' && (
+                      <button type="button" className="font-pill" onClick={() => setSharePlan({ planId: p.planId, title: p.title })}>
+                        分享到群
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
 
@@ -386,52 +500,24 @@ export default function PlansPage() {
         )
       )}
 
-      {showGenerate && (
-        <div className="sheet-backdrop" onClick={() => { setShowGenerate(false); setPreview(null); }}>
-          <div className="sheet card plans-generate-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <strong>定制计划</strong>
-              <button type="button" className="text-link" onClick={() => { setShowGenerate(false); setPreview(null); }}>关闭</button>
-            </div>
-            <p className="muted" style={{ fontSize: 12, marginBottom: 12 }}>选择范围与天数，生成每日读经安排</p>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-              {scopes.map((s) => (
-                <button key={s.id} type="button" className="book-chip" style={{ width: 'auto', background: scope === s.id ? 'var(--accent-wash)' : 'var(--surface)', borderColor: scope === s.id ? 'var(--accent)' : 'var(--line)' }} onClick={() => { setScope(scope === s.id ? null : s.id); setPreview(null); }}>
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            <label className="muted">天数：{days}</label>
-            <input type="range" min={7} max={180} value={days} style={{ width: '100%' }} onChange={(e) => { setDays(Number(e.target.value)); setPreview(null); }} />
-            <input className="book-chip" style={{ width: '100%', textAlign: 'left', margin: '8px 0' }} placeholder="计划提词（将作为计划名称）" value={prompt} onChange={(e) => setPrompt(e.target.value)} />
-            <input className="book-chip" style={{ width: '100%', textAlign: 'left', margin: '4px 0 8px' }} placeholder="自定义经节（可选，例 GEN.1, PSA.23）" value={customRefs} onChange={(e) => { setCustomRefs(e.target.value); setPreview(null); }} />
-            <button type="button" className="btn" style={{ marginTop: 8, width: '100%' }} onClick={generate} disabled={busy}>
-              {busy ? '生成中…' : '生成计划'}
-            </button>
-            {err && <p style={{ color: '#b1554a', marginTop: 8 }}>{err}</p>}
-            {preview && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--line)' }}>
-                <strong>{preview.title}</strong>
-                <p className="muted" style={{ fontSize: 12 }}>{preview.days_count} 天 · 共 {preview.chapters_total} 章</p>
-                {preview.days.slice(0, 5).map((d) => (
-                  <div key={d.day} className="verse-row"><span className="verse-no">{d.day}</span>{d.title}</div>
-                ))}
-                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                  <button type="button" className="btn" style={{ flex: 1 }} onClick={() => {
-                    saveGenerated();
-                    const ap = toActivePlan({ id: preview.id, title: preview.title, days_count: preview.days_count }, 'generated');
-                    startPlan({ id: preview.id, title: preview.title, days_count: preview.days_count }, 'generated');
-                    setShowGenerate(false);
-                    void openSchedule(ap);
-                  }}>
-                    设为当前计划
-                  </button>
-                  <button type="button" className="book-chip" style={{ flex: 1 }} onClick={saveGenerated}>保存</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+      <PlanGenerateSheet
+        open={showGenerate}
+        scopes={scopes}
+        onClose={() => setShowGenerate(false)}
+        onSaved={handleGeneratedSaved}
+      />
+
+      {sharePlan && (
+        <PlanShareToGroupSheet
+          open
+          planId={sharePlan.planId}
+          planTitle={sharePlan.title}
+          onClose={() => setSharePlan(null)}
+          onBound={() => {
+            flashToast('已绑定到共读群');
+            setSharePlan(null);
+          }}
+        />
       )}
 
       {prayerSheet && (

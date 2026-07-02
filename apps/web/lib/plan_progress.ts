@@ -98,3 +98,13 @@ export function tryAutoCompletePlan(planId: string, totalDays: number): boolean 
   if (active?.planId === planId) cancelActivePlan();
   return true;
 }
+
+/** 重新开始已完成的计划（保留历史完成记录，重置进度）。 */
+export function restartPlan(planId: string) {
+  const map = readJson<Record<string, number[]>>(DONE_DAYS_KEY, {});
+  delete map[planId];
+  localStorage.setItem(DONE_DAYS_KEY, JSON.stringify(map));
+  const completed = getCompletedPlanIds().filter((id) => id !== planId);
+  localStorage.setItem(COMPLETED_PLANS_KEY, JSON.stringify(completed));
+  setPlanDay(planId, 1);
+}

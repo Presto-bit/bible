@@ -15,6 +15,30 @@ export async function adoptGroupPlan(
   planId: string,
   initialDay?: number,
 ): Promise<ActivePlan | null> {
+  const active = getActivePlan();
+  if (active?.planId === planId) {
+    if (initialDay && initialDay > 0) setPlanDay(planId, initialDay);
+    return active;
+  }
+  try {
+    const raw = localStorage.getItem('presto_generated_plans');
+    const generated = raw ? (JSON.parse(raw) as Array<{ id: string; title: string; days_count: number }>) : [];
+    const saved = generated.find((p) => p.id === planId);
+    if (saved) {
+      const plan: ActivePlan = {
+        planId: saved.id,
+        title: saved.title,
+        kind: 'reading',
+        days: saved.days_count,
+        source: 'generated',
+      };
+      setActivePlan(plan);
+      if (initialDay && initialDay > 0) setPlanDay(planId, initialDay);
+      return plan;
+    }
+  } catch {
+    /* ignore */
+  }
   const { plans } = await api.plans();
   const p = plans.find((x) => x.plan_id === planId);
   if (!p) return null;

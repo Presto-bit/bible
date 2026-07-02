@@ -75,6 +75,10 @@ class TransferGroup(BaseModel):
     new_owner_id: str
 
 
+class UpdateMemberProfile(BaseModel):
+    display_name: str
+
+
 class PublishShare(BaseModel):
     ref: str | None = None
     body: str
@@ -484,14 +488,31 @@ def _group_today_stats(conn, gid: str, user_id: str) -> dict:
     }
 
 
+def _member_display_sql() -> str:
+    return (
+        "COALESCE(NULLIF(TRIM(m.display_name), ''), NULLIF(TRIM(u.display_name), ''))"
+    )
+
+
 def _require_member(conn, gid: str, user_id: str) -> str:
     row = conn.execute(
         "SELECT role FROM group_member WHERE group_id = %s AND user_id = %s",
         (gid, user_id),
     ).fetchone()
-    if not row:
-        raise HTTPException(403, "非群成员")
-    return row[0]
+    if row:
+        return row[0]
+    owner = conn.execute(
+        "SELECT owner_id FROM social_group WHERE id = %s", (gid,),
+    ).fetchone()
+    if owner and str(owner[0]) == str(user_id):
+        conn.execute(
+            "INSERT INTO group_member (group_id, user_id, role) VALUES (%s, %s, 'owner') "
+            "ON CONFLICT (group_id, user_id) DO UPDATE SET role = 'owner'",
+            (gid, user_id),
+        )
+        conn.commit()
+        return "owner"
+    raise HTTPException(403, "非群成员")
 
 
 @router.get("/groups/{gid}")
@@ -508,7 +529,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         plan_id = g[3]
         if plan_id:
             members = conn.execute(
-                "SELECT u.id, u.display_name, m.role, "
+                f"SELECT u.id, {_member_display_sql()}, m.role, "
                 "  EXISTS ("
                 "    SELECT 1 FROM group_message gm "
                 "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
@@ -524,7 +545,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
             ).fetchall()
         else:
             members = conn.execute(
-                "SELECT u.id, u.display_name, m.role, "
+                f"SELECT u.id, {_member_display_sql()}, m.role, "
                 "  EXISTS ("
                 "    SELECT 1 FROM group_message gm "
                 "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
@@ -693,6 +714,21 @@ def remove_member(
         conn.execute(
             "DELETE FROM group_member WHERE group_id = %s AND user_id = %s",
             (gid, mid),
+        )
+        conn.commit()
+    return {"ok": True}
+
+
+@router.delete("/groups/{gid}/members/me")
+def leave_group(gid: str, user_id: str = Depends(get_current_user)) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        role = _require_member(conn, gid, user_id)
+        if role == "owner":
+            raise HTTPException(400, "群主请先转让群主或解散群")
+        conn.execute(
+            "DELETE FROM group_member WHERE group_id = %s AND user_id = %s",
+            (gid, user_id),
         )
         conn.commit()
     return {"ok": True}
@@ -976,6 +1012,32 @@ def mute_group(gid: str, muted: bool = True, user_id: str = Depends(get_current_
         )
         conn.commit()
     return {"ok": True, "muted": muted}
+
+
+@router.patch("/groups/{gid}/members/me")
+def update_my_group_profile(
+    gid: str,
+    body: UpdateMemberProfile,
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    name = body.display_name.strip()
+    if not name:
+        raise HTTPException(400, "名称不能为空")
+    if len(name) > 32:
+        raise HTTPException(400, "名称最多 32 字")
+    try:
+        moderate_text(name)
+    except ModerationError as e:
+        raise HTTPException(400, e.reason) from e
+    pool = get_pool()
+    with pool.connection() as conn:
+        _require_member(conn, gid, user_id)
+        conn.execute(
+            "UPDATE group_member SET display_name = %s WHERE group_id = %s AND user_id = %s",
+            (name, gid, user_id),
+        )
+        conn.commit()
+    return {"ok": True, "display_name": name}
 
 
 # ── 好友（无私聊） ──
