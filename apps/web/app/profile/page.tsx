@@ -65,6 +65,7 @@ export default function ProfilePage() {
   const [nameMsg, setNameMsg] = useState<string | null>(null);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
   const [streak, setStreak] = useState(0);
+  const [accountGuideOpen, setAccountGuideOpen] = useState(false);
 
   useEffect(() => {
     setReviewCards(favoriteReviewCards(3));
@@ -87,6 +88,7 @@ export default function ProfilePage() {
     setMins(todayMinutes());
     setStreak(readingStreak());
     setHasPwd(hasPassword());
+    setAccountGuideOpen(!isOnboarded());
     if (!isOnboarded()) {
       setObName(localStorage.getItem(NAME_KEY) || '');
       setOnboardOpen(true);
@@ -97,6 +99,7 @@ export default function ProfilePage() {
     if (skip) {
       await setCredentials('', '');
       setUid(currentUserId());
+      setAccountGuideOpen(false);
       setOnboardOpen(false);
       return;
     }
@@ -121,6 +124,7 @@ export default function ProfilePage() {
       setName(u);
       setUid(currentUserId());
       setHasPwd(Boolean(obPwd));
+      setAccountGuideOpen(false);
       setOnboardOpen(false);
     } finally {
       setObBusy(false);
@@ -200,6 +204,7 @@ export default function ProfilePage() {
       setGid(guestId());
       setName(localStorage.getItem(NAME_KEY) || '');
       setHasPwd(hasPassword());
+      setAccountGuideOpen(false);
       setLoginPwd('');
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -275,6 +280,7 @@ export default function ProfilePage() {
         </button>
       </header>
 
+      {accountGuideOpen && (
       <div className="card card-2" style={{ marginBottom: 12 }}>
         <strong>账号与换机</strong>
         <p className="muted" style={{ margin: '6px 0 12px', lineHeight: 1.5 }}>
@@ -305,6 +311,7 @@ export default function ProfilePage() {
           {busy ? '登录中…' : '登录 / 切换账号'}
         </button>
       </div>
+      )}
 
       {streak > 0 && (
         <div className="streak-banner" style={{ marginTop: 12 }}>
@@ -468,6 +475,10 @@ export default function ProfilePage() {
               <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
                 {hasPwd ? '已设密码，可在新设备用 ID 或用户名登录' : '未设密码，换机请凭用户 ID 登录'}
               </p>
+              <Link href="/login" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+                <span style={{ flex: 1 }}>切换账号</span>
+                <span className="muted">›</span>
+              </Link>
               <button
                 type="button"
                 className="clear-cache-btn"

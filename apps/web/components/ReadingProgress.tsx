@@ -36,9 +36,22 @@ function bookHref(bookId: string): string {
 export default function ReadingProgress() {
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [open, setOpen] = useState(false);
+  const [rev, setRev] = useState(0);
 
   useEffect(() => {
     api.books().then((d) => setBooks(d.books)).catch(() => setBooks([]));
+  }, []);
+
+  useEffect(() => {
+    const bump = () => {
+      if (document.visibilityState === 'visible') setRev((r) => r + 1);
+    };
+    document.addEventListener('visibilitychange', bump);
+    window.addEventListener('focus', bump);
+    return () => {
+      document.removeEventListener('visibilitychange', bump);
+      window.removeEventListener('focus', bump);
+    };
   }, []);
 
   const totals = useMemo(() => {
@@ -47,21 +60,21 @@ export default function ReadingProgress() {
     return m;
   }, [books]);
 
-  const progress = useMemo(() => bookProgressMap(totals), [totals]);
+  const progress = useMemo(() => bookProgressMap(totals), [totals, rev]);
 
   const totalBooks = books.length;
+  const readBooks = useMemo(
+    () =>
+      Object.values(progress).filter((p) => p.passes >= 1 || p.distinctChapters > 0)
+        .length,
+    [progress],
+  );
   const doneBooks = useMemo(
     () => Object.values(progress).filter((p) => p.passes >= 1).length,
     [progress],
   );
-  const readingBooks = useMemo(
-    () =>
-      Object.values(progress).filter((p) => p.passes === 0 && p.distinctChapters > 0)
-        .length,
-    [progress],
-  );
   const overallPct =
-    totalBooks > 0 ? Math.round((doneBooks / totalBooks) * 100) : 0;
+    totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0;
 
   const ot = books.filter((b) => b.testament.toUpperCase().startsWith('O'));
   const nt = books.filter((b) => !b.testament.toUpperCase().startsWith('O'));
@@ -96,7 +109,14 @@ export default function ReadingProgress() {
 
   return (
     <>
-      <button type="button" className="card progress-card" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="card progress-card"
+        onClick={() => {
+          setRev((r) => r + 1);
+          setOpen(true);
+        }}
+      >
         <div className="section-row" style={{ marginTop: 0 }}>
           <span>读经旅程</span>
           <span className="muted">目录 ›</span>
@@ -107,7 +127,8 @@ export default function ReadingProgress() {
           </div>
           <div style={{ flex: 1, textAlign: 'left' }}>
             <p style={{ margin: 0, fontWeight: 600 }}>
-              读完 {doneBooks} · 已读 {readingBooks} · 共 {totalBooks} 卷
+              已读 {readBooks} / {totalBooks} 卷
+              {doneBooks > 0 ? ` · 通读 ${doneBooks} 卷` : ''}
             </p>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
               点击查看目录与进度
