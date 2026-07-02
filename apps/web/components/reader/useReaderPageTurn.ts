@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
 
-const THRESHOLD = 0.32;
+const THRESHOLD = 0.25;
 const EDGE_RESIST = 0.28;
 const ANIM_MS = 280;
 

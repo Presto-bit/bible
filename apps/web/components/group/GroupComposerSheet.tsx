@@ -11,18 +11,7 @@ type Props = ComposerProps & {
 };
 
 export function GroupComposerSheet({ open, onOpenChange, ...composerProps }: Props) {
-  if (!open) {
-    return (
-      <button
-        type="button"
-        className="group-composer-fab"
-        aria-label="打开打卡"
-        onClick={() => onOpenChange(true)}
-      >
-        + 打卡
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
     <div className="sheet-backdrop group-composer-backdrop" onClick={() => onOpenChange(false)}>
