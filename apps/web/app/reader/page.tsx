@@ -35,6 +35,7 @@ export default function ReaderPage() {
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<DictEntity | null>(null);
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
+  const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
   const [flashRef, setFlashRef] = useState<string | null>(null);
 
   const dictByName = useMemo(() => {
@@ -122,6 +123,8 @@ export default function ReaderPage() {
         );
         const planId = params.get('plan');
         const planDay = Number(params.get('day') || '1');
+        const groupParam = params.get('group');
+        if (groupParam) setCheckinGroupId(groupParam);
 
         if (planId) {
           const meta = await hydratePlanFromUrl(planId, planDay);
@@ -165,11 +168,15 @@ export default function ReaderPage() {
     );
   }
 
-  const handlePickChapter = useCallback((b: BibleBook, ch: number) => {
+  const handleNavigate = useCallback((b: BibleBook, ch: number) => {
     setBook(b);
     setChapter(Math.min(Math.max(1, ch), b.chapter_count));
-    setCatalogOpen(false);
   }, []);
+
+  const handlePickChapter = useCallback((b: BibleBook, ch: number) => {
+    handleNavigate(b, ch);
+    setCatalogOpen(false);
+  }, [handleNavigate]);
 
   if (catalogOpen && book) {
     return (
@@ -202,7 +209,7 @@ export default function ReaderPage() {
         book={book}
         books={books}
         chapter={chapter}
-        onChapterChange={setChapter}
+        onNavigate={handleNavigate}
         onPickBook={() => setCatalogOpen(true)}
         bookAbbr={bookAbbr}
         renderVerseText={renderVerseText}
@@ -211,6 +218,7 @@ export default function ReaderPage() {
         onPlanJump={handlePlanJump}
         externalOverlayOpen={Boolean(dictPopup)}
         flashRef={flashRef}
+        checkinGroupId={checkinGroupId}
       />
       {dictPopup && (
         <div className="sheet-backdrop" onClick={() => setDictPopup(null)}>

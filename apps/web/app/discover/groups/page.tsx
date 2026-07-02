@@ -9,18 +9,12 @@ import {
   ensureAccountReady,
   type Group,
 } from '@/lib/api';
-import { groupPlanProgressLabel } from '@/lib/group_plan';
+import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
 import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 
-function groupStatusBadge(g: Group): { label: string; tone: 'pending' | 'done' | 'task' } {
-  if ((g.open_tasks ?? 0) > 0) {
-    return { label: `任务 ${g.open_tasks}`, tone: 'task' };
-  }
-  if (g.my_checked_in_today) {
-    return { label: '已打卡 ✓', tone: 'done' };
-  }
-  return { label: '去打卡', tone: 'pending' };
+function groupStatusBadge(g: Group) {
+  return groupListStatusBadge(g);
 }
 
 export default function DiscoverGroupsPage() {
@@ -103,7 +97,7 @@ export default function DiscoverGroupsPage() {
             const barPct = g.plan_id
               ? (g.plan_progress_pct ?? 0)
               : Math.round((checked / members) * 100);
-            const planSub = g.plan_id ? groupPlanProgressLabel(g) : `${members} 位成员`;
+            const planSub = groupListSubline(g);
             const openTasks = g.open_tasks ?? 0;
             const cardClass = [
               'card',

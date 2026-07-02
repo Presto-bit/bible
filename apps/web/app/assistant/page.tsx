@@ -10,6 +10,11 @@ import { followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistan
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
 import { staticAssistantChips } from '@/lib/assistant_chip_prompts';
+import {
+  clearAssistantDraft,
+  loadAssistantDraft,
+  saveAssistantDraft,
+} from '@/lib/assistant_session_draft';
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
 
@@ -69,6 +74,7 @@ function AssistantPageInner() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const seedBoot = useRef(false);
+  const hydratedRef = useRef(false);
   const rafRef = useRef<number | null>(null);
 
   const [toast, setToast] = useState('');
@@ -206,10 +212,17 @@ function AssistantPageInner() {
   };
 
   useEffect(() => {
-    const r = new URLSearchParams(window.location.search).get('ref');
-    if (r) setRef(r);
     setSessions(loadSessions());
+    const savedFont = Number(localStorage.getItem('readerFont'));
+    if (savedFont) {
+      document.documentElement.style.setProperty('--assistant-answer-font-size', `${savedFont}px`);
+    }
   }, []);
+
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    saveAssistantDraft({ activeId, msgs, ref, mode, updatedAt: Date.now() });
+  }, [activeId, msgs, ref, mode]);
 
   const persist = (nextMsgs: Msg[], anchor: string) => {
     let sid = activeId;
@@ -304,15 +317,18 @@ function AssistantPageInner() {
     const sid = searchParams.get('sid');
     const legacyQ = searchParams.get('q');
     const autoSendParam = searchParams.get('auto_send') === '1';
+    const refParam = searchParams.get('ref') || '';
 
-    let refVal = searchParams.get('ref') || '';
+    let refVal = refParam;
     let question: string | null = null;
     let autoSend = autoSendParam;
     let skipInputPrefill = false;
+    let handled = false;
 
     if (sid) {
       const payload = consumeAssistantPrefill(sid);
       if (payload) {
+        handled = true;
         refVal = payload.ref || refVal;
         if (payload.seedMessages?.length) {
           setMsgs(payload.seedMessages.map((m) => ({ role: m.role, text: m.text })));
@@ -322,13 +338,27 @@ function AssistantPageInner() {
         }
         if (payload.autoSend) autoSend = true;
       }
+    } else {
+      const draft = loadAssistantDraft();
+      if (draft) {
+        handled = true;
+        setActiveId(draft.activeId);
+        setMsgs(draft.msgs);
+        setRef(draft.ref);
+        setMode(draft.mode);
+        skipInputPrefill = true;
+        refVal = draft.ref || refVal;
+      }
     }
+
     if (!skipInputPrefill) {
       if (!question && legacyQ) question = decodeURIComponent(legacyQ);
       if (!question && refVal) question = explainVerseQuestion(refVal);
       if (question) setInput(question);
     }
-    if (refVal) setRef(refVal);
+    if (handled && refVal) setRef(refVal);
+    else if (!handled && refParam) setRef(refParam);
+
     if (refVal && question && autoSend && !seedBoot.current) {
       seedBoot.current = true;
       void sendRef.current(question, 'understand', refVal);
@@ -337,6 +367,8 @@ function AssistantPageInner() {
     if (sid || legacyQ || autoSendParam) {
       router.replace('/assistant', { scroll: false });
     }
+
+    hydratedRef.current = true;
   }, [searchParams, router]);
 
   const startNewSession = () => {
@@ -344,6 +376,7 @@ function AssistantPageInner() {
     setMsgs([]);
     setInput('');
     setHistoryOpen(false);
+    clearAssistantDraft();
   };
 
   const openSession = (s: Session) => {
@@ -445,13 +478,18 @@ function AssistantPageInner() {
             <path d="M12 8v4l3 2" />
           </svg>
         </button>
-        {ref ? (
-          <Link href="/reader" className="rail-cta">
-            {ref} ›
-          </Link>
-        ) : (
-          <span />
-        )}
+        <div className="assistant-head-actions">
+          {ref ? (
+            <Link href="/reader" className="rail-cta">
+              {ref} ›
+            </Link>
+          ) : (
+            <span />
+          )}
+          <button type="button" className="text-link assistant-new-session" onClick={startNewSession}>
+            新会话
+          </button>
+        </div>
       </header>
 
       {msgs.length === 0 ? (
@@ -493,7 +531,9 @@ function AssistantPageInner() {
                 </div>
                 {m.role === 'assistant' ? (
                   m.text ? (
-                    <AnswerText text={stripFollowups(m.text)} />
+                    <div className="assistant-answer">
+                      <AnswerText text={stripFollowups(m.text)} />
+                    </div>
                   ) : (
                     <div className="muted">…</div>
                   )

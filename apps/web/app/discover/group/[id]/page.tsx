@@ -2,13 +2,14 @@
 
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { GroupChatFeed } from '@/components/group/GroupChatFeed';
+import { GroupActivityFeed } from '@/components/group/GroupActivityFeed';
+import { GroupCheckinWall } from '@/components/group/GroupCheckinWall';
 import { GroupComposerBar } from '@/components/group/GroupComposerBar';
 import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
 import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
-import { GroupTasksZone } from '@/components/group/GroupTasksZone';
+import { GroupTodayFocus } from '@/components/group/GroupTodayFocus';
 import { GroupToast } from '@/components/group/GroupToast';
 import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
@@ -320,20 +321,22 @@ function GroupPageInner() {
   };
 
   return (
-    <main className="group-page group-page-wechat">
-      <div className="group-wechat-top">
+    <main className="group-page group-page-checkin">
+      <div className="group-checkin-top">
         <GroupNavBar detail={safeDetail} onOpenSettings={() => setSettingsOpen(true)} />
-        <GroupTasksZone
-          detail={safeDetail}
+        <GroupTodayFocus
           gid={gid}
+          detail={safeDetail}
           pinnedTask={pinnedTask}
           tasks={tasks}
+          onCheckin={() => setComposerOpen(true)}
           onCompleteTask={completeTask}
         />
+        <GroupCheckinWall detail={safeDetail} onOpenMembers={() => setSettingsOpen(true)} />
       </div>
 
-      <div className="group-feed-wrap group-wechat-feed" ref={feedWrapRef}>
-        <GroupChatFeed
+      <div className="group-feed-wrap group-checkin-feed" ref={feedWrapRef}>
+        <GroupActivityFeed
           gid={gid}
           messages={feed}
           isOwner={isOwner}

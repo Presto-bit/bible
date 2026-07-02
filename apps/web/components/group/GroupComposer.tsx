@@ -56,6 +56,10 @@ export function GroupComposer({
       book && chapter
         ? `${book}.${chapter}${verse ? `.${verse}` : ''}`
         : params.get('ref') || undefined;
+    const refParam = params.get('ref');
+    if (refParam) {
+      setSelectedRef(refParam);
+    }
     loadFootprintRefs({
       taskRef,
       taskTitle: taskTitle || undefined,

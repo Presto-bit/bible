@@ -6,16 +6,18 @@ const ANIM_MS = 220;
 
 export function useReaderPageTurn({
   enabled,
-  chapter,
-  chapterCount,
+  canPrev,
+  canNext,
   blocked,
   onChapterChange,
+  onDragApproach,
 }: {
   enabled: boolean;
-  chapter: number;
-  chapterCount: number;
+  canPrev: boolean;
+  canNext: boolean;
   blocked: boolean;
   onChapterChange: (delta: number) => void;
+  onDragApproach?: (delta: number) => void;
 }) {
   const [offset, setOffset] = useState(0);
   const [animating, setAnimating] = useState(false);
@@ -25,10 +27,8 @@ export function useReaderPageTurn({
     startX: 0,
     startY: 0,
     axis: null as 'x' | 'y' | null,
+    prefetched: false,
   });
-
-  const canPrev = chapter > 1;
-  const canNext = chapter < chapterCount;
 
   const clampOffset = useCallback(
     (raw: number) => {
@@ -50,6 +50,7 @@ export function useReaderPageTurn({
         startX: e.touches[0].clientX,
         startY: e.touches[0].clientY,
         axis: null,
+        prefetched: false,
       };
     },
     [enabled, blocked, animating],
@@ -66,9 +67,16 @@ export function useReaderPageTurn({
       }
       if (drag.current.axis !== 'x') return;
       e.preventDefault();
-      setOffset(clampOffset(dx));
+      const next = clampOffset(dx);
+      setOffset(next);
+      const w = viewportRef.current?.clientWidth ?? window.innerWidth;
+      const ratio = Math.abs(next) / w;
+      if (!drag.current.prefetched && ratio >= 0.12 && onDragApproach) {
+        drag.current.prefetched = true;
+        onDragApproach(next < 0 ? 1 : -1);
+      }
     },
-    [enabled, blocked, clampOffset],
+    [enabled, blocked, clampOffset, onDragApproach],
   );
 
   const finishDrag = useCallback(() => {

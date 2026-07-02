@@ -1047,6 +1047,18 @@ a.today-card-link {
   margin-bottom: 8px;
 }
 
+.assistant-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.assistant-new-session {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .assistant-thread {
   flex: 1;
   min-height: 0;
@@ -1192,10 +1204,12 @@ a.today-card-link {
 .assistant-user-text {
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.7;
+  line-height: 1.85;
+  font-size: var(--assistant-answer-font-size, 17px);
   text-align: left;
   display: inline-block;
   max-width: 100%;
+  color: var(--ink);
 }
 
 .intent-row {
@@ -1911,43 +1925,48 @@ a.today-card-link {
   margin-bottom: 0;
 }
 
-/* ─── 小爱富文本输出（可读性 / 视觉增强） ─── */
+/* ─── 小爱富文本输出（可读性 / 视觉增强，字号与读经默认一致） ─── */
 .answer-rich {
-  line-height: 1.78;
-  font-size: 15px;
+  line-height: 1.85;
+  font-size: var(--assistant-answer-font-size, 17px);
   color: var(--ink);
   word-break: break-word;
 }
 .answer-rich .ans-p {
-  margin: 0 0 10px;
+  margin: 0 0 12px;
 }
 .answer-rich .ans-spacer {
-  height: 8px;
+  height: 10px;
 }
 .answer-rich .ans-h {
-  margin: 14px 0 6px;
-  font-size: 15.5px;
+  margin: 16px 0 8px;
+  font-size: calc(var(--assistant-answer-font-size, 17px) + 1px);
   font-weight: 700;
   color: var(--accent-deep);
 }
 .answer-rich .ans-section {
-  margin: 14px 0 6px;
+  margin: 16px 0 8px;
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--accent-wash);
+  border-left: 3px solid var(--accent-deep);
 }
 .answer-rich .ans-label {
   flex-shrink: 0;
-  background: var(--accent-wash);
+  background: var(--surface);
   color: var(--accent-deep);
   font-weight: 700;
-  font-size: 13px;
+  font-size: calc(var(--assistant-answer-font-size, 17px) - 2px);
   padding: 2px 10px;
   border-radius: 999px;
 }
 .answer-rich .ans-label-rest {
   color: var(--ink);
+  line-height: 1.85;
 }
 .answer-rich .ans-strong {
   font-weight: 700;
@@ -1955,21 +1974,30 @@ a.today-card-link {
 }
 .answer-rich .ans-quote {
   color: var(--accent-deep);
+  font-weight: 600;
 }
 .answer-rich .ans-list {
-  margin: 4px 0 10px;
-  padding-left: 20px;
+  margin: 6px 0 12px;
+  padding-left: 22px;
 }
 .answer-rich .ans-list li {
-  margin: 3px 0;
+  margin: 6px 0;
 }
 .answer-rich .ans-quote-block {
-  margin: 8px 0;
-  padding: 8px 12px;
+  margin: 10px 0;
+  padding: 10px 14px;
   border-left: 3px solid var(--gold);
   background: var(--accent-wash);
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 12px 12px 0;
   color: var(--ink-soft);
+  line-height: 1.85;
+}
+
+.assistant-answer .answer-rich,
+.assistant-user-text,
+.half-sheet-answer-rich .answer-rich {
+  font-size: var(--assistant-answer-font-size, 17px);
+  line-height: 1.85;
 }
 
 /* 阅读器：专有名词下划线（可点查词） */
@@ -2545,12 +2573,12 @@ a.today-card-link {
 }
 
 .half-sheet-verse {
-  padding: 8px 10px;
-  border-radius: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
   background: var(--accent-wash);
   border-left: 3px solid var(--accent-deep);
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: var(--assistant-answer-font-size, 17px);
+  line-height: 1.85;
   margin-bottom: 12px;
 }
 
@@ -2617,8 +2645,8 @@ a.today-card-link {
 }
 
 .half-sheet-answer-rich .answer-rich .ans-p {
-  line-height: 1.75;
-  margin: 8px 0;
+  line-height: 1.85;
+  margin: 10px 0;
 }
 
 .reader-ai-backdrop {
@@ -6332,4 +6360,300 @@ a.today-card-link {
 @keyframes verse-mark-flash {
   0%, 100% { box-shadow: none; }
   15%, 45% { box-shadow: 0 0 0 3px rgba(79, 107, 93, 0.45); }
+}
+
+/* ─── 打卡型共读群（P0–P2）── */
+.group-page-checkin {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - 56px);
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+}
+
+.group-checkin-top {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 0 8px;
+}
+
+.group-checkin-feed {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 0 12px;
+}
+
+.group-today-focus {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 16px;
+}
+
+.group-today-focus-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.group-today-focus-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-deep);
+  letter-spacing: 0.04em;
+}
+
+.group-today-focus-meta {
+  font-size: 12px;
+}
+
+.group-today-focus-status {
+  margin-top: 8px;
+}
+
+.group-today-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+.group-today-pill-checked {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+
+.group-today-pill-pending_checkin,
+.group-today-pill-has_tasks {
+  background: #fff5eb;
+  color: #b86b00;
+}
+
+.group-today-announce {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.group-today-announce p {
+  margin: 4px 0 0;
+}
+
+.group-today-plan strong {
+  display: block;
+  margin-top: 10px;
+  font-size: 16px;
+}
+
+.group-today-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.group-today-btn-read,
+.group-today-btn-checkin {
+  flex: 1;
+  min-width: 120px;
+  margin-top: 0 !important;
+  text-align: center;
+  text-decoration: none;
+}
+
+.group-today-btn-checkin {
+  background: var(--accent-deep);
+  border-color: var(--accent-deep);
+  color: #fff;
+}
+
+.group-today-done-note {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  align-self: center;
+}
+
+.group-today-tasks {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.group-today-tasks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.group-today-task-row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.group-today-task-row:last-child {
+  border-bottom: none;
+}
+
+.group-today-task-row.pinned {
+  background: var(--accent-wash);
+  margin: 0 -8px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  border-bottom: none;
+}
+
+.group-today-task-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+}
+
+.group-today-task-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.group-checkin-wall {
+  margin: 0;
+  padding: 12px 16px;
+  border-radius: 16px;
+}
+
+.group-checkin-wall-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.group-activity-feed {
+  padding: 4px 0 16px;
+}
+
+.group-activity-feed-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+
+.group-activity-empty {
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.group-activity-day {
+  margin-bottom: 12px;
+}
+
+.group-activity-day-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.group-activity-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.group-activity-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--bg, #fff);
+}
+
+.group-activity-checkin {
+  border-left: 3px solid var(--accent-deep);
+}
+
+.group-activity-task {
+  border-left: 3px solid #b86b00;
+}
+
+.group-activity-task-done {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-wash);
+}
+
+.group-activity-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.group-activity-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.group-activity-kind {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.group-activity-author {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.group-activity-time {
+  font-size: 11px;
+}
+
+.group-activity-body {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.group-activity-task-done {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+
+.group-activity-foot {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.group-activity-respond {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
 }

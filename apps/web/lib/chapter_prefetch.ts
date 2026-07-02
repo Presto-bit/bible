@@ -41,3 +41,14 @@ export function prefetchAdjacentChapters(
     void loadChapterVerses(bookId, ch, mainVersionId);
   }
 }
+
+/** 同步读缓存（翻页瞬间灌入，不发起网络）。 */
+export function getChapterVersesSync(
+  bookId: string,
+  chapter: number,
+  mainVersionId?: string | null,
+): Verse[] | null {
+  if (chapter < 1) return null;
+  const version = chapterCacheVersion(mainVersionId);
+  return getCachedChapter(bookId, chapter, version);
+}

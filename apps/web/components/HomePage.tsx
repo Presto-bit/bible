@@ -20,7 +20,7 @@ import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_re
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
 import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
-import { groupPlanProgressLabel } from '@/lib/group_plan';
+import { groupListSubline, myTodayGroupStatus, myTodayGroupStatusLabel } from '@/lib/group_status';
 import { nextReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
 
@@ -238,16 +238,12 @@ export default function HomePageClient() {
         ?? groups.find((g) => (g.open_tasks ?? 0) > 0);
       if (pending && (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0)) {
         const parts: string[] = [];
-        if (!pending.my_checked_in_today) parts.push('待打卡');
+        if (!pending.my_checked_in_today) parts.push(myTodayGroupStatusLabel(myTodayGroupStatus(pending)));
         if ((pending.open_tasks ?? 0) > 0) parts.push(`${pending.open_tasks} 个任务`);
-        if (pending.plan_id) {
-          const planLine = groupPlanProgressLabel(pending);
-          if (planLine) parts.push(planLine);
-        }
         groupCard = {
           title: pending.name,
-          sub: parts.join(' · ') || '共读群动态',
-          href: `/discover/group/${pending.id}`,
+          sub: parts.length ? parts.join(' · ') : groupListSubline(pending),
+          href: `/discover/group/${pending.id}?focus=checkin`,
         };
       }
       if (groups.length > 0) {

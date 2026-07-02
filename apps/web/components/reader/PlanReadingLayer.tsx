@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import type { PlanReadingMeta } from '@/lib/plan_reading';
 import {
@@ -27,6 +28,7 @@ export default function PlanReadingLayer({
   bookId,
   chapter,
   chapterBottomTick,
+  checkinGroupId,
   onMetaChange,
   onJump,
   onOverlayChange,
@@ -35,6 +37,7 @@ export default function PlanReadingLayer({
   bookId: string;
   chapter: number;
   chapterBottomTick?: number;
+  checkinGroupId?: string | null;
   onMetaChange: (m: PlanReadingMeta) => void;
   onJump: (bookId: string, chapter: number) => void;
   onOverlayChange?: (open: boolean) => void;
@@ -206,6 +209,15 @@ export default function PlanReadingLayer({
               ? ` · 明天解锁第 ${completedDayNum + 1} 天`
               : ' · 计划已全部完成'}
           </p>
+          {checkinGroupId && (
+            <Link
+              href={`/discover/group/${encodeURIComponent(checkinGroupId)}?focus=checkin&ref=${encodeURIComponent(`${bookId}.${chapter}`)}`}
+              className="font-pill accent"
+              style={{ marginTop: 10, display: 'inline-block' }}
+            >
+              去群里打卡 ›
+            </Link>
+          )}
           <button
             type="button"
             className="font-pill accent"

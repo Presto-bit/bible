@@ -17,9 +17,14 @@ import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
 import {
   chapterCacheVersion,
+  getChapterVersesSync,
   loadChapterVerses,
-  prefetchAdjacentChapters,
 } from '@/lib/chapter_prefetch';
+import {
+  canNavigateChapter,
+  prefetchReaderVicinity,
+  resolveChapterNav,
+} from '@/lib/reader_navigation';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { notesForChapter } from '@/lib/notes_for_chapter';
 import {
@@ -107,7 +112,7 @@ export default function ReaderView({
   book,
   books,
   chapter,
-  onChapterChange,
+  onNavigate,
   onPickBook,
   bookAbbr,
   renderVerseText,
@@ -116,11 +121,12 @@ export default function ReaderView({
   onPlanJump,
   externalOverlayOpen = false,
   flashRef = null,
+  checkinGroupId = null,
 }: {
   book: BibleBook;
   books: BibleBook[];
   chapter: number;
-  onChapterChange: (ch: number) => void;
+  onNavigate: (book: BibleBook, chapter: number) => void;
   onPickBook: () => void;
   bookAbbr: (name: string) => string;
   renderVerseText: (text: string, keyBase: string) => React.ReactNode;
@@ -129,6 +135,7 @@ export default function ReaderView({
   onPlanJump?: (bookId: string, chapter: number) => void;
   externalOverlayOpen?: boolean;
   flashRef?: string | null;
+  checkinGroupId?: string | null;
 }) {
   const [verses, setVerses] = useState<Verse[]>([]);
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
@@ -151,6 +158,10 @@ export default function ReaderView({
   const [chapterAnim, setChapterAnim] = useState('');
   const [peekPrevVerses, setPeekPrevVerses] = useState<Verse[] | null>(null);
   const [peekNextVerses, setPeekNextVerses] = useState<Verse[] | null>(null);
+  const [peekPrevBook, setPeekPrevBook] = useState<BibleBook | null>(null);
+  const [peekNextBook, setPeekNextBook] = useState<BibleBook | null>(null);
+  const [peekPrevChapter, setPeekPrevChapter] = useState(0);
+  const [peekNextChapter, setPeekNextChapter] = useState(0);
   const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [selectionSpan, setSelectionSpan] = useState<{ start: number; end: number } | null>(null);
@@ -599,6 +610,10 @@ export default function ReaderView({
     setThoughtsOn(getThoughtsOn());
   }, []);
 
+  useEffect(() => {
+    document.documentElement.style.setProperty('--assistant-answer-font-size', `${fontPx}px`);
+  }, [fontPx]);
+
   // 译本标签补全（版本列表加载后）。
   useEffect(() => {
     if (!versions?.length) return;
@@ -626,30 +641,46 @@ export default function ReaderView({
       .catch(() => setParallelVerses([]));
   }, [layout, mainVersionId, book.id, chapter, parallelVer]);
 
+  const readerLocation = useMemo(() => ({ bookId: book.id, chapter }), [book.id, chapter]);
+
+  const prefetchTarget = useCallback(
+    (bookId: string, ch: number) => {
+      void loadChapterVerses(bookId, ch, mainVersionId);
+    },
+    [mainVersionId],
+  );
+
   useEffect(() => {
     if (!swipeTurn) return;
     let cancelled = false;
-    const hydratePeek = async (ch: number, setter: (v: Verse[] | null) => void) => {
-      if (ch < 1 || ch > book.chapter_count) {
+    const prev = resolveChapterNav(books, readerLocation, -1);
+    const next = resolveChapterNav(books, readerLocation, 1);
+    setPeekPrevBook(prev?.book ?? null);
+    setPeekNextBook(next?.book ?? null);
+    setPeekPrevChapter(prev?.chapter ?? 0);
+    setPeekNextChapter(next?.chapter ?? 0);
+
+    const hydratePeek = async (target: ReturnType<typeof resolveChapterNav>, setter: (v: Verse[] | null) => void) => {
+      if (!target) {
         setter(null);
         return;
       }
-      const version = chapterCacheVersion(mainVersionId);
-      const cached = getCachedChapter(book.id, ch, version);
-      if (cached?.length) {
-        setter(cached);
+      const sync = getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
+      if (sync?.length) {
+        setter(sync);
         return;
       }
-      const verses = await loadChapterVerses(book.id, ch, mainVersionId);
-      if (!cancelled) setter(verses);
+      const loaded = await loadChapterVerses(target.book.id, target.chapter, mainVersionId);
+      if (!cancelled) setter(loaded);
     };
-    void hydratePeek(chapter - 1, setPeekPrevVerses);
-    void hydratePeek(chapter + 1, setPeekNextVerses);
-    prefetchAdjacentChapters(book.id, chapter, book.chapter_count, mainVersionId, 2);
+
+    void hydratePeek(prev, setPeekPrevVerses);
+    void hydratePeek(next, setPeekNextVerses);
+    prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
     return () => {
       cancelled = true;
     };
-  }, [book.id, book.chapter_count, chapter, mainVersionId, swipeTurn]);
+  }, [books, book, chapter, mainVersionId, swipeTurn, readerLocation, prefetchTarget]);
 
   useEffect(() => {
     setSelected([]);
@@ -664,31 +695,33 @@ export default function ReaderView({
       setLayoutVerses(cached);
       setVerses(cached);
       setChapterLoading(false);
-    } else if (swipeTurn) {
-      // 跟手翻页：保留当前正文，后台刷新，避免出现空白停顿
-      setChapterLoading(true);
-    } else {
+    } else if (!swipeTurn) {
       setChapterLoading(true);
     }
 
-    if (swipeTurn) {
-      prefetchAdjacentChapters(book.id, chapter, book.chapter_count, mainVersionId, 2);
-    }
+    prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
 
     let cancelled = false;
     const load = async () => {
       try {
-        const chinese = await api.chapter(book.id, chapter);
+        const chinese = hasCached
+          ? { verses: cached! }
+          : await api.chapter(book.id, chapter);
         if (cancelled) return;
         setLayoutVerses(chinese.verses);
         if (mainVersionId) {
-          const alt = await api.chapter(book.id, chapter, mainVersionId);
+          const altCached = getCachedChapter(book.id, chapter, version);
+          const alt = altCached?.length
+            ? { verses: altCached }
+            : await api.chapter(book.id, chapter, mainVersionId);
           if (cancelled) return;
           setVerses(alt.verses);
+          setCachedChapter(book.id, chapter, alt.verses, version);
         } else {
           setVerses(chinese.verses);
           setCachedChapter(book.id, chapter, chinese.verses, version);
         }
+        setChapterLoading(false);
         logChapterRead();
         logChapterDetail(book.id, chapter);
         maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
@@ -735,7 +768,7 @@ export default function ReaderView({
     return () => {
       cancelled = true;
     };
-  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome, flashRef, swipeTurn]);
+  }, [book, chapter, mainVersionId, bookAbbr, enterImmersive, peekChrome, flashRef, swipeTurn, books, prefetchTarget]);
 
   useEffect(() => {
     const el = contentRef.current;
@@ -797,60 +830,65 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
-  const changeChapter = useCallback(
+  const navigateByDelta = useCallback(
     (delta: number) => {
-      const nextCh = Math.min(book.chapter_count, Math.max(1, chapter + delta));
-      const version = chapterCacheVersion(mainVersionId);
+      const target = resolveChapterNav(books, readerLocation, delta);
+      if (!target) return;
       const peek = delta > 0 ? peekNextVerses : delta < 0 ? peekPrevVerses : null;
-      const cached = getCachedChapter(book.id, nextCh, version);
-      const instant = peek?.length ? peek : cached;
+      const version = chapterCacheVersion(mainVersionId);
+      const cached = getCachedChapter(target.book.id, target.chapter, version);
+      const instant = peek?.length ? peek : cached ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
       if (instant?.length) {
         setLayoutVerses(instant);
         setVerses(instant);
         setChapterLoading(false);
         if (!cached?.length) {
-          setCachedChapter(book.id, nextCh, instant, version);
+          setCachedChapter(target.book.id, target.chapter, instant, version);
         }
       } else if (swipeTurn) {
         setChapterLoading(true);
       }
       readingEngagedRef.current = true;
       enterImmersive();
-      onChapterChange(nextCh);
+      onNavigate(target.book, target.chapter);
     },
     [
-      book.id,
-      book.chapter_count,
-      chapter,
+      books,
+      readerLocation,
       peekNextVerses,
       peekPrevVerses,
       mainVersionId,
       swipeTurn,
       enterImmersive,
-      onChapterChange,
+      onNavigate,
     ],
   );
 
   const navChapter = (delta: number) => {
     if (pageTurn === 'swipe') {
-      changeChapter(delta);
+      navigateByDelta(delta);
       return;
     }
     readingEngagedRef.current = true;
     enterImmersive();
     setChapterAnim(delta > 0 ? 'chapter-exit-left' : 'chapter-exit-right');
     setTimeout(() => {
-      changeChapter(delta);
+      navigateByDelta(delta);
       setChapterAnim(swipeTurn ? '' : 'chapter-enter');
     }, 180);
   };
 
   const turn = useReaderPageTurn({
     enabled: swipeTurn,
-    chapter,
-    chapterCount: book.chapter_count,
+    canPrev: canNavigateChapter(books, readerLocation, -1),
+    canNext: canNavigateChapter(books, readerLocation, 1),
     blocked: overlayOpen || hasSel,
-    onChapterChange: changeChapter,
+    onChapterChange: navigateByDelta,
+    onDragApproach: (delta) => {
+      const target = resolveChapterNav(books, readerLocation, delta);
+      if (!target) return;
+      void loadChapterVerses(target.book.id, target.chapter, mainVersionId);
+    },
   });
 
   const versesInRange = (a: number, b: number) => {
@@ -925,6 +963,7 @@ export default function ReaderView({
           bookId={book.id}
           chapter={chapter}
           chapterBottomTick={chapterBottomTick}
+          checkinGroupId={checkinGroupId ?? groupCtx.groupId}
           onMetaChange={onPlanMetaChange}
           onJump={onPlanJump}
           onOverlayChange={setPlanOverlayOpen}
@@ -1141,10 +1180,10 @@ export default function ReaderView({
             <div className="reader-turn-track" style={turn.trackStyle}>
               <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                 <ReaderChapterPeek
-                  bookId={book.id}
-                  bookName={book.name}
+                  bookId={peekPrevBook?.id ?? book.id}
+                  bookName={peekPrevBook?.name ?? book.name}
                   bookAbbr={bookAbbr}
-                  chapter={chapter - 1}
+                  chapter={peekPrevChapter}
                   verses={peekPrevVerses}
                   englishUI={englishUI}
                   fontPx={fontPx}
@@ -1157,10 +1196,10 @@ export default function ReaderView({
               </div>
               <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                 <ReaderChapterPeek
-                  bookId={book.id}
-                  bookName={book.name}
+                  bookId={peekNextBook?.id ?? book.id}
+                  bookName={peekNextBook?.name ?? book.name}
                   bookAbbr={bookAbbr}
-                  chapter={chapter + 1}
+                  chapter={peekNextChapter}
                   verses={peekNextVerses}
                   englishUI={englishUI}
                   fontPx={fontPx}
@@ -1195,7 +1234,7 @@ export default function ReaderView({
           onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
           aria-label="打卡到共读群"
         >
-          打卡
+          {groupCtx.groupId ? '打卡到群' : '打卡'}
         </button>
       )}
 
@@ -1206,25 +1245,24 @@ export default function ReaderView({
           style={focusBarStyle}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="reader-focus-row reader-focus-row-single">
-            {underlinesOn && (
-              <>
-                {MARK_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
-                    title={MARK_COLOR_SEMANTICS[c].label}
-                    aria-label={MARK_COLOR_SEMANTICS[c].label}
-                    onClick={() => applyMarkChoice(c)}
-                  />
-                ))}
-                {currentMark && (
-                  <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
-                )}
-                <span className="reader-focus-divider" aria-hidden />
-              </>
-            )}
+          {underlinesOn && (
+            <div className="reader-focus-row reader-focus-row-mark">
+              {MARK_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
+                  title={MARK_COLOR_SEMANTICS[c].label}
+                  aria-label={MARK_COLOR_SEMANTICS[c].label}
+                  onClick={() => applyMarkChoice(c)}
+                />
+              ))}
+              {currentMark && (
+                <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
+              )}
+            </div>
+          )}
+          <div className="reader-focus-row reader-focus-row-actions">
             <button
               type="button"
               className="vsb-item"

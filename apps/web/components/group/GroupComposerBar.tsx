@@ -15,7 +15,7 @@ export function GroupComposerBar({ disabled, onOpen }: Props) {
         onClick={onOpen}
         aria-label="写打卡"
       >
-        <span className="group-wechat-input-placeholder">写打卡感想、分享读经…</span>
+        <span className="group-wechat-input-placeholder">打卡 · 分享今日读经感受</span>
       </button>
     </footer>
   );

@@ -180,7 +180,7 @@ export default function XiaoAiSheet({
             <span className="half-sheet-badge">
               {mode === 'ask' ? '小爱解读 · 背景·经文解释' : '小爱解释'}
             </span>
-            <div className="half-sheet-answer-body reader-ai-answer">
+            <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
               {clean ? (
                 <AnswerText text={clean} />
               ) : (

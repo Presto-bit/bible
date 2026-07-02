@@ -32,9 +32,14 @@ export async function adoptGroupPlan(
   return plan;
 }
 
-export function groupPlanReaderHref(planId: string, day?: number): string {
+export function groupPlanReaderHref(planId: string, day?: number, groupId?: string): string {
   const d = day ?? (getPlanDay(planId) || 1);
-  return `/reader?plan=${encodeURIComponent(planId)}&day=${d}`;
+  const params = new URLSearchParams({
+    plan: planId,
+    day: String(d),
+  });
+  if (groupId) params.set('group', groupId);
+  return `/reader?${params.toString()}`;
 }
 
 export function groupPlanProgressLabel(g: {
