@@ -221,6 +221,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           username: nameCtl.text.trim(), password: pwdCtl.text);
       if (mounted) setState(() {});
     } else {
+      await auth.setCredentials(username: '', password: '');
       await auth.markOnboarded();
     }
   }
@@ -342,19 +343,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _changePassword() async {
-    final ctl = TextEditingController();
+    final auth = ref.read(authControllerProvider.notifier);
+    final needOld = ref.read(authControllerProvider).hasPassword;
+    final oldCtl = TextEditingController();
+    final newCtl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('修改密码'),
-        content: TextField(
-          controller: ctl,
-          autofocus: true,
-          obscureText: true,
-          decoration: const InputDecoration(
-            labelText: '新密码',
-            border: OutlineInputBorder(),
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (needOld)
+              TextField(
+                controller: oldCtl,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: '当前密码',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            if (needOld) const SizedBox(height: 10),
+            TextField(
+              controller: newCtl,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: '新密码（≥6 位）',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -368,14 +386,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ],
       ),
     );
-    if (ok == true && ctl.text.trim().isNotEmpty) {
-      final name = ref.read(prefsProvider).getString('onboarding_name') ?? '';
-      await ref
-          .read(authControllerProvider.notifier)
-          .setCredentials(username: name, password: ctl.text.trim());
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('密码已更新')));
+    if (ok == true && newCtl.text.trim().length >= 6) {
+      try {
+        await auth.changePassword(
+          oldPassword: needOld ? oldCtl.text : null,
+          newPassword: newCtl.text.trim(),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(const SnackBar(content: Text('密码已更新')));
+          setState(() {});
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('$e')));
+        }
       }
     }
   }
@@ -464,6 +490,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                               ),
                             ),
+                            Text(
+                              auth.hasPassword ? '已设密码 · 可换机登录' : '未设密码 · 建议设置',
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.inkFaint),
+                            ),
                           ],
                         ),
                       ),
@@ -476,29 +507,30 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ],
             ),
-            if (!auth.signedIn) ...[
-              const SizedBox(height: 12),
-              PaperCard(
-                child: Row(
-                  children: [
-                    const Expanded(
-                      child: Text('登录后可云端同步笔记与进度',
-                          style: TextStyle(
-                              color: AppColors.inkSoft, fontSize: 13)),
+            PaperCard(
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      auth.hasPassword
+                          ? '已设密码，换机可用 ID 或用户名登录'
+                          : '建议设置密码，换机更方便',
+                      style: const TextStyle(
+                          color: AppColors.inkSoft, fontSize: 13),
                     ),
-                    FilledButton(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.accentDeep),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) => const LoginScreen()),
-                      ),
-                      child: const Text('登录'),
+                  ),
+                  FilledButton(
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accentDeep),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const LoginScreen()),
                     ),
-                  ],
-                ),
+                    child: const Text('切换账号'),
+                  ),
+                ],
               ),
-            ],
+            ),
             const SizedBox(height: 14),
             PaperCard(
               tier: 2,

@@ -3,6 +3,7 @@ import './globals.css';
 import PwaRegister from '@/components/PwaRegister';
 import StaleShellGuard from '@/components/StaleShellGuard';
 import InstallBanner from '@/components/InstallBanner';
+import AccountBootstrap from '@/components/AccountBootstrap';
 import BottomTabs from '@/components/BottomTabs';
 
 import { BASE_PATH } from '@/lib/basePath';
@@ -38,6 +39,7 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body>
         <div className="app-body">{children}</div>
+        <AccountBootstrap />
         <BottomTabs />
         <StaleShellGuard />
         <PwaRegister />

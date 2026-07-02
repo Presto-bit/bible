@@ -56,7 +56,7 @@ export default function LoginPage() {
           <input
             className="book-chip"
             style={{ width: '100%', textAlign: 'left', marginBottom: 12 }}
-            placeholder="用户ID（10 位数字）或 用户名"
+            placeholder="用户ID（8 位数字）或 用户名"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
           />

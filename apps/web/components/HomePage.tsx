@@ -5,8 +5,13 @@ import Link from 'next/link';
 import {
   api,
   type DailyVerse,
+  ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
+import {
+  readLocalDailyVerseLike,
+  writeLocalDailyVerseLike,
+} from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getPendingBookChallenge } from '@/lib/challenge_progress';
@@ -101,14 +106,25 @@ export default function HomePageClient() {
   const [err, setErr] = useState<string | null>(null);
   const [dvLoading, setDvLoading] = useState(true);
 
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [shareCount, setShareCount] = useState(0);
+  const [likeBusy, setLikeBusy] = useState(false);
+  const [likeErr, setLikeErr] = useState<string | null>(null);
+
   const loadDailyVerse = useCallback(() => {
     setDvLoading(true);
     setErr(null);
-    api
-      .dailyVerse()
+    void ensureAccountReady()
+      .then(() => api.dailyVerse())
       .then((v) => {
         setDv(v);
-        setLiked(Boolean(v.liked));
+        const day = v.day ?? 0;
+        const localLiked = day ? readLocalDailyVerseLike(day) : null;
+        const serverLiked = Boolean(v.liked);
+        const mergedLiked = serverLiked || localLiked === true;
+        setLiked(mergedLiked);
+        if (day && mergedLiked) writeLocalDailyVerseLike(day, true);
         setLikeCount(v.likes_count ?? 0);
         setShareCount(v.shares_count ?? 0);
       })
@@ -121,14 +137,17 @@ export default function HomePageClient() {
   }, [loadDailyVerse]);
 
   useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') loadDailyVerse();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [loadDailyVerse]);
+
+  useEffect(() => {
     const img = new Image();
     img.src = VERSE_BG;
   }, []);
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
-  const [shareCount, setShareCount] = useState(0);
-  const [likeBusy, setLikeBusy] = useState(false);
-  const [likeErr, setLikeErr] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
   const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
   const [page, setPage] = useState(0);
@@ -394,9 +413,11 @@ export default function HomePageClient() {
                 setLiked(!prevLiked);
                 setLikeCount(Math.max(0, prevCount + (prevLiked ? -1 : 1)));
                 try {
-                  const r = await api.toggleDailyVerseLike();
+                  const verseDay = dv?.day;
+                  const r = await api.toggleDailyVerseLike(verseDay);
                   setLiked(Boolean(r.liked));
                   setLikeCount(r.likes_count ?? prevCount);
+                  if (verseDay != null) writeLocalDailyVerseLike(verseDay, Boolean(r.liked));
                 } catch (e) {
                   setLiked(prevLiked);
                   setLikeCount(prevCount);

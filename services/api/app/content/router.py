@@ -8,13 +8,12 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from ..auth.user_code import is_user_code
 from ..db import get_pool
 from . import loader
 from .planner import SCOPE_LABELS, generate_plan
 
 router = APIRouter(prefix="/content", tags=["content"])
-
-_USER_CODE_RE = re.compile(r"^\d{10}$")
 
 
 class GeneratePlanBody(BaseModel):
@@ -94,7 +93,7 @@ def _resolve_verse_day(day: int | None) -> tuple[int, dict]:
 def _pick_user_code(x_user_code: str | None, x_user_id: str | None) -> str | None:
     for raw in (x_user_code, x_user_id):
         code = (raw or "").strip()
-        if _USER_CODE_RE.match(code):
+        if is_user_code(code):
             return code
     return None
 
@@ -149,7 +148,7 @@ def toggle_daily_verse_like(
 ) -> dict:
     user_code = _pick_user_code(x_user_code, x_user_id)
     if not user_code:
-        raise HTTPException(status_code=400, detail="需要 10 位用户标识（X-User-Code）")
+        raise HTTPException(status_code=400, detail="需要 8 位用户标识（X-User-Code）")
     verse_day, _ = _resolve_verse_day(day)
     try:
         pool = get_pool()

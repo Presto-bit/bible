@@ -1,12 +1,14 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
 import {
   bindDeviceGuestId,
-  deviceIdToUserCode,
   getDeviceBoundGuestId,
   getDeviceId,
+  restoreUserCode,
 } from './device_id';
+import { deviceIdToUserCode, isUserCode, USER_CODE_RE } from './user_code';
 
 export { getDeviceId } from './device_id';
+export { deviceIdToUserCode, isUserCode, USER_CODE_LEN, USER_CODE_RE } from './user_code';
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn';
@@ -69,16 +71,18 @@ function userCodeHeader(): Record<string, string> {
   return code ? { 'X-User-Code': code } : {};
 }
 
-// ── 身份（本地优先：免注册 10 位数字 ID 即唯一标识） ──
+// ── 身份（本地优先：免注册 8 位数字 ID 即唯一标识；兼容历史 10 位） ──
 const GUEST_KEY = 'presto_guest_id';
 const USER_KEY = 'presto_user_id';
 const NAME_KEY = 'profile_name';
-const PWD_KEY = 'account_pwd';
+const HAS_PWD_KEY = 'account_has_password';
 const ONBOARDED_KEY = 'account_onboarded';
-// 本地账号注册表：用户名 → { id, pwd }，用于离线唯一校验与用户名+密码登录。
+// 本地用户名 → user_code 映射（不含密码，仅离线查 ID）
 const REGISTRY_KEY = 'account_registry';
 
 const FIRST_SEEN_KEY = 'presto_first_seen';
+
+let ensureAccountPromise: Promise<void> | null = null;
 
 function ensureFirstSeen() {
   if (!localStorage.getItem(FIRST_SEEN_KEY)) {
@@ -86,11 +90,63 @@ function ensureFirstSeen() {
   }
 }
 
-/** 游客 ID：绑定本设备，清缓存前保持不变；设密码后 USER_KEY 与之相同 */
+function setHasPasswordCached(v: boolean) {
+  localStorage.setItem(HAS_PWD_KEY, v ? '1' : '0');
+}
+
+export function hasPassword(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(HAS_PWD_KEY) === '1';
+}
+
+async function refreshAccountStatus(code: string): Promise<void> {
+  try {
+    const res = await fetch(
+      `${API_BASE}/auth/account-status?user_code=${encodeURIComponent(code)}`,
+      { cache: 'no-store' },
+    );
+    if (!res.ok) return;
+    const d = await res.json();
+    if (d.username) localStorage.setItem(NAME_KEY, d.username);
+    setHasPasswordCached(Boolean(d.has_password));
+  } catch {
+    /* 离线跳过 */
+  }
+}
+
+/** 首次打开静默建档，写入登录态并 merge-guest（P0/P2） */
+export async function ensureAccountReady(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  if (ensureAccountPromise) return ensureAccountPromise;
+  ensureAccountPromise = (async () => {
+    const code = guestId();
+    if (!code) return;
+    if (!currentUserId()) localStorage.setItem(USER_KEY, code);
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_code: code }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        if (d.username) localStorage.setItem(NAME_KEY, d.username);
+        setHasPasswordCached(Boolean(d.has_password));
+      }
+    } catch {
+      /* 离线：本地 ID 仍可用 */
+    }
+    await refreshAccountStatus(code);
+    void import('./post_login').then((m) => m.mergeGuest()).catch(() => {});
+  })();
+  return ensureAccountPromise;
+}
+
+/** 游客 ID：绑定本设备；清 localStorage 后尝试 IndexedDB 恢复 */
 export function guestId(): string {
   if (typeof window === 'undefined') return '';
   let g = localStorage.getItem(GUEST_KEY);
-  if (g && /^\d{10}$/.test(g)) {
+  if (g && isUserCode(g)) {
     bindDeviceGuestId(g);
     return g;
   }
@@ -108,6 +164,21 @@ export function guestId(): string {
   return g;
 }
 
+/** 异步恢复：localStorage 无 ID 时从 IndexedDB 恢复 */
+export async function guestIdAsync(): Promise<string> {
+  if (typeof window === 'undefined') return '';
+  const cur = localStorage.getItem(GUEST_KEY);
+  if (cur && isUserCode(cur)) return cur;
+  const restored = await restoreUserCode();
+  if (restored) {
+    localStorage.setItem(GUEST_KEY, restored);
+    bindDeviceGuestId(restored);
+    ensureFirstSeen();
+    return restored;
+  }
+  return guestId();
+}
+
 // 注册（首次使用）年份；用于读经回顾「注册年→当年」范围。
 export function registrationYear(): number {
   if (typeof window === 'undefined') return new Date().getFullYear();
@@ -117,7 +188,7 @@ export function registrationYear(): number {
   return new Date().getFullYear();
 }
 
-// 当前生效的用户 ID：登录后的 ID，否则免注册游客 ID。两者都是 10 位数字。
+// 当前生效的用户 ID：登录后的 ID，否则免注册游客 ID（8 位；兼容 10 位）。
 export function currentUserId(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(USER_KEY);
@@ -130,12 +201,16 @@ export function effectiveId(): string {
 
 interface RegistryEntry {
   id: string;
-  pwd: string;
 }
 function readRegistry(): Record<string, RegistryEntry> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(REGISTRY_KEY) || '{}');
+    const raw = JSON.parse(localStorage.getItem(REGISTRY_KEY) || '{}') as Record<string, RegistryEntry | { id: string; pwd?: string }>;
+    const out: Record<string, RegistryEntry> = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (v && typeof v.id === 'string') out[k] = { id: v.id };
+    }
+    return out;
   } catch {
     return {};
   }
@@ -186,100 +261,109 @@ export async function usernameAvailable(username: string): Promise<boolean> {
   return !localTaken;
 }
 
-// 设置名称 + 密码（首次引导 / 修改）。绑定到当前用户 ID。
+// 设置名称 + 密码（首次引导 / 修改）。密码仅存服务端 hash。
 export async function setCredentials(username: string, password: string): Promise<void> {
   const u = username.trim();
   const id = effectiveId();
   if (u) {
     const reg = readRegistry();
-    // 清掉同 ID 的旧用户名映射，避免残留
     for (const key of Object.keys(reg)) {
       if (reg[key].id === id) delete reg[key];
     }
-    reg[u] = { id, pwd: password };
+    reg[u] = { id };
     writeRegistry(reg);
     localStorage.setItem(NAME_KEY, u);
   }
-  if (password) localStorage.setItem(PWD_KEY, password);
   markOnboarded();
-  // 确保以该 ID 作为登录身份（用于云端数据归属）
   localStorage.setItem(USER_KEY, id);
   try {
-    await fetch(`${API_BASE}/auth/register`, {
+    const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user_code: id, username: u || null, password: password || null }),
+      body: JSON.stringify({
+        user_code: id,
+        username: u || null,
+        password: password || null,
+      }),
     });
-  } catch {
-    /* 后端不可用：本地已生效 */
+    if (res.ok) {
+      const d = await res.json();
+      setHasPasswordCached(Boolean(d.has_password));
+    } else if (password) {
+      throw new Error('保存失败，请检查网络');
+    }
+  } catch (e) {
+    if (password) throw e instanceof Error ? e : new Error(String(e));
   }
   void import('./post_login').then((m) => m.afterLogin());
 }
 
-// 登录：标识符可为 10 位用户ID，或用户名（需配密码）。
+export async function changePassword(oldPassword: string | null, newPassword: string): Promise<void> {
+  const id = effectiveId();
+  if (newPassword.length < 6) throw new Error('密码至少 6 位');
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({
+      user_code: id,
+      old_password: oldPassword || null,
+      new_password: newPassword,
+    }),
+  });
+  if (res.status === 401) throw new Error('当前密码不正确');
+  if (!res.ok) {
+    let detail = `${res.status}`;
+    try {
+      detail = (await res.json()).detail || detail;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(detail);
+  }
+  setHasPasswordCached(true);
+}
+
+// 登录：标识符可为 8/10 位用户ID，或用户名（需配密码）。必须经服务端校验。
 export async function loginWithIdentifier(identifier: string, password: string): Promise<string> {
   const idf = identifier.trim();
   if (!idf) throw new Error('请输入用户ID或用户名');
 
-  // 1) 10 位数字 → 直接以该用户ID登录（采用该身份，云端数据按 ID 归属）
-  if (/^\d{10}$/.test(idf)) {
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: idf, password: password || null }),
-      });
-      if (res.ok) {
-        const d = await res.json();
-        localStorage.setItem(USER_KEY, d.user_code || idf);
-        if (d.username) localStorage.setItem(NAME_KEY, d.username);
-        markOnboarded();
-        void import('./post_login').then((m) => m.afterLogin());
-        return d.user_code || idf;
-      }
-      if (res.status === 401) throw new Error('密码不正确');
-    } catch (e) {
-      if (e instanceof Error && e.message === '密码不正确') throw e;
-      /* 后端不可用：本地采用该 ID */
-    }
-    localStorage.setItem(USER_KEY, idf);
-    markOnboarded();
-    void import('./post_login').then((m) => m.afterLogin());
-    return idf;
+  if (!/^\d{8}$/.test(idf) && !/^\d{10}$/.test(idf) && !password) {
+    throw new Error('用户名登录需要密码');
   }
 
-  // 2) 用户名 + 密码
-  if (!password) throw new Error('用户名登录需要密码');
-  // 本地注册表优先（离线可用）
-  const reg = readRegistry();
-  const entry = reg[idf];
-  if (entry) {
-    if (entry.pwd !== password) throw new Error('用户名或密码错误');
-    localStorage.setItem(USER_KEY, entry.id);
-    localStorage.setItem(NAME_KEY, idf);
-    markOnboarded();
-    void import('./post_login').then((m) => m.afterLogin());
-    return entry.id;
-  }
-  // 后端登录
+  let res: Response;
   try {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+    res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: idf, password }),
+      body: JSON.stringify({ identifier: idf, password: password || null }),
     });
-    if (res.ok) {
-      const d = await res.json();
-      localStorage.setItem(USER_KEY, d.user_code);
-      localStorage.setItem(NAME_KEY, d.username || idf);
-      markOnboarded();
-      void import('./post_login').then((m) => m.afterLogin());
-      return d.user_code as string;
-    }
   } catch {
-    /* fallthrough */
+    throw new Error('网络异常，请稍后重试');
   }
-  throw new Error('用户名或密码错误');
+
+  if (res.status === 401) {
+    const d = await res.json().catch(() => ({}));
+    throw new Error(d.detail || '用户名或密码错误');
+  }
+  if (!res.ok) {
+    throw new Error('登录失败，请稍后重试');
+  }
+
+  const d = await res.json();
+  const code = d.user_code as string;
+  localStorage.setItem(GUEST_KEY, code);
+  bindDeviceGuestId(code);
+  localStorage.setItem(USER_KEY, code);
+  if (d.username) localStorage.setItem(NAME_KEY, d.username);
+  setHasPasswordCached(Boolean(d.has_password));
+  markOnboarded();
+  void import('./post_login').then((m) => m.afterLogin());
+  return code;
 }
 
 export function logout() {
@@ -307,10 +391,14 @@ export async function chatStream(
 ): Promise<void> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'X-Guest-Id': guestId(),
+    'X-Guest-Id': getDeviceId(),
+    'X-Device-Id': getDeviceId(),
   };
-  const uid = currentUserId();
-  if (uid) headers['X-User-Id'] = uid;
+  const code = effectiveId();
+  if (code) {
+    headers['X-User-Code'] = code;
+    headers['X-User-Id'] = code;
+  }
 
   let res: Response;
   try {
@@ -384,15 +472,16 @@ export async function chatStream(
 // ── 带认证头的请求（X-User-Id / X-Guest-Id；登录用户服务端为准） ──
 export function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
+  const device = getDeviceId();
+  if (device) {
+    h['X-Guest-Id'] = device;
+    h['X-Device-Id'] = device;
+  }
   const code = effectiveId();
   if (code) {
     h['X-User-Code'] = code;
     h['X-User-Id'] = code;
   }
-  const g = guestId();
-  if (g) h['X-Guest-Id'] = g;
-  const device = getDeviceId();
-  if (device) h['X-Device-Id'] = device;
   return h;
 }
 
@@ -592,16 +681,20 @@ export interface GuideResult {
 }
 
 export const api = {
-  dailyVerse: () => getJson<DailyVerse>('/content/daily-verse', userCodeHeader()),
-  toggleDailyVerseLike: () =>
-    authed<{ liked: boolean; likes_count: number; shares_count: number }>(
-      '/content/daily-verse/like',
-      { method: 'POST', headers: userCodeHeader() },
+  dailyVerse: (day?: number) =>
+    getJson<DailyVerse>(
+      `/content/daily-verse${day != null ? `?day=${day}` : ''}`,
+      authHeaders(),
     ),
-  recordDailyVerseShare: () =>
+  toggleDailyVerseLike: (day?: number) =>
+    authed<{ liked: boolean; likes_count: number; shares_count: number }>(
+      `/content/daily-verse/like${day != null ? `?day=${day}` : ''}`,
+      { method: 'POST' },
+    ),
+  recordDailyVerseShare: (day?: number) =>
     authed<{ ok: boolean; likes_count: number; shares_count: number }>(
-      '/content/daily-verse/share',
-      { method: 'POST', headers: userCodeHeader() },
+      `/content/daily-verse/share${day != null ? `?day=${day}` : ''}`,
+      { method: 'POST' },
     ),
   dailyDevotional: () => getJson<DailyDevotional>('/content/daily-devotional'),
   prayerToday: () => getJson<PrayerToday>('/content/prayer-today'),

@@ -69,17 +69,15 @@ class ReaderFontNotifier extends Notifier<ReaderFontSize> {
 final readerFontProvider =
     NotifierProvider<ReaderFontNotifier, ReaderFontSize>(ReaderFontNotifier.new);
 
-enum ReaderExperienceTheme { paper, morning, night }
+enum ReaderExperienceTheme { morning, night }
 
 extension ReaderExperienceThemeX on ReaderExperienceTheme {
   String get label => switch (this) {
-        ReaderExperienceTheme.paper => '纸质',
         ReaderExperienceTheme.morning => '清晨',
         ReaderExperienceTheme.night => '夜深',
       };
 
   Color get background => switch (this) {
-        ReaderExperienceTheme.paper => const Color(0xFFF7F2E8),
         ReaderExperienceTheme.morning => const Color(0xFFFFFCFA),
         ReaderExperienceTheme.night => const Color(0xFF12181C),
       };
@@ -99,11 +97,13 @@ const _chapterCachePrefix = 'presto_ch_cnv_';
 class ReaderExperienceThemeNotifier extends Notifier<ReaderExperienceTheme> {
   @override
   ReaderExperienceTheme build() {
-    final raw = ref.read(prefsProvider).getString(_themeKey);
-    return ReaderExperienceTheme.values.firstWhere(
-      (e) => e.name == raw,
-      orElse: () => ReaderExperienceTheme.morning,
-    );
+    final prefs = ref.read(prefsProvider);
+    final raw = prefs.getString(_themeKey);
+    if (raw == 'night') return ReaderExperienceTheme.night;
+    if (raw == 'paper') {
+      prefs.setString(_themeKey, 'morning');
+    }
+    return ReaderExperienceTheme.morning;
   }
 
   void set(ReaderExperienceTheme t) {

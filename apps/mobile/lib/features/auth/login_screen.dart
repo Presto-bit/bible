@@ -69,7 +69,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           TextField(
             controller: _identifier,
             decoration: const InputDecoration(
-              labelText: '用户ID（10 位数字）或 用户名',
+              labelText: '用户ID（8 位数字）或 用户名',
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.person_outline),
             ),
@@ -106,7 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            '免注册即用：每台设备自动分配 10 位用户ID。设置用户名与密码后，可在其它设备用「用户名 + 密码」登录同一账号。',
+            '免注册即用：每台设备自动分配 8 位用户ID。设置用户名与密码后，可在其它设备用「用户名 + 密码」登录同一账号。',
             style: TextStyle(color: AppColors.inkFaint, fontSize: 12, height: 1.6),
           ),
         ],

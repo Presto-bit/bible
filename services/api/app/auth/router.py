@@ -12,8 +12,7 @@ from pydantic import BaseModel
 from ..config import get_settings
 from ..db import get_pool
 from .session import get_current_user
-from .user_code import CODE_RE as _CODE_RE
-from .user_code import uuid_for_code as _uuid_for_code
+from .user_code import is_user_code, pick_user_code, uuid_for_code as _uuid_for_code
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -116,6 +115,97 @@ class LoginBody(BaseModel):
     password: str | None = None
 
 
+class ChangePasswordBody(BaseModel):
+    user_code: str
+    old_password: str | None = None
+    new_password: str
+
+
+def _account_row(conn, user_code: str):
+    return conn.execute(
+        "SELECT user_code, username, pwd_hash, pwd_salt FROM accounts WHERE user_code = %s",
+        (user_code,),
+    ).fetchone()
+
+
+def _account_payload(code: str, username: str | None, pwd_hash: str | None) -> dict:
+    return {
+        "user_code": code,
+        "user_id": _uuid_for_code(code),
+        "username": username,
+        "has_password": bool(pwd_hash),
+    }
+
+
+@router.get("/account-status")
+def account_status(user_code: str) -> dict:
+    """查询账号建档状态（用户名、是否已设密码）。"""
+    code = (user_code or "").strip()
+    if not is_user_code(code):
+        raise HTTPException(status_code=400, detail="用户ID 必须为 8 位数字")
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            row = _account_row(conn, code)
+        if row is None:
+            return _account_payload(code, None, None)
+        c, username, pwd_hash, _ = row
+        return _account_payload(c, username, pwd_hash)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("account-status 查询失败：%s", exc)
+        raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
+@router.post("/change-password")
+def change_password(
+    body: ChangePasswordBody, user_id: str = Depends(get_current_user),
+) -> dict:
+    code = body.user_code.strip()
+    if not is_user_code(code):
+        raise HTTPException(status_code=400, detail="用户ID 必须为 8 位数字")
+    if _uuid_for_code(code) != user_id:
+        raise HTTPException(status_code=403, detail="身份不匹配")
+    new_pwd = (body.new_password or "").strip()
+    if len(new_pwd) < 6:
+        raise HTTPException(status_code=400, detail="密码至少 6 位")
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            row = _account_row(conn, code)
+            pwd_hash = pwd_salt = None
+            if row:
+                _, _, pwd_hash, pwd_salt = row
+            if pwd_hash:
+                if not body.old_password or _hash_pwd(body.old_password, pwd_salt or "") != pwd_hash:
+                    raise HTTPException(status_code=401, detail="当前密码不正确")
+            pwd_salt = secrets.token_hex(8)
+            pwd_hash = _hash_pwd(new_pwd, pwd_salt)
+            conn.execute(
+                "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
+                (_uuid_for_code(code),),
+            )
+            conn.execute(
+                """
+                INSERT INTO accounts (user_code, user_id, pwd_hash, pwd_salt, updated_at)
+                VALUES (%s, %s, %s, %s, now())
+                ON CONFLICT (user_code) DO UPDATE SET
+                  pwd_hash = EXCLUDED.pwd_hash,
+                  pwd_salt = EXCLUDED.pwd_salt,
+                  updated_at = now()
+                """,
+                (code, _uuid_for_code(code), pwd_hash, pwd_salt),
+            )
+            conn.commit()
+        return {"ok": True, "has_password": True}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("change-password 失败：%s", exc)
+        raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
 @router.get("/username-available")
 def username_available(u: str) -> dict:
     """用户名是否可用（唯一）。后端不可用时由客户端本地兜底。"""
@@ -139,8 +229,8 @@ def username_available(u: str) -> dict:
 def register(body: RegisterBody) -> dict:
     """按 10 位用户ID 建档（免注册即用），可同时设置用户名 + 密码。"""
     code = body.user_code.strip()
-    if not _CODE_RE.match(code):
-        raise HTTPException(status_code=400, detail="用户ID 必须为 10 位数字")
+    if not is_user_code(code):
+        raise HTTPException(status_code=400, detail="用户ID 必须为 8 位数字")
     name = (body.username or "").strip() or None
     user_id = _uuid_for_code(code)
     pwd_hash = pwd_salt = None
@@ -174,7 +264,7 @@ def register(body: RegisterBody) -> dict:
                 (code, user_id, name, pwd_hash, pwd_salt),
             )
             conn.commit()
-        return {"ok": True, "user_code": code, "user_id": user_id, "username": name}
+        return {"ok": True, **_account_payload(code, name, pwd_hash)}
     except HTTPException:
         raise
     except Exception as exc:
@@ -191,14 +281,14 @@ def login(body: LoginBody) -> dict:
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            if _CODE_RE.match(idf):
+            if is_user_code(idf):
                 row = conn.execute(
                     "SELECT user_code, username, pwd_hash, pwd_salt FROM accounts WHERE user_code = %s",
                     (idf,),
                 ).fetchone()
                 # 免注册：未建档的 ID 也允许直接登录（采用该身份）
                 if row is None:
-                    return {"user_code": idf, "user_id": _uuid_for_code(idf), "username": None}
+                    return _account_payload(idf, None, None)
             else:
                 row = conn.execute(
                     "SELECT user_code, username, pwd_hash, pwd_salt FROM accounts WHERE lower(username) = lower(%s)",
@@ -210,10 +300,10 @@ def login(body: LoginBody) -> dict:
             if pwd_hash:
                 if not body.password or _hash_pwd(body.password, pwd_salt or "") != pwd_hash:
                     raise HTTPException(status_code=401, detail="密码不正确")
-            elif not _CODE_RE.match(idf):
+            elif not is_user_code(idf):
                 # 用户名账号但未设密码 → 不允许用户名登录
                 raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID登录")
-            return {"user_code": code, "user_id": _uuid_for_code(code), "username": username}
+            return _account_payload(code, username, pwd_hash)
     except HTTPException:
         raise
     except Exception as exc:

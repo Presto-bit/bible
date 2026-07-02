@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
+  changePassword,
   currentUserId,
   guestId,
+  hasPassword,
   isOnboarded,
   loginWithIdentifier,
   logout,
@@ -23,7 +25,6 @@ import { syncNow } from '@/lib/sync';
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
-const PWD_KEY = 'account_pwd';
 
 const RANDOM_NAME_CHARS = '云星月晨露松竹明道喜乐平安恩典信望爱光泉石兰桂';
 
@@ -58,6 +59,7 @@ export default function ProfilePage() {
   const [obErr, setObErr] = useState<string | null>(null);
   const [obBusy, setObBusy] = useState(false);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
+  const [hasPwd, setHasPwd] = useState(false);
   const [nameBusy, setNameBusy] = useState(false);
   const [nameMsg, setNameMsg] = useState<string | null>(null);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
@@ -83,6 +85,7 @@ export default function ProfilePage() {
     setBio(localStorage.getItem(BIO_KEY) || '');
     setMins(todayMinutes());
     setStreak(readingStreak());
+    setHasPwd(hasPassword());
     if (!isOnboarded()) {
       setObName(localStorage.getItem(NAME_KEY) || '');
       setOnboardOpen(true);
@@ -91,8 +94,8 @@ export default function ProfilePage() {
 
   const submitOnboard = async (skip = false) => {
     if (skip) {
-      // 跳过也算已引导，但保留默认游客身份
       await setCredentials('', '');
+      setUid(currentUserId());
       setOnboardOpen(false);
       return;
     }
@@ -116,6 +119,7 @@ export default function ProfilePage() {
       await setCredentials(u, obPwd);
       setName(u);
       setUid(currentUserId());
+      setHasPwd(Boolean(obPwd));
       setOnboardOpen(false);
     } finally {
       setObBusy(false);
@@ -149,7 +153,7 @@ export default function ProfilePage() {
           return;
         }
       }
-      const pwd = localStorage.getItem(PWD_KEY) || '';
+      const pwd = '';
       await setCredentials(u, pwd);
       setNameMsg('已保存');
     } catch (e) {
@@ -159,24 +163,23 @@ export default function ProfilePage() {
     }
   };
 
-  const changePassword = async () => {
-    const stored = localStorage.getItem(PWD_KEY);
-    if (stored) {
-      const old = prompt('请输入当前密码：');
-      if (old === null) return;
-      if (old !== stored) {
-        alert('当前密码不正确');
-        return;
-      }
-    }
+  const changePasswordHandler = async () => {
+    const needOld = hasPwd;
+    const old = needOld ? prompt('请输入当前密码：') : null;
+    if (needOld && old === null) return;
     const next = prompt('请输入新密码（≥6 位）：');
     if (next === null) return;
     if (next.length < 6) {
       alert('密码至少 6 位');
       return;
     }
-    await setCredentials(name.trim(), next);
-    alert('密码已更新');
+    try {
+      await changePassword(old, next);
+      setHasPwd(true);
+      alert('密码已更新');
+    } catch (e) {
+      alert(e instanceof Error ? e.message : String(e));
+    }
   };
 
   const chooseAvatar = (id: string) => {
@@ -193,7 +196,9 @@ export default function ProfilePage() {
     try {
       const id = await loginWithIdentifier(identifier.trim(), loginPwd);
       setUid(id);
+      setGid(guestId());
       setName(localStorage.getItem(NAME_KEY) || '');
+      setHasPwd(hasPassword());
       setLoginPwd('');
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -252,6 +257,9 @@ export default function ProfilePage() {
               {idCopied ? '已复制 ✓' : `ID ${idValue}`}
             </button>
           )}
+          <span className="muted" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
+            {hasPwd ? '已设密码 · 可换机登录' : '未设密码 · 建议设置以便换机'}
+          </span>
         </div>
         <button
           type="button"
@@ -266,36 +274,36 @@ export default function ProfilePage() {
         </button>
       </header>
 
-      {!uid && (
-        <div className="card card-2" style={{ marginBottom: 12 }}>
-          <strong>登录 / 切换账号</strong>
-          <p className="muted" style={{ margin: '6px 0 12px', lineHeight: 1.5 }}>
-            用「用户ID」或「用户名 + 密码」登录，数据按用户ID云端同步。
-          </p>
-          <input
-            className="book-chip"
-            style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-            placeholder="用户ID（10 位数字）或 用户名"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-          />
-          <input
-            className="book-chip"
-            type="password"
-            style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-            placeholder="密码（用户ID登录可留空）"
-            value={loginPwd}
-            onChange={(e) => setLoginPwd(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') login();
-            }}
-          />
-          {err && <p style={{ color: '#b1554a', marginBottom: 8 }}>{err}</p>}
-          <button className="btn" style={{ marginTop: 0 }} onClick={login} disabled={busy}>
-            {busy ? '登录中…' : '登录'}
-          </button>
-        </div>
-      )}
+      <div className="card card-2" style={{ marginBottom: 12 }}>
+        <strong>账号与换机</strong>
+        <p className="muted" style={{ margin: '6px 0 12px', lineHeight: 1.5 }}>
+          你的用户 ID：<strong>{idValue || '—'}</strong>
+          {hasPwd ? ' · 已设密码' : ' · 未设密码，建议设置'}
+          。换机时输入 ID 或「用户名 + 密码」登录。
+        </p>
+        <input
+          className="book-chip"
+          style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
+          placeholder="切换账号：用户ID 或 用户名"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+        />
+        <input
+          className="book-chip"
+          type="password"
+          style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
+          placeholder="密码（仅 ID 登录且未设密码时可留空）"
+          value={loginPwd}
+          onChange={(e) => setLoginPwd(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') login();
+          }}
+        />
+        {err && <p style={{ color: '#b1554a', marginBottom: 8 }}>{err}</p>}
+        <button className="btn" style={{ marginTop: 0 }} onClick={login} disabled={busy}>
+          {busy ? '登录中…' : '登录 / 切换账号'}
+        </button>
+      </div>
 
       {streak > 0 && (
         <div className="streak-banner" style={{ marginTop: 12 }}>
@@ -431,7 +439,7 @@ export default function ProfilePage() {
                 type="button"
                 className="settings-icon-btn"
                 style={{ marginTop: 10 }}
-                onClick={() => void changePassword()}
+                onClick={() => void changePasswordHandler()}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   <rect x="5" y="11" width="14" height="10" rx="2" />
@@ -456,6 +464,9 @@ export default function ProfilePage() {
             <div className="settings-card">
               <p className="settings-title">账号</p>
               <p className="muted" style={{ fontSize: 12 }}>当前 ID：{idValue || '—'}（免注册即用）</p>
+              <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {hasPwd ? '已设密码，可在新设备用 ID 或用户名登录' : '未设密码，换机请凭用户 ID 登录'}
+              </p>
               <button
                 type="button"
                 className="clear-cache-btn"

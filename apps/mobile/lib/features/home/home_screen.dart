@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
+import '../../core/daily_verse_engagement.dart';
 import '../../core/gamification.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
@@ -21,15 +22,24 @@ import '../bible/reading_repository.dart';
 import '../search/search_screen.dart';
 
 class DailyVerse {
-  DailyVerse(
-      {required this.ref,
-      required this.theme,
-      required this.text,
-      required this.osisRef});
+  DailyVerse({
+    required this.ref,
+    required this.theme,
+    required this.text,
+    required this.osisRef,
+    required this.day,
+    required this.liked,
+    required this.likesCount,
+    required this.sharesCount,
+  });
   final String ref;
   final String theme;
   final String text;
   final String osisRef;
+  final int day;
+  final bool liked;
+  final int likesCount;
+  final int sharesCount;
 
   factory DailyVerse.fromJson(Map<String, dynamic> j) {
     final book = (j['book'] ?? '') as String;
@@ -40,14 +50,37 @@ class DailyVerse {
       theme: (j['theme'] ?? '') as String,
       text: (j['text'] ?? '') as String,
       osisRef: book.isNotEmpty ? '$book.$ch.$vs' : '',
+      day: (j['day'] ?? 0) as int,
+      liked: (j['liked'] ?? false) as bool,
+      likesCount: (j['likes_count'] ?? 0) as int,
+      sharesCount: (j['shares_count'] ?? 0) as int,
     );
   }
 }
 
 final dailyVerseProvider = FutureProvider<DailyVerse>((ref) async {
   final Dio dio = ref.watch(dioProvider);
+  final session = ref.watch(sessionProvider);
+  final prefs = ref.watch(prefsProvider);
   final res = await dio.get('/content/daily-verse');
-  return DailyVerse.fromJson(res.data as Map<String, dynamic>);
+  final v = DailyVerse.fromJson(res.data as Map<String, dynamic>);
+  if (v.day < 1) return v;
+  final localLiked = readLocalDailyVerseLike(prefs, session, v.day);
+  final mergedLiked = v.liked || localLiked == true;
+  if (mergedLiked) {
+    await writeLocalDailyVerseLike(prefs, session, v.day, true);
+  }
+  if (mergedLiked == v.liked) return v;
+  return DailyVerse(
+    ref: v.ref,
+    theme: v.theme,
+    text: v.text,
+    osisRef: v.osisRef,
+    day: v.day,
+    liked: mergedLiked,
+    likesCount: v.likesCount,
+    sharesCount: v.sharesCount,
+  );
 });
 
 /// 今日祷告（ACTS 计划）。
@@ -213,15 +246,23 @@ class HomeScreen extends ConsumerWidget {
               dv.when(
                 loading: () => const _VerseCardSkeleton(),
                 error: (e, _) => const _VerseCard(
+                  day: 0,
                   theme: '每日经文',
                   ref: '',
                   text: '内容加载失败，下拉重试。',
+                  initialLiked: false,
+                  initialLikeCount: 0,
+                  initialShareCount: 0,
                   onAsk: null,
                 ),
                 data: (v) => _VerseCard(
+                  day: v.day,
                   theme: v.theme.isEmpty ? '每日经文' : v.theme,
                   ref: v.ref,
                   text: v.text,
+                  initialLiked: v.liked,
+                  initialLikeCount: v.likesCount,
+                  initialShareCount: v.sharesCount,
                   // 点击每日经文 → 全屏背景图 + 经文展示。
                   onAsk: () => Navigator.of(context).push(MaterialPageRoute(
                     builder: (_) =>
@@ -740,32 +781,115 @@ class _BelowFold extends StatelessWidget {
 }
 
 /// 每日经文 hero（tier3 + 破晓场景 + 衬线经文 + 点赞/分享行），对齐 canvas DailyVerseCard。
-class _VerseCard extends StatefulWidget {
+class _VerseCard extends ConsumerStatefulWidget {
   const _VerseCard({
+    required this.day,
     required this.theme,
     required this.ref,
     required this.text,
+    required this.initialLiked,
+    required this.initialLikeCount,
+    required this.initialShareCount,
     required this.onAsk,
   });
+  final int day;
   final String theme;
   final String ref;
   final String text;
+  final bool initialLiked;
+  final int initialLikeCount;
+  final int initialShareCount;
 
   /// 点击卡片整体的动作（进入阅读/问小爱），保留以便 hero 整体可点。
   final VoidCallback? onAsk;
 
   @override
-  State<_VerseCard> createState() => _VerseCardState();
+  ConsumerState<_VerseCard> createState() => _VerseCardState();
 }
 
-class _VerseCardState extends State<_VerseCard> {
-  static const _baseLikes = 3842;
-  bool _liked = false;
+class _VerseCardState extends ConsumerState<_VerseCard> {
+  late bool _liked;
+  late int _likeCount;
+  late int _shareCount;
   bool _shared = false;
+  bool _likeBusy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _liked = widget.initialLiked;
+    _likeCount = widget.initialLikeCount;
+    _shareCount = widget.initialShareCount;
+  }
+
+  @override
+  void didUpdateWidget(covariant _VerseCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialLiked != widget.initialLiked ||
+        oldWidget.initialLikeCount != widget.initialLikeCount) {
+      _liked = widget.initialLiked;
+      _likeCount = widget.initialLikeCount;
+    }
+    if (oldWidget.initialShareCount != widget.initialShareCount) {
+      _shareCount = widget.initialShareCount;
+    }
+  }
+
+  Future<void> _toggleLike() async {
+    if (_likeBusy) return;
+    final prevLiked = _liked;
+    final prevCount = _likeCount;
+    setState(() {
+      _likeBusy = true;
+      _liked = !prevLiked;
+      _likeCount = (_likeCount + (prevLiked ? -1 : 1)).clamp(0, 1 << 30);
+    });
+    try {
+      final dio = ref.read(dioProvider);
+      final session = ref.read(sessionProvider);
+      final prefs = ref.read(prefsProvider);
+      final day = widget.day;
+      final path = day > 0 ? '/content/daily-verse/like?day=$day' : '/content/daily-verse/like';
+      final res = await dio.post(path);
+      final data = res.data as Map<String, dynamic>;
+      final liked = (data['liked'] ?? false) as bool;
+      final count = (data['likes_count'] ?? prevCount) as int;
+      if (day > 0) {
+        await writeLocalDailyVerseLike(prefs, session, day, liked);
+      }
+      if (!mounted) return;
+      setState(() {
+        _liked = liked;
+        _likeCount = count;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _liked = prevLiked;
+        _likeCount = prevCount;
+      });
+    } finally {
+      if (mounted) setState(() => _likeBusy = false);
+    }
+  }
+
+  Future<void> _recordShare() async {
+    setState(() => _shared = true);
+    try {
+      final dio = ref.read(dioProvider);
+      final day = widget.day;
+      final path = day > 0 ? '/content/daily-verse/share?day=$day' : '/content/daily-verse/share';
+      final res = await dio.post(path);
+      final data = res.data as Map<String, dynamic>;
+      final count = (data['shares_count'] ?? _shareCount) as int;
+      if (mounted) setState(() => _shareCount = count);
+    } catch (_) {
+      /* ignore */
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final likeCount = _baseLikes + (_liked ? 1 : 0);
     return PaperCard(
       tier: 3,
       tint: AppColors.accent,
@@ -813,7 +937,7 @@ class _VerseCardState extends State<_VerseCard> {
           Row(
             children: [
               InkWell(
-                onTap: () => setState(() => _liked = !_liked),
+                onTap: _likeBusy ? null : _toggleLike,
                 child: Row(
                   children: [
                     Icon(_liked ? Icons.favorite : Icons.favorite_border,
@@ -821,7 +945,7 @@ class _VerseCardState extends State<_VerseCard> {
                         color:
                             _liked ? AppColors.accentDeep : AppColors.inkFaint),
                     const SizedBox(width: 6),
-                    Text('$likeCount 人点赞',
+                    Text('$_likeCount 人点赞',
                         style: const TextStyle(
                             color: AppColors.inkFaint, fontSize: 12)),
                   ],
@@ -829,7 +953,7 @@ class _VerseCardState extends State<_VerseCard> {
               ),
               const Spacer(),
               GestureDetector(
-                onTap: () => setState(() => _shared = !_shared),
+                onTap: _shared ? null : _recordShare,
                 child: Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 5),

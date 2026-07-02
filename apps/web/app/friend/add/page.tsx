@@ -31,7 +31,7 @@ export default function AddFriendPage() {
         <h2 style={{ margin: 0, fontSize: 18 }}>加好友</h2>
       </header>
       <p className="muted" style={{ marginBottom: 16 }}>
-        输入对方的 10 位用户 ID 或用户名，查找后即可添加。
+        输入对方的 8 位用户 ID（或历史 10 位）或用户名，查找后即可添加。
       </p>
       <input
         className="search-input"

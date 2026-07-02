@@ -1,6 +1,6 @@
-// 阅读器体验设置：纸张主题、节号模式、对照模式。
+// 阅读器体验设置：主题（清晨/夜深）、节号模式、对照模式。
 
-export type ReaderTheme = 'paper' | 'morning' | 'night';
+export type ReaderTheme = 'morning' | 'night';
 export type VerseNumberMode = 'inline' | 'margin' | 'hidden';
 export type ReadingLayout = 'single' | 'parallel';
 
@@ -11,13 +11,11 @@ const PARALLEL_VER_KEY = 'reader_parallel_version';
 const MAIN_VER_KEY = 'reader_main_version';
 
 export const READER_THEMES: { id: ReaderTheme; label: string; desc: string }[] = [
-  { id: 'paper', label: '纸质', desc: '米黄暖色 · 衬线字体' },
   { id: 'morning', label: '清晨', desc: '清爽留白 · 大行距' },
   { id: 'night', label: '夜深', desc: '深色护眼' },
 ];
 
 const READER_THEME_BG: Record<ReaderTheme, string> = {
-  paper: '#f7f2e8',
   morning: '#ffffff',
   night: '#12181c',
 };
@@ -38,8 +36,17 @@ function read<T extends string>(key: string, fallback: T): T {
   return (v as T) || fallback;
 }
 
+function normalizeReaderTheme(raw: string | null): ReaderTheme {
+  if (raw === 'night') return 'night';
+  return 'morning';
+}
+
 export function getReaderTheme(): ReaderTheme {
-  return read(THEME_KEY, 'morning');
+  if (typeof window === 'undefined') return 'morning';
+  const raw = localStorage.getItem(THEME_KEY);
+  const theme = normalizeReaderTheme(raw);
+  if (raw === 'paper') localStorage.setItem(THEME_KEY, 'morning');
+  return theme;
 }
 
 export function setReaderTheme(t: ReaderTheme) {
