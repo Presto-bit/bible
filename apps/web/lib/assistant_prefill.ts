@@ -8,6 +8,8 @@ export interface AssistantPrefill {
   question: string;
   autoSend?: boolean;
   scene?: string;
+  /** 传给 /ai/chat 的 surface；如 home_prefill 禁用 RAG */
+  surface?: string;
   seedMessages?: { role: 'user' | 'assistant'; text: string }[];
 }
 
@@ -56,7 +58,14 @@ export function consumeAssistantPrefill(sid: string): AssistantPrefill | null {
   try {
     const row = JSON.parse(raw) as AssistantPrefill & { ts?: number };
     if (row.ts && Date.now() - row.ts > SEED_TTL_MS) return null;
-    return { ref: row.ref, question: row.question, autoSend: row.autoSend, scene: row.scene, seedMessages: row.seedMessages };
+    return {
+      ref: row.ref,
+      question: row.question,
+      autoSend: row.autoSend,
+      scene: row.scene,
+      surface: row.surface,
+      seedMessages: row.seedMessages,
+    };
   } catch {
     return null;
   }
@@ -73,6 +82,7 @@ export function assistantHref(
     question?: string;
     autoSend?: boolean;
     scene?: string;
+    surface?: string;
     seedMessages?: { role: 'user' | 'assistant'; text: string }[];
   },
 ): string {
@@ -85,6 +95,7 @@ export function assistantHref(
       question: q,
       autoSend: opts?.autoSend,
       scene: opts?.scene,
+      surface: opts?.surface,
       seedMessages: opts?.seedMessages,
     });
     params.set('sid', sid);
@@ -101,6 +112,7 @@ export function navigateToAssistant(
     question?: string;
     autoSend?: boolean;
     scene?: string;
+    surface?: string;
     seedMessages?: { role: 'user' | 'assistant'; text: string }[];
   },
 ) {

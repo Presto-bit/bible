@@ -8,7 +8,7 @@ from ..bible import reader
 from ..bible.refs import parse_ref
 from ..rag.retrieve import retrieve
 from .prompts import DEFAULT_MODE, MODES, build_messages
-from .scenes import resolve_scene
+from .scenes import NO_RAG_SURFACES, resolve_scene
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +109,7 @@ def prepare(
     mode: str,
     scene: str | None = None,
     history: list[dict] | None = None,
+    surface: str | None = None,
 ) -> dict:
     """返回 {meta, messages, max_tokens}。"""
     spec = resolve_scene(scene, mode)
@@ -118,9 +119,14 @@ def prepare(
     passage_display = ref.display if ref else "（未指定经文）"
     passage_text = _passage_text(ref) if ref else ""
 
+    use_rag = spec.use_rag and (surface or "") not in NO_RAG_SURFACES
+
     citations: list[dict] = []
-    query = f"{passage_display if ref else ''} {passage_text} {question or ''}".strip()
-    hits = _retrieve_hits(query, ref.book_name if ref else None)
+    if use_rag:
+        query = f"{passage_display if ref else ''} {passage_text} {question or ''}".strip()
+        hits = _retrieve_hits(query, ref.book_name if ref else None)
+    else:
+        hits = []
     for i, h in enumerate(hits, start=1):
         citations.append(
             {
@@ -137,6 +143,7 @@ def prepare(
         passage_text=passage_text,
         question=question,
         citations=citations,
+        use_rag=use_rag,
     )
     prior = _sanitize_history(history)
     messages = [base[0], *prior, base[1]]
@@ -146,6 +153,8 @@ def prepare(
         "mode": effective_mode,
         "mode_label": MODES.get(effective_mode),
         "wants_followups": spec.wants_followups,
+        "use_rag": use_rag,
+        "surface": surface,
         "ref": ref.osis if ref else None,
         "display": passage_display,
         "citations": [

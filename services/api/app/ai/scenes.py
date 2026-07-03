@@ -12,6 +12,7 @@ class SceneSpec:
     max_tokens: int
     wants_followups: bool
     format_guide: str
+    use_rag: bool = True
 
 
 SCENES: dict[str, SceneSpec] = {
@@ -146,9 +147,12 @@ SCENES: dict[str, SceneSpec] = {
         label="章导读",
         max_tokens=400,
         wants_followups=False,
+        use_rag=False,
         format_guide=(
-            "用 80–120 字简体中文单段概括本章核心内容与要点，"
-            "适合读经前导读，通顺自然，不要分条编号，不要【相关追问】。"
+            "严格按以下结构输出（保留【】标题，便于扫读）：\n"
+            "【本章概览】1 句（≤30 字），点明本章在主脉中的位置与要旨。\n"
+            "【核心内容】2–3 条短句（每条一行，用「· 」开头），概括主要情节或教导要点。\n"
+            "总篇幅 80–120 字。适合读经前快读导读，通顺口语化。不要输出【相关追问】。"
         ),
     ),
     "summary_book": SceneSpec(
@@ -157,14 +161,18 @@ SCENES: dict[str, SceneSpec] = {
         label="卷导读",
         max_tokens=500,
         wants_followups=False,
+        use_rag=False,
         format_guide=(
-            "用 150–200 字简体中文单段概括整卷主旨、结构与核心主题，"
-            "适合读经前导读，通顺自然，不要分条编号，不要【相关追问】。"
+            "严格按以下结构输出（保留【】标题，便于扫读）：\n"
+            "【卷概览】1 句（≤40 字），点明整卷在圣经主脉中的位置与要旨。\n"
+            "【核心内容】3–4 条短句（每条一行，用「· 」开头），概括结构划分、核心主题与重点书卷段落。\n"
+            "总篇幅 150–200 字。适合读经前快读导读，通顺口语化。不要输出【相关追问】。"
         ),
     ),
 }
 
-# chip mode → scene（前端 chip 仍传 mode 时的兼容映射）
+# 指定 surface 时强制关闭 RAG（如首页 rail 预填，仅首问轻量作答）
+NO_RAG_SURFACES: frozenset[str] = frozenset({"home_prefill"})
 MODE_TO_SCENE: dict[str, str] = {
     "explain": "chat_explain",
     "understand": "chat_understand",

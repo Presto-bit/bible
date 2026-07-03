@@ -94,6 +94,51 @@ def test_sanitize_history_filters_and_caps():
     assert len(_sanitize_history(big)) == MAX_HISTORY_TURNS
 
 
+def test_build_messages_no_rag_omits_commentary():
+    msgs = build_messages(
+        scene=SCENES["summary_chapter"],
+        passage_display="出埃及记 3",
+        passage_text="摩西在荆棘火焰中……",
+        question="请概括本章。",
+        citations=[],
+        use_rag=False,
+    )
+    assert "【背景注释】" not in msgs[1]["content"]
+    assert "[1]" not in msgs[0]["content"]
+    assert SCENES["summary_chapter"].use_rag is False
+    assert SCENES["verse_full"].use_rag is True
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
+def test_prepare_summary_skips_rag():
+    from app.ai.chat import prepare
+
+    prep = prepare(
+        ref_raw="EXO.3",
+        question="请概括本章。",
+        mode="explain",
+        scene="summary_chapter",
+    )
+    assert prep["meta"]["citations"] == []
+    assert "【背景注释】" not in prep["messages"][-1]["content"]
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
+def test_prepare_home_prefill_skips_rag():
+    from app.ai.chat import prepare
+
+    prep = prepare(
+        ref_raw="JHN.3.16",
+        question="这段经文对你意味着什么？",
+        mode="explain",
+        scene="chat_explain",
+        surface="home_prefill",
+    )
+    assert prep["meta"]["use_rag"] is False
+    assert prep["meta"]["citations"] == []
+    assert "【背景注释】" not in prep["messages"][-1]["content"]
+
+
 @pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
 def test_prepare_inserts_history_between_system_and_user():
     from app.ai.chat import prepare

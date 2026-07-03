@@ -215,7 +215,11 @@ export default function HomePageClient() {
         assistantCard = {
           title: '小爱想问你',
           sub: `「${q}」`,
-          href: assistantHref(dv.ref, { question: q, autoSend: true }),
+          href: assistantHref(dv.ref, {
+            question: q,
+            autoSend: true,
+            surface: 'home_prefill',
+          }),
         };
       }
     } catch {

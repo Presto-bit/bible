@@ -526,6 +526,7 @@ export interface ChatStreamBody {
   mode: string;
   scene?: string;
   history?: ChatHistoryTurn[];
+  surface?: string;
 }
 
 export interface ChatMetaPayload {

@@ -275,6 +275,7 @@ function AssistantPageInner() {
     /** 气泡展示文案；不传则与 question 相同 */
     displayText?: string,
     nextScene?: AssistantScene,
+    surface?: string,
   ) => {
     const q = (question ?? input).trim();
     if (!q || busy) return;
@@ -320,7 +321,7 @@ function AssistantPageInner() {
       rafRef.current = requestAnimationFrame(applyAcc);
     };
     await chatStream(
-      { ref: anchor, question: q, mode: m, scene, history },
+      { ref: anchor, question: q, mode: m, scene, history, surface },
       {
         onMeta: (meta) => {
           cites = meta.citations || [];
@@ -371,6 +372,7 @@ function AssistantPageInner() {
     let skipInputPrefill = false;
     let handled = false;
     let prefillScene: AssistantScene | undefined;
+    let prefillSurface: string | undefined;
 
     if (sid) {
       const payload = consumeAssistantPrefill(sid);
@@ -388,6 +390,7 @@ function AssistantPageInner() {
           prefillScene = resolveScene(payload.scene, mode);
           setMode(SCENES[prefillScene].mode);
         }
+        prefillSurface = payload.surface;
       }
     } else {
       const draft = loadAssistantDraft();
@@ -419,6 +422,7 @@ function AssistantPageInner() {
         refVal,
         userVisibleQuestion(question, refVal),
         scene,
+        prefillSurface,
       );
     }
 

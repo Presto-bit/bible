@@ -74,7 +74,7 @@ class ChatRequest(BaseModel):
     scene: str | None = None
     # 多轮上下文（客户端本地持有；local-first，不落服务端）
     history: list[Turn] | None = None
-    # 契约对齐字段（当前仅透传/记录，不改变检索逻辑）
+    # surface：入口标识；home_prefill 等会关闭 RAG（见 scenes.NO_RAG_SURFACES）
     scope: str | None = None
     surface: str | None = None
     conversation_id: str | None = None
@@ -116,6 +116,7 @@ def chat(
         mode=body.mode,
         scene=body.scene,
         history=history,
+        surface=body.surface,
     )
 
     def gen():

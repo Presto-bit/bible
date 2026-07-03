@@ -30,6 +30,16 @@ _BASE = (
     "5. 重点突出，用短段落；句子完整、通顺自然。\n"
 )
 
+_BASE_NO_RAG = (
+    _PERSONA
+    + "请用简体中文回答。原则：\n"
+    "1. 紧扣所给经文，不偏离文本；不确定时坦诚说明，不杜撰史实或原文细节。\n"
+    "2. 基于经文文本与通识谨慎作答，避免给出可疑的具体史料。\n"
+    "3. 不偏向任何宗派立场，尊重不同信仰传统；不替读者做信仰决定。\n"
+    "4. 语气温暖平和，避免说教。\n"
+    "5. 重点突出，用短段落；句子完整、通顺自然。\n"
+)
+
 _FOLLOWUP_RULE = (
     "6. 在回答正文最末尾，另起一段输出【相关追问】，列出 2–3 个简短的后续问题"
     "（每行一个，用「- 」开头），引导读者继续探索。\n"
@@ -69,6 +79,7 @@ def build_messages(
     passage_text: str,
     question: str | None,
     citations: list[dict],
+    use_rag: bool = True,
 ) -> list[dict[str, str]]:
     mode = scene.mode if scene.mode in _MODE_GUIDE else DEFAULT_MODE
     notes_block = "\n".join(
@@ -76,7 +87,7 @@ def build_messages(
     ) or "（暂无可用背景注释）"
 
     system_parts = [
-        _BASE,
+        _BASE if use_rag else _BASE_NO_RAG,
         _MODE_GUIDE[mode],
         "\n【输出格式】\n",
         scene.format_guide,
@@ -89,11 +100,9 @@ def build_messages(
     user_lines = [
         f"经文：{passage_display}",
         f"经文内容：{passage_text}" if passage_text else "",
-        "",
-        "【背景注释】",
-        notes_block,
-        "",
     ]
+    if use_rag:
+        user_lines.extend(["", "【背景注释】", notes_block, ""])
     if question and question.strip():
         user_lines.append(f"读者的问题：{question.strip()}")
     else:
