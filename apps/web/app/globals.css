@@ -5506,6 +5506,93 @@ a.today-card-link {
   justify-content: center;
 }
 
+#pwa-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top, 0px) 24px env(safe-area-inset-bottom, 0px);
+  background: #fffcfa;
+  color: #4f6b5d;
+  transition: opacity 0.38s ease, visibility 0.38s ease;
+}
+
+html.pwa-launch #pwa-splash {
+  display: flex;
+}
+
+.pwa-splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  transform: translateY(-3vh);
+}
+
+#pwa-splash img {
+  width: 128px;
+  height: 128px;
+  border-radius: 30px;
+  box-shadow: 0 18px 44px rgba(79, 107, 93, 0.18);
+}
+
+.pwa-splash-brand {
+  margin-top: 32px;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: #1c1c1e;
+}
+
+.pwa-splash-motto {
+  display: grid;
+  grid-template-columns: 1.1em 1.1em;
+  grid-template-rows: auto auto auto;
+  column-gap: 0.56em;
+  row-gap: 0.22em;
+  margin-top: 36px;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  font-size: clamp(56px, 16vw, 72px);
+  font-weight: 600;
+  color: #4f6b5d;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
+.pwa-splash-motto-pi {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+}
+
+.pwa-splash-motto-ci {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: center;
+}
+
+.pwa-splash-motto-xiang {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: center;
+}
+
+.pwa-splash-motto-ai {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: center;
+}
+
+body.app-ready #pwa-splash {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 body.pwa-standalone .tabbar {
   box-shadow: 0 -1px 0 var(--line), 0 -8px 24px rgba(43, 42, 39, 0.04);
 }
@@ -5525,6 +5612,8 @@ button.card:active,
   .sheet,
   .sheet-backdrop,
   .group-settings-panel,
+  #pwa-splash,
+  body.app-ready #pwa-splash,
   .tab:active,
   .btn:active:not(:disabled),
   .icon-btn:active,
