@@ -106,6 +106,19 @@ if ! "${compose[@]}" exec -T api bash /app/scripts/ensure_content_data.sh 2>&1; 
   log "   容器内日志: docker compose -f $COMPOSE_FILE exec api tail -50 /tmp/ensure_content_data.log"
 fi
 
+log "校验圣经译本"
+if versions_json="$(curl -fsS "http://127.0.0.1:8011/bible/versions" 2>/dev/null)"; then
+  for vid in cnv cuvs kjv; do
+    if echo "$versions_json" | grep -q "\"id\":\"$vid\".*\"available\":true"; then
+      log "  ✓ $vid 可用"
+    else
+      log "  ⚠ $vid 不可用（对照/和合本可能无数据）"
+    fi
+  done
+else
+  log "⚠️  无法读取 /bible/versions"
+fi
+
 like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8011/content/daily-verse/like" \
   -H "Content-Type: application/json" -H "X-User-Code: 1234567890" 2>/dev/null || echo "000")"
 if [[ "$like_code" == "503" ]]; then
@@ -136,9 +149,9 @@ if [[ -d "$APP_DIR/content/commentary/study-bible" ]]; then
   fi
 fi
 
-# 公版注释（Matthew Henry 等）：镜像内无 md（content 被 gitignore），发版时按需拉取并入库
+# 公版注释（Matthew Henry 等）：读取 .env.production 中的 RAG_EMBEDDING_API_KEY
 if grep -qE '^RAG_EMBEDDING_API_KEY=.+' "$ENV_FILE" 2>/dev/null; then
-  log "公版注释 RAG（HelloAO → public-domain，需出网 + DashScope Key）"
+  log "公版注释 RAG（HelloAO → public-domain，DashScope Key 已配置）"
   if "${compose[@]}" exec -T api python /app/scripts/import_commentary_pd.py \
       --books JHN MAT PSA GEN ROM 2>&1; then
     if "${compose[@]}" exec -T api python /app/scripts/rag_index.py \
@@ -153,7 +166,7 @@ if grep -qE '^RAG_EMBEDDING_API_KEY=.+' "$ENV_FILE" 2>/dev/null; then
     log "⚠️  公版注释拉取失败（HelloAO 不可达时不影响发版）"
   fi
 else
-  log "未配置 RAG_EMBEDDING_API_KEY，跳过公版注释 RAG"
+  log "未配置 RAG_EMBEDDING_API_KEY（$ENV_FILE），跳过公版注释 RAG；study-bible 仍可用 hash 向量兜底"
 fi
 
 log "健康检查 Web /"

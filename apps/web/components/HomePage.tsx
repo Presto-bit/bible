@@ -4,11 +4,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   api,
+  type DailyDevotional,
   type DailyVerse,
   ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
+import { DailyDevotionalCard } from '@/components/home/DailyDevotionalCard';
+import { ThemeExploreRail } from '@/components/home/ThemeExploreRail';
+import { illustrationForTheme } from '@/lib/illustrations';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
@@ -38,6 +42,9 @@ export default function HomePageClient() {
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
   const [verseFull, setVerseFull] = useState(false);
+  const [devotional, setDevotional] = useState<DailyDevotional | null>(null);
+  const [devotionalLoading, setDevotionalLoading] = useState(true);
+  const [heroIllustration, setHeroIllustration] = useState<string | null>(null);
 
   const loadDailyVerse = useCallback(() => {
     setDvLoading(true);
@@ -63,7 +70,21 @@ export default function HomePageClient() {
 
   useEffect(() => {
     loadDailyVerse();
+    setDevotionalLoading(true);
+    void api
+      .dailyDevotional()
+      .then(setDevotional)
+      .catch(() => setDevotional(null))
+      .finally(() => setDevotionalLoading(false));
   }, [loadDailyVerse]);
+
+  useEffect(() => {
+    if (!dv?.theme) {
+      setHeroIllustration(null);
+      return;
+    }
+    void illustrationForTheme(dv.theme).then((r) => setHeroIllustration(r?.url ?? null));
+  }, [dv?.theme]);
 
   useEffect(() => {
     const refresh = () => {
@@ -347,7 +368,19 @@ export default function HomePageClient() {
           openVerseWallpaper();
         }}
       >
-        <div className="hero-scene" aria-hidden />
+        <div
+          className="hero-scene"
+          aria-hidden
+          style={
+            heroIllustration
+              ? {
+                  backgroundImage: `url(${heroIllustration})`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }
+              : undefined
+          }
+        />
         <div className="hero-inner">
           <div className="hero-top">
             <span className="hero-kicker">每日经文</span>
@@ -396,6 +429,10 @@ export default function HomePageClient() {
         </div>
       </div>
 
+      <DailyDevotionalCard data={devotional} loading={devotionalLoading} />
+
+      <ThemeExploreRail />
+
       <div style={{ marginTop: 18 }}>
         <HomeRail cards={railMain} />
       </div>
@@ -443,6 +480,7 @@ export default function HomePageClient() {
       {verseFull && dv ? (
         <DailyVerseWallpaper
           dv={dv}
+          illustrationUrl={heroIllustration}
           onClose={() => setVerseFull(false)}
         />
       ) : null}

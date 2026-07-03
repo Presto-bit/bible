@@ -3,6 +3,7 @@ set -euo pipefail
 
 CNV="/app/build/bible_cnv.sqlite"
 KJV="/app/build/bible_kjv.sqlite"
+CUVS="/app/build/bible_cuvs.sqlite"
 
 if [[ ! -f "$CNV" && -f /app/data/bible/cnv/verses.json ]]; then
   echo "[entrypoint] 生成 bible_cnv.sqlite …"
@@ -16,6 +17,11 @@ if [[ ! -f "$KJV" && -f /app/data/bible/kjv/verses.json ]]; then
   python /app/scripts/import_bible.py \
     --input /app/data/bible/kjv/verses.json \
     --out "$KJV"
+fi
+
+if [[ ! -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
+  echo "[entrypoint] 生成 bible_cuvs.sqlite …"
+  python /app/scripts/import_cuv.py --input /app/data/bible/cuvs/verses.json
 fi
 
 # 大数据集（串珠/Strong's/CUVS）在后台生成，不阻塞 uvicorn 启动与健康检查。

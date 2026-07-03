@@ -30,22 +30,25 @@ export function StrongSheet({
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet card" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
-          <strong>原文 · {refLabel}</strong>
+          <button type="button" className="text-link" onClick={onClose}>‹ 返回</button>
+          <strong>希腊原文 · {refLabel}</strong>
           <button type="button" className="text-link" onClick={onClose}>关闭</button>
         </div>
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
-          希腊文逐词 + Strong&apos;s 编号（Gnosis，CC-BY-SA）。
+        <p className="muted reader-tools-hint">
+          逐词列出该节新约希腊文、Strong&apos;s 编号、词形与简要英文/中文释义，便于查考原文用词。
+          目前覆盖新约希腊文语料；旧约希伯来文将陆续补充。
         </p>
         {loading ? (
           <p className="muted">加载中…</p>
         ) : words.length === 0 ? (
-          <p className="muted">暂无该节原文数据（目前覆盖新约希腊文）。</p>
+          <p className="muted">暂无该节原文数据（多为旧约经节或数据未就绪）。</p>
         ) : (
           <div className="reader-tools-list">
             {words.map((w) => (
-              <div key={w.position} className="reader-tools-item">
+              <div key={w.position} className="reader-tools-item static">
                 <strong>{w.word}</strong>
                 {w.strongs ? <span className="muted"> · {w.strongs}</span> : null}
+                {w.transliteration ? <span className="muted"> · {w.transliteration}</span> : null}
                 {w.morphology ? <span className="muted"> · {w.morphology}</span> : null}
                 {w.gloss ? <p style={{ margin: '4px 0 0', fontSize: 13 }}>{w.gloss}</p> : null}
               </div>

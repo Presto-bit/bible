@@ -337,6 +337,29 @@ def timeline_chapters() -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8")).get("chapters", [])
 
 
+def places_for_chapter(book: str, chapter: int, *, limit: int = 8) -> list[dict]:
+    """本章经文出现的地点（按 places.json refs 匹配）。"""
+    from ..bible.refs import parse_ref
+
+    book = book.upper()
+    ch = int(chapter)
+    out: list[dict] = []
+    seen: set[str] = set()
+    for p in geography_places():
+        pid = p.get("id") or p.get("name") or ""
+        if pid in seen:
+            continue
+        for raw in p.get("refs") or []:
+            r = parse_ref(str(raw).replace(".", " "))
+            if r and r.book_id == book and r.chapter == ch:
+                out.append(p)
+                seen.add(pid)
+                break
+        if len(out) >= limit:
+            break
+    return out
+
+
 def timeline_for(book: str, chapter: int) -> dict | None:
     book = book.upper()
     for row in timeline_chapters():

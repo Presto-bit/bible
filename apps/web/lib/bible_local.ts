@@ -1,45 +1,52 @@
-/** 本地 SQLite 经库查询（sql.js + IndexedDB 经包）。 */
+/** 本地 SQLite 经库（sql.js + IndexedDB 经包，支持 CNV / CUVS）。 */
 
 import type { Database, SqlJsStatic } from 'sql.js';
 import type { BibleBook, Verse } from './api';
-import { loadOfflineSqliteBytes } from './offline_pack';
+import {
+  loadOfflineSqliteBytes,
+  type OfflineTranslation,
+} from './offline_pack';
 
-let sqlPromise: Promise<SqlJsStatic> | null = null;
-let dbPromise: Promise<Database | null> | null = null;
+const dbPromises: Partial<Record<OfflineTranslation, Promise<Database | null>>> = {};
 
 async function getSql(): Promise<SqlJsStatic> {
-  if (!sqlPromise) {
-    sqlPromise = import('sql.js').then((mod) =>
+  const g = globalThis as { __prestoSqlJs?: Promise<SqlJsStatic> };
+  if (!g.__prestoSqlJs) {
+    g.__prestoSqlJs = import('sql.js').then((mod) =>
       mod.default({
         locateFile: (file: string) => `/sql-wasm/${file}`,
       }),
     );
   }
-  return sqlPromise;
+  return g.__prestoSqlJs;
 }
 
-export async function getLocalBibleDb(): Promise<Database | null> {
+export async function getLocalBibleDb(
+  translation: OfflineTranslation = 'cnv',
+): Promise<Database | null> {
   if (typeof window === 'undefined') return null;
-  if (!dbPromise) {
-    dbPromise = (async () => {
-      const buf = await loadOfflineSqliteBytes();
+  if (!dbPromises[translation]) {
+    dbPromises[translation] = (async () => {
+      const buf = await loadOfflineSqliteBytes(translation);
       if (!buf) return null;
       const SQL = await getSql();
       return new SQL.Database(new Uint8Array(buf));
     })();
   }
-  return dbPromise;
+  return dbPromises[translation]!;
 }
 
 export function resetLocalBibleDb() {
-  dbPromise = null;
+  for (const k of Object.keys(dbPromises) as OfflineTranslation[]) {
+    delete dbPromises[k];
+  }
 }
 
 const BOOKS_FALLBACK_URL = '/offline/books.json';
 let booksCache: BibleBook[] | null = null;
 
 export async function listLocalBooks(): Promise<BibleBook[] | null> {
-  const db = await getLocalBibleDb();
+  const db = await getLocalBibleDb('cnv');
   if (db) {
     const rows = db.exec(
       'SELECT id, name, testament, chapter_count FROM books ORDER BY sort_order',
@@ -68,8 +75,9 @@ export async function listLocalBooks(): Promise<BibleBook[] | null> {
 export async function getLocalChapter(
   bookId: string,
   chapter: number,
+  translation: OfflineTranslation = 'cnv',
 ): Promise<Verse[] | null> {
-  const db = await getLocalBibleDb();
+  const db = await getLocalBibleDb(translation);
   if (!db) return null;
   const stmt = db.prepare(
     'SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse',
@@ -96,7 +104,7 @@ export async function searchLocalVerses(
   query: string,
   limit = 24,
 ): Promise<LocalSearchHit[] | null> {
-  const db = await getLocalBibleDb();
+  const db = await getLocalBibleDb('cnv');
   if (!db) return null;
   const q = query.trim();
   if (!q) return [];

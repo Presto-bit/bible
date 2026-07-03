@@ -20,7 +20,7 @@ export default function DictionaryPage() {
 
   const filtered = useMemo(() => {
     const q = term.trim().toLowerCase();
-    if (!q) return entities.slice(0, 80);
+    if (!q) return entities;
     return entities.filter(
       (e) =>
         e.name.toLowerCase().includes(q) ||
@@ -35,7 +35,7 @@ export default function DictionaryPage() {
       <div className="section-row" style={{ marginTop: 0 }}>
         <Link href="/reader" className="muted">‹ 圣经</Link>
         <strong>圣经词典</strong>
-        <span />
+        <span className="muted" style={{ fontSize: 12 }}>{loading ? '' : `${entities.length} 条`}</span>
       </div>
       <div className="search-bar" style={{ marginTop: 12 }}>
         <input

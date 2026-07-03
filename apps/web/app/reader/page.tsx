@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
 import { bibleBooks } from '@/lib/bible_client';
 import CatalogView from '@/components/reader/CatalogView';
@@ -19,6 +20,9 @@ import {
   type DictContext,
 } from '@/lib/dictionary_match';
 import { DictDisambigSheet } from '@/components/dictionary/DictDisambigSheet';
+import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
+import { refSpaceToOsis } from '@/lib/inline_ref';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 import { preloadSectionTitles } from '@/lib/section_titles';
 
 const BOOK_ABBR: Record<string, string> = {
@@ -46,6 +50,7 @@ export default function ReaderPage() {
   const [err, setErr] = useState<string | null>(null);
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<DictEntity | null>(null);
+  const [dictRefPreview, setDictRefPreview] = useState<{ osis: string; label: string } | null>(null);
   const [disambig, setDisambig] = useState<{ name: string; candidates: DictEntity[]; verse: number } | null>(null);
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
   const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
@@ -260,12 +265,37 @@ export default function ReaderPage() {
             </div>
             <p style={{ lineHeight: 1.7, marginTop: 8 }}>{dictPopup.summary}</p>
             {dictPopup.refs?.length > 0 && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                参考：{dictPopup.refs.slice(0, 6).join(' · ')}
-              </p>
+              <div style={{ marginTop: 10 }}>
+                <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>参考经文</p>
+                <div className="share-actions">
+                  {dictPopup.refs.slice(0, 8).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      className="font-pill"
+                      onClick={() => setDictRefPreview({
+                        osis: r.includes('.') ? r : refSpaceToOsis(r),
+                        label: formatGroupRefLabel(r) ?? r,
+                      })}
+                    >
+                      {formatGroupRefLabel(r) ?? r}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
+            <Link href="/dictionary" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
+              打开完整词典（1313 条）›
+            </Link>
           </div>
         </div>
+      )}
+      {dictRefPreview && (
+        <VersePreviewSheet
+          refParam={dictRefPreview.osis}
+          refLabel={dictRefPreview.label}
+          onClose={() => setDictRefPreview(null)}
+        />
       )}
     </>
   );

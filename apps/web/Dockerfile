@@ -10,6 +10,7 @@ FROM ${NODE_BASE_IMAGE} AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web/ ./
+COPY data/illustrations /app/public/illustrations
 ARG NEXT_PUBLIC_API_BASE=https://2sc.prestoai.cn
 ARG NEXT_PUBLIC_APP_VERSION=dev
 ARG NEXT_PUBLIC_BASE_PATH=

@@ -797,6 +797,13 @@ html:not([data-app-theme]) .card {
     radial-gradient(160px 130px at 88% 18%, rgba(255, 200, 140, 0.55), transparent 72%),
     radial-gradient(120px 100px at 12% 85%, rgba(232, 160, 144, 0.25), transparent 70%),
     linear-gradient(175deg, rgba(255, 236, 220, 0.75) 0%, rgba(255, 248, 243, 0) 68%);
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-verse .hero-scene[style*='background-image'] {
+  background-blend-mode: normal;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.15));
 }
 
 .hero-verse-theme-creation .hero-scene {
@@ -1773,6 +1780,32 @@ a.today-card-link {
     linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
 }
 
+.verse-full-bg-photo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.9) brightness(0.55);
+}
+
+.daily-devotional-card {
+  border-left: 3px solid var(--accent);
+}
+
+.daily-devotional-prayer {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.theme-explore-rail .theme-chip-card {
+  min-width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .verse-full.hero-verse-theme-creation .verse-full-bg-gradient {
   background:
     radial-gradient(150px 120px at 80% 20%, rgba(212, 160, 96, 0.45), transparent 70%),
@@ -2706,11 +2739,49 @@ a.today-card-link {
 
 /* 阅读器：段落间分段标题 */
 .section-title {
-  font-size: 14.5px;
+  font-size: var(--reader-section-font-size, 14.5px);
   font-weight: 700;
   color: var(--accent-deep);
   margin: 16px 0 4px;
   padding-left: 2px;
+}
+
+.inline-ref-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.reader-tools-hint {
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 8px 0 10px;
+}
+
+.reader-tools-item-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.reader-version-banner,
+.reader-parallel-error {
+  color: var(--gold);
+  font-size: var(--reader-font-size, 14px);
+  padding: 12px 4px;
 }
 
 /* ─── 左侧抽屉（小爱历史，覆盖 30%） ─── */
@@ -4292,6 +4363,63 @@ a.today-card-link {
   color: var(--ink-soft);
 }
 
+.reader-chapter-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 6px 0 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--line);
+  font-size: var(--reader-section-font-size, 13px);
+}
+
+.reader-context-era {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  white-space: nowrap;
+}
+
+.reader-context-places {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.reader-context-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.reader-context-place-chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.reader-context-place-chip:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.reader-context-more {
+  font-size: 11px;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 .reader-chapter-head {
   display: flex;
   flex-wrap: wrap;
@@ -5151,8 +5279,9 @@ a.today-card-link {
 }
 
 .reader-parallel-secondary {
-  font-size: 0.92em;
-  line-height: 1.75;
+  color: var(--ink-soft);
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .light-ai-inline {

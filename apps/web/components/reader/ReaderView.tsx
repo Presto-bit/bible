@@ -12,6 +12,9 @@ import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
 import SummarySheet from '@/components/reader/SummarySheet';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
 import { StrongSheet } from '@/components/reader/StrongSheet';
+import { SectionTitle } from '@/components/reader/SectionTitle';
+import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
+import { ReaderChapterContext } from '@/components/reader/ReaderChapterContext';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
@@ -187,6 +190,10 @@ export default function ReaderView({
   const [aiSheet, setAiSheet] = useState(false);
   const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'compare'>(null);
   const [strongOpen, setStrongOpen] = useState(false);
+  const [versePreview, setVersePreview] = useState<null | { osis: string; label: string }>(null);
+  const [parallelLoading, setParallelLoading] = useState(false);
+  const [parallelError, setParallelError] = useState<string | null>(null);
+  const [versionBanner, setVersionBanner] = useState<string | null>(null);
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [chapterBottomTick, setChapterBottomTick] = useState(0);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
@@ -636,7 +643,11 @@ export default function ReaderView({
   }, []);
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--assistant-answer-font-size', `${fontPx}px`);
+    document.documentElement.style.setProperty('--reader-font-size', `${fontPx}px`);
+    document.documentElement.style.setProperty(
+      '--reader-section-font-size',
+      `${Math.max(13, Math.round(fontPx * 0.88))}px`,
+    );
   }, [fontPx]);
 
   // 译本标签补全（版本列表加载后）。
@@ -658,13 +669,31 @@ export default function ReaderView({
   useEffect(() => {
     if (layout !== 'parallel' || mainVersionId) {
       setParallelVerses([]);
+      setParallelError(null);
+      setParallelLoading(false);
       return;
     }
+    setParallelLoading(true);
+    setParallelError(null);
     void api
       .chapter(book.id, chapter, parallelVer)
-      .then((d) => setParallelVerses(d.verses))
-      .catch(() => setParallelVerses([]));
-  }, [layout, mainVersionId, book.id, chapter, parallelVer]);
+      .then((d) => {
+        if (!d.verses?.length) {
+          const label = versions?.find((v) => v.id === parallelVer)?.label ?? parallelVer.toUpperCase();
+          setParallelError(`${label} 暂无经文`);
+          setParallelVerses([]);
+          return;
+        }
+        setParallelVerses(d.verses);
+        setParallelError(null);
+      })
+      .catch(() => {
+        const label = versions?.find((v) => v.id === parallelVer)?.label ?? parallelVer.toUpperCase();
+        setParallelError(`${label} 加载失败`);
+        setParallelVerses([]);
+      })
+      .finally(() => setParallelLoading(false));
+  }, [layout, mainVersionId, book.id, chapter, parallelVer, versions]);
 
   const readerLocation = useMemo(() => ({ bookId: book.id, chapter }), [book.id, chapter]);
 
@@ -745,8 +774,18 @@ export default function ReaderView({
         if (mainVersionId) {
           const altVerses = await loadChapterVerses(book.id, chapter, mainVersionId);
           if (cancelled) return;
-          setVerses(altVerses ?? chineseVerses);
+          if (!altVerses?.length) {
+            const verLabel =
+              versions?.find((v) => v.id === mainVersionId)?.label ?? mainVersionId.toUpperCase();
+            setVersionBanner(`${verLabel} 暂无经文，请稍后刷新或换译本`);
+            setVerses([]);
+            flashToast(`${verLabel} 暂无经文`);
+          } else {
+            setVersionBanner(null);
+            setVerses(altVerses);
+          }
         } else {
+          setVersionBanner(null);
           setVerses(chineseVerses);
         }
         setChapterLoading(false);
@@ -1039,7 +1078,9 @@ export default function ReaderView({
     <>
       {verses.length === 0 && chapterLoading ? (
         <ReaderSkeleton />
-      ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId && parallelVerses.length > 0 ? (
+      ) : verses.length === 0 && versionBanner ? (
+        <p className="muted reader-version-banner">{versionBanner}</p>
+      ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId ? (
         <div className="reader-parallel">
           {paragraphs.map((para) => {
             const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
@@ -1047,7 +1088,10 @@ export default function ReaderView({
             return (
               <div key={para.startVerse} className="reader-parallel-block">
                 {firstMark && firstMark.verse === para.startVerse && (
-                  <div className="section-title">{firstMark.title}</div>
+                  <SectionTitle
+                    title={firstMark.title}
+                    onRefClick={(osis, label) => setVersePreview({ osis, label })}
+                  />
                 )}
                 <div
                   className={`reader-parallel-row verse-paragraph verse-no-${verseNo}`}
@@ -1082,18 +1126,24 @@ export default function ReaderView({
                       );
                     })}
                   </div>
-                  <div className="reader-parallel-secondary muted">
-                    {para.verses.map((v) => {
-                      const p2 = parallelVerses.find((x) => x.verse === v.verse);
-                      return (
-                        <span key={v.verse} className="verse-inline">
-                          {verseNo !== 'hidden' && (
-                            <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                          )}
-                          {p2?.text ?? '—'}{' '}
-                        </span>
-                      );
-                    })}
+                  <div className="reader-parallel-secondary">
+                    {parallelLoading ? (
+                      <span className="muted">对照译本加载中…</span>
+                    ) : parallelError ? (
+                      <span className="reader-parallel-error">{parallelError}</span>
+                    ) : (
+                      para.verses.map((v) => {
+                        const p2 = parallelVerses.find((x) => x.verse === v.verse);
+                        return (
+                          <span key={v.verse} className="verse-inline">
+                            {verseNo !== 'hidden' && (
+                              <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                            )}
+                            {p2?.text ?? '—'}{' '}
+                          </span>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
               </div>
@@ -1107,7 +1157,10 @@ export default function ReaderView({
           return (
             <div key={para.startVerse}>
               {firstMark && firstMark.verse === para.startVerse && (
-                <div className="section-title">{firstMark.title}</div>
+                <SectionTitle
+                  title={firstMark.title}
+                  onRefClick={(osis, label) => setVersePreview({ osis, label })}
+                />
               )}
               <div
                 className={`verse-paragraph verse-no-${verseNo}`}
@@ -1215,6 +1268,11 @@ export default function ReaderView({
       <div className="reader-body">
         {renderPlanLayer()}
         {renderChapterHead()}
+        <ReaderChapterContext
+          bookId={book.id}
+          chapter={chapter}
+          onPlaceRef={(osis, label) => setVersePreview({ osis, label })}
+        />
 
         <div
           className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}`}
@@ -1338,10 +1396,10 @@ export default function ReaderView({
               }}>想法</button>
             )}
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
-            <button type="button" className="vsb-item" onClick={() => setToolsSheet('crossrefs')}>串珠</button>
+            <button type="button" className="vsb-item" onClick={() => setToolsSheet('crossrefs')}>相关经文</button>
             <button type="button" className="vsb-item" onClick={() => setToolsSheet('compare')}>对照</button>
             {sortedSel.length === 1 && (
-              <button type="button" className="vsb-item" onClick={() => setStrongOpen(true)}>原文</button>
+              <button type="button" className="vsb-item" onClick={() => setStrongOpen(true)}>希腊原文</button>
             )}
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
           </div>
@@ -1427,6 +1485,9 @@ export default function ReaderView({
             <Link href="/profile/appearance" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
               更多外观选项 ›
             </Link>
+            <Link href="/dictionary" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
+              圣经词典（1313 词条）›
+            </Link>
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.verseNo}</p>
             <div className="font-pills">
               {VERSE_NUMBER_MODES.map((m) => (
@@ -1494,6 +1555,14 @@ export default function ReaderView({
           refParam={effRefParam}
           refLabel={effRefLabel}
           onClose={() => setStrongOpen(false)}
+        />
+      )}
+
+      {versePreview && (
+        <VersePreviewSheet
+          refParam={versePreview.osis}
+          refLabel={versePreview.label}
+          onClose={() => setVersePreview(null)}
         />
       )}
 

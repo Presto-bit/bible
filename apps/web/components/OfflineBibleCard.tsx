@@ -64,7 +64,7 @@ export function OfflineBibleCard() {
         {ready && <span className="font-pill">已安装</span>}
       </div>
       <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-        下载后可在无网络时阅读和合本全文并搜索（约 5 MB 压缩包）。
+        下载后可在无网络时阅读圣经新译本与和合本全文并搜索（约 12 MB 压缩包，含双译本）。
         {!ready && offlineAutoDownloadDone() === false && ' 首次打开会在后台自动下载。'}
       </p>
       {meta && (

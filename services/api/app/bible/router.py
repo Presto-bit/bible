@@ -23,7 +23,7 @@ def versions() -> dict:
 def chapter(
     book: str = Query(..., description="卷 id 或中文名，如 JHN / 约翰福音"),
     chapter: int = Query(..., ge=1),
-    version: str = Query("cnv", description="译本 id：cnv / kjv"),
+    version: str = Query("cnv", description="译本 id：cnv / cuvs / kjv"),
 ) -> dict:
     b = reader.resolve_book(book)
     if not b:

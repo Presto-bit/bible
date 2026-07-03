@@ -6,7 +6,7 @@ import {
   listLocalBooks,
   searchLocalVerses,
 } from './bible_local';
-import { isOfflinePackReady } from './offline_pack';
+import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
 
 export async function bibleBooks(): Promise<BibleBook[]> {
   const local = await listLocalBooks();
@@ -28,7 +28,11 @@ export async function bibleChapter(
 ): Promise<Verse[] | null> {
   const ver = version || 'cnv';
   if (ver === 'cnv' && (await isOfflinePackReady())) {
-    const local = await getLocalChapter(bookId, chapter);
+    const local = await getLocalChapter(bookId, chapter, 'cnv');
+    if (local?.length) return local;
+  }
+  if (ver === 'cuvs' && (await isCuvsOfflineReady())) {
+    const local = await getLocalChapter(bookId, chapter, 'cuvs');
     if (local?.length) return local;
   }
   try {
@@ -38,7 +42,11 @@ export async function bibleChapter(
     return data.verses;
   } catch {
     if (ver === 'cnv') {
-      const local = await getLocalChapter(bookId, chapter);
+      const local = await getLocalChapter(bookId, chapter, 'cnv');
+      if (local?.length) return local;
+    }
+    if (ver === 'cuvs') {
+      const local = await getLocalChapter(bookId, chapter, 'cuvs');
       if (local?.length) return local;
     }
     return null;

@@ -870,6 +870,15 @@ export interface GeoPlace {
   refs?: string[];
 }
 
+export interface TimelineChapter {
+  book: string;
+  chapter: number;
+  year?: number;
+  year_display?: string;
+  era?: string;
+  note?: string;
+}
+
 export interface BibleSearchHit {
   book: string;
   name: string;
@@ -947,6 +956,10 @@ export const api = {
   versions: () => getJson<{ versions: BibleVersion[] }>('/bible/versions'),
   compare: (ref: string) =>
     getJson<CompareResult>(`/bible/compare?ref=${encodeURIComponent(ref)}`),
+  scriptureRef: (ref: string) =>
+    getJson<{ ref: string; display: string; verses: Verse[] }>(
+      `/bible/ref?ref=${encodeURIComponent(ref)}`,
+    ),
   guide: (ref: string) =>
     getJson<GuideResult>(`/guide/passage?ref=${encodeURIComponent(ref)}`),
   // 内容
@@ -970,12 +983,16 @@ export const api = {
     getJson<{ topics: TopicEntry[] } | TopicEntry>(
       topic ? `/content/topics?topic=${encodeURIComponent(topic)}` : '/content/topics',
     ),
-  geography: (ref?: string) =>
+  geography: (ref?: string, book?: string, chapter?: number) =>
     getJson<{ places: GeoPlace[] }>(
-      ref ? `/content/geography?ref=${encodeURIComponent(ref)}` : '/content/geography',
+      book && chapter
+        ? `/content/geography?book=${encodeURIComponent(book)}&chapter=${chapter}`
+        : ref
+          ? `/content/geography?ref=${encodeURIComponent(ref)}`
+          : '/content/geography',
     ),
   timeline: (book?: string, chapter?: number) =>
-    getJson<{ chapters?: unknown[]; timeline?: unknown }>(
+    getJson<{ chapters?: TimelineChapter[]; timeline?: TimelineChapter | null }>(
       book && chapter
         ? `/content/timeline?book=${encodeURIComponent(book)}&chapter=${chapter}`
         : '/content/timeline',

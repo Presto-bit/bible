@@ -214,7 +214,12 @@ def record_daily_verse_share(
 
 
 def themes() -> dict:
-    return {"themes": loader.daily_verses().get("themes", [])}
+    data = loader.daily_verses()
+    verses = data.get("verses") or []
+    return {
+        "count": data.get("count") or len(verses),
+        "themes": data.get("themes", []),
+    }
 
 
 @router.get("/themes")
@@ -355,7 +360,11 @@ def strongs(
 @router.get("/geography")
 def geography(
     ref: str | None = Query(None, description="经文坐标，返回相关地点"),
+    book: str | None = Query(None, description="书卷 id，与 chapter 合用筛本章地点"),
+    chapter: int | None = Query(None, ge=1),
 ) -> dict:
+    if book and chapter:
+        return {"places": loader.places_for_chapter(book, chapter)}
     places = loader.geography_places()
     if ref:
         r = loader.dictionary_lookup(ref=ref)

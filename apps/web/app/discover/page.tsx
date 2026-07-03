@@ -20,6 +20,8 @@ import { AssistantLink } from '@/components/AssistantLink';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
+import { mergeDiscoverTopics, isLifeTopic } from '@/lib/topics_display';
+import type { TopicEntry } from '@/lib/api';
 
 function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
   if (!reactions) return 0;
@@ -58,14 +60,16 @@ export default function DiscoverPage() {
   const [shares, setShares] = useState<FriendActivity[]>([]);
   const [reacted, setReacted] = useState<Record<string, string>>({});
   const [err, setErr] = useState<string | null>(null);
+  const [topics, setTopics] = useState(() => mergeDiscoverTopics([]));
 
   const reload = useCallback(async () => {
     try {
-      const [g, f, s, activity] = await Promise.all([
+      const [g, f, s, activity, topicsRes] = await Promise.all([
         api.myGroups(),
         api.friends(),
         api.discoverSummary(),
         api.friendsActivity(),
+        api.topics().catch(() => ({ topics: [] as TopicEntry[] })),
       ]);
       const serverGroups = Array.isArray(g.groups) ? g.groups : [];
       const pending = new Set(getPendingOnlyIds(serverGroups.map((item) => item.id)));
@@ -74,6 +78,8 @@ export default function DiscoverPage() {
       setFriends(Array.isArray(f.friends) ? f.friends : []);
       setSummary(s);
       setShares(Array.isArray(activity.items) ? activity.items : []);
+      const apiTopics = 'topics' in topicsRes ? topicsRes.topics : [];
+      setTopics(mergeDiscoverTopics(apiTopics));
       clearGroupsListDirty();
       setErr(null);
     } catch (e) {
@@ -284,6 +290,34 @@ export default function DiscoverPage() {
           </div>
         </>
       )}
+
+      <div className="section-row" style={{ marginTop: 18 }}>
+        <span>人生主题</span>
+        <Link href="/discover/background" className="muted">地理 · 时间线 ›</Link>
+      </div>
+      <div className="rail discover-topic-rail" style={{ marginTop: 8 }}>
+        {topics.map((t) => {
+          const id = isLifeTopic(t) ? t.id : t.id || t.name;
+          const title = isLifeTopic(t) ? t.title : t.name;
+          const subtitle = isLifeTopic(t)
+            ? t.subtitle
+            : `${(t as TopicEntry).verse_count ?? (t as TopicEntry).refs?.length ?? 0} 节精选`;
+          const color = isLifeTopic(t) ? t.color : (t as TopicEntry & { color: string }).color;
+          return (
+            <Link
+              key={id}
+              href={`/discover/topic/${encodeURIComponent(id)}`}
+              className="rail-card card card-2 topic-rail-card"
+              style={{ borderLeftColor: color, minWidth: 148 }}
+            >
+              <strong>{title}</strong>
+              <p className="muted" style={{ fontSize: 12, margin: '4px 0 0', lineHeight: 1.4 }}>
+                {subtitle}
+              </p>
+            </Link>
+          );
+        })}
+      </div>
 
       <div className="section-row" style={{ marginTop: 18 }}>
         <span>好友动态</span>

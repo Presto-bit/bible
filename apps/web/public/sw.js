@@ -1,13 +1,25 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML
-const CACHE = 'presto-bible-v4';
+const CACHE = 'presto-bible-v5';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
+const BASE_PATH = '';
+
+const ILLUSTRATION_FILES = [
+  'theme_盼望.svg', 'theme_平安.svg', 'theme_信靠.svg', 'theme_力量.svg',
+  'theme_爱.svg', 'theme_喜乐.svg', 'theme_智慧.svg', 'theme_引导.svg',
+  'theme_安慰.svg', 'theme_赦免.svg', 'theme_感恩.svg', 'theme_敬拜.svg',
+  'theme_恩典.svg', 'theme_应许.svg', 'theme_勇气.svg', 'theme_谦卑.svg',
+  'theme_祷告.svg', 'theme_忍耐.svg', 'theme_永生.svg', 'theme_顺服.svg',
+];
+
 const SHELL = [
   '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
+  '/illustrations/index.json',
+  ...ILLUSTRATION_FILES.map((f) => `/illustrations/${f}`),
 ];
 
 function isHtmlNavigation(request) {
@@ -25,7 +37,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))),
+      Promise.all(keys.filter((k) => k !== CACHE && k !== IDENTITY_CACHE).map((k) => caches.delete(k))),
     ).then(() => self.clients.claim()),
   );
 });

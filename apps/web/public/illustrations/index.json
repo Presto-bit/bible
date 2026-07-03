@@ -1,0 +1,146 @@
+{
+  "schema": "illustrations@1",
+  "style": "低饱和 muted · 极简几何 + 柔光 · 16:9 矢量",
+  "ratio": "800:450",
+  "palettes": [
+    "dawn",
+    "mist",
+    "sage",
+    "clay",
+    "slate",
+    "wheat"
+  ],
+  "motifs": [
+    "sun",
+    "mountain",
+    "water",
+    "path",
+    "wheat",
+    "lamp",
+    "olive",
+    "dove",
+    "door"
+  ],
+  "items": [
+    {
+      "theme": "盼望",
+      "motif": "sun",
+      "palette": "dawn",
+      "file": "theme_盼望.svg"
+    },
+    {
+      "theme": "平安",
+      "motif": "water",
+      "palette": "mist",
+      "file": "theme_平安.svg"
+    },
+    {
+      "theme": "信靠",
+      "motif": "mountain",
+      "palette": "slate",
+      "file": "theme_信靠.svg"
+    },
+    {
+      "theme": "力量",
+      "motif": "mountain",
+      "palette": "clay",
+      "file": "theme_力量.svg"
+    },
+    {
+      "theme": "爱",
+      "motif": "dove",
+      "palette": "dawn",
+      "file": "theme_爱.svg"
+    },
+    {
+      "theme": "喜乐",
+      "motif": "sun",
+      "palette": "wheat",
+      "file": "theme_喜乐.svg"
+    },
+    {
+      "theme": "智慧",
+      "motif": "lamp",
+      "palette": "slate",
+      "file": "theme_智慧.svg"
+    },
+    {
+      "theme": "引导",
+      "motif": "path",
+      "palette": "sage",
+      "file": "theme_引导.svg"
+    },
+    {
+      "theme": "安慰",
+      "motif": "water",
+      "palette": "mist",
+      "file": "theme_安慰.svg"
+    },
+    {
+      "theme": "赦免",
+      "motif": "olive",
+      "palette": "sage",
+      "file": "theme_赦免.svg"
+    },
+    {
+      "theme": "感恩",
+      "motif": "wheat",
+      "palette": "wheat",
+      "file": "theme_感恩.svg"
+    },
+    {
+      "theme": "谦卑",
+      "motif": "path",
+      "palette": "clay",
+      "file": "theme_谦卑.svg"
+    },
+    {
+      "theme": "勇气",
+      "motif": "mountain",
+      "palette": "slate",
+      "file": "theme_勇气.svg"
+    },
+    {
+      "theme": "应许",
+      "motif": "door",
+      "palette": "dawn",
+      "file": "theme_应许.svg"
+    },
+    {
+      "theme": "祷告",
+      "motif": "lamp",
+      "palette": "mist",
+      "file": "theme_祷告.svg"
+    },
+    {
+      "theme": "敬拜",
+      "motif": "sun",
+      "palette": "dawn",
+      "file": "theme_敬拜.svg"
+    },
+    {
+      "theme": "永生",
+      "motif": "door",
+      "palette": "sage",
+      "file": "theme_永生.svg"
+    },
+    {
+      "theme": "顺服",
+      "motif": "path",
+      "palette": "sage",
+      "file": "theme_顺服.svg"
+    },
+    {
+      "theme": "忍耐",
+      "motif": "wheat",
+      "palette": "wheat",
+      "file": "theme_忍耐.svg"
+    },
+    {
+      "theme": "恩典",
+      "motif": "olive",
+      "palette": "dawn",
+      "file": "theme_恩典.svg"
+    }
+  ]
+}

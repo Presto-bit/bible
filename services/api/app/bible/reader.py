@@ -29,15 +29,27 @@ def _db_path(version: str) -> Path:
     return Path(s.bible_db_path)
 
 
+def _version_has_verses(vid: str) -> bool:
+    path = _db_path(vid)
+    if not path.exists() or path.stat().st_size < 1024:
+        return False
+    try:
+        with _connect(vid) as conn:
+            n = conn.execute("SELECT COUNT(*) FROM verses").fetchone()[0]
+            return int(n) > 0
+    except (sqlite3.OperationalError, FileNotFoundError):
+        return False
+
+
 def available_versions() -> list[dict]:
-    """列出已落地（文件存在）的译本，主译本排首位。"""
+    """列出已落地且有经文的译本，主译本排首位。"""
     out: list[dict] = []
     for vid, label in VERSIONS.items():
         out.append(
             {
                 "id": vid,
                 "label": label,
-                "available": _db_path(vid).exists(),
+                "available": _version_has_verses(vid),
                 "primary": vid == PRIMARY_VERSION,
             }
         )

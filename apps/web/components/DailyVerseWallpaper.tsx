@@ -7,9 +7,11 @@ import { heroThemeClass } from '@/lib/home_rail';
 
 export default function DailyVerseWallpaper({
   dv,
+  illustrationUrl,
   onClose,
 }: {
   dv: DailyVerse;
+  illustrationUrl?: string | null;
   onClose: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
@@ -36,7 +38,15 @@ export default function DailyVerseWallpaper({
 
   return createPortal(
     <div className={`verse-full ${themeClass}`} onClick={onClose} role="dialog" aria-modal="true" aria-label="每日经文">
-      <div className="verse-full-bg verse-full-bg-gradient" aria-hidden />
+      {illustrationUrl ? (
+        <div
+          className="verse-full-bg verse-full-bg-photo"
+          style={{ backgroundImage: `url(${illustrationUrl})` }}
+          aria-hidden
+        />
+      ) : (
+        <div className="verse-full-bg verse-full-bg-gradient" aria-hidden />
+      )}
       <div className="verse-full-scrim" />
       <div className="verse-full-glow" aria-hidden />
       <button
