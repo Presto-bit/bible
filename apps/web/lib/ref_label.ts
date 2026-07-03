@@ -1,4 +1,6 @@
-/** 将 GEN.1.1 等 ref 转为中文展示（约翰福音 1:1） */
+/** 将 GEN.1.1 / JHN 3:16 / GEN.2:7 等 ref 转为中文展示（约翰福音 3:16） */
+
+import { normalizeInlineRef } from './inline_ref';
 
 const BOOK_ID_TO_CN: Record<string, string> = {
   GEN: '创世记', EXO: '出埃及记', LEV: '利未记', NUM: '民数记', DEU: '申命记',
@@ -18,22 +20,49 @@ const BOOK_ID_TO_CN: Record<string, string> = {
   '2JN': '约翰二书', '3JN': '约翰三书', JUD: '犹大书', REV: '启示录',
 };
 
+function bookCn(bookId: string): string {
+  return BOOK_ID_TO_CN[bookId.toUpperCase()] ?? bookId;
+}
+
+function formatChapterVerse(name: string, chapter: string, verse?: string): string {
+  if (verse) return `${name} ${chapter}:${verse}`;
+  return `${name} ${chapter}章`;
+}
+
+/** 单条 ref 字符串 → 中文（支持 OSIS 与空格格式） */
 export function refToChineseLabel(ref: string | undefined | null): string | null {
   if (!ref) return null;
-  const range = ref.match(/^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$/);
+  const trimmed = ref.trim();
+
+  const range = trimmed.match(/^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$/);
   if (range) {
     const b1 = range[1].toUpperCase();
     const b2 = range[3].toUpperCase();
-    const n1 = BOOK_ID_TO_CN[b1] ?? b1;
-    const n2 = BOOK_ID_TO_CN[b2] ?? b2;
+    const n1 = bookCn(b1);
+    const n2 = bookCn(b2);
     if (b1 === b2) return `${n1} ${range[2]}–${range[4]}章`;
     return `${n1} ${range[2]}章 – ${n2} ${range[4]}章`;
   }
-  const m = ref.match(/^([A-Za-z0-9]+)\.(\d+)(?:\.(\d+))?$/);
-  if (!m) return ref;
-  const name = BOOK_ID_TO_CN[m[1].toUpperCase()] ?? m[1];
-  if (m[3]) return `${name} ${m[2]}:${m[3]}`;
-  return `${name} ${m[2]}章`;
+
+  const osis = normalizeInlineRef(trimmed);
+  if (osis) {
+    const parsed = osis.match(/^([A-Za-z0-9]+)\.(\d+)(?:\.(\d+))?$/);
+    if (parsed) {
+      return formatChapterVerse(bookCn(parsed[1]), parsed[2], parsed[3]);
+    }
+  }
+
+  return trimmed;
+}
+
+/** 文本内嵌 USFM 经节（JHN 3:16、GEN.1.1、GEN.2:7）→ 中文 */
+const INLINE_REF_TOKEN =
+  /\b(?:[1-3][A-Z]{2,3}|[A-Z]{2,4})[.\s]\d+(?:[:.\s]\d+)?\b/g;
+
+/** 将文本内嵌的 USFM 经节（JHN 3:16、GEN.1.1、参考 ROM.3.23）替换为中文 */
+export function localizeRefsInText(text: string | undefined | null): string {
+  if (!text) return text ?? '';
+  return text.replace(INLINE_REF_TOKEN, (match) => refToChineseLabel(match) ?? match);
 }
 
 /** 群动态/足迹等场景的统一经文展示 */
@@ -45,5 +74,5 @@ export function formatGroupRefLabel(ref: string | undefined | null): string {
 /** OSIS 书卷 id → 中文名（如 GEN → 创世记） */
 export function bookIdToChineseName(bookId: string | undefined | null): string {
   if (!bookId) return '';
-  return BOOK_ID_TO_CN[bookId.toUpperCase()] ?? bookId;
+  return bookCn(bookId);
 }

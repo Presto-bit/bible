@@ -7,19 +7,24 @@ import { heroThemeClass } from '@/lib/home_rail';
 
 export default function DailyVerseWallpaper({
   dv,
-  illustrationUrl,
+  backgroundUrl,
   onClose,
 }: {
   dv: DailyVerse;
-  illustrationUrl?: string | null;
+  backgroundUrl?: string | null;
   onClose: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
+  const [bgOk, setBgOk] = useState(true);
   const themeClass = heroThemeClass(dv.theme);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    setBgOk(true);
+  }, [backgroundUrl]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -36,13 +41,17 @@ export default function DailyVerseWallpaper({
 
   if (!mounted) return null;
 
+  const showPhoto = Boolean(backgroundUrl && bgOk);
+
   return createPortal(
     <div className={`verse-full ${themeClass}`} onClick={onClose} role="dialog" aria-modal="true" aria-label="每日经文">
-      {illustrationUrl ? (
-        <div
+      {showPhoto ? (
+        <img
           className="verse-full-bg verse-full-bg-photo"
-          style={{ backgroundImage: `url(${illustrationUrl})` }}
+          src={backgroundUrl!}
+          alt=""
           aria-hidden
+          onError={() => setBgOk(false)}
         />
       ) : (
         <div className="verse-full-bg verse-full-bg-gradient" aria-hidden />

@@ -1,4 +1,11 @@
-// 圣经知识闯关：关卡制，融合知识卡与小爱问答。
+// 经典关卡：从 question_bank.json 按主题/经卷确定性抽题（每关 5 题）。
+
+import {
+  QUESTION_BANK,
+  questionsByTheme,
+  seededShuffle,
+  type QuestionBankEntry,
+} from './question_bank';
 
 export interface ChallengeQuestion {
   id: string;
@@ -18,217 +25,83 @@ export interface ChallengeLevel {
   questions: ChallengeQuestion[];
 }
 
-const Q = (
-  id: string,
-  question: string,
-  options: string[],
-  answer: number,
-  explain: string,
-  ref?: string,
-): ChallengeQuestion => ({ id, question, options, answer, explain, ref });
+interface ClassicLevelSpec {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  themeId: string;
+  /** 优先选用 ref 前缀匹配的题（不足则回退整主题） */
+  refPrefix?: string;
+}
 
-export const CHALLENGE_LEVELS: ChallengeLevel[] = [
-  {
-    id: 'lv1',
-    title: '第 1 关',
-    subtitle: '福音核心',
-    icon: '✝',
-    questions: [
-      Q('lv1-1', '「神爱世人」出自哪卷书？', ['约翰福音', '罗马书', '诗篇', '创世记'], 0, '约翰福音 3:16 是福音核心经句。', 'JHN.3.16'),
-      Q('lv1-2', '耶稣在哪个城市诞生？', ['耶路撒冷', '伯利恒', '拿撒勒', '迦百农'], 1, '弥迦书预言，耶稣生于伯利恒。', 'MAT.2.1'),
-      Q('lv1-3', '「耶和华是我的牧者」出自？', ['诗篇 23', '箴言 3', '以赛亚 40', '约翰福音 10'], 0, '诗篇 23 篇开头。', 'PSA.23.1'),
-      Q('lv1-4', '「我是道路、真理、生命」出自？', ['马太福音', '约翰福音', '使徒行传', '希伯来书'], 1, '约翰福音 14:6。', 'JHN.14.6'),
-      Q('lv1-5', '门徒被称为「基督徒」始于何处？', ['耶路撒冷', '安提阿', '以弗所', '罗马'], 1, '使徒行传 11:26。', 'ACT.11.26'),
-    ],
-  },
-  {
-    id: 'lv2',
-    title: '第 2 关',
-    subtitle: '旧约人物',
-    icon: '👤',
-    questions: [
-      Q('lv2-1', '谁建造方舟？', ['亚伯拉罕', '挪亚', '摩西', '大卫'], 1, '挪亚照神吩咐建造方舟（创 6–9）。', 'GEN.6.14'),
-      Q('lv2-2', '谁带领以色列人出埃及？', ['约书亚', '摩西', '亚伦', '基甸'], 1, '摩西被神差遣领百姓出埃及。', 'EXO.3.10'),
-      Q('lv2-3', '谁用羊羔皮蒙住脸见以色列长老？', ['撒母耳', '摩西', '以利亚', '以利沙'], 1, '出埃及记 34 记载摩西从西奈山下来。', 'EXO.34.33'),
-      Q('lv2-4', '谁凭信心接以撒？', ['撒拉', '利百加', '拉结', '路得'], 0, '希伯来书 11 提到撒拉因信怀孕。', 'HEB.11.11'),
-      Q('lv2-5', '大卫用什么击败歌利亚？', ['剑', '投石带', '弓箭', '长矛'], 1, '撒母耳记上 17 章。', '1SA.17.49'),
-    ],
-  },
-  {
-    id: 'lv3',
-    title: '第 3 关',
-    subtitle: '新约书信',
-    icon: '✉',
-    questions: [
-      Q('lv3-1', '谁写下大部分新约书信？', ['彼得', '保罗', '约翰', '雅各'], 1, '保罗写了罗马书至腓利门等多卷书信。', 'ROM.1.1'),
-      Q('lv3-2', '「爱是恒久忍耐」出自哪卷书？', ['哥林多前书', '以弗所书', '加拉太书', '腓立比书'], 0, '哥林多前书 13 章论爱的真谛。', '1CO.13.4'),
-      Q('lv3-3', '「因信称义」在罗马书强调什么？', ['行为得救', '恩典与信心', '律法主义', '礼仪洁净'], 1, '罗马书核心主题之一。', 'ROM.3.28'),
-      Q('lv3-4', '「你们得救是本乎恩」出自？', ['加拉太书', '以弗所书', '歌罗西书', '腓立比书'], 1, '以弗所书 2:8。', 'EPH.2.8'),
-      Q('lv3-5', '「在基督里成为新造的人」出自？', ['罗马书', '哥林多后书', '加拉太书', '以弗所书'], 1, '哥林多后书 5:17。', '2CO.5.17'),
-    ],
-  },
-  {
-    id: 'lv4',
-    title: '第 4 关',
-    subtitle: '登山宝训',
-    icon: '⛰',
-    questions: [
-      Q('lv4-1', '「爱人如己」出现在哪段教导中？', ['十诫', '登山宝训', '使徒行传', '启示录'], 1, '耶稣在登山宝训中总结律法和先知。', 'MAT.22.39'),
-      Q('lv4-2', '八福记载在哪卷福音书？', ['马可福音', '路加福音', '马太福音', '约翰福音'], 2, '马太福音 5–7 章。', 'MAT.5.3'),
-      Q('lv4-3', '「你们要先求他的国」提醒什么？', ['追求财富', '以神为先', '躲避苦难', '遵守礼仪'], 1, '马太福音 6:33。', 'MAT.6.33'),
-      Q('lv4-4', '「盐若失了味」比喻什么？', ['财富无用', '门徒失见证', '律法失效', '圣殿败坏'], 1, '马太福音 5:13。', 'MAT.5.13'),
-      Q('lv4-5', '主祷文「免我们的债」强调？', ['复仇', '饶恕', '献祭', '禁食'], 1, '马太福音 6:12。', 'MAT.6.12'),
-    ],
-  },
-  {
-    id: 'lv5',
-    title: '第 5 关',
-    subtitle: '约翰福音 3 章',
-    icon: '💧',
-    questions: [
-      Q('lv5-1', '「重生」在本章主要指什么？', ['从母腹再生', '从圣灵生', '遵守律法', '受割礼'], 1, '与尼哥底母对话中的核心教导。', 'JHN.3.3'),
-      Q('lv5-2', '神赐下儿子的目的是？', ['审判世界', '叫世人灭亡', '叫世人因祂得救', '建立国度'], 2, '约翰福音 3:16。', 'JHN.3.16'),
-      Q('lv5-3', '「光照世人」指什么？', ['自然光', '基督的启示', '摩西律法', '圣殿敬拜'], 1, '光象征真理与生命。', 'JHN.3.19'),
-      Q('lv5-4', '尼哥底母来见耶稣是在什么时候？', ['白天', '夜里', '正午', '清晨'], 1, '约翰福音 3:2。', 'JHN.3.2'),
-      Q('lv5-5', '「举起来」在本章指什么？', ['建殿', '十字架', '升天堂', '立王'], 1, '约翰福音 3:14 预表十字架。', 'JHN.3.14'),
-    ],
-  },
-  {
-    id: 'lv6',
-    title: '第 6 关',
-    subtitle: '诗篇 23 篇',
-    icon: '🎵',
-    questions: [
-      Q('lv6-1', '「牧者」在本诗象征什么？', ['君王', '耶和华看顾', '大卫自己', '祭司'], 1, '耶和华是我的牧者。', 'PSA.23.1'),
-      Q('lv6-2', '「我虽然行过死荫的幽谷」表达？', ['绝望', '神同在的安慰', '惩罚', '迷路'], 1, '杖与竿的安慰。', 'PSA.23.4'),
-      Q('lv6-3', '「在我敌人面前摆设筵席」意味？', ['复仇', '神的保护供应', '战争胜利', '宫廷宴会'], 1, '在患难中仍蒙看顾。', 'PSA.23.5'),
-      Q('lv6-4', '「我必住在耶和华的殿中」表达？', ['恐惧', '与神同在的盼望', '逃避', '骄傲'], 1, '诗篇 23:6 的安息。', 'PSA.23.6'),
-      Q('lv6-5', '本诗常用什么意象描述神？', ['战士', '牧者', '法官', '商人'], 1, '牧者与羊的关系。', 'PSA.23.1'),
-    ],
-  },
-  {
-    id: 'lv7',
-    title: '第 7 关',
-    subtitle: '创世记开端',
-    icon: '🌍',
-    questions: [
-      Q('lv7-1', '「起初神创造」记载于？', ['出埃及记', '创世记', '申命记', '约书亚记'], 1, '创世记 1:1。', 'GEN.1.1'),
-      Q('lv7-2', '神按自己的形象造了什么？', ['天使', '人', '动物', '植物'], 1, '创世记 1:27。', 'GEN.1.27'),
-      Q('lv7-3', '安息日是第几日？', ['第五日', '第六日', '第七日', '第一日'], 2, '创世记 2:2–3。', 'GEN.2.2'),
-      Q('lv7-4', '伊甸园中有哪两棵特别的树？', ['生命树与分别善恶树', '橄榄树与无花果树', '松树与橡树', '葡萄树与枣树'], 0, '创世记 2:9。', 'GEN.2.9'),
-      Q('lv7-5', '谁引诱夏娃？', ['天使', '蛇', '亚当', '该隐'], 1, '创世记 3 章。', 'GEN.3.1'),
-    ],
-  },
-  {
-    id: 'lv8',
-    title: '第 8 关',
-    subtitle: '使徒行传',
-    icon: '🔥',
-    questions: [
-      Q('lv8-1', '五旬节圣灵降临在？', ['耶路撒冷', '安提阿', '以弗所', '哥林多'], 0, '使徒行传 2 章。', 'ACT.2.1'),
-      Q('lv8-2', '谁在大马色路上遇见复活的主？', ['彼得', '保罗', '巴拿巴', '司提反'], 1, '从前是逼迫教会的扫罗。', 'ACT.9.3'),
-      Q('lv8-3', '第一次外邦宣教旅程主要人物？', ['彼得与约翰', '保罗与巴拿巴', '雅各与安德烈', '马利亚与马大'], 1, '使徒行传 13 章起。', 'ACT.13.2'),
-      Q('lv8-4', '谁为斯蒂芬按手？', ['只有彼得', '使徒们', '只有保罗', '只有雅各'], 1, '使徒行传 6:6。', 'ACT.6.6'),
-      Q('lv8-5', '哥尼流是做什么的？', ['祭司', '百夫长', '税吏', '渔夫'], 1, '使徒行传 10 章。', 'ACT.10.1'),
-    ],
-  },
-  {
-    id: 'lv9',
-    title: '第 9 关',
-    subtitle: '罗马书',
-    icon: '📜',
-    questions: [
-      Q('lv9-1', '「世人都犯了罪」出自？', ['罗马书', '加拉太书', '以弗所书', '希伯来书'], 0, '罗马书 3:23。', 'ROM.3.23'),
-      Q('lv9-2', '「谁能使我们与基督的爱隔绝？」出自？', ['哥林多前书', '罗马书', '腓立比书', '歌罗西书'], 1, '罗马书 8:35。', 'ROM.8.35'),
-      Q('lv9-3', '「不要效法这个世界」提醒什么？', ['逃避社会', '心意更新', '禁绝娱乐', '只读旧约'], 1, '罗马书 12:2。', 'ROM.12.2'),
-      Q('lv9-4', '「我们若活着，是为主而活」出自？', ['罗马书', '哥林多后书', '加拉太书', '以弗所书'], 0, '罗马书 14:8。', 'ROM.14.8'),
-      Q('lv9-5', '罗马书作者是谁？', ['彼得', '保罗', '约翰', '雅各'], 1, '保罗写给罗马教会。', 'ROM.1.1'),
-    ],
-  },
-  {
-    id: 'lv10',
-    title: '第 10 关',
-    subtitle: '箴言智慧',
-    icon: '💡',
-    questions: [
-      Q('lv10-1', '「敬畏耶和华是知识的开端」出自？', ['诗篇', '箴言', '传道书', '约伯记'], 1, '箴言 1:7。', 'PRO.1.7'),
-      Q('lv10-2', '「你要专心仰赖耶和华」出自？', ['箴言 3', '箴言 16', '箴言 31', '传道书 3'], 0, '箴言 3:5。', 'PRO.3.5'),
-      Q('lv10-3', '「回答柔和，使怒消退」出自？', ['箴言 15', '箴言 25', '箴言 31', '雅歌 2'], 0, '箴言 15:1。', 'PRO.15.1'),
-      Q('lv10-4', '箴言传统上多归于谁？', ['所罗门', '大卫', '摩西', '以赛亚'], 0, '箴言 1:1。', 'PRO.1.1'),
-      Q('lv10-5', '「智慧比珍珠更宝贵」强调什么？', ['财富', '寻求智慧', '权力', '长寿'], 1, '箴言 3:15。', 'PRO.3.15'),
-    ],
-  },
-  {
-    id: 'lv11',
-    title: '第 11 关',
-    subtitle: '以赛亚书',
-    icon: '🕊',
-    questions: [
-      Q('lv11-1', '「童女怀孕生子」的预言出自？', ['耶利米书', '以赛亚书', '以西结书', '但以理书'], 1, '以赛亚书 7:14。', 'ISA.7.14'),
-      Q('lv11-2', '「他是被压伤的，我们却以为他受责罚」出自？', ['以赛亚 40', '以赛亚 53', '以赛亚 61', '以赛亚 6'], 1, '以赛亚书 53 章。', 'ISA.53.4'),
-      Q('lv11-3', '「那些等候耶和华的必重新得力」出自？', ['以赛亚 40', '以赛亚 55', '以赛亚 61', '以赛亚 6'], 0, '以赛亚书 40:31。', 'ISA.40.31'),
-      Q('lv11-4', '以赛亚看见异象是在哪一年？', ['乌西雅王崩年', '希西家年间', '约西亚年间', '所罗门年间'], 0, '以赛亚书 6:1。', 'ISA.6.1'),
-      Q('lv11-5', '「这里是我，请差遣我」是谁说的？', ['以赛亚', '耶利米', '以西结', '但以理'], 0, '以赛亚书 6:8。', 'ISA.6.8'),
-    ],
-  },
-  {
-    id: 'lv12',
-    title: '第 12 关',
-    subtitle: '启示录',
-    icon: '👑',
-    questions: [
-      Q('lv12-1', '启示录作者是谁？', ['保罗', '彼得', '约翰', '路加'], 2, '启示录 1:1。', 'REV.1.1'),
-      Q('lv12-2', '「我是阿拉法，我是俄梅戛」指什么？', ['开始与终结', '南北', '新旧约', '律法与恩典'], 0, '启示录 1:8。', 'REV.1.8'),
-      Q('lv12-3', '「看哪，我必快来」出现在？', ['启示录末章', '马太末章', '约翰末章', '使徒行传末章'], 0, '启示录 22:20。', 'REV.22.20'),
-      Q('lv12-4', '新耶路撒冷从何处降下？', ['地上', '天', '海', '山'], 1, '启示录 21:2。', 'REV.21.2'),
-      Q('lv12-5', '「不再有死亡」的应许在？', ['启示录 21', '以赛亚 65', '约翰福音 11', '罗马书 8'], 0, '启示录 21:4。', 'REV.21.4'),
-    ],
-  },
+const CLASSIC_LEVEL_SPECS: ClassicLevelSpec[] = [
+  { id: 'lv1', title: '第 1 关', subtitle: '福音核心', icon: '✝', themeId: 'gospel' },
+  { id: 'lv2', title: '第 2 关', subtitle: '旧约人物', icon: '👤', themeId: 'ot_people' },
+  { id: 'lv3', title: '第 3 关', subtitle: '新约书信', icon: '✉', themeId: 'nt_letters' },
+  { id: 'lv4', title: '第 4 关', subtitle: '登山宝训', icon: '⛰', themeId: 'sermon' },
+  { id: 'lv5', title: '第 5 关', subtitle: '约翰福音 3 章', icon: '💧', themeId: 'gospel', refPrefix: 'JHN.3' },
+  { id: 'lv6', title: '第 6 关', subtitle: '诗篇 23 篇', icon: '🎵', themeId: 'psalms', refPrefix: 'PSA.23' },
+  { id: 'lv7', title: '第 7 关', subtitle: '创世记开端', icon: '🌍', themeId: 'law', refPrefix: 'GEN.' },
+  { id: 'lv8', title: '第 8 关', subtitle: '使徒行传', icon: '🔥', themeId: 'acts' },
+  { id: 'lv9', title: '第 9 关', subtitle: '罗马书', icon: '📜', themeId: 'nt_letters', refPrefix: 'ROM.' },
+  { id: 'lv10', title: '第 10 关', subtitle: '箴言智慧', icon: '💡', themeId: 'psalms', refPrefix: 'PRO.' },
+  { id: 'lv11', title: '第 11 关', subtitle: '以赛亚书', icon: '🕊', themeId: 'prophets', refPrefix: 'ISA.' },
+  { id: 'lv12', title: '第 12 关', subtitle: '启示录', icon: '👑', themeId: 'revelation' },
 ];
 
-const BOOK_QUESTIONS: Record<string, ChallengeQuestion[]> = {
-  MAT: [
-    Q('mat-1', '马太福音主要强调耶稣的什么身份？', ['先知', '弥赛亚/君王', '祭司', '哲学家'], 1, '家谱与「大卫的子孙」主题突出。', 'MAT.1.1'),
-    Q('mat-2', '登山宝训记载在哪卷？', ['马可', '马太', '路加', '约翰'], 1, '马太福音 5–7 章。', 'MAT.5.1'),
-    Q('mat-3', '「大使命」出现在马太福音哪一章？', ['第 24 章', '第 28 章', '第 10 章', '第 16 章'], 1, '马太福音 28:18–20。', 'MAT.28.18'),
-    Q('mat-4', '马太福音开头列什么？', ['十诫', '家谱', '预言', '比喻'], 1, '马太福音 1 章。', 'MAT.1.1'),
-    Q('mat-5', '「你们要先求他的国」出自？', ['马太 5', '马太 6', '马太 7', '马太 24'], 1, '马太福音 6:33。', 'MAT.6.33'),
-  ],
-  MRK: [
-    Q('mrk-1', '马可福音的节奏特点？', ['冗长家谱', '行动紧凑的仆人', '哲学对话', '末世异象'], 1, '「立刻」一词频繁出现。', 'MRK.1.12'),
-    Q('mrk-2', '耶稣在海面上行走记载于？', ['马太', '马可', '路加', '约翰'], 1, '马可福音 6:45–52。', 'MRK.6.48'),
-  ],
-  JHN: [
-    Q('jhn-1', '约翰福音常用「我是」宣告？', ['否', '是', '仅一次', '只在末章'], 1, '如「我是道路、真理、生命」。', 'JHN.14.6'),
-    Q('jhn-2', '「道成了肉身」在哪卷？', ['马太', '马可', '路加', '约翰'], 3, '约翰福音 1:14。', 'JHN.1.14'),
-  ],
-  PSA: [
-    Q('psa-1', '诗篇 23 篇作者传统上归于？', ['所罗门', '大卫', '摩西', '亚萨'], 1, '「大卫的诗」。', 'PSA.23.1'),
-    Q('psa-2', '「诸天述说神的荣耀」出自？', ['诗篇 8', '诗篇 19', '诗篇 119', '诗篇 150'], 1, '诗篇 19:1。', 'PSA.19.1'),
-  ],
-  GEN: [
-    Q('gen-1', '亚伯拉罕原名？', ['以撒', '亚伯兰', '雅各', '约瑟'], 1, '创世记 12 章改名。', 'GEN.17.5'),
-    Q('gen-2', '约瑟被卖到埃及因？', ['战争', '兄弟嫉妒', '饥荒', '献殿'], 1, '创世记 37 章。', 'GEN.37.28'),
-  ],
-};
+const QUESTIONS_PER_LEVEL = 5;
+
+function pickLevelQuestions(spec: ClassicLevelSpec): QuestionBankEntry[] {
+  let pool = questionsByTheme(spec.themeId);
+  if (spec.refPrefix) {
+    const prefix = spec.refPrefix.toUpperCase();
+    const filtered = pool.filter((q) => (q.ref ?? '').toUpperCase().startsWith(prefix));
+    if (filtered.length >= QUESTIONS_PER_LEVEL) pool = filtered;
+  }
+  if (!pool.length) pool = [...QUESTION_BANK];
+  return seededShuffle(pool, spec.id).slice(0, QUESTIONS_PER_LEVEL);
+}
+
+function buildClassicLevels(): ChallengeLevel[] {
+  return CLASSIC_LEVEL_SPECS.map((spec) => ({
+    id: spec.id,
+    title: spec.title,
+    subtitle: spec.subtitle,
+    icon: spec.icon,
+    questions: pickLevelQuestions(spec),
+  }));
+}
+
+let classicCache: ChallengeLevel[] | null = null;
+
+export function getClassicLevels(): ChallengeLevel[] {
+  if (!classicCache) classicCache = buildClassicLevels();
+  return classicCache;
+}
+
+/** @deprecated 使用 getClassicLevels()；保留兼容旧 import */
+export const CHALLENGE_LEVELS = getClassicLevels();
 
 export function bookChallengeLevel(bookId: string, bookName: string): ChallengeLevel {
-  const qs = BOOK_QUESTIONS[bookId.toUpperCase()] ?? [
-    Q(`${bookId}-g1`, `读完《${bookName}》，你印象最深的是？`, ['神的创造', '神的信实', '神的救赎', '都需要再读'], 3, '每卷书都指向神的作为。'),
-    Q(`${bookId}-g2`, `《${bookName}》属于？`, ['律法书', '历史书', '诗歌智慧', '新约'], 3, '可回到目录确认分类。'),
-  ];
+  const bid = bookId.toUpperCase();
+  const prefix = `${bid}.`;
+  let pool = QUESTION_BANK.filter((q) => (q.ref ?? '').toUpperCase().startsWith(prefix));
+  if (pool.length < QUESTIONS_PER_LEVEL) {
+    pool = seededShuffle(QUESTION_BANK, `book-fallback-${bid}`);
+  }
   return {
-    id: `book-${bookId}`,
+    id: `book-${bid}`,
     title: `${bookName} · 巩固关`,
     subtitle: '读完本卷后的知识回顾',
     icon: '📖',
-    bookId: bookId.toUpperCase(),
-    questions: qs,
+    bookId: bid,
+    questions: seededShuffle(pool, `book-${bid}`).slice(0, QUESTIONS_PER_LEVEL),
   };
 }
 
 export function allChallengeLevels(extra?: ChallengeLevel[]): ChallengeLevel[] {
-  return [...CHALLENGE_LEVELS, ...(extra ?? [])];
+  return [...getClassicLevels(), ...(extra ?? [])];
 }
 
 export function flattenQuestions(levels: ChallengeLevel[]): ChallengeQuestion[] {

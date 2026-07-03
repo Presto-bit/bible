@@ -19,6 +19,9 @@
   --dawn-peach: var(--brand-dawn-peach, #ffe8d6);
   --dawn-rose: var(--brand-dawn-rose, #e8a090);
   --dawn-sky: var(--brand-dawn-sky, #a8c4d4);
+  --app-font-size: 20px;
+  --app-heading-size: 22px;
+  --reader-font-size: 20px;
 }
 
 * {
@@ -42,6 +45,7 @@ body {
   color: var(--ink);
   font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui,
     sans-serif;
+  font-size: var(--app-font-size);
   -webkit-font-smoothing: antialiased;
   line-height: 1.7;
   overflow-x: hidden;
@@ -101,6 +105,7 @@ body.pwa-standalone .app-body {
   touch-action: pan-y;
   background: var(--paper);
   color: var(--ink);
+  font-size: var(--app-font-size);
 }
 
 /* 全屏子页（群详情等无 container 包裹）统一晨光底 */
@@ -801,7 +806,11 @@ html:not([data-app-theme]) .card {
   background-position: center;
 }
 
-.hero-verse .hero-scene[style*='background-image'] {
+.hero-verse .hero-scene[style*='background-image'],
+.hero-scene.hero-scene-has-art {
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   background-blend-mode: normal;
   mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.15));
 }
@@ -1784,8 +1793,9 @@ a.today-card-link {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background-size: cover;
-  background-position: center;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   filter: saturate(0.9) brightness(0.55);
 }
 
@@ -1804,6 +1814,78 @@ a.today-card-link {
   padding: 8px 14px;
   font-size: 13px;
   white-space: nowrap;
+}
+
+.verse-preview-sheet {
+  max-height: min(78vh, 560px);
+  display: flex;
+  flex-direction: column;
+}
+
+.verse-preview-scroll {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 10px;
+  max-height: min(62vh, 480px);
+  -webkit-overflow-scrolling: touch;
+}
+
+.verse-preview-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verse-preview-line {
+  line-height: 1.75;
+  font-size: var(--reader-font-size, var(--app-font-size));
+  margin: 0;
+}
+
+.verse-preview-num {
+  color: var(--accent-deep);
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.summary-sheet-context {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.summary-sheet-context-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  margin: 0 0 8px;
+}
+
+.summary-sheet-context-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  margin: 0 0 8px;
+  color: var(--ink-soft);
+}
+
+.summary-sheet-places {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-section-title {
+  font-size: var(--app-heading-size);
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.search-topic-chip {
+  text-align: left;
+  padding: 12px 14px;
 }
 
 .verse-full.hero-verse-theme-creation .verse-full-bg-gradient {
@@ -2893,7 +2975,7 @@ a.today-card-link {
   background: transparent;
   cursor: pointer;
   font-weight: 600;
-  font-size: 15px;
+  font-size: var(--reader-font-size, var(--app-font-size));
   color: var(--ink);
   padding: 2px 10px 2px 0;
   border-right: 1px solid var(--line);
@@ -2903,7 +2985,7 @@ a.today-card-link {
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: 14px;
+  font-size: var(--reader-font-size, var(--app-font-size));
   color: var(--ink-soft);
   padding: 2px 0 2px 10px;
 }
@@ -3775,9 +3857,12 @@ a.today-card-link {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
 }
 
 .quiz-opt {
+  width: 100%;
+  box-sizing: border-box;
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -3785,6 +3870,9 @@ a.today-card-link {
   text-align: left;
   cursor: pointer;
   font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .quiz-opt:hover {
@@ -3930,13 +4018,12 @@ a.today-card-link {
 
 .challenge-flip-wrap {
   perspective: 1200px;
-  min-height: 300px;
 }
 
 .challenge-flip-inner {
   position: relative;
+  display: grid;
   width: 100%;
-  min-height: 300px;
   transform-style: preserve-3d;
   transition: transform 0.55s cubic-bezier(0.4, 0.2, 0.2, 1);
 }
@@ -3947,8 +4034,8 @@ a.today-card-link {
 
 .challenge-flip-front,
 .challenge-flip-back {
-  position: absolute;
-  inset: 0;
+  grid-area: 1 / 1;
+  width: 100%;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
@@ -3977,7 +4064,31 @@ a.today-card-link {
 }
 
 .challenge-q-card {
+  display: flex;
+  flex-direction: column;
   padding: 18px !important;
+  box-sizing: border-box;
+}
+
+.challenge-q-card .quiz-q {
+  flex: 0 0 auto;
+}
+
+.challenge-q-card .quiz-options {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.quiz-answer {
+  font-size: 16px;
+}
+
+.quiz-explain {
+  margin-top: 12px;
+  line-height: 1.75;
+  font-size: 14px;
+  color: var(--ink-soft);
+  word-break: break-word;
 }
 
 /* 常读金句 */
@@ -4480,7 +4591,7 @@ a.today-card-link {
 .summary-sheet-body {
   margin: 10px 0 0;
   line-height: 1.85;
-  font-size: 15px;
+  font-size: var(--app-font-size);
   color: var(--ink-soft);
   white-space: pre-wrap;
 }
@@ -4817,7 +4928,6 @@ a.today-card-link {
   font-size: 12px;
   padding: 6px 4px;
 }
-
 
 .plan-read-exit {
   font-size: 12px;

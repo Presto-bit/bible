@@ -23,9 +23,26 @@ String bookIdToChineseName(String bookId) {
   return _bookIdToCn[bookId.toUpperCase()] ?? bookId;
 }
 
+String _formatChapterVerse(String name, String chapter, [String? verse]) {
+  if (verse != null) return '$name $chapter:$verse';
+  return '$name ${chapter}章';
+}
+
+String? _normalizeRefToOsis(String ref) {
+  final s = ref.trim();
+  final m = RegExp(r'^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+))?$').firstMatch(s);
+  if (m == null) return null;
+  final book = m.group(1)!.toUpperCase();
+  final ch = m.group(2)!;
+  final v = m.group(3);
+  return v != null ? '$book.$ch.$v' : '$book.$ch';
+}
+
 String? refToChineseLabel(String? ref) {
   if (ref == null || ref.isEmpty) return null;
-  final range = RegExp(r'^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$').firstMatch(ref);
+  final trimmed = ref.trim();
+
+  final range = RegExp(r'^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$').firstMatch(trimmed);
   if (range != null) {
     final b1 = range.group(1)!.toUpperCase();
     final b2 = range.group(3)!.toUpperCase();
@@ -34,11 +51,25 @@ String? refToChineseLabel(String? ref) {
     if (b1 == b2) return '$n1 ${range.group(2)}–${range.group(4)}章';
     return '$n1 ${range.group(2)}章 – $n2 ${range.group(4)}章';
   }
-  final m = RegExp(r'^([A-Za-z0-9]+)\.(\d+)(?:\.(\d+))?$').firstMatch(ref);
-  if (m == null) return ref;
-  final name = _bookIdToCn[m.group(1)!.toUpperCase()] ?? m.group(1)!;
-  if (m.group(3) != null) return '$name ${m.group(2)}:${m.group(3)}';
-  return '$name ${m.group(2)}章';
+
+  final osis = _normalizeRefToOsis(trimmed);
+  if (osis != null) {
+    final m = RegExp(r'^([A-Za-z0-9]+)\.(\d+)(?:\.(\d+))?$').firstMatch(osis);
+    if (m != null) {
+      final name = _bookIdToCn[m.group(1)!.toUpperCase()] ?? m.group(1)!;
+      return _formatChapterVerse(name, m.group(2)!, m.group(3));
+    }
+  }
+
+  return trimmed;
+}
+
+String localizeRefsInText(String? text) {
+  if (text == null || text.isEmpty) return text ?? '';
+  return text.replaceAllMapped(
+    RegExp(r'\b(?:[1-3][A-Z]{2,3}|[A-Z]{2,4})[.\s]\d+(?:[:.\s]\d+)?\b'),
+    (m) => refToChineseLabel(m.group(0)!) ?? m.group(0)!,
+  );
 }
 
 String formatGroupRefLabel(String? ref) {

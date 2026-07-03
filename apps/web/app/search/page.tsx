@@ -3,16 +3,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { type BibleSearchHit } from '@/lib/api';
+import { api, type BibleSearchHit, type TopicEntry } from '@/lib/api';
 import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
+import { LIFE_TOPICS } from '@/lib/discover_topics';
+import { loadDailyThemes } from '@/lib/daily_themes';
+import { mergeDiscoverTopics, isLifeTopic } from '@/lib/topics_display';
 
-const THEME_TAGS = ['盼望', '焦虑', '祷告', '家庭', '工作', '悲伤', '信心', '宽恕'];
 const HISTORY_KEY = 'search_history';
 
-// 含中文时单字即可搜，纯拉丁词需至少 2 字符。
 function searchTooShort(q: string): boolean {
   const hasCjk = /[\u4e00-\u9fff]/.test(q);
   return q.length < (hasCjk ? 1 : 2);
@@ -45,12 +46,19 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [notes, setNotes] = useState<LocalNote[]>([]);
+  const [lifeTopics, setLifeTopics] = useState(() => mergeDiscoverTopics([]));
+  const [dailyThemes, setDailyThemes] = useState<string[]>([]);
 
   useEffect(() => {
     setHistory(loadHistory());
     setNotes(listNotes());
     const from = new URLSearchParams(window.location.search).get('from');
     if (from) setBackHref(from);
+    void api.topics().then((d) => {
+      const list = 'topics' in d ? d.topics : [];
+      setLifeTopics(mergeDiscoverTopics(list ?? []));
+    }).catch(() => {});
+    void loadDailyThemes().then((d) => setDailyThemes(d.themes));
   }, []);
 
   const noteHits = useMemo(() => {
@@ -64,6 +72,22 @@ export default function SearchPage() {
       )
       .slice(0, 10);
   }, [notes, query]);
+
+  const filteredLifeTopics = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return lifeTopics;
+    return lifeTopics.filter((t) => {
+      const title = isLifeTopic(t) ? t.title : t.name;
+      const sub = isLifeTopic(t) ? t.subtitle : '';
+      return title.toLowerCase().includes(q) || sub.toLowerCase().includes(q);
+    });
+  }, [lifeTopics, query]);
+
+  const filteredDailyThemes = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return dailyThemes;
+    return dailyThemes.filter((t) => t.toLowerCase().includes(q));
+  }, [dailyThemes, query]);
 
   useEffect(() => {
     const q = query.trim();
@@ -106,6 +130,11 @@ export default function SearchPage() {
     navigateToAssistant(hit.osis, { question: `请解释：${snippet}` });
   };
 
+  const topicHref = (t: typeof lifeTopics[0]) => {
+    const id = isLifeTopic(t) ? t.id : (t as TopicEntry).id || (t as TopicEntry).name;
+    return `/discover/topic/${encodeURIComponent(id)}`;
+  };
+
   return (
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -120,13 +149,13 @@ export default function SearchPage() {
         >
           ←
         </button>
-        <h2 style={{ margin: 0, fontSize: 18 }}>搜索</h2>
+        <h2 style={{ margin: 0, fontSize: 'var(--app-heading-size, 18px)' }}>搜索</h2>
       </header>
 
       <input
         className="search-input"
         autoFocus
-        placeholder="搜索经文…"
+        placeholder="搜索经文、主题、人生话题…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -134,7 +163,7 @@ export default function SearchPage() {
         }}
       />
 
-      <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>
+      <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
         高级语法： &quot;整段精确&quot; · 书卷:约翰福音 · -排除词
       </p>
 
@@ -159,7 +188,7 @@ export default function SearchPage() {
 
       {!searchTooShort(query.trim()) && (
         <section style={{ marginTop: 18 }}>
-          <h3 style={{ fontSize: 14, margin: '0 0 8px' }}>经文</h3>
+          <h3 className="search-section-title">经文</h3>
           {loading && <p className="muted">搜索中…</p>}
           {err && <p className="muted">搜索失败：{err}</p>}
           {!loading && !err && hits.length === 0 && (
@@ -180,14 +209,14 @@ export default function SearchPage() {
                   gap: 8,
                 }}
               >
-                <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent-deep)' }}>
+                <span style={{ fontWeight: 700, color: 'var(--accent-deep)' }}>
                   {formatGroupRefLabel(h.ref)}
                 </span>
                 {h.version && h.version !== 'cnv' && (
                   <span className="version-badge">{h.version.toUpperCase()}</span>
                 )}
               </div>
-              <p style={{ margin: '6px 0 8px', fontSize: 13, lineHeight: 1.45, color: 'var(--ink-soft)' }}>
+              <p style={{ margin: '6px 0 8px', lineHeight: 1.55, color: 'var(--ink-soft)' }}>
                 {h.text}
               </p>
               <button
@@ -207,7 +236,7 @@ export default function SearchPage() {
 
       {!searchTooShort(query.trim()) && noteHits.length > 0 && (
         <section style={{ marginTop: 18 }}>
-          <h3 style={{ fontSize: 14, margin: '0 0 8px' }}>笔记 · {noteHits.length}</h3>
+          <h3 className="search-section-title">笔记 · {noteHits.length}</h3>
           {noteHits.map((n) => (
             <div
               key={n.id}
@@ -219,7 +248,7 @@ export default function SearchPage() {
                   {formatGroupRefLabel(n.ref)}
                 </span>
               )}
-              <p style={{ margin: n.ref ? '6px 0 0' : 0, fontSize: 13, lineHeight: 1.5 }}>
+              <p style={{ margin: n.ref ? '6px 0 0' : 0, lineHeight: 1.55 }}>
                 {n.body}
               </p>
             </div>
@@ -227,21 +256,61 @@ export default function SearchPage() {
         </section>
       )}
 
+      {(query.trim().length === 0 || filteredLifeTopics.length > 0) && (
+        <section style={{ marginTop: 18 }}>
+          <h3 className="search-section-title">人生主题</h3>
+          <div className="theme-grid">
+            {filteredLifeTopics.map((t) => {
+              const title = isLifeTopic(t) ? t.title : (t as TopicEntry).name;
+              const color = isLifeTopic(t) ? t.color : (t as TopicEntry & { color: string }).color;
+              return (
+                <Link
+                  key={title}
+                  href={topicHref(t)}
+                  className="card card-2 theme-chip search-topic-chip"
+                  style={{ borderLeft: `3px solid ${color}` }}
+                >
+                  {title}
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {(query.trim().length === 0 || filteredDailyThemes.length > 0) && dailyThemes.length > 0 && (
+        <section style={{ marginTop: 18 }}>
+          <h3 className="search-section-title">经文主题</h3>
+          <div className="chip-row">
+            {filteredDailyThemes.map((t) => (
+              <Link
+                key={t}
+                href={`/discover/topic/${encodeURIComponent(t)}`}
+                className="book-chip"
+                style={{ width: 'auto' }}
+              >
+                {t}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
       {query.trim().length === 0 && (
         <section style={{ marginTop: 18 }}>
-          <h3 style={{ fontSize: 14, margin: '0 0 10px' }}>热门关键词</h3>
+          <h3 className="search-section-title">热门关键词</h3>
           <div className="theme-grid">
-            {THEME_TAGS.map((t) => (
+            {LIFE_TOPICS.slice(0, 8).map((t) => (
               <button
-                key={t}
+                key={t.id}
                 type="button"
                 className="card card-2 theme-chip"
                 onClick={() => {
-                  setQuery(t);
-                  onSubmit(t);
+                  setQuery(t.title);
+                  onSubmit(t.title);
                 }}
               >
-                {t}
+                {t.title}
               </button>
             ))}
           </div>

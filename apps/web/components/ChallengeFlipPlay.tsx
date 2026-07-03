@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { ChallengeQuestion } from '@/lib/challenge_levels';
-import { refToChineseLabel } from '@/lib/ref_label';
+import { localizeRefsInText, refToChineseLabel } from '@/lib/ref_label';
 
 type Phase = 'pick' | 'flip' | 'answer';
 
@@ -83,7 +83,7 @@ export default function ChallengeFlipPlay({
             {q.ref && (
               <p className="challenge-q-ref muted">{refToChineseLabel(q.ref) ?? q.ref}</p>
             )}
-            <p className="quiz-q">{q.question}</p>
+            <p className="quiz-q">{localizeRefsInText(q.question)}</p>
             <div className="quiz-options">
               {q.options.map((o, i) => (
                 <button
@@ -102,12 +102,8 @@ export default function ChallengeFlipPlay({
             <span className={`pill ${picked === q.answer ? 'pill-active' : ''}`}>
               {picked === q.answer ? '回答正确 ✓' : '正确答案'}
             </span>
-            <p className="quiz-q" style={{ fontSize: 16 }}>
-              {q.options[q.answer]}
-            </p>
-            <p style={{ marginTop: 12, lineHeight: 1.75, fontSize: 14, color: 'var(--ink-soft)' }}>
-              {q.explain}
-            </p>
+            <p className="quiz-q quiz-answer">{q.options[q.answer]}</p>
+            <p className="quiz-explain">{localizeRefsInText(q.explain)}</p>
             {q.ref && (
               <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>参考：{refToChineseLabel(q.ref) ?? q.ref}</p>
             )}

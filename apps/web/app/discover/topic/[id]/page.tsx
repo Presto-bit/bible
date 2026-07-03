@@ -72,7 +72,7 @@ export default function TopicPage() {
   return (
     <main className="container discover-page">
       <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/discover" className="muted">‹ 发现</Link>
+        <Link href="/search?from=/discover/topic" className="muted">‹ 搜索</Link>
         <span />
       </div>
       <div
@@ -123,16 +123,16 @@ export default function TopicPage() {
 
       {topic.microPlanId && (
         <div className="card card-2" style={{ marginTop: 14 }}>
-          <strong>微计划 · {topic.microPlanDays ?? 7} 天</strong>
+          <strong>微{topic.microPlanId.startsWith('prayer_') ? '祷告' : '读经'} · {topic.microPlanDays ?? 7} 天</strong>
           <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
-            围绕「{topic.title}」主题，用短计划把经文读进生活。
+            围绕「{topic.title}」的短计划，已收录在计划页。
           </p>
           <Link
             className="btn"
             href={`/plans?start=${encodeURIComponent(topic.microPlanId)}`}
             style={{ marginTop: 10, display: 'inline-block' }}
           >
-            开始微计划
+            前往计划页
           </Link>
         </div>
       )}

@@ -31,6 +31,7 @@ import { logPrayer } from '@/lib/reading';
 import { buildPlanReadingMeta, readerHref } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
+import { LIFE_TOPICS } from '@/lib/discover_topics';
 
 function groupPlans(plans: PlanSummary[]) {
   const groups = [
@@ -40,6 +41,14 @@ function groupPlans(plans: PlanSummary[]) {
   ];
   return groups.filter((g) => g.items.length > 0);
 }
+
+const MICRO_TOPIC_PLANS = LIFE_TOPICS.filter((t) => t.microPlanId).map((t) => ({
+  planId: t.microPlanId!,
+  title: `「${t.title}」微${t.microPlanId!.startsWith('prayer_') ? '祷告' : '读经'}`,
+  days: t.microPlanDays ?? 7,
+  kind: (t.microPlanId!.startsWith('prayer_') ? 'prayer' : 'reading') as 'prayer' | 'reading',
+  topicId: t.id,
+}));
 
 function toActivePlan(
   p: { planId?: string; id?: string; title: string; type?: string; days?: number; days_count?: number },
@@ -102,6 +111,14 @@ export default function PlansPage() {
     if (params.get('generate') === '1') {
       setListTab('custom');
       setShowGenerate(true);
+    }
+    const startId = params.get('start');
+    if (startId) {
+      setListTab('featured');
+      const micro = MICRO_TOPIC_PLANS.find((m) => m.planId === startId);
+      if (micro) {
+        setTab(micro.kind === 'prayer' ? 'prayer' : 'reading');
+      }
     }
   }, []);
 
@@ -172,7 +189,7 @@ export default function PlansPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const highlight = params.get('highlight');
+    const highlight = params.get('highlight') ?? params.get('start');
     if (!highlight || loading) return;
     const fromFeatured = plans.find((p) => p.plan_id === highlight);
     if (fromFeatured) {
@@ -385,6 +402,31 @@ export default function PlansPage() {
       )}
       {!loading && !listErr && featured.length === 0 && (
         <p className="muted" style={{ marginBottom: 12 }}>暂无计划，请稍后重试或联系管理员检查服务端数据。</p>
+      )}
+
+      {listTab === 'featured' && MICRO_TOPIC_PLANS.length > 0 && (
+        <section style={{ marginBottom: 16 }}>
+          <p className="plan-section-label">主题微计划 · 微祷告</p>
+          <PlanCategoryGrid
+            items={MICRO_TOPIC_PLANS.filter((m) =>
+              tab === 'prayer' ? m.kind === 'prayer' : m.kind === 'reading',
+            ).map((m) => ({
+              id: m.planId,
+              title: m.title,
+              days: m.days,
+              kind: m.kind,
+              onClick: () => {
+                const featuredPlan = plans.find((p) => p.plan_id === m.planId);
+                if (featuredPlan) {
+                  void openSchedule(toActivePlan(
+                    { planId: featuredPlan.plan_id, title: featuredPlan.title, type: featuredPlan.type, days: featuredPlan.days },
+                    'featured',
+                  ));
+                }
+              },
+            }))}
+          />
+        </section>
       )}
 
       {grouped.map((group) => (

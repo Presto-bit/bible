@@ -1,31 +1,38 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type CompareResult, type CrossrefResult, type GuideResult } from '@/lib/api';
+import { api, type CrossrefResult, type GuideResult, type StrongsWord } from '@/lib/api';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 
-type Tab = 'crossrefs' | 'guide' | 'compare';
+type Tab = 'crossrefs' | 'strongs' | 'guide';
 
 export function ReaderToolsSheet({
   refParam,
   refLabel,
   initialTab,
+  singleVerse,
   onClose,
 }: {
   refParam: string;
   refLabel: string;
   initialTab?: Tab;
+  /** 选中单节时可查希腊原文 */
+  singleVerse?: boolean;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'crossrefs');
   const [cross, setCross] = useState<CrossrefResult | null>(null);
   const [guide, setGuide] = useState<GuideResult | null>(null);
-  const [compare, setCompare] = useState<CompareResult | null>(null);
+  const [words, setWords] = useState<StrongsWord[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [previewRef, setPreviewRef] = useState<{ osis: string; label: string } | null>(null);
+
+  useEffect(() => {
+    if (initialTab) setTab(initialTab);
+  }, [initialTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,9 +46,11 @@ export function ReaderToolsSheet({
         } else if (tab === 'guide') {
           const d = await api.guide(refParam);
           if (!cancelled) setGuide(d);
-        } else {
-          const d = await api.compare(refParam);
-          if (!cancelled) setCompare(d);
+        } else if (tab === 'strongs' && singleVerse) {
+          const d = await api.strongs(refParam);
+          if (!cancelled) setWords(d.words || []);
+        } else if (tab === 'strongs') {
+          if (!cancelled) setWords([]);
         }
       } catch (e) {
         if (!cancelled) setErr(String(e));
@@ -51,13 +60,19 @@ export function ReaderToolsSheet({
     };
     void load();
     return () => { cancelled = true; };
-  }, [tab, refParam]);
+  }, [tab, refParam, singleVerse]);
 
   const tabHint: Record<Tab, string> = {
-    crossrefs: '串珠：列出与本节主题呼应、常被一并引用的其他经文（按关联度排序）。点击可预览经文。',
+    crossrefs: '与本节主题呼应、常被一并引用的经文。点击可预览。',
+    strongs: '新约希腊文逐词、Strong\'s 编号与释义（旧约希伯来文陆续补充）。',
     guide: '查考资源与背景摘要（来自经库与注释索引）。',
-    compare: '同一节经文在 CNV、和合本、KJV 等译本中的对照。',
   };
+
+  const tabs: { id: Tab; label: string; hidden?: boolean }[] = [
+    { id: 'crossrefs', label: '相关经文' },
+    { id: 'strongs', label: '原文', hidden: !singleVerse },
+    { id: 'guide', label: '资源' },
+  ];
 
   return (
     <>
@@ -69,11 +84,7 @@ export function ReaderToolsSheet({
             <button type="button" className="text-link" onClick={onClose}>关闭</button>
           </div>
           <div className="reader-tools-tabs">
-            {([
-              ['crossrefs', '相关经文'],
-              ['guide', '资源'],
-              ['compare', '对照'],
-            ] as const).map(([id, label]) => (
+            {tabs.filter((t) => !t.hidden).map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
@@ -116,6 +127,23 @@ export function ReaderToolsSheet({
               )}
             </div>
           )}
+          {!loading && tab === 'strongs' && (
+            <div className="reader-tools-list">
+              {words.length === 0 ? (
+                <p className="muted">暂无该节原文数据（多为旧约经节或数据未就绪）。</p>
+              ) : (
+                words.map((w) => (
+                  <div key={w.position} className="reader-tools-item static">
+                    <strong>{w.word}</strong>
+                    {w.strongs ? <span className="muted"> · {w.strongs}</span> : null}
+                    {w.transliteration ? <span className="muted"> · {w.transliteration}</span> : null}
+                    {w.morphology ? <span className="muted"> · {w.morphology}</span> : null}
+                    {w.gloss ? <p style={{ margin: '4px 0 0', fontSize: 13 }}>{w.gloss}</p> : null}
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           {!loading && tab === 'guide' && guide && (
             <div className="reader-tools-list">
               <p className="muted" style={{ fontSize: 12 }}>{guide.display}</p>
@@ -128,20 +156,6 @@ export function ReaderToolsSheet({
                   <span className="muted">{c.snippet}</span>
                 </div>
               ))}
-            </div>
-          )}
-          {!loading && tab === 'compare' && compare && (
-            <div className="reader-tools-list">
-              {compare.versions.length === 0 ? (
-                <p className="muted">暂无对照译本数据（请确认和合本/CUVS 已生成）</p>
-              ) : (
-                compare.versions.map((v) => (
-                  <div key={v.version} className="reader-tools-compare-row">
-                    <span className="muted">{v.label}</span>
-                    <p style={{ lineHeight: 1.6 }}>{v.text}</p>
-                  </div>
-                ))
-              )}
             </div>
           )}
         </div>

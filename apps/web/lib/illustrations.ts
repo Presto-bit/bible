@@ -57,6 +57,52 @@ export async function illustrationForTheme(theme?: string | null): Promise<{
   return { url: localIllustrationUrl(item.file), file: item.file };
 }
 
+/** 每日经文主题别名 → 已有插画 */
+const THEME_ILLUSTRATION_ALIASES: Record<string, string> = {
+  宽恕: '赦免',
+  创造: '盼望',
+  救恩: '恩典',
+  焦虑: '平安',
+  苦难: '安慰',
+  使命: '引导',
+  公义: '智慧',
+  圣灵: '敬拜',
+  复活: '永生',
+  家庭: '爱',
+  工作: '力量',
+  教会: '敬拜',
+};
+
+function pickIllustrationItem(
+  items: IllustrationItem[],
+  theme?: string | null,
+  day?: number | null,
+): IllustrationItem | null {
+  if (!items.length) return null;
+  if (theme) {
+    const direct = items.find((i) => i.theme === theme);
+    if (direct?.file) return direct;
+    const alias = THEME_ILLUSTRATION_ALIASES[theme];
+    if (alias) {
+      const aliased = items.find((i) => i.theme === alias);
+      if (aliased?.file) return aliased;
+    }
+  }
+  const d = Math.max(1, Math.floor(day ?? 1) || 1);
+  return items[(d - 1) % items.length] ?? null;
+}
+
+/** 每日经文背景：优先主题插画，否则按 day 轮换（保证总有图） */
+export async function illustrationForVerseBackground(
+  day?: number | null,
+  theme?: string | null,
+): Promise<{ url: string; file: string } | null> {
+  const items = await loadIllustrationIndex();
+  const item = pickIllustrationItem(items, theme, day);
+  if (!item?.file) return null;
+  return { url: localIllustrationUrl(item.file), file: item.file };
+}
+
 export const ILLUSTRATION_FILES = [
   'theme_盼望.svg', 'theme_平安.svg', 'theme_信靠.svg', 'theme_力量.svg',
   'theme_爱.svg', 'theme_喜乐.svg', 'theme_智慧.svg', 'theme_引导.svg',

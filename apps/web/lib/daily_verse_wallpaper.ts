@@ -1,30 +1,10 @@
-/** 每日经文壁纸风景图池（低饱和自然场景，按 verse day 轮换）。 */
-const WALLPAPER_PHOTOS = [
-  '1506905925346-21bda4d32df4', // 云海山峦
-  '1470071459604-3b35d21a42d3', // 雾中山谷
-  '1501785880828-0b259b4e5623', // 湖山倒影
-  '1439068798047-34542bb1ef0c', // 湖面木栈
-  '1469474968028-56623f02e42e', // 林间光束
-  '1441974231531-c3367d5e534c', // 原野小径
-  '1493246507130-91f8ee536fab', // 静湖远山
-  '1472214103451-4d37b0ef8162', // 金色田野
-  '1518173947648-bbad3982856e', // 翠绿山谷
-  '1464822759023-7de4bd0c5d3e', // 雪山晨曦
-  '1483728642382-79161adae440', // 峰顶日出
-  '1475924156734-440e29a41783', // 海岸悬崖
-  '1549882539-0bb35bb8c388', // 溪涧密林
-  '1518837699419-fbd7adccc384', // 海浪轻拍
-  '1465146636011-8d6e58de962e', // 日落草甸
-  '1476517467868-ce93e803421e', // 湖畔小舟
-  '1519682337058-a6d390860d90', // 峡谷纵深
-  '1419242902214-efacce1733b0', // 极光夜空
-  '1511884649111-a4f0c6dc0f48', // 湖光山色
-  '1454496527216-0b8e4255e4358', // 高山湖泊
-] as const;
+/** 每日经文壁纸：同源静态插画（按 day 轮换，离线可用）。 */
+
+import { ILLUSTRATION_FILES, localIllustrationUrl } from './illustrations';
 
 /** 按每日经文 day（1–124 循环）选取壁纸背景，同一天全员一致。 */
 export function dailyVerseWallpaperUrl(day?: number): string {
   const d = Math.max(1, Math.floor(day ?? 1) || 1);
-  const photo = WALLPAPER_PHOTOS[(d - 1) % WALLPAPER_PHOTOS.length];
-  return `https://images.unsplash.com/photo-${photo}?auto=format&fit=crop&w=1200&q=80`;
+  const file = ILLUSTRATION_FILES[(d - 1) % ILLUSTRATION_FILES.length];
+  return localIllustrationUrl(file);
 }

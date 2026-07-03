@@ -11,8 +11,8 @@ import {
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import { DailyDevotionalCard } from '@/components/home/DailyDevotionalCard';
-import { ThemeExploreRail } from '@/components/home/ThemeExploreRail';
-import { illustrationForTheme } from '@/lib/illustrations';
+import { illustrationForVerseBackground } from '@/lib/illustrations';
+import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
@@ -79,12 +79,14 @@ export default function HomePageClient() {
   }, [loadDailyVerse]);
 
   useEffect(() => {
-    if (!dv?.theme) {
+    if (!dv?.day && !dv?.theme) {
       setHeroIllustration(null);
       return;
     }
-    void illustrationForTheme(dv.theme).then((r) => setHeroIllustration(r?.url ?? null));
-  }, [dv?.theme]);
+    void illustrationForVerseBackground(dv?.day, dv?.theme).then((r) => {
+      setHeroIllustration(r?.url ?? dailyVerseWallpaperUrl(dv?.day));
+    });
+  }, [dv?.day, dv?.theme]);
 
   useEffect(() => {
     const refresh = () => {
@@ -369,14 +371,12 @@ export default function HomePageClient() {
         }}
       >
         <div
-          className="hero-scene"
+          className={`hero-scene${heroIllustration ? ' hero-scene-has-art' : ''}`}
           aria-hidden
           style={
             heroIllustration
               ? {
                   backgroundImage: `url(${heroIllustration})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
                 }
               : undefined
           }
@@ -431,8 +431,6 @@ export default function HomePageClient() {
 
       <DailyDevotionalCard data={devotional} loading={devotionalLoading} />
 
-      <ThemeExploreRail />
-
       <div style={{ marginTop: 18 }}>
         <HomeRail cards={railMain} />
       </div>
@@ -480,7 +478,7 @@ export default function HomePageClient() {
       {verseFull && dv ? (
         <DailyVerseWallpaper
           dv={dv}
-          illustrationUrl={heroIllustration}
+          backgroundUrl={heroIllustration ?? dailyVerseWallpaperUrl(dv.day)}
           onClose={() => setVerseFull(false)}
         />
       ) : null}

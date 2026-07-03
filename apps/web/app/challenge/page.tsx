@@ -21,6 +21,7 @@ import {
 } from '@/lib/daily_quiz';
 import {
   QUESTION_BANK,
+  QUESTION_BANK_SIZE,
   QUESTION_THEMES,
   randomQuestions,
   themeLevelQuestions,
@@ -113,7 +114,8 @@ export default function ChallengePage() {
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
         <Link href="/" className="icon-btn">←</Link>
-        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>每日问答</h2>
+        <h2 style={{ margin: 0, fontSize: 'var(--app-heading-size, 18px)', flex: 1 }}>每日问答</h2>
+        <span className="muted" style={{ fontSize: 12 }}>{QUESTION_BANK_SIZE} 题</span>
       </header>
 
       <div className="challenge-mode-row challenge-mode-row-2">

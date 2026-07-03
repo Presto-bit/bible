@@ -42,8 +42,30 @@ function loadJson(path) {
 }
 
 function refDisplay(ref) {
-  return ref.replace('.', ' ').replace('.', ':');
+  const m = ref.match(/^([1-3]?[A-Za-z]{2,4})\.(\d+)(?:\.(\d+))?$/);
+  if (!m) return ref;
+  const name = BOOK_CN[m[1].toUpperCase()] ?? m[1];
+  if (m[3]) return `${name} ${m[2]}:${m[3]}`;
+  return `${name} ${m[2]}章`;
 }
+
+const BOOK_CN = {
+  GEN: '创世记', EXO: '出埃及记', LEV: '利未记', NUM: '民数记', DEU: '申命记',
+  JOS: '约书亚记', JDG: '士师记', RUT: '路得记', '1SA': '撒母耳记上', '2SA': '撒母耳记下',
+  '1KI': '列王纪上', '2KI': '列王纪下', '1CH': '历代志上', '2CH': '历代志下',
+  EZR: '以斯拉记', NEH: '尼希米记', EST: '以斯帖记', JOB: '约伯记', PSA: '诗篇',
+  PRO: '箴言', ECC: '传道书', SNG: '雅歌', ISA: '以赛亚书', JER: '耶利米书',
+  LAM: '耶利米哀歌', EZK: '以西结书', DAN: '但以理书', HOS: '何西阿书',
+  JOL: '约珥书', AMO: '阿摩司书', OBA: '俄巴底亚书', JON: '约拿书', MIC: '弥迦书',
+  NAH: '那鸿书', HAB: '哈巴谷书', ZEP: '西番雅书', HAG: '哈该书', ZEC: '撒迦利亚书',
+  MAL: '玛拉基书', MAT: '马太福音', MRK: '马可福音', LUK: '路加福音', JHN: '约翰福音',
+  ACT: '使徒行传', ROM: '罗马书', '1CO': '哥林多前书', '2CO': '哥林多后书',
+  GAL: '加拉太书', EPH: '以弗所书', PHP: '腓立比书', COL: '歌罗西书',
+  '1TH': '帖撒罗尼迦前书', '2TH': '帖撒罗尼迦后书', '1TI': '提摩太前书',
+  '2TI': '提摩太后书', TIT: '提多书', PHM: '腓利门书', HEB: '希伯来书',
+  JAS: '雅各书', '1PE': '彼得前书', '2PE': '彼得后书', '1JN': '约翰一书',
+  '2JN': '约翰二书', '3JN': '约翰三书', JUD: '犹大书', REV: '启示录',
+};
 
 const questions = [];
 const crossJson = loadJson(join(repo, 'data/crossrefs/cross_references.json'));
@@ -63,7 +85,7 @@ for (const theme of THEMES) {
       question: tpl.q.replace('{ref}', refDisplay(ref)),
       options: [...tpl.opts],
       answer: tpl.a,
-      explain: `${tpl.exp}（参考 ${ref}）`,
+      explain: `${tpl.exp}（参考 ${refDisplay(ref)}）`,
       ref,
     });
   }
