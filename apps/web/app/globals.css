@@ -47,6 +47,7 @@ body {
   -ms-overflow-style: none;
   overscroll-behavior: none;
   overscroll-behavior-x: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html::-webkit-scrollbar,
@@ -63,6 +64,8 @@ a {
 
 .app-body {
   min-height: 100vh;
+  min-height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   overflow-x: hidden;
   max-width: 100vw;
@@ -71,6 +74,10 @@ a {
   overscroll-behavior-x: none;
   background: var(--paper);
   color: var(--ink);
+}
+
+body.pwa-standalone .app-body {
+  padding-top: max(env(safe-area-inset-top, 0px), 4px);
 }
 
 .app-body::-webkit-scrollbar {
@@ -155,6 +162,11 @@ body.reader-immersive .tabbar {
   gap: 3px;
   color: var(--ink-faint);
   font-size: 11px;
+  transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.tab:active {
+  transform: scale(0.94);
 }
 
 .tab-active {
@@ -215,6 +227,7 @@ body.reader-immersive .tabbar {
   border-radius: 12px;
   padding: 16px;
   box-shadow: var(--elev-1), var(--hi);
+  transition: transform 0.12s ease;
 }
 
 /* tier2 操作卡 / tier3 hero 卡 */
@@ -284,6 +297,24 @@ body.reader-immersive .tabbar {
   padding: 10px 20px;
   font-size: 14px;
   cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.97);
+  opacity: 0.92;
+}
+
+.btn-block {
+  display: block;
+  width: 100%;
+  text-align: center;
+  margin-top: 12px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .grid {
@@ -571,6 +602,15 @@ body.reader-immersive .tabbar {
   height: 34px;
   border-radius: 17px;
   color: var(--ink-soft);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 0.12s ease, background 0.12s ease;
+}
+
+.icon-btn:active {
+  transform: scale(0.92);
+  background: var(--surface-sunken);
 }
 
 .icon-btn-fill {
@@ -1897,6 +1937,22 @@ a.today-card-link {
   line-height: 0;
 }
 
+.profile-bio-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-bio-edit:hover .muted {
+  color: var(--ink-soft);
+}
+
 .avatar-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1929,6 +1985,17 @@ a.today-card-link {
   align-items: flex-end;
   justify-content: center;
   z-index: 100;
+  animation: sheetBackdropIn 0.22s ease;
+}
+
+@keyframes sheetBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sheetSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
 }
 
 .sheet {
@@ -1937,6 +2004,8 @@ a.today-card-link {
   border-radius: 20px 20px 0 0;
   padding: 20px;
   margin-bottom: 0;
+  animation: sheetSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
 }
 
 /* ─── 小爱富文本输出（可读性 / 视觉增强，字号与读经默认一致） ─── */
@@ -5242,6 +5311,269 @@ a.today-card-link {
   font-size: 14px;
   cursor: pointer;
   text-align: left;
+  transition: opacity 0.12s ease;
+}
+
+.group-settings-row-btn:active:not(:disabled) {
+  opacity: 0.65;
+}
+
+.group-settings-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.group-settings-block:first-of-type {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.group-settings-info-card,
+.group-settings-me-card,
+.group-settings-admin-card {
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+.group-settings-info-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.group-settings-info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.group-settings-info-row:first-child {
+  padding-top: 0;
+}
+
+.group-settings-info-label {
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.group-settings-info-value {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.group-settings-members-wrap {
+  margin-top: 12px;
+}
+
+.group-settings-members-wrap .group-members-panel {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.group-settings-hint {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.group-settings-expand-btn {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.group-custom-plan-collapsible .group-custom-plan-box {
+  margin-top: 10px;
+  padding-top: 0;
+  border: none;
+  background: transparent;
+}
+
+.group-settings-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 10px 0 14px;
+  padding: 4px;
+  background: var(--surface-sunken);
+  border-radius: 12px;
+}
+
+.group-settings-tab {
+  flex: 1;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.group-settings-tab.active {
+  background: var(--surface);
+  color: var(--accent-deep);
+  box-shadow: var(--elev-1);
+}
+
+.group-settings-tab:active {
+  transform: scale(0.97);
+}
+
+.group-settings-panel {
+  animation: groupSettingsPanelIn 0.18s ease;
+}
+
+@keyframes groupSettingsPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+#pwa-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: env(safe-area-inset-top, 0px) 24px env(safe-area-inset-bottom, 0px);
+  background: #fffcfa;
+  color: #4f6b5d;
+  transition: opacity 0.38s ease, visibility 0.38s ease;
+}
+
+html.pwa-launch #pwa-splash {
+  display: flex;
+}
+
+.pwa-splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  transform: translateY(-3vh);
+}
+
+#pwa-splash img {
+  width: 128px;
+  height: 128px;
+  border-radius: 30px;
+  box-shadow: 0 18px 44px rgba(79, 107, 93, 0.18);
+}
+
+.pwa-splash-brand {
+  margin-top: 32px;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  color: #1c1c1e;
+}
+
+/* 彼此相爱 · 竖排：左彼此、右相爱，「此」「相」同一行（启动屏主标语） */
+.pwa-splash-motto {
+  display: grid;
+  grid-template-columns: 1.1em 1.1em;
+  grid-template-rows: auto auto auto;
+  column-gap: 0.56em;
+  row-gap: 0.22em;
+  margin-top: 36px;
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  font-size: clamp(56px, 16vw, 72px);
+  font-weight: 600;
+  color: #4f6b5d;
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+
+.pwa-splash-motto-pi {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: center;
+}
+
+.pwa-splash-motto-ci {
+  grid-column: 1;
+  grid-row: 2;
+  justify-self: center;
+}
+
+.pwa-splash-motto-xiang {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: center;
+}
+
+.pwa-splash-motto-ai {
+  grid-column: 2;
+  grid-row: 3;
+  justify-self: center;
+}
+
+body.app-ready #pwa-splash {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.group-settings-danger-block {
+  padding-bottom: 4px;
+}
+
+.group-settings-danger-block .danger-pill {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+}
+
+body.pwa-standalone .tabbar {
+  box-shadow: 0 -1px 0 var(--line), 0 -8px 24px rgba(43, 42, 39, 0.04);
+}
+
+body.pwa-standalone .card {
+  box-shadow: var(--elev-1);
+}
+
+a.card:active,
+button.card:active,
+.card.row-card:active {
+  transform: scale(0.985);
+  transition: transform 0.1s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .sheet-backdrop,
+  .group-settings-panel,
+  #pwa-splash,
+  body.app-ready #pwa-splash,
+  .tab:active,
+  .btn:active:not(:disabled),
+  .icon-btn:active,
+  a.card:active,
+  button.card:active,
+  .card.row-card:active {
+    animation: none;
+    transform: none;
+    transition: none;
+  }
 }
 
 .group-page {
@@ -6925,12 +7257,15 @@ a.today-card-link {
   margin-top: 2px;
 }
 
+.group-page-checkin .group-wechat-composer {
+  bottom: calc(56px + env(safe-area-inset-bottom, 0));
+  z-index: 45;
+}
+
 .group-poster-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  max-height: min(52vh, 420px);
-  overflow-y: auto;
   padding: 2px 0 4px;
 }
 

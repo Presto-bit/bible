@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api, type CompareResult, type CrossrefResult, type GuideResult } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { refToChineseLabel } from '@/lib/ref_label';
 
 type Tab = 'crossrefs' | 'guide' | 'compare';
 
@@ -86,7 +87,7 @@ export function ReaderToolsSheet({
                 const href = readerHrefFromRef(r.ref.replace(/\s/g, '.'));
                 return (
                   <Link key={r.ref} href={href || '/reader'} className="reader-tools-item">
-                    <strong>{r.ref}</strong>
+                    <strong>{refToChineseLabel(r.ref) ?? r.ref}</strong>
                     <span className="muted">{r.text}</span>
                   </Link>
                 );

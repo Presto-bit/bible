@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
 import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 
 const RULES = [
   '打卡须关联经文或任务',
@@ -107,7 +108,7 @@ export function GroupIcebreakerWizard({ onComplete, busy }: Props) {
         <>
           <strong>写点感想（可选）</strong>
           <p className="muted" style={{ fontSize: 12, margin: '6px 0 8px' }}>
-            已选：{selectedRef}
+            已选：{selectedRef ? formatGroupRefLabel(selectedRef) : '未选择'}
           </p>
           <div className="chip-swipe group-chip-swipe">
             {GROUP_CHECKIN_CHIPS.map((chip) => (

@@ -36,6 +36,7 @@ export default function ProfilePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
+  const [bioEditing, setBioEditing] = useState(false);
   const [accountComplete, setAccountComplete] = useState(false);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
   const [hasPwd, setHasPwd] = useState(false);
@@ -130,7 +131,36 @@ export default function ProfilePage() {
             <strong>{displayName}</strong>
             <SyncStatusBadge />
           </div>
-          <span className="muted">{bio.trim() || '愿日日亲近主话'}</span>
+          {bioEditing ? (
+            <div style={{ marginTop: 4 }}>
+              <input
+                className="book-chip"
+                style={{ width: '100%', textAlign: 'left', fontSize: 12 }}
+                placeholder="一句话签名（≤15 字）"
+                value={bio}
+                maxLength={15}
+                autoFocus
+                onChange={(e) => saveBio(e.target.value)}
+                onBlur={() => setBioEditing(false)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') setBioEditing(false);
+                }}
+              />
+              <span className="muted" style={{ fontSize: 11 }}>{bio.length}/15</span>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="profile-bio-edit"
+              onClick={() => setBioEditing(true)}
+              aria-label="编辑签名"
+            >
+              <span className="muted" style={{ fontSize: 12 }}>
+                {bio.trim() ? bio : '点击添加签名'}
+              </span>
+              <span className="muted" style={{ fontSize: 11, marginLeft: 4 }}>编辑</span>
+            </button>
+          )}
           {idValue && !accountComplete && (
             <button type="button" className="id-chip" onClick={copyId}>
               {idCopied ? '已复制 ✓' : `ID ${idValue}`}
@@ -217,41 +247,8 @@ export default function ProfilePage() {
             </div>
 
             <div className="settings-card">
-              <p className="settings-title">个人资料</p>
-              <AccountSettingsSection
-                onAccountChange={refreshAccount}
-                middle={
-                  <>
-                    <button
-                      type="button"
-                      className="settings-avatar-row"
-                      style={{ marginTop: 10, width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
-                      onClick={() => {
-                        setSettingsOpen(false);
-                        setPickerOpen(true);
-                      }}
-                    >
-                      <span className="muted" style={{ fontSize: 12 }}>头像</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                        <Avatar id={avatarId} size={40} />
-                        <span className="muted" style={{ fontSize: 13 }}>更换 ›</span>
-                      </span>
-                    </button>
-                    <div className="section-row" style={{ marginTop: 10 }}>
-                      <span className="muted" style={{ fontSize: 12 }}>签名</span>
-                      <span className="muted" style={{ fontSize: 12 }}>{bio.length}/15</span>
-                    </div>
-                    <input
-                      className="book-chip"
-                      style={{ width: '100%', textAlign: 'left' }}
-                      placeholder="一句话签名（≤15 字）"
-                      value={bio}
-                      maxLength={15}
-                      onChange={(e) => saveBio(e.target.value)}
-                    />
-                  </>
-                }
-              />
+              <p className="settings-title">账号</p>
+              <AccountSettingsSection onAccountChange={refreshAccount} />
             </div>
 
             <div className="settings-card">

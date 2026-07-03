@@ -7,6 +7,7 @@ import { type BibleSearchHit } from '@/lib/api';
 import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 
 const THEME_TAGS = ['盼望', '焦虑', '祷告', '家庭', '工作', '悲伤', '信心', '宽恕'];
 const HISTORY_KEY = 'search_history';
@@ -180,7 +181,7 @@ export default function SearchPage() {
                 }}
               >
                 <span style={{ fontWeight: 700, fontSize: 13, color: 'var(--accent-deep)' }}>
-                  {h.ref}
+                  {formatGroupRefLabel(h.ref)}
                 </span>
                 {h.version && h.version !== 'cnv' && (
                   <span className="version-badge">{h.version.toUpperCase()}</span>
@@ -215,7 +216,7 @@ export default function SearchPage() {
             >
               {n.ref && (
                 <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--gold, #b8860b)' }}>
-                  {n.ref}
+                  {formatGroupRefLabel(n.ref)}
                 </span>
               )}
               <p style={{ margin: n.ref ? '6px 0 0' : 0, fontSize: 13, lineHeight: 1.5 }}>

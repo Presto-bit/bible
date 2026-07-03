@@ -23,10 +23,7 @@ import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { listNotes } from '@/lib/notes';
-
-// 每日经文全屏背景图（按主题挑选；可在此配置更多背景）。
-const VERSE_BG =
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1200&q=80';
+import { bookIdToChineseName } from '@/lib/ref_label';
 
 function buildRail(
   plan?: { title: string; sub: string; href: string },
@@ -118,7 +115,6 @@ export default function HomePageClient() {
 
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
-  const [shareCount, setShareCount] = useState(0);
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
 
@@ -127,13 +123,23 @@ export default function HomePageClient() {
     setErr(null);
     void ensureAccountReady()
       .then(() => api.dailyVerse())
-      .then((v) => {
-        setDv(v);
+      .then(async (v) => {
         const day = v.day ?? 0;
-        setLiked(Boolean(v.liked));
-        setLikeCount(v.likes_count ?? 0);
-        setShareCount(v.shares_count ?? 0);
-        if (day) writeLocalDailyVerseLike(day, Boolean(v.liked));
+        let likedVal = Boolean(v.liked);
+        let countVal = v.likes_count ?? 0;
+        if (day > 0) {
+          try {
+            const fresh = await api.dailyVerse(day);
+            likedVal = Boolean(fresh.liked);
+            countVal = fresh.likes_count ?? countVal;
+          } catch {
+            /* 使用首次响应 */
+          }
+        }
+        setDv(v);
+        setLiked(likedVal);
+        setLikeCount(countVal);
+        if (day) writeLocalDailyVerseLike(day, likedVal);
       })
       .catch((e) => setErr(errorMessage(e, '内容加载失败')))
       .finally(() => setDvLoading(false));
@@ -155,17 +161,11 @@ export default function HomePageClient() {
     };
   }, [loadDailyVerse]);
 
-  useEffect(() => {
-    const img = new Image();
-    img.src = VERSE_BG;
-  }, []);
-  const [shared, setShared] = useState(false);
   const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
   const [page, setPage] = useState(0);
   const railRef = useRef<HTMLDivElement>(null);
   const plusBtnRef = useRef<HTMLButtonElement>(null);
 
-  const [verseFull, setVerseFull] = useState(false);
   const [plusOpen, setPlusOpen] = useState(false);
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [rail, setRail] = useState(() => buildRail());
@@ -326,17 +326,7 @@ export default function HomePageClient() {
     setPage(Math.max(0, Math.min(rail.length - 1, i)));
   };
 
-  const openVerseFull = () => {
-    const img = new Image();
-    img.src = VERSE_BG;
-    const show = () => setVerseFull(true);
-    if (img.complete) {
-      show();
-    } else {
-      img.onload = show;
-      img.onerror = show;
-    }
-  };
+  const lastRead = getLastRead();
 
   return (
     <main className="container">
@@ -380,13 +370,7 @@ export default function HomePageClient() {
         </Link>
       )}
 
-      <div
-        className="card card-3 card-tint hero-verse"
-        role="button"
-        tabIndex={0}
-        onClick={openVerseFull}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openVerseFull(); }}
-      >
+      <div className="card card-3 card-tint hero-verse">
         <div className="hero-scene" aria-hidden />
         <div className="hero-inner">
           <div className="hero-top">
@@ -413,28 +397,30 @@ export default function HomePageClient() {
               点击重试
             </button>
           )}
-          <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
+          <div className="hero-actions">
             <button
               type="button"
               className={`hero-like${liked ? ' hero-like-active' : ''}`}
-              disabled={likeBusy}
+              disabled={likeBusy || !dv?.day}
               aria-pressed={liked}
               onClick={async () => {
-                if (likeBusy) return;
+                if (likeBusy || !dv?.day) return;
+                const verseDay = dv.day;
                 const prevLiked = liked;
                 const prevCount = likeCount;
                 setLikeBusy(true);
                 setLikeErr(null);
                 try {
-                  const verseDay = dv?.day;
                   const r = await api.toggleDailyVerseLike(verseDay);
-                  setLiked(Boolean(r.liked));
-                  setLikeCount(r.likes_count ?? 0);
-                  if (verseDay != null) writeLocalDailyVerseLike(verseDay, Boolean(r.liked));
+                  const fresh = await api.dailyVerse(verseDay);
+                  const nextLiked = Boolean(fresh.liked ?? r.liked);
+                  const nextCount = fresh.likes_count ?? r.likes_count ?? 0;
+                  setLiked(nextLiked);
+                  setLikeCount(nextCount);
+                  writeLocalDailyVerseLike(verseDay, nextLiked);
                 } catch (e) {
                   setLiked(prevLiked);
                   setLikeCount(prevCount);
-                  const msg = e instanceof Error ? e.message : String(e);
                   setLikeErr(errorMessage(e, '暂时无法点赞，请稍后再试'));
                 } finally {
                   setLikeBusy(false);
@@ -449,21 +435,6 @@ export default function HomePageClient() {
             {likeErr && (
               <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
             )}
-            <button
-              type="button"
-              className={`hero-share ${shared ? 'hero-share-active' : ''}`}
-              onClick={async () => {
-                setShared(true);
-                try {
-                  const r = await api.recordDailyVerseShare();
-                  setShareCount(r.shares_count);
-                } catch {
-                  /* ignore */
-                }
-              }}
-            >
-              {shared ? `已分享 · ${shareCount}` : '分享 / 壁纸'}
-            </button>
           </div>
         </div>
       </div>
@@ -517,8 +488,8 @@ export default function HomePageClient() {
       <a href="/reader" className="card card-2 card-tint card-accent row-card" style={{ display: 'flex' }}>
         <span className="pill pill-active">继续读经</span>
         <span style={{ flex: 1, fontWeight: 600 }}>
-          {getLastRead()
-            ? `上次读到第 ${getLastRead()!.chapter} 章`
+          {lastRead
+            ? `上次读到 ${bookIdToChineseName(lastRead.bookId)} 第 ${lastRead.chapter} 章`
             : '打开圣经，开始今日阅读'}
         </span>
         <span className="rail-cta">去读 ›</span>
@@ -530,27 +501,6 @@ export default function HomePageClient() {
         </span>
         <span className="muted">读经回顾 ›</span>
       </a>
-
-      {verseFull && (
-        <div
-          className="verse-full"
-          onClick={() => setVerseFull(false)}
-        >
-          <img src={VERSE_BG} alt="" className="verse-full-bg" decoding="sync" fetchPriority="high" />
-          <div className="verse-full-scrim" />
-          <div className="verse-full-glow" aria-hidden />
-          <button type="button" className="verse-full-close" aria-label="关闭" onClick={() => setVerseFull(false)}>
-            ✕
-          </button>
-          <div className="verse-full-inner" onClick={(e) => e.stopPropagation()}>
-            <p className="verse-full-kicker">每日经文</p>
-            <div className="verse-full-ornament" aria-hidden>✦</div>
-            {dv?.ref && <p className="verse-full-ref">{dv.ref}</p>}
-            <p className="verse-full-text">{dv ? dv.text : '加载中…'}</p>
-            {dv?.theme && <p className="verse-full-theme">{dv.theme}</p>}
-          </div>
-        </div>
-      )}
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
     </main>

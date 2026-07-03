@@ -1,24 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
-  <title>彼爱 · 窄门</title>
+  <title>Biai Narrow Gate</title>
   <defs>
-    <linearGradient id="beam" x1="256" y1="96" x2="256" y2="416" gradientUnits="userSpaceOnUse">
+    <linearGradient id="beam" x1="256" y1="96" x2="256" y2="400" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#FFFCFA"/>
       <stop offset="0.45" stop-color="#FFFDF8"/>
       <stop offset="1" stop-color="#F5E6C8"/>
     </linearGradient>
-    <radialGradient id="halo" cx="256" cy="256" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0 200 -56 0 256 256)">
+    <radialGradient id="halo" cx="256" cy="248" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0 190 -56 0 256 248)">
       <stop offset="0" stop-color="#FFFCFA" stop-opacity="0.95"/>
       <stop offset="0.55" stop-color="#EEF4F0" stop-opacity="0.45"/>
       <stop offset="1" stop-color="#EEF4F0" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="path-fade" x1="256" y1="416" x2="256" y2="288" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7D9B8A" stop-opacity="0.44"/>
+      <stop offset="0.6" stop-color="#7D9B8A" stop-opacity="0.26"/>
+      <stop offset="1" stop-color="#7D9B8A" stop-opacity="0"/>
+    </linearGradient>
   </defs>
-  <!-- 背景：暖纸色 -->
   <rect width="512" height="512" fill="#FFFCFA"/>
-  <!-- 门内柔光（先绘制，位于门柱之后可见于窄缝） -->
-  <ellipse cx="256" cy="256" rx="52" ry="188" fill="url(#halo)"/>
-  <rect x="228" y="96" width="56" height="320" rx="28" fill="url(#beam)"/>
-  <circle cx="256" cy="256" r="11" fill="#B08A4F" opacity="0.32"/>
-  <!-- 窄门门柱：左右独立，上下不连 -->
+  <ellipse cx="256" cy="248" rx="52" ry="178" fill="url(#halo)"/>
+  <rect x="228" y="96" width="56" height="304" rx="28" fill="url(#beam)"/>
+  <path d="M256 416 C 246 404 268 392 250 376 C 242 364 262 350 254 334 C 248 322 258 308 256 296" stroke="url(#path-fade)" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <path d="M256 416 C 246 404 268 392 250 376 C 242 364 262 350 254 334 C 248 322 258 308 256 296" stroke="#4F6B5D" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.18"/>
   <rect x="152" y="96" width="72" height="320" rx="36" fill="#4F6B5D"/>
   <rect x="288" y="96" width="72" height="320" rx="36" fill="#4F6B5D"/>
 </svg>

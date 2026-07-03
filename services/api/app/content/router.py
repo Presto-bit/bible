@@ -118,7 +118,7 @@ def _daily_verse_engagement(verse_day: int, user_code: str | None) -> dict:
                 ).fetchone()
                 liked = liked_row is not None
             shares_row = conn.execute(
-                "SELECT COUNT(*)::int FROM daily_verse_share WHERE verse_day = %s",
+                "SELECT COUNT(DISTINCT user_code)::int FROM daily_verse_share WHERE verse_day = %s",
                 (verse_day,),
             ).fetchone()
             shares_count = int(shares_row[0]) if shares_row else 0

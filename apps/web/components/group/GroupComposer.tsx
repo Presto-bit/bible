@@ -8,6 +8,7 @@ import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
 import { asGroupTasks, groupFootprintsBySource } from '@/lib/group_ui';
 import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 
 type Mode = 'checkin' | 'task';
 
@@ -104,7 +105,7 @@ export function GroupComposer({
 
   const shareCheckinCard = async () => {
     const text = body.trim() || GROUP_CHECKIN_DEFAULT_BODY;
-    const title = effectiveRef ? `今日打卡 · ${effectiveRef}` : '今日打卡';
+    const title = effectiveRef ? `今日打卡 · ${formatGroupRefLabel(effectiveRef)}` : '今日打卡';
     await shareCard({
       title,
       body: text,

@@ -109,7 +109,7 @@ export default function ChallengeFlipPlay({
               {q.explain}
             </p>
             {q.ref && (
-              <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>参考：{q.ref}</p>
+              <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>参考：{refToChineseLabel(q.ref) ?? q.ref}</p>
             )}
           </div>
         </div>

@@ -312,6 +312,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     required String key,
     required String current,
     int maxLines = 1,
+    int? maxLength,
   }) async {
     final ctl = TextEditingController(text: current);
     final saved = await showDialog<bool>(
@@ -322,6 +323,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           controller: ctl,
           autofocus: true,
           maxLines: maxLines,
+          maxLength: maxLength,
           decoration: const InputDecoration(border: OutlineInputBorder()),
         ),
         actions: [
@@ -337,7 +339,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
     if (saved == true) {
-      await ref.read(prefsProvider).setString(key, ctl.text.trim());
+      var text = ctl.text.trim();
+      if (maxLength != null && text.length > maxLength) {
+        text = text.substring(0, maxLength);
+      }
+      await ref.read(prefsProvider).setString(key, text);
       if (mounted) setState(() {});
     }
   }
@@ -417,7 +423,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       builder: (ctx) => _SettingsSheet(
         onEditField: _editField,
         onChangePassword: _changePassword,
-        onPickAvatar: _pickAvatar,
         onCopyId: _copyId,
       ),
     );
@@ -464,9 +469,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 style: const TextStyle(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700)),
-                            Text(bio,
-                                style: const TextStyle(
-                                    color: AppColors.inkFaint, fontSize: 12)),
+                            GestureDetector(
+                              onTap: () => _editField(
+                                title: '个性签名',
+                                key: 'profile_bio',
+                                current: bio == '愿日日亲近主话' ? '' : bio,
+                                maxLines: 2,
+                                maxLength: 15,
+                              ),
+                              child: Text(
+                                bio.isEmpty || bio == '愿日日亲近主话'
+                                    ? '点击添加签名'
+                                    : bio,
+                                style: TextStyle(
+                                  color: AppColors.inkFaint,
+                                  fontSize: 12,
+                                  fontStyle: bio.isEmpty ||
+                                          bio == '愿日日亲近主话'
+                                      ? FontStyle.italic
+                                      : FontStyle.normal,
+                                ),
+                              ),
+                            ),
                             const SizedBox(height: 4),
                             GestureDetector(
                               onLongPress: () => _copyId(userId),
@@ -781,7 +805,6 @@ class _SettingsSheet extends ConsumerWidget {
   const _SettingsSheet({
     required this.onEditField,
     required this.onChangePassword,
-    required this.onPickAvatar,
     required this.onCopyId,
   });
 
@@ -790,9 +813,9 @@ class _SettingsSheet extends ConsumerWidget {
     required String key,
     required String current,
     int maxLines,
+    int? maxLength,
   }) onEditField;
   final Future<void> Function() onChangePassword;
-  final Future<void> Function(String current) onPickAvatar;
   final Future<void> Function(String id) onCopyId;
 
   @override
@@ -803,9 +826,7 @@ class _SettingsSheet extends ConsumerWidget {
     final font = ref.watch(readerFontProvider);
 
     final name = prefs.getString('onboarding_name') ?? '读经伙伴';
-    final bio = prefs.getString('profile_bio') ?? '愿日日亲近主话';
     final userId = session.userId ?? session.guestId;
-    final avatarId = prefs.getString('profile_avatar') ?? defaultAvatarId(userId);
 
     return SafeArea(
       child: ConstrainedBox(
@@ -832,23 +853,9 @@ class _SettingsSheet extends ConsumerWidget {
                     color: AppColors.ink)),
             const SizedBox(height: 16),
             _section('个人资料', [
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: ClipOval(child: AvatarBubble(id: avatarId, size: 40)),
-                title: const Text('头像'),
-                trailing: const Icon(Icons.chevron_right,
-                    color: AppColors.inkFaint),
-                onTap: () => onPickAvatar(avatarId),
-              ),
               _row('昵称', name,
                   onTap: () => onEditField(
                       title: '昵称', key: 'onboarding_name', current: name)),
-              _row('个性签名', bio,
-                  onTap: () => onEditField(
-                      title: '个性签名',
-                      key: 'profile_bio',
-                      current: bio,
-                      maxLines: 3)),
             ]),
             const SizedBox(height: 12),
             _section('阅读', [

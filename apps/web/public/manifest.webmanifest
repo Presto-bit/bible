@@ -1,13 +1,17 @@
 {
+  "id": "/",
   "name": "彼爱",
   "short_name": "彼爱",
   "description": "安静读经，在话语中相遇",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#fffcfa",
   "theme_color": "#fffcfa",
   "lang": "zh-CN",
+  "orientation": "portrait-primary",
+  "categories": ["books", "lifestyle"],
   "icons": [
     {
       "src": "/icon-192.png",

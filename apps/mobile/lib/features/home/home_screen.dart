@@ -238,8 +238,6 @@ class HomeScreen extends ConsumerWidget {
                   text: '内容加载失败，下拉重试。',
                   initialLiked: false,
                   initialLikeCount: 0,
-                  initialShareCount: 0,
-                  onAsk: null,
                 ),
                 data: (v) => _VerseCard(
                   day: v.day,
@@ -248,12 +246,6 @@ class HomeScreen extends ConsumerWidget {
                   text: v.text,
                   initialLiked: v.liked,
                   initialLikeCount: v.likesCount,
-                  initialShareCount: v.sharesCount,
-                  // 点击每日经文 → 全屏背景图 + 经文展示。
-                  onAsk: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) =>
-                        _VerseFullScreen(refText: v.ref, text: v.text),
-                  )),
                 ),
               ),
               const SizedBox(height: 14),
@@ -298,10 +290,6 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 }
-
-// 每日经文全屏背景图（可在此配置）。
-const _verseBgUrl =
-    'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1080&q=70';
 
 // 微信式加号菜单：锚定在按钮附近，点项跳转独立页。
 void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
@@ -775,8 +763,6 @@ class _VerseCard extends ConsumerStatefulWidget {
     required this.text,
     required this.initialLiked,
     required this.initialLikeCount,
-    required this.initialShareCount,
-    required this.onAsk,
   });
   final int day;
   final String theme;
@@ -784,10 +770,6 @@ class _VerseCard extends ConsumerStatefulWidget {
   final String text;
   final bool initialLiked;
   final int initialLikeCount;
-  final int initialShareCount;
-
-  /// 点击卡片整体的动作（进入阅读/问小爱），保留以便 hero 整体可点。
-  final VoidCallback? onAsk;
 
   @override
   ConsumerState<_VerseCard> createState() => _VerseCardState();
@@ -796,8 +778,6 @@ class _VerseCard extends ConsumerStatefulWidget {
 class _VerseCardState extends ConsumerState<_VerseCard> {
   late bool _liked;
   late int _likeCount;
-  late int _shareCount;
-  bool _shared = false;
   bool _likeBusy = false;
 
   @override
@@ -805,7 +785,6 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     super.initState();
     _liked = widget.initialLiked;
     _likeCount = widget.initialLikeCount;
-    _shareCount = widget.initialShareCount;
   }
 
   @override
@@ -816,13 +795,10 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       _liked = widget.initialLiked;
       _likeCount = widget.initialLikeCount;
     }
-    if (oldWidget.initialShareCount != widget.initialShareCount) {
-      _shareCount = widget.initialShareCount;
-    }
   }
 
   Future<void> _toggleLike() async {
-    if (_likeBusy) return;
+    if (_likeBusy || widget.day < 1) return;
     final prevLiked = _liked;
     final prevCount = _likeCount;
     setState(() => _likeBusy = true);
@@ -831,14 +807,13 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       final session = ref.read(sessionProvider);
       final prefs = ref.read(prefsProvider);
       final day = widget.day;
-      final path = day > 0 ? '/content/daily-verse/like?day=$day' : '/content/daily-verse/like';
-      final res = await dio.post(path);
-      final data = res.data as Map<String, dynamic>;
+      final path = '/content/daily-verse/like?day=$day';
+      await dio.post(path);
+      final fresh = await dio.get('/content/daily-verse?day=$day');
+      final data = fresh.data as Map<String, dynamic>;
       final liked = (data['liked'] ?? false) as bool;
       final count = (data['likes_count'] ?? 0) as int;
-      if (day > 0) {
-        await writeLocalDailyVerseLike(prefs, session, day, liked);
-      }
+      await writeLocalDailyVerseLike(prefs, session, day, liked);
       if (!mounted) return;
       setState(() {
         _liked = liked;
@@ -855,27 +830,11 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     }
   }
 
-  Future<void> _recordShare() async {
-    setState(() => _shared = true);
-    try {
-      final dio = ref.read(dioProvider);
-      final day = widget.day;
-      final path = day > 0 ? '/content/daily-verse/share?day=$day' : '/content/daily-verse/share';
-      final res = await dio.post(path);
-      final data = res.data as Map<String, dynamic>;
-      final count = (data['shares_count'] ?? _shareCount) as int;
-      if (mounted) setState(() => _shareCount = count);
-    } catch (_) {
-      /* ignore */
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return PaperCard(
       tier: 3,
       tint: AppColors.accent,
-      onTap: widget.onAsk,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       backgroundLayer: const _DawnScene(),
       child: Column(
@@ -933,27 +892,6 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                   ],
                 ),
               ),
-              const Spacer(),
-              GestureDetector(
-                onTap: _shared ? null : _recordShare,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: _shared ? AppColors.accentDeep : AppColors.surface,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                        color:
-                            _shared ? AppColors.accentDeep : AppColors.line),
-                  ),
-                  child: Text(_shared ? '已生成图 ✓' : '分享 / 壁纸',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color:
-                              _shared ? Colors.white : AppColors.accentDeep)),
-                ),
-              ),
             ],
           ),
         ],
@@ -1000,102 +938,6 @@ class _DawnScene extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// 每日经文全屏展示：背景图 + 半透明遮罩 + 经文。
-class _VerseFullScreen extends StatelessWidget {
-  const _VerseFullScreen({required this.refText, required this.text});
-  final String refText;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            _verseBgUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xFF3B3A36), Color(0xFF1C1B19)],
-                ),
-              ),
-            ),
-          ),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x59000000), Color(0x9E000000)],
-              ),
-            ),
-          ),
-          SafeArea(
-            child: Column(
-              children: [
-                Align(
-                  alignment: Alignment.topRight,
-                  child: IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text('每日经文',
-                            style: TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                                letterSpacing: 4)),
-                        const SizedBox(height: 10),
-                        Text('✦',
-                            style: TextStyle(
-                                color: Colors.amber.shade200.withValues(alpha: 0.85),
-                                fontSize: 16,
-                                letterSpacing: 6)),
-                        const SizedBox(height: 14),
-                        if (refText.isNotEmpty)
-                          Text(refText.toUpperCase(),
-                              style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 14,
-                                  letterSpacing: 1.2)),
-                        const SizedBox(height: 20),
-                        Text(
-                          text,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
-                            height: 1.85,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Georgia',
-                            shadows: [
-                              Shadow(blurRadius: 20, color: Colors.black54),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

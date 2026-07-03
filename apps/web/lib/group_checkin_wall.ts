@@ -7,6 +7,24 @@ export interface CheckinPoster {
   status: 'pinned' | 'pending';
 }
 
+function memberKeys(member: GroupMember): string[] {
+  const keys: string[] = [];
+  if (member.user_id) keys.push(member.user_id);
+  if (member.is_me) keys.push('__me__');
+  const name = (member.name || '').trim();
+  if (name) keys.push(`name:${name}`);
+  return keys;
+}
+
+function messageKeys(m: GroupMessage): string[] {
+  const keys: string[] = [];
+  if (m.user_id) keys.push(m.user_id);
+  if (m.mine) keys.push('__me__');
+  const author = (m.author || '').trim();
+  if (author) keys.push(`name:${author}`);
+  return keys;
+}
+
 export function buildCheckinPosters(
   detail: GroupDetail,
   messages: GroupMessage[],
@@ -18,14 +36,21 @@ export function buildCheckinPosters(
   );
   const byUser = new Map<string, GroupMessage>();
   for (const m of todayCheckins) {
-    const key = m.user_id || (m.mine ? '__me__' : m.author);
-    const prev = byUser.get(key);
-    if (!prev || m.created_at > prev.created_at) byUser.set(key, m);
+    for (const key of messageKeys(m)) {
+      const prev = byUser.get(key);
+      if (!prev || m.created_at > prev.created_at) byUser.set(key, m);
+    }
   }
 
   const posters: CheckinPoster[] = members.map((member) => {
-    const uid = member.user_id || (member.is_me ? '__me__' : member.name);
-    const message = byUser.get(uid);
+    let message: GroupMessage | undefined;
+    for (const key of memberKeys(member)) {
+      const hit = byUser.get(key);
+      if (hit) {
+        message = hit;
+        break;
+      }
+    }
     if (message || member.checked_in_today) {
       return { member, message, status: 'pinned' as const };
     }

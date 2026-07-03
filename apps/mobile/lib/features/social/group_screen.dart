@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import '../../core/ref_label.dart';
 import 'social_repository.dart';
 
 const _emojis = ['🙏', '❤️', '🔥', '👍'];
@@ -327,7 +328,7 @@ class _MessageCard extends ConsumerWidget {
             Row(children: [
               const Icon(Icons.menu_book, size: 14, color: AppColors.gold),
               const SizedBox(width: 4),
-              Text(msg.ref!,
+              Text(formatGroupRefLabel(msg.ref),
                   style: const TextStyle(
                       color: AppColors.gold, fontWeight: FontWeight.w600)),
             ]),

@@ -6,6 +6,7 @@ import {
   SCENES,
   type AssistantScene,
 } from './assistant_scenes';
+import { bookIdToChineseName } from './ref_label';
 
 export interface AssistantChip {
   label: string;
@@ -44,7 +45,7 @@ export function personalizedAssistantChips(opts: {
       label: '续读导读',
       scene: 'chat_explain',
       mode: SCENES.chat_explain.mode,
-      q: `我上次读到 ${last.bookId} 第 ${last.chapter} 章，请帮我预习下一章的核心信息与默想问题。`,
+      q: `我上次读到 ${bookIdToChineseName(last.bookId)} 第 ${last.chapter} 章，请帮我预习下一章的核心信息与默想问题。`,
     });
     chips.push({
       label: '关键词释义',

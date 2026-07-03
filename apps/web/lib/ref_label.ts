@@ -41,3 +41,9 @@ export function formatGroupRefLabel(ref: string | undefined | null): string {
   if (!ref) return '';
   return refToChineseLabel(ref) ?? ref;
 }
+
+/** OSIS 书卷 id → 中文名（如 GEN → 创世记） */
+export function bookIdToChineseName(bookId: string | undefined | null): string {
+  if (!bookId) return '';
+  return BOOK_ID_TO_CN[bookId.toUpperCase()] ?? bookId;
+}

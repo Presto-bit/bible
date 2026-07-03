@@ -71,6 +71,7 @@ import MarkNoteBar from '@/components/reader/MarkNoteBar';
 import { ReaderSkeleton } from '@/components/Skeleton';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { parseMarkRef } from '@/lib/mark_ref';
+import { refToChineseLabel } from '@/lib/ref_label';
 import {
   clearHighlightForSelection,
   findHighlightStorageRef,
@@ -1409,7 +1410,11 @@ export default function ReaderView({
               </div>
             </div>
             <div className="half-sheet-body">
-              {viewNote.ref && <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>{viewNote.ref}</p>}
+              {viewNote.ref && (
+                <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
+                  {refToChineseLabel(viewNote.ref) ?? viewNote.ref}
+                </p>
+              )}
               <p style={{ lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{viewNote.body}</p>
             </div>
           </div>

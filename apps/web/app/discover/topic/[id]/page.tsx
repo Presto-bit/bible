@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { topicById } from '@/lib/discover_topics';
 import { AssistantLink } from '@/components/AssistantLink';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 
 export default function TopicPage() {
   const params = useParams();
@@ -45,7 +46,7 @@ export default function TopicPage() {
         const href = readerHrefFromRef(v.ref);
         return (
           <div key={v.ref} className="card share-card">
-            <p className="muted">{v.ref.replace(/\./g, ' ')}</p>
+            <p className="muted">{formatGroupRefLabel(v.ref)}</p>
             <p style={{ lineHeight: 1.6 }}>{v.text}</p>
             <div className="share-actions">
               <AssistantLink className="font-pill" refParam={v.ref} excerpt={v.text}>

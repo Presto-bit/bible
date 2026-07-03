@@ -1,6 +1,7 @@
 /** 收藏经节复习卡片（§7 P2） */
 
 import { loadFavoriteRefs } from './favorites';
+import { formatGroupRefLabel } from './ref_label';
 
 export function favoriteReviewCards(limit = 3): { ref: string; label: string }[] {
   const refs = loadFavoriteRefs();
@@ -8,6 +9,6 @@ export function favoriteReviewCards(limit = 3): { ref: string; label: string }[]
   const shuffled = [...refs].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, limit).map((ref) => ({
     ref,
-    label: ref.replace(/\./g, ' '),
+    label: formatGroupRefLabel(ref),
   }));
 }

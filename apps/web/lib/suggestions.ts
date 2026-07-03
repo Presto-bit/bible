@@ -3,6 +3,7 @@
 import { getLastRead } from './reading';
 import { getActivePlan, getPlanDay } from './plan_progress';
 import { readingStreak } from './gamification';
+import { bookIdToChineseName } from './ref_label';
 
 export interface ReadingSuggestion {
   title: string;
@@ -24,8 +25,9 @@ export function nextReadingSuggestion(): ReadingSuggestion | null {
     };
   }
   if (last) {
+    const bookName = bookIdToChineseName(last.bookId);
     return {
-      title: `继续 ${last.bookId} ${last.chapter} 章`,
+      title: `继续 ${bookName} ${last.chapter} 章`,
       reason: streak >= 3 ? `已连续 ${streak} 天` : '从上次位置继续',
       href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
     };

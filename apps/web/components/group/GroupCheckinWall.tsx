@@ -48,7 +48,8 @@ export function GroupCheckinWall({
         <div>
           <strong>打卡墙</strong>
           <span className="muted group-checkin-wall-sub">
-            {groupDetailTodayLine(detail)}
+            共 {posters.length} 人
+            {groupDetailTodayLine(detail) ? ` · ${groupDetailTodayLine(detail)}` : ''}
             {pendingCount > 0 ? ` · ${pendingCount} 人待钉` : ''}
           </span>
         </div>
