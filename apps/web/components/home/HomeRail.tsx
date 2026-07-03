@@ -1,13 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { railDotClass, type HomeMoreItem, type RailCard } from '@/lib/home_rail';
+import { railDotClass, type RailCard } from '@/lib/home_rail';
 import { StatRing } from '@/components/ui/StatRing';
-import { HomeMoreSheet } from './HomeMoreSheet';
 
 type Props = {
   cards: RailCard[];
-  more: HomeMoreItem[];
 };
 
 function cardClass(c: RailCard, active: boolean): string {
@@ -23,13 +21,10 @@ function cardClass(c: RailCard, active: boolean): string {
   return parts.filter(Boolean).join(' ');
 }
 
-export function HomeRail({ cards, more }: Props) {
+export function HomeRail({ cards }: Props) {
   const railRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
-  const [moreOpen, setMoreOpen] = useState(false);
-
-  const totalSlides = cards.length + (more.length > 0 ? 1 : 0);
 
   useEffect(() => {
     const root = railRef.current;
@@ -55,7 +50,7 @@ export function HomeRail({ cards, more }: Props) {
       if (el) obs.observe(el);
     });
     return () => obs.disconnect();
-  }, [cards.length, more.length]);
+  }, [cards.length]);
 
   const onScroll = useCallback(() => {
     const el = railRef.current;
@@ -106,7 +101,6 @@ export function HomeRail({ cards, more }: Props) {
               )}
               <div className="rail-foot">
                 <span className="rail-sub">{c.sub}</span>
-                <span className="rail-cta">{c.cta}</span>
               </div>
             </div>
             {c.kind === 'stat' && c.statPct != null && (
@@ -114,47 +108,15 @@ export function HomeRail({ cards, more }: Props) {
             )}
           </a>
         ))}
-        {more.length > 0 && (
-          <button
-            type="button"
-            ref={(el) => { cardRefs.current[cards.length] = el; }}
-            data-rail-idx={cards.length}
-            className={`rail-card card card-ghost card-2 card-tint-slate rail-card-more${activeIdx === cards.length ? ' rail-card-active' : ' rail-card-inactive'}`}
-            onClick={() => setMoreOpen(true)}
-          >
-            <span className="home-more-trigger-icon" aria-hidden="true">⋯</span>
-            <div className="rail-card-body">
-              <div className="rail-head">
-                <span className="pill">更多</span>
-                <span className="muted rail-reason">{more.length} 个入口</span>
-              </div>
-              <div className="rail-title">探索更多功能</div>
-              <div className="rail-foot">
-                <span className="rail-sub">问答 · 小爱 · 计划</span>
-                <span className="rail-cta">打开 ›</span>
-              </div>
-            </div>
-          </button>
-        )}
       </div>
       <div className="dots home-rail-dots">
-        {Array.from({ length: totalSlides }, (_, i) => {
-          const isMore = i >= cards.length;
-          const c = cards[i];
-          const cls = isMore
-            ? railDotClass('more')
-            : c
-              ? railDotClass(c.kind, c.tint)
-              : 'dot-slate';
-          return (
-            <span
-              key={i}
-              className={`dot ${cls}${i === activeIdx ? ' dot-active' : ''}`}
-            />
-          );
-        })}
+        {cards.map((c, i) => (
+          <span
+            key={c.id}
+            className={`dot ${railDotClass(c.kind, c.tint)}${i === activeIdx ? ' dot-active' : ''}`}
+          />
+        ))}
       </div>
-      <HomeMoreSheet open={moreOpen} items={more} onClose={() => setMoreOpen(false)} />
     </>
   );
 }

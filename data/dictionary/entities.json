@@ -1,5 +1,5 @@
 {
-  "schema": "entities@1",
+  "schema": "entities@2",
   "note": "起步集：圣经人名/地名词条，summary 为简介，refs 为出处坐标（正典真实）。供阅读页点名查证与小爱检索。",
   "entities": [
     {
@@ -15,7 +15,14 @@
       "aliases": [
         "基督",
         "弥赛亚"
-      ]
+      ],
+      "scope_books": [
+        "JHN",
+        "MAT",
+        "PHP"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "moses",
@@ -26,7 +33,14 @@
         "EXO 3:10",
         "EXO 20:1",
         "DEU 34:10"
-      ]
+      ],
+      "scope_books": [
+        "DEU",
+        "EXO"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "abraham",
@@ -40,7 +54,13 @@
       ],
       "aliases": [
         "亚伯兰"
-      ]
+      ],
+      "scope_books": [
+        "GEN",
+        "ROM"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "david",
@@ -51,7 +71,15 @@
         "1SA 16:13",
         "2SA 7:16",
         "PSA 23:1"
-      ]
+      ],
+      "scope_books": [
+        "1SA",
+        "2SA",
+        "PSA"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "paul",
@@ -62,7 +90,16 @@
         "ACT 9:3",
         "ACT 13:9",
         "PHP 3:5"
-      ]
+      ],
+      "aliases": [
+        "扫罗"
+      ],
+      "disambiguation": "原名扫罗的使徒",
+      "scope_books": [
+        "ACT",
+        "PHP"
+      ],
+      "testament": "NT"
     },
     {
       "id": "peter",
@@ -73,7 +110,15 @@
         "MAT 16:18",
         "JHN 21:17",
         "ACT 2:14"
-      ]
+      ],
+      "scope_books": [
+        "ACT",
+        "JHN",
+        "MAT"
+      ],
+      "testament": "NT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "john_apostle",
@@ -84,7 +129,18 @@
         "JHN 13:23",
         "JHN 21:20",
         "REV 1:9"
-      ]
+      ],
+      "disambiguation": "耶稣所爱的门徒",
+      "testament": "NT",
+      "scope_books": [
+        "MAT",
+        "MRK",
+        "LUK",
+        "JHN",
+        "ACT",
+        "REV"
+      ],
+      "aliases": []
     },
     {
       "id": "nicodemus",
@@ -95,7 +151,13 @@
         "JHN 3:1",
         "JHN 7:50",
         "JHN 19:39"
-      ]
+      ],
+      "scope_books": [
+        "JHN"
+      ],
+      "testament": "NT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "mary_mother",
@@ -106,7 +168,17 @@
         "LUK 1:31",
         "LUK 2:7",
         "JHN 2:5"
-      ]
+      ],
+      "disambiguation": "耶稣的母亲",
+      "testament": "NT",
+      "scope_books": [
+        "MAT",
+        "MRK",
+        "LUK",
+        "JHN",
+        "ACT"
+      ],
+      "aliases": []
     },
     {
       "id": "elijah",
@@ -117,7 +189,14 @@
         "1KI 17:1",
         "1KI 18:38",
         "2KI 2:11"
-      ]
+      ],
+      "scope_books": [
+        "1KI",
+        "2KI"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "isaiah",
@@ -128,7 +207,13 @@
         "ISA 6:8",
         "ISA 7:14",
         "ISA 53:5"
-      ]
+      ],
+      "scope_books": [
+        "ISA"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "daniel",
@@ -139,10 +224,16 @@
         "DAN 1:8",
         "DAN 6:10",
         "DAN 6:22"
-      ]
+      ],
+      "scope_books": [
+        "DAN"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
-      "id": "joseph",
+      "id": "joseph_son",
       "name": "约瑟",
       "type": "person",
       "summary": "雅各之子，被卖埃及终作宰相，宽恕兄长，救全家于饥荒。",
@@ -150,7 +241,15 @@
         "GEN 37:28",
         "GEN 41:41",
         "GEN 50:20"
-      ]
+      ],
+      "disambiguation": "雅各之子，在埃及为宰相",
+      "testament": "OT",
+      "scope_books": [
+        "GEN",
+        "EXO",
+        "1CH"
+      ],
+      "aliases": []
     },
     {
       "id": "joshua",
@@ -161,7 +260,13 @@
         "JOS 1:1",
         "JOS 6:20",
         "JOS 24:15"
-      ]
+      ],
+      "scope_books": [
+        "JOS"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "ruth",
@@ -172,7 +277,14 @@
         "RUT 1:16",
         "RUT 4:13",
         "MAT 1:5"
-      ]
+      ],
+      "scope_books": [
+        "MAT",
+        "RUT"
+      ],
+      "testament": "BOTH",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "solomon",
@@ -183,11 +295,18 @@
         "1KI 3:9",
         "1KI 6:1",
         "PRO 1:1"
-      ]
+      ],
+      "scope_books": [
+        "1KI",
+        "PRO"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "john_baptist",
-      "name": "施洗约翰",
+      "name": "约翰",
       "type": "person",
       "summary": "耶稣的先锋，在旷野传悔改的洗礼，为主预备道路。",
       "refs": [
@@ -196,7 +315,15 @@
         "MAT 3:13"
       ],
       "aliases": [
-        "约翰"
+        "施洗约翰"
+      ],
+      "disambiguation": "施洗者，耶稣的先锋",
+      "testament": "NT",
+      "scope_books": [
+        "MAT",
+        "MRK",
+        "LUK",
+        "JHN"
       ]
     },
     {
@@ -208,7 +335,15 @@
         "LUK 8:2",
         "JHN 20:16",
         "MRK 16:9"
-      ]
+      ],
+      "scope_books": [
+        "JHN",
+        "LUK",
+        "MRK"
+      ],
+      "testament": "NT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "thomas",
@@ -219,7 +354,13 @@
         "JHN 11:16",
         "JHN 20:25",
         "JHN 20:28"
-      ]
+      ],
+      "scope_books": [
+        "JHN"
+      ],
+      "testament": "NT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "stephen",
@@ -230,7 +371,13 @@
         "ACT 6:5",
         "ACT 7:59",
         "ACT 7:60"
-      ]
+      ],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "jerusalem",
@@ -243,9 +390,15 @@
         "ACT 1:8"
       ],
       "aliases": [
-        "锡安",
-        "撒冷"
-      ]
+        "锡安"
+      ],
+      "scope_books": [
+        "2SA",
+        "ACT",
+        "PSA"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "bethlehem",
@@ -256,7 +409,15 @@
         "MIC 5:2",
         "LUK 2:4",
         "MAT 2:1"
-      ]
+      ],
+      "scope_books": [
+        "LUK",
+        "MAT",
+        "MIC"
+      ],
+      "testament": "BOTH",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "nazareth",
@@ -267,7 +428,15 @@
         "LUK 2:39",
         "MAT 2:23",
         "JHN 1:46"
-      ]
+      ],
+      "scope_books": [
+        "JHN",
+        "LUK",
+        "MAT"
+      ],
+      "testament": "NT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "egypt",
@@ -278,7 +447,14 @@
         "GEN 46:6",
         "EXO 1:11",
         "EXO 12:41"
-      ]
+      ],
+      "scope_books": [
+        "EXO",
+        "GEN"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "jordan",
@@ -289,7 +465,15 @@
         "JOS 3:17",
         "2KI 5:14",
         "MAT 3:13"
-      ]
+      ],
+      "scope_books": [
+        "2KI",
+        "JOS",
+        "MAT"
+      ],
+      "testament": "BOTH",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "sinai",
@@ -300,7 +484,13 @@
         "EXO 19:20",
         "EXO 20:1",
         "EXO 31:18"
-      ]
+      ],
+      "scope_books": [
+        "EXO"
+      ],
+      "testament": "OT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "galilee",
@@ -311,7 +501,15 @@
         "MAT 4:23",
         "MRK 1:14",
         "JHN 2:11"
-      ]
+      ],
+      "scope_books": [
+        "JHN",
+        "MAT",
+        "MRK"
+      ],
+      "testament": "NT",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "babylon",
@@ -322,7 +520,15 @@
         "2KI 25:1",
         "DAN 1:1",
         "REV 17:5"
-      ]
+      ],
+      "scope_books": [
+        "2KI",
+        "DAN",
+        "REV"
+      ],
+      "testament": "BOTH",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "zion",
@@ -333,7 +539,15 @@
         "PSA 48:2",
         "ISA 2:3",
         "HEB 12:22"
-      ]
+      ],
+      "scope_books": [
+        "HEB",
+        "ISA",
+        "PSA"
+      ],
+      "testament": "BOTH",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "eden",
@@ -344,7 +558,14 @@
         "GEN 2:8",
         "GEN 3:23",
         "REV 22:2"
-      ]
+      ],
+      "scope_books": [
+        "GEN",
+        "REV"
+      ],
+      "testament": "BOTH",
+      "aliases": [],
+      "disambiguation": ""
     },
     {
       "id": "亚伯兰",
@@ -355,7 +576,12 @@
         "GEN.12.1",
         "GEN.17.5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "撒拉",
@@ -366,7 +592,12 @@
         "GEN.17.15",
         "GEN.21.2"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "以撒",
@@ -377,10 +608,16 @@
         "GEN.22.2",
         "HEB.11.17"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN",
+        "HEB"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
-      "id": "雅各",
+      "id": "jacob_patriarch",
       "name": "雅各",
       "type": "person",
       "summary": "以撒之子，后改名以色列，十二支派之父。",
@@ -388,7 +625,16 @@
         "GEN.32.28",
         "GEN.35.10"
       ],
-      "aliases": []
+      "aliases": [],
+      "disambiguation": "以撒之子，后改名以色列",
+      "testament": "OT",
+      "scope_books": [
+        "GEN",
+        "EXO",
+        "NUM",
+        "DEU",
+        "1CH"
+      ]
     },
     {
       "id": "以色列",
@@ -399,7 +645,13 @@
         "GEN.32:28",
         "EXO.19.5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO",
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "挪亚",
@@ -410,7 +662,12 @@
         "GEN.6.9",
         "GEN.9.13"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "亚当",
@@ -421,7 +678,13 @@
         "GEN.2:7",
         "ROM.5.12"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN",
+        "ROM"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "夏娃",
@@ -432,7 +695,12 @@
         "GEN.2:22",
         "GEN.3:20"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "该隐",
@@ -442,7 +710,12 @@
       "refs": [
         "GEN.4:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "亚伯",
@@ -453,7 +726,13 @@
         "GEN.4:4",
         "HEB.11.4"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN",
+        "HEB"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "以扫",
@@ -464,7 +743,12 @@
         "GEN.25:32",
         "GEN.27:36"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "利百加",
@@ -475,7 +759,12 @@
         "GEN.24:67",
         "GEN.27:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "拉结",
@@ -486,7 +775,12 @@
         "GEN.29:18",
         "GEN.35:18"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "利亚",
@@ -496,7 +790,12 @@
       "refs": [
         "GEN.29:23"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "参孙",
@@ -507,7 +806,12 @@
         "JDG.13:24",
         "JDG.16:30"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JDG"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "撒母耳",
@@ -518,10 +822,15 @@
         "1SA.3:19",
         "1SA.16:13"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1SA"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
-      "id": "扫罗",
+      "id": "saul_king",
       "name": "扫罗",
       "type": "person",
       "summary": "以色列首任王，后因悖逆被神弃绝。",
@@ -529,7 +838,14 @@
         "1SA.9:2",
         "1SA.15:23"
       ],
-      "aliases": []
+      "aliases": [],
+      "disambiguation": "以色列首任王（非使徒保罗）",
+      "testament": "OT",
+      "scope_books": [
+        "1SA",
+        "2SA",
+        "1CH"
+      ]
     },
     {
       "id": "约拿",
@@ -540,7 +856,12 @@
         "JON.1:17",
         "JON.3:10"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JON"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "耶利米",
@@ -551,7 +872,12 @@
         "JER.1:5",
         "JER.31:31"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JER"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "以西结",
@@ -562,7 +888,12 @@
         "EZK.1:1",
         "EZK.37:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EZK"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "何西阿",
@@ -573,7 +904,12 @@
         "HOS.1:2",
         "HOS.6:6"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "HOS"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "阿摩司",
@@ -584,7 +920,12 @@
         "AMO.1:1",
         "AMO.5:24"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "AMO"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "弥迦",
@@ -595,7 +936,12 @@
         "MIC.5:2",
         "MIC.6:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MIC"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "哈巴谷",
@@ -605,7 +951,12 @@
       "refs": [
         "HAB.2:4"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "HAB"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "玛拉基",
@@ -615,7 +966,12 @@
       "refs": [
         "MAL.4:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MAL"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "罗波安",
@@ -625,7 +981,12 @@
       "refs": [
         "1KI.12:16"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1KI"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "以利沙",
@@ -636,7 +997,12 @@
         "2KI.2:9",
         "2KI.4:32"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "2KI"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "希西家",
@@ -647,7 +1013,12 @@
         "2KI.18:5",
         "2KI.20:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "2KI"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "约西亚",
@@ -658,7 +1029,12 @@
         "2KI.22:8",
         "2KI.23:25"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "2KI"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "尼希米",
@@ -669,7 +1045,12 @@
         "NEH.2:5",
         "NEH.6:15"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "NEH"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "以斯拉",
@@ -680,7 +1061,12 @@
         "EZR.7:6",
         "EZR.7:10"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EZR"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "以斯帖",
@@ -691,7 +1077,12 @@
         "EST.4:14",
         "EST.8:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EST"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "末底改",
@@ -702,7 +1093,12 @@
         "EST.3:2",
         "EST.8:15"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EST"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "约伯",
@@ -713,7 +1109,12 @@
         "JOB.1:1",
         "JOB.42:10"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JOB"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "迦勒",
@@ -724,7 +1125,13 @@
         "NUM.14:24",
         "JOS.14:14"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JOS",
+        "NUM"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "底波拉",
@@ -735,7 +1142,12 @@
         "JDG.4:4",
         "JDG.5:7"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JDG"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "基甸",
@@ -746,7 +1158,12 @@
         "JDG.6:14",
         "JDG.7:7"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JDG"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "拿俄米",
@@ -757,7 +1174,12 @@
         "RUT.1:20",
         "RUT.4:16"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "RUT"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "波阿斯",
@@ -768,7 +1190,12 @@
         "RUT.2:1",
         "RUT.4:13"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "RUT"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "马加比",
@@ -778,7 +1205,12 @@
       "refs": [
         "1MA.2:19"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1MA"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "安得烈",
@@ -789,7 +1221,12 @@
         "JHN.1:40",
         "JHN.6:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "腓力",
@@ -800,7 +1237,12 @@
         "JHN.1:43",
         "JHN.12:21"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "巴多罗买",
@@ -811,7 +1253,13 @@
         "JHN.1:45",
         "MAT.10:3"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "马太",
@@ -822,10 +1270,15 @@
         "MAT.9:9",
         "MAT.10:3"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
-      "id": "犹大",
+      "id": "judah_iscariot",
       "name": "犹大",
       "type": "person",
       "summary": "卖主的门徒（加略人犹大）。",
@@ -833,7 +1286,18 @@
         "MAT.26:14",
         "MAT.27:3"
       ],
-      "aliases": []
+      "aliases": [
+        "加略人犹大"
+      ],
+      "disambiguation": "加略人，卖主的门徒",
+      "testament": "NT",
+      "scope_books": [
+        "MAT",
+        "MRK",
+        "LUK",
+        "JHN",
+        "ACT"
+      ]
     },
     {
       "id": "马大",
@@ -844,7 +1308,13 @@
         "LUK.10:40",
         "JHN.11:20"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN",
+        "LUK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "拉撒路",
@@ -855,7 +1325,12 @@
         "JHN.11:43",
         "JHN.12:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "撒该",
@@ -866,7 +1341,12 @@
         "LUK.19:2",
         "LUK.19:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "LUK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "该撒",
@@ -877,7 +1357,13 @@
         "LUK.2:1",
         "MAT.22:21"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "LUK",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "彼拉多",
@@ -888,7 +1374,13 @@
         "MAT.27:24",
         "JHN.19:16"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "希律",
@@ -899,7 +1391,13 @@
         "MAT.2:16",
         "LUK.23:7"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "LUK",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "哥尼流",
@@ -910,7 +1408,12 @@
         "ACT.10:1",
         "ACT.10:44"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "吕底亚",
@@ -920,7 +1423,12 @@
       "refs": [
         "ACT.16:14"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "提摩太",
@@ -931,7 +1439,13 @@
         "1TI.4:12",
         "2TI.1:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1TI",
+        "2TI"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "提多",
@@ -941,7 +1455,12 @@
       "refs": [
         "TIT.1:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "TIT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "巴拿巴",
@@ -952,7 +1471,12 @@
         "ACT.4:36",
         "ACT.13:2"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "马可",
@@ -963,7 +1487,13 @@
         "ACT.12:12",
         "MRK.1:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "MRK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "路加",
@@ -974,7 +1504,13 @@
         "COL.4:14",
         "LUK.1:3"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "COL",
+        "LUK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "亚波罗",
@@ -985,7 +1521,13 @@
         "ACT.18:24",
         "1CO.3:6"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1CO",
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "亚尼亚",
@@ -995,7 +1537,12 @@
       "refs": [
         "ACT.5:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "迦百农",
@@ -1006,7 +1553,13 @@
         "MAT.4:13",
         "MRK.2:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MAT",
+        "MRK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "伯大尼",
@@ -1017,7 +1570,13 @@
         "JHN.11:1",
         "MAT.21:17"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "撒马利亚",
@@ -1028,7 +1587,13 @@
         "JHN.4:9",
         "LUK.10:33"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN",
+        "LUK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "大马色",
@@ -1039,7 +1604,12 @@
         "ACT.9:3",
         "ACT.22:6"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "安提阿",
@@ -1050,7 +1620,12 @@
         "ACT.11:26",
         "ACT.13:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "以弗所",
@@ -1061,7 +1636,13 @@
         "ACT.19:1",
         "EPH.1:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "EPH"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "哥林多",
@@ -1072,7 +1653,13 @@
         "ACT.18:1",
         "1CO.1:2"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1CO",
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "雅典",
@@ -1082,7 +1669,12 @@
       "refs": [
         "ACT.17:22"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "罗马",
@@ -1093,7 +1685,13 @@
         "ROM.1:7",
         "ACT.28:16"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "ROM"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "尼尼微",
@@ -1104,7 +1702,12 @@
         "JON.1:2",
         "JON.3:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JON"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "所多玛",
@@ -1115,7 +1718,13 @@
         "GEN.19:24",
         "2PE.2:6"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "2PE",
+        "GEN"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "俄玛拉",
@@ -1125,7 +1734,12 @@
       "refs": [
         "GEN.19:24"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "红海",
@@ -1136,7 +1750,12 @@
         "EXO.14:21",
         "EXO.15:4"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "旷野",
@@ -1147,7 +1766,13 @@
         "NUM.14:33",
         "DEU.8:2"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "DEU",
+        "NUM"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "迦南",
@@ -1158,7 +1783,13 @@
         "GEN.12:7",
         "JOS.1:2"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN",
+        "JOS"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "黑门山",
@@ -1169,7 +1800,13 @@
         "PSA.89:12",
         "MAT.17:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MAT",
+        "PSA"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "橄榄山",
@@ -1180,7 +1817,13 @@
         "MAT.24:3",
         "LUK.22:39"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "LUK",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "客西马尼",
@@ -1191,7 +1834,13 @@
         "MAT.26:36",
         "MRK.14:32"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MAT",
+        "MRK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "各各他",
@@ -1202,7 +1851,13 @@
         "MAT.27:33",
         "JHN.19:17"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "西罗亚",
@@ -1212,7 +1867,12 @@
       "refs": [
         "JHN.9:7"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "撒冷",
@@ -1223,7 +1883,13 @@
         "GEN.14:18",
         "PSA.76:2"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN",
+        "PSA"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "米斯巴",
@@ -1234,7 +1900,13 @@
         "JDG.10:17",
         "1SA.7:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1SA",
+        "JDG"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "伯特利",
@@ -1245,7 +1917,12 @@
         "GEN.28:19",
         "GEN.35:7"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "希伯仑",
@@ -1256,7 +1933,13 @@
         "GEN.23:19",
         "2SA.2:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "2SA",
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "别是巴",
@@ -1267,7 +1950,13 @@
         "GEN.21:31",
         "AMO.8:14"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "AMO",
+        "GEN"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "非利士",
@@ -1278,7 +1967,13 @@
         "JDG.13:1",
         "1SA.17:4"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1SA",
+        "JDG"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "亚述",
@@ -1289,7 +1984,13 @@
         "2KI.17:6",
         "ISA.10:5"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "2KI",
+        "ISA"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "波斯",
@@ -1300,7 +2001,13 @@
         "EZR.1:1",
         "EST.1:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EST",
+        "EZR"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "法老",
@@ -1311,7 +2018,12 @@
         "EXO.5:2",
         "EXO.14:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "兰塞",
@@ -1321,7 +2033,12 @@
       "refs": [
         "EXO.1:11"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "西奈",
@@ -1332,7 +2049,13 @@
         "EXO.19:20",
         "GAL.4:24"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO",
+        "GAL"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "会幕",
@@ -1343,7 +2066,12 @@
         "EXO.25:8",
         "EXO.40:34"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "圣殿",
@@ -1354,7 +2082,13 @@
         "1KI.6:1",
         "MAT.21:12"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1KI",
+        "MAT"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "耶和华",
@@ -1365,7 +2099,13 @@
         "EXO.3:14",
         "PSA.83:18"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO",
+        "PSA"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "弥赛亚",
@@ -1376,7 +2116,13 @@
         "DAN.9:25",
         "JHN.1:41"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "DAN",
+        "JHN"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "基督",
@@ -1387,7 +2133,13 @@
         "MAT.16:16",
         "ACT.2:36"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "圣灵",
@@ -1398,7 +2150,13 @@
         "JHN.14:26",
         "ACT.1:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "JHN"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "天使",
@@ -1409,7 +2167,13 @@
         "LUK.1:26",
         "HEB.1:14"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "HEB",
+        "LUK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "撒但",
@@ -1420,7 +2184,13 @@
         "JOB.1:6",
         "MAT.4:10"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JOB",
+        "MAT"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "法利赛人",
@@ -1431,7 +2201,13 @@
         "MAT.23:2",
         "ACT.23:6"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "撒都该人",
@@ -1442,7 +2218,13 @@
         "MAT.22:23",
         "ACT.23:8"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "文士",
@@ -1453,7 +2235,13 @@
         "MAT.2:4",
         "MRK.1:22"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MAT",
+        "MRK"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "大祭司",
@@ -1464,7 +2252,13 @@
         "LEV.16:34",
         "HEB.9:7"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "HEB",
+        "LEV"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "约柜",
@@ -1475,7 +2269,13 @@
         "EXO.25:10",
         "JOS.3:3"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO",
+        "JOS"
+      ],
+      "testament": "OT",
+      "disambiguation": ""
     },
     {
       "id": "逾越节",
@@ -1486,7 +2286,13 @@
         "EXO.12:14",
         "LUK.22:15"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EXO",
+        "LUK"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "五旬节",
@@ -1497,7 +2303,13 @@
         "LEV.23:16",
         "ACT.2:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "LEV"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "安息日",
@@ -1508,7 +2320,13 @@
         "GEN.2:3",
         "MRK.2:27"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN",
+        "MRK"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "割礼",
@@ -1519,7 +2337,13 @@
         "GEN.17:10",
         "ROM.4:11"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "GEN",
+        "ROM"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "洗礼",
@@ -1530,7 +2354,13 @@
         "MAT.28:19",
         "ACT.2:38"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "圣餐",
@@ -1541,7 +2371,13 @@
         "MAT.26:26",
         "1CO.11:24"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1CO",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "福音",
@@ -1552,7 +2388,13 @@
         "ROM.1:16",
         "1CO.15:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1CO",
+        "ROM"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "恩典",
@@ -1563,7 +2405,13 @@
         "EPH.2:8",
         "ROM.5:20"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EPH",
+        "ROM"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "信心",
@@ -1574,7 +2422,13 @@
         "HEB.11:1",
         "ROM.1:17"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "HEB",
+        "ROM"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "义",
@@ -1585,7 +2439,12 @@
         "ROM.3:22",
         "ROM.5:1"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ROM"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "赎罪",
@@ -1596,7 +2455,13 @@
         "ROM.3:25",
         "HEB.9:22"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "HEB",
+        "ROM"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "复活",
@@ -1607,7 +2472,13 @@
         "1CO.15:20",
         "MAT.28:6"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1CO",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "永生",
@@ -1618,7 +2489,12 @@
         "JHN.17:3",
         "JHN.3:16"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "JHN"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "天国",
@@ -1629,7 +2505,12 @@
         "MAT.4:17",
         "MAT.6:33"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "教会",
@@ -1640,7 +2521,13 @@
         "MAT.16:18",
         "EPH.1:22"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "EPH",
+        "MAT"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "使徒",
@@ -1651,7 +2538,13 @@
         "ACT.1:21",
         "EPH.2:20"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "ACT",
+        "EPH"
+      ],
+      "testament": "NT",
+      "disambiguation": ""
     },
     {
       "id": "先知",
@@ -1662,7 +2555,13 @@
         "AMO.3:7",
         "EPH.4:11"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "AMO",
+        "EPH"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "祭司",
@@ -1673,7 +2572,13 @@
         "LEV.8:1",
         "1PE.2:9"
       ],
-      "aliases": []
+      "aliases": [],
+      "scope_books": [
+        "1PE",
+        "LEV"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
     },
     {
       "id": "君王",
@@ -1684,7 +2589,96 @@
         "1SA.8:7",
         "REV.19:16"
       ],
+      "aliases": [],
+      "scope_books": [
+        "1SA",
+        "REV"
+      ],
+      "testament": "BOTH",
+      "disambiguation": ""
+    },
+    {
+      "id": "judah_patriarch",
+      "name": "犹大",
+      "type": "person",
+      "disambiguation": "雅各之子，犹大支派之祖",
+      "testament": "OT",
+      "scope_books": [
+        "GEN",
+        "NUM",
+        "DEU",
+        "JUD",
+        "1CH"
+      ],
+      "summary": "雅各第四子，犹大支派之祖；其后裔大卫与弥赛亚出自此族。",
+      "refs": [
+        "GEN.29:35",
+        "GEN.49:8",
+        "MAT.1:2"
+      ],
       "aliases": []
+    },
+    {
+      "id": "joseph_husband",
+      "name": "约瑟",
+      "type": "person",
+      "disambiguation": "马利亚之夫，耶稣的养父",
+      "testament": "NT",
+      "scope_books": [
+        "MAT",
+        "LUK"
+      ],
+      "summary": "大卫后裔，木匠，蒙天使指示娶马利亚并抚养耶稣。",
+      "refs": [
+        "MAT.1:20",
+        "MAT.2:14",
+        "LUK.2:4"
+      ],
+      "aliases": []
+    },
+    {
+      "id": "james_apostle",
+      "name": "雅各",
+      "type": "person",
+      "disambiguation": "西庇太之子，耶稣门徒",
+      "testament": "NT",
+      "scope_books": [
+        "MAT",
+        "MRK",
+        "LUK",
+        "ACT"
+      ],
+      "summary": "约翰的兄弟，十二门徒之一，曾见变像山异象。",
+      "refs": [
+        "MAT.4:21",
+        "MAT.17:1",
+        "ACT.12:2"
+      ],
+      "aliases": [
+        "西庇太的儿子雅各"
+      ]
+    },
+    {
+      "id": "mary_bethany",
+      "name": "马利亚",
+      "type": "person",
+      "disambiguation": "伯大尼，马大之妹",
+      "testament": "NT",
+      "scope_books": [
+        "MAT",
+        "MRK",
+        "LUK",
+        "JHN"
+      ],
+      "summary": "伯大尼马大之妹，坐在耶稣脚前听道，曾用香膏抹主。",
+      "refs": [
+        "LUK.10:39",
+        "JHN.11:2",
+        "JHN.12:3"
+      ],
+      "aliases": [
+        "伯大尼的马利亚"
+      ]
     }
   ],
   "count": 153

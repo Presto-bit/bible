@@ -298,8 +298,23 @@ class Epub:
 
 
 # ─────────────────────────────────────────────────────────────
-def parse_cnv(epub: Epub) -> list[dict]:
+_CHAPTER_HEADING = re.compile(r"^第.+[章篇]$")
+
+
+def _is_section_title(para: str) -> bool:
+    t = para.strip()
+    if not t or len(t) > 48:
+        return False
+    if _CHAPTER_HEADING.match(t):
+        return False
+    if re.match(r"^\d+[\s\u3000]", t):
+        return False
+    return True
+
+
+def parse_cnv(epub: Epub) -> tuple[list[dict], list[dict]]:
     verses: list[dict] = []
+    sections: list[dict] = []
     chap_re = re.compile(r"第(.+?)[章篇]")  # 诗篇用「篇」，其余用「章」
     for src, label in epub.ncx_navpoints():
         parts = [p.strip() for p in label.split(" - ")]
@@ -315,18 +330,28 @@ def parse_cnv(epub: Epub) -> list[dict]:
         html = epub.read_html(src)
         col = _PCollector()
         col.feed(html)
+        pending_title: str | None = None
         for para in col.paras:
             vm = re.match(r"^(\d+)[\s\u3000]+(.*)$", para)
-            if not vm:
-                continue
-            # 保留全角空格 \u3000（神名前的敬空习惯），仅折叠普通空白
-            text = re.sub(r"[ \t\r\n]+", " ", vm.group(2)).strip()
-            if text:
-                verses.append(
-                    {"book": book_id, "chapter": chap,
-                     "verse": int(vm.group(1)), "text": text}
-                )
-    return verses
+            if vm:
+                vnum = int(vm.group(1))
+                text = re.sub(r"[ \t\r\n]+", " ", vm.group(2)).strip()
+                if pending_title:
+                    sections.append({
+                        "book": book_id,
+                        "chapter": chap,
+                        "verse": vnum,
+                        "title": pending_title,
+                    })
+                    pending_title = None
+                if text:
+                    verses.append(
+                        {"book": book_id, "chapter": chap,
+                         "verse": vnum, "text": text}
+                    )
+            elif _is_section_title(para):
+                pending_title = para.strip()
+    return verses, sections
 
 
 def parse_kjv(epub: Epub) -> list[dict]:
@@ -373,16 +398,31 @@ def build_books(verses: list[dict]) -> list[dict]:
     return books
 
 
+def build_section_index(sections: list[dict]) -> dict[str, list[dict]]:
+    idx: dict[str, list[dict]] = {}
+    for s in sections:
+        key = f"{s['book']}.{s['chapter']}"
+        idx.setdefault(key, []).append({"verse": s["verse"], "title": s["title"]})
+    for key in idx:
+        idx[key].sort(key=lambda x: x["verse"])
+    return idx
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--epub", required=True)
     ap.add_argument("--translation", required=True)
     ap.add_argument("--format", choices=["cnv", "kjv"], required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--sections-out", default="", help="段落标题 JSON 输出路径")
     args = ap.parse_args()
 
     epub = Epub(Path(args.epub))
-    verses = parse_cnv(epub) if args.format == "cnv" else parse_kjv(epub)
+    sections: list[dict] = []
+    if args.format == "cnv":
+        verses, sections = parse_cnv(epub)
+    else:
+        verses = parse_kjv(epub)
     if not verses:
         raise SystemExit("未解析出任何经节，请检查 EPUB 结构")
     books = build_books(verses)
@@ -394,6 +434,23 @@ def main() -> None:
             {"translation": args.translation, "verses": verses, "books": books},
             f, ensure_ascii=False,
         )
+
+    if args.sections_out and sections:
+        sec_out = Path(args.sections_out)
+        sec_out.parent.mkdir(parents=True, exist_ok=True)
+        index = build_section_index(sections)
+        with sec_out.open("w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "translation": args.translation,
+                    "schema": "sections@1",
+                    "chapters": index,
+                    "count": len(sections),
+                },
+                f,
+                ensure_ascii=False,
+            )
+        print(f"✓ sections: {len(sections)} 条 → {sec_out}")
 
     n_books = len(books)
     n_ch = sum(b["chapter_count"] for b in books)

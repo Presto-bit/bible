@@ -278,11 +278,23 @@ def crossrefs(ref: str = Query(..., description="如 JHN.3.16 / 约翰福音3:16
 
 # ── 词典 ──
 @router.get("/dictionary")
-def dictionary(term: str | None = Query(None)) -> dict:
-    items = loader.dictionary_entities()
-    if term:
-        items = [e for e in items if term in e.get("name", "") or term in e.get("summary", "")]
+def dictionary(
+    term: str | None = Query(None),
+    ref: str | None = Query(None, description="经文坐标，用于同名消歧排序"),
+) -> dict:
+    items = loader.dictionary_lookup(term, ref)
     return {"entities": items}
+
+
+# ── 段落标题 ──
+@router.get("/sections")
+def sections(
+    book: str | None = Query(None),
+    chapter: int | None = Query(None, ge=1),
+) -> dict:
+    if book and chapter:
+        return {"sections": loader.section_titles(book, chapter)}
+    return {"chapters": loader.section_titles_index()}
 
 
 # ── 插画 ──

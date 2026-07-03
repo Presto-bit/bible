@@ -172,3 +172,5 @@ export const SECTION_OUTLINES: Record<string, SectionMark[]> = {
 export function outlineFor(bookId: string, chapter: number): SectionMark[] {
   return SECTION_OUTLINES[`${bookId.toUpperCase()}.${chapter}`] || [];
 }
+
+export { preloadSectionTitles, outlineForAsync } from './section_titles';

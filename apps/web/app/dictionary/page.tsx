@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, type DictEntity } from '@/lib/api';
+import { entityDisplayName } from '@/lib/dictionary_match';
 
 export default function DictionaryPage() {
   const [term, setTerm] = useState('');
@@ -23,6 +24,7 @@ export default function DictionaryPage() {
     return entities.filter(
       (e) =>
         e.name.toLowerCase().includes(q) ||
+        (e.disambiguation ?? '').toLowerCase().includes(q) ||
         e.summary.toLowerCase().includes(q) ||
         e.type.toLowerCase().includes(q),
     );
@@ -50,8 +52,8 @@ export default function DictionaryPage() {
       ) : (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
           {filtered.map((e) => (
-            <div key={e.name} className="card card-2" style={{ padding: 12 }}>
-              <strong>{e.name}</strong>
+            <div key={e.id ?? e.name} className="card card-2" style={{ padding: 12 }}>
+              <strong>{entityDisplayName(e)}</strong>
               {e.type ? (
                 <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
                   {e.type}

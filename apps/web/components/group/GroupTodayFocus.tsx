@@ -113,13 +113,13 @@ export function GroupTodayFocus({
 
   return (
     <>
-      <section className="group-today-focus card card-2">
-        <div className="group-today-focus-head">
-          <span className="group-today-focus-label">今日焦点</span>
-          <span className="muted group-today-focus-meta">{groupDetailTodayLine(detail)}</span>
-        </div>
+      <div className="group-today-cards-row">
+        <section className="group-today-focus card card-2">
+          <div className="group-today-focus-head">
+            <span className="group-today-focus-label">今日焦点</span>
+            <span className="muted group-today-focus-meta">{groupDetailTodayLine(detail)}</span>
+          </div>
 
-        <div className="group-today-focus-grid">
           <div className="group-today-focus-main">
             <div className="group-today-focus-status">
               <span className={`group-today-pill group-today-pill-${myStatus}`}>
@@ -194,33 +194,33 @@ export function GroupTodayFocus({
               </div>
             )}
           </div>
+        </section>
 
-          <button
-            type="button"
-            className="group-today-stats-card"
-            onClick={() => setStatsOpen(true)}
-            aria-label="查看打卡明细"
-          >
-            <div className="group-today-stats-ring" style={{ '--pct': barPct } as React.CSSProperties}>
-              <span className="group-today-stats-pct">{checkinPct}%</span>
-            </div>
-            <strong className="group-today-stats-title">今日打卡</strong>
-            <p className="muted group-today-stats-sub">
-              {checkedIn}/{memberTotal} 人已钉
-            </p>
-            <div className="progress-bar group-today-stats-bar">
-              <div
-                className={`progress-fill${detail.plan_id ? ' plan-fill' : ''}`}
-                style={{ width: `${barPct}%` }}
-              />
-            </div>
-            {pendingIn > 0 && (
-              <span className="group-today-stats-hint">还有 {pendingIn} 位伙伴在路上</span>
-            )}
-            <span className="group-today-stats-link">查看明细 ›</span>
-          </button>
-        </div>
-      </section>
+        <button
+          type="button"
+          className="group-today-checkin-card card card-2"
+          onClick={() => setStatsOpen(true)}
+          aria-label="查看打卡明细"
+        >
+          <div className="group-today-stats-ring" style={{ '--pct': barPct } as React.CSSProperties}>
+            <span className="group-today-stats-pct">{checkinPct}%</span>
+          </div>
+          <strong className="group-today-stats-title">今日打卡</strong>
+          <p className="muted group-today-stats-sub">
+            {checkedIn}/{memberTotal} 人已钉
+          </p>
+          <div className="progress-bar group-today-stats-bar">
+            <div
+              className={`progress-fill${detail.plan_id ? ' plan-fill' : ''}`}
+              style={{ width: `${barPct}%` }}
+            />
+          </div>
+          {pendingIn > 0 && (
+            <span className="group-today-stats-hint">还有 {pendingIn} 位伙伴在路上</span>
+          )}
+          <span className="group-today-stats-link">查看明细 ›</span>
+        </button>
+      </div>
 
       {statsOpen && (
         <div className="sheet-backdrop" onClick={() => setStatsOpen(false)}>

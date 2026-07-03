@@ -9,7 +9,7 @@ import {
   getDisplayName,
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
-import { writeLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
+import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getPendingBookChallenge } from '@/lib/challenge_progress';
@@ -24,7 +24,7 @@ import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { listNotes } from '@/lib/notes';
-import { buildHomeRail, heroThemeClass, type HomeMoreItem, type RailCard } from '@/lib/home_rail';
+import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { bookIdToChineseName } from '@/lib/ref_label';
 
@@ -49,13 +49,8 @@ export default function HomePageClient() {
         let likedVal = Boolean(v.liked);
         let countVal = v.likes_count ?? 0;
         if (day > 0) {
-          try {
-            const fresh = await api.dailyVerse(day);
-            likedVal = Boolean(fresh.liked);
-            countVal = fresh.likes_count ?? countVal;
-          } catch {
-            /* 使用首次响应 */
-          }
+          const cached = readLocalDailyVerseLike(day);
+          if (cached != null) likedVal = cached;
         }
         setDv(v);
         setLiked(likedVal);
@@ -88,7 +83,6 @@ export default function HomePageClient() {
   const [plusOpen, setPlusOpen] = useState(false);
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [railMain, setRailMain] = useState<RailCard[]>([]);
-  const [railMore, setRailMore] = useState<HomeMoreItem[]>([]);
   const [userName, setUserName] = useState('');
   const [groupSummary, setGroupSummary] = useState<{
     line: string;
@@ -235,7 +229,7 @@ export default function HomePageClient() {
       href: '/notes',
     };
     const pendingBookLocal = getPendingBookChallenge();
-    const { main, more } = buildHomeRail({
+    const { main } = buildHomeRail({
       plan: planCard,
       resume: resumeCard,
       group: groupCard,
@@ -252,7 +246,6 @@ export default function HomePageClient() {
         : undefined,
     });
     setRailMain(main);
-    setRailMore(more);
   }, []);
 
   useEffect(() => {
@@ -271,19 +264,25 @@ export default function HomePageClient() {
     const verseDay = dv.day;
     const prevLiked = liked;
     const prevCount = likeCount;
+    const nextLiked = !prevLiked;
+    const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
     setLikeBusy(true);
     setLikeErr(null);
+    setLiked(nextLiked);
+    setLikeCount(nextCount);
+    writeLocalDailyVerseLike(verseDay, nextLiked);
     try {
       const r = await api.toggleDailyVerseLike(verseDay);
       const fresh = await api.dailyVerse(verseDay);
-      const nextLiked = Boolean(fresh.liked ?? r.liked);
-      const nextCount = fresh.likes_count ?? r.likes_count ?? 0;
-      setLiked(nextLiked);
-      setLikeCount(nextCount);
-      writeLocalDailyVerseLike(verseDay, nextLiked);
+      const syncedLiked = Boolean(fresh.liked ?? r.liked);
+      const syncedCount = fresh.likes_count ?? r.likes_count ?? nextCount;
+      setLiked(syncedLiked);
+      setLikeCount(syncedCount);
+      writeLocalDailyVerseLike(verseDay, syncedLiked);
     } catch (e) {
       setLiked(prevLiked);
       setLikeCount(prevCount);
+      writeLocalDailyVerseLike(verseDay, prevLiked);
       setLikeErr(errorMessage(e, '暂时无法点赞，请稍后再试'));
     } finally {
       setLikeBusy(false);
@@ -394,7 +393,7 @@ export default function HomePageClient() {
       </div>
 
       <div style={{ marginTop: 18 }}>
-        <HomeRail cards={railMain} more={railMore} />
+        <HomeRail cards={railMain} />
       </div>
 
       <a href="/profile" className="card-row" style={{ display: 'flex', marginTop: 14 }}>
@@ -440,11 +439,6 @@ export default function HomePageClient() {
       {verseFull && dv ? (
         <DailyVerseWallpaper
           dv={dv}
-          liked={liked}
-          likeCount={likeCount}
-          likeBusy={likeBusy}
-          likeErr={likeErr}
-          onToggleLike={() => void toggleLike()}
           onClose={() => setVerseFull(false)}
         />
       ) : null}

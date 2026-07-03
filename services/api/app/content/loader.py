@@ -152,6 +152,56 @@ def dictionary_entities() -> list[dict]:
     return _load_json("dictionary/entities.json").get("entities", [])
 
 
+def dictionary_lookup(term: str | None = None, ref: str | None = None) -> list[dict]:
+    items = dictionary_entities()
+    if term:
+        items = [
+            e for e in items
+            if term in e.get("name", "")
+            or term in e.get("summary", "")
+            or term in (e.get("disambiguation") or "")
+            or any(term in a for a in e.get("aliases") or [])
+        ]
+    if not ref:
+        return items
+    from ..bible.refs import parse_ref
+
+    r = parse_ref(ref)
+    if not r:
+        return items
+    ctx_book = r.book_id.upper()
+
+    def score(ent: dict) -> int:
+        s = 0
+        scope = {b.upper() for b in ent.get("scope_books") or []}
+        if ctx_book in scope:
+            s += 80
+        for raw in ent.get("refs") or []:
+            pr = parse_ref(raw.replace(".", " "))
+            if pr and pr.book_id.upper() == ctx_book:
+                s += 30
+                if pr.chapter == r.chapter:
+                    s += 15
+        return s
+
+    return sorted(items, key=score, reverse=True)
+
+
+# ── 段落标题（CNV 源文件抽取） ──
+@lru_cache(maxsize=1)
+def section_titles_index() -> dict[str, list[dict]]:
+    path = _data_dir() / "bible/cnv/sections.json"
+    if not path.exists():
+        return {}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return data.get("chapters", {})
+
+
+def section_titles(book: str, chapter: int) -> list[dict]:
+    key = f"{book.upper()}.{chapter}"
+    return section_titles_index().get(key, [])
+
+
 # ── 插画 ──
 def illustrations_index() -> dict:
     return _load_json("illustrations/index.json")

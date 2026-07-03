@@ -867,6 +867,8 @@ html:not([data-app-theme]) .card {
   align-items: center;
   justify-content: space-between;
   margin-top: 12px;
+  position: relative;
+  z-index: 2;
 }
 
 .hero-like {
@@ -935,7 +937,7 @@ html:not([data-app-theme]) .card {
   gap: 10px;
   overflow-x: auto;
   flex-wrap: nowrap;
-  padding-bottom: 4px;
+  padding: 6px 4px 4px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -954,8 +956,11 @@ html:not([data-app-theme]) .card {
   max-width: 78%;
   scroll-snap-align: center;
   display: block;
-  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease;
-  transform-origin: center center;
+  transition: opacity 0.28s ease;
+}
+
+.rail-card-action.card-accent {
+  overflow: visible;
 }
 
 .rail-card-wide {
@@ -974,13 +979,11 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-card-active {
-  transform: scale(1.02);
   opacity: 1;
 }
 
 .rail-card-inactive {
-  transform: scale(0.97);
-  opacity: 0.88;
+  opacity: 0.9;
 }
 
 .rail-card-body {
@@ -1135,6 +1138,13 @@ html:not([data-app-theme]) .card {
   font-size: 12px;
   color: var(--ink-soft);
   line-height: 1.45;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .rail-cta {
@@ -1753,14 +1763,38 @@ a.today-card-link {
   justify-content: center;
 }
 
-.verse-full-bg {
+.verse-full-bg-gradient {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
   z-index: 0;
+  background:
+    radial-gradient(160px 130px at 88% 18%, rgba(255, 200, 140, 0.55), transparent 72%),
+    radial-gradient(120px 100px at 12% 85%, rgba(232, 160, 144, 0.25), transparent 70%),
+    linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
+}
+
+.verse-full.hero-verse-theme-creation .verse-full-bg-gradient {
+  background:
+    radial-gradient(150px 120px at 80% 20%, rgba(212, 160, 96, 0.45), transparent 70%),
+    linear-gradient(175deg, #2a2218 0%, #12100c 65%);
+}
+
+.verse-full.hero-verse-theme-psalm .verse-full-bg-gradient {
+  background:
+    radial-gradient(140px 110px at 85% 22%, rgba(168, 196, 212, 0.4), transparent 70%),
+    linear-gradient(175deg, #1a2430 0%, #0c1218 62%);
+}
+
+.verse-full.hero-verse-theme-gospel .verse-full-bg-gradient {
+  background:
+    radial-gradient(150px 120px at 82% 18%, rgba(255, 210, 150, 0.5), transparent 70%),
+    linear-gradient(175deg, #2a2218 0%, #141008 65%);
+}
+
+.verse-full.hero-verse-theme-faith .verse-full-bg-gradient {
+  background:
+    radial-gradient(130px 100px at 78% 24%, rgba(232, 160, 144, 0.35), transparent 68%),
+    linear-gradient(175deg, #281e18 0%, #120e0c 60%);
 }
 
 .verse-full-scrim {
@@ -5427,6 +5461,25 @@ a.today-card-link {
 
 .group-wechat-back {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  white-space: nowrap;
+  min-height: 34px;
+  padding: 0 4px;
+  color: var(--accent-deep);
+  font-size: 16px;
+}
+
+.group-wechat-back-icon {
+  font-size: 22px;
+  line-height: 1;
+  margin-top: -1px;
+}
+
+.group-wechat-back-label {
+  font-size: 15px;
+  font-weight: 500;
 }
 
 .group-wechat-nav-center {
@@ -5437,12 +5490,20 @@ a.today-card-link {
   text-align: center;
   cursor: pointer;
   padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  overflow: hidden;
 }
 
 .group-wechat-name {
   font-size: 17px;
   font-weight: 700;
   color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .group-wechat-count {
@@ -7360,7 +7421,35 @@ button.card:active,
   margin: 0;
   padding: 14px 16px;
   border-radius: 16px;
-  background: linear-gradient(145deg, var(--surface) 0%, rgba(125, 155, 138, 0.08) 100%);
+  background: linear-gradient(145deg, var(--surface) 0%, rgba(7, 193, 96, 0.06) 100%);
+}
+
+.group-today-cards-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(118px, 132px);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.group-today-checkin-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 10px;
+  margin: 0;
+  border-radius: 16px;
+  background: linear-gradient(165deg, var(--surface) 0%, var(--accent-wash) 120%);
+  cursor: pointer;
+  text-align: center;
+  color: inherit;
+  font: inherit;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.group-today-checkin-card:active {
+  transform: scale(0.98);
 }
 
 .group-today-focus-grid {
@@ -7373,6 +7462,7 @@ button.card:active,
 
 .group-today-focus-main {
   min-width: 0;
+  margin-top: 10px;
 }
 
 .group-today-plan-detail,
@@ -7517,11 +7607,11 @@ button.card:active,
 }
 
 @media (max-width: 360px) {
-  .group-today-focus-grid {
+  .group-today-cards-row {
     grid-template-columns: 1fr;
   }
 
-  .group-today-stats-card {
+  .group-today-checkin-card {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: flex-start;
@@ -8822,4 +8912,47 @@ html.app-theme-dark body {
   width: 18px;
   height: 18px;
   accent-color: var(--accent);
+}
+
+.dict-disambig-sheet {
+  max-height: 70vh;
+}
+
+.dict-disambig-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dict-disambig-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.dict-disambig-row:active {
+  background: var(--accent-wash);
+}
+
+.dict-disambig-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.dict-disambig-summary {
+  font-size: 13px;
+  line-height: 1.45;
 }

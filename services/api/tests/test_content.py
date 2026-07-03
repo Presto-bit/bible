@@ -61,6 +61,16 @@ def test_crossrefs_resolves_text():
 def test_dictionary_entities():
     ents = loader.dictionary_entities()
     assert any(e["name"] == "耶稣" for e in ents)
+    judah = [e for e in ents if e.get("name") == "犹大"]
+    assert len(judah) >= 2
+    assert any(e.get("disambiguation") for e in judah)
+
+
+def test_section_titles_genesis():
+    marks = loader.section_titles("GEN", 1)
+    assert any(m.get("title") == "创造天地万物" for m in marks)
+    idx = loader.section_titles_index()
+    assert len(idx) > 100
 
 
 def test_illustrations_index_and_guard():

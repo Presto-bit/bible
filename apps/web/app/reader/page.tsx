@@ -9,6 +9,17 @@ import { getLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
 import { clearReaderChrome } from '@/lib/reader_chrome';
 import { parseMarkRef } from '@/lib/mark_ref';
+import {
+  buildDictIndex,
+  dictMatchPattern,
+  entityDisplayName,
+  lookupDictCandidates,
+  needsDisambiguation,
+  writeDictChoice,
+  type DictContext,
+} from '@/lib/dictionary_match';
+import { DictDisambigSheet } from '@/components/dictionary/DictDisambigSheet';
+import { preloadSectionTitles } from '@/lib/section_titles';
 
 const BOOK_ABBR: Record<string, string> = {
   创世记: '创', 出埃及记: '出', 利未记: '利', 民数记: '民', 申命记: '申',
@@ -35,43 +46,50 @@ export default function ReaderPage() {
   const [err, setErr] = useState<string | null>(null);
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<DictEntity | null>(null);
+  const [disambig, setDisambig] = useState<{ name: string; candidates: DictEntity[]; verse: number } | null>(null);
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
   const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
   const [flashRef, setFlashRef] = useState<string | null>(null);
 
-  const dictByName = useMemo(() => {
-    const m = new Map<string, DictEntity>();
-    for (const e of dict) {
-      if (e.name) m.set(e.name, e);
-      const aliases = (e as DictEntity & { aliases?: string[] }).aliases;
-      if (aliases) for (const a of aliases) if (a) m.set(a, e);
-    }
-    return m;
-  }, [dict]);
+  const dictIndex = useMemo(() => buildDictIndex(dict), [dict]);
+  const properNounRe = useMemo(() => dictMatchPattern(dictIndex), [dictIndex]);
 
-  const properNounRe = useMemo(() => {
-    const names = Array.from(dictByName.keys())
-      .filter((n) => n.length >= 2)
-      .sort((a, b) => b.length - a.length)
-      .map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-    if (names.length === 0) return null;
-    return new RegExp(`(${names.join('|')})`, 'g');
-  }, [dictByName]);
+  const openEntity = useCallback((entity: DictEntity, name: string, ctx: DictContext) => {
+    writeDictChoice(name, ctx.bookId, entity.id ?? entity.name);
+    setDictPopup(entity);
+    setDisambig(null);
+  }, []);
+
+  const handleNameClick = useCallback(
+    (name: string, verse: number) => {
+      if (!book) return;
+      const ctx: DictContext = { bookId: book.id, chapter, verse };
+      const candidates = lookupDictCandidates(name, dictIndex, ctx);
+      if (!candidates.length) return;
+      if (candidates.length === 1 || !needsDisambiguation(candidates, ctx)) {
+        openEntity(candidates[0], name, ctx);
+        return;
+      }
+      setDisambig({ name, candidates, verse });
+    },
+    [book, chapter, dictIndex, openEntity],
+  );
 
   const renderVerseText = useCallback(
-    (text: string, keyBase: string) => {
+    (text: string, keyBase: string, verse: number) => {
       if (!properNounRe) return text;
       const parts = text.split(properNounRe);
       return parts.map((part, i) => {
-        const entity = dictByName.get(part);
-        if (entity) {
+        const candidates = dictIndex.get(part);
+        if (candidates?.length) {
           return (
             <span
               key={`${keyBase}-pn${i}`}
               className="proper-noun"
+              title={candidates.length > 1 ? '点击查看释义（可能有多义）' : undefined}
               onClick={(e) => {
                 e.stopPropagation();
-                setDictPopup(entity);
+                handleNameClick(part, verse);
               }}
             >
               {part}
@@ -81,7 +99,7 @@ export default function ReaderPage() {
         return <span key={`${keyBase}-t${i}`}>{part}</span>;
       });
     },
-    [properNounRe, dictByName],
+    [properNounRe, dictIndex, handleNameClick],
   );
 
   const handlePlanJump = useCallback(
@@ -102,6 +120,7 @@ export default function ReaderPage() {
   }, [inScriptureReading]);
 
   useEffect(() => {
+    preloadSectionTitles();
     api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
     bibleBooks()
       .then(async (bookList) => {
@@ -217,16 +236,24 @@ export default function ReaderPage() {
         planMeta={planMeta}
         onPlanMetaChange={setPlanMeta}
         onPlanJump={handlePlanJump}
-        externalOverlayOpen={Boolean(dictPopup)}
+        externalOverlayOpen={Boolean(dictPopup || disambig)}
         flashRef={flashRef}
         checkinGroupId={checkinGroupId}
       />
+      {disambig && book && (
+        <DictDisambigSheet
+          name={disambig.name}
+          candidates={disambig.candidates}
+          onPick={(e) => openEntity(e, disambig.name, { bookId: book.id, chapter, verse: disambig.verse })}
+          onClose={() => setDisambig(null)}
+        />
+      )}
       {dictPopup && (
         <div className="sheet-backdrop" onClick={() => setDictPopup(null)}>
           <div className="sheet card" onClick={(e) => e.stopPropagation()}>
             <div className="section-row" style={{ marginTop: 0 }}>
               <h3 style={{ margin: 0 }}>
-                {dictPopup.name}
+                {entityDisplayName(dictPopup)}
                 <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>{dictPopup.type}</span>
               </h3>
               <button type="button" className="text-link" onClick={() => setDictPopup(null)}>关闭</button>

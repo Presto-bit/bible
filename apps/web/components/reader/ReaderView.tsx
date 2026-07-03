@@ -59,7 +59,7 @@ import {
   setLastReadVerse,
   shouldShowResumeHint,
 } from '@/lib/reading';
-import { outlineFor } from '@/lib/outlines';
+import { outlineForAsync, type SectionMark } from '@/lib/section_titles';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { chapterRef } from '@/lib/group_checkin';
 import { saveGroupCheckinDraft } from '@/lib/group_checkin_draft';
@@ -144,7 +144,7 @@ export default function ReaderView({
   onNavigate: (book: BibleBook, chapter: number) => void;
   onPickBook: () => void;
   bookAbbr: (name: string) => string;
-  renderVerseText: (text: string, keyBase: string) => React.ReactNode;
+  renderVerseText: (text: string, keyBase: string, verse: number) => React.ReactNode;
   planMeta?: PlanReadingMeta | null;
   onPlanMetaChange?: (m: PlanReadingMeta) => void;
   onPlanJump?: (bookId: string, chapter: number) => void;
@@ -331,7 +331,17 @@ export default function ReaderView({
     );
   };
   const poetry = isPoetryBook(book.id);
-  const outline = outlineFor(book.id, chapter);
+  const [outline, setOutline] = useState<SectionMark[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void outlineForAsync(book.id, chapter).then((marks) => {
+      if (!cancelled) setOutline(marks);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [book.id, chapter]);
   const structureVerses = layoutVerses.length ? layoutVerses : verses;
   const paragraphs = useMemo(
     () =>
@@ -409,13 +419,14 @@ export default function ReaderView({
     (
       text: string,
       keyBase: string,
+      verseNum: number,
       flashLead: boolean,
       markInfo?: ReturnType<typeof markForVerse>,
     ) => {
       const span = markInfo?.span;
       const mark = markInfo?.mark ?? null;
       const renderText = (t: string, suffix: string) =>
-        renderVerseText(t, `${keyBase}-${suffix}`);
+        renderVerseText(t, `${keyBase}-${suffix}`, verseNum);
 
       if (span && mark && span.end > span.start && span.start >= 0 && span.end <= text.length) {
         const before = text.slice(0, span.start);
@@ -443,7 +454,7 @@ export default function ReaderView({
         );
       }
 
-      return renderVerseText(text, keyBase);
+      return renderVerseText(text, keyBase, verseNum);
     },
     [renderVerseText],
   );
@@ -1058,6 +1069,7 @@ export default function ReaderView({
                           {renderVerseBody(
                             text,
                             `p${v.verse}`,
+                            v.verse,
                             resumeFlashVerse === v.verse,
                             markInfo ?? undefined,
                           )}
@@ -1115,6 +1127,7 @@ export default function ReaderView({
                       {renderVerseBody(
                         verseDisplayText(v.verse, v.text),
                         `v${v.verse}`,
+                        v.verse,
                         resumeFlashVerse === v.verse,
                         markInfo ?? undefined,
                       )}

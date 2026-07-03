@@ -171,14 +171,18 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
   }
 }
 
-function toMoreItem(c: RailCard): HomeMoreItem {
+function moreItemToCard(item: HomeMoreItem): RailCard {
   return {
-    id: c.id,
-    tag: c.tag,
-    title: c.title,
-    sub: c.sub,
-    href: c.href,
-    icon: c.icon,
+    id: item.id,
+    kind: 'ghost',
+    tint: 'slate',
+    tag: item.tag,
+    reason: item.sub.split(' · ')[0] ?? item.tag,
+    title: item.title,
+    sub: item.sub,
+    cta: '',
+    href: item.href,
+    icon: item.icon,
   };
 }
 
@@ -200,19 +204,15 @@ export function buildHomeRail(input: HomeRailInput): {
     if (c) available.push(c);
   }
 
-  const main = available.slice(0, 4);
-  const overflowIds = new Set(main.map((c) => c.id));
-  const moreFromOverflow = available.slice(4).map(toMoreItem);
-  const moreIds = new Set(moreFromOverflow.map((m) => m.id));
-
-  const more: HomeMoreItem[] = [...moreFromOverflow];
+  const ids = new Set(available.map((c) => c.id));
   for (const item of ALWAYS_MORE) {
-    if (!overflowIds.has(item.id) && !moreIds.has(item.id) && !main.some((c) => c.id === item.id)) {
-      more.push(item);
+    if (!ids.has(item.id)) {
+      available.push(moreItemToCard(item));
+      ids.add(item.id);
     }
   }
 
-  return { main, more };
+  return { main: available, more: [] };
 }
 
 /** 每日经文 hero 晨曦主题 class */

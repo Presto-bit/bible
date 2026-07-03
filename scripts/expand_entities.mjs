@@ -163,12 +163,12 @@ for (const [name, type, summary, refs] of EXTRA) {
   });
 }
 
-// 为已有条目补充别名
-const aliasMap = {
+// 为已有条目补充别名（消歧后：别名不再跨条目冲突）
+const aliasMap: Record<string, string[]> = {
   亚伯拉罕: ['亚伯兰'],
   耶稣: ['基督', '弥赛亚'],
-  施洗约翰: ['约翰'],
-  耶路撒冷: ['锡安', '撒冷'],
+  耶路撒冷: ['锡安'],
+  保罗: ['扫罗'],
 };
 for (const e of entities) {
   if (aliasMap[e.name]) e.aliases = aliasMap[e.name];

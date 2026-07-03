@@ -811,10 +811,15 @@ export interface GeneratedPlan {
   saved_at?: number;
 }
 export interface DictEntity {
+  id?: string;
   name: string;
   type: string;
   summary: string;
   refs: string[];
+  aliases?: string[];
+  disambiguation?: string;
+  testament?: 'OT' | 'NT' | 'BOTH';
+  scope_books?: string[];
 }
 export interface CrossrefResult {
   label: string;
@@ -915,9 +920,18 @@ export const api = {
     }),
   crossrefs: (ref: string) =>
     getJson<CrossrefResult>(`/content/crossrefs?ref=${encodeURIComponent(ref)}`),
-  dictionary: (term?: string) =>
+  dictionary: (term?: string, ref?: string) =>
     getJson<{ entities: DictEntity[] }>(
-      `/content/dictionary${term ? `?term=${encodeURIComponent(term)}` : ''}`,
+      `/content/dictionary${term || ref ? `?${new URLSearchParams({
+        ...(term ? { term } : {}),
+        ...(ref ? { ref } : {}),
+      }).toString()}` : ''}`,
+    ),
+  sectionTitles: (book?: string, chapter?: number) =>
+    getJson<{ chapters?: Record<string, { verse: number; title: string }[]>; sections?: { verse: number; title: string }[] }>(
+      book && chapter
+        ? `/content/sections?book=${encodeURIComponent(book)}&chapter=${chapter}`
+        : '/content/sections',
     ),
   // 社交
   myGroups: () => authed<{ groups: Group[] }>('/social/groups'),
