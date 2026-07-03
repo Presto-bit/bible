@@ -25,6 +25,7 @@ import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { listNotes } from '@/lib/notes';
 import { buildHomeRail, heroThemeClass, type HomeMoreItem, type RailCard } from '@/lib/home_rail';
+import { illustrationThemeFromVerse, illustrationUrl } from '@/lib/card_covers';
 import { HomeRail } from '@/components/home/HomeRail';
 import { bookIdToChineseName } from '@/lib/ref_label';
 
@@ -214,14 +215,16 @@ export default function HomePageClient() {
     setGroupSummary(summaryLine);
     const suggest = nextReadingSuggestion();
     let assistantCard: { title: string; sub: string; href: string } | undefined;
+    let verseTheme: string | undefined;
     try {
-      const dv = await api.dailyVerse();
-      if (dv?.ref) {
+      const dvRail = await api.dailyVerse();
+      verseTheme = dvRail?.theme ?? undefined;
+      if (dvRail?.ref) {
         const q = '这段经文里，神的应许对你意味着什么？';
         assistantCard = {
           title: '小爱想问你',
           sub: `「${q}」`,
-          href: assistantHref(dv.ref, { question: q, autoSend: true }),
+          href: assistantHref(dvRail.ref, { question: q, autoSend: true }),
         };
       }
     } catch {
@@ -250,6 +253,7 @@ export default function HomePageClient() {
             href: '/challenge',
           }
         : undefined,
+      verseTheme,
     });
     setRailMain(main);
     setRailMore(more);
@@ -345,6 +349,18 @@ export default function HomePageClient() {
         }}
       >
         <div className="hero-scene" aria-hidden />
+        {dv?.theme ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            className="hero-verse-illustration"
+            src={illustrationUrl(illustrationThemeFromVerse(dv.theme))}
+            alt=""
+            aria-hidden
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+          />
+        ) : null}
         <div className="hero-inner">
           <div className="hero-top">
             <span className="hero-kicker">每日经文</span>

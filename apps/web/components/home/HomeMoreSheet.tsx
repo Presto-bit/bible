@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { HomeMoreItem } from '@/lib/home_rail';
+import { RailCardCover } from '@/components/ui/RailCardCover';
 
 type Props = {
   open: boolean;
@@ -26,7 +27,9 @@ export function HomeMoreSheet({ open, items, onClose }: Props) {
           {items.map((item) => (
             <li key={item.id}>
               <Link href={item.href} className="home-more-row card-row" onClick={onClose}>
-                <span className="home-more-icon" aria-hidden>{item.icon}</span>
+                <div className="home-more-thumb">
+                  <RailCardCover cover={item.cover} variant="thumb" />
+                </div>
                 <span className="home-more-main">
                   <span className="home-more-tag">{item.tag}</span>
                   <strong>{item.title}</strong>

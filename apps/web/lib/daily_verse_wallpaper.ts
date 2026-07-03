@@ -1,5 +1,5 @@
 /** 每日经文壁纸风景图池（低饱和自然场景，按 verse day 轮换）。 */
-const WALLPAPER_PHOTOS = [
+export const WALLPAPER_PHOTOS = [
   '1506905925346-21bda4d32df4', // 云海山峦
   '1470071459604-3b35d21a42d3', // 雾中山谷
   '1501785880828-0b259b4e5623', // 湖山倒影
@@ -22,9 +22,33 @@ const WALLPAPER_PHOTOS = [
   '1454496527216-0b8e4255e4358', // 高山湖泊
 ] as const;
 
+function photoIndexFromSeed(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return h % WALLPAPER_PHOTOS.length;
+}
+
+export type UnsplashPhotoOpts = {
+  w?: number;
+  h?: number;
+  q?: number;
+};
+
+/** Unsplash 封面 URL（按 seed 稳定映射到图池）。 */
+export function unsplashPhotoUrl(seed: string | number, opts: UnsplashPhotoOpts = {}): string {
+  const index =
+    typeof seed === 'number'
+      ? Math.abs(Math.floor(seed)) % WALLPAPER_PHOTOS.length
+      : photoIndexFromSeed(seed);
+  const photo = WALLPAPER_PHOTOS[index];
+  const w = opts.w ?? 480;
+  const h = opts.h ?? 288;
+  const q = opts.q ?? 75;
+  return `https://images.unsplash.com/photo-${photo}?auto=format&fit=crop&w=${w}&h=${h}&q=${q}`;
+}
+
 /** 按每日经文 day（1–124 循环）选取壁纸背景，同一天全员一致。 */
 export function dailyVerseWallpaperUrl(day?: number): string {
   const d = Math.max(1, Math.floor(day ?? 1) || 1);
-  const photo = WALLPAPER_PHOTOS[(d - 1) % WALLPAPER_PHOTOS.length];
-  return `https://images.unsplash.com/photo-${photo}?auto=format&fit=crop&w=1200&q=80`;
+  return unsplashPhotoUrl(d - 1, { w: 1200, h: 800, q: 80 });
 }

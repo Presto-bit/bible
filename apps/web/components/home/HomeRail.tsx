@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { railDotClass, type HomeMoreItem, type RailCard } from '@/lib/home_rail';
+import { coverForCardId } from '@/lib/card_covers';
+import { RailCardCover } from '@/components/ui/RailCardCover';
 import { StatRing } from '@/components/ui/StatRing';
 import { HomeMoreSheet } from './HomeMoreSheet';
 
@@ -13,6 +15,7 @@ type Props = {
 function cardClass(c: RailCard, active: boolean): string {
   const parts = [
     'rail-card',
+    'rail-card-has-cover',
     'card',
     `card-${c.kind}`,
     `card-tint-${c.tint}`,
@@ -30,6 +33,7 @@ export function HomeRail({ cards, more }: Props) {
   const [moreOpen, setMoreOpen] = useState(false);
 
   const totalSlides = cards.length + (more.length > 0 ? 1 : 0);
+  const moreCover = coverForCardId('more');
 
   useEffect(() => {
     const root = railRef.current;
@@ -88,29 +92,47 @@ export function HomeRail({ cards, more }: Props) {
             className={cardClass(c, activeIdx === i)}
             style={c.kind === 'action' && c.tint === 'gold' ? { ['--tint' as string]: 'var(--dawn-gold)' } : undefined}
           >
-            {c.kind === 'media' && (
-              <span className="card-media-icon" aria-hidden>{c.icon}</span>
-            )}
-            <div className="rail-card-body">
-              <div className="rail-head">
-                <span className={`pill ${c.kind === 'action' || c.kind === 'stat' ? 'pill-active' : ''}`}>
-                  {c.tag}
-                </span>
-                <span className="muted rail-reason">{c.reason}</span>
-              </div>
-              <div className="rail-title">{c.title}</div>
-              {c.kind === 'action' && c.progressPct != null && c.progressPct > 0 && (
-                <div className="progress-bar rail-action-progress">
-                  <div className="progress-fill plan-fill" style={{ width: `${c.progressPct}%` }} />
+            <RailCardCover
+              cover={c.cover}
+              variant={c.kind === 'action' ? 'action' : 'default'}
+              priority={i === 0}
+            />
+            {c.kind === 'stat' ? (
+              <div className="rail-card-stat-row">
+                <div className="rail-card-body">
+                  <div className="rail-head">
+                    <span className="pill pill-active">{c.tag}</span>
+                    <span className="muted rail-reason">{c.reason}</span>
+                  </div>
+                  <div className="rail-title">{c.title}</div>
+                  <div className="rail-foot">
+                    <span className="rail-sub">{c.sub}</span>
+                    <span className="rail-cta">{c.cta}</span>
+                  </div>
                 </div>
-              )}
-              <div className="rail-foot">
-                <span className="rail-sub">{c.sub}</span>
-                <span className="rail-cta">{c.cta}</span>
+                {c.statPct != null && (
+                  <StatRing pct={c.statPct} label={c.statLabel} size={48} className="rail-stat-ring" />
+                )}
               </div>
-            </div>
-            {c.kind === 'stat' && c.statPct != null && (
-              <StatRing pct={c.statPct} label={c.statLabel} size={48} className="rail-stat-ring" />
+            ) : (
+              <div className="rail-card-body">
+                <div className="rail-head">
+                  <span className={`pill ${c.kind === 'action' ? 'pill-active' : ''}`}>
+                    {c.tag}
+                  </span>
+                  <span className="muted rail-reason">{c.reason}</span>
+                </div>
+                <div className="rail-title">{c.title}</div>
+                {c.kind === 'action' && c.progressPct != null && c.progressPct > 0 && (
+                  <div className="progress-bar rail-action-progress">
+                    <div className="progress-fill plan-fill" style={{ width: `${c.progressPct}%` }} />
+                  </div>
+                )}
+                <div className="rail-foot">
+                  <span className="rail-sub">{c.sub}</span>
+                  <span className="rail-cta">{c.cta}</span>
+                </div>
+              </div>
             )}
           </a>
         ))}
@@ -119,10 +141,10 @@ export function HomeRail({ cards, more }: Props) {
             type="button"
             ref={(el) => { cardRefs.current[cards.length] = el; }}
             data-rail-idx={cards.length}
-            className={`rail-card card card-ghost card-2 card-tint-slate rail-card-more${activeIdx === cards.length ? ' rail-card-active' : ' rail-card-inactive'}`}
+            className={`rail-card rail-card-has-cover card card-ghost card-2 card-tint-slate rail-card-more${activeIdx === cards.length ? ' rail-card-active' : ' rail-card-inactive'}`}
             onClick={() => setMoreOpen(true)}
           >
-            <span className="home-more-trigger-icon" aria-hidden="true">⋯</span>
+            <RailCardCover cover={moreCover} variant="default" />
             <div className="rail-card-body">
               <div className="rail-head">
                 <span className="pill">更多</span>
