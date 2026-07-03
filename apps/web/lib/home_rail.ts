@@ -1,7 +1,5 @@
 /** 首页横滑卡：4 张主卡 +「更多」溢出项 */
 
-import { coverForCardId, coverThumbForCardId, type CardCover } from './card_covers';
-
 export type RailCardKind = 'action' | 'media' | 'stat' | 'ghost';
 export type RailTint = 'gold' | 'green' | 'rose' | 'slate';
 
@@ -16,7 +14,6 @@ export type RailCard = {
   cta: string;
   href: string;
   icon: string;
-  cover: CardCover;
   statPct?: number;
   statLabel?: string;
   progressPct?: number;
@@ -29,7 +26,6 @@ export type HomeMoreItem = {
   sub: string;
   href: string;
   icon: string;
-  cover: CardCover;
 };
 
 export type HomeRailInput = {
@@ -41,7 +37,6 @@ export type HomeRailInput = {
   suggest?: { title: string; sub: string; href: string };
   assistant?: { title: string; sub: string; href: string };
   challenge?: { title: string; sub: string; href: string };
-  verseTheme?: string | null;
 };
 
 const PRIORITY: string[] = [
@@ -55,7 +50,7 @@ const PRIORITY: string[] = [
   'assistant',
 ];
 
-function cardFromId(id: string, input: HomeRailInput): Omit<RailCard, 'cover'> | null {
+function cardFromId(id: string, input: HomeRailInput): RailCard | null {
   switch (id) {
     case 'resume':
       if (!input.resume) return null;
@@ -184,22 +179,11 @@ function toMoreItem(c: RailCard): HomeMoreItem {
     sub: c.sub,
     href: c.href,
     icon: c.icon,
-    cover: coverThumbForCardId(c.id),
-  };
-}
-
-function withCover(card: Omit<RailCard, 'cover'>, input: HomeRailInput): RailCard {
-  return {
-    ...card,
-    cover: coverForCardId(card.id, {
-      resumeHref: card.id === 'resume' ? input.resume?.href : undefined,
-      verseTheme: input.verseTheme,
-    }),
   };
 }
 
 /** 固定「更多」里始终出现的入口 */
-const ALWAYS_MORE: Omit<HomeMoreItem, 'cover'>[] = [
+const ALWAYS_MORE: HomeMoreItem[] = [
   { id: 'plans', tag: '计划', title: '读经计划', sub: '热门计划 · 个性定制', href: '/plans', icon: '📚' },
   { id: 'discover', tag: '发现', title: '共读群', sub: '打卡 · 任务 · 同行', href: '/discover', icon: '👥' },
 ];
@@ -213,7 +197,7 @@ export function buildHomeRail(input: HomeRailInput): {
     if (id === 'plan' && input.prayer) continue;
     if (id === 'prayer' && input.plan) continue;
     const c = cardFromId(id, input);
-    if (c) available.push(withCover(c, input));
+    if (c) available.push(c);
   }
 
   const main = available.slice(0, 4);
@@ -224,7 +208,7 @@ export function buildHomeRail(input: HomeRailInput): {
   const more: HomeMoreItem[] = [...moreFromOverflow];
   for (const item of ALWAYS_MORE) {
     if (!overflowIds.has(item.id) && !moreIds.has(item.id) && !main.some((c) => c.id === item.id)) {
-      more.push({ ...item, cover: coverThumbForCardId(item.id) });
+      more.push(item);
     }
   }
 
