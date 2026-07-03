@@ -4,41 +4,34 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/config.dart';
+import '../../core/daily_verse_wallpaper.dart';
 
 class DailyVerseWallpaperScreen extends StatelessWidget {
   const DailyVerseWallpaperScreen({
     super.key,
+    required this.day,
     required this.ref,
     required this.text,
     required this.theme,
   });
 
+  final int day;
   final String ref;
   final String text;
   final String theme;
 
-  String? get _illustrationUrl {
-    final t = theme.trim();
-    if (t.isEmpty) return null;
-    final encoded = Uri.encodeComponent(t);
-    return '${AppConfig.baseUrl}/content/illustrations/theme_$encoded.svg';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final bg = _illustrationUrl;
     return Scaffold(
       backgroundColor: const Color(0xFF14100C),
       body: Stack(
         fit: StackFit.expand,
         children: [
-          if (bg != null)
-            Image.network(
-              bg,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-            ),
+          Image.network(
+            dailyVerseWallpaperUrl(day),
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF14100C)),
+          ),
           DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(

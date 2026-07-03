@@ -837,6 +837,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       MaterialPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => DailyVerseWallpaperScreen(
+          day: widget.day,
           ref: widget.ref,
           text: widget.text,
           theme: widget.theme,

@@ -1,31 +1,38 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { API_BASE, api, type DailyVerse } from '@/lib/api';
+import { createPortal } from 'react-dom';
+import { api, type DailyVerse } from '@/lib/api';
+import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { shareCard } from '@/lib/share_card';
-
-export function dailyVerseIllustrationUrl(theme?: string): string | null {
-  const t = (theme || '').trim();
-  if (!t) return null;
-  return `${API_BASE}/content/illustrations/theme_${encodeURIComponent(t)}.svg`;
-}
 
 export default function DailyVerseWallpaper({
   dv,
+  liked,
+  likeCount,
+  likeBusy,
+  likeErr,
+  onToggleLike,
   onClose,
 }: {
   dv: DailyVerse;
+  liked: boolean;
+  likeCount: number;
+  likeBusy: boolean;
+  likeErr: string | null;
+  onToggleLike: () => void;
   onClose: () => void;
 }) {
+  const [mounted, setMounted] = useState(false);
   const [shared, setShared] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const bg = dailyVerseIllustrationUrl(dv.theme);
+  const [shareBusy, setShareBusy] = useState(false);
+  const wallpaperBg = dailyVerseWallpaperUrl(dv.day);
 
   useEffect(() => {
-    if (!bg) return;
+    setMounted(true);
     const img = new Image();
-    img.src = bg;
-  }, [bg]);
+    img.src = wallpaperBg;
+  }, [wallpaperBg]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -41,8 +48,8 @@ export default function DailyVerseWallpaper({
   }, [onClose]);
 
   const handleShare = useCallback(async () => {
-    if (busy) return;
-    setBusy(true);
+    if (shareBusy) return;
+    setShareBusy(true);
     try {
       const ok = await shareCard({
         title: dv.ref,
@@ -60,13 +67,22 @@ export default function DailyVerseWallpaper({
         }
       }
     } finally {
-      setBusy(false);
+      setShareBusy(false);
     }
-  }, [busy, dv]);
+  }, [shareBusy, dv]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div className="verse-full" onClick={onClose} role="dialog" aria-modal="true" aria-label="每日经文壁纸">
-      {bg ? <img src={bg} alt="" className="verse-full-bg" decoding="async" /> : null}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={wallpaperBg}
+        alt=""
+        className="verse-full-bg"
+        decoding="sync"
+        fetchPriority="high"
+      />
       <div className="verse-full-scrim" />
       <div className="verse-full-glow" aria-hidden />
       <button
@@ -91,14 +107,29 @@ export default function DailyVerseWallpaper({
         <div className="verse-full-actions">
           <button
             type="button"
+            className={`verse-full-like${liked ? ' verse-full-like-active' : ''}`}
+            disabled={likeBusy || !dv.day}
+            aria-pressed={liked}
+            onClick={onToggleLike}
+          >
+            ♥ {likeCount.toLocaleString()} 人点赞
+          </button>
+          <button
+            type="button"
             className="verse-full-btn"
-            disabled={busy}
+            disabled={shareBusy}
             onClick={handleShare}
           >
             {shared ? '已生成图 ✓' : '分享 / 壁纸'}
           </button>
         </div>
+        {likeErr ? (
+          <p className="verse-full-like-err" role="alert">
+            {likeErr}
+          </p>
+        ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

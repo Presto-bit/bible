@@ -347,6 +347,30 @@ export default function HomePageClient() {
     setVerseFull(true);
   };
 
+  const toggleLike = useCallback(async () => {
+    if (likeBusy || !dv?.day) return;
+    const verseDay = dv.day;
+    const prevLiked = liked;
+    const prevCount = likeCount;
+    setLikeBusy(true);
+    setLikeErr(null);
+    try {
+      const r = await api.toggleDailyVerseLike(verseDay);
+      const fresh = await api.dailyVerse(verseDay);
+      const nextLiked = Boolean(fresh.liked ?? r.liked);
+      const nextCount = fresh.likes_count ?? r.likes_count ?? 0;
+      setLiked(nextLiked);
+      setLikeCount(nextCount);
+      writeLocalDailyVerseLike(verseDay, nextLiked);
+    } catch (e) {
+      setLiked(prevLiked);
+      setLikeCount(prevCount);
+      setLikeErr(errorMessage(e, '暂时无法点赞，请稍后再试'));
+    } finally {
+      setLikeBusy(false);
+    }
+  }, [likeBusy, dv, liked, likeCount]);
+
   return (
     <main className="container">
       <header className="greet">
@@ -389,84 +413,63 @@ export default function HomePageClient() {
         </Link>
       )}
 
-      <div
-        className="card card-3 card-tint hero-verse"
-        role="button"
-        tabIndex={dv?.text ? 0 : -1}
-        aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
-        onClick={openVerseWallpaper}
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          e.preventDefault();
-          openVerseWallpaper();
-        }}
-      >
-        <div className="hero-scene" aria-hidden />
-        <div className="hero-inner">
-          <div className="hero-top">
-            <span className="hero-kicker">每日经文</span>
-            {dv?.theme ? <span className="muted">{dv.theme}系列</span> : null}
-          </div>
-          {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
-          <p className="verse-text">
-            {err
-              ? '内容加载失败'
-              : dv
-                ? `「${dv.text}」`
-                : dvLoading
-                  ? '加载中…'
-                  : '暂无经文'}
-          </p>
-          {err && (
-            <button
-              type="button"
-              className="text-link"
-              style={{ marginTop: 8, fontSize: 13 }}
-              onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
-            >
-              点击重试
-            </button>
-          )}
-          <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              className={`hero-like${liked ? ' hero-like-active' : ''}`}
-              disabled={likeBusy || !dv?.day}
-              aria-pressed={liked}
-              onClick={async (e) => {
-                e.stopPropagation();
-                if (likeBusy || !dv?.day) return;
-                const verseDay = dv.day;
-                const prevLiked = liked;
-                const prevCount = likeCount;
-                setLikeBusy(true);
-                setLikeErr(null);
-                try {
-                  const r = await api.toggleDailyVerseLike(verseDay);
-                  const fresh = await api.dailyVerse(verseDay);
-                  const nextLiked = Boolean(fresh.liked ?? r.liked);
-                  const nextCount = fresh.likes_count ?? r.likes_count ?? 0;
-                  setLiked(nextLiked);
-                  setLikeCount(nextCount);
-                  writeLocalDailyVerseLike(verseDay, nextLiked);
-                } catch (e) {
-                  setLiked(prevLiked);
-                  setLikeCount(prevCount);
-                  setLikeErr(errorMessage(e, '暂时无法点赞，请稍后再试'));
-                } finally {
-                  setLikeBusy(false);
-                }
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
-                <path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.5 6 6 6c2 0 3.2 1.2 4 2.3C10.8 7.2 12 6 14 6c3.5 0 5 3.6 3.3 6.6C19 16.4 12 21 12 21z" />
-              </svg>
-              <span>{likeCount.toLocaleString()} 人点赞</span>
-            </button>
-            {likeErr && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
+      <div className="card card-3 card-tint hero-verse">
+        <div
+          className="hero-verse-open"
+          role="button"
+          tabIndex={dv?.text ? 0 : -1}
+          aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
+          onClick={openVerseWallpaper}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            openVerseWallpaper();
+          }}
+        >
+          <div className="hero-scene" aria-hidden />
+          <div className="hero-inner">
+            <div className="hero-top">
+              <span className="hero-kicker">每日经文</span>
+              {dv?.theme ? <span className="muted">{dv.theme}系列</span> : null}
+            </div>
+            {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
+            <p className="verse-text">
+              {err
+                ? '内容加载失败'
+                : dv
+                  ? `「${dv.text}」`
+                  : dvLoading
+                    ? '加载中…'
+                    : '暂无经文'}
+            </p>
+            {err && (
+              <button
+                type="button"
+                className="text-link"
+                style={{ marginTop: 8, fontSize: 13 }}
+                onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
+              >
+                点击重试
+              </button>
             )}
           </div>
+        </div>
+        <div className="hero-actions">
+          <button
+            type="button"
+            className={`hero-like${liked ? ' hero-like-active' : ''}`}
+            disabled={likeBusy || !dv?.day}
+            aria-pressed={liked}
+            onClick={() => { void toggleLike(); }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+              <path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.5 6 6 6c2 0 3.2 1.2 4 2.3C10.8 7.2 12 6 14 6c3.5 0 5 3.6 3.3 6.6C19 16.4 12 21 12 21z" />
+            </svg>
+            <span>{likeCount.toLocaleString()} 人点赞</span>
+          </button>
+          {likeErr && (
+            <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
+          )}
         </div>
       </div>
 
@@ -536,7 +539,15 @@ export default function HomePageClient() {
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
 
       {verseFull && dv ? (
-        <DailyVerseWallpaper dv={dv} onClose={() => setVerseFull(false)} />
+        <DailyVerseWallpaper
+          dv={dv}
+          liked={liked}
+          likeCount={likeCount}
+          likeBusy={likeBusy}
+          likeErr={likeErr}
+          onToggleLike={() => { void toggleLike(); }}
+          onClose={() => setVerseFull(false)}
+        />
       ) : null}
     </main>
   );
