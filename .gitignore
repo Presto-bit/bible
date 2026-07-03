@@ -31,7 +31,7 @@ deploy/publish.env
 data/bible/**/*.sqlite
 data/.cache/
 data/crossrefs/*.sqlite
-data/strongs/*.sqlite
+# strongs.sqlite 已随仓库分发（约 14MB），避免发版时从 GitHub 拉 24MB JSON
 data/bible/**/*.db
 data/illustrations/_preview/
 content/**/*

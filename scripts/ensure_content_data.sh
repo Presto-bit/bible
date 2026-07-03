@@ -9,9 +9,9 @@
 #   docker compose -f docker-compose.prod.yml exec -T api bash /app/scripts/ensure_content_data.sh
 #
 # 说明：
-#   - JSON/CSV 随 git pull 进入镜像，无需手工上传
-#   - crossrefs.sqlite / strongs.sqlite / bible_cuvs.sqlite 体积大，不入 git，在此脚本生成
-#   - 首次或缺失时会从 OpenBible / Gnosis / midvash 拉取（需网络）
+#   - JSON/CSV、strongs.sqlite 随 git pull 进入镜像，无需手工上传
+#   - crossrefs.sqlite / bible_cuvs.sqlite 体积大，不入 git，在此脚本生成
+#   - Strong's 缺失时会先尝试 STEPBible（分片较小），再尝试 Gnosis 镜像
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -47,18 +47,36 @@ fetch_if_missing() {
   local tmp="${dest}.partial"
   rm -f "$tmp"
   curl -fsSL --connect-timeout 30 --max-time 900 --retry 3 --retry-delay 2 \
-    -o "$tmp" "$url"
+    -C - -o "$tmp" "$url"
   mv "$tmp" "$dest"
 }
 
-# Gnosis greek-words.json 体积约 6–24MB，不完整 JSON 会导致 import 失败
+validate_strongs_sqlite() {
+  local f="$1"
+  [[ -f "$f" && -s "$f" ]] || return 1
+  local sz count
+  sz="$(wc -c < "$f" | tr -d ' ')"
+  [[ "$sz" -ge 1000000 ]] || return 1
+  count="$("$PY" -c "
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+try:
+    n = c.execute('SELECT COUNT(*) FROM verse_words').fetchone()[0]
+except sqlite3.OperationalError:
+    n = 0
+c.close()
+print(n)
+" "$f")"
+  [[ "$count" -ge 50000 ]]
+}
+
+# Gnosis greek-words.json 体积约 24MB，不完整 JSON 会导致 import 失败
 validate_gnosis_greek() {
   local f="$1"
   [[ -f "$f" ]] || return 1
-  # 截断文件通常 < 2MB
   local sz
   sz="$(wc -c < "$f" | tr -d ' ')"
-  [[ "$sz" -ge 5000000 ]] || return 1
+  [[ "$sz" -ge 20000000 ]] || return 1
   "$PY" -c "
 import json, sys
 from pathlib import Path
@@ -70,23 +88,57 @@ if not isinstance(d, dict) or len(d) < 5000:
 }
 
 fetch_gnosis_greek() {
-  local url="https://github.com/spearssoftware/gnosis/releases/download/v0.9.3/greek-words.json"
   local dest="$CACHE/gnosis-greek-words.json"
   local tmp="${dest}.partial"
-  local attempt
-  for attempt in 1 2 3; do
-    log "下载 gnosis-greek-words.json（尝试 ${attempt}/3）…"
-    rm -f "$tmp"
-    if curl -fsSL --connect-timeout 30 --max-time 900 --retry 2 --retry-delay 3 \
-      -o "$tmp" "$url" && validate_gnosis_greek "$tmp"; then
-      mv "$tmp" "$dest"
-      log "gnosis-greek-words.json 校验通过 ($(wc -c < "$dest" | tr -d ' ') bytes)"
-      return 0
-    fi
-    log "⚠ gnosis 下载不完整或 JSON 损坏，重试…"
-    rm -f "$tmp" "$dest"
-    sleep 3
+  local urls=(
+    "https://ghproxy.net/https://github.com/spearssoftware/gnosis/releases/download/v0.9.3/greek-words.json"
+    "https://github.com/spearssoftware/gnosis/releases/download/v0.9.3/greek-words.json"
+  )
+  local labels=("ghproxy 镜像" "GitHub 直连")
+  local url attempt idx=0
+  for url in "${urls[@]}"; do
+    for attempt in 1 2 3; do
+      log "下载 gnosis-greek-words.json（${labels[$idx]} 尝试 ${attempt}/3）…"
+      if curl -fsSL --connect-timeout 30 --max-time 1800 --retry 2 --retry-delay 3 \
+        -C - -o "$tmp" "$url" && validate_gnosis_greek "$tmp"; then
+        mv "$tmp" "$dest"
+        log "gnosis-greek-words.json 校验通过 ($(wc -c < "$dest" | tr -d ' ') bytes)"
+        return 0
+      fi
+      log "⚠ gnosis 下载不完整或 JSON 损坏，重试…"
+      rm -f "$tmp"
+      sleep 3
+    done
+    idx=$((idx + 1))
   done
+  rm -f "$tmp" "$dest"
+  return 1
+}
+
+build_strongs_sqlite() {
+  local STRONGS_SQL="$ROOT/data/strongs/strongs.sqlite"
+  local GNOSIS_GREEK="$CACHE/gnosis-greek-words.json"
+
+  log "生成 Strong's SQLite（STEPBible）…"
+  if "$PY" "$ROOT/scripts/import_strongs.py"; then
+    validate_strongs_sqlite "$STRONGS_SQL" && return 0
+    log "⚠ STEPBible 导入结果无效"
+    rm -f "$STRONGS_SQL"
+  else
+    log "⚠ STEPBible 导入失败"
+  fi
+
+  if [[ ! -f "$GNOSIS_GREEK" ]] || ! validate_gnosis_greek "$GNOSIS_GREEK"; then
+    rm -f "$GNOSIS_GREEK"
+    fetch_gnosis_greek || {
+      log "⚠ Strong's 源文件下载失败，跳过原文逐词"
+      return 1
+    }
+  fi
+  if "$PY" "$ROOT/scripts/import_strongs_gnosis.py"; then
+    validate_strongs_sqlite "$STRONGS_SQL" && return 0
+  fi
+  log "⚠ Strong's 导入失败，跳过原文逐词"
   return 1
 }
 
@@ -100,17 +152,12 @@ else
   log "交叉引用 SQLite 已就绪"
 fi
 
-# ── Strong's 逐词（Gnosis greek-words → data/strongs/strongs.sqlite）──
+# ── Strong's 逐词（仓库自带 strongs.sqlite；缺失时 STEPBible → Gnosis）──
 STRONGS_SQL="$ROOT/data/strongs/strongs.sqlite"
-GNOSIS_GREEK="$CACHE/gnosis-greek-words.json"
-if need_run "$STRONGS_SQL" "$ROOT/scripts/import_strongs_gnosis.py"; then
-  if [[ ! -f "$GNOSIS_GREEK" ]] || ! validate_gnosis_greek "$GNOSIS_GREEK"; then
-    rm -f "$GNOSIS_GREEK"
-    fetch_gnosis_greek || log "⚠ Strong's 源文件下载失败，跳过原文逐词"
-  fi
-  if [[ -f "$GNOSIS_GREEK" ]]; then
-    "$PY" "$ROOT/scripts/import_strongs_gnosis.py" || log "⚠ Strong's 导入失败，跳过"
-  fi
+if validate_strongs_sqlite "$STRONGS_SQL"; then
+  log "Strong's SQLite 已就绪"
+elif need_run "$STRONGS_SQL" "$ROOT/scripts/import_strongs.py" "$ROOT/scripts/import_strongs_gnosis.py"; then
+  build_strongs_sqlite || true
 else
   log "Strong's SQLite 已就绪"
 fi

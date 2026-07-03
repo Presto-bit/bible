@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r /app/services/api/requirements.txt
 COPY services/api /app/services/api
 COPY scripts/import_bible.py /app/scripts/import_bible.py
 COPY scripts/import_crossrefs.py /app/scripts/import_crossrefs.py
+COPY scripts/import_strongs.py /app/scripts/import_strongs.py
 COPY scripts/import_strongs_gnosis.py /app/scripts/import_strongs_gnosis.py
 COPY scripts/import_cuv.py /app/scripts/import_cuv.py
 COPY scripts/import_commentary_pd.py /app/scripts/import_commentary_pd.py
