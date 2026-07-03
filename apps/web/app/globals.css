@@ -1,16 +1,16 @@
 :root {
-  --paper: var(--brand-bg, #fff8f3);
+  --paper: var(--brand-bg, #ffffff);
   --surface: var(--brand-surface, #ffffff);
-  --surface-sunken: #fff5ef;
-  --bg: var(--brand-bg, #fff8f3);
-  --bg-soft: var(--brand-bg-soft, #fff0e8);
+  --surface-sunken: var(--brand-bg-soft, #f7f7f7);
+  --bg: var(--brand-bg, #ffffff);
+  --bg-soft: var(--brand-bg-soft, #f7f7f7);
   --ink: var(--brand-ink, #1c1c1e);
   --ink-soft: var(--brand-ink-soft, #48484a);
   --ink-faint: var(--brand-ink-faint, #8e8e93);
   --line: var(--brand-line, #f0e4dc);
   --accent: var(--brand-accent-soft, #8fa88a);
   --accent-deep: var(--brand-accent-deep, #4a6b52);
-  --accent-wash: #eef4ef;
+  --accent-wash: var(--brand-accent-wash, rgba(7, 193, 96, 0.12));
   --gold: var(--brand-dawn-gold, #d4a056);
   --gold-wash: var(--brand-dawn-gold-wash, #fdf3e7);
   --dawn-gold: var(--brand-dawn-gold, #d4a056);
@@ -220,6 +220,23 @@ body.reader-immersive .tabbar {
   --hi: inset 0 1px 0 rgba(255, 255, 255, 0.55);
   /* 极淡纸纹噪点 */
   --grain: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.22'/%3E%3C/svg%3E");
+}
+
+/* 典雅白：轻阴影、无纸纹 */
+html[data-app-theme="classic"],
+html:not([data-app-theme]) {
+  --elev-1: var(--card-elev-rest, 0 1px 0 rgba(0, 0, 0, 0.04));
+  --elev-2: var(--card-elev-lift, 0 4px 12px rgba(0, 0, 0, 0.08));
+  --elev-3: var(--card-elev-hero, 0 8px 24px rgba(0, 0, 0, 0.1));
+  --hi: none;
+  --grain: none;
+}
+
+html[data-app-theme="classic"] .card,
+html:not([data-app-theme]) .card {
+  background: var(--surface);
+  background-size: 100% 100%;
+  box-shadow: var(--elev-1);
 }
 
 .card {
@@ -4060,6 +4077,19 @@ a.today-card-link {
   margin-bottom: 1.15em;
 }
 
+.reader-theme-sepia {
+  --reader-bg: #f5f0e1;
+  --reader-ink: #3d3428;
+  --reader-muted: #8a8070;
+  background: var(--reader-bg);
+  color: var(--reader-ink);
+}
+
+.reader-theme-sepia .verse-paragraph {
+  line-height: 2.05 !important;
+  letter-spacing: 0.015em;
+}
+
 .reader-theme-night {
   --reader-bg: #12181c;
   --reader-ink: #d8e0e6;
@@ -5087,6 +5117,7 @@ a.today-card-link {
 }
 
 .reader-theme-preview-morning { background: #fffcfa; }
+.reader-theme-preview-sepia { background: #f5f0e1; }
 .reader-theme-preview-night { background: #12181c; }
 
 .reader-theme-swatch-label {
@@ -7915,60 +7946,73 @@ button.card:active,
   height: 100% !important;
 }
 
-/* 群页 · 与阅读器「夜深」主题联动 */
-html.group-reader-night .group-page-checkin {
+/* 群页 · 应用深色主题 */
+html.group-reader-night .group-page-checkin,
+html.app-theme-dark .group-page-checkin {
   background: #12181c;
 }
 
-html.group-reader-night .group-feed-wrap {
+html.group-reader-night .group-feed-wrap,
+html.app-theme-dark .group-feed-wrap {
   background: #0f1418;
 }
 
 html.group-reader-night .group-today-focus,
+html.app-theme-dark .group-today-focus,
 html.group-reader-night .group-checkin-wall,
-html.group-reader-night .group-activity-card {
+html.app-theme-dark .group-checkin-wall,
+html.group-reader-night .group-activity-card,
+html.app-theme-dark .group-activity-card {
   background: #1a2228;
   border-color: rgba(255, 255, 255, 0.08);
   color: #e8ecef;
 }
 
-html.group-reader-night .group-today-focus {
-  background: linear-gradient(145deg, #1a2228 0%, rgba(79, 107, 93, 0.15) 100%);
+html.group-reader-night .group-today-focus,
+html.app-theme-dark .group-today-focus {
+  background: linear-gradient(145deg, #1a2228 0%, rgba(7, 193, 96, 0.12) 100%);
 }
 
-html.group-reader-night .group-checkin-wall {
+html.group-reader-night .group-checkin-wall,
+html.app-theme-dark .group-checkin-wall {
   background:
-    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(125, 155, 138, 0.1), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 95% 100%, rgba(79, 107, 93, 0.08), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 10% 0%, rgba(7, 193, 96, 0.1), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 95% 100%, rgba(7, 193, 96, 0.06), transparent 50%),
     #1a2228;
 }
 
-html.group-reader-night .group-activity-feed {
+html.group-reader-night .group-activity-feed,
+html.app-theme-dark .group-activity-feed {
   background:
-    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(125, 155, 138, 0.06), transparent 60%),
+    radial-gradient(ellipse 90% 40% at 50% 0%, rgba(7, 193, 96, 0.06), transparent 60%),
     linear-gradient(180deg, rgba(26, 34, 40, 0.8) 0%, transparent 100%);
 }
 
-html.group-reader-night .group-today-stats-card {
-  background: linear-gradient(165deg, #1e282e 0%, rgba(79, 107, 93, 0.2) 120%);
+html.group-reader-night .group-today-stats-card,
+html.app-theme-dark .group-today-stats-card {
+  background: linear-gradient(165deg, #1e282e 0%, rgba(7, 193, 96, 0.15) 120%);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-html.group-reader-night .group-poster-card.pinned {
-  background: linear-gradient(165deg, #1e282e 0%, rgba(125, 155, 138, 0.18) 130%);
+html.group-reader-night .group-poster-card.pinned,
+html.app-theme-dark .group-poster-card.pinned {
+  background: linear-gradient(165deg, #1e282e 0%, rgba(7, 193, 96, 0.14) 130%);
   border-color: rgba(255, 255, 255, 0.1);
 }
 
-html.group-reader-night .group-poster-card.pending {
+html.group-reader-night .group-poster-card.pending,
+html.app-theme-dark .group-poster-card.pending {
   background: rgba(18, 24, 28, 0.85);
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-html.group-reader-night .group-timeline-line {
-  background: linear-gradient(180deg, rgba(125, 155, 138, 0.5), rgba(125, 155, 138, 0.1));
+html.group-reader-night .group-timeline-line,
+html.app-theme-dark .group-timeline-line {
+  background: linear-gradient(180deg, rgba(7, 193, 96, 0.4), rgba(7, 193, 96, 0.08));
 }
 
-html.group-reader-night .muted {
+html.group-reader-night .muted,
+html.app-theme-dark .muted {
   color: #9aa8b0;
 }
 
@@ -8790,7 +8834,8 @@ body:has(.tabbar-compact-nav) .tabbar {
   background: rgba(125, 155, 138, 0.08);
 }
 
-html.app-reader-night {
+html.app-reader-night,
+html.app-theme-dark {
   --bg: #12181c;
   --card: #1a2228;
   --ink: #e8ecef;
@@ -8798,7 +8843,66 @@ html.app-reader-night {
   color-scheme: dark;
 }
 
-html.app-reader-night body {
+html.app-reader-night body,
+html.app-theme-dark body {
   background: var(--bg);
   color: var(--ink);
+}
+
+/* 外观设置页 */
+.appearance-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.appearance-theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  text-align: left;
+  cursor: pointer;
+}
+
+.appearance-theme-option-active {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+.appearance-theme-swatch {
+  width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.appearance-theme-label {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.appearance-theme-desc {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.appearance-follow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.appearance-follow-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
 }

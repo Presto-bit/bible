@@ -30,7 +30,6 @@ import { notesForChapter } from '@/lib/notes_for_chapter';
 import {
   getParallelVersion,
   getMainVersion,
-  getReaderTheme,
   getReadingLayout,
   getVerseNumberMode,
   READER_THEMES,
@@ -69,7 +68,12 @@ import {
   getReaderReturnHref,
   readerBackHref,
 } from '@/lib/reader_return';
-import { getAppThemeScope, setAppThemeScope, type AppThemeScope } from '@/components/AppThemeShell';
+import {
+  applyAppTheme,
+  getEffectiveReaderTheme,
+  getReaderFollowApp,
+  setReaderFollowApp,
+} from '@/lib/app_theme';
 import PlanReadingLayer from '@/components/reader/PlanReadingLayer';
 import ReaderChapterPeek from '@/components/reader/ReaderChapterPeek';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
@@ -206,7 +210,7 @@ export default function ReaderView({
     taskTitle?: string;
   }>({});
   const [backHref, setBackHref] = useState<string | null>(null);
-  const [themeScope, setThemeScope] = useState<AppThemeScope>('reader');
+  const [readerFollow, setReaderFollow] = useState(false);
   const [underlinesOn, setUnderlinesOn] = useState(true);
   const [thoughtsOn, setThoughtsOn] = useState(true);
   const [fontFamily, setFontFamilyState] = useState<ReaderFontFamily>('serif');
@@ -278,7 +282,7 @@ export default function ReaderView({
     setGroupCtx({ groupId, taskId, taskTitle });
     if (groupId && taskId) setGroupCheckinOpen(true);
     setBackHref(getReaderReturnHref());
-    setThemeScope(getAppThemeScope());
+    setReaderFollow(getReaderFollowApp());
     api.myGroups()
       .then((r) => setHasGroups(r.groups.length > 0))
       .catch(() => setHasGroups(false));
@@ -559,20 +563,29 @@ export default function ReaderView({
   }, []);
 
   useEffect(() => {
+    const syncTheme = () => {
+      setTheme(getEffectiveReaderTheme());
+      setReaderFollow(getReaderFollowApp());
+    };
+    syncTheme();
+    window.addEventListener('app-theme-change', syncTheme);
+    return () => window.removeEventListener('app-theme-change', syncTheme);
+  }, []);
+
+  useEffect(() => {
     const bg = readerThemeBackground(theme);
     document.body.classList.add('reader-active');
     document.body.style.setProperty('--reader-surface-bg', bg);
     document.body.style.background = bg;
     document.documentElement.style.background = bg;
     const meta = document.querySelector('meta[name="theme-color"]');
-    const prevTheme = meta?.getAttribute('content') ?? '';
     meta?.setAttribute('content', theme === 'night' ? '#12181c' : bg);
     return () => {
       document.body.classList.remove('reader-active', 'reader-immersive');
       document.body.style.removeProperty('--reader-surface-bg');
       document.body.style.background = '';
       document.documentElement.style.background = '';
-      if (meta && prevTheme) meta.setAttribute('content', prevTheme);
+      applyAppTheme();
     };
   }, [theme]);
 
@@ -587,7 +600,6 @@ export default function ReaderView({
   }, [overlayOpen]);
 
   useEffect(() => {
-    setTheme(getReaderTheme());
     setVerseNo(getVerseNumberMode());
     const savedLayout = getReadingLayout();
     const savedParallel = getParallelVersion();
@@ -1356,14 +1368,20 @@ export default function ReaderView({
         <div className="sheet-backdrop" onClick={() => setShowSettings(false)}>
           <div className="sheet card reader-settings-sheet" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginTop: 0 }}>{ui.settings}</h3>
-            <p className="muted" style={{ fontSize: 12 }}>{ui.theme}</p>
+            <p className="muted" style={{ fontSize: 12 }}>阅读器主题</p>
             <div className="reader-theme-swatches">
               {READER_THEMES.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   className={`reader-theme-swatch ${theme === t.id ? 'reader-theme-swatch-active' : ''}`}
-                  onClick={() => { setTheme(t.id); setReaderTheme(t.id); }}
+                  disabled={readerFollow}
+                  onClick={() => {
+                    setReaderFollow(false);
+                    setReaderFollowApp(false);
+                    setTheme(t.id);
+                    setReaderTheme(t.id);
+                  }}
                 >
                   <span className={`reader-theme-preview reader-theme-preview-${t.id}`} aria-hidden />
                   <span className="reader-theme-swatch-label">{t.label}</span>
@@ -1371,23 +1389,22 @@ export default function ReaderView({
                 </button>
               ))}
             </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>夜间主题范围</p>
-            <div className="font-pills">
-              <button
-                type="button"
-                className={`font-pill ${themeScope === 'reader' ? 'font-pill-active' : ''}`}
-                onClick={() => { setThemeScope('reader'); setAppThemeScope('reader'); }}
-              >
-                仅阅读器
-              </button>
-              <button
-                type="button"
-                className={`font-pill ${themeScope === 'global' ? 'font-pill-active' : ''}`}
-                onClick={() => { setThemeScope('global'); setAppThemeScope('global'); }}
-              >
-                全站跟随
-              </button>
-            </div>
+            <label className="appearance-follow-row" style={{ marginTop: 12 }}>
+              <span>跟随应用主题</span>
+              <input
+                type="checkbox"
+                checked={readerFollow}
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setReaderFollow(on);
+                  setReaderFollowApp(on);
+                  if (on) setTheme(getEffectiveReaderTheme());
+                }}
+              />
+            </label>
+            <Link href="/profile/appearance" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
+              更多外观选项 ›
+            </Link>
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.verseNo}</p>
             <div className="font-pills">
               {VERSE_NUMBER_MODES.map((m) => (

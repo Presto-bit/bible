@@ -264,6 +264,10 @@ export default function ProfilePage() {
                 <span style={{ flex: 1 }}>推送提醒</span>
                 <span className="muted">›</span>
               </Link>
+              <Link href="/profile/appearance" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+                <span style={{ flex: 1 }}>外观</span>
+                <span className="muted">›</span>
+              </Link>
             </div>
 
             <div className="settings-card">

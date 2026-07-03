@@ -1,6 +1,6 @@
 // 阅读器体验设置：主题（清晨/夜深）、节号模式、对照模式。
 
-export type ReaderTheme = 'morning' | 'night';
+export type ReaderTheme = 'morning' | 'sepia' | 'night';
 export type VerseNumberMode = 'inline' | 'margin' | 'hidden';
 export type ReadingLayout = 'single' | 'parallel';
 
@@ -11,12 +11,14 @@ const PARALLEL_VER_KEY = 'reader_parallel_version';
 const MAIN_VER_KEY = 'reader_main_version';
 
 export const READER_THEMES: { id: ReaderTheme; label: string; desc: string }[] = [
-  { id: 'morning', label: '清晨', desc: '清爽留白 · 大行距' },
-  { id: 'night', label: '夜深', desc: '深色护眼' },
+  { id: 'morning', label: '白', desc: '清爽留白 · 大行距' },
+  { id: 'sepia', label: '黄', desc: '护眼纸黄' },
+  { id: 'night', label: '夜', desc: '深色护眼' },
 ];
 
 const READER_THEME_BG: Record<ReaderTheme, string> = {
   morning: '#fffcfa',
+  sepia: '#f5f0e1',
   night: '#12181c',
 };
 
@@ -38,6 +40,7 @@ function read<T extends string>(key: string, fallback: T): T {
 
 function normalizeReaderTheme(raw: string | null): ReaderTheme {
   if (raw === 'night') return 'night';
+  if (raw === 'sepia') return 'sepia';
   return 'morning';
 }
 

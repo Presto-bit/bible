@@ -1,6 +1,45 @@
-/* 彼爱 · 晨曦设计 token（Web / PWA 与 Flutter 对齐参考） */
-:root {
-  /* 晨曦基底 */
+/* 彼爱 · 设计 token（Web / PWA 与 Flutter 对齐参考） */
+
+/* 默认：典雅白（微信读书风） */
+:root,
+html[data-app-theme="classic"] {
+  --brand-bg: #ffffff;
+  --brand-bg-soft: #f7f7f7;
+  --brand-surface: #ffffff;
+  --brand-ink: #191919;
+  --brand-ink-soft: #666666;
+  --brand-ink-faint: #999999;
+  --brand-line: #ebebeb;
+
+  --brand-dawn-gold: #07c160;
+  --brand-dawn-gold-deep: #06ae56;
+  --brand-dawn-gold-wash: #e8f8ef;
+  --brand-dawn-peach: #e8f8ef;
+  --brand-dawn-rose: #fa5151;
+  --brand-dawn-sky: #10aeff;
+
+  --brand-accent: #07c160;
+  --brand-accent-soft: #38cd7f;
+  --brand-accent-wash: rgba(7, 193, 96, 0.12);
+  --brand-accent-deep: #06ae56;
+
+  --brand-radius-card: 12px;
+  --brand-radius-card-lg: 16px;
+  --brand-radius-pill: 999px;
+  --brand-tab-height: 56px;
+
+  --card-elev-rest: 0 1px 0 rgba(0, 0, 0, 0.04);
+  --card-elev-lift: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --card-elev-hero: 0 8px 24px rgba(0, 0, 0, 0.1);
+
+  --tint-gold: var(--brand-dawn-gold);
+  --tint-green: var(--brand-accent);
+  --tint-rose: var(--brand-dawn-rose);
+  --tint-slate: #b2b2b2;
+}
+
+/* 晨曦暖白（保留原视觉） */
+html[data-app-theme="dawn"] {
   --brand-bg: #fff8f3;
   --brand-bg-soft: #fff0e8;
   --brand-surface: #ffffff;
@@ -9,7 +48,6 @@
   --brand-ink-faint: #8e8e93;
   --brand-line: #f0e4dc;
 
-  /* 晨曦主色：金阳 + 橄榄辅色 */
   --brand-dawn-gold: #d4a056;
   --brand-dawn-gold-deep: #b8842e;
   --brand-dawn-gold-wash: #fdf3e7;
@@ -22,20 +60,66 @@
   --brand-accent-wash: rgba(143, 168, 138, 0.16);
   --brand-accent-deep: #4a6b52;
 
-  /* 圆角与布局 */
-  --brand-radius-card: 16px;
-  --brand-radius-card-lg: 18px;
-  --brand-radius-pill: 999px;
-  --brand-tab-height: 56px;
-
-  /* 卡片语义 elevation */
   --card-elev-rest: 0 1px 2px rgba(44, 36, 28, 0.05);
   --card-elev-lift: 0 8px 24px -8px rgba(44, 36, 28, 0.14);
   --card-elev-hero: 0 16px 36px -12px rgba(180, 130, 60, 0.18);
 
-  /* 卡片 tint 变量（供 card-tint-* 使用） */
   --tint-gold: var(--brand-dawn-gold);
   --tint-green: var(--brand-accent-soft);
   --tint-rose: var(--brand-dawn-rose);
   --tint-slate: #9a938a;
+}
+
+/* 护眼黄 */
+html[data-app-theme="sepia"] {
+  --brand-bg: #f5f0e1;
+  --brand-bg-soft: #ebe4d3;
+  --brand-surface: #faf6eb;
+  --brand-ink: #3d3428;
+  --brand-ink-soft: #5c5244;
+  --brand-ink-faint: #8a8070;
+  --brand-line: #ddd4c0;
+
+  --brand-dawn-gold: #c4956a;
+  --brand-dawn-gold-deep: #a67c52;
+  --brand-dawn-gold-wash: #f0e6d4;
+  --brand-dawn-peach: #ede0cc;
+  --brand-dawn-rose: #c98878;
+  --brand-dawn-sky: #8aabbb;
+
+  --brand-accent: #07c160;
+  --brand-accent-soft: #38cd7f;
+  --brand-accent-wash: rgba(7, 193, 96, 0.12);
+  --brand-accent-deep: #06ae56;
+
+  --card-elev-rest: 0 1px 2px rgba(61, 52, 40, 0.06);
+  --card-elev-lift: 0 6px 18px -6px rgba(61, 52, 40, 0.12);
+  --card-elev-hero: 0 12px 28px -10px rgba(61, 52, 40, 0.14);
+}
+
+/* 深色全站 */
+html[data-app-theme="dark"] {
+  --brand-bg: #12181c;
+  --brand-bg-soft: #0f1418;
+  --brand-surface: #1a2228;
+  --brand-ink: #e8ecef;
+  --brand-ink-soft: #b0bcc4;
+  --brand-ink-faint: #7a8a94;
+  --brand-line: rgba(255, 255, 255, 0.08);
+
+  --brand-dawn-gold: #07c160;
+  --brand-dawn-gold-deep: #06ae56;
+  --brand-dawn-gold-wash: rgba(7, 193, 96, 0.15);
+  --brand-dawn-peach: rgba(7, 193, 96, 0.08);
+  --brand-dawn-rose: #e8a090;
+  --brand-dawn-sky: #6a9ab8;
+
+  --brand-accent: #07c160;
+  --brand-accent-soft: #38cd7f;
+  --brand-accent-wash: rgba(7, 193, 96, 0.18);
+  --brand-accent-deep: #38cd7f;
+
+  --card-elev-rest: 0 1px 0 rgba(0, 0, 0, 0.3);
+  --card-elev-lift: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --card-elev-hero: 0 16px 36px rgba(0, 0, 0, 0.4);
 }
