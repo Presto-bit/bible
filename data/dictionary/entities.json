@@ -95,7 +95,7 @@
       "aliases": [
         "扫罗"
       ],
-      "disambiguation": "原名扫罗的使徒",
+      "disambiguation": "使徒保罗（原名扫罗）",
       "scope_books": [
         "ACT",
         "PHP"
@@ -118,8 +118,11 @@
         "MAT"
       ],
       "testament": "NT",
-      "aliases": [],
-      "disambiguation": ""
+      "aliases": [
+        "西门彼得",
+        "西门"
+      ],
+      "disambiguation": "彼得（原名西门，十二门徒之首）"
     },
     {
       "id": "john_apostle",
@@ -131,7 +134,7 @@
         "JHN 21:20",
         "REV 1:9"
       ],
-      "disambiguation": "耶稣所爱的门徒",
+      "disambiguation": "使徒约翰（西庇太的儿子，耶稣所爱的门徒）",
       "testament": "NT",
       "scope_books": [
         "MAT",
@@ -141,7 +144,9 @@
         "ACT",
         "REV"
       ],
-      "aliases": []
+      "aliases": [
+        "使徒约翰"
+      ]
     },
     {
       "id": "nicodemus",
@@ -316,9 +321,10 @@
         "MAT 3:13"
       ],
       "aliases": [
-        "施洗约翰"
+        "施洗约翰",
+        "施洗者约翰"
       ],
-      "disambiguation": "施洗者，耶稣的先锋",
+      "disambiguation": "施洗约翰（先知，耶稣的先锋）",
       "testament": "NT",
       "scope_books": [
         "MAT",
@@ -6893,8 +6899,11 @@
         "MAT",
         "MRK"
       ],
-      "aliases": [],
-      "source": "gnosis"
+      "aliases": [
+        "加略人犹大"
+      ],
+      "source": "gnosis",
+      "disambiguation": "加略人犹大（卖主的门徒）"
     },
     {
       "id": "shaphan-son-of-azaliah",
@@ -7363,8 +7372,12 @@
         "MAT",
         "MRK"
       ],
-      "aliases": [],
-      "source": "gnosis"
+      "aliases": [
+        "圣母马利亚",
+        "耶稣的母亲"
+      ],
+      "source": "gnosis",
+      "disambiguation": "耶稣的母亲马利亚"
     },
     {
       "id": "abijah-son-of-rehoboam",

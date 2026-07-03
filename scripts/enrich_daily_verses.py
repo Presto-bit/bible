@@ -7,11 +7,13 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 DAILY = REPO / "data" / "daily-verses" / "daily_verses.json"
 TOPICS = REPO / "data" / "topics" / "topics.json"
+CLASSIC = REPO / "data" / "daily-verses" / "classic_verse_pool.json"
 NAME = {
     "GEN": "创世记", "EXO": "出埃及记", "LEV": "利未记", "NUM": "民数记", "DEU": "申命记",
     "JOS": "约书亚记", "JDG": "士师记", "RUT": "路得记", "1SA": "撒母耳记上", "2SA": "撒母耳记下",
@@ -59,6 +61,10 @@ def main() -> int:
             theme = t.get("name") or t.get("id")
             for ref in t.get("refs") or []:
                 pool.append((theme, ref))
+    if CLASSIC.exists():
+        cdata = json.loads(CLASSIC.read_text(encoding="utf-8"))
+        for item in cdata.get("verses") or []:
+            pool.append((item.get("theme") or "盼望", item.get("ref")))
 
     seen = {
         (v.get("book"), v.get("chapter"), v.get("verse_start"))
@@ -101,6 +107,38 @@ def main() -> int:
             "text": None,
             **parsed,
         })
+
+    # 经库补位：每章取首节，直至 365
+    sqlite = REPO / "build" / "bible_cnv.sqlite"
+    if len(verses) < 365 and sqlite.exists():
+        conn = sqlite3.connect(sqlite)
+        rows = conn.execute(
+            """
+            SELECT v.book, v.chapter, MIN(v.verse)
+            FROM verses v
+            JOIN books b ON b.id = v.book
+            GROUP BY v.book, v.chapter
+            ORDER BY b.sort_order, v.chapter
+            """
+        ).fetchall()
+        conn.close()
+        for book, chapter, verse in rows:
+            if len(verses) >= 365:
+                break
+            key = (book, chapter, verse)
+            if key in seen:
+                continue
+            seen.add(key)
+            verses.append({
+                "day": len(verses) + 1,
+                "theme": "盼望",
+                "text": None,
+                "book": book,
+                "chapter": chapter,
+                "verse_start": verse,
+                "verse_end": verse,
+                "ref": f"{NAME.get(book, book)} {chapter}:{verse}",
+            })
 
     for i, v in enumerate(verses[:365], start=1):
         v["day"] = i

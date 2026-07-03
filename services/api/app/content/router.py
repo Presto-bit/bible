@@ -382,3 +382,70 @@ def timeline(
         row = loader.timeline_for(book, chapter)
         return {"timeline": row}
     return {"chapters": loader.timeline_chapters()}
+
+
+@router.get("/map-tours")
+def map_tours_list() -> dict:
+    return {"tours": loader.map_tours()}
+
+
+@router.get("/map-tours/{tour_id}")
+def map_tour_detail(tour_id: str) -> dict:
+    for tour in loader.map_tours():
+        if tour.get("id") == tour_id:
+            places = loader.geography_places()
+            by_id = {p.get("id"): p for p in places}
+            stops = []
+            for stop in tour.get("stops") or []:
+                pid = stop.get("place_id")
+                stops.append({**stop, "place": by_id.get(pid)})
+            return {"tour": {**tour, "stops": stops}}
+    raise HTTPException(status_code=404, detail=f"无地图专题：{tour_id}")
+
+
+@router.get("/timeline-tours")
+def timeline_tours_list() -> dict:
+    return {"tours": loader.timeline_tours()}
+
+
+@router.get("/timeline-tours/{tour_id}")
+def timeline_tour_detail(tour_id: str) -> dict:
+    for tour in loader.timeline_tours():
+        if tour.get("id") == tour_id:
+            return {"tour": tour}
+    raise HTTPException(status_code=404, detail=f"无时间线专题：{tour_id}")
+
+
+@router.get("/summaries/books")
+def summaries_books() -> dict:
+    return {"books": loader.book_summaries()}
+
+
+@router.get("/summaries/books/{book}")
+def summary_book(book: str) -> dict:
+    row = loader.summary_for_book(book)
+    if row is None:
+        raise HTTPException(status_code=404, detail=f"无经卷摘要：{book}")
+    return {"summary": row}
+
+
+@router.get("/summaries/chapters")
+def summaries_chapters(
+    book: str = Query(..., description="书卷 id"),
+    chapter: int | None = Query(None, ge=1),
+) -> dict:
+    if chapter:
+        row = loader.summary_for_chapter(book, chapter)
+        return {"summary": row}
+    items = [
+        r for r in loader.chapter_summaries()
+        if r.get("book") == book.upper()
+    ]
+    return {"chapters": items}
+
+
+@router.get("/relations")
+def relations(entity_id: str | None = Query(None)) -> dict:
+    if entity_id:
+        return {"relations": loader.relations_for_entity(entity_id)}
+    return {"relations": loader.entity_relations()}

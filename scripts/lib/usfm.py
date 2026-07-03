@@ -27,10 +27,18 @@ USFM_TO_OSIS = {v: k for k, v in OSIS_TO_USFM.items()}
 _OSIS_ALIASES: dict[str, str] = {
     "1Chron": "1Chr", "2Chron": "2Chr", "Psalm": "Ps", "Psalms": "Ps",
     "Proverbs": "Prov", "Ecclesiastes": "Eccl", "Revelation": "Rev",
-    "Matthew": "Matt", "Mat": "Matt", "Mar": "Mark", "Mk": "Mark",
-    "Luk": "Luke", "Jn": "John", "Jhn": "John", "1Thes": "1Thess", "2Thes": "2Thess",
+    "Matthew": "Matt", "Mat": "Matt", "Mar": "Mark", "Mk": "Mark", "Mrk": "Mark",
+    "Luk": "Luke", "Jn": "John", "Jhn": "John",
+    "1Thes": "1Thess", "2Thes": "2Thess",
     "1Timothy": "1Tim", "2Timothy": "2Tim", "Philemon": "Phlm",
     "1Peter": "1Pet", "2Peter": "2Pet", "James": "Jas",
+    # STEPBible OT 三字母缩写
+    "Gen": "Gen", "Exo": "Exod", "Deu": "Deut", "Jos": "Josh", "Jdg": "Judg",
+    "Rut": "Ruth", "Psa": "Ps", "Pro": "Prov", "Sng": "Song", "Ecc": "Eccl",
+    "Isa": "Isa", "Jer": "Jer", "Lam": "Lam", "Ezk": "Ezek", "Dan": "Dan",
+    "Hos": "Hos", "Jol": "Joel", "Amo": "Amos", "Obad": "Obad", "Jon": "Jonah",
+    "Mic": "Mic", "Nam": "Nah", "Hab": "Hab", "Zep": "Zeph", "Hag": "Hag",
+    "Zec": "Zech", "Mal": "Mal",
 }
 
 _REF = re.compile(

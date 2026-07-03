@@ -1,7 +1,7 @@
 {
   "schema": "daily_verses@2",
   "source": "build_daily_verses + topics enrich",
-  "count": 179,
+  "count": 365,
   "themes": [
     "使命",
     "信靠",
@@ -30,6 +30,7 @@
     "焦虑",
     "爱",
     "盼望",
+    "祝福",
     "祷告",
     "苦难",
     "谦卑",
@@ -1826,6 +1827,1866 @@
       "verse_start": 4,
       "verse_end": 4,
       "ref": "诗篇 23:4"
+    },
+    {
+      "day": 180,
+      "theme": "信靠",
+      "text": null,
+      "book": "GEN",
+      "chapter": 12,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 12:1"
+    },
+    {
+      "day": 181,
+      "theme": "信靠",
+      "text": null,
+      "book": "GEN",
+      "chapter": 15,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "创世记 15:6"
+    },
+    {
+      "day": 182,
+      "theme": "应许",
+      "text": null,
+      "book": "GEN",
+      "chapter": 28,
+      "verse_start": 15,
+      "verse_end": 15,
+      "ref": "创世记 28:15"
+    },
+    {
+      "day": 183,
+      "theme": "力量",
+      "text": null,
+      "book": "EXO",
+      "chapter": 14,
+      "verse_start": 14,
+      "verse_end": 14,
+      "ref": "出埃及记 14:14"
+    },
+    {
+      "day": 184,
+      "theme": "敬拜",
+      "text": null,
+      "book": "EXO",
+      "chapter": 20,
+      "verse_start": 3,
+      "verse_end": 3,
+      "ref": "出埃及记 20:3"
+    },
+    {
+      "day": 185,
+      "theme": "平安",
+      "text": null,
+      "book": "EXO",
+      "chapter": 33,
+      "verse_start": 14,
+      "verse_end": 14,
+      "ref": "出埃及记 33:14"
+    },
+    {
+      "day": 186,
+      "theme": "爱",
+      "text": null,
+      "book": "LEV",
+      "chapter": 19,
+      "verse_start": 18,
+      "verse_end": 18,
+      "ref": "利未记 19:18"
+    },
+    {
+      "day": 187,
+      "theme": "祝福",
+      "text": null,
+      "book": "NUM",
+      "chapter": 6,
+      "verse_start": 24,
+      "verse_end": 24,
+      "ref": "民数记 6:24"
+    },
+    {
+      "day": 188,
+      "theme": "爱",
+      "text": null,
+      "book": "DEU",
+      "chapter": 6,
+      "verse_start": 5,
+      "verse_end": 5,
+      "ref": "申命记 6:5"
+    },
+    {
+      "day": 189,
+      "theme": "顺服",
+      "text": null,
+      "book": "JOS",
+      "chapter": 24,
+      "verse_start": 15,
+      "verse_end": 15,
+      "ref": "约书亚记 24:15"
+    },
+    {
+      "day": 190,
+      "theme": "力量",
+      "text": null,
+      "book": "JDG",
+      "chapter": 6,
+      "verse_start": 12,
+      "verse_end": 12,
+      "ref": "士师记 6:12"
+    },
+    {
+      "day": 191,
+      "theme": "信靠",
+      "text": null,
+      "book": "RUT",
+      "chapter": 1,
+      "verse_start": 16,
+      "verse_end": 16,
+      "ref": "路得记 1:16"
+    },
+    {
+      "day": 192,
+      "theme": "智慧",
+      "text": null,
+      "book": "1SA",
+      "chapter": 16,
+      "verse_start": 7,
+      "verse_end": 7,
+      "ref": "撒母耳记上 16:7"
+    },
+    {
+      "day": 193,
+      "theme": "应许",
+      "text": null,
+      "book": "2SA",
+      "chapter": 7,
+      "verse_start": 16,
+      "verse_end": 16,
+      "ref": "撒母耳记下 7:16"
+    },
+    {
+      "day": 194,
+      "theme": "智慧",
+      "text": null,
+      "book": "1KI",
+      "chapter": 3,
+      "verse_start": 9,
+      "verse_end": 9,
+      "ref": "列王纪上 3:9"
+    },
+    {
+      "day": 195,
+      "theme": "祷告",
+      "text": null,
+      "book": "1KI",
+      "chapter": 8,
+      "verse_start": 23,
+      "verse_end": 23,
+      "ref": "列王纪上 8:23"
+    },
+    {
+      "day": 196,
+      "theme": "信靠",
+      "text": null,
+      "book": "2KI",
+      "chapter": 6,
+      "verse_start": 16,
+      "verse_end": 16,
+      "ref": "列王纪下 6:16"
+    },
+    {
+      "day": 197,
+      "theme": "感恩",
+      "text": null,
+      "book": "1CH",
+      "chapter": 16,
+      "verse_start": 34,
+      "verse_end": 34,
+      "ref": "历代志上 16:34"
+    },
+    {
+      "day": 198,
+      "theme": "祷告",
+      "text": null,
+      "book": "2CH",
+      "chapter": 7,
+      "verse_start": 14,
+      "verse_end": 14,
+      "ref": "历代志下 7:14"
+    },
+    {
+      "day": 199,
+      "theme": "引导",
+      "text": null,
+      "book": "EZR",
+      "chapter": 7,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "以斯拉记 7:10"
+    },
+    {
+      "day": 200,
+      "theme": "使命",
+      "text": null,
+      "book": "EST",
+      "chapter": 4,
+      "verse_start": 14,
+      "verse_end": 14,
+      "ref": "以斯帖记 4:14"
+    },
+    {
+      "day": 201,
+      "theme": "谦卑",
+      "text": null,
+      "book": "JOB",
+      "chapter": 1,
+      "verse_start": 21,
+      "verse_end": 21,
+      "ref": "约伯记 1:21"
+    },
+    {
+      "day": 202,
+      "theme": "盼望",
+      "text": null,
+      "book": "JOB",
+      "chapter": 19,
+      "verse_start": 25,
+      "verse_end": 25,
+      "ref": "约伯记 19:25"
+    },
+    {
+      "day": 203,
+      "theme": "敬拜",
+      "text": null,
+      "book": "JOB",
+      "chapter": 42,
+      "verse_start": 5,
+      "verse_end": 5,
+      "ref": "约伯记 42:5"
+    },
+    {
+      "day": 204,
+      "theme": "智慧",
+      "text": null,
+      "book": "PSA",
+      "chapter": 1,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "诗篇 1:1"
+    },
+    {
+      "day": 205,
+      "theme": "平安",
+      "text": null,
+      "book": "PSA",
+      "chapter": 23,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "诗篇 23:1"
+    },
+    {
+      "day": 206,
+      "theme": "赦免",
+      "text": null,
+      "book": "PSA",
+      "chapter": 32,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "诗篇 32:1"
+    },
+    {
+      "day": 207,
+      "theme": "平安",
+      "text": null,
+      "book": "PSA",
+      "chapter": 46,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "诗篇 46:10"
+    },
+    {
+      "day": 208,
+      "theme": "赦免",
+      "text": null,
+      "book": "PSA",
+      "chapter": 51,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "诗篇 51:10"
+    },
+    {
+      "day": 209,
+      "theme": "信靠",
+      "text": null,
+      "book": "PSA",
+      "chapter": 62,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "诗篇 62:1"
+    },
+    {
+      "day": 210,
+      "theme": "盼望",
+      "text": null,
+      "book": "PSA",
+      "chapter": 73,
+      "verse_start": 26,
+      "verse_end": 26,
+      "ref": "诗篇 73:26"
+    },
+    {
+      "day": 211,
+      "theme": "恩典",
+      "text": null,
+      "book": "PSA",
+      "chapter": 84,
+      "verse_start": 11,
+      "verse_end": 11,
+      "ref": "诗篇 84:11"
+    },
+    {
+      "day": 212,
+      "theme": "智慧",
+      "text": null,
+      "book": "PSA",
+      "chapter": 90,
+      "verse_start": 12,
+      "verse_end": 12,
+      "ref": "诗篇 90:12"
+    },
+    {
+      "day": 213,
+      "theme": "平安",
+      "text": null,
+      "book": "PSA",
+      "chapter": 91,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "诗篇 91:1"
+    },
+    {
+      "day": 214,
+      "theme": "智慧",
+      "text": null,
+      "book": "PSA",
+      "chapter": 119,
+      "verse_start": 11,
+      "verse_end": 11,
+      "ref": "诗篇 119:11"
+    },
+    {
+      "day": 215,
+      "theme": "信靠",
+      "text": null,
+      "book": "PSA",
+      "chapter": 121,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "诗篇 121:1"
+    },
+    {
+      "day": 216,
+      "theme": "创造",
+      "text": null,
+      "book": "PSA",
+      "chapter": 139,
+      "verse_start": 14,
+      "verse_end": 14,
+      "ref": "诗篇 139:14"
+    },
+    {
+      "day": 217,
+      "theme": "祷告",
+      "text": null,
+      "book": "PSA",
+      "chapter": 139,
+      "verse_start": 23,
+      "verse_end": 23,
+      "ref": "诗篇 139:23"
+    },
+    {
+      "day": 218,
+      "theme": "祷告",
+      "text": null,
+      "book": "PSA",
+      "chapter": 145,
+      "verse_start": 18,
+      "verse_end": 18,
+      "ref": "诗篇 145:18"
+    },
+    {
+      "day": 219,
+      "theme": "智慧",
+      "text": null,
+      "book": "PRO",
+      "chapter": 1,
+      "verse_start": 7,
+      "verse_end": 7,
+      "ref": "箴言 1:7"
+    },
+    {
+      "day": 220,
+      "theme": "引导",
+      "text": null,
+      "book": "PRO",
+      "chapter": 3,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "箴言 3:6"
+    },
+    {
+      "day": 221,
+      "theme": "智慧",
+      "text": null,
+      "book": "PRO",
+      "chapter": 4,
+      "verse_start": 23,
+      "verse_end": 23,
+      "ref": "箴言 4:23"
+    },
+    {
+      "day": 222,
+      "theme": "引导",
+      "text": null,
+      "book": "PRO",
+      "chapter": 16,
+      "verse_start": 9,
+      "verse_end": 9,
+      "ref": "箴言 16:9"
+    },
+    {
+      "day": 223,
+      "theme": "力量",
+      "text": null,
+      "book": "PRO",
+      "chapter": 18,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "箴言 18:10"
+    },
+    {
+      "day": 224,
+      "theme": "教会",
+      "text": null,
+      "book": "PRO",
+      "chapter": 27,
+      "verse_start": 17,
+      "verse_end": 17,
+      "ref": "箴言 27:17"
+    },
+    {
+      "day": 225,
+      "theme": "智慧",
+      "text": null,
+      "book": "PRO",
+      "chapter": 31,
+      "verse_start": 30,
+      "verse_end": 30,
+      "ref": "箴言 31:30"
+    },
+    {
+      "day": 226,
+      "theme": "智慧",
+      "text": null,
+      "book": "ECC",
+      "chapter": 3,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "传道书 3:1"
+    },
+    {
+      "day": 227,
+      "theme": "爱",
+      "text": null,
+      "book": "SNG",
+      "chapter": 2,
+      "verse_start": 4,
+      "verse_end": 4,
+      "ref": "雅歌 2:4"
+    },
+    {
+      "day": 228,
+      "theme": "赦免",
+      "text": null,
+      "book": "ISA",
+      "chapter": 1,
+      "verse_start": 18,
+      "verse_end": 18,
+      "ref": "以赛亚书 1:18"
+    },
+    {
+      "day": 229,
+      "theme": "使命",
+      "text": null,
+      "book": "ISA",
+      "chapter": 6,
+      "verse_start": 8,
+      "verse_end": 8,
+      "ref": "以赛亚书 6:8"
+    },
+    {
+      "day": 230,
+      "theme": "盼望",
+      "text": null,
+      "book": "ISA",
+      "chapter": 9,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "以赛亚书 9:6"
+    },
+    {
+      "day": 231,
+      "theme": "安慰",
+      "text": null,
+      "book": "ISA",
+      "chapter": 43,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "以赛亚书 43:1"
+    },
+    {
+      "day": 232,
+      "theme": "救恩",
+      "text": null,
+      "book": "ISA",
+      "chapter": 53,
+      "verse_start": 5,
+      "verse_end": 5,
+      "ref": "以赛亚书 53:5"
+    },
+    {
+      "day": 233,
+      "theme": "智慧",
+      "text": null,
+      "book": "ISA",
+      "chapter": 55,
+      "verse_start": 8,
+      "verse_end": 8,
+      "ref": "以赛亚书 55:8"
+    },
+    {
+      "day": 234,
+      "theme": "应许",
+      "text": null,
+      "book": "ISA",
+      "chapter": 55,
+      "verse_start": 11,
+      "verse_end": 11,
+      "ref": "以赛亚书 55:11"
+    },
+    {
+      "day": 235,
+      "theme": "祷告",
+      "text": null,
+      "book": "JER",
+      "chapter": 33,
+      "verse_start": 3,
+      "verse_end": 3,
+      "ref": "耶利米书 33:3"
+    },
+    {
+      "day": 236,
+      "theme": "圣灵",
+      "text": null,
+      "book": "EZK",
+      "chapter": 36,
+      "verse_start": 26,
+      "verse_end": 26,
+      "ref": "以西结书 36:26"
+    },
+    {
+      "day": 237,
+      "theme": "勇气",
+      "text": null,
+      "book": "DAN",
+      "chapter": 3,
+      "verse_start": 17,
+      "verse_end": 17,
+      "ref": "但以理书 3:17"
+    },
+    {
+      "day": 238,
+      "theme": "祷告",
+      "text": null,
+      "book": "DAN",
+      "chapter": 6,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "但以理书 6:10"
+    },
+    {
+      "day": 239,
+      "theme": "恩典",
+      "text": null,
+      "book": "HOS",
+      "chapter": 6,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "何西阿书 6:6"
+    },
+    {
+      "day": 240,
+      "theme": "赦免",
+      "text": null,
+      "book": "JOL",
+      "chapter": 2,
+      "verse_start": 13,
+      "verse_end": 13,
+      "ref": "约珥书 2:13"
+    },
+    {
+      "day": 241,
+      "theme": "安慰",
+      "text": null,
+      "book": "NAH",
+      "chapter": 1,
+      "verse_start": 7,
+      "verse_end": 7,
+      "ref": "NAH 1:7"
+    },
+    {
+      "day": 242,
+      "theme": "信靠",
+      "text": null,
+      "book": "HAB",
+      "chapter": 2,
+      "verse_start": 4,
+      "verse_end": 4,
+      "ref": "哈巴谷书 2:4"
+    },
+    {
+      "day": 243,
+      "theme": "喜乐",
+      "text": null,
+      "book": "ZEP",
+      "chapter": 3,
+      "verse_start": 17,
+      "verse_end": 17,
+      "ref": "西番雅书 3:17"
+    },
+    {
+      "day": 244,
+      "theme": "力量",
+      "text": null,
+      "book": "HAG",
+      "chapter": 2,
+      "verse_start": 4,
+      "verse_end": 4,
+      "ref": "哈该书 2:4"
+    },
+    {
+      "day": 245,
+      "theme": "圣灵",
+      "text": null,
+      "book": "ZEC",
+      "chapter": 4,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "撒迦利亚书 4:6"
+    },
+    {
+      "day": 246,
+      "theme": "信靠",
+      "text": null,
+      "book": "MAL",
+      "chapter": 3,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "玛拉基书 3:10"
+    },
+    {
+      "day": 247,
+      "theme": "盼望",
+      "text": null,
+      "book": "MAT",
+      "chapter": 1,
+      "verse_start": 23,
+      "verse_end": 23,
+      "ref": "马太福音 1:23"
+    },
+    {
+      "day": 248,
+      "theme": "使命",
+      "text": null,
+      "book": "MAT",
+      "chapter": 4,
+      "verse_start": 19,
+      "verse_end": 19,
+      "ref": "马太福音 4:19"
+    },
+    {
+      "day": 249,
+      "theme": "谦卑",
+      "text": null,
+      "book": "MAT",
+      "chapter": 5,
+      "verse_start": 3,
+      "verse_end": 3,
+      "ref": "马太福音 5:3"
+    },
+    {
+      "day": 250,
+      "theme": "使命",
+      "text": null,
+      "book": "MAT",
+      "chapter": 5,
+      "verse_start": 14,
+      "verse_end": 14,
+      "ref": "马太福音 5:14"
+    },
+    {
+      "day": 251,
+      "theme": "祷告",
+      "text": null,
+      "book": "MAT",
+      "chapter": 6,
+      "verse_start": 9,
+      "verse_end": 9,
+      "ref": "马太福音 6:9"
+    },
+    {
+      "day": 252,
+      "theme": "引导",
+      "text": null,
+      "book": "MAT",
+      "chapter": 6,
+      "verse_start": 33,
+      "verse_end": 33,
+      "ref": "马太福音 6:33"
+    },
+    {
+      "day": 253,
+      "theme": "顺服",
+      "text": null,
+      "book": "MAT",
+      "chapter": 16,
+      "verse_start": 24,
+      "verse_end": 24,
+      "ref": "马太福音 16:24"
+    },
+    {
+      "day": 254,
+      "theme": "教会",
+      "text": null,
+      "book": "MAT",
+      "chapter": 18,
+      "verse_start": 20,
+      "verse_end": 20,
+      "ref": "马太福音 18:20"
+    },
+    {
+      "day": 255,
+      "theme": "爱",
+      "text": null,
+      "book": "MAT",
+      "chapter": 22,
+      "verse_start": 37,
+      "verse_end": 37,
+      "ref": "马太福音 22:37"
+    },
+    {
+      "day": 256,
+      "theme": "谦卑",
+      "text": null,
+      "book": "MRK",
+      "chapter": 10,
+      "verse_start": 45,
+      "verse_end": 45,
+      "ref": "马可福音 10:45"
+    },
+    {
+      "day": 257,
+      "theme": "爱",
+      "text": null,
+      "book": "MRK",
+      "chapter": 12,
+      "verse_start": 30,
+      "verse_end": 30,
+      "ref": "马可福音 12:30"
+    },
+    {
+      "day": 258,
+      "theme": "力量",
+      "text": null,
+      "book": "LUK",
+      "chapter": 1,
+      "verse_start": 37,
+      "verse_end": 37,
+      "ref": "路加福音 1:37"
+    },
+    {
+      "day": 259,
+      "theme": "盼望",
+      "text": null,
+      "book": "LUK",
+      "chapter": 2,
+      "verse_start": 11,
+      "verse_end": 11,
+      "ref": "路加福音 2:11"
+    },
+    {
+      "day": 260,
+      "theme": "爱",
+      "text": null,
+      "book": "LUK",
+      "chapter": 6,
+      "verse_start": 31,
+      "verse_end": 31,
+      "ref": "路加福音 6:31"
+    },
+    {
+      "day": 261,
+      "theme": "顺服",
+      "text": null,
+      "book": "LUK",
+      "chapter": 9,
+      "verse_start": 23,
+      "verse_end": 23,
+      "ref": "路加福音 9:23"
+    },
+    {
+      "day": 262,
+      "theme": "祷告",
+      "text": null,
+      "book": "LUK",
+      "chapter": 11,
+      "verse_start": 9,
+      "verse_end": 9,
+      "ref": "路加福音 11:9"
+    },
+    {
+      "day": 263,
+      "theme": "喜乐",
+      "text": null,
+      "book": "LUK",
+      "chapter": 15,
+      "verse_start": 7,
+      "verse_end": 7,
+      "ref": "路加福音 15:7"
+    },
+    {
+      "day": 264,
+      "theme": "信靠",
+      "text": null,
+      "book": "LUK",
+      "chapter": 18,
+      "verse_start": 27,
+      "verse_end": 27,
+      "ref": "路加福音 18:27"
+    },
+    {
+      "day": 265,
+      "theme": "救恩",
+      "text": null,
+      "book": "LUK",
+      "chapter": 19,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "路加福音 19:10"
+    },
+    {
+      "day": 266,
+      "theme": "复活",
+      "text": null,
+      "book": "LUK",
+      "chapter": 24,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "路加福音 24:6"
+    },
+    {
+      "day": 267,
+      "theme": "创造",
+      "text": null,
+      "book": "JHN",
+      "chapter": 1,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "约翰福音 1:1"
+    },
+    {
+      "day": 268,
+      "theme": "恩典",
+      "text": null,
+      "book": "JHN",
+      "chapter": 1,
+      "verse_start": 12,
+      "verse_end": 12,
+      "ref": "约翰福音 1:12"
+    },
+    {
+      "day": 269,
+      "theme": "谦卑",
+      "text": null,
+      "book": "JHN",
+      "chapter": 3,
+      "verse_start": 30,
+      "verse_end": 30,
+      "ref": "约翰福音 3:30"
+    },
+    {
+      "day": 270,
+      "theme": "永生",
+      "text": null,
+      "book": "JHN",
+      "chapter": 6,
+      "verse_start": 35,
+      "verse_end": 35,
+      "ref": "约翰福音 6:35"
+    },
+    {
+      "day": 271,
+      "theme": "引导",
+      "text": null,
+      "book": "JHN",
+      "chapter": 8,
+      "verse_start": 12,
+      "verse_end": 12,
+      "ref": "约翰福音 8:12"
+    },
+    {
+      "day": 272,
+      "theme": "喜乐",
+      "text": null,
+      "book": "JHN",
+      "chapter": 10,
+      "verse_start": 10,
+      "verse_end": 10,
+      "ref": "约翰福音 10:10"
+    },
+    {
+      "day": 273,
+      "theme": "信靠",
+      "text": null,
+      "book": "JHN",
+      "chapter": 10,
+      "verse_start": 27,
+      "verse_end": 27,
+      "ref": "约翰福音 10:27"
+    },
+    {
+      "day": 274,
+      "theme": "救恩",
+      "text": null,
+      "book": "JHN",
+      "chapter": 14,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "约翰福音 14:6"
+    },
+    {
+      "day": 275,
+      "theme": "信靠",
+      "text": null,
+      "book": "JHN",
+      "chapter": 15,
+      "verse_start": 5,
+      "verse_end": 5,
+      "ref": "约翰福音 15:5"
+    },
+    {
+      "day": 276,
+      "theme": "信靠",
+      "text": null,
+      "book": "JHN",
+      "chapter": 20,
+      "verse_start": 31,
+      "verse_end": 31,
+      "ref": "约翰福音 20:31"
+    },
+    {
+      "day": 277,
+      "theme": "救恩",
+      "text": null,
+      "book": "ACT",
+      "chapter": 2,
+      "verse_start": 38,
+      "verse_end": 38,
+      "ref": "使徒行传 2:38"
+    },
+    {
+      "day": 278,
+      "theme": "信靠",
+      "text": null,
+      "book": "ACT",
+      "chapter": 16,
+      "verse_start": 31,
+      "verse_end": 31,
+      "ref": "使徒行传 16:31"
+    },
+    {
+      "day": 279,
+      "theme": "救恩",
+      "text": null,
+      "book": "ROM",
+      "chapter": 1,
+      "verse_start": 16,
+      "verse_end": 16,
+      "ref": "罗马书 1:16"
+    },
+    {
+      "day": 280,
+      "theme": "赦免",
+      "text": null,
+      "book": "ROM",
+      "chapter": 8,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "罗马书 8:1"
+    },
+    {
+      "day": 281,
+      "theme": "救恩",
+      "text": null,
+      "book": "ROM",
+      "chapter": 10,
+      "verse_start": 9,
+      "verse_end": 9,
+      "ref": "罗马书 10:9"
+    },
+    {
+      "day": 282,
+      "theme": "忍耐",
+      "text": null,
+      "book": "1CO",
+      "chapter": 10,
+      "verse_start": 13,
+      "verse_end": 13,
+      "ref": "哥林多前书 10:13"
+    },
+    {
+      "day": 283,
+      "theme": "爱",
+      "text": null,
+      "book": "1CO",
+      "chapter": 13,
+      "verse_start": 13,
+      "verse_end": 13,
+      "ref": "哥林多前书 13:13"
+    },
+    {
+      "day": 284,
+      "theme": "复活",
+      "text": null,
+      "book": "1CO",
+      "chapter": 15,
+      "verse_start": 3,
+      "verse_end": 3,
+      "ref": "哥林多前书 15:3"
+    },
+    {
+      "day": 285,
+      "theme": "救恩",
+      "text": null,
+      "book": "1CO",
+      "chapter": 15,
+      "verse_start": 57,
+      "verse_end": 57,
+      "ref": "哥林多前书 15:57"
+    },
+    {
+      "day": 286,
+      "theme": "圣灵",
+      "text": null,
+      "book": "2CO",
+      "chapter": 5,
+      "verse_start": 17,
+      "verse_end": 17,
+      "ref": "哥林多后书 5:17"
+    },
+    {
+      "day": 287,
+      "theme": "信靠",
+      "text": null,
+      "book": "GAL",
+      "chapter": 2,
+      "verse_start": 20,
+      "verse_end": 20,
+      "ref": "加拉太书 2:20"
+    },
+    {
+      "day": 288,
+      "theme": "祷告",
+      "text": null,
+      "book": "EPH",
+      "chapter": 6,
+      "verse_start": 18,
+      "verse_end": 18,
+      "ref": "以弗所书 6:18"
+    },
+    {
+      "day": 289,
+      "theme": "应许",
+      "text": null,
+      "book": "PHP",
+      "chapter": 1,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "腓立比书 1:6"
+    },
+    {
+      "day": 290,
+      "theme": "信靠",
+      "text": null,
+      "book": "PHP",
+      "chapter": 4,
+      "verse_start": 19,
+      "verse_end": 19,
+      "ref": "腓立比书 4:19"
+    },
+    {
+      "day": 291,
+      "theme": "引导",
+      "text": null,
+      "book": "COL",
+      "chapter": 3,
+      "verse_start": 2,
+      "verse_end": 2,
+      "ref": "歌罗西书 3:2"
+    },
+    {
+      "day": 292,
+      "theme": "喜乐",
+      "text": null,
+      "book": "1TH",
+      "chapter": 5,
+      "verse_start": 16,
+      "verse_end": 16,
+      "ref": "帖撒罗尼迦前书 5:16"
+    },
+    {
+      "day": 293,
+      "theme": "信靠",
+      "text": null,
+      "book": "2TH",
+      "chapter": 3,
+      "verse_start": 3,
+      "verse_end": 3,
+      "ref": "帖撒罗尼迦后书 3:3"
+    },
+    {
+      "day": 294,
+      "theme": "救恩",
+      "text": null,
+      "book": "1TI",
+      "chapter": 2,
+      "verse_start": 5,
+      "verse_end": 5,
+      "ref": "提摩太前书 2:5"
+    },
+    {
+      "day": 295,
+      "theme": "勇气",
+      "text": null,
+      "book": "1TI",
+      "chapter": 4,
+      "verse_start": 12,
+      "verse_end": 12,
+      "ref": "提摩太前书 4:12"
+    },
+    {
+      "day": 296,
+      "theme": "智慧",
+      "text": null,
+      "book": "2TI",
+      "chapter": 3,
+      "verse_start": 16,
+      "verse_end": 16,
+      "ref": "提摩太后书 3:16"
+    },
+    {
+      "day": 297,
+      "theme": "智慧",
+      "text": null,
+      "book": "HEB",
+      "chapter": 4,
+      "verse_start": 12,
+      "verse_end": 12,
+      "ref": "希伯来书 4:12"
+    },
+    {
+      "day": 298,
+      "theme": "信靠",
+      "text": null,
+      "book": "HEB",
+      "chapter": 11,
+      "verse_start": 6,
+      "verse_end": 6,
+      "ref": "希伯来书 11:6"
+    },
+    {
+      "day": 299,
+      "theme": "忍耐",
+      "text": null,
+      "book": "HEB",
+      "chapter": 12,
+      "verse_start": 2,
+      "verse_end": 2,
+      "ref": "希伯来书 12:2"
+    },
+    {
+      "day": 300,
+      "theme": "敬拜",
+      "text": null,
+      "book": "JAS",
+      "chapter": 4,
+      "verse_start": 8,
+      "verse_end": 8,
+      "ref": "雅各书 4:8"
+    },
+    {
+      "day": 301,
+      "theme": "智慧",
+      "text": null,
+      "book": "1PE",
+      "chapter": 3,
+      "verse_start": 15,
+      "verse_end": 15,
+      "ref": "彼得前书 3:15"
+    },
+    {
+      "day": 302,
+      "theme": "恩典",
+      "text": null,
+      "book": "2PE",
+      "chapter": 1,
+      "verse_start": 3,
+      "verse_end": 3,
+      "ref": "彼得后书 1:3"
+    },
+    {
+      "day": 303,
+      "theme": "爱",
+      "text": null,
+      "book": "1JN",
+      "chapter": 3,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "约翰一书 3:1"
+    },
+    {
+      "day": 304,
+      "theme": "应许",
+      "text": null,
+      "book": "REV",
+      "chapter": 3,
+      "verse_start": 20,
+      "verse_end": 20,
+      "ref": "启示录 3:20"
+    },
+    {
+      "day": 305,
+      "theme": "救恩",
+      "text": null,
+      "book": "REV",
+      "chapter": 22,
+      "verse_start": 17,
+      "verse_end": 17,
+      "ref": "启示录 22:17"
+    },
+    {
+      "day": 306,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 2,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 2:1"
+    },
+    {
+      "day": 307,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 3,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 3:1"
+    },
+    {
+      "day": 308,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 4,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 4:1"
+    },
+    {
+      "day": 309,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 5,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 5:1"
+    },
+    {
+      "day": 310,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 6,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 6:1"
+    },
+    {
+      "day": 311,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 7,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 7:1"
+    },
+    {
+      "day": 312,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 8,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 8:1"
+    },
+    {
+      "day": 313,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 9,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 9:1"
+    },
+    {
+      "day": 314,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 10,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 10:1"
+    },
+    {
+      "day": 315,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 11,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 11:1"
+    },
+    {
+      "day": 316,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 13,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 13:1"
+    },
+    {
+      "day": 317,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 14,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 14:1"
+    },
+    {
+      "day": 318,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 15,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 15:1"
+    },
+    {
+      "day": 319,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 16,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 16:1"
+    },
+    {
+      "day": 320,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 17,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 17:1"
+    },
+    {
+      "day": 321,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 18,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 18:1"
+    },
+    {
+      "day": 322,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 19,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 19:1"
+    },
+    {
+      "day": 323,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 20,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 20:1"
+    },
+    {
+      "day": 324,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 21,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 21:1"
+    },
+    {
+      "day": 325,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 22,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 22:1"
+    },
+    {
+      "day": 326,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 23,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 23:1"
+    },
+    {
+      "day": 327,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 24,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 24:1"
+    },
+    {
+      "day": 328,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 25,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 25:1"
+    },
+    {
+      "day": 329,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 26,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 26:1"
+    },
+    {
+      "day": 330,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 27,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 27:1"
+    },
+    {
+      "day": 331,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 28,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 28:1"
+    },
+    {
+      "day": 332,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 29,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 29:1"
+    },
+    {
+      "day": 333,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 30,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 30:1"
+    },
+    {
+      "day": 334,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 31,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 31:1"
+    },
+    {
+      "day": 335,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 32,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 32:1"
+    },
+    {
+      "day": 336,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 33,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 33:1"
+    },
+    {
+      "day": 337,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 34,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 34:1"
+    },
+    {
+      "day": 338,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 35,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 35:1"
+    },
+    {
+      "day": 339,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 36,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 36:1"
+    },
+    {
+      "day": 340,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 37,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 37:1"
+    },
+    {
+      "day": 341,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 38,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 38:1"
+    },
+    {
+      "day": 342,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 39,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 39:1"
+    },
+    {
+      "day": 343,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 40,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 40:1"
+    },
+    {
+      "day": 344,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 41,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 41:1"
+    },
+    {
+      "day": 345,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 42,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 42:1"
+    },
+    {
+      "day": 346,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 43,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 43:1"
+    },
+    {
+      "day": 347,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 44,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 44:1"
+    },
+    {
+      "day": 348,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 45,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 45:1"
+    },
+    {
+      "day": 349,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 46,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 46:1"
+    },
+    {
+      "day": 350,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 47,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 47:1"
+    },
+    {
+      "day": 351,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 48,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 48:1"
+    },
+    {
+      "day": 352,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 49,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 49:1"
+    },
+    {
+      "day": 353,
+      "theme": "盼望",
+      "text": null,
+      "book": "GEN",
+      "chapter": 50,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "创世记 50:1"
+    },
+    {
+      "day": 354,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 1,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 1:1"
+    },
+    {
+      "day": 355,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 2,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 2:1"
+    },
+    {
+      "day": 356,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 3,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 3:1"
+    },
+    {
+      "day": 357,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 4,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 4:1"
+    },
+    {
+      "day": 358,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 5,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 5:1"
+    },
+    {
+      "day": 359,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 6,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 6:1"
+    },
+    {
+      "day": 360,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 7,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 7:1"
+    },
+    {
+      "day": 361,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 8,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 8:1"
+    },
+    {
+      "day": 362,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 9,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 9:1"
+    },
+    {
+      "day": 363,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 10,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 10:1"
+    },
+    {
+      "day": 364,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 11,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 11:1"
+    },
+    {
+      "day": 365,
+      "theme": "盼望",
+      "text": null,
+      "book": "EXO",
+      "chapter": 12,
+      "verse_start": 1,
+      "verse_end": 1,
+      "ref": "出埃及记 12:1"
     }
   ]
 }

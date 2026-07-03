@@ -879,6 +879,63 @@ export interface TimelineChapter {
   note?: string;
 }
 
+export interface MapTourStop {
+  order: number;
+  place_id: string;
+  label: string;
+  ref: string;
+  note?: string;
+  place?: GeoPlace | null;
+}
+
+export interface MapTour {
+  id: string;
+  title: string;
+  subtitle?: string;
+  era?: string;
+  description?: string;
+  stops: MapTourStop[];
+}
+
+export interface TimelineTourEvent {
+  order: number;
+  book: string;
+  chapter: number;
+  year_display?: string;
+  label: string;
+  note?: string;
+}
+
+export interface TimelineTour {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  events: TimelineTourEvent[];
+}
+
+export interface BookSummary {
+  book: string;
+  name: string;
+  testament: string;
+  chapter_count: number;
+  summary: string;
+}
+
+export interface ChapterSummary {
+  book: string;
+  chapter: number;
+  summary: string;
+}
+
+export interface EntityRelation {
+  from: string;
+  to: string;
+  type: string;
+  label: string;
+  refs?: string[];
+}
+
 export interface BibleSearchHit {
   book: string;
   name: string;
@@ -996,6 +1053,26 @@ export const api = {
       book && chapter
         ? `/content/timeline?book=${encodeURIComponent(book)}&chapter=${chapter}`
         : '/content/timeline',
+    ),
+  mapTours: () => getJson<{ tours: MapTour[] }>('/content/map-tours'),
+  mapTour: (id: string) => getJson<{ tour: MapTour }>(`/content/map-tours/${encodeURIComponent(id)}`),
+  timelineTours: () => getJson<{ tours: TimelineTour[] }>('/content/timeline-tours'),
+  timelineTour: (id: string) =>
+    getJson<{ tour: TimelineTour }>(`/content/timeline-tours/${encodeURIComponent(id)}`),
+  bookSummaries: () => getJson<{ books: BookSummary[] }>('/content/summaries/books'),
+  bookSummary: (book: string) =>
+    getJson<{ summary: BookSummary }>(`/content/summaries/books/${encodeURIComponent(book)}`),
+  chapterSummaries: (book: string, chapter?: number) =>
+    getJson<{ chapters?: ChapterSummary[]; summary?: ChapterSummary | null }>(
+      chapter
+        ? `/content/summaries/chapters?book=${encodeURIComponent(book)}&chapter=${chapter}`
+        : `/content/summaries/chapters?book=${encodeURIComponent(book)}`,
+    ),
+  relations: (entityId?: string) =>
+    getJson<{ relations: EntityRelation[] }>(
+      entityId
+        ? `/content/relations?entity_id=${encodeURIComponent(entityId)}`
+        : '/content/relations',
     ),
   contentAttribution: () =>
     getJson<{ sources: { id: string; name: string; license: string; url: string }[] }>(

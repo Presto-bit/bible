@@ -141,6 +141,84 @@
       "motif": "olive",
       "palette": "dawn",
       "file": "theme_恩典.svg"
+    },
+    {
+      "theme": "创造",
+      "motif": "sun",
+      "palette": "mist",
+      "file": "theme_创造.svg"
+    },
+    {
+      "theme": "救恩",
+      "motif": "door",
+      "palette": "dawn",
+      "file": "theme_救恩.svg"
+    },
+    {
+      "theme": "圣灵",
+      "motif": "dove",
+      "palette": "mist",
+      "file": "theme_圣灵.svg"
+    },
+    {
+      "theme": "复活",
+      "motif": "sun",
+      "palette": "sage",
+      "file": "theme_复活.svg"
+    },
+    {
+      "theme": "宽恕",
+      "motif": "olive",
+      "palette": "sage",
+      "file": "theme_宽恕.svg"
+    },
+    {
+      "theme": "焦虑",
+      "motif": "water",
+      "palette": "slate",
+      "file": "theme_焦虑.svg"
+    },
+    {
+      "theme": "工作",
+      "motif": "path",
+      "palette": "clay",
+      "file": "theme_工作.svg"
+    },
+    {
+      "theme": "教会",
+      "motif": "lamp",
+      "palette": "sage",
+      "file": "theme_教会.svg"
+    },
+    {
+      "theme": "使命",
+      "motif": "path",
+      "palette": "dawn",
+      "file": "theme_使命.svg"
+    },
+    {
+      "theme": "公义",
+      "motif": "mountain",
+      "palette": "slate",
+      "file": "theme_公义.svg"
+    },
+    {
+      "theme": "家庭",
+      "motif": "wheat",
+      "palette": "clay",
+      "file": "theme_家庭.svg"
+    },
+    {
+      "theme": "祝福",
+      "motif": "wheat",
+      "palette": "dawn",
+      "file": "theme_祝福.svg"
+    },
+    {
+      "theme": "苦难",
+      "motif": "mountain",
+      "palette": "clay",
+      "file": "theme_苦难.svg"
     }
   ]
 }

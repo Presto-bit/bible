@@ -368,6 +368,71 @@ def timeline_for(book: str, chapter: int) -> dict | None:
     return None
 
 
+@lru_cache(maxsize=1)
+def map_tours() -> list[dict]:
+    path = _data_dir() / "geography" / "map_tours.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("tours", [])
+
+
+@lru_cache(maxsize=1)
+def timeline_tours() -> list[dict]:
+    path = _data_dir() / "geography" / "timeline_tours.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("tours", [])
+
+
+@lru_cache(maxsize=1)
+def book_summaries() -> list[dict]:
+    path = _data_dir() / "summaries" / "books.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("books", [])
+
+
+@lru_cache(maxsize=1)
+def chapter_summaries() -> list[dict]:
+    path = _data_dir() / "summaries" / "chapters.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("chapters", [])
+
+
+def summary_for_book(book: str) -> dict | None:
+    book = book.upper()
+    for row in book_summaries():
+        if row.get("book") == book:
+            return row
+    return None
+
+
+def summary_for_chapter(book: str, chapter: int) -> dict | None:
+    book = book.upper()
+    for row in chapter_summaries():
+        if row.get("book") == book and row.get("chapter") == int(chapter):
+            return row
+    return None
+
+
+@lru_cache(maxsize=1)
+def entity_relations() -> list[dict]:
+    path = _data_dir() / "dictionary" / "relations.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("relations", [])
+
+
+def relations_for_entity(entity_id: str) -> list[dict]:
+    eid = (entity_id or "").strip()
+    out: list[dict] = []
+    for rel in entity_relations():
+        if rel.get("from") == eid or rel.get("to") == eid:
+            out.append(rel)
+    return out
+
+
 def entities_at_ref(ref: str, *, limit: int = 8) -> list[dict]:
     """经节上下文相关的人名/地名（词典子集）。"""
     return dictionary_lookup(ref=ref)[:limit]

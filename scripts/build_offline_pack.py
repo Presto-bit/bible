@@ -50,6 +50,7 @@ def main() -> int:
         raise SystemExit(f"缺少经库：{sqlite_path}（先跑 import_bible.py）")
 
     cuvs_path = REPO / "build" / "bible_cuvs.sqlite"
+    kjv_path = REPO / "build" / "bible_kjv.sqlite"
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     zip_path = args.out_dir / f"bible_offline_{args.version}.zip"
@@ -64,6 +65,7 @@ def main() -> int:
         ("dictionary", "*.json"),
         ("topics", "*.json"),
         ("geography", "*.json"),
+        ("summaries", "*.json"),
         ("strongs", "*.sqlite"),
         ("illustrations", "*.json"),
         ("illustrations", "*.svg"),
@@ -73,6 +75,8 @@ def main() -> int:
         _add(zf, sqlite_path, f"bible/bible_{args.translation}.sqlite", manifest)
         if cuvs_path.exists():
             _add(zf, cuvs_path, "bible/bible_cuvs.sqlite", manifest)
+        if kjv_path.exists():
+            _add(zf, kjv_path, "bible/bible_kjv.sqlite", manifest)
         data_dir = REPO / "data"
         for sub, pat in content_globs:
             for p in sorted((data_dir / sub).glob(pat)):

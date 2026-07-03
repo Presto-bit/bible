@@ -1,0 +1,18 @@
+{
+  "schema": "relations@1",
+  "count": 12,
+  "relations": [
+    {"from": "abraham", "to": "isaac", "type": "parent", "label": "父亲", "refs": ["GEN 22:2"]},
+    {"from": "isaac", "to": "jacob_patriarch", "type": "parent", "label": "父亲", "refs": ["GEN 25:26"]},
+    {"from": "jacob_patriarch", "to": "joseph-son-of-jacob", "type": "parent", "label": "父亲", "refs": ["GEN 37:3"]},
+    {"from": "moses", "to": "aaron", "type": "sibling", "label": "哥哥", "refs": ["EXO 4:14"]},
+    {"from": "david", "to": "solomon", "type": "parent", "label": "父亲", "refs": ["1KI 1:39"]},
+    {"from": "jesus", "to": "peter", "type": "disciple", "label": "门徒", "refs": ["MAT 16:18"]},
+    {"from": "jesus", "to": "john-apostle", "type": "disciple", "label": "所爱的门徒", "refs": ["JHN 13:23"]},
+    {"from": "paul", "to": "提摩太", "type": "mentor", "label": "属灵儿子", "refs": ["1TI 1:2"]},
+    {"from": "paul", "to": "barnabas", "type": "companion", "label": "同工", "refs": ["ACT 13:2"]},
+    {"from": "elijah", "to": "elisha", "type": "mentor", "label": "传承先知", "refs": ["2KI 2:9"]},
+    {"from": "ruth", "to": "boaz", "type": "spouse", "label": "丈夫", "refs": ["RUT 4:13"]},
+    {"from": "mary-mother-of-jesus", "to": "jesus", "type": "parent", "label": "母亲", "refs": ["LUK 1:31"]}
+  ]
+}

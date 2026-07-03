@@ -38,6 +38,23 @@ TAGNT_URLS = [
         "TAGNT%20Act-Rev%20-%20Translators%20Amalgamated%20Greek%20NT%20-%20STEPBible.org%20CC-BY.txt",
     ),
 ]
+TAHOT_URLS = [
+    (
+        "TAHOT-Gen-Deu.txt",
+        "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/"
+        "Translators%20Amalgamated%20OT%2BNT/"
+        "TAHOT%20Gen-Deu%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+        {"GEN", "EXO", "LEV", "NUM", "DEU"},
+    ),
+    (
+        "TAHOT-Job-Sng.txt",
+        "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/"
+        "Translators%20Amalgamated%20OT%2BNT/"
+        "TAHOT%20Job-Sng%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+        {"JOB", "PSA", "PRO", "ECC", "SNG"},
+    ),
+]
+TAHOT_P0_BOOKS = {"GEN", "PSA"}
 TBESG_URL = (
     "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/Lexicons/"
     "TBESG%20-%20Translators%20Brief%20lexicon%20of%20Extended%20Strongs%20for%20Greek%20"
@@ -124,7 +141,8 @@ def _parse_tagnt(path: Path) -> list[dict]:
         parts = line.split("\t")
         if len(parts) < 5:
             continue
-        coord = parse_osis_ref(parts[0].strip())
+        ref_part = parts[0].strip().split("#")[0]
+        coord = parse_osis_ref(ref_part)
         if not coord:
             continue
         key = (coord.book, coord.chapter, coord.verse)
@@ -137,7 +155,56 @@ def _parse_tagnt(path: Path) -> list[dict]:
             "word": parts[1].strip() if len(parts) > 1 else "",
             "transliteration": parts[2].strip() if len(parts) > 2 else "",
             "gloss": parts[3].strip() if len(parts) > 3 else "",
-            "strongs": parts[4].strip() if len(parts) > 4 else "",
+            "strongs": _extract_strongs(parts[4].strip() if len(parts) > 4 else ""),
+            "lemma": parts[1].strip() if len(parts) > 1 else "",
+            "morphology": parts[5].strip() if len(parts) > 5 else "",
+        })
+    return rows
+
+
+def _extract_strongs(raw: str) -> str:
+    """从 Strong 列提取首个 G/H 编号（如 G0976=N-NSF 或 H9003/{H7225G}）。"""
+    for part in re.findall(r"[GH]\d+[A-Z]?", raw or ""):
+        return part
+    return ""
+
+
+def _extract_hebrew_strongs(raw: str) -> str:
+    return _extract_strongs(raw)
+
+
+def _parse_tahot(path: Path, *, books: set[str] | None = None) -> list[dict]:
+    """TAHOT 行：Gen.1.1#01=L \\t Hebrew \\t Translit \\t English \\t Strong …"""
+    rows: list[dict] = []
+    if not path.exists():
+        return rows
+    pos_counter: dict[tuple, int] = defaultdict(int)
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.strip() or line.startswith("#") or line.startswith("Ref:"):
+            continue
+        if not re.match(r"^[A-Za-z0-9]+\.\d+\.\d+#", line):
+            continue
+        parts = line.split("\t")
+        if len(parts) < 5:
+            continue
+        ref_part = parts[0].strip().split("#")[0]
+        coord = parse_osis_ref(ref_part)
+        if not coord:
+            continue
+        if books and coord.book not in books:
+            continue
+        key = (coord.book, coord.chapter, coord.verse)
+        pos_counter[key] += 1
+        strongs = _extract_hebrew_strongs(parts[4].strip())
+        rows.append({
+            "book": coord.book,
+            "chapter": coord.chapter,
+            "verse": coord.verse,
+            "position": pos_counter[key],
+            "word": parts[1].strip() if len(parts) > 1 else "",
+            "transliteration": parts[2].strip() if len(parts) > 2 else "",
+            "gloss": parts[3].strip() if len(parts) > 3 else "",
+            "strongs": strongs,
             "lemma": parts[1].strip() if len(parts) > 1 else "",
             "morphology": parts[5].strip() if len(parts) > 5 else "",
         })
@@ -146,7 +213,17 @@ def _parse_tagnt(path: Path) -> list[dict]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--ot-books",
+        default="",
+        help="旧约逐词书卷过滤，逗号分隔；默认 P0=GEN,PSA",
+    )
     args = ap.parse_args()
+    ot_filter = (
+        {b.strip().upper() for b in args.ot_books.split(",") if b.strip()}
+        if args.ot_books
+        else TAHOT_P0_BOOKS
+    )
 
     greek_lex = _load_lexicon(_fetch("TBESG.txt", TBESG_URL), "greek")
     hebrew_lex = _load_lexicon(_fetch("TBESH.txt", TBESH_URL), "hebrew")
@@ -155,6 +232,11 @@ def main() -> int:
     verse_rows: list[dict] = []
     for fname, url in TAGNT_URLS:
         verse_rows.extend(_parse_tagnt(_fetch(fname, url)))
+    for fname, url, file_books in TAHOT_URLS:
+        books = ot_filter & file_books if ot_filter else file_books
+        if not books:
+            continue
+        verse_rows.extend(_parse_tahot(_fetch(fname, url), books=books))
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     if OUT.exists():

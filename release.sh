@@ -137,36 +137,18 @@ if [[ "$social_code" != "200" && "$social_code" != "000" ]]; then
   log "⚠️  社交 API 返回 HTTP $social_code（期望 200）"
 fi
 
-if [[ -d "$APP_DIR/content/commentary/study-bible" ]]; then
-  log "RAG 种子索引（study-bible，需 RAG_EMBEDDING_API_KEY）"
-  if ! "${compose[@]}" exec -T api python /app/scripts/rag_index.py \
-    --dir /app/content/commentary/study-bible \
-    --source-type study-bible 2>&1; then
-    log "⚠️  RAG 索引跳过或失败（无 Key 或网络问题时不影响发版）"
-  else
+# 公版注释全卷 + RAG 索引（幂等：已齐全跳过拉取，body hash 未变跳过重嵌入）
+# 无 RAG_EMBEDDING_API_KEY 时用 hash 向量兜底，仍会入库
+log "RAG：公版注释全卷 + 索引（ensure_rag.sh，约数分钟～十余分钟）"
+if [[ -x "$APP_DIR/scripts/ensure_rag.sh" ]] || [[ -f "$APP_DIR/scripts/ensure_rag.sh" ]]; then
+  if "${compose[@]}" exec -T api bash /app/scripts/ensure_rag.sh 2>&1; then
     rag_chunks="$(curl -fsS http://127.0.0.1:8011/ai/rag/status 2>/dev/null | grep -oE '"chunks":[0-9]+' | cut -d: -f2 || echo 0)"
     log "RAG 块数: ${rag_chunks:-?}"
-  fi
-fi
-
-# 公版注释（Matthew Henry 等）：读取 .env.production 中的 RAG_EMBEDDING_API_KEY
-if grep -qE '^RAG_EMBEDDING_API_KEY=.+' "$ENV_FILE" 2>/dev/null; then
-  log "公版注释 RAG（HelloAO → public-domain，DashScope Key 已配置）"
-  if "${compose[@]}" exec -T api python /app/scripts/import_commentary_pd.py \
-      --books JHN MAT PSA GEN ROM 2>&1; then
-    if "${compose[@]}" exec -T api python /app/scripts/rag_index.py \
-        --dir /app/content/commentary/public-domain \
-        --source-type commentary 2>&1; then
-      rag_chunks="$(curl -fsS http://127.0.0.1:8011/ai/rag/status 2>/dev/null | grep -oE '"chunks":[0-9]+' | cut -d: -f2 || echo 0)"
-      log "RAG 块数（含公版注释）: ${rag_chunks:-?}"
-    else
-      log "⚠️  公版注释 RAG 入库失败"
-    fi
   else
-    log "⚠️  公版注释拉取失败（HelloAO 不可达时不影响发版）"
+    log "⚠️  RAG 步骤失败（无 Key / HelloAO 不可达时不影响发版）"
   fi
 else
-  log "未配置 RAG_EMBEDDING_API_KEY（$ENV_FILE），跳过公版注释 RAG；study-bible 仍可用 hash 向量兜底"
+  log "⚠️  缺少 scripts/ensure_rag.sh，跳过 RAG"
 fi
 
 log "健康检查 Web /"

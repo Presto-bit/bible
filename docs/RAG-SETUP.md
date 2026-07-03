@@ -45,33 +45,48 @@ content/commentary/
 
 ## 3. 入库（索引）
 
+### 发版自动（推荐）
+
+`release.sh` 在 API 就绪后会自动执行 `scripts/ensure_rag.sh`：
+
+1. 从 HelloAO 拉取公版注释**全卷**（已齐全 / 上游耗尽则跳过）
+2. 索引 `study-bible` + `public-domain`（body hash 未变跳过；`--reuse` 复用已有向量）
+
+无 `RAG_EMBEDDING_API_KEY` 时用 hash 向量兜底，仍会入库。失败不阻断发版。
+
+手动等价：
+
+```bash
+# 本地 / 容器内
+bash scripts/ensure_rag.sh
+# 或
+make ensure-rag
+```
+
+### 手工索引
+
 在项目根目录执行（需 Postgres 已启动且 API 能连库）：
 
 ```bash
-# 单文件
-python scripts/rag_index.py --file content/commentary/study-bible/jhn-03.md \
-  --title "约翰福音3章查经笔记" --doc-id jhn-03-notes
+# 公版注释全卷（Matthew Henry，约 21 卷）
+python scripts/import_commentary_pd.py --skip-existing
 
-# 整个目录
-python scripts/rag_index.py --dir content/commentary/study-bible \
-  --title-prefix "研经手册"
+# 入库
+python scripts/rag_index.py --dir content/commentary/public-domain \
+  --source-type commentary --reuse
 
 # 验证检索
-python scripts/rag_index.py --query "约翰福音3章 重生" --limit 5
+python scripts/rag_index.py --query "约翰福音3章 重生" --top-k 5
 ```
 
 Docker 生产环境示例：
 
 ```bash
-sudo -u presto -H bash -c '
-  cd /opt/bible &&
-  docker compose exec -T api python scripts/rag_index.py \
-    --dir /app/content/commentary \
-    --title-prefix "圣经注释"
-'
+cd /opt/bible
+docker compose -f docker-compose.prod.yml exec -T api bash /app/scripts/ensure_rag.sh
 ```
 
-> 注释目录需挂载进 API 容器，或在宿主机执行后数据写入同一 Postgres。
+> `content/commentary/**` 默认不入 git，线上由 `ensure_rag.sh` 拉取并索引。
 
 ## 4. 数据库表
 

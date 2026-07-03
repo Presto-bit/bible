@@ -1,0 +1,38 @@
+{
+  "schema": "map_tours@1",
+  "count": 2,
+  "tours": [
+    {
+      "id": "paul-first-journey",
+      "title": "保罗第一次宣教旅程",
+      "subtitle": "从安提阿出发，经小亚细亚到马其顿",
+      "era": "公元 46–48 年",
+      "description": "保罗与巴拿巴受圣灵差遣，在塞浦路斯、小亚细亚传道，并在特庇、路司得、以哥念建立教会。",
+      "stops": [
+        {"order": 1, "place_id": "antioch-syria", "label": "安提阿（叙利亚）", "ref": "ACT 13:1", "note": "差遣出发地"},
+        {"order": 2, "place_id": "cyprus", "label": "塞浦路斯", "ref": "ACT 13:4", "note": "在撒拉米与帕弗传道"},
+        {"order": 3, "place_id": "antioch-pisidia", "label": "彼西底的安提阿", "ref": "ACT 13:14", "note": "在会堂讲道"},
+        {"order": 4, "place_id": "iconium", "label": "以哥念", "ref": "ACT 14:1", "note": "犹太人、外邦人信主"},
+        {"order": 5, "place_id": "lystra", "label": "路司得", "ref": "ACT 14:8", "note": "医治瘸腿，几乎被当神"},
+        {"order": 6, "place_id": "derbe", "label": "特庇", "ref": "ACT 14:20", "note": "坚固门徒，选立长老"},
+        {"order": 7, "place_id": "antioch-syria", "label": "安提阿（叙利亚）", "ref": "ACT 14:26", "note": "回报教会，述说神所行"}
+      ]
+    },
+    {
+      "id": "jesus-ministry-galilee",
+      "title": "耶稣加利利事工",
+      "subtitle": "呼召门徒、传道、神迹与训练",
+      "era": "约公元 27–30 年",
+      "description": "耶稣在加利利地区公开传道，呼召门徒，在会堂与户外教导，并行神迹，显明天国已临。",
+      "stops": [
+        {"order": 1, "place_id": "nazareth", "label": "拿撒勒", "ref": "LUK 4:16", "note": "在会堂读以赛亚书"},
+        {"order": 2, "place_id": "capernaum", "label": "迦百农", "ref": "MAT 4:13", "note": "以迦百农为事工中心"},
+        {"order": 3, "place_id": "sea-of-galilee", "label": "加利利海", "ref": "MAT 4:18", "note": "呼召彼得、安得烈等渔夫"},
+        {"order": 4, "place_id": "bethsaida", "label": "伯赛大", "ref": "LUK 9:10", "note": "五饼二鱼喂饱五千"},
+        {"order": 5, "place_id": "caesarea-philippi", "label": "该撒利亚腓立比", "ref": "MAT 16:13", "note": "彼得认耶稣为基督"},
+        {"order": 6, "place_id": "mount-of-olives-2", "label": "橄榄山", "ref": "MAT 24:3", "note": "橄榄山讲论末后的事"},
+        {"order": 7, "place_id": "jerusalem", "label": "耶路撒冷", "ref": "MAT 21:1", "note": "荣入圣城、受难与复活"}
+      ]
+    }
+  ]
+}

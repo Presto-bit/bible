@@ -51,7 +51,11 @@ import-bible-all: import-bible ## CNV + KJV + 公版和合本
 
 .PHONY: rag-index-pd
 rag-index-pd: ## 公版注释 RAG 入库
-	$(PY) scripts/rag_index.py --dir content/commentary/public-domain --source-type commentary
+	$(PY) scripts/rag_index.py --dir content/commentary/public-domain --source-type commentary --reuse
+
+.PHONY: ensure-rag
+ensure-rag: ## 公版注释全卷 + RAG 索引（发版同款）
+	bash scripts/ensure_rag.sh
 
 .PHONY: import-bible
 import-bible: ## EPUB → verses.json → SQLite（CNV）

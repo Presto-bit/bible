@@ -1,0 +1,35 @@
+{
+  "schema": "disambiguation_patch@1",
+  "patches": [
+    {
+      "match": {"id": "john_baptist"},
+      "disambiguation": "施洗约翰（先知，耶稣的先锋）",
+      "aliases_add": ["施洗者约翰"]
+    },
+    {
+      "match": {"id": "john_apostle"},
+      "disambiguation": "使徒约翰（西庇太的儿子，耶稣所爱的门徒）",
+      "aliases_add": ["使徒约翰"]
+    },
+    {
+      "match": {"id": "mary-mother-of-jesus"},
+      "disambiguation": "耶稣的母亲马利亚",
+      "aliases_add": ["圣母马利亚", "耶稣的母亲"]
+    },
+    {
+      "match": {"id": "judas-iscariot"},
+      "disambiguation": "加略人犹大（卖主的门徒）",
+      "aliases_add": ["加略人犹大"]
+    },
+    {
+      "match": {"id": "peter"},
+      "disambiguation": "彼得（原名西门，十二门徒之首）",
+      "aliases_add": ["西门彼得", "西门"]
+    },
+    {
+      "match": {"id": "paul"},
+      "disambiguation": "使徒保罗（原名扫罗）",
+      "aliases_add": ["扫罗"]
+    }
+  ]
+}

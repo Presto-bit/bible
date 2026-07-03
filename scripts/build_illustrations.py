@@ -46,6 +46,19 @@ THEME_MAP = {
     "顺服": ("path", "sage"),
     "忍耐": ("wheat", "wheat"),
     "恩典": ("olive", "dawn"),
+    "创造": ("sun", "mist"),
+    "救恩": ("door", "dawn"),
+    "圣灵": ("dove", "mist"),
+    "复活": ("sun", "sage"),
+    "宽恕": ("olive", "sage"),
+    "焦虑": ("water", "slate"),
+    "工作": ("path", "clay"),
+    "教会": ("lamp", "sage"),
+    "使命": ("path", "dawn"),
+    "公义": ("mountain", "slate"),
+    "家庭": ("wheat", "clay"),
+    "祝福": ("wheat", "dawn"),
+    "苦难": ("mountain", "clay"),
 }
 
 
