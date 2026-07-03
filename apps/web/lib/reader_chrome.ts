@@ -5,5 +5,5 @@ export function clearReaderChrome() {
   document.body.style.background = '';
   document.documentElement.style.background = '';
   const meta = document.querySelector('meta[name="theme-color"]');
-  meta?.setAttribute('content', '#4f6b5d');
+  meta?.setAttribute('content', '#fffcfa');
 }

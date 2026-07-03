@@ -19,7 +19,7 @@ export async function renderShareCardPng(input: ShareCardInput): Promise<Blob | 
   if (!ctx) return null;
 
   const grad = ctx.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, '#f7f4ee');
+  grad.addColorStop(0, '#fffcfa');
   grad.addColorStop(1, '#e8e0d4');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, w, h);

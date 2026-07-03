@@ -6,9 +6,11 @@ import {
   deleteThought,
   isThoughtLiked,
   sortedThoughts,
+  sortedThoughtsForVerse,
   toggleThoughtLike,
   type ThoughtRow,
 } from '@/lib/reader_thoughts';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 function timeLabel(ms: number) {
   const d = new Date(ms);
@@ -20,25 +22,45 @@ export default function ThoughtsListSheet({
   refStr,
   refLabel,
   verseText,
+  bookId,
+  chapter,
+  verse,
   onChanged,
   onClose,
 }: {
   refStr: string;
   refLabel: string;
   verseText: string;
+  bookId?: string;
+  chapter?: number;
+  verse?: number;
   onChanged?: () => void;
   onClose: () => void;
 }) {
-  const [thoughts, setThoughts] = useState<ThoughtRow[]>(() => sortedThoughts(refStr));
+  const confirm = useConfirm();
+  const loadThoughts = useCallback(() => {
+    if (bookId != null && chapter != null && verse != null) {
+      return sortedThoughtsForVerse(bookId, chapter, verse);
+    }
+    return sortedThoughts(refStr);
+  }, [bookId, chapter, verse, refStr]);
+
+  const [thoughts, setThoughts] = useState<ThoughtRow[]>(() => loadThoughts());
   const uid = effectiveId() || 'me';
 
   const refresh = useCallback(() => {
-    setThoughts(sortedThoughts(refStr));
+    setThoughts(loadThoughts());
     onChanged?.();
-  }, [refStr, onChanged]);
+  }, [loadThoughts, onChanged]);
 
-  const removeMine = (id: string) => {
-    if (!window.confirm('删除这条想法？')) return;
+  const removeMine = async (id: string) => {
+    const ok = await confirm({
+      title: '删除想法',
+      message: '确定删除这条想法？',
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
     if (deleteThought(id)) refresh();
   };
 
@@ -91,7 +113,7 @@ export default function ThoughtsListSheet({
                         type="button"
                         className="text-link"
                         style={{ color: '#b1554a', fontSize: 13 }}
-                        onClick={() => removeMine(t.id)}
+                        onClick={() => void removeMine(t.id)}
                       >
                         删除
                       </button>

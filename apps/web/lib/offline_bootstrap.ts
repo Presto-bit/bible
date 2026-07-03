@@ -8,6 +8,15 @@ const RETRY_MS = 24 * 60 * 60 * 1000;
 
 let running: Promise<void> | null = null;
 
+export type OfflinePackStatus = 'ready' | 'missing' | 'failed' | 'loading';
+
+export async function offlinePackStatus(): Promise<OfflinePackStatus> {
+  if (await isOfflinePackReady()) return 'ready';
+  if (localStorage.getItem(FAIL_KEY)) return 'failed';
+  if (running) return 'loading';
+  return 'missing';
+}
+
 /** 后台下载；已安装或省流/弱网时跳过 */
 export function ensureOfflinePackAutoDownload(): Promise<void> {
   if (running) return running;

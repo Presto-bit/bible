@@ -16,8 +16,11 @@ import { loadGeneratedPlans } from '@/lib/generated_plans';
 import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 import { formatGroupRefLabel } from '@/lib/ref_label';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { errorMessage } from '@/lib/friendly_error';
 
 function GroupPageInner() {
+  const confirm = useConfirm();
   const router = useRouter();
   const searchParams = useSearchParams();
   const params = useParams<{ id: string }>();
@@ -212,23 +215,28 @@ function GroupPageInner() {
   };
 
   const reportMsg = async (mid: string) => {
-    const reason = window.prompt('举报原因（可选）') ?? '';
     try {
-      const r = await api.reportMessage(mid, reason);
-      alert(r.hidden ? '已举报，该内容已被隐藏待复核' : '已举报，感谢反馈');
+      const r = await api.reportMessage(mid, '');
+      showToast(r.hidden ? '已举报，该内容已被隐藏待复核' : '已举报，感谢反馈');
       reload();
     } catch (e) {
-      alert(`举报失败：${e}`);
+      showToast(errorMessage(e, '举报失败，请稍后再试'));
     }
   };
 
   const deleteMsg = async (mid: string) => {
-    if (!window.confirm('确定删除这条内容？')) return;
+    const ok = await confirm({
+      title: '删除内容',
+      message: '确定删除这条内容？',
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await api.deleteMessage(mid);
       reload();
     } catch (e) {
-      alert(`删除失败：${e}`);
+      showToast(errorMessage(e, '删除失败，请稍后再试'));
     }
   };
 
@@ -307,7 +315,7 @@ function GroupPageInner() {
       setSettingsOpen(false);
       await reload();
     } catch (e) {
-      alert(`保存失败：${e}`);
+      showToast(errorMessage(e, '保存失败，请稍后再试'));
     } finally {
       setBusy(false);
     }
@@ -320,7 +328,7 @@ function GroupPageInner() {
       showToast(detail.muted ? '已恢复本群提醒' : '已关闭本群提醒');
       await reload();
     } catch (e) {
-      alert(`设置失败：${e}`);
+      showToast(errorMessage(e, '设置失败，请稍后再试'));
     } finally {
       setBusy(false);
     }
@@ -333,14 +341,20 @@ function GroupPageInner() {
       showToast('已更新置顶任务');
       await reload();
     } catch (e) {
-      alert(`置顶失败：${e}`);
+      showToast(errorMessage(e, '置顶失败，请稍后再试'));
     } finally {
       setBusy(false);
     }
   };
 
   const dissolve = async () => {
-    if (!window.confirm('确定解散此共读群？所有成员将被移出，此操作不可撤销。')) return;
+    const ok = await confirm({
+      title: '解散共读群',
+      message: '确定解散此共读群？所有成员将被移出，此操作不可撤销。',
+      confirmLabel: '解散',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     try {
       await api.dissolveGroup(gid);
@@ -348,7 +362,7 @@ function GroupPageInner() {
       markGroupsListDirty();
       router.push('/discover/groups');
     } catch (e) {
-      alert(`解散失败：${e}`);
+      showToast(errorMessage(e, '解散失败，请稍后再试'));
     } finally {
       setBusy(false);
     }

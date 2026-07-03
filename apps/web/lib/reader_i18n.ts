@@ -60,6 +60,6 @@ const EN: ReaderUiCopy = {
   note: 'Note',
 };
 
-export function readerUi(english: boolean): ReaderUiCopy {
-  return english ? EN : ZH;
+export function readerUi(_english?: boolean): ReaderUiCopy {
+  return ZH;
 }

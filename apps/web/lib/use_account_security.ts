@@ -9,10 +9,10 @@ import {
   hasPassword,
   listDevices,
   setCredentials,
-  unbindDevice,
   usernameAvailable,
   type BoundDevice,
 } from '@/lib/api';
+import { usePasswordSheet } from '@/components/ui/PasswordSheetProvider';
 
 export function maskPhone(phone: string): string {
   const p = phone.trim();
@@ -21,6 +21,7 @@ export function maskPhone(phone: string): string {
 }
 
 export function useAccountSecurity(onAccountChange?: () => void) {
+  const askPassword = usePasswordSheet();
   const [name, setName] = useState('');
   const [pwd, setPwd] = useState('');
   const [phone, setPhone] = useState('');
@@ -118,21 +119,16 @@ export function useAccountSecurity(onAccountChange?: () => void) {
 
   const changePasswordHandler = async () => {
     const needOld = hasPassword();
-    const old = needOld ? prompt('请输入当前密码：') : null;
-    if (needOld && old === null) return;
-    const next = prompt('请输入新密码（≥6 位）：');
-    if (next === null) return;
-    if (next.length < 6) {
-      alert('密码至少 6 位');
-      return;
-    }
-    try {
-      await changePassword(old, next);
-      setMsg('密码已更新');
-      notify();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
-    }
+    const ok = await askPassword({
+      title: needOld ? '修改密码' : '设置密码',
+      needCurrent: needOld,
+      onSubmit: async (old, next) => {
+        await changePassword(old, next);
+        setMsg('密码已更新');
+        notify();
+      },
+    });
+    if (!ok) return;
   };
 
   const copyId = async () => {

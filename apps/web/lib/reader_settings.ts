@@ -16,7 +16,7 @@ export const READER_THEMES: { id: ReaderTheme; label: string; desc: string }[] =
 ];
 
 const READER_THEME_BG: Record<ReaderTheme, string> = {
-  morning: '#ffffff',
+  morning: '#fffcfa',
   night: '#12181c',
 };
 

@@ -19,6 +19,7 @@ import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { noteForMarkRef, upsertMarkNote } from '@/lib/mark_notes';
 import { listMarksDetailed } from '@/lib/mark_stats';
 import Link from 'next/link';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 interface Favorite {
   ref: string;
@@ -45,6 +46,7 @@ type FeedItem =
 const COLOR_FILTER_ALL = 'all';
 
 export default function NotesPage() {
+  const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -140,8 +142,14 @@ export default function NotesPage() {
     refresh();
   };
 
-  const removeThought = (id: string) => {
-    if (!window.confirm('删除这条想法？')) return;
+  const removeThought = async (id: string) => {
+    const ok = await confirm({
+      title: '删除想法',
+      message: '确定删除这条想法？',
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
     deleteThought(id);
     refresh();
   };
@@ -420,7 +428,7 @@ export default function NotesPage() {
                   >
                     分享
                   </button>
-                  <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeThought(item.id)}>
+                  <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => void removeThought(item.id)}>
                     删除
                   </button>
                 </div>

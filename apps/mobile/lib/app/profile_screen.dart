@@ -677,7 +677,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       color: AppColors.accentWash,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('知识挑战',
+                    child: const Text('每日问答',
                         style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,

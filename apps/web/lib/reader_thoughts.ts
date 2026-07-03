@@ -49,18 +49,60 @@ export function selectionRef(bookId: string, chapter: number, verses: number[]):
 }
 
 function verseFromRef(ref: string, bookId: string, chapter: number): number | null {
+  const verses = versesFromRef(ref, bookId, chapter);
+  return verses.length ? verses[0] : null;
+}
+
+/** 想法 ref 覆盖的节号列表（支持 gen.1.3-5）。 */
+export function versesFromRef(ref: string, bookId: string, chapter: number): number[] {
+  if (ref === `${bookId}.${chapter}`) return [];
   const prefix = `${bookId}.${chapter}.`;
-  if (!ref.startsWith(prefix)) return null;
-  const tail = ref.split('.')[2] ?? '';
-  const v = tail.includes('-') ? Number(tail.split('-')[0]) : Number(tail);
-  return Number.isNaN(v) ? null : v;
+  if (!ref.startsWith(prefix)) return [];
+  const tail = ref.slice(prefix.length);
+  if (!tail) return [];
+  if (tail.includes('-')) {
+    const [rawA, rawB] = tail.split('-');
+    const a = Number(rawA);
+    const b = Number(rawB);
+    if (Number.isNaN(a) || Number.isNaN(b)) return [];
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    const out: number[] = [];
+    for (let i = lo; i <= hi; i += 1) out.push(i);
+    return out;
+  }
+  const v = Number(tail);
+  return Number.isNaN(v) ? [] : [v];
+}
+
+export function thoughtsAtVerse(bookId: string, chapter: number, verse: number): ThoughtRow[] {
+  return readAll().filter((t) => versesFromRef(t.ref, bookId, chapter).includes(verse));
+}
+
+/** 打开某节想法列表时使用的 ref（优先精确节 ref）。 */
+export function listRefForVerse(bookId: string, chapter: number, verse: number): string {
+  const rows = thoughtsAtVerse(bookId, chapter, verse);
+  const exact = `${bookId}.${chapter}.${verse}`;
+  if (!rows.length) return exact;
+  return rows.find((r) => r.ref === exact)?.ref ?? rows[0].ref;
+}
+
+export function sortedThoughtsForVerse(bookId: string, chapter: number, verse: number): ThoughtRow[] {
+  const rows = thoughtsAtVerse(bookId, chapter, verse);
+  const uid = userId();
+  const mine = rows.filter((t) => t.authorId === uid).sort((a, b) => b.createdAtMs - a.createdAtMs);
+  const others = rows
+    .filter((t) => t.authorId !== uid)
+    .sort((a, b) => b.likesCount - a.likesCount || b.createdAtMs - a.createdAtMs);
+  return [...mine, ...others];
 }
 
 export function thoughtsForChapter(bookId: string, chapter: number): Record<number, number> {
   const map: Record<number, number> = {};
   for (const t of readAll()) {
-    const v = verseFromRef(t.ref, bookId, chapter);
-    if (v != null) map[v] = (map[v] ?? 0) + 1;
+    for (const v of versesFromRef(t.ref, bookId, chapter)) {
+      map[v] = (map[v] ?? 0) + 1;
+    }
   }
   return map;
 }
@@ -71,8 +113,9 @@ export function myThoughtsForChapter(bookId: string, chapter: number): Record<nu
   const map: Record<number, number> = {};
   for (const t of readAll()) {
     if (t.authorId !== uid) continue;
-    const v = verseFromRef(t.ref, bookId, chapter);
-    if (v != null) map[v] = (map[v] ?? 0) + 1;
+    for (const v of versesFromRef(t.ref, bookId, chapter)) {
+      map[v] = (map[v] ?? 0) + 1;
+    }
   }
   return map;
 }

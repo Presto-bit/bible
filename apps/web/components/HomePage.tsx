@@ -20,6 +20,9 @@ import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
 import { groupListSubline, myTodayGroupStatus, myTodayGroupStatusLabel } from '@/lib/group_status';
 import { nextReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
+import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
+import { listAllThoughts } from '@/lib/reader_thoughts';
+import { listNotes } from '@/lib/notes';
 
 // 每日经文全屏背景图（按主题挑选；可在此配置更多背景）。
 const VERSE_BG =
@@ -32,6 +35,7 @@ function buildRail(
   prayer?: { title: string; sub: string; href: string },
   suggest?: { title: string; sub: string; href: string },
   assistant?: { title: string; sub: string; href: string },
+  notes?: { title: string; sub: string; href: string },
 ) {
   const cards = [
     {
@@ -67,6 +71,15 @@ function buildRail(
     });
   }
   cards.push(
+    {
+      tag: '笔记',
+      reason: '经文记忆',
+      title: notes?.title ?? '经文记忆',
+      sub: notes?.sub ?? '想法 · 收藏 · 划线',
+      cta: '查看 ›',
+      href: notes?.href ?? '/notes',
+      accent: false,
+    },
     {
       tag: '问答',
       reason: '每日问答',
@@ -122,7 +135,7 @@ export default function HomePageClient() {
         setShareCount(v.shares_count ?? 0);
         if (day) writeLocalDailyVerseLike(day, Boolean(v.liked));
       })
-      .catch((e) => setErr(String(e)))
+      .catch((e) => setErr(errorMessage(e, '内容加载失败')))
       .finally(() => setDvLoading(false));
   }, []);
 
@@ -284,6 +297,13 @@ export default function HomePageClient() {
     } catch {
       /* ignore */
     }
+    const thoughtN = listAllThoughts().length;
+    const noteN = listNotes().length;
+    const notesCard = {
+      title: '经文记忆',
+      sub: `${thoughtN + noteN > 0 ? `${thoughtN + noteN} 条内容 · ` : ''}想法 · 收藏 · 划线`,
+      href: '/notes',
+    };
     setRail(buildRail(
       planCard,
       resumeCard,
@@ -291,6 +311,7 @@ export default function HomePageClient() {
       prayerCard,
       suggest ? { title: suggest.title, sub: suggest.reason, href: suggest.href } : undefined,
       assistantCard,
+      notesCard,
     ));
   }, []);
 
@@ -414,9 +435,7 @@ export default function HomePageClient() {
                   setLiked(prevLiked);
                   setLikeCount(prevCount);
                   const msg = e instanceof Error ? e.message : String(e);
-                  setLikeErr(msg.includes('503') || msg.includes('暂不可用')
-                    ? '点赞服务未就绪，请稍后在设置中清除缓存或联系管理员执行数据库迁移'
-                    : `点赞失败：${msg}`);
+                  setLikeErr(errorMessage(e, '暂时无法点赞，请稍后再试'));
                 } finally {
                   setLikeBusy(false);
                 }
@@ -491,7 +510,7 @@ export default function HomePageClient() {
       {pendingBook && (
         <Link href="/challenge" className="card card-2 card-tint row-card challenge-nudge" style={{ display: 'flex', marginBottom: 10 }}>
           <span className="pill pill-active">巩固挑战</span>
-          <span style={{ flex: 1, fontWeight: 600 }}>读完《{pendingBook.bookName}》了，来一关知识挑战？</span>
+          <span style={{ flex: 1, fontWeight: 600 }}>读完《{pendingBook.bookName}》了，来做每日问答？</span>
           <span className="rail-cta">去闯关 ›</span>
         </Link>
       )}

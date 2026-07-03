@@ -131,7 +131,7 @@ export default function ProfilePage() {
             <SyncStatusBadge />
           </div>
           <span className="muted">{bio.trim() || '愿日日亲近主话'}</span>
-          {idValue && (
+          {idValue && !accountComplete && (
             <button type="button" className="id-chip" onClick={copyId}>
               {idCopied ? '已复制 ✓' : `ID ${idValue}`}
             </button>
@@ -191,12 +191,12 @@ export default function ProfilePage() {
       )}
 
       <Link href="/challenge" className="card row-card challenge-card" style={{ display: 'flex', marginTop: 12 }}>
-        <span className="pill pill-active">知识挑战</span>
+        <span className="pill pill-active">每日问答</span>
         <span style={{ flex: 1 }}>
-          <strong>圣经知识闯关</strong>
-          <span className="muted" style={{ display: 'block', fontSize: 12 }}>每日问答 · 答题统计</span>
+          <strong>今日 5 题</strong>
+          <span className="muted" style={{ display: 'block', fontSize: 12 }}>复习错题 · 答题统计</span>
         </span>
-        <span className="muted">去闯关 ›</span>
+        <span className="muted">开始 ›</span>
       </Link>
 
       <div style={{ marginTop: 12 }}>
@@ -204,7 +204,7 @@ export default function ProfilePage() {
       </div>
 
       <Link href="/notes" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
-        <span style={{ flex: 1 }}>我的笔记</span>
+        <span style={{ flex: 1 }}>经文记忆</span>
         <span className="muted">想法 · 收藏 · 划线 ›</span>
       </Link>
 
@@ -222,6 +222,21 @@ export default function ProfilePage() {
                 onAccountChange={refreshAccount}
                 middle={
                   <>
+                    <button
+                      type="button"
+                      className="settings-avatar-row"
+                      style={{ marginTop: 10, width: '100%', background: 'none', border: 'none', padding: 0, cursor: 'pointer', textAlign: 'left' }}
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        setPickerOpen(true);
+                      }}
+                    >
+                      <span className="muted" style={{ fontSize: 12 }}>头像</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                        <Avatar id={avatarId} size={40} />
+                        <span className="muted" style={{ fontSize: 13 }}>更换 ›</span>
+                      </span>
+                    </button>
                     <div className="section-row" style={{ marginTop: 10 }}>
                       <span className="muted" style={{ fontSize: 12 }}>签名</span>
                       <span className="muted" style={{ fontSize: 12 }}>{bio.length}/15</span>

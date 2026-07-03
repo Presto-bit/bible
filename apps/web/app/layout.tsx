@@ -4,6 +4,10 @@ import PwaRegister from '@/components/PwaRegister';
 import StaleShellGuard from '@/components/StaleShellGuard';
 import InstallBanner from '@/components/InstallBanner';
 import IdentityShell from '@/components/IdentityShell';
+import { ConfirmProvider } from '@/components/ui/ConfirmProvider';
+import { PasswordSheetProvider } from '@/components/ui/PasswordSheetProvider';
+import OfflineBar from '@/components/OfflineBar';
+import WebOnboardingSheet from '@/components/WebOnboardingSheet';
 import BottomTabs from '@/components/BottomTabs';
 
 import { BASE_PATH } from '@/lib/basePath';
@@ -23,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#4f6b5d',
+  themeColor: '#fffcfa',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -42,13 +46,19 @@ export default function RootLayout({
         <span hidden aria-hidden="true">
           每日问答
         </span>
-        <IdentityShell>
-          <div className="app-body">{children}</div>
-          <BottomTabs />
-          <StaleShellGuard />
-          <PwaRegister />
-          <InstallBanner />
-        </IdentityShell>
+        <ConfirmProvider>
+          <PasswordSheetProvider>
+            <IdentityShell>
+              <OfflineBar />
+              <div className="app-body">{children}</div>
+              <BottomTabs />
+              <StaleShellGuard />
+              <PwaRegister />
+              <InstallBanner />
+              <WebOnboardingSheet />
+            </IdentityShell>
+          </PasswordSheetProvider>
+        </ConfirmProvider>
       </body>
     </html>
   );

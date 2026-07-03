@@ -107,7 +107,7 @@ export function computeAllBadges(ctx: Ctx): BadgeDef[] {
       b(
         `quiz_${n}`,
         `答对 ${n} 题`,
-        '知识挑战积累',
+        '每日问答积累',
         ['🃏', '🎯', '🧠', '🏅', '🎲', '📊', '🏆', '👑'][i % 8],
         quiz >= n,
         `${Math.min(quiz, n)}/${n}`,

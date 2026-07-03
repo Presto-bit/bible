@@ -553,6 +553,9 @@ function AssistantPageInner() {
       {msgs.length === 0 ? (
         <div className="assistant-empty-fill">
           <div className="assistant-empty-hint">
+            <p className="muted" style={{ fontSize: 13, lineHeight: 1.65, margin: '0 0 12px', padding: '0 4px' }}>
+              我是小爱，可以帮你查经文、解经义、整理笔记。需要联网。
+            </p>
             <div className="empty-pills">
               {personalized.map((c) => (
                 <button

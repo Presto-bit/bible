@@ -48,10 +48,14 @@ const TABS = [
   },
 ];
 
+const SECONDARY_PREFIXES = ['/challenge', '/notes', '/plans', '/report', '/dictionary', '/login'];
+
 export default function BottomTabs() {
   const pathname = usePathname();
+  const compact = SECONDARY_PREFIXES.some((p) => pathname.startsWith(p))
+    || /^\/discover\/(group|join|create)/.test(pathname);
   return (
-    <nav className="tabbar">
+    <nav className={`tabbar${compact ? ' tabbar-compact-nav' : ''}`}>
       {TABS.map((t) => {
         const active =
           t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);

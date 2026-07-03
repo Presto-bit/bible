@@ -68,6 +68,7 @@ import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
 import type { PlanReadingMeta } from '@/lib/plan_reading';
 import { readerUi } from '@/lib/reader_i18n';
 import MarkNoteBar from '@/components/reader/MarkNoteBar';
+import { ReaderSkeleton } from '@/components/Skeleton';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { parseMarkRef } from '@/lib/mark_ref';
 import {
@@ -82,9 +83,8 @@ import {
 } from '@/lib/reader_highlights';
 import {
   addThought,
-  deleteThought,
+  listRefForVerse,
   myThoughtsForChapter,
-  myThoughtsForRef,
   selectionRef,
   thoughtsForChapter,
 } from '@/lib/reader_thoughts';
@@ -181,7 +181,12 @@ export default function ReaderView({
     label: string;
     verseText?: string;
   }>(null);
-  const [thoughtListSheet, setThoughtListSheet] = useState<null | { ref: string; label: string; text: string }>(null);
+  const [thoughtListSheet, setThoughtListSheet] = useState<null | {
+    ref: string;
+    label: string;
+    text: string;
+    verse: number;
+  }>(null);
   const [thoughtRevision, setThoughtRevision] = useState(0);
   const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
   const [planOverlayOpen, setPlanOverlayOpen] = useState(false);
@@ -454,44 +459,30 @@ export default function ReaderView({
   }, [hasSel, selected, chromeHidden, updateFocusBarPosition]);
 
   const openThoughtListForVerse = (verse: number, text: string) => {
+    const refStr = listRefForVerse(book.id, chapter, verse);
     setThoughtListSheet({
-      ref: `${book.id}.${chapter}.${verse}`,
+      ref: refStr,
       label: `${bookAbbr(book.name)} ${chapter}:${verse}`,
       text,
+      verse,
     });
   };
 
-  const handleThoughtLineClick = (verse: number, text: string) => {
-    const ref = `${book.id}.${chapter}.${verse}`;
-    const mine = myThoughtsForRef(ref);
-    const total = chapterThoughts[verse] ?? 0;
-    if (mine.length === 1 && total === 1) {
-      if (window.confirm('删除这条想法？')) {
-        deleteThought(mine[0].id);
-        setThoughtRevision((n) => n + 1);
-        flashToast('已删除想法');
-      }
-      return;
-    }
-    openThoughtListForVerse(verse, text);
+  const verseThoughtClass = (verse: number) => {
+    if (!thoughtsOn || !(chapterThoughts[verse] ?? 0)) return '';
+    return (myChapterThoughts[verse] ?? 0) > 0
+      ? ' verse-has-thought verse-has-thought-mine'
+      : ' verse-has-thought';
   };
 
-  const renderThoughtLine = (para: { verses: { verse: number; text: string }[] }) => {
-    if (!thoughtsOn) return null;
-    const v = para.verses.find((x) => (chapterThoughts[x.verse] ?? 0) > 0);
-    if (!v) return null;
-    const mine = (myChapterThoughts[v.verse] ?? 0) > 0;
-    return (
-      <button
-        type="button"
-        className={`verse-thought-line${mine ? ' verse-thought-line-mine' : ''}`}
-        aria-label={mine ? '我的想法' : '查看想法'}
-        onClick={(e) => {
-          e.stopPropagation();
-          handleThoughtLineClick(v.verse, verseDisplayText(v.verse, v.text));
-        }}
-      />
-    );
+  const handleVerseThoughtClick = (
+    e: React.MouseEvent,
+    verse: number,
+    text: string,
+  ) => {
+    if (!thoughtsOn || !(chapterThoughts[verse] ?? 0)) return;
+    e.stopPropagation();
+    openThoughtListForVerse(verse, text);
   };
 
   const verseBlockStyle = {
@@ -989,7 +980,7 @@ export default function ReaderView({
   const renderChapterVerses = () => (
     <>
       {verses.length === 0 && chapterLoading ? (
-        <p className="muted">{ui.loading}</p>
+        <ReaderSkeleton />
       ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId && parallelVerses.length > 0 ? (
         <div className="reader-parallel">
           {paragraphs.map((para) => {
@@ -1015,7 +1006,8 @@ export default function ReaderView({
                         <span
                           key={v.verse}
                           id={`verse-anchor-${v.verse}`}
-                          className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}`}
+                          onClick={(e) => handleVerseThoughtClick(e, v.verse, text)}
                         >
                           {verseNo !== 'hidden' && (
                             <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -1045,7 +1037,6 @@ export default function ReaderView({
                     })}
                   </div>
                 </div>
-                {renderThoughtLine(para)}
               </div>
             );
           })}
@@ -1072,7 +1063,8 @@ export default function ReaderView({
                     <span
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}`}
+                      onClick={(e) => handleVerseThoughtClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                     >
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -1088,7 +1080,6 @@ export default function ReaderView({
                   );
                 })}
               </div>
-              {renderThoughtLine(para)}
             </div>
           );
         })
@@ -1308,6 +1299,9 @@ export default function ReaderView({
           refStr={thoughtListSheet.ref}
           refLabel={thoughtListSheet.label}
           verseText={thoughtListSheet.text}
+          bookId={book.id}
+          chapter={chapter}
+          verse={thoughtListSheet.verse}
           onChanged={() => setThoughtRevision((n) => n + 1)}
           onClose={() => setThoughtListSheet(null)}
         />

@@ -18,6 +18,7 @@ import { formatGroupRefLabel } from '@/lib/ref_label';
 import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { AssistantLink } from '@/components/AssistantLink';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
+import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 
 function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
   if (!reactions) return 0;
@@ -74,7 +75,7 @@ export default function DiscoverPage() {
       clearGroupsListDirty();
       setErr(null);
     } catch (e) {
-      setErr(String(e));
+      setErr(errorMessage(e, '加载失败，请检查网络'));
     }
   }, []);
 
@@ -146,7 +147,7 @@ export default function DiscoverPage() {
 
   return (
     <main className="container discover-page">
-      {err && <p className="muted" style={{ marginBottom: 8 }}>{err}</p>}
+      {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
       {todayHref ? (
         <Link

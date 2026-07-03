@@ -74,8 +74,8 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 children: [
                   const _Slide(
                     icon: Icons.menu_book_rounded,
-                    title: '欢迎来到 PrestoAI 读经',
-                    body: '安静读经，遇见话语。\n小爱随时为你解经、陪你默想。',
+                    title: '欢迎来到彼爱',
+                    body: '安静读经，在话语中相遇。\n小爱随时为你解经、陪你默想。',
                   ),
                   _NameSlide(controller: _name),
                   _GoalSlide(
