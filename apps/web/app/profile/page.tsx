@@ -3,41 +3,28 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
-  changePassword,
   currentUserId,
   effectiveId,
-  getDisplayName,
   guestId,
   hasPassword,
   logout,
-  setCredentials,
-  usernameAvailable,
 } from '@/lib/api';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
+import AccountSettingsSection from '@/components/AccountSettingsSection';
+import SyncStatusBadge from '@/components/SyncStatusBadge';
 import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import ReadingProgress from '@/components/ReadingProgress';
 import { todayMinutes } from '@/lib/reading';
-import { api } from '@/lib/api';
 import { readingStreak } from '@/lib/gamification';
 import { favoriteReviewCards } from '@/lib/favorite_review';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { syncNow } from '@/lib/sync';
+import { isAccountComplete } from '@/lib/account_guide';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
-
-const RANDOM_NAME_CHARS = '云星月晨露松竹明道喜乐平安恩典信望爱光泉石兰桂';
-
-function randomDisplayName(): string {
-  const len = 2 + Math.floor(Math.random() * 2);
-  let s = '';
-  for (let i = 0; i < len; i += 1) {
-    s += RANDOM_NAME_CHARS[Math.floor(Math.random() * RANDOM_NAME_CHARS.length)];
-  }
-  return s;
-}
 
 export default function ProfilePage() {
   const [uid, setUid] = useState<string | null>(null);
@@ -46,13 +33,10 @@ export default function ProfilePage() {
   const [idCopied, setIdCopied] = useState(false);
   const [avatarId, setAvatarId] = useState('a1');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [settingsAvatarOpen, setSettingsAvatarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
-  // 设置内修改用户名
-  const [nameBusy, setNameBusy] = useState(false);
-  const [nameMsg, setNameMsg] = useState<string | null>(null);
+  const [accountComplete, setAccountComplete] = useState(false);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
   const [hasPwd, setHasPwd] = useState(false);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
@@ -79,11 +63,13 @@ export default function ProfilePage() {
     setMins(todayMinutes());
     setStreak(readingStreak());
     setHasPwd(hasPassword());
+    setAccountComplete(isAccountComplete());
   }, []);
 
-  const saveName = (v: string) => {
-    setName(v);
-    localStorage.setItem(NAME_KEY, v);
+  const refreshAccount = () => {
+    setName(localStorage.getItem(NAME_KEY) || '');
+    setHasPwd(hasPassword());
+    setAccountComplete(isAccountComplete());
   };
   const saveBio = (v: string) => {
     const t = v.slice(0, 15);
@@ -91,57 +77,10 @@ export default function ProfilePage() {
     localStorage.setItem(BIO_KEY, t);
   };
 
-  const confirmName = async () => {
-    const u = name.trim();
-    if (u.length < 2) {
-      setNameMsg('用户名至少 2 个字');
-      return;
-    }
-    setNameBusy(true);
-    setNameMsg(null);
-    try {
-      const prev = localStorage.getItem(NAME_KEY) || '';
-      if (u !== prev) {
-        const ok = await usernameAvailable(u);
-        if (!ok) {
-          setNameMsg('该用户名已被占用');
-          return;
-        }
-      }
-      const pwd = '';
-      await setCredentials(u, pwd);
-      setNameMsg('已保存');
-    } catch (e) {
-      setNameMsg(e instanceof Error ? e.message : String(e));
-    } finally {
-      setNameBusy(false);
-    }
-  };
-
-  const changePasswordHandler = async () => {
-    const needOld = hasPwd;
-    const old = needOld ? prompt('请输入当前密码：') : null;
-    if (needOld && old === null) return;
-    const next = prompt('请输入新密码（≥6 位）：');
-    if (next === null) return;
-    if (next.length < 6) {
-      alert('密码至少 6 位');
-      return;
-    }
-    try {
-      await changePassword(old, next);
-      setHasPwd(true);
-      alert('密码已更新');
-    } catch (e) {
-      alert(e instanceof Error ? e.message : String(e));
-    }
-  };
-
   const chooseAvatar = (id: string) => {
     setAvatarId(id);
     localStorage.setItem(AVATAR_KEY, id);
     setPickerOpen(false);
-    setSettingsAvatarOpen(false);
   };
 
   const idValue = uid || gid;
@@ -187,7 +126,10 @@ export default function ProfilePage() {
           <Avatar id={avatarId} size={56} />
         </button>
         <div className="profile-meta">
-          <strong>{displayName}</strong>
+          <div className="section-row" style={{ marginTop: 0, gap: 8 }}>
+            <strong>{displayName}</strong>
+            <SyncStatusBadge />
+          </div>
           <span className="muted">{bio.trim() || '愿日日亲近主话'}</span>
           {idValue && (
             <button type="button" className="id-chip" onClick={copyId}>
@@ -211,7 +153,9 @@ export default function ProfilePage() {
         </button>
       </header>
 
-      <AccountSecurityCard />
+      {!accountComplete ? (
+        <AccountSecurityCard onComplete={refreshAccount} />
+      ) : null}
 
       {streak > 0 && (
         <div className="streak-banner" style={{ marginTop: 12 }}>
@@ -274,87 +218,25 @@ export default function ProfilePage() {
 
             <div className="settings-card">
               <p className="settings-title">个人资料</p>
-              <p className="muted" style={{ fontSize: 12 }}>头像</p>
-              <div className="settings-avatar-row">
-                <Avatar id={avatarId} size={48} />
-                <button
-                  type="button"
-                  className="font-pill"
-                  onClick={() => setSettingsAvatarOpen((v) => !v)}
-                >
-                  {settingsAvatarOpen ? '收起' : '更换头像'}
-                </button>
-              </div>
-              {settingsAvatarOpen && (
-                <div className="avatar-grid" style={{ maxHeight: 160, overflowY: 'auto', marginTop: 10 }}>
-                  {PRESET_AVATARS.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      className={`avatar-cell ${a.id === avatarId ? 'avatar-cell-active' : ''}`}
-                      onClick={() => chooseAvatar(a.id)}
-                    >
-                      <Avatar id={a.id} size={40} />
-                    </button>
-                  ))}
-                </div>
-              )}
-              <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>用户名</p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div className="settings-input-wrap">
-                  <input
-                    className="book-chip"
-                    style={{ textAlign: 'left' }}
-                    placeholder="显示名称"
-                    value={name}
-                    onChange={(e) => saveName(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    className="settings-random-btn"
-                    aria-label="随机生成名称"
-                    title="随机生成名称"
-                    onClick={() => saveName(randomDisplayName())}
-                  >
-                    🎲
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="font-pill"
-                  disabled={nameBusy}
-                  onClick={() => void confirmName()}
-                >
-                  {nameBusy ? '…' : '确认'}
-                </button>
-              </div>
-              {nameMsg && (
-                <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>{nameMsg}</p>
-              )}
-              <div className="section-row" style={{ marginTop: 10 }}>
-                <span className="muted" style={{ fontSize: 12 }}>签名</span>
-                <span className="muted" style={{ fontSize: 12 }}>{bio.length}/15</span>
-              </div>
-              <input
-                className="book-chip"
-                style={{ width: '100%', textAlign: 'left' }}
-                placeholder="一句话签名（≤15 字）"
-                value={bio}
-                maxLength={15}
-                onChange={(e) => saveBio(e.target.value)}
+              <AccountSettingsSection
+                onAccountChange={refreshAccount}
+                middle={
+                  <>
+                    <div className="section-row" style={{ marginTop: 10 }}>
+                      <span className="muted" style={{ fontSize: 12 }}>签名</span>
+                      <span className="muted" style={{ fontSize: 12 }}>{bio.length}/15</span>
+                    </div>
+                    <input
+                      className="book-chip"
+                      style={{ width: '100%', textAlign: 'left' }}
+                      placeholder="一句话签名（≤15 字）"
+                      value={bio}
+                      maxLength={15}
+                      onChange={(e) => saveBio(e.target.value)}
+                    />
+                  </>
+                }
               />
-              <button
-                type="button"
-                className="settings-icon-btn"
-                style={{ marginTop: 10 }}
-                onClick={() => void changePasswordHandler()}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <rect x="5" y="11" width="14" height="10" rx="2" />
-                  <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-                </svg>
-                修改密码
-              </button>
             </div>
 
             <div className="settings-card">
