@@ -44,7 +44,50 @@ fetch_if_missing() {
     return 0
   fi
   log "下载 $(basename "$dest") …"
-  curl -fsSL --connect-timeout 30 --max-time 600 -o "$dest" "$url"
+  local tmp="${dest}.partial"
+  rm -f "$tmp"
+  curl -fsSL --connect-timeout 30 --max-time 900 --retry 3 --retry-delay 2 \
+    -o "$tmp" "$url"
+  mv "$tmp" "$dest"
+}
+
+# Gnosis greek-words.json 体积约 6–24MB，不完整 JSON 会导致 import 失败
+validate_gnosis_greek() {
+  local f="$1"
+  [[ -f "$f" ]] || return 1
+  # 截断文件通常 < 2MB
+  local sz
+  sz="$(wc -c < "$f" | tr -d ' ')"
+  [[ "$sz" -ge 5000000 ]] || return 1
+  "$PY" -c "
+import json, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+d = json.loads(p.read_text(encoding='utf-8'))
+if not isinstance(d, dict) or len(d) < 5000:
+    raise SystemExit(1)
+" "$f"
+}
+
+fetch_gnosis_greek() {
+  local url="https://github.com/spearssoftware/gnosis/releases/download/v0.9.3/greek-words.json"
+  local dest="$CACHE/gnosis-greek-words.json"
+  local tmp="${dest}.partial"
+  local attempt
+  for attempt in 1 2 3; do
+    log "下载 gnosis-greek-words.json（尝试 ${attempt}/3）…"
+    rm -f "$tmp"
+    if curl -fsSL --connect-timeout 30 --max-time 900 --retry 2 --retry-delay 3 \
+      -o "$tmp" "$url" && validate_gnosis_greek "$tmp"; then
+      mv "$tmp" "$dest"
+      log "gnosis-greek-words.json 校验通过 ($(wc -c < "$dest" | tr -d ' ') bytes)"
+      return 0
+    fi
+    log "⚠ gnosis 下载不完整或 JSON 损坏，重试…"
+    rm -f "$tmp" "$dest"
+    sleep 3
+  done
+  return 1
 }
 
 # ── 交叉引用（OpenBible → data/crossrefs/cross_references.sqlite）──
@@ -61,10 +104,13 @@ fi
 STRONGS_SQL="$ROOT/data/strongs/strongs.sqlite"
 GNOSIS_GREEK="$CACHE/gnosis-greek-words.json"
 if need_run "$STRONGS_SQL" "$ROOT/scripts/import_strongs_gnosis.py"; then
-  fetch_if_missing \
-    "https://github.com/spearssoftware/gnosis/releases/download/v0.9.3/greek-words.json" \
-    "$GNOSIS_GREEK"
-  "$PY" "$ROOT/scripts/import_strongs_gnosis.py"
+  if [[ ! -f "$GNOSIS_GREEK" ]] || ! validate_gnosis_greek "$GNOSIS_GREEK"; then
+    rm -f "$GNOSIS_GREEK"
+    fetch_gnosis_greek || log "⚠ Strong's 源文件下载失败，跳过原文逐词"
+  fi
+  if [[ -f "$GNOSIS_GREEK" ]]; then
+    "$PY" "$ROOT/scripts/import_strongs_gnosis.py" || log "⚠ Strong's 导入失败，跳过"
+  fi
 else
   log "Strong's SQLite 已就绪"
 fi

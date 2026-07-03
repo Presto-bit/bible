@@ -46,11 +46,25 @@ CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 
+def _load_gnosis(path: Path) -> dict:
+    text = path.read_text(encoding="utf-8")
+    try:
+        raw = json.loads(text)
+    except json.JSONDecodeError as exc:
+        print(f"❌ {path} JSON 损坏（可能下载中断）: {exc}", file=sys.stderr)
+        print("   请删除该文件后重跑 ensure_content_data.sh", file=sys.stderr)
+        raise SystemExit(1) from exc
+    if not isinstance(raw, dict) or len(raw) < 5000:
+        print(f"❌ {path} 内容异常（条目过少）", file=sys.stderr)
+        raise SystemExit(1)
+    return raw
+
+
 def main() -> int:
     if not CACHE.exists():
         print(f"缺少 {CACHE}，请先下载 gnosis greek-words.json")
         return 1
-    raw = json.loads(CACHE.read_text(encoding="utf-8"))
+    raw = _load_gnosis(CACHE)
     verses = list(raw.values()) if isinstance(raw, dict) else raw
 
     entries: dict[str, dict] = {}
