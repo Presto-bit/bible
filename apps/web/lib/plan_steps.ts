@@ -123,3 +123,20 @@ export function nextIncompleteStep(
 ): PlanStep | null {
   return steps.find((s) => !stepsDone.includes(s.id)) ?? null;
 }
+
+/** 当前位置在 Step 末章且仍有下一段未完成。 */
+export function pendingNextStep(
+  steps: PlanStep[],
+  stepsDone: string[],
+  bookId: string,
+  chapter: number,
+): PlanStep | null {
+  const bid = bookId.toUpperCase();
+  const step = steps.find(
+    (s) => s.bookId === bid && chapter >= s.chapterStart && chapter <= s.chapterEnd,
+  );
+  if (!step || chapter !== step.chapterEnd) return null;
+  const next = nextIncompleteStep(steps, stepsDone);
+  if (!next || next.id === step.id) return null;
+  return next;
+}

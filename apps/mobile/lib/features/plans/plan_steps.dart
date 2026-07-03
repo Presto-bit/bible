@@ -105,6 +105,26 @@ PlanStep? nextIncompleteStep(List<PlanStep> steps, List<String> stepsDone) {
   return null;
 }
 
+PlanStep? pendingNextStep(
+  List<PlanStep> steps,
+  List<String> stepsDone,
+  String bookId,
+  int chapter,
+) {
+  final bid = bookId.toUpperCase();
+  final step = steps.cast<PlanStep?>().firstWhere(
+        (s) =>
+            s!.bookId == bid &&
+            chapter >= s.chapterStart &&
+            chapter <= s.chapterEnd,
+        orElse: () => null,
+      );
+  if (step == null || chapter != step.chapterEnd) return null;
+  final next = nextIncompleteStep(steps, stepsDone);
+  if (next == null || next.id == step.id) return null;
+  return next;
+}
+
 (String bookId, int chapter) _parseRef(String ref) {
   final parts = ref.split('.');
   return (parts[0].toUpperCase(), int.tryParse(parts.length > 1 ? parts[1] : '1') ?? 1);

@@ -1,13 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Group } from '@/lib/api';
 import type { PlanReadingMeta } from '@/lib/plan_reading';
+import {
+  isForwardStepBoundary,
+  isChapterInPlan,
+  type PlanNavGuard,
+} from '@/lib/plan_navigation';
 import {
   allStepsDone,
   isLastChapterOfStep,
   nextIncompleteStep,
+  pendingNextStep,
   sessionProgress,
   type PlanStep,
 } from '@/lib/plan_steps';
@@ -24,7 +30,7 @@ import { groupCheckinHref, groupsBoundToPlan, loadOwnerGroups } from '@/lib/plan
 import { PlanShareToGroupSheet } from '@/components/plans/PlanShareToGroupSheet';
 import PlanBar from '@/components/reader/PlanBar';
 
-const CELEBRATE_MS = 4200;
+export type { PlanNavGuard };
 
 export default function PlanReadingLayer({
   meta,
@@ -35,6 +41,8 @@ export default function PlanReadingLayer({
   onMetaChange,
   onJump,
   onOverlayChange,
+  onExitPlan,
+  bindNavGuard,
 }: {
   meta: PlanReadingMeta;
   bookId: string;
@@ -44,6 +52,8 @@ export default function PlanReadingLayer({
   onMetaChange: (m: PlanReadingMeta) => void;
   onJump: (bookId: string, chapter: number) => void;
   onOverlayChange?: (open: boolean) => void;
+  onExitPlan?: () => void;
+  bindNavGuard?: (guard: PlanNavGuard | null) => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reflectionOpen, setReflectionOpen] = useState(false);
@@ -53,48 +63,24 @@ export default function PlanReadingLayer({
   const [planAllDone, setPlanAllDone] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [boundGroups, setBoundGroups] = useState<Group[]>([]);
-  const [nextStepHint, setNextStepHint] = useState<string | null>(null);
   const bottomHandledRef = useRef(0);
   const finishedDayRef = useRef<number | null>(null);
   const celebrationDismissedRef = useRef<Set<number>>(new Set());
-
-  useEffect(() => {
-    onOverlayChange?.(sheetOpen || reflectionOpen || shareOpen || planAllDone);
-  }, [sheetOpen, reflectionOpen, shareOpen, planAllDone, onOverlayChange]);
-
-  useEffect(() => {
-    if (!dayCompleted && !planAllDone) return;
-    void loadOwnerGroups().then((gs) => setBoundGroups(groupsBoundToPlan(gs, meta.planId)));
-  }, [dayCompleted, planAllDone, meta.planId]);
 
   const stepIdx = meta.steps.findIndex(
     (s) => s.bookId === bookId.toUpperCase() && chapter >= s.chapterStart && chapter <= s.chapterEnd,
   );
   const currentStep = stepIdx >= 0 ? meta.steps[stepIdx] : meta.steps[meta.session.currentStepIndex];
+  const inPlanRange = isChapterInPlan(meta.steps, bookId, chapter);
+  const segmentNext = pendingNextStep(meta.steps, meta.session.stepsDone, bookId, chapter);
 
-  useEffect(() => {
-    const bid = bookId.toUpperCase();
-    let session = meta.session;
-    let changed = false;
-    for (const step of meta.steps) {
-      if (session.stepsDone.includes(step.id)) continue;
-      if (step.bookId !== bid) continue;
-      if (chapter > step.chapterEnd) {
-        session = markStepDone(session, step.id, meta.steps);
-        changed = true;
-      }
-    }
-    if (changed) persist(session);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookId, chapter]);
-
-  const persist = (session: PlanSession) => {
+  const persist = useCallback((session: PlanSession) => {
     savePlanSession(session);
     enqueuePlanProgress(meta.planId, session.day, 'active', session);
     onMetaChange({ ...meta, session });
-  };
+  }, [meta, onMetaChange]);
 
-  const finishDay = (session: PlanSession) => {
+  const finishDay = useCallback((session: PlanSession) => {
     const dayToFinish = session.day;
     if (dayToFinish !== meta.day) return;
     if (isPlanDayCompleted(meta.planId, dayToFinish) || finishedDayRef.current === dayToFinish) {
@@ -110,17 +96,61 @@ export default function PlanReadingLayer({
     setCompletedDayNum(dayToFinish);
     onMetaChange({ ...meta, session, day: Math.min(meta.totalDays, dayToFinish + 1) });
     setDayCompleted(true);
+    setReflectionOpen(true);
     if (allDone || dayToFinish >= meta.totalDays) {
       setPlanAllDone(true);
     }
-    setNextStepHint(null);
-  };
+  }, [meta, onMetaChange]);
+
+  const completeCurrentStepAndJump = useCallback((
+    targetBookId: string,
+    targetChapter: number,
+    stepToComplete?: PlanStep,
+  ) => {
+    let session = meta.session;
+    const step = stepToComplete ?? currentStep;
+    if (step && !session.stepsDone.includes(step.id)) {
+      session = markStepDone(session, step.id, meta.steps);
+      persist(session);
+    }
+    const nextIdx = meta.steps.findIndex((s) => s.bookId === targetBookId.toUpperCase() && targetChapter >= s.chapterStart);
+    if (nextIdx >= 0) {
+      session = { ...session, currentStepIndex: nextIdx, updatedAt: Date.now() };
+      persist(session);
+    }
+    onJump(targetBookId, targetChapter);
+  }, [meta, currentStep, persist, onJump]);
+
+  useEffect(() => {
+    onOverlayChange?.(sheetOpen || reflectionOpen || shareOpen || planAllDone);
+  }, [sheetOpen, reflectionOpen, shareOpen, planAllDone, onOverlayChange]);
+
+  useEffect(() => {
+    if (!dayCompleted && !planAllDone) return;
+    void loadOwnerGroups().then((gs) => setBoundGroups(groupsBoundToPlan(gs, meta.planId)));
+  }, [dayCompleted, planAllDone, meta.planId]);
+
+  useEffect(() => {
+    if (!bindNavGuard) return;
+    const guard: PlanNavGuard = {
+      shouldConfirmForward: (from, target) =>
+        isForwardStepBoundary(meta.steps, from, target),
+      onForwardBoundary: (target, proceed) => {
+        if (currentStep) {
+          completeCurrentStepAndJump(target.bookId, target.chapter, currentStep);
+        } else {
+          proceed();
+        }
+      },
+    };
+    bindNavGuard(guard);
+    return () => bindNavGuard(null);
+  }, [bindNavGuard, meta.steps, meta.session.stepsDone, currentStep, completeCurrentStepAndJump]);
 
   const dismissDayCelebration = () => {
     if (completedDayNum != null) celebrationDismissedRef.current.add(completedDayNum);
     setDayCompleted(false);
     setCompletedDayNum(null);
-    setReflectionOpen(false);
   };
 
   const handleJumpStep = (index: number) => {
@@ -131,20 +161,24 @@ export default function PlanReadingLayer({
     onJump(step.bookId, step.chapterStart);
   };
 
+  const saveReflection = () => {
+    if (reflectionText.trim()) {
+      savePlanReflection(meta.planId, meta.day, reflectionText.trim());
+    }
+    setReflectionOpen(false);
+  };
+
   const confirmCompleteDay = () => {
+    saveReflection();
     let session = meta.session;
     if (currentStep && !session.stepsDone.includes(currentStep.id)) {
       session = markStepDone(session, currentStep.id, meta.steps);
     }
     savePlanSession(session);
-    if (reflectionText.trim()) {
-      savePlanReflection(meta.planId, meta.day, reflectionText.trim());
-    }
     finishDay(session);
-    setReflectionOpen(false);
   };
 
-  // 滑到章末：自动标记段完成 / 今日完成
+  // 滑到 Step 末章：标记段完成（不自动跳卷，由底部卡片或翻页确认引导）
   useEffect(() => {
     if (!chapterBottomTick || dayCompleted) return;
     if (meta.session.day !== meta.day) return;
@@ -162,18 +196,10 @@ export default function PlanReadingLayer({
 
     if (allStepsDone(meta.steps, session.stepsDone)) {
       finishDay(session);
-      return;
-    }
-
-    const next = nextIncompleteStep(meta.steps, session.stepsDone);
-    if (next) {
-      setNextStepHint(next.label);
-      window.setTimeout(() => setNextStepHint(null), 3500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapterBottomTick, chapter, currentStep?.id, dayCompleted]);
 
-  // 全部段已读完时兜底自动完成（当日仅触发一次，且会话日与计划日一致）
   useEffect(() => {
     if (dayCompleted) return;
     if (meta.session.day !== meta.day) return;
@@ -184,19 +210,6 @@ export default function PlanReadingLayer({
     return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meta.session.stepsDone, meta.session.day, meta.day, dayCompleted]);
-
-  // 庆祝卡片自动消失（已关闭的当日不再弹出）
-  useEffect(() => {
-    if (!dayCompleted || completedDayNum == null) return;
-    if (celebrationDismissedRef.current.has(completedDayNum)) {
-      setDayCompleted(false);
-      return;
-    }
-    const timer = window.setTimeout(() => {
-      dismissDayCelebration();
-    }, CELEBRATE_MS);
-    return () => window.clearTimeout(timer);
-  }, [dayCompleted, completedDayNum]);
 
   useEffect(() => {
     const ref = `${bookId}.${chapter}`;
@@ -218,7 +231,43 @@ export default function PlanReadingLayer({
         meta={meta}
         onOpenSheet={() => setSheetOpen(true)}
         onJumpStep={handleJumpStep}
+        onExitPlan={onExitPlan}
       />
+
+      {!inPlanRange && (
+        <div className="plan-out-of-range card">
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            当前章节不在今日计划内
+          </p>
+          <button
+            type="button"
+            className="font-pill accent"
+            style={{ marginTop: 8 }}
+            onClick={() => handleJumpStep(meta.session.currentStepIndex)}
+          >
+            回到计划进度 ›
+          </button>
+        </div>
+      )}
+
+      {segmentNext && !dayCompleted && inPlanRange && (
+        <div className="plan-segment-footer card">
+          <p className="plan-segment-done-title" style={{ fontSize: 14, margin: 0 }}>
+            ✓ {currentStep?.label} 已读完
+          </p>
+          <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
+            下一段：{segmentNext.label}
+          </p>
+          <button
+            type="button"
+            className="btn"
+            style={{ width: '100%', marginTop: 10 }}
+            onClick={() => completeCurrentStepAndJump(segmentNext.bookId, segmentNext.chapterStart, currentStep)}
+          >
+            继续读 {segmentNext.label} ›
+          </button>
+        </div>
+      )}
 
       {planAllDone && (
         <div className="plan-day-complete card plan-plan-complete-sheet plan-day-complete-solid">
@@ -242,9 +291,12 @@ export default function PlanReadingLayer({
             type="button"
             className="text-link"
             style={{ marginTop: 10 }}
-            onClick={() => setPlanAllDone(false)}
+            onClick={() => {
+              setPlanAllDone(false);
+              onExitPlan?.();
+            }}
           >
-            继续浏览经文
+            退出计划模式
           </button>
         </div>
       )}
@@ -293,23 +345,15 @@ export default function PlanReadingLayer({
         </div>
       )}
 
-      {nextStepHint && !dayCompleted && (
-        <div className="plan-segment-hint card">
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-            下一段：{nextStepHint}
-          </p>
-        </div>
-      )}
-
       {reflectionOpen && (
-        <div className="sheet-backdrop plan-reflection-backdrop" onClick={() => setReflectionOpen(false)}>
-          <div className="sheet card plan-reflection-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-backdrop plan-reflection-backdrop">
+          <div className="sheet card plan-reflection-sheet">
             <div className="section-row" style={{ marginTop: 0 }}>
               <strong>今日反思（可选）</strong>
               <button type="button" className="text-link" onClick={() => setReflectionOpen(false)}>关闭</button>
             </div>
             <p className="muted" style={{ fontSize: 13, marginBottom: 10 }}>
-              用一两句话记下今天的感动或应用。
+              用一两句话记下今天的感动或应用。不填写可直接关闭。
             </p>
             <textarea
               className="group-composer-text"
@@ -318,7 +362,7 @@ export default function PlanReadingLayer({
               value={reflectionText}
               onChange={(e) => setReflectionText(e.target.value)}
             />
-            <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={confirmCompleteDay}>
+            <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={saveReflection}>
               保存反思
             </button>
           </div>
@@ -345,7 +389,7 @@ export default function PlanReadingLayer({
               <button type="button" className="text-link" onClick={() => setSheetOpen(false)}>关闭</button>
             </div>
             <p className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-              {prog.done}/{prog.total} 段已完成
+              {prog.done}/{prog.total} 段已完成 · 计划模式仅可跳转今日章节
             </p>
             {meta.steps.map((s, i) => (
               <StepRow

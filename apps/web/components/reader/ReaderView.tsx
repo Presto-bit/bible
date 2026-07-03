@@ -11,10 +11,8 @@ import {
 import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
 import SummarySheet from '@/components/reader/SummarySheet';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
-import { StrongSheet } from '@/components/reader/StrongSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
-import { ReaderChapterContext } from '@/components/reader/ReaderChapterContext';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
@@ -25,6 +23,11 @@ import {
   getChapterVersesSync,
   loadChapterVerses,
 } from '@/lib/chapter_prefetch';
+import {
+  canPlanNav,
+  resolvePlanNav,
+  type PlanNavGuard,
+} from '@/lib/plan_navigation';
 import {
   canNavigateChapter,
   prefetchReaderVicinity,
@@ -127,6 +130,7 @@ const FONT_SIZES = [
   { label: '大', px: 20 },
   { label: '特大', px: 24 },
 ];
+const DEFAULT_FONT_PX = 20;
 
 export default function ReaderView({
   book,
@@ -139,6 +143,7 @@ export default function ReaderView({
   planMeta,
   onPlanMetaChange,
   onPlanJump,
+  onPlanExit,
   externalOverlayOpen = false,
   flashRef = null,
   checkinGroupId = null,
@@ -153,6 +158,7 @@ export default function ReaderView({
   planMeta?: PlanReadingMeta | null;
   onPlanMetaChange?: (m: PlanReadingMeta) => void;
   onPlanJump?: (bookId: string, chapter: number) => void;
+  onPlanExit?: () => void;
   externalOverlayOpen?: boolean;
   flashRef?: string | null;
   checkinGroupId?: string | null;
@@ -163,7 +169,7 @@ export default function ReaderView({
   const [parallelVerses, setParallelVerses] = useState<Verse[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [versionLabel, setVersionLabel] = useState('和合本');
-  const [fontPx, setFontPx] = useState(17);
+  const [fontPx, setFontPx] = useState(DEFAULT_FONT_PX);
   const [showSettings, setShowSettings] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
   const [checkedVers, setCheckedVers] = useState<string[]>(['cnv']);
@@ -188,8 +194,7 @@ export default function ReaderView({
   const [markNotePrompt, setMarkNotePrompt] = useState<null | { ref: string; label: string }>(null);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
-  const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'compare'>(null);
-  const [strongOpen, setStrongOpen] = useState(false);
+  const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'strongs'>(null);
   const [versePreview, setVersePreview] = useState<null | { osis: string; label: string }>(null);
   const [parallelLoading, setParallelLoading] = useState(false);
   const [parallelError, setParallelError] = useState<string | null>(null);
@@ -197,7 +202,12 @@ export default function ReaderView({
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [chapterBottomTick, setChapterBottomTick] = useState(0);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
-  const [summarySheet, setSummarySheet] = useState<null | { title: string; load: () => Promise<string> }>(null);
+  const [summarySheet, setSummarySheet] = useState<null | {
+    title: string;
+    load: () => Promise<string>;
+    bookId?: string;
+    chapter?: number;
+  }>(null);
   const [chapterNotes, setChapterNotes] = useState<Map<number, LocalNote[]>>(new Map());
   const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
   const [writeThoughtSheet, setWriteThoughtSheet] = useState<null | {
@@ -214,6 +224,10 @@ export default function ReaderView({
   const [thoughtRevision, setThoughtRevision] = useState(0);
   const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
   const [planOverlayOpen, setPlanOverlayOpen] = useState(false);
+  const planNavGuardRef = useRef<PlanNavGuard | null>(null);
+  const bindPlanNavGuard = useCallback((guard: PlanNavGuard | null) => {
+    planNavGuardRef.current = guard;
+  }, []);
   const [hasGroups, setHasGroups] = useState(false);
   const [groupCtx, setGroupCtx] = useState<{
     groupId?: string;
@@ -635,7 +649,7 @@ export default function ReaderView({
       setVersionLabel(`和合本 · ${savedParallel.toUpperCase()}`);
     }
     const saved = Number(localStorage.getItem('readerFont'));
-    if (saved) setFontPx(saved);
+    if (saved && FONT_SIZES.some((f) => f.px === saved)) setFontPx(saved);
     setFontFamilyState(getFontFamily());
     setPageTurnState(getPageTurn());
     setUnderlinesOn(getUnderlinesOn());
@@ -697,6 +711,14 @@ export default function ReaderView({
 
   const readerLocation = useMemo(() => ({ bookId: book.id, chapter }), [book.id, chapter]);
 
+  const planNavActive = Boolean(planMeta?.steps.length);
+  const canNavPrev = planNavActive
+    ? canPlanNav(books, planMeta!.steps, readerLocation, -1)
+    : canNavigateChapter(books, readerLocation, -1);
+  const canNavNext = planNavActive
+    ? canPlanNav(books, planMeta!.steps, readerLocation, 1)
+    : canNavigateChapter(books, readerLocation, 1);
+
   const prefetchTarget = useCallback(
     (bookId: string, ch: number) => {
       void loadChapterVerses(bookId, ch, mainVersionId);
@@ -707,8 +729,12 @@ export default function ReaderView({
   useEffect(() => {
     if (!swipeTurn) return;
     let cancelled = false;
-    const prev = resolveChapterNav(books, readerLocation, -1);
-    const next = resolveChapterNav(books, readerLocation, 1);
+    const prev = planNavActive
+      ? resolvePlanNav(books, planMeta!.steps, readerLocation, -1)
+      : resolveChapterNav(books, readerLocation, -1);
+    const next = planNavActive
+      ? resolvePlanNav(books, planMeta!.steps, readerLocation, 1)
+      : resolveChapterNav(books, readerLocation, 1);
     setPeekPrevBook(prev?.book ?? null);
     setPeekNextBook(next?.book ?? null);
     setPeekPrevChapter(prev?.chapter ?? 0);
@@ -734,7 +760,7 @@ export default function ReaderView({
     return () => {
       cancelled = true;
     };
-  }, [books, book, chapter, mainVersionId, swipeTurn, readerLocation, prefetchTarget]);
+  }, [books, book, chapter, mainVersionId, swipeTurn, readerLocation, prefetchTarget, planNavActive, planMeta]);
 
   useEffect(() => {
     setSelected([]);
@@ -902,14 +928,18 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
-  const navigateByDelta = useCallback(
-    (delta: number) => {
-      const target = resolveChapterNav(books, readerLocation, delta);
-      if (!target) return;
-      const peek = delta > 0 ? peekNextVerses : delta < 0 ? peekPrevVerses : null;
+  const applyNavigate = useCallback(
+    (target: { book: BibleBook; chapter: number }) => {
+      const peek =
+        target.book.id === peekNextBook?.id && target.chapter === peekNextChapter
+          ? peekNextVerses
+          : target.book.id === peekPrevBook?.id && target.chapter === peekPrevChapter
+            ? peekPrevVerses
+            : null;
       const version = chapterCacheVersion(mainVersionId);
       const cached = getCachedChapter(target.book.id, target.chapter, version);
-      const instant = peek?.length ? peek : cached ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
+      const instant =
+        peek?.length ? peek : cached ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
       if (instant?.length) {
         setLayoutVerses(instant);
         setVerses(instant);
@@ -926,8 +956,10 @@ export default function ReaderView({
       onNavigate(target.book, target.chapter);
     },
     [
-      books,
-      readerLocation,
+      peekNextBook,
+      peekNextChapter,
+      peekPrevBook,
+      peekPrevChapter,
       peekNextVerses,
       peekPrevVerses,
       mainVersionId,
@@ -935,6 +967,36 @@ export default function ReaderView({
       scrollToChapterStart,
       onNavigate,
     ],
+  );
+
+  const navigateByDelta = useCallback(
+    (delta: number) => {
+      if (planMeta?.steps.length) {
+        const target = resolvePlanNav(books, planMeta.steps, readerLocation, delta);
+        if (!target) return;
+        const guard = planNavGuardRef.current;
+        if (
+          delta > 0
+          && guard?.shouldConfirmForward(readerLocation, {
+            bookId: target.book.id,
+            chapter: target.chapter,
+          })
+        ) {
+          guard.onForwardBoundary(
+            { bookId: target.book.id, chapter: target.chapter },
+            () => applyNavigate(target),
+          );
+          return;
+        }
+        applyNavigate(target);
+        return;
+      }
+
+      const target = resolveChapterNav(books, readerLocation, delta);
+      if (!target) return;
+      applyNavigate(target);
+    },
+    [planMeta, books, readerLocation, applyNavigate],
   );
 
   const navChapter = (delta: number) => {
@@ -953,12 +1015,14 @@ export default function ReaderView({
 
   const turn = useReaderPageTurn({
     enabled: swipeTurn,
-    canPrev: canNavigateChapter(books, readerLocation, -1),
-    canNext: canNavigateChapter(books, readerLocation, 1),
+    canPrev: canNavPrev,
+    canNext: canNavNext,
     blocked: overlayOpen || hasSel,
     onChapterChange: navigateByDelta,
     onDragApproach: (delta) => {
-      const target = resolveChapterNav(books, readerLocation, delta);
+      const target = planNavActive
+        ? resolvePlanNav(books, planMeta!.steps, readerLocation, delta)
+        : resolveChapterNav(books, readerLocation, delta);
       if (!target) return;
       void loadChapterVerses(target.book.id, target.chapter, mainVersionId);
     },
@@ -1037,6 +1101,8 @@ export default function ReaderView({
         checkinGroupId={checkinGroupId ?? groupCtx.groupId}
         onMetaChange={onPlanMetaChange}
         onJump={onPlanJump}
+        onExitPlan={onPlanExit}
+        bindNavGuard={bindPlanNavGuard}
         onOverlayChange={setPlanOverlayOpen}
       />
     ) : null
@@ -1052,6 +1118,7 @@ export default function ReaderView({
           setSummarySheet({
             title: `${book.name} · 整卷概览`,
             load: () => loadBookSummary(book.id, book.name),
+            bookId: book.id,
           });
         }}
       >
@@ -1066,6 +1133,8 @@ export default function ReaderView({
           setSummarySheet({
             title: `${book.name} ${englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}`,
             load: () => loadChapterSummary(book.id, book.name, chapter),
+            bookId: book.id,
+            chapter,
           });
         }}
       >
@@ -1268,11 +1337,6 @@ export default function ReaderView({
       <div className="reader-body">
         {renderPlanLayer()}
         {renderChapterHead()}
-        <ReaderChapterContext
-          bookId={book.id}
-          chapter={chapter}
-          onPlaceRef={(osis, label) => setVersePreview({ osis, label })}
-        />
 
         <div
           className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}`}
@@ -1397,10 +1461,6 @@ export default function ReaderView({
             )}
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
             <button type="button" className="vsb-item" onClick={() => setToolsSheet('crossrefs')}>相关经文</button>
-            <button type="button" className="vsb-item" onClick={() => setToolsSheet('compare')}>对照</button>
-            {sortedSel.length === 1 && (
-              <button type="button" className="vsb-item" onClick={() => setStrongOpen(true)}>希腊原文</button>
-            )}
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
           </div>
         </div>
@@ -1546,15 +1606,8 @@ export default function ReaderView({
           refParam={effRefParam}
           refLabel={effRefLabel}
           initialTab={toolsSheet}
+          singleVerse={sortedSel.length === 1}
           onClose={() => setToolsSheet(null)}
-        />
-      )}
-
-      {strongOpen && (
-        <StrongSheet
-          refParam={effRefParam}
-          refLabel={effRefLabel}
-          onClose={() => setStrongOpen(false)}
         />
       )}
 
@@ -1580,6 +1633,8 @@ export default function ReaderView({
         <SummarySheet
           title={summarySheet.title}
           load={summarySheet.load}
+          bookId={summarySheet.bookId}
+          chapter={summarySheet.chapter}
           onClose={() => setSummarySheet(null)}
         />
       )}

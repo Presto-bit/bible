@@ -18,7 +18,10 @@ import '../assistant/assistant_scenes.dart';
 import '../assistant/assistant_seed.dart';
 import '../assistant/models.dart' as am;
 import '../search/search_screen.dart';
+import '../plans/plan_navigation.dart';
 import '../plans/plan_reading.dart';
+import '../plans/plan_session.dart';
+import '../plans/plan_steps.dart';
 import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_experience.dart';
@@ -194,6 +197,14 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           ],
         ),
         actions: [
+          if (_planMeta != null)
+            TextButton(
+              onPressed: () {
+                _onReaderInteract();
+                setState(() => _planMeta = null);
+              },
+              child: const Text('退出计划', style: TextStyle(fontSize: 13)),
+            ),
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
@@ -489,12 +500,102 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     );
   }
 
-  void _nav(int delta) {
+  Future<void> _nav(int delta) async {
     final b = _book;
     if (b == null) return;
+    final books = ref.read(booksProvider).value;
+    if (books == null) return;
+
+    if (_planMeta != null && _planMeta!.steps.isNotEmpty) {
+      final target = resolvePlanNav(
+        books,
+        _planMeta!.steps,
+        b.id,
+        _chapter,
+        delta,
+      );
+      if (target == null) return;
+      if (delta > 0 &&
+          isForwardStepBoundary(
+            _planMeta!.steps,
+            b.id,
+            _chapter,
+            target.book.id,
+            target.chapter,
+          )) {
+        await _continuePlanSegmentTo(target.book.id, target.chapter);
+        return;
+      }
+      setState(() {
+        _book = target.book;
+        _chapter = target.chapter;
+      });
+      return;
+    }
+
     final next = _chapter + delta;
     if (next < 1 || next > b.chapterCount) return;
     setState(() => _chapter = next);
+  }
+
+  Future<void> _continuePlanSegmentTo(String bookId, int chapter) async {
+    final meta = _planMeta;
+    if (meta == null) return;
+    final idx = stepForChapter(meta.steps, _book!.id, _chapter);
+    if (idx >= 0) {
+      final step = meta.steps[idx];
+      var session = meta.session;
+      if (!session.stepsDone.contains(step.id)) {
+        session = await markStepDone(
+          ref.read(prefsProvider),
+          session,
+          step.id,
+          meta.steps,
+        );
+      }
+      final ni = meta.steps.indexWhere(
+        (s) => s.bookId == bookId.toUpperCase() && chapter >= s.chapterStart,
+      );
+      if (ni >= 0) {
+        session = session.copyWith(currentStepIndex: ni);
+      }
+      await _persistPlanSessionFromReader(session);
+    }
+    final books = ref.read(booksProvider).value;
+    if (books == null) return;
+    final book = books.firstWhere(
+      (x) => x.id == bookId.toUpperCase(),
+      orElse: () => _book!,
+    );
+    if (!mounted) return;
+    setState(() {
+      _book = book;
+      _chapter = chapter.clamp(1, book.chapterCount);
+    });
+  }
+
+  Future<void> _persistPlanSessionFromReader(PlanSession session) async {
+    final meta = _planMeta;
+    if (meta == null) return;
+    await savePlanSession(ref.read(prefsProvider), session);
+    await ref.read(planProgressRepoProvider).mark(
+          meta.planId,
+          meta.day,
+          status: 'active',
+          session: session,
+        );
+    if (!mounted) return;
+    setState(() {
+      _planMeta = PlanReadingMeta(
+        planId: meta.planId,
+        planTitle: meta.planTitle,
+        day: meta.day,
+        totalDays: meta.totalDays,
+        steps: meta.steps,
+        session: session,
+        source: meta.source,
+      );
+    });
   }
 
 
@@ -505,7 +606,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
-      builder: (_) => _BookSheet(books: books),
+      builder: (_) => _BookSheet(books: books, planSteps: _planMeta?.steps),
     );
     if (picked != null) {
       setState(() {
@@ -537,8 +638,9 @@ String bibleBookAbbr(String name) =>
     _kBookAbbr[name] ?? (name.isEmpty ? '' : name.substring(0, 1));
 
 class _BookSheet extends StatefulWidget {
-  const _BookSheet({required this.books});
+  const _BookSheet({required this.books, this.planSteps});
   final List<BibleBook> books;
+  final List<PlanStep>? planSteps;
 
   @override
   State<_BookSheet> createState() => _BookSheetState();
@@ -547,8 +649,14 @@ class _BookSheet extends StatefulWidget {
 class _BookSheetState extends State<_BookSheet> {
   @override
   Widget build(BuildContext context) {
-    final ot = widget.books.where((b) => b.isOldTestament).toList();
-    final nt = widget.books.where((b) => !b.isOldTestament).toList();
+    final planIds = widget.planSteps != null && widget.planSteps!.isNotEmpty
+        ? planBooksInSteps(widget.planSteps!).toSet()
+        : null;
+    final filtered = planIds == null
+        ? widget.books
+        : widget.books.where((b) => planIds.contains(b.id)).toList();
+    final ot = filtered.where((b) => b.isOldTestament).toList();
+    final nt = filtered.where((b) => !b.isOldTestament).toList();
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.7,
@@ -557,11 +665,20 @@ class _BookSheetState extends State<_BookSheet> {
         controller: controller,
         padding: const EdgeInsets.all(16),
         children: [
-          const Center(
-            child: Text('圣经目录',
-                style: TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600)),
+          Center(
+            child: Text(
+              widget.planSteps != null ? '圣经目录 · 计划模式' : '圣经目录',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
           ),
+          if (widget.planSteps != null) ...[
+            const SizedBox(height: 6),
+            const Text(
+              '仅显示今日计划经卷与章节',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
+            ),
+          ],
           const SizedBox(height: 12),
           if (ot.isNotEmpty) _section('旧约', ot),
           if (nt.isNotEmpty) _section('新约', nt),
@@ -633,23 +750,44 @@ class _BookSheetState extends State<_BookSheet> {
   }
 
   Future<void> _pickChapter(BibleBook book) async {
+    if (widget.planSteps != null &&
+        !isChapterInPlan(widget.planSteps!, book.id, 1) &&
+        allowedChaptersForBook(widget.planSteps!, book.id).isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('该经卷不在今日计划内')),
+        );
+      }
+      return;
+    }
     final chapter = await showModalBottomSheet<int>(
       context: context,
       backgroundColor: AppColors.surface,
-      builder: (_) => _ChapterGrid(book: book),
+      builder: (_) => _ChapterGrid(book: book, planSteps: widget.planSteps),
     );
     if (chapter != null && mounted) {
+      if (widget.planSteps != null &&
+          !isChapterInPlan(widget.planSteps!, book.id, chapter)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('该章节不在今日计划内')),
+        );
+        return;
+      }
       Navigator.pop(context, (book: book, chapter: chapter));
     }
   }
 }
 
 class _ChapterGrid extends StatelessWidget {
-  const _ChapterGrid({required this.book});
+  const _ChapterGrid({required this.book, this.planSteps});
   final BibleBook book;
+  final List<PlanStep>? planSteps;
 
   @override
   Widget build(BuildContext context) {
+    final allowed = planSteps != null && planSteps!.isNotEmpty
+        ? allowedChaptersForBook(planSteps!, book.id).toSet()
+        : null;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -670,18 +808,25 @@ class _ChapterGrid extends StatelessWidget {
                   crossAxisSpacing: 8,
                 ),
                 itemCount: book.chapterCount,
-                itemBuilder: (_, i) => GestureDetector(
-                  onTap: () => Navigator.pop(context, i + 1),
-                  child: Container(
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.line),
+                itemBuilder: (_, i) {
+                  final n = i + 1;
+                  final disabled = allowed != null && !allowed.contains(n);
+                  return GestureDetector(
+                    onTap: disabled ? null : () => Navigator.pop(context, n),
+                    child: Opacity(
+                      opacity: disabled ? 0.35 : 1,
+                      child: Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppColors.line),
+                        ),
+                        child: Text('$n'),
+                      ),
                     ),
-                    child: Text('${i + 1}'),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
           ],

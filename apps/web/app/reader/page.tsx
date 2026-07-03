@@ -198,6 +198,16 @@ export default function ReaderPage() {
     setChapter(Math.min(Math.max(1, ch), b.chapter_count));
   }, []);
 
+  const handlePlanExit = useCallback(() => {
+    setPlanMeta(null);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('plan');
+      url.searchParams.delete('day');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  }, []);
+
   const handlePickChapter = useCallback((b: BibleBook, ch: number) => {
     handleNavigate(b, ch);
     setCatalogOpen(false);
@@ -213,6 +223,7 @@ export default function ReaderPage() {
         onBack={() => setCatalogOpen(false)}
         onPickChapter={handlePickChapter}
         bookAbbr={bookAbbr}
+        planSteps={planMeta?.steps}
       />
     );
   }
@@ -241,6 +252,7 @@ export default function ReaderPage() {
         planMeta={planMeta}
         onPlanMetaChange={setPlanMeta}
         onPlanJump={handlePlanJump}
+        onPlanExit={planMeta ? handlePlanExit : undefined}
         externalOverlayOpen={Boolean(dictPopup || disambig)}
         flashRef={flashRef}
         checkinGroupId={checkinGroupId}

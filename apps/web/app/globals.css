@@ -4818,6 +4818,38 @@ a.today-card-link {
   padding: 6px 4px;
 }
 
+
+.plan-read-exit {
+  font-size: 12px;
+  padding: 6px 4px;
+  color: var(--ink-soft);
+}
+
+.plan-out-of-range,
+.plan-segment-footer {
+  margin: 10px 16px 0;
+  padding: 12px 14px;
+}
+
+.plan-segment-footer {
+  border: 1px solid var(--accent);
+  background: var(--accent-wash);
+}
+
+.chapter-cell-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.catalog-card-disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.plan-catalog-warn {
+  color: var(--accent-deep);
+}
+
 .plan-segment-done {
   margin: 16px 0;
   padding: 14px 16px;

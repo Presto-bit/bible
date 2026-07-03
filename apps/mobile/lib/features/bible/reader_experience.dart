@@ -814,9 +814,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     if (idx < 0) return null;
     final step = meta.steps[idx];
     if (!isLastChapterOfStep(step, widget.chapter)) return null;
-    if (meta.session.stepsDone.contains(step.id)) return null;
-    final next = nextIncompleteStep(meta.steps, meta.session.stepsDone);
-    if (next == null || next.id == step.id) return null;
+    final next = pendingNextStep(
+      meta.steps,
+      meta.session.stepsDone,
+      widget.book.id,
+      widget.chapter,
+    );
+    if (next == null) return null;
     return Container(
       margin: const EdgeInsets.only(top: 16, bottom: 8),
       padding: const EdgeInsets.all(16),
