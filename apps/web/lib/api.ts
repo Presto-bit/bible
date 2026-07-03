@@ -822,8 +822,51 @@ export interface DictEntity {
   scope_books?: string[];
 }
 export interface CrossrefResult {
+  ref?: string;
   label: string;
   related: { ref: string; text: string }[];
+  count?: number;
+}
+
+export interface StrongsWord {
+  position: number;
+  word?: string;
+  strongs?: string;
+  lemma?: string;
+  transliteration?: string;
+  gloss?: string;
+  morphology?: string;
+}
+
+export interface StrongsResult {
+  ref?: string;
+  book?: string;
+  chapter?: number;
+  verse?: number;
+  words: StrongsWord[];
+  entry?: {
+    strongs: string;
+    language: string;
+    lemma?: string;
+    transliteration?: string;
+    gloss?: string;
+  };
+}
+
+export interface TopicEntry {
+  id: string;
+  name: string;
+  refs?: string[] | { ref: string; text: string }[];
+  verse_count?: number;
+}
+
+export interface GeoPlace {
+  id: string;
+  name: string;
+  type?: string;
+  latitude: number;
+  longitude: number;
+  refs?: string[];
 }
 
 export interface BibleSearchHit {
@@ -920,6 +963,26 @@ export const api = {
     }),
   crossrefs: (ref: string) =>
     getJson<CrossrefResult>(`/content/crossrefs?ref=${encodeURIComponent(ref)}`),
+  strongs: (ref: string) =>
+    getJson<StrongsResult>(`/content/strongs?ref=${encodeURIComponent(ref)}`),
+  topics: (topic?: string) =>
+    getJson<{ topics: TopicEntry[] } | TopicEntry>(
+      topic ? `/content/topics?topic=${encodeURIComponent(topic)}` : '/content/topics',
+    ),
+  geography: (ref?: string) =>
+    getJson<{ places: GeoPlace[] }>(
+      ref ? `/content/geography?ref=${encodeURIComponent(ref)}` : '/content/geography',
+    ),
+  timeline: (book?: string, chapter?: number) =>
+    getJson<{ chapters?: unknown[]; timeline?: unknown }>(
+      book && chapter
+        ? `/content/timeline?book=${encodeURIComponent(book)}&chapter=${chapter}`
+        : '/content/timeline',
+    ),
+  contentAttribution: () =>
+    getJson<{ sources: { id: string; name: string; license: string; url: string }[] }>(
+      '/content/attribution',
+    ),
   dictionary: (term?: string, ref?: string) =>
     getJson<{ entities: DictEntity[] }>(
       `/content/dictionary${term || ref ? `?${new URLSearchParams({

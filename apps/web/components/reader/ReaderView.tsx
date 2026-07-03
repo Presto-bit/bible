@@ -10,6 +10,8 @@ import {
 } from '@/lib/api';
 import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
 import SummarySheet from '@/components/reader/SummarySheet';
+import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
+import { StrongSheet } from '@/components/reader/StrongSheet';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
@@ -183,6 +185,8 @@ export default function ReaderView({
   const [markNotePrompt, setMarkNotePrompt] = useState<null | { ref: string; label: string }>(null);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
+  const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'compare'>(null);
+  const [strongOpen, setStrongOpen] = useState(false);
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [chapterBottomTick, setChapterBottomTick] = useState(0);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
@@ -1334,6 +1338,11 @@ export default function ReaderView({
               }}>想法</button>
             )}
             <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
+            <button type="button" className="vsb-item" onClick={() => setToolsSheet('crossrefs')}>串珠</button>
+            <button type="button" className="vsb-item" onClick={() => setToolsSheet('compare')}>对照</button>
+            {sortedSel.length === 1 && (
+              <button type="button" className="vsb-item" onClick={() => setStrongOpen(true)}>原文</button>
+            )}
             <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
           </div>
         </div>
@@ -1468,6 +1477,23 @@ export default function ReaderView({
           refLabel={effRefLabel}
           selectionText={effSelectionText}
           onClose={() => setAiSheet(false)}
+        />
+      )}
+
+      {toolsSheet && (
+        <ReaderToolsSheet
+          refParam={effRefParam}
+          refLabel={effRefLabel}
+          initialTab={toolsSheet}
+          onClose={() => setToolsSheet(null)}
+        />
+      )}
+
+      {strongOpen && (
+        <StrongSheet
+          refParam={effRefParam}
+          refLabel={effRefLabel}
+          onClose={() => setStrongOpen(false)}
         />
       )}
 

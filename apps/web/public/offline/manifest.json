@@ -1,12 +1,17 @@
 {
-  "version": "2026.07.02",
-  "zip": "bible_offline_2026.07.02.zip",
-  "zip_sha256": "2b43c4927e81a1e351adbac192abb043040f0295b09653f28a40af2f8b03b7c7",
+  "version": "2026.07.03",
+  "zip": "bible_offline_2026.07.03.zip",
+  "zip_sha256": "c87d314882ba694aa9300faca5f8f853397ccb4d7244d02e3402678c88bd8ec8",
   "files": [
     {
       "path": "bible/bible_cnv.sqlite",
       "bytes": 12316672,
       "sha256": "1d475222ffef33463a5ec0e389f6bf5725e01d44c79116620d28494086e7e23e"
+    },
+    {
+      "path": "bible/bible_cuvs.sqlite",
+      "bytes": 12308480,
+      "sha256": "1035fe29bb4335d7367b9d51c551ad8ee96726d877ed8c1374fae81a3f8c8703"
     },
     {
       "path": "content/plans/bible_year_365.csv",
@@ -32,6 +37,11 @@
       "path": "content/plans/jhn_7.csv",
       "bytes": 367,
       "sha256": "1f0c3b0469f092fad7b526b53216f7347701a7e9657adf4e3eea1f6493c24386"
+    },
+    {
+      "path": "content/plans/mcheyne_365.csv",
+      "bytes": 39683,
+      "sha256": "e8f631b18986d7dd8b0ca2cd1c7a287c8323e6594b157b24b0365635bf4927a2"
     },
     {
       "path": "content/plans/new_testament_90.csv",
@@ -90,18 +100,43 @@
     },
     {
       "path": "content/daily-verses/daily_verses.json",
-      "bytes": 24660,
-      "sha256": "0c0533cee972e3dfa332e3af6ba28de98ba758e32b5a45db854ea39c7d4af630"
+      "bytes": 35604,
+      "sha256": "cbe9b2857c0c987e25adba36f10371ba7c546f10225390c8098e2da986a533bf"
     },
     {
       "path": "content/crossrefs/cross_references.json",
-      "bytes": 3647,
-      "sha256": "afe9ba5bbf4cb1a1d66b340db0c94ce421eb1aa005cd5c72c677116ebbe26594"
+      "bytes": 165472,
+      "sha256": "20e586270dbc0d8e68a5b2edb80de324a165e5d542bfeef19402fc610cab3821"
+    },
+    {
+      "path": "content/crossrefs/cross_references.sqlite",
+      "bytes": 22298624,
+      "sha256": "a539ead0da6b61971a64c461a05d82fd082849eba1a23f588f6e58d682eb7cb1"
     },
     {
       "path": "content/dictionary/entities.json",
-      "bytes": 36729,
-      "sha256": "287d576b2c9ced1e58d566b4dd96ba61fdc6bab022d91887db27ee21f2a36452"
+      "bytes": 591413,
+      "sha256": "6f5131e38776951158edb9056811da92d22039b8e5cd4b8a2b2f797469c7a514"
+    },
+    {
+      "path": "content/topics/topics.json",
+      "bytes": 7389,
+      "sha256": "2ac905c7572685303114e1e55efb56f4cc0c9cfe84a56ff65e1a99de22f8280e"
+    },
+    {
+      "path": "content/geography/places.json",
+      "bytes": 345457,
+      "sha256": "cd81fdb42dffdc9efeba571669b36269353d90a2f1d0a5b1bb04f475d21b20ba"
+    },
+    {
+      "path": "content/geography/timeline.json",
+      "bytes": 112351,
+      "sha256": "bf849c92334245abeebb103ef04e5d1c9382590457fbf0ddef8db7c843c4b1ac"
+    },
+    {
+      "path": "content/strongs/strongs.sqlite",
+      "bytes": 14368768,
+      "sha256": "3fdfa65caafb44320d79124131f25467b9fb664a07a0f761917f046a684f4802"
     },
     {
       "path": "content/illustrations/index.json",

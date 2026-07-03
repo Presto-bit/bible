@@ -14,6 +14,7 @@ from ..config import get_settings
 # 译本注册表：id → (展示名, 是否主译本)。主译本提供卷名/目录，其余仅供对照。
 VERSIONS: dict[str, str] = {
     "cnv": "圣经新译本 (CNV)",
+    "cuvs": "和合本 (CUVS)",
     "kjv": "King James Version (KJV)",
 }
 PRIMARY_VERSION = "cnv"
@@ -23,6 +24,8 @@ def _db_path(version: str) -> Path:
     s = get_settings()
     if version == "kjv":
         return Path(s.bible_kjv_db_path)
+    if version == "cuvs":
+        return Path(s.bible_cuvs_db_path)
     return Path(s.bible_db_path)
 
 

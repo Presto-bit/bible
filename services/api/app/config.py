@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     bible_db_path: str = str(REPO_ROOT / "build" / "bible_cnv.sqlite")
     # ── 英文对照译本（KJV），用于多译本对照；缺失时自动降级为单译本 ──
     bible_kjv_db_path: str = str(REPO_ROOT / "build" / "bible_kjv.sqlite")
+    # ── 公版和合本（CUVS），第三译本对照 ──
+    bible_cuvs_db_path: str = str(REPO_ROOT / "build" / "bible_cuvs.sqlite")
 
     # ── 静态内容数据目录（计划/每日经文/祷告/交叉引用/词典/插画）──
     content_data_dir: str = str(REPO_ROOT / "data")

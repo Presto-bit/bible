@@ -64,13 +64,85 @@ class ContentRepository {
     return CrossrefResult.fromJson(res.data as Map<String, dynamic>);
   }
 
-  Future<List<DictEntity>> dictionary({String? term}) async {
+  Future<List<DictEntity>> dictionary({String? term, String? ref}) async {
     final res = await _dio.get('/content/dictionary',
-        queryParameters: {if (term != null && term.isNotEmpty) 'term': term});
+        queryParameters: {
+          if (term != null && term.isNotEmpty) 'term': term,
+          if (ref != null && ref.isNotEmpty) 'ref': ref,
+        });
     return ((res.data['entities'] ?? []) as List)
         .map((e) => DictEntity.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<List<StrongsWord>> strongs(String ref) async {
+    final res = await _dio.get('/content/strongs', queryParameters: {'ref': ref});
+    return ((res.data['words'] ?? []) as List)
+        .map((e) => StrongsWord.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<SectionMark>> sectionTitles(String book, int chapter) async {
+    final res = await _dio.get('/content/sections',
+        queryParameters: {'book': book, 'chapter': chapter});
+    return ((res.data['sections'] ?? []) as List)
+        .map((e) => SectionMark.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<TopicEntry>> topics() async {
+    final res = await _dio.get('/content/topics');
+    return ((res.data['topics'] ?? []) as List)
+        .map((e) => TopicEntry.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+}
+
+class StrongsWord {
+  StrongsWord({
+    required this.position,
+    this.word,
+    this.strongs,
+    this.lemma,
+    this.gloss,
+    this.morphology,
+  });
+  final int position;
+  final String? word;
+  final String? strongs;
+  final String? lemma;
+  final String? gloss;
+  final String? morphology;
+  factory StrongsWord.fromJson(Map<String, dynamic> j) => StrongsWord(
+        position: (j['position'] as num?)?.toInt() ?? 0,
+        word: j['word'] as String?,
+        strongs: j['strongs'] as String?,
+        lemma: j['lemma'] as String?,
+        gloss: j['gloss'] as String?,
+        morphology: j['morphology'] as String?,
+      );
+}
+
+class SectionMark {
+  SectionMark({required this.verse, required this.title});
+  final int verse;
+  final String title;
+  factory SectionMark.fromJson(Map<String, dynamic> j) => SectionMark(
+        verse: (j['verse'] as num?)?.toInt() ?? 1,
+        title: (j['title'] ?? '') as String,
+      );
+}
+
+class TopicEntry {
+  TopicEntry({required this.id, required this.name, this.refs = const []});
+  final String id;
+  final String name;
+  final List<String> refs;
+  factory TopicEntry.fromJson(Map<String, dynamic> j) => TopicEntry(
+        id: (j['id'] ?? j['name'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        refs: ((j['refs'] ?? []) as List).map((e) => '$e').toList(),
+      );
 }
 
 final contentRepoProvider =
@@ -81,3 +153,15 @@ final crossrefsProvider = FutureProvider.family<CrossrefResult, String>(
 
 final dictionaryProvider = FutureProvider.family<List<DictEntity>, String>(
     (ref, term) => ref.watch(contentRepoProvider).dictionary(term: term));
+
+final strongsProvider = FutureProvider.family<List<StrongsWord>, String>(
+    (ref, refStr) => ref.watch(contentRepoProvider).strongs(refStr));
+
+final sectionTitlesProvider =
+    FutureProvider.family<List<SectionMark>, ({String book, int chapter})>(
+        (ref, args) => ref
+            .watch(contentRepoProvider)
+            .sectionTitles(args.book, args.chapter));
+
+final topicsProvider = FutureProvider<List<TopicEntry>>(
+    (ref) => ref.watch(contentRepoProvider).topics());

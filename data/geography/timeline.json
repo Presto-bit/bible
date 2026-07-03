@@ -1,0 +1,6379 @@
+{
+  "schema": "timeline@1",
+  "source": "gnosis chapter-timeline (CC-BY-SA)",
+  "count": 1062,
+  "chapters": [
+    {
+      "book": "1CH",
+      "chapter": 1,
+      "year": -1853,
+      "year_display": "1854 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 10,
+      "year": -1056,
+      "year_display": "1057 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 11,
+      "year": -1055,
+      "year_display": "1056 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 12,
+      "year": -1048,
+      "year_display": "1049 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 14,
+      "year": -1047,
+      "year_display": "1048 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 15,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 16,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 17,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 18,
+      "year": -1040,
+      "year_display": "1041 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 19,
+      "year": -1036,
+      "year_display": "1037 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 2,
+      "year": -1470,
+      "year_display": "1471 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 20,
+      "year": -1018,
+      "year_display": "1019 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 21,
+      "year": -1017,
+      "year_display": "1018 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 22,
+      "year": -1017,
+      "year_display": "1018 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 23,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 24,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 25,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 26,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 27,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 28,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 29,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 3,
+      "year": -1053,
+      "year_display": "1054 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 4,
+      "year": -1721,
+      "year_display": "1722 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 5,
+      "year": -1060,
+      "year_display": "1061 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 6,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "1CH",
+      "chapter": 9,
+      "year": -536,
+      "year_display": "537 BC"
+    },
+    {
+      "book": "1CO",
+      "chapter": 1,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 10,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 11,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 12,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 13,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 14,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 15,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 16,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 2,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 3,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 4,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 5,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 6,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 7,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 8,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1CO",
+      "chapter": 9,
+      "year": 59,
+      "year_display": "59 AD"
+    },
+    {
+      "book": "1JN",
+      "chapter": 1,
+      "year": 90,
+      "year_display": "90 AD"
+    },
+    {
+      "book": "1JN",
+      "chapter": 2,
+      "year": 90,
+      "year_display": "90 AD"
+    },
+    {
+      "book": "1JN",
+      "chapter": 3,
+      "year": 90,
+      "year_display": "90 AD"
+    },
+    {
+      "book": "1JN",
+      "chapter": 4,
+      "year": 90,
+      "year_display": "90 AD"
+    },
+    {
+      "book": "1JN",
+      "chapter": 5,
+      "year": 90,
+      "year_display": "90 AD"
+    },
+    {
+      "book": "1KI",
+      "chapter": 1,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 10,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 11,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 13,
+      "year": -974,
+      "year_display": "975 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 14,
+      "year": -975,
+      "year_display": "976 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 15,
+      "year": -954,
+      "year_display": "955 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 16,
+      "year": -929,
+      "year_display": "930 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 17,
+      "year": -909,
+      "year_display": "910 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 18,
+      "year": -909,
+      "year_display": "910 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 19,
+      "year": -909,
+      "year_display": "910 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 2,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 20,
+      "year": -901,
+      "year_display": "902 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 21,
+      "year": -899,
+      "year_display": "900 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 22,
+      "year": -897,
+      "year_display": "898 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 3,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 4,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 5,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 6,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 8,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1KI",
+      "chapter": 9,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "1PE",
+      "chapter": 1,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "1PE",
+      "chapter": 2,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "1PE",
+      "chapter": 3,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "1PE",
+      "chapter": 4,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "1PE",
+      "chapter": 5,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "1SA",
+      "chapter": 1,
+      "year": -1165,
+      "year_display": "1166 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 10,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 11,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 12,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 13,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 14,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 15,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 16,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 17,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 18,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 19,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 2,
+      "year": -1165,
+      "year_display": "1166 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 20,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 21,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 22,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 23,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 24,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 25,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 26,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 27,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 28,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 29,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 3,
+      "year": -1165,
+      "year_display": "1166 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 30,
+      "year": -1094,
+      "year_display": "1095 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 31,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 4,
+      "year": -1141,
+      "year_display": "1142 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 5,
+      "year": -1141,
+      "year_display": "1142 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 6,
+      "year": -1140,
+      "year_display": "1141 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 7,
+      "year": -1120,
+      "year_display": "1121 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 8,
+      "year": -1112,
+      "year_display": "1113 BC"
+    },
+    {
+      "book": "1SA",
+      "chapter": 9,
+      "year": -1095,
+      "year_display": "1096 BC"
+    },
+    {
+      "book": "1TH",
+      "chapter": 1,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "1TH",
+      "chapter": 2,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "1TH",
+      "chapter": 3,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "1TH",
+      "chapter": 4,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "1TH",
+      "chapter": 5,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "1TI",
+      "chapter": 1,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "1TI",
+      "chapter": 2,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "1TI",
+      "chapter": 3,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "1TI",
+      "chapter": 4,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "1TI",
+      "chapter": 5,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "1TI",
+      "chapter": 6,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "2CH",
+      "chapter": 1,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 10,
+      "year": -975,
+      "year_display": "976 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 11,
+      "year": -975,
+      "year_display": "976 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 12,
+      "year": -970,
+      "year_display": "971 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 13,
+      "year": -958,
+      "year_display": "959 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 14,
+      "year": -941,
+      "year_display": "942 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 15,
+      "year": -941,
+      "year_display": "942 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 16,
+      "year": -930,
+      "year_display": "931 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 17,
+      "year": -912,
+      "year_display": "913 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 18,
+      "year": -897,
+      "year_display": "898 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 19,
+      "year": -896,
+      "year_display": "897 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 2,
+      "year": -1015,
+      "year_display": "1016 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 20,
+      "year": -914,
+      "year_display": "915 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 21,
+      "year": -889,
+      "year_display": "890 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 22,
+      "year": -885,
+      "year_display": "886 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 23,
+      "year": -878,
+      "year_display": "879 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 24,
+      "year": -856,
+      "year_display": "857 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 25,
+      "year": -827,
+      "year_display": "828 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 26,
+      "year": -810,
+      "year_display": "811 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 27,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 28,
+      "year": -742,
+      "year_display": "743 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 29,
+      "year": -726,
+      "year_display": "727 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 3,
+      "year": -1011,
+      "year_display": "1012 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 30,
+      "year": -726,
+      "year_display": "727 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 31,
+      "year": -726,
+      "year_display": "727 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 32,
+      "year": -710,
+      "year_display": "711 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 33,
+      "year": -693,
+      "year_display": "694 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 34,
+      "year": -624,
+      "year_display": "625 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 35,
+      "year": -610,
+      "year_display": "611 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 36,
+      "year": -599,
+      "year_display": "600 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 4,
+      "year": -1011,
+      "year_display": "1012 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 5,
+      "year": -1004,
+      "year_display": "1005 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 6,
+      "year": -1004,
+      "year_display": "1005 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 7,
+      "year": -1004,
+      "year_display": "1005 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 8,
+      "year": -1004,
+      "year_display": "1005 BC"
+    },
+    {
+      "book": "2CH",
+      "chapter": 9,
+      "year": -975,
+      "year_display": "976 BC"
+    },
+    {
+      "book": "2CO",
+      "chapter": 1,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 10,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 11,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 12,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 13,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 2,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 3,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 4,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 5,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 6,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 7,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 8,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2CO",
+      "chapter": 9,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "2JN",
+      "chapter": 1,
+      "year": 90,
+      "year_display": "90 AD"
+    },
+    {
+      "book": "2KI",
+      "chapter": 1,
+      "year": -909,
+      "year_display": "910 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 10,
+      "year": -885,
+      "year_display": "886 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 11,
+      "year": -878,
+      "year_display": "879 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 12,
+      "year": -878,
+      "year_display": "879 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 13,
+      "year": -856,
+      "year_display": "857 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 14,
+      "year": -838,
+      "year_display": "839 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 15,
+      "year": -809,
+      "year_display": "810 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 16,
+      "year": -742,
+      "year_display": "743 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 17,
+      "year": -721,
+      "year_display": "722 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 18,
+      "year": -725,
+      "year_display": "726 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 19,
+      "year": -725,
+      "year_display": "726 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 2,
+      "year": -909,
+      "year_display": "910 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 20,
+      "year": -725,
+      "year_display": "726 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 21,
+      "year": -696,
+      "year_display": "697 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 22,
+      "year": -640,
+      "year_display": "641 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 23,
+      "year": -608,
+      "year_display": "609 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 24,
+      "year": -597,
+      "year_display": "598 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 25,
+      "year": -588,
+      "year_display": "589 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 3,
+      "year": -896,
+      "year_display": "897 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 4,
+      "year": -896,
+      "year_display": "897 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 5,
+      "year": -909,
+      "year_display": "910 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 6,
+      "year": -896,
+      "year_display": "897 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 7,
+      "year": -896,
+      "year_display": "897 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 8,
+      "year": -896,
+      "year_display": "897 BC"
+    },
+    {
+      "book": "2KI",
+      "chapter": 9,
+      "year": -885,
+      "year_display": "886 BC"
+    },
+    {
+      "book": "2PE",
+      "chapter": 1,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "2PE",
+      "chapter": 2,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "2PE",
+      "chapter": 3,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "2SA",
+      "chapter": 1,
+      "year": -1053,
+      "year_display": "1054 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 10,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 11,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 12,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 13,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 14,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 15,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 16,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 17,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 18,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 19,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 2,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 20,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 21,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 22,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 23,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 24,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 3,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 4,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 5,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 6,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 7,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 8,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2SA",
+      "chapter": 9,
+      "year": -1054,
+      "year_display": "1055 BC"
+    },
+    {
+      "book": "2TH",
+      "chapter": 1,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "2TH",
+      "chapter": 2,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "2TH",
+      "chapter": 3,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "2TI",
+      "chapter": 1,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "2TI",
+      "chapter": 2,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "2TI",
+      "chapter": 3,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "2TI",
+      "chapter": 4,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "3JN",
+      "chapter": 1,
+      "year": 90,
+      "year_display": "90 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 1,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 10,
+      "year": 38,
+      "year_display": "38 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 11,
+      "year": 38,
+      "year_display": "38 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 12,
+      "year": 44,
+      "year_display": "44 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 13,
+      "year": 45,
+      "year_display": "45 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 14,
+      "year": 45,
+      "year_display": "45 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 15,
+      "year": 46,
+      "year_display": "46 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 16,
+      "year": 46,
+      "year_display": "46 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 17,
+      "year": 46,
+      "year_display": "46 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 18,
+      "year": 46,
+      "year_display": "46 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 19,
+      "year": 50,
+      "year_display": "50 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 2,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 20,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 21,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 22,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 23,
+      "year": 54,
+      "year_display": "54 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 24,
+      "year": 56,
+      "year_display": "56 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 25,
+      "year": 58,
+      "year_display": "58 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 26,
+      "year": 58,
+      "year_display": "58 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 27,
+      "year": 56,
+      "year_display": "56 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 28,
+      "year": 56,
+      "year_display": "56 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 3,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 4,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 5,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 6,
+      "year": 31,
+      "year_display": "31 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 7,
+      "year": 31,
+      "year_display": "31 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 8,
+      "year": 31,
+      "year_display": "31 AD"
+    },
+    {
+      "book": "ACT",
+      "chapter": 9,
+      "year": 38,
+      "year_display": "38 AD"
+    },
+    {
+      "book": "AMO",
+      "chapter": 1,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 2,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 3,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 4,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 5,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 6,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 7,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 8,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "AMO",
+      "chapter": 9,
+      "year": -787,
+      "year_display": "788 BC"
+    },
+    {
+      "book": "COL",
+      "chapter": 1,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "COL",
+      "chapter": 2,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "COL",
+      "chapter": 3,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "COL",
+      "chapter": 4,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "DAN",
+      "chapter": 1,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 10,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 11,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 12,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 2,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 3,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 4,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 5,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 6,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 7,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 8,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DAN",
+      "chapter": 9,
+      "year": -605,
+      "year_display": "606 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 1,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 10,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 11,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 12,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 13,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 14,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 15,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 16,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 17,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 18,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 19,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 2,
+      "year": -1453,
+      "year_display": "1454 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 20,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 21,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 22,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 23,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 24,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 25,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 26,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 27,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 28,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 29,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 3,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 30,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 31,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 32,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 33,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 34,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 4,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 5,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 6,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 7,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 8,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "DEU",
+      "chapter": 9,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 1,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 10,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 11,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 12,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 2,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 3,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 4,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 5,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 6,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 7,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 8,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "ECC",
+      "chapter": 9,
+      "year": -977,
+      "year_display": "978 BC"
+    },
+    {
+      "book": "EPH",
+      "chapter": 1,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "EPH",
+      "chapter": 2,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "EPH",
+      "chapter": 3,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "EPH",
+      "chapter": 4,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "EPH",
+      "chapter": 5,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "EPH",
+      "chapter": 6,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "EST",
+      "chapter": 1,
+      "year": -462,
+      "year_display": "463 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 10,
+      "year": -452,
+      "year_display": "453 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 2,
+      "year": -461,
+      "year_display": "462 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 3,
+      "year": -453,
+      "year_display": "454 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 4,
+      "year": -453,
+      "year_display": "454 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 5,
+      "year": -453,
+      "year_display": "454 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 6,
+      "year": -453,
+      "year_display": "454 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 7,
+      "year": -453,
+      "year_display": "454 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 8,
+      "year": -453,
+      "year_display": "454 BC"
+    },
+    {
+      "book": "EST",
+      "chapter": 9,
+      "year": -452,
+      "year_display": "453 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 1,
+      "year": -1635,
+      "year_display": "1636 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 10,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 11,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 12,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 13,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 14,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 15,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 16,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 17,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 18,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 19,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 2,
+      "year": -1570,
+      "year_display": "1571 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 20,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 21,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 22,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 23,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 24,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 25,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 26,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 27,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 28,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 29,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 3,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 30,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 31,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 32,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 33,
+      "year": -1489,
+      "year_display": "1490 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 34,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 35,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 36,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 37,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 38,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 39,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 4,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 40,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 5,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 6,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 7,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 8,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EXO",
+      "chapter": 9,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 1,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 10,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 11,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 12,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 13,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 14,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 15,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 16,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 17,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 18,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 19,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 2,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 20,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 21,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 22,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 23,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 24,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 25,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 26,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 27,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 28,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 29,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 3,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 30,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 31,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 32,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 33,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 34,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 35,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 36,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 37,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 38,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 39,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 4,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 40,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 41,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 42,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 43,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 44,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 45,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 46,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 47,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 48,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 5,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 6,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 7,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 8,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZK",
+      "chapter": 9,
+      "year": -592,
+      "year_display": "593 BC"
+    },
+    {
+      "book": "EZR",
+      "chapter": 10,
+      "year": -456,
+      "year_display": "457 BC"
+    },
+    {
+      "book": "EZR",
+      "chapter": 4,
+      "year": -522,
+      "year_display": "523 BC"
+    },
+    {
+      "book": "EZR",
+      "chapter": 5,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "EZR",
+      "chapter": 6,
+      "year": -515,
+      "year_display": "516 BC"
+    },
+    {
+      "book": "EZR",
+      "chapter": 7,
+      "year": -457,
+      "year_display": "458 BC"
+    },
+    {
+      "book": "EZR",
+      "chapter": 8,
+      "year": -457,
+      "year_display": "458 BC"
+    },
+    {
+      "book": "EZR",
+      "chapter": 9,
+      "year": -457,
+      "year_display": "458 BC"
+    },
+    {
+      "book": "GAL",
+      "chapter": 1,
+      "year": 58,
+      "year_display": "58 AD"
+    },
+    {
+      "book": "GAL",
+      "chapter": 2,
+      "year": 52,
+      "year_display": "52 AD"
+    },
+    {
+      "book": "GAL",
+      "chapter": 3,
+      "year": 58,
+      "year_display": "58 AD"
+    },
+    {
+      "book": "GAL",
+      "chapter": 4,
+      "year": 58,
+      "year_display": "58 AD"
+    },
+    {
+      "book": "GAL",
+      "chapter": 5,
+      "year": 58,
+      "year_display": "58 AD"
+    },
+    {
+      "book": "GAL",
+      "chapter": 6,
+      "year": 58,
+      "year_display": "58 AD"
+    },
+    {
+      "book": "GEN",
+      "chapter": 1,
+      "year": -4003,
+      "year_display": "4004 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 10,
+      "year": -2304,
+      "year_display": "2305 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 11,
+      "year": -2245,
+      "year_display": "2246 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 12,
+      "year": -1920,
+      "year_display": "1921 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 13,
+      "year": -1919,
+      "year_display": "1920 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 14,
+      "year": -1913,
+      "year_display": "1914 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 15,
+      "year": -1911,
+      "year_display": "1912 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 16,
+      "year": -1911,
+      "year_display": "1912 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 17,
+      "year": -1897,
+      "year_display": "1898 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 18,
+      "year": -1897,
+      "year_display": "1898 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 19,
+      "year": -1896,
+      "year_display": "1897 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 2,
+      "year": -4003,
+      "year_display": "4004 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 20,
+      "year": -1897,
+      "year_display": "1898 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 21,
+      "year": -1886,
+      "year_display": "1887 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 22,
+      "year": -1872,
+      "year_display": "1873 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 23,
+      "year": -1860,
+      "year_display": "1861 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 24,
+      "year": -1857,
+      "year_display": "1858 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 25,
+      "year": -1821,
+      "year_display": "1822 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 26,
+      "year": -1804,
+      "year_display": "1805 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 27,
+      "year": -1760,
+      "year_display": "1761 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 28,
+      "year": -1760,
+      "year_display": "1761 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 29,
+      "year": -1753,
+      "year_display": "1754 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 3,
+      "year": -4003,
+      "year_display": "4004 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 30,
+      "year": -1745,
+      "year_display": "1746 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 31,
+      "year": -1739,
+      "year_display": "1740 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 32,
+      "year": -1739,
+      "year_display": "1740 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 33,
+      "year": -1739,
+      "year_display": "1740 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 34,
+      "year": -1732,
+      "year_display": "1733 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 35,
+      "year": -1738,
+      "year_display": "1739 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 36,
+      "year": -1756,
+      "year_display": "1757 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 37,
+      "year": -1727,
+      "year_display": "1728 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 38,
+      "year": -1722,
+      "year_display": "1723 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 39,
+      "year": -1719,
+      "year_display": "1720 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 4,
+      "year": -3874,
+      "year_display": "3875 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 40,
+      "year": -1717,
+      "year_display": "1718 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 41,
+      "year": -1715,
+      "year_display": "1716 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 42,
+      "year": -1707,
+      "year_display": "1708 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 43,
+      "year": -1707,
+      "year_display": "1708 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 44,
+      "year": -1705,
+      "year_display": "1706 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 45,
+      "year": -1705,
+      "year_display": "1706 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 46,
+      "year": -1706,
+      "year_display": "1707 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 47,
+      "year": -1701,
+      "year_display": "1702 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 48,
+      "year": -1689,
+      "year_display": "1690 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 49,
+      "year": -1689,
+      "year_display": "1690 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 5,
+      "year": -3381,
+      "year_display": "3382 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 50,
+      "year": -1689,
+      "year_display": "1690 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 6,
+      "year": -2399,
+      "year_display": "2400 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 7,
+      "year": -2347,
+      "year_display": "2348 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 8,
+      "year": -2347,
+      "year_display": "2348 BC"
+    },
+    {
+      "book": "GEN",
+      "chapter": 9,
+      "year": -2947,
+      "year_display": "2948 BC"
+    },
+    {
+      "book": "HAB",
+      "chapter": 1,
+      "year": -606,
+      "year_display": "607 BC"
+    },
+    {
+      "book": "HAB",
+      "chapter": 2,
+      "year": -606,
+      "year_display": "607 BC"
+    },
+    {
+      "book": "HAB",
+      "chapter": 3,
+      "year": -606,
+      "year_display": "607 BC"
+    },
+    {
+      "book": "HEB",
+      "chapter": 1,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 10,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 11,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 12,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 13,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 2,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 3,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 4,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 5,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 6,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 7,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 8,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HEB",
+      "chapter": 9,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "HOS",
+      "chapter": 1,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 10,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 11,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 12,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 13,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 14,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 2,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 3,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 4,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 5,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 6,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 7,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 8,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "HOS",
+      "chapter": 9,
+      "year": -784,
+      "year_display": "785 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 1,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 10,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 11,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 12,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 13,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 14,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 15,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 16,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 17,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 18,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 19,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 2,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 20,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 21,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 22,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 23,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 24,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 25,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 26,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 27,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 28,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 29,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 3,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 30,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 31,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 32,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 33,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 34,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 35,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 36,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 37,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 38,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 39,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 4,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 40,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 41,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 42,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 43,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 44,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 45,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 46,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 47,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 48,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 49,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 5,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 50,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 51,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 52,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 53,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 54,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 55,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 56,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 57,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 58,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 59,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 6,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 60,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 61,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 62,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 63,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 64,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 65,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 66,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 7,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 8,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "ISA",
+      "chapter": 9,
+      "year": -758,
+      "year_display": "759 BC"
+    },
+    {
+      "book": "JAS",
+      "chapter": 1,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "JAS",
+      "chapter": 2,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "JAS",
+      "chapter": 3,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "JAS",
+      "chapter": 4,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "JAS",
+      "chapter": 5,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "JER",
+      "chapter": 1,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 10,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 11,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 12,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 13,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 14,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 15,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 16,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 17,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 18,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 19,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 2,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 20,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 21,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 22,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 23,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 24,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 25,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 26,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 27,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 28,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 29,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 3,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 30,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 31,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 32,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 33,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 34,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 35,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 36,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 37,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 38,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 39,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 4,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 40,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 41,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 42,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 43,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 44,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 45,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 46,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 48,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 49,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 5,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 50,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 51,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 52,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 6,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 7,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 8,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JER",
+      "chapter": 9,
+      "year": -627,
+      "year_display": "628 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 1,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 10,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 11,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 12,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 13,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 14,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 15,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 16,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 17,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 18,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 19,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 2,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 20,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 21,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 22,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 23,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 24,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 25,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 26,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 27,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 28,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 29,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 3,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 30,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 31,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 32,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 33,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 34,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 35,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 36,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 37,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 38,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 39,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 4,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 40,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 41,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 42,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 5,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 6,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 7,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 8,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOB",
+      "chapter": 9,
+      "year": -1649,
+      "year_display": "1650 BC"
+    },
+    {
+      "book": "JOL",
+      "chapter": 1,
+      "year": -819,
+      "year_display": "820 BC"
+    },
+    {
+      "book": "JOL",
+      "chapter": 2,
+      "year": -819,
+      "year_display": "820 BC"
+    },
+    {
+      "book": "JOL",
+      "chapter": 3,
+      "year": -819,
+      "year_display": "820 BC"
+    },
+    {
+      "book": "JHN",
+      "chapter": 1,
+      "year": 27,
+      "year_display": "27 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 10,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 11,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 12,
+      "year": 33,
+      "year_display": "33 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 13,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 14,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 15,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 16,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 17,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 18,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 19,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 2,
+      "year": 27,
+      "year_display": "27 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 20,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 21,
+      "year": 33,
+      "year_display": "33 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 3,
+      "year": 27,
+      "year_display": "27 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 4,
+      "year": 27,
+      "year_display": "27 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 5,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 6,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 7,
+      "year": 33,
+      "year_display": "33 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 8,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "JHN",
+      "chapter": 9,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "JON",
+      "chapter": 1,
+      "year": -824,
+      "year_display": "825 BC"
+    },
+    {
+      "book": "JON",
+      "chapter": 2,
+      "year": -824,
+      "year_display": "825 BC"
+    },
+    {
+      "book": "JON",
+      "chapter": 3,
+      "year": -824,
+      "year_display": "825 BC"
+    },
+    {
+      "book": "JON",
+      "chapter": 4,
+      "year": -824,
+      "year_display": "825 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 1,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 10,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 11,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 12,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 13,
+      "year": -1444,
+      "year_display": "1445 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 14,
+      "year": -1444,
+      "year_display": "1445 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 15,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 16,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 17,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 18,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 19,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 2,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 20,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 21,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 22,
+      "year": -1443,
+      "year_display": "1444 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 23,
+      "year": -1427,
+      "year_display": "1428 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 24,
+      "year": -1427,
+      "year_display": "1428 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 3,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 4,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 5,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 6,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 7,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 8,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JOS",
+      "chapter": 9,
+      "year": -1450,
+      "year_display": "1451 BC"
+    },
+    {
+      "book": "JUD",
+      "chapter": 1,
+      "year": 66,
+      "year_display": "66 AD"
+    },
+    {
+      "book": "JDG",
+      "chapter": 10,
+      "year": -1169,
+      "year_display": "1170 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 11,
+      "year": -1151,
+      "year_display": "1152 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 12,
+      "year": -1128,
+      "year_display": "1129 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 13,
+      "year": -1155,
+      "year_display": "1156 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 14,
+      "year": -1141,
+      "year_display": "1142 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 15,
+      "year": -1141,
+      "year_display": "1142 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 16,
+      "year": -1120,
+      "year_display": "1121 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 17,
+      "year": -1419,
+      "year_display": "1420 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 18,
+      "year": -1406,
+      "year_display": "1407 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 19,
+      "year": -1406,
+      "year_display": "1407 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 2,
+      "year": -1409,
+      "year_display": "1410 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 20,
+      "year": -1406,
+      "year_display": "1407 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 21,
+      "year": -1406,
+      "year_display": "1407 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 3,
+      "year": -1360,
+      "year_display": "1361 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 4,
+      "year": -1277,
+      "year_display": "1278 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 6,
+      "year": -1250,
+      "year_display": "1251 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 7,
+      "year": -1250,
+      "year_display": "1251 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 8,
+      "year": -1250,
+      "year_display": "1251 BC"
+    },
+    {
+      "book": "JDG",
+      "chapter": 9,
+      "year": -1217,
+      "year_display": "1218 BC"
+    },
+    {
+      "book": "LAM",
+      "chapter": 1,
+      "year": -588,
+      "year_display": "589 BC"
+    },
+    {
+      "book": "LAM",
+      "chapter": 2,
+      "year": -588,
+      "year_display": "589 BC"
+    },
+    {
+      "book": "LAM",
+      "chapter": 3,
+      "year": -588,
+      "year_display": "589 BC"
+    },
+    {
+      "book": "LAM",
+      "chapter": 4,
+      "year": -588,
+      "year_display": "589 BC"
+    },
+    {
+      "book": "LAM",
+      "chapter": 5,
+      "year": -588,
+      "year_display": "589 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 1,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 10,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 11,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 12,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 13,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 14,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 15,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 16,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 17,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 18,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 19,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 2,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 20,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 21,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 22,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 23,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 24,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 25,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 26,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 27,
+      "year": -1491,
+      "year_display": "1492 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 3,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 4,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 5,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 6,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 7,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 8,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LEV",
+      "chapter": 9,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "LUK",
+      "chapter": 1,
+      "year": -4,
+      "year_display": "5 BC"
+    },
+    {
+      "book": "LUK",
+      "chapter": 10,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 11,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 12,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 13,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 14,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 15,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 16,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 17,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 18,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 19,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 2,
+      "year": -3,
+      "year_display": "4 BC"
+    },
+    {
+      "book": "LUK",
+      "chapter": 20,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 21,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 22,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 23,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 24,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 3,
+      "year": 26,
+      "year_display": "26 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 4,
+      "year": 27,
+      "year_display": "27 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 5,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 6,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 7,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 8,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "LUK",
+      "chapter": 9,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAL",
+      "chapter": 1,
+      "year": -441,
+      "year_display": "442 BC"
+    },
+    {
+      "book": "MAL",
+      "chapter": 2,
+      "year": -441,
+      "year_display": "442 BC"
+    },
+    {
+      "book": "MAL",
+      "chapter": 3,
+      "year": -441,
+      "year_display": "442 BC"
+    },
+    {
+      "book": "MAL",
+      "chapter": 4,
+      "year": -441,
+      "year_display": "442 BC"
+    },
+    {
+      "book": "MRK",
+      "chapter": 1,
+      "year": 27,
+      "year_display": "27 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 10,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 11,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 12,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 13,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 14,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 15,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 16,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 2,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 3,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 4,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 5,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 6,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 7,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 8,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MRK",
+      "chapter": 9,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 1,
+      "year": 26,
+      "year_display": "26 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 10,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 11,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 12,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 13,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 14,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 15,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 16,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 17,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 18,
+      "year": 29,
+      "year_display": "29 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 19,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 2,
+      "year": -4,
+      "year_display": "5 BC"
+    },
+    {
+      "book": "MAT",
+      "chapter": 20,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 21,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 22,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 23,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 24,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 25,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 26,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 27,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 28,
+      "year": 30,
+      "year_display": "30 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 3,
+      "year": 26,
+      "year_display": "26 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 4,
+      "year": 26,
+      "year_display": "26 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 5,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 6,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 7,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 8,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MAT",
+      "chapter": 9,
+      "year": 28,
+      "year_display": "28 AD"
+    },
+    {
+      "book": "MIC",
+      "chapter": 1,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "MIC",
+      "chapter": 2,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "MIC",
+      "chapter": 3,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "MIC",
+      "chapter": 4,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "MIC",
+      "chapter": 5,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "MIC",
+      "chapter": 6,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "MIC",
+      "chapter": 7,
+      "year": -753,
+      "year_display": "754 BC"
+    },
+    {
+      "book": "NAM",
+      "chapter": 1,
+      "year": -662,
+      "year_display": "663 BC"
+    },
+    {
+      "book": "NAM",
+      "chapter": 2,
+      "year": -662,
+      "year_display": "663 BC"
+    },
+    {
+      "book": "NAM",
+      "chapter": 3,
+      "year": -662,
+      "year_display": "663 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 1,
+      "year": -457,
+      "year_display": "458 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 10,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 11,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 12,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 13,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 2,
+      "year": -446,
+      "year_display": "447 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 3,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 4,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 5,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 6,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 7,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 8,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NEH",
+      "chapter": 9,
+      "year": -445,
+      "year_display": "446 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 1,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 10,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 11,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 12,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 13,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 14,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 15,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 16,
+      "year": -1471,
+      "year_display": "1472 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 17,
+      "year": -1471,
+      "year_display": "1472 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 18,
+      "year": -1471,
+      "year_display": "1472 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 19,
+      "year": -1471,
+      "year_display": "1472 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 2,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 20,
+      "year": -1471,
+      "year_display": "1472 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 21,
+      "year": -1453,
+      "year_display": "1454 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 22,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 23,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 24,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 25,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 26,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 27,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 28,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 29,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 3,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 30,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 31,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 32,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 34,
+      "year": -1452,
+      "year_display": "1453 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 35,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 36,
+      "year": -1451,
+      "year_display": "1452 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 4,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 5,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 6,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 7,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 8,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "NUM",
+      "chapter": 9,
+      "year": -1490,
+      "year_display": "1491 BC"
+    },
+    {
+      "book": "OBA",
+      "chapter": 1,
+      "year": -584,
+      "year_display": "585 BC"
+    },
+    {
+      "book": "PHP",
+      "chapter": 1,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "PHP",
+      "chapter": 2,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "PHP",
+      "chapter": 3,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "PHP",
+      "chapter": 4,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "PHM",
+      "chapter": 1,
+      "year": 64,
+      "year_display": "64 AD"
+    },
+    {
+      "book": "PRO",
+      "chapter": 1,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 10,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 11,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 12,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 13,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 14,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 15,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 16,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 17,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 18,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 19,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 2,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 20,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 21,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 22,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 23,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 24,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 25,
+      "year": -700,
+      "year_display": "701 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 26,
+      "year": -700,
+      "year_display": "701 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 27,
+      "year": -700,
+      "year_display": "701 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 28,
+      "year": -700,
+      "year_display": "701 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 29,
+      "year": -700,
+      "year_display": "701 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 3,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 30,
+      "year": -700,
+      "year_display": "701 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 31,
+      "year": -700,
+      "year_display": "701 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 4,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 5,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 6,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 7,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 8,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PRO",
+      "chapter": 9,
+      "year": -1000,
+      "year_display": "1001 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 1,
+      "year": -444,
+      "year_display": "445 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 10,
+      "year": -541,
+      "year_display": "542 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 103,
+      "year": -1034,
+      "year_display": "1035 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 105,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 107,
+      "year": -536,
+      "year_display": "537 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 108,
+      "year": -1040,
+      "year_display": "1041 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 109,
+      "year": -1062,
+      "year_display": "1063 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 11,
+      "year": -1062,
+      "year_display": "1063 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 110,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 111,
+      "year": -536,
+      "year_display": "537 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 115,
+      "year": -896,
+      "year_display": "897 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 116,
+      "year": -536,
+      "year_display": "537 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 118,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 119,
+      "year": -444,
+      "year_display": "445 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 13,
+      "year": -540,
+      "year_display": "541 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 135,
+      "year": -1004,
+      "year_display": "1005 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 137,
+      "year": -541,
+      "year_display": "542 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 140,
+      "year": -1062,
+      "year_display": "1063 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 141,
+      "year": -1058,
+      "year_display": "1059 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 146,
+      "year": -515,
+      "year_display": "516 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 17,
+      "year": -1062,
+      "year_display": "1063 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 2,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 20,
+      "year": -1036,
+      "year_display": "1037 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 24,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 25,
+      "year": -541,
+      "year_display": "542 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 3,
+      "year": -1021,
+      "year_display": "1022 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 31,
+      "year": -1061,
+      "year_display": "1062 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 35,
+      "year": -1062,
+      "year_display": "1063 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 40,
+      "year": -1034,
+      "year_display": "1035 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 42,
+      "year": -1021,
+      "year_display": "1022 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 43,
+      "year": -1021,
+      "year_display": "1022 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 64,
+      "year": -1061,
+      "year_display": "1062 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 66,
+      "year": -535,
+      "year_display": "536 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 68,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 94,
+      "year": -588,
+      "year_display": "589 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 96,
+      "year": -1042,
+      "year_display": "1043 BC"
+    },
+    {
+      "book": "PSA",
+      "chapter": 97,
+      "year": -1004,
+      "year_display": "1005 BC"
+    },
+    {
+      "book": "REV",
+      "chapter": 1,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 10,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 11,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 12,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 13,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 14,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 15,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 16,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 17,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 18,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 19,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 2,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 20,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 21,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 22,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 3,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 4,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 5,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 6,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 7,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 8,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "REV",
+      "chapter": 9,
+      "year": 96,
+      "year_display": "96 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 1,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 10,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 11,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 12,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 13,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 14,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 15,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 16,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 2,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 3,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 4,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 5,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 6,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 7,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 8,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "ROM",
+      "chapter": 9,
+      "year": 60,
+      "year_display": "60 AD"
+    },
+    {
+      "book": "RUT",
+      "chapter": 1,
+      "year": -1308,
+      "year_display": "1309 BC"
+    },
+    {
+      "book": "RUT",
+      "chapter": 2,
+      "year": -1307,
+      "year_display": "1308 BC"
+    },
+    {
+      "book": "RUT",
+      "chapter": 3,
+      "year": -1307,
+      "year_display": "1308 BC"
+    },
+    {
+      "book": "RUT",
+      "chapter": 4,
+      "year": -1307,
+      "year_display": "1308 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 1,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 2,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 3,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 4,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 5,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 6,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 7,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "SNG",
+      "chapter": 8,
+      "year": -1014,
+      "year_display": "1015 BC"
+    },
+    {
+      "book": "TIT",
+      "chapter": 1,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "TIT",
+      "chapter": 2,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "TIT",
+      "chapter": 3,
+      "year": 65,
+      "year_display": "65 AD"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 1,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 10,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 11,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 12,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 13,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 14,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 2,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 3,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 4,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 5,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 6,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 7,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 8,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEC",
+      "chapter": 9,
+      "year": -519,
+      "year_display": "520 BC"
+    },
+    {
+      "book": "ZEP",
+      "chapter": 1,
+      "year": -609,
+      "year_display": "610 BC"
+    },
+    {
+      "book": "ZEP",
+      "chapter": 2,
+      "year": -609,
+      "year_display": "610 BC"
+    },
+    {
+      "book": "ZEP",
+      "chapter": 3,
+      "year": -609,
+      "year_display": "610 BC"
+    }
+  ]
+}

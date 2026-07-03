@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import csv
 import json
+import sqlite3
 from functools import lru_cache
 from pathlib import Path
 
@@ -23,6 +24,7 @@ READING_PLANS = {
     "psalms_30": "诗篇精选 · 30 天",
     "pentateuch_40": "摩西五经 · 40 天",
     "bible_year_365": "圣经通读 · 365 天",
+    "mcheyne_365": "M'Cheyne · 365 天",
 }
 PRAYER_PLANS = {
     "prayer_morning_7": "prayer_morning_7.json",
@@ -123,6 +125,13 @@ def daily_verses() -> dict:
 
 
 # ── 交叉引用 ──
+CROSSREF_TOP_N = 12
+
+
+def _crossref_sqlite_path() -> Path:
+    return _data_dir() / "crossrefs" / "cross_references.sqlite"
+
+
 @lru_cache(maxsize=1)
 def _crossref_index() -> dict[str, dict]:
     data = _load_json("crossrefs/cross_references.json")
@@ -132,19 +141,44 @@ def _crossref_index() -> dict[str, dict]:
     return idx
 
 
-def crossrefs_for(ref: str) -> dict | None:
+def _crossrefs_from_sqlite(book: str, chapter: int, verse: int, limit: int) -> list[str]:
+    path = _crossref_sqlite_path()
+    if not path.exists():
+        return []
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        rows = conn.execute(
+            "SELECT related_book, related_chapter, related_verse "
+            "FROM crossrefs WHERE book=? AND chapter=? AND verse=? "
+            "ORDER BY votes DESC LIMIT ?",
+            (book.upper(), int(chapter), int(verse), limit),
+        ).fetchall()
+    finally:
+        conn.close()
+    return [f"{rb} {rc}:{rv}" for rb, rc, rv in rows]
+
+
+def crossrefs_for(ref: str, *, limit: int = CROSSREF_TOP_N) -> dict | None:
     r = parse_ref(ref)
-    if not r:
+    if not r or r.chapter is None or r.verse_start is None:
         return None
-    # 数据键为 "JHN 3:16" 形式
-    key = f"{r.book_id} {r.chapter}:{r.verse_start}" if r.verse_start else None
-    item = _crossref_index().get(key) if key else None
-    if not item:
+    key = f"{r.book_id} {r.chapter}:{r.verse_start}"
+    related_refs: list[str] = _crossrefs_from_sqlite(
+        r.book_id, r.chapter, r.verse_start, limit
+    )
+    if not related_refs:
+        item = _crossref_index().get(key)
+        if item:
+            related_refs = item.get("related", [])[:limit]
+    if not related_refs:
         return None
-    related = []
-    for rr in item.get("related", []):
-        related.append({"ref": rr, "text": resolve_ref_text(rr, None, None, None, None)})
-    return {"ref": item["ref"], "label": item.get("label"), "related": related}
+    label = reader.book_name(r.book_id)
+    label = f"{label} {r.chapter}:{r.verse_start}" if label else key
+    related = [
+        {"ref": rr, "text": resolve_ref_text(rr, None, None, None, None)}
+        for rr in related_refs
+    ]
+    return {"ref": key, "label": label, "related": related, "count": len(related)}
 
 
 # ── 词典 ──
@@ -214,3 +248,140 @@ def illustration_path(file_name: str) -> Path | None:
         return None
     p = _data_dir() / "illustrations" / file_name
     return p if p.exists() else None
+
+
+# ── Strong's / 原文逐词 ──
+def _strongs_db_path() -> Path:
+    return _data_dir() / "strongs" / "strongs.sqlite"
+
+
+def strongs_for_ref(ref: str) -> dict | None:
+    r = parse_ref(ref)
+    if not r or r.chapter is None or r.verse_start is None:
+        return None
+    path = _strongs_db_path()
+    if not path.exists():
+        return None
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            "SELECT position, word, strongs, lemma, transliteration, gloss, morphology "
+            "FROM verse_words WHERE book=? AND chapter=? AND verse=? ORDER BY position",
+            (r.book_id.upper(), int(r.chapter), int(r.verse_start)),
+        ).fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return None
+    words = [dict(row) for row in rows]
+    return {
+        "ref": r.display,
+        "book": r.book_id,
+        "chapter": r.chapter,
+        "verse": r.verse_start,
+        "words": words,
+    }
+
+
+def strongs_lookup(strongs_id: str) -> dict | None:
+    sid = (strongs_id or "").strip().upper()
+    if not sid:
+        return None
+    path = _strongs_db_path()
+    if not path.exists():
+        return None
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT strongs, language, lemma, transliteration, gloss "
+            "FROM strongs_entries WHERE strongs=?",
+            (sid,),
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+# ── 主题索引 ──
+@lru_cache(maxsize=1)
+def topics_index() -> dict:
+    path = _data_dir() / "topics" / "topics.json"
+    if not path.exists():
+        return {"topics": []}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def topic_by_id(topic_id: str) -> dict | None:
+    for t in topics_index().get("topics", []):
+        if t.get("id") == topic_id or t.get("name") == topic_id:
+            return t
+    return None
+
+
+# ── 地理 / 时间线 ──
+@lru_cache(maxsize=1)
+def geography_places() -> list[dict]:
+    path = _data_dir() / "geography" / "places.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("places", [])
+
+
+@lru_cache(maxsize=1)
+def timeline_chapters() -> list[dict]:
+    path = _data_dir() / "geography" / "timeline.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("chapters", [])
+
+
+def timeline_for(book: str, chapter: int) -> dict | None:
+    book = book.upper()
+    for row in timeline_chapters():
+        if row.get("book") == book and row.get("chapter") == int(chapter):
+            return row
+    return None
+
+
+def entities_at_ref(ref: str, *, limit: int = 8) -> list[dict]:
+    """经节上下文相关的人名/地名（词典子集）。"""
+    return dictionary_lookup(ref=ref)[:limit]
+
+
+def content_attribution() -> dict:
+    """公开数据集署名（CC-BY 等）。"""
+    sources = [
+        {
+            "id": "openbible-crossrefs",
+            "name": "OpenBible.info Cross References",
+            "license": "CC-BY",
+            "url": "https://www.openbible.info/labs/cross-references/",
+        },
+        {
+            "id": "stepbible-strongs",
+            "name": "STEPBible.org",
+            "license": "CC-BY",
+            "url": "https://www.stepbible.org",
+        },
+        {
+            "id": "gnosis",
+            "name": "Gnosis Biblical Knowledge Graph",
+            "license": "CC-BY-SA",
+            "url": "https://github.com/spearssoftware/gnosis",
+        },
+        {
+            "id": "midvash-cuv",
+            "name": "midvash/bible-data (CUVS)",
+            "license": "Public Domain",
+            "url": "https://github.com/midvash/bible-data",
+        },
+        {
+            "id": "helloao-commentary",
+            "name": "HelloAO Bible API (Public Domain Commentaries)",
+            "license": "Public Domain",
+            "url": "https://bible.helloao.org",
+        },
+    ]
+    return {"sources": sources}

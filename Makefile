@@ -41,6 +41,18 @@ db-down: ## 停止 Postgres
 	docker compose -f infra/docker-compose.yml down
 
 # ── 数据流水线 ──
+.PHONY: import-public-data
+import-public-data: ## 导入公开数据集（交叉引用/词典/Strong's/主题/地理/和合本等）
+	$(PY) scripts/import_public_data.py
+
+.PHONY: import-bible-all
+import-bible-all: import-bible ## CNV + KJV + 公版和合本
+	$(PY) scripts/import_cuv.py
+
+.PHONY: rag-index-pd
+rag-index-pd: ## 公版注释 RAG 入库
+	$(PY) scripts/rag_index.py --dir content/commentary/public-domain --source-type commentary
+
 .PHONY: import-bible
 import-bible: ## EPUB → verses.json → SQLite（CNV）
 	$(PY) scripts/epub_to_verses.py --epub data/bible/cnv/圣经新译本.epub --translation cnv --format cnv --out data/bible/cnv/verses.json

@@ -217,10 +217,33 @@ def themes() -> dict:
     return {"themes": loader.daily_verses().get("themes", [])}
 
 
+@router.get("/themes")
+def themes_endpoint() -> dict:
+    return themes()
+
+
+@router.get("/topics")
+def topics(topic: str | None = Query(None)) -> dict:
+    if topic:
+        t = loader.topic_by_id(topic)
+        if not t:
+            raise HTTPException(status_code=404, detail=f"未知主题：{topic}")
+        refs = []
+        for rr in t.get("refs", []):
+            refs.append({"ref": rr, "text": loader.resolve_ref_text(rr, None, None, None, None)})
+        return {**t, "refs": refs}
+    return loader.topics_index()
+
+
+@router.get("/attribution")
+def attribution() -> dict:
+    return loader.content_attribution()
+
+
 # ── 今日祷告（ACTS 计划，按年内天序循环） ──
 @router.get("/prayer-today")
 def prayer_today(day: int | None = Query(None, ge=1)) -> dict:
-    prayer = loader.get_prayer_plan()
+    prayer = loader.get_prayer_plan("prayer_acts_30")
     days = prayer.get("days", [])
     if not days:
         raise HTTPException(status_code=404, detail="无祷告计划数据")
@@ -309,3 +332,44 @@ def illustration_file(file_name: str):
     if p is None:
         raise HTTPException(status_code=404, detail="无此插画")
     return FileResponse(p, media_type="image/svg+xml")
+
+
+# ── Strong's / 原文 ──
+@router.get("/strongs")
+def strongs(
+    ref: str = Query(..., description="如 JHN.3.16"),
+    strongs_id: str | None = Query(None, alias="id"),
+) -> dict:
+    if strongs_id:
+        entry = loader.strongs_lookup(strongs_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail=f"无 Strong 编号：{strongs_id}")
+        return {"entry": entry}
+    result = loader.strongs_for_ref(ref)
+    if result is None:
+        return {"ref": ref, "words": []}
+    return result
+
+
+# ── 地理 / 时间线 ──
+@router.get("/geography")
+def geography(
+    ref: str | None = Query(None, description="经文坐标，返回相关地点"),
+) -> dict:
+    places = loader.geography_places()
+    if ref:
+        r = loader.dictionary_lookup(ref=ref)
+        place_names = {e.get("name") for e in r if e.get("type") == "place"}
+        places = [p for p in places if p.get("name") in place_names]
+    return {"places": places[:50]}
+
+
+@router.get("/timeline")
+def timeline(
+    book: str | None = Query(None),
+    chapter: int | None = Query(None, ge=1),
+) -> dict:
+    if book and chapter:
+        row = loader.timeline_for(book, chapter)
+        return {"timeline": row}
+    return {"chapters": loader.timeline_chapters()}

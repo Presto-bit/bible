@@ -33,7 +33,7 @@ def test_reading_plan_days():
 
 
 def test_prayer_plan():
-    p = loader.get_prayer_plan()
+    p = loader.get_prayer_plan("prayer_acts_30")
     assert p.get("days") and p["days"][0]["day"] == 1
     assert "acts" in p["days"][0]
 
@@ -80,3 +80,13 @@ def test_illustrations_index_and_guard():
     assert loader.illustration_path(first) is not None
     # 目录穿越防护
     assert loader.illustration_path("../../etc/passwd") is None
+
+
+def test_topics_index():
+    data = loader.topics_index()
+    assert data.get("topics")
+
+
+def test_attribution():
+    att = loader.content_attribution()
+    assert att.get("sources")

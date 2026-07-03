@@ -29,6 +29,9 @@ deploy/publish.env
 
 # Large / generated data
 data/bible/**/*.sqlite
+data/.cache/
+data/crossrefs/*.sqlite
+data/strongs/*.sqlite
 data/bible/**/*.db
 data/illustrations/_preview/
 content/**/*

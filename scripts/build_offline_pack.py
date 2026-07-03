@@ -49,6 +49,8 @@ def main() -> int:
     if not sqlite_path.exists():
         raise SystemExit(f"缺少经库：{sqlite_path}（先跑 import_bible.py）")
 
+    cuvs_path = REPO / "build" / "bible_cuvs.sqlite"
+
     args.out_dir.mkdir(parents=True, exist_ok=True)
     zip_path = args.out_dir / f"bible_offline_{args.version}.zip"
     manifest: list[dict] = []
@@ -58,13 +60,19 @@ def main() -> int:
         ("plans", "*.json"),
         ("daily-verses", "*.json"),
         ("crossrefs", "*.json"),
+        ("crossrefs", "*.sqlite"),
         ("dictionary", "*.json"),
+        ("topics", "*.json"),
+        ("geography", "*.json"),
+        ("strongs", "*.sqlite"),
         ("illustrations", "*.json"),
         ("illustrations", "*.svg"),
     ]
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         _add(zf, sqlite_path, f"bible/bible_{args.translation}.sqlite", manifest)
+        if cuvs_path.exists():
+            _add(zf, cuvs_path, "bible/bible_cuvs.sqlite", manifest)
         data_dir = REPO / "data"
         for sub, pat in content_globs:
             for p in sorted((data_dir / sub).glob(pat)):
