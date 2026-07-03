@@ -33,6 +33,39 @@ function adminHeaders(): HeadersInit {
   };
 }
 
+function apiErrorMessage(data: unknown, fallback: string): string {
+  if (!data || typeof data !== 'object') return fallback;
+  const detail = (data as { detail?: unknown; error?: unknown }).detail
+    ?? (data as { error?: unknown }).error;
+  if (typeof detail === 'string' && detail.trim()) return detail;
+  if (Array.isArray(detail)) {
+    const parts = detail
+      .map((item) => {
+        if (typeof item === 'string') return item;
+        if (item && typeof item === 'object' && 'msg' in item) {
+          return String((item as { msg: unknown }).msg);
+        }
+        return '';
+      })
+      .filter(Boolean);
+    if (parts.length) return parts.join('；');
+  }
+  return fallback;
+}
+
+async function readApiError(res: Response, fallback: string): Promise<string> {
+  const text = await res.text().catch(() => '');
+  if (!text) return `${fallback}（HTTP ${res.status}）`;
+  try {
+    return apiErrorMessage(JSON.parse(text), `${fallback}（HTTP ${res.status}）`);
+  } catch {
+    if (res.status === 404) {
+      return '管理员接口不可达（请确认 Nginx 已反代 /admin 到 API）';
+    }
+    return `${fallback}（HTTP ${res.status}）`;
+  }
+}
+
 export function getAdminToken(): string | null {
   if (typeof window === 'undefined') return null;
   return sessionStorage.getItem(ADMIN_TOKEN_KEY);
@@ -52,9 +85,25 @@ export async function adminLogin(phone: string, password: string): Promise<void>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ phone, password }),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || data.error || '登录失败');
-  setAdminToken(data.token as string);
+  const text = await res.text().catch(() => '');
+  let data: Record<string, unknown> = {};
+  try {
+    data = text ? (JSON.parse(text) as Record<string, unknown>) : {};
+  } catch {
+    if (!res.ok) {
+      throw new Error(
+        res.status === 404
+          ? '管理员接口不可达（请确认 Nginx 已反代 /admin 到 API）'
+          : `登录失败（HTTP ${res.status}）`,
+      );
+    }
+    throw new Error('登录响应异常');
+  }
+  if (!res.ok) throw new Error(apiErrorMessage(data, '登录失败'));
+  if (typeof data.token !== 'string' || !data.token) {
+    throw new Error('登录响应缺少令牌');
+  }
+  setAdminToken(data.token);
 }
 
 export async function adminCheck(): Promise<boolean> {
@@ -80,9 +129,8 @@ export async function fetchRagStatus(): Promise<RagStatus> {
     headers: adminHeaders(),
     cache: 'no-store',
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || '加载状态失败');
-  return data as RagStatus;
+  if (!res.ok) throw new Error(await readApiError(res, '加载状态失败'));
+  return (await res.json()) as RagStatus;
 }
 
 export async function fetchRagDocuments(): Promise<RagDocument[]> {
@@ -90,9 +138,9 @@ export async function fetchRagDocuments(): Promise<RagDocument[]> {
     headers: adminHeaders(),
     cache: 'no-store',
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || '加载资料失败');
-  return (data.documents ?? []) as RagDocument[];
+  if (!res.ok) throw new Error(await readApiError(res, '加载资料失败'));
+  const data = (await res.json()) as { documents?: RagDocument[] };
+  return data.documents ?? [];
 }
 
 export async function uploadRagDocument(
@@ -112,8 +160,7 @@ export async function uploadRagDocument(
     headers: adminHeaders(),
     body: form,
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || '上传失败');
+  if (!res.ok) throw new Error(await readApiError(res, '上传失败'));
 }
 
 export async function deleteRagDocument(id: string): Promise<void> {
@@ -121,8 +168,7 @@ export async function deleteRagDocument(id: string): Promise<void> {
     method: 'DELETE',
     headers: adminHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || '删除失败');
+  if (!res.ok) throw new Error(await readApiError(res, '删除失败'));
 }
 
 export async function reindexRagDocument(id: string): Promise<void> {
@@ -130,6 +176,5 @@ export async function reindexRagDocument(id: string): Promise<void> {
     method: 'POST',
     headers: adminHeaders(),
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || '重建索引失败');
+  if (!res.ok) throw new Error(await readApiError(res, '重建索引失败'));
 }
