@@ -41,19 +41,6 @@ export interface DailyVerse {
   shares_count?: number;
 }
 
-/** 每日经文 → 阅读器深链（章 + 节）。 */
-export function dailyVerseReaderHref(
-  dv: Pick<DailyVerse, 'book' | 'chapter' | 'verse_start'> | null | undefined,
-): string | null {
-  if (!dv?.book || !dv.chapter) return null;
-  const params = new URLSearchParams({
-    book: dv.book,
-    chapter: String(dv.chapter),
-  });
-  if (dv.verse_start) params.set('verse', String(dv.verse_start));
-  return `/reader?${params.toString()}`;
-}
-
 export interface DailyDevotional {
   day?: number;
   verse: { ref: string; text: string; theme: string };
