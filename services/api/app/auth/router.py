@@ -10,6 +10,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
 
 from ..config import get_settings
+from ..content.engagement_migrate import migrate_daily_verse_engagement
 from ..db import get_pool
 from .session import get_current_user
 from .user_code import is_user_code, pick_user_code, uuid_for_code as _uuid_for_code
@@ -294,14 +295,22 @@ def _bind_device_user(conn, device_id: str | None, user_code: str) -> None:
     )
 
 
+def _maybe_migrate_engagement(conn, from_code: str | None, to_code: str) -> None:
+    former = (from_code or "").strip()
+    if former and former != to_code:
+        migrate_daily_verse_engagement(conn, former, to_code)
+
+
 @router.post("/register")
 def register(
     body: RegisterBody,
     x_device_id: str | None = Header(default=None),
     x_device_fingerprint: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
 ) -> dict:
     """按 10 位用户ID 建档（免注册即用），可同时设置用户名 + 密码。"""
-    code = body.user_code.strip()
+    requested = body.user_code.strip()
+    code = requested
     if not is_user_code(code):
         raise HTTPException(status_code=400, detail="用户ID 必须为 8 位数字")
     name = (body.username or "").strip() or None
@@ -342,6 +351,8 @@ def register(
             )
             _bind_device_user(conn, x_device_id, code)
             _bind_device_user(conn, x_device_fingerprint, code)
+            former = pick_user_code(requested, x_user_code)
+            _maybe_migrate_engagement(conn, former, code)
             conn.commit()
         return {"ok": True, **_account_payload(code, name, pwd_hash)}
     except HTTPException:
@@ -356,6 +367,7 @@ def login(
     body: LoginBody,
     x_device_id: str | None = Header(default=None),
     x_device_fingerprint: str | None = Header(default=None),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
 ) -> dict:
     """登录/恢复：用户ID、用户名、或手机号 + 密码。"""
     idf = body.identifier.strip()
@@ -373,6 +385,8 @@ def login(
                 if row is None:
                     _bind_device_user(conn, x_device_id, idf)
                     _bind_device_user(conn, x_device_fingerprint, idf)
+                    former = pick_user_code(x_user_code)
+                    _maybe_migrate_engagement(conn, former, idf)
                     conn.commit()
                     return _account_payload(idf, None, None, None)
             else:
@@ -397,6 +411,8 @@ def login(
                 raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID登录")
             _bind_device_user(conn, x_device_id, code)
             _bind_device_user(conn, x_device_fingerprint, code)
+            former = pick_user_code(x_user_code, idf if is_user_code(idf) else None)
+            _maybe_migrate_engagement(conn, former, code)
             conn.commit()
             return _account_payload(code, username, pwd_hash, phone)
     except HTTPException:

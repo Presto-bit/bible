@@ -184,7 +184,7 @@ def toggle_daily_verse_like(
                 liked = True
             conn.commit()
         stats = _daily_verse_engagement(verse_day, user_code)
-        return {"liked": liked, **stats}
+        return {**stats, "liked": liked}
     except HTTPException:
         raise
     except Exception as exc:
