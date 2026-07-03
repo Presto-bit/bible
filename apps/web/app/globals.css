@@ -1,18 +1,24 @@
 :root {
-  --paper: #fffcfa;
-  --surface: #ffffff;
-  --surface-sunken: #f5f5f7;
-  --bg: #fffcfa;
-  --bg-soft: #f5f5f7;
-  --ink: #1c1c1e;
-  --ink-soft: #48484a;
-  --ink-faint: #8e8e93;
-  --line: #e5e5ea;
-  --accent: #7d9b8a;
-  --accent-deep: #4f6b5d;
-  --accent-wash: #eef4f0;
-  --gold: #b08a4f;
-  --gold-wash: #f8f2e8;
+  --paper: var(--brand-bg, #fff8f3);
+  --surface: var(--brand-surface, #ffffff);
+  --surface-sunken: #fff5ef;
+  --bg: var(--brand-bg, #fff8f3);
+  --bg-soft: var(--brand-bg-soft, #fff0e8);
+  --ink: var(--brand-ink, #1c1c1e);
+  --ink-soft: var(--brand-ink-soft, #48484a);
+  --ink-faint: var(--brand-ink-faint, #8e8e93);
+  --line: var(--brand-line, #f0e4dc);
+  --accent: var(--brand-accent-soft, #8fa88a);
+  --accent-deep: var(--brand-accent-deep, #4a6b52);
+  --accent-wash: #eef4ef;
+  --gold: var(--brand-dawn-gold, #d4a056);
+  --gold-wash: var(--brand-dawn-gold-wash, #fdf3e7);
+  --dawn-gold: var(--brand-dawn-gold, #d4a056);
+  --dawn-gold-deep: var(--brand-dawn-gold-deep, #b8842e);
+  --dawn-gold-wash: var(--brand-dawn-gold-wash, #fdf3e7);
+  --dawn-peach: var(--brand-dawn-peach, #ffe8d6);
+  --dawn-rose: var(--brand-dawn-rose, #e8a090);
+  --dawn-sky: var(--brand-dawn-sky, #a8c4d4);
 }
 
 * {
@@ -584,7 +590,7 @@ body.reader-immersive .tabbar {
   width: 4px;
   height: 18px;
   border-radius: 2px;
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--dawn-gold), var(--dawn-rose));
   display: inline-block;
 }
 
@@ -632,34 +638,138 @@ body.reader-immersive .tabbar {
   top: 0;
   bottom: 0;
   width: 3px;
-  background: var(--tint, var(--accent));
-  opacity: 0.7;
+  background: var(--tint, var(--dawn-gold));
+  opacity: 0.85;
 }
 
-/* ─── 每日经文 hero（tier3 + 破晓场景 + 衬线经文 + 点赞/分享行） ─── */
+/* ─── 卡片语义原型（Phase 2） ─── */
+.card-action {
+  border-color: color-mix(in srgb, var(--dawn-gold) 28%, transparent);
+  background:
+    var(--grain),
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--dawn-gold-wash) 90%, #fff) 0%,
+      var(--surface) 55%
+    );
+  background-size: 160px 160px, 100% 100%;
+  box-shadow: var(--card-elev-hero, var(--elev-3)), var(--hi);
+}
+
+.card-media {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+}
+
+.card-media-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  border-radius: 12px;
+  background: var(--dawn-gold-wash);
+}
+
+.card-tint-green .card-media-icon {
+  background: var(--accent-wash);
+}
+
+.card-tint-rose .card-media-icon {
+  background: color-mix(in srgb, var(--dawn-rose) 22%, #fff);
+}
+
+.card-stat {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  padding: 14px 14px 14px 16px;
+}
+
+.card-stat .rail-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.card-ghost {
+  background: color-mix(in srgb, var(--bg-soft) 65%, var(--surface));
+  border: 1px dashed color-mix(in srgb, var(--line) 80%, var(--dawn-gold) 20%);
+  box-shadow: none;
+}
+
+.card-tint-gold { --tint: var(--dawn-gold); }
+.card-tint-green { --tint: var(--accent); }
+.card-tint-rose { --tint: var(--dawn-rose); }
+.card-tint-slate { --tint: var(--tint-slate, #9a938a); }
+
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--card-elev-rest, var(--elev-1));
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.card-row:active {
+  transform: scale(0.985);
+}
+
+.stat-ring {
+  --ring-size: 52px;
+  position: relative;
+  width: var(--ring-size);
+  height: var(--ring-size);
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--dawn-gold) calc(var(--pct, 0) * 1%),
+    var(--dawn-gold-wash) 0
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-ring::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.stat-ring-pct {
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dawn-gold-deep);
+}
+
+.stat-ring-label {
+  position: relative;
+  z-index: 1;
+  font-size: 9px;
+  color: var(--ink-faint);
+  margin-top: 1px;
+}
+
+/* ─── 每日经文 hero（tier3 + 晨曦场景 + 衬线经文 + 点赞/分享行） ─── */
 .hero-verse {
   position: relative;
   overflow: hidden;
   margin-bottom: 16px;
-  padding: 0;
-}
-
-.hero-verse-open {
-  position: relative;
-  display: block;
-  width: 100%;
-  padding: 16px 18px 0;
-  border: none;
-  background: transparent;
-  text-align: inherit;
+  padding: 16px 18px;
   cursor: pointer;
-  color: inherit;
-  font: inherit;
-}
-
-.hero-verse-open:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
 .hero-scene {
@@ -667,8 +777,37 @@ body.reader-immersive .tabbar {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(150px 120px at 82% 22%, rgba(214, 188, 140, 0.45), transparent 70%),
-    linear-gradient(180deg, rgba(232, 224, 210, 0.55), rgba(232, 224, 210, 0) 62%);
+    radial-gradient(160px 130px at 88% 18%, rgba(255, 200, 140, 0.55), transparent 72%),
+    radial-gradient(120px 100px at 12% 85%, rgba(232, 160, 144, 0.25), transparent 70%),
+    linear-gradient(175deg, rgba(255, 236, 220, 0.75) 0%, rgba(255, 248, 243, 0) 68%);
+}
+
+.hero-verse-theme-creation .hero-scene {
+  background:
+    radial-gradient(150px 120px at 80% 20%, rgba(212, 160, 96, 0.5), transparent 70%),
+    linear-gradient(175deg, rgba(245, 230, 210, 0.8), transparent 65%);
+}
+
+.hero-verse-theme-psalm .hero-scene {
+  background:
+    radial-gradient(140px 110px at 85% 22%, rgba(168, 196, 212, 0.45), transparent 70%),
+    linear-gradient(175deg, rgba(232, 240, 248, 0.7), transparent 62%);
+}
+
+.hero-verse-theme-gospel .hero-scene {
+  background:
+    radial-gradient(150px 120px at 82% 18%, rgba(255, 210, 150, 0.55), transparent 70%),
+    linear-gradient(175deg, rgba(255, 245, 230, 0.75), transparent 65%);
+}
+
+.hero-verse-theme-faith .hero-scene {
+  background:
+    radial-gradient(130px 100px at 78% 24%, rgba(232, 160, 144, 0.4), transparent 68%),
+    linear-gradient(175deg, rgba(255, 232, 214, 0.65), transparent 60%);
+}
+
+.hero-verse-theme-dawn .hero-scene {
+  /* default — see above */
 }
 
 .hero-inner {
@@ -709,11 +848,8 @@ body.reader-immersive .tabbar {
 .hero-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  margin-top: 0;
-  padding: 10px 18px 16px;
-  position: relative;
-  z-index: 2;
+  justify-content: space-between;
+  margin-top: 12px;
 }
 
 .hero-like {
@@ -770,6 +906,13 @@ body.reader-immersive .tabbar {
   color: #fff;
 }
 
+.home-rail .pill-active,
+.card-action .pill-active,
+.card-stat .pill-active {
+  background: var(--dawn-gold-wash);
+  color: var(--dawn-gold-deep);
+}
+
 .rail {
   display: flex;
   gap: 10px;
@@ -790,10 +933,158 @@ body.reader-immersive .tabbar {
 }
 
 .rail-card {
-  flex: 0 0 82%;
-  max-width: 82%;
-  scroll-snap-align: start;
+  flex: 0 0 78%;
+  max-width: 78%;
+  scroll-snap-align: center;
   display: block;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s ease;
+  transform-origin: center center;
+}
+
+.rail-card-wide {
+  flex: 0 0 92%;
+  max-width: 92%;
+  scroll-snap-align: start;
+}
+
+.rail-card-more {
+  flex: 0 0 64%;
+  max-width: 64%;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.rail-card-active {
+  transform: scale(1.02);
+  opacity: 1;
+}
+
+.rail-card-inactive {
+  transform: scale(0.97);
+  opacity: 0.88;
+}
+
+.rail-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rail-action-progress {
+  margin-top: 8px;
+  height: 4px;
+}
+
+.rail-stat-ring {
+  align-self: center;
+}
+
+.home-more-trigger-icon {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 20px;
+  color: var(--ink-faint);
+  letter-spacing: 2px;
+}
+
+.home-rail-dots .dot-gold.dot-active {
+  background: var(--dawn-gold);
+}
+
+.home-rail-dots .dot-green.dot-active {
+  background: var(--accent-deep);
+}
+
+.home-rail-dots .dot-rose.dot-active {
+  background: var(--dawn-rose);
+}
+
+.home-rail-dots .dot-slate.dot-active {
+  background: var(--ink-faint);
+}
+
+.home-rail-dots .dot-more.dot-active {
+  background: var(--ink-soft);
+}
+
+.home-more-sheet {
+  max-height: min(72vh, 520px);
+  overflow-y: auto;
+}
+
+.home-more-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-more-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg-soft);
+}
+
+.home-more-icon {
+  font-size: 22px;
+  width: 40px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.home-more-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-more-main strong {
+  font-size: 14px;
+}
+
+.home-more-tag {
+  font-size: 11px;
+  color: var(--dawn-gold-deep);
+  font-weight: 600;
+}
+
+.home-more-sub {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.home-more-chevron {
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.seasonal-card.seasonal-card-pulse {
+  animation: seasonal-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes seasonal-pulse {
+  0%, 100% { box-shadow: var(--elev-1), 0 0 0 0 rgba(212, 160, 96, 0); }
+  50% { box-shadow: var(--elev-2), 0 0 0 3px rgba(212, 160, 96, 0.12); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rail-card-active,
+  .rail-card-inactive,
+  .seasonal-card.seasonal-card-pulse {
+    transform: none;
+    animation: none;
+    opacity: 1;
+  }
 }
 
 .rail-head {
@@ -1443,9 +1734,6 @@ a.today-card-link {
   display: flex;
   align-items: center;
   justify-content: center;
-  background:
-    radial-gradient(ellipse 90% 70% at 70% 20%, rgba(214, 188, 140, 0.35), transparent 55%),
-    linear-gradient(165deg, #4a4036 0%, #1a1410 48%, #0d0a08 100%);
 }
 
 .verse-full-bg {
@@ -1456,7 +1744,6 @@ a.today-card-link {
   object-fit: cover;
   object-position: center;
   z-index: 0;
-  opacity: 0.92;
 }
 
 .verse-full-scrim {
@@ -1464,8 +1751,8 @@ a.today-card-link {
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(ellipse 85% 65% at 50% 38%, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.42)),
-    linear-gradient(180deg, rgba(20, 16, 12, 0.15), rgba(0, 0, 0, 0.58));
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.72)),
+    linear-gradient(180deg, rgba(20, 16, 12, 0.35), rgba(0, 0, 0, 0.75));
 }
 
 .verse-full-glow {
@@ -1540,36 +1827,9 @@ a.today-card-link {
 
 .verse-full-actions {
   display: flex;
-  flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
   margin-top: 28px;
-}
-
-.verse-full-like {
-  border: 1px solid rgba(255, 255, 255, 0.45);
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.92);
-  padding: 10px 18px;
-  border-radius: 22px;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.verse-full-like:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.verse-full-like-active {
-  border-color: rgba(255, 200, 180, 0.85);
-  color: #ffd4c8;
-}
-
-.verse-full-like-err {
-  margin: 10px 0 0;
-  font-size: 12px;
-  color: rgba(255, 200, 200, 0.92);
 }
 
 .verse-full-btn {

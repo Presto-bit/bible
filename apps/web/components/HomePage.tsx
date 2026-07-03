@@ -24,102 +24,9 @@ import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { listNotes } from '@/lib/notes';
+import { buildHomeRail, heroThemeClass, type HomeMoreItem, type RailCard } from '@/lib/home_rail';
+import { HomeRail } from '@/components/home/HomeRail';
 import { bookIdToChineseName } from '@/lib/ref_label';
-
-function buildRail(
-  plan?: { title: string; sub: string; href: string },
-  resume?: { title: string; sub: string; href: string },
-  group?: { title: string; sub: string; href: string },
-  prayer?: { title: string; sub: string; href: string },
-  suggest?: { title: string; sub: string; href: string },
-  assistant?: { title: string; sub: string; href: string },
-  notes?: { title: string; sub: string; href: string },
-) {
-  const cards: {
-    tag: string;
-    reason: string;
-    title: string;
-    sub: string;
-    cta: string;
-    href: string;
-    accent: boolean;
-  }[] = [];
-
-  if (resume) {
-    cards.push({
-      tag: '继续',
-      reason: '你上次读到这里',
-      title: resume.title,
-      sub: resume.sub,
-      cta: '读 ›',
-      href: resume.href,
-      accent: true,
-    });
-  }
-
-  cards.push({
-    tag: prayer ? '祷告' : '计划',
-    reason: '今日计划',
-    title: plan?.title ?? prayer?.title ?? '开始读经计划',
-    sub: plan?.sub ?? prayer?.sub ?? '热门计划 · 个性定制',
-    cta: plan || prayer ? '去读 ›' : '去看看 ›',
-    href: plan?.href ?? prayer?.href ?? '/plans',
-    accent: !resume,
-  });
-
-  if (group) {
-    cards.push({
-      tag: '小组',
-      reason: '群待打卡',
-      title: group.title,
-      sub: group.sub,
-      cta: '去打卡 ›',
-      href: group.href,
-      accent: false,
-    });
-  }
-  if (suggest) {
-    cards.push({
-      tag: '推荐',
-      reason: suggest.sub,
-      title: suggest.title,
-      sub: '智能推荐',
-      cta: '去读 ›',
-      href: suggest.href,
-      accent: false,
-    });
-  }
-  cards.push(
-    {
-      tag: '笔记',
-      reason: '经文记忆',
-      title: notes?.title ?? '经文记忆',
-      sub: notes?.sub ?? '想法 · 收藏 · 划线',
-      cta: '查看 ›',
-      href: notes?.href ?? '/notes',
-      accent: false,
-    },
-    {
-      tag: '问答',
-      reason: '每日问答',
-      title: '今日 5 题',
-      sub: '复习错题 · 巩固所学',
-      cta: '开始 ›',
-      href: '/challenge',
-      accent: false,
-    },
-    {
-      tag: '小爱',
-      reason: '基于今日经文',
-      title: assistant?.title ?? '小爱想问你',
-      sub: assistant?.sub ?? '「这段经文里，神的应许对你意味着什么？」',
-      cta: '聊聊 ›',
-      href: assistant?.href ?? '/assistant',
-      accent: false,
-    },
-  );
-  return cards;
-}
 
 export default function HomePageClient() {
   const [dv, setDv] = useState<DailyVerse | null>(null);
@@ -176,13 +83,12 @@ export default function HomePageClient() {
   }, [loadDailyVerse]);
 
   const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
-  const [page, setPage] = useState(0);
-  const railRef = useRef<HTMLDivElement>(null);
   const plusBtnRef = useRef<HTMLButtonElement>(null);
 
   const [plusOpen, setPlusOpen] = useState(false);
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
-  const [rail, setRail] = useState(() => buildRail());
+  const [railMain, setRailMain] = useState<RailCard[]>([]);
+  const [railMore, setRailMore] = useState<HomeMoreItem[]>([]);
   const [userName, setUserName] = useState('');
   const [groupSummary, setGroupSummary] = useState<{
     line: string;
@@ -251,7 +157,13 @@ export default function HomePageClient() {
         };
       }
     }
-    let groupCard: { title: string; sub: string; href: string } | undefined;
+    let groupCard: {
+      title: string;
+      sub: string;
+      href: string;
+      statPct?: number;
+      statLabel?: string;
+    } | undefined;
     let summaryLine: { line: string; href: string } | null = null;
     try {
       const [groupsRes, summary] = await Promise.all([
@@ -265,10 +177,14 @@ export default function HomePageClient() {
         const parts: string[] = [];
         if (!pending.my_checked_in_today) parts.push(myTodayGroupStatusLabel(myTodayGroupStatus(pending)));
         if ((pending.open_tasks ?? 0) > 0) parts.push(`${pending.open_tasks} 个任务`);
+        const members = pending.members || 1;
+        const checked = pending.checked_in_today ?? 0;
         groupCard = {
           title: pending.name,
           sub: parts.length ? parts.join(' · ') : groupListSubline(pending),
           href: `/discover/group/${pending.id}?focus=checkin`,
+          statPct: members > 0 ? Math.round((checked / members) * 100) : 0,
+          statLabel: `${checked}/${members}`,
         };
       }
       if (groups.length > 0) {
@@ -318,27 +234,30 @@ export default function HomePageClient() {
       sub: `${thoughtN + noteN > 0 ? `${thoughtN + noteN} 条内容 · ` : ''}想法 · 收藏 · 划线`,
       href: '/notes',
     };
-    setRail(buildRail(
-      planCard,
-      resumeCard,
-      groupCard,
-      prayerCard,
-      suggest ? { title: suggest.title, sub: suggest.reason, href: suggest.href } : undefined,
-      assistantCard,
-      notesCard,
-    ));
+    const pendingBookLocal = getPendingBookChallenge();
+    const { main, more } = buildHomeRail({
+      plan: planCard,
+      resume: resumeCard,
+      group: groupCard,
+      prayer: prayerCard,
+      suggest: suggest ? { title: suggest.title, sub: suggest.reason, href: suggest.href } : undefined,
+      assistant: assistantCard,
+      notes: notesCard,
+      challenge: pendingBookLocal
+        ? {
+            title: `《${pendingBookLocal.bookName}》巩固`,
+            sub: '每日问答 · 复习错题',
+            href: '/challenge',
+          }
+        : undefined,
+    });
+    setRailMain(main);
+    setRailMore(more);
   }, []);
 
   useEffect(() => {
     refreshRail();
   }, [refreshRail]);
-
-  const onScroll = () => {
-    const el = railRef.current;
-    if (!el) return;
-    const i = Math.round(el.scrollLeft / (el.clientWidth * 0.82));
-    setPage(Math.max(0, Math.min(rail.length - 1, i)));
-  };
 
   const lastRead = getLastRead();
 
@@ -403,7 +322,7 @@ export default function HomePageClient() {
       </header>
 
       {seasonal[0] && (
-        <Link href={seasonal[0].href} className="card row-card seasonal-card" style={{ display: 'flex', marginBottom: 14 }}>
+        <Link href={seasonal[0].href} className="card row-card seasonal-card seasonal-card-pulse" style={{ display: 'flex', marginBottom: 14 }}>
           <span className="pill pill-active">{seasonal[0].badge}</span>
           <span style={{ flex: 1 }}>
             <strong>{seasonal[0].title}</strong>
@@ -413,92 +332,72 @@ export default function HomePageClient() {
         </Link>
       )}
 
-      <div className="card card-3 card-tint hero-verse">
-        <div
-          className="hero-verse-open"
-          role="button"
-          tabIndex={dv?.text ? 0 : -1}
-          aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
-          onClick={openVerseWallpaper}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' && e.key !== ' ') return;
-            e.preventDefault();
-            openVerseWallpaper();
-          }}
-        >
-          <div className="hero-scene" aria-hidden />
-          <div className="hero-inner">
-            <div className="hero-top">
-              <span className="hero-kicker">每日经文</span>
-              {dv?.theme ? <span className="muted">{dv.theme}系列</span> : null}
-            </div>
-            {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
-            <p className="verse-text">
-              {err
-                ? '内容加载失败'
-                : dv
-                  ? `「${dv.text}」`
-                  : dvLoading
-                    ? '加载中…'
-                    : '暂无经文'}
-            </p>
-            {err && (
-              <button
-                type="button"
-                className="text-link"
-                style={{ marginTop: 8, fontSize: 13 }}
-                onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
-              >
-                点击重试
-              </button>
+      <div
+        className={`card card-3 card-tint hero-verse ${heroThemeClass(dv?.theme)}`}
+        role="button"
+        tabIndex={dv?.text ? 0 : -1}
+        aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
+        onClick={openVerseWallpaper}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          openVerseWallpaper();
+        }}
+      >
+        <div className="hero-scene" aria-hidden />
+        <div className="hero-inner">
+          <div className="hero-top">
+            <span className="hero-kicker">每日经文</span>
+            {dv?.theme ? <span className="muted">{dv.theme}系列</span> : null}
+          </div>
+          {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
+          <p className="verse-text">
+            {err
+              ? '内容加载失败'
+              : dv
+                ? `「${dv.text}」`
+                : dvLoading
+                  ? '加载中…'
+                  : '暂无经文'}
+          </p>
+          {err && (
+            <button
+              type="button"
+              className="text-link"
+              style={{ marginTop: 8, fontSize: 13 }}
+              onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
+            >
+              点击重试
+            </button>
+          )}
+          <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={`hero-like${liked ? ' hero-like-active' : ''}`}
+              disabled={likeBusy || !dv?.day}
+              aria-pressed={liked}
+              onClick={async (e) => {
+                e.stopPropagation();
+                await toggleLike();
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+                <path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.5 6 6 6c2 0 3.2 1.2 4 2.3C10.8 7.2 12 6 14 6c3.5 0 5 3.6 3.3 6.6C19 16.4 12 21 12 21z" />
+              </svg>
+              <span>{likeCount.toLocaleString()} 人点赞</span>
+            </button>
+            {likeErr && (
+              <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
             )}
           </div>
         </div>
-        <div className="hero-actions">
-          <button
-            type="button"
-            className={`hero-like${liked ? ' hero-like-active' : ''}`}
-            disabled={likeBusy || !dv?.day}
-            aria-pressed={liked}
-            onClick={() => { void toggleLike(); }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
-              <path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.5 6 6 6c2 0 3.2 1.2 4 2.3C10.8 7.2 12 6 14 6c3.5 0 5 3.6 3.3 6.6C19 16.4 12 21 12 21z" />
-            </svg>
-            <span>{likeCount.toLocaleString()} 人点赞</span>
-          </button>
-          {likeErr && (
-            <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
-          )}
-        </div>
       </div>
 
-      <div className="rail home-rail" ref={railRef} onScroll={onScroll} style={{ marginTop: 18 }}>
-        {rail.map((c, i) => (
-          <a
-            key={i}
-            href={c.href}
-            className={`rail-card card card-2 ${c.accent ? 'card-tint card-accent' : ''}`}
-          >
-            <div className="rail-head">
-              <span className={`pill ${c.accent ? 'pill-active' : ''}`}>{c.tag}</span>
-              <span className="muted rail-reason">{c.reason}</span>
-            </div>
-            <div className="rail-title">{c.title}</div>
-            <div className="rail-foot">
-              <span className="rail-sub">{c.sub}</span>
-              <span className="rail-cta">{c.cta}</span>
-            </div>
-          </a>
-        ))}
-      </div>
-      <div className="dots">
-        {rail.map((_, i) => (
-          <span key={i} className={i === page ? 'dot dot-active' : 'dot'} />
-        ))}
+      <div style={{ marginTop: 18 }}>
+        <HomeRail cards={railMain} more={railMore} />
       </div>
 
-      <a href="/profile" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
+      <a href="/profile" className="card-row" style={{ display: 'flex', marginTop: 14 }}>
         <span>
           今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
         </span>
@@ -545,7 +444,7 @@ export default function HomePageClient() {
           likeCount={likeCount}
           likeBusy={likeBusy}
           likeErr={likeErr}
-          onToggleLike={() => { void toggleLike(); }}
+          onToggleLike={() => void toggleLike()}
           onClose={() => setVerseFull(false)}
         />
       ) : null}

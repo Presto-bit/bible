@@ -1,11 +1,41 @@
-/* 彼爱 · 设计 token（Web / PWA 与 Flutter 对齐参考） */
+/* 彼爱 · 晨曦设计 token（Web / PWA 与 Flutter 对齐参考） */
 :root {
-  --brand-bg: #fffcfa;
-  --brand-accent: #4f6b5d;
-  --brand-accent-soft: #7d9b8a;
-  --brand-accent-wash: rgba(125, 155, 138, 0.14);
+  /* 晨曦基底 */
+  --brand-bg: #fff8f3;
+  --brand-bg-soft: #fff0e8;
+  --brand-surface: #ffffff;
   --brand-ink: #1c1c1e;
+  --brand-ink-soft: #48484a;
+  --brand-ink-faint: #8e8e93;
+  --brand-line: #f0e4dc;
+
+  /* 晨曦主色：金阳 + 橄榄辅色 */
+  --brand-dawn-gold: #d4a056;
+  --brand-dawn-gold-deep: #b8842e;
+  --brand-dawn-gold-wash: #fdf3e7;
+  --brand-dawn-peach: #ffe8d6;
+  --brand-dawn-rose: #e8a090;
+  --brand-dawn-sky: #a8c4d4;
+
+  --brand-accent: #6a8f72;
+  --brand-accent-soft: #8fa88a;
+  --brand-accent-wash: rgba(143, 168, 138, 0.16);
+  --brand-accent-deep: #4a6b52;
+
+  /* 圆角与布局 */
   --brand-radius-card: 16px;
+  --brand-radius-card-lg: 18px;
   --brand-radius-pill: 999px;
   --brand-tab-height: 56px;
+
+  /* 卡片语义 elevation */
+  --card-elev-rest: 0 1px 2px rgba(44, 36, 28, 0.05);
+  --card-elev-lift: 0 8px 24px -8px rgba(44, 36, 28, 0.14);
+  --card-elev-hero: 0 16px 36px -12px rgba(180, 130, 60, 0.18);
+
+  /* 卡片 tint 变量（供 card-tint-* 使用） */
+  --tint-gold: var(--brand-dawn-gold);
+  --tint-green: var(--brand-accent-soft);
+  --tint-rose: var(--brand-dawn-rose);
+  --tint-slate: #9a938a;
 }
