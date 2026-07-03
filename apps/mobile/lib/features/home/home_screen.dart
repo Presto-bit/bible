@@ -18,6 +18,7 @@ import '../plans/plan_reading.dart';
 import '../plans/plans_repository.dart';
 import '../bible/bible_repository.dart';
 import '../bible/models.dart';
+import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../bible/reading_repository.dart';
 import '../search/search_screen.dart';
 
@@ -236,6 +237,7 @@ class HomeScreen extends ConsumerWidget {
                   theme: '每日经文',
                   ref: '',
                   text: '内容加载失败，下拉重试。',
+                  osisRef: '',
                   initialLiked: false,
                   initialLikeCount: 0,
                 ),
@@ -244,6 +246,7 @@ class HomeScreen extends ConsumerWidget {
                   theme: v.theme.isEmpty ? '每日经文' : v.theme,
                   ref: v.ref,
                   text: v.text,
+                  osisRef: v.osisRef,
                   initialLiked: v.liked,
                   initialLikeCount: v.likesCount,
                 ),
@@ -761,6 +764,7 @@ class _VerseCard extends ConsumerStatefulWidget {
     required this.theme,
     required this.ref,
     required this.text,
+    required this.osisRef,
     required this.initialLiked,
     required this.initialLikeCount,
   });
@@ -768,6 +772,7 @@ class _VerseCard extends ConsumerStatefulWidget {
   final String theme;
   final String ref;
   final String text;
+  final String osisRef;
   final bool initialLiked;
   final int initialLikeCount;
 
@@ -830,6 +835,13 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     }
   }
 
+  void _openReader() {
+    final m = RegExp(r'^([^.]+)\.(\d+)').firstMatch(widget.osisRef);
+    if (m == null) return;
+    ref.read(readerJumpProvider.notifier).jump(m.group(1)!, int.parse(m.group(2)!));
+    ref.read(navIndexProvider.notifier).set(1);
+  }
+
   @override
   Widget build(BuildContext context) {
     return PaperCard(
@@ -837,6 +849,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       tint: AppColors.accent,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       backgroundLayer: const _DawnScene(),
+      onTap: widget.osisRef.isEmpty ? null : _openReader,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

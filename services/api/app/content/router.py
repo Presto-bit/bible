@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import date
 
 from fastapi import APIRouter, Header, HTTPException, Query, Response
 from fastapi.responses import FileResponse
@@ -12,6 +11,7 @@ from pydantic import BaseModel
 from ..auth.user_code import is_user_code
 from ..db import get_pool
 from . import loader
+from .daily_clock import china_today, verse_day_for_date
 from .planner import SCOPE_LABELS, generate_plan
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ def _resolve_verse_day(day: int | None) -> tuple[int, dict]:
     if not verses:
         raise HTTPException(status_code=404, detail="无每日经文数据")
     if day is None:
-        day = (date.today().timetuple().tm_yday - 1) % len(verses) + 1
+        day = verse_day_for_date(china_today(), len(verses))
     item = next((v for v in verses if v.get("day") == day), None)
     if item is None:
         item = verses[(day - 1) % len(verses)]
@@ -225,7 +225,7 @@ def prayer_today(day: int | None = Query(None, ge=1)) -> dict:
     if not days:
         raise HTTPException(status_code=404, detail="无祷告计划数据")
     if day is None:
-        day = (date.today().timetuple().tm_yday - 1) % len(days) + 1
+        day = verse_day_for_date(china_today(), len(days))
     item = next((d for d in days if d.get("day") == day), days[(day - 1) % len(days)])
     sc = item.get("scripture", {})
     text = loader.resolve_ref_text(

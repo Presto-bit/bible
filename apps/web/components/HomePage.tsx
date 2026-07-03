@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   api,
+  dailyVerseReaderHref,
   type DailyVerse,
   ensureAccountReady,
   getDisplayName,
@@ -109,6 +111,7 @@ function buildRail(
 }
 
 export default function HomePageClient() {
+  const router = useRouter();
   const [dv, setDv] = useState<DailyVerse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [dvLoading, setDvLoading] = useState(true);
@@ -370,7 +373,22 @@ export default function HomePageClient() {
         </Link>
       )}
 
-      <div className="card card-3 card-tint hero-verse">
+      <div
+        className="card card-3 card-tint hero-verse"
+        role="button"
+        tabIndex={dv?.book && dv?.chapter ? 0 : -1}
+        aria-label={dv?.ref ? `阅读 ${dv.ref}` : '每日经文'}
+        onClick={() => {
+          const href = dailyVerseReaderHref(dv);
+          if (href) router.push(href);
+        }}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          const href = dailyVerseReaderHref(dv);
+          if (href) router.push(href);
+        }}
+      >
         <div className="hero-scene" aria-hidden />
         <div className="hero-inner">
           <div className="hero-top">
@@ -403,7 +421,8 @@ export default function HomePageClient() {
               className={`hero-like${liked ? ' hero-like-active' : ''}`}
               disabled={likeBusy || !dv?.day}
               aria-pressed={liked}
-              onClick={async () => {
+              onClick={async (e) => {
+                e.stopPropagation();
                 if (likeBusy || !dv?.day) return;
                 const verseDay = dv.day;
                 const prevLiked = liked;
