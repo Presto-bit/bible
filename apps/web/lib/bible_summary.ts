@@ -97,7 +97,7 @@ export async function loadBookSummary(bookId: string, bookName: string): Promise
   }
 
   const body = await streamAsk(
-    `请概括《${bookName}》整卷的主旨、结构与核心主题。`,
+    `请概括《${bookName}》整卷的主旨、结构与各章要点。`,
     bookId,
     'summary_book',
   );

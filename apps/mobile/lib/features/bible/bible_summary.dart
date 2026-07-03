@@ -85,7 +85,7 @@ Future<String> loadBookSummary(
 
   final body = await _streamAsk(
     ref,
-    question: '请概括《$bookName》整卷的主旨、结构与核心主题。',
+    question: '请概括《$bookName》整卷的主旨、结构与各章要点。',
     refStr: bookId,
     scene: AssistantScene.summaryBook,
   );
