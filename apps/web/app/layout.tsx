@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import './styles/design_tokens.css';
+import '../styles/design_tokens.css';
 import './globals.css';
 import { AppThemeShell } from '@/components/AppThemeShell';
 import PwaRegister from '@/components/PwaRegister';
