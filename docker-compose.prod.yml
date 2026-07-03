@@ -34,6 +34,7 @@ services:
       DATABASE_URL: postgresql://${DB_USER:-bible}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-bible}
       BIBLE_DB_PATH: /app/build/bible_cnv.sqlite
       BIBLE_KJV_DB_PATH: /app/build/bible_kjv.sqlite
+      BIBLE_CUVS_DB_PATH: /app/build/bible_cuvs.sqlite
       CONTENT_DATA_DIR: /app/data
     ports:
       - "127.0.0.1:8011:8011"

@@ -12,11 +12,18 @@ RUN pip install --no-cache-dir -r /app/services/api/requirements.txt
 
 COPY services/api /app/services/api
 COPY scripts/import_bible.py /app/scripts/import_bible.py
+COPY scripts/import_crossrefs.py /app/scripts/import_crossrefs.py
+COPY scripts/import_strongs_gnosis.py /app/scripts/import_strongs_gnosis.py
+COPY scripts/import_cuv.py /app/scripts/import_cuv.py
+COPY scripts/import_commentary_pd.py /app/scripts/import_commentary_pd.py
+COPY scripts/import_public_data.py /app/scripts/import_public_data.py
+COPY scripts/ensure_content_data.sh /app/scripts/ensure_content_data.sh
+COPY scripts/lib /app/scripts/lib
 COPY scripts/rag_index.py /app/scripts/rag_index.py
 COPY content /app/content
 COPY data /app/data
 COPY deploy/api-entrypoint.sh /app/deploy/api-entrypoint.sh
-RUN chmod +x /app/deploy/api-entrypoint.sh && mkdir -p /app/build
+RUN chmod +x /app/deploy/api-entrypoint.sh /app/scripts/ensure_content_data.sh && mkdir -p /app/build /app/data/.cache
 
 ENV PYTHONPATH=/app/services/api
 ENV BIBLE_DB_PATH=/app/build/bible_cnv.sqlite

@@ -18,4 +18,9 @@ if [[ ! -f "$KJV" && -f /app/data/bible/kjv/verses.json ]]; then
     --out "$KJV"
 fi
 
+# 交叉引用 / Strong's / CUVS（缺失时生成；需网络，失败不阻断 API 启动）
+if [[ -x /app/scripts/ensure_content_data.sh ]]; then
+  bash /app/scripts/ensure_content_data.sh || echo "[entrypoint] ⚠ ensure_content_data 跳过（无网络或缓存失败）"
+fi
+
 exec "$@"

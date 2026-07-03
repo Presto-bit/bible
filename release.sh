@@ -96,6 +96,11 @@ if [[ -f "$APP_DIR/scripts/ensure_pg_schema.sh" ]]; then
   bash "$APP_DIR/scripts/ensure_pg_schema.sh" || die "PG 迁移失败，点赞/社交功能不可用"
 fi
 
+log "确保内容 SQLite（交叉引用 / Strong's / CUVS）"
+if ! "${compose[@]}" exec -T api bash /app/scripts/ensure_content_data.sh 2>&1; then
+  log "⚠️  内容 SQLite 生成失败（可能无出网）；串珠/原文/三译本对照或降级"
+fi
+
 like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8011/content/daily-verse/like" \
   -H "Content-Type: application/json" -H "X-User-Code: 1234567890" 2>/dev/null || echo "000")"
 if [[ "$like_code" == "503" ]]; then
@@ -124,6 +129,26 @@ if [[ -d "$APP_DIR/content/commentary/study-bible" ]]; then
     rag_chunks="$(curl -fsS http://127.0.0.1:8011/ai/rag/status 2>/dev/null | grep -oE '"chunks":[0-9]+' | cut -d: -f2 || echo 0)"
     log "RAG 块数: ${rag_chunks:-?}"
   fi
+fi
+
+# 公版注释（Matthew Henry 等）：镜像内无 md（content 被 gitignore），发版时按需拉取并入库
+if grep -qE '^RAG_EMBEDDING_API_KEY=.+' "$ENV_FILE" 2>/dev/null; then
+  log "公版注释 RAG（HelloAO → public-domain，需出网 + DashScope Key）"
+  if "${compose[@]}" exec -T api python /app/scripts/import_commentary_pd.py \
+      --books JHN MAT PSA GEN ROM 2>&1; then
+    if "${compose[@]}" exec -T api python /app/scripts/rag_index.py \
+        --dir /app/content/commentary/public-domain \
+        --source-type commentary 2>&1; then
+      rag_chunks="$(curl -fsS http://127.0.0.1:8011/ai/rag/status 2>/dev/null | grep -oE '"chunks":[0-9]+' | cut -d: -f2 || echo 0)"
+      log "RAG 块数（含公版注释）: ${rag_chunks:-?}"
+    else
+      log "⚠️  公版注释 RAG 入库失败"
+    fi
+  else
+    log "⚠️  公版注释拉取失败（HelloAO 不可达时不影响发版）"
+  fi
+else
+  log "未配置 RAG_EMBEDDING_API_KEY，跳过公版注释 RAG"
 fi
 
 log "健康检查 Web /"
