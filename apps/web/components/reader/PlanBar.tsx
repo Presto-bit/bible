@@ -18,12 +18,10 @@ export default function PlanBar({
   meta,
   onOpenSheet,
   onJumpStep,
-  onExitPlan,
 }: {
   meta: PlanReadingMeta;
   onOpenSheet: () => void;
   onJumpStep: (index: number) => void;
-  onExitPlan?: () => void;
 }) {
   const { done, total } = sessionProgress(meta.steps, meta.session.stepsDone);
   const [expanded, setExpanded] = useState(false);
@@ -57,11 +55,6 @@ export default function PlanBar({
           <button type="button" className="text-link plan-read-detail" onClick={onOpenSheet}>
             查看今日安排
           </button>
-          {onExitPlan && (
-            <button type="button" className="text-link plan-read-exit" onClick={onExitPlan}>
-              退出计划模式
-            </button>
-          )}
         </div>
       )}
     </div>

@@ -1101,7 +1101,10 @@ export default function ReaderView({
         checkinGroupId={checkinGroupId ?? groupCtx.groupId}
         onMetaChange={onPlanMetaChange}
         onJump={onPlanJump}
-        onExitPlan={onPlanExit}
+        onPlanDayFinished={() => {
+          flashToast(`第 ${planMeta.day} 天计划已读完，可继续自由阅读`);
+          onPlanExit?.();
+        }}
         bindNavGuard={bindPlanNavGuard}
         onOverlayChange={setPlanOverlayOpen}
       />
@@ -1393,16 +1396,6 @@ export default function ReaderView({
         </div>
       </div>
 
-      <button
-        type="button"
-        className={`reader-fab${chromeHidden || hasSel ? ' is-hidden' : ''}`}
-        onClick={(e) => { e.stopPropagation(); setAiSheet(true); }}
-        aria-label="问小爱"
-        aria-hidden={chromeHidden || hasSel}
-      >
-        ✦ 小爱
-      </button>
-
       {hasGroups && (
       <button
         type="button"
@@ -1414,6 +1407,28 @@ export default function ReaderView({
         {groupCtx.groupId ? '打卡到群' : '打卡'}
       </button>
       )}
+
+      {planMeta && onPlanExit && (
+        <button
+          type="button"
+          className={`reader-fab reader-fab-plan-exit reader-fab-sm${chromeHidden || hasSel ? ' is-hidden' : ''}`}
+          onClick={(e) => { e.stopPropagation(); onPlanExit(); }}
+          aria-label="退出计划模式"
+          aria-hidden={chromeHidden || hasSel}
+        >
+          退出计划
+        </button>
+      )}
+
+      <button
+        type="button"
+        className={`reader-fab${chromeHidden || hasSel ? ' is-hidden' : ''}`}
+        onClick={(e) => { e.stopPropagation(); setAiSheet(true); }}
+        aria-label="问小爱"
+        aria-hidden={chromeHidden || hasSel}
+      >
+        ✦ 小爱
+      </button>
 
       {hasSel && (
         <div

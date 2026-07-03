@@ -275,6 +275,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   final _selectionAnchorKey = GlobalKey();
   double? _focusBarTop;
   bool _resumeScheduled = false;
+  bool _planDayFinishScheduled = false;
   Chapter? _cachedChapter;
 
   @override
@@ -290,11 +291,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   void didUpdateWidget(ReaderChapterBody oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.book.id != widget.book.id ||
-        oldWidget.chapter != widget.chapter) {
+        oldWidget.chapter != widget.chapter ||
+        oldWidget.planMeta?.day != widget.planMeta?.day) {
       setState(() {
         _selected.clear();
         _bookDone = false;
         _resumeFlashVerse = null;
+        _planDayFinishScheduled = false;
         _resumeScheduled = false;
         _cachedChapter = readChapterCache(
             ref.read(prefsProvider), widget.book.id, widget.chapter);
@@ -776,7 +779,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     widget.onPlanMetaChange?.call(null);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('今日计划已完成')),
+      const SnackBar(content: Text('今日计划已完成，可继续自由阅读')),
     );
   }
 
@@ -786,6 +789,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
 
     if (allStepsDone(meta.steps, meta.session.stepsDone)) {
       final prog = sessionProgress(meta.steps, meta.session.stepsDone);
+      if (!_planDayFinishScheduled) {
+        _planDayFinishScheduled = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _completePlanDay();
+        });
+      }
       return Container(
         margin: const EdgeInsets.only(top: 16, bottom: 8),
         padding: const EdgeInsets.all(16),
@@ -794,18 +803,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.line),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('🎉 今日 ${prog.total} 段全部读完',
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-            const SizedBox(height: 10),
-            FilledButton(
-              onPressed: _completePlanDay,
-              style: FilledButton.styleFrom(backgroundColor: AppColors.accentDeep),
-              child: const Text('完成今天'),
-            ),
-          ],
+        child: Text(
+          '🎉 今日 ${prog.total} 段全部读完',
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
         ),
       );
     }

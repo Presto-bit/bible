@@ -197,14 +197,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           ],
         ),
         actions: [
-          if (_planMeta != null)
-            TextButton(
-              onPressed: () {
-                _onReaderInteract();
-                setState(() => _planMeta = null);
-              },
-              child: const Text('退出计划', style: TextStyle(fontSize: 13)),
-            ),
           IconButton(
             tooltip: '搜索',
             icon: const Icon(Icons.search),
@@ -310,15 +302,35 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           ? null
           : Padding(
               padding: const EdgeInsets.only(bottom: 4, right: 4),
-              child: FloatingActionButton(
-                heroTag: 'reader-xiaoai',
-                backgroundColor: AppColors.accentDeep,
-                foregroundColor: Colors.white,
-                onPressed: () {
-                  _onReaderInteract();
-                  _openXiaoAiSheet(context);
-                },
-                child: const Icon(Icons.auto_awesome, size: 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (_planMeta != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: FloatingActionButton.small(
+                        heroTag: 'reader-plan-exit',
+                        backgroundColor: AppColors.surface,
+                        foregroundColor: AppColors.inkSoft,
+                        onPressed: () {
+                          _onReaderInteract();
+                          setState(() => _planMeta = null);
+                        },
+                        child: const Text('退出', style: TextStyle(fontSize: 12)),
+                      ),
+                    ),
+                  FloatingActionButton(
+                    heroTag: 'reader-xiaoai',
+                    backgroundColor: AppColors.accentDeep,
+                    foregroundColor: Colors.white,
+                    onPressed: () {
+                      _onReaderInteract();
+                      _openXiaoAiSheet(context);
+                    },
+                    child: const Icon(Icons.auto_awesome, size: 22),
+                  ),
+                ],
               ),
             ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,

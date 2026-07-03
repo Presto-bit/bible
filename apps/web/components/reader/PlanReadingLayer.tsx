@@ -41,7 +41,7 @@ export default function PlanReadingLayer({
   onMetaChange,
   onJump,
   onOverlayChange,
-  onExitPlan,
+  onPlanDayFinished,
   bindNavGuard,
 }: {
   meta: PlanReadingMeta;
@@ -52,7 +52,7 @@ export default function PlanReadingLayer({
   onMetaChange: (m: PlanReadingMeta) => void;
   onJump: (bookId: string, chapter: number) => void;
   onOverlayChange?: (open: boolean) => void;
-  onExitPlan?: () => void;
+  onPlanDayFinished?: () => void;
   bindNavGuard?: (guard: PlanNavGuard | null) => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -96,11 +96,11 @@ export default function PlanReadingLayer({
     setCompletedDayNum(dayToFinish);
     onMetaChange({ ...meta, session, day: Math.min(meta.totalDays, dayToFinish + 1) });
     setDayCompleted(true);
-    setReflectionOpen(true);
     if (allDone || dayToFinish >= meta.totalDays) {
       setPlanAllDone(true);
     }
-  }, [meta, onMetaChange]);
+    onPlanDayFinished?.();
+  }, [meta, onMetaChange, onPlanDayFinished]);
 
   const completeCurrentStepAndJump = useCallback((
     targetBookId: string,
@@ -231,7 +231,6 @@ export default function PlanReadingLayer({
         meta={meta}
         onOpenSheet={() => setSheetOpen(true)}
         onJumpStep={handleJumpStep}
-        onExitPlan={onExitPlan}
       />
 
       {!inPlanRange && (
@@ -291,12 +290,9 @@ export default function PlanReadingLayer({
             type="button"
             className="text-link"
             style={{ marginTop: 10 }}
-            onClick={() => {
-              setPlanAllDone(false);
-              onExitPlan?.();
-            }}
+            onClick={() => setPlanAllDone(false)}
           >
-            退出计划模式
+            继续浏览经文
           </button>
         </div>
       )}
