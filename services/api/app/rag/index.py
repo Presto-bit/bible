@@ -8,6 +8,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from pathlib import Path
 
 from ..db import get_pool
@@ -16,9 +17,40 @@ from .embedding import get_provider
 
 logger = logging.getLogger(__name__)
 
+_TITLE_FROM_FRONTMATTER = re.compile(
+    r"^---\s*\n(?:.*\n)*?title:\s*['\"]?(.+?)['\"]?\s*\n",
+    re.MULTILINE,
+)
+_TITLE_FROM_H1 = re.compile(r"^#\s+(.+)$", re.MULTILINE)
+_BOOK_ID_FROM_NAME = re.compile(r"\b([1-3]?[A-Z]{2,4})\b")
+
 
 def _body_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:32]
+
+
+def guess_document_title(body: str, path: Path | None = None) -> str:
+    """从 frontmatter / 首个 H1 / 文件名推断展示标题。"""
+    m = _TITLE_FROM_FRONTMATTER.search(body)
+    if m:
+        return m.group(1).strip()
+    m = _TITLE_FROM_H1.search(body.strip())
+    if m:
+        return m.group(1).strip()
+    if path is not None:
+        stem = path.stem.replace("-", " ").replace("_", " ").strip()
+        if stem:
+            return stem
+    return "未命名资料"
+
+
+def guess_book_id(title: str, path: Path | None = None) -> str | None:
+    """从标题或路径猜测 OSIS 书卷 id（如 JHN）。"""
+    for raw in (title, path.stem if path else ""):
+        m = _BOOK_ID_FROM_NAME.search(raw.upper())
+        if m:
+            return m.group(1)
+    return None
 
 
 def load_embedding_cache(source_type: str | None = None) -> dict[str, list]:
@@ -47,6 +79,7 @@ def index_text(
     body: str,
     force: bool = False,
     embedding_cache: dict[str, list] | None = None,
+    book_id: str | None = None,
 ) -> dict:
     """将一篇文本入库；返回统计信息。
 
@@ -92,6 +125,8 @@ def index_text(
             vectors = provider.embed(chunks)
         for idx, (chunk, vec) in enumerate(zip(chunks, vectors)):
             meta = {"title": title, "source_type": source_type}
+            if book_id:
+                meta["book_id"] = book_id
             conn.execute(
                 "INSERT INTO bible_rag_chunks (document_id, chunk_index, chunk_text, embedding, chunk_meta) "
                 "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)",
@@ -118,15 +153,20 @@ def index_file(
     source_type: str = "commentary",
     force: bool = False,
     embedding_cache: dict[str, list] | None = None,
+    title: str | None = None,
+    book_id: str | None = None,
 ) -> dict:
     body = path.read_text(encoding="utf-8")
+    doc_title = (title or guess_document_title(body, path)).strip()
+    doc_book = book_id or guess_book_id(doc_title, path)
     return index_text(
-        title=path.stem,
+        title=doc_title,
         source_path=str(path),
         source_type=source_type,
         body=body,
         force=force,
         embedding_cache=embedding_cache,
+        book_id=doc_book,
     )
 
 

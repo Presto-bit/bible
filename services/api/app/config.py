@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     vapid_subject: str = "mailto:support@prestoai.cn"
     push_cron_secret: str = ""
 
+    # ── 管理员（RAG 资料后台）──
+    admin_phone: str = "18101383358"
+    admin_password: str = "123456"
+    admin_token_secret: str = ""
+    rag_upload_dir: str = str(REPO_ROOT / "data" / "rag" / "uploads")
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -33,15 +33,26 @@ def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
         return {"ok": False, "error": "无法解析经文引用", "ref": raw_ref}
 
     passage = _passage_text(ref)
-    # 查询主体：经文本身 + 引用，提升注释召回相关度
     query = f"{ref.display} {passage}".strip()
 
-    hits = retrieve(
-        query,
-        top_k=top_k,
-        source_type="commentary",
-        title_contains=ref.book_name,
-    )
+    try:
+        hits = retrieve(
+            query,
+            top_k=top_k,
+            source_type="commentary",
+            title_contains=ref.book_name,
+            book_id=ref.book_id,
+        )
+        if not hits:
+            hits = retrieve(
+                query,
+                top_k=top_k,
+                source_type="commentary",
+                keywords=[ref.book_name, ref.book_id],
+                candidate_limit=1200,
+            )
+    except Exception:
+        hits = []
     cards = [
         {
             "title": h.get("title"),

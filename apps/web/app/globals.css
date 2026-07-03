@@ -3183,6 +3183,14 @@ a.today-card-link {
   background: #4a6b52;
 }
 
+.reader-fab-plan-exit {
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 30px);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
 .reader-fab-sm {
   padding: 8px 14px;
   font-size: 13px;
@@ -3433,6 +3441,34 @@ a.today-card-link {
   font-weight: 600;
   font-size: 14px;
   margin: 0 0 10px;
+}
+
+.admin-entry-link {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.admin-rag-doc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.admin-rag-doc-item {
+  padding: 12px;
+}
+
+.admin-login-form {
+  margin-top: 0;
 }
 
 /* 微信式加号菜单 */

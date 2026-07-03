@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
+from .admin.router import router as admin_router
 from .ai.router import router as ai_router
 from .auth.router import router as auth_router
 from .bible.router import router as bible_router
@@ -43,6 +44,7 @@ app.add_middleware(
 app.include_router(bible_router)
 app.include_router(guide_router)
 app.include_router(ai_router)
+app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(sync_router)
 app.include_router(content_router)

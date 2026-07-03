@@ -17,6 +17,7 @@ def retrieve(
     source_type: str | None = None,
     document_title: str | None = None,
     title_contains: str | None = None,
+    book_id: str | None = None,
     keywords: list[str] | None = None,
     candidate_limit: int = 600,
 ) -> list[dict]:
@@ -39,9 +40,20 @@ def retrieve(
     if document_title:
         where.append("d.title = %s")
         params.append(document_title)
+    book_filters: list[str] = []
     if title_contains:
-        where.append("d.title LIKE %s")
+        book_filters.append("d.title ILIKE %s")
         params.append(f"%{title_contains}%")
+    if book_id:
+        bid = book_id.upper()
+        book_filters.extend([
+            "d.title ILIKE %s",
+            "c.chunk_meta->>'book_id' = %s",
+            "d.source_path ILIKE %s",
+        ])
+        params.extend([f"%{bid}%", bid, f"%{bid.lower()}%"])
+    if book_filters:
+        where.append("(" + " OR ".join(book_filters) + ")")
     if keywords:
         ors = " OR ".join(["c.chunk_text ILIKE %s"] * len(keywords))
         where.append(f"({ors})")

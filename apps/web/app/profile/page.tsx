@@ -22,6 +22,8 @@ import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
+import { adminCheck } from '@/lib/admin_rag';
+import AdminRagPanel, { AdminLoginForm } from '@/components/AdminRagPanel';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
@@ -43,6 +45,14 @@ export default function ProfilePage() {
   const [hasPwd, setHasPwd] = useState(false);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
   const [streak, setStreak] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
+  const [adminEntryVisible, setAdminEntryVisible] = useState(false);
+  const [versionTapCount, setVersionTapCount] = useState(0);
+
+  useEffect(() => {
+    void adminCheck().then(setIsAdmin);
+  }, [settingsOpen]);
 
   useEffect(() => {
     setReviewCards(favoriteReviewCards(3));
@@ -270,6 +280,38 @@ export default function ProfilePage() {
               </Link>
             </div>
 
+            {isAdmin ? (
+              <div className="settings-card">
+                <AdminRagPanel onLogout={() => setIsAdmin(false)} />
+              </div>
+            ) : adminLoginOpen ? (
+              <div className="settings-card">
+                <AdminLoginForm
+                  onSuccess={() => {
+                    setIsAdmin(true);
+                    setAdminLoginOpen(false);
+                    setAdminEntryVisible(false);
+                  }}
+                />
+                <button
+                  type="button"
+                  className="text-link"
+                  style={{ marginTop: 8, fontSize: 12 }}
+                  onClick={() => setAdminLoginOpen(false)}
+                >
+                  取消
+                </button>
+              </div>
+            ) : adminEntryVisible ? (
+              <button
+                type="button"
+                className="text-link admin-entry-link"
+                onClick={() => setAdminLoginOpen(true)}
+              >
+                管理员登录
+              </button>
+            ) : null}
+
             <div className="settings-card">
               <p className="settings-title">账号</p>
               <Link href="/login" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
@@ -297,7 +339,19 @@ export default function ProfilePage() {
                   退出登录
                 </button>
               ) : null}
-              <p className="muted settings-version-line">版本 {appVersion}</p>
+              <p
+                className="muted settings-version-line"
+                onClick={() => {
+                  const next = versionTapCount + 1;
+                  setVersionTapCount(next);
+                  if (next >= 5) {
+                    setAdminEntryVisible(true);
+                    setVersionTapCount(0);
+                  }
+                }}
+              >
+                版本 {appVersion}
+              </p>
             </div>
           </div>
         </div>

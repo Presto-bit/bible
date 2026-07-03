@@ -76,17 +76,18 @@ def _keywords(text: str, limit: int = 8) -> list[str]:
     return seen[:limit]
 
 
-def _retrieve_hits(query: str, book_name: str | None) -> list[dict]:
+def _retrieve_hits(query: str, book_name: str | None, book_id: str | None = None) -> list[dict]:
     if not query:
         return []
     try:
         hits: list[dict] = []
-        if book_name:
+        if book_name or book_id:
             hits = retrieve(
                 query,
                 top_k=MAX_CITATIONS,
                 source_type="commentary",
                 title_contains=book_name,
+                book_id=book_id,
             )
         if not hits:
             hits = retrieve(
@@ -124,7 +125,7 @@ def prepare(
     citations: list[dict] = []
     if use_rag:
         query = f"{passage_display if ref else ''} {passage_text} {question or ''}".strip()
-        hits = _retrieve_hits(query, ref.book_name if ref else None)
+        hits = _retrieve_hits(query, ref.book_name if ref else None, ref.book_id if ref else None)
     else:
         hits = []
     for i, h in enumerate(hits, start=1):
