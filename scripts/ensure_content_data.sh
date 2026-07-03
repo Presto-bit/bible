@@ -51,6 +51,25 @@ fetch_if_missing() {
   mv "$tmp" "$dest"
 }
 
+validate_bible_sqlite() {
+  local f="$1"
+  [[ -f "$f" && -s "$f" ]] || return 1
+  local sz count
+  sz="$(wc -c < "$f" | tr -d ' ')"
+  [[ "$sz" -ge 1000000 ]] || return 1
+  count="$("$PY" -c "
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1])
+try:
+    n = c.execute('SELECT COUNT(*) FROM verses').fetchone()[0]
+except sqlite3.OperationalError:
+    n = 0
+c.close()
+print(n)
+" "$f")"
+  [[ "$count" -ge 10000 ]]
+}
+
 validate_strongs_sqlite() {
   local f="$1"
   [[ -f "$f" && -s "$f" ]] || return 1
@@ -165,10 +184,15 @@ fi
 # ── 和合本 CUVS（data/bible/cuvs/verses.json → build/bible_cuvs.sqlite）──
 CUVS_JSON="$ROOT/data/bible/cuvs/verses.json"
 CUVS_SQL="$ROOT/build/bible_cuvs.sqlite"
-if [[ -f "$CUVS_JSON" ]] && need_run "$CUVS_SQL" "$CUVS_JSON" "$ROOT/scripts/import_cuv.py"; then
-  "$PY" "$ROOT/scripts/import_cuv.py" --input "$CUVS_JSON"
+if [[ -f "$CUVS_JSON" ]]; then
+  if validate_bible_sqlite "$CUVS_SQL"; then
+    log "和合本 SQLite 已就绪"
+  else
+    log "生成 bible_cuvs.sqlite …"
+    "$PY" "$ROOT/scripts/import_bible.py" --input "$CUVS_JSON" --out "$CUVS_SQL"
+  fi
 else
-  if [[ -f "$CUVS_SQL" ]]; then
+  if validate_bible_sqlite "$CUVS_SQL"; then
     log "和合本 SQLite 已就绪"
   else
     log "跳过 CUVS（无 $CUVS_JSON）"

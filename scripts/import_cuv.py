@@ -13,6 +13,8 @@ import argparse
 import importlib.util
 import json
 import sqlite3
+import subprocess
+import sys
 import urllib.request
 from pathlib import Path
 
@@ -98,23 +100,34 @@ def _parse_midvash(data: dict) -> tuple[list[dict], list[dict]]:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", type=Path, default=CACHE)
+    ap.add_argument("--out", type=Path, default=OUT_SQLITE)
     args = ap.parse_args()
 
+    raw = json.loads(args.input.read_text(encoding="utf-8"))
+    # 已是 import_bible 导出的 verses.json（git 内随仓库分发）
+    if isinstance(raw.get("verses"), list) and raw["verses"] and "text" in raw["verses"][0]:
+        subprocess.check_call(
+            [sys.executable, str(REPO / "scripts" / "import_bible.py"),
+             "--input", str(args.input), "--out", str(args.out)],
+        )
+        return 0
+
     _ensure_cuvs(args.input)
-    data = json.loads(args.input.read_text(encoding="utf-8"))
+    data = raw
     verses, books_meta = _parse_midvash(data)
 
     payload = {"translation": "cuvs", "verses": verses, "books": books_meta}
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     OUT_JSON.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    OUT_SQLITE.parent.mkdir(parents=True, exist_ok=True)
-    if OUT_SQLITE.exists():
-        OUT_SQLITE.unlink()
+    out_sqlite = args.out
+    out_sqlite.parent.mkdir(parents=True, exist_ok=True)
+    if out_sqlite.exists():
+        out_sqlite.unlink()
     spec = importlib.util.spec_from_file_location("import_bible", REPO / "scripts" / "import_bible.py")
     ib = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(ib)
-    conn = sqlite3.connect(OUT_SQLITE)
+    conn = sqlite3.connect(out_sqlite)
     conn.executescript(ib.SCHEMA)
     conn.executemany(
         "INSERT INTO books (id, name, testament, sort_order, chapter_count) VALUES (?,?,?,?,?)",
@@ -133,7 +146,7 @@ def main() -> int:
     conn.close()
 
     print(f"✓ 和合本：{len(verses)} 节 / {len(books_meta)} 卷 → {OUT_JSON}")
-    print(f"  SQLite → {OUT_SQLITE} ({OUT_SQLITE.stat().st_size // 1024} KB)")
+    print(f"  SQLite → {out_sqlite} ({out_sqlite.stat().st_size // 1024} KB)")
     return 0
 
 

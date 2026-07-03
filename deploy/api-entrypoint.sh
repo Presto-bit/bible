@@ -21,7 +21,20 @@ fi
 
 if [[ ! -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
   echo "[entrypoint] 生成 bible_cuvs.sqlite …"
-  python /app/scripts/import_cuv.py --input /app/data/bible/cuvs/verses.json
+  python /app/scripts/import_bible.py \
+    --input /app/data/bible/cuvs/verses.json \
+    --out "$CUVS"
+fi
+
+# 修复历史错误导入产生的空库（import_cuv.py 误读 verses.json 格式）
+if [[ -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
+  cuvs_n="$(python -c "import sqlite3; c=sqlite3.connect('$CUVS'); print(c.execute('SELECT COUNT(*) FROM verses').fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
+  if [[ "${cuvs_n:-0}" -lt 10000 ]]; then
+    echo "[entrypoint] 重建 bible_cuvs.sqlite（当前仅 ${cuvs_n} 节）…"
+    python /app/scripts/import_bible.py \
+      --input /app/data/bible/cuvs/verses.json \
+      --out "$CUVS"
+  fi
 fi
 
 # 大数据集（串珠/Strong's/CUVS）在后台生成，不阻塞 uvicorn 启动与健康检查。
