@@ -18,9 +18,11 @@ if [[ ! -f "$KJV" && -f /app/data/bible/kjv/verses.json ]]; then
     --out "$KJV"
 fi
 
-# 交叉引用 / Strong's / CUVS（缺失时生成；需网络，失败不阻断 API 启动）
-if [[ -x /app/scripts/ensure_content_data.sh ]]; then
-  bash /app/scripts/ensure_content_data.sh || echo "[entrypoint] ⚠ ensure_content_data 跳过（无网络或缓存失败）"
+# 大数据集（串珠/Strong's/CUVS）在后台生成，不阻塞 uvicorn 启动与健康检查。
+# 发版时 release.sh 会在 API 就绪后同步再跑一遍 ensure_content_data.sh。
+if [[ "${ENSURE_CONTENT_DATA_BG:-1}" == "1" && -x /app/scripts/ensure_content_data.sh ]]; then
+  echo "[entrypoint] 后台生成内容 SQLite（不阻塞 API 启动）…"
+  ( bash /app/scripts/ensure_content_data.sh >>/tmp/ensure_content_data.log 2>&1 || true ) &
 fi
 
 exec "$@"

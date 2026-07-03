@@ -17,7 +17,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-PY="${PYTHON:-python3}"
+PY="${PYTHON:-python}"
 CACHE="$ROOT/data/.cache"
 mkdir -p "$CACHE"
 

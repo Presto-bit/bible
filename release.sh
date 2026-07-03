@@ -81,24 +81,29 @@ log "启动容器"
 
 log "健康检查 API"
 api_ok=0
-for i in $(seq 1 18); do
+for i in $(seq 1 30); do
   if curl -fsS --connect-timeout 3 --max-time 8 http://127.0.0.1:8011/health >/dev/null 2>&1; then
     api_ok=1
     break
   fi
-  log "API /health 未就绪 (${i}/18)…"
+  log "API /health 未就绪 (${i}/30)…"
   sleep 2
 done
-[[ "$api_ok" -eq 1 ]] || die "API 健康检查失败"
+if [[ "$api_ok" -ne 1 ]]; then
+  log "API 日志（最近 80 行）："
+  "${compose[@]}" logs --tail 80 api >&2 || true
+  die "API 健康检查失败（若刚发版，查看 entrypoint 是否报错）"
+fi
 
 if [[ -f "$APP_DIR/scripts/ensure_pg_schema.sh" ]]; then
   log "补跑 PG 迁移（点赞表等）"
   bash "$APP_DIR/scripts/ensure_pg_schema.sh" || die "PG 迁移失败，点赞/社交功能不可用"
 fi
 
-log "确保内容 SQLite（交叉引用 / Strong's / CUVS）"
+log "确保内容 SQLite（交叉引用 / Strong's / CUVS，约 1–3 分钟）"
 if ! "${compose[@]}" exec -T api bash /app/scripts/ensure_content_data.sh 2>&1; then
   log "⚠️  内容 SQLite 生成失败（可能无出网）；串珠/原文/三译本对照或降级"
+  log "   容器内日志: docker compose -f $COMPOSE_FILE exec api tail -50 /tmp/ensure_content_data.log"
 fi
 
 like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8011/content/daily-verse/like" \
