@@ -97,6 +97,7 @@ export function getLastReadVerse(bookId: string, chapter: number): number | null
 export function setLastRead(bookId: string, chapter: number) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(LAST_KEY, JSON.stringify({ bookId, chapter }));
+  void import('./reading_progress_sync').then((m) => m.pushReadingProgress({ bookId, chapter }));
 }
 
 export function getLastRead(): LastRead | null {

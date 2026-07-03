@@ -17,8 +17,9 @@ import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { AssistantLink } from '@/components/AssistantLink';
-import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
+import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
+import { sortGroupsByActionPriority } from '@/lib/group_sort';
 
 function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
   if (!reactions) return 0;
@@ -67,8 +68,9 @@ export default function DiscoverPage() {
         api.friendsActivity(),
       ]);
       const serverGroups = Array.isArray(g.groups) ? g.groups : [];
-      setPendingOnlyIds(new Set(getPendingOnlyIds(serverGroups.map((item) => item.id))));
-      setGroups(mergePendingGroups(serverGroups));
+      const pending = new Set(getPendingOnlyIds(serverGroups.map((item) => item.id)));
+      setPendingOnlyIds(pending);
+      setGroups(sortGroupsByActionPriority(mergePendingGroups(serverGroups), pending));
       setFriends(Array.isArray(f.friends) ? f.friends : []);
       setSummary(s);
       setShares(Array.isArray(activity.items) ? activity.items : []);
@@ -215,7 +217,7 @@ export default function DiscoverPage() {
                     }
                   }}
                 >
-                  {openTasks > 0 && (
+                  {openTasks > 0 && !g.my_checked_in_today && (
                     <span className="group-card-task-badge" aria-label={`${openTasks} 个任务`}>
                       {openTasks}
                     </span>

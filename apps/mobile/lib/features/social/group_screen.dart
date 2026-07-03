@@ -8,7 +8,8 @@ import '../../core/theme.dart';
 import '../../core/ref_label.dart';
 import 'social_repository.dart';
 
-const _emojis = ['🙏', '❤️', '🔥', '👍'];
+const _emojis = ['🙏', '❤️', '🔥'];
+const _moreEmojis = ['👍'];
 
 class GroupScreen extends ConsumerWidget {
   const GroupScreen({super.key, required this.groupId});
@@ -20,6 +21,10 @@ class GroupScreen extends ConsumerWidget {
     final feed = ref.watch(groupFeedProvider(groupId));
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => Navigator.maybePop(context),
+        ),
         title: detail.maybeWhen(
             data: (d) => Text(d.name), orElse: () => const Text('共读群')),
         actions: [
@@ -32,29 +37,73 @@ class GroupScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: feed.when(
+      body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),
-        data: (messages) {
-          if (messages.isEmpty) {
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Text('还没有打卡，点下方按钮开始第一次打卡',
-                    style: TextStyle(color: AppColors.inkFaint)),
-              ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(groupFeedProvider(groupId)),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: messages.length,
-              itemBuilder: (_, i) =>
-                  _MessageCard(groupId: groupId, msg: messages[i]),
+        data: (d) => feed.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('$e')),
+          data: (messages) => RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(groupDetailProvider(groupId));
+              ref.invalidate(groupFeedProvider(groupId));
+            },
+            child: CustomScrollView(
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: _TodayFocusCard(
+                      detail: d,
+                      onCheckin: () => _checkin(context, ref, d),
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                    child: _CheckinWall(
+                      detail: d,
+                      messages: messages,
+                    ),
+                  ),
+                ),
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 18, 16, 8),
+                    child: Text('动态',
+                        style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink)),
+                  ),
+                ),
+                if (messages.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(32),
+                        child: Text('还没有动态，完成第一次打卡吧',
+                            style: TextStyle(color: AppColors.inkFaint)),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 88),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, i) => _MessageCard(
+                            groupId: groupId, msg: messages[i]),
+                        childCount: messages.length,
+                      ),
+                    ),
+                  ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
       floatingActionButton: detail.maybeWhen(
         data: (d) => Row(
@@ -184,6 +233,223 @@ class GroupScreen extends ConsumerWidget {
             .showSnackBar(const SnackBar(content: Text('打卡须挂经文或任务')));
       }
     }
+  }
+}
+
+class _TodayFocusCard extends StatelessWidget {
+  const _TodayFocusCard({required this.detail, required this.onCheckin});
+  final GroupDetail detail;
+  final VoidCallback onCheckin;
+
+  @override
+  Widget build(BuildContext context) {
+    final pending = detail.pendingCount;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('今日焦点',
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkFaint)),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!detail.myCheckedInToday)
+                      FilledButton(
+                        onPressed: onCheckin,
+                        style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.accentDeep,
+                            minimumSize: const Size.fromHeight(44)),
+                        child: const Text('一键打卡'),
+                      )
+                    else
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        alignment: Alignment.center,
+                        child: const Text('今日已打卡 ✓',
+                            style: TextStyle(
+                                color: AppColors.accentDeep,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                    if (detail.planTitle != null) ...[
+                      const SizedBox(height: 8),
+                      Text(detail.planTitle!,
+                          style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              _StatsRing(pct: detail.checkinPct, label: '${detail.checkedInToday}/${detail.memberCount}'),
+            ],
+          ),
+          if (pending > 0) ...[
+            const SizedBox(height: 8),
+            Text('还有 $pending 位伙伴在路上',
+                style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsRing extends StatelessWidget {
+  const _StatsRing({required this.pct, required this.label});
+  final int pct;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: pct / 100,
+            strokeWidth: 5,
+            color: AppColors.accentDeep,
+            backgroundColor: AppColors.accentWash,
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('$pct%',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 13)),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 10, color: AppColors.inkFaint)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CheckinWall extends StatelessWidget {
+  const _CheckinWall({required this.detail, required this.messages});
+  final GroupDetail detail;
+  final List<GroupMessage> messages;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = DateTime.now();
+    final checkins = messages.where((m) {
+      if (m.kind != 'checkin') return false;
+      return m.createdAt.year == today.year &&
+          m.createdAt.month == today.month &&
+          m.createdAt.day == today.day;
+    }).toList();
+    final byAuthor = <String, GroupMessage>{};
+    for (final m in checkins) {
+      byAuthor.putIfAbsent(m.author, () => m);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('打卡墙',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+            const Spacer(),
+            Text('${detail.checkedInToday}/${detail.memberCount}',
+                style: const TextStyle(
+                    fontSize: 12, color: AppColors.inkFaint)),
+          ],
+        ),
+        if (detail.pendingCount > 0)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text('还有 ${detail.pendingCount} 位伙伴在路上',
+                style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+          ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 132,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: detail.members.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (_, i) {
+              final m = detail.members[i];
+              final msg = byAuthor[m.name];
+              final pinned = m.checkedInToday;
+              return Container(
+                width: 128,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: pinned
+                        ? AppColors.accentDeep.withValues(alpha: 0.2)
+                        : AppColors.line,
+                    style: pinned ? BorderStyle.solid : BorderStyle.none,
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 12,
+                          backgroundColor: AppColors.accentWash,
+                          child: Text(m.name.characters.first,
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.accentDeep)),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(m.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 12, fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      pinned
+                          ? (msg?.body?.isNotEmpty == true
+                              ? msg!.body!
+                              : '已钉 ✓')
+                          : '在路上…',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        height: 1.4,
+                        color: pinned ? AppColors.inkSoft : AppColors.inkFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -340,7 +606,8 @@ class _MessageCard extends ConsumerWidget {
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
-            children: _emojis.map((e) {
+            children: [
+              ..._emojis.map((e) {
               final count = msg.reactions[e]?.length ?? 0;
               final mine =
                   msg.reactions[e]?.isNotEmpty == true; // 简化：有人反应即高亮
@@ -364,7 +631,26 @@ class _MessageCard extends ConsumerWidget {
                       style: const TextStyle(fontSize: 13)),
                 ),
               );
-            }).toList(),
+            }),
+              ..._moreEmojis.map((e) {
+                final count = msg.reactions[e]?.length ?? 0;
+                return GestureDetector(
+                  onTap: () async {
+                    await ref.read(socialRepoProvider).react(msg.id, e);
+                    ref.invalidate(groupFeedProvider(groupId));
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.line),
+                    ),
+                    child: Text(count > 0 ? '$e $count' : e,
+                        style: const TextStyle(fontSize: 13)),
+                  ),
+                );
+              }),
+            ],
           ),
         ],
       ),

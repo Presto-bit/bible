@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next';
+import './styles/design_tokens.css';
 import './globals.css';
+import { AppThemeShell } from '@/components/AppThemeShell';
 import PwaRegister from '@/components/PwaRegister';
 import PwaStandaloneShell from '@/components/PwaStandaloneShell';
 import StaleShellGuard from '@/components/StaleShellGuard';
@@ -71,6 +73,7 @@ export default function RootLayout({
         <ConfirmProvider>
           <PasswordSheetProvider>
             <IdentityShell>
+              <AppThemeShell />
               <OfflineBar />
               <div className="app-body">{children}</div>
               <BottomTabs />

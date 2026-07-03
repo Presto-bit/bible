@@ -12,11 +12,14 @@ import { GROUP_CANNED_PHRASES, GROUP_EMOJIS, cannedPhraseLabel } from '@/lib/gro
 import { BASE_PATH } from '@/lib/basePath';
 import { MemberAvatar } from './MemberAvatar';
 
+const QUICK_EMOJIS = GROUP_EMOJIS.slice(0, 3);
+
 type Props = {
   groupId: string;
   detail: GroupDetail;
   messages: GroupMessage[];
   isOwner?: boolean;
+  flyHighlight?: boolean;
   onReact?: (mid: string, emoji: string) => void;
 };
 
@@ -30,11 +33,13 @@ export function GroupCheckinWall({
   detail,
   messages,
   isOwner,
+  flyHighlight,
   onReact,
 }: Props) {
   const dayKey = localDayKey(new Date());
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [respondId, setRespondId] = useState<string | null>(null);
+  const [respondMoreId, setRespondMoreId] = useState<string | null>(null);
   const [, bumpRead] = useState(0);
 
   const posters = useMemo(
@@ -73,7 +78,7 @@ export function GroupCheckinWall({
           <strong>打卡墙</strong>
           <span className="muted group-checkin-wall-sub">
             {groupDetailTodayLine(detail) || `共 ${posters.length} 人`}
-            {pendingCount > 0 ? ` · ${pendingCount} 人待钉` : ''}
+            {pendingCount > 0 ? ` · 还有 ${pendingCount} 位伙伴在路上` : ''}
           </span>
         </div>
         <span className="group-checkin-wall-badge">{pinnedCount}/{posters.length}</span>
@@ -93,6 +98,7 @@ export function GroupCheckinWall({
           <p className="muted">窄门先行的那一位，可以是你</p>
         </div>
       ) : (
+        <div className="group-poster-scroll-wrap">
         <div className="group-poster-scroll">
           <div className="group-poster-grid">
             {posters.map(({ member, message, status }) => {
@@ -115,7 +121,7 @@ export function GroupCheckinWall({
               return (
                 <article
                   key={member.user_id || name}
-                  className={`group-poster-card${isPending ? ' pending' : ' pinned'}${unread ? ' unread' : ''}${member.is_me ? ' me' : ''}${expanded ? ' expanded' : ''}`}
+                  className={`group-poster-card${isPending ? ' pending' : ' pinned'}${unread ? ' unread' : ''}${member.is_me ? ' me' : ''}${expanded ? ' expanded' : ''}${member.is_me && flyHighlight ? ' fly-in' : ''}`}
                   style={
                     !isPending
                       ? ({ '--pin-intensity': pinIntensity } as React.CSSProperties)
@@ -195,7 +201,7 @@ export function GroupCheckinWall({
                       {showRespond && onReact && message && (
                         <div className="group-poster-respond">
                           <div className="group-emoji-bar">
-                            {GROUP_EMOJIS.map((e) => {
+                            {QUICK_EMOJIS.map((e) => {
                               const count = reactions?.[e]?.length || 0;
                               return (
                                 <button
@@ -208,22 +214,48 @@ export function GroupCheckinWall({
                                 </button>
                               );
                             })}
+                            <button
+                              type="button"
+                              className="text-link group-emoji-more-btn"
+                              onClick={() => setRespondMoreId((id) => (id === message.id ? null : message.id))}
+                            >
+                              {respondMoreId === message.id ? '收起' : '更多'}
+                            </button>
                           </div>
-                          <div className="group-canned-row">
-                            {GROUP_CANNED_PHRASES.map((p) => {
-                              const count = reactions?.[p.key]?.length || 0;
-                              return (
-                                <button
-                                  key={p.key}
-                                  type="button"
-                                  className={`group-canned-btn${count > 0 ? ' active' : ''}`}
-                                  onClick={() => onReact(message.id, p.key)}
-                                >
-                                  {cannedPhraseLabel(p.key)}{count > 0 ? ` ${count}` : ''}
-                                </button>
-                              );
-                            })}
-                          </div>
+                          {respondMoreId === message.id && (
+                            <>
+                              <div className="group-emoji-bar">
+                                {GROUP_EMOJIS.slice(3).map((e) => {
+                                  const count = reactions?.[e]?.length || 0;
+                                  return (
+                                    <button
+                                      key={e}
+                                      type="button"
+                                      className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
+                                      onClick={() => onReact(message.id, e)}
+                                    >
+                                      {e}{count > 0 ? ` ${count}` : ''}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              <div className="group-canned-row">
+                                {GROUP_CANNED_PHRASES.map((p) => {
+                                  const count = reactions?.[p.key]?.length || 0;
+                                  return (
+                                    <button
+                                      key={p.key}
+                                      type="button"
+                                      className={`group-canned-btn${count > 0 ? ' active' : ''}`}
+                                      onClick={() => onReact(message.id, p.key)}
+                                    >
+                                      {cannedPhraseLabel(p.key)}{count > 0 ? ` ${count}` : ''}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                     </>
@@ -236,6 +268,8 @@ export function GroupCheckinWall({
             })}
           </div>
         </div>
+        <span className="group-poster-scroll-hint muted">滑动查看更多</span>
+      </div>
       )}
     </section>
   );

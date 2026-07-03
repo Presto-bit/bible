@@ -13,11 +13,14 @@ import {
 import { groupDetailTodayLine, myTodayGroupStatus, myTodayGroupStatusLabel } from '@/lib/group_status';
 import { displayMemberName, formatDueCountdown, groupMemberCount } from '@/lib/group_ui';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { setReaderReturnHref } from '@/lib/reader_return';
+import { canGentleNudgeToday, markGentleNudgeSent } from '@/lib/group_nudge';
 import { MemberAvatar } from './MemberAvatar';
 
 type Props = {
   gid: string;
   detail: GroupDetail;
+  isOwner?: boolean;
   pinnedTask?: GroupTask | null;
   tasks: GroupTask[];
   onCheckin: () => void;
@@ -27,6 +30,7 @@ type Props = {
 export function GroupTodayFocus({
   gid,
   detail,
+  isOwner,
   pinnedTask,
   tasks,
   onCheckin,
@@ -35,6 +39,8 @@ export function GroupTodayFocus({
   const [planInfo, setPlanInfo] = useState<GroupPlanDayInfo | null>(null);
   const [planBusy, setPlanBusy] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [nudgeMsg, setNudgeMsg] = useState<string | null>(null);
 
   const myDay = detail.my_plan_day ?? 0;
   const readDay = myDay > 0 ? myDay : 1;
@@ -85,6 +91,25 @@ export function GroupTodayFocus({
   const barPct = detail.plan_id ? (detail.plan_progress_pct ?? checkinPct) : checkinPct;
 
   const members = detail.members ?? [];
+  const pendingMembers = members.filter((m) => !m.checked_in_today && !m.is_me);
+  const hasDetails = Boolean(
+    detail.announcement || detail.plan_id || pinnedTask || extraTasks.length > 0,
+  );
+
+  const markReturn = () => {
+    if (typeof window !== 'undefined') {
+      setReaderReturnHref(`${window.location.pathname}${window.location.search}`);
+    }
+  };
+
+  const gentleNudge = () => {
+    if (!isOwner || !canGentleNudgeToday(gid)) {
+      setNudgeMsg('今日已提醒过，明天再来陪伴吧');
+      return;
+    }
+    markGentleNudgeSent(gid);
+    setNudgeMsg(`已为 ${pendingMembers.length} 位伙伴送上轻轻提醒`);
+  };
 
   return (
     <>
@@ -102,14 +127,44 @@ export function GroupTodayFocus({
               </span>
             </div>
 
-            {detail.announcement && (
+            <div className="group-today-primary-cta">
+              {!detail.my_checked_in_today ? (
+                <button type="button" className="btn btn-block group-today-btn-checkin" onClick={onCheckin}>
+                  一键打卡
+                </button>
+              ) : detail.plan_id ? (
+                joined ? (
+                  <Link
+                    className="btn btn-block group-today-btn-read"
+                    href={groupPlanReaderHref(detail.plan_id, readDay, gid)}
+                    onClick={markReturn}
+                  >
+                    开始阅读
+                  </Link>
+                ) : (
+                  <button type="button" className="btn btn-block group-today-btn-read" disabled={planBusy} onClick={adoptAndRead}>
+                    {planBusy ? '准备中…' : '加入计划并阅读'}
+                  </button>
+                )
+              ) : (
+                <span className="group-today-done-note block">今日已打卡 ✓</span>
+              )}
+            </div>
+
+            {hasDetails && (
+              <button type="button" className="text-link group-today-details-toggle" onClick={() => setDetailsOpen((v) => !v)}>
+                {detailsOpen ? '收起详情' : '更多详情'}
+              </button>
+            )}
+
+            {detailsOpen && detail.announcement && (
               <div className="group-today-announce">
                 <span className="group-wechat-announce-tag">公告</span>
                 <p>{detail.announcement}</p>
               </div>
             )}
 
-            {detail.plan_id && detail.plan_title && (
+            {detailsOpen && detail.plan_id && detail.plan_title && (
               <div className="group-today-plan">
                 <strong>{detail.plan_title}</strong>
                 {planInfo && (
@@ -122,28 +177,7 @@ export function GroupTodayFocus({
               </div>
             )}
 
-            <div className="group-today-actions">
-              {detail.plan_id ? (
-                joined ? (
-                  <Link className="btn group-today-btn-read" href={groupPlanReaderHref(detail.plan_id, readDay, gid)}>
-                    开始阅读
-                  </Link>
-                ) : (
-                  <button type="button" className="btn group-today-btn-read" disabled={planBusy} onClick={adoptAndRead}>
-                    {planBusy ? '准备中…' : '加入计划并阅读'}
-                  </button>
-                )
-              ) : null}
-              {!detail.my_checked_in_today ? (
-                <button type="button" className="btn group-today-btn-checkin" onClick={onCheckin}>
-                  一键打卡
-                </button>
-              ) : (
-                <span className="group-today-done-note">今日已打卡 ✓</span>
-              )}
-            </div>
-
-            {(pinnedTask || extraTasks.length > 0) && (
+            {detailsOpen && (pinnedTask || extraTasks.length > 0) && (
               <div className="group-today-tasks">
                 <div className="group-today-tasks-head">
                   <span className="group-wechat-zone-label">本周任务</span>
@@ -181,7 +215,7 @@ export function GroupTodayFocus({
               />
             </div>
             {pendingIn > 0 && (
-              <span className="group-today-stats-hint">{pendingIn} 人待钉</span>
+              <span className="group-today-stats-hint">还有 {pendingIn} 位伙伴在路上</span>
             )}
             <span className="group-today-stats-link">查看明细 ›</span>
           </button>
@@ -201,6 +235,17 @@ export function GroupTodayFocus({
             <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
               {groupDetailTodayLine(detail)} · 打卡率 {checkinPct}%
             </p>
+            {isOwner && pendingMembers.length > 0 && (
+              <button
+                type="button"
+                className="font-pill group-gentle-nudge-btn"
+                disabled={!canGentleNudgeToday(gid)}
+                onClick={gentleNudge}
+              >
+                {canGentleNudgeToday(gid) ? '轻轻提醒待钉伙伴' : '今日已提醒'}
+              </button>
+            )}
+            {nudgeMsg && <p className="muted" style={{ fontSize: 12, margin: '8px 0' }}>{nudgeMsg}</p>}
             <ul className="group-checkin-stats-list">
               {members.map((m) => (
                 <li key={m.user_id || displayMemberName(m)} className="group-checkin-stats-row">
@@ -247,6 +292,11 @@ function TaskRow({
           <Link
             href={`${taskHref}&taskTitle=${encodeURIComponent(task.title)}`}
             className="font-pill"
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                setReaderReturnHref(`${window.location.pathname}${window.location.search}`);
+              }
+            }}
           >
             去读
           </Link>

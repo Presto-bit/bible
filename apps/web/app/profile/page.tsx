@@ -20,6 +20,7 @@ import { readingStreak } from '@/lib/gamification';
 import { favoriteReviewCards } from '@/lib/favorite_review';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { syncNow } from '@/lib/sync';
+import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
 
 const AVATAR_KEY = 'profile_avatar';
@@ -81,6 +82,7 @@ export default function ProfilePage() {
   const chooseAvatar = (id: string) => {
     setAvatarId(id);
     localStorage.setItem(AVATAR_KEY, id);
+    pushProfileAvatar(id);
     setPickerOpen(false);
   };
 

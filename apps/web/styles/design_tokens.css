@@ -1,0 +1,11 @@
+/* 彼爱 · 设计 token（Web / PWA 与 Flutter 对齐参考） */
+:root {
+  --brand-bg: #fffcfa;
+  --brand-accent: #4f6b5d;
+  --brand-accent-soft: #7d9b8a;
+  --brand-accent-wash: rgba(125, 155, 138, 0.14);
+  --brand-ink: #1c1c1e;
+  --brand-radius-card: 16px;
+  --brand-radius-pill: 999px;
+  --brand-tab-height: 56px;
+}

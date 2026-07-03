@@ -8,6 +8,7 @@ import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
 import { asGroupTasks, groupFootprintsBySource } from '@/lib/group_ui';
 import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
+import { readGroupCheckinDraft } from '@/lib/group_checkin_draft';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 
 type Mode = 'checkin' | 'task';
@@ -60,6 +61,11 @@ export function GroupComposer({
     const refParam = params.get('ref');
     if (refParam) {
       setSelectedRef(refParam);
+    }
+    if (gid) {
+      const draft = readGroupCheckinDraft(gid);
+      if (draft?.ref && !refParam && !taskRef) setSelectedRef(draft.ref);
+      if (draft?.body) setBody(draft.body);
     }
     loadFootprintRefs({
       taskRef,

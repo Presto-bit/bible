@@ -35,18 +35,57 @@ class Group {
 }
 
 class GroupTask {
-  GroupTask({required this.id, required this.title, this.ref});
+  GroupTask({
+    required this.id,
+    required this.title,
+    this.ref,
+    this.dueAt,
+    this.completed = false,
+    this.pinned = false,
+  });
   final String id;
   final String title;
   final String? ref;
-  factory GroupTask.fromJson(Map<String, dynamic> j) =>
-      GroupTask(id: j['id'] as String, title: j['title'] as String, ref: j['ref'] as String?);
+  final String? dueAt;
+  final bool completed;
+  final bool pinned;
+  factory GroupTask.fromJson(Map<String, dynamic> j) => GroupTask(
+        id: j['id'] as String,
+        title: j['title'] as String,
+        ref: j['ref'] as String?,
+        dueAt: j['due_at'] as String?,
+        completed: (j['completed'] ?? false) as bool,
+        pinned: (j['pinned'] ?? false) as bool,
+      );
 }
 
 class GroupMember {
-  GroupMember({required this.name, required this.role});
+  GroupMember({
+    required this.userId,
+    required this.name,
+    required this.role,
+    this.checkedInToday = false,
+    this.isMe = false,
+    this.planDay = 0,
+    this.avatarId,
+  });
+  final String userId;
   final String name;
   final String role;
+  final bool checkedInToday;
+  final bool isMe;
+  final int planDay;
+  final String? avatarId;
+
+  factory GroupMember.fromJson(Map<String, dynamic> j) => GroupMember(
+        userId: (j['user_id'] ?? '') as String,
+        name: (j['name'] ?? '匿名') as String,
+        role: (j['role'] ?? 'member') as String,
+        checkedInToday: (j['checked_in_today'] ?? false) as bool,
+        isMe: (j['is_me'] ?? false) as bool,
+        planDay: (j['plan_day'] ?? 0) as int,
+        avatarId: j['avatar_id'] as String?,
+      );
 }
 
 class GroupDetail {
@@ -58,6 +97,16 @@ class GroupDetail {
     required this.role,
     required this.members,
     required this.tasks,
+    this.planId,
+    this.planTitle,
+    this.announcement,
+    this.myCheckedInToday = false,
+    this.checkedInToday = 0,
+    this.memberCount = 0,
+    this.myPlanDay = 0,
+    this.planDaysTotal = 0,
+    this.planProgressPct = 0,
+    this.pinnedTaskId,
   });
   final String id;
   final String name;
@@ -66,7 +115,26 @@ class GroupDetail {
   final String role;
   final List<GroupMember> members;
   final List<GroupTask> tasks;
+  final String? planId;
+  final String? planTitle;
+  final String? announcement;
+  final bool myCheckedInToday;
+  final int checkedInToday;
+  final int memberCount;
+  final int myPlanDay;
+  final int planDaysTotal;
+  final int planProgressPct;
+  final String? pinnedTaskId;
   bool get isOwner => role == 'owner';
+
+  int get pendingCount =>
+      (memberCount > 0 ? memberCount : members.length) - checkedInToday;
+
+  int get checkinPct {
+    final total = memberCount > 0 ? memberCount : members.length;
+    if (total <= 0) return 0;
+    return ((checkedInToday / total) * 100).round();
+  }
 
   factory GroupDetail.fromJson(Map<String, dynamic> j) => GroupDetail(
         id: j['id'] as String,
@@ -75,12 +143,21 @@ class GroupDetail {
         joinCode: j['join_code'] as String?,
         role: (j['role'] ?? 'member') as String,
         members: ((j['members'] ?? []) as List)
-            .map((m) => GroupMember(
-                name: (m['name'] ?? '匿名') as String, role: m['role'] as String))
+            .map((m) => GroupMember.fromJson(m as Map<String, dynamic>))
             .toList(),
         tasks: ((j['tasks'] ?? []) as List)
             .map((t) => GroupTask.fromJson(t as Map<String, dynamic>))
             .toList(),
+        planId: j['plan_id'] as String?,
+        planTitle: j['plan_title'] as String?,
+        announcement: j['announcement'] as String?,
+        myCheckedInToday: (j['my_checked_in_today'] ?? false) as bool,
+        checkedInToday: (j['checked_in_today'] ?? 0) as int,
+        memberCount: ((j['members'] as List?)?.length ?? 0),
+        myPlanDay: (j['my_plan_day'] ?? 0) as int,
+        planDaysTotal: (j['plan_days_total'] ?? 0) as int,
+        planProgressPct: (j['plan_progress_pct'] ?? 0) as int,
+        pinnedTaskId: j['pinned_task_id'] as String?,
       );
 }
 

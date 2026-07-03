@@ -13,6 +13,7 @@ import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
 import { clearGroupsListDirty, dismissPendingGroup, hideGroupFromList, getPendingOnlyIds, mergePendingGroups, markGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
+import { sortGroupsByActionPriority } from '@/lib/group_sort';
 
 function groupStatusBadge(g: Group) {
   return groupListStatusBadge(g);
@@ -30,8 +31,9 @@ export default function DiscoverGroupsPage() {
     try {
       const g = await api.myGroups();
       const serverGroups = Array.isArray(g.groups) ? g.groups : [];
-      setPendingOnlyIds(new Set(getPendingOnlyIds(serverGroups.map((item) => item.id))));
-      setGroups(mergePendingGroups(serverGroups));
+      const pending = new Set(getPendingOnlyIds(serverGroups.map((item) => item.id)));
+      setPendingOnlyIds(pending);
+      setGroups(sortGroupsByActionPriority(mergePendingGroups(serverGroups), pending));
       clearGroupsListDirty();
       setErr(null);
     } catch (e) {
@@ -146,7 +148,7 @@ export default function DiscoverGroupsPage() {
               <div
                 className={cardClass}
               >
-                {openTasks > 0 && (
+                {openTasks > 0 && !g.my_checked_in_today && (
                   <span className="group-card-task-badge" aria-label={`${openTasks} 个任务`}>
                     {openTasks}
                   </span>

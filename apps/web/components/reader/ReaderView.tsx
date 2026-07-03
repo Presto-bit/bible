@@ -62,6 +62,14 @@ import {
 } from '@/lib/reading';
 import { outlineFor } from '@/lib/outlines';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
+import { chapterRef } from '@/lib/group_checkin';
+import { saveGroupCheckinDraft } from '@/lib/group_checkin_draft';
+import {
+  clearReaderReturnHref,
+  getReaderReturnHref,
+  readerBackHref,
+} from '@/lib/reader_return';
+import { getAppThemeScope, setAppThemeScope, type AppThemeScope } from '@/components/AppThemeShell';
 import PlanReadingLayer from '@/components/reader/PlanReadingLayer';
 import ReaderChapterPeek from '@/components/reader/ReaderChapterPeek';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
@@ -197,6 +205,8 @@ export default function ReaderView({
     taskId?: string;
     taskTitle?: string;
   }>({});
+  const [backHref, setBackHref] = useState<string | null>(null);
+  const [themeScope, setThemeScope] = useState<AppThemeScope>('reader');
   const [underlinesOn, setUnderlinesOn] = useState(true);
   const [thoughtsOn, setThoughtsOn] = useState(true);
   const [fontFamily, setFontFamilyState] = useState<ReaderFontFamily>('serif');
@@ -262,15 +272,35 @@ export default function ReaderView({
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    const groupId = p.get('group') || undefined;
+    const groupId = p.get('group') || checkinGroupId || undefined;
     const taskId = p.get('task') || undefined;
     const taskTitle = p.get('taskTitle') || undefined;
     setGroupCtx({ groupId, taskId, taskTitle });
     if (groupId && taskId) setGroupCheckinOpen(true);
+    setBackHref(getReaderReturnHref());
+    setThemeScope(getAppThemeScope());
     api.myGroups()
       .then((r) => setHasGroups(r.groups.length > 0))
       .catch(() => setHasGroups(false));
-  }, []);
+  }, [checkinGroupId]);
+
+  useEffect(() => {
+    const gid = groupCtx.groupId || checkinGroupId;
+    if (!gid) return;
+    const save = () => {
+      saveGroupCheckinDraft(gid, chapterRef(book.id, chapter));
+    };
+    const onVis = () => {
+      if (document.visibilityState === 'hidden') save();
+    };
+    window.addEventListener('beforeunload', save);
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      save();
+      window.removeEventListener('beforeunload', save);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [book.id, chapter, groupCtx.groupId, checkinGroupId]);
 
   useEffect(() => {
     setBookDone(false);
@@ -1108,6 +1138,18 @@ export default function ReaderView({
     >
       <div className="reader-topbar" aria-hidden={chromeHidden}>
         <div className="reader-topbar-left">
+          {backHref && (
+            <Link
+              href={readerBackHref()}
+              className="reader-back-link"
+              onClick={(e) => {
+                e.stopPropagation();
+                clearReaderReturnHref();
+              }}
+            >
+              ‹ 返回
+            </Link>
+          )}
           <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
             {bookAbbr(book.name)} {chapter}
           </button>
@@ -1328,6 +1370,23 @@ export default function ReaderView({
                   <span className="reader-theme-swatch-desc">{t.desc}</span>
                 </button>
               ))}
+            </div>
+            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>夜间主题范围</p>
+            <div className="font-pills">
+              <button
+                type="button"
+                className={`font-pill ${themeScope === 'reader' ? 'font-pill-active' : ''}`}
+                onClick={() => { setThemeScope('reader'); setAppThemeScope('reader'); }}
+              >
+                仅阅读器
+              </button>
+              <button
+                type="button"
+                className={`font-pill ${themeScope === 'global' ? 'font-pill-active' : ''}`}
+                onClick={() => { setThemeScope('global'); setAppThemeScope('global'); }}
+              >
+                全站跟随
+              </button>
             </div>
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.verseNo}</p>
             <div className="font-pills">

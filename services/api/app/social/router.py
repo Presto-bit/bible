@@ -535,10 +535,12 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
                 "    AND gm.created_at::date = CURRENT_DATE"
                 "  ) AS checked_today, "
-                "  COALESCE(pp.day, 0) AS plan_day "
+                "  COALESCE(pp.day, 0) AS plan_day, "
+                "  up.avatar_id "
                 "FROM group_member m "
                 "JOIN users u ON u.id = m.user_id "
                 "LEFT JOIN plan_progress pp ON pp.user_id = u.id AND pp.plan_id = %s "
+                "LEFT JOIN user_profile up ON up.user_id = u.id "
                 "WHERE m.group_id = %s "
                 "ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END, m.joined_at ASC",
                 (gid, plan_id, gid),
@@ -551,9 +553,11 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
                 "    AND gm.created_at::date = CURRENT_DATE"
                 "  ) AS checked_today, "
-                "  0 AS plan_day "
+                "  0 AS plan_day, "
+                "  up.avatar_id "
                 "FROM group_member m "
                 "JOIN users u ON u.id = m.user_id "
+                "LEFT JOIN user_profile up ON up.user_id = u.id "
                 "WHERE m.group_id = %s "
                 "ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END, m.joined_at ASC",
                 (gid, gid),
@@ -605,6 +609,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 "checked_in_today": bool(m[3]),
                 "plan_day": int(m[4] or 0),
                 "is_me": str(m[0]) == user_id,
+                "avatar_id": m[5] if len(m) > 5 else None,
             }
             for m in members
         ],

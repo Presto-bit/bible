@@ -2,14 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   api,
-  dailyVerseReaderHref,
   type DailyVerse,
   ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
+import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import { writeLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
@@ -36,17 +35,38 @@ function buildRail(
   assistant?: { title: string; sub: string; href: string },
   notes?: { title: string; sub: string; href: string },
 ) {
-  const cards = [
-    {
-      tag: prayer ? '祷告' : '计划',
-      reason: '今日计划',
-      title: plan?.title ?? prayer?.title ?? '开始读经计划',
-      sub: plan?.sub ?? prayer?.sub ?? '热门计划 · 个性定制',
-      cta: plan || prayer ? '去读 ›' : '去看看 ›',
-      href: plan?.href ?? prayer?.href ?? '/plans',
+  const cards: {
+    tag: string;
+    reason: string;
+    title: string;
+    sub: string;
+    cta: string;
+    href: string;
+    accent: boolean;
+  }[] = [];
+
+  if (resume) {
+    cards.push({
+      tag: '继续',
+      reason: '你上次读到这里',
+      title: resume.title,
+      sub: resume.sub,
+      cta: '读 ›',
+      href: resume.href,
       accent: true,
-    },
-  ];
+    });
+  }
+
+  cards.push({
+    tag: prayer ? '祷告' : '计划',
+    reason: '今日计划',
+    title: plan?.title ?? prayer?.title ?? '开始读经计划',
+    sub: plan?.sub ?? prayer?.sub ?? '热门计划 · 个性定制',
+    cta: plan || prayer ? '去读 ›' : '去看看 ›',
+    href: plan?.href ?? prayer?.href ?? '/plans',
+    accent: !resume,
+  });
+
   if (group) {
     cards.push({
       tag: '小组',
@@ -89,15 +109,6 @@ function buildRail(
       accent: false,
     },
     {
-      tag: '继续',
-      reason: '你上次读到这里',
-      title: resume?.title ?? '开始读经',
-      sub: resume?.sub ?? '从圣经 Tab 继续',
-      cta: '读 ›',
-      href: resume?.href ?? '/reader',
-      accent: false,
-    },
-    {
       tag: '小爱',
       reason: '基于今日经文',
       title: assistant?.title ?? '小爱想问你',
@@ -111,7 +122,6 @@ function buildRail(
 }
 
 export default function HomePageClient() {
-  const router = useRouter();
   const [dv, setDv] = useState<DailyVerse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [dvLoading, setDvLoading] = useState(true);
@@ -120,6 +130,7 @@ export default function HomePageClient() {
   const [likeCount, setLikeCount] = useState(0);
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
+  const [verseFull, setVerseFull] = useState(false);
 
   const loadDailyVerse = useCallback(() => {
     setDvLoading(true);
@@ -331,6 +342,11 @@ export default function HomePageClient() {
 
   const lastRead = getLastRead();
 
+  const openVerseWallpaper = () => {
+    if (!dv?.text) return;
+    setVerseFull(true);
+  };
+
   return (
     <main className="container">
       <header className="greet">
@@ -376,17 +392,13 @@ export default function HomePageClient() {
       <div
         className="card card-3 card-tint hero-verse"
         role="button"
-        tabIndex={dv?.book && dv?.chapter ? 0 : -1}
-        aria-label={dv?.ref ? `阅读 ${dv.ref}` : '每日经文'}
-        onClick={() => {
-          const href = dailyVerseReaderHref(dv);
-          if (href) router.push(href);
-        }}
+        tabIndex={dv?.text ? 0 : -1}
+        aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
+        onClick={openVerseWallpaper}
         onKeyDown={(e) => {
           if (e.key !== 'Enter' && e.key !== ' ') return;
           e.preventDefault();
-          const href = dailyVerseReaderHref(dv);
-          if (href) router.push(href);
+          openVerseWallpaper();
         }}
       >
         <div className="hero-scene" aria-hidden />
@@ -415,7 +427,7 @@ export default function HomePageClient() {
               点击重试
             </button>
           )}
-          <div className="hero-actions">
+          <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className={`hero-like${liked ? ' hero-like-active' : ''}`}
@@ -522,6 +534,10 @@ export default function HomePageClient() {
       </a>
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
+
+      {verseFull && dv ? (
+        <DailyVerseWallpaper dv={dv} onClose={() => setVerseFull(false)} />
+      ) : null}
     </main>
   );
 }

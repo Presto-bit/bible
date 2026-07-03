@@ -48,12 +48,27 @@ const TABS = [
   },
 ];
 
-const SECONDARY_PREFIXES = ['/challenge', '/notes', '/plans', '/report', '/dictionary', '/login'];
+const SECONDARY_PREFIXES = [
+  '/challenge',
+  '/notes',
+  '/plans',
+  '/report',
+  '/dictionary',
+  '/login',
+  '/search',
+  '/wrapped',
+  '/friend/add',
+  '/profile/reminders',
+  '/group/create',
+];
+
+const GROUP_COMPACT_RE = /^\/discover\/(group\/|join)/;
 
 export default function BottomTabs() {
   const pathname = usePathname();
-  const compact = SECONDARY_PREFIXES.some((p) => pathname.startsWith(p))
-    || /^\/discover\/(group|join|create)/.test(pathname);
+  const compact =
+    SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+    || GROUP_COMPACT_RE.test(pathname);
   return (
     <nav className={`tabbar${compact ? ' tabbar-compact-nav' : ''}`}>
       {TABS.map((t) => {

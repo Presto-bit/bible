@@ -14,8 +14,9 @@ export function GroupNavBar({ detail, onOpenSettings }: Props) {
 
   return (
     <header className="group-wechat-nav">
-      <Link href="/discover/groups" className="group-wechat-back icon-btn" aria-label="返回">
-        ‹
+      <Link href="/discover/groups" className="group-wechat-back icon-btn" aria-label="返回群列表">
+        <span className="group-wechat-back-icon">‹</span>
+        <span className="group-wechat-back-label">返回</span>
       </Link>
       <button type="button" className="group-wechat-nav-center" onClick={onOpenSettings}>
         <span className="group-wechat-name">{detail.name}</span>

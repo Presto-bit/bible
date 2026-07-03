@@ -7,7 +7,7 @@ import { GroupCheckinWall } from '@/components/group/GroupCheckinWall';
 import { GroupComposerBar } from '@/components/group/GroupComposerBar';
 import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
-import { GroupPageTheme } from '@/components/group/GroupPageTheme';
+import { GroupPageSkeleton } from '@/components/group/GroupPageSkeleton';
 import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupTodayFocus } from '@/components/group/GroupTodayFocus';
@@ -20,6 +20,8 @@ import { formatGroupRefLabel } from '@/lib/ref_label';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { errorMessage } from '@/lib/friendly_error';
 import { hapticSuccess } from '@/lib/haptic';
+import { queueCheckin } from '@/lib/checkin_queue';
+import { clearGroupCheckinDraft, readGroupCheckinDraft } from '@/lib/group_checkin_draft';
 
 function GroupPageInner() {
   const confirm = useConfirm();
@@ -48,8 +50,9 @@ function GroupPageInner() {
     title: string;
     ref?: string | null;
   } | null>(null);
-  const feedEndRef = useRef<HTMLDivElement>(null);
+  const [flyHighlight, setFlyHighlight] = useState(false);
   const feedWrapRef = useRef<HTMLDivElement>(null);
+  const feedEndRef = useRef<HTMLDivElement>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = useCallback((msg: string) => {
@@ -111,7 +114,11 @@ function GroupPageInner() {
     if (searchParams.get('focus') === 'checkin') {
       setComposerOpen(true);
     }
-  }, [searchParams]);
+    const draft = readGroupCheckinDraft(gid);
+    if (draft?.ref || searchParams.get('focus') === 'checkin') {
+      setComposerOpen(true);
+    }
+  }, [searchParams, gid]);
 
   useEffect(() => {
     if (detail) {
@@ -195,8 +202,8 @@ function GroupPageInner() {
   }
   if (!detail) {
     return (
-      <main className="container">
-        <p className="muted">加载中…</p>
+      <main className="group-page group-page-checkin container">
+        <GroupPageSkeleton />
       </main>
     );
   }
@@ -275,11 +282,24 @@ function GroupPageInner() {
     appendOptimisticCheckin(payload);
     try {
       await api.checkin(gid, payload);
+      clearGroupCheckinDraft(gid);
       hapticSuccess();
+      setFlyHighlight(true);
+      setTimeout(() => setFlyHighlight(false), 2200);
       showToast('打卡已发送 ✓');
       setComposerOpen(false);
       await reload();
     } catch (e) {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        queueCheckin(gid, payload);
+        clearGroupCheckinDraft(gid);
+        hapticSuccess();
+        setFlyHighlight(true);
+        setTimeout(() => setFlyHighlight(false), 2200);
+        showToast('已离线保存，联网后自动发送');
+        setComposerOpen(false);
+        return;
+      }
       await reload();
       throw e;
     } finally {
@@ -373,12 +393,12 @@ function GroupPageInner() {
 
   return (
     <main className="group-page group-page-checkin">
-      <GroupPageTheme />
       <div className="group-checkin-top">
         <GroupNavBar detail={safeDetail} onOpenSettings={() => setSettingsOpen(true)} />
         <GroupTodayFocus
           gid={gid}
           detail={safeDetail}
+          isOwner={isOwner}
           pinnedTask={pinnedTask}
           tasks={tasks}
           onCheckin={() => setComposerOpen(true)}
@@ -389,6 +409,7 @@ function GroupPageInner() {
           detail={safeDetail}
           messages={feed}
           isOwner={isOwner}
+          flyHighlight={flyHighlight}
           onReact={react}
         />
       </div>

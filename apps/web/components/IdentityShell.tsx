@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { ensureAccountReady } from '@/lib/api';
 import { shouldPromptUsername } from '@/lib/account_guide';
 import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
+import { flushCheckinQueue } from '@/lib/checkin_queue';
+import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
 import { syncNow } from '@/lib/sync';
 import UsernameGuideSheet from '@/components/UsernameGuideSheet';
 
@@ -14,9 +16,16 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
   useEffect(() => {
     void ensureAccountReady().then(() => {
       void syncNow().catch(() => {});
+      void flushCheckinQueue().catch(() => {});
+      rescheduleGroupEveningReminder();
       void ensureOfflinePackAutoDownload();
       if (shouldPromptUsername()) setUsernameGuide(true);
     });
+    const onOnline = () => {
+      void flushCheckinQueue().catch(() => {});
+    };
+    window.addEventListener('online', onOnline);
+    return () => window.removeEventListener('online', onOnline);
   }, []);
 
   return (

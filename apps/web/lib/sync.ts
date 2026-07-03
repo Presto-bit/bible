@@ -22,6 +22,8 @@ import {
   applyRemoteAiSessionPull,
   type RemoteAiSession,
 } from './ai_session_sync';
+import { applyRemoteReadingProgress } from './reading_progress_sync';
+import { applyRemoteProfile } from './profile_sync';
 import { removeHighlight, setHighlight, type HighlightColor } from './reader_highlights';
 
 export interface Envelope {
@@ -108,7 +110,7 @@ async function pull(): Promise<number> {
   try {
     const since = Number(localStorage.getItem(CURSOR_KEY) || '0');
     const res = await fetch(
-      `${API_BASE}/sync/pull?since=${since}&entities=note,plan_progress,highlight,bookmark,ai_session`,
+      `${API_BASE}/sync/pull?since=${since}&entities=note,plan_progress,highlight,bookmark,ai_session,reading_progress,user_profile`,
       { headers: authHeaders(), cache: 'no-store' },
     );
     if (!res.ok) throw new Error(`拉取失败 ${res.status}`);
@@ -127,6 +129,9 @@ async function pull(): Promise<number> {
       status?: string;
       session?: Record<string, unknown> | null;
       color?: string;
+      book?: string;
+      chapter?: number;
+      avatar_id?: string;
     } | null;
     keys?: { plan_id?: string };
   }>;
@@ -174,6 +179,12 @@ async function pull(): Promise<number> {
         version: c.version,
         data: c.data as RemoteAiSession['data'],
       });
+    }
+    if (c.entity === 'reading_progress' && c.op === 'update') {
+      applyRemoteReadingProgress(c.data);
+    }
+    if (c.entity === 'user_profile' && c.op === 'update') {
+      applyRemoteProfile(c.data);
     }
   }
   if (aiSessionChanges.length > 0) {
