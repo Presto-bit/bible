@@ -727,6 +727,7 @@ export interface GroupMember {
   checked_in_today?: boolean;
   plan_day?: number;
   is_me?: boolean;
+  avatar_id?: string | null;
 }
 export interface GroupDetail {
   id: string;

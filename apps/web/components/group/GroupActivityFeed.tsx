@@ -233,7 +233,12 @@ export function GroupActivityFeed({
       list.push(m);
       map.set(key, list);
     }
-    return Array.from(map.entries()).sort((a, b) => b[0].localeCompare(a[0]));
+    return Array.from(map.entries())
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([dayKey, items]) => [
+        dayKey,
+        [...items].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+      ] as const);
   }, [messages]);
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -257,56 +262,89 @@ export function GroupActivityFeed({
     <div className="group-activity-feed">
       <div className="group-activity-feed-title">
         <strong>动态</strong>
-        <span className="muted" style={{ fontSize: 12 }}>按天查看</span>
+        <span className="muted group-activity-feed-hint">时间线</span>
       </div>
+
+      {dayGroups.map(([dayKey, items]) => {
+        const isToday = dayKey === todayKey;
+        const isCollapsed = isToday ? false : (collapsed[dayKey] ?? true);
+
+        return (
+          <section
+            key={dayKey}
+            className={`group-activity-day${isToday ? ' is-today' : ''}${isCollapsed ? ' is-collapsed' : ''}`}
+          >
+            {!isToday && (
+              <button
+                type="button"
+                className="group-activity-day-toggle"
+                onClick={() => setCollapsed((prev) => ({ ...prev, [dayKey]: !isCollapsed }))}
+              >
+                <span>{dayLabel(dayKey)}</span>
+                <span className="muted">{items.length} 条 · {isCollapsed ? '展开' : '收起'}</span>
+              </button>
+            )}
+
+            {isToday && (
+              <div className="group-activity-day-label">
+                <span>{dayLabel(dayKey)}</span>
+                <span className="muted">{items.length} 条</span>
+              </div>
+            )}
+
+            {!isCollapsed && (
+              <div className="group-timeline">
+                <div className="group-timeline-line" aria-hidden />
+                <div className="group-timeline-items">
+                  {items.map((m, idx) => {
+                    if (m.kind === 'system') {
+                      return (
+                        <div key={m.id} className="group-timeline-item center">
+                          <div className="group-timeline-dot system" />
+                          <div className="group-system-bubble">
+                            <span
+                              className={
+                                m.body?.includes('全员打卡') || m.body?.includes('里程碑')
+                                  ? 'milestone'
+                                  : undefined
+                              }
+                            >
+                              {m.body}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    const side = idx % 2 === 0 ? 'left' : 'right';
+                    return (
+                      <div key={m.id} className={`group-timeline-item ${side}`}>
+                        <div className="group-timeline-dot" />
+                        <div className="group-timeline-card-wrap">
+                          <ActivityCard
+                            gid={gid}
+                            m={m}
+                            isOwner={isOwner}
+                            onReact={onReact}
+                            onReport={onReport}
+                            onDelete={onDelete}
+                            onCompleteTask={onCompleteTask}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </section>
+        );
+      })}
 
       {hasMore && onLoadMore && (
         <button type="button" className="group-load-more" disabled={loadingMore} onClick={onLoadMore}>
           {loadingMore ? '加载中…' : '加载更早动态'}
         </button>
       )}
-
-      {dayGroups.map(([dayKey, items]) => {
-        const hasMine = items.some((m) => m.mine);
-        const isCollapsed = collapsed[dayKey] ?? (dayKey !== todayKey && !hasMine);
-        return (
-          <section key={dayKey} className="group-activity-day">
-            <button
-              type="button"
-              className="group-activity-day-toggle"
-              onClick={() => setCollapsed((prev) => ({ ...prev, [dayKey]: !isCollapsed }))}
-            >
-              <span>{dayLabel(dayKey)}</span>
-              <span className="muted">{items.length} 条 · {isCollapsed ? '展开' : '收起'}</span>
-            </button>
-            {!isCollapsed && (
-              <div className="group-activity-day-list">
-                {items.map((m) => {
-                  if (m.kind === 'system') {
-                    return (
-                      <div key={m.id} className="group-system-bubble">
-                        <span className={m.body?.includes('全员打卡') ? 'milestone' : undefined}>{m.body}</span>
-                      </div>
-                    );
-                  }
-                  return (
-                    <ActivityCard
-                      key={m.id}
-                      gid={gid}
-                      m={m}
-                      isOwner={isOwner}
-                      onReact={onReact}
-                      onReport={onReport}
-                      onDelete={onDelete}
-                      onCompleteTask={onCompleteTask}
-                    />
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        );
-      })}
     </div>
   );
 }

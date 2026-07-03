@@ -3,8 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api, type GroupMember } from '@/lib/api';
-import { displayMemberName, memberAvatarInitial } from '@/lib/group_ui';
+import { displayMemberName } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
+import { MemberAvatar } from './MemberAvatar';
+
+const GRID_COLS = 5;
+const GRID_MAX_ROWS = 3;
 
 type Props = {
   gid: string;
@@ -12,6 +16,7 @@ type Props = {
   isOwner: boolean;
   joinCode?: string;
   planDaysTotal?: number;
+  variant?: 'list' | 'grid';
   onChanged: () => void;
 };
 
@@ -21,11 +26,14 @@ export function GroupMembersPanel({
   isOwner,
   joinCode,
   planDaysTotal,
+  variant = 'list',
   onChanged,
 }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [gridExpanded, setGridExpanded] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
 
   const me = members.find((m) => m.is_me);
 
@@ -66,6 +74,116 @@ export function GroupMembersPanel({
     });
   };
 
+  if (variant === 'grid') {
+    const maxVisible = GRID_COLS * GRID_MAX_ROWS;
+    const needsFold = members.length > maxVisible;
+    const visible = gridExpanded || !needsFold ? members : members.slice(0, maxVisible);
+
+    return (
+      <div className="group-members-panel group-members-panel-grid">
+        {joinCode && isOwner && (
+          <p className="muted group-members-invite">
+            邀请码 <strong>{joinCode}</strong>
+          </p>
+        )}
+
+        <div className="group-member-grid" role="list">
+          {visible.map((m) => (
+            <div
+              key={m.user_id || displayMemberName(m)}
+              className={`group-member-grid-cell${m.is_me ? ' me' : ''}`}
+              role="listitem"
+            >
+              <div
+                className={`group-member-grid-avatar${m.checked_in_today ? ' checked' : ''}${m.role === 'owner' ? ' owner' : ''}`}
+                title={displayMemberName(m)}
+              >
+                <MemberAvatar member={m} size={44} />
+                {m.role === 'owner' && <em className="group-member-grid-crown" aria-hidden>主</em>}
+              </div>
+              <span className="group-member-grid-name">{displayMemberName(m)}</span>
+            </div>
+          ))}
+        </div>
+
+        {needsFold && (
+          <button
+            type="button"
+            className="text-link group-member-grid-expand"
+            onClick={() => setGridExpanded((v) => !v)}
+          >
+            {gridExpanded ? '收起成员' : `展开全部 ${members.length} 人`}
+          </button>
+        )}
+
+        {isOwner && members.some((m) => m.role !== 'owner') && (
+          <button
+            type="button"
+            className="text-link group-member-manage-toggle"
+            onClick={() => setManageOpen((v) => !v)}
+          >
+            {manageOpen ? '收起成员管理' : '成员管理'}
+          </button>
+        )}
+
+        {manageOpen && isOwner && (
+          <div className="group-member-manage-list">
+            {members
+              .filter((m) => m.role !== 'owner')
+              .map((m) => (
+                <div key={m.user_id || displayMemberName(m)} className="group-member-row group-member-row-avatar">
+                  <div className={`group-member-avatar-inline${m.checked_in_today ? ' checked' : ''}`}>
+                    <MemberAvatar member={m} size={36} />
+                  </div>
+                  <div className="group-member-info">
+                    <span className="group-member-name">{displayMemberName(m)}</span>
+                    <span className="muted group-member-sub">
+                      {m.checked_in_today ? '今日已打卡 ✓' : '今日未打卡'}
+                    </span>
+                  </div>
+                  <div className="group-member-actions">
+                    {m.user_id && (
+                      <>
+                        <button
+                          type="button"
+                          className="text-link"
+                          disabled={busy !== null}
+                          onClick={() => transferTo(m)}
+                        >
+                          {busy === `xfer-${m.user_id}` ? '…' : '转让'}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-link danger"
+                          disabled={busy !== null}
+                          onClick={() => removeMember(m)}
+                        >
+                          {busy === `rm-${m.user_id}` ? '…' : '移除'}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {err && <p className="group-composer-err" role="alert">{err}</p>}
+
+        {!isOwner && me?.user_id && (
+          <button
+            type="button"
+            className="font-pill danger-pill group-member-leave-btn"
+            disabled={busy !== null}
+            onClick={leave}
+          >
+            {busy === 'leave' ? '退出中…' : '退出群'}
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="group-members-panel">
       {joinCode && isOwner && (
@@ -77,7 +195,7 @@ export function GroupMembersPanel({
       {members.map((m) => (
         <div key={m.user_id || displayMemberName(m)} className="group-member-row group-member-row-avatar">
           <div className={`group-member-avatar-inline${m.checked_in_today ? ' checked' : ''}${m.is_me ? ' me' : ''}`}>
-            <span>{memberAvatarInitial(m)}</span>
+            <MemberAvatar member={m} size={36} />
           </div>
           <div className="group-member-info">
             <span className="group-member-name">{displayMemberName(m)}</span>

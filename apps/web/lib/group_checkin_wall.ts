@@ -59,6 +59,11 @@ export function buildCheckinPosters(
 
   posters.sort((a, b) => {
     if (a.status !== b.status) return a.status === 'pinned' ? -1 : 1;
+    if (a.status === 'pinned' && b.status === 'pinned') {
+      const ta = a.message?.created_at ?? '';
+      const tb = b.message?.created_at ?? '';
+      if (ta && tb && ta !== tb) return ta.localeCompare(tb);
+    }
     if (a.member.is_me) return -1;
     if (b.member.is_me) return 1;
     return 0;

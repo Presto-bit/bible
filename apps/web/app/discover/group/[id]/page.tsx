@@ -7,6 +7,7 @@ import { GroupCheckinWall } from '@/components/group/GroupCheckinWall';
 import { GroupComposerBar } from '@/components/group/GroupComposerBar';
 import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
+import { GroupPageTheme } from '@/components/group/GroupPageTheme';
 import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupTodayFocus } from '@/components/group/GroupTodayFocus';
@@ -18,6 +19,7 @@ import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { errorMessage } from '@/lib/friendly_error';
+import { hapticSuccess } from '@/lib/haptic';
 
 function GroupPageInner() {
   const confirm = useConfirm();
@@ -273,6 +275,7 @@ function GroupPageInner() {
     appendOptimisticCheckin(payload);
     try {
       await api.checkin(gid, payload);
+      hapticSuccess();
       showToast('打卡已发送 ✓');
       setComposerOpen(false);
       await reload();
@@ -370,6 +373,7 @@ function GroupPageInner() {
 
   return (
     <main className="group-page group-page-checkin">
+      <GroupPageTheme />
       <div className="group-checkin-top">
         <GroupNavBar detail={safeDetail} onOpenSettings={() => setSettingsOpen(true)} />
         <GroupTodayFocus
@@ -385,7 +389,7 @@ function GroupPageInner() {
           detail={safeDetail}
           messages={feed}
           isOwner={isOwner}
-          onOpenMembers={() => setSettingsOpen(true)}
+          onReact={react}
         />
       </div>
 

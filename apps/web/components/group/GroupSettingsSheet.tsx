@@ -1,14 +1,11 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type { GeneratedPlan, GroupDetail, PlanSummary } from '@/lib/api';
 import { groupDetailTodayLine } from '@/lib/group_status';
 import { GroupMembersPanel } from './GroupMembersPanel';
 import { GroupMemberNickname } from './GroupMemberNickname';
 import { GroupCustomPlanPanel } from './GroupCustomPlanPanel';
-
-type SettingsTab = 'group' | 'me' | 'admin';
 
 type Props = {
   open: boolean;
@@ -71,21 +68,6 @@ export function GroupSettingsSheet({
   onDissolve,
   onMembersChanged,
 }: Props) {
-  const [tab, setTab] = useState<SettingsTab>('group');
-
-  const tabs = useMemo(() => {
-    const items: { id: SettingsTab; label: string }[] = [
-      { id: 'group', label: '本群' },
-      { id: 'me', label: '我的' },
-    ];
-    if (isOwner) items.push({ id: 'admin', label: '管理' });
-    return items;
-  }, [isOwner]);
-
-  useEffect(() => {
-    if (open) setTab('group');
-  }, [open, gid]);
-
   if (!open) return null;
 
   const memberCount = members.length;
@@ -117,71 +99,55 @@ export function GroupSettingsSheet({
           </button>
         </div>
 
-        <div className="group-settings-tabs" role="tablist" aria-label="群设置分类">
-          {tabs.map((t) => (
+        <section className="group-settings-section group-settings-section-members">
+          <h3 className="group-settings-section-title">
+            成员 · {memberCount} 人 · {groupDetailTodayLine(detail)}
+          </h3>
+          <GroupMembersPanel
+            gid={gid}
+            members={members}
+            isOwner={isOwner}
+            joinCode={isOwner ? detail.join_code : undefined}
+            planDaysTotal={detail.plan_days_total}
+            variant="grid"
+            onChanged={onMembersChanged}
+          />
+        </section>
+
+        <section className="group-settings-section">
+          <h3 className="group-settings-section-title">本群信息</h3>
+          <div className="group-settings-info-card card card-2">
+            <InfoRow label="群名称" value={detail.name} />
+            {detail.plan_title && <InfoRow label="共读计划" value={detail.plan_title} />}
+            {planProgress && <InfoRow label="进度" value={planProgress} />}
+            {detail.intro?.trim() && <InfoRow label="简介" value={detail.intro.trim()} />}
+            {detail.announcement?.trim() ? (
+              <InfoRow label="公告" value={detail.announcement.trim()} />
+            ) : (
+              <InfoRow label="公告" value={<span className="muted">暂无公告</span>} />
+            )}
+          </div>
+        </section>
+
+        <section className="group-settings-section">
+          <h3 className="group-settings-section-title">我的</h3>
+          <div className="group-settings-me-card card card-2">
+            <GroupMemberNickname gid={gid} members={members} onChanged={onMembersChanged} />
             <button
-              key={t.id}
               type="button"
-              role="tab"
-              aria-selected={tab === t.id}
-              className={`group-settings-tab${tab === t.id ? ' active' : ''}`}
-              onClick={() => setTab(t.id)}
+              className="group-settings-row-btn"
+              disabled={busy}
+              onClick={onToggleMute}
             >
-              {t.label}
+              <span>{detail.muted ? '本群提醒已关闭' : '本群提醒已开启'}</span>
+              <span className="muted">{detail.muted ? '开启' : '关闭'}</span>
             </button>
-          ))}
-        </div>
+          </div>
+        </section>
 
-        {tab === 'group' && (
-          <section className="group-settings-panel" role="tabpanel" aria-label="本群">
-            <div className="group-settings-info-card card card-2">
-              <InfoRow label="群名称" value={detail.name} />
-              <InfoRow label="成员" value={`${memberCount} 人 · ${groupDetailTodayLine(detail)}`} />
-              {detail.plan_title && (
-                <InfoRow label="共读计划" value={detail.plan_title} />
-              )}
-              {planProgress && <InfoRow label="进度" value={planProgress} />}
-              {detail.intro?.trim() && (
-                <InfoRow label="简介" value={detail.intro.trim()} />
-              )}
-              {detail.announcement?.trim() ? (
-                <InfoRow label="公告" value={detail.announcement.trim()} />
-              ) : (
-                <InfoRow label="公告" value={<span className="muted">暂无公告</span>} />
-              )}
-            </div>
-            <div className="group-settings-members-wrap">
-              <GroupMembersPanel
-                gid={gid}
-                members={members}
-                isOwner={isOwner}
-                joinCode={isOwner ? detail.join_code : undefined}
-                planDaysTotal={detail.plan_days_total}
-                onChanged={onMembersChanged}
-              />
-            </div>
-          </section>
-        )}
-
-        {tab === 'me' && (
-          <section className="group-settings-panel" role="tabpanel" aria-label="我的">
-            <div className="group-settings-me-card card card-2">
-              <GroupMemberNickname gid={gid} members={members} onChanged={onMembersChanged} />
-              <button
-                type="button"
-                className="group-settings-row-btn"
-                disabled={busy}
-                onClick={onToggleMute}
-              >
-                <span>{detail.muted ? '本群提醒已关闭' : '本群提醒已开启'}</span>
-                <span className="muted">{detail.muted ? '开启' : '关闭'}</span>
-              </button>
-            </div>
-          </section>
-        )}
-
-        {tab === 'admin' && isOwner && (
-          <section className="group-settings-panel" role="tabpanel" aria-label="管理">
+        {isOwner && (
+          <section className="group-settings-section">
+            <h3 className="group-settings-section-title">群管理</h3>
             <div className="group-settings-admin-card card card-2">
               <label className="group-composer-label" htmlFor="gs-name">
                 群名称
