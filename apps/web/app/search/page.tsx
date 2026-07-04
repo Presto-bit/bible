@@ -8,11 +8,20 @@ import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
-import { LIFE_TOPICS } from '@/lib/discover_topics';
+import { LIFE_TOPICS, matchLifeTopics } from '@/lib/discover_topics';
 import { loadDailyThemes } from '@/lib/daily_themes';
-import { mergeDiscoverTopics, isLifeTopic } from '@/lib/topics_display';
+import { mergeDiscoverTopics, isLifeTopic, topicColor } from '@/lib/topics_display';
+import { refSpaceToOsis } from '@/lib/inline_ref';
+import { readerHrefFromRef } from '@/lib/group_footprint';
 
 const HISTORY_KEY = 'search_history';
+
+type TopicVerseHit = {
+  topic: string;
+  ref: string;
+  text: string;
+  osis: string;
+};
 
 function searchTooShort(q: string): boolean {
   const hasCjk = /[\u4e00-\u9fff]/.test(q);
@@ -37,6 +46,12 @@ function saveHistory(q: string) {
   return next;
 }
 
+function normalizeRef(raw: string): string {
+  const s = String(raw || '').trim();
+  if (!s) return s;
+  return s.includes('.') ? s : refSpaceToOsis(s.replace(/\./g, ' '));
+}
+
 export default function SearchPage() {
   const router = useRouter();
   const [backHref, setBackHref] = useState('/reader');
@@ -47,16 +62,27 @@ export default function SearchPage() {
   const [err, setErr] = useState<string | null>(null);
   const [notes, setNotes] = useState<LocalNote[]>([]);
   const [lifeTopics, setLifeTopics] = useState(() => mergeDiscoverTopics([]));
+  const [apiTopics, setApiTopics] = useState<TopicEntry[]>([]);
   const [dailyThemes, setDailyThemes] = useState<string[]>([]);
+  const [topicVerses, setTopicVerses] = useState<TopicVerseHit[]>([]);
+  const [topicLoading, setTopicLoading] = useState(false);
 
   useEffect(() => {
     setHistory(loadHistory());
     setNotes(listNotes());
-    const from = new URLSearchParams(window.location.search).get('from');
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get('from');
     if (from) setBackHref(from);
+    const q = (params.get('q') || '').trim();
+    if (q) {
+      setQuery(q);
+      const next = saveHistory(q);
+      if (next) setHistory(next);
+    }
     void api.topics().then((d) => {
-      const list = 'topics' in d ? d.topics : [];
-      setLifeTopics(mergeDiscoverTopics(list ?? []));
+      const list = 'topics' in d ? (d.topics ?? []) : [];
+      setApiTopics(list);
+      setLifeTopics(mergeDiscoverTopics(list));
     }).catch(() => {});
     void loadDailyThemes().then((d) => setDailyThemes(d.themes));
   }, []);
@@ -74,21 +100,22 @@ export default function SearchPage() {
   }, [notes, query]);
 
   const filteredLifeTopics = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return lifeTopics;
     return lifeTopics.filter((t) => {
       const title = isLifeTopic(t) ? t.title : t.name;
       const sub = isLifeTopic(t) ? t.subtitle : '';
-      return title.toLowerCase().includes(q) || sub.toLowerCase().includes(q);
+      return title.includes(q) || sub.includes(q);
     });
   }, [lifeTopics, query]);
 
   const filteredDailyThemes = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (!q) return dailyThemes;
-    return dailyThemes.filter((t) => t.toLowerCase().includes(q));
+    return dailyThemes.filter((t) => t.includes(q));
   }, [dailyThemes, query]);
 
+  // 经文全文搜索
   useEffect(() => {
     const q = query.trim();
     if (searchTooShort(q)) {
@@ -114,9 +141,104 @@ export default function SearchPage() {
     };
   }, [query]);
 
+  // 关键词自动匹配主题经文
+  useEffect(() => {
+    const q = query.trim();
+    if (searchTooShort(q)) {
+      setTopicVerses([]);
+      return;
+    }
+
+    const matched = new Map<string, string>(); // title -> api key
+    for (const t of matchLifeTopics(q)) {
+      matched.set(t.title, t.title);
+    }
+    for (const t of apiTopics) {
+      const name = t.name || t.id;
+      if (name.includes(q) || t.id.includes(q)) {
+        matched.set(name, name);
+      }
+    }
+    for (const theme of dailyThemes) {
+      if (theme.includes(q)) matched.set(theme, theme);
+    }
+
+    if (matched.size === 0) {
+      setTopicVerses([]);
+      return;
+    }
+
+    let cancelled = false;
+    setTopicLoading(true);
+
+    void (async () => {
+      const out: TopicVerseHit[] = [];
+      const seenRef = new Set<string>();
+
+      // 人生主题静态经文优先
+      for (const t of matchLifeTopics(q)) {
+        for (const v of t.verses) {
+          const osis = normalizeRef(v.ref);
+          if (seenRef.has(osis)) continue;
+          seenRef.add(osis);
+          out.push({
+            topic: t.title,
+            ref: v.ref,
+            text: v.text,
+            osis,
+          });
+        }
+      }
+
+      // API 主题经文（含经文主题）
+      const keys = Array.from(matched.values()).slice(0, 6);
+      await Promise.all(
+        keys.map(async (key) => {
+          try {
+            const d = await api.topics(key);
+            if (!d || typeof d !== 'object' || !('refs' in d)) return;
+            const entry = d as TopicEntry & {
+              refs?: Array<string | { ref: string; text?: string }>;
+            };
+            const topicName = entry.name || key;
+            for (const r of (entry.refs ?? []).slice(0, 8)) {
+              const raw = typeof r === 'string' ? r : r.ref;
+              const text = typeof r === 'string' ? '' : (r.text || '');
+              const osis = normalizeRef(raw);
+              if (!osis || seenRef.has(osis)) continue;
+              seenRef.add(osis);
+              out.push({
+                topic: topicName,
+                ref: raw,
+                text: text.trim() || '（点击阅读）',
+                osis,
+              });
+            }
+          } catch {
+            /* 单主题失败不影响其它 */
+          }
+        }),
+      );
+
+      if (!cancelled) {
+        setTopicVerses(out.slice(0, 24));
+        setTopicLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [query, apiTopics, dailyThemes]);
+
   const onSubmit = (q: string) => {
     const next = saveHistory(q);
     if (next) setHistory(next);
+  };
+
+  const applyTopicQuery = (name: string) => {
+    setQuery(name);
+    onSubmit(name);
   };
 
   const openReader = (hit: BibleSearchHit) => {
@@ -130,10 +252,13 @@ export default function SearchPage() {
     navigateToAssistant(hit.osis, { question: `请解释：${snippet}` });
   };
 
-  const topicHref = (t: typeof lifeTopics[0]) => {
-    const id = isLifeTopic(t) ? t.id : (t as TopicEntry).id || (t as TopicEntry).name;
-    return `/discover/topic/${encodeURIComponent(id)}`;
+  const openTopicVerse = (v: TopicVerseHit) => {
+    onSubmit(query);
+    const href = readerHrefFromRef(v.ref) || readerHrefFromRef(v.osis);
+    if (href) window.location.href = href;
   };
+
+  const hasQuery = !searchTooShort(query.trim());
 
   return (
     <main className="container">
@@ -164,7 +289,7 @@ export default function SearchPage() {
       />
 
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-        高级语法： &quot;整段精确&quot; · 书卷:约翰福音 · -排除词
+        点选下方主题即可匹配经文；也可直接输入关键词
       </p>
 
       {history.length > 0 && (
@@ -175,10 +300,7 @@ export default function SearchPage() {
               type="button"
               className="book-chip"
               style={{ width: 'auto' }}
-              onClick={() => {
-                setQuery(h);
-                onSubmit(h);
-              }}
+              onClick={() => applyTopicQuery(h)}
             >
               {h}
             </button>
@@ -186,12 +308,38 @@ export default function SearchPage() {
         </div>
       )}
 
-      {!searchTooShort(query.trim()) && (
+      {hasQuery && topicVerses.length > 0 && (
+        <section style={{ marginTop: 18 }}>
+          <h3 className="search-section-title">
+            主题经文{topicLoading ? '…' : ` · ${topicVerses.length}`}
+          </h3>
+          {topicVerses.map((v) => (
+            <div
+              key={`${v.topic}-${v.osis}`}
+              className="card card-2"
+              style={{ marginBottom: 8, padding: 14, cursor: 'pointer' }}
+              onClick={() => openTopicVerse(v)}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                <span style={{ fontWeight: 700, color: 'var(--accent-deep)' }}>
+                  {formatGroupRefLabel(v.ref) ?? v.ref}
+                </span>
+                <span className="muted" style={{ fontSize: 12 }}>{v.topic}</span>
+              </div>
+              <p style={{ margin: '6px 0 0', lineHeight: 1.55, color: 'var(--ink-soft)' }}>
+                {v.text}
+              </p>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {hasQuery && (
         <section style={{ marginTop: 18 }}>
           <h3 className="search-section-title">经文</h3>
           {loading && <p className="muted">搜索中…</p>}
           {err && <p className="muted">搜索失败：{err}</p>}
-          {!loading && !err && hits.length === 0 && (
+          {!loading && !err && hits.length === 0 && topicVerses.length === 0 && (
             <p className="muted">未找到匹配经文</p>
           )}
           {hits.map((h) => (
@@ -234,7 +382,7 @@ export default function SearchPage() {
         </section>
       )}
 
-      {!searchTooShort(query.trim()) && noteHits.length > 0 && (
+      {hasQuery && noteHits.length > 0 && (
         <section style={{ marginTop: 18 }}>
           <h3 className="search-section-title">笔记 · {noteHits.length}</h3>
           {noteHits.map((n) => (
@@ -260,18 +408,21 @@ export default function SearchPage() {
         <section style={{ marginTop: 18 }}>
           <h3 className="search-section-title">人生主题</h3>
           <div className="theme-grid">
-            {filteredLifeTopics.map((t) => {
+            {filteredLifeTopics.map((t, i) => {
               const title = isLifeTopic(t) ? t.title : (t as TopicEntry).name;
-              const color = isLifeTopic(t) ? t.color : (t as TopicEntry & { color: string }).color;
+              const color = isLifeTopic(t)
+                ? t.color
+                : (t as TopicEntry & { color?: string }).color || topicColor(i);
               return (
-                <Link
+                <button
                   key={title}
-                  href={topicHref(t)}
+                  type="button"
                   className="card card-2 theme-chip search-topic-chip"
-                  style={{ borderLeft: `3px solid ${color}` }}
+                  style={{ borderLeft: `3px solid ${color}`, textAlign: 'left' }}
+                  onClick={() => applyTopicQuery(title)}
                 >
                   {title}
-                </Link>
+                </button>
               );
             })}
           </div>
@@ -283,38 +434,48 @@ export default function SearchPage() {
           <h3 className="search-section-title">经文主题</h3>
           <div className="chip-row">
             {filteredDailyThemes.map((t) => (
-              <Link
+              <button
                 key={t}
-                href={`/discover/topic/${encodeURIComponent(t)}`}
+                type="button"
                 className="book-chip"
                 style={{ width: 'auto' }}
+                onClick={() => applyTopicQuery(t)}
               >
                 {t}
-              </Link>
+              </button>
             ))}
           </div>
         </section>
       )}
 
       {query.trim().length === 0 && (
-        <section style={{ marginTop: 18 }}>
-          <h3 className="search-section-title">热门关键词</h3>
-          <div className="theme-grid">
-            {LIFE_TOPICS.slice(0, 8).map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className="card card-2 theme-chip"
-                onClick={() => {
-                  setQuery(t.title);
-                  onSubmit(t.title);
-                }}
-              >
-                {t.title}
-              </button>
-            ))}
-          </div>
-        </section>
+        <>
+          <section style={{ marginTop: 18 }}>
+            <h3 className="search-section-title">热门关键词</h3>
+            <div className="theme-grid">
+              {LIFE_TOPICS.slice(0, 8).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  className="card card-2 theme-chip"
+                  onClick={() => applyTopicQuery(t.title)}
+                >
+                  {t.title}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <section style={{ marginTop: 18 }}>
+            <h3 className="search-section-title">圣经背景专题</h3>
+            <Link href="/discover/background" className="card card-2" style={{ display: 'block', padding: 14 }}>
+              <strong>地图 · 时间线</strong>
+              <p className="muted" style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.5 }}>
+                保罗宣教旅程、耶稣事工路线、犹大诸王与耶稣生平时间线
+              </p>
+            </Link>
+          </section>
+        </>
       )}
     </main>
   );

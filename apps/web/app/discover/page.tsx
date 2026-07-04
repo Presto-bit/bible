@@ -164,6 +164,33 @@ export default function DiscoverPage() {
         </div>
       )}
 
+      <div className="section-row" style={{ marginTop: 14 }}>
+        <span>圣经背景</span>
+        <Link href="/discover/background" className="muted">
+          全部 ›
+        </Link>
+      </div>
+      <div className="rail" style={{ marginTop: 8 }}>
+        <Link href="/discover/background" className="rail-card card card-2">
+          <strong>地图专题</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+            保罗宣教 · 耶稣事工
+          </p>
+        </Link>
+        <Link href="/discover/background" className="rail-card card card-2">
+          <strong>时间线</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+            犹大诸王 · 耶稣生平
+          </p>
+        </Link>
+        <Link href="/search" className="rail-card card card-2">
+          <strong>主题搜索</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+            人生话题 · 经文主题
+          </p>
+        </Link>
+      </div>
+
       {groups.length === 0 ? (
         <div className="card card-tint card-2 card-accent discover-hero">
           <strong>共读群 · 一起读</strong>

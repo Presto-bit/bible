@@ -111,5 +111,19 @@ export const LIFE_TOPICS: LifeTopic[] = [
 ];
 
 export function topicById(id: string): LifeTopic | undefined {
-  return LIFE_TOPICS.find((t) => t.id === id);
+  const key = decodeURIComponent(id || '').trim();
+  if (!key) return undefined;
+  return LIFE_TOPICS.find((t) => t.id === key || t.title === key);
+}
+
+/** 按关键词匹配人生主题（标题 / 副标题 / id） */
+export function matchLifeTopics(query: string): LifeTopic[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return LIFE_TOPICS;
+  return LIFE_TOPICS.filter(
+    (t) =>
+      t.title.toLowerCase().includes(q) ||
+      t.subtitle.toLowerCase().includes(q) ||
+      t.id.toLowerCase().includes(q),
+  );
 }

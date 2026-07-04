@@ -28,7 +28,7 @@ export function ThemeExploreRail() {
         {themes.map((t) => (
           <Link
             key={t}
-            href={`/discover/topic/${encodeURIComponent(t)}`}
+            href={`/search?q=${encodeURIComponent(t)}`}
             className="rail-card card card-2 theme-chip-card"
           >
             {t}

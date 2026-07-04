@@ -14,45 +14,86 @@ import { refSpaceToOsis } from '@/lib/inline_ref';
 
 type VerseCard = { ref: string; text: string };
 
+function normalizeRef(raw: string): string {
+  const s = String(raw || '').trim();
+  if (!s) return s;
+  return s.includes('.') ? s : refSpaceToOsis(s.replace(/\./g, ' '));
+}
+
 export default function TopicPage() {
   const params = useParams();
-  const id = String(params.id || '');
+  const id = decodeURIComponent(String(params.id || ''));
   const staticTopic = topicById(id);
-  const [apiVerses, setApiVerses] = useState<VerseCard[]>([]);
-  const [apiName, setApiName] = useState<string | null>(null);
-  const [loading, setLoading] = useState(!staticTopic);
+  const [verses, setVerses] = useState<VerseCard[]>(staticTopic?.verses ?? []);
+  const [title, setTitle] = useState(staticTopic?.title ?? id);
+  const [subtitle, setSubtitle] = useState(
+    staticTopic?.subtitle ?? '精选经文',
+  );
+  const [color, setColor] = useState(staticTopic?.color ?? topicColor(0));
+  const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
 
   useEffect(() => {
-    if (staticTopic) return;
     let cancelled = false;
+    setLoading(true);
+
+    const staticHit = topicById(id);
+    if (staticHit) {
+      setTitle(staticHit.title);
+      setSubtitle(staticHit.subtitle);
+      setColor(staticHit.color);
+      setVerses(staticHit.verses);
+    }
+
+    // 人生主题用英文 id，经文主题用中文名；两者都尝试拉 API 扩充经文
+    const apiKey = staticHit?.title || id;
     void api
-      .topics(id)
+      .topics(apiKey)
       .then((d) => {
-        if (cancelled || !('refs' in d)) return;
-        setApiName(d.name || id);
-        const refs = (d.refs ?? []) as { ref: string; text?: string }[];
-        setApiVerses(
-          refs.slice(0, 12).map((r) => ({
-            ref: r.ref.includes('.') ? r.ref : refSpaceToOsis(String(r.ref)),
-            text: r.text || '（点击预览经文）',
-          })),
-        );
+        if (cancelled || !d || typeof d !== 'object') return;
+        if (!('refs' in d) && !('name' in d)) return;
+        const entry = d as { name?: string; refs?: Array<string | { ref: string; text?: string }> };
+        if (entry.name) {
+          setTitle(entry.name);
+          if (!staticHit) {
+            setSubtitle(`${(entry.refs ?? []).length || '…'} 节精选经文`);
+            setColor(topicColor(entry.name.charCodeAt(0) % 10));
+          }
+        }
+        const apiVerses: VerseCard[] = (entry.refs ?? []).slice(0, 16).map((r) => {
+          if (typeof r === 'string') {
+            return { ref: normalizeRef(r), text: '（点击预览经文）' };
+          }
+          return {
+            ref: normalizeRef(r.ref),
+            text: (r.text || '').trim() || '（点击预览经文）',
+          };
+        });
+        if (apiVerses.length) {
+          // 静态人生主题在前，API 经文去重追加
+          const seen = new Set((staticHit?.verses ?? []).map((v) => normalizeRef(v.ref)));
+          const merged = [...(staticHit?.verses ?? [])];
+          for (const v of apiVerses) {
+            if (seen.has(v.ref)) continue;
+            seen.add(v.ref);
+            merged.push(v);
+          }
+          setVerses(merged);
+        }
       })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [id, staticTopic]);
+      .catch(() => {
+        // 无 API 数据时保留静态人生主题
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  const topic: LifeTopic | null = staticTopic ?? (apiName ? {
-    id,
-    title: apiName,
-    subtitle: `${apiVerses.length || '…'} 节精选经文`,
-    color: topicColor(id.charCodeAt(0) % 10),
-    verses: apiVerses,
-  } : null);
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
-  if (loading) {
+  if (loading && verses.length === 0) {
     return (
       <main className="container">
         <p className="muted">加载中…</p>
@@ -60,14 +101,25 @@ export default function TopicPage() {
     );
   }
 
-  if (!topic) {
+  if (!loading && verses.length === 0) {
     return (
       <main className="container">
         <p className="muted">未找到该主题</p>
-        <Link href="/discover">返回发现</Link>
+        <Link href="/search">返回搜索</Link>
       </main>
     );
   }
+
+  const topic: LifeTopic = {
+    id: staticTopic?.id ?? id,
+    title,
+    subtitle,
+    color,
+    verses,
+    microPlanId: staticTopic?.microPlanId,
+    microPlanDays: staticTopic?.microPlanDays,
+    sensitive: staticTopic?.sensitive,
+  };
 
   return (
     <main className="container discover-page">
@@ -89,7 +141,7 @@ export default function TopicPage() {
       </div>
 
       <div className="section-row" style={{ marginTop: 16 }}>
-        <span>精选经文</span>
+        <span>精选经文 · {topic.verses.length}</span>
       </div>
       {topic.verses.map((v) => {
         const href = readerHrefFromRef(v.ref);
@@ -100,7 +152,7 @@ export default function TopicPage() {
               className="text-link"
               style={{ padding: 0, fontSize: 13 }}
               onClick={() => setPreview({
-                osis: v.ref,
+                osis: normalizeRef(v.ref),
                 label: formatGroupRefLabel(v.ref) ?? v.ref,
               })}
             >
