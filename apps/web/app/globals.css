@@ -33,7 +33,7 @@
   --app-heading-size: var(--font-xl);
   --app-line-height: 1.55;
   --reader-font-size: 18px;
-  /* 小爱 Tab / FAB：输入与输出统一 14px */
+  /* 小爱 Tab / 圣经 Tab 内小爱：输入与输出统一 14px */
   --assistant-answer-font-size: 14px;
 }
 
@@ -878,9 +878,10 @@ html:not([data-app-theme]) .card {
   background-position: center;
   background-repeat: no-repeat;
   background-blend-mode: normal;
-  opacity: 0.22;
+  opacity: 1;
 }
 
+/* 风景图上压一层暗渐变，保证白字可读 */
 .hero-verse.hero-verse-has-art::after {
   content: '';
   position: absolute;
@@ -889,9 +890,9 @@ html:not([data-app-theme]) .card {
   pointer-events: none;
   background: linear-gradient(
     165deg,
-    rgba(255, 252, 248, 0.72) 0%,
-    rgba(255, 248, 242, 0.58) 45%,
-    rgba(255, 250, 245, 0.78) 100%
+    rgba(20, 24, 28, 0.42) 0%,
+    rgba(20, 24, 28, 0.28) 48%,
+    rgba(20, 24, 28, 0.5) 100%
   );
 }
 
@@ -934,11 +935,32 @@ html:not([data-app-theme]) .card {
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.65);
 }
 
+.hero-verse.hero-verse-has-art .hero-kicker,
+.hero-verse.hero-verse-has-art .hero-top .muted,
+.hero-verse.hero-verse-has-art .hero-ref,
+.hero-verse.hero-verse-has-art .verse-text {
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
 .hero-verse.hero-verse-has-art .verse-text {
   margin-top: 10px;
   background: none;
   box-shadow: none;
   padding: 0;
+}
+
+.hero-verse.hero-verse-has-art .hero-like {
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.hero-verse.hero-verse-has-art .hero-like-active {
+  color: #fff;
+}
+
+.hero-verse.hero-verse-has-art .hero-like-active svg {
+  fill: #fff;
+  stroke: #fff;
 }
 
 .hero-top {
@@ -997,9 +1019,10 @@ html:not([data-app-theme]) .card {
   color: var(--accent-deep);
 }
 
-.hero-like-active svg {
-  fill: var(--accent-deep);
-  stroke: var(--accent-deep);
+.hero-like-active svg,
+.hero-like-active svg path {
+  fill: currentColor !important;
+  stroke: currentColor;
 }
 
 .hero-share {
@@ -2039,20 +2062,47 @@ a.today-card-link {
   font-weight: 600;
 }
 
-/* 搜索：地图/时间线故事卡片 */
+/* 搜索：地图/时间线故事卡片（默认两张并排） */
 .story-card-grid {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+.story-card-grid-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.story-card-grid-pair:has(.story-tour-card.is-open) {
+  grid-template-columns: 1fr;
+}
+
 .story-tour-card {
   padding: 0;
   overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .story-tour-card.is-open {
+  grid-column: 1 / -1;
   box-shadow: var(--card-elev-hero, var(--elev-2));
+  border-color: var(--accent-deep);
+}
+
+.story-tour-block + .story-tour-block {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.story-tour-block-title {
+  display: block;
+  font-size: var(--font-md);
+  margin-bottom: 2px;
 }
 
 .story-tour-head {
@@ -2694,8 +2744,35 @@ a.today-card-link {
   padding: 14px;
   text-align: center;
   font-weight: 600;
-  border: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--elev-1, 0 1px 2px rgba(0, 0, 0, 0.04));
   cursor: pointer;
+  color: var(--ink);
+  border-radius: var(--radius-card, 12px);
+}
+
+.theme-chip:active {
+  background: var(--accent-wash);
+  border-color: var(--accent-deep);
+}
+
+.hot-keyword-grid {
+  gap: 10px;
+}
+
+.hot-keyword-chip {
+  min-height: 48px;
+  border: 1px solid color-mix(in srgb, var(--ink) 12%, var(--line));
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgba(43, 42, 40, 0.06);
+}
+
+.hot-keyword-chip:hover,
+.hot-keyword-chip:focus-visible {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
+  outline: none;
 }
 
 .text-link {
@@ -3661,7 +3738,7 @@ a.today-card-link {
   border-radius: 10px;
   background: var(--accent-wash);
   border-left: 3px solid var(--accent-deep);
-  font-size: var(--font-base);
+  font-size: var(--assistant-answer-font-size, var(--font-base));
   line-height: 1.85;
   margin-bottom: 12px;
 }
@@ -3735,6 +3812,15 @@ a.today-card-link {
 
 .reader-ai-backdrop {
   z-index: 120;
+  --assistant-answer-font-size: 14px;
+}
+
+.reader-ai-backdrop .half-sheet-verse,
+.reader-ai-backdrop .half-sheet-answer-body,
+.reader-ai-backdrop .assistant-answer,
+.reader-ai-backdrop .answer-rich,
+.reader-ai-backdrop .compose-input {
+  font-size: var(--assistant-answer-font-size);
 }
 
 .reader-ai-answer {

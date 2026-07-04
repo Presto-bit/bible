@@ -77,9 +77,9 @@ export default function HomePageClient() {
   }, [loadDailyVerse]);
 
   useEffect(() => {
-    // 每日经文背景使用风景图（按 day 轮换），不再用主题 SVG 插画
-    setHeroIllustration(dv?.day || dv?.theme ? dailyVerseWallpaperUrl(dv?.day) : null);
-  }, [dv?.day, dv?.theme]);
+    // 每日经文直接铺风景图（按 day 轮换）
+    setHeroIllustration(dailyVerseWallpaperUrl(dv?.day ?? 1));
+  }, [dv?.day]);
 
   useEffect(() => {
     const refresh = () => {
@@ -297,9 +297,10 @@ export default function HomePageClient() {
     writeLocalDailyVerseLike(verseDay, nextLiked);
     try {
       const r = await api.toggleDailyVerseLike(verseDay);
-      // 以 toggle 响应为准，避免二次拉取被缓存/标识不一致覆盖
-      const syncedLiked = Boolean(r.liked);
-      const syncedCount = r.likes_count ?? nextCount;
+      // 以 toggle 响应为准；若字段缺失则保留乐观更新
+      const syncedLiked = typeof r.liked === 'boolean' ? r.liked : nextLiked;
+      const syncedCount =
+        typeof r.likes_count === 'number' ? r.likes_count : nextCount;
       setLiked(syncedLiked);
       setLikeCount(syncedCount);
       writeLocalDailyVerseLike(verseDay, syncedLiked);
@@ -356,7 +357,7 @@ export default function HomePageClient() {
       )}
 
       <div
-        className={`card card-3 card-tint hero-verse ${heroThemeClass(dv?.theme)}${heroIllustration ? ' hero-verse-has-art' : ''}`}
+        className={`card card-3 hero-verse hero-verse-has-art ${heroThemeClass(dv?.theme)}`}
         role="button"
         tabIndex={dv?.text ? 0 : -1}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
@@ -409,13 +410,24 @@ export default function HomePageClient() {
               className={`hero-like${liked ? ' hero-like-active' : ''}`}
               disabled={likeBusy || !dv?.day}
               aria-pressed={liked}
+              aria-label={liked ? '取消点赞' : '点赞'}
               onClick={async (e) => {
                 e.stopPropagation();
                 await toggleLike();
               }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
-                <path d="M12 21s-7-4.6-9.3-8.4C1 9.6 2.5 6 6 6c2 0 3.2 1.2 4 2.3C10.8 7.2 12 6 14 6c3.5 0 5 3.6 3.3 6.6C19 16.4 12 21 12 21z" />
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                aria-hidden
+                fill={liked ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20.8 5.6c-1.8-1.9-4.7-2-6.6-.3L12 7.5l-2.2-2.2c-1.9-1.7-4.8-1.6-6.6.3-2 2.1-2 5.4.1 7.4L12 21l8.7-8c2.1-2 2.1-5.3.1-7.4z" />
               </svg>
               <span>{likeCount.toLocaleString()} 人点赞</span>
             </button>

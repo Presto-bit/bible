@@ -762,6 +762,7 @@ export default function ReaderView({
 
     void hydratePeek(prev, setPeekPrevVerses);
     void hydratePeek(next, setPeekNextVerses);
+    // 相邻缓冲：当前章 ±2
     prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
     return () => {
       cancelled = true;
@@ -944,8 +945,12 @@ export default function ReaderView({
             : null;
       const version = chapterCacheVersion(mainVersionId);
       const cached = getCachedChapter(target.book.id, target.chapter, version);
+      // 优先 peek / 当前译本缓存，再回退主译本缓存，减少快滑时空窗
       const instant =
-        peek?.length ? peek : cached ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
+        (peek?.length ? peek : null)
+        ?? (cached?.length ? cached : null)
+        ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId)
+        ?? getChapterVersesSync(target.book.id, target.chapter, null);
       if (instant?.length) {
         setLayoutVerses(instant);
         setVerses(instant);
@@ -1156,8 +1161,24 @@ export default function ReaderView({
     ) : null
   );
 
+  const jumpToFirstVerse = useCallback(() => {
+    scrollToChapterStart();
+    document.getElementById('verse-anchor-1')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }, [scrollToChapterStart]);
+
   const renderChapterHead = () => (
-    <div className="reader-chapter-head">
+    <div
+      className="reader-chapter-head"
+      onDoubleClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        jumpToFirstVerse();
+      }}
+      title="双击回到本章第一节"
+    >
       <button
         type="button"
         className="reader-head-link"

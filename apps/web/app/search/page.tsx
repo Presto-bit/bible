@@ -54,8 +54,8 @@ export default function SearchPage() {
   const [mapTours, setMapTours] = useState<MapTour[]>([]);
   const [timelineTours, setTimelineTours] = useState<TimelineTour[]>([]);
   const [toursReady, setToursReady] = useState(false);
-  const [expandedMap, setExpandedMap] = useState<string | null>(null);
-  const [expandedTimeline, setExpandedTimeline] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
 
   useEffect(() => {
@@ -135,25 +135,6 @@ export default function SearchPage() {
   };
 
   const hasQuery = !searchTooShort(query.trim());
-  const qText = query.trim();
-
-  const filteredMapTours = useMemo(() => {
-    if (!qText) return mapTours;
-    return mapTours.filter((t) =>
-      [t.title, t.subtitle, t.description, t.era]
-        .filter(Boolean)
-        .some((s) => String(s).includes(qText)),
-    );
-  }, [mapTours, qText]);
-
-  const filteredTimelineTours = useMemo(() => {
-    if (!qText) return timelineTours;
-    return timelineTours.filter((t) =>
-      [t.title, t.subtitle, t.description]
-        .filter(Boolean)
-        .some((s) => String(s).includes(qText)),
-    );
-  }, [timelineTours, qText]);
 
   const openRef = (ref: string) => {
     setPreview({
@@ -162,10 +143,8 @@ export default function SearchPage() {
     });
   };
 
-  const showStoryCards =
-    toursReady &&
-    (filteredMapTours.length > 0 || filteredTimelineTours.length > 0) &&
-    (!qText || filteredMapTours.length > 0 || filteredTimelineTours.length > 0);
+  const mapStopCount = mapTours.reduce((n, t) => n + (t.stops?.length ?? 0), 0);
+  const timelineEventCount = timelineTours.reduce((n, t) => n + (t.events?.length ?? 0), 0);
 
   return (
     <main className="container">
@@ -211,134 +190,145 @@ export default function SearchPage() {
         </div>
       )}
 
-      {showStoryCards && (
+      {!hasQuery && (
         <section className="story-card-rail" style={{ marginTop: 14 }}>
-          <div className="story-card-grid">
-            {filteredMapTours.map((tour) => {
-              const open = expandedMap === tour.id;
-              const stops = tour.stops ?? [];
-              return (
-                <div key={tour.id} className={`card card-2 story-tour-card${open ? ' is-open' : ''}`}>
-                  <button
-                    type="button"
-                    className="story-tour-head"
-                    onClick={() => {
-                      setExpandedMap(open ? null : tour.id);
-                      setExpandedTimeline(null);
-                    }}
-                  >
-                    <span className="story-tour-badge">地图故事</span>
-                    <strong className="story-tour-title">{tour.title}</strong>
-                    <p className="muted story-tour-meta">
-                      {[tour.era, tour.subtitle, `${stops.length} 站`].filter(Boolean).join(' · ')}
-                    </p>
-                    <span className="story-tour-toggle">{open ? '收起' : '查看详情 ›'}</span>
-                  </button>
-                  {open && (
-                    <div className="story-tour-body">
-                      {tour.description ? (
-                        <p className="story-tour-lead">{tour.description}</p>
-                      ) : null}
-                      <ol className="story-step-list">
-                        {stops.map((stop, idx) => (
-                          <li key={stop.order} className="story-step">
-                            <span className="story-step-num" aria-hidden>{idx + 1}</span>
-                            <div className="story-step-main">
-                              <strong className="story-step-title">{stop.label}</strong>
-                              {stop.note ? (
-                                <p className="muted story-step-note">{stop.note}</p>
-                              ) : null}
-                              {stop.ref ? (
-                                <button
-                                  type="button"
-                                  className="story-step-cta"
-                                  onClick={() => {
-                                    const href = readerHrefFromRef(stop.ref);
-                                    if (href) window.location.href = href;
-                                    else openRef(stop.ref);
-                                  }}
-                                >
-                                  读这段 · {formatGroupRefLabel(stop.ref) || stop.ref}
-                                </button>
-                              ) : null}
-                            </div>
-                          </li>
-                        ))}
-                      </ol>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {filteredTimelineTours.map((tour) => {
-              const open = expandedTimeline === tour.id;
-              const events = tour.events ?? [];
-              return (
-                <div key={tour.id} className={`card card-2 story-tour-card${open ? ' is-open' : ''}`}>
-                  <button
-                    type="button"
-                    className="story-tour-head"
-                    onClick={() => {
-                      setExpandedTimeline(open ? null : tour.id);
-                      setExpandedMap(null);
-                    }}
-                  >
-                    <span className="story-tour-badge story-tour-badge-time">时间故事</span>
-                    <strong className="story-tour-title">{tour.title}</strong>
-                    <p className="muted story-tour-meta">
-                      {[tour.subtitle, `${events.length} 个节点`].filter(Boolean).join(' · ')}
-                    </p>
-                    <span className="story-tour-toggle">{open ? '收起' : '查看详情 ›'}</span>
-                  </button>
-                  {open && (
-                    <div className="story-tour-body">
-                      {tour.description ? (
-                        <p className="story-tour-lead">{tour.description}</p>
-                      ) : null}
-                      <ol className="story-step-list">
-                        {events.map((ev, idx) => {
-                          const ref = `${ev.book} ${ev.chapter}:1`;
-                          return (
-                            <li key={ev.order} className="story-step">
+          <div className="story-card-grid story-card-grid-pair">
+            {mapTours.length > 0 && (
+              <div className={`card card-2 story-tour-card${mapOpen ? ' is-open' : ''}`}>
+                <button
+                  type="button"
+                  className="story-tour-head"
+                  onClick={() => {
+                    setMapOpen((v) => !v);
+                    setTimelineOpen(false);
+                  }}
+                >
+                  <span className="story-tour-badge">地图故事</span>
+                  <strong className="story-tour-title">圣经背景专题</strong>
+                  <p className="muted story-tour-meta">
+                    {mapTours.map((t) => t.title).join(' · ')}
+                    {mapStopCount > 0 ? ` · ${mapStopCount} 站` : ''}
+                  </p>
+                  <span className="story-tour-toggle">{mapOpen ? '收起' : '查看详情 ›'}</span>
+                </button>
+                {mapOpen && (
+                  <div className="story-tour-body">
+                    {mapTours.map((tour) => (
+                      <div key={tour.id} className="story-tour-block">
+                        <strong className="story-tour-block-title">{tour.title}</strong>
+                        {tour.era || tour.subtitle ? (
+                          <p className="muted story-tour-meta">
+                            {[tour.era, tour.subtitle].filter(Boolean).join(' · ')}
+                          </p>
+                        ) : null}
+                        {tour.description ? (
+                          <p className="story-tour-lead">{tour.description}</p>
+                        ) : null}
+                        <ol className="story-step-list">
+                          {(tour.stops ?? []).map((stop, idx) => (
+                            <li key={stop.order} className="story-step">
                               <span className="story-step-num" aria-hidden>{idx + 1}</span>
                               <div className="story-step-main">
-                                <strong className="story-step-title">
-                                  {ev.label}
-                                  {ev.year_display ? (
-                                    <span className="muted story-step-year"> · {ev.year_display}</span>
-                                  ) : null}
-                                </strong>
-                                {ev.note ? (
-                                  <p className="muted story-step-note">{ev.note}</p>
+                                <strong className="story-step-title">{stop.label}</strong>
+                                {stop.note ? (
+                                  <p className="muted story-step-note">{stop.note}</p>
                                 ) : null}
-                                <button
-                                  type="button"
-                                  className="story-step-cta"
-                                  onClick={() => {
-                                    const href = readerHrefFromRef(ref);
-                                    if (href) window.location.href = href;
-                                    else openRef(ref);
-                                  }}
-                                >
-                                  读这段 · {formatGroupRefLabel(ref) || `${ev.book} ${ev.chapter}`}
-                                </button>
+                                {stop.ref ? (
+                                  <button
+                                    type="button"
+                                    className="story-step-cta"
+                                    onClick={() => {
+                                      const href = readerHrefFromRef(stop.ref);
+                                      if (href) window.location.href = href;
+                                      else openRef(stop.ref);
+                                    }}
+                                  >
+                                    读这段 · {formatGroupRefLabel(stop.ref) || stop.ref}
+                                  </button>
+                                ) : null}
                               </div>
                             </li>
-                          );
-                        })}
-                      </ol>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
+                          ))}
+                        </ol>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-      {!toursReady && !hasQuery && (
-        <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>加载故事卡片…</p>
+            {timelineTours.length > 0 && (
+              <div className={`card card-2 story-tour-card${timelineOpen ? ' is-open' : ''}`}>
+                <button
+                  type="button"
+                  className="story-tour-head"
+                  onClick={() => {
+                    setTimelineOpen((v) => !v);
+                    setMapOpen(false);
+                  }}
+                >
+                  <span className="story-tour-badge story-tour-badge-time">时间故事</span>
+                  <strong className="story-tour-title">时间线专题</strong>
+                  <p className="muted story-tour-meta">
+                    {timelineTours.map((t) => t.title).join(' · ')}
+                    {timelineEventCount > 0 ? ` · ${timelineEventCount} 个节点` : ''}
+                  </p>
+                  <span className="story-tour-toggle">{timelineOpen ? '收起' : '查看详情 ›'}</span>
+                </button>
+                {timelineOpen && (
+                  <div className="story-tour-body">
+                    {timelineTours.map((tour) => (
+                      <div key={tour.id} className="story-tour-block">
+                        <strong className="story-tour-block-title">{tour.title}</strong>
+                        {tour.subtitle ? (
+                          <p className="muted story-tour-meta">{tour.subtitle}</p>
+                        ) : null}
+                        {tour.description ? (
+                          <p className="story-tour-lead">{tour.description}</p>
+                        ) : null}
+                        <ol className="story-step-list">
+                          {(tour.events ?? []).map((ev, idx) => {
+                            const ref = `${ev.book} ${ev.chapter}:1`;
+                            return (
+                              <li key={ev.order} className="story-step">
+                                <span className="story-step-num" aria-hidden>{idx + 1}</span>
+                                <div className="story-step-main">
+                                  <strong className="story-step-title">
+                                    {ev.label}
+                                    {ev.year_display ? (
+                                      <span className="muted story-step-year"> · {ev.year_display}</span>
+                                    ) : null}
+                                  </strong>
+                                  {ev.note ? (
+                                    <p className="muted story-step-note">{ev.note}</p>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    className="story-step-cta"
+                                    onClick={() => {
+                                      const href = readerHrefFromRef(ref);
+                                      if (href) window.location.href = href;
+                                      else openRef(ref);
+                                    }}
+                                  >
+                                    读这段 · {formatGroupRefLabel(ref) || `${ev.book} ${ev.chapter}`}
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+          {!toursReady && (
+            <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>加载专题…</p>
+          )}
+        </section>
       )}
 
       {hasQuery && (
@@ -414,12 +404,12 @@ export default function SearchPage() {
       {query.trim().length === 0 && (
         <section style={{ marginTop: 18 }}>
           <h3 className="search-section-title">热门关键词</h3>
-          <div className="theme-grid">
+          <div className="theme-grid hot-keyword-grid">
             {LIFE_TOPICS.slice(0, 8).map((t) => (
               <button
                 key={t.id}
                 type="button"
-                className="card card-2 theme-chip"
+                className="theme-chip hot-keyword-chip"
                 onClick={() => applyHistoryQuery(t.title)}
               >
                 {t.title}

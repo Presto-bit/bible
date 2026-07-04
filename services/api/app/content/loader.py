@@ -68,6 +68,8 @@ def resolve_ref_text(
     verse_start: int | None,
     verse_end: int | None,
     version: str = reader.PRIMARY_VERSION,
+    *,
+    fallback: bool = True,
 ) -> str:
     """优先用结构化坐标，其次解析 ref 字符串，从指定译本经库取文本。"""
     try:
@@ -89,8 +91,10 @@ def resolve_ref_text(
         verses = []
     text = " ".join(v["text"] for v in verses).strip()
     # 指定译本缺失时回退主译本（CNV）
-    if not text and version != reader.PRIMARY_VERSION:
-        return resolve_ref_text(ref, book, chapter, verse_start, verse_end, reader.PRIMARY_VERSION)
+    if not text and fallback and version != reader.PRIMARY_VERSION:
+        return resolve_ref_text(
+            ref, book, chapter, verse_start, verse_end, reader.PRIMARY_VERSION, fallback=False,
+        )
     return text
 
 

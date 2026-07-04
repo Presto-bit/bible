@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
 
-const THRESHOLD = 0.25;
+// 露出下一章约 10% 即翻页
+const THRESHOLD = 0.1;
 const EDGE_RESIST = 0.28;
 const ANIM_MS = 220;
 
@@ -71,7 +72,8 @@ export function useReaderPageTurn({
       setOffset(next);
       const w = viewportRef.current?.clientWidth ?? window.innerWidth;
       const ratio = Math.abs(next) / w;
-      if (!drag.current.prefetched && ratio >= 0.12 && onDragApproach) {
+      // 更早触发相邻章预取，降低松手后仍显示「加载中」的概率
+      if (!drag.current.prefetched && ratio >= 0.06 && onDragApproach) {
         drag.current.prefetched = true;
         onDragApproach(next < 0 ? 1 : -1);
       }

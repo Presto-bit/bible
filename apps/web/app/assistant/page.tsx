@@ -231,10 +231,10 @@ function AssistantPageInner() {
 
   useEffect(() => {
     setSessions(loadSessions());
-    const savedFont = Number(localStorage.getItem('readerFont'));
-    if (savedFont) {
-      document.documentElement.style.setProperty('--assistant-answer-font-size', `${savedFont}px`);
-    }
+    document.documentElement.style.setProperty('--assistant-answer-font-size', '14px');
+    return () => {
+      document.documentElement.style.removeProperty('--assistant-answer-font-size');
+    };
   }, []);
 
   useEffect(() => {
