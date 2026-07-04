@@ -204,10 +204,17 @@ def parse_query(raw: str) -> dict:
     return {"includes": includes, "excludes": excludes, "book_id": book_id}
 
 
-def search_verses(q: str, *, limit: int = 24) -> list[dict]:
+def search_verses(
+    q: str,
+    *,
+    limit: int = 24,
+    version: str | None = None,
+    testament: str | None = None,
+) -> list[dict]:
     """经文检索（自动选库 + 高级语法）：
       • 含中文 → 查 CNV，LIKE 子串匹配（FTS5 默认分词器对 CJK 不友好）；
       • 纯拉丁词 → 查 KJV（若已落地），LIKE 子串匹配（支持多词 AND / 排除 / 卷书限定）。
+      • version / testament 可显式指定译本与新旧约。
     支持语法：引号短语、-排除词、书卷:/book: 限定卷书。
     返回结果带 version 字段，供前端标注译本。"""
     q = (q or "").strip()
@@ -225,10 +232,15 @@ def search_verses(q: str, *, limit: int = 24) -> list[dict]:
     lim = max(1, min(int(limit), 50))
     joined = " ".join(includes)
     has_cjk = any("\u4e00" <= ch <= "\u9fff" for ch in joined)
-    # 英文检索走 KJV 库；缺失时降级回主译本。
-    version = PRIMARY_VERSION
-    if not has_cjk and _db_path("kjv").exists():
-        version = "kjv"
+
+    ver = (version or "").strip().lower() or None
+    if ver and ver in VERSIONS and _db_path(ver).exists():
+        pass
+    else:
+        # 英文检索走 KJV 库；缺失时降级回主译本。
+        ver = PRIMARY_VERSION
+        if not has_cjk and _db_path("kjv").exists():
+            ver = "kjv"
 
     where: list[str] = []
     params: list = []
@@ -241,6 +253,10 @@ def search_verses(q: str, *, limit: int = 24) -> list[dict]:
     if book_id:
         where.append("v.book = ?")
         params.append(book_id)
+    test = (testament or "").strip().upper()
+    if test in ("OT", "NT"):
+        where.append("b.testament = ?")
+        params.append(test)
     params.append(lim)
 
     sql = (
@@ -250,9 +266,9 @@ def search_verses(q: str, *, limit: int = 24) -> list[dict]:
         "ORDER BY b.sort_order, v.chapter, v.verse "
         "LIMIT ?"
     )
-    with _connect(version) as conn:
+    with _connect(ver) as conn:
         rows = conn.execute(sql, tuple(params)).fetchall()
-    return [_hit_row(r, version) for r in rows]
+    return [_hit_row(r, ver) for r in rows]
 
 
 def _hit_row(r: sqlite3.Row, version: str = PRIMARY_VERSION) -> dict:

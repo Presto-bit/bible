@@ -52,9 +52,20 @@ def compare(
 
 
 @router.get("/search")
-def search(q: str = Query(..., min_length=1), limit: int = Query(24, ge=1, le=50)) -> dict:
-    hits = reader.search_verses(q, limit=limit)
-    return {"query": q, "hits": hits}
+def search(
+    q: str = Query(..., min_length=1),
+    limit: int = Query(24, ge=1, le=50),
+    version: str | None = Query(None, description="译本 id：cnv / cuvs / kjv"),
+    testament: str | None = Query(None, description="OT / NT"),
+) -> dict:
+    test = (testament or "").strip().upper() or None
+    if test and test not in ("OT", "NT"):
+        raise HTTPException(status_code=400, detail="testament 须为 OT 或 NT")
+    ver = (version or "").strip().lower() or None
+    if ver and ver not in reader.VERSIONS:
+        raise HTTPException(status_code=400, detail=f"未知译本：{version}")
+    hits = reader.search_verses(q, limit=limit, version=ver, testament=test)
+    return {"query": q, "hits": hits, "version": ver, "testament": test}
 
 
 @router.get("/ref")

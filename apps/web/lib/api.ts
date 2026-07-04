@@ -1013,10 +1013,14 @@ export const api = {
     getJson<{ verses: Verse[] }>(
       `/bible/chapter?book=${encodeURIComponent(book)}&chapter=${chapter}${version ? `&version=${encodeURIComponent(version)}` : ''}`,
     ),
-  search: (q: string) =>
-    getJson<{ hits: BibleSearchHit[] }>(
-      `/bible/search?q=${encodeURIComponent(q)}`,
-    ),
+  search: (q: string, opts?: { version?: string; testament?: 'OT' | 'NT' }) => {
+    const params = new URLSearchParams({ q });
+    if (opts?.version) params.set('version', opts.version);
+    if (opts?.testament) params.set('testament', opts.testament);
+    return getJson<{ hits: BibleSearchHit[]; version?: string; testament?: string }>(
+      `/bible/search?${params.toString()}`,
+    );
+  },
   versions: () => getJson<{ versions: BibleVersion[] }>('/bible/versions'),
   compare: (ref: string) =>
     getJson<CompareResult>(`/bible/compare?ref=${encodeURIComponent(ref)}`),

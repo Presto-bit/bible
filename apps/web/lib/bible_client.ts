@@ -53,8 +53,15 @@ export async function bibleChapter(
   }
 }
 
-export async function bibleSearch(q: string): Promise<BibleSearchHit[]> {
-  if (await isOfflinePackReady()) {
+export async function bibleSearch(
+  q: string,
+  opts?: { version?: string | null; testament?: 'OT' | 'NT' | null },
+): Promise<BibleSearchHit[]> {
+  const version = opts?.version || undefined;
+  const testament = opts?.testament || undefined;
+  // 本地离线包目前仅 CNV，且无法按译本切换时走在线
+  const canUseLocal = (!version || version === 'cnv') && !testament;
+  if (canUseLocal && (await isOfflinePackReady())) {
     const local = await searchLocalVerses(q);
     if (local) {
       return local.map((h) => ({
@@ -66,9 +73,10 @@ export async function bibleSearch(q: string): Promise<BibleSearchHit[]> {
     }
   }
   try {
-    const remote = await api.search(q);
+    const remote = await api.search(q, { version, testament: testament ?? undefined });
     return remote.hits;
   } catch {
+    if (!canUseLocal) return [];
     const local = await searchLocalVerses(q);
     return (local ?? []).map((h) => ({
       ...h,

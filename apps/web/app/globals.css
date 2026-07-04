@@ -33,8 +33,8 @@
   --app-heading-size: var(--font-xl);
   --app-line-height: 1.55;
   --reader-font-size: 18px;
-  /* 小爱 Tab / 圣经 Tab 内小爱：输入与输出统一 14px */
-  --assistant-answer-font-size: 14px;
+  /* 小爱 Tab / 圣经 Tab 内小爱：输入与输出统一 15px */
+  --assistant-answer-font-size: 15px;
 }
 
 * {
@@ -951,16 +951,16 @@ html:not([data-app-theme]) .card {
 }
 
 .hero-verse.hero-verse-has-art .hero-like {
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .hero-verse.hero-verse-has-art .hero-like-active {
-  color: #fff;
+  color: #ff6b7a;
 }
 
-.hero-verse.hero-verse-has-art .hero-like-active svg {
-  fill: #fff;
-  stroke: #fff;
+.hero-verse.hero-verse-has-art .hero-like-active .hero-like-icon {
+  color: #ff6b7a;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
 }
 
 .hero-top {
@@ -1016,13 +1016,12 @@ html:not([data-app-theme]) .card {
 }
 
 .hero-like-active {
-  color: var(--accent-deep);
+  color: #e25563;
 }
 
-.hero-like-active svg,
-.hero-like-active svg path {
-  fill: currentColor !important;
-  stroke: currentColor;
+.hero-like-icon {
+  flex-shrink: 0;
+  display: block;
 }
 
 .hero-share {
@@ -2087,6 +2086,23 @@ a.today-card-link {
   background: var(--surface);
 }
 
+.story-entry-card {
+  display: block;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.story-entry-card:active {
+  background: var(--accent-wash);
+}
+
+.story-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .story-tour-card.is-open {
   grid-column: 1 / -1;
   box-shadow: var(--card-elev-hero, var(--elev-2));
@@ -2762,7 +2778,9 @@ a.today-card-link {
 }
 
 .hot-keyword-chip {
-  min-height: 48px;
+  min-height: 52px;
+  font-size: var(--font-lg, 16px);
+  font-weight: 650;
   border: 1px solid color-mix(in srgb, var(--ink) 12%, var(--line));
   background: var(--surface);
   box-shadow: 0 1px 3px rgba(43, 42, 40, 0.06);
@@ -2773,6 +2791,99 @@ a.today-card-link {
   border-color: var(--accent-deep);
   background: var(--accent-wash);
   outline: none;
+}
+
+/* 搜索结果：筛选 tabs + 关键词高亮 */
+.search-result-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.search-filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.search-filter-tab {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.search-filter-tab.is-active {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+
+.search-filter-version {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 4px;
+}
+
+.search-filter-version-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  padding: 0 2px 0 0;
+  cursor: pointer;
+}
+
+.search-version-select {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 7.5em;
+  cursor: pointer;
+}
+
+.search-filter-hint {
+  font-size: 12px;
+  margin: 0 0 10px;
+}
+
+.search-hit-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.search-hit-ref {
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.search-hit-text {
+  margin: 6px 0 8px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.search-hit-mark {
+  background: color-mix(in srgb, var(--accent-deep) 22%, transparent);
+  color: var(--accent-deep);
+  font-weight: 700;
+  border-radius: 3px;
+  padding: 0 2px;
 }
 
 .text-link {
@@ -3812,7 +3923,7 @@ a.today-card-link {
 
 .reader-ai-backdrop {
   z-index: 120;
-  --assistant-answer-font-size: 14px;
+  --assistant-answer-font-size: 15px;
 }
 
 .reader-ai-backdrop .half-sheet-verse,
