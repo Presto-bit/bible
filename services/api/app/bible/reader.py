@@ -13,9 +13,9 @@ from ..config import get_settings
 
 # 译本注册表：id → (展示名, 是否主译本)。主译本提供卷名/目录，其余仅供对照。
 VERSIONS: dict[str, str] = {
-    "cnv": "圣经新译本 (CNV)",
-    "cuvs": "和合本 (CUVS)",
-    "kjv": "King James Version (KJV)",
+    "cnv": "新译本",
+    "cuvs": "和合本",
+    "kjv": "King James Version",
 }
 PRIMARY_VERSION = "cnv"
 
