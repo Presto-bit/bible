@@ -4,17 +4,31 @@ import type { PlanDayScheduleItem } from '@/lib/plan_schedule';
 import type { ActivePlan } from '@/lib/plan_progress';
 import { planCompletionPct } from '@/lib/plan_schedule';
 
+export type PlanScheduleMode = 'preview' | 'manage';
+
 type Props = {
   plan: ActivePlan;
   items: PlanDayScheduleItem[];
+  mode: PlanScheduleMode;
+  intro?: string;
   busyDay?: number | null;
   currentDay?: number;
+  primaryLabel?: string;
+  secondaryLabel?: string;
   onClose: () => void;
-  onStartDay: (day: number) => void;
+  onPrimary?: () => void;
+  onSecondary?: () => void;
+  onStartDay?: (day: number) => void;
   onSkipDay?: (day: number) => void;
 };
 
-function dayCta(d: PlanDayScheduleItem, currentDay: number, kind: ActivePlan['kind']): string {
+function dayCta(
+  d: PlanDayScheduleItem,
+  currentDay: number,
+  kind: ActivePlan['kind'],
+  mode: PlanScheduleMode,
+): string {
+  if (mode === 'preview') return d.detail ? '预览' : '';
   if (d.completed) return '复习';
   if (d.skipped) return '补读 ›';
   if (!d.unlocked) return '未解锁';
@@ -25,9 +39,15 @@ function dayCta(d: PlanDayScheduleItem, currentDay: number, kind: ActivePlan['ki
 export function PlanScheduleSheet({
   plan,
   items,
+  mode,
+  intro,
   busyDay,
   currentDay = 1,
+  primaryLabel,
+  secondaryLabel,
   onClose,
+  onPrimary,
+  onSecondary,
   onStartDay,
   onSkipDay,
 }: Props) {
@@ -35,6 +55,8 @@ export function PlanScheduleSheet({
   const allDone = items.length > 0 && items.every((d) => d.completed);
   const doneCount = items.filter((d) => d.completed).length;
   const skippedCount = items.filter((d) => d.skipped).length;
+  const isPreview = mode === 'preview';
+  const sample = items.slice(0, 3);
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -44,36 +66,72 @@ export function PlanScheduleSheet({
           <strong>{plan.title}</strong>
           <button type="button" className="text-link" onClick={onClose}>关闭</button>
         </div>
-        <p className="muted" style={{ fontSize: 12, margin: '4px 0 10px' }}>
-          {plan.days} 天计划 · 已完成 {doneCount}/{plan.days} 天（{pct}%）
-          {skippedCount > 0 ? ` · 跳过 ${skippedCount} 天` : ''}
-          {allDone ? ' · 计划已全部完成 🎉' : ''}
+        <p className="muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
+          {plan.kind === 'prayer' ? '祷告' : '读经'} · {plan.days} 天
+          {isPreview
+            ? ' · 预览'
+            : ` · 已完成 ${doneCount}/${plan.days} 天（${pct}%）`}
+          {!isPreview && skippedCount > 0 ? ` · 跳过 ${skippedCount} 天` : ''}
+          {!isPreview && allDone ? ' · 计划已全部完成 🎉' : ''}
         </p>
-        <div className="progress-bar" style={{ marginBottom: 12 }}>
-          <div className="progress-fill plan-fill" style={{ width: `${pct}%` }} />
-        </div>
+
+        {isPreview && intro && (
+          <p className="plan-schedule-intro">{intro}</p>
+        )}
+
+        {isPreview && sample.length > 0 && (
+          <div className="plan-schedule-sample">
+            <p className="plan-schedule-sample-label">前几天安排</p>
+            {sample.map((d) => (
+              <div key={d.day} className="plan-schedule-sample-row">
+                <span className="plan-schedule-day-num">{d.day}</span>
+                <span>
+                  <strong>第 {d.day} 天 · {d.title}</strong>
+                  {d.detail && (
+                    <span className="muted plan-schedule-day-detail">{d.detail}</span>
+                  )}
+                </span>
+              </div>
+            ))}
+            {items.length > 3 && (
+              <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
+                以下为完整日程（预览，点选不会开始计划）
+              </p>
+            )}
+          </div>
+        )}
+
+        {!isPreview && (
+          <div className="progress-bar" style={{ marginBottom: 12 }}>
+            <div className="progress-fill plan-fill" style={{ width: `${pct}%` }} />
+          </div>
+        )}
 
         <div className="plan-schedule-list">
           {items.map((d) => {
-            const locked = !d.unlocked && !d.completed && !d.skipped;
+            const locked = !isPreview && !d.unlocked && !d.completed && !d.skipped;
             const canSkip = Boolean(
-              onSkipDay
+              !isPreview
+              && onSkipDay
               && d.unlocked
               && !d.completed
               && !d.skipped
               && busyDay !== d.day,
             );
             const busy = busyDay === d.day;
+            const interactive = !isPreview && !locked;
             return (
               <div
                 key={d.day}
-                className={`plan-schedule-day${d.completed ? ' done' : ''}${d.skipped ? ' skipped' : ''}${d.unlocked && !d.completed ? ' unlocked' : ''}${locked ? ' locked' : ''}`}
+                className={`plan-schedule-day${d.completed ? ' done' : ''}${d.skipped ? ' skipped' : ''}${!isPreview && d.unlocked && !d.completed ? ' unlocked' : ''}${locked ? ' locked' : ''}${isPreview ? ' preview' : ''}`}
               >
                 <button
                   type="button"
                   className="plan-schedule-day-main-btn"
-                  disabled={locked || busy}
-                  onClick={() => onStartDay(d.day)}
+                  disabled={!interactive || busy}
+                  onClick={() => {
+                    if (interactive) onStartDay?.(d.day);
+                  }}
                 >
                   <span className="plan-schedule-day-num">
                     {d.completed ? '✓' : d.skipped ? '–' : locked ? '🔒' : d.day}
@@ -81,8 +139,12 @@ export function PlanScheduleSheet({
                   <span className="plan-schedule-day-main">
                     <strong>
                       第 {d.day} 天 · {d.title}
-                      {d.day === currentDay && !d.completed ? ' · 今日' : ''}
-                      {d.day === currentDay - 1 && !d.completed && !d.skipped && d.unlocked
+                      {!isPreview && d.day === currentDay && !d.completed ? ' · 今日' : ''}
+                      {!isPreview
+                        && d.day === currentDay - 1
+                        && !d.completed
+                        && !d.skipped
+                        && d.unlocked
                         ? ' · 可补读'
                         : ''}
                     </strong>
@@ -91,7 +153,7 @@ export function PlanScheduleSheet({
                     </span>
                   </span>
                   <span className="plan-schedule-day-cta">
-                    {busy ? '…' : dayCta(d, currentDay, plan.kind)}
+                    {busy ? '…' : dayCta(d, currentDay, plan.kind, mode)}
                   </span>
                 </button>
                 {canSkip && (
@@ -107,6 +169,21 @@ export function PlanScheduleSheet({
             );
           })}
         </div>
+
+        {(primaryLabel || secondaryLabel) && (
+          <div className="plan-schedule-footer">
+            {primaryLabel && onPrimary && (
+              <button type="button" className="btn plan-schedule-primary" onClick={onPrimary}>
+                {primaryLabel}
+              </button>
+            )}
+            {secondaryLabel && onSecondary && (
+              <button type="button" className="text-link plan-schedule-secondary" onClick={onSecondary}>
+                {secondaryLabel}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

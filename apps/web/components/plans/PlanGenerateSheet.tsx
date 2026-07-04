@@ -151,12 +151,15 @@ export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
             </div>
             <div className="plan-gen-preview-actions">
               <button type="button" className="btn" style={{ flex: 1 }} onClick={() => commit('start')}>
-                保存并开始
+                保存并设为我的计划
               </button>
               <button type="button" className="font-pill" style={{ flex: 1 }} onClick={() => commit('save')}>
                 仅保存
               </button>
             </div>
+            <p className="muted" style={{ fontSize: 11, margin: '8px 0 0', textAlign: 'center' }}>
+              「仅保存」不会开始计划，可稍后在列表中查看再设定
+            </p>
           </div>
         )}
       </div>

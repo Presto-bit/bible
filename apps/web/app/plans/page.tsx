@@ -20,6 +20,7 @@ import {
   getPlanDay,
   getSkippedPlanDays,
   isPlanDayUnlocked,
+  isPlanFullyCompleted,
   markPlanDayCompleted,
   planCompletionStreak,
   setActivePlan,
@@ -32,6 +33,7 @@ import {
 } from '@/lib/plan_progress';
 import { loadPlanSchedule, planCompletionPct, type PlanDayScheduleItem } from '@/lib/plan_schedule';
 import { enqueuePlanProgress } from '@/lib/plan_sync';
+import type { PlanScheduleMode } from '@/components/plans/PlanScheduleSheet';
 import { logPrayer } from '@/lib/reading';
 import { buildPlanReadingMeta, readerHref } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
@@ -72,6 +74,20 @@ function toActivePlan(
   };
 }
 
+function buildPlanIntro(plan: ActivePlan, items: PlanDayScheduleItem[]): string {
+  const kind = plan.kind === 'prayer' ? '祷告' : '读经';
+  const head = `共 ${plan.days} 天${kind}计划，按日推进，适合想建立稳定节奏的你。`;
+  const sample = items.slice(0, 3);
+  if (!sample.length) return head;
+  const lines = sample.map((d) => `第 ${d.day} 天：${d.detail || d.title}`).join('；');
+  return `${head}前几天：${lines}。`;
+}
+
+function planIsCompleted(plan: ActivePlan): boolean {
+  return getCompletedPlanIds().includes(plan.planId)
+    || isPlanFullyCompleted(plan.planId, plan.days);
+}
+
 export default function PlansPage() {
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [scopes, setScopes] = useState<{ id: string; label: string }[]>([]);
@@ -85,6 +101,7 @@ export default function PlansPage() {
   const [prayerSheet, setPrayerSheet] = useState<Awaited<ReturnType<typeof api.prayerToday>> | null>(null);
   const [toast, setToast] = useState('');
   const [schedulePlan, setSchedulePlan] = useState<ActivePlan | null>(null);
+  const [scheduleMode, setScheduleMode] = useState<PlanScheduleMode>('preview');
   const [scheduleItems, setScheduleItems] = useState<PlanDayScheduleItem[]>([]);
   const [scheduleBusyDay, setScheduleBusyDay] = useState<number | null>(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
@@ -157,16 +174,9 @@ export default function PlansPage() {
     return items;
   }, [plans, savedPlans, active]);
 
-  const handleRestartPlan = (ap: ActivePlan) => {
-    restartPlan(ap.planId);
-    setActivePlan(ap);
-    setActive(ap);
-    flashToast('已重置进度，可重新开始');
-    void openSchedule(ap);
-  };
-
   const [activeProgress, setActiveProgress] = useState<string | null>(null);
   const openHandledRef = useRef(false);
+  const startHandledRef = useRef(false);
   const activeDay = active ? getPlanDay(active.planId) || 1 : 0;
   const activeCompletedDays = active ? getCompletedPlanDays(active.planId).length : 0;
   const activeSkippedDays = active ? getSkippedPlanDays(active.planId) : [];
@@ -195,21 +205,13 @@ export default function PlansPage() {
     return getCachedPlanMeta(planId);
   }, [plans, savedPlans]);
 
-  const openSchedule = useCallback(async (ap: ActivePlan) => {
-    if (tryAutoCompletePlan(ap.planId, ap.days)) {
-      setActive(null);
-      flashToast('计划已全部完成 🎉');
-      return;
-    }
-    setActivePlan(ap);
-    if (getPlanDay(ap.planId) === 0) setPlanDay(ap.planId, 1);
-    setActive(ap);
+  const loadScheduleSheet = useCallback(async (ap: ActivePlan, mode: PlanScheduleMode) => {
     setSchedulePlan(ap);
+    setScheduleMode(mode);
     setScheduleLoading(true);
     setScheduleItems([]);
     try {
-      const items = await loadPlanSchedule(ap);
-      setScheduleItems(items);
+      setScheduleItems(await loadPlanSchedule(ap));
     } catch (e) {
       flashToast(String(e));
       setSchedulePlan(null);
@@ -218,32 +220,31 @@ export default function PlansPage() {
     }
   }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const highlight = params.get('highlight') ?? params.get('start');
-    if (!highlight || loading) return;
-    const fromFeatured = plans.find((p) => p.plan_id === highlight);
-    if (fromFeatured) {
-      void openSchedule(toActivePlan(
-        { planId: fromFeatured.plan_id, title: fromFeatured.title, type: fromFeatured.type, days: fromFeatured.days },
-        'featured',
-      ));
+  /** 仅预览：不写入进行中计划 */
+  const openPreview = useCallback(async (ap: ActivePlan) => {
+    await loadScheduleSheet(ap, 'preview');
+  }, [loadScheduleSheet]);
+
+  /** 管理日程：仅当前进行中计划 */
+  const openManageSchedule = useCallback(async (ap: ActivePlan) => {
+    const current = getActivePlan();
+    if (current?.planId !== ap.planId) {
+      await openPreview(ap);
       return;
     }
-    const fromSaved = savedPlans.find((p) => p.id === highlight);
-    if (fromSaved) {
-      void openSchedule(toActivePlan(
-        { id: fromSaved.id, title: fromSaved.title, days_count: fromSaved.days_count },
-        'generated',
-      ));
+    if (tryAutoCompletePlan(ap.planId, ap.days)) {
+      setActive(null);
+      flashToast('计划已全部完成 🎉');
+      return;
     }
-  }, [loading, plans, savedPlans, openSchedule]);
+    await loadScheduleSheet(ap, 'manage');
+  }, [loadScheduleSheet, openPreview]);
 
   const goReadPlan = useCallback(async (plan: ActivePlan, day: number) => {
+    setActivePlan(plan);
+    setPlanDay(plan.planId, day);
+    setActive(plan);
     if (plan.kind === 'prayer') {
-      setActivePlan(plan);
-      setPlanDay(plan.planId, day);
-      setActive(plan);
       try {
         setPrayerSheet(await api.prayerToday(plan.planId, day));
       } catch (e) {
@@ -251,9 +252,6 @@ export default function PlansPage() {
       }
       return;
     }
-    setActivePlan(plan);
-    setPlanDay(plan.planId, day);
-    setActive(plan);
     try {
       const meta = await buildPlanReadingMeta(plan, day);
       if (meta) window.location.href = readerHref(meta);
@@ -268,8 +266,44 @@ export default function PlansPage() {
     await goReadPlan(plan, day);
   }, [goReadPlan]);
 
+  /** 明确采纳为进行中计划，默认进入今日 */
+  const adoptPlan = useCallback(async (
+    plan: ActivePlan,
+    opts?: { restart?: boolean; startToday?: boolean },
+  ) => {
+    const current = getActivePlan();
+    if (current && current.planId !== plan.planId) {
+      const ok = window.confirm(
+        `将结束「${current.title}」（进度仍保留，可稍后继续），开始「${plan.title}」。确定？`,
+      );
+      if (!ok) return;
+    }
+    if (opts?.restart) {
+      restartPlan(plan.planId);
+    }
+    setActivePlan(plan);
+    if (getPlanDay(plan.planId) === 0 || opts?.restart) {
+      setPlanDay(plan.planId, 1);
+    }
+    setActive(plan);
+    const day = getPlanDay(plan.planId) || 1;
+    enqueuePlanProgress(plan.planId, day, 'active');
+    setSchedulePlan(null);
+    flashToast(opts?.restart ? '已重置并从第 1 天开始' : '已设为进行中的计划');
+    if (opts?.startToday === false) {
+      await openManageSchedule(plan);
+      return;
+    }
+    await goReadPlan(plan, day);
+  }, [goReadPlan, openManageSchedule]);
+
+  const handleRestartPlan = (ap: ActivePlan) => {
+    if (!window.confirm(`将重置「${ap.title}」的进度并从第 1 天开始。确定？`)) return;
+    void adoptPlan(ap, { restart: true });
+  };
+
   const handleScheduleDay = async (day: number) => {
-    if (!schedulePlan) return;
+    if (!schedulePlan || scheduleMode !== 'manage') return;
     const item = scheduleItems.find((d) => d.day === day);
     if (!isPlanDayUnlocked(schedulePlan.planId, day) && !item?.completed && !item?.skipped) {
       flashToast(day > 1 ? `请先完成或跳过第 ${day - 1} 天` : '该日尚未解锁');
@@ -282,7 +316,7 @@ export default function PlansPage() {
   };
 
   const handleSkipDay = async (day: number) => {
-    if (!schedulePlan) return;
+    if (!schedulePlan || scheduleMode !== 'manage') return;
     if (!isPlanDayUnlocked(schedulePlan.planId, day)) {
       flashToast('该日尚未解锁');
       return;
@@ -298,6 +332,83 @@ export default function PlansPage() {
     }
     flashToast(`已跳过第 ${day} 天，可随时补读`);
   };
+
+  const previewPrimary = useMemo(() => {
+    if (!schedulePlan || scheduleMode !== 'preview') return null;
+    const current = active;
+    if (current?.planId === schedulePlan.planId) {
+      return {
+        label: schedulePlan.kind === 'prayer' ? '今日祷告 ›' : '今日继续 ›',
+        run: () => {
+          setSchedulePlan(null);
+          void goToday(schedulePlan);
+        },
+      };
+    }
+    if (planIsCompleted(schedulePlan)) {
+      return {
+        label: '再读一遍',
+        run: () => {
+          if (!window.confirm(`将重置「${schedulePlan.title}」的进度并从第 1 天开始。确定？`)) return;
+          void adoptPlan(schedulePlan, { restart: true });
+        },
+      };
+    }
+    if (current) {
+      return {
+        label: '换成这个计划',
+        run: () => void adoptPlan(schedulePlan),
+      };
+    }
+    return {
+      label: '设为我的计划并开始',
+      run: () => void adoptPlan(schedulePlan),
+    };
+  }, [schedulePlan, scheduleMode, active, adoptPlan, goToday]);
+
+  const previewSecondary = useMemo(() => {
+    if (!schedulePlan || scheduleMode !== 'preview') return null;
+    const current = active;
+    if (current?.planId === schedulePlan.planId) {
+      return {
+        label: '管理日程',
+        run: () => setScheduleMode('manage'),
+      };
+    }
+    if (current) {
+      return {
+        label: '继续当前计划',
+        run: () => setSchedulePlan(null),
+      };
+    }
+    return {
+      label: '再看看',
+      run: () => setSchedulePlan(null),
+    };
+  }, [schedulePlan, scheduleMode, active]);
+
+  useEffect(() => {
+    if (startHandledRef.current || loading) return;
+    const params = new URLSearchParams(window.location.search);
+    const highlight = params.get('highlight') ?? params.get('start');
+    if (!highlight) return;
+    startHandledRef.current = true;
+    const fromFeatured = plans.find((p) => p.plan_id === highlight);
+    if (fromFeatured) {
+      void openPreview(toActivePlan(
+        { planId: fromFeatured.plan_id, title: fromFeatured.title, type: fromFeatured.type, days: fromFeatured.days },
+        'featured',
+      ));
+      return;
+    }
+    const fromSaved = savedPlans.find((p) => p.id === highlight);
+    if (fromSaved) {
+      void openPreview(toActivePlan(
+        { id: fromSaved.id, title: fromSaved.title, days_count: fromSaved.days_count },
+        'generated',
+      ));
+    }
+  }, [loading, plans, savedPlans, openPreview]);
 
   useEffect(() => {
     if (openHandledRef.current || loading) return;
@@ -318,8 +429,13 @@ export default function PlansPage() {
       flashToast('找不到该计划');
       return;
     }
-    void goReadPlan(plan, day);
-  }, [loading, resolvePlanById, goReadPlan]);
+    const current = getActivePlan();
+    if (current?.planId === plan.planId) {
+      void goReadPlan(plan, day);
+      return;
+    }
+    void openPreview(plan);
+  }, [loading, resolvePlanById, goReadPlan, openPreview]);
 
   useEffect(() => {
     if (!active) {
@@ -352,12 +468,12 @@ export default function PlansPage() {
   const handleGeneratedSaved = (plan: GeneratedPlan, mode: 'start' | 'save') => {
     setSavedPlans(loadGeneratedPlans());
     setListTab('custom');
+    const ap = toActivePlan({ id: plan.id, title: plan.title, days_count: plan.days_count }, 'generated');
     if (mode === 'start') {
-      const ap = toActivePlan({ id: plan.id, title: plan.title, days_count: plan.days_count }, 'generated');
-      startPlan({ id: plan.id, title: plan.title, days_count: plan.days_count }, 'generated');
-      void openSchedule(ap);
+      void adoptPlan(ap);
     } else {
       flashToast('已保存到「我的定制」');
+      void openPreview(ap);
     }
   };
 
@@ -372,16 +488,11 @@ export default function PlansPage() {
     flashToast('已删除');
   };
 
-  const startPlan = (p: { planId?: string; id?: string; title: string; type?: string; days?: number; days_count?: number }, source: 'featured' | 'generated') => {
-    const ap = toActivePlan(p, source);
-    setActivePlan(ap);
-    if (getPlanDay(ap.planId) === 0) setPlanDay(ap.planId, 1);
-    setActive(ap);
-  };
-
   const cancelPlan = () => {
+    if (!window.confirm('结束进行中的计划？进度会保留，之后仍可从列表继续。')) return;
     cancelActivePlan();
     setActive(null);
+    flashToast('已结束进行中');
   };
 
   return (
@@ -396,7 +507,7 @@ export default function PlansPage() {
         <div className="card card-tint plan-active-compact">
           <div className="plan-active-top">
             <span className="plan-active-label">进行中的计划</span>
-            <button type="button" className="text-link" style={{ fontSize: 12 }} onClick={cancelPlan}>取消</button>
+            <button type="button" className="text-link" style={{ fontSize: 12 }} onClick={cancelPlan}>结束进行中</button>
           </div>
           <strong className="plan-active-title">{active.title}</strong>
           <p className="plan-active-meta plan-active-meta-block">
@@ -431,7 +542,7 @@ export default function PlansPage() {
               type="button"
               className="text-link"
               style={{ fontSize: 13, whiteSpace: 'nowrap' }}
-              onClick={() => openSchedule(active)}
+              onClick={() => void openManageSchedule(active)}
             >
               日程表
             </button>
@@ -512,10 +623,11 @@ export default function PlansPage() {
               title: m.title,
               days: m.days,
               kind: m.kind,
+              isActive: active?.planId === m.planId,
               onClick: () => {
                 const featuredPlan = plans.find((p) => p.plan_id === m.planId);
                 if (featuredPlan) {
-                  void openSchedule(toActivePlan(
+                  void openPreview(toActivePlan(
                     { planId: featuredPlan.plan_id, title: featuredPlan.title, type: featuredPlan.type, days: featuredPlan.days },
                     'featured',
                   ));
@@ -535,7 +647,8 @@ export default function PlansPage() {
               title: p.title,
               days: p.days,
               kind: p.type === 'prayer' ? 'prayer' : 'reading',
-              onClick: () => openSchedule(toActivePlan(
+              isActive: active?.planId === p.plan_id,
+              onClick: () => void openPreview(toActivePlan(
                 { planId: p.plan_id, title: p.title, type: p.type, days: p.days },
                 'featured',
               )),
@@ -569,7 +682,18 @@ export default function PlansPage() {
                   key={p.id}
                   plan={p}
                   isActive={active?.planId === p.id}
-                  onContinue={() => void openSchedule(toActivePlan(
+                  onContinue={() => {
+                    const ap = toActivePlan(
+                      { id: p.id, title: p.title, days_count: p.days_count },
+                      'generated',
+                    );
+                    void goToday(ap);
+                  }}
+                  onPreview={() => void openPreview(toActivePlan(
+                    { id: p.id, title: p.title, days_count: p.days_count },
+                    'generated',
+                  ))}
+                  onManage={() => void openManageSchedule(toActivePlan(
                     { id: p.id, title: p.title, days_count: p.days_count },
                     'generated',
                   ))}
@@ -602,7 +726,7 @@ export default function PlansPage() {
                     {p.kind === 'prayer' ? '祷告' : '读经'} · {p.days} 天 · 已全部完成
                   </p>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button type="button" className="font-pill" onClick={() => void openSchedule(p)}>
+                    <button type="button" className="font-pill" onClick={() => void openPreview(p)}>
                       查看日程
                     </button>
                     <button type="button" className="font-pill accent" onClick={() => handleRestartPlan(p)}>
@@ -632,11 +756,17 @@ export default function PlansPage() {
           <PlanScheduleSheet
             plan={schedulePlan}
             items={scheduleItems}
+            mode={scheduleMode}
+            intro={scheduleMode === 'preview' ? buildPlanIntro(schedulePlan, scheduleItems) : undefined}
             busyDay={scheduleBusyDay}
             currentDay={getPlanDay(schedulePlan.planId) || 1}
+            primaryLabel={scheduleMode === 'preview' ? previewPrimary?.label : undefined}
+            secondaryLabel={scheduleMode === 'preview' ? previewSecondary?.label : undefined}
+            onPrimary={scheduleMode === 'preview' ? previewPrimary?.run : undefined}
+            onSecondary={scheduleMode === 'preview' ? previewSecondary?.run : undefined}
             onClose={() => setSchedulePlan(null)}
-            onStartDay={handleScheduleDay}
-            onSkipDay={(day) => void handleSkipDay(day)}
+            onStartDay={scheduleMode === 'manage' ? handleScheduleDay : undefined}
+            onSkipDay={scheduleMode === 'manage' ? (day) => void handleSkipDay(day) : undefined}
           />
         )
       )}

@@ -8,16 +8,31 @@ type Props = {
   plan: GeneratedPlan;
   isActive: boolean;
   onContinue: () => void;
+  onPreview: () => void;
+  onManage?: () => void;
   onShare: () => void;
   onDelete: () => void;
 };
 
-export function PlanCustomCard({ plan, isActive, onContinue, onShare, onDelete }: Props) {
+export function PlanCustomCard({
+  plan,
+  isActive,
+  onContinue,
+  onPreview,
+  onManage,
+  onShare,
+  onDelete,
+}: Props) {
   const doneDays = getCompletedPlanDays(plan.id).length;
   const pct = planCompletionPct(plan.id, plan.days_count);
   const currentDay = getPlanDay(plan.id) || 1;
   const finished = isPlanFullyCompleted(plan.id, plan.days_count);
   const savedAt = plan.saved_at ? new Date(plan.saved_at).toLocaleDateString('zh-CN') : null;
+
+  const mainLabel = isActive
+    ? (finished ? '查看日程' : doneDays > 0 ? '继续阅读' : '今日继续')
+    : '查看计划';
+  const onMain = isActive && !finished ? onContinue : onPreview;
 
   return (
     <article className={`card card-2 plan-custom-card${isActive ? ' plan-custom-card-active' : ''}`}>
@@ -42,9 +57,15 @@ export function PlanCustomCard({ plan, isActive, onContinue, onShare, onDelete }
       </p>
 
       <div className="plan-custom-actions">
-        <button type="button" className="btn plan-custom-btn-main" onClick={onContinue}>
-          {finished ? '查看日程' : doneDays > 0 ? '继续阅读' : '开始计划'}
+        <button type="button" className="btn plan-custom-btn-main" onClick={onMain}>
+          {mainLabel}
         </button>
+        {isActive && !finished && (
+          <button type="button" className="font-pill" onClick={onManage ?? onPreview}>日程</button>
+        )}
+        {!isActive && (
+          <button type="button" className="font-pill" onClick={onPreview}>详情</button>
+        )}
         <button type="button" className="font-pill" onClick={onShare}>分享到群</button>
       </div>
     </article>
