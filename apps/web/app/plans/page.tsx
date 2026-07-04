@@ -118,10 +118,8 @@ export default function PlansPage() {
     const startId = params.get('start');
     if (startId) {
       setListTab('featured');
-      const micro = MICRO_TOPIC_PLANS.find((m) => m.planId === startId);
-      if (micro) {
-        setTab(micro.kind === 'prayer' ? 'prayer' : 'reading');
-      }
+      if (startId.startsWith('prayer_')) setTab('prayer');
+      else if (MICRO_TOPIC_PLANS.some((m) => m.planId === startId)) setTab('reading');
     }
   }, []);
 
