@@ -242,6 +242,19 @@ function AssistantPageInner() {
     saveAssistantDraft({ activeId, msgs, ref, mode, updatedAt: Date.now() });
   }, [activeId, msgs, ref, mode]);
 
+  const scrollThreadToLatest = () => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo(0, el.scrollHeight);
+  };
+
+  /** 有历史时进入 / 切换会话，默认落在最新消息 */
+  useEffect(() => {
+    if (msgs.length === 0) return;
+    scrollThreadToLatest();
+    const t = window.setTimeout(scrollThreadToLatest, 50);
+    return () => window.clearTimeout(t);
+  }, [activeId, msgs.length]);
+
   const persist = (nextMsgs: Msg[], anchor: string) => {
     let sid = activeId;
     if (sid === 'current') {
@@ -314,9 +327,7 @@ function AssistantPageInner() {
         };
         return copy;
       });
-      if (scrollRef.current) {
-        scrollRef.current.scrollTo(0, scrollRef.current.scrollHeight);
-      }
+      scrollThreadToLatest();
     };
     const scheduleApply = () => {
       if (rafRef.current != null) return;
