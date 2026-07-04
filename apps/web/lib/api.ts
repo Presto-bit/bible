@@ -50,6 +50,7 @@ export interface DailyDevotional {
 
 export interface PrayerToday {
   plan_id: string;
+  plan_title?: string;
   model?: string;
   day: number;
   title: string;
@@ -1000,7 +1001,13 @@ export const api = {
       { method: 'POST' },
     ),
   dailyDevotional: () => getJson<DailyDevotional>('/content/daily-devotional'),
-  prayerToday: () => getJson<PrayerToday>('/content/prayer-today'),
+  prayerToday: (planId?: string, day?: number) => {
+    const q = new URLSearchParams();
+    if (planId) q.set('plan_id', planId);
+    if (day != null) q.set('day', String(day));
+    const qs = q.toString();
+    return getJson<PrayerToday>(`/content/prayer-today${qs ? `?${qs}` : ''}`);
+  },
   books: () => getJson<{ books: BibleBook[] }>('/bible/books'),
   chapter: (book: string, chapter: number, version?: string) =>
     getJson<{ verses: Verse[] }>(

@@ -497,16 +497,17 @@ export default function ReaderView({
       Math.min(firstRect.left, lastRect.left) + Math.max(firstRect.right, lastRect.right)
     ) / 2;
     const barH = focusBarRef.current?.offsetHeight ?? 56;
-    const margin = 14;
+    const margin = 12;
     const topReserve = chromeHidden ? 12 : 58;
-    const bottomReserve = chromeHidden ? 24 : 80;
-    // 系统划词菜单多在选区上方：优先把工具条放在选区下方
+    const bottomReserve = chromeHidden ? 24 : 76;
+    // 优先放在选区下方：系统划词菜单多在选区上方，减少重叠
     let top = selBottom + margin;
     if (top + barH > window.innerHeight - bottomReserve) {
       top = selTop - barH - margin;
     }
     top = Math.max(topReserve, Math.min(top, window.innerHeight - barH - bottomReserve));
-    const left = Math.min(Math.max(selCenterX, 96), window.innerWidth - 96);
+    const halfW = Math.min(window.innerWidth * 0.48, 200);
+    const left = Math.max(halfW + 8, Math.min(selCenterX, window.innerWidth - halfW - 8));
     setFocusBarStyle({
       top: `${top}px`,
       left: `${left}px`,
@@ -1085,38 +1086,37 @@ export default function ReaderView({
     return () => document.removeEventListener('selectionchange', onSel);
   }, [syncSelectionFromDom]);
 
-  // 划词结束后：延迟清除系统选区（等 selectionchange 落定），保留自定义高亮与工具条
+  // 划词手势结束后再清系统选区（须挂在 mouseup/touchend，不能等 hasSel 才挂监听）
   useEffect(() => {
-    if (!hasSel) return;
-    let timer = 0;
-    const dismissNative = () => {
-      window.clearTimeout(timer);
+    let timer: number | null = null;
+    const finalize = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !contentRef.current) return;
+      const anchor = verseFromNode(sel.anchorNode);
+      const focus = verseFromNode(sel.focusNode);
+      if (anchor == null && focus == null) return;
+      syncSelectionFromDom();
+      if (timer != null) window.clearTimeout(timer);
+      // 稍延迟：等系统菜单弹出后再清选区，多数浏览器会一并收起菜单
       timer = window.setTimeout(() => {
-        const sel = window.getSelection();
-        if (!sel || sel.isCollapsed) return;
         syncingSelection.current = true;
-        try {
-          sel.removeAllRanges();
-          // Safari / 部分 WebView 需要 empty()
-          (sel as Selection & { empty?: () => void }).empty?.();
-        } catch {
-          /* ignore */
-        }
+        const s = window.getSelection();
+        if (s && !s.isCollapsed) s.removeAllRanges();
+        // iOS 偶发需二次清空
         window.setTimeout(() => {
+          window.getSelection()?.removeAllRanges();
           syncingSelection.current = false;
-        }, 50);
-      }, 120);
+        }, 30);
+      }, 80);
     };
-    document.addEventListener('mouseup', dismissNative);
-    document.addEventListener('touchend', dismissNative, { passive: true });
-    // 已有选区时再补一次（处理仅 selectionchange、无 pointer 事件的情况）
-    dismissNative();
+    document.addEventListener('mouseup', finalize);
+    document.addEventListener('touchend', finalize, { passive: true });
     return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener('mouseup', dismissNative);
-      document.removeEventListener('touchend', dismissNative);
+      if (timer != null) window.clearTimeout(timer);
+      document.removeEventListener('mouseup', finalize);
+      document.removeEventListener('touchend', finalize);
     };
-  }, [hasSel, selected]);
+  }, [syncSelectionFromDom]);
 
   const clearSelection = () => {
     window.getSelection()?.removeAllRanges();

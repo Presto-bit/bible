@@ -353,7 +353,7 @@ export default function HomePageClient() {
       )}
 
       <div
-        className={`card card-3 card-tint hero-verse ${heroThemeClass(dv?.theme)}`}
+        className={`card card-3 card-tint hero-verse ${heroThemeClass(dv?.theme)}${heroIllustration ? ' hero-verse-has-art' : ''}`}
         role="button"
         tabIndex={dv?.text ? 0 : -1}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}

@@ -42,11 +42,14 @@ function groupPlans(plans: PlanSummary[]) {
   return groups.filter((g) => g.items.length > 0);
 }
 
-const MICRO_TOPIC_PLANS = LIFE_TOPICS.filter((t) => t.microPlanId).map((t) => ({
+/** 热门「主题计划」：仅读经微计划，不含微祷告 */
+const MICRO_TOPIC_PLANS = LIFE_TOPICS.filter(
+  (t) => t.microPlanId && !t.microPlanId.startsWith('prayer_'),
+).map((t) => ({
   planId: t.microPlanId!,
-  title: `「${t.title}」微${t.microPlanId!.startsWith('prayer_') ? '祷告' : '读经'}`,
+  title: `「${t.title}」计划`,
   days: t.microPlanDays ?? 7,
-  kind: (t.microPlanId!.startsWith('prayer_') ? 'prayer' : 'reading') as 'prayer' | 'reading',
+  kind: 'reading' as const,
   topicId: t.id,
 }));
 
@@ -212,7 +215,7 @@ export default function PlansPage() {
     if (plan.kind === 'prayer') {
       setPlanDay(plan.planId, day);
       try {
-        setPrayerSheet(await api.prayerToday());
+        setPrayerSheet(await api.prayerToday(plan.planId, day));
       } catch (e) {
         flashToast(`祷告内容加载失败：${e}`);
       }
@@ -404,13 +407,11 @@ export default function PlansPage() {
         <p className="muted" style={{ marginBottom: 12 }}>暂无计划，请稍后重试或联系管理员检查服务端数据。</p>
       )}
 
-      {listTab === 'featured' && MICRO_TOPIC_PLANS.length > 0 && (
+      {listTab === 'featured' && tab === 'reading' && MICRO_TOPIC_PLANS.length > 0 && (
         <section style={{ marginBottom: 16 }}>
-          <p className="plan-section-label">主题微计划 · 微祷告</p>
+          <p className="plan-section-label">主题计划</p>
           <PlanCategoryGrid
-            items={MICRO_TOPIC_PLANS.filter((m) =>
-              tab === 'prayer' ? m.kind === 'prayer' : m.kind === 'reading',
-            ).map((m) => ({
+            items={MICRO_TOPIC_PLANS.map((m) => ({
               id: m.planId,
               title: m.title,
               days: m.days,
@@ -569,6 +570,10 @@ export default function PlansPage() {
               <strong>{prayerSheet.title}</strong>
               <button type="button" className="text-link" onClick={() => setPrayerSheet(null)}>关闭</button>
             </div>
+            <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
+              {prayerSheet.plan_title ?? '祷告计划'}
+              {prayerSheet.day != null ? ` · 第 ${prayerSheet.day} 天` : ''}
+            </p>
             {prayerSheet.scripture?.ref && (
               <p className="muted" style={{ fontSize: 13 }}>{prayerSheet.scripture.ref}</p>
             )}

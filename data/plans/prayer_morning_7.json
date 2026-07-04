@@ -3,12 +3,12 @@
   "title": "清晨祷告 · 7 天",
   "model": "ACTS",
   "days": [
-    {"day": 1, "title": "来到祂面前", "scripture": {"ref": "诗篇 95:6", "book": "PSA", "chapter": 95, "verse": 6}, "acts": {"adoration": "称颂祂是创造你、也认识你的主。", "confession": "承认这些日子里你忽略了与祂安静相处。", "thanksgiving": "为今天仍有亲近祂的机会献上感谢。", "supplication": "求祂在这 7 天里教你祷告。"}, "prompt": "今天，你愿意把祷告当作关系，而不是任务吗？"},
-    {"day": 2, "title": "祂的名为圣", "scripture": {"ref": "马太福音 6:9", "book": "MAT", "chapter": 6, "verse": 9}, "acts": {"adoration": "尊祂的名为圣，高过你一切的需要。", "confession": "为口中轻率提到神的时刻认罪。", "thanksgiving": "感谢祂愿意被你称为父。", "supplication": "求祂的名在你的生活方式里被尊崇。"}, "prompt": "什么事最容易抢走神在你心里的首位？"},
-    {"day": 3, "title": "倾心吐意", "scripture": {"ref": "诗篇 62:8", "book": "PSA", "chapter": 62, "verse": 8}, "acts": {"adoration": "称祂为随时可投靠的避难所。", "confession": "承认你常把心事憋着，不带到祂面前。", "thanksgiving": "感谢祂愿意听你最真实的声音。", "supplication": "把此刻最重的一件事向祂倾倒。"}, "prompt": "有没有一件事，你一直没敢对神说？"},
-    {"day": 4, "title": "认罪与洁净", "scripture": {"ref": "诗篇 51:10", "book": "PSA", "chapter": 51, "verse": 10}, "acts": {"adoration": "称颂祂是赦免与更新的神。", "confession": "具体而诚实地承认一项你知道的罪。", "thanksgiving": "感谢宝血的洁净大过你的过犯。", "supplication": "求祂造清洁的心、重新坚定的灵。"}, "prompt": "认罪不是自责，而是回家。你愿意回家吗？"},
-    {"day": 5, "title": "数算恩典", "scripture": {"ref": "诗篇 103:2", "book": "PSA", "chapter": 103, "verse": 2}, "acts": {"adoration": "称颂祂的慈爱长阔高深。", "confession": "为常常忘记祂的恩惠认罪。", "thanksgiving": "数出今天三件可感恩的小事。", "supplication": "求祂让感恩成为你的习惯。"}, "prompt": "今天最不起眼、却最该感恩的是什么？"},
-    {"day": 6, "title": "依靠而非倚靠自己", "scripture": {"ref": "箴言 3:5", "book": "PRO", "chapter": 3, "verse": 5}, "acts": {"adoration": "称祂为全知全善的引导者。", "confession": "承认你常凭自己的聪明做决定。", "thanksgiving": "感谢祂从不撇下不顾。", "supplication": "把一个正在纠结的决定交托给祂。"}, "prompt": "哪件事你还紧抓在手里不肯交出？"},
-    {"day": 7, "title": "安息", "scripture": {"ref": "马太福音 11:28", "book": "MAT", "chapter": 11, "verse": 28}, "acts": {"adoration": "称祂为劳苦者的安息。", "confession": "为用忙碌填满灵魂的空洞认罪。", "thanksgiving": "感谢祂邀请疲乏的你来到祂面前。", "supplication": "求祂卸下你扛得太久的重担。"}, "prompt": "你已经累了多久，却假装还撑得住？"}
+    {"day": 1, "title": "清晨苏醒", "scripture": {"ref": "诗篇 5:3", "book": "PSA", "chapter": 5, "verse": 3}, "acts": {"adoration": "称颂祂是每一天的开始与源头。", "confession": "为常常匆忙起床、忘记先转向祂认罪。", "thanksgiving": "为新的一天仍有气息感谢。", "supplication": "求祂引导今天的第一步。"}, "prompt": "今天醒来后，你第一件事想到的是什么？"},
+    {"day": 2, "title": "日头升起", "scripture": {"ref": "耶利米哀歌 3:23", "book": "LAM", "chapter": 3, "verse": 23}, "acts": {"adoration": "称颂祂的慈爱每早晨都是新的。", "confession": "为把昨天的失败带到今天认罪。", "thanksgiving": "感谢祂赐下新的怜悯。", "supplication": "求祂让你带着盼望开始这一天。"}, "prompt": "有什么旧担子，你愿意留在昨天？"},
+    {"day": 3, "title": "先求祂的国", "scripture": {"ref": "马太福音 6:33", "book": "MAT", "chapter": 6, "verse": 33}, "acts": {"adoration": "称祂为配得首位的王。", "confession": "为待办清单抢在祂前面认罪。", "thanksgiving": "感谢祂应许必加给你所需。", "supplication": "求祂重排今天的优先次序。"}, "prompt": "若神排你今天的日程，第一项会是什么？"},
+    {"day": 4, "title": "清晨的力量", "scripture": {"ref": "以赛亚书 40:31", "book": "ISA", "chapter": 40, "verse": 31}, "acts": {"adoration": "称祂为赐力量的神。", "confession": "为靠自己硬撑认罪。", "thanksgiving": "感谢祂更新疲乏的人。", "supplication": "求祂赐你今天所需的力量。"}, "prompt": "哪件事让你觉得已经撑不住了？"},
+    {"day": 5, "title": "安静片刻", "scripture": {"ref": "诗篇 46:10", "book": "PSA", "chapter": 46, "verse": 10}, "acts": {"adoration": "称祂为在动荡中仍掌权的神。", "confession": "为用噪音填满清晨认罪。", "thanksgiving": "感谢祂邀请你安静认识祂。", "supplication": "求祂在安静中对你说话。"}, "prompt": "你愿意为祂留出几分钟不被打扰的时间吗？"},
+    {"day": 6, "title": "交托这一天", "scripture": {"ref": "箴言 16:3", "book": "PRO", "chapter": 16, "verse": 3}, "acts": {"adoration": "称祂为成就万事的主。", "confession": "为紧抓计划不肯放手认罪。", "thanksgiving": "感谢祂看顾你所交托的。", "supplication": "把今天最重要的一件事交托给祂。"}, "prompt": "今天你最想交托的是哪一件？"},
+    {"day": 7, "title": "带着祝福出门", "scripture": {"ref": "民数记 6:24", "book": "NUM", "chapter": 6, "verse": 24}, "acts": {"adoration": "称颂祂是赐福的源头。", "confession": "为带着苦毒或抱怨出门认罪。", "thanksgiving": "感谢祂的脸光照你。", "supplication": "求祂让你成为别人的祝福。"}, "prompt": "今天你希望谁因你得着一点温暖？"}
   ]
 }

@@ -245,10 +245,17 @@ def attribution() -> dict:
     return loader.content_attribution()
 
 
-# ── 今日祷告（ACTS 计划，按年内天序循环） ──
+# ── 祷告计划当日内容（按 plan_id + day；未指定则默认 ACTS 并按年内天序） ──
 @router.get("/prayer-today")
-def prayer_today(day: int | None = Query(None, ge=1)) -> dict:
-    prayer = loader.get_prayer_plan("prayer_acts_30")
+def prayer_today(
+    day: int | None = Query(None, ge=1),
+    plan_id: str | None = Query(None),
+) -> dict:
+    pid = (plan_id or "prayer_acts_30").strip()
+    try:
+        prayer = loader.get_prayer_plan(pid)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=f"未知祷告计划：{pid}") from exc
     days = prayer.get("days", [])
     if not days:
         raise HTTPException(status_code=404, detail="无祷告计划数据")
@@ -261,7 +268,8 @@ def prayer_today(day: int | None = Query(None, ge=1)) -> dict:
         sc.get("verse") or sc.get("verse_start"), sc.get("verse_end"),
     )
     return {
-        "plan_id": prayer.get("plan_id", "prayer_acts_30"),
+        "plan_id": prayer.get("plan_id", pid),
+        "plan_title": prayer.get("title"),
         "model": prayer.get("model"),
         "day": item.get("day"),
         "title": item.get("title"),
