@@ -6,6 +6,7 @@ import {
   api,
   currentUserId,
   effectiveId,
+  ensureAccountReady,
   guestId,
   hasPassword,
   logout,
@@ -73,16 +74,29 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    setUid(currentUserId());
-    setGid(guestId());
-    const saved = localStorage.getItem(AVATAR_KEY);
-    setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
-    setName(localStorage.getItem(NAME_KEY) || '');
-    setBio(localStorage.getItem(BIO_KEY) || '');
-    setMins(todayMinutes());
-    setStreak(readingStreak());
-    setHasPwd(hasPassword());
-    setAccountComplete(isAccountComplete());
+    let cancelled = false;
+    const boot = async () => {
+      try {
+        await ensureAccountReady();
+      } catch {
+        /* ignore */
+      }
+      if (cancelled) return;
+      setUid(currentUserId());
+      setGid(guestId());
+      const saved = localStorage.getItem(AVATAR_KEY);
+      setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
+      setName(localStorage.getItem(NAME_KEY) || '');
+      setBio(localStorage.getItem(BIO_KEY) || '');
+      setMins(todayMinutes());
+      setStreak(readingStreak());
+      setHasPwd(hasPassword());
+      setAccountComplete(isAccountComplete());
+    };
+    void boot();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

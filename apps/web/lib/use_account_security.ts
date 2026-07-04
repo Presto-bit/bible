@@ -93,6 +93,7 @@ export function useAccountSecurity(onAccountChange?: () => void) {
       }
       setMsg(phone.trim() ? '已保存' : '用户名已保存');
       setPwd('');
+      setName(getUserName());
       notify();
       return true;
     } catch (e) {

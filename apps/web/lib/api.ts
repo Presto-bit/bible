@@ -134,7 +134,10 @@ async function refreshAccountStatus(code: string): Promise<void> {
     const d = await res.json();
     if (d.username) localStorage.setItem(NAME_KEY, d.username);
     applyAccountPhone(d.phone ?? null, code);
-    setHasPasswordCached(Boolean(d.has_password));
+    if (d.has_password) setHasPasswordCached(true);
+    else if (!localStorage.getItem(NAME_KEY)?.trim()) setHasPasswordCached(false);
+    // 服务端已有用户名+密码时，视为引导完成
+    if (d.username && d.has_password) markOnboarded();
   } catch {
     /* 离线跳过 */
   }
@@ -191,7 +194,16 @@ export async function ensureIdentityReady(): Promise<void> {
             markIdentityBootstrapped();
             return;
           }
-          // 本机 device_id 在服务端无绑定 → 丢弃本地旧 user_code，按 device_id 生成新 ID
+          // 服务端未绑定：若本地已设好用户名+密码，保留并稍后 register 重新绑定（避免反复清空又提示设置）
+          const local = localStorage.getItem(GUEST_KEY);
+          if (local && isUserCode(local) && localStorage.getItem(NAME_KEY)?.trim()
+            && localStorage.getItem(HAS_PWD_KEY) === '1') {
+            bindDeviceGuestId(local);
+            ensureFirstSeen();
+            markIdentityBootstrapped();
+            return;
+          }
+          // 本地也无完整账号 → 按 device_id 生成新 ID（清库/撞号后自动换号）
           clearLocalAccountIdentity();
           const fresh = deviceIdToUserCode(deviceId);
           localStorage.setItem(GUEST_KEY, fresh);
@@ -257,7 +269,9 @@ export async function ensureAccountReady(): Promise<void> {
         const d = await res.json();
         if (d.user_code && isUserCode(d.user_code)) applyServerUserCode(d.user_code);
         if (d.username) localStorage.setItem(NAME_KEY, d.username);
-        setHasPasswordCached(Boolean(d.has_password));
+        // 勿用「无密码」覆盖本地已确认的设密状态（避免 register 回包异常导致反复引导）
+        if (d.has_password) setHasPasswordCached(true);
+        else if (localStorage.getItem(HAS_PWD_KEY) !== '1') setHasPasswordCached(false);
       }
     } catch {
       /* 离线：本地 ID 仍可用 */
@@ -464,7 +478,11 @@ export async function setCredentials(username: string, password: string): Promis
     if (res.ok) {
       const d = await res.json();
       if (d.user_code && isUserCode(d.user_code)) applyServerUserCode(d.user_code);
-      setHasPasswordCached(Boolean(d.has_password));
+      if (d.username) localStorage.setItem(NAME_KEY, d.username);
+      // 本次提交了密码则本地直接记为已设密，避免回包缺字段导致引导不消失
+      if (password.length >= 6 || d.has_password) setHasPasswordCached(true);
+      else setHasPasswordCached(Boolean(d.has_password));
+      await refreshAccountStatus((d.user_code as string) || id);
     } else if (password) {
       throw new Error('保存失败，请检查网络');
     }
