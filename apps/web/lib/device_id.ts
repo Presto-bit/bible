@@ -398,3 +398,18 @@ export function bindDeviceGuestId(guestCode: string) {
   writeMap(map);
   void backupIdentity({ userCode: guestCode, deviceId, guestMap: map });
 }
+
+/** 清除本机当前 device 上的 guest 映射与 IDB 用户码（保留 device_id） */
+export function clearDeviceGuestBinding(): void {
+  const deviceId = getDeviceId();
+  if (deviceId) {
+    const map = readMap();
+    delete map[deviceId];
+    writeMap(map);
+  }
+  void idbSet(IDB_USER_CODE_KEY, '');
+  const controller = navigator.serviceWorker?.controller;
+  if (deviceId) {
+    controller?.postMessage({ type: 'identity-save', deviceId, userCode: null });
+  }
+}

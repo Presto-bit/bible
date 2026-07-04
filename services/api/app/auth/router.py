@@ -261,7 +261,19 @@ def device_user(device_id: str, fingerprint: str | None = None) -> dict:
                 (fp,),
             ).fetchone()
             if row:
-                return {"user_code": row[0]}
+                code = row[0]
+                # 账号已清除时视为未绑定，并删掉孤儿绑定，便于客户端自动换新 ID
+                acc = conn.execute(
+                    "SELECT 1 FROM accounts WHERE user_code = %s",
+                    (code,),
+                ).fetchone()
+                if acc:
+                    return {"user_code": code}
+                conn.execute(
+                    "DELETE FROM device_user_bindings WHERE device_fingerprint = %s",
+                    (fp,),
+                )
+                conn.commit()
         return {"user_code": None}
     except Exception as exc:
         logger.warning("device-user 查询失败：%s", exc)

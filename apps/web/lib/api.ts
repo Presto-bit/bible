@@ -1,6 +1,7 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
 import {
   bindDeviceGuestId,
+  clearDeviceGuestBinding,
   getDeviceBoundGuestId,
   getDeviceId,
   markIdentityBootstrapped,
@@ -157,12 +158,53 @@ function applyServerUserCode(code: string): void {
 
 let ensureIdentityPromise: Promise<void> | null = null;
 
-/** 启动时：解析 device_id → IDB 恢复 → 服务端找回 user_code */
+/** 丢弃本地账号缓存（保留安装级 device_id），用于服务端已解绑时自动换新 ID */
+function clearLocalAccountIdentity() {
+  localStorage.removeItem(GUEST_KEY);
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(PHONE_KEY);
+  localStorage.removeItem(PHONE_OWNER_KEY);
+  localStorage.removeItem(NAME_KEY);
+  localStorage.removeItem(HAS_PWD_KEY);
+  localStorage.removeItem(ONBOARDED_KEY);
+  clearDeviceGuestBinding();
+}
+
+/** 启动时：解析 device_id → 以服务端设备绑定为准分配 user_code */
 export async function ensureIdentityReady(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (ensureIdentityPromise) return ensureIdentityPromise;
   ensureIdentityPromise = (async () => {
     await resolveDeviceId();
+    const deviceId = getDeviceId();
+
+    // 在线：服务端绑定优先；未绑定则自动换新账号（清库/撞号后两台设备无需手动点）
+    if (deviceId && !deviceId.startsWith('dev-')) {
+      try {
+        const params = new URLSearchParams({ device_id: deviceId });
+        const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
+        if (res.ok) {
+          const d = (await res.json()) as { user_code?: string | null };
+          if (d.user_code && isUserCode(d.user_code)) {
+            applyServerUserCode(d.user_code);
+            ensureFirstSeen();
+            markIdentityBootstrapped();
+            return;
+          }
+          // 本机 device_id 在服务端无绑定 → 丢弃本地旧 user_code，按 device_id 生成新 ID
+          clearLocalAccountIdentity();
+          const fresh = deviceIdToUserCode(deviceId);
+          localStorage.setItem(GUEST_KEY, fresh);
+          localStorage.setItem(USER_KEY, fresh);
+          bindDeviceGuestId(fresh);
+          ensureFirstSeen();
+          markIdentityBootstrapped();
+          return;
+        }
+      } catch {
+        /* 离线：沿用本地 */
+      }
+    }
 
     let g = localStorage.getItem(GUEST_KEY);
     if (g && isUserCode(g)) {
@@ -177,26 +219,6 @@ export async function ensureIdentityReady(): Promise<void> {
       ensureFirstSeen();
       markIdentityBootstrapped();
       return;
-    }
-
-    // 仅按安装级 device_id 找回；不用硬件指纹（同型号会误绑他人账号）
-    const deviceId = getDeviceId();
-    if (deviceId && !deviceId.startsWith('dev-')) {
-      try {
-        const params = new URLSearchParams({ device_id: deviceId });
-        const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
-        if (res.ok) {
-          const d = (await res.json()) as { user_code?: string | null };
-          if (d.user_code && isUserCode(d.user_code)) {
-            applyServerUserCode(d.user_code);
-            ensureFirstSeen();
-            markIdentityBootstrapped();
-            return;
-          }
-        }
-      } catch {
-        /* 离线：走本地确定性 ID */
-      }
     }
 
     g = deviceIdToUserCode(deviceId);
