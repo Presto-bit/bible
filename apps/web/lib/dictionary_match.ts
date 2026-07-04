@@ -49,6 +49,17 @@ export function entityTypeLabel(type: string | undefined): string {
   return TYPE_ZH[type] ?? type;
 }
 
+/** 义项切换条短标签：优先消歧名括号前部分 */
+export function entitySenseLabel(e: DictEntity): string {
+  const d = e.disambiguation?.trim();
+  if (d) {
+    const head = d.match(/^[^（(]+/)?.[0]?.trim();
+    if (head) return head;
+  }
+  const type = entityTypeLabel(e.type);
+  return type ? `${e.name}·${type}` : e.name;
+}
+
 /** 展示用摘要：过滤 Male/City 等无效英文标签 */
 export function entitySummaryText(e: DictEntity): string {
   const s = (e.summary || '').trim();
@@ -77,19 +88,39 @@ export function buildDictIndex(entities: DictEntity[]): Map<string, DictEntity[]
   return m;
 }
 
+/** 书卷语境下的义项偏好（如约翰福音 → 使徒约翰） */
+const BOOK_SENSE_HINTS: Record<string, RegExp> = {
+  JHN: /使徒|所爱的门徒|福音作者|启示录/,
+  '1JN': /使徒|所爱的门徒/,
+  '2JN': /使徒|所爱的门徒/,
+  '3JN': /使徒|所爱的门徒/,
+  REV: /使徒|拔摩|启示录/,
+  MRK: /马可|约翰马可/,
+  ACT: /施洗|先锋|马可/,
+  MAT: /施洗|先锋|使徒/,
+  LUK: /施洗|先锋|使徒/,
+};
+
 function scoreEntity(e: DictEntity, ctx: DictContext): number {
   let score = 0;
-  const ctxT = testament(ctx.bookId);
+  const bookId = ctx.bookId.toUpperCase();
+  const ctxT = testament(bookId);
   if (e.testament === ctxT) score += 40;
   if (e.testament === 'BOTH') score += 20;
 
   const scope = new Set((e.scope_books ?? []).map((b) => b.toUpperCase()));
-  if (scope.has(ctx.bookId.toUpperCase())) score += 80;
+  if (scope.has(bookId)) score += 80;
+
+  const hint = BOOK_SENSE_HINTS[bookId];
+  if (hint) {
+    const blob = `${e.disambiguation ?? ''} ${e.summary ?? ''} ${(e.aliases ?? []).join(' ')}`;
+    if (hint.test(blob)) score += 100;
+  }
 
   for (const ref of e.refs ?? []) {
     const c = refCoords(ref.replace(/\./g, ' '));
     if (!c) continue;
-    if (c.book === ctx.bookId.toUpperCase()) {
+    if (c.book === bookId) {
       score += 30;
       if (c.chapter === ctx.chapter) {
         score += 20;
@@ -133,11 +164,25 @@ export function lookupDictCandidates(
   return [...list].sort((a, b) => scoreEntity(b, ctx) - scoreEntity(a, ctx));
 }
 
+/** 是否存在明显次优义项（用于详情里展示「其他义项」切换，不再强制先选） */
+export function hasAlternateSenses(candidates: DictEntity[], ctx: DictContext): boolean {
+  return candidates.length > 1;
+}
+
+/** @deprecated 保留兼容；现默认直接展示最佳义项 */
 export function needsDisambiguation(candidates: DictEntity[], ctx: DictContext): boolean {
   if (candidates.length <= 1) return false;
   const scores = candidates.map((c) => scoreEntity(c, ctx));
-  if (scores[0] - scores[1] >= 35) return false;
+  // 分差足够大时视为已消歧，无需展示其他义项条
+  if (scores[0] - scores[1] >= 50) return false;
   return true;
+}
+
+export function rankDictCandidates(
+  candidates: DictEntity[],
+  ctx: DictContext,
+): DictEntity[] {
+  return [...candidates].sort((a, b) => scoreEntity(b, ctx) - scoreEntity(a, ctx));
 }
 
 export function dictMatchPattern(index: Map<string, DictEntity[]>): RegExp | null {

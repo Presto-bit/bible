@@ -33,8 +33,8 @@
   --app-heading-size: var(--font-xl);
   --app-line-height: 1.55;
   --reader-font-size: 18px;
-  /* 小爱 Tab / FAB：输入与输出统一 13px */
-  --assistant-answer-font-size: 13px;
+  /* 小爱 Tab / FAB：输入与输出统一 14px */
+  --assistant-answer-font-size: 14px;
 }
 
 * {
@@ -1063,20 +1063,20 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-card {
-  flex: 0 0 min(94%, 360px);
-  max-width: min(94%, 360px);
+  flex: 0 0 min(78%, 300px);
+  max-width: min(78%, 300px);
   scroll-snap-align: start;
   display: block;
   transition: opacity 0.28s ease;
 }
 
-/* 左圆标 + 右文案 */
+/* 左圆标 + 右文案（高度较初版 +20%） */
 .rail-card-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
-  min-height: 88px;
+  padding: 14px 14px;
+  min-height: 106px;
   box-sizing: border-box;
 }
 
@@ -1970,8 +1970,17 @@ a.today-card-link {
   touch-action: pan-y;
 }
 
+/* 与系统划词蓝一致，避免按下蓝、松开灰的色差 */
+.reader-page .verse-token::selection,
+.reader-page .verse-inline::selection,
+.reader-page .verse-token *::selection,
+.reader-page .verse-inline *::selection {
+  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.28));
+  color: inherit;
+}
+
 .verse-sel-active {
-  background: rgba(122, 90, 60, 0.14);
+  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.28));
   border-radius: 4px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
@@ -2030,10 +2039,20 @@ a.today-card-link {
   font-weight: 600;
 }
 
-/* 搜索：地图/时间线故事化步骤 */
+/* 搜索：地图/时间线故事卡片 */
+.story-card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .story-tour-card {
   padding: 0;
   overflow: hidden;
+}
+
+.story-tour-card.is-open {
+  box-shadow: var(--card-elev-hero, var(--elev-2));
 }
 
 .story-tour-head {
@@ -4525,6 +4544,7 @@ a.today-card-link {
 }
 
 .reader-page {
+  --reader-sel-bg: rgba(51, 144, 255, 0.28);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -9615,6 +9635,42 @@ html.app-theme-dark body {
   width: 18px;
   height: 18px;
   accent-color: var(--accent);
+}
+
+.dict-entry-sheet {
+  max-height: min(78vh, 560px);
+  overflow-y: auto;
+}
+
+.dict-sense-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 4px;
+}
+
+.dict-sense-hint {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.dict-sense-chip {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-soft);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.3;
+}
+
+.dict-sense-chip.is-active {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-weight: 600;
 }
 
 .dict-disambig-sheet {

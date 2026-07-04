@@ -7,27 +7,17 @@ import {
   type BibleSearchHit,
   type MapTour,
   type TimelineTour,
-  type TopicEntry,
 } from '@/lib/api';
 import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
-import { LIFE_TOPICS, matchLifeTopics } from '@/lib/discover_topics';
-import { loadDailyThemes } from '@/lib/daily_themes';
-import { mergeDiscoverTopics, isLifeTopic, topicColor } from '@/lib/topics_display';
+import { LIFE_TOPICS } from '@/lib/discover_topics';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 
 const HISTORY_KEY = 'search_history';
-
-type TopicVerseHit = {
-  topic: string;
-  ref: string;
-  text: string;
-  osis: string;
-};
 
 function searchTooShort(q: string): boolean {
   const hasCjk = /[\u4e00-\u9fff]/.test(q);
@@ -52,12 +42,6 @@ function saveHistory(q: string) {
   return next;
 }
 
-function normalizeRef(raw: string): string {
-  const s = String(raw || '').trim();
-  if (!s) return s;
-  return s.includes('.') ? s : refSpaceToOsis(s.replace(/\./g, ' '));
-}
-
 export default function SearchPage() {
   const router = useRouter();
   const [backHref, setBackHref] = useState('/reader');
@@ -67,11 +51,6 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [notes, setNotes] = useState<LocalNote[]>([]);
-  const [lifeTopics, setLifeTopics] = useState(() => mergeDiscoverTopics([]));
-  const [apiTopics, setApiTopics] = useState<TopicEntry[]>([]);
-  const [dailyThemes, setDailyThemes] = useState<string[]>([]);
-  const [topicVerses, setTopicVerses] = useState<TopicVerseHit[]>([]);
-  const [topicLoading, setTopicLoading] = useState(false);
   const [mapTours, setMapTours] = useState<MapTour[]>([]);
   const [timelineTours, setTimelineTours] = useState<TimelineTour[]>([]);
   const [toursReady, setToursReady] = useState(false);
@@ -91,12 +70,6 @@ export default function SearchPage() {
       const next = saveHistory(q);
       if (next) setHistory(next);
     }
-    void api.topics().then((d) => {
-      const list = 'topics' in d ? (d.topics ?? []) : [];
-      setApiTopics(list);
-      setLifeTopics(mergeDiscoverTopics(list));
-    }).catch(() => {});
-    void loadDailyThemes().then((d) => setDailyThemes(d.themes));
     void Promise.all([
       api.mapTours().then((d) => setMapTours(d.tours ?? [])).catch(() => setMapTours([])),
       api.timelineTours().then((d) => setTimelineTours(d.tours ?? [])).catch(() => setTimelineTours([])),
@@ -115,23 +88,6 @@ export default function SearchPage() {
       .slice(0, 10);
   }, [notes, query]);
 
-  const filteredLifeTopics = useMemo(() => {
-    const q = query.trim();
-    if (!q) return lifeTopics;
-    return lifeTopics.filter((t) => {
-      const title = isLifeTopic(t) ? t.title : t.name;
-      const sub = isLifeTopic(t) ? t.subtitle : '';
-      return title.includes(q) || sub.includes(q);
-    });
-  }, [lifeTopics, query]);
-
-  const filteredDailyThemes = useMemo(() => {
-    const q = query.trim();
-    if (!q) return dailyThemes;
-    return dailyThemes.filter((t) => t.includes(q));
-  }, [dailyThemes, query]);
-
-  // 经文全文搜索
   useEffect(() => {
     const q = query.trim();
     if (searchTooShort(q)) {
@@ -157,102 +113,12 @@ export default function SearchPage() {
     };
   }, [query]);
 
-  // 关键词自动匹配主题经文
-  useEffect(() => {
-    const q = query.trim();
-    if (searchTooShort(q)) {
-      setTopicVerses([]);
-      return;
-    }
-
-    const matched = new Map<string, string>(); // title -> api key
-    for (const t of matchLifeTopics(q)) {
-      matched.set(t.title, t.title);
-    }
-    for (const t of apiTopics) {
-      const name = t.name || t.id;
-      if (name.includes(q) || t.id.includes(q)) {
-        matched.set(name, name);
-      }
-    }
-    for (const theme of dailyThemes) {
-      if (theme.includes(q)) matched.set(theme, theme);
-    }
-
-    if (matched.size === 0) {
-      setTopicVerses([]);
-      return;
-    }
-
-    let cancelled = false;
-    setTopicLoading(true);
-
-    void (async () => {
-      const out: TopicVerseHit[] = [];
-      const seenRef = new Set<string>();
-
-      // 人生主题静态经文优先
-      for (const t of matchLifeTopics(q)) {
-        for (const v of t.verses) {
-          const osis = normalizeRef(v.ref);
-          if (seenRef.has(osis)) continue;
-          seenRef.add(osis);
-          out.push({
-            topic: t.title,
-            ref: v.ref,
-            text: v.text,
-            osis,
-          });
-        }
-      }
-
-      // API 主题经文（含经文主题）
-      const keys = Array.from(matched.values()).slice(0, 6);
-      await Promise.all(
-        keys.map(async (key) => {
-          try {
-            const d = await api.topics(key);
-            if (!d || typeof d !== 'object' || !('refs' in d)) return;
-            const entry = d as TopicEntry & {
-              refs?: Array<string | { ref: string; text?: string }>;
-            };
-            const topicName = entry.name || key;
-            for (const r of (entry.refs ?? []).slice(0, 8)) {
-              const raw = typeof r === 'string' ? r : r.ref;
-              const text = typeof r === 'string' ? '' : (r.text || '');
-              const osis = normalizeRef(raw);
-              if (!osis || seenRef.has(osis)) continue;
-              seenRef.add(osis);
-              out.push({
-                topic: topicName,
-                ref: raw,
-                text: text.trim() || '（点击阅读）',
-                osis,
-              });
-            }
-          } catch {
-            /* 单主题失败不影响其它 */
-          }
-        }),
-      );
-
-      if (!cancelled) {
-        setTopicVerses(out.slice(0, 24));
-        setTopicLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [query, apiTopics, dailyThemes]);
-
   const onSubmit = (q: string) => {
     const next = saveHistory(q);
     if (next) setHistory(next);
   };
 
-  const applyTopicQuery = (name: string) => {
+  const applyHistoryQuery = (name: string) => {
     setQuery(name);
     onSubmit(name);
   };
@@ -266,12 +132,6 @@ export default function SearchPage() {
     onSubmit(query);
     const snippet = hit.text.length > 24 ? `${hit.text.slice(0, 24)}…` : hit.text;
     navigateToAssistant(hit.osis, { question: `请解释：${snippet}` });
-  };
-
-  const openTopicVerse = (v: TopicVerseHit) => {
-    onSubmit(query);
-    const href = readerHrefFromRef(v.ref) || readerHrefFromRef(v.osis);
-    if (href) window.location.href = href;
   };
 
   const hasQuery = !searchTooShort(query.trim());
@@ -302,6 +162,11 @@ export default function SearchPage() {
     });
   };
 
+  const showStoryCards =
+    toursReady &&
+    (filteredMapTours.length > 0 || filteredTimelineTours.length > 0) &&
+    (!qText || filteredMapTours.length > 0 || filteredTimelineTours.length > 0);
+
   return (
     <main className="container">
       <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
@@ -322,155 +187,13 @@ export default function SearchPage() {
       <input
         className="search-input"
         autoFocus
-        placeholder="搜索经文、主题、人生话题…"
+        placeholder="搜索经文、笔记…"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') onSubmit(query);
         }}
       />
-
-      <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-        点选下方主题即可匹配经文；也可直接输入关键词
-      </p>
-
-      {(!qText || filteredMapTours.length > 0 || filteredTimelineTours.length > 0) && (
-        <section style={{ marginTop: 16 }}>
-          <h3 className="search-section-title">跟着故事走</h3>
-          <p className="muted" style={{ fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
-            地图按地点顺序讲故事，时间线按年代推进。点开一条，顺着步骤读经文。
-          </p>
-          {!toursReady ? (
-            <p className="muted" style={{ fontSize: 13 }}>加载中…</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {filteredMapTours.map((tour) => {
-                const open = expandedMap === tour.id;
-                const stops = tour.stops ?? [];
-                return (
-                  <div key={tour.id} className="card card-2 story-tour-card">
-                    <button
-                      type="button"
-                      className="story-tour-head"
-                      onClick={() => {
-                        setExpandedMap(open ? null : tour.id);
-                        setExpandedTimeline(null);
-                      }}
-                    >
-                      <span className="story-tour-badge">地图故事</span>
-                      <strong className="story-tour-title">{tour.title}</strong>
-                      <p className="muted story-tour-meta">
-                        {[tour.era, tour.subtitle, `${stops.length} 站`].filter(Boolean).join(' · ')}
-                      </p>
-                      <span className="story-tour-toggle">{open ? '收起' : '开始跟随 ›'}</span>
-                    </button>
-                    {open && (
-                      <div className="story-tour-body">
-                        {tour.description ? (
-                          <p className="story-tour-lead">{tour.description}</p>
-                        ) : null}
-                        <ol className="story-step-list">
-                          {stops.map((stop, idx) => (
-                            <li key={stop.order} className="story-step">
-                              <span className="story-step-num" aria-hidden>{idx + 1}</span>
-                              <div className="story-step-main">
-                                <strong className="story-step-title">{stop.label}</strong>
-                                {stop.note ? (
-                                  <p className="muted story-step-note">{stop.note}</p>
-                                ) : null}
-                                {stop.ref ? (
-                                  <button
-                                    type="button"
-                                    className="story-step-cta"
-                                    onClick={() => {
-                                      const href = readerHrefFromRef(stop.ref);
-                                      if (href) window.location.href = href;
-                                      else openRef(stop.ref);
-                                    }}
-                                  >
-                                    读这段 · {formatGroupRefLabel(stop.ref) || stop.ref}
-                                  </button>
-                                ) : null}
-                              </div>
-                            </li>
-                          ))}
-                        </ol>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {filteredTimelineTours.map((tour) => {
-                const open = expandedTimeline === tour.id;
-                const events = tour.events ?? [];
-                return (
-                  <div key={tour.id} className="card card-2 story-tour-card">
-                    <button
-                      type="button"
-                      className="story-tour-head"
-                      onClick={() => {
-                        setExpandedTimeline(open ? null : tour.id);
-                        setExpandedMap(null);
-                      }}
-                    >
-                      <span className="story-tour-badge story-tour-badge-time">时间故事</span>
-                      <strong className="story-tour-title">{tour.title}</strong>
-                      <p className="muted story-tour-meta">
-                        {[tour.subtitle, `${events.length} 个节点`].filter(Boolean).join(' · ')}
-                      </p>
-                      <span className="story-tour-toggle">{open ? '收起' : '开始跟随 ›'}</span>
-                    </button>
-                    {open && (
-                      <div className="story-tour-body">
-                        {tour.description ? (
-                          <p className="story-tour-lead">{tour.description}</p>
-                        ) : null}
-                        <ol className="story-step-list">
-                          {events.map((ev, idx) => {
-                            const ref = `${ev.book} ${ev.chapter}:1`;
-                            return (
-                              <li key={ev.order} className="story-step">
-                                <span className="story-step-num" aria-hidden>{idx + 1}</span>
-                                <div className="story-step-main">
-                                  <strong className="story-step-title">
-                                    {ev.label}
-                                    {ev.year_display ? (
-                                      <span className="muted story-step-year"> · {ev.year_display}</span>
-                                    ) : null}
-                                  </strong>
-                                  {ev.note ? (
-                                    <p className="muted story-step-note">{ev.note}</p>
-                                  ) : null}
-                                  <button
-                                    type="button"
-                                    className="story-step-cta"
-                                    onClick={() => {
-                                      const href = readerHrefFromRef(ref);
-                                      if (href) window.location.href = href;
-                                      else openRef(ref);
-                                    }}
-                                  >
-                                    读这段 · {formatGroupRefLabel(ref) || `${ev.book} ${ev.chapter}`}
-                                  </button>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              {filteredMapTours.length === 0 && filteredTimelineTours.length === 0 && (
-                <p className="muted" style={{ fontSize: 13 }}>暂无匹配专题</p>
-              )}
-            </div>
-          )}
-        </section>
-      )}
 
       {history.length > 0 && (
         <div className="chip-row" style={{ marginTop: 12 }}>
@@ -480,7 +203,7 @@ export default function SearchPage() {
               type="button"
               className="book-chip"
               style={{ width: 'auto' }}
-              onClick={() => applyTopicQuery(h)}
+              onClick={() => applyHistoryQuery(h)}
             >
               {h}
             </button>
@@ -488,30 +211,134 @@ export default function SearchPage() {
         </div>
       )}
 
-      {hasQuery && topicVerses.length > 0 && (
-        <section style={{ marginTop: 18 }}>
-          <h3 className="search-section-title">
-            主题经文{topicLoading ? '…' : ` · ${topicVerses.length}`}
-          </h3>
-          {topicVerses.map((v) => (
-            <div
-              key={`${v.topic}-${v.osis}`}
-              className="card card-2"
-              style={{ marginBottom: 8, padding: 14, cursor: 'pointer' }}
-              onClick={() => openTopicVerse(v)}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
-                <span style={{ fontWeight: 700, color: 'var(--accent-deep)' }}>
-                  {formatGroupRefLabel(v.ref) ?? v.ref}
-                </span>
-                <span className="muted" style={{ fontSize: 12 }}>{v.topic}</span>
-              </div>
-              <p style={{ margin: '6px 0 0', lineHeight: 1.55, color: 'var(--ink-soft)' }}>
-                {v.text}
-              </p>
-            </div>
-          ))}
+      {showStoryCards && (
+        <section className="story-card-rail" style={{ marginTop: 14 }}>
+          <div className="story-card-grid">
+            {filteredMapTours.map((tour) => {
+              const open = expandedMap === tour.id;
+              const stops = tour.stops ?? [];
+              return (
+                <div key={tour.id} className={`card card-2 story-tour-card${open ? ' is-open' : ''}`}>
+                  <button
+                    type="button"
+                    className="story-tour-head"
+                    onClick={() => {
+                      setExpandedMap(open ? null : tour.id);
+                      setExpandedTimeline(null);
+                    }}
+                  >
+                    <span className="story-tour-badge">地图故事</span>
+                    <strong className="story-tour-title">{tour.title}</strong>
+                    <p className="muted story-tour-meta">
+                      {[tour.era, tour.subtitle, `${stops.length} 站`].filter(Boolean).join(' · ')}
+                    </p>
+                    <span className="story-tour-toggle">{open ? '收起' : '查看详情 ›'}</span>
+                  </button>
+                  {open && (
+                    <div className="story-tour-body">
+                      {tour.description ? (
+                        <p className="story-tour-lead">{tour.description}</p>
+                      ) : null}
+                      <ol className="story-step-list">
+                        {stops.map((stop, idx) => (
+                          <li key={stop.order} className="story-step">
+                            <span className="story-step-num" aria-hidden>{idx + 1}</span>
+                            <div className="story-step-main">
+                              <strong className="story-step-title">{stop.label}</strong>
+                              {stop.note ? (
+                                <p className="muted story-step-note">{stop.note}</p>
+                              ) : null}
+                              {stop.ref ? (
+                                <button
+                                  type="button"
+                                  className="story-step-cta"
+                                  onClick={() => {
+                                    const href = readerHrefFromRef(stop.ref);
+                                    if (href) window.location.href = href;
+                                    else openRef(stop.ref);
+                                  }}
+                                >
+                                  读这段 · {formatGroupRefLabel(stop.ref) || stop.ref}
+                                </button>
+                              ) : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {filteredTimelineTours.map((tour) => {
+              const open = expandedTimeline === tour.id;
+              const events = tour.events ?? [];
+              return (
+                <div key={tour.id} className={`card card-2 story-tour-card${open ? ' is-open' : ''}`}>
+                  <button
+                    type="button"
+                    className="story-tour-head"
+                    onClick={() => {
+                      setExpandedTimeline(open ? null : tour.id);
+                      setExpandedMap(null);
+                    }}
+                  >
+                    <span className="story-tour-badge story-tour-badge-time">时间故事</span>
+                    <strong className="story-tour-title">{tour.title}</strong>
+                    <p className="muted story-tour-meta">
+                      {[tour.subtitle, `${events.length} 个节点`].filter(Boolean).join(' · ')}
+                    </p>
+                    <span className="story-tour-toggle">{open ? '收起' : '查看详情 ›'}</span>
+                  </button>
+                  {open && (
+                    <div className="story-tour-body">
+                      {tour.description ? (
+                        <p className="story-tour-lead">{tour.description}</p>
+                      ) : null}
+                      <ol className="story-step-list">
+                        {events.map((ev, idx) => {
+                          const ref = `${ev.book} ${ev.chapter}:1`;
+                          return (
+                            <li key={ev.order} className="story-step">
+                              <span className="story-step-num" aria-hidden>{idx + 1}</span>
+                              <div className="story-step-main">
+                                <strong className="story-step-title">
+                                  {ev.label}
+                                  {ev.year_display ? (
+                                    <span className="muted story-step-year"> · {ev.year_display}</span>
+                                  ) : null}
+                                </strong>
+                                {ev.note ? (
+                                  <p className="muted story-step-note">{ev.note}</p>
+                                ) : null}
+                                <button
+                                  type="button"
+                                  className="story-step-cta"
+                                  onClick={() => {
+                                    const href = readerHrefFromRef(ref);
+                                    if (href) window.location.href = href;
+                                    else openRef(ref);
+                                  }}
+                                >
+                                  读这段 · {formatGroupRefLabel(ref) || `${ev.book} ${ev.chapter}`}
+                                </button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </section>
+      )}
+
+      {!toursReady && !hasQuery && (
+        <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>加载故事卡片…</p>
       )}
 
       {hasQuery && (
@@ -519,7 +346,7 @@ export default function SearchPage() {
           <h3 className="search-section-title">经文</h3>
           {loading && <p className="muted">搜索中…</p>}
           {err && <p className="muted">搜索失败：{err}</p>}
-          {!loading && !err && hits.length === 0 && topicVerses.length === 0 && (
+          {!loading && !err && hits.length === 0 && (
             <p className="muted">未找到匹配经文</p>
           )}
           {hits.map((h) => (
@@ -584,50 +411,6 @@ export default function SearchPage() {
         </section>
       )}
 
-      {(query.trim().length === 0 || filteredLifeTopics.length > 0) && (
-        <section style={{ marginTop: 18 }}>
-          <h3 className="search-section-title">人生主题</h3>
-          <div className="theme-grid">
-            {filteredLifeTopics.map((t, i) => {
-              const title = isLifeTopic(t) ? t.title : (t as TopicEntry).name;
-              const color = isLifeTopic(t)
-                ? t.color
-                : (t as TopicEntry & { color?: string }).color || topicColor(i);
-              return (
-                <button
-                  key={title}
-                  type="button"
-                  className="card card-2 theme-chip search-topic-chip"
-                  style={{ borderLeft: `3px solid ${color}`, textAlign: 'left' }}
-                  onClick={() => applyTopicQuery(title)}
-                >
-                  {title}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {(query.trim().length === 0 || filteredDailyThemes.length > 0) && dailyThemes.length > 0 && (
-        <section style={{ marginTop: 18 }}>
-          <h3 className="search-section-title">经文主题</h3>
-          <div className="chip-row">
-            {filteredDailyThemes.map((t) => (
-              <button
-                key={t}
-                type="button"
-                className="book-chip"
-                style={{ width: 'auto' }}
-                onClick={() => applyTopicQuery(t)}
-              >
-                {t}
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
       {query.trim().length === 0 && (
         <section style={{ marginTop: 18 }}>
           <h3 className="search-section-title">热门关键词</h3>
@@ -637,7 +420,7 @@ export default function SearchPage() {
                 key={t.id}
                 type="button"
                 className="card card-2 theme-chip"
-                onClick={() => applyTopicQuery(t.title)}
+                onClick={() => applyHistoryQuery(t.title)}
               >
                 {t.title}
               </button>

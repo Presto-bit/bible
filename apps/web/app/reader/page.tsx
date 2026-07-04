@@ -14,14 +14,14 @@ import {
   buildDictIndex,
   dictMatchPattern,
   entityDisplayName,
+  entitySenseLabel,
   entitySummaryText,
   entityTypeLabel,
+  hasAlternateSenses,
   lookupDictCandidates,
-  needsDisambiguation,
   writeDictChoice,
   type DictContext,
 } from '@/lib/dictionary_match';
-import { DictDisambigSheet } from '@/components/dictionary/DictDisambigSheet';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -51,9 +51,13 @@ export default function ReaderPage() {
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [dict, setDict] = useState<DictEntity[]>([]);
-  const [dictPopup, setDictPopup] = useState<DictEntity | null>(null);
+  const [dictPopup, setDictPopup] = useState<{
+    entity: DictEntity;
+    name: string;
+    candidates: DictEntity[];
+    ctx: DictContext;
+  } | null>(null);
   const [dictRefPreview, setDictRefPreview] = useState<{ osis: string; label: string } | null>(null);
-  const [disambig, setDisambig] = useState<{ name: string; candidates: DictEntity[]; verse: number } | null>(null);
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
   const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
   const [flashRef, setFlashRef] = useState<string | null>(null);
@@ -61,10 +65,15 @@ export default function ReaderPage() {
   const dictIndex = useMemo(() => buildDictIndex(dict), [dict]);
   const properNounRe = useMemo(() => dictMatchPattern(dictIndex), [dictIndex]);
 
-  const openEntity = useCallback((entity: DictEntity, name: string, ctx: DictContext) => {
-    writeDictChoice(name, ctx.bookId, entity.id ?? entity.name);
-    setDictPopup(entity);
-    setDisambig(null);
+  const openEntity = useCallback((
+    entity: DictEntity,
+    name: string,
+    ctx: DictContext,
+    candidates: DictEntity[],
+    remember: boolean,
+  ) => {
+    if (remember) writeDictChoice(name, ctx.bookId, entity.id ?? entity.name);
+    setDictPopup({ entity, name, candidates, ctx });
   }, []);
 
   const handleNameClick = useCallback(
@@ -73,11 +82,8 @@ export default function ReaderPage() {
       const ctx: DictContext = { bookId: book.id, chapter, verse };
       const candidates = lookupDictCandidates(name, dictIndex, ctx);
       if (!candidates.length) return;
-      if (candidates.length === 1 || !needsDisambiguation(candidates, ctx)) {
-        openEntity(candidates[0], name, ctx);
-        return;
-      }
-      setDisambig({ name, candidates, verse });
+      // 直接展示语境最佳义项，避免「先选再看」造成困惑
+      openEntity(candidates[0], name, ctx, candidates, candidates.length === 1);
     },
     [book, chapter, dictIndex, openEntity],
   );
@@ -255,38 +261,51 @@ export default function ReaderPage() {
         onPlanMetaChange={setPlanMeta}
         onPlanJump={handlePlanJump}
         onPlanExit={planMeta ? handlePlanExit : undefined}
-        externalOverlayOpen={Boolean(dictPopup || disambig)}
+        externalOverlayOpen={Boolean(dictPopup)}
         flashRef={flashRef}
         checkinGroupId={checkinGroupId}
       />
-      {disambig && book && (
-        <DictDisambigSheet
-          name={disambig.name}
-          candidates={disambig.candidates}
-          onPick={(e) => openEntity(e, disambig.name, { bookId: book.id, chapter, verse: disambig.verse })}
-          onClose={() => setDisambig(null)}
-        />
-      )}
       {dictPopup && (
         <div className="sheet-backdrop" onClick={() => setDictPopup(null)}>
-          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
+          <div className="sheet card dict-entry-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="section-row" style={{ marginTop: 0 }}>
               <h3 style={{ margin: 0 }}>
-                {entityDisplayName(dictPopup)}
-                {entityTypeLabel(dictPopup.type) ? (
+                {entityDisplayName(dictPopup.entity)}
+                {entityTypeLabel(dictPopup.entity.type) ? (
                   <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-                    {entityTypeLabel(dictPopup.type)}
+                    {entityTypeLabel(dictPopup.entity.type)}
                   </span>
                 ) : null}
               </h3>
               <button type="button" className="text-link" onClick={() => setDictPopup(null)}>关闭</button>
             </div>
-            <p style={{ lineHeight: 1.7, marginTop: 8 }}>{entitySummaryText(dictPopup)}</p>
-            {dictPopup.refs?.length > 0 && (
+            {hasAlternateSenses(dictPopup.candidates, dictPopup.ctx) && (
+              <div className="dict-sense-row" role="tablist" aria-label="切换义项">
+                <span className="muted dict-sense-hint">也可能是：</span>
+                {dictPopup.candidates.map((c) => {
+                  const active = (c.id ?? c.name) === (dictPopup.entity.id ?? dictPopup.entity.name);
+                  const label = entitySenseLabel(c);
+                  return (
+                    <button
+                      key={c.id ?? c.name}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className={`dict-sense-chip${active ? ' is-active' : ''}`}
+                      onClick={() => openEntity(c, dictPopup.name, dictPopup.ctx, dictPopup.candidates, true)}
+                    >
+                      {label.length > 14 ? `${label.slice(0, 14)}…` : label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <p style={{ lineHeight: 1.7, marginTop: 8 }}>{entitySummaryText(dictPopup.entity)}</p>
+            {dictPopup.entity.refs && dictPopup.entity.refs.length > 0 && (
               <div style={{ marginTop: 10 }}>
                 <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>参考经文</p>
                 <div className="share-actions">
-                  {dictPopup.refs.slice(0, 8).map((r) => (
+                  {dictPopup.entity.refs.slice(0, 8).map((r) => (
                     <button
                       key={r}
                       type="button"
