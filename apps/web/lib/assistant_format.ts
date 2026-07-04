@@ -40,6 +40,37 @@ export function bodyText(text: string): string {
   return stripFollowups(text);
 }
 
+/**
+ * 句末软换行，便于阅读。
+ * 不拆：编号 `1.`、括号内句末、闭合标点前（避免 `。` 后把 `）` 甩到下一行）。
+ * 不对英文 `.!?` 断行（否则 `1. 要点` 会变成 `1.` / `要点` 两行）。
+ */
+export function softBreakSentences(text: string): string {
+  let depth = 0;
+  let out = '';
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i]!;
+    if (ch === '（' || ch === '(') depth += 1;
+    if (ch === '）' || ch === ')') depth = Math.max(0, depth - 1);
+    out += ch;
+    if (depth > 0) continue;
+    if (ch !== '。' && ch !== '；' && ch !== '！' && ch !== '？') continue;
+    const next = text[i + 1];
+    if (!next || next === '\n') continue;
+    // 句号紧贴闭合标点时不断行：`。）` `。」`
+    if ('）」』》】"\'”’'.includes(next)) continue;
+    out += '\n';
+  }
+  return out;
+}
+
+/** 合并被误拆到单独一行的闭合括号 */
+export function joinOrphanClosers(text: string): string {
+  return text
+    .replace(/\n+[ \t]*([）\)」』》】]+)/g, '$1')
+    .replace(/([（(【「『《])\n+/g, '$1');
+}
+
 export interface ParsedAnswer {
   body: string;
   followups: string[];

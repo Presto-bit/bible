@@ -2,7 +2,12 @@
 
 import React from 'react';
 import type { Citation } from '@/lib/api';
-import { bodyText, streamingSafeBody } from '@/lib/assistant_format';
+import {
+  bodyText,
+  joinOrphanClosers,
+  softBreakSentences,
+  streamingSafeBody,
+} from '@/lib/assistant_format';
 
 const LABEL_RE = /^【([^】]+)】\s*(.*)$/;
 const FOLLOWUP_HEAD = /^[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])\s*$/;
@@ -73,11 +78,7 @@ export default function AnswerText({
 }: Props) {
   if (!text) return null;
   const raw = streaming ? streamingSafeBody(text) : bodyText(text);
-  const normalized = dense
-    ? raw
-    : raw
-        .replace(/([。；！？])(?=[^\n])/g, '$1\n')
-        .replace(/([.!?])(?=\s*[^\n])/g, '$1\n');
+  const normalized = dense ? raw : joinOrphanClosers(softBreakSentences(raw));
   const lines = normalized.split('\n');
   const blocks: React.ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
@@ -116,7 +117,7 @@ export default function AnswerText({
     const heading = line.match(/^#{1,4}\s+(.*)$/);
     const labelM = line.match(LABEL_RE);
     const bullet = line.match(/^\s*[-•·]\s+(.*)$/);
-    const numbered = line.match(/^\s*\d+[.、)]\s+(.*)$/);
+    const numbered = line.match(/^\s*\d+[.、)）]\s*(.*)$/);
     const circle = line.match(CIRCLE_BULLET_RE);
     const quote = line.match(/^>\s?(.*)$/);
 
