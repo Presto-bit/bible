@@ -1,7 +1,6 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { markReaderTabEntry } from '@/lib/reading';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
@@ -64,30 +63,44 @@ const SECONDARY_PREFIXES = [
 
 const GROUP_COMPACT_RE = /^\/discover\/(group\/|join)/;
 
+/** 底部 Tab：用 button 导航，避免 PWA/Safari 长按链接弹出预览与共享 */
 export default function BottomTabs() {
   const pathname = usePathname();
+  const router = useRouter();
   const compact =
     SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
     || GROUP_COMPACT_RE.test(pathname);
+
+  const go = (href: string) => {
+    if (href === '/reader') markReaderTabEntry();
+    if (pathname === href) return;
+    router.push(href);
+  };
+
   return (
-    <nav className={`tabbar${compact ? ' tabbar-compact-nav' : ''}`}>
+    <nav
+      className={`tabbar${compact ? ' tabbar-compact-nav' : ''}`}
+      aria-label="主导航"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {TABS.map((t) => {
         const active =
           t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);
         return (
-          <Link
+          <button
             key={t.href}
-            href={t.href}
+            type="button"
             className={`tab ${active ? 'tab-active' : ''}`}
-            onClick={() => {
-              if (t.href === '/reader') markReaderTabEntry();
-            }}
+            aria-current={active ? 'page' : undefined}
+            aria-label={t.label}
+            onClick={() => go(t.href)}
+            onContextMenu={(e) => e.preventDefault()}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <path d={active ? t.filled : t.outline} />
             </svg>
             <span>{t.label}</span>
-          </Link>
+          </button>
         );
       })}
     </nav>
