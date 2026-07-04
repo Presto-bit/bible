@@ -99,9 +99,14 @@ export default function DiscoverGroupsPage() {
           ‹ 发现
         </Link>
         <span>我的共读群</span>
-        <Link className="btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: 13 }} href="/group/create">
-          新建
-        </Link>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Link className="btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: 13 }} href="/discover/join">
+            加入
+          </Link>
+          <Link className="text-link" style={{ fontSize: 13, alignSelf: 'center' }} href="/group/create">
+            创建
+          </Link>
+        </div>
       </div>
 
       {err && <p className="muted" style={{ marginTop: 8 }}>{err}</p>}

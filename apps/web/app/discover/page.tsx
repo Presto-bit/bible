@@ -277,9 +277,13 @@ export default function DiscoverPage() {
                 </div>
               );
             })}
-            <Link href="/group/create" className="rail-card card card-2 group-card group-card-add">
+            <Link href="/discover/join" className="rail-card card card-2 group-card group-card-add">
               <span className="group-add-plus">+</span>
-              <span>新建群</span>
+              <span>加入群</span>
+            </Link>
+            <Link href="/group/create" className="rail-card card card-2 group-card group-card-add">
+              <span className="group-add-plus">👥</span>
+              <span>创建群</span>
             </Link>
           </div>
         </>

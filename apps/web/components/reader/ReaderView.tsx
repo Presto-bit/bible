@@ -252,6 +252,8 @@ export default function ReaderView({
   const readingEngagedRef = useRef(false);
   const skipResumeOnLoadRef = useRef(false);
   const overlayOpenRef = useRef(false);
+  /** 划词结束后短时忽略横滑 */
+  const swipeIgnoreUntilRef = useRef(0);
 
   const overlayOpen = Boolean(
     externalOverlayOpen
@@ -936,7 +938,7 @@ export default function ReaderView({
   }, [bookCelebrate]);
 
   const applyNavigate = useCallback(
-    (target: { book: BibleBook; chapter: number }) => {
+    async (target: { book: BibleBook; chapter: number }) => {
       const peek =
         target.book.id === peekNextBook?.id && target.chapter === peekNextChapter
           ? peekNextVerses
@@ -946,11 +948,26 @@ export default function ReaderView({
       const version = chapterCacheVersion(mainVersionId);
       const cached = getCachedChapter(target.book.id, target.chapter, version);
       // 优先 peek / 当前译本缓存，再回退主译本缓存，减少快滑时空窗
-      const instant =
+      let instant =
         (peek?.length ? peek : null)
         ?? (cached?.length ? cached : null)
         ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId)
         ?? getChapterVersesSync(target.book.id, target.chapter, null);
+
+      // 先到位再换内容：无缓存时等加载完成再切换，消灭闪白
+      if (!instant?.length) {
+        setChapterLoading(true);
+        const loaded = await loadChapterVerses(
+          target.book.id,
+          target.chapter,
+          mainVersionId,
+        );
+        if (loaded?.length) {
+          instant = loaded;
+          setCachedChapter(target.book.id, target.chapter, loaded, version);
+        }
+      }
+
       if (instant?.length) {
         setLayoutVerses(instant);
         setVerses(instant);
@@ -981,7 +998,7 @@ export default function ReaderView({
   );
 
   const navigateByDelta = useCallback(
-    (delta: number) => {
+    async (delta: number) => {
       if (planMeta?.steps.length) {
         const target = resolvePlanNav(books, planMeta.steps, readerLocation, delta);
         if (!target) return;
@@ -995,17 +1012,19 @@ export default function ReaderView({
         ) {
           guard.onForwardBoundary(
             { bookId: target.book.id, chapter: target.chapter },
-            () => applyNavigate(target),
+            () => {
+              void applyNavigate(target);
+            },
           );
           return;
         }
-        applyNavigate(target);
+        await applyNavigate(target);
         return;
       }
 
       const target = resolveChapterNav(books, readerLocation, delta);
       if (!target) return;
-      applyNavigate(target);
+      await applyNavigate(target);
     },
     [planMeta, books, readerLocation, applyNavigate],
   );
@@ -1029,6 +1048,7 @@ export default function ReaderView({
     canPrev: canNavPrev,
     canNext: canNavNext,
     blocked: overlayOpen || hasSel,
+    ignoreUntilRef: swipeIgnoreUntilRef,
     onChapterChange: navigateByDelta,
     onDragApproach: (delta) => {
       const target = planNavActive
@@ -1037,7 +1057,34 @@ export default function ReaderView({
       if (!target) return;
       void loadChapterVerses(target.book.id, target.chapter, mainVersionId);
     },
+    onBoundary: (edge) => {
+      if (planNavActive) {
+        flashToast(edge === 'next' ? '已是今日计划最后一章' : '已是今日计划第一章');
+        return;
+      }
+      flashToast(edge === 'next' ? '已是圣经最后一章' : '已是圣经第一章');
+    },
   });
+
+  const turnHintLabel = (() => {
+    if (!turn.dragSide) return '';
+    if (turn.dragSide === 'next') {
+      if (!peekNextBook || peekNextChapter < 1) return englishUI ? 'End' : '已是末章';
+      if (peekNextBook.id !== book.id) {
+        return englishUI
+          ? `${peekNextBook.name} ${peekNextChapter}`
+          : `${peekNextBook.name} 第 ${peekNextChapter} 章`;
+      }
+      return englishUI ? `Ch. ${peekNextChapter}` : `第 ${peekNextChapter} 章`;
+    }
+    if (!peekPrevBook || peekPrevChapter < 1) return englishUI ? 'Start' : '已是首章';
+    if (peekPrevBook.id !== book.id) {
+      return englishUI
+        ? `${peekPrevBook.name} ${peekPrevChapter}`
+        : `${peekPrevBook.name} 第 ${peekPrevChapter} 章`;
+    }
+    return englishUI ? `Ch. ${peekPrevChapter}` : `第 ${peekPrevChapter} 章`;
+  })();
 
   const versesInRange = (a: number, b: number) => {
     const lo = Math.min(a, b);
@@ -1128,6 +1175,8 @@ export default function ReaderView({
     window.getSelection()?.removeAllRanges();
     setSelected([]);
     setSelectionSpan(null);
+    // 划词结束后短时忽略横滑，避免误翻页
+    swipeIgnoreUntilRef.current = Date.now() + 320;
   };
 
   useEffect(() => {
@@ -1135,6 +1184,14 @@ export default function ReaderView({
       setMarkNotePrompt(null);
       setMarkPaletteOpen(false);
     }
+  }, [hasSel]);
+
+  const prevHasSelRef = useRef(false);
+  useEffect(() => {
+    if (prevHasSelRef.current && !hasSel) {
+      swipeIgnoreUntilRef.current = Date.now() + 320;
+    }
+    prevHasSelRef.current = hasSel;
   }, [hasSel]);
 
   useEffect(() => {
@@ -1422,8 +1479,30 @@ export default function ReaderView({
               onTouchEnd={turn.onTouchEnd}
               onTouchCancel={turn.onTouchCancel}
             >
-              <div className="reader-turn-track" style={turn.trackStyle}>
+              {turn.dragSide && (
+                <div
+                  className={`reader-turn-hint reader-turn-hint-${turn.dragSide}${turn.dragProgress >= 0.25 ? ' is-ready' : ''}`}
+                  aria-live="polite"
+                >
+                  <span className="reader-turn-hint-arrow">
+                    {turn.dragSide === 'next' ? '›' : '‹'}
+                  </span>
+                  <span className="reader-turn-hint-label">{turnHintLabel}</span>
+                </div>
+              )}
+              <div
+                className="reader-turn-track"
+                ref={turn.trackRef}
+                style={{ transform: 'translateX(-33.3333%)' }}
+              >
                 <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                  <div className="reader-turn-peek-banner">
+                    {peekPrevBook && peekPrevChapter > 0
+                      ? (peekPrevBook.id !== book.id
+                        ? `${peekPrevBook.name} 第 ${peekPrevChapter} 章`
+                        : `第 ${peekPrevChapter} 章`)
+                      : '已是首章'}
+                  </div>
                   <ReaderChapterPeek
                     bookId={peekPrevBook?.id ?? book.id}
                     bookName={peekPrevBook?.name ?? book.name}
@@ -1441,6 +1520,13 @@ export default function ReaderView({
                   {renderChapterVerses()}
                 </div>
                 <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                  <div className="reader-turn-peek-banner">
+                    {peekNextBook && peekNextChapter > 0
+                      ? (peekNextBook.id !== book.id
+                        ? `${peekNextBook.name} 第 ${peekNextChapter} 章`
+                        : `第 ${peekNextChapter} 章`)
+                      : '已是末章'}
+                  </div>
                   <ReaderChapterPeek
                     bookId={peekNextBook?.id ?? book.id}
                     bookName={peekNextBook?.name ?? book.name}

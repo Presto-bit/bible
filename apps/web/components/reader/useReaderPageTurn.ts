@@ -1,35 +1,85 @@
-import { useCallback, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type TouchEvent,
+} from 'react';
 
-// 露出下一章约 10% 即翻页
-const THRESHOLD = 0.1;
+/** 位移 ≥ 25% 且水平速度够快才翻页 */
+const THRESHOLD = 0.25;
+/** px/ms，约 300px/s；与 25% 位移同时满足才翻页 */
+const VELOCITY_MIN = 0.3;
+/** 竖滑优先：水平需明显大于竖直 */
+const AXIS_RATIO = 1.6;
+const AXIS_MIN_PX = 18;
 const EDGE_RESIST = 0.28;
-const ANIM_MS = 220;
+const ANIM_MS = 300;
+const PREFETCH_RATIO = 0.04;
+const BOUNDARY_RATIO = 0.12;
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+export type TurnDragSide = 'prev' | 'next';
 
 export function useReaderPageTurn({
   enabled,
   canPrev,
   canNext,
   blocked,
+  ignoreUntilRef,
   onChapterChange,
   onDragApproach,
+  onBoundary,
 }: {
   enabled: boolean;
   canPrev: boolean;
   canNext: boolean;
   blocked: boolean;
-  onChapterChange: (delta: number) => void;
+  /** 划词结束后短时忽略横滑，避免误翻页 */
+  ignoreUntilRef?: MutableRefObject<number>;
+  onChapterChange: (delta: number) => void | Promise<void>;
   onDragApproach?: (delta: number) => void;
+  onBoundary?: (edge: 'prev' | 'next') => void;
 }) {
-  const [offset, setOffset] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [dragSide, setDragSide] = useState<TurnDragSide | null>(null);
+  const [dragProgress, setDragProgress] = useState(0);
+
   const viewportRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const offsetRef = useRef(0);
   const drag = useRef({
     active: false,
     startX: 0,
     startY: 0,
+    startTime: 0,
     axis: null as 'x' | 'y' | null,
     prefetched: false,
   });
+
+  const applyOffset = useCallback((px: number, withAnim: boolean) => {
+    offsetRef.current = px;
+    const el = trackRef.current;
+    if (!el) return;
+    el.style.transition = withAnim ? `transform ${ANIM_MS}ms ease-out` : 'none';
+    el.style.transform = `translateX(calc(-33.3333% + ${px}px))`;
+  }, []);
+
+  const updateDragHint = useCallback((px: number) => {
+    const w = viewportRef.current?.clientWidth ?? window.innerWidth;
+    if (px === 0) {
+      setDragSide(null);
+      setDragProgress(0);
+      return;
+    }
+    setDragSide(px < 0 ? 'next' : 'prev');
+    setDragProgress(Math.min(1, Math.abs(px) / w));
+  }, []);
 
   const clampOffset = useCallback(
     (raw: number) => {
@@ -41,97 +91,136 @@ export function useReaderPageTurn({
     [canNext, canPrev],
   );
 
+  const isIgnored = useCallback(() => {
+    if (blocked) return true;
+    if (ignoreUntilRef && Date.now() < ignoreUntilRef.current) return true;
+    return false;
+  }, [blocked, ignoreUntilRef]);
+
   const onTouchStart = useCallback(
     (e: TouchEvent) => {
-      if (!enabled || blocked || animating) return;
+      if (!enabled || animating || isIgnored()) return;
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return;
       drag.current = {
         active: true,
         startX: e.touches[0].clientX,
         startY: e.touches[0].clientY,
+        startTime: performance.now(),
         axis: null,
         prefetched: false,
       };
     },
-    [enabled, blocked, animating],
+    [enabled, animating, isIgnored],
   );
 
   const onTouchMove = useCallback(
     (e: TouchEvent) => {
-      if (!enabled || !drag.current.active || blocked) return;
+      if (!enabled || !drag.current.active || isIgnored()) return;
       const dx = e.touches[0].clientX - drag.current.startX;
       const dy = e.touches[0].clientY - drag.current.startY;
+
       if (!drag.current.axis) {
-        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        drag.current.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+        const adx = Math.abs(dx);
+        const ady = Math.abs(dy);
+        if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
+        // 竖滑优先：仅当水平明显主导时才锁横滑翻页
+        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
+          drag.current.axis = 'x';
+        } else {
+          drag.current.axis = 'y';
+        }
       }
+
       if (drag.current.axis !== 'x') return;
       e.preventDefault();
+
       const next = clampOffset(dx);
-      setOffset(next);
+      applyOffset(next, false);
+      updateDragHint(next);
+
       const w = viewportRef.current?.clientWidth ?? window.innerWidth;
       const ratio = Math.abs(next) / w;
-      // 更早触发相邻章预取，降低松手后仍显示「加载中」的概率
-      if (!drag.current.prefetched && ratio >= 0.06 && onDragApproach) {
+      if (!drag.current.prefetched && ratio >= PREFETCH_RATIO && onDragApproach) {
         drag.current.prefetched = true;
         onDragApproach(next < 0 ? 1 : -1);
       }
     },
-    [enabled, blocked, clampOffset, onDragApproach],
+    [enabled, isIgnored, clampOffset, applyOffset, updateDragHint, onDragApproach],
   );
 
-  const finishDrag = useCallback(() => {
+  const finishDrag = useCallback(async () => {
     if (!enabled || !drag.current.active) return;
     const wasHorizontal = drag.current.axis === 'x';
+    const finalOffset = offsetRef.current;
+    const elapsed = Math.max(1, performance.now() - drag.current.startTime);
+    const velocity = Math.abs(finalOffset) / elapsed;
+
     drag.current.active = false;
     drag.current.axis = null;
+    setDragSide(null);
+    setDragProgress(0);
 
     if (!wasHorizontal) {
-      setOffset(0);
+      applyOffset(0, false);
       return;
     }
 
     const w = viewportRef.current?.clientWidth ?? window.innerWidth;
-    const ratio = Math.abs(offset) / w;
+    const ratio = Math.abs(finalOffset) / w;
+    const commit = ratio >= THRESHOLD && velocity >= VELOCITY_MIN;
 
-    if (offset < 0 && ratio >= THRESHOLD && canNext) {
+    if (finalOffset < 0 && commit && canNext) {
       setAnimating(true);
-      setOffset(-w);
-      window.setTimeout(() => {
-        onChapterChange(1);
-        setOffset(0);
+      applyOffset(-w, true);
+      await sleep(ANIM_MS);
+      try {
+        await Promise.resolve(onChapterChange(1));
+      } finally {
+        applyOffset(0, false);
         setAnimating(false);
-      }, ANIM_MS);
+      }
       return;
     }
-    if (offset > 0 && ratio >= THRESHOLD && canPrev) {
+
+    if (finalOffset > 0 && commit && canPrev) {
       setAnimating(true);
-      setOffset(w);
-      window.setTimeout(() => {
-        onChapterChange(-1);
-        setOffset(0);
+      applyOffset(w, true);
+      await sleep(ANIM_MS);
+      try {
+        await Promise.resolve(onChapterChange(-1));
+      } finally {
+        applyOffset(0, false);
         setAnimating(false);
-      }, ANIM_MS);
+      }
       return;
+    }
+
+    if (finalOffset < 0 && !canNext && ratio >= BOUNDARY_RATIO) {
+      onBoundary?.('next');
+    } else if (finalOffset > 0 && !canPrev && ratio >= BOUNDARY_RATIO) {
+      onBoundary?.('prev');
     }
 
     setAnimating(true);
-    setOffset(0);
-    window.setTimeout(() => setAnimating(false), ANIM_MS);
-  }, [enabled, offset, canPrev, canNext, onChapterChange]);
-
-  const trackStyle: CSSProperties = {
-    transform: `translateX(calc(-33.3333% + ${offset}px))`,
-    transition: animating ? `transform ${ANIM_MS}ms ease-out` : 'none',
-  };
+    applyOffset(0, true);
+    await sleep(ANIM_MS);
+    setAnimating(false);
+  }, [enabled, canPrev, canNext, onChapterChange, onBoundary, applyOffset]);
 
   return {
     viewportRef,
-    trackStyle,
+    trackRef,
+    dragSide,
+    dragProgress,
+    animating,
     onTouchStart,
     onTouchMove,
-    onTouchEnd: finishDrag,
-    onTouchCancel: finishDrag,
+    onTouchEnd: () => {
+      void finishDrag();
+    },
+    onTouchCancel: () => {
+      void finishDrag();
+    },
   };
 }

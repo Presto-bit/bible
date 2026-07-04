@@ -4,13 +4,13 @@ import Link from 'next/link';
 export function DiscoverGroupActions({ className }: { className?: string }) {
   return (
     <div className={`discover-hero-actions${className ? ` ${className}` : ''}`}>
-      <Link className="discover-action-btn discover-action-primary" href="/group/create">
-        <span className="discover-action-icon" aria-hidden>👥</span>
-        创建共读群
-      </Link>
-      <Link className="discover-action-btn discover-action-secondary" href="/discover/join">
+      <Link className="discover-action-btn discover-action-primary" href="/discover/join">
         <span className="discover-action-icon" aria-hidden>🔑</span>
-        邀请码加入
+        加入群
+      </Link>
+      <Link className="discover-action-btn discover-action-secondary" href="/group/create">
+        <span className="discover-action-icon" aria-hidden>👥</span>
+        创建群
       </Link>
     </div>
   );

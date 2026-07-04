@@ -4858,6 +4858,7 @@ a.today-card-link {
 }
 
 .reader-turn-viewport {
+  position: relative;
   height: 100%;
   overflow: hidden;
   touch-action: pan-y;
@@ -4868,6 +4869,68 @@ a.today-card-link {
   width: 300%;
   height: 100%;
   will-change: transform;
+  transform: translateX(-33.3333%);
+}
+
+.reader-turn-hint {
+  position: absolute;
+  top: 12px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 70%;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(28, 28, 30, 0.78);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.3;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  opacity: 0.88;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+
+.reader-turn-hint.is-ready {
+  opacity: 1;
+  background: rgba(74, 107, 82, 0.92);
+}
+
+.reader-turn-hint-prev {
+  left: 12px;
+}
+
+.reader-turn-hint-next {
+  right: 12px;
+  flex-direction: row-reverse;
+}
+
+.reader-turn-hint-arrow {
+  font-size: 16px;
+  line-height: 1;
+  opacity: 0.9;
+}
+
+.reader-turn-hint-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-turn-peek-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0 8px 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-wash) 88%, var(--surface));
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
 }
 
 .reader-turn-panel {
@@ -9290,6 +9353,148 @@ html.app-theme-dark .muted {
   align-items: center;
   gap: 4px;
   min-width: 0;
+}
+
+.group-member-invite-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--accent-deep) 45%, var(--line));
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.group-member-invite-btn:active {
+  transform: scale(0.96);
+}
+
+.group-member-invite-plus {
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  margin-top: -2px;
+}
+
+.group-member-invite-plus.sm {
+  font-size: 22px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px dashed color-mix(in srgb, var(--accent-deep) 45%, var(--line));
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0;
+}
+
+.group-members-invite-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--accent-deep);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.group-invite-sheet .group-invite-code-card {
+  text-align: center;
+  padding: 18px 12px;
+  border-radius: 14px;
+  background: var(--accent-wash);
+  margin-bottom: 14px;
+}
+
+.group-invite-code {
+  display: block;
+  margin-top: 6px;
+  font-size: 28px;
+  letter-spacing: 0.2em;
+  color: var(--accent-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.join-group-page .join-group-hero {
+  padding: 14px 16px;
+  margin-bottom: 18px;
+}
+
+.join-group-kicker {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.join-group-desc {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.join-group-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+
+.join-group-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.join-group-input {
+  flex: 1;
+  letter-spacing: 0.16em;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.join-group-paste {
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--accent-deep);
+  border-radius: 12px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.join-group-submit {
+  width: 100%;
+  margin-top: 16px;
+}
+
+.join-group-error {
+  margin-top: 12px;
+  color: #b1554a;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.join-group-foot {
+  margin-top: 20px;
+  font-size: 13px;
+  text-align: center;
 }
 
 .group-member-grid-crown {

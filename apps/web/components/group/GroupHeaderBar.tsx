@@ -58,7 +58,7 @@ export function GroupHeaderBar({
           )}
         </div>
       </div>
-      {isOwner && (
+      {detail.join_code && (
         <p className="group-invite-hint muted">
           邀请码 <strong>{detail.join_code}</strong>
         </p>

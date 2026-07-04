@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { api, type GroupMember } from '@/lib/api';
 import { displayMemberName } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
+import { GroupInviteSheet } from './GroupInviteSheet';
 import { MemberAvatar } from './MemberAvatar';
 
 const GRID_COLS = 5;
@@ -15,6 +16,7 @@ type Props = {
   members: GroupMember[];
   isOwner: boolean;
   joinCode?: string;
+  groupName?: string;
   planDaysTotal?: number;
   variant?: 'list' | 'grid';
   onChanged: () => void;
@@ -25,6 +27,7 @@ export function GroupMembersPanel({
   members,
   isOwner,
   joinCode,
+  groupName,
   planDaysTotal,
   variant = 'list',
   onChanged,
@@ -34,6 +37,7 @@ export function GroupMembersPanel({
   const [err, setErr] = useState<string | null>(null);
   const [gridExpanded, setGridExpanded] = useState(false);
   const [manageOpen, setManageOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const me = members.find((m) => m.is_me);
 
@@ -75,18 +79,14 @@ export function GroupMembersPanel({
   };
 
   if (variant === 'grid') {
-    const maxVisible = GRID_COLS * GRID_MAX_ROWS;
+    // 预留邀请 + 格，折叠时仍保证能看到邀请入口
+    const inviteSlot = joinCode ? 1 : 0;
+    const maxVisible = GRID_COLS * GRID_MAX_ROWS - inviteSlot;
     const needsFold = members.length > maxVisible;
-    const visible = gridExpanded || !needsFold ? members : members.slice(0, maxVisible);
+    const visible = gridExpanded || !needsFold ? members : members.slice(0, Math.max(0, maxVisible));
 
     return (
       <div className="group-members-panel group-members-panel-grid">
-        {joinCode && isOwner && (
-          <p className="muted group-members-invite">
-            邀请码 <strong>{joinCode}</strong>
-          </p>
-        )}
-
         <div className="group-member-grid" role="list">
           {visible.map((m) => (
             <div
@@ -104,7 +104,28 @@ export function GroupMembersPanel({
               <span className="group-member-grid-name">{displayMemberName(m)}</span>
             </div>
           ))}
+          {joinCode ? (
+            <div className="group-member-grid-cell group-member-grid-invite" role="listitem">
+              <button
+                type="button"
+                className="group-member-invite-btn"
+                aria-label="邀请好友加入"
+                onClick={() => setInviteOpen(true)}
+              >
+                <span className="group-member-invite-plus" aria-hidden>+</span>
+              </button>
+              <span className="group-member-grid-name">邀请</span>
+            </div>
+          ) : null}
         </div>
+
+        {inviteOpen && joinCode && (
+          <GroupInviteSheet
+            groupName={groupName || '共读群'}
+            joinCode={joinCode}
+            onClose={() => setInviteOpen(false)}
+          />
+        )}
 
         {needsFold && (
           <button
@@ -186,10 +207,22 @@ export function GroupMembersPanel({
 
   return (
     <div className="group-members-panel">
-      {joinCode && isOwner && (
-        <p className="muted group-members-invite" style={{ fontSize: 12, margin: '0 0 10px' }}>
-          邀请码 <strong>{joinCode}</strong>
-        </p>
+      {joinCode && (
+        <button
+          type="button"
+          className="group-members-invite-row"
+          onClick={() => setInviteOpen(true)}
+        >
+          <span className="group-member-invite-plus sm" aria-hidden>+</span>
+          <span>邀请好友加入</span>
+        </button>
+      )}
+      {inviteOpen && joinCode && (
+        <GroupInviteSheet
+          groupName={groupName || '共读群'}
+          joinCode={joinCode}
+          onClose={() => setInviteOpen(false)}
+        />
       )}
 
       {members.map((m) => (

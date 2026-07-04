@@ -218,10 +218,10 @@ export default function HomePageClient() {
           href: pending ? `/discover/group/${pending.id}` : '/discover',
         };
       } else {
-        summaryLine = { line: '去发现 · 创建或加入共读群', href: '/discover' };
+        summaryLine = { line: '输入邀请码，加入共读群', href: '/discover/join' };
       }
     } catch {
-      summaryLine = { line: '去发现 · 加入共读打卡', href: '/discover' };
+      summaryLine = { line: '输入邀请码，加入共读群', href: '/discover/join' };
     }
     setGroupSummary(summaryLine);
     const suggest = nextReadingSuggestion();

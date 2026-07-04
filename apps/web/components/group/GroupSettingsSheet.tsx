@@ -107,7 +107,8 @@ export function GroupSettingsSheet({
             gid={gid}
             members={members}
             isOwner={isOwner}
-            joinCode={isOwner ? detail.join_code : undefined}
+            joinCode={detail.join_code}
+            groupName={detail.name}
             planDaysTotal={detail.plan_days_total}
             variant="grid"
             onChanged={onMembersChanged}
