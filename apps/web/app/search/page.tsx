@@ -122,15 +122,15 @@ export default function SearchPage() {
       api.versions().then((d) => {
         const list = (d.versions ?? []).filter((v) => v.available !== false);
         setVersions(list.length ? list : [
-          { id: 'cnv', label: '新译本', available: true },
-          { id: 'cuvs', label: '和合本', available: true },
-          { id: 'kjv', label: 'KJV', available: true },
+          { id: 'cnv', label: '新译本', available: true, primary: true },
+          { id: 'cuvs', label: '和合本', available: true, primary: false },
+          { id: 'kjv', label: 'KJV', available: true, primary: false },
         ]);
       }).catch(() => {
         setVersions([
-          { id: 'cnv', label: '新译本', available: true },
-          { id: 'cuvs', label: '和合本', available: true },
-          { id: 'kjv', label: 'KJV', available: true },
+          { id: 'cnv', label: '新译本', available: true, primary: true },
+          { id: 'cuvs', label: '和合本', available: true, primary: false },
+          { id: 'kjv', label: 'KJV', available: true, primary: false },
         ]);
       }),
     ]).finally(() => setToursReady(true));
