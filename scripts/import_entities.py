@@ -19,6 +19,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from lib.bible_names_zh import FEATURE_ZH, TYPE_ZH, zh_name
 from lib.usfm import parse_osis_ref, slugify
 
 REPO = Path(__file__).resolve().parent.parent
@@ -32,18 +33,6 @@ PEOPLE_URL = (
 PLACES_URL = (
     "https://github.com/spearssoftware/gnosis/releases/download/v0.9.3/places.json"
 )
-
-# 常见英文名 → 中文（高频词条；其余保留英文）
-NAME_ZH: dict[str, str] = {
-    "Aaron": "亚伦", "Abraham": "亚伯拉罕", "Adam": "亚当", "David": "大卫",
-    "Elijah": "以利亚", "Elisha": "以利沙", "Esther": "以斯帖", "Eve": "夏娃",
-    "Isaac": "以撒", "Jacob": "雅各", "Jerusalem": "耶路撒冷", "Jesus": "耶稣",
-    "John": "约翰", "Jonah": "约拿", "Joseph": "约瑟", "Joshua": "约书亚",
-    "Moses": "摩西", "Noah": "挪亚", "Paul": "保罗", "Peter": "彼得",
-    "Samuel": "撒母耳", "Solomon": "所罗门", "Bethlehem": "伯利恒",
-    "Babylon": "巴比伦", "Egypt": "埃及", "Galilee": "加利利", "Jordan": "约旦河",
-    "Nazareth": "拿撒勒", "Samaria": "撒玛利亚", "Sinai": "西奈", "Zion": "锡安",
-}
 
 
 def _fetch(url: str, name: str) -> Path:
@@ -69,8 +58,25 @@ def _scope_books(refs: list[str]) -> list[str]:
     return books[:12]
 
 
-def _zh_name(name: str) -> str:
-    return NAME_ZH.get(name.strip(), name.strip())
+def _person_summary(zh: str, en: str, p: dict) -> str:
+    bits: list[str] = []
+    if p.get("birth_year_display"):
+        bits.append(f"约 {p['birth_year_display']}")
+    gender = FEATURE_ZH.get(p.get("gender") or "", "")
+    if gender:
+        bits.append(gender)
+    extra = "，".join(bits)
+    if extra:
+        return f"圣经中的人物「{zh}」（{extra}）。"
+    return f"圣经中的人物「{zh}」。"
+
+
+def _place_summary(zh: str, p: dict) -> str:
+    ft = FEATURE_ZH.get(p.get("feature_type") or "", "") or TYPE_ZH["place"]
+    sub = p.get("feature_sub_type")
+    if sub:
+        return f"圣经中的地点「{zh}」（{ft}，{sub}）。"
+    return f"圣经中的地点「{zh}」（{ft}）。"
 
 
 def main() -> int:
@@ -103,18 +109,14 @@ def main() -> int:
         if not refs:
             continue
         en = (p.get("name") or p.get("id") or "").strip()
-        zh = _zh_name(en)
-        summary_parts = []
-        if p.get("birth_year_display"):
-            summary_parts.append(f"约 {p['birth_year_display']}")
-        if p.get("gender"):
-            summary_parts.append(p["gender"])
-        summary = "；".join(summary_parts) or f"圣经人物（{en}）"
+        zh = zh_name(en)
+        if not zh:
+            continue  # 无中文译名则不入库，避免英文空壳词条
         add_entity({
             "id": slugify(p.get("id") or en),
-            "name": zh if zh != en else en,
+            "name": zh,
             "type": "person",
-            "summary": summary,
+            "summary": _person_summary(zh, en, p),
             "refs": refs[:20],
             "scope_books": _scope_books(refs),
             "aliases": [en] if zh != en else [],
@@ -129,14 +131,14 @@ def main() -> int:
         if not refs:
             continue
         en = (p.get("name") or p.get("kjv_name") or p.get("id") or "").strip()
-        zh = _zh_name(en)
-        ft = p.get("feature_type") or "Place"
-        summary = f"{ft}" + (f"（{p.get('feature_sub_type')}）" if p.get("feature_sub_type") else "")
+        zh = zh_name(en)
+        if not zh:
+            continue
         ent: dict = {
             "id": slugify(p.get("id") or en),
-            "name": zh if zh != en else en,
+            "name": zh,
             "type": "place",
-            "summary": summary,
+            "summary": _place_summary(zh, p),
             "refs": refs[:20],
             "scope_books": _scope_books(refs),
             "aliases": list({a for a in (p.get("aliases") or []) + ([en] if zh != en else []) if a}),

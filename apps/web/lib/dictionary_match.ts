@@ -36,6 +36,31 @@ export function entityDisplayName(e: DictEntity): string {
   return d ? `${e.name}（${d}）` : e.name;
 }
 
+const TYPE_ZH: Record<string, string> = {
+  person: '人物',
+  place: '地点',
+  term: '术语',
+  event: '事件',
+};
+
+/** 词条类型中文标签 */
+export function entityTypeLabel(type: string | undefined): string {
+  if (!type) return '';
+  return TYPE_ZH[type] ?? type;
+}
+
+/** 展示用摘要：过滤 Male/City 等无效英文标签 */
+export function entitySummaryText(e: DictEntity): string {
+  const s = (e.summary || '').trim();
+  if (!s) return '暂无简介';
+  // 无中文且过短 → 视为无效摘要
+  if (!/[\u4e00-\u9fff]/.test(s)) {
+    const label = entityTypeLabel(e.type) || '词条';
+    return `圣经中的${label}「${e.name}」。`;
+  }
+  return s;
+}
+
 /** name/alias -> 全部候选词条 */
 export function buildDictIndex(entities: DictEntity[]): Map<string, DictEntity[]> {
   const m = new Map<string, DictEntity[]>();

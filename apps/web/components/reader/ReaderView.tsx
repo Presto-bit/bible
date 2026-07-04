@@ -485,15 +485,35 @@ export default function ReaderView({
   );
 
   const updateFocusBarPosition = useCallback(() => {
-    if (!hasSel) return;
-    // 固定在底部 Tab 上方，避开系统划词菜单（通常贴在选区附近）
+    if (!hasSel || minV == null) return;
+    const firstEl = document.getElementById(`verse-anchor-${minV}`);
+    const lastEl = document.getElementById(`verse-anchor-${maxV}`);
+    if (!firstEl) return;
+    const firstRect = firstEl.getBoundingClientRect();
+    const lastRect = lastEl?.getBoundingClientRect() ?? firstRect;
+    const selTop = Math.min(firstRect.top, lastRect.top);
+    const selBottom = Math.max(firstRect.bottom, lastRect.bottom);
+    const selCenterX = (
+      Math.min(firstRect.left, lastRect.left) + Math.max(firstRect.right, lastRect.right)
+    ) / 2;
+    const barH = focusBarRef.current?.offsetHeight ?? 56;
+    const margin = 14;
+    const topReserve = chromeHidden ? 12 : 58;
+    const bottomReserve = chromeHidden ? 24 : 80;
+    // 系统划词菜单多在选区上方：优先把工具条放在选区下方
+    let top = selBottom + margin;
+    if (top + barH > window.innerHeight - bottomReserve) {
+      top = selTop - barH - margin;
+    }
+    top = Math.max(topReserve, Math.min(top, window.innerHeight - barH - bottomReserve));
+    const left = Math.min(Math.max(selCenterX, 96), window.innerWidth - 96);
     setFocusBarStyle({
-      top: 'auto',
-      left: '50%',
-      bottom: `calc(64px + env(safe-area-inset-bottom, 0px) + ${chromeHidden ? 12 : 10}px)`,
+      top: `${top}px`,
+      left: `${left}px`,
+      bottom: 'auto',
       transform: 'translateX(-50%)',
     });
-  }, [hasSel, chromeHidden]);
+  }, [hasSel, minV, maxV, chromeHidden]);
 
   useEffect(() => {
     if (!hasSel) {
@@ -1065,23 +1085,38 @@ export default function ReaderView({
     return () => document.removeEventListener('selectionchange', onSel);
   }, [syncSelectionFromDom]);
 
-  // 划词结束后清除系统选区，收起系统菜单，避免与底部工具条叠挡
+  // 划词结束后：延迟清除系统选区（等 selectionchange 落定），保留自定义高亮与工具条
   useEffect(() => {
     if (!hasSel) return;
+    let timer = 0;
     const dismissNative = () => {
-      syncingSelection.current = true;
-      window.getSelection()?.removeAllRanges();
-      window.setTimeout(() => {
-        syncingSelection.current = false;
-      }, 0);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        const sel = window.getSelection();
+        if (!sel || sel.isCollapsed) return;
+        syncingSelection.current = true;
+        try {
+          sel.removeAllRanges();
+          // Safari / 部分 WebView 需要 empty()
+          (sel as Selection & { empty?: () => void }).empty?.();
+        } catch {
+          /* ignore */
+        }
+        window.setTimeout(() => {
+          syncingSelection.current = false;
+        }, 50);
+      }, 120);
     };
     document.addEventListener('mouseup', dismissNative);
-    document.addEventListener('touchend', dismissNative);
+    document.addEventListener('touchend', dismissNative, { passive: true });
+    // 已有选区时再补一次（处理仅 selectionchange、无 pointer 事件的情况）
+    dismissNative();
     return () => {
+      window.clearTimeout(timer);
       document.removeEventListener('mouseup', dismissNative);
       document.removeEventListener('touchend', dismissNative);
     };
-  }, [hasSel]);
+  }, [hasSel, selected]);
 
   const clearSelection = () => {
     window.getSelection()?.removeAllRanges();
@@ -1563,9 +1598,6 @@ export default function ReaderView({
             </label>
             <Link href="/profile/appearance" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 8 }}>
               更多外观选项 ›
-            </Link>
-            <Link href="/dictionary" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 6 }}>
-              圣经词典（1313 词条）›
             </Link>
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.verseNo}</p>
             <div className="font-pills">

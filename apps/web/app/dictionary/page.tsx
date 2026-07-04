@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { api, type DictEntity } from '@/lib/api';
-import { entityDisplayName } from '@/lib/dictionary_match';
+import { entityDisplayName, entitySummaryText, entityTypeLabel } from '@/lib/dictionary_match';
 
 export default function DictionaryPage() {
   const [term, setTerm] = useState('');
@@ -54,13 +54,13 @@ export default function DictionaryPage() {
           {filtered.map((e) => (
             <div key={e.id ?? e.name} className="card card-2" style={{ padding: 12 }}>
               <strong>{entityDisplayName(e)}</strong>
-              {e.type ? (
+              {entityTypeLabel(e.type) ? (
                 <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
-                  {e.type}
+                  {entityTypeLabel(e.type)}
                 </span>
               ) : null}
               <p className="muted" style={{ margin: '6px 0 0', fontSize: 14, lineHeight: 1.6 }}>
-                {e.summary}
+                {entitySummaryText(e)}
               </p>
             </div>
           ))}

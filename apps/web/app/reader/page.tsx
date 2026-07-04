@@ -14,6 +14,8 @@ import {
   buildDictIndex,
   dictMatchPattern,
   entityDisplayName,
+  entitySummaryText,
+  entityTypeLabel,
   lookupDictCandidates,
   needsDisambiguation,
   writeDictChoice,
@@ -271,11 +273,15 @@ export default function ReaderPage() {
             <div className="section-row" style={{ marginTop: 0 }}>
               <h3 style={{ margin: 0 }}>
                 {entityDisplayName(dictPopup)}
-                <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>{dictPopup.type}</span>
+                {entityTypeLabel(dictPopup.type) ? (
+                  <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+                    {entityTypeLabel(dictPopup.type)}
+                  </span>
+                ) : null}
               </h3>
               <button type="button" className="text-link" onClick={() => setDictPopup(null)}>关闭</button>
             </div>
-            <p style={{ lineHeight: 1.7, marginTop: 8 }}>{dictPopup.summary}</p>
+            <p style={{ lineHeight: 1.7, marginTop: 8 }}>{entitySummaryText(dictPopup)}</p>
             {dictPopup.refs?.length > 0 && (
               <div style={{ marginTop: 10 }}>
                 <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>参考经文</p>
@@ -296,9 +302,6 @@ export default function ReaderPage() {
                 </div>
               </div>
             )}
-            <Link href="/dictionary" className="muted" style={{ fontSize: 12, display: 'block', marginTop: 12 }}>
-              打开完整词典（1313 条）›
-            </Link>
           </div>
         </div>
       )}

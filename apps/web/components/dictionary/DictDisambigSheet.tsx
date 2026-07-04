@@ -1,7 +1,7 @@
 'use client';
 
 import type { DictEntity } from '@/lib/api';
-import { entityDisplayName } from '@/lib/dictionary_match';
+import { entityDisplayName, entitySummaryText } from '@/lib/dictionary_match';
 
 type Props = {
   name: string;
@@ -27,7 +27,7 @@ export function DictDisambigSheet({ name, candidates, onPick, onClose }: Props) 
             <li key={e.id}>
               <button type="button" className="dict-disambig-row card-row" onClick={() => onPick(e)}>
                 <span className="dict-disambig-name">{entityDisplayName(e)}</span>
-                <span className="muted dict-disambig-summary">{e.summary}</span>
+                <span className="muted dict-disambig-summary">{entitySummaryText(e)}</span>
               </button>
             </li>
           ))}

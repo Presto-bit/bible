@@ -182,8 +182,29 @@ def crossrefs_for(ref: str, *, limit: int = CROSSREF_TOP_N) -> dict | None:
 
 
 # ── 词典 ──
+def _has_cjk(s: str) -> bool:
+    return any("\u4e00" <= c <= "\u9fff" for c in (s or ""))
+
+
+def _is_displayable_entity(ent: dict) -> bool:
+    """仅返回中文名 + 有效中文摘要的词条（过滤 Gnosis 英文空壳）。"""
+    name = (ent.get("name") or "").strip()
+    summary = (ent.get("summary") or "").strip()
+    if not _has_cjk(name):
+        return False
+    if not summary:
+        return False
+    # Male / City 等英文标签不算有效解释
+    if not _has_cjk(summary):
+        return False
+    return True
+
+
 def dictionary_entities() -> list[dict]:
-    return _load_json("dictionary/entities.json").get("entities", [])
+    return [
+        e for e in _load_json("dictionary/entities.json").get("entities", [])
+        if _is_displayable_entity(e)
+    ]
 
 
 def dictionary_lookup(term: str | None = None, ref: str | None = None) -> list[dict]:
