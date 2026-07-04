@@ -17,6 +17,7 @@ import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getPendingBookChallenge } from '@/lib/challenge_progress';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
+import { prayerTodayHref } from '@/lib/plan_today_href';
 import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
@@ -129,7 +130,7 @@ export default function HomePageClient() {
       prayerCard = {
         title: `第 ${day} 天`,
         sub: active.title,
-        href: '/plans?tab=prayer',
+        href: prayerTodayHref(active),
       };
     } else if (active) {
       const day = getPlanDay(active.planId) || 1;

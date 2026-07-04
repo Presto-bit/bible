@@ -2,6 +2,7 @@ import { api } from './api';
 import {
   getCompletedPlanDays,
   isPlanDayCompleted,
+  isPlanDaySkipped,
   isPlanDayUnlocked,
   type ActivePlan,
 } from './plan_progress';
@@ -13,6 +14,7 @@ export interface PlanDayScheduleItem {
   detail: string;
   unlocked: boolean;
   completed: boolean;
+  skipped: boolean;
 }
 
 export async function loadPlanSchedule(plan: ActivePlan): Promise<PlanDayScheduleItem[]> {
@@ -30,6 +32,7 @@ export async function loadPlanSchedule(plan: ActivePlan): Promise<PlanDaySchedul
         detail: d.refs?.join(' · ') || '',
         unlocked: isPlanDayUnlocked(plan.planId, d.day),
         completed: isPlanDayCompleted(plan.planId, d.day),
+        skipped: isPlanDaySkipped(plan.planId, d.day),
       }));
     } catch {
       return [];
@@ -46,6 +49,7 @@ export async function loadPlanSchedule(plan: ActivePlan): Promise<PlanDaySchedul
         detail: '祷告',
         unlocked: isPlanDayUnlocked(plan.planId, d.day),
         completed: isPlanDayCompleted(plan.planId, d.day),
+        skipped: isPlanDaySkipped(plan.planId, d.day),
       }))
       .sort((a, b) => a.day - b.day);
   }
@@ -62,6 +66,7 @@ export async function loadPlanSchedule(plan: ActivePlan): Promise<PlanDaySchedul
       detail: steps.map((s) => s.label).join(' · ') || '—',
       unlocked: isPlanDayUnlocked(plan.planId, day),
       completed: isPlanDayCompleted(plan.planId, day),
+      skipped: isPlanDaySkipped(plan.planId, day),
     };
   });
 }

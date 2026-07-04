@@ -85,7 +85,8 @@ import {
 import PlanReadingLayer from '@/components/reader/PlanReadingLayer';
 import ReaderChapterPeek from '@/components/reader/ReaderChapterPeek';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
-import type { PlanReadingMeta } from '@/lib/plan_reading';
+import { buildPlanReadingMeta, type PlanReadingMeta } from '@/lib/plan_reading';
+import { getActivePlan } from '@/lib/plan_progress';
 import { readerUi } from '@/lib/reader_i18n';
 import MarkNoteBar from '@/components/reader/MarkNoteBar';
 import { ReaderSkeleton } from '@/components/Skeleton';
@@ -1209,8 +1210,29 @@ export default function ReaderView({
         onMetaChange={onPlanMetaChange}
         onJump={onPlanJump}
         onPlanDayFinished={() => {
-          flashToast(`第 ${planMeta.day} 天计划已读完，可继续自由阅读`);
-          onPlanExit?.();
+          flashToast(`第 ${planMeta.day} 天计划已读完`);
+        }}
+        onContinueNextDay={(nextDay) => {
+          void (async () => {
+            const active = getActivePlan();
+            if (!active) return;
+            const meta = await buildPlanReadingMeta(active, nextDay);
+            if (!meta) {
+              flashToast('下一天内容暂不可用');
+              return;
+            }
+            onPlanMetaChange?.(meta);
+            const step = meta.steps[meta.session.currentStepIndex] ?? meta.steps[0];
+            onPlanJump?.(step.bookId, step.chapterStart);
+            if (typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              url.searchParams.set('plan', meta.planId);
+              url.searchParams.set('day', String(meta.day));
+              url.searchParams.set('book', step.bookId);
+              url.searchParams.set('chapter', String(step.chapterStart));
+              window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+            }
+          })();
         }}
         bindNavGuard={bindPlanNavGuard}
         onOverlayChange={setPlanOverlayOpen}

@@ -5295,6 +5295,60 @@ a.today-card-link {
   white-space: nowrap;
 }
 
+.plan-active-meta-block {
+  display: block;
+  white-space: normal;
+  margin: 0 0 8px;
+  line-height: 1.45;
+}
+
+.plan-day-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  max-height: 52px;
+  overflow: hidden;
+}
+
+.plan-day-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--elev-1, var(--line));
+  flex-shrink: 0;
+}
+
+.plan-day-dot.done {
+  background: var(--accent);
+}
+
+.plan-day-dot.skipped {
+  background: color-mix(in srgb, var(--ink-soft) 45%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.plan-day-dot.current {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.plan-active-bar {
+  margin-bottom: 10px;
+}
+
+.plan-active-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.plan-active-today-btn {
+  flex: 1;
+  min-height: 40px;
+}
+
 .plan-schedule-sheet {
   max-height: 88vh;
   overflow-y: auto;
@@ -5310,18 +5364,35 @@ a.today-card-link {
 .plan-schedule-day {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 4px 6px 4px 4px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--surface);
   text-align: left;
-  cursor: pointer;
   transition: border-color 0.15s, opacity 0.15s;
 }
 
-.plan-schedule-day.unlocked:not(:disabled):hover {
+.plan-schedule-day-main-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 8px 6px 8px 8px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.plan-schedule-day-main-btn:disabled {
+  cursor: not-allowed;
+}
+
+.plan-schedule-day.unlocked:hover {
   border-color: var(--accent);
 }
 
@@ -5330,9 +5401,31 @@ a.today-card-link {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
 }
 
+.plan-schedule-day.skipped {
+  background: color-mix(in srgb, var(--ink-soft) 6%, var(--surface));
+}
+
 .plan-schedule-day.locked {
   opacity: 0.55;
-  cursor: not-allowed;
+}
+
+.plan-schedule-day.skipped .plan-schedule-day-num {
+  background: color-mix(in srgb, var(--ink-soft) 25%, var(--elev-1, var(--line)));
+}
+
+.plan-schedule-skip {
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 12px;
+  padding: 8px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.plan-schedule-skip:hover {
+  color: var(--accent-deep);
 }
 
 .plan-schedule-day-num {

@@ -4,6 +4,7 @@ import { getLastRead } from './reading';
 import { getActivePlan, getPlanDay } from './plan_progress';
 import { readingStreak } from './gamification';
 import { bookIdToChineseName } from './ref_label';
+import { activePlanTodayHrefSync } from './plan_today_href';
 
 export interface ReadingSuggestion {
   title: string;
@@ -16,12 +17,12 @@ export function nextReadingSuggestion(): ReadingSuggestion | null {
   const active = getActivePlan();
   const streak = readingStreak();
 
-  if (active && active.kind !== 'prayer') {
+  if (active) {
     const day = getPlanDay(active.planId) || 1;
     return {
       title: `${active.title} · 第 ${day} 天`,
       reason: '继续今日计划',
-      href: '/plans',
+      href: activePlanTodayHrefSync(active),
     };
   }
   if (last) {

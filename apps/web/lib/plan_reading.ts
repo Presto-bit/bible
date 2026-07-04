@@ -4,6 +4,7 @@ import { api } from './api';
 import {
   getActivePlan,
   getPlanDay,
+  setActivePlan,
   setPlanDay,
   type ActivePlan,
 } from './plan_progress';
@@ -108,6 +109,7 @@ export async function hydratePlanFromUrl(
         days: saved.days_count,
         source: 'generated',
       };
+      setActivePlan(plan);
       setPlanDay(planId, day);
       return buildPlanReadingMeta(plan, day);
     }
@@ -121,6 +123,7 @@ export async function hydratePlanFromUrl(
         days: p.days,
         source: 'featured',
       };
+      setActivePlan(plan);
       setPlanDay(planId, day);
       return buildPlanReadingMeta(plan, day);
     }

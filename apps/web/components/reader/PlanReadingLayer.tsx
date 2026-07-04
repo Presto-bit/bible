@@ -42,6 +42,7 @@ export default function PlanReadingLayer({
   onJump,
   onOverlayChange,
   onPlanDayFinished,
+  onContinueNextDay,
   bindNavGuard,
 }: {
   meta: PlanReadingMeta;
@@ -53,6 +54,8 @@ export default function PlanReadingLayer({
   onJump: (bookId: string, chapter: number) => void;
   onOverlayChange?: (open: boolean) => void;
   onPlanDayFinished?: () => void;
+  /** 完日庆祝后开始下一天（不自动退出计划模式） */
+  onContinueNextDay?: (nextDay: number) => void;
   bindNavGuard?: (guard: PlanNavGuard | null) => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -122,8 +125,8 @@ export default function PlanReadingLayer({
   }, [meta, currentStep, persist, onJump]);
 
   useEffect(() => {
-    onOverlayChange?.(sheetOpen || reflectionOpen || shareOpen || planAllDone);
-  }, [sheetOpen, reflectionOpen, shareOpen, planAllDone, onOverlayChange]);
+    onOverlayChange?.(sheetOpen || reflectionOpen || shareOpen || planAllDone || dayCompleted);
+  }, [sheetOpen, reflectionOpen, shareOpen, planAllDone, dayCompleted, onOverlayChange]);
 
   useEffect(() => {
     if (!dayCompleted && !planAllDone) return;
@@ -314,10 +317,24 @@ export default function PlanReadingLayer({
           <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
             {prog.total}/{prog.total} 段已读完
             {completedDayNum < meta.totalDays
-              ? ` · 明天解锁第 ${completedDayNum + 1} 天`
+              ? ` · 可以开始第 ${completedDayNum + 1} 天`
               : ' · 计划已全部完成'}
           </p>
           <div className="plan-complete-actions" style={{ marginTop: 10 }}>
+            {completedDayNum < meta.totalDays && onContinueNextDay && (
+              <button
+                type="button"
+                className="btn"
+                style={{ width: '100%', marginBottom: 8 }}
+                onClick={() => {
+                  const next = completedDayNum + 1;
+                  dismissDayCelebration();
+                  onContinueNextDay(next);
+                }}
+              >
+                开始第 {completedDayNum + 1} 天 ›
+              </button>
+            )}
             {checkinGid ? (
               <Link
                 href={groupCheckinHref(checkinGid, checkinRef)}
@@ -338,6 +355,14 @@ export default function PlanReadingLayer({
               写今日反思
             </button>
           </div>
+          <button
+            type="button"
+            className="text-link"
+            style={{ marginTop: 10 }}
+            onClick={dismissDayCelebration}
+          >
+            稍后再读，继续浏览经文
+          </button>
         </div>
       )}
 
