@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
+  api,
   currentUserId,
   effectiveId,
   guestId,
@@ -15,9 +16,13 @@ import AccountSettingsSection from '@/components/AccountSettingsSection';
 import SyncStatusBadge from '@/components/SyncStatusBadge';
 import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import ReadingProgress from '@/components/ReadingProgress';
-import { todayMinutes } from '@/lib/reading';
+import BadgeGallery from '@/components/BadgeGallery';
+import { todayMinutes, bookProgressMap, buildReport } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
+import { computeAllBadges } from '@/lib/badges';
 import { favoriteReviewCards } from '@/lib/favorite_review';
+import { listNotes } from '@/lib/notes';
+import { bibleBooks } from '@/lib/bible_client';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
@@ -45,6 +50,8 @@ export default function ProfilePage() {
   const [hasPwd, setHasPwd] = useState(false);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
   const [streak, setStreak] = useState(0);
+  const [badges, setBadges] = useState<ReturnType<typeof computeAllBadges>>([]);
+  const [badgeOpen, setBadgeOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminLoginOpen, setAdminLoginOpen] = useState(false);
   const [adminEntryVisible, setAdminEntryVisible] = useState(false);
@@ -76,6 +83,56 @@ export default function ProfilePage() {
     setStreak(readingStreak());
     setHasPwd(hasPassword());
     setAccountComplete(isAccountComplete());
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadBadges = async () => {
+      const { highlightCount } = await import('@/lib/reader_highlights');
+      const report = buildReport();
+      const noteCount = listNotes().length;
+      let readBooks = 0;
+      let totalBooks = 66;
+      let friendCount = 0;
+      let planDays = 0;
+      try {
+        const books = await bibleBooks();
+        totalBooks = books.length || 66;
+        const totals: Record<string, number> = {};
+        for (const b of books) totals[b.id] = b.chapter_count;
+        const prog = bookProgressMap(totals);
+        readBooks = Object.values(prog).filter(
+          (p) => p.distinctChapters > 0 || p.passes >= 1,
+        ).length;
+      } catch {
+        /* ignore */
+      }
+      try {
+        const f = await api.friends();
+        friendCount = Array.isArray(f.friends) ? f.friends.length : 0;
+      } catch {
+        /* ignore */
+      }
+      if (cancelled) return;
+      setBadges(
+        computeAllBadges({
+          streak: readingStreak(),
+          readBooks,
+          totalBooks,
+          noteCount,
+          monthDays: report.monthDays,
+          totalMinutes: report.totalMinutes,
+          totalChapters: report.totalChapters,
+          highlightCount: highlightCount(),
+          planDays,
+          friendCount,
+        }),
+      );
+    };
+    void loadBadges();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const refreshAccount = () => {
@@ -212,6 +269,47 @@ export default function ProfilePage() {
           今日 {mins} 分钟 · 读经回顾 ›
         </span>
       </Link>
+
+      <div
+        className="card"
+        style={{ marginTop: 12, cursor: 'pointer' }}
+        role="button"
+        tabIndex={0}
+        onClick={() => setBadgeOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') setBadgeOpen(true);
+        }}
+      >
+        <div className="section-row">
+          <span style={{ fontWeight: 600 }}>成就徽章</span>
+          <span className="muted">
+            {badges.length
+              ? `已收集 ${badges.filter((b) => b.done).length}/${badges.length} ›`
+              : '查看全部 ›'}
+          </span>
+        </div>
+        <div className="badge-row">
+          {(() => {
+            const earned = badges.filter((b) => b.done).slice(0, 4);
+            const preview = earned.length ? earned : badges.slice(0, 4);
+            if (!preview.length) {
+              return <span className="muted" style={{ fontSize: 12 }}>加载中…</span>;
+            }
+            return preview.map((b) => (
+              <div key={b.id} className="badge-item">
+                <div className={`badge-circle ${b.done ? 'badge-done' : ''}`}>
+                  {b.icon}
+                </div>
+                <span>{b.label}</span>
+              </div>
+            ));
+          })()}
+        </div>
+      </div>
+
+      {badgeOpen && (
+        <BadgeGallery badges={badges} onClose={() => setBadgeOpen(false)} />
+      )}
 
       {reviewCards.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>
