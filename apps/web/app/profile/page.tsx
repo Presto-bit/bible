@@ -9,6 +9,7 @@ import {
   guestId,
   hasPassword,
   logout,
+  startFreshAccount,
 } from '@/lib/api';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
@@ -423,6 +424,20 @@ export default function ProfilePage() {
                 disabled={clearCacheBusy}
               >
                 {clearCacheBusy ? '清除中…' : '清除缓存'}
+              </button>
+              <button
+                type="button"
+                className="logout-btn settings-logout-btn"
+                onClick={() => {
+                  if (!window.confirm(
+                    '将在本机生成新的用户 ID，并解除与当前账号的绑定。\n\n若这是你的账号，请先在「恢复账号」设置用户名与密码，再操作。\n若显示的是别人的手机号/ID，请继续。',
+                  )) return;
+                  void startFreshAccount().then(() => {
+                    window.location.href = '/';
+                  });
+                }}
+              >
+                这不是我的账号，使用新 ID
               </button>
               {uid ? (
                 <button

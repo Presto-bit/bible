@@ -31,6 +31,15 @@ import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { bookIdToChineseName } from '@/lib/ref_label';
 
+/** 与 Mobile 首页一致的时段问候 */
+function timeOfDayGreeting(date = new Date()): string {
+  const hour = date.getHours();
+  if (hour < 6) return '夜深了';
+  if (hour < 12) return '早安';
+  if (hour < 18) return '午安';
+  return '晚安';
+}
+
 export default function HomePageClient() {
   const [dv, setDv] = useState<DailyVerse | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -319,7 +328,7 @@ export default function HomePageClient() {
     <main className="container">
       <header className="greet">
         <div className="greet-text">
-          <span className="greet-prefix">早安</span>
+          <span className="greet-prefix">{timeOfDayGreeting()}</span>
           <span className="greet-name">
             <i className="greet-bar" />
             {userName}

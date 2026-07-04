@@ -13,7 +13,6 @@ const IDB_STORE = 'kv';
 const IDB_USER_CODE_KEY = 'user_code';
 const IDB_DEVICE_ID_KEY = 'device_id';
 const IDB_GUEST_MAP_KEY = 'device_guest_map';
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn';
 
 let resolvedDeviceId: string | null = null;
 let resolvedHardwareId: string | null = null;
@@ -93,8 +92,8 @@ function webglFingerprint(): string {
 }
 
 /**
- * 硬件级设备指纹（Web 在 PWA 内无法读 IMEI，用 GPU/Canvas 等稳定信号模拟）。
- * 同一物理设备重装 PWA 后应保持一致（不含屏幕分辨率等易变项）。
+ * 硬件级弱指纹（同型号手机 GPU/Canvas 常相同，不可单独作为身份）。
+ * 仅作辅助信号，不作为 device_id，也不用于自动合并账号。
  */
 export async function computeHardwareLikeDeviceId(): Promise<string> {
   if (resolvedHardwareId) return resolvedHardwareId;
@@ -115,9 +114,22 @@ export async function computeHardwareLikeDeviceId(): Promise<string> {
   return resolvedHardwareId;
 }
 
+/** 安装级唯一设备 ID：每台设备首次打开生成，避免同型号硬件指纹撞号 */
+function newInstallDeviceId(): string {
+  const uuid =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+  return `inst-${uuid}`.slice(0, 128);
+}
+
+function isWeakHardwareDeviceId(id: string): boolean {
+  return id.startsWith('dev-');
+}
+
 /** 同步读取已缓存的硬件指纹（须在 resolveDeviceId 之后调用） */
 export function stableDeviceFingerprint(): string {
-  return resolvedHardwareId || resolvedDeviceId || readCookieDeviceId() || '';
+  return resolvedHardwareId || '';
 }
 
 function readCookieDeviceId(): string | null {
@@ -187,19 +199,6 @@ async function idbSet(key: string, value: string): Promise<void> {
     db.close();
   } catch {
     /* 备份失败不阻断 */
-  }
-}
-
-async function lookupServerUserCode(deviceId: string, fingerprint: string): Promise<string | null> {
-  try {
-    const params = new URLSearchParams({ device_id: deviceId });
-    if (fingerprint && fingerprint !== deviceId) params.set('fingerprint', fingerprint);
-    const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
-    if (!res.ok) return null;
-    const d = (await res.json()) as { user_code?: string | null };
-    return d.user_code && isUserCode(d.user_code) ? d.user_code : null;
-  } catch {
-    return null;
   }
 }
 
@@ -294,8 +293,8 @@ export async function hydrateIdentityFromIdb(): Promise<void> {
 }
 
 /**
- * 解析设备 ID：Cookie → localStorage → IndexedDB → Service Worker → 硬件指纹。
- * 无本地缓存时用硬件指纹作为唯一 device_id（同设备重装后一致）。
+ * 解析设备 ID：Cookie → localStorage → IndexedDB → Service Worker → 新安装 UUID。
+ * 不再用硬件指纹当 device_id（同型号会撞号，导致两台手机共用一个用户 ID）。
  */
 export async function resolveDeviceId(): Promise<string> {
   if (resolvedDeviceId) return resolvedDeviceId;
@@ -304,25 +303,77 @@ export async function resolveDeviceId(): Promise<string> {
   await requestPersistentStorage();
   await hydrateIdentityFromIdb();
 
+  // 始终计算弱指纹供调试，但不参与身份绑定
+  await computeHardwareLikeDeviceId();
+
   let d =
     readCookieDeviceId() ||
     localStorage.getItem(DEVICE_KEY) ||
     (await idbGet(IDB_DEVICE_ID_KEY)) ||
     (await loadFromServiceWorker());
 
-  const hardwareId = await computeHardwareLikeDeviceId();
+  // 旧版 dev-* 为硬件指纹，同型号会共享同一 user_code。
+  // 升级时丢弃弱 device_id 与本地 guest，强制新身份；原账号用「用户名/手机号+密码」恢复。
+  if (d && isWeakHardwareDeviceId(d)) {
+    const map = readMap();
+    delete map[d];
+    writeMap(map);
+    localStorage.removeItem('presto_guest_id');
+    localStorage.removeItem('presto_user_id');
+    localStorage.removeItem('account_phone');
+    localStorage.removeItem('account_phone_owner');
+    try {
+      await idbSet(IDB_USER_CODE_KEY, '');
+      await idbSet(IDB_DEVICE_ID_KEY, '');
+      await idbSet(IDB_GUEST_MAP_KEY, '{}');
+    } catch {
+      /* ignore */
+    }
+    d = '';
+  }
 
   if (!d) {
-    const fromServer = await lookupServerUserCode(hardwareId, hardwareId);
-    if (fromServer) {
-      localStorage.setItem('presto_guest_id', fromServer);
-    }
-    d = hardwareId;
+    d = newInstallDeviceId();
   }
 
   persistDeviceId(d);
   await backupIdentity({ deviceId: d });
   return d;
+}
+
+/** 清除本机身份与设备绑定，下次打开将生成新用户 ID（用于误绑他人账号时自救） */
+export async function resetInstallIdentity(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const oldDevice = getDeviceId();
+  localStorage.removeItem(DEVICE_KEY);
+  localStorage.removeItem(DEVICE_GUEST_MAP_KEY);
+  localStorage.removeItem('presto_guest_id');
+  localStorage.removeItem('presto_user_id');
+  localStorage.removeItem('account_phone');
+  localStorage.removeItem('account_phone_owner');
+  localStorage.removeItem('profile_name');
+  localStorage.removeItem('account_has_password');
+  localStorage.removeItem('account_onboarded');
+  if (typeof document !== 'undefined') {
+    document.cookie = `${COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+  }
+  if (oldDevice) {
+    const map = readMap();
+    delete map[oldDevice];
+    writeMap(map);
+  }
+  try {
+    await idbSet(IDB_USER_CODE_KEY, '');
+    await idbSet(IDB_DEVICE_ID_KEY, '');
+    await idbSet(IDB_GUEST_MAP_KEY, '{}');
+  } catch {
+    /* ignore */
+  }
+  resolvedDeviceId = null;
+  resolvedHardwareId = null;
+  identityBootstrapped = false;
+  const controller = navigator.serviceWorker?.controller;
+  controller?.postMessage({ type: 'identity-save', deviceId: null, userCode: null });
 }
 
 export function getDeviceId(): string {

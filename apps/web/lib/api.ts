@@ -4,6 +4,7 @@ import {
   getDeviceBoundGuestId,
   getDeviceId,
   markIdentityBootstrapped,
+  resetInstallIdentity,
   resolveDeviceId,
   stableDeviceFingerprint,
 } from './device_id';
@@ -85,6 +86,8 @@ const NAME_KEY = 'profile_name';
 const HAS_PWD_KEY = 'account_has_password';
 const ONBOARDED_KEY = 'account_onboarded';
 const PHONE_KEY = 'account_phone';
+/** 手机号所属 user_code，换账号时避免沿用上一账号的号码 */
+const PHONE_OWNER_KEY = 'account_phone_owner';
 // 本地用户名 → user_code 映射（不含密码，仅离线查 ID）
 const REGISTRY_KEY = 'account_registry';
 
@@ -107,6 +110,19 @@ export function hasPassword(): boolean {
   return localStorage.getItem(HAS_PWD_KEY) === '1';
 }
 
+/** 按当前账号同步手机号；服务端无绑定则清除本地，避免显示上一账号号码 */
+function applyAccountPhone(phone: string | null | undefined, ownerCode: string) {
+  if (!isUserCode(ownerCode)) return;
+  const prevOwner = localStorage.getItem(PHONE_OWNER_KEY);
+  if (prevOwner && prevOwner !== ownerCode) {
+    localStorage.removeItem(PHONE_KEY);
+  }
+  localStorage.setItem(PHONE_OWNER_KEY, ownerCode);
+  const p = typeof phone === 'string' ? phone.trim() : '';
+  if (p) localStorage.setItem(PHONE_KEY, p);
+  else localStorage.removeItem(PHONE_KEY);
+}
+
 async function refreshAccountStatus(code: string): Promise<void> {
   try {
     const res = await fetch(
@@ -116,7 +132,7 @@ async function refreshAccountStatus(code: string): Promise<void> {
     if (!res.ok) return;
     const d = await res.json();
     if (d.username) localStorage.setItem(NAME_KEY, d.username);
-    if (d.phone) localStorage.setItem(PHONE_KEY, d.phone);
+    applyAccountPhone(d.phone ?? null, code);
     setHasPasswordCached(Boolean(d.has_password));
   } catch {
     /* 离线跳过 */
@@ -163,14 +179,11 @@ export async function ensureIdentityReady(): Promise<void> {
       return;
     }
 
+    // 仅按安装级 device_id 找回；不用硬件指纹（同型号会误绑他人账号）
     const deviceId = getDeviceId();
-    const fingerprint = stableDeviceFingerprint();
-    if (deviceId) {
+    if (deviceId && !deviceId.startsWith('dev-')) {
       try {
         const params = new URLSearchParams({ device_id: deviceId });
-        if (fingerprint && fingerprint !== deviceId) {
-          params.set('fingerprint', fingerprint);
-        }
         const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
         if (res.ok) {
           const d = (await res.json()) as { user_code?: string | null };
@@ -227,7 +240,8 @@ export async function ensureAccountReady(): Promise<void> {
     } catch {
       /* 离线：本地 ID 仍可用 */
     }
-    await refreshAccountStatus(code);
+    const finalCode = guestId() || code;
+    await refreshAccountStatus(finalCode);
     void import('./post_login').then((m) => m.mergeGuest()).catch(() => {});
   })();
   return ensureAccountPromise;
@@ -340,8 +354,9 @@ export async function bindPhone(phone: string, password?: string | null): Promis
     throw new Error(detail);
   }
   const d = await res.json();
-  if (d.phone) localStorage.setItem(PHONE_KEY, d.phone);
-  return d.phone as string;
+  const owner = (d.user_code as string) || guestId() || currentUserId() || '';
+  applyAccountPhone(d.phone ?? null, owner);
+  return (d.phone as string) || '';
 }
 
 export async function listDevices(): Promise<BoundDevice[]> {
@@ -499,6 +514,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
   bindDeviceGuestId(code);
   localStorage.setItem(USER_KEY, code);
   if (d.username) localStorage.setItem(NAME_KEY, d.username);
+  applyAccountPhone(d.phone ?? null, code);
   setHasPasswordCached(Boolean(d.has_password));
   markOnboarded();
   void import('./post_login').then((m) => m.afterLogin());
@@ -506,7 +522,22 @@ export async function loginWithIdentifier(identifier: string, password: string):
 }
 
 export function logout() {
-  if (typeof window !== 'undefined') localStorage.removeItem(USER_KEY);
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(PHONE_KEY);
+  localStorage.removeItem(PHONE_OWNER_KEY);
+}
+
+/**
+ * 本机误绑他人账号时：清除身份并刷新，生成新的用户 ID。
+ * （同型号手机曾因硬件指纹撞号共用一个账号。）
+ */
+export async function startFreshAccount(): Promise<void> {
+  ensureAccountPromise = null;
+  ensureIdentityPromise = null;
+  await resetInstallIdentity();
+  await ensureIdentityReady();
+  await ensureAccountReady();
 }
 
 export interface Citation {

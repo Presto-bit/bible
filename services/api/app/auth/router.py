@@ -241,24 +241,27 @@ def username_available(u: str) -> dict:
 
 @router.get("/device-user")
 def device_user(device_id: str, fingerprint: str | None = None) -> dict:
-    """按设备指纹找回已绑定的 user_code（PWA 重装后恢复身份）。"""
-    keys = []
-    for raw in (device_id, fingerprint):
-        fp = (raw or "").strip()
-        if fp and len(fp) <= 128 and fp not in keys:
-            keys.append(fp)
-    if not keys:
+    """按安装级 device_id 找回 user_code。
+
+    不再使用硬件指纹（fingerprint / dev-*）：同型号手机 GPU/Canvas 常相同，
+    会导致两台设备误绑同一账号。fingerprint 参数保留兼容，但忽略。
+    """
+    del fingerprint  # 明确不参与身份查找
+    fp = (device_id or "").strip()
+    if not fp or len(fp) > 128:
         raise HTTPException(status_code=400, detail="无效设备标识")
+    # 旧版硬件指纹不可用于自动恢复
+    if fp.startswith("dev-"):
+        return {"user_code": None}
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            for fp in keys:
-                row = conn.execute(
-                    "SELECT user_code FROM device_user_bindings WHERE device_fingerprint = %s",
-                    (fp,),
-                ).fetchone()
-                if row:
-                    return {"user_code": row[0]}
+            row = conn.execute(
+                "SELECT user_code FROM device_user_bindings WHERE device_fingerprint = %s",
+                (fp,),
+            ).fetchone()
+            if row:
+                return {"user_code": row[0]}
         return {"user_code": None}
     except Exception as exc:
         logger.warning("device-user 查询失败：%s", exc)
@@ -282,8 +285,11 @@ def _lookup_bound_user_code(conn, *fingerprints: str | None) -> str | None:
 
 
 def _bind_device_user(conn, device_id: str | None, user_code: str) -> None:
+    """仅绑定安装级 device_id；拒绝弱硬件指纹 dev-*，避免同型号撞号。"""
     fp = (device_id or "").strip()
     if not fp or not is_user_code(user_code):
+        return
+    if fp.startswith("dev-"):
         return
     conn.execute(
         """
@@ -305,7 +311,7 @@ def _maybe_migrate_engagement(conn, from_code: str | None, to_code: str) -> None
 def register(
     body: RegisterBody,
     x_device_id: str | None = Header(default=None),
-    x_device_fingerprint: str | None = Header(default=None),
+    x_device_fingerprint: str | None = Header(default=None),  # noqa: ARG001 — 兼容旧客户端，忽略
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
 ) -> dict:
     """按 10 位用户ID 建档（免注册即用），可同时设置用户名 + 密码。"""
@@ -322,7 +328,8 @@ def register(
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            bound = _lookup_bound_user_code(conn, x_device_id, x_device_fingerprint)
+            # 仅按安装级 device_id 恢复；不用硬件指纹（同型号会误绑）
+            bound = _lookup_bound_user_code(conn, x_device_id)
             if bound:
                 code = bound
                 user_id = _uuid_for_code(code)
@@ -350,11 +357,14 @@ def register(
                 (code, user_id, name, pwd_hash, pwd_salt),
             )
             _bind_device_user(conn, x_device_id, code)
-            _bind_device_user(conn, x_device_fingerprint, code)
             former = pick_user_code(requested, x_user_code)
             _maybe_migrate_engagement(conn, former, code)
             conn.commit()
-        return {"ok": True, **_account_payload(code, name, pwd_hash)}
+            row = _account_row(conn, code)
+            phone = row[4] if row else None
+            uname = (row[1] if row else None) or name
+            phash = row[2] if row else pwd_hash
+        return {"ok": True, **_account_payload(code, uname, phash, phone)}
     except HTTPException:
         raise
     except Exception as exc:
@@ -384,7 +394,6 @@ def login(
                 ).fetchone()
                 if row is None:
                     _bind_device_user(conn, x_device_id, idf)
-                    _bind_device_user(conn, x_device_fingerprint, idf)
                     former = pick_user_code(x_user_code)
                     _maybe_migrate_engagement(conn, former, idf)
                     conn.commit()
@@ -409,8 +418,8 @@ def login(
                     raise HTTPException(status_code=401, detail="密码不正确")
             elif not is_user_code(idf):
                 raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID登录")
+            # 仅绑定安装级 device_id，不绑定硬件指纹
             _bind_device_user(conn, x_device_id, code)
-            _bind_device_user(conn, x_device_fingerprint, code)
             former = pick_user_code(x_user_code, idf if is_user_code(idf) else None)
             _maybe_migrate_engagement(conn, former, code)
             conn.commit()
