@@ -20,8 +20,8 @@ export function CitationBar({
   const [popupN, setPopupN] = useState<number | null>(null);
 
   useEffect(() => {
-    // 脚标点击：只弹窗，不强制展开底部列表
-    if (controlled == null) return;
+    // undefined = 非受控；null/number = 受控（脚标点击弹窗）
+    if (controlled === undefined) return;
     setPopupN(controlled);
   }, [controlled]);
 

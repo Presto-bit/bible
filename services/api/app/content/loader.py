@@ -61,25 +61,37 @@ def _load_plan_csv(plan_id: str) -> list[dict]:
     return rows
 
 
-def resolve_ref_text(ref: str | None, book: str | None, chapter: int | None,
-                     verse_start: int | None, verse_end: int | None) -> str:
-    """优先用结构化坐标，其次解析 ref 字符串，从 CNV 经库取文本。"""
+def resolve_ref_text(
+    ref: str | None,
+    book: str | None,
+    chapter: int | None,
+    verse_start: int | None,
+    verse_end: int | None,
+    version: str = reader.PRIMARY_VERSION,
+) -> str:
+    """优先用结构化坐标，其次解析 ref 字符串，从指定译本经库取文本。"""
     try:
         if book and chapter and verse_start:
-            verses = reader.get_verses(book, chapter, verse_start, verse_end)
+            verses = reader.get_verses(book, chapter, verse_start, verse_end, version=version)
         elif ref:
             r = parse_ref(ref)
             if not r or r.chapter is None:
                 return ""
             if r.verse_start is not None:
-                verses = reader.get_verses(r.book_id, r.chapter, r.verse_start, r.verse_end)
+                verses = reader.get_verses(
+                    r.book_id, r.chapter, r.verse_start, r.verse_end, version=version,
+                )
             else:
-                verses = reader.get_chapter(r.book_id, r.chapter)
+                verses = reader.get_chapter(r.book_id, r.chapter, version=version)
         else:
             return ""
     except Exception:
-        return ""
-    return " ".join(v["text"] for v in verses).strip()
+        verses = []
+    text = " ".join(v["text"] for v in verses).strip()
+    # 指定译本缺失时回退主译本（CNV）
+    if not text and version != reader.PRIMARY_VERSION:
+        return resolve_ref_text(ref, book, chapter, verse_start, verse_end, reader.PRIMARY_VERSION)
+    return text
 
 
 # ── 计划 ──

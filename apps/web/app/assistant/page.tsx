@@ -91,6 +91,8 @@ function AssistantPageInner() {
   const seedBoot = useRef(false);
   const hydratedRef = useRef(false);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
+  /** 哪一条助手消息正在展示脚标弹窗（FAB 带入的历史消息也要可点） */
+  const [citationMsgIdx, setCitationMsgIdx] = useState<number | null>(null);
   const rafRef = useRef<number | null>(null);
 
   const [toast, setToast] = useState('');
@@ -380,7 +382,15 @@ function AssistantPageInner() {
         handled = true;
         refVal = payload.ref || refVal;
         if (payload.seedMessages?.length) {
-          setMsgs(payload.seedMessages.map((m) => ({ role: m.role, text: m.text })));
+          setMsgs(
+            payload.seedMessages.map((m) => ({
+              role: m.role,
+              text: m.text,
+              citations: m.citations,
+              scene: m.scene,
+              sceneLabel: m.sceneLabel,
+            })),
+          );
           skipInputPrefill = true;
         } else {
           question = payload.question;
@@ -615,7 +625,10 @@ function AssistantPageInner() {
                         streaming={isStreaming}
                         dense={Boolean(m.scene?.startsWith('summary_'))}
                         citations={m.citations}
-                        onCitationClick={(n) => setCitationOpen(n)}
+                        onCitationClick={(n) => {
+                          setCitationMsgIdx(i);
+                          setCitationOpen(n);
+                        }}
                       />
                     </div>
                   ) : (
@@ -629,8 +642,11 @@ function AssistantPageInner() {
                 {m.citations && m.citations.length > 0 && (
                   <CitationBar
                     citations={m.citations}
-                    activeN={isLastAssistant ? citationOpen : null}
-                    onActiveChange={isLastAssistant ? setCitationOpen : undefined}
+                    activeN={citationMsgIdx === i ? citationOpen : undefined}
+                    onActiveChange={(n) => {
+                      setCitationMsgIdx(i);
+                      setCitationOpen(n);
+                    }}
                   />
                 )}
                 {showActions && (

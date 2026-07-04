@@ -33,7 +33,8 @@
   --app-heading-size: var(--font-xl);
   --app-line-height: 1.55;
   --reader-font-size: 18px;
-  --assistant-answer-font-size: var(--font-base);
+  /* 小爱 Tab / FAB 回答正文（仅输出区，不含标题、按钮、底栏） */
+  --assistant-answer-font-size: 13px;
 }
 
 * {
@@ -222,6 +223,7 @@ body.reader-immersive .tabbar {
   transition: transform 0.12s ease, color 0.12s ease;
 }
 
+/* 小爱 Tab：图标与文案略收 */
 .tab:active {
   transform: scale(0.94);
 }
@@ -1063,30 +1065,70 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-card {
-  flex: 0 0 min(72%, 280px);
-  max-width: min(72%, 280px);
+  flex: 0 0 min(78%, 300px);
+  max-width: min(78%, 300px);
   scroll-snap-align: start;
   display: block;
   transition: opacity 0.28s ease;
 }
 
+/* 左圆标 + 右文案 */
+.rail-card-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  min-height: 88px;
+  box-sizing: border-box;
+}
+
+.rail-card-circle {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  line-height: 1;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-deep) 12%, transparent);
+}
+
+.rail-card-circle-text {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-card-circle-gold {
+  background: var(--dawn-gold-wash);
+  color: var(--dawn-gold-deep);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dawn-gold) 22%, transparent);
+}
+
+.rail-card-circle-green {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+
+.rail-card-circle-rose {
+  background: color-mix(in srgb, var(--dawn-rose) 18%, #fff);
+  color: color-mix(in srgb, var(--dawn-rose) 70%, #5a3a32);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--dawn-rose) 28%, transparent);
+}
+
+.rail-card-circle-slate {
+  background: var(--surface-sunken);
+  color: var(--ink-soft);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
 .rail-card-action.card-accent {
-  overflow: visible;
-}
-
-.rail-card-wide {
-  flex: 0 0 min(78%, 300px);
-  max-width: min(78%, 300px);
-  scroll-snap-align: start;
-}
-
-.rail-card-more {
-  flex: 0 0 min(56%, 220px);
-  max-width: min(56%, 220px);
-  text-align: left;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
+  overflow: hidden;
 }
 
 .rail-card-active {
@@ -1094,21 +1136,20 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-card-inactive {
-  opacity: 0.9;
+  opacity: 0.92;
 }
 
 .rail-card-body {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .rail-action-progress {
-  margin-top: 8px;
-  height: 4px;
-}
-
-.rail-stat-ring {
-  align-self: center;
+  margin-top: 6px;
+  height: 3px;
 }
 
 .home-more-trigger-icon {
@@ -1222,49 +1263,48 @@ html:not([data-app-theme]) .card {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .rail-reason {
+  font-size: var(--font-xs);
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .rail-title {
-  margin-top: 8px;
+  margin-top: 2px;
   font-weight: 600;
-  font-size: var(--font-lg);
+  font-size: var(--font-base);
   color: var(--ink);
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .rail-foot {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 2px;
 }
 
 .rail-sub {
   font-size: var(--font-sm);
   color: var(--ink-soft);
-  line-height: 1.45;
+  line-height: 1.4;
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-
-.rail-cta {
-  font-size: var(--font-sm);
-  font-weight: 600;
-  color: var(--accent-deep);
   white-space: nowrap;
 }
+
 
 .dots {
   display: flex;
@@ -1712,7 +1752,7 @@ a.today-card-link {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.85;
-  font-size: var(--assistant-answer-font-size, var(--font-base));
+  font-size: var(--font-base);
   text-align: left;
   display: inline-block;
   max-width: 100%;
@@ -2663,9 +2703,8 @@ a.today-card-link {
 }
 
 .assistant-answer .answer-rich,
-.assistant-user-text,
 .half-sheet-answer-rich .answer-rich {
-  font-size: var(--assistant-answer-font-size, var(--font-base));
+  font-size: var(--assistant-answer-font-size);
   line-height: 1.85;
 }
 
@@ -3458,7 +3497,7 @@ a.today-card-link {
   border-radius: 10px;
   background: var(--accent-wash);
   border-left: 3px solid var(--accent-deep);
-  font-size: var(--assistant-answer-font-size, var(--font-base));
+  font-size: var(--font-base);
   line-height: 1.85;
   margin-bottom: 12px;
 }
@@ -5301,16 +5340,60 @@ a.today-card-link {
 }
 
 .reader-focus-row-actions {
-  justify-content: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 2px;
   flex-wrap: nowrap;
 }
+
 .reader-focus-row-actions .vsb-item {
   flex: 1 1 0;
   min-width: 52px;
   font-size: 12px;
   white-space: nowrap;
   padding: 6px 8px;
+}
+
+/* 选中工具条：上图标 + 下文案 */
+.vsb-icon-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 6px 4px;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.vsb-icon-btn:active {
+  background: var(--surface-sunken);
+}
+
+.vsb-icon-btn-active {
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+}
+
+.vsb-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.vsb-label {
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  font-weight: 500;
 }
 
 .reader-focus-row-single {
@@ -5426,8 +5509,9 @@ a.today-card-link {
 .reader-focus-row-mark {
   justify-content: center;
   align-items: center;
-  gap: 6px;
-  padding-bottom: 6px;
+  gap: 10px;
+  padding: 4px 0 8px;
+  margin-bottom: 2px;
   border-bottom: 1px solid var(--line);
   flex-wrap: nowrap;
 }
@@ -5704,10 +5788,33 @@ a.today-card-link {
   opacity: 0.65;
 }
 
+.thought-write-backdrop {
+  align-items: flex-end;
+  /* 键盘顶起时由 inline paddingBottom 抬高 sheet */
+}
+
 .thought-write-sheet,
 .thoughts-list-sheet {
-  max-height: 88vh;
+  max-height: min(88dvh, 88vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: max-height 0.12s ease;
+}
+
+.thought-write-scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+.thought-write-actions {
+  flex-shrink: 0;
+  padding-top: 10px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--surface);
 }
 
 .thought-verse-card {

@@ -135,9 +135,15 @@ def compare_verse(book_id: str, chapter: int, verse: int) -> dict:
     }
 
 
-def get_verses(book_id: str, chapter: int, start: int, end: int | None = None) -> list[dict]:
+def get_verses(
+    book_id: str,
+    chapter: int,
+    start: int,
+    end: int | None = None,
+    version: str = PRIMARY_VERSION,
+) -> list[dict]:
     end = end if end is not None else start
-    with _connect() as conn:
+    with _connect(version) as conn:
         rows = conn.execute(
             "SELECT verse, text FROM verses WHERE book=? AND chapter=? AND verse BETWEEN ? AND ? "
             "ORDER BY verse",

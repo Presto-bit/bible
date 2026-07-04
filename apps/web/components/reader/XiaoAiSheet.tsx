@@ -136,7 +136,13 @@ export default function XiaoAiSheet({
       navigateToAssistant(refParam, {
         seedMessages: [
           { role: 'user', text: userQuestion },
-          { role: 'assistant', text: clean },
+          {
+            role: 'assistant',
+            text: clean,
+            citations: citations.length ? citations : undefined,
+            scene,
+            sceneLabel: mode === 'ask' ? '经文解读' : '经文解释',
+          },
         ],
         scene,
       });

@@ -142,13 +142,15 @@ def daily_verse(
 ) -> dict:
     _no_store_headers(response)
     verse_day, item = _resolve_verse_day(day)
-    text = item.get("text") or loader.resolve_ref_text(
+    # 每日经文固定用和合本（CUVS）；缺失时 resolve_ref_text 回退 CNV
+    text = loader.resolve_ref_text(
         item.get("ref"), item.get("book"), item.get("chapter"),
         item.get("verse_start"), item.get("verse_end"),
-    )
+        version="cuvs",
+    ) or (item.get("text") or "")
     user_code = _pick_user_code(x_user_code, x_user_id)
     stats = _daily_verse_engagement(verse_day, user_code)
-    return {**item, "text": text, "day": verse_day, **stats}
+    return {**item, "text": text, "day": verse_day, "version": "cuvs", **stats}
 
 
 @router.post("/daily-verse/like")

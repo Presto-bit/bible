@@ -192,6 +192,7 @@ export default function ReaderView({
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [selectionSpan, setSelectionSpan] = useState<{ start: number; end: number } | null>(null);
   const [markNotePrompt, setMarkNotePrompt] = useState<null | { ref: string; label: string }>(null);
+  const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
   const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'strongs'>(null);
@@ -1125,8 +1126,15 @@ export default function ReaderView({
   };
 
   useEffect(() => {
-    if (!hasSel) setMarkNotePrompt(null);
+    if (!hasSel) {
+      setMarkNotePrompt(null);
+      setMarkPaletteOpen(false);
+    }
   }, [hasSel]);
+
+  useEffect(() => {
+    setMarkPaletteOpen(false);
+  }, [selRef, selectionSpan?.start, selectionSpan?.end]);
 
   const renderPlanLayer = () => (
     planMeta && onPlanMetaChange && onPlanJump ? (
@@ -1476,46 +1484,130 @@ export default function ReaderView({
           style={focusBarStyle}
           onClick={(e) => e.stopPropagation()}
         >
-          {underlinesOn && (
-            <div className="reader-focus-row reader-focus-row-mark">
+          {underlinesOn && markPaletteOpen && !currentMark && (
+            <div className="reader-focus-row reader-focus-row-mark" role="group" aria-label="划线颜色">
               {MARK_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
-                  className={`reader-weread-dot reader-mark-dot-${c} ${currentMark?.color === c ? 'reader-weread-dot-active' : ''}`}
+                  className={`reader-weread-dot reader-mark-dot-${c}`}
                   title={MARK_COLOR_SEMANTICS[c].label}
                   aria-label={MARK_COLOR_SEMANTICS[c].label}
-                  onClick={() => applyMarkChoice(c)}
+                  onClick={() => {
+                    applyMarkChoice(c);
+                    setMarkPaletteOpen(false);
+                  }}
                 />
               ))}
-              {currentMark && (
-                <button type="button" className="vsb-item" onClick={clearMark}>清除</button>
-              )}
             </div>
           )}
           <div className="reader-focus-row reader-focus-row-actions">
             <button
               type="button"
-              className="vsb-item"
+              className="vsb-icon-btn"
               onClick={() => {
+                setMarkPaletteOpen(false);
                 setMarkNotePrompt({ ref: selRef, label: effRefLabel });
               }}
             >
-              笔记
+              <span className="vsb-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0 0-3L17.5 5.5a2.1 2.1 0 0 0-3 0L4 16v4z" />
+                  <path d="M13.5 6.5l4 4" />
+                </svg>
+              </span>
+              <span className="vsb-label">{ui.note}</span>
             </button>
             {thoughtsOn && (
-              <button type="button" className="vsb-item" onClick={() => {
-                setWriteThoughtSheet({
-                  ref: selRef,
-                  label: effRefLabel,
-                  verseText: effSelectionText || undefined,
-                });
-                clearSelection();
-              }}>想法</button>
+              <button
+                type="button"
+                className="vsb-icon-btn"
+                onClick={() => {
+                  setMarkPaletteOpen(false);
+                  setWriteThoughtSheet({
+                    ref: selRef,
+                    label: effRefLabel,
+                    verseText: effSelectionText || undefined,
+                  });
+                  clearSelection();
+                }}
+              >
+                <span className="vsb-icon" aria-hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M12 3a6 6 0 0 0-4 10.5V16h8v-2.5A6 6 0 0 0 12 3z" />
+                    <path d="M10 19h4M11 22h2" />
+                  </svg>
+                </span>
+                <span className="vsb-label">想法</span>
+              </button>
             )}
-            <button type="button" className="vsb-item" onClick={() => { navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`); flashToast(englishUI ? 'Copied' : '已复制'); }}>{ui.copy}</button>
-            <button type="button" className="vsb-item" onClick={() => setToolsSheet('crossrefs')}>相关经文</button>
-            <button type="button" className="vsb-item" onClick={() => setAiSheet(true)}>{ui.askAi}</button>
+            {underlinesOn && (
+              <button
+                type="button"
+                className={`vsb-icon-btn${markPaletteOpen || currentMark ? ' vsb-icon-btn-active' : ''}`}
+                onClick={() => {
+                  if (currentMark) {
+                    clearMark();
+                    setMarkPaletteOpen(false);
+                    return;
+                  }
+                  setMarkPaletteOpen((v) => !v);
+                }}
+              >
+                <span className="vsb-icon" aria-hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M4 20h7" />
+                    <path d="M14 19l6-6-4-4-6 6v4h4z" />
+                    <path d="M13 12l3 3" />
+                  </svg>
+                </span>
+                <span className="vsb-label">{currentMark ? '取消划线' : '划线'}</span>
+              </button>
+            )}
+            <button
+              type="button"
+              className="vsb-icon-btn"
+              onClick={() => {
+                setMarkPaletteOpen(false);
+                void navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`);
+                flashToast(englishUI ? 'Copied' : '已复制');
+              }}
+            >
+              <span className="vsb-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <rect x="9" y="9" width="11" height="11" rx="2" />
+                  <path d="M5 15V5a2 2 0 0 1 2-2h10" />
+                </svg>
+              </span>
+              <span className="vsb-label">{ui.copy}</span>
+            </button>
+            <button
+              type="button"
+              className="vsb-icon-btn"
+              onClick={() => {
+                setMarkPaletteOpen(false);
+                setToolsSheet('crossrefs');
+              }}
+            >
+              <span className="vsb-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M8 6h11M8 12h11M8 18h11" />
+                  <path d="M4 6h.01M4 12h.01M4 18h.01" />
+                </svg>
+              </span>
+              <span className="vsb-label">相关</span>
+            </button>
+            <button
+              type="button"
+              className="vsb-icon-btn"
+              onClick={() => {
+                setMarkPaletteOpen(false);
+                setAiSheet(true);
+              }}
+            >
+              <span className="vsb-icon" aria-hidden>✦</span>
+              <span className="vsb-label">小爱</span>
+            </button>
           </div>
         </div>
       )}

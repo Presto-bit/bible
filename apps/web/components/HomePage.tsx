@@ -21,7 +21,6 @@ import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_re
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
 import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
-import { groupListSubline, myTodayGroupStatus, myTodayGroupStatusLabel } from '@/lib/group_status';
 import { nextReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
@@ -128,8 +127,8 @@ export default function HomePageClient() {
     if (active?.kind === 'prayer') {
       const day = getPlanDay(active.planId) || 1;
       prayerCard = {
-        title: `${active.title} · 第 ${day} 天`,
-        sub: '今日祷告',
+        title: `第 ${day} 天`,
+        sub: active.title,
         href: '/plans?tab=prayer',
       };
     } else if (active) {
@@ -142,8 +141,8 @@ export default function HomePageClient() {
         const step = meta.steps[idx] ?? meta.steps[0];
         const p = sessionProgress(meta.steps, sess.stepsDone);
         planCard = {
-          title: `${active.title} · 第 ${day} 天`,
-          sub: `${step.label} · ${p.done}/${p.total} 段`,
+          title: step.label,
+          sub: `${active.title} · 第 ${day} 天 · ${p.done}/${p.total} 段`,
           href: readerHref(fullMeta, idx),
         };
       }
@@ -156,7 +155,7 @@ export default function HomePageClient() {
         const book = books.find((b) => b.id === last.bookId);
         const name = book?.name ?? last.bookId;
         resumeCard = {
-          title: `${name} ${last.chapter}`,
+          title: `${name} 第 ${last.chapter} 章`,
           sub: '从上次继续',
           href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
         };
@@ -185,14 +184,16 @@ export default function HomePageClient() {
       const pending = groups.find((g) => !g.my_checked_in_today)
         ?? groups.find((g) => (g.open_tasks ?? 0) > 0);
       if (pending && (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0)) {
-        const parts: string[] = [];
-        if (!pending.my_checked_in_today) parts.push(myTodayGroupStatusLabel(myTodayGroupStatus(pending)));
-        if ((pending.open_tasks ?? 0) > 0) parts.push(`${pending.open_tasks} 个任务`);
         const members = pending.members || 1;
         const checked = pending.checked_in_today ?? 0;
+        const actionResult = !pending.my_checked_in_today
+          ? '今日待打卡'
+          : (pending.open_tasks ?? 0) > 0
+            ? `${pending.open_tasks} 个任务`
+            : '今日已打卡';
         groupCard = {
-          title: pending.name,
-          sub: parts.length ? parts.join(' · ') : groupListSubline(pending),
+          title: actionResult,
+          sub: pending.name,
           href: `/discover/group/${pending.id}?focus=checkin`,
           statPct: members > 0 ? Math.round((checked / members) * 100) : 0,
           statLabel: `${checked}/${members}`,
@@ -230,8 +231,8 @@ export default function HomePageClient() {
       if (dv?.ref) {
         const q = '这段经文里，神的应许对你意味着什么？';
         assistantCard = {
-          title: '小爱想问你',
-          sub: `「${q}」`,
+          title: dv.ref,
+          sub: '小爱想和你聊聊今日经文',
           href: assistantHref(dv.ref, {
             question: q,
             autoSend: true,
@@ -244,10 +245,12 @@ export default function HomePageClient() {
     }
     const thoughtN = listAllThoughts().length;
     const noteN = listNotes().length;
+    const memCount = thoughtN + noteN;
     const notesCard = {
-      title: '经文记忆',
-      sub: `${thoughtN + noteN > 0 ? `${thoughtN + noteN} 条内容 · ` : ''}想法 · 收藏 · 划线`,
+      title: memCount > 0 ? `${memCount} 条记录` : '经文记忆',
+      sub: '想法 · 收藏 · 划线',
       href: '/notes',
+      count: memCount,
     };
     const pendingBookLocal = getPendingBookChallenge();
     const { main } = buildHomeRail({
@@ -260,8 +263,8 @@ export default function HomePageClient() {
       notes: notesCard,
       challenge: pendingBookLocal
         ? {
-            title: `《${pendingBookLocal.bookName}》巩固`,
-            sub: '每日问答 · 复习错题',
+            title: `《${pendingBookLocal.bookName}》`,
+            sub: '巩固问答 · 复习错题',
             href: '/challenge',
           }
         : undefined,

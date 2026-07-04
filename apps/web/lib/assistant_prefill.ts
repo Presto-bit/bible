@@ -1,7 +1,18 @@
 /** 发现页 / 分享卡 → 小爱预填（问题走 sid 暂存，不暴露在 URL） */
 
+import type { Citation } from './api';
+
 const SEED_PREFIX = 'presto_ai_seed:';
 const SEED_TTL_MS = 30 * 60 * 1000;
+
+export type AssistantSeedMessage = {
+  role: 'user' | 'assistant';
+  text: string;
+  /** FAB 半屏带入的参考资料，继续聊时保留脚标可点 */
+  citations?: Citation[];
+  scene?: string;
+  sceneLabel?: string;
+};
 
 export interface AssistantPrefill {
   ref: string;
@@ -10,7 +21,7 @@ export interface AssistantPrefill {
   scene?: string;
   /** 传给 /ai/chat 的 surface；如 home_prefill 禁用 RAG */
   surface?: string;
-  seedMessages?: { role: 'user' | 'assistant'; text: string }[];
+  seedMessages?: AssistantSeedMessage[];
 }
 
 export function explainVerseQuestion(ref: string, excerpt?: string): string {
@@ -64,7 +75,13 @@ export function consumeAssistantPrefill(sid: string): AssistantPrefill | null {
       autoSend: row.autoSend,
       scene: row.scene,
       surface: row.surface,
-      seedMessages: row.seedMessages,
+      seedMessages: (row.seedMessages ?? []).map((m) => ({
+        role: m.role,
+        text: m.text,
+        citations: m.citations,
+        scene: m.scene,
+        sceneLabel: m.sceneLabel,
+      })),
     };
   } catch {
     return null;
@@ -83,7 +100,7 @@ export function assistantHref(
     autoSend?: boolean;
     scene?: string;
     surface?: string;
-    seedMessages?: { role: 'user' | 'assistant'; text: string }[];
+    seedMessages?: AssistantSeedMessage[];
   },
 ): string {
   const q = opts?.question ?? explainVerseQuestion(ref, opts?.excerpt);
@@ -113,7 +130,7 @@ export function navigateToAssistant(
     autoSend?: boolean;
     scene?: string;
     surface?: string;
-    seedMessages?: { role: 'user' | 'assistant'; text: string }[];
+    seedMessages?: AssistantSeedMessage[];
   },
 ) {
   if (typeof window === 'undefined') return;

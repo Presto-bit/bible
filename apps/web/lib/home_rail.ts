@@ -1,7 +1,21 @@
-/** 首页横滑卡：4 张主卡 +「更多」溢出项 */
+/** 首页横滑卡：左圆标 + 右文案（点击整卡进入，无 CTA） */
 
 export type RailCardKind = 'action' | 'media' | 'stat' | 'ghost';
 export type RailTint = 'gold' | 'green' | 'rose' | 'slate';
+
+/** 圆标固定语义，形成记忆点（统计卡圆内显示百分比，不用 icon） */
+export const RAIL_ICONS = {
+  resume: '📖',
+  plan: '📅',
+  prayer: '🙏',
+  group: '👥',
+  notes: '📝',
+  suggest: '💡',
+  assistant: '✦',
+  challenge: '✓',
+  plans: '📅',
+  discover: '👥',
+} as const;
 
 export type RailCard = {
   id: string;
@@ -9,9 +23,9 @@ export type RailCard = {
   tint: RailTint;
   tag: string;
   reason: string;
+  /** 主标题：动作结果（读到哪 / 今日经文 / 待办状态） */
   title: string;
   sub: string;
-  cta: string;
   href: string;
   icon: string;
   statPct?: number;
@@ -59,12 +73,11 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         kind: 'action',
         tint: 'gold',
         tag: '继续',
-        reason: '你上次读到这里',
+        reason: '上次读到',
         title: input.resume.title,
         sub: input.resume.sub,
-        cta: '读 ›',
         href: input.resume.href,
-        icon: '📖',
+        icon: RAIL_ICONS.resume,
         progressPct: input.resume.progressPct,
       };
     case 'plan':
@@ -77,9 +90,8 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         reason: '今日计划',
         title: input.plan.title,
         sub: input.plan.sub,
-        cta: '去读 ›',
         href: input.plan.href,
-        icon: '📅',
+        icon: RAIL_ICONS.plan,
       };
     case 'prayer':
       if (!input.prayer) return null;
@@ -91,9 +103,8 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         reason: '今日祷告',
         title: input.prayer.title,
         sub: input.prayer.sub,
-        cta: '去读 ›',
         href: input.prayer.href,
-        icon: '🙏',
+        icon: RAIL_ICONS.prayer,
       };
     case 'group':
       if (!input.group) return null;
@@ -102,12 +113,11 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         kind: 'stat',
         tint: 'green',
         tag: '小组',
-        reason: '群待打卡',
+        reason: '共读群',
         title: input.group.title,
         sub: input.group.sub,
-        cta: '去打卡 ›',
         href: input.group.href,
-        icon: '👥',
+        icon: RAIL_ICONS.group,
         statPct: input.group.statPct,
         statLabel: input.group.statLabel,
       };
@@ -120,9 +130,8 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         reason: '经文记忆',
         title: input.notes?.title ?? '经文记忆',
         sub: input.notes?.sub ?? '想法 · 收藏 · 划线',
-        cta: '查看 ›',
         href: input.notes?.href ?? '/notes',
-        icon: '✍️',
+        icon: RAIL_ICONS.notes,
       };
     case 'suggest':
       if (!input.suggest) return null;
@@ -131,12 +140,11 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         kind: 'ghost',
         tint: 'slate',
         tag: '推荐',
-        reason: input.suggest.sub,
+        reason: '为你推荐',
         title: input.suggest.title,
-        sub: '智能推荐',
-        cta: '去读 ›',
+        sub: input.suggest.sub,
         href: input.suggest.href,
-        icon: '✨',
+        icon: RAIL_ICONS.suggest,
       };
     case 'assistant':
       if (!input.assistant) return null;
@@ -145,12 +153,11 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         kind: 'ghost',
         tint: 'rose',
         tag: '小爱',
-        reason: '基于今日经文',
+        reason: '今日经文',
         title: input.assistant.title,
         sub: input.assistant.sub,
-        cta: '聊聊 ›',
         href: input.assistant.href,
-        icon: '💬',
+        icon: RAIL_ICONS.assistant,
       };
     case 'challenge':
       if (!input.challenge) return null;
@@ -162,9 +169,8 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         reason: '巩固所学',
         title: input.challenge.title,
         sub: input.challenge.sub,
-        cta: '开始 ›',
         href: input.challenge.href,
-        icon: '🎯',
+        icon: RAIL_ICONS.challenge,
       };
     default:
       return null;
@@ -180,16 +186,29 @@ function moreItemToCard(item: HomeMoreItem): RailCard {
     reason: item.sub.split(' · ')[0] ?? item.tag,
     title: item.title,
     sub: item.sub,
-    cta: '',
     href: item.href,
     icon: item.icon,
   };
 }
 
-/** 固定「更多」里始终出现的入口 */
+/** 固定入口（无进行中计划/群时补位） */
 const ALWAYS_MORE: HomeMoreItem[] = [
-  { id: 'plans', tag: '计划', title: '读经计划', sub: '热门计划 · 个性定制', href: '/plans', icon: '📚' },
-  { id: 'discover', tag: '发现', title: '共读群', sub: '打卡 · 任务 · 同行', href: '/discover', icon: '👥' },
+  {
+    id: 'plans',
+    tag: '计划',
+    title: '读经计划',
+    sub: '热门计划 · 个性定制',
+    href: '/plans',
+    icon: RAIL_ICONS.plans,
+  },
+  {
+    id: 'discover',
+    tag: '小组',
+    title: '共读群',
+    sub: '打卡 · 任务 · 同行',
+    href: '/discover',
+    icon: RAIL_ICONS.discover,
+  },
 ];
 
 export function buildHomeRail(input: HomeRailInput): {
