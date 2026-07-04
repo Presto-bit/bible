@@ -270,11 +270,9 @@ class HomeScreen extends ConsumerWidget {
                 child: Row(
                   children: const [
                     Text('今日 12 分钟 · 本月已读 9 天',
-                        style: TextStyle(fontSize: 13, color: AppColors.ink)),
+                        style: AppTypography.stat),
                     Spacer(),
-                    Text('›',
-                        style:
-                            TextStyle(color: AppColors.inkFaint, fontSize: 16)),
+                    Text('›', style: AppTypography.meta.copyWith(fontSize: AppTypography.lg)),
                   ],
                 ),
               ),
@@ -407,10 +405,7 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
                       (name != null && name.isNotEmpty) ? name : '读经伙伴',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.ink),
+                      style: AppTypography.title,
                     ),
                   ),
                 ],

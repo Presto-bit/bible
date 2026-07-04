@@ -21,7 +21,7 @@ pytestmark = pytest.mark.skipif(not _HAS_DB, reason="缺少 build/bible_cnv.sqli
         ("JHN.3.16", "JHN.3.16", 3, 16, None),
         ("JHN 3:16", "JHN.3.16", 3, 16, None),
         ("约翰福音3:16", "JHN.3.16", 3, 16, None),
-        ("约翰福音 3:16-18", "JHN.3.16", 3, 16, 18),
+        ("约翰福音 3:16-18", "JHN.3.16-18", 3, 16, 18),
         ("诗篇23", "PSA.23", 23, None, None),
         ("JHN.3", "JHN.3", 3, None, None),
         ("1JN.1.9", "1JN.1.9", 1, 9, None),

@@ -126,11 +126,11 @@ import {
 } from '@/lib/reader_preferences';
 
 const FONT_SIZES = [
-  { label: '中', px: 17 },
+  { label: '中', px: 18 },
   { label: '大', px: 20 },
   { label: '特大', px: 24 },
 ];
-const DEFAULT_FONT_PX = 20;
+const DEFAULT_FONT_PX = 18;
 
 export default function ReaderView({
   book,
@@ -485,32 +485,15 @@ export default function ReaderView({
   );
 
   const updateFocusBarPosition = useCallback(() => {
-    if (!hasSel || minV == null) return;
-    const firstEl = document.getElementById(`verse-anchor-${minV}`);
-    const lastEl = document.getElementById(`verse-anchor-${maxV}`);
-    if (!firstEl) return;
-    const firstRect = firstEl.getBoundingClientRect();
-    const lastRect = lastEl?.getBoundingClientRect() ?? firstRect;
-    const selTop = Math.min(firstRect.top, lastRect.top);
-    const selBottom = Math.max(firstRect.bottom, lastRect.bottom);
-    const selCenterX = (
-      Math.min(firstRect.left, lastRect.left) + Math.max(firstRect.right, lastRect.right)
-    ) / 2;
-    const barH = focusBarRef.current?.offsetHeight ?? 56;
-    const margin = 10;
-    const topReserve = chromeHidden ? 12 : 58;
-    const bottomReserve = chromeHidden ? 24 : 76;
-    let top = selTop - barH - margin;
-    if (top < topReserve) top = selBottom + margin;
-    const maxTop = window.innerHeight - barH - bottomReserve;
-    top = Math.max(topReserve, Math.min(top, maxTop));
+    if (!hasSel) return;
+    // 固定在底部 Tab 上方，避开系统划词菜单（通常贴在选区附近）
     setFocusBarStyle({
-      top: `${top}px`,
-      left: `${selCenterX}px`,
-      bottom: 'auto',
+      top: 'auto',
+      left: '50%',
+      bottom: `calc(64px + env(safe-area-inset-bottom, 0px) + ${chromeHidden ? 12 : 10}px)`,
       transform: 'translateX(-50%)',
     });
-  }, [hasSel, minV, maxV, chromeHidden]);
+  }, [hasSel, chromeHidden]);
 
   useEffect(() => {
     if (!hasSel) {
@@ -650,6 +633,7 @@ export default function ReaderView({
     }
     const saved = Number(localStorage.getItem('readerFont'));
     if (saved && FONT_SIZES.some((f) => f.px === saved)) setFontPx(saved);
+    else if (saved === 17) setFontPx(18); // 旧「中」字号迁移
     setFontFamilyState(getFontFamily());
     setPageTurnState(getPageTurn());
     setUnderlinesOn(getUnderlinesOn());
@@ -1081,6 +1065,24 @@ export default function ReaderView({
     return () => document.removeEventListener('selectionchange', onSel);
   }, [syncSelectionFromDom]);
 
+  // 划词结束后清除系统选区，收起系统菜单，避免与底部工具条叠挡
+  useEffect(() => {
+    if (!hasSel) return;
+    const dismissNative = () => {
+      syncingSelection.current = true;
+      window.getSelection()?.removeAllRanges();
+      window.setTimeout(() => {
+        syncingSelection.current = false;
+      }, 0);
+    };
+    document.addEventListener('mouseup', dismissNative);
+    document.addEventListener('touchend', dismissNative);
+    return () => {
+      document.removeEventListener('mouseup', dismissNative);
+      document.removeEventListener('touchend', dismissNative);
+    };
+  }, [hasSel]);
+
   const clearSelection = () => {
     window.getSelection()?.removeAllRanges();
     setSelected([]);
@@ -1176,11 +1178,12 @@ export default function ReaderView({
                         ? markForVerse(highlightMap, book.id, chapter, v.verse)
                         : null;
                       const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+                      const isSel = selected.includes(v.verse);
                       return (
                         <span
                           key={v.verse}
                           id={`verse-anchor-${v.verse}`}
-                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}`}
+                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isSel ? ' verse-sel-active' : ''}`}
                           onClick={(e) => handleVerseThoughtClick(e, v.verse, text)}
                         >
                           {verseNo !== 'hidden' && (
@@ -1243,11 +1246,12 @@ export default function ReaderView({
                     ? markForVerse(highlightMap, book.id, chapter, v.verse)
                     : null;
                   const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+                  const isSel = selected.includes(v.verse);
                   return (
                     <span
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}`}
+                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isSel ? ' verse-sel-active' : ''}`}
                       onClick={(e) => handleVerseThoughtClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                     >
                       {verseNo !== 'hidden' && (
@@ -1396,39 +1400,39 @@ export default function ReaderView({
         </div>
       </div>
 
-      {hasGroups && (
-      <button
-        type="button"
-        className={`reader-fab reader-fab-group reader-fab-sm${chromeHidden || hasSel ? ' is-hidden' : ''}`}
-        onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
-        aria-label="打卡到共读群"
+      <div
+        className={`reader-fab-stack${chromeHidden || hasSel ? ' is-hidden' : ''}`}
         aria-hidden={chromeHidden || hasSel}
       >
-        {groupCtx.groupId ? '打卡到群' : '打卡'}
-      </button>
-      )}
-
-      {planMeta && onPlanExit && (
+        {planMeta && onPlanExit && (
+          <button
+            type="button"
+            className="reader-fab reader-fab-plan-exit reader-fab-sm"
+            onClick={(e) => { e.stopPropagation(); onPlanExit(); }}
+            aria-label="退出计划模式"
+          >
+            退出计划
+          </button>
+        )}
+        {hasGroups && (
+          <button
+            type="button"
+            className="reader-fab reader-fab-group reader-fab-sm"
+            onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
+            aria-label="打卡到共读群"
+          >
+            {groupCtx.groupId ? '打卡到群' : '打卡'}
+          </button>
+        )}
         <button
           type="button"
-          className={`reader-fab reader-fab-plan-exit reader-fab-sm${chromeHidden || hasSel ? ' is-hidden' : ''}`}
-          onClick={(e) => { e.stopPropagation(); onPlanExit(); }}
-          aria-label="退出计划模式"
-          aria-hidden={chromeHidden || hasSel}
+          className="reader-fab"
+          onClick={(e) => { e.stopPropagation(); setAiSheet(true); }}
+          aria-label="问小爱"
         >
-          退出计划
+          ✦ 小爱
         </button>
-      )}
-
-      <button
-        type="button"
-        className={`reader-fab${chromeHidden || hasSel ? ' is-hidden' : ''}`}
-        onClick={(e) => { e.stopPropagation(); setAiSheet(true); }}
-        aria-label="问小爱"
-        aria-hidden={chromeHidden || hasSel}
-      >
-        ✦ 小爱
-      </button>
+      </div>
 
       {hasSel && (
         <div

@@ -43,7 +43,10 @@ class ScriptureRef:
         if self.chapter is not None:
             parts.append(str(self.chapter))
         if self.verse_start is not None:
-            parts.append(str(self.verse_start))
+            if self.verse_end and self.verse_end != self.verse_start:
+                parts.append(f"{self.verse_start}-{self.verse_end}")
+            else:
+                parts.append(str(self.verse_start))
         return ".".join(parts)
 
 

@@ -3,7 +3,9 @@
 import { chatStream } from './api';
 import { bodyText } from './assistant_format';
 
-const CACHE_KEY = 'presto_bible_summaries_v1';
+/** v2：作废旧版截断缓存（max_tokens 过低时写入的半截导读） */
+const CACHE_KEY = 'presto_bible_summaries_v2';
+const LEGACY_CACHE_KEYS = ['presto_bible_summaries_v1'];
 
 type CacheMap = Record<string, string>;
 
@@ -32,8 +34,20 @@ const CHAPTER_SEEDS: Record<string, Record<number, string>> = {
   },
 };
 
+function purgeLegacyCaches() {
+  if (typeof window === 'undefined') return;
+  for (const key of LEGACY_CACHE_KEYS) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
 function readCache(): CacheMap {
   if (typeof window === 'undefined') return {};
+  purgeLegacyCaches();
   try {
     return JSON.parse(localStorage.getItem(CACHE_KEY) || '{}') as CacheMap;
   } catch {
@@ -53,13 +67,47 @@ function chapterKey(bookId: string, chapter: number) {
   return `ch:${bookId.toUpperCase()}.${chapter}`;
 }
 
+/** 旧缓存可能在 token 上限处被截断，检测后强制重生成 */
+function looksTruncated(text: string, kind: 'book' | 'chapter'): boolean {
+  const t = (text || '').trim();
+  if (!t) return true;
+  if (/[…⋯]$|\.\.\.$/.test(t)) return true;
+  if (/第\s*\d+\s*章[：:]\s*$/.test(t)) return true;
+  if (kind === 'book') {
+    if (t.length < 180) return true;
+    // 新格式应含结构标题；过短且无标题视为旧半截
+    if (!t.includes('【') && t.length < 400) return true;
+  } else if (t.length < 36) {
+    return true;
+  }
+  return false;
+}
+
 export function getCachedBookSummary(bookId: string): string | null {
-  return readCache()[bookKey(bookId)] ?? BOOK_SEEDS[bookId.toUpperCase()] ?? null;
+  const cached = readCache()[bookKey(bookId)];
+  if (cached && !looksTruncated(cached, 'book')) return cached;
+  return BOOK_SEEDS[bookId.toUpperCase()] ?? null;
 }
 
 export function getCachedChapterSummary(bookId: string, chapter: number): string | null {
   const k = bookId.toUpperCase();
-  return readCache()[chapterKey(k, chapter)] ?? CHAPTER_SEEDS[k]?.[chapter] ?? null;
+  const cached = readCache()[chapterKey(k, chapter)];
+  if (cached && !looksTruncated(cached, 'chapter')) return cached;
+  return CHAPTER_SEEDS[k]?.[chapter] ?? null;
+}
+
+export function invalidateSummaryCache(bookId?: string, chapter?: number) {
+  const map = readCache();
+  if (!bookId) {
+    writeCache({});
+    return;
+  }
+  if (chapter != null) {
+    delete map[chapterKey(bookId, chapter)];
+  } else {
+    delete map[bookKey(bookId)];
+  }
+  writeCache(map);
 }
 
 async function streamAsk(
@@ -85,25 +133,27 @@ async function streamAsk(
 }
 
 export async function loadBookSummary(bookId: string, bookName: string): Promise<string> {
-  const cached = getCachedBookSummary(bookId);
-  if (cached && readCache()[bookKey(bookId)]) return cached;
+  const key = bookKey(bookId);
+  const map = readCache();
+  const cached = map[key];
+  if (cached && !looksTruncated(cached, 'book')) return cached;
 
   const seed = BOOK_SEEDS[bookId.toUpperCase()];
-  if (seed) {
-    const map = readCache();
-    map[bookKey(bookId)] = seed;
+  if (seed && !cached) {
+    map[key] = seed;
     writeCache(map);
     return seed;
   }
 
   const body = await streamAsk(
-    `请概括《${bookName}》整卷的主旨、结构与各章要点。`,
+    `请概括《${bookName}》整卷的主旨、结构与各章要点。务必写完整，不要中途截断。`,
     bookId,
     'summary_book',
   );
-  const map = readCache();
-  map[bookKey(bookId)] = body;
-  writeCache(map);
+  if (!looksTruncated(body, 'book')) {
+    map[key] = body;
+    writeCache(map);
+  }
   return body;
 }
 
@@ -112,24 +162,26 @@ export async function loadChapterSummary(
   bookName: string,
   chapter: number,
 ): Promise<string> {
-  const cached = getCachedChapterSummary(bookId, chapter);
-  if (cached && readCache()[chapterKey(bookId, chapter)]) return cached;
+  const key = chapterKey(bookId, chapter);
+  const map = readCache();
+  const cached = map[key];
+  if (cached && !looksTruncated(cached, 'chapter')) return cached;
 
   const seed = CHAPTER_SEEDS[bookId.toUpperCase()]?.[chapter];
-  if (seed) {
-    const map = readCache();
-    map[chapterKey(bookId, chapter)] = seed;
+  if (seed && !cached) {
+    map[key] = seed;
     writeCache(map);
     return seed;
   }
 
   const body = await streamAsk(
-    `请概括《${bookName}》第${chapter}章的核心内容与要点。`,
+    `请概括《${bookName}》第${chapter}章的核心内容与要点。务必写完整，不要中途截断。`,
     `${bookId}.${chapter}`,
     'summary_chapter',
   );
-  const map = readCache();
-  map[chapterKey(bookId, chapter)] = body;
-  writeCache(map);
+  if (!looksTruncated(body, 'chapter')) {
+    map[key] = body;
+    writeCache(map);
+  }
   return body;
 }

@@ -280,14 +280,12 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
             ('预备查经', AssistantMode.understand, chipUserQuestion('预备查经', ref: anchorLabel)),
             ('预备讲道', AssistantMode.preach, chipUserQuestion('讲道大纲', ref: anchorLabel)),
             ('译本对照', AssistantMode.compare, chipUserQuestion('译本对照', ref: anchorLabel)),
-            ('原文释义', AssistantMode.original, chipUserQuestion('原文释义', ref: anchorLabel)),
           ]
         : [
             ('经文背景', AssistantMode.explain, chipUserQuestion('经文背景', ref: anchorLabel)),
             ('解释经文', AssistantMode.explain, chipUserQuestion('解释经文', ref: anchorLabel)),
             ('应用', AssistantMode.apply, chipUserQuestion('生活应用', ref: anchorLabel)),
             ('译本对照', AssistantMode.compare, chipUserQuestion('译本对照', ref: anchorLabel)),
-            ('原文释义', AssistantMode.original, chipUserQuestion('原文释义', ref: anchorLabel)),
             ('和「信」的关系？', AssistantMode.explain, '和「信」有什么关系？'),
             ('日常焦虑里？', AssistantMode.apply, '怎样用在日常焦虑里？'),
           ];

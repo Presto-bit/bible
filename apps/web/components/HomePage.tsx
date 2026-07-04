@@ -11,7 +11,6 @@ import {
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import { DailyDevotionalCard } from '@/components/home/DailyDevotionalCard';
-import { illustrationForVerseBackground } from '@/lib/illustrations';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
@@ -53,12 +52,12 @@ export default function HomePageClient() {
       .then(() => api.dailyVerse())
       .then(async (v) => {
         const day = v.day ?? 0;
-        let likedVal = Boolean(v.liked);
-        let countVal = v.likes_count ?? 0;
-        if (day > 0) {
-          const cached = readLocalDailyVerseLike(day);
-          if (cached != null) likedVal = cached;
-        }
+        // 以服务端为准；本地缓存仅作离线兜底（服务端未返回 liked 时）
+        const likedVal =
+          typeof v.liked === 'boolean'
+            ? v.liked
+            : (day > 0 ? readLocalDailyVerseLike(day) : null) ?? false;
+        const countVal = v.likes_count ?? 0;
         setDv(v);
         setLiked(likedVal);
         setLikeCount(countVal);
@@ -79,13 +78,8 @@ export default function HomePageClient() {
   }, [loadDailyVerse]);
 
   useEffect(() => {
-    if (!dv?.day && !dv?.theme) {
-      setHeroIllustration(null);
-      return;
-    }
-    void illustrationForVerseBackground(dv?.day, dv?.theme).then((r) => {
-      setHeroIllustration(r?.url ?? dailyVerseWallpaperUrl(dv?.day));
-    });
+    // 每日经文背景使用风景图（按 day 轮换），不再用主题 SVG 插画
+    setHeroIllustration(dv?.day || dv?.theme ? dailyVerseWallpaperUrl(dv?.day) : null);
   }, [dv?.day, dv?.theme]);
 
   useEffect(() => {
@@ -300,9 +294,9 @@ export default function HomePageClient() {
     writeLocalDailyVerseLike(verseDay, nextLiked);
     try {
       const r = await api.toggleDailyVerseLike(verseDay);
-      const fresh = await api.dailyVerse(verseDay);
-      const syncedLiked = Boolean(fresh.liked ?? r.liked);
-      const syncedCount = fresh.likes_count ?? r.likes_count ?? nextCount;
+      // 以 toggle 响应为准，避免二次拉取被缓存/标识不一致覆盖
+      const syncedLiked = Boolean(r.liked);
+      const syncedCount = r.likes_count ?? nextCount;
       setLiked(syncedLiked);
       setLikeCount(syncedCount);
       writeLocalDailyVerseLike(verseDay, syncedLiked);
@@ -435,7 +429,7 @@ export default function HomePageClient() {
         <HomeRail cards={railMain} />
       </div>
 
-      <a href="/profile" className="card-row" style={{ display: 'flex', marginTop: 14 }}>
+      <a href="/profile" className="card-row home-reading-summary text-stat" style={{ display: 'flex', marginTop: 14 }}>
         <span>
           今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
         </span>

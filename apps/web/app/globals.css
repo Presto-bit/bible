@@ -19,9 +19,21 @@
   --dawn-peach: var(--brand-dawn-peach, #ffe8d6);
   --dawn-rose: var(--brand-dawn-rose, #e8a090);
   --dawn-sky: var(--brand-dawn-sky, #a8c4d4);
-  --app-font-size: 20px;
-  --app-heading-size: 22px;
-  --reader-font-size: 20px;
+
+  /* 字体体系：UI 与阅读区分开
+     xs/sm/md = 次要信息；base = 正文；lg/xl = 标题；display = 少数强调数字 */
+  --font-xs: 11px;
+  --font-sm: 12px;
+  --font-md: 13px;
+  --font-base: 15px;
+  --font-lg: 16px;
+  --font-xl: 17px;
+  --font-display: 20px;
+  --app-font-size: var(--font-base);
+  --app-heading-size: var(--font-xl);
+  --app-line-height: 1.55;
+  --reader-font-size: 18px;
+  --assistant-answer-font-size: var(--font-base);
 }
 
 * {
@@ -47,7 +59,7 @@ body {
     sans-serif;
   font-size: var(--app-font-size);
   -webkit-font-smoothing: antialiased;
-  line-height: 1.7;
+  line-height: var(--app-line-height);
   overflow-x: hidden;
   max-width: 100vw;
   touch-action: pan-y;
@@ -58,6 +70,40 @@ body {
   overscroll-behavior: none;
   overscroll-behavior-x: none;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 字体工具类 */
+.text-meta {
+  font-size: var(--font-sm);
+  color: var(--ink-faint);
+  line-height: 1.45;
+}
+
+.text-secondary {
+  font-size: var(--font-md);
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.text-body {
+  font-size: var(--font-base);
+  color: var(--ink);
+  line-height: var(--app-line-height);
+}
+
+.text-title {
+  font-size: var(--font-xl);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.text-stat {
+  font-size: var(--font-md);
+  font-weight: 500;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
 }
 
 html::-webkit-scrollbar,
@@ -185,10 +231,11 @@ body.reader-immersive .tabbar {
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: var(--app-heading-size);
+  font-weight: 600;
   color: var(--ink);
   margin-bottom: 14px;
+  line-height: 1.35;
 }
 
 .topbar {
@@ -204,8 +251,8 @@ body.reader-immersive .tabbar {
 }
 
 .brand {
-  font-weight: 700;
-  font-size: 18px;
+  font-weight: 600;
+  font-size: var(--font-xl);
 }
 
 .nav {
@@ -323,7 +370,8 @@ html:not([data-app-theme]) .card {
   border: none;
   border-radius: 22px;
   padding: 10px 20px;
-  font-size: 14px;
+  font-size: var(--font-base);
+  font-weight: 600;
   cursor: pointer;
   transition: transform 0.12s ease, opacity 0.12s ease, background 0.12s ease;
 }
@@ -562,7 +610,8 @@ html:not([data-app-theme]) .card {
 
 .muted {
   color: var(--ink-faint);
-  font-size: 13px;
+  font-size: var(--font-sm);
+  line-height: 1.45;
 }
 
 .chapter-nav {
@@ -594,7 +643,7 @@ html:not([data-app-theme]) .card {
 
 .greet-prefix {
   display: block;
-  font-size: 13px;
+  font-size: var(--font-md);
   color: var(--ink-soft);
 }
 
@@ -602,10 +651,11 @@ html:not([data-app-theme]) .card {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--font-xl);
+  font-weight: 600;
   color: var(--ink);
   margin-top: 2px;
+  line-height: 1.3;
 }
 
 .greet-bar {
@@ -738,6 +788,20 @@ html:not([data-app-theme]) .card {
   background: var(--surface);
   box-shadow: var(--card-elev-rest, var(--elev-1));
   transition: transform 0.12s ease, box-shadow 0.12s ease;
+  font-size: var(--font-base);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.home-reading-summary {
+  font-size: var(--font-md);
+  font-weight: 500;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-reading-summary .muted {
+  font-size: var(--font-md);
 }
 
 .card-row:active {
@@ -928,12 +992,13 @@ html:not([data-app-theme]) .card {
 
 .pill {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--font-xs);
   font-weight: 600;
   color: var(--accent-deep);
   background: var(--accent-wash);
   border-radius: 8px;
   padding: 3px 9px;
+  line-height: 1.3;
 }
 
 .pill-active {
@@ -968,9 +1033,9 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-card {
-  flex: 0 0 78%;
-  max-width: 78%;
-  scroll-snap-align: center;
+  flex: 0 0 min(72%, 280px);
+  max-width: min(72%, 280px);
+  scroll-snap-align: start;
   display: block;
   transition: opacity 0.28s ease;
 }
@@ -980,14 +1045,14 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-card-wide {
-  flex: 0 0 92%;
-  max-width: 92%;
+  flex: 0 0 min(78%, 300px);
+  max-width: min(78%, 300px);
   scroll-snap-align: start;
 }
 
 .rail-card-more {
-  flex: 0 0 64%;
-  max-width: 64%;
+  flex: 0 0 min(56%, 220px);
+  max-width: min(56%, 220px);
   text-align: left;
   cursor: pointer;
   font: inherit;
@@ -1137,9 +1202,10 @@ html:not([data-app-theme]) .card {
 
 .rail-title {
   margin-top: 8px;
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: var(--font-lg);
   color: var(--ink);
+  line-height: 1.35;
 }
 
 .rail-foot {
@@ -1151,7 +1217,7 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-sub {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--ink-soft);
   line-height: 1.45;
   flex: 1;
@@ -1164,7 +1230,7 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-cta {
-  font-size: 12px;
+  font-size: var(--font-sm);
   font-weight: 600;
   color: var(--accent-deep);
   white-space: nowrap;
@@ -1199,10 +1265,11 @@ html:not([data-app-theme]) .card {
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: var(--font-sm);
   color: var(--ink-faint);
   letter-spacing: 0.04em;
   margin: 18px 0 8px;
+  font-weight: 500;
 }
 
 /* ─── 阅读器：标题栏 + 字号 ─── */
@@ -1371,9 +1438,11 @@ a.today-card-link {
 
 .today-minutes {
   margin-top: 8px;
-  font-size: 28px;
-  font-weight: 700;
+  font-size: var(--font-display);
+  font-weight: 600;
   color: var(--accent-deep);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .badge-row {
@@ -1613,7 +1682,7 @@ a.today-card-link {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.85;
-  font-size: var(--assistant-answer-font-size, 17px);
+  font-size: var(--assistant-answer-font-size, var(--font-base));
   text-align: left;
   display: inline-block;
   max-width: 100%;
@@ -1824,10 +1893,20 @@ a.today-card-link {
 
 .verse-preview-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   margin-top: 10px;
   max-height: min(62vh, 480px);
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.verse-sel-active {
+  background: rgba(122, 90, 60, 0.14);
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .verse-preview-list {
@@ -2488,7 +2567,7 @@ a.today-card-link {
 /* ─── 小爱富文本输出（可读性 / 视觉增强，字号与读经默认一致） ─── */
 .answer-rich {
   line-height: 1.85;
-  font-size: var(--assistant-answer-font-size, 17px);
+  font-size: var(--assistant-answer-font-size, var(--font-base));
   color: var(--ink);
   word-break: break-word;
 }
@@ -2500,7 +2579,7 @@ a.today-card-link {
 }
 .answer-rich .ans-h {
   margin: 16px 0 8px;
-  font-size: calc(var(--assistant-answer-font-size, 17px) + 1px);
+  font-size: calc(var(--assistant-answer-font-size, var(--font-base)) + 1px);
   font-weight: 700;
   color: var(--accent-deep);
 }
@@ -2520,7 +2599,7 @@ a.today-card-link {
   background: var(--surface);
   color: var(--accent-deep);
   font-weight: 700;
-  font-size: calc(var(--assistant-answer-font-size, 17px) - 2px);
+  font-size: calc(var(--assistant-answer-font-size, var(--font-base)) - 2px);
   padding: 2px 10px;
   border-radius: 999px;
 }
@@ -2556,7 +2635,7 @@ a.today-card-link {
 .assistant-answer .answer-rich,
 .assistant-user-text,
 .half-sheet-answer-rich .answer-rich {
-  font-size: var(--assistant-answer-font-size, 17px);
+  font-size: var(--assistant-answer-font-size, var(--font-base));
   line-height: 1.85;
 }
 
@@ -2577,11 +2656,29 @@ a.today-card-link {
 }
 
 .assistant-citations {
-  margin-top: 10px;
+  margin-top: 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--paper);
   overflow: hidden;
+}
+
+.citation-popup-backdrop {
+  z-index: 120;
+}
+
+.citation-popup-sheet {
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.citation-popup-body {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+  white-space: pre-wrap;
 }
 
 .assistant-citations-toggle {
@@ -2652,7 +2749,7 @@ a.today-card-link {
 
 .xiaoai-summary-lead {
   margin: 0 0 8px;
-  font-size: calc(var(--assistant-answer-font-size, 17px) + 1px);
+  font-size: calc(var(--assistant-answer-font-size, var(--font-base)) + 1px);
   font-weight: 600;
   line-height: 1.7;
   color: var(--ink);
@@ -3049,9 +3146,10 @@ a.today-card-link {
 
 .reader-chapter-title h2 {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
+  font-size: var(--font-xl);
+  font-weight: 600;
   color: var(--ink);
+  line-height: 1.3;
 }
 
 /* 版本选择：从顶部左侧弹出（对齐顶栏版本按钮） */
@@ -3148,12 +3246,29 @@ a.today-card-link {
   font-size: 13px;
 }
 
-/* 小爱悬浮按钮 */
-.reader-fab {
+/* 阅读器右侧 FAB 栈：退出计划 / 打卡 / 小爱 纵向排列，避免重叠 */
+.reader-fab-stack {
   position: fixed;
   right: 16px;
   bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 8px);
   z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  transition: transform 0.28s ease, opacity 0.28s ease;
+}
+
+.reader-fab-stack.is-hidden {
+  transform: translateY(120%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reader-fab {
+  position: relative;
+  right: auto;
+  bottom: auto;
   min-width: 48px;
   height: 48px;
   padding: 0 14px;
@@ -3165,13 +3280,6 @@ a.today-card-link {
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  transition: transform 0.28s ease, opacity 0.28s ease;
-}
-
-.reader-fab.is-hidden {
-  transform: translateY(120%);
-  opacity: 0;
-  pointer-events: none;
 }
 
 .reader-fab-dim {
@@ -3179,12 +3287,10 @@ a.today-card-link {
 }
 
 .reader-fab-group {
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 52px);
   background: #4a6b52;
 }
 
 .reader-fab-plan-exit {
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 30px);
   background: var(--surface);
   color: var(--ink-soft);
   border: 1px solid var(--line);
@@ -3322,7 +3428,7 @@ a.today-card-link {
   border-radius: 10px;
   background: var(--accent-wash);
   border-left: 3px solid var(--accent-deep);
-  font-size: var(--assistant-answer-font-size, 17px);
+  font-size: var(--assistant-answer-font-size, var(--font-base));
   line-height: 1.85;
   margin-bottom: 12px;
 }
@@ -3791,10 +3897,12 @@ a.today-card-link {
   box-shadow: 0 0 0 2px var(--accent-deep);
 }
 
-/* 微读式段落排版 */
+/* 微读式段落排版（阅读区字号/行高独立于 UI） */
 .verse-paragraph {
   margin-bottom: 14px;
   text-align: justify;
+  font-size: var(--reader-font-size);
+  line-height: 1.75;
 }
 
 .verse-inline {
@@ -4210,6 +4318,8 @@ a.today-card-link {
   min-height: 100dvh;
   padding-bottom: 0;
   font-family: Georgia, 'Songti SC', 'STSong', serif;
+  font-size: var(--reader-font-size);
+  line-height: 1.7;
   transition: background 0.35s ease, color 0.35s ease;
   overflow: hidden;
   max-width: 100vw;
@@ -7733,9 +7843,17 @@ button.card:active,
 
 .group-today-cards-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(118px, 132px);
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   align-items: stretch;
+}
+
+.group-today-cards-row > .group-today-focus,
+.group-today-cards-row > .group-today-checkin-card {
+  min-width: 0;
+  min-height: 148px;
+  height: 100%;
+  box-sizing: border-box;
 }
 
 .group-today-checkin-card {
@@ -7833,12 +7951,13 @@ button.card:active,
 }
 
 .group-today-stats-title {
-  font-size: 13px;
+  font-size: var(--font-md);
+  font-weight: 600;
   margin-top: 2px;
 }
 
 .group-today-stats-sub {
-  font-size: 11px;
+  font-size: var(--font-xs);
   margin: 0;
 }
 
@@ -7915,23 +8034,18 @@ button.card:active,
 
 @media (max-width: 360px) {
   .group-today-cards-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 
-  .group-today-checkin-card {
-    flex-direction: row;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    text-align: left;
-    padding: 12px 14px;
+  .group-today-cards-row > .group-today-focus,
+  .group-today-cards-row > .group-today-checkin-card {
+    min-height: 136px;
+    padding: 10px 10px;
   }
 
-  .group-today-stats-ring {
-    margin-right: 8px;
-  }
-
-  .group-today-stats-bar {
-    flex: 1 1 100%;
+  .group-today-stats-title {
+    font-size: 13px;
   }
 }
 
@@ -7943,8 +8057,8 @@ button.card:active,
 }
 
 .group-today-focus-label {
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--font-sm);
+  font-weight: 600;
   color: var(--accent-deep);
   letter-spacing: 0.04em;
 }

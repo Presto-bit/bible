@@ -31,7 +31,8 @@ export function ReaderToolsSheet({
   const [previewRef, setPreviewRef] = useState<{ osis: string; label: string } | null>(null);
 
   useEffect(() => {
-    if (initialTab) setTab(initialTab);
+    if (initialTab && initialTab !== 'strongs') setTab(initialTab);
+    else if (initialTab === 'strongs') setTab('crossrefs');
   }, [initialTab]);
 
   useEffect(() => {
@@ -68,9 +69,10 @@ export function ReaderToolsSheet({
     guide: '查考资源与背景摘要（来自经库与注释索引）。',
   };
 
+  // 原文（Strong's）产品重设计前暂时下线
   const tabs: { id: Tab; label: string; hidden?: boolean }[] = [
     { id: 'crossrefs', label: '相关经文' },
-    { id: 'strongs', label: '原文', hidden: !singleVerse },
+    { id: 'strongs', label: '原文', hidden: true },
     { id: 'guide', label: '资源' },
   ];
 

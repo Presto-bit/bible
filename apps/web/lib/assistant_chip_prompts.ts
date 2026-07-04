@@ -15,7 +15,8 @@ export interface AssistantChipDef {
 }
 
 export function staticAssistantChips(ref?: string): AssistantChipDef[] {
-  const labels = ['解释经文', '生活应用', '预备查经', '译本对照', '原文释义', '讲道大纲'];
+  // 「原文释义」待产品重设计后恢复
+  const labels = ['解释经文', '生活应用', '预备查经', '译本对照', '讲道大纲'];
   return labels.map((label) => {
     const scene = chipSceneForLabel(label);
     return {

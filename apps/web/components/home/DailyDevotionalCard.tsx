@@ -30,7 +30,7 @@ export function DailyDevotionalCard({
       {data.verse?.ref && (
         <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>{data.verse.ref}</p>
       )}
-      <p style={{ lineHeight: 1.65, marginTop: 8, fontSize: 15 }}>{data.meditation}</p>
+      <p className="text-body" style={{ marginTop: 8 }}>{data.meditation}</p>
       <p className="daily-devotional-prayer" style={{ lineHeight: 1.65, marginTop: 10 }}>
         {data.prayer}
       </p>

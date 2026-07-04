@@ -17,23 +17,40 @@ const CN_ABBR: Record<string, string> = {
   犹: 'JUD', 启: 'REV',
 };
 
-/** 将常见中文缩写转为 OSIS 书卷 id + 章:节 */
+function formatOsis(
+  book: string,
+  chapter: string,
+  verseStart?: string,
+  verseEnd?: string,
+): string {
+  if (!verseStart) return `${book}.${chapter}`;
+  if (verseEnd && verseEnd !== verseStart) return `${book}.${chapter}.${verseStart}-${verseEnd}`;
+  return `${book}.${chapter}.${verseStart}`;
+}
+
+/** 将常见中文缩写转为 OSIS 书卷 id + 章:节（支持 太13:53-58） */
 export function normalizeInlineRef(raw: string): string | null {
   const s = raw.trim().replace(/[（）()]/g, '');
   if (!s) return null;
 
-  const osisMatch = s.match(/^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+))?/);
+  const osisMatch = s.match(
+    /^([A-Za-z0-9]+)[.\s]+(\d+)(?:[:.\s]+(\d+)(?:\s*[-~–—]\s*(\d+))?)?/,
+  );
   if (osisMatch) {
-    const book = osisMatch[1].toUpperCase();
-    const ch = osisMatch[2];
-    const v = osisMatch[3];
-    return v ? `${book}.${ch}.${v}` : `${book}.${ch}`;
+    return formatOsis(
+      osisMatch[1].toUpperCase(),
+      osisMatch[2],
+      osisMatch[3],
+      osisMatch[4],
+    );
   }
 
-  const cnMatch = s.match(/^([\u4e00-\u9fff]{1,3})(\d+)[:：](\d+)/);
+  const cnMatch = s.match(
+    /^([\u4e00-\u9fff]{1,3})(\d+)[:：](\d+)(?:\s*[-~–—]\s*(\d+))?/,
+  );
   if (cnMatch) {
     const book = CN_ABBR[cnMatch[1]];
-    if (book) return `${book}.${cnMatch[2]}.${cnMatch[3]}`;
+    if (book) return formatOsis(book, cnMatch[2], cnMatch[3], cnMatch[4]);
   }
 
   const cnChOnly = s.match(/^([\u4e00-\u9fff]{1,3})(\d+)章?$/);

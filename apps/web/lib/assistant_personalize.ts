@@ -35,10 +35,10 @@ export function personalizedAssistantChips(opts: {
       q: chipUserQuestion('解释经文', refLabel),
     });
     chips.push({
-      label: '关键词释义',
-      scene: 'chat_original',
-      mode: SCENES.chat_original.mode,
-      q: chipUserQuestion('原文释义', refLabel),
+      label: '生活应用',
+      scene: 'chat_apply',
+      mode: SCENES.chat_apply.mode,
+      q: chipUserQuestion('生活应用', refLabel),
     });
   } else if (last) {
     chips.push({
@@ -48,10 +48,10 @@ export function personalizedAssistantChips(opts: {
       q: `我上次读到 ${bookIdToChineseName(last.bookId)} 第 ${last.chapter} 章，请帮我预习下一章的核心信息与默想问题。`,
     });
     chips.push({
-      label: '关键词释义',
-      scene: 'chat_original',
-      mode: SCENES.chat_original.mode,
-      q: chipUserQuestion('原文释义'),
+      label: '生活应用',
+      scene: 'chat_apply',
+      mode: SCENES.chat_apply.mode,
+      q: chipUserQuestion('生活应用'),
     });
   } else {
     chips.push({
