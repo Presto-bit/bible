@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, type BibleSearchHit, type TopicEntry } from '@/lib/api';
+import {
+  api,
+  type BibleSearchHit,
+  type MapTour,
+  type TimelineTour,
+  type TopicEntry,
+} from '@/lib/api';
 import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
@@ -13,6 +18,7 @@ import { loadDailyThemes } from '@/lib/daily_themes';
 import { mergeDiscoverTopics, isLifeTopic, topicColor } from '@/lib/topics_display';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 
 const HISTORY_KEY = 'search_history';
 
@@ -66,6 +72,12 @@ export default function SearchPage() {
   const [dailyThemes, setDailyThemes] = useState<string[]>([]);
   const [topicVerses, setTopicVerses] = useState<TopicVerseHit[]>([]);
   const [topicLoading, setTopicLoading] = useState(false);
+  const [mapTours, setMapTours] = useState<MapTour[]>([]);
+  const [timelineTours, setTimelineTours] = useState<TimelineTour[]>([]);
+  const [toursReady, setToursReady] = useState(false);
+  const [expandedMap, setExpandedMap] = useState<string | null>(null);
+  const [expandedTimeline, setExpandedTimeline] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -85,6 +97,10 @@ export default function SearchPage() {
       setLifeTopics(mergeDiscoverTopics(list));
     }).catch(() => {});
     void loadDailyThemes().then((d) => setDailyThemes(d.themes));
+    void Promise.all([
+      api.mapTours().then((d) => setMapTours(d.tours ?? [])).catch(() => setMapTours([])),
+      api.timelineTours().then((d) => setTimelineTours(d.tours ?? [])).catch(() => setTimelineTours([])),
+    ]).finally(() => setToursReady(true));
   }, []);
 
   const noteHits = useMemo(() => {
@@ -259,6 +275,32 @@ export default function SearchPage() {
   };
 
   const hasQuery = !searchTooShort(query.trim());
+  const qText = query.trim();
+
+  const filteredMapTours = useMemo(() => {
+    if (!qText) return mapTours;
+    return mapTours.filter((t) =>
+      [t.title, t.subtitle, t.description, t.era]
+        .filter(Boolean)
+        .some((s) => String(s).includes(qText)),
+    );
+  }, [mapTours, qText]);
+
+  const filteredTimelineTours = useMemo(() => {
+    if (!qText) return timelineTours;
+    return timelineTours.filter((t) =>
+      [t.title, t.subtitle, t.description]
+        .filter(Boolean)
+        .some((s) => String(s).includes(qText)),
+    );
+  }, [timelineTours, qText]);
+
+  const openRef = (ref: string) => {
+    setPreview({
+      osis: refSpaceToOsis(ref.replace(/\./g, ' ')),
+      label: formatGroupRefLabel(ref) || ref,
+    });
+  };
 
   return (
     <main className="container">
@@ -291,6 +333,144 @@ export default function SearchPage() {
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
         点选下方主题即可匹配经文；也可直接输入关键词
       </p>
+
+      {(!qText || filteredMapTours.length > 0 || filteredTimelineTours.length > 0) && (
+        <section style={{ marginTop: 16 }}>
+          <h3 className="search-section-title">跟着故事走</h3>
+          <p className="muted" style={{ fontSize: 12, margin: '0 0 10px', lineHeight: 1.5 }}>
+            地图按地点顺序讲故事，时间线按年代推进。点开一条，顺着步骤读经文。
+          </p>
+          {!toursReady ? (
+            <p className="muted" style={{ fontSize: 13 }}>加载中…</p>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {filteredMapTours.map((tour) => {
+                const open = expandedMap === tour.id;
+                const stops = tour.stops ?? [];
+                return (
+                  <div key={tour.id} className="card card-2 story-tour-card">
+                    <button
+                      type="button"
+                      className="story-tour-head"
+                      onClick={() => {
+                        setExpandedMap(open ? null : tour.id);
+                        setExpandedTimeline(null);
+                      }}
+                    >
+                      <span className="story-tour-badge">地图故事</span>
+                      <strong className="story-tour-title">{tour.title}</strong>
+                      <p className="muted story-tour-meta">
+                        {[tour.era, tour.subtitle, `${stops.length} 站`].filter(Boolean).join(' · ')}
+                      </p>
+                      <span className="story-tour-toggle">{open ? '收起' : '开始跟随 ›'}</span>
+                    </button>
+                    {open && (
+                      <div className="story-tour-body">
+                        {tour.description ? (
+                          <p className="story-tour-lead">{tour.description}</p>
+                        ) : null}
+                        <ol className="story-step-list">
+                          {stops.map((stop, idx) => (
+                            <li key={stop.order} className="story-step">
+                              <span className="story-step-num" aria-hidden>{idx + 1}</span>
+                              <div className="story-step-main">
+                                <strong className="story-step-title">{stop.label}</strong>
+                                {stop.note ? (
+                                  <p className="muted story-step-note">{stop.note}</p>
+                                ) : null}
+                                {stop.ref ? (
+                                  <button
+                                    type="button"
+                                    className="story-step-cta"
+                                    onClick={() => {
+                                      const href = readerHrefFromRef(stop.ref);
+                                      if (href) window.location.href = href;
+                                      else openRef(stop.ref);
+                                    }}
+                                  >
+                                    读这段 · {formatGroupRefLabel(stop.ref) || stop.ref}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {filteredTimelineTours.map((tour) => {
+                const open = expandedTimeline === tour.id;
+                const events = tour.events ?? [];
+                return (
+                  <div key={tour.id} className="card card-2 story-tour-card">
+                    <button
+                      type="button"
+                      className="story-tour-head"
+                      onClick={() => {
+                        setExpandedTimeline(open ? null : tour.id);
+                        setExpandedMap(null);
+                      }}
+                    >
+                      <span className="story-tour-badge story-tour-badge-time">时间故事</span>
+                      <strong className="story-tour-title">{tour.title}</strong>
+                      <p className="muted story-tour-meta">
+                        {[tour.subtitle, `${events.length} 个节点`].filter(Boolean).join(' · ')}
+                      </p>
+                      <span className="story-tour-toggle">{open ? '收起' : '开始跟随 ›'}</span>
+                    </button>
+                    {open && (
+                      <div className="story-tour-body">
+                        {tour.description ? (
+                          <p className="story-tour-lead">{tour.description}</p>
+                        ) : null}
+                        <ol className="story-step-list">
+                          {events.map((ev, idx) => {
+                            const ref = `${ev.book} ${ev.chapter}:1`;
+                            return (
+                              <li key={ev.order} className="story-step">
+                                <span className="story-step-num" aria-hidden>{idx + 1}</span>
+                                <div className="story-step-main">
+                                  <strong className="story-step-title">
+                                    {ev.label}
+                                    {ev.year_display ? (
+                                      <span className="muted story-step-year"> · {ev.year_display}</span>
+                                    ) : null}
+                                  </strong>
+                                  {ev.note ? (
+                                    <p className="muted story-step-note">{ev.note}</p>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    className="story-step-cta"
+                                    onClick={() => {
+                                      const href = readerHrefFromRef(ref);
+                                      if (href) window.location.href = href;
+                                      else openRef(ref);
+                                    }}
+                                  >
+                                    读这段 · {formatGroupRefLabel(ref) || `${ev.book} ${ev.chapter}`}
+                                  </button>
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ol>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {filteredMapTours.length === 0 && filteredTimelineTours.length === 0 && (
+                <p className="muted" style={{ fontSize: 13 }}>暂无匹配专题</p>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {history.length > 0 && (
         <div className="chip-row" style={{ marginTop: 12 }}>
@@ -449,33 +629,29 @@ export default function SearchPage() {
       )}
 
       {query.trim().length === 0 && (
-        <>
-          <section style={{ marginTop: 18 }}>
-            <h3 className="search-section-title">热门关键词</h3>
-            <div className="theme-grid">
-              {LIFE_TOPICS.slice(0, 8).map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="card card-2 theme-chip"
-                  onClick={() => applyTopicQuery(t.title)}
-                >
-                  {t.title}
-                </button>
-              ))}
-            </div>
-          </section>
+        <section style={{ marginTop: 18 }}>
+          <h3 className="search-section-title">热门关键词</h3>
+          <div className="theme-grid">
+            {LIFE_TOPICS.slice(0, 8).map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="card card-2 theme-chip"
+                onClick={() => applyTopicQuery(t.title)}
+              >
+                {t.title}
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
-          <section style={{ marginTop: 18 }}>
-            <h3 className="search-section-title">圣经背景专题</h3>
-            <Link href="/discover/background" className="card card-2" style={{ display: 'block', padding: 14 }}>
-              <strong>地图 · 时间线</strong>
-              <p className="muted" style={{ margin: '6px 0 0', fontSize: 13, lineHeight: 1.5 }}>
-                保罗宣教旅程、耶稣事工路线、犹大诸王与耶稣生平时间线
-              </p>
-            </Link>
-          </section>
-        </>
+      {preview && (
+        <VersePreviewSheet
+          refParam={preview.osis}
+          refLabel={preview.label}
+          onClose={() => setPreview(null)}
+        />
       )}
     </main>
   );

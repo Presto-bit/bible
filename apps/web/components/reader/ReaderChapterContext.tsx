@@ -92,7 +92,7 @@ export function ReaderChapterContext({
           )}
         </div>
       )}
-      <Link href="/discover/background" className="reader-context-more muted">
+      <Link href="/search" className="reader-context-more muted">
         更多 ›
       </Link>
     </div>

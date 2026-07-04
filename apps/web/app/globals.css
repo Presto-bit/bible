@@ -33,7 +33,7 @@
   --app-heading-size: var(--font-xl);
   --app-line-height: 1.55;
   --reader-font-size: 18px;
-  /* 小爱 Tab / FAB 回答正文（仅输出区，不含标题、按钮、底栏） */
+  /* 小爱 Tab / FAB：输入与输出统一 13px */
   --assistant-answer-font-size: 13px;
 }
 
@@ -878,7 +878,7 @@ html:not([data-app-theme]) .card {
   background-position: center;
   background-repeat: no-repeat;
   background-blend-mode: normal;
-  opacity: 0.42;
+  opacity: 0.22;
 }
 
 .hero-verse.hero-verse-has-art::after {
@@ -889,9 +889,9 @@ html:not([data-app-theme]) .card {
   pointer-events: none;
   background: linear-gradient(
     165deg,
-    rgba(255, 252, 248, 0.88) 0%,
-    rgba(255, 248, 242, 0.78) 45%,
-    rgba(255, 250, 245, 0.92) 100%
+    rgba(255, 252, 248, 0.72) 0%,
+    rgba(255, 248, 242, 0.58) 45%,
+    rgba(255, 250, 245, 0.78) 100%
   );
 }
 
@@ -935,12 +935,10 @@ html:not([data-app-theme]) .card {
 }
 
 .hero-verse.hero-verse-has-art .verse-text {
-  padding: 10px 12px;
   margin-top: 10px;
-  border-radius: 12px;
-  background: rgba(255, 252, 248, 0.82);
-  box-shadow: 0 1px 8px rgba(40, 30, 20, 0.06);
-  text-shadow: none;
+  background: none;
+  box-shadow: none;
+  padding: 0;
 }
 
 .hero-top {
@@ -1065,8 +1063,8 @@ html:not([data-app-theme]) .card {
 }
 
 .rail-card {
-  flex: 0 0 min(78%, 300px);
-  max-width: min(78%, 300px);
+  flex: 0 0 min(94%, 360px);
+  max-width: min(94%, 360px);
   scroll-snap-align: start;
   display: block;
   transition: opacity 0.28s ease;
@@ -1752,7 +1750,7 @@ a.today-card-link {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.85;
-  font-size: var(--font-base);
+  font-size: var(--assistant-answer-font-size);
   text-align: left;
   display: inline-block;
   max-width: 100%;
@@ -1935,7 +1933,7 @@ a.today-card-link {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  filter: saturate(0.85) brightness(0.42);
+  filter: saturate(0.95) brightness(0.72);
 }
 
 .daily-devotional-card {
@@ -2032,6 +2030,153 @@ a.today-card-link {
   font-weight: 600;
 }
 
+/* 搜索：地图/时间线故事化步骤 */
+.story-tour-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.story-tour-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: inherit;
+}
+
+.story-tour-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+
+.story-tour-badge-time {
+  color: var(--dawn-gold-deep);
+  background: var(--dawn-gold-wash);
+}
+
+.story-tour-title {
+  display: block;
+  font-size: var(--font-base);
+  line-height: 1.35;
+}
+
+.story-tour-meta {
+  margin: 4px 0 0;
+  font-size: var(--font-sm);
+  line-height: 1.4;
+}
+
+.story-tour-toggle {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+
+.story-tour-body {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.story-tour-lead {
+  margin: 10px 0 12px;
+  font-size: var(--font-sm);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.story-step-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.story-step {
+  display: flex;
+  gap: 10px;
+  position: relative;
+  padding-bottom: 14px;
+}
+
+.story-step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 24px;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--accent) 35%, var(--line));
+}
+
+.story-step-num {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 18%, transparent);
+  z-index: 1;
+}
+
+.story-step-main {
+  flex: 1;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.story-step-title {
+  font-size: var(--font-md);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.story-step-year {
+  font-weight: 500;
+}
+
+.story-step-note {
+  margin: 4px 0 0;
+  font-size: var(--font-sm);
+  line-height: 1.45;
+}
+
+.story-step-cta {
+  display: inline-flex;
+  margin-top: 8px;
+  border: none;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-size: var(--font-sm);
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.story-step-cta:active {
+  opacity: 0.85;
+}
+
 .search-topic-chip {
   text-align: left;
   padding: 12px 14px;
@@ -2066,8 +2211,8 @@ a.today-card-link {
   inset: 0;
   z-index: 1;
   background:
-    radial-gradient(ellipse 70% 50% at 50% 42%, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.78)),
-    linear-gradient(180deg, rgba(12, 10, 8, 0.45), rgba(0, 0, 0, 0.82));
+    radial-gradient(ellipse 75% 55% at 50% 42%, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.42)),
+    linear-gradient(180deg, rgba(12, 10, 8, 0.18), rgba(0, 0, 0, 0.48));
 }
 
 .verse-full-glow {
@@ -2129,7 +2274,7 @@ a.today-card-link {
   line-height: 1.85;
   font-weight: 500;
   margin: 16px 0 8px;
-  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.55), 0 1px 2px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.35);
   letter-spacing: 0.02em;
 }
 
@@ -2386,7 +2531,7 @@ a.today-card-link {
   border-radius: 20px;
   padding: 10px 44px 10px 16px;
   background: var(--surface);
-  font-size: 15px;
+  font-size: var(--assistant-answer-font-size);
   color: var(--ink);
 }
 
