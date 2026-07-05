@@ -1,4 +1,5 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
+import { chinaTodayYmd } from './daily_clock';
 import {
   bindDeviceGuestId,
   clearDeviceGuestBinding,
@@ -1060,11 +1061,12 @@ export interface GuideResult {
 }
 
 export const api = {
-  dailyVerse: (day?: number) =>
-    getJson<DailyVerse>(
-      `/content/daily-verse${day != null ? `?day=${day}` : ''}`,
-      authHeaders(),
-    ),
+  dailyVerse: (day?: number) => {
+    const q = new URLSearchParams();
+    if (day != null) q.set('day', String(day));
+    else q.set('_d', chinaTodayYmd());
+    return getJson<DailyVerse>(`/content/daily-verse?${q}`, authHeaders());
+  },
   toggleDailyVerseLike: (day?: number) =>
     authed<{ liked: boolean; likes_count: number; shares_count: number }>(
       `/content/daily-verse/like${day != null ? `?day=${day}` : ''}`,
@@ -1075,7 +1077,8 @@ export const api = {
       `/content/daily-verse/share${day != null ? `?day=${day}` : ''}`,
       { method: 'POST' },
     ),
-  dailyDevotional: () => getJson<DailyDevotional>('/content/daily-devotional'),
+  dailyDevotional: () =>
+    getJson<DailyDevotional>(`/content/daily-devotional?_d=${chinaTodayYmd()}`),
   prayerToday: (planId?: string, day?: number) => {
     const q = new URLSearchParams();
     if (planId) q.set('plan_id', planId);

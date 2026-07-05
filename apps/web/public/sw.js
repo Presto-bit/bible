@@ -1,5 +1,5 @@
-// 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML
-const CACHE = 'presto-bible-v5';
+// 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
+const CACHE = 'presto-bible-v6';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 const BASE_PATH = '';
@@ -28,6 +28,33 @@ function isHtmlNavigation(request) {
   return accept.includes('text/html');
 }
 
+/** 动态 API / 数据：必须走网络，禁止 SW 缓存（否则 PWA 每日经文等会停留在昨天）。 */
+function isDynamicRequest(url) {
+  const p = url.pathname;
+  if (
+    p.startsWith('/content/')
+    || p.startsWith('/auth/')
+    || p.startsWith('/ai/')
+    || p.startsWith('/sync/')
+    || p.startsWith('/social/')
+    || p.startsWith('/bible/')
+    || p.startsWith('/push/')
+    || p.startsWith('/admin/')
+  ) {
+    return true;
+  }
+  if (p.startsWith('/_next/data/')) return true;
+  return false;
+}
+
+function isStaticAsset(url) {
+  const p = url.pathname;
+  if (p.startsWith('/_next/static/')) return true;
+  if (p.startsWith('/illustrations/')) return true;
+  if (/\.(js|css|woff2?|png|svg|webp|ico|webmanifest)$/i.test(p)) return true;
+  return SHELL.includes(p);
+}
+
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()),
@@ -47,6 +74,12 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
 
+  // 动态 API：仅网络，不读写 Cache Storage
+  if (isDynamicRequest(url)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
   // HTML 页面：网络优先，避免发版后仍显示旧首页
   if (isHtmlNavigation(e.request)) {
     e.respondWith(
@@ -63,19 +96,27 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 静态资源：缓存优先
+  // 已知静态资源：缓存优先
+  if (isStaticAsset(url)) {
+    e.respondWith(
+      caches.match(e.request).then(
+        (cached) =>
+          cached
+          || fetch(e.request).then((res) => {
+            const copy = res.clone();
+            if (res.ok) {
+              caches.open(CACHE).then((c) => c.put(e.request, copy));
+            }
+            return res;
+          }),
+      ),
+    );
+    return;
+  }
+
+  // 其余 GET：网络优先，避免误缓存未知 JSON/API
   e.respondWith(
-    caches.match(e.request).then(
-      (cached) =>
-        cached ||
-        fetch(e.request).then((res) => {
-          const copy = res.clone();
-          if (res.ok) {
-            caches.open(CACHE).then((c) => c.put(e.request, copy));
-          }
-          return res;
-        }),
-    ),
+    fetch(e.request).catch(() => caches.match(e.request)),
   );
 });
 
