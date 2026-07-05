@@ -53,6 +53,7 @@ import {
   type VerseNumberMode,
 } from '@/lib/reader_settings';
 import { centerVerseInScroll, sectionRangeForVerse } from '@/lib/reader_viewport';
+import { sliceVerseWords } from '@/lib/verse_words';
 import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
@@ -548,7 +549,21 @@ export default function ReaderView({
         );
       }
 
-      return renderVerseText(text, keyBase, verseNum);
+      return (
+        <>
+          {sliceVerseWords(text).map((w, i) => (
+            <span
+              key={`${keyBase}-w${i}`}
+              className="verse-word"
+              data-v={verseNum}
+              data-s={w.start}
+              data-e={w.end}
+            >
+              {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum)}
+            </span>
+          ))}
+        </>
+      );
     },
     [renderVerseText],
   );
@@ -1312,9 +1327,116 @@ export default function ReaderView({
     setSelected([]);
     setSelectionSpan(null);
     pendingSpanRef.current = null;
-    // 划词结束后短时忽略横滑，避免误翻页
     swipeIgnoreUntilRef.current = Date.now() + 320;
   };
+
+  const applyWordSpan = useCallback((verse: number, start: number, end: number) => {
+    const lo = Math.min(start, end);
+    const hi = Math.max(start, end);
+    window.getSelection()?.removeAllRanges();
+    pendingSpanRef.current = { verse, start: lo, end: hi };
+    syncingSelection.current = true;
+    setSelected([verse]);
+    setSelectionSpan({ start: lo, end: hi });
+    setLastReadVerse(book.id, chapter, verse);
+    lastSelectAt.current = Date.now();
+    logVerseRead(`${book.id}.${chapter}.${verse}`);
+    readingEngagedRef.current = true;
+    syncingSelection.current = false;
+    swipeIgnoreUntilRef.current = Date.now() + 320;
+  }, [book.id, chapter]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const wordFromPoint = (x: number, y: number) => {
+      const node = document.elementFromPoint(x, y);
+      const w = node?.closest('.verse-word') as HTMLElement | null;
+      if (!w) return null;
+      return {
+        verse: Number(w.dataset.v),
+        start: Number(w.dataset.s),
+        end: Number(w.dataset.e),
+      };
+    };
+
+    let anchor: { verse: number; start: number; end: number; x: number; y: number } | null = null;
+    let dragging = false;
+    let longPressTimer: number | null = null;
+
+    const clearLongPress = () => {
+      if (longPressTimer != null) {
+        window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const w = wordFromPoint(t.clientX, t.clientY);
+      if (!w) return;
+      anchor = { ...w, x: t.clientX, y: t.clientY };
+      dragging = false;
+      selectingGestureRef.current = true;
+      clearLongPress();
+      longPressTimer = window.setTimeout(() => {
+        if (!anchor || dragging) return;
+        applyWordSpan(anchor.verse, anchor.start, anchor.end);
+        clearLongPress();
+      }, 420);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!anchor || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - anchor.x;
+      const dy = t.clientY - anchor.y;
+      if (!dragging && Math.hypot(dx, dy) < 10) return;
+      dragging = true;
+      clearLongPress();
+      e.preventDefault();
+      const w = wordFromPoint(t.clientX, t.clientY);
+      if (!w || w.verse !== anchor.verse) return;
+      applyWordSpan(anchor.verse, anchor.start, w.end);
+    };
+
+    const onTouchEnd = () => {
+      clearLongPress();
+      anchor = null;
+      dragging = false;
+      selectingGestureRef.current = false;
+      window.getSelection()?.removeAllRanges();
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    return () => {
+      clearLongPress();
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [book.id, chapter, swipeTurn, applyWordSpan]);
+
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!root) return;
+    root.querySelectorAll('.verse-word.is-active').forEach((el) => el.classList.remove('is-active'));
+    if (!selectionSpan || sortedSel.length !== 1) return;
+    const v = sortedSel[0];
+    root.querySelectorAll(`.verse-word[data-v="${v}"]`).forEach((el) => {
+      const s = Number(el.getAttribute('data-s'));
+      const e = Number(el.getAttribute('data-e'));
+      if (s < selectionSpan.end && e > selectionSpan.start) {
+        el.classList.add('is-active');
+      }
+    });
+  }, [selectionSpan, sortedSel, book.id, chapter]);
 
   const selectWholeVerse = useCallback((verse: number) => {
     window.getSelection()?.removeAllRanges();

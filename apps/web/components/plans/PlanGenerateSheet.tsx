@@ -137,9 +137,15 @@ export function PlanGenerateSheet({ open, onClose, onSaved }: Props) {
         />
 
         <p className="muted" style={{ fontSize: 12, margin: '12px 0 8px' }}>读经日程</p>
+        <div className="plan-date-summary">
+          <span>{formatPlanDayDate(startDate)}</span>
+          <span className="muted">至</span>
+          <span>{formatPlanDayDate(endDate)}</span>
+          <span className="plan-date-summary-count">可读 {eligibleCount} 天</span>
+        </div>
         <div className="plan-date-row">
           <label className="plan-date-field">
-            <span className="muted">开始</span>
+            <span className="muted">开始日期</span>
             <input
               type="date"
               className="search-input"
@@ -152,7 +158,7 @@ export function PlanGenerateSheet({ open, onClose, onSaved }: Props) {
             />
           </label>
           <label className="plan-date-field">
-            <span className="muted">结束</span>
+            <span className="muted">结束日期</span>
             <input
               type="date"
               className="search-input"
@@ -181,7 +187,9 @@ export function PlanGenerateSheet({ open, onClose, onSaved }: Props) {
           </label>
         </div>
         <p className="muted" style={{ fontSize: 12, margin: '0 0 12px' }}>
-          可读 {eligibleCount} 天{eligibleCount > 0 ? `（${formatPlanDayDate(startDate)} 起）` : ''}
+          {excludeSaturday || excludeSunday
+            ? `已剔除${excludeSaturday ? '周六' : ''}${excludeSaturday && excludeSunday ? '、' : ''}${excludeSunday ? '周日' : ''}`
+            : '含周末'}
         </p>
 
         <button type="button" className="btn" style={{ width: '100%' }} onClick={() => void generate()} disabled={busy}>
@@ -195,7 +203,7 @@ export function PlanGenerateSheet({ open, onClose, onSaved }: Props) {
             <p className="muted" style={{ fontSize: 12, margin: '4px 0 10px' }}>
               {preview.days_count} 天 · 共 {preview.chapters_total} 章
               {preview.start_date && preview.end_date
-                ? ` · ${preview.start_date} 至 ${preview.end_date}`
+                ? ` · ${formatPlanDayDate(preview.start_date)} 至 ${formatPlanDayDate(preview.end_date)}`
                 : ''}
             </p>
             <div className="plan-gen-preview-days">

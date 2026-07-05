@@ -20,7 +20,6 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
   const [bookId, setBookId] = useState<string | null>(null);
   const [fromCh, setFromCh] = useState(1);
   const [toCh, setToCh] = useState(1);
-  const [pickedChapters, setPickedChapters] = useState<number[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -55,37 +54,12 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
     if (!selectedBook) return;
     setFromCh(1);
     setToCh(selectedBook.chapter_count);
-    setPickedChapters([]);
   }, [selectedBook?.id, selectedBook?.chapter_count]);
-
-  const syncFromSelection = (next: number[]) => {
-    setPickedChapters(next);
-    if (next.length) {
-      setFromCh(Math.min(...next));
-      setToCh(Math.max(...next));
-    } else if (selectedBook) {
-      setFromCh(1);
-      setToCh(selectedBook.chapter_count);
-    }
-  };
-
-  const toggleChapter = (ch: number) => {
-    setErr(null);
-    const has = pickedChapters.includes(ch);
-    const next = has
-      ? pickedChapters.filter((x) => x !== ch)
-      : [...pickedChapters, ch].sort((a, b) => a - b);
-    syncFromSelection(next);
-  };
 
   const addRange = () => {
     if (!selectedBook) return;
-    const lo = pickedChapters.length
-      ? Math.min(...pickedChapters)
-      : Math.min(fromCh, toCh);
-    const hi = pickedChapters.length
-      ? Math.max(...pickedChapters)
-      : Math.max(fromCh, toCh);
+    const lo = Math.min(fromCh, toCh);
+    const hi = Math.max(fromCh, toCh);
     if (lo < 1 || hi > selectedBook.chapter_count) {
       setErr(`章节须在 1–${selectedBook.chapter_count} 之间`);
       return;
@@ -101,7 +75,6 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
     const exists = ranges.some((r) => `${r.bookId}.${r.from}-${r.to}` === key);
     if (exists) return;
     onChange([...ranges, next]);
-    setPickedChapters([]);
     setFromCh(1);
     setToCh(selectedBook.chapter_count);
   };
@@ -149,20 +122,9 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
       {selectedBook && (
         <>
           <p className="muted plan-picker-hint">
-            点选章节（再点取消）· 共 {selectedBook.chapter_count} 章
+            输入起止章后点「添加」
+            {selectedBook ? ` · ${selectedBook.name} 共 ${selectedBook.chapter_count} 章` : ''}
           </p>
-          <div className="plan-picker-chapters">
-            {Array.from({ length: selectedBook.chapter_count }, (_, i) => i + 1).map((ch) => (
-              <button
-                key={ch}
-                type="button"
-                className={`plan-picker-ch${pickedChapters.includes(ch) ? ' is-selected' : ''}`}
-                onClick={() => toggleChapter(ch)}
-              >
-                {ch}
-              </button>
-            ))}
-          </div>
 
           <div className="plan-picker-range-row">
             <label className="plan-picker-field">
@@ -174,9 +136,7 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
                 max={selectedBook.chapter_count}
                 value={fromCh}
                 onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setFromCh(v);
-                  setPickedChapters([]);
+                  setFromCh(Number(e.target.value));
                 }}
               />
             </label>
@@ -190,9 +150,7 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
                 max={selectedBook.chapter_count}
                 value={toCh}
                 onChange={(e) => {
-                  const v = Number(e.target.value);
-                  setToCh(v);
-                  setPickedChapters([]);
+                  setToCh(Number(e.target.value));
                 }}
               />
             </label>

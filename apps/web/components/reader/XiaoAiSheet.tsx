@@ -44,7 +44,7 @@ export default function XiaoAiSheet({
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const [expanded, setExpanded] = useState(mode === 'ask');
+  const [expanded, setExpanded] = useState(true);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
   const [citations, setCitations] = useState<import('@/lib/api').Citation[]>([]);
   const accRef = useRef('');
@@ -65,7 +65,8 @@ export default function XiaoAiSheet({
     setCopied(false);
     setCitations([]);
     const { scene: s, refParam: ref, selectionText: sel, userQuestion: q } = lockedRef.current;
-    const question = sel ? `${q}\n\n经文：${sel}` : q;
+    // 经文正文已由 ref 在后端展开，避免重复粘贴长经文挤占输出 token
+    const question = sel && sel.length <= 300 ? `${q}\n\n选中文本：${sel}` : q;
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), sceneTimeout(s));
     let cancelled = false;

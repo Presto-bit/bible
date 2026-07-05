@@ -38,7 +38,6 @@ import { logPrayer } from '@/lib/reading';
 import { buildPlanReadingMeta, readerHref } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
-import { LIFE_TOPICS } from '@/lib/discover_topics';
 
 function groupPlans(plans: PlanSummary[]) {
   const groups = [
@@ -48,17 +47,6 @@ function groupPlans(plans: PlanSummary[]) {
   ];
   return groups.filter((g) => g.items.length > 0);
 }
-
-/** 热门「主题计划」：仅读经微计划，不含微祷告 */
-const MICRO_TOPIC_PLANS = LIFE_TOPICS.filter(
-  (t) => t.microPlanId && !t.microPlanId.startsWith('prayer_'),
-).map((t) => ({
-  planId: t.microPlanId!,
-  title: `「${t.title}」计划`,
-  days: t.microPlanDays ?? 7,
-  kind: 'reading' as const,
-  topicId: t.id,
-}));
 
 function toActivePlan(
   p: { planId?: string; id?: string; title: string; type?: string; days?: number; days_count?: number },
@@ -139,7 +127,7 @@ export default function PlansPage() {
     if (startId) {
       setListTab('featured');
       if (startId.startsWith('prayer_')) setTab('prayer');
-      else if (MICRO_TOPIC_PLANS.some((m) => m.planId === startId)) setTab('reading');
+      else setTab('reading');
     }
   }, []);
 
@@ -222,6 +210,24 @@ export default function PlansPage() {
   const openPreview = useCallback(async (ap: ActivePlan) => {
     await loadScheduleSheet(ap, 'preview');
   }, [loadScheduleSheet]);
+
+  const previewPlanDay = useCallback(async (ap: ActivePlan, day: number) => {
+    if (ap.kind === 'prayer') {
+      try {
+        setPrayerSheet(await api.prayerToday(ap.planId, day));
+      } catch (e) {
+        flashToast(`祷告内容加载失败：${e}`);
+      }
+      return;
+    }
+    try {
+      const meta = await buildPlanReadingMeta(ap, day);
+      if (meta) window.location.href = readerHref(meta);
+      else flashToast('该日暂无读经内容');
+    } catch (e) {
+      flashToast(String(e));
+    }
+  }, []);
 
   /** 管理日程：仅当前进行中计划 */
   const openManageSchedule = useCallback(async (ap: ActivePlan) => {
@@ -612,30 +618,6 @@ export default function PlansPage() {
         <p className="muted" style={{ marginBottom: 12 }}>暂无计划，请稍后重试或联系管理员检查服务端数据。</p>
       )}
 
-      {listTab === 'featured' && tab === 'reading' && MICRO_TOPIC_PLANS.length > 0 && (
-        <section style={{ marginBottom: 16 }}>
-          <p className="plan-section-label">主题计划</p>
-          <PlanCategoryGrid
-            items={MICRO_TOPIC_PLANS.map((m) => ({
-              id: m.planId,
-              title: m.title,
-              days: m.days,
-              kind: m.kind,
-              isActive: active?.planId === m.planId,
-              onClick: () => {
-                const featuredPlan = plans.find((p) => p.plan_id === m.planId);
-                if (featuredPlan) {
-                  void openPreview(toActivePlan(
-                    { planId: featuredPlan.plan_id, title: featuredPlan.title, type: featuredPlan.type, days: featuredPlan.days },
-                    'featured',
-                  ));
-                }
-              },
-            }))}
-          />
-        </section>
-      )}
-
       {grouped.map((group) => (
         <section key={group.label}>
           <p className="plan-section-label">{group.label}</p>
@@ -763,7 +745,13 @@ export default function PlansPage() {
             onPrimary={scheduleMode === 'preview' ? previewPrimary?.run : undefined}
             onSecondary={scheduleMode === 'preview' ? previewSecondary?.run : undefined}
             onClose={() => setSchedulePlan(null)}
-            onStartDay={scheduleMode === 'manage' ? handleScheduleDay : undefined}
+            onStartDay={
+              scheduleMode === 'manage'
+                ? handleScheduleDay
+                : scheduleMode === 'preview'
+                  ? (day) => void previewPlanDay(schedulePlan, day)
+                  : undefined
+            }
             onSkipDay={scheduleMode === 'manage' ? (day) => void handleSkipDay(day) : undefined}
           />
         )

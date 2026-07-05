@@ -33,7 +33,7 @@ SCENES: dict[str, SceneSpec] = {
         id="verse_full",
         mode="explain",
         label="综合解读",
-        max_tokens=700,
+        max_tokens=1024,
         wants_followups=False,
         format_guide=(
             "严格按以下结构输出（保留【】标题）：\n"

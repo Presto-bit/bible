@@ -5032,6 +5032,13 @@ a.today-card-link {
   -webkit-touch-callout: none;
 }
 
+.verse-word.is-active {
+  background: var(--accent-wash);
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .reader-content.chapter-enter {
   animation: chapter-enter 0.28s ease;
 }
@@ -5367,6 +5374,26 @@ a.today-card-link {
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-weight: 600;
+}
+
+.plan-date-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.plan-date-summary-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  border-radius: 999px;
+  padding: 2px 10px;
 }
 
 .plan-date-row {

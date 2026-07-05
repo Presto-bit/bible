@@ -28,7 +28,7 @@ function dayCta(
   kind: ActivePlan['kind'],
   mode: PlanScheduleMode,
 ): string {
-  if (mode === 'preview') return d.detail ? '预览' : '';
+  if (mode === 'preview') return kind === 'prayer' ? '查看 ›' : '预览 ›';
   if (d.completed) return '复习';
   if (d.skipped) return '补读 ›';
   if (!d.unlocked) return '未解锁';
@@ -95,7 +95,7 @@ export function PlanScheduleSheet({
             ))}
             {items.length > 3 && (
               <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
-                以下为完整日程（预览，点选不会开始计划）
+                点选某天可预览内容，不会开始计划
               </p>
             )}
           </div>
@@ -119,7 +119,7 @@ export function PlanScheduleSheet({
               && busyDay !== d.day,
             );
             const busy = busyDay === d.day;
-            const interactive = !isPreview && !locked;
+            const interactive = isPreview ? Boolean(onStartDay) : !locked;
             return (
               <div
                 key={d.day}
