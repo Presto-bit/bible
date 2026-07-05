@@ -10,6 +10,7 @@ export type AssistantScene =
   | 'chat_preach'
   | 'chat_compare'
   | 'chat_original'
+  | 'chat_general'
   | 'summary_chapter'
   | 'summary_book';
 
@@ -85,6 +86,13 @@ export const SCENES: Record<AssistantScene, SceneConfig> = {
     timeoutMs: 90_000,
     wantsFollowups: true,
   },
+  chat_general: {
+    id: 'chat_general',
+    mode: 'explain',
+    label: '主题问答',
+    timeoutMs: 90_000,
+    wantsFollowups: true,
+  },
   summary_chapter: {
     id: 'summary_chapter',
     mode: 'explain',
@@ -101,6 +109,18 @@ export const SCENES: Record<AssistantScene, SceneConfig> = {
   },
 };
 
+const REF_BOUND_SCENES = new Set<AssistantScene>([
+  'verse_quick',
+  'verse_full',
+  'chat_explain',
+  'chat_understand',
+  'chat_apply',
+  'chat_study',
+  'chat_preach',
+  'chat_compare',
+  'chat_original',
+]);
+
 const MODE_TO_SCENE: Record<string, AssistantScene> = {
   explain: 'chat_explain',
   understand: 'chat_understand',
@@ -110,7 +130,17 @@ const MODE_TO_SCENE: Record<string, AssistantScene> = {
   preach: 'chat_preach',
 };
 
-export function resolveScene(scene?: string | null, mode?: string): AssistantScene {
+export function resolveScene(
+  scene?: string | null,
+  mode?: string,
+  hasRef = true,
+): AssistantScene {
+  if (!hasRef) {
+    if (scene && scene in SCENES && !REF_BOUND_SCENES.has(scene as AssistantScene)) {
+      return scene as AssistantScene;
+    }
+    return 'chat_general';
+  }
   if (scene && scene in SCENES) return scene as AssistantScene;
   if (mode && MODE_TO_SCENE[mode]) return MODE_TO_SCENE[mode];
   return 'chat_explain';
@@ -149,6 +179,6 @@ export function chipSceneForLabel(label: string): AssistantScene {
 export function personalizedSceneForLabel(label: string): AssistantScene {
   if (label === '关键词释义') return 'chat_original';
   if (label === '今日默想' || label === '生活应用' || label === '坚持鼓励') return 'chat_apply';
-  if (label === '信仰问答') return 'chat_understand';
+  if (label === '信仰问答') return 'chat_general';
   return 'chat_explain';
 }

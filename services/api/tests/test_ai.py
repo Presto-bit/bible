@@ -58,6 +58,46 @@ def test_build_messages_scene_without_followups():
     assert "暂无可用背景注释" in msgs[1]["content"]
 
 
+def test_build_messages_general_no_ref():
+    msgs = build_messages(
+        scene=SCENES["chat_general"],
+        passage_display="（未指定经文）",
+        passage_text="",
+        question="介绍摩西生平",
+        citations=[],
+    )
+    assert "主题问答" in msgs[0]["content"] or "未绑定具体经文" in msgs[0]["content"]
+    assert "【相关经节】" in msgs[0]["content"]
+    assert "经文要旨" not in msgs[0]["content"]
+    assert "经文：" not in msgs[1]["content"]
+    assert "介绍摩西生平" in msgs[1]["content"]
+
+
+def test_resolve_scene_without_ref():
+    from app.ai.scenes import resolve_scene
+
+    assert resolve_scene("chat_understand", "understand", has_ref=False).id == "chat_general"
+    assert resolve_scene(None, "understand", has_ref=False).id == "chat_general"
+    assert resolve_scene("summary_book", "explain", has_ref=False).id == "summary_book"
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
+def test_prepare_general_question():
+    from app.ai.chat import prepare
+
+    prep = prepare(
+        ref_raw=None,
+        question="介绍摩西生平",
+        mode="understand",
+        scene="chat_understand",
+    )
+    assert prep["meta"]["scene"] == "chat_general"
+    assert prep["meta"]["ref"] is None
+    user_msg = prep["messages"][-1]["content"]
+    assert "介绍摩西生平" in user_msg
+    assert "经文：" not in user_msg
+
+
 def test_build_messages_unknown_mode_falls_back():
     msgs = build_messages(
         scene=SCENES["chat_explain"],

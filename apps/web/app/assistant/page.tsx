@@ -316,8 +316,11 @@ function AssistantPageInner() {
     if (!q || busy) return;
     const shown = (displayText ?? q).trim() || q;
     const m = nextMode ?? mode;
-    const scene = nextScene ?? resolveScene(undefined, m);
     const anchor = (refOverride ?? ref).trim() || null;
+    const hasRef = Boolean(anchor);
+    const scene = nextScene && hasRef
+      ? nextScene
+      : resolveScene(nextScene, m, hasRef);
     setMode(m);
     setInput('');
     const history = msgs

@@ -49,6 +49,20 @@ _FOLLOWUP_RULE = (
     "（每行一个，用「- 」开头），引导读者继续探索。\n"
 )
 
+_BASE_GENERAL = (
+    _PERSONA
+    + "请用简体中文回答。原则：\n"
+    "1. 这是未绑定具体经文的主题问答，请直接回答读者问题；可引用圣经通识与主要经节，"
+    "但不强行套用单节释经或默想模板。\n"
+    "2. 若下方【背景注释】有内容，可酌情参考并用脚注 [1][2] 标注；"
+    "若没有注释，则基于通识谨慎作答，并避免给出可疑的具体史料。\n"
+    "3. 不偏向任何宗派立场，尊重不同信仰传统；不替读者做信仰决定。\n"
+    "4. 语气温暖平和，避免说教。\n"
+    "5. 重点突出，用短段落；句子完整、通顺自然。"
+    "少用括号旁注或中英对照括号；补充说明直接写进句子。"
+    "若用 1. 2. 3. 分点，序号与内容写在同一行，不要把序号单独成行。\n"
+)
+
 _MODE_GUIDE = {
     "understand": (
         "本次模式：理解默想。请帮助读者读懂这段经文的本意与核心信息，"
@@ -86,13 +100,21 @@ def build_messages(
     use_rag: bool = True,
 ) -> list[dict[str, str]]:
     mode = scene.mode if scene.mode in _MODE_GUIDE else DEFAULT_MODE
+    has_passage = passage_display != "（未指定经文）" and bool(passage_text or passage_display)
     notes_block = "\n".join(
         f"[{c['n']}]（{c['title']}）{c['snippet']}" for c in citations
     ) or "（暂无可用背景注释）"
 
+    if scene.id == "chat_general":
+        base = _BASE_GENERAL
+        mode_guide = "本次为未绑定经文的主题问答，请直接回答读者问题，并用【相关经节】推荐延伸阅读。"
+    else:
+        base = _BASE if use_rag else _BASE_NO_RAG
+        mode_guide = _MODE_GUIDE[mode]
+
     system_parts = [
-        _BASE if use_rag else _BASE_NO_RAG,
-        _MODE_GUIDE[mode],
+        base,
+        mode_guide,
         "\n【输出格式】\n",
         scene.format_guide,
     ]
@@ -101,16 +123,19 @@ def build_messages(
         system_parts.append(_FOLLOWUP_RULE)
     system = "".join(system_parts)
 
-    user_lines = [
-        f"经文：{passage_display}",
-        f"经文内容：{passage_text}" if passage_text else "",
-    ]
+    user_lines: list[str] = []
+    if has_passage:
+        user_lines.append(f"经文：{passage_display}")
+        if passage_text:
+            user_lines.append(f"经文内容：{passage_text}")
     if use_rag:
         user_lines.extend(["", "【背景注释】", notes_block, ""])
     if question and question.strip():
         user_lines.append(f"读者的问题：{question.strip()}")
-    else:
+    elif has_passage:
         user_lines.append("请按本模式主动为读者讲解这段经文。")
+    else:
+        user_lines.append("请根据读者问题作主题问答。")
     user = "\n".join(l for l in user_lines if l is not None)
     return [
         {"role": "system", "content": system},

@@ -114,12 +114,12 @@ def prepare(
     surface: str | None = None,
 ) -> dict:
     """返回 {meta, messages, max_tokens}。"""
-    spec = resolve_scene(scene, mode)
-    effective_mode = spec.mode if spec.mode in MODES else DEFAULT_MODE
     ref = parse_ref(ref_raw) if ref_raw else None
+    spec = resolve_scene(scene, mode, has_ref=ref is not None)
 
     passage_display = ref.display if ref else "（未指定经文）"
     passage_text = _passage_text(ref) if ref else ""
+    effective_mode = spec.mode if spec.mode in MODES else DEFAULT_MODE
 
     use_rag = spec.use_rag and (surface or "") not in NO_RAG_SURFACES
 

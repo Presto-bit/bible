@@ -141,6 +141,23 @@ SCENES: dict[str, SceneSpec] = {
             "总篇幅 200–350 字。"
         ),
     ),
+    "chat_general": SceneSpec(
+        id="chat_general",
+        mode="explain",
+        label="主题问答",
+        max_tokens=1200,
+        wants_followups=True,
+        format_guide=(
+            "严格按以下结构输出（保留【】标题）：\n"
+            "【摘要】1 句（≤40 字），直接点明问题的核心答案。\n"
+            "【正文】分 2–4 个自然段，用清楚口语直接回答读者问题"
+            "（人物生平按时间线、教义题按要点、历史题按事实链），"
+            "不要套用「经文要旨」「默想引导」「经文解释」等面向单段经文的栏目。\n"
+            "【相关经节】2–4 条，格式「书卷名 章:节 — 为何值得读」；"
+            "人物题覆盖生平关键段落，教义题给出经典经文。\n"
+            "总篇幅 250–450 字。"
+        ),
+    ),
     "summary_chapter": SceneSpec(
         id="summary_chapter",
         mode="explain",
@@ -177,6 +194,20 @@ SCENES: dict[str, SceneSpec] = {
 
 # 指定 surface 时强制关闭 RAG（如首页 rail 预填，仅首问轻量作答）
 NO_RAG_SURFACES: frozenset[str] = frozenset({"home_prefill"})
+# 无经文锚点时，这些 scene 会降级为 chat_general
+REF_BOUND_SCENES: frozenset[str] = frozenset(
+    {
+        "verse_quick",
+        "verse_full",
+        "chat_explain",
+        "chat_understand",
+        "chat_apply",
+        "chat_study",
+        "chat_preach",
+        "chat_compare",
+        "chat_original",
+    }
+)
 MODE_TO_SCENE: dict[str, str] = {
     "explain": "chat_explain",
     "understand": "chat_understand",
@@ -187,7 +218,11 @@ MODE_TO_SCENE: dict[str, str] = {
 }
 
 
-def resolve_scene(scene: str | None, mode: str) -> SceneSpec:
+def resolve_scene(scene: str | None, mode: str, *, has_ref: bool = True) -> SceneSpec:
+    if not has_ref:
+        if scene and scene in SCENES and scene not in REF_BOUND_SCENES:
+            return SCENES[scene]
+        return SCENES["chat_general"]
     if scene and scene in SCENES:
         return SCENES[scene]
     mapped = MODE_TO_SCENE.get(mode)
