@@ -54,6 +54,48 @@ export function textFromWordRange(
   return out;
 }
 
+export function wordRangesEqual(a: WordRange | null, b: WordRange | null): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.anchor.verse === b.anchor.verse
+    && a.anchor.start === b.anchor.start
+    && a.anchor.end === b.anchor.end
+    && a.focus.verse === b.focus.verse
+    && a.focus.start === b.focus.start
+    && a.focus.end === b.focus.end
+  );
+}
+
+/** 选区左右端（用于圆角），中间词块无圆角以视觉连贯。 */
+export function wordSelectionEdge(
+  verse: number,
+  wordStart: number,
+  wordEnd: number,
+  range: WordRange,
+): { left: boolean; right: boolean } {
+  if (!wordOverlapsRange(verse, wordStart, wordEnd, range)) {
+    return { left: false, right: false };
+  }
+  const { anchor, focus } = normalizeWordRange(range);
+  const loV = anchor.verse;
+  const hiV = focus.verse;
+  if (loV === hiV) {
+    const lo = Math.min(anchor.start, focus.start);
+    const hi = Math.max(anchor.end, focus.end);
+    return {
+      left: wordStart <= lo && wordEnd > lo,
+      right: wordStart < hi && wordEnd >= hi,
+    };
+  }
+  if (verse === loV) {
+    return { left: wordStart <= anchor.start && wordEnd > anchor.start, right: true };
+  }
+  if (verse === hiV) {
+    return { left: true, right: wordStart < focus.end && wordEnd >= focus.end };
+  }
+  return { left: true, right: true };
+}
+
 export function wordOverlapsRange(
   verse: number,
   wordStart: number,

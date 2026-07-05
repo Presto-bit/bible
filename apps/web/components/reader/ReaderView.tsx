@@ -58,6 +58,8 @@ import {
   textFromWordRange,
   wordOverlapsRange,
   wordRangeToSpan,
+  wordRangesEqual,
+  wordSelectionEdge,
   type WordAnchor,
   type WordRange,
 } from '@/lib/selection_range';
@@ -271,8 +273,12 @@ export default function ReaderView({
   const overlayOpenRef = useRef(false);
   /** 划词结束后短时忽略横滑 */
   const swipeIgnoreUntilRef = useRef(0);
-  const applyWordRangeRef = useRef<(anchor: WordAnchor, focus: WordAnchor) => void>(() => {});
+  const applyWordRangeRef = useRef<
+    (anchor: WordAnchor, focus: WordAnchor, opts?: { commit?: boolean }) => void
+  >(() => {});
   const wordRangeRef = useRef<WordRange | null>(null);
+  const wordDragRafRef = useRef(0);
+  const wordDragPendingRef = useRef<WordRange | null>(null);
 
   const overlayOpen = Boolean(
     externalOverlayOpen
@@ -566,10 +572,24 @@ export default function ReaderView({
         <>
           {sliceVerseWords(text).map((w, i) => {
             const anchor: WordAnchor = { verse: verseNum, start: w.start, end: w.end };
+            const active = wordRange
+              ? wordOverlapsRange(verseNum, w.start, w.end, wordRange)
+              : false;
+            const edge = active && wordRange
+              ? wordSelectionEdge(verseNum, w.start, w.end, wordRange)
+              : null;
+            const cls = [
+              'verse-word',
+              active ? 'is-active' : '',
+              edge?.left ? 'sel-edge-left' : '',
+              edge?.right ? 'sel-edge-right' : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
             return (
               <span
                 key={`${keyBase}-w${i}`}
-                className="verse-word"
+                className={cls}
                 data-v={verseNum}
                 data-s={w.start}
                 data-e={w.end}
@@ -591,7 +611,7 @@ export default function ReaderView({
         </>
       );
     },
-    [renderVerseText],
+    [renderVerseText, wordRange],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -1201,15 +1221,24 @@ export default function ReaderView({
     window.getSelection()?.removeAllRanges();
     setWholeVerseSel([]);
     setWordRange(null);
+    wordRangeRef.current = null;
+    wordDragPendingRef.current = null;
+    if (wordDragRafRef.current) {
+      cancelAnimationFrame(wordDragRafRef.current);
+      wordDragRafRef.current = 0;
+    }
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, []);
 
-  const applyWordRange = useCallback((anchor: WordAnchor, focus: WordAnchor) => {
+  const applyWordRange = useCallback((anchor: WordAnchor, focus: WordAnchor, opts?: { commit?: boolean }) => {
     const range: WordRange = { anchor, focus };
+    if (wordRangesEqual(wordRangeRef.current, range)) return;
     const { verses: picked } = wordRangeToSpan(range);
     window.getSelection()?.removeAllRanges();
     setWholeVerseSel([]);
     setWordRange(range);
+    wordRangeRef.current = range;
+    if (opts?.commit === false) return;
     for (const v of picked) noteChapterVerseTouch(book.id, chapter, v);
     const hi = Math.max(...picked);
     setLastReadVerse(book.id, chapter, hi);
@@ -1219,8 +1248,31 @@ export default function ReaderView({
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, [book.id, chapter]);
 
+  const commitWordRangeProgress = useCallback((range: WordRange | null) => {
+    if (!range) return;
+    const { verses: picked } = wordRangeToSpan(range);
+    if (!picked.length) return;
+    for (const v of picked) noteChapterVerseTouch(book.id, chapter, v);
+    const hi = Math.max(...picked);
+    setLastReadVerse(book.id, chapter, hi);
+    lastSelectAt.current = Date.now();
+    logVerseRead(`${book.id}.${chapter}.${hi}`);
+    readingEngagedRef.current = true;
+  }, [book.id, chapter]);
+
   applyWordRangeRef.current = applyWordRange;
   wordRangeRef.current = wordRange;
+
+  const scheduleWordRangeDuringDrag = useCallback((anchor: WordAnchor, focus: WordAnchor) => {
+    wordDragPendingRef.current = { anchor, focus };
+    if (wordDragRafRef.current) return;
+    wordDragRafRef.current = requestAnimationFrame(() => {
+      wordDragRafRef.current = 0;
+      const pending = wordDragPendingRef.current;
+      if (!pending) return;
+      applyWordRangeRef.current(pending.anchor, pending.focus, { commit: false });
+    });
+  }, []);
 
   // 触控/PWA：拦截系统划选，避免与 wordRange 词块高亮叠出灰/蓝双色
   useEffect(() => {
@@ -1288,11 +1340,26 @@ export default function ReaderView({
       e.preventDefault();
       const w = wordFromPoint(t.clientX, t.clientY);
       if (!w) return;
-      applyWordRangeRef.current(anchor, w);
+      scheduleWordRangeDuringDrag(anchor, w);
     };
 
     const onTouchEnd = () => {
       clearLongPress();
+      if (dragging) {
+        const pending = wordDragPendingRef.current;
+        if (pending) {
+          applyWordRangeRef.current(pending.anchor, pending.focus, { commit: false });
+        }
+        if (wordRangeRef.current) {
+          commitWordRangeProgress(wordRangeRef.current);
+          swipeIgnoreUntilRef.current = Date.now() + 320;
+        }
+      }
+      if (wordDragRafRef.current) {
+        cancelAnimationFrame(wordDragRafRef.current);
+        wordDragRafRef.current = 0;
+      }
+      wordDragPendingRef.current = null;
       anchor = null;
       dragging = false;
       window.getSelection()?.removeAllRanges();
@@ -1309,22 +1376,7 @@ export default function ReaderView({
       el.removeEventListener('touchend', onTouchEnd);
       el.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [book.id, chapter, swipeTurn]);
-
-  useEffect(() => {
-    const root = contentRef.current;
-    if (!root) return;
-    root.querySelectorAll('.verse-word.is-active').forEach((el) => el.classList.remove('is-active'));
-    if (!wordRange) return;
-    root.querySelectorAll('.verse-word').forEach((el) => {
-      const v = Number(el.getAttribute('data-v'));
-      const s = Number(el.getAttribute('data-s'));
-      const e = Number(el.getAttribute('data-e'));
-      if (wordOverlapsRange(v, s, e, wordRange)) {
-        el.classList.add('is-active');
-      }
-    });
-  }, [wordRange, book.id, chapter]);
+  }, [book.id, chapter, swipeTurn, scheduleWordRangeDuringDrag, commitWordRangeProgress]);
 
   const selectWholeVerse = useCallback((verse: number) => {
     window.getSelection()?.removeAllRanges();
