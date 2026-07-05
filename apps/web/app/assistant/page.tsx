@@ -248,7 +248,7 @@ function AssistantPageInner() {
 
   useEffect(() => {
     setSessions(loadAssistantSessions() as Session[]);
-    document.documentElement.style.setProperty('--assistant-answer-font-size', '15px');
+    document.documentElement.style.setProperty('--assistant-answer-font-size', '17px');
     return () => {
       document.documentElement.style.removeProperty('--assistant-answer-font-size');
     };

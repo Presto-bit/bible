@@ -32,15 +32,25 @@ export function loadAssistantSessions(): AssistantSessionRecord[] {
     const raw = localStorage.getItem(SESSIONS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter((s) => s && typeof s.id === 'string' && hasUserMessages(s.msgs ?? []))
-      .map((s) => ({
-        ...s,
-        updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : inferUpdatedAt(s.updated),
-      }));
+    return sortSessionsDesc(
+      parsed
+        .filter((s) => s && typeof s.id === 'string' && hasUserMessages(s.msgs ?? []))
+        .map((s) => ({
+          ...s,
+          updatedAt: typeof s.updatedAt === 'number' ? s.updatedAt : inferUpdatedAt(s.updated),
+        })),
+    );
   } catch {
     return [];
   }
+}
+
+function sessionTime(s: AssistantSessionRecord): number {
+  return s.updatedAt ?? 0;
+}
+
+function sortSessionsDesc(list: AssistantSessionRecord[]): AssistantSessionRecord[] {
+  return [...list].sort((a, b) => sessionTime(b) - sessionTime(a));
 }
 
 function inferUpdatedAt(label: string | undefined): number {
@@ -52,7 +62,7 @@ function inferUpdatedAt(label: string | undefined): number {
 export function saveAssistantSessions(list: AssistantSessionRecord[]) {
   if (typeof window === 'undefined') return;
   const valid = list.filter((s) => hasUserMessages(s.msgs));
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(valid.slice(0, 50)));
+  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sortSessionsDesc(valid).slice(0, 50)));
 }
 
 function startOfLocalDay(d: Date): number {
@@ -106,16 +116,16 @@ export function groupSessionsByDate(sessions: AssistantSessionRecord[]): Session
   const groups: SessionDateGroup[] = [];
   for (const label of order) {
     const items = buckets.get(label);
-    if (items?.length) groups.push({ label, items });
+    if (items?.length) groups.push({ label, items: sortSessionsDesc(items) });
     buckets.delete(label);
   }
   const rest = [...buckets.entries()].sort((a, b) => {
-    const ta = a[1][0]?.updatedAt ?? 0;
-    const tb = b[1][0]?.updatedAt ?? 0;
+    const ta = Math.max(...a[1].map(sessionTime));
+    const tb = Math.max(...b[1].map(sessionTime));
     return tb - ta;
   });
   for (const [label, items] of rest) {
-    if (items.length) groups.push({ label, items });
+    if (items.length) groups.push({ label, items: sortSessionsDesc(items) });
   }
   return groups;
 }
