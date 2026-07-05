@@ -75,7 +75,7 @@ export function personalizedAssistantChips(opts: {
       mode: SCENES.chat_apply.mode,
       q: `我已连续读经 ${opts.streak} 天，请根据这段属灵旅程给我一段鼓励与下一步建议。`,
     });
-  } else {
+  } else if (!chips.some((c) => c.label === '生活应用')) {
     chips.push({
       label: '生活应用',
       scene: 'chat_apply',

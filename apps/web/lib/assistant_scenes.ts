@@ -158,7 +158,8 @@ export function chipUserQuestion(label: string, ref?: string): string {
     生活应用: `请把${anchor}应用到今日生活，给出具体可行的建议。`,
     预备查经: `请帮我预备关于${anchor}的小组查经提纲。`,
     译本对照: `请对照不同中文译本解释${anchor}的措辞差异。`,
-    原文释义: `请从圣经原文角度解释${anchor}的关键词。`,
+    原文释义: `请从圣经原文（希伯来文/希腊文）角度解释${anchor}的关键词与对照含义。`,
+    '原文（希伯来文对照解释）': `请从圣经原文（希伯来文/希腊文）角度解释${anchor}的关键词与对照含义。`,
     讲道大纲: `请为${anchor}生成讲道大纲要点。`,
   };
   return map[label] ?? `关于${anchor}，请按「${label}」作答。`;
@@ -171,6 +172,7 @@ export function chipSceneForLabel(label: string): AssistantScene {
     预备查经: 'chat_study',
     译本对照: 'chat_compare',
     原文释义: 'chat_original',
+    '原文（希伯来文对照解释）': 'chat_original',
     讲道大纲: 'chat_preach',
   };
   return map[label] ?? 'chat_explain';

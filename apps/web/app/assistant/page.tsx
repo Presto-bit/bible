@@ -105,10 +105,15 @@ function AssistantPageInner() {
     [ref],
   );
   const sessionGroups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
-  const composerChips = useMemo(
-    () => [...personalized.slice(0, 2), ...staticAssistantChips(ref || undefined)],
-    [personalized, ref],
-  );
+  const composerChips = useMemo(() => {
+    const merged = [...personalized.slice(0, 2), ...staticAssistantChips(ref || undefined)];
+    const seen = new Set<string>();
+    return merged.filter((c) => {
+      if (seen.has(c.label)) return false;
+      seen.add(c.label);
+      return true;
+    });
+  }, [personalized, ref]);
 
   useEffect(() => {
     if (!historyOpen) return;
