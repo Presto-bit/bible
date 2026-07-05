@@ -2012,6 +2012,7 @@ export default function ReaderView({
                   refLabel: effRefLabel,
                   selectionText: effSelectionText,
                 });
+                clearSelection();
                 setAiSheet(true);
               }}
             >
