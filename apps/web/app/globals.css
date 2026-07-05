@@ -5032,36 +5032,19 @@ a.today-card-link {
   -webkit-touch-callout: none;
 }
 
-/* 自绘选区：全平台禁用系统划选，改走 .verse-word 词块 */
-.reader-custom-select .verse-token,
-.reader-custom-select .verse-text-body,
-.reader-custom-select .verse-word {
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
+/* 触控端禁用系统划选，改走 .verse-word 词块 + wordRange */
+@media (hover: none) and (pointer: coarse) {
+  .reader-page .verse-token,
+  .reader-page .verse-text-body,
+  .reader-page .verse-word {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
 
-.reader-custom-select {
-  touch-action: pan-y;
-}
-
-.reader-sel-handle {
-  position: fixed;
-  z-index: 120;
-  width: 12px;
-  border-radius: 6px;
-  background: var(--accent-deep);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
-  touch-action: none;
-  cursor: ew-resize;
-}
-
-.reader-sel-handle-start {
-  transform: translateX(-50%);
-}
-
-.reader-sel-handle-end {
-  transform: translateX(-50%);
+  .reader-page .reader-content {
+    touch-action: pan-y;
+  }
 }
 
 .verse-word.is-active {

@@ -61,8 +61,7 @@ import {
   type WordAnchor,
   type WordRange,
 } from '@/lib/selection_range';
-import { installCustomVerseSelection } from '@/lib/reader_custom_select';
-import { ReaderSelectionHandles } from '@/components/reader/ReaderSelectionHandles';
+import { isTouchPrimaryUI } from '@/lib/touch_ui';
 import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
@@ -271,6 +270,8 @@ export default function ReaderView({
   const overlayOpenRef = useRef(false);
   /** 划词结束后短时忽略横滑 */
   const swipeIgnoreUntilRef = useRef(0);
+  const applyWordRangeRef = useRef<(anchor: WordAnchor, focus: WordAnchor) => void>(() => {});
+  const wordRangeRef = useRef<WordRange | null>(null);
 
   const overlayOpen = Boolean(
     externalOverlayOpen
@@ -562,17 +563,30 @@ export default function ReaderView({
 
       return (
         <>
-          {sliceVerseWords(text).map((w, i) => (
-            <span
-              key={`${keyBase}-w${i}`}
-              className="verse-word"
-              data-v={verseNum}
-              data-s={w.start}
-              data-e={w.end}
-            >
-              {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum)}
-            </span>
-          ))}
+          {sliceVerseWords(text).map((w, i) => {
+            const anchor: WordAnchor = { verse: verseNum, start: w.start, end: w.end };
+            return (
+              <span
+                key={`${keyBase}-w${i}`}
+                className="verse-word"
+                data-v={verseNum}
+                data-s={w.start}
+                data-e={w.end}
+                onClick={(e) => {
+                  if (isTouchPrimaryUI()) return;
+                  e.stopPropagation();
+                  const cur = wordRangeRef.current;
+                  if (e.shiftKey && cur) {
+                    applyWordRangeRef.current(cur.anchor, anchor);
+                  } else {
+                    applyWordRangeRef.current(anchor, anchor);
+                  }
+                }}
+              >
+                {renderVerseText(w.text, `${keyBase}-w${i}`, verseNum)}
+              </span>
+            );
+          })}
         </>
       );
     },
@@ -1203,15 +1217,82 @@ export default function ReaderView({
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, [book.id, chapter]);
 
+  applyWordRangeRef.current = applyWordRange;
+  wordRangeRef.current = wordRange;
+
+  // 触控：长按选词 + 拖动扩选（词块 + wordRange，禁用系统划选）
   useEffect(() => {
     const el = contentRef.current;
-    if (!el) return;
-    el.classList.add('reader-custom-select');
-    return installCustomVerseSelection(el, {
-      onRange: applyWordRange,
-      onGestureEnd: () => window.getSelection()?.removeAllRanges(),
-    });
-  }, [book.id, chapter, swipeTurn, applyWordRange]);
+    if (!el || !isTouchPrimaryUI()) return;
+
+    const wordFromPoint = (x: number, y: number): WordAnchor | null => {
+      const node = document.elementFromPoint(x, y);
+      const w = node?.closest('.verse-word') as HTMLElement | null;
+      if (!w || !el.contains(w)) return null;
+      const verse = Number(w.dataset.v);
+      const start = Number(w.dataset.s);
+      const end = Number(w.dataset.e);
+      if (!verse || Number.isNaN(start) || Number.isNaN(end)) return null;
+      return { verse, start, end };
+    };
+
+    let anchor: (WordAnchor & { x: number; y: number }) | null = null;
+    let dragging = false;
+    let longPressTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const clearLongPress = () => {
+      if (longPressTimer != null) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const w = wordFromPoint(t.clientX, t.clientY);
+      if (!w) return;
+      anchor = { ...w, x: t.clientX, y: t.clientY };
+      dragging = false;
+      clearLongPress();
+      longPressTimer = setTimeout(() => {
+        if (!anchor || dragging) return;
+        applyWordRangeRef.current(anchor, anchor);
+        clearLongPress();
+      }, 420);
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!anchor || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (!dragging && Math.hypot(t.clientX - anchor.x, t.clientY - anchor.y) < 10) return;
+      dragging = true;
+      clearLongPress();
+      e.preventDefault();
+      const w = wordFromPoint(t.clientX, t.clientY);
+      if (!w) return;
+      applyWordRangeRef.current(anchor, w);
+    };
+
+    const onTouchEnd = () => {
+      clearLongPress();
+      anchor = null;
+      dragging = false;
+      window.getSelection()?.removeAllRanges();
+    };
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    return () => {
+      clearLongPress();
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [book.id, chapter, swipeTurn]);
 
   useEffect(() => {
     const root = contentRef.current;
@@ -1687,14 +1768,6 @@ export default function ReaderView({
           ✦ 小爱
         </button>
       </div>
-
-      {wordRange && (
-        <ReaderSelectionHandles
-          wordRange={wordRange}
-          contentRef={contentRef}
-          onRangeChange={applyWordRange}
-        />
-      )}
 
       {hasSel && (
         <div
