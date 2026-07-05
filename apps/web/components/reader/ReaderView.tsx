@@ -55,6 +55,15 @@ import {
 import { centerVerseInScroll, sectionRangeForVerse } from '@/lib/reader_viewport';
 import { sliceVerseWords } from '@/lib/verse_words';
 import {
+  textFromWordRange,
+  wordOverlapsRange,
+  wordRangeToSpan,
+  type WordAnchor,
+  type WordRange,
+} from '@/lib/selection_range';
+import { installCustomVerseSelection } from '@/lib/reader_custom_select';
+import { ReaderSelectionHandles } from '@/components/reader/ReaderSelectionHandles';
+import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
   logChapterDetail,
@@ -170,7 +179,7 @@ export default function ReaderView({
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
   const [layoutVerses, setLayoutVerses] = useState<Verse[]>([]);
   const [parallelVerses, setParallelVerses] = useState<Verse[]>([]);
-  const [selected, setSelected] = useState<number[]>([]);
+  const [wholeVerseSel, setWholeVerseSel] = useState<number[]>([]);
   const [versionLabel, setVersionLabel] = useState('和合本');
   const [fontPx, setFontPx] = useState(DEFAULT_FONT_PX);
   const [showSettings, setShowSettings] = useState(false);
@@ -193,7 +202,7 @@ export default function ReaderView({
   const [peekNextChapter, setPeekNextChapter] = useState(0);
   const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
-  const [selectionSpan, setSelectionSpan] = useState<{ start: number; end: number } | null>(null);
+  const [wordRange, setWordRange] = useState<WordRange | null>(null);
   const [markNotePrompt, setMarkNotePrompt] = useState<null | { ref: string; label: string }>(null);
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
@@ -250,10 +259,6 @@ export default function ReaderView({
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const lastScrollTop = useRef(0);
   const lastSelectAt = useRef(0);
-  const syncingSelection = useRef(false);
-  /** 划词过程中记录的部分选区（松手时系统常会扩成整句） */
-  const pendingSpanRef = useRef<{ verse: number; start: number; end: number } | null>(null);
-  const selectingGestureRef = useRef(false);
   const [viewportCenterVerse, setViewportCenterVerse] = useState<number | null>(null);
   const [aiSheetContext, setAiSheetContext] = useState<null | {
     refParam: string;
@@ -398,20 +403,26 @@ export default function ReaderView({
     [verses],
   );
 
-  const sortedSel = useMemo(() => [...selected].sort((a, b) => a - b), [selected]);
+  const sortedSel = useMemo(() => {
+    if (wordRange) return [...wordRangeToSpan(wordRange).verses].sort((a, b) => a - b);
+    return [...wholeVerseSel].sort((a, b) => a - b);
+  }, [wordRange, wholeVerseSel]);
   const hasSel = sortedSel.length > 0;
+  const selectionSpan = useMemo(
+    () => (wordRange ? wordRangeToSpan(wordRange).span : null),
+    [wordRange],
+  );
   const minV = sortedSel[0];
   const maxV = sortedSel[sortedSel.length - 1];
   const selectionText = useMemo(() => {
-    const picked = verses
-      .filter((v) => selected.includes(v.verse))
-      .sort((a, b) => a.verse - b.verse);
-    if (picked.length === 1 && selectionSpan && selectionSpan.end > selectionSpan.start) {
-      const full = picked[0].text;
-      return full.slice(selectionSpan.start, selectionSpan.end);
+    if (wordRange) {
+      return textFromWordRange(wordRange, (v) => verses.find((x) => x.verse === v)?.text ?? '');
     }
+    const picked = verses
+      .filter((v) => wholeVerseSel.includes(v.verse))
+      .sort((a, b) => a.verse - b.verse);
     return picked.map((v) => v.text).join('');
-  }, [verses, selected, selectionSpan]);
+  }, [verses, wholeVerseSel, wordRange]);
   const refParam = hasSel ? `${book.id}.${chapter}.${minV}` : `${book.id}.${chapter}`;
   const refLabel = hasSel
     ? minV === maxV
@@ -615,7 +626,7 @@ export default function ReaderView({
       el?.removeEventListener('scroll', updateFocusBarPosition);
       window.removeEventListener('resize', updateFocusBarPosition);
     };
-  }, [hasSel, selected, chromeHidden, updateFocusBarPosition]);
+  }, [hasSel, sortedSel, chromeHidden, updateFocusBarPosition]);
 
   const openThoughtListForVerse = (verse: number, text: string) => {
     const refStr = listRefForVerse(book.id, chapter, verse);
@@ -853,9 +864,9 @@ export default function ReaderView({
   }, [books, book, chapter, mainVersionId, swipeTurn, readerLocation, prefetchTarget, planNavActive, planMeta]);
 
   useEffect(() => {
-    setSelected([]);
-    setSelectionSpan(null);
-    pendingSpanRef.current = null;
+    setWholeVerseSel([]);
+    setWordRange(null);
+    window.getSelection()?.removeAllRanges();
     setViewportCenterVerse(null);
     setBookDone(false);
     readStartRef.current = Date.now();
@@ -1171,284 +1182,60 @@ export default function ReaderView({
     return englishUI ? `Ch. ${peekPrevChapter}` : `第 ${peekPrevChapter} 章`;
   })();
 
-  const versesInRange = (a: number, b: number) => {
-    const lo = Math.min(a, b);
-    const hi = Math.max(a, b);
-    return Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
-  };
+  const clearSelection = useCallback(() => {
+    window.getSelection()?.removeAllRanges();
+    setWholeVerseSel([]);
+    setWordRange(null);
+    swipeIgnoreUntilRef.current = Date.now() + 320;
+  }, []);
 
-  const verseFromNode = (node: Node | null): number | null => {
-    if (!node || !contentRef.current) return null;
-    let el: Element | null = node instanceof Element ? node : node.parentElement;
-    while (el && contentRef.current.contains(el)) {
-      const m = el.id?.match(/^verse-anchor-(\d+)$/);
-      if (m) return Number(m[1]);
-      el = el.parentElement;
-    }
-    return null;
-  };
-
-  const spanInVerseText = (
-    verseNum: number,
-    sel: Selection,
-    verseText: string,
-  ): { start: number; end: number } | null => {
-    if (!sel.rangeCount) return null;
-    const body = document.querySelector(
-      `#verse-anchor-${verseNum} .verse-text-body`,
-    ) as HTMLElement | null;
-    if (!body) return null;
-    const range = sel.getRangeAt(0);
-    if (!body.contains(range.commonAncestorContainer)) return null;
-    try {
-      const pre = document.createRange();
-      pre.selectNodeContents(body);
-      pre.setEnd(range.startContainer, range.startOffset);
-      const start = pre.toString().length;
-      const picked = range.toString();
-      const end = start + picked.length;
-      if (end > start && picked.length > 0 && end - start < verseText.length) {
-        return { start, end };
-      }
-    } catch {
-      /* 部分 WebView 不支持跨节点 Range */
-    }
-    return null;
-  };
-
-  const syncSelectionFromDom = useCallback(() => {
-    if (syncingSelection.current) return;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || !contentRef.current) return;
-    const anchor = verseFromNode(sel.anchorNode);
-    const focus = verseFromNode(sel.focusNode);
-    if (anchor == null && focus == null) return;
-    const lo = Math.min(anchor ?? focus!, focus ?? anchor!);
-    const hi = Math.max(anchor ?? focus!, focus ?? anchor!);
-    const next = versesInRange(lo, hi);
-    let span: { start: number; end: number } | null = null;
-    if (lo === hi) {
-      const verseText = verses.find((v) => v.verse === lo)?.text ?? '';
-      span = spanInVerseText(lo, sel, verseText);
-      if (!span && sel.rangeCount > 0) {
-        const normalized = verseText.replace(/\s+/g, ' ').trim();
-        const picked = sel.toString().replace(/\s+/g, ' ').trim();
-        if (picked && picked.length < normalized.length) {
-          const start = normalized.indexOf(picked);
-          if (start >= 0) span = { start, end: start + picked.length };
-        } else {
-          const rawStart = verseText.indexOf(sel.toString());
-          if (rawStart >= 0 && rawStart + sel.toString().length < verseText.length) {
-            span = { start: rawStart, end: rawStart + sel.toString().length };
-          }
-        }
-      }
-      if (!span) {
-        const pending = pendingSpanRef.current;
-        if (pending?.verse === lo && pending.end > pending.start) {
-          span = { start: pending.start, end: pending.end };
-        }
-      }
-      if (span) {
-        pendingSpanRef.current = { verse: lo, start: span.start, end: span.end };
-      } else if (selectingGestureRef.current) {
-        /* 手势进行中：保留已记录的最短部分选区 */
-      } else {
-        pendingSpanRef.current = null;
-      }
-    } else {
-      pendingSpanRef.current = null;
-    }
-    syncingSelection.current = true;
-    setSelected(next);
-    setSelectionSpan(span);
+  const applyWordRange = useCallback((anchor: WordAnchor, focus: WordAnchor) => {
+    const range: WordRange = { anchor, focus };
+    const { verses: picked } = wordRangeToSpan(range);
+    window.getSelection()?.removeAllRanges();
+    setWholeVerseSel([]);
+    setWordRange(range);
+    const hi = Math.max(...picked);
     setLastReadVerse(book.id, chapter, hi);
     lastSelectAt.current = Date.now();
     logVerseRead(`${book.id}.${chapter}.${hi}`);
     readingEngagedRef.current = true;
-    syncingSelection.current = false;
-  }, [book.id, chapter, verses]);
-
-  useEffect(() => {
-    const onSel = () => syncSelectionFromDom();
-    document.addEventListener('selectionchange', onSel);
-    return () => document.removeEventListener('selectionchange', onSel);
-  }, [syncSelectionFromDom]);
-
-  // 划词手势结束后再清系统选区（须挂在 mouseup/touchend，不能等 hasSel 才挂监听）
-  useEffect(() => {
-    let timer: number | null = null;
-    const finalize = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed || !contentRef.current) return;
-      const anchor = verseFromNode(sel.anchorNode);
-      const focus = verseFromNode(sel.focusNode);
-      if (anchor == null && focus == null) return;
-      syncSelectionFromDom();
-      if (timer != null) window.clearTimeout(timer);
-      // 稍延迟：等系统菜单弹出后再清选区，多数浏览器会一并收起菜单
-      timer = window.setTimeout(() => {
-        syncingSelection.current = true;
-        const s = window.getSelection();
-        if (s && !s.isCollapsed) s.removeAllRanges();
-        // iOS 偶发需二次清空
-        window.setTimeout(() => {
-          window.getSelection()?.removeAllRanges();
-          syncingSelection.current = false;
-        }, 30);
-      }, 80);
-    };
-    document.addEventListener('mouseup', finalize);
-    document.addEventListener('touchend', finalize, { passive: true });
-    return () => {
-      if (timer != null) window.clearTimeout(timer);
-      document.removeEventListener('mouseup', finalize);
-      document.removeEventListener('touchend', finalize);
-    };
-  }, [syncSelectionFromDom]);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const onDown = () => { selectingGestureRef.current = true; };
-    const onUp = () => { selectingGestureRef.current = false; };
-    el.addEventListener('pointerdown', onDown);
-    el.addEventListener('pointerup', onUp);
-    el.addEventListener('pointercancel', onUp);
-    return () => {
-      el.removeEventListener('pointerdown', onDown);
-      el.removeEventListener('pointerup', onUp);
-      el.removeEventListener('pointercancel', onUp);
-    };
-  }, [book.id, chapter, swipeTurn]);
-
-  const clearSelection = () => {
-    window.getSelection()?.removeAllRanges();
-    setSelected([]);
-    setSelectionSpan(null);
-    pendingSpanRef.current = null;
-    swipeIgnoreUntilRef.current = Date.now() + 320;
-  };
-
-  const applyWordSpan = useCallback((verse: number, start: number, end: number) => {
-    const lo = Math.min(start, end);
-    const hi = Math.max(start, end);
-    window.getSelection()?.removeAllRanges();
-    pendingSpanRef.current = { verse, start: lo, end: hi };
-    syncingSelection.current = true;
-    setSelected([verse]);
-    setSelectionSpan({ start: lo, end: hi });
-    setLastReadVerse(book.id, chapter, verse);
-    lastSelectAt.current = Date.now();
-    logVerseRead(`${book.id}.${chapter}.${verse}`);
-    readingEngagedRef.current = true;
-    syncingSelection.current = false;
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, [book.id, chapter]);
 
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-
-    const wordFromPoint = (x: number, y: number) => {
-      const node = document.elementFromPoint(x, y);
-      const w = node?.closest('.verse-word') as HTMLElement | null;
-      if (!w) return null;
-      return {
-        verse: Number(w.dataset.v),
-        start: Number(w.dataset.s),
-        end: Number(w.dataset.e),
-      };
-    };
-
-    let anchor: { verse: number; start: number; end: number; x: number; y: number } | null = null;
-    let dragging = false;
-    let longPressTimer: number | null = null;
-
-    const clearLongPress = () => {
-      if (longPressTimer != null) {
-        window.clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
-
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      const t = e.touches[0];
-      const w = wordFromPoint(t.clientX, t.clientY);
-      if (!w) return;
-      anchor = { ...w, x: t.clientX, y: t.clientY };
-      dragging = false;
-      selectingGestureRef.current = true;
-      clearLongPress();
-      longPressTimer = window.setTimeout(() => {
-        if (!anchor || dragging) return;
-        applyWordSpan(anchor.verse, anchor.start, anchor.end);
-        clearLongPress();
-      }, 420);
-    };
-
-    const onTouchMove = (e: TouchEvent) => {
-      if (!anchor || e.touches.length !== 1) return;
-      const t = e.touches[0];
-      const dx = t.clientX - anchor.x;
-      const dy = t.clientY - anchor.y;
-      if (!dragging && Math.hypot(dx, dy) < 10) return;
-      dragging = true;
-      clearLongPress();
-      e.preventDefault();
-      const w = wordFromPoint(t.clientX, t.clientY);
-      if (!w || w.verse !== anchor.verse) return;
-      applyWordSpan(anchor.verse, anchor.start, w.end);
-    };
-
-    const onTouchEnd = () => {
-      clearLongPress();
-      anchor = null;
-      dragging = false;
-      selectingGestureRef.current = false;
-      window.getSelection()?.removeAllRanges();
-    };
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
-    return () => {
-      clearLongPress();
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
-    };
-  }, [book.id, chapter, swipeTurn, applyWordSpan]);
+    el.classList.add('reader-custom-select');
+    return installCustomVerseSelection(el, {
+      onRange: applyWordRange,
+      onGestureEnd: () => window.getSelection()?.removeAllRanges(),
+    });
+  }, [book.id, chapter, swipeTurn, applyWordRange]);
 
   useEffect(() => {
     const root = contentRef.current;
     if (!root) return;
     root.querySelectorAll('.verse-word.is-active').forEach((el) => el.classList.remove('is-active'));
-    if (!selectionSpan || sortedSel.length !== 1) return;
-    const v = sortedSel[0];
-    root.querySelectorAll(`.verse-word[data-v="${v}"]`).forEach((el) => {
+    if (!wordRange) return;
+    root.querySelectorAll('.verse-word').forEach((el) => {
+      const v = Number(el.getAttribute('data-v'));
       const s = Number(el.getAttribute('data-s'));
       const e = Number(el.getAttribute('data-e'));
-      if (s < selectionSpan.end && e > selectionSpan.start) {
+      if (wordOverlapsRange(v, s, e, wordRange)) {
         el.classList.add('is-active');
       }
     });
-  }, [selectionSpan, sortedSel, book.id, chapter]);
+  }, [wordRange, book.id, chapter]);
 
   const selectWholeVerse = useCallback((verse: number) => {
     window.getSelection()?.removeAllRanges();
-    pendingSpanRef.current = null;
-    syncingSelection.current = true;
-    setSelected([verse]);
-    setSelectionSpan(null);
+    setWordRange(null);
+    setWholeVerseSel([verse]);
     setLastReadVerse(book.id, chapter, verse);
     lastSelectAt.current = Date.now();
     logVerseRead(`${book.id}.${chapter}.${verse}`);
     readingEngagedRef.current = true;
-    syncingSelection.current = false;
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, [book.id, chapter]);
 
@@ -1610,7 +1397,7 @@ export default function ReaderView({
                         ? markForVerse(highlightMap, book.id, chapter, v.verse)
                         : null;
                       const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                      const isSel = selected.includes(v.verse);
+                      const isSel = sortedSel.includes(v.verse);
                       return (
                         <span
                           key={v.verse}
@@ -1681,7 +1468,7 @@ export default function ReaderView({
                     ? markForVerse(highlightMap, book.id, chapter, v.verse)
                     : null;
                   const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                  const isSel = selected.includes(v.verse);
+                  const isSel = sortedSel.includes(v.verse);
                   return (
                     <span
                       key={v.verse}
@@ -1900,6 +1687,14 @@ export default function ReaderView({
           ✦ 小爱
         </button>
       </div>
+
+      {wordRange && (
+        <ReaderSelectionHandles
+          wordRange={wordRange}
+          contentRef={contentRef}
+          onRangeChange={applyWordRange}
+        />
+      )}
 
       {hasSel && (
         <div
