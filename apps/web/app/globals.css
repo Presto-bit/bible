@@ -10021,14 +10021,11 @@ html.app-theme-dark .muted {
 }
 
 .group-invite-code {
-  font-size: 28px;
-  letter-spacing: 0.2em;
-  font-weight: 700;
-}
   display: block;
   margin-top: 6px;
   font-size: 28px;
   letter-spacing: 0.2em;
+  font-weight: 700;
   color: var(--accent-deep);
   font-variant-numeric: tabular-nums;
 }
