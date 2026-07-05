@@ -12,6 +12,66 @@ export type RagDocument = {
   created_at?: string | null;
   rag_index_error?: string | null;
   chunks: number;
+  inventory_status?: RagInventoryStatus;
+  inventory_label?: string;
+};
+
+export type RagInventoryStatus = 'indexed' | 'pending' | 'failed' | 'indexing' | 'orphan';
+
+export type RagInventoryDoc = {
+  file: string;
+  filename: string;
+  subgroup?: string | null;
+  size_bytes?: number;
+  inventory_status: RagInventoryStatus;
+  inventory_label: string;
+  document_id?: string | null;
+  title: string;
+  chunks: number;
+  source_type?: string;
+  rag_index_at?: string | null;
+  rag_index_error?: string | null;
+  db_status?: string | null;
+};
+
+export type RagImportMeta = {
+  file: string;
+  id: string;
+  title: string;
+  language?: string | null;
+  books_total?: number | null;
+  books_done?: number | null;
+  chapters_expected?: number | null;
+};
+
+export type RagInventoryCollection = {
+  id: string;
+  label: string;
+  source_type: string;
+  dir: string;
+  dir_exists: boolean;
+  file_count: number;
+  counts: Record<RagInventoryStatus, number>;
+  import_meta: RagImportMeta[];
+  documents: RagInventoryDoc[];
+};
+
+export type RagInventory = {
+  commentary_root: string;
+  commentary_root_exists: boolean;
+  summary: {
+    indexed: number;
+    pending: number;
+    failed: number;
+    indexing: number;
+    orphan: number;
+    files_on_disk: number;
+    db_documents: number;
+    db_chunks: number;
+  };
+  collections: RagInventoryCollection[];
+  orphans: RagDocument[];
+  db_error?: string | null;
 };
 
 export type RagStatus = {
@@ -180,6 +240,15 @@ export async function fetchRagStatus(): Promise<RagStatus> {
   });
   if (!res.ok) throw new Error(await readApiError(res, '加载状态失败'));
   return (await res.json()) as RagStatus;
+}
+
+export async function fetchRagInventory(): Promise<RagInventory> {
+  const res = await fetch(`${API_BASE}/admin/rag/inventory`, {
+    headers: adminHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '加载资料清单失败'));
+  return (await res.json()) as RagInventory;
 }
 
 export async function fetchRagDocuments(): Promise<RagDocument[]> {

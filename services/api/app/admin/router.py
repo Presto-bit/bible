@@ -16,6 +16,7 @@ from ..config import get_settings
 from ..db import get_pool
 from ..rag.index import index_text
 from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
+from .rag_inventory import build_rag_inventory
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -97,7 +98,8 @@ def _fetch_admin_stats() -> dict:
             "rag_failed": _scalar(
                 conn,
                 "SELECT count(*) FROM bible_documents "
-                "WHERE status <> 'indexed' OR rag_index_error IS NOT NULL",
+                "WHERE rag_index_error IS NOT NULL "
+                "OR status NOT IN ('ready', 'indexed')",
             ),
             "ai_requests_today": _scalar(
                 conn,
@@ -179,6 +181,15 @@ def admin_rag_status(_phone: str = Depends(require_admin)) -> dict:
     base = rag_status()
     base["documents_detail"] = _list_documents()
     return base
+
+
+@router.get("/rag/inventory")
+def admin_rag_inventory(_phone: str = Depends(require_admin)) -> dict:
+    try:
+        return build_rag_inventory()
+    except Exception as exc:
+        logger.exception("admin rag inventory failed")
+        raise HTTPException(status_code=503, detail=f"资料清单不可用：{exc}") from exc
 
 
 @router.get("/rag/documents")

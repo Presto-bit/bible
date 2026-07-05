@@ -4045,6 +4045,161 @@ a.today-card-link {
   padding: 12px;
 }
 
+.admin-rag-doc-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.admin-rag-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+@media (max-width: 520px) {
+  .admin-rag-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.admin-rag-summary-card {
+  border-radius: 12px;
+  padding: 10px 8px;
+  text-align: center;
+  background: var(--surface-2, #f6f3ef);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.06));
+}
+
+.admin-rag-summary-value {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.admin-rag-summary-label {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--ink-muted, #7a7268);
+}
+
+.admin-rag-summary-indexed .admin-rag-summary-value { color: #2f7d4a; }
+.admin-rag-summary-pending .admin-rag-summary-value { color: #b07a12; }
+.admin-rag-summary-failed .admin-rag-summary-value { color: #c45c4a; }
+.admin-rag-summary-indexing .admin-rag-summary-value { color: #2f6fad; }
+.admin-rag-summary-orphan .admin-rag-summary-value { color: #7a7268; }
+
+.admin-rag-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.admin-rag-filter-tab {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.08));
+  background: var(--surface, #fff);
+  font-size: 12px;
+  color: var(--ink-muted, #7a7268);
+}
+
+.admin-rag-filter-tab.is-active {
+  border-color: var(--accent, #8b5a3c);
+  color: var(--accent, #8b5a3c);
+  background: rgba(139, 90, 60, 0.08);
+  font-weight: 600;
+}
+
+.admin-rag-collections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-rag-collection {
+  overflow: hidden;
+}
+
+.admin-rag-collection-head {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-rag-collection-counts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.admin-rag-mini-stat {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.admin-rag-mini-indexed { color: #2f7d4a; }
+.admin-rag-mini-pending { color: #b07a12; }
+.admin-rag-mini-failed { color: #c45c4a; }
+.admin-rag-mini-indexing { color: #2f6fad; }
+
+.admin-rag-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.admin-rag-status-indexed {
+  color: #2f7d4a;
+  background: rgba(47, 125, 74, 0.12);
+}
+
+.admin-rag-status-pending {
+  color: #b07a12;
+  background: rgba(176, 122, 18, 0.12);
+}
+
+.admin-rag-status-failed {
+  color: #c45c4a;
+  background: rgba(196, 92, 74, 0.12);
+}
+
+.admin-rag-status-indexing {
+  color: #2f6fad;
+  background: rgba(47, 111, 173, 0.12);
+}
+
+.admin-rag-status-orphan {
+  color: #7a7268;
+  background: rgba(122, 114, 104, 0.12);
+}
+
+.admin-rag-error-text {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--danger, #c45c4a);
+  line-height: 1.45;
+}
+
 .admin-login-form {
   margin-top: 0;
 }

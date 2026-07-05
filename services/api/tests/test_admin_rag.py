@@ -45,6 +45,24 @@ def test_admin_rag_status_requires_auth():
     assert res.status_code == 401
 
 
+def test_admin_rag_inventory_requires_auth():
+    res = client.get("/admin/rag/inventory")
+    assert res.status_code == 401
+
+
+def test_admin_rag_inventory_with_token():
+    s = get_settings()
+    res = client.post("/admin/auth/login", json={"phone": s.admin_phone, "password": s.admin_password})
+    token = res.json()["token"]
+    inv = client.get("/admin/rag/inventory", headers={"Authorization": f"Bearer {token}"})
+    assert inv.status_code == 200
+    body = inv.json()
+    assert "summary" in body
+    assert "collections" in body
+    assert "indexed" in body["summary"]
+    assert isinstance(body["collections"], list)
+
+
 def test_admin_eligible_requires_user():
     res = client.get("/admin/auth/eligible")
     assert res.status_code == 401

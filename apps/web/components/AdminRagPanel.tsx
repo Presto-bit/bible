@@ -1,15 +1,18 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   adminLogin,
   clearAdminToken,
   deleteRagDocument,
-  fetchRagDocuments,
+  fetchRagInventory,
   fetchRagStatus,
   reindexRagDocument,
   uploadRagDocument,
-  type RagDocument,
+  type RagInventory,
+  type RagInventoryCollection,
+  type RagInventoryDoc,
+  type RagInventoryStatus,
   type RagStatus,
 } from '@/lib/admin_rag';
 
@@ -21,6 +24,185 @@ function StatusPill({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
+const STATUS_LABELS: Record<RagInventoryStatus, string> = {
+  indexed: '已入库',
+  pending: '待索引',
+  failed: '失败',
+  indexing: '进行中',
+  orphan: '仅数据库',
+};
+
+type StatusFilter = 'all' | RagInventoryStatus;
+
+function InventoryStatusBadge({ status }: { status: RagInventoryStatus }) {
+  return (
+    <span className={`admin-rag-status-badge admin-rag-status-${status}`}>
+      {STATUS_LABELS[status]}
+    </span>
+  );
+}
+
+function SummaryCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  tone?: RagInventoryStatus | 'total';
+}) {
+  return (
+    <div className={`admin-rag-summary-card admin-rag-summary-${tone ?? 'total'}`}>
+      <span className="admin-rag-summary-value">{value}</span>
+      <span className="admin-rag-summary-label">{label}</span>
+    </div>
+  );
+}
+
+function CollectionBlock({
+  collection,
+  filter,
+  busy,
+  onDelete,
+  onReindex,
+}: {
+  collection: RagInventoryCollection;
+  filter: StatusFilter;
+  busy: boolean;
+  onDelete: (id: string, title: string) => void;
+  onReindex: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(collection.counts.pending > 0 || collection.counts.failed > 0);
+
+  const docs = useMemo(() => {
+    if (filter === 'all') return collection.documents;
+    return collection.documents.filter((d) => d.inventory_status === filter);
+  }, [collection.documents, filter]);
+
+  if (!docs.length && filter !== 'all') return null;
+
+  const c = collection.counts;
+  const metaHint = collection.import_meta
+    .map((m) => {
+      if (m.books_done != null && m.books_total != null) {
+        return `${m.title || m.id}：${m.books_done}/${m.books_total} 卷`;
+      }
+      return m.title || m.id;
+    })
+    .join(' · ');
+
+  return (
+    <div className="admin-rag-collection card card-2">
+      <button
+        type="button"
+        className="admin-rag-collection-head"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <div>
+          <strong>{collection.label}</strong>
+          <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+            {collection.source_type} · {collection.dir}
+            {!collection.dir_exists ? ' · 目录不存在' : ` · ${collection.file_count} 个文件`}
+          </p>
+          {metaHint ? (
+            <p className="muted" style={{ margin: '4px 0 0', fontSize: 11 }}>
+              拉取进度：{metaHint}
+            </p>
+          ) : null}
+        </div>
+        <div className="admin-rag-collection-counts">
+          <span className="admin-rag-mini-stat admin-rag-mini-indexed">{c.indexed} 已入库</span>
+          <span className="admin-rag-mini-stat admin-rag-mini-pending">{c.pending} 待索引</span>
+          <span className="admin-rag-mini-stat admin-rag-mini-failed">{c.failed} 失败</span>
+          {c.indexing > 0 ? (
+            <span className="admin-rag-mini-stat admin-rag-mini-indexing">{c.indexing} 进行中</span>
+          ) : null}
+        </div>
+      </button>
+
+      {open ? (
+        <div className="admin-rag-doc-list">
+          {docs.length === 0 ? (
+            <p className="muted" style={{ fontSize: 12, padding: '0 12px 12px' }}>当前筛选下无文档</p>
+          ) : (
+            docs.map((d) => (
+              <DocRow
+                key={`${collection.id}-${d.file}`}
+                doc={d}
+                sourceType={collection.source_type}
+                busy={busy}
+                onDelete={onDelete}
+                onReindex={onReindex}
+              />
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function DocRow({
+  doc,
+  sourceType,
+  busy,
+  onDelete,
+  onReindex,
+}: {
+  doc: RagInventoryDoc;
+  sourceType: string;
+  busy: boolean;
+  onDelete: (id: string, title: string) => void;
+  onReindex: (id: string) => void;
+}) {
+  return (
+    <div className="card card-2 admin-rag-doc-item">
+      <div className="admin-rag-doc-item-head">
+        <strong style={{ fontSize: 14 }}>{doc.title}</strong>
+        <InventoryStatusBadge status={doc.inventory_status} />
+      </div>
+      <p className="muted" style={{ margin: '4px 0', fontSize: 12 }}>
+        {doc.filename}
+        {doc.subgroup ? ` · ${doc.subgroup}` : ''}
+        {doc.chunks ? ` · ${doc.chunks} 块` : ''}
+        {doc.rag_index_at ? ` · ${new Date(doc.rag_index_at).toLocaleString()}` : ''}
+      </p>
+      <p className="muted" style={{ margin: 0, fontSize: 11 }}>
+        {doc.source_type || sourceType}
+        {doc.db_status ? ` · DB:${doc.db_status}` : ''}
+      </p>
+      {doc.rag_index_error ? (
+        <p className="admin-rag-error-text">{doc.rag_index_error}</p>
+      ) : null}
+      {doc.document_id ? (
+        <div className="share-actions" style={{ marginTop: 8 }}>
+          <button
+            type="button"
+            className="font-pill"
+            disabled={busy}
+            onClick={() => onReindex(doc.document_id!)}
+          >
+            重建索引
+          </button>
+          <button
+            type="button"
+            className="font-pill"
+            disabled={busy}
+            onClick={() => onDelete(doc.document_id!, doc.title)}
+          >
+            删除
+          </button>
+        </div>
+      ) : (
+        <p className="muted" style={{ margin: '8px 0 0', fontSize: 11 }}>
+          文件在磁盘上，尚未写入向量库。请执行 ensure_rag.sh 或重建索引。
+        </p>
+      )}
+    </div>
+  );
+}
+
 export default function AdminRagPanel({
   onLogout,
   showLogout = true,
@@ -29,10 +211,11 @@ export default function AdminRagPanel({
   showLogout?: boolean;
 }) {
   const [status, setStatus] = useState<RagStatus | null>(null);
-  const [docs, setDocs] = useState<RagDocument[]>([]);
+  const [inventory, setInventory] = useState<RagInventory | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState<StatusFilter>('all');
 
   const [title, setTitle] = useState('');
   const [bookId, setBookId] = useState('');
@@ -42,9 +225,9 @@ export default function AdminRagPanel({
     setLoading(true);
     setErr(null);
     try {
-      const [st, list] = await Promise.all([fetchRagStatus(), fetchRagDocuments()]);
+      const [st, inv] = await Promise.all([fetchRagStatus(), fetchRagInventory()]);
       setStatus(st);
-      setDocs(list);
+      setInventory(inv);
     } catch (e) {
       setErr(e instanceof Error ? e.message : '加载失败');
     } finally {
@@ -103,6 +286,8 @@ export default function AdminRagPanel({
     }
   };
 
+  const summary = inventory?.summary;
+
   return (
     <div className="admin-rag-panel">
       <div className="section-row" style={{ marginTop: 0 }}>
@@ -134,13 +319,19 @@ export default function AdminRagPanel({
             <StatusPill ok={status.llm_configured} label="LLM" />
           </div>
           <p className="muted" style={{ margin: 0, fontSize: 12 }}>
-            文档 {status.documents} 篇 · 向量块 {status.chunks} 个
+            数据库 {status.documents} 篇 · 向量块 {status.chunks} 个
+            {summary ? ` · 磁盘文件 ${summary.files_on_disk} 个` : ''}
           </p>
-          {!status.rag_ready ? (
-            <p className="muted" style={{ margin: '8px 0 0', fontSize: 12, lineHeight: 1.5 }}>
-              RAG 未就绪：需配置 Embedding Key、上传注释资料并完成索引。小爱问答将降级为无脚注模式。
-            </p>
-          ) : null}
+        </div>
+      ) : null}
+
+      {summary ? (
+        <div className="admin-rag-summary-grid" style={{ marginTop: 10 }}>
+          <SummaryCard label="已入库" value={summary.indexed} tone="indexed" />
+          <SummaryCard label="待索引" value={summary.pending} tone="pending" />
+          <SummaryCard label="失败" value={summary.failed} tone="failed" />
+          <SummaryCard label="进行中" value={summary.indexing} tone="indexing" />
+          <SummaryCard label="仅数据库" value={summary.orphan} tone="orphan" />
         </div>
       ) : null}
 
@@ -173,42 +364,97 @@ export default function AdminRagPanel({
 
       <div style={{ marginTop: 10 }}>
         <div className="section-row">
-          <p className="settings-title" style={{ margin: 0 }}>已入库资料</p>
+          <p className="settings-title" style={{ margin: 0 }}>资料清单（按数据源）</p>
           <button type="button" className="text-link" disabled={busy} onClick={() => void refresh()}>
             刷新
           </button>
         </div>
-        {docs.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13 }}>暂无资料，请上传 Markdown 注释。</p>
+
+        <div className="admin-rag-filter-tabs" role="tablist">
+          {([
+            ['all', '全部'],
+            ['indexed', '已入库'],
+            ['pending', '待索引'],
+            ['failed', '失败'],
+            ['indexing', '进行中'],
+            ['orphan', '仅数据库'],
+          ] as const).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={filter === id}
+              className={`admin-rag-filter-tab ${filter === id ? 'is-active' : ''}`}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {!inventory ? (
+          <p className="muted" style={{ fontSize: 13 }}>加载清单…</p>
+        ) : inventory.collections.every((c) => c.file_count === 0) && inventory.orphans.length === 0 ? (
+          <p className="muted" style={{ fontSize: 13 }}>
+            暂无磁盘资料。请执行 ensure_rag.sh 拉取注释，或上传 Markdown。
+          </p>
         ) : (
-          <div className="admin-rag-doc-list">
-            {docs.map((d) => (
-              <div key={d.id} className="card card-2 admin-rag-doc-item">
-                <strong style={{ fontSize: 14 }}>{d.title}</strong>
-                <p className="muted" style={{ margin: '4px 0', fontSize: 12 }}>
-                  {d.chunks} 块 · {d.status}
-                  {d.rag_index_at ? ` · ${new Date(d.rag_index_at).toLocaleString()}` : ''}
-                </p>
-                {d.rag_index_error ? (
-                  <p className="muted" style={{ margin: 0, fontSize: 11, color: 'var(--danger, #c45c4a)' }}>
-                    {d.rag_index_error}
-                  </p>
-                ) : null}
-                <div className="share-actions" style={{ marginTop: 8 }}>
-                  <button type="button" className="font-pill" disabled={busy} onClick={() => void handleReindex(d.id)}>
-                    重建索引
-                  </button>
-                  <button type="button" className="font-pill" disabled={busy} onClick={() => void handleDelete(d.id, d.title)}>
-                    删除
-                  </button>
+          <div className="admin-rag-collections">
+            {inventory.collections.map((coll) => (
+              <CollectionBlock
+                key={coll.id}
+                collection={coll}
+                filter={filter}
+                busy={busy}
+                onDelete={handleDelete}
+                onReindex={handleReindex}
+              />
+            ))}
+            {inventory.orphans.length > 0 && (filter === 'all' || filter === 'orphan') ? (
+              <div className="admin-rag-collection card card-2">
+                <div className="admin-rag-collection-head" style={{ cursor: 'default' }}>
+                  <div>
+                    <strong>仅数据库（源文件缺失）</strong>
+                    <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                      {inventory.orphans.length} 条记录找不到对应 md 文件
+                    </p>
+                  </div>
+                </div>
+                <div className="admin-rag-doc-list">
+                  {inventory.orphans.map((d) => (
+                    <div key={d.id} className="card card-2 admin-rag-doc-item">
+                      <div className="admin-rag-doc-item-head">
+                        <strong style={{ fontSize: 14 }}>{d.title}</strong>
+                        <InventoryStatusBadge status="orphan" />
+                      </div>
+                      <p className="muted" style={{ margin: '4px 0', fontSize: 12 }}>
+                        {d.source_type} · {d.chunks} 块
+                        {d.source_path ? ` · ${d.source_path.split('/').pop()}` : ''}
+                      </p>
+                      <div className="share-actions" style={{ marginTop: 8 }}>
+                        <button type="button" className="font-pill" disabled={busy} onClick={() => void handleReindex(d.id)}>
+                          重建索引
+                        </button>
+                        <button type="button" className="font-pill" disabled={busy} onClick={() => void handleDelete(d.id, d.title)}>
+                          删除
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            ) : null}
           </div>
         )}
       </div>
 
-      {err ? <p className="muted" style={{ marginTop: 8, fontSize: 12, color: 'var(--danger, #c45c4a)' }}>{err}</p> : null}
+      {inventory?.db_error ? (
+        <p className="admin-rag-error-text" style={{ marginTop: 8 }}>
+          数据库暂不可用，仅显示磁盘文件清单：{inventory.db_error}
+        </p>
+      ) : null}
+
+      {err ? <p className="admin-rag-error-text" style={{ marginTop: 8 }}>{err}</p> : null}
     </div>
   );
 }
@@ -254,7 +500,7 @@ export function AdminLoginForm({ onSuccess }: { onSuccess: () => void }) {
       <button type="button" className="btn" style={{ width: '100%' }} disabled={busy} onClick={() => void submit()}>
         {busy ? '登录中…' : '登录'}
       </button>
-      {err ? <p className="muted" style={{ marginTop: 8, fontSize: 12, color: 'var(--danger, #c45c4a)' }}>{err}</p> : null}
+      {err ? <p className="admin-rag-error-text" style={{ marginTop: 8 }}>{err}</p> : null}
     </div>
   );
 }
