@@ -638,13 +638,14 @@ export default function ReaderView({
       Math.min(firstRect.left, lastRect.left) + Math.max(firstRect.right, lastRect.right)
     ) / 2;
     const barH = focusBarRef.current?.offsetHeight ?? 56;
-    const margin = 12;
+    const margin = 16;
+    const systemMenuReserve = nativeTouchSelect ? 52 : 0;
     const topReserve = chromeHidden ? 12 : 58;
     const bottomReserve = chromeHidden ? 24 : 76;
-    // 优先放在选区下方：系统划词菜单多在选区上方，减少重叠
+    // 应用条优先在选区下方，与 iOS 系统菜单（多在上方）错开
     let top = selBottom + margin;
     if (top + barH > window.innerHeight - bottomReserve) {
-      top = selTop - barH - margin;
+      top = selTop - barH - margin - systemMenuReserve;
     }
     top = Math.max(topReserve, Math.min(top, window.innerHeight - barH - bottomReserve));
     const halfW = Math.min(window.innerWidth * 0.48, 200);
@@ -655,7 +656,7 @@ export default function ReaderView({
       bottom: 'auto',
       transform: 'translateX(-50%)',
     });
-  }, [hasSel, minV, maxV, chromeHidden]);
+  }, [hasSel, minV, maxV, chromeHidden, nativeTouchSelect]);
 
   useEffect(() => {
     if (!hasSel) {
@@ -1300,9 +1301,11 @@ export default function ReaderView({
         raf = 0;
         const next = readNativeVerseSelection(root);
         setNativeSelection((prev) => {
-          if (!next && !prev) return prev;
+          if (!next) {
+            // iOS 点应用条会先 collapse 系统选区；保留 pinned 状态直到 clearSelection
+            return prev;
+          }
           if (
-            next &&
             prev &&
             next.text === prev.text &&
             next.verses.join(',') === prev.verses.join(',')
@@ -1693,7 +1696,8 @@ export default function ReaderView({
   return (
     <main
       className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}`}
-      onClick={() => {
+      onClick={(e) => {
+        if (focusBarRef.current?.contains(e.target as Node)) return;
         // 忽略长按/双击后的余波点击，避免立即取消选中。
         if (Date.now() - lastSelectAt.current < 500) return;
         if (overlayOpen) return;
@@ -1883,6 +1887,7 @@ export default function ReaderView({
           className="reader-focus-bar reader-focus-bar-ext reader-focus-bar-near"
           style={focusBarStyle}
           onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           {underlinesOn && markPaletteOpen && !currentMark && (
             <div className="reader-focus-row reader-focus-row-mark" role="group" aria-label="划线颜色">

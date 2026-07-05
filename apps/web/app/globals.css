@@ -6142,7 +6142,7 @@ a.today-card-link {
   left: 50%;
   bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 10px);
   transform: translateX(-50%);
-  z-index: 100;
+  z-index: 150;
   display: flex;
   gap: 2px;
   padding: 6px 8px;
