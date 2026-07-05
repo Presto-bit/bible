@@ -52,7 +52,7 @@ import {
   type ReadingLayout,
   type VerseNumberMode,
 } from '@/lib/reader_settings';
-import { centerVerseInScroll, paragraphForVerse } from '@/lib/reader_viewport';
+import { centerVerseInScroll, sectionRangeForVerse } from '@/lib/reader_viewport';
 import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
@@ -252,6 +252,7 @@ export default function ReaderView({
   const syncingSelection = useRef(false);
   /** 划词过程中记录的部分选区（松手时系统常会扩成整句） */
   const pendingSpanRef = useRef<{ verse: number; start: number; end: number } | null>(null);
+  const selectingGestureRef = useRef(false);
   const [viewportCenterVerse, setViewportCenterVerse] = useState<number | null>(null);
   const [aiSheetContext, setAiSheetContext] = useState<null | {
     refParam: string;
@@ -442,9 +443,13 @@ export default function ReaderView({
       ?? getLastReadVerse(book.id, chapter)
       ?? verses[0]?.verse
       ?? 1;
-    const para = paragraphForVerse(paragraphs, centerV);
-    const minV = para?.startVerse ?? centerV;
-    const maxV = para?.endVerse ?? centerV;
+    const para = sectionRangeForVerse(
+      outline,
+      centerV,
+      verses[verses.length - 1]?.verse ?? centerV,
+    );
+    const minV = para.start;
+    const maxV = para.end;
     const picked = verses
       .filter((v) => v.verse >= minV && v.verse <= maxV)
       .sort((a, b) => a.verse - b.verse);
@@ -464,7 +469,7 @@ export default function ReaderView({
     effRefLabel,
     effSelectionText,
     viewportCenterVerse,
-    paragraphs,
+    outline,
     book.id,
     book.name,
     chapter,
@@ -1168,6 +1173,34 @@ export default function ReaderView({
     return null;
   };
 
+  const spanInVerseText = (
+    verseNum: number,
+    sel: Selection,
+    verseText: string,
+  ): { start: number; end: number } | null => {
+    if (!sel.rangeCount) return null;
+    const body = document.querySelector(
+      `#verse-anchor-${verseNum} .verse-text-body`,
+    ) as HTMLElement | null;
+    if (!body) return null;
+    const range = sel.getRangeAt(0);
+    if (!body.contains(range.commonAncestorContainer)) return null;
+    try {
+      const pre = document.createRange();
+      pre.selectNodeContents(body);
+      pre.setEnd(range.startContainer, range.startOffset);
+      const start = pre.toString().length;
+      const picked = range.toString();
+      const end = start + picked.length;
+      if (end > start && picked.length > 0 && end - start < verseText.length) {
+        return { start, end };
+      }
+    } catch {
+      /* 部分 WebView 不支持跨节点 Range */
+    }
+    return null;
+  };
+
   const syncSelectionFromDom = useCallback(() => {
     if (syncingSelection.current) return;
     const sel = window.getSelection();
@@ -1181,25 +1214,8 @@ export default function ReaderView({
     let span: { start: number; end: number } | null = null;
     if (lo === hi) {
       const verseText = verses.find((v) => v.verse === lo)?.text ?? '';
-      if (sel.rangeCount > 0) {
-        const verseEl = document.getElementById(`verse-anchor-${lo}`);
-        const range = sel.getRangeAt(0);
-        if (verseEl?.contains(range.commonAncestorContainer)) {
-          try {
-            const pre = document.createRange();
-            pre.selectNodeContents(verseEl);
-            pre.setEnd(range.startContainer, range.startOffset);
-            const start = pre.toString().length;
-            const end = start + range.toString().length;
-            if (end > start && end - start < verseText.length) {
-              span = { start, end };
-            }
-          } catch {
-            /* 部分 WebView 不支持跨节点 Range */
-          }
-        }
-      }
-      if (!span) {
+      span = spanInVerseText(lo, sel, verseText);
+      if (!span && sel.rangeCount > 0) {
         const normalized = verseText.replace(/\s+/g, ' ').trim();
         const picked = sel.toString().replace(/\s+/g, ' ').trim();
         if (picked && picked.length < normalized.length) {
@@ -1218,7 +1234,13 @@ export default function ReaderView({
           span = { start: pending.start, end: pending.end };
         }
       }
-      if (span) pendingSpanRef.current = { verse: lo, start: span.start, end: span.end };
+      if (span) {
+        pendingSpanRef.current = { verse: lo, start: span.start, end: span.end };
+      } else if (selectingGestureRef.current) {
+        /* 手势进行中：保留已记录的最短部分选区 */
+      } else {
+        pendingSpanRef.current = null;
+      }
     } else {
       pendingSpanRef.current = null;
     }
@@ -1269,6 +1291,21 @@ export default function ReaderView({
       document.removeEventListener('touchend', finalize);
     };
   }, [syncSelectionFromDom]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const onDown = () => { selectingGestureRef.current = true; };
+    const onUp = () => { selectingGestureRef.current = false; };
+    el.addEventListener('pointerdown', onDown);
+    el.addEventListener('pointerup', onUp);
+    el.addEventListener('pointercancel', onUp);
+    return () => {
+      el.removeEventListener('pointerdown', onDown);
+      el.removeEventListener('pointerup', onUp);
+      el.removeEventListener('pointercancel', onUp);
+    };
+  }, [book.id, chapter, swipeTurn]);
 
   const clearSelection = () => {
     window.getSelection()?.removeAllRanges();
@@ -1431,13 +1468,15 @@ export default function ReaderView({
                           {verseNo !== 'hidden' && (
                             <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                           )}
-                          {renderVerseBody(
-                            text,
-                            `p${v.verse}`,
-                            v.verse,
-                            resumeFlashVerse === v.verse,
-                            markInfo ?? undefined,
-                          )}
+                          <span className="verse-text-body">
+                            {renderVerseBody(
+                              text,
+                              `p${v.verse}`,
+                              v.verse,
+                              resumeFlashVerse === v.verse,
+                              markInfo ?? undefined,
+                            )}
+                          </span>
                           {renderNotePin(v.verse)}{' '}
                         </span>
                       );
@@ -1499,13 +1538,15 @@ export default function ReaderView({
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                       )}
-                      {renderVerseBody(
-                        verseDisplayText(v.verse, v.text),
-                        `v${v.verse}`,
-                        v.verse,
-                        resumeFlashVerse === v.verse,
-                        markInfo ?? undefined,
-                      )}
+                      <span className="verse-text-body">
+                        {renderVerseBody(
+                          verseDisplayText(v.verse, v.text),
+                          `v${v.verse}`,
+                          v.verse,
+                          resumeFlashVerse === v.verse,
+                          markInfo ?? undefined,
+                        )}
+                      </span>
                       {renderNotePin(v.verse)}{' '}
                     </span>
                   );

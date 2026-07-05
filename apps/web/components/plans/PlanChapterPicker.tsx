@@ -20,6 +20,7 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
   const [bookId, setBookId] = useState<string | null>(null);
   const [fromCh, setFromCh] = useState(1);
   const [toCh, setToCh] = useState(1);
+  const [pickedChapters, setPickedChapters] = useState<number[]>([]);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,13 +54,38 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
   useEffect(() => {
     if (!selectedBook) return;
     setFromCh(1);
-    setToCh(1);
-  }, [selectedBook?.id]);
+    setToCh(selectedBook.chapter_count);
+    setPickedChapters([]);
+  }, [selectedBook?.id, selectedBook?.chapter_count]);
+
+  const syncFromSelection = (next: number[]) => {
+    setPickedChapters(next);
+    if (next.length) {
+      setFromCh(Math.min(...next));
+      setToCh(Math.max(...next));
+    } else if (selectedBook) {
+      setFromCh(1);
+      setToCh(selectedBook.chapter_count);
+    }
+  };
+
+  const toggleChapter = (ch: number) => {
+    setErr(null);
+    const has = pickedChapters.includes(ch);
+    const next = has
+      ? pickedChapters.filter((x) => x !== ch)
+      : [...pickedChapters, ch].sort((a, b) => a - b);
+    syncFromSelection(next);
+  };
 
   const addRange = () => {
     if (!selectedBook) return;
-    const lo = Math.min(fromCh, toCh);
-    const hi = Math.max(fromCh, toCh);
+    const lo = pickedChapters.length
+      ? Math.min(...pickedChapters)
+      : Math.min(fromCh, toCh);
+    const hi = pickedChapters.length
+      ? Math.max(...pickedChapters)
+      : Math.max(fromCh, toCh);
     if (lo < 1 || hi > selectedBook.chapter_count) {
       setErr(`章节须在 1–${selectedBook.chapter_count} 之间`);
       return;
@@ -75,6 +101,9 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
     const exists = ranges.some((r) => `${r.bookId}.${r.from}-${r.to}` === key);
     if (exists) return;
     onChange([...ranges, next]);
+    setPickedChapters([]);
+    setFromCh(1);
+    setToCh(selectedBook.chapter_count);
   };
 
   const removeRange = (idx: number) => {
@@ -118,45 +147,74 @@ export function PlanChapterPicker({ ranges, onChange }: Props) {
       </div>
 
       {selectedBook && (
-        <div className="plan-picker-range-row">
-          <label className="plan-picker-field">
-            <span className="muted">起</span>
-            <input
-              type="number"
-              className="search-input plan-picker-num"
-              min={1}
-              max={selectedBook.chapter_count}
-              value={fromCh}
-              onChange={(e) => setFromCh(Number(e.target.value))}
-            />
-          </label>
-          <span className="muted">–</span>
-          <label className="plan-picker-field">
-            <span className="muted">止</span>
-            <input
-              type="number"
-              className="search-input plan-picker-num"
-              min={1}
-              max={selectedBook.chapter_count}
-              value={toCh}
-              onChange={(e) => setToCh(Number(e.target.value))}
-            />
-          </label>
-          <button type="button" className="font-pill" onClick={addRange}>
-            添加
-          </button>
-        </div>
+        <>
+          <p className="muted plan-picker-hint">
+            点选章节（再点取消）· 共 {selectedBook.chapter_count} 章
+          </p>
+          <div className="plan-picker-chapters">
+            {Array.from({ length: selectedBook.chapter_count }, (_, i) => i + 1).map((ch) => (
+              <button
+                key={ch}
+                type="button"
+                className={`plan-picker-ch${pickedChapters.includes(ch) ? ' is-selected' : ''}`}
+                onClick={() => toggleChapter(ch)}
+              >
+                {ch}
+              </button>
+            ))}
+          </div>
+
+          <div className="plan-picker-range-row">
+            <label className="plan-picker-field">
+              <span className="muted">起</span>
+              <input
+                type="number"
+                className="search-input plan-picker-num"
+                min={1}
+                max={selectedBook.chapter_count}
+                value={fromCh}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setFromCh(v);
+                  setPickedChapters([]);
+                }}
+              />
+            </label>
+            <span className="muted">–</span>
+            <label className="plan-picker-field">
+              <span className="muted">止</span>
+              <input
+                type="number"
+                className="search-input plan-picker-num"
+                min={1}
+                max={selectedBook.chapter_count}
+                value={toCh}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setToCh(v);
+                  setPickedChapters([]);
+                }}
+              />
+            </label>
+            <button type="button" className="font-pill" onClick={addRange}>
+              添加
+            </button>
+          </div>
+        </>
       )}
 
       {ranges.length > 0 && (
         <div className="plan-picker-selected">
           {ranges.map((r, i) => (
-            <span key={`${r.bookId}-${r.from}-${r.to}`} className="plan-picker-chip">
+            <button
+              key={`${r.bookId}-${r.from}-${r.to}`}
+              type="button"
+              className="plan-picker-chip"
+              onClick={() => removeRange(i)}
+            >
               {formatPlanChapterRange(r)}
-              <button type="button" className="plan-picker-chip-x" onClick={() => removeRange(i)} aria-label="移除">
-                ×
-              </button>
-            </span>
+              <span className="plan-picker-chip-x" aria-hidden>×</span>
+            </button>
           ))}
         </div>
       )}

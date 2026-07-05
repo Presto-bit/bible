@@ -24,6 +24,7 @@ export interface GeneratedDayRow {
   day: number;
   title: string;
   refs: string[];
+  date?: string;
 }
 
 function bookLabel(row: ReadingDayRow): string {

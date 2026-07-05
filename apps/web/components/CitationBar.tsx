@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import type { Citation } from '@/lib/api';
+import { formatCitationTitle } from '@/lib/citation_display';
 
 type Props = {
   citations: Citation[];
   className?: string;
   activeN?: number | null;
   onActiveChange?: (n: number | null) => void;
+  bookName?: string;
 };
 
 export function CitationBar({
@@ -15,6 +17,7 @@ export function CitationBar({
   className,
   activeN: controlled,
   onActiveChange,
+  bookName,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [popupN, setPopupN] = useState<number | null>(null);
@@ -23,6 +26,7 @@ export function CitationBar({
     // undefined = 非受控；null/number = 受控（脚标点击弹窗）
     if (controlled === undefined) return;
     setPopupN(controlled);
+    if (controlled != null) setExpanded(true);
   }, [controlled]);
 
   if (!citations.length) return null;
@@ -33,6 +37,7 @@ export function CitationBar({
   };
 
   const active = citations.find((c) => c.n === popupN) ?? null;
+  const displayTitle = (c: Citation) => formatCitationTitle(c.title, bookName);
 
   return (
     <div className={className ?? 'assistant-citations'}>
@@ -61,7 +66,7 @@ export function CitationBar({
                 onClick={() => setActive(popupN === c.n ? null : c.n)}
               >
                 <span className="assistant-citation-n">[{c.n}]</span>
-                <span className="assistant-citation-title">{c.title}</span>
+                <span className="assistant-citation-title">{displayTitle(c)}</span>
               </button>
               {popupN === c.n && c.snippet && (
                 <p className="assistant-citation-snippet">{c.snippet}</p>
@@ -86,7 +91,7 @@ export function CitationBar({
           >
             <div className="section-row" style={{ marginTop: 0 }}>
               <strong>
-                [{active.n}] {active.title}
+                [{active.n}] {displayTitle(active)}
               </strong>
               <button type="button" className="text-link" onClick={() => setActive(null)}>
                 关闭

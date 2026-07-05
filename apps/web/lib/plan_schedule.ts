@@ -6,7 +6,12 @@ import {
   isPlanDayUnlocked,
   type ActivePlan,
 } from './plan_progress';
-import { stepsForReadingRows, type GeneratedDayRow, type ReadingDayRow } from './plan_steps';
+import { planDayLabel } from './plan_calendar';
+import {
+  stepsForReadingRows,
+  type GeneratedDayRow,
+  type ReadingDayRow,
+} from './plan_steps';
 
 export interface PlanDayScheduleItem {
   day: number;
@@ -28,7 +33,7 @@ export async function loadPlanSchedule(plan: ActivePlan): Promise<PlanDaySchedul
       if (!found) return [];
       return found.days.map((d) => ({
         day: d.day,
-        title: d.title || `第 ${d.day} 天`,
+        title: d.date ? planDayLabel(d) : (d.title || `第 ${d.day} 天`),
         detail: d.refs?.join(' · ') || '',
         unlocked: isPlanDayUnlocked(plan.planId, d.day),
         completed: isPlanDayCompleted(plan.planId, d.day),

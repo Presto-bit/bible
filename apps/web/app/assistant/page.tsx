@@ -28,6 +28,7 @@ import {
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
 import { refToChineseLabel } from '@/lib/ref_label';
+import { localizeCitations } from '@/lib/citation_display';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -356,7 +357,8 @@ function AssistantPageInner() {
       { ref: anchor, question: q, mode: m, scene, history, surface },
       {
         onMeta: (meta) => {
-          cites = meta.citations || [];
+          const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
+          cites = localizeCitations(meta.citations || [], book || undefined);
           if (meta.scene_label) sceneLabel = meta.scene_label;
         },
         onDelta: (t) => {
@@ -685,7 +687,7 @@ function AssistantPageInner() {
                     {m.text || '…'}
                   </div>
                 )}
-                {m.citations && m.citations.length > 0 && (
+                {m.citations && m.citations.length > 0 && !isStreaming && (
                   <CitationBar
                     citations={m.citations}
                     activeN={citationMsgIdx === i ? citationOpen : undefined}
@@ -693,6 +695,7 @@ function AssistantPageInner() {
                       setCitationMsgIdx(i);
                       setCitationOpen(n);
                     }}
+                    bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
                   />
                 )}
                 {showActions && (

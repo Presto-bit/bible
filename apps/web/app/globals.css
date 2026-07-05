@@ -5321,21 +5321,92 @@ a.today-card-link {
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  padding: 4px 8px 4px 10px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: var(--accent-wash);
   color: var(--accent-deep);
   border: 1px solid var(--line);
+  cursor: pointer;
 }
 
 .plan-picker-chip-x {
-  border: none;
-  background: transparent;
-  color: var(--ink-soft);
-  cursor: pointer;
+  margin-left: 2px;
   font-size: 14px;
   line-height: 1;
-  padding: 0 2px;
+}
+
+.plan-picker-hint {
+  font-size: 11px;
+  margin: 0 0 8px;
+}
+
+.plan-picker-chapters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding-bottom: 2px;
+}
+
+.plan-picker-ch {
+  min-width: 36px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.plan-picker-ch.is-selected {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.plan-date-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.plan-date-field {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.plan-date-field input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.plan-weekday-toggles {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.plan-weekday-toggles .reader-toggle-row {
+  margin: 0;
+  font-size: 13px;
+}
+
+.plan-gen-date-row {
+  align-items: flex-start;
+}
+
+.plan-gen-date-badge {
+  min-width: 92px;
+  font-size: 11px !important;
+  white-space: nowrap;
 }
 
 .history-item-ref {

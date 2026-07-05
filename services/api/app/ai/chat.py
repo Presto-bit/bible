@@ -7,6 +7,7 @@ import re
 from ..bible import reader
 from ..bible.refs import parse_ref
 from ..rag.retrieve import retrieve
+from .citations import display_citation_title
 from .prompts import DEFAULT_MODE, MODES, build_messages
 from .scenes import NO_RAG_SURFACES, resolve_scene
 
@@ -132,7 +133,7 @@ def prepare(
         citations.append(
             {
                 "n": i,
-                "title": h.get("title"),
+                "title": display_citation_title(h.get("title"), ref.book_name if ref else None),
                 "snippet": h["chunk_text"][:SNIPPET_CHARS].strip(),
                 "score": round(float(h["score"]), 4),
             }

@@ -90,7 +90,6 @@ function planIsCompleted(plan: ActivePlan): boolean {
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<PlanSummary[]>([]);
-  const [scopes, setScopes] = useState<{ id: string; label: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [listErr, setListErr] = useState<string | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
@@ -115,10 +114,9 @@ export default function PlansPage() {
   useEffect(() => {
     setLoading(true);
     setListErr(null);
-    Promise.all([api.plans(), api.planScopes()])
-      .then(([p, s]) => {
+    api.plans()
+      .then((p) => {
         setPlans(p.plans);
-        setScopes(s.scopes);
       })
       .catch((e) => setListErr(String(e)))
       .finally(() => setLoading(false));
@@ -773,7 +771,6 @@ export default function PlansPage() {
 
       <PlanGenerateSheet
         open={showGenerate}
-        scopes={scopes}
         onClose={() => setShowGenerate(false)}
         onSaved={handleGeneratedSaved}
       />

@@ -7,6 +7,7 @@ import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
 import { createNote } from '@/lib/notes';
 import { bodyText } from '@/lib/assistant_format';
+import { localizeCitations } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 
@@ -71,7 +72,10 @@ export default function XiaoAiSheet({
     void chatStream(
       { ref, question, mode: 'explain', scene: s },
       {
-        onMeta: (meta) => setCitations(meta.citations || []),
+        onMeta: (meta) => {
+          const book = refLabel.replace(/\s*\d+.*$/, '').trim();
+          setCitations(localizeCitations(meta.citations || [], book || undefined));
+        },
         onDelta: (t) => {
           if (cancelled) return;
           accRef.current += t;
@@ -216,11 +220,12 @@ export default function XiaoAiSheet({
                 <p className="muted">小爱正在解读…</p>
               )}
             </div>
-            {citations.length > 0 && (
+            {citations.length > 0 && done && (
               <CitationBar
                 citations={citations}
                 activeN={citationOpen}
                 onActiveChange={setCitationOpen}
+                bookName={refLabel.split(' ')[0]}
               />
             )}
           </div>

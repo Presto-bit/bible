@@ -880,8 +880,12 @@ export interface GeneratedPlan {
   scope: string;
   days_count: number;
   chapters_total: number;
-  days: { day: number; title: string; refs: string[] }[];
+  days: { day: number; title: string; refs: string[]; date?: string }[];
   saved_at?: number;
+  start_date?: string;
+  end_date?: string;
+  exclude_saturday?: boolean;
+  exclude_sunday?: boolean;
 }
 export interface DictEntity {
   id?: string;
