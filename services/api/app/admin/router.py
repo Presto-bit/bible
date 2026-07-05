@@ -8,11 +8,14 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
+from datetime import date, timedelta
+
 from ..ai.router import rag_status
+from ..auth.session import get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from ..rag.index import index_text
-from .auth import make_admin_token, require_admin, verify_admin_credentials
+from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -36,6 +39,109 @@ def admin_login(body: AdminLoginBody) -> dict:
 @router.get("/auth/me")
 def admin_me(_phone: str = Depends(require_admin)) -> dict:
     return {"ok": True, "is_admin": True}
+
+
+def _lookup_user_phone(user_id: str) -> str | None:
+    pool = get_pool()
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT phone FROM accounts WHERE user_id = %s::uuid AND phone IS NOT NULL LIMIT 1",
+            (user_id,),
+        ).fetchone()
+    return row[0] if row else None
+
+
+@router.get("/auth/eligible")
+def admin_eligible(user_id: str = Depends(get_current_user)) -> dict:
+    phone = _lookup_user_phone(user_id)
+    return {"admin_eligible": phone_is_admin(phone)}
+
+
+def _scalar(conn, sql: str, params: tuple = ()) -> int:
+    row = conn.execute(sql, params).fetchone()
+    return int(row[0] or 0) if row else 0
+
+
+def _date_series(conn, sql: str, days: int = 7) -> list[dict]:
+    rows = conn.execute(sql, (days - 1,)).fetchall()
+    by_date = {str(r[0]): int(r[1] or 0) for r in rows}
+    start = date.today() - timedelta(days=days - 1)
+    out: list[dict] = []
+    for i in range(days):
+        d = start + timedelta(days=i)
+        key = d.isoformat()
+        out.append({"date": key, "count": by_date.get(key, 0)})
+    return out
+
+
+def _fetch_admin_stats() -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        totals = {
+            "users": _scalar(conn, "SELECT count(*) FROM users"),
+            "accounts": _scalar(conn, "SELECT count(*) FROM accounts"),
+            "groups": _scalar(conn, "SELECT count(*) FROM social_group"),
+            "group_members": _scalar(conn, "SELECT count(*) FROM group_member"),
+            "friendships": _scalar(conn, "SELECT count(*) FROM friendship"),
+            "messages_today": _scalar(
+                conn,
+                "SELECT count(*) FROM group_message WHERE created_at >= current_date",
+            ),
+            "checkins_today": _scalar(
+                conn,
+                "SELECT count(*) FROM group_message "
+                "WHERE kind = 'checkin' AND created_at >= current_date",
+            ),
+            "rag_documents": _scalar(conn, "SELECT count(*) FROM bible_documents"),
+            "rag_chunks": _scalar(conn, "SELECT count(*) FROM bible_rag_chunks"),
+            "rag_failed": _scalar(
+                conn,
+                "SELECT count(*) FROM bible_documents "
+                "WHERE status <> 'indexed' OR rag_index_error IS NOT NULL",
+            ),
+            "ai_requests_today": _scalar(
+                conn,
+                "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
+                "WHERE usage_date = current_date",
+            ),
+            "ai_requests_7d": _scalar(
+                conn,
+                "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
+                "WHERE usage_date >= current_date - 6",
+            ),
+        }
+        series = {
+            "ai_requests": _date_series(
+                conn,
+                """
+                SELECT usage_date::text, coalesce(sum(request_count), 0)
+                FROM ai_usage_daily
+                WHERE usage_date >= current_date - %s::int
+                GROUP BY usage_date
+                ORDER BY usage_date
+                """,
+            ),
+            "checkins": _date_series(
+                conn,
+                """
+                SELECT created_at::date::text, count(*)
+                FROM group_message
+                WHERE kind = 'checkin' AND created_at >= current_date - %s::int
+                GROUP BY created_at::date
+                ORDER BY created_at::date
+                """,
+            ),
+        }
+    return {"totals": totals, "series": series}
+
+
+@router.get("/stats")
+def admin_stats(_phone: str = Depends(require_admin)) -> dict:
+    try:
+        return _fetch_admin_stats()
+    except Exception as exc:
+        logger.exception("admin stats failed")
+        raise HTTPException(status_code=503, detail=f"统计数据不可用：{exc}") from exc
 
 
 def _list_documents() -> list[dict]:

@@ -47,12 +47,16 @@ def verify_admin_token(token: str | None) -> str | None:
         return None
 
 
+def phone_is_admin(phone: str | None) -> bool:
+    if not phone:
+        return False
+    s = get_settings()
+    return _normalize_phone(phone) == _normalize_phone(s.admin_phone)
+
+
 def verify_admin_credentials(phone: str, password: str) -> bool:
     s = get_settings()
-    return (
-        _normalize_phone(phone) == _normalize_phone(s.admin_phone)
-        and (password or "") == s.admin_password
-    )
+    return phone_is_admin(phone) and (password or "") == s.admin_password
 
 
 def require_admin(

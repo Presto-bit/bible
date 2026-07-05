@@ -21,7 +21,13 @@ function StatusPill({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-export default function AdminRagPanel({ onLogout }: { onLogout?: () => void }) {
+export default function AdminRagPanel({
+  onLogout,
+  showLogout = true,
+}: {
+  onLogout?: () => void;
+  showLogout?: boolean;
+}) {
   const [status, setStatus] = useState<RagStatus | null>(null);
   const [docs, setDocs] = useState<RagDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,16 +107,18 @@ export default function AdminRagPanel({ onLogout }: { onLogout?: () => void }) {
     <div className="admin-rag-panel">
       <div className="section-row" style={{ marginTop: 0 }}>
         <p className="settings-title" style={{ margin: 0 }}>RAG 资料管理</p>
-        <button
-          type="button"
-          className="text-link"
-          onClick={() => {
-            clearAdminToken();
-            onLogout?.();
-          }}
-        >
-          退出管理
-        </button>
+        {showLogout ? (
+          <button
+            type="button"
+            className="text-link"
+            onClick={() => {
+              clearAdminToken();
+              onLogout?.();
+            }}
+          >
+            退出管理
+          </button>
+        ) : null}
       </div>
 
       {loading && !status ? (

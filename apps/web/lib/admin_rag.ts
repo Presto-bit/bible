@@ -124,6 +124,55 @@ export async function adminCheck(): Promise<boolean> {
   }
 }
 
+export async function fetchAdminEligible(): Promise<boolean> {
+  try {
+    const { authHeaders } = await import('./api');
+    const res = await fetch(`${API_BASE}/admin/auth/eligible`, {
+      headers: authHeaders(),
+      cache: 'no-store',
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { admin_eligible?: boolean };
+    return data.admin_eligible === true;
+  } catch {
+    return false;
+  }
+}
+
+export type AdminStatsTotals = {
+  users: number;
+  accounts: number;
+  groups: number;
+  group_members: number;
+  friendships: number;
+  messages_today: number;
+  checkins_today: number;
+  rag_documents: number;
+  rag_chunks: number;
+  rag_failed: number;
+  ai_requests_today: number;
+  ai_requests_7d: number;
+};
+
+export type AdminStatsSeriesPoint = { date: string; count: number };
+
+export type AdminStats = {
+  totals: AdminStatsTotals;
+  series: {
+    ai_requests: AdminStatsSeriesPoint[];
+    checkins: AdminStatsSeriesPoint[];
+  };
+};
+
+export async function fetchAdminStats(): Promise<AdminStats> {
+  const res = await fetch(`${API_BASE}/admin/stats`, {
+    headers: adminHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '加载统计失败'));
+  return (await res.json()) as AdminStats;
+}
+
 export async function fetchRagStatus(): Promise<RagStatus> {
   const res = await fetch(`${API_BASE}/admin/rag/status`, {
     headers: adminHeaders(),

@@ -43,3 +43,34 @@ def test_admin_login_and_me():
 def test_admin_rag_status_requires_auth():
     res = client.get("/admin/rag/status")
     assert res.status_code == 401
+
+
+def test_admin_eligible_requires_user():
+    res = client.get("/admin/auth/eligible")
+    assert res.status_code == 401
+
+
+def test_admin_eligible_with_user_header():
+    res = client.get("/admin/auth/eligible", headers={"X-User-Code": "1234567890"})
+    assert res.status_code == 200
+    data = res.json()
+    assert "admin_eligible" in data
+    assert isinstance(data["admin_eligible"], bool)
+
+
+def test_admin_stats_requires_auth():
+    res = client.get("/admin/stats")
+    assert res.status_code == 401
+
+
+def test_admin_stats_with_token():
+    s = get_settings()
+    res = client.post("/admin/auth/login", json={"phone": s.admin_phone, "password": s.admin_password})
+    token = res.json()["token"]
+    stats = client.get("/admin/stats", headers={"Authorization": f"Bearer {token}"})
+    assert stats.status_code == 200
+    body = stats.json()
+    assert "totals" in body
+    assert "series" in body
+    assert "users" in body["totals"]
+    assert "ai_requests" in body["series"]

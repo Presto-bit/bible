@@ -28,8 +28,7 @@ import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
-import { adminCheck } from '@/lib/admin_rag';
-import AdminRagPanel, { AdminLoginForm } from '@/components/AdminRagPanel';
+import { fetchAdminEligible } from '@/lib/admin_rag';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
@@ -53,14 +52,15 @@ export default function ProfilePage() {
   const [streak, setStreak] = useState(0);
   const [badges, setBadges] = useState<ReturnType<typeof computeAllBadges>>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminLoginOpen, setAdminLoginOpen] = useState(false);
-  const [adminEntryVisible, setAdminEntryVisible] = useState(false);
-  const [versionTapCount, setVersionTapCount] = useState(0);
+  const [adminEligible, setAdminEligible] = useState(false);
 
   useEffect(() => {
-    void adminCheck().then(setIsAdmin);
-  }, [settingsOpen]);
+    if (!uid) {
+      setAdminEligible(false);
+      return;
+    }
+    void fetchAdminEligible().then(setAdminEligible);
+  }, [uid, settingsOpen]);
 
   useEffect(() => {
     setReviewCards(favoriteReviewCards(3));
@@ -392,36 +392,19 @@ export default function ProfilePage() {
               </Link>
             </div>
 
-            {isAdmin ? (
+            {adminEligible ? (
               <div className="settings-card">
-                <AdminRagPanel onLogout={() => setIsAdmin(false)} />
-              </div>
-            ) : adminLoginOpen ? (
-              <div className="settings-card">
-                <AdminLoginForm
-                  onSuccess={() => {
-                    setIsAdmin(true);
-                    setAdminLoginOpen(false);
-                    setAdminEntryVisible(false);
-                  }}
-                />
-                <button
-                  type="button"
-                  className="text-link"
-                  style={{ marginTop: 8, fontSize: 12 }}
-                  onClick={() => setAdminLoginOpen(false)}
+                <p className="settings-title">管理</p>
+                <Link
+                  href="/admin"
+                  className="card row-card"
+                  style={{ display: 'flex', marginTop: 8 }}
+                  onClick={() => setSettingsOpen(false)}
                 >
-                  取消
-                </button>
+                  <span style={{ flex: 1 }}>管理后台</span>
+                  <span className="muted">›</span>
+                </Link>
               </div>
-            ) : adminEntryVisible ? (
-              <button
-                type="button"
-                className="text-link admin-entry-link"
-                onClick={() => setAdminLoginOpen(true)}
-              >
-                管理员登录
-              </button>
             ) : null}
 
             <div className="settings-card">
@@ -451,17 +434,7 @@ export default function ProfilePage() {
                   退出登录
                 </button>
               ) : null}
-              <p
-                className="muted settings-version-line"
-                onClick={() => {
-                  const next = versionTapCount + 1;
-                  setVersionTapCount(next);
-                  if (next >= 5) {
-                    setAdminEntryVisible(true);
-                    setVersionTapCount(0);
-                  }
-                }}
-              >
+              <p className="muted settings-version-line">
                 版本 {appVersion}
               </p>
             </div>
