@@ -15,6 +15,7 @@ def retrieve(
     *,
     top_k: int = 8,
     source_type: str | None = None,
+    source_types: list[str] | None = None,
     document_title: str | None = None,
     title_contains: str | None = None,
     book_id: str | None = None,
@@ -34,9 +35,10 @@ def retrieve(
 
     where = []
     params: list = []
-    if source_type:
-        where.append("c.chunk_meta->>'source_type' = %s")
-        params.append(source_type)
+    types = source_types or ([source_type] if source_type else None)
+    if types:
+        where.append("c.chunk_meta->>'source_type' = ANY(%s)")
+        params.append(types)
     if document_title:
         where.append("d.title = %s")
         params.append(document_title)

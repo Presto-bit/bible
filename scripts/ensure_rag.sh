@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 公版注释全卷拉取 + RAG 索引（发版幂等，可重复执行）。
+# 公版注释 + 中文资料 + RAG 索引（发版幂等，可重复执行）。
 #
 # 用法（仓库根目录 / 容器内 /app）：
 #   bash scripts/ensure_rag.sh
-#   SKIP_COMMENTARY_IMPORT=1 bash scripts/ensure_rag.sh   # 仅索引，不拉 HelloAO
+#   SKIP_COMMENTARY_IMPORT=1 bash scripts/ensure_rag.sh   # 仅索引，不拉远程
 #   RAG_FORCE=1 bash scripts/ensure_rag.sh                # 强制重嵌入
 #
 # Docker 发版（release.sh 自动调用）：
@@ -17,6 +17,10 @@ PY="${PYTHON:-python}"
 SKIP_IMPORT="${SKIP_COMMENTARY_IMPORT:-0}"
 FORCE="${RAG_FORCE:-0}"
 PD_DIR="$ROOT/content/commentary/public-domain"
+OCD_DIR="$ROOT/content/commentary/public-domain-ocd"
+REF_DIR="$ROOT/content/commentary/reference-en"
+ZH_DIR="$ROOT/content/commentary/study-bible-zh"
+FHL_DIR="$ROOT/content/commentary/fhl-zh"
 STUDY_DIR="$ROOT/content/commentary/study-bible"
 
 log() { echo "[ensure-rag] $*"; }
@@ -29,7 +33,7 @@ index_dir() {
     return 0
   fi
   local n
-  n="$(find "$dir" -maxdepth 1 \( -name '*.md' -o -name '*.txt' \) | wc -l | tr -d ' ')"
+  n="$(find "$dir" \( -name '*.md' -o -name '*.txt' \) | wc -l | tr -d ' ')"
   if [[ "$n" -eq 0 ]]; then
     log "跳过索引（无 md/txt）: $dir"
     return 0
@@ -47,27 +51,53 @@ index_dir() {
   fi
 }
 
-# ── 1. 公版注释全卷（HelloAO，已齐全则跳过）──
+# ── 1. 英文公版注释（HelloAO 全源 + OpenChristianData）──
 if [[ "$SKIP_IMPORT" != "1" ]]; then
-  log "拉取公版注释全卷（Matthew Henry，已齐全跳过）…"
-  if "$PY" "$ROOT/scripts/import_commentary_pd.py" --skip-existing; then
-    log "✓ 公版注释就绪"
+  log "HelloAO 公版注释（6 源 × 66 卷，已齐全跳过）…"
+  if "$PY" "$ROOT/scripts/import_commentary_pd.py" --all-sources --skip-existing; then
+    log "✓ HelloAO 注释就绪"
   else
-    log "⚠ 公版注释拉取失败（HelloAO 不可达时不影响发版）"
+    log "⚠ HelloAO 拉取失败（不可达时不影响发版）"
+  fi
+
+  log "OpenChristianData 公版注释/参考（已存在跳过）…"
+  if "$PY" "$ROOT/scripts/import_commentary_ocd.py" --skip-existing; then
+    log "✓ OCD 资料就绪"
+  else
+    log "⚠ OCD 拉取失败"
   fi
 else
-  log "跳过注释拉取（SKIP_COMMENTARY_IMPORT=1）"
+  log "跳过英文注释拉取（SKIP_COMMENTARY_IMPORT=1）"
 fi
 
-# ── 2. RAG 索引（hash 未变则跳过；--reuse 复用已有向量）──
+# ── 2. 中文自有资料 + 信望爱注释 ──
+log "生成中文自有 RAG 资料…"
+"$PY" "$ROOT/scripts/build_rag_zh_content.py"
+
+if [[ "$SKIP_IMPORT" != "1" ]]; then
+  log "信望爱站注释（book=3，已齐全跳过）…"
+  if "$PY" "$ROOT/scripts/import_fhl_commentary.py" --skip-existing; then
+    log "✓ FHL 中文注释就绪"
+  else
+    log "⚠ FHL 注释拉取失败"
+  fi
+else
+  log "跳过 FHL 拉取（SKIP_COMMENTARY_IMPORT=1）"
+fi
+
+# ── 3. RAG 索引（hash 未变则跳过；--reuse 复用已有向量）──
 ok=0
 index_dir "$STUDY_DIR" "study-bible" && ok=$((ok + 1)) || true
 index_dir "$PD_DIR" "commentary" && ok=$((ok + 1)) || true
+index_dir "$OCD_DIR" "commentary" && ok=$((ok + 1)) || true
+index_dir "$REF_DIR" "reference-en" && ok=$((ok + 1)) || true
+index_dir "$ZH_DIR" "study-bible-zh" && ok=$((ok + 1)) || true
+index_dir "$FHL_DIR" "commentary-zh" && ok=$((ok + 1)) || true
 
 if [[ "$ok" -eq 0 ]]; then
   log "⚠ 未完成任何 RAG 索引"
   exit 0
 fi
 
-log "内容数据 RAG 检查完成"
+log "RAG 资料检查完成（$ok 类来源）"
 exit 0

@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 SNIPPET_CHARS = 260
 MAX_CITATIONS = 4
+RAG_SOURCE_TYPES = ["commentary", "reference-en", "study-bible-zh", "commentary-zh"]
 
 
 def _passage_text(ref) -> str:
@@ -86,7 +87,7 @@ def _retrieve_hits(query: str, book_name: str | None, book_id: str | None = None
             hits = retrieve(
                 query,
                 top_k=MAX_CITATIONS,
-                source_type="commentary",
+                source_types=RAG_SOURCE_TYPES,
                 title_contains=book_name,
                 book_id=book_id,
             )
@@ -94,7 +95,7 @@ def _retrieve_hits(query: str, book_name: str | None, book_id: str | None = None
             hits = retrieve(
                 query,
                 top_k=MAX_CITATIONS,
-                source_type="commentary",
+                source_types=RAG_SOURCE_TYPES,
                 keywords=_keywords(query),
                 candidate_limit=1200,
             )

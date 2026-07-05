@@ -32,9 +32,24 @@ SOURCES = {
     "jamieson-fausset-brown": "Jamieson-Fausset-Brown Commentary",
     "john-gill": "John Gill's Exposition",
     "keil-delitzsch": "Keil & Delitzsch OT Commentary",
+    "adam-clarke": "Adam Clarke Bible Commentary",
+    "tyndale": "Tyndale Open Study Notes",
 }
 
-# 扩卷：律法 / 诗篇 / 福音 / 使徒行传 / 保罗书信核心 / 希伯来书
+# 全 66 卷
+ALL_BOOKS = [
+    "GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT", "1SA", "2SA",
+    "1KI", "2KI", "1CH", "2CH", "EZR", "NEH", "EST", "JOB", "PSA", "PRO",
+    "ECC", "SNG", "ISA", "JER", "LAM", "EZK", "DAN", "HOS", "JOL", "AMO",
+    "OBA", "JON", "MIC", "NAM", "HAB", "ZEP", "HAG", "ZEC", "MAL",
+    "MAT", "MRK", "LUK", "JHN", "ACT", "ROM", "1CO", "2CO", "GAL", "EPH",
+    "PHP", "COL", "1TH", "2TH", "1TI", "2TI", "TIT", "PHM", "HEB", "JAS",
+    "1PE", "2PE", "1JN", "2JN", "3JN", "JUD", "REV",
+]
+
+OT_BOOKS = ALL_BOOKS[:39]
+
+# 兼容旧默认：重点书卷快速拉取
 DEFAULT_BOOKS = [
     "GEN", "EXO", "PSA", "ISA",
     "MAT", "MRK", "LUK", "JHN", "ACT",
@@ -132,8 +147,12 @@ def _expected_chapters(book: str, max_chapters: int) -> int:
     return known
 
 
-def _load_meta() -> dict:
-    path = OUT / "meta.json"
+def _meta_path(source: str) -> Path:
+    return OUT / f"meta-{source}.json"
+
+
+def _load_meta(source: str) -> dict:
+    path = _meta_path(source)
     if path.exists():
         try:
             return json.loads(path.read_text(encoding="utf-8"))
@@ -142,30 +161,23 @@ def _load_meta() -> dict:
     return {}
 
 
-def _save_meta(meta: dict) -> None:
-    (OUT / "meta.json").write_text(
+def _save_meta(source: str, meta: dict) -> None:
+    _meta_path(source).write_text(
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--source", default="matthew-henry")
-    ap.add_argument("--books", nargs="*", default=DEFAULT_BOOKS)
-    ap.add_argument("--max-chapters", type=int, default=0, help="每卷最多章数，0=全卷")
-    ap.add_argument("--delay", type=float, default=0.12)
-    ap.add_argument(
-        "--skip-existing",
-        action="store_true",
-        help="已齐全或上游耗尽的书卷跳过（发版幂等）",
-    )
-    args = ap.parse_args()
+def _books_for_source(source: str, books: list[str]) -> list[str]:
+    if source == "keil-delitzsch":
+        return [b for b in books if b in OT_BOOKS]
+    return books
 
-    source = args.source
+
+def _import_one_source(source: str, args) -> tuple[int, int, int]:
     label = SOURCES.get(source, source)
-    OUT.mkdir(parents=True, exist_ok=True)
+    books = _books_for_source(source, [b.upper() for b in args.books])
 
-    meta = _load_meta()
+    meta = _load_meta(source)
     meta.update({
         "id": source,
         "title": label,
@@ -173,7 +185,7 @@ def main() -> int:
         "source_type": "commentary",
         "rights": "public-domain",
         "api": "https://bible.helloao.org",
-        "books": [b.upper() for b in args.books],
+        "books": books,
     })
     status: dict = meta.setdefault("books_status", {})
 
@@ -181,8 +193,7 @@ def main() -> int:
     books_ok = 0
     books_skip = 0
 
-    for book in args.books:
-        book = book.upper()
+    for book in books:
         book_file = OUT / f"{source}-{book.lower()}.md"
         expected = _expected_chapters(book, args.max_chapters)
         existing_n = _count_chapters_in_file(book_file, book)
@@ -191,8 +202,6 @@ def main() -> int:
         if args.skip_existing and (
             existing_n >= expected or book_st.get("exhausted")
         ):
-            reason = "齐全" if existing_n >= expected else "上游已耗尽"
-            print(f"  · {book} 已{reason}（{existing_n}/{expected} 章），跳过", flush=True)
             books_skip += 1
             continue
 
@@ -206,8 +215,6 @@ def main() -> int:
                 if c.strip()
             ]
             start_ch = existing_n + 1
-            if start_ch <= expected:
-                print(f"  … {book} 续拉自第 {start_ch} 章（已有 {existing_n}）", flush=True)
 
         max_ch = args.max_chapters or expected
         fetched = 0
@@ -220,18 +227,12 @@ def main() -> int:
                 data = _fetch_json(url)
             except UpstreamMissing:
                 consecutive_miss += 1
-                # 连续 2 章上游无数据 → 视为该卷在源站已结束
                 if consecutive_miss >= 2:
                     exhausted = True
-                    print(
-                        f"  · {book} 上游自第 {ch - 1} 章起无数据，记为耗尽",
-                        flush=True,
-                    )
                     break
                 continue
             except Exception as exc:
-                print(f"  ⚠ {book} {ch}: {exc}", flush=True)
-                # 瞬时错误：保留已拉内容，不标记 exhausted，下次续拉
+                print(f"  ⚠ {source} {book} {ch}: {exc}", flush=True)
                 break
 
             consecutive_miss = 0
@@ -240,8 +241,6 @@ def main() -> int:
             fetched += 1
             total_sections += max(0, md.count("##"))
             book_file.write_text("\n\n".join(chunks), encoding="utf-8")
-            if ch % 10 == 0 or ch == max_ch:
-                print(f"    {book} {ch}/{max_ch}", flush=True)
             time.sleep(args.delay)
         else:
             exhausted = True
@@ -253,20 +252,52 @@ def main() -> int:
             "exhausted": exhausted or n >= expected,
         }
         if chunks or n:
-            print(f"  ✓ {book} → {book_file.name} ({n} 章，本次 +{fetched})", flush=True)
+            print(f"  ✓ [{source}] {book} ({n} 章，本次 +{fetched})", flush=True)
             books_ok += 1
-        else:
-            print(f"  ⚠ {book} 无内容", flush=True)
 
     meta["books_status"] = status
-    _save_meta(meta)
+    _save_meta(source, meta)
+    return books_ok, books_skip, total_sections
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--source", default="matthew-henry")
+    ap.add_argument(
+        "--all-sources",
+        action="store_true",
+        help="导入 HelloAO 全部公版注释源",
+    )
+    ap.add_argument("--books", nargs="*", default=ALL_BOOKS, help="书卷列表，默认 66 卷")
+    ap.add_argument("--max-chapters", type=int, default=0, help="每卷最多章数，0=全卷")
+    ap.add_argument("--delay", type=float, default=0.12)
+    ap.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="已齐全或上游耗尽的书卷跳过（发版幂等）",
+    )
+    args = ap.parse_args()
+
+    OUT.mkdir(parents=True, exist_ok=True)
+    sources = list(SOURCES.keys()) if args.all_sources else [args.source]
+    if args.all_sources:
+        print(f"HelloAO 公版注释：{len(sources)} 源 × {len(args.books)} 卷", flush=True)
+
+    total_ok = total_skip = total_sections = 0
+    for source in sources:
+        if len(sources) > 1:
+            print(f"── {source} ──", flush=True)
+        ok, skip, sections = _import_one_source(source, args)
+        total_ok += ok
+        total_skip += skip
+        total_sections += sections
 
     print(
-        f"✓ 公版注释：更新 {books_ok} 卷 / 跳过 {books_skip} 卷 / "
+        f"✓ HelloAO 公版注释：更新 {total_ok} 卷次 / 跳过 {total_skip} 卷次 / "
         f"新增约 {total_sections} 段 → {OUT}",
         flush=True,
     )
-    print("  下一步：make rag-index-pd 或 bash scripts/ensure_rag.sh", flush=True)
+    print("  下一步：make ensure-rag", flush=True)
     return 0
 
 

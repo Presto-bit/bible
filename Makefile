@@ -53,8 +53,24 @@ import-bible-all: import-bible ## CNV + KJV + 公版和合本
 rag-index-pd: ## 公版注释 RAG 入库
 	$(PY) scripts/rag_index.py --dir content/commentary/public-domain --source-type commentary --reuse
 
+.PHONY: rag-zh-content
+rag-zh-content: ## 生成中文自有 RAG 资料（摘要/词典/主题/专题）
+	$(PY) scripts/build_rag_zh_content.py
+
+.PHONY: import-fhl-commentary
+import-fhl-commentary: ## 拉取信望爱站中文注释
+	$(PY) scripts/import_fhl_commentary.py --skip-existing
+
+.PHONY: import-commentary-ocd
+import-commentary-ocd: ## 拉取 OpenChristianData 公版注释/参考
+	$(PY) scripts/import_commentary_ocd.py --skip-existing
+
+.PHONY: import-commentary-all
+import-commentary-all: ## HelloAO 全源公版注释（66 卷）
+	$(PY) scripts/import_commentary_pd.py --all-sources --skip-existing
+
 .PHONY: ensure-rag
-ensure-rag: ## 公版注释全卷 + RAG 索引（发版同款）
+ensure-rag: ## 英文全源 + 中文资料 + RAG 索引（发版同款）
 	bash scripts/ensure_rag.sh
 
 .PHONY: import-bible

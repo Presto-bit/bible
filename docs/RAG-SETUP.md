@@ -49,8 +49,11 @@ content/commentary/
 
 `release.sh` 在 API 就绪后会自动执行 `scripts/ensure_rag.sh`：
 
-1. 从 HelloAO 拉取公版注释**全卷**（已齐全 / 上游耗尽则跳过）
-2. 索引 `study-bible` + `public-domain`（body hash 未变跳过；`--reuse` 复用已有向量）
+1. 从 HelloAO 拉取公版英文注释（6 源 × 66 卷，已齐全跳过）
+2. 从 OpenChristianData 拉取 Wesley/Calvin/Barnes/MacLaren 等 + 词典参考
+3. 生成中文自有资料（摘要/词典/主题/专题）
+4. 从信望爱 API 拉取中文注释（book=3）
+5. 索引 `commentary` / `reference-en` / `study-bible-zh` / `commentary-zh`
 
 无 `RAG_EMBEDDING_API_KEY` 时用 hash 向量兜底，仍会入库。失败不阻断发版。
 
@@ -123,9 +126,17 @@ curl -N -X POST https://2sc.prestoai.cn/ai/chat \
 
 ## 7. 推荐资料来源（需自行确认版权）
 
-- 公版释经书（如部分古典注释的中译本）
-- 教会内部查经讲义（自有版权）
-- 自行编写的章节摘要（`bible_summary` 已有基础，可扩展为 RAG 文档）
+发版 `ensure_rag.sh` 自动拉取并索引：
+
+| 类型 | 来源 | source_type |
+|------|------|-------------|
+| 英文注释 | HelloAO（MH/JFB/Gill/K&D/Clarke/Tyndale） | `commentary` |
+| 英文注释 | OpenChristianData（Wesley/Calvin/Barnes/MacLaren 等） | `commentary` |
+| 英文参考 | Easton's / Smith's / Torrey's / Hitchcock's | `reference-en` |
+| 中文自有 | 书卷章摘要、词典、主题、地图/时间线 | `study-bible-zh` |
+| 中文注释 | 信望爱站注释（FHL book=3） | `commentary-zh` |
+
+手动命令：`make import-commentary-all`、`make import-commentary-ocd`、`make rag-zh-content`、`make import-fhl-commentary`
 
 **不要**将未授权的商业注释 PDF 直接上线。
 

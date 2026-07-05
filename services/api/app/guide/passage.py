@@ -13,6 +13,7 @@ from ..bible.refs import parse_ref
 from ..rag.retrieve import retrieve
 
 SNIPPET_CHARS = 220
+RAG_SOURCE_TYPES = ["commentary", "reference-en", "study-bible-zh", "commentary-zh"]
 
 
 def _passage_text(ref) -> str:
@@ -39,7 +40,7 @@ def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
         hits = retrieve(
             query,
             top_k=top_k,
-            source_type="commentary",
+            source_types=RAG_SOURCE_TYPES,
             title_contains=ref.book_name,
             book_id=ref.book_id,
         )
@@ -47,7 +48,7 @@ def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
             hits = retrieve(
                 query,
                 top_k=top_k,
-                source_type="commentary",
+                source_types=RAG_SOURCE_TYPES,
                 keywords=[ref.book_name, ref.book_id],
                 candidate_limit=1200,
             )
