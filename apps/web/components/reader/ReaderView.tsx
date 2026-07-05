@@ -52,9 +52,8 @@ import {
   type ReadingLayout,
   type VerseNumberMode,
 } from '@/lib/reader_settings';
+import { centerVerseInScroll, paragraphForVerse } from '@/lib/reader_viewport';
 import {
-  getLastRead,
-  getLastReadVerse,
   cancelPendingChapterProgress,
   confirmChapterProgress,
   logChapterDetail,
@@ -64,6 +63,8 @@ import {
   readerDwellPause,
   readerDwellResume,
   setLastRead,
+  getLastRead,
+  getLastReadVerse,
   setLastReadVerse,
   shouldShowResumeHint,
 } from '@/lib/reading';
@@ -251,7 +252,7 @@ export default function ReaderView({
   const syncingSelection = useRef(false);
   /** 划词过程中记录的部分选区（松手时系统常会扩成整句） */
   const pendingSpanRef = useRef<{ verse: number; start: number; end: number } | null>(null);
-  const [viewportVerse, setViewportVerse] = useState<number | null>(null);
+  const [viewportCenterVerse, setViewportCenterVerse] = useState<number | null>(null);
   const [aiSheetContext, setAiSheetContext] = useState<null | {
     refParam: string;
     refLabel: string;
@@ -434,20 +435,36 @@ export default function ReaderView({
         selectionText: effSelectionText,
       };
     }
-    const v = viewportVerse ?? getLastReadVerse(book.id, chapter) ?? verses[0]?.verse ?? 1;
-    const verse = verses.find((x) => x.verse === v);
-    const text = verse?.text ?? '';
-    return {
-      refParam: `${book.id}.${chapter}.${v}`,
-      refLabel: `${bookAbbr(book.name)} ${chapter}:${v}`,
-      selectionText: text,
-    };
+    const verseNums = verses.map((v) => v.verse);
+    const centerV =
+      viewportCenterVerse
+      ?? (contentRef.current ? centerVerseInScroll(contentRef.current, verseNums) : null)
+      ?? getLastReadVerse(book.id, chapter)
+      ?? verses[0]?.verse
+      ?? 1;
+    const para = paragraphForVerse(paragraphs, centerV);
+    const minV = para?.startVerse ?? centerV;
+    const maxV = para?.endVerse ?? centerV;
+    const picked = verses
+      .filter((v) => v.verse >= minV && v.verse <= maxV)
+      .sort((a, b) => a.verse - b.verse);
+    const text = picked.map((v) => v.text).join('');
+    const refParam =
+      minV === maxV
+        ? `${book.id}.${chapter}.${minV}`
+        : `${book.id}.${chapter}.${minV}-${maxV}`;
+    const refLabel =
+      minV === maxV
+        ? `${bookAbbr(book.name)} ${chapter}:${minV}`
+        : `${bookAbbr(book.name)} ${chapter}:${minV}-${maxV}`;
+    return { refParam, refLabel, selectionText: text };
   }, [
     hasSel,
     effRefParam,
     effRefLabel,
     effSelectionText,
-    viewportVerse,
+    viewportCenterVerse,
+    paragraphs,
     book.id,
     book.name,
     chapter,
@@ -819,7 +836,7 @@ export default function ReaderView({
     setSelected([]);
     setSelectionSpan(null);
     pendingSpanRef.current = null;
-    setViewportVerse(null);
+    setViewportCenterVerse(null);
     setBookDone(false);
     readStartRef.current = Date.now();
     readingEngagedRef.current = false;
@@ -959,7 +976,7 @@ export default function ReaderView({
       }
       const progressVerse = maxPassed || bestVerse;
       if (progressVerse != null) setLastReadVerse(book.id, chapter, progressVerse);
-      if (bestVerse != null) setViewportVerse(bestVerse);
+      if (bestVerse != null) setViewportCenterVerse(bestVerse);
 
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom && verses.length > 0) {

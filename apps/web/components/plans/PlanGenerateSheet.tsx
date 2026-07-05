@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { api, type GeneratedPlan } from '@/lib/api';
+import { parsePlanContentToRefs, mergeCustomRefs, rangesToCustomRefs, type PlanChapterRange } from '@/lib/plan_content_parse';
 import { saveGeneratedPlan } from '@/lib/generated_plans';
+import { PlanChapterPicker } from '@/components/plans/PlanChapterPicker';
 
 const QUICK_PRESETS = [
   { label: '7 天福音', scope: 'gospels', days: 7 },
   { label: '30 天新约', scope: 'nt', days: 30 },
-  { label: '90 天圣经', scope: 'bible', days: 90 },
+  { label: '90 天圣经', scope: 'all', days: 90 },
 ] as const;
 
 type Props = {
@@ -20,8 +22,9 @@ type Props = {
 export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
   const [scope, setScope] = useState<string | null>(null);
   const [days, setDays] = useState(30);
-  const [prompt, setPrompt] = useState('');
-  const [customRefs, setCustomRefs] = useState('');
+  const [planName, setPlanName] = useState('');
+  const [planContent, setPlanContent] = useState('');
+  const [pickedRanges, setPickedRanges] = useState<PlanChapterRange[]>([]);
   const [preview, setPreview] = useState<GeneratedPlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -33,19 +36,30 @@ export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
   const applyPreset = (preset: (typeof QUICK_PRESETS)[number]) => {
     setScope(preset.scope);
     setDays(preset.days);
-    setPrompt(preset.label);
+    if (!planName.trim()) setPlanName(preset.label);
     resetPreview();
   };
 
   const generate = async () => {
-    if (!scope && !customRefs.trim()) {
-      setErr('请选择读经范围，或填写自定义经节');
+    const customRefs = mergeCustomRefs(
+      rangesToCustomRefs(pickedRanges),
+      parsePlanContentToRefs(planContent),
+    );
+    if (!scope && !customRefs) {
+      setErr('请点选卷章、填写经节，或选择读经范围');
       return;
     }
     setBusy(true);
     setErr(null);
     try {
-      setPreview(await api.generatePlan(scope, days, prompt.trim() || undefined, customRefs.trim() || undefined));
+      setPreview(
+        await api.generatePlan(
+          scope,
+          days,
+          planName.trim() || undefined,
+          customRefs || undefined,
+        ),
+      );
     } catch (e) {
       setErr(String(e));
     } finally {
@@ -59,8 +73,9 @@ export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
     onSaved(saved, mode);
     setPreview(null);
     setScope(null);
-    setPrompt('');
-    setCustomRefs('');
+    setPlanName('');
+    setPlanContent('');
+    setPickedRanges([]);
     setDays(30);
     onClose();
   };
@@ -74,7 +89,28 @@ export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
           <button type="button" className="text-link" onClick={onClose}>关闭</button>
         </div>
 
-        <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>快捷模板</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>计划名称</p>
+        <input
+          className="search-input"
+          placeholder="如：暑假通读福音书"
+          value={planName}
+          onChange={(e) => { setPlanName(e.target.value); resetPreview(); }}
+        />
+
+        <p className="muted" style={{ fontSize: 12, margin: '12px 0 6px' }}>点选卷 · 章</p>
+        <PlanChapterPicker ranges={pickedRanges} onChange={(r) => { setPickedRanges(r); resetPreview(); }} />
+
+        <p className="muted" style={{ fontSize: 12, margin: '12px 0 6px' }}>或填写经节</p>
+        <textarea
+          className="search-input compose-textarea"
+          rows={2}
+          placeholder="如：约翰福音 1-3 章（可与上方点选组合）"
+          value={planContent}
+          onChange={(e) => { setPlanContent(e.target.value); resetPreview(); }}
+          style={{ resize: 'vertical', minHeight: 56 }}
+        />
+
+        <p className="muted" style={{ fontSize: 12, margin: '12px 0 10px' }}>快捷模板</p>
         <div className="chip-swipe" style={{ marginBottom: 14 }}>
           {QUICK_PRESETS.map((p) => (
             <button
@@ -88,7 +124,7 @@ export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
           ))}
         </div>
 
-        <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>1. 选择范围</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>读经范围（可选）</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           {scopes.map((s) => (
             <button
@@ -102,7 +138,7 @@ export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
           ))}
         </div>
 
-        <p className="muted" style={{ fontSize: 12, marginBottom: 4 }}>2. 天数 · {days} 天</p>
+        <p className="muted" style={{ fontSize: 12, marginBottom: 4 }}>天数 · {days} 天</p>
         <input
           type="range"
           min={7}
@@ -112,22 +148,7 @@ export function PlanGenerateSheet({ open, scopes, onClose, onSaved }: Props) {
           onChange={(e) => { setDays(Number(e.target.value)); resetPreview(); }}
         />
 
-        <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>3. 计划名称（可选）</p>
-        <input
-          className="search-input"
-          placeholder="如：暑假通读福音书"
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-        <input
-          className="search-input"
-          style={{ marginTop: 8 }}
-          placeholder="或填写经节，如 JHN.1-JHN.3"
-          value={customRefs}
-          onChange={(e) => { setCustomRefs(e.target.value); resetPreview(); }}
-        />
-
-        <button type="button" className="btn" style={{ marginTop: 12, width: '100%' }} onClick={() => void generate()} disabled={busy}>
+        <button type="button" className="btn" style={{ marginTop: 4, width: '100%' }} onClick={() => void generate()} disabled={busy}>
           {busy ? '生成中…' : preview ? '重新生成' : '生成预览'}
         </button>
         {err && <p className="group-composer-err" style={{ marginTop: 8 }}>{err}</p>}

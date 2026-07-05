@@ -5264,6 +5264,120 @@ a.today-card-link {
   margin-top: auto;
 }
 
+.plan-chapter-picker {
+  margin-bottom: 4px;
+}
+
+.plan-picker-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.plan-picker-books {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 120px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding-bottom: 2px;
+}
+
+.plan-picker-book {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+
+.plan-picker-range-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.plan-picker-field {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.plan-picker-num {
+  width: 56px;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+.plan-picker-selected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.plan-picker-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  border: 1px solid var(--line);
+}
+
+.plan-picker-chip-x {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+}
+
+.history-item-ref {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  border-radius: 6px;
+  padding: 2px 8px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-date-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.history-date-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
 .plan-active-compact {
   padding: 12px 14px;
   margin-bottom: 12px;

@@ -17,6 +17,14 @@ import {
   loadAssistantDraft,
   saveAssistantDraft,
 } from '@/lib/assistant_session_draft';
+import {
+  findResumableSession,
+  formatSessionUpdatedLabel,
+  groupSessionsByDate,
+  hasUserMessages,
+  loadAssistantSessions,
+  saveAssistantSessions,
+} from '@/lib/assistant_sessions';
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
 import { refToChineseLabel } from '@/lib/ref_label';
@@ -36,24 +44,14 @@ interface Session {
   ref: string;
   preview: string;
   updated: string;
+  updatedAt?: number;
   msgs: Msg[];
 }
 
-const SESSIONS_KEY = 'assistant_sessions_v1';
-
-function loadSessions(): Session[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = localStorage.getItem(SESSIONS_KEY);
-    const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveSessions(list: Session[]) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(list.slice(0, 50)));
+function newSessionId(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `s-${Date.now()}`;
 }
 
 export default function AssistantPage() {
@@ -86,6 +84,7 @@ function AssistantPageInner() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeId, setActiveId] = useState<string>('current');
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const seedBoot = useRef(false);
@@ -104,10 +103,22 @@ function AssistantPageInner() {
       }),
     [ref],
   );
+  const sessionGroups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
   const composerChips = useMemo(
     () => [...personalized.slice(0, 2), ...staticAssistantChips(ref || undefined)],
     [personalized, ref],
   );
+
+  useEffect(() => {
+    if (!historyOpen) return;
+    setCollapsedGroups((prev) => {
+      const next = { ...prev };
+      for (const g of sessionGroups) {
+        if (!(g.label in next)) next[g.label] = g.label !== '今天';
+      }
+      return next;
+    });
+  }, [historyOpen, sessionGroups]);
 
   const lastAssistantIdx = useMemo(() => {
     for (let i = msgs.length - 1; i >= 0; i -= 1) {
@@ -230,7 +241,7 @@ function AssistantPageInner() {
   };
 
   useEffect(() => {
-    setSessions(loadSessions());
+    setSessions(loadAssistantSessions() as Session[]);
     document.documentElement.style.setProperty('--assistant-answer-font-size', '15px');
     return () => {
       document.documentElement.style.removeProperty('--assistant-answer-font-size');
@@ -239,6 +250,10 @@ function AssistantPageInner() {
 
   useEffect(() => {
     if (!hydratedRef.current) return;
+    if (!hasUserMessages(msgs)) {
+      clearAssistantDraft();
+      return;
+    }
     saveAssistantDraft({ activeId, msgs, ref, mode, updatedAt: Date.now() });
   }, [activeId, msgs, ref, mode]);
 
@@ -256,29 +271,33 @@ function AssistantPageInner() {
   }, [activeId, msgs.length]);
 
   const persist = (nextMsgs: Msg[], anchor: string) => {
+    if (!hasUserMessages(nextMsgs)) return;
+    const anchorRef = (anchor || ref).trim();
     let sid = activeId;
     if (sid === 'current') {
-      sid =
-        typeof crypto !== 'undefined' && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `s-${Date.now()}`;
+      const pool = loadAssistantSessions() as Session[];
+      const existing = findResumableSession(pool, anchorRef);
+      sid = existing?.id ?? newSessionId();
       setActiveId(sid);
     }
-    const title = nextMsgs.find((m) => m.role === 'user')?.text.slice(0, 18) || anchor || '新会话';
+    const title = nextMsgs.find((m) => m.role === 'user')?.text.slice(0, 18) || anchorRef || '新会话';
     const preview = nextMsgs[nextMsgs.length - 1]?.text.slice(0, 40) || '';
+    const now = Date.now();
+    const updatedLabel = formatSessionUpdatedLabel(now);
     setSessions((prev) => {
       const rest = prev.filter((s) => s.id !== sid);
       const next: Session = {
         id: sid,
         title,
-        ref: anchor,
+        ref: anchorRef,
         preview,
-        updated: '今天',
+        updated: updatedLabel,
+        updatedAt: now,
         msgs: nextMsgs,
       };
       const list = [next, ...rest];
-      saveSessions(list);
-      bumpAndEnqueueAiSession(sid, title, anchor);
+      saveAssistantSessions(list);
+      bumpAndEnqueueAiSession(sid, title, anchorRef);
       return list;
     });
   };
@@ -378,6 +397,7 @@ function AssistantPageInner() {
     const legacyQ = searchParams.get('q');
     const autoSendParam = searchParams.get('auto_send') === '1';
     const refParam = searchParams.get('ref') || '';
+    const storedSessions = loadAssistantSessions() as Session[];
 
     let refVal = refParam;
     let question: string | null = null;
@@ -387,12 +407,24 @@ function AssistantPageInner() {
     let prefillScene: AssistantScene | undefined;
     let prefillSurface: string | undefined;
 
+    const resumeIfMatch = (anchor: string): boolean => {
+      const existing = findResumableSession(storedSessions, anchor);
+      if (!existing) return false;
+      setActiveId(existing.id);
+      setMsgs(existing.msgs);
+      setRef(existing.ref);
+      handled = true;
+      skipInputPrefill = true;
+      return true;
+    };
+
     if (sid) {
       const payload = consumeAssistantPrefill(sid);
       if (payload) {
         handled = true;
         refVal = payload.ref || refVal;
-        if (payload.seedMessages?.length) {
+        const resumed = refVal ? resumeIfMatch(refVal) : false;
+        if (!resumed && payload.seedMessages?.length) {
           setMsgs(
             payload.seedMessages.map((m) => ({
               role: m.role,
@@ -403,7 +435,7 @@ function AssistantPageInner() {
             })),
           );
           skipInputPrefill = true;
-        } else {
+        } else if (!resumed) {
           question = payload.question;
         }
         if (payload.autoSend) autoSend = true;
@@ -415,7 +447,7 @@ function AssistantPageInner() {
       }
     } else {
       const draft = loadAssistantDraft();
-      if (draft) {
+      if (draft && hasUserMessages(draft.msgs)) {
         handled = true;
         setActiveId(draft.activeId);
         setMsgs(draft.msgs);
@@ -423,6 +455,11 @@ function AssistantPageInner() {
         setMode(draft.mode);
         skipInputPrefill = true;
         refVal = draft.ref || refVal;
+      } else if (draft) {
+        clearAssistantDraft();
+      }
+      if (!handled && refVal && resumeIfMatch(refVal)) {
+        /* 已续接 */
       }
     }
 
@@ -458,6 +495,7 @@ function AssistantPageInner() {
     setActiveId('current');
     setMsgs([]);
     setInput('');
+    setRef('');
     setHistoryOpen(false);
     clearAssistantDraft();
   };
@@ -569,9 +607,6 @@ function AssistantPageInner() {
           ) : (
             <span />
           )}
-          <button type="button" className="text-link assistant-new-session" onClick={startNewSession}>
-            新会话
-          </button>
         </div>
       </header>
 
@@ -718,21 +753,52 @@ function AssistantPageInner() {
             {sessions.length === 0 ? (
               <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
             ) : (
-              <div style={{ marginTop: 8 }}>
-                {sessions.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    className="history-item"
-                    onClick={() => openSession(s)}
-                  >
-                    <div className="history-item-top">
-                      <span className="history-item-title">{s.title}</span>
-                      <span className="muted" style={{ fontSize: 11 }}>{s.updated}</span>
+              <div className="history-group-list" style={{ marginTop: 8 }}>
+                {sessionGroups.map((group) => {
+                  const collapsed = collapsedGroups[group.label] ?? group.label !== '今天';
+                  return (
+                    <div key={group.label} className="history-date-group">
+                      <button
+                        type="button"
+                        className="history-date-head"
+                        onClick={() =>
+                          setCollapsedGroups((prev) => ({
+                            ...prev,
+                            [group.label]: !collapsed,
+                          }))
+                        }
+                      >
+                        <span>{group.label}</span>
+                        <span className="muted" style={{ fontSize: 11 }}>
+                          {group.items.length} 条 · {collapsed ? '展开' : '收起'}
+                        </span>
+                      </button>
+                      {!collapsed && group.items.map((s) => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          className="history-item"
+                          onClick={() => openSession(s as Session)}
+                        >
+                          <div className="history-item-top">
+                            <span className="history-item-title">{s.title}</span>
+                            <span className="muted" style={{ fontSize: 11 }}>
+                              {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
+                            </span>
+                          </div>
+                          {s.ref && (
+                            <span className="history-item-ref">
+                              {refToChineseLabel(s.ref) ?? s.ref}
+                            </span>
+                          )}
+                          {s.preview && (
+                            <span className="muted history-item-preview">{s.preview}</span>
+                          )}
+                        </button>
+                      ))}
                     </div>
-                    {s.preview && <span className="muted history-item-preview">{s.preview}</span>}
-                  </button>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
