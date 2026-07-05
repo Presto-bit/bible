@@ -2,14 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import type { GroupTask } from '@/lib/api';
-import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_DEFAULT_BODY, buildCheckinRef } from '@/lib/group_checkin';
+import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_BODY_MAX, normalizeCheckinBody, buildCheckinRef } from '@/lib/group_checkin';
 import { GROUP_TASK_TEMPLATES } from '@/lib/group_task_templates';
 import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
 import { asGroupTasks, groupFootprintsBySource } from '@/lib/group_ui';
-import { shareCard } from '@/lib/share_card';
-import { BRAND_NAME } from '@/lib/brand';
 import { readGroupCheckinDraft } from '@/lib/group_checkin_draft';
-import { formatGroupRefLabel } from '@/lib/ref_label';
 import { getLastRead } from '@/lib/reading';
 
 type Mode = 'checkin' | 'task';
@@ -106,7 +103,7 @@ export function GroupComposer({
       await onCheckin({
         ref: effectiveRef || undefined,
         task_id: selectedTaskId || undefined,
-        body: body.trim() || GROUP_CHECKIN_DEFAULT_BODY,
+        body: normalizeCheckinBody(body),
       });
       resetCheckin();
     } catch (e) {
@@ -114,18 +111,11 @@ export function GroupComposer({
     }
   };
 
-  const shareCheckinCard = async () => {
-    const text = body.trim() || GROUP_CHECKIN_DEFAULT_BODY;
-    const title = effectiveRef ? `今日打卡 · ${formatGroupRefLabel(effectiveRef)}` : '今日打卡';
-    await shareCard({
-      title,
-      body: text,
-      footer: BRAND_NAME,
-      subtitle: groupName,
-    });
-  };
-
   const footprintGroups = groupFootprintsBySource(footprints);
+
+  const onBodyInput = (value: string) => {
+    setBody(value.slice(0, GROUP_CHECKIN_BODY_MAX));
+  };
 
   const sendTask = async () => {
     if (!canSendTask || busy) return;
@@ -227,7 +217,7 @@ export function GroupComposer({
                   key={chip}
                   type="button"
                   className={`group-chip chip-swipe-item${body === chip ? ' selected' : ''}`}
-                  onClick={() => setBody(body === chip ? '' : chip)}
+                  onClick={() => onBodyInput(body === chip ? '' : chip)}
                 >
                   {chip}
                 </button>
@@ -235,26 +225,30 @@ export function GroupComposer({
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              className="btn group-composer-send"
-              style={{ flex: 1 }}
-              disabled={!canSendCheckin || busy}
-              onClick={sendCheckin}
-            >
-              {busy ? '发送中…' : '发送打卡'}
-            </button>
-            <button
-              type="button"
-              className="font-pill"
-              style={{ flexShrink: 0 }}
-              disabled={!canSendCheckin || busy}
-              onClick={shareCheckinCard}
-            >
-              分享图
-            </button>
+          <div className="group-composer-section">
+            <div className="group-composer-label-row">
+              <span className="group-composer-label">写感想</span>
+              <span className="muted group-composer-char-count">{body.length}/{GROUP_CHECKIN_BODY_MAX}</span>
+            </div>
+            <textarea
+              className="group-composer-text search-input compose-textarea"
+              rows={3}
+              placeholder="写下今天的感受（可选）"
+              value={body}
+              maxLength={GROUP_CHECKIN_BODY_MAX}
+              onChange={(e) => onBodyInput(e.target.value)}
+            />
           </div>
+
+          <button
+            type="button"
+            className="btn group-composer-send"
+            style={{ width: '100%' }}
+            disabled={!canSendCheckin || busy}
+            onClick={sendCheckin}
+          >
+            {busy ? '发送中…' : '发送打卡'}
+          </button>
         </>
       ) : (
         <>

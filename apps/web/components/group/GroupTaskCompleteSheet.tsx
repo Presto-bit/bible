@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
+import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_BODY_MAX, normalizeCheckinBody } from '@/lib/group_checkin';
 
 type Props = {
   title: string;
@@ -15,11 +15,15 @@ export function GroupTaskCompleteSheet({ title, refLabel, onSubmit, onClose }: P
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const onBodyInput = (value: string) => {
+    setBody(value.slice(0, GROUP_CHECKIN_BODY_MAX));
+  };
+
   const submit = async () => {
     setBusy(true);
     setErr(null);
     try {
-      await onSubmit(body.trim() || GROUP_CHECKIN_DEFAULT_BODY);
+      await onSubmit(normalizeCheckinBody(body));
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -46,19 +50,23 @@ export function GroupTaskCompleteSheet({ title, refLabel, onSubmit, onClose }: P
               key={chip}
               type="button"
               className={`group-chip${body === chip ? ' selected' : ''}`}
-              onClick={() => setBody(body === chip ? '' : chip)}
+              onClick={() => onBodyInput(body === chip ? '' : chip)}
             >
               {chip}
             </button>
           ))}
         </div>
         <textarea
-          className="group-composer-text"
-          rows={2}
-          placeholder="写点感想（可选）"
+          className="group-composer-text search-input compose-textarea"
+          rows={3}
+          placeholder="写下今天的感受（可选）"
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          maxLength={GROUP_CHECKIN_BODY_MAX}
+          onChange={(e) => onBodyInput(e.target.value)}
         />
+        <p className="muted group-composer-char-count" style={{ textAlign: 'right', marginTop: 4 }}>
+          {body.length}/{GROUP_CHECKIN_BODY_MAX}
+        </p>
         <button type="button" className="btn" style={{ width: '100%' }} disabled={busy} onClick={submit}>
           {busy ? '分享中…' : '分享到群'}
         </button>

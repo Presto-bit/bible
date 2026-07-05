@@ -221,14 +221,6 @@ export default function XiaoAiSheet({
                 <p className="muted">小爱正在解读…</p>
               )}
             </div>
-            {citations.length > 0 && done && (
-              <CitationBar
-                citations={citations}
-                activeN={citationOpen}
-                onActiveChange={setCitationOpen}
-                bookName={refLabel.split(' ')[0]}
-              />
-            )}
           </div>
           {hasError && (
             <button
@@ -258,6 +250,16 @@ export default function XiaoAiSheet({
               <button type="button" className="half-sheet-action-btn" onClick={saveNote}>
                 {saved ? '已存笔记' : '存笔记'}
               </button>
+              {citations.length > 0 && (
+                <CitationBar
+                  variant="action"
+                  className="half-sheet-action-btn"
+                  citations={citations}
+                  activeN={citationOpen}
+                  onActiveChange={setCitationOpen}
+                  bookName={refLabel.split(' ')[0]}
+                />
+              )}
             </>
           )}
           <button

@@ -71,6 +71,36 @@ export function joinOrphanClosers(text: string): string {
     .replace(/([（(【「『《])\n+/g, '$1');
 }
 
+const ORDERED_LINE_RE = /^(\s*)(?:\d+[.、)）]\s*|(?=[①②③④⑤⑥⑦⑧⑨⑩][、.)）]?\s*))/;
+const ORDERED_ITEM_RE = /^(\s*)(?:\d+[.、)）]\s*(.*)|[①②③④⑤⑥⑦⑧⑨⑩][、.)）]?\s*(.*))$/;
+
+/** 模型常把每条都写成「1、」，合并为连续编号供前端列表渲染 */
+export function renumberOrderedLines(text: string): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!ORDERED_LINE_RE.test(line)) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+    let idx = 1;
+    while (i < lines.length) {
+      const m = lines[i].match(ORDERED_ITEM_RE);
+      if (!m) break;
+      const indent = m[1] ?? '';
+      let body = (m[2] || m[3] || '').trim();
+      body = body.replace(/^\d+[.、)）]\s*/, '');
+      out.push(`${indent}${idx}、${body}`);
+      idx += 1;
+      i += 1;
+    }
+  }
+  return out.join('\n');
+}
+
 export interface ParsedAnswer {
   body: string;
   followups: string[];

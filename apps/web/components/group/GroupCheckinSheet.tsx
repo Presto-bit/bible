@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { api, type Group } from '@/lib/api';
 import {
   GROUP_CHECKIN_CHIPS,
-  GROUP_CHECKIN_DEFAULT_BODY,
+  GROUP_CHECKIN_BODY_MAX,
+  normalizeCheckinBody,
   buildCheckinRef,
 } from '@/lib/group_checkin';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -45,6 +46,10 @@ export default function GroupCheckinSheet({
     return formatGroupRefLabel(ref) || `${bookName} ${chapter}`;
   };
 
+  const onBodyInput = (value: string) => {
+    setBody(value.slice(0, GROUP_CHECKIN_BODY_MAX));
+  };
+
   useEffect(() => {
     api
       .myGroups()
@@ -58,7 +63,7 @@ export default function GroupCheckinSheet({
       .finally(() => setLoading(false));
   }, [presetGroupId]);
 
-  const submit = async (quickBody?: string) => {
+  const submit = async () => {
     if (!gid || busy) return;
     setBusy(true);
     setErr(null);
@@ -66,7 +71,7 @@ export default function GroupCheckinSheet({
       await api.checkin(gid, {
         ref: checkinRef(),
         task_id: presetTaskId || undefined,
-        body: (quickBody ?? body).trim() || GROUP_CHECKIN_DEFAULT_BODY,
+        body: normalizeCheckinBody(body),
       });
       setSubmitted(true);
       onDone?.();
@@ -136,10 +141,7 @@ export default function GroupCheckinSheet({
                     type="button"
                     className={`group-chip chip-swipe-item${body === chip ? ' selected' : ''}`}
                     disabled={!gid || busy}
-                    onClick={() => {
-                      setBody(chip);
-                      void submit(chip);
-                    }}
+                    onClick={() => onBodyInput(body === chip ? '' : chip)}
                   >
                     {chip}
                   </button>
@@ -147,12 +149,28 @@ export default function GroupCheckinSheet({
               </div>
             </div>
 
+            <div className="group-composer-section">
+              <div className="group-composer-label-row">
+                <span className="group-composer-label">写感想</span>
+                <span className="muted group-composer-char-count">{body.length}/{GROUP_CHECKIN_BODY_MAX}</span>
+              </div>
+              <textarea
+                className="group-composer-text search-input compose-textarea"
+                rows={3}
+                placeholder="写下今天的感受（可选）"
+                value={body}
+                maxLength={GROUP_CHECKIN_BODY_MAX}
+                disabled={!gid || busy}
+                onChange={(e) => onBodyInput(e.target.value)}
+              />
+            </div>
+
             <button
               type="button"
               className="btn"
               style={{ width: '100%', marginTop: 8, fontSize: 14, padding: '10px 12px' }}
               disabled={!gid || busy}
-              onClick={() => submit()}
+              onClick={() => void submit()}
             >
               {busy ? '发送中…' : presetTaskId ? '完成并分享' : '发送打卡'}
             </button>

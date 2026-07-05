@@ -690,17 +690,6 @@ function AssistantPageInner() {
                     {m.text || '…'}
                   </div>
                 )}
-                {m.citations && m.citations.length > 0 && !isStreaming && (
-                  <CitationBar
-                    citations={m.citations}
-                    activeN={citationMsgIdx === i ? citationOpen : undefined}
-                    onActiveChange={(n) => {
-                      setCitationMsgIdx(i);
-                      setCitationOpen(n);
-                    }}
-                    bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
-                  />
-                )}
                 {showActions && (
                   <>
                     {displayFollowups.length > 0 && (
@@ -736,6 +725,18 @@ function AssistantPageInner() {
                       <button type="button" className="msg-action" onClick={() => shareText(m.text)}>
                         分享
                       </button>
+                      {m.citations && m.citations.length > 0 && (
+                        <CitationBar
+                          variant="action"
+                          citations={m.citations}
+                          activeN={citationMsgIdx === i ? citationOpen : undefined}
+                          onActiveChange={(n) => {
+                            setCitationMsgIdx(i);
+                            setCitationOpen(n);
+                          }}
+                          bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
+                        />
+                      )}
                     </div>
                   </>
                 )}

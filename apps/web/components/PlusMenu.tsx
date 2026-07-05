@@ -7,7 +7,7 @@ const ITEMS = [
   { id: 'friend', label: '加好友', sub: '搜索 ID / 用户名', href: '/friend/add', icon: '👤' },
   { id: 'join', label: '加入群', sub: '输入邀请码', href: '/discover/join', icon: '🔑' },
   { id: 'group', label: '创建群', sub: '发起共读群', href: '/group/create', icon: '👥' },
-  { id: 'plans', label: '读经计划', sub: '热门计划 · 个性定制', href: '/plans', icon: '📅' },
+  { id: 'plans', label: '创建计划', sub: '定制读经计划', href: '/plans', icon: '📅' },
 ];
 
 /** 微信式加号菜单：锚定在按钮附近弹出，点项跳转独立页。 */

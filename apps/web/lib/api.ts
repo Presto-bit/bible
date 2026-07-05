@@ -869,6 +869,14 @@ export interface Friend {
   handle?: string | null;
   display_name?: string | null;
 }
+export interface GroupInviteInboxItem {
+  id: string;
+  group_id: string;
+  group_name: string;
+  inviter_name: string;
+  message: string;
+  created_at?: string | null;
+}
 export interface PlanSummary {
   plan_id: string;
   title: string;
@@ -1274,6 +1282,20 @@ export const api = {
     ),
   deleteMessage: (mid: string) =>
     authed<{ ok: boolean }>(`/social/messages/${mid}`, { method: 'DELETE' }),
+  reactMessage: (mid: string, emoji: string) =>
+    authed<{ ok: boolean }>(`/social/messages/${mid}/react`, { method: 'POST', body: { emoji } }),
+  sendGroupInvites: (gid: string, friendIds: string[]) =>
+    authed<{ ok: boolean; sent: number }>(`/social/groups/${gid}/invites`, {
+      method: 'POST',
+      body: { friend_ids: friendIds },
+    }),
+  groupInviteInbox: () => authed<{ invites: GroupInviteInboxItem[] }>('/social/invites/inbox'),
+  acceptGroupInvite: (id: string) =>
+    authed<{ ok: boolean; group_id: string; name: string }>(`/social/invites/${id}/accept`, {
+      method: 'POST',
+    }),
+  declineGroupInvite: (id: string) =>
+    authed<{ ok: boolean }>(`/social/invites/${id}/decline`, { method: 'POST' }),
   friends: () => authed<{ friends: Friend[] }>('/social/friends'),
   addFriend: (handle: string) =>
     authed<Friend>('/social/friends', { method: 'POST', body: { handle } }),

@@ -41,7 +41,6 @@ function GroupPageInner() {
   const [toast, setToast] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [generatedPlans, setGeneratedPlans] = useState<GeneratedPlan[]>([]);
-  const [planScopes, setPlanScopes] = useState<{ id: string; label: string }[]>([]);
   const [announceDraft, setAnnounceDraft] = useState('');
   const [planDraft, setPlanDraft] = useState('');
   const [nameDraft, setNameDraft] = useState('');
@@ -130,14 +129,12 @@ function GroupPageInner() {
 
   useEffect(() => {
     if (settingsOpen) {
-      void Promise.all([api.plans(), api.planScopes()])
-        .then(([p, s]) => {
+      void api.plans()
+        .then((p) => {
           setPlans(p.plans);
-          setPlanScopes(s.scopes);
         })
         .catch(() => {
           setPlans([]);
-          setPlanScopes([]);
         });
       setGeneratedPlans(loadGeneratedPlans());
     }
@@ -454,7 +451,6 @@ function GroupPageInner() {
         tasks={tasks}
         plans={plans}
         generatedPlans={generatedPlans}
-        planScopes={planScopes}
         onGeneratedPlansChange={setGeneratedPlans}
         busy={busy}
         nameDraft={nameDraft}

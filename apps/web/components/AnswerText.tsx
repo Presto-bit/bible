@@ -5,6 +5,7 @@ import type { Citation } from '@/lib/api';
 import {
   bodyText,
   joinOrphanClosers,
+  renumberOrderedLines,
   softBreakSentences,
   streamingSafeBody,
 } from '@/lib/assistant_format';
@@ -20,7 +21,8 @@ function renderInline(
   onCitationClick?: (n: number) => void,
 ): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
-  const re = /\*\*([^*]+)\*\*|“([^”]+)”|「([^」]+)」|\[(\d{1,2})\]/g;
+  const re =
+    /\*\*([^*]+)\*\*|“([^”]+)”|「([^」]+)」|［(\d{1,2})］|【(\d{1,2})】|（(\d{1,2})）|\[(\d{1,2})\]/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
@@ -32,28 +34,31 @@ function renderInline(
           {m[1]}
         </strong>,
       );
-    } else if (m[4] !== undefined) {
-      const n = Number(m[4]);
-      nodes.push(
-        <button
-          key={`${keyBase}-fn${i}`}
-          type="button"
-          className="ans-footnote"
-          onClick={() => onCitationClick?.(n)}
-        >
-          [{n}]
-        </button>,
-      );
     } else {
-      const quoted = m[2] ?? m[3] ?? '';
-      const mark = m[2] !== undefined ? '“”' : '「」';
-      nodes.push(
-        <span key={`${keyBase}-q${i}`} className="ans-quote">
-          {mark[0]}
-          {quoted}
-          {mark[1]}
-        </span>,
-      );
+      const footN = m[4] ?? m[5] ?? m[6] ?? m[7];
+      if (footN !== undefined) {
+        const n = Number(footN);
+        nodes.push(
+          <button
+            key={`${keyBase}-fn${i}`}
+            type="button"
+            className="ans-footnote"
+            onClick={() => onCitationClick?.(n)}
+          >
+            [{n}]
+          </button>,
+        );
+      } else {
+        const quoted = m[2] ?? m[3] ?? '';
+        const mark = m[2] !== undefined ? '“”' : '「」';
+        nodes.push(
+          <span key={`${keyBase}-q${i}`} className="ans-quote">
+            {mark[0]}
+            {quoted}
+            {mark[1]}
+          </span>,
+        );
+      }
     }
     last = re.lastIndex;
     i += 1;
@@ -78,7 +83,8 @@ export default function AnswerText({
 }: Props) {
   if (!text) return null;
   const raw = streaming ? streamingSafeBody(text) : bodyText(text);
-  const normalized = dense ? raw : joinOrphanClosers(softBreakSentences(raw));
+  const renumbered = renumberOrderedLines(raw);
+  const normalized = dense ? renumbered : joinOrphanClosers(softBreakSentences(renumbered));
   const lines = normalized.split('\n');
   const blocks: React.ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
@@ -130,7 +136,9 @@ export default function AnswerText({
     if (numbered || circle) {
       if (!list || !list.ordered) flushList(key);
       list = list ?? { ordered: true, items: [] };
-      list.items.push((numbered ?? circle)![1]);
+      let item = (numbered ?? circle)![1];
+      item = item.replace(/^\d+[.、)）]\s*/, '');
+      list.items.push(item);
       return;
     }
     flushList(key);

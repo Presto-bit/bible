@@ -16,7 +16,6 @@ type Props = {
   tasks: GroupDetail['tasks'];
   plans: PlanSummary[];
   generatedPlans: GeneratedPlan[];
-  planScopes: { id: string; label: string }[];
   busy?: boolean;
   nameDraft: string;
   planDraft: string;
@@ -52,7 +51,6 @@ export function GroupSettingsSheet({
   tasks = [],
   plans,
   generatedPlans,
-  planScopes,
   busy,
   nameDraft,
   planDraft,
@@ -191,7 +189,6 @@ export function GroupSettingsSheet({
               </select>
 
               <GroupCustomPlanPanel
-                planScopes={planScopes}
                 busy={busy}
                 onPlanSelected={onPlanChange}
                 onGeneratedPlansChange={onGeneratedPlansChange}

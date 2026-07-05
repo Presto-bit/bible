@@ -10,6 +10,14 @@ export const GROUP_CHECKIN_CHIPS = [
 
 export const GROUP_CHECKIN_DEFAULT_BODY = '完成今日打卡 ✓';
 
+export const GROUP_CHECKIN_BODY_MAX = 120;
+
+/** 截断并兜底默认文案（空感想时用默认句）。 */
+export function normalizeCheckinBody(raw: string | undefined | null): string {
+  const t = (raw ?? '').trim().slice(0, GROUP_CHECKIN_BODY_MAX);
+  return t || GROUP_CHECKIN_DEFAULT_BODY;
+}
+
 export function chapterRef(bookId: string, chapter: number, verse?: number): string {
   if (verse && verse > 0) return `${bookId}.${chapter}.${verse}`;
   return `${bookId}.${chapter}`;

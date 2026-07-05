@@ -121,8 +121,10 @@ export function GroupMembersPanel({
 
         {inviteOpen && joinCode && (
           <GroupInviteSheet
+            gid={gid}
             groupName={groupName || '共读群'}
             joinCode={joinCode}
+            memberUserIds={members.map((m) => m.user_id).filter(Boolean) as string[]}
             onClose={() => setInviteOpen(false)}
           />
         )}
@@ -219,8 +221,10 @@ export function GroupMembersPanel({
       )}
       {inviteOpen && joinCode && (
         <GroupInviteSheet
+          gid={gid}
           groupName={groupName || '共读群'}
           joinCode={joinCode}
+          memberUserIds={members.map((m) => m.user_id).filter(Boolean) as string[]}
           onClose={() => setInviteOpen(false)}
         />
       )}

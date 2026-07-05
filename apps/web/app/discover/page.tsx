@@ -19,6 +19,7 @@ import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePend
 import { AssistantLink } from '@/components/AssistantLink';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
+import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
 
 function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
@@ -163,6 +164,8 @@ export default function DiscoverPage() {
           {todayInner}
         </div>
       )}
+
+      <GroupInviteInbox onChanged={() => void reload()} />
 
       {groups.length === 0 ? (
         <div className="card card-tint card-2 card-accent discover-hero">

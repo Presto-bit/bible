@@ -64,6 +64,7 @@ import {
   type WordRange,
 } from '@/lib/selection_range';
 import { isTouchPrimaryUI } from '@/lib/touch_ui';
+import { readNativeVerseSelection, type NativeVerseSelection } from '@/lib/native_verse_selection';
 import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
@@ -205,6 +206,8 @@ export default function ReaderView({
   const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [wordRange, setWordRange] = useState<WordRange | null>(null);
+  const [nativeSelection, setNativeSelection] = useState<NativeVerseSelection | null>(null);
+  const nativeTouchSelect = isTouchPrimaryUI();
   const [markNotePrompt, setMarkNotePrompt] = useState<null | { ref: string; label: string }>(null);
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
@@ -413,8 +416,11 @@ export default function ReaderView({
 
   const sortedSel = useMemo(() => {
     if (wordRange) return [...wordRangeToSpan(wordRange).verses].sort((a, b) => a - b);
+    if (nativeTouchSelect && nativeSelection?.verses.length) {
+      return [...nativeSelection.verses].sort((a, b) => a - b);
+    }
     return [...wholeVerseSel].sort((a, b) => a - b);
-  }, [wordRange, wholeVerseSel]);
+  }, [wordRange, wholeVerseSel, nativeTouchSelect, nativeSelection]);
   const hasSel = sortedSel.length > 0;
   const selectionSpan = useMemo(
     () => (wordRange ? wordRangeToSpan(wordRange).span : null),
@@ -426,11 +432,12 @@ export default function ReaderView({
     if (wordRange) {
       return textFromWordRange(wordRange, (v) => verses.find((x) => x.verse === v)?.text ?? '');
     }
+    if (nativeTouchSelect && nativeSelection?.text) return nativeSelection.text;
     const picked = verses
       .filter((v) => wholeVerseSel.includes(v.verse))
       .sort((a, b) => a.verse - b.verse);
     return picked.map((v) => v.text).join('');
-  }, [verses, wholeVerseSel, wordRange]);
+  }, [verses, wholeVerseSel, wordRange, nativeTouchSelect, nativeSelection]);
   const refParam = hasSel ? `${book.id}.${chapter}.${minV}` : `${book.id}.${chapter}`;
   const refLabel = hasSel
     ? minV === maxV
@@ -568,6 +575,10 @@ export default function ReaderView({
         );
       }
 
+      if (nativeTouchSelect) {
+        return renderText(text, 'native');
+      }
+
       return (
         <>
           {sliceVerseWords(text).map((w, i) => {
@@ -611,7 +622,7 @@ export default function ReaderView({
         </>
       );
     },
-    [renderVerseText, wordRange],
+    [renderVerseText, wordRange, nativeTouchSelect],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -901,6 +912,7 @@ export default function ReaderView({
   useEffect(() => {
     setWholeVerseSel([]);
     setWordRange(null);
+    setNativeSelection(null);
     window.getSelection()?.removeAllRanges();
     setViewportCenterVerse(null);
     setBookDone(false);
@@ -1219,6 +1231,7 @@ export default function ReaderView({
 
   const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
+    setNativeSelection(null);
     setWholeVerseSel([]);
     setWordRange(null);
     wordRangeRef.current = null;
@@ -1274,24 +1287,49 @@ export default function ReaderView({
     });
   }, []);
 
-  // 触控/PWA：拦截系统划选，避免与 wordRange 词块高亮叠出灰/蓝双色
+  // 触控/PWA：同步系统原生划选；拦截 contextmenu 避免 iOS 系统复制工具栏
   useEffect(() => {
     const root = contentRef.current;
-    if (!root || !isTouchPrimaryUI()) return;
-    const clearNativeSel = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) return;
-      const node = sel.anchorNode;
-      if (node && root.contains(node)) sel.removeAllRanges();
+    if (!root || !nativeTouchSelect) return;
+    const blockMenu = (e: Event) => e.preventDefault();
+    root.addEventListener('contextmenu', blockMenu);
+    let raf = 0;
+    const sync = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const next = readNativeVerseSelection(root);
+        setNativeSelection((prev) => {
+          if (!next && !prev) return prev;
+          if (
+            next &&
+            prev &&
+            next.text === prev.text &&
+            next.verses.join(',') === prev.verses.join(',')
+          ) {
+            return prev;
+          }
+          return next;
+        });
+        if (next) {
+          setWholeVerseSel([]);
+          setWordRange(null);
+          wordRangeRef.current = null;
+        }
+      });
     };
-    document.addEventListener('selectionchange', clearNativeSel);
-    return () => document.removeEventListener('selectionchange', clearNativeSel);
-  }, [book.id, chapter, swipeTurn]);
+    document.addEventListener('selectionchange', sync);
+    return () => {
+      root.removeEventListener('contextmenu', blockMenu);
+      document.removeEventListener('selectionchange', sync);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [book.id, chapter, swipeTurn, nativeTouchSelect]);
 
-  // 触控：长按选词 + 拖动扩选（词块 + wordRange，禁用系统划选）
+  // 桌面：长按选词 + 拖动扩选（词块 + wordRange）
   useEffect(() => {
     const el = contentRef.current;
-    if (!el || !isTouchPrimaryUI()) return;
+    if (!el || nativeTouchSelect) return;
 
     const wordFromPoint = (x: number, y: number): WordAnchor | null => {
       const node = document.elementFromPoint(x, y);
@@ -1376,7 +1414,7 @@ export default function ReaderView({
       el.removeEventListener('touchend', onTouchEnd);
       el.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [book.id, chapter, swipeTurn, scheduleWordRangeDuringDrag, commitWordRangeProgress]);
+  }, [book.id, chapter, swipeTurn, scheduleWordRangeDuringDrag, commitWordRangeProgress, nativeTouchSelect]);
 
   const selectWholeVerse = useCallback((verse: number) => {
     window.getSelection()?.removeAllRanges();

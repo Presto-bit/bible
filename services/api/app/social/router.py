@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from psycopg import errors as pg_errors
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth.session import get_current_user
 from ..auth.user_code import pick_user_code, uuid_for_code
@@ -39,6 +39,10 @@ class JoinGroup(BaseModel):
     join_code: str
 
 
+class SendGroupInvites(BaseModel):
+    friend_ids: list[str] = Field(default_factory=list, max_length=20)
+
+
 class CreateTask(BaseModel):
     title: str
     ref: str | None = None
@@ -47,7 +51,7 @@ class CreateTask(BaseModel):
 
 
 class Checkin(BaseModel):
-    body: str | None = None
+    body: str | None = Field(default=None, max_length=120)
     ref: str | None = None
     task_id: str | None = None
 
@@ -299,6 +303,140 @@ def join_group(body: JoinGroup, user_id: str = Depends(get_current_user)) -> dic
         )
         conn.commit()
     return {"id": str(gid), "name": name, "role": "member"}
+
+
+def _user_display_name(conn, uid: str) -> str:
+    row = conn.execute(
+        "SELECT display_name, handle FROM users WHERE id = %s", (uid,),
+    ).fetchone()
+    if not row:
+        return f"用户{uid[:4]}"
+    name = (row[0] or row[1] or "").strip()
+    return name or f"用户{uid[:4]}"
+
+
+@router.post("/groups/{gid}/invites")
+def send_group_invites(
+    gid: str, body: SendGroupInvites, user_id: str = Depends(get_current_user),
+) -> dict:
+    friend_ids = [x.strip() for x in body.friend_ids if x.strip()]
+    if not friend_ids:
+        raise HTTPException(400, "请选择好友")
+    pool = get_pool()
+    sent = 0
+    with pool.connection() as conn:
+        _require_member(conn, gid, user_id)
+        for fid in friend_ids:
+            if fid == user_id:
+                continue
+            is_friend = conn.execute(
+                "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
+                (user_id, fid),
+            ).fetchone()
+            if not is_friend:
+                continue
+            already = conn.execute(
+                "SELECT 1 FROM group_member WHERE group_id = %s AND user_id = %s",
+                (gid, fid),
+            ).fetchone()
+            if already:
+                continue
+            prev = conn.execute(
+                "SELECT status FROM group_invite WHERE group_id = %s AND invitee_id = %s",
+                (gid, fid),
+            ).fetchone()
+            if prev and prev[0] == "accepted":
+                continue
+            conn.execute(
+                "INSERT INTO group_invite (group_id, inviter_id, invitee_id, status) "
+                "VALUES (%s, %s, %s, 'pending') "
+                "ON CONFLICT (group_id, invitee_id) DO UPDATE SET "
+                "inviter_id = EXCLUDED.inviter_id, status = 'pending', "
+                "created_at = now(), responded_at = NULL",
+                (gid, user_id, fid),
+            )
+            sent += 1
+        conn.commit()
+    return {"ok": True, "sent": sent}
+
+
+@router.get("/invites/inbox")
+def group_invite_inbox(user_id: str = Depends(get_current_user)) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        rows = conn.execute(
+            "SELECT i.id, i.group_id, g.name, i.inviter_id, i.created_at "
+            "FROM group_invite i "
+            "JOIN social_group g ON g.id = i.group_id "
+            "WHERE i.invitee_id = %s AND i.status = 'pending' "
+            "ORDER BY i.created_at DESC",
+            (user_id,),
+        ).fetchall()
+        items = []
+        for r in rows:
+            inviter_name = _user_display_name(conn, str(r[3]))
+            group_name = r[2]
+            items.append({
+                "id": str(r[0]),
+                "group_id": str(r[1]),
+                "group_name": group_name,
+                "inviter_name": inviter_name,
+                "message": f"「{inviter_name}」邀请你加入共读群「{group_name}」",
+                "created_at": r[4].isoformat() if r[4] else None,
+            })
+    return {"invites": items}
+
+
+@router.post("/invites/{iid}/accept")
+def accept_group_invite(iid: str, user_id: str = Depends(get_current_user)) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT group_id, invitee_id, status FROM group_invite WHERE id = %s",
+            (iid,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "邀请不存在")
+        gid, invitee, status = str(row[0]), str(row[1]), row[2]
+        if invitee != user_id:
+            raise HTTPException(403, "无权操作此邀请")
+        if status != "pending":
+            raise HTTPException(400, "邀请已处理")
+        conn.execute(
+            "INSERT INTO group_member (group_id, user_id) VALUES (%s, %s) "
+            "ON CONFLICT DO NOTHING",
+            (gid, user_id),
+        )
+        conn.execute(
+            "UPDATE group_invite SET status = 'accepted', responded_at = now() WHERE id = %s",
+            (iid,),
+        )
+        name = conn.execute(
+            "SELECT name FROM social_group WHERE id = %s", (gid,),
+        ).fetchone()[0]
+        conn.commit()
+    return {"ok": True, "group_id": gid, "name": name}
+
+
+@router.post("/invites/{iid}/decline")
+def decline_group_invite(iid: str, user_id: str = Depends(get_current_user)) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT invitee_id, status FROM group_invite WHERE id = %s", (iid,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "邀请不存在")
+        if str(row[0]) != user_id:
+            raise HTTPException(403, "无权操作此邀请")
+        if row[1] != "pending":
+            raise HTTPException(400, "邀请已处理")
+        conn.execute(
+            "UPDATE group_invite SET status = 'declined', responded_at = now() WHERE id = %s",
+            (iid,),
+        )
+        conn.commit()
+    return {"ok": True}
 
 
 @router.get("/groups")
