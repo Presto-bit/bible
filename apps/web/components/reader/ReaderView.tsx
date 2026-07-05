@@ -249,6 +249,14 @@ export default function ReaderView({
   const lastScrollTop = useRef(0);
   const lastSelectAt = useRef(0);
   const syncingSelection = useRef(false);
+  /** 划词过程中记录的部分选区（松手时系统常会扩成整句） */
+  const pendingSpanRef = useRef<{ verse: number; start: number; end: number } | null>(null);
+  const [viewportVerse, setViewportVerse] = useState<number | null>(null);
+  const [aiSheetContext, setAiSheetContext] = useState<null | {
+    refParam: string;
+    refLabel: string;
+    selectionText: string;
+  }>(null);
   const readStartRef = useRef(Date.now());
   const readingEngagedRef = useRef(false);
   const skipResumeOnLoadRef = useRef(false);
@@ -391,15 +399,16 @@ export default function ReaderView({
   const hasSel = sortedSel.length > 0;
   const minV = sortedSel[0];
   const maxV = sortedSel[sortedSel.length - 1];
-  const selectionText = useMemo(
-    () =>
-      verses
-        .filter((v) => selected.includes(v.verse))
-        .sort((a, b) => a.verse - b.verse)
-        .map((v) => v.text)
-        .join(''),
-    [verses, selected],
-  );
+  const selectionText = useMemo(() => {
+    const picked = verses
+      .filter((v) => selected.includes(v.verse))
+      .sort((a, b) => a.verse - b.verse);
+    if (picked.length === 1 && selectionSpan && selectionSpan.end > selectionSpan.start) {
+      const full = picked[0].text;
+      return full.slice(selectionSpan.start, selectionSpan.end);
+    }
+    return picked.map((v) => v.text).join('');
+  }, [verses, selected, selectionSpan]);
   const refParam = hasSel ? `${book.id}.${chapter}.${minV}` : `${book.id}.${chapter}`;
   const refLabel = hasSel
     ? minV === maxV
@@ -416,6 +425,40 @@ export default function ReaderView({
   const effRefParam = refParam;
   const effRefLabel = refLabel;
   const effSelectedRef = selectedRef;
+
+  const resolveAiSheetContext = useCallback(() => {
+    if (hasSel) {
+      return {
+        refParam: effRefParam,
+        refLabel: effRefLabel,
+        selectionText: effSelectionText,
+      };
+    }
+    const v = viewportVerse ?? getLastReadVerse(book.id, chapter) ?? verses[0]?.verse ?? 1;
+    const verse = verses.find((x) => x.verse === v);
+    const text = verse?.text ?? '';
+    return {
+      refParam: `${book.id}.${chapter}.${v}`,
+      refLabel: `${bookAbbr(book.name)} ${chapter}:${v}`,
+      selectionText: text,
+    };
+  }, [
+    hasSel,
+    effRefParam,
+    effRefLabel,
+    effSelectionText,
+    viewportVerse,
+    book.id,
+    book.name,
+    chapter,
+    verses,
+    bookAbbr,
+  ]);
+
+  const openAiSheet = useCallback(() => {
+    setAiSheetContext(resolveAiSheetContext());
+    setAiSheet(true);
+  }, [resolveAiSheetContext]);
 
   const chapterThoughts = useMemo(
     () => (thoughtsOn ? thoughtsForChapter(book.id, chapter) : {}),
@@ -774,6 +817,9 @@ export default function ReaderView({
 
   useEffect(() => {
     setSelected([]);
+    setSelectionSpan(null);
+    pendingSpanRef.current = null;
+    setViewportVerse(null);
     setBookDone(false);
     readStartRef.current = Date.now();
     readingEngagedRef.current = false;
@@ -913,6 +959,7 @@ export default function ReaderView({
       }
       const progressVerse = maxPassed || bestVerse;
       if (progressVerse != null) setLastReadVerse(book.id, chapter, progressVerse);
+      if (bestVerse != null) setViewportVerse(bestVerse);
 
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom && verses.length > 0) {
@@ -1117,12 +1164,46 @@ export default function ReaderView({
     let span: { start: number; end: number } | null = null;
     if (lo === hi) {
       const verseText = verses.find((v) => v.verse === lo)?.text ?? '';
-      const picked = sel.toString().replace(/\s+/g, ' ').trim();
-      const normalized = verseText.replace(/\s+/g, ' ').trim();
-      if (picked && picked.length < normalized.length) {
-        const start = normalized.indexOf(picked);
-        if (start >= 0) span = { start, end: start + picked.length };
+      if (sel.rangeCount > 0) {
+        const verseEl = document.getElementById(`verse-anchor-${lo}`);
+        const range = sel.getRangeAt(0);
+        if (verseEl?.contains(range.commonAncestorContainer)) {
+          try {
+            const pre = document.createRange();
+            pre.selectNodeContents(verseEl);
+            pre.setEnd(range.startContainer, range.startOffset);
+            const start = pre.toString().length;
+            const end = start + range.toString().length;
+            if (end > start && end - start < verseText.length) {
+              span = { start, end };
+            }
+          } catch {
+            /* 部分 WebView 不支持跨节点 Range */
+          }
+        }
       }
+      if (!span) {
+        const normalized = verseText.replace(/\s+/g, ' ').trim();
+        const picked = sel.toString().replace(/\s+/g, ' ').trim();
+        if (picked && picked.length < normalized.length) {
+          const start = normalized.indexOf(picked);
+          if (start >= 0) span = { start, end: start + picked.length };
+        } else {
+          const rawStart = verseText.indexOf(sel.toString());
+          if (rawStart >= 0 && rawStart + sel.toString().length < verseText.length) {
+            span = { start: rawStart, end: rawStart + sel.toString().length };
+          }
+        }
+      }
+      if (!span) {
+        const pending = pendingSpanRef.current;
+        if (pending?.verse === lo && pending.end > pending.start) {
+          span = { start: pending.start, end: pending.end };
+        }
+      }
+      if (span) pendingSpanRef.current = { verse: lo, start: span.start, end: span.end };
+    } else {
+      pendingSpanRef.current = null;
     }
     syncingSelection.current = true;
     setSelected(next);
@@ -1176,6 +1257,7 @@ export default function ReaderView({
     window.getSelection()?.removeAllRanges();
     setSelected([]);
     setSelectionSpan(null);
+    pendingSpanRef.current = null;
     // 划词结束后短时忽略横滑，避免误翻页
     swipeIgnoreUntilRef.current = Date.now() + 320;
   };
@@ -1599,7 +1681,7 @@ export default function ReaderView({
         <button
           type="button"
           className="reader-fab"
-          onClick={(e) => { e.stopPropagation(); setAiSheet(true); }}
+          onClick={(e) => { e.stopPropagation(); openAiSheet(); }}
           aria-label="问小爱"
         >
           ✦ 小爱
@@ -1731,6 +1813,11 @@ export default function ReaderView({
               className="vsb-icon-btn"
               onClick={() => {
                 setMarkPaletteOpen(false);
+                setAiSheetContext({
+                  refParam: effRefParam,
+                  refLabel: effRefLabel,
+                  selectionText: effSelectionText,
+                });
                 setAiSheet(true);
               }}
             >
@@ -1862,14 +1949,17 @@ export default function ReaderView({
         </div>
       )}
 
-      {aiSheet && (
+      {aiSheet && aiSheetContext && (
         <XiaoAiSheet
-          key={`ask-${effRefParam}`}
+          key={`ask-${aiSheetContext.refParam}`}
           mode="ask"
-          refParam={effRefParam}
-          refLabel={effRefLabel}
-          selectionText={effSelectionText}
-          onClose={() => setAiSheet(false)}
+          refParam={aiSheetContext.refParam}
+          refLabel={aiSheetContext.refLabel}
+          selectionText={aiSheetContext.selectionText}
+          onClose={() => {
+            setAiSheet(false);
+            setAiSheetContext(null);
+          }}
         />
       )}
 
