@@ -40,6 +40,9 @@ services:
       - "127.0.0.1:8011:8011"
     volumes:
       - bible_sqlite_data:/app/build
+      # RAG 源 md 与后台上传持久化（重建容器不丢资料）
+      - bible_rag_content:/app/content/commentary
+      - bible_rag_uploads:/app/data/rag/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,3 +84,5 @@ services:
 volumes:
   bible_pg_data:
   bible_sqlite_data:
+  bible_rag_content:
+  bible_rag_uploads:

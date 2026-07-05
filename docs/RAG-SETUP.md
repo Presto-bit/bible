@@ -47,7 +47,7 @@ content/commentary/
 
 ### 发版自动（推荐）
 
-`release.sh` 在 API 就绪后会自动执行 `scripts/ensure_rag.sh`：
+`release.sh` / `deploy/one_click_deploy.sh` 在 API 就绪后会自动执行 `scripts/post_deploy.sh`（内含 `ensure_rag.sh`）：
 
 1. 从 HelloAO 拉取公版英文注释（6 源 × 66 卷，已齐全跳过）
 2. 从 OpenChristianData 拉取 Wesley/Calvin/Barnes/MacLaren 等 + 词典参考
@@ -89,7 +89,7 @@ cd /opt/bible
 docker compose -f docker-compose.prod.yml exec -T api bash /app/scripts/ensure_rag.sh
 ```
 
-> `content/commentary/**` 默认不入 git，线上由 `ensure_rag.sh` 拉取并索引。
+> `content/commentary/**` 默认不入 git，线上由 `ensure_rag.sh` 拉取并索引；Docker 生产环境挂载 `bible_rag_content` 卷持久化 md，重建容器不丢源文件。
 
 ## 4. 数据库表
 

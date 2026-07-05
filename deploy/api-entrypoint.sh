@@ -38,10 +38,20 @@ if [[ -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
 fi
 
 # 大数据集（串珠/Strong's/CUVS）在后台生成，不阻塞 uvicorn 启动与健康检查。
-# 发版时 release.sh 会在 API 就绪后同步再跑一遍 ensure_content_data.sh。
+# 发版时 post_deploy.sh / release.sh 会同步再跑 ensure_content_data.sh。
 if [[ "${ENSURE_CONTENT_DATA_BG:-1}" == "1" && -x /app/scripts/ensure_content_data.sh ]]; then
   echo "[entrypoint] 后台生成内容 SQLite（不阻塞 API 启动）…"
   ( bash /app/scripts/ensure_content_data.sh >>/tmp/ensure_content_data.log 2>&1 || true ) &
 fi
+
+# RAG 资料目录（持久化卷挂载点；首次启动确保子目录存在）
+mkdir -p \
+  /app/content/commentary/public-domain \
+  /app/content/commentary/public-domain-ocd \
+  /app/content/commentary/reference-en \
+  /app/content/commentary/study-bible-zh \
+  /app/content/commentary/fhl-zh \
+  /app/content/commentary/study-bible \
+  /app/data/rag/uploads
 
 exec "$@"

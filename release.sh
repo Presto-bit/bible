@@ -95,15 +95,9 @@ if [[ "$api_ok" -ne 1 ]]; then
   die "API 健康检查失败（若刚发版，查看 entrypoint 是否报错）"
 fi
 
-if [[ -f "$APP_DIR/scripts/ensure_pg_schema.sh" ]]; then
-  log "补跑 PG 迁移（点赞表等）"
-  bash "$APP_DIR/scripts/ensure_pg_schema.sh" || die "PG 迁移失败，点赞/社交功能不可用"
-fi
-
-log "确保内容 SQLite（交叉引用 / Strong's / CUVS，约 1–3 分钟）"
-if ! "${compose[@]}" exec -T api bash /app/scripts/ensure_content_data.sh 2>&1; then
-  log "⚠️  内容 SQLite 生成失败（可能无出网）；串珠/原文/三译本对照或降级"
-  log "   容器内日志: docker compose -f $COMPOSE_FILE exec api tail -50 /tmp/ensure_content_data.log"
+log "Post-deploy：PG 迁移 / 内容 SQLite / RAG"
+if ! bash "$APP_DIR/scripts/post_deploy.sh"; then
+  die "post_deploy 失败（PG 迁移或 API 不可用）"
 fi
 
 log "校验圣经译本"
@@ -135,20 +129,6 @@ if [[ "$social_code" == "401" ]]; then
 fi
 if [[ "$social_code" != "200" && "$social_code" != "000" ]]; then
   log "⚠️  社交 API 返回 HTTP $social_code（期望 200）"
-fi
-
-# 公版注释全卷 + RAG 索引（幂等：已齐全跳过拉取，body hash 未变跳过重嵌入）
-# 无 RAG_EMBEDDING_API_KEY 时用 hash 向量兜底，仍会入库
-log "RAG：公版注释全卷 + 索引（ensure_rag.sh，约数分钟～十余分钟）"
-if [[ -x "$APP_DIR/scripts/ensure_rag.sh" ]] || [[ -f "$APP_DIR/scripts/ensure_rag.sh" ]]; then
-  if "${compose[@]}" exec -T api bash /app/scripts/ensure_rag.sh 2>&1; then
-    rag_chunks="$(curl -fsS http://127.0.0.1:8011/ai/rag/status 2>/dev/null | grep -oE '"chunks":[0-9]+' | cut -d: -f2 || echo 0)"
-    log "RAG 块数: ${rag_chunks:-?}"
-  else
-    log "⚠️  RAG 步骤失败（无 Key / HelloAO 不可达时不影响发版）"
-  fi
-else
-  log "⚠️  缺少 scripts/ensure_rag.sh，跳过 RAG"
 fi
 
 log "健康检查 Web /"

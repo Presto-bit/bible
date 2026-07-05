@@ -149,6 +149,14 @@ sudo -u "$APP_USER" -H bash -c "
 "
 
 echo ""
+echo "Post-deploy：PG 迁移 / 内容 SQLite / RAG 资料…"
+sudo -u "$APP_USER" -H bash -c "
+  set -e
+  cd \"$DEPLOY_ROOT\"
+  bash scripts/post_deploy.sh
+" || echo "（警告）post_deploy 未完全成功，可稍后 cd $DEPLOY_ROOT && bash release.sh"
+
+echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "Bible App 部署完成"
 echo "  目录:   $DEPLOY_ROOT"

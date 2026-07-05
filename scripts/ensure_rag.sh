@@ -13,7 +13,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-PY="${PYTHON:-python}"
+PY="${PYTHON:-python3}"
+if ! command -v "$PY" >/dev/null 2>&1; then
+  PY=python
+fi
 SKIP_IMPORT="${SKIP_COMMENTARY_IMPORT:-0}"
 FORCE="${RAG_FORCE:-0}"
 PD_DIR="$ROOT/content/commentary/public-domain"
@@ -24,6 +27,8 @@ FHL_DIR="$ROOT/content/commentary/fhl-zh"
 STUDY_DIR="$ROOT/content/commentary/study-bible"
 
 log() { echo "[ensure-rag] $*"; }
+
+mkdir -p "$PD_DIR" "$OCD_DIR" "$REF_DIR" "$ZH_DIR" "$FHL_DIR" "$STUDY_DIR"
 
 index_dir() {
   local dir="$1"

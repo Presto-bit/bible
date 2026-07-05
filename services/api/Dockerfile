@@ -11,20 +11,42 @@ COPY services/api/requirements.txt /app/services/api/requirements.txt
 RUN pip install --no-cache-dir -r /app/services/api/requirements.txt
 
 COPY services/api /app/services/api
+
+# 圣经 / 内容 SQLite 生成
 COPY scripts/import_bible.py /app/scripts/import_bible.py
 COPY scripts/import_crossrefs.py /app/scripts/import_crossrefs.py
 COPY scripts/import_strongs.py /app/scripts/import_strongs.py
 COPY scripts/import_strongs_gnosis.py /app/scripts/import_strongs_gnosis.py
 COPY scripts/import_cuv.py /app/scripts/import_cuv.py
-COPY scripts/import_commentary_pd.py /app/scripts/import_commentary_pd.py
 COPY scripts/import_public_data.py /app/scripts/import_public_data.py
 COPY scripts/ensure_content_data.sh /app/scripts/ensure_content_data.sh
-COPY scripts/lib /app/scripts/lib
+
+# RAG 一键发版：拉取注释 + 索引（release.sh / post_deploy.sh 调用）
+COPY scripts/ensure_rag.sh /app/scripts/ensure_rag.sh
 COPY scripts/rag_index.py /app/scripts/rag_index.py
+COPY scripts/import_commentary_pd.py /app/scripts/import_commentary_pd.py
+COPY scripts/import_commentary_ocd.py /app/scripts/import_commentary_ocd.py
+COPY scripts/import_fhl_commentary.py /app/scripts/import_fhl_commentary.py
+COPY scripts/build_rag_zh_content.py /app/scripts/build_rag_zh_content.py
+COPY scripts/lib /app/scripts/lib
+
 COPY content /app/content
 COPY data /app/data
 COPY deploy/api-entrypoint.sh /app/deploy/api-entrypoint.sh
-RUN chmod +x /app/deploy/api-entrypoint.sh /app/scripts/ensure_content_data.sh && mkdir -p /app/build /app/data/.cache
+
+RUN chmod +x /app/deploy/api-entrypoint.sh \
+    /app/scripts/ensure_content_data.sh \
+    /app/scripts/ensure_rag.sh \
+  && mkdir -p \
+    /app/build \
+    /app/data/.cache \
+    /app/data/rag/uploads \
+    /app/content/commentary/public-domain \
+    /app/content/commentary/public-domain-ocd \
+    /app/content/commentary/reference-en \
+    /app/content/commentary/study-bible-zh \
+    /app/content/commentary/fhl-zh \
+    /app/content/commentary/study-bible
 
 ENV PYTHONPATH=/app/services/api
 ENV BIBLE_DB_PATH=/app/build/bible_cnv.sqlite
