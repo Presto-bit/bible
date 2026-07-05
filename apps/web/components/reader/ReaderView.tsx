@@ -1316,6 +1316,37 @@ export default function ReaderView({
     swipeIgnoreUntilRef.current = Date.now() + 320;
   };
 
+  const selectWholeVerse = useCallback((verse: number) => {
+    window.getSelection()?.removeAllRanges();
+    pendingSpanRef.current = null;
+    syncingSelection.current = true;
+    setSelected([verse]);
+    setSelectionSpan(null);
+    setLastReadVerse(book.id, chapter, verse);
+    lastSelectAt.current = Date.now();
+    logVerseRead(`${book.id}.${chapter}.${verse}`);
+    readingEngagedRef.current = true;
+    syncingSelection.current = false;
+    swipeIgnoreUntilRef.current = Date.now() + 320;
+  }, [book.id, chapter]);
+
+  const handleVerseDoubleClick = useCallback(
+    (e: React.MouseEvent, verse: number) => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectWholeVerse(verse);
+    },
+    [selectWholeVerse],
+  );
+
+  const handleVerseClick = useCallback(
+    (e: React.MouseEvent, verse: number, text: string) => {
+      e.stopPropagation();
+      handleVerseThoughtClick(e, verse, text);
+    },
+    [handleVerseThoughtClick],
+  );
+
   useEffect(() => {
     if (!hasSel) {
       setMarkNotePrompt(null);
@@ -1463,7 +1494,8 @@ export default function ReaderView({
                           key={v.verse}
                           id={`verse-anchor-${v.verse}`}
                           className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isSel ? ' verse-sel-active' : ''}`}
-                          onClick={(e) => handleVerseThoughtClick(e, v.verse, text)}
+                          onClick={(e) => handleVerseClick(e, v.verse, text)}
+                          onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                         >
                           {verseNo !== 'hidden' && (
                             <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
@@ -1533,7 +1565,8 @@ export default function ReaderView({
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
                       className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isSel ? ' verse-sel-active' : ''}`}
-                      onClick={(e) => handleVerseThoughtClick(e, v.verse, verseDisplayText(v.verse, v.text))}
+                      onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
+                      onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                     >
                       {verseNo !== 'hidden' && (
                         <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>

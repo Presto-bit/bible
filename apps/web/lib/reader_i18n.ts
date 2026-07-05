@@ -22,7 +22,7 @@ export type ReaderUiCopy = {
 
 const ZH: ReaderUiCopy = {
   chapter: '章',
-  selectHint: '双击或长按经文可选中，可多选',
+  selectHint: '长按拖选；双击选中整节',
   loading: '加载中…',
   settings: '阅读设置',
   pickVersion: '选择版本',
@@ -42,7 +42,7 @@ const ZH: ReaderUiCopy = {
 
 const EN: ReaderUiCopy = {
   chapter: '',
-  selectHint: 'Double-click or long-press to select verses',
+  selectHint: 'Long-press to drag-select; double-click a verse',
   loading: 'Loading…',
   settings: 'Reading settings',
   pickVersion: 'Select version',
