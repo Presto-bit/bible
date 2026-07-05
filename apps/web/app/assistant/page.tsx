@@ -28,7 +28,7 @@ import {
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
 import { refToChineseLabel } from '@/lib/ref_label';
-import { localizeCitations } from '@/lib/citation_display';
+import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -348,7 +348,7 @@ function AssistantPageInner() {
         copy[copy.length - 1] = {
           role: 'assistant',
           text: acc,
-          citations: cites,
+          citations: citationsUsedInText(acc, cites),
           followups: serverFollowups,
           scene,
           sceneLabel,
@@ -662,6 +662,10 @@ function AssistantPageInner() {
                 : [];
               const showActions = m.role === 'assistant' && m.text && !busy;
               const isStreaming = isLastAssistant && busy;
+              const usedCitations =
+                m.role === 'assistant' && m.citations?.length
+                  ? citationsUsedInText(m.text, m.citations)
+                  : [];
               return (
               <div
                 key={i}
@@ -730,10 +734,10 @@ function AssistantPageInner() {
                       <button type="button" className="msg-action" onClick={() => shareText(m.text)}>
                         分享
                       </button>
-                      {m.citations && m.citations.length > 0 && (
+                      {usedCitations.length > 0 && (
                         <CitationBar
                           variant="action"
-                          citations={m.citations}
+                          citations={usedCitations}
                           activeN={citationMsgIdx === i ? citationOpen : undefined}
                           onActiveChange={(n) => {
                             setCitationMsgIdx(i);

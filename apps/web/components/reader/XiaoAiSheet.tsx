@@ -7,7 +7,7 @@ import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
 import { createNote } from '@/lib/notes';
 import { bodyText } from '@/lib/assistant_format';
-import { localizeCitations } from '@/lib/citation_display';
+import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 
@@ -117,6 +117,10 @@ export default function XiaoAiSheet({
   }, [runChat, retryKey]);
 
   const clean = stripAnswer(answer);
+  const usedCitations = useMemo(
+    () => citationsUsedInText(clean, citations),
+    [clean, citations],
+  );
   const hasError = clean.startsWith('⚠️');
   const summaryMatch = clean.match(/【摘要】\s*([^\n【]+)/);
   const summary = summaryMatch?.[1]?.trim() ?? '';
@@ -144,7 +148,7 @@ export default function XiaoAiSheet({
           {
             role: 'assistant',
             text: clean,
-            citations: citations.length ? citations : undefined,
+            citations: usedCitations.length ? usedCitations : undefined,
             scene,
             sceneLabel: mode === 'ask' ? '经文解读' : '经文解释',
           },
@@ -250,11 +254,11 @@ export default function XiaoAiSheet({
               <button type="button" className="half-sheet-action-btn" onClick={saveNote}>
                 {saved ? '已存笔记' : '存笔记'}
               </button>
-              {citations.length > 0 && (
+              {usedCitations.length > 0 && (
                 <CitationBar
                   variant="action"
                   className="half-sheet-action-btn"
-                  citations={citations}
+                  citations={usedCitations}
                   activeN={citationOpen}
                   onActiveChange={setCitationOpen}
                   bookName={refLabel.split(' ')[0]}
