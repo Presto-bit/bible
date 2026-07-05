@@ -5,9 +5,8 @@ import { api, type Group } from '@/lib/api';
 import {
   GROUP_CHECKIN_CHIPS,
   GROUP_CHECKIN_DEFAULT_BODY,
-  chapterRef,
+  buildCheckinRef,
 } from '@/lib/group_checkin';
-import { getLastReadVerse } from '@/lib/reading';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 
 type Props = {
@@ -39,10 +38,7 @@ export default function GroupCheckinSheet({
   const [loading, setLoading] = useState(true);
   const [submitted, setSubmitted] = useState(false);
 
-  const checkinRef = () => {
-    const verse = getLastReadVerse(bookId, chapter);
-    return chapterRef(bookId, chapter, verse ?? undefined);
-  };
+  const checkinRef = () => buildCheckinRef(bookId, chapter);
 
   const checkinLabel = () => {
     const ref = checkinRef();

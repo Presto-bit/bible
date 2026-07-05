@@ -68,6 +68,7 @@ import {
   logChapterDetail,
   scheduleChapterProgress,
   logVerseRead,
+  noteChapterVerseTouch,
   maybeNotifyBookComplete,
   readerDwellPause,
   readerDwellResume,
@@ -79,7 +80,7 @@ import {
 } from '@/lib/reading';
 import { outlineForAsync, type SectionMark } from '@/lib/section_titles';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
-import { chapterRef } from '@/lib/group_checkin';
+import { buildCheckinRef } from '@/lib/group_checkin';
 import { saveGroupCheckinDraft } from '@/lib/group_checkin_draft';
 import {
   clearReaderReturnHref,
@@ -338,7 +339,7 @@ export default function ReaderView({
     const gid = groupCtx.groupId || checkinGroupId;
     if (!gid) return;
     const save = () => {
-      saveGroupCheckinDraft(gid, chapterRef(book.id, chapter));
+      saveGroupCheckinDraft(gid, buildCheckinRef(book.id, chapter));
     };
     const onVis = () => {
       if (document.visibilityState === 'hidden') save();
@@ -1020,7 +1021,7 @@ export default function ReaderView({
         }
       }
       const progressVerse = maxPassed || bestVerse;
-      if (progressVerse != null) setLastReadVerse(book.id, chapter, progressVerse);
+      if (progressVerse != null) noteChapterVerseTouch(book.id, chapter, progressVerse);
       if (bestVerse != null) setViewportCenterVerse(bestVerse);
 
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
@@ -1209,6 +1210,7 @@ export default function ReaderView({
     window.getSelection()?.removeAllRanges();
     setWholeVerseSel([]);
     setWordRange(range);
+    for (const v of picked) noteChapterVerseTouch(book.id, chapter, v);
     const hi = Math.max(...picked);
     setLastReadVerse(book.id, chapter, hi);
     lastSelectAt.current = Date.now();
@@ -1219,6 +1221,20 @@ export default function ReaderView({
 
   applyWordRangeRef.current = applyWordRange;
   wordRangeRef.current = wordRange;
+
+  // 触控/PWA：拦截系统划选，避免与 wordRange 词块高亮叠出灰/蓝双色
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!root || !isTouchPrimaryUI()) return;
+    const clearNativeSel = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      const node = sel.anchorNode;
+      if (node && root.contains(node)) sel.removeAllRanges();
+    };
+    document.addEventListener('selectionchange', clearNativeSel);
+    return () => document.removeEventListener('selectionchange', clearNativeSel);
+  }, [book.id, chapter, swipeTurn]);
 
   // 触控：长按选词 + 拖动扩选（词块 + wordRange，禁用系统划选）
   useEffect(() => {
@@ -1252,6 +1268,7 @@ export default function ReaderView({
       const t = e.touches[0];
       const w = wordFromPoint(t.clientX, t.clientY);
       if (!w) return;
+      window.getSelection()?.removeAllRanges();
       anchor = { ...w, x: t.clientX, y: t.clientY };
       dragging = false;
       clearLongPress();
@@ -1313,6 +1330,7 @@ export default function ReaderView({
     window.getSelection()?.removeAllRanges();
     setWordRange(null);
     setWholeVerseSel([verse]);
+    noteChapterVerseTouch(book.id, chapter, verse);
     setLastReadVerse(book.id, chapter, verse);
     lastSelectAt.current = Date.now();
     logVerseRead(`${book.id}.${chapter}.${verse}`);
@@ -1478,12 +1496,12 @@ export default function ReaderView({
                         ? markForVerse(highlightMap, book.id, chapter, v.verse)
                         : null;
                       const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                      const isSel = sortedSel.includes(v.verse);
+                      const isWholeVerseSel = wholeVerseSel.includes(v.verse);
                       return (
                         <span
                           key={v.verse}
                           id={`verse-anchor-${v.verse}`}
-                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isSel ? ' verse-sel-active' : ''}`}
+                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isWholeVerseSel ? ' verse-sel-active' : ''}`}
                           onClick={(e) => handleVerseClick(e, v.verse, text)}
                           onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                         >
@@ -1549,12 +1567,12 @@ export default function ReaderView({
                     ? markForVerse(highlightMap, book.id, chapter, v.verse)
                     : null;
                   const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                  const isSel = sortedSel.includes(v.verse);
+                  const isWholeVerseSel = wholeVerseSel.includes(v.verse);
                   return (
                     <span
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isSel ? ' verse-sel-active' : ''}`}
+                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isWholeVerseSel ? ' verse-sel-active' : ''}`}
                       onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                       onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                     >

@@ -44,6 +44,15 @@ export function refToChineseLabel(ref: string | undefined | null): string | null
     return `${n1} ${range[2]}章 – ${n2} ${range[4]}章`;
   }
 
+  const verseRange = trimmed.match(/^([A-Za-z0-9]+)\.(\d+)\.(\d+)-(\d+)$/);
+  if (verseRange) {
+    return formatChapterVerse(
+      bookCn(verseRange[1]),
+      verseRange[2],
+      `${verseRange[3]}-${verseRange[4]}`,
+    );
+  }
+
   const osis = normalizeInlineRef(trimmed);
   if (osis) {
     const parsed = osis.match(/^([A-Za-z0-9]+)\.(\d+)(?:\.(\d+))?$/);

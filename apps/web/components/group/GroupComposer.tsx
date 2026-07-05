@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { GroupTask } from '@/lib/api';
-import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
+import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_DEFAULT_BODY, buildCheckinRef } from '@/lib/group_checkin';
 import { GROUP_TASK_TEMPLATES } from '@/lib/group_task_templates';
 import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
 import { asGroupTasks, groupFootprintsBySource } from '@/lib/group_ui';
@@ -10,6 +10,7 @@ import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
 import { readGroupCheckinDraft } from '@/lib/group_checkin_draft';
 import { formatGroupRefLabel } from '@/lib/ref_label';
+import { getLastRead } from '@/lib/reading';
 
 type Mode = 'checkin' | 'task';
 
@@ -65,6 +66,10 @@ export function GroupComposer({
     if (gid) {
       const draft = readGroupCheckinDraft(gid);
       if (draft?.ref && !refParam && !taskRef) setSelectedRef(draft.ref);
+      else if (!refParam && !taskRef) {
+        const last = getLastRead();
+        if (last) setSelectedRef(buildCheckinRef(last.bookId, last.chapter));
+      }
       if (draft?.body) setBody(draft.body);
     }
     loadFootprintRefs({

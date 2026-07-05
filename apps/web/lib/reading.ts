@@ -74,6 +74,69 @@ export interface LastRead {
 }
 
 const LAST_VERSE_KEY = 'presto_last_verse';
+const CHAPTER_VERSE_RANGE_KEY = 'presto_chapter_verse_range';
+
+interface ChapterVerseRange {
+  date: string;
+  min: number;
+  max: number;
+}
+
+function chapterVerseRangeStorageKey(bookId: string, chapter: number): string {
+  return `${CHAPTER_VERSE_RANGE_KEY}:${bookId.toUpperCase()}:${chapter}`;
+}
+
+function readChapterVerseRange(bookId: string, chapter: number): ChapterVerseRange | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(chapterVerseRangeStorageKey(bookId, chapter));
+    if (!raw) return null;
+    const v = JSON.parse(raw) as ChapterVerseRange;
+    if (!v || typeof v.min !== 'number' || typeof v.max !== 'number') return null;
+    return v;
+  } catch {
+    return null;
+  }
+}
+
+/** 记录本章今日读到的经节范围（滚动/划词/整节选择均会扩展 min–max）。 */
+export function noteChapterVerseTouch(bookId: string, chapter: number, verse: number) {
+  if (typeof window === 'undefined' || !bookId || chapter < 1 || verse < 1) return;
+  const today = ymd(new Date());
+  const prev = readChapterVerseRange(bookId, chapter);
+  const next: ChapterVerseRange =
+    !prev || prev.date !== today
+      ? { date: today, min: verse, max: verse }
+      : { date: today, min: Math.min(prev.min, verse), max: Math.max(prev.max, verse) };
+  localStorage.setItem(chapterVerseRangeStorageKey(bookId, chapter), JSON.stringify(next));
+  setLastReadVerse(bookId, chapter, next.max);
+}
+
+/** 今日在本章读到的经节范围；无记录则 null。 */
+export function getChapterVerseRange(
+  bookId: string,
+  chapter: number,
+): { min: number; max: number } | null {
+  const cur = readChapterVerseRange(bookId, chapter);
+  if (!cur || cur.date !== ymd(new Date())) return null;
+  return { min: cur.min, max: cur.max };
+}
+
+/** 今日读过的章（去重、升序）。 */
+export function todayChaptersInBook(bookId: string): number[] {
+  const today = ymd(new Date());
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const e of readEvents()) {
+    if (e.book.toUpperCase() !== bookId.toUpperCase()) continue;
+    if (ymd(new Date(e.ts)) !== today) continue;
+    if (seen.has(e.chapter)) continue;
+    seen.add(e.chapter);
+    out.push(e.chapter);
+  }
+  out.sort((a, b) => a - b);
+  return out;
+}
 
 function lastVerseStorageKey(bookId: string, chapter: number): string {
   return `${LAST_VERSE_KEY}:${bookId.toUpperCase()}:${chapter}`;

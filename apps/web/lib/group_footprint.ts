@@ -2,7 +2,8 @@
 
 import { loadFavoriteRefs } from './favorites';
 import { formatGroupRefLabel } from './ref_label';
-import { chapterRef } from './group_checkin';
+import { chapterRef, chapterSpanRef, verseRangeRef } from './group_checkin';
+import { getChapterVerseRange, todayChaptersInBook } from './reading';
 import { getActivePlan, getPlanDay } from './plan_progress';
 import { getLastRead } from './reading';
 
@@ -58,14 +59,36 @@ export function syncFootprintRefs(): FootprintRef[] {
     out.push({ ref, label, source });
   };
 
+  const booksToday = new Set<string>();
+  for (const { book } of todayChapterRefs()) booksToday.add(book.toUpperCase());
+  for (const book of booksToday) {
+    const chapters = todayChaptersInBook(book);
+    if (chapters.length > 1) {
+      const lo = chapters[0];
+      const hi = chapters[chapters.length - 1];
+      const consecutive =
+        chapters.length === hi - lo + 1 && chapters.every((c, i) => c === lo + i);
+      if (consecutive) {
+        const ref = chapterSpanRef(book, lo, hi);
+        push(ref, `今天读过 · ${formatGroupRefLabel(ref)}`, 'recent');
+      }
+    }
+  }
+
   for (const { book, chapter } of todayChapterRefs()) {
-    const ref = chapterRefFromBook(book, chapter);
+    const range = getChapterVerseRange(book, chapter);
+    const ref = range
+      ? verseRangeRef(book, chapter, range.min, range.max)
+      : chapterRefFromBook(book, chapter);
     push(ref, `今天读过 · ${formatGroupRefLabel(ref)}`, 'recent');
   }
 
   const last = getLastRead();
   if (last) {
-    const ref = chapterRefFromBook(last.bookId, last.chapter);
+    const range = getChapterVerseRange(last.bookId, last.chapter);
+    const ref = range
+      ? verseRangeRef(last.bookId, last.chapter, range.min, range.max)
+      : chapterRefFromBook(last.bookId, last.chapter);
     push(ref, `续读位置 · ${formatGroupRefLabel(ref)}`, 'last');
   }
 
@@ -121,11 +144,31 @@ export async function loadFootprintRefs(opts?: {
   return out.slice(0, 14);
 }
 
-/** 从 ref 解析读经页链接（章级）；可附带群任务上下文。 */
+/** 从 ref 解析读经页链接（章/节/范围）；可附带群任务上下文。 */
 export function readerHrefFromRef(
   ref: string,
   opts?: { group?: string; task?: string },
 ): string | null {
+  const span = ref.match(/^([A-Za-z0-9]+)\.(\d+)-([A-Za-z0-9]+)\.(\d+)$/);
+  if (span && span[1].toUpperCase() === span[3].toUpperCase()) {
+    const params = new URLSearchParams({ book: span[1], chapter: span[2] });
+    if (opts?.group) params.set('group', opts.group);
+    if (opts?.task) params.set('task', opts.task);
+    return `/reader?${params.toString()}`;
+  }
+
+  const verseRange = ref.match(/^([A-Za-z0-9]+)\.(\d+)\.(\d+)-(\d+)$/);
+  if (verseRange) {
+    const params = new URLSearchParams({
+      book: verseRange[1],
+      chapter: verseRange[2],
+      verse: verseRange[3],
+    });
+    if (opts?.group) params.set('group', opts.group);
+    if (opts?.task) params.set('task', opts.task);
+    return `/reader?${params.toString()}`;
+  }
+
   const m = ref.match(/^([A-Za-z0-9]+)\.(\d+)(?:\.(\d+))?$/);
   if (!m) return null;
   const params = new URLSearchParams({ book: m[1], chapter: m[2] });

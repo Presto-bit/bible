@@ -1,4 +1,4 @@
-"""每日内容时钟：全站按北京时间自然日切换，保证用户看到同一篇经文。"""
+"""每日内容时钟：全站按北京时间自然日 0:00 切换，保证用户看到同一篇经文。"""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone

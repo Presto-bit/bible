@@ -30,6 +30,7 @@ import { listNotes } from '@/lib/notes';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { bookIdToChineseName } from '@/lib/ref_label';
+import { watchChinaDayChange } from '@/lib/daily_clock';
 
 /** 与 Mobile 首页一致的时段问候 */
 function timeOfDayGreeting(date = new Date()): string {
@@ -76,15 +77,27 @@ export default function HomePageClient() {
       .finally(() => setDvLoading(false));
   }, []);
 
-  useEffect(() => {
-    loadDailyVerse();
+  const loadDailyDevotional = useCallback(() => {
     setDevotionalLoading(true);
     void api
       .dailyDevotional()
       .then(setDevotional)
       .catch(() => setDevotional(null))
       .finally(() => setDevotionalLoading(false));
-  }, [loadDailyVerse]);
+  }, []);
+
+  const reloadDailyContent = useCallback(() => {
+    loadDailyVerse();
+    loadDailyDevotional();
+  }, [loadDailyVerse, loadDailyDevotional]);
+
+  useEffect(() => {
+    reloadDailyContent();
+  }, [reloadDailyContent]);
+
+  useEffect(() => {
+    return watchChinaDayChange(reloadDailyContent);
+  }, [reloadDailyContent]);
 
   useEffect(() => {
     // 每日经文直接铺风景图（按 day 轮换）
@@ -93,7 +106,7 @@ export default function HomePageClient() {
 
   useEffect(() => {
     const refresh = () => {
-      if (document.visibilityState === 'visible') loadDailyVerse();
+      if (document.visibilityState === 'visible') reloadDailyContent();
     };
     document.addEventListener('visibilitychange', refresh);
     window.addEventListener('focus', refresh);
@@ -101,7 +114,7 @@ export default function HomePageClient() {
       document.removeEventListener('visibilitychange', refresh);
       window.removeEventListener('focus', refresh);
     };
-  }, [loadDailyVerse]);
+  }, [reloadDailyContent]);
 
   const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
   const plusBtnRef = useRef<HTMLButtonElement>(null);

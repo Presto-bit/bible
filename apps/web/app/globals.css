@@ -33,8 +33,8 @@
   --app-heading-size: var(--font-xl);
   --app-line-height: 1.55;
   --reader-font-size: 18px;
-  /* 小爱 Tab / 圣经 Tab 内小爱：输入与输出统一 15px */
-  --assistant-answer-font-size: 15px;
+  /* 小爱 Tab / 圣经 Tab 内小爱：输入与输出统一 16px（比正文大一号） */
+  --assistant-answer-font-size: 16px;
 }
 
 * {
@@ -2007,11 +2007,13 @@ a.today-card-link {
   touch-action: pan-y;
 }
 
-/* 与系统划词蓝一致，避免按下蓝、松开灰的色差 */
+/* 与词选高亮同色；触控/PWA 下隐藏系统 ::selection，避免灰/蓝双色 */
 .reader-page .verse-token::selection,
 .reader-page .verse-inline::selection,
 .reader-page .verse-token *::selection,
-.reader-page .verse-inline *::selection {
+.reader-page .verse-inline *::selection,
+.reader-page .verse-word::selection,
+.reader-page .verse-word *::selection {
   background: var(--reader-sel-bg, rgba(51, 144, 255, 0.28));
   color: inherit;
 }
@@ -3938,7 +3940,7 @@ a.today-card-link {
 
 .reader-ai-backdrop {
   z-index: 120;
-  --assistant-answer-font-size: 15px;
+  --assistant-answer-font-size: 16px;
 }
 
 .reader-ai-backdrop .half-sheet-verse,
@@ -5032,23 +5034,36 @@ a.today-card-link {
   -webkit-touch-callout: none;
 }
 
-/* 触控端禁用系统划选，改走 .verse-word 词块 + wordRange */
-@media (hover: none) and (pointer: coarse) {
+/* 触控/PWA：禁用系统划选，仅走 .verse-word 词块 + wordRange */
+@media (hover: none) and (pointer: coarse), (display-mode: standalone) {
   .reader-page .verse-token,
   .reader-page .verse-text-body,
-  .reader-page .verse-word {
+  .reader-page .verse-text-body *,
+  .reader-page .verse-word,
+  .reader-page .verse-word *,
+  .reader-page .proper-noun {
     -webkit-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
   }
 
-  .reader-page .reader-content {
+  .reader-page .verse-token::selection,
+  .reader-page .verse-inline::selection,
+  .reader-page .verse-word::selection,
+  .reader-page .verse-text-body *::selection {
+    background: transparent !important;
+    color: inherit;
+  }
+
+  .reader-page .reader-content,
+  .reader-page .reader-scroll-panel,
+  .reader-page .reader-turn-panel {
     touch-action: pan-y;
   }
 }
 
 .verse-word.is-active {
-  background: var(--accent-wash);
+  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.28));
   border-radius: 3px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
@@ -5284,6 +5299,54 @@ a.today-card-link {
   max-height: 85vh;
   overflow-y: auto;
   margin-top: auto;
+}
+
+.plan-gen-section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.plan-gen-section:first-of-type {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.plan-gen-section .plan-section-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+.plan-gen-section-hint {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.plan-gen-verse-input {
+  margin-top: 10px;
+  resize: vertical;
+  min-height: 56px;
+}
+
+.plan-gen-section-foot {
+  font-size: 12px;
+  margin: 8px 0 0;
+}
+
+.plan-gen-section-preview .plan-gen-preview {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.plan-gen-save-hint {
+  font-size: 11px;
+  margin: 8px 0 0;
+  text-align: center;
 }
 
 .plan-chapter-picker {
