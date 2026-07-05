@@ -14,9 +14,10 @@ from ..ai.router import rag_status
 from ..auth.session import get_current_user
 from ..config import get_settings
 from ..db import get_pool
-from ..rag.index import index_text
+from ..rag.index import index_file
 from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
 from .rag_inventory import build_rag_inventory
+from .rag_ops import index_pending_uploads, index_upload_path, list_pending_uploads, upload_dir
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -27,6 +28,17 @@ _ALLOWED_SUFFIX = {".md", ".txt", ".markdown"}
 class AdminLoginBody(BaseModel):
     phone: str
     password: str
+
+
+class IndexUploadBody(BaseModel):
+    title: str | None = None
+    source_type: str = "commentary"
+    force: bool = True
+
+
+class IndexPendingBody(BaseModel):
+    source_type: str = "commentary"
+    force: bool = True
 
 
 @router.post("/auth/login")
@@ -146,6 +158,18 @@ def admin_stats(_phone: str = Depends(require_admin)) -> dict:
         raise HTTPException(status_code=503, detail=f"统计数据不可用：{exc}") from exc
 
 
+def _format_index_message(result: dict) -> str:
+    if result.get("skipped"):
+        reason = result.get("reason") or "unchanged"
+        return f"内容未变化，已跳过（{reason}）"
+    chunks = int(result.get("chunks") or 0)
+    reused = int(result.get("reused") or 0)
+    backend = result.get("backend") or "embedding"
+    if reused > 0:
+        return f"已向量化 {chunks} 块（复用 {reused} 块，{backend}）"
+    return f"已向量化 {chunks} 块（{backend}）"
+
+
 def _list_documents() -> list[dict]:
     pool = get_pool()
     with pool.connection() as conn:
@@ -197,6 +221,64 @@ def admin_list_documents(_phone: str = Depends(require_admin)) -> dict:
     return {"documents": _list_documents()}
 
 
+@router.get("/rag/uploads/pending")
+def admin_list_pending_uploads(_phone: str = Depends(require_admin)) -> dict:
+    try:
+        pending = list_pending_uploads()
+    except Exception as exc:
+        logger.exception("admin list pending uploads failed")
+        raise HTTPException(status_code=503, detail=f"待索引列表不可用：{exc}") from exc
+    return {"pending": pending, "count": len(pending)}
+
+
+@router.post("/rag/uploads/index-pending")
+def admin_index_pending_uploads(
+    body: IndexPendingBody | None = None,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    opts = body or IndexPendingBody()
+    try:
+        result = index_pending_uploads(
+            source_type=(opts.source_type or "commentary").strip(),
+            force=opts.force,
+        )
+    except Exception as exc:
+        logger.exception("admin index pending uploads failed")
+        raise HTTPException(status_code=500, detail=f"批量向量化失败：{exc}") from exc
+    return {"ok": True, **result}
+
+
+@router.post("/rag/uploads/{filename}/index")
+def admin_index_upload_file(
+    filename: str,
+    body: IndexUploadBody | None = None,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    safe = Path(filename).name
+    if safe != filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="非法文件名")
+    opts = body or IndexUploadBody()
+    dest = upload_dir() / safe
+    if not dest.is_file():
+        raise HTTPException(status_code=404, detail="上传文件不存在")
+    try:
+        index_result = index_upload_path(
+            dest,
+            title=(opts.title or "").strip() or None,
+            source_type=(opts.source_type or "commentary").strip(),
+            force=opts.force,
+        )
+    except Exception as exc:
+        logger.exception("admin index upload file failed")
+        raise HTTPException(status_code=500, detail=f"向量化失败：{exc}") from exc
+    docs = _list_documents()
+    matched = next(
+        (d for d in docs if d.get("source_path") and Path(d["source_path"]).name == safe),
+        None,
+    )
+    return {"ok": True, "index": index_result, "document": matched}
+
+
 @router.post("/rag/documents")
 async def admin_upload_document(
     file: UploadFile = File(...),
@@ -222,28 +304,44 @@ async def admin_upload_document(
         raise HTTPException(status_code=400, detail="文件内容为空")
 
     settings = get_settings()
-    upload_dir = Path(settings.rag_upload_dir)
-    upload_dir.mkdir(parents=True, exist_ok=True)
+    upload_dir_path = Path(settings.rag_upload_dir)
+    upload_dir_path.mkdir(parents=True, exist_ok=True)
     safe_name = f"{uuid.uuid4().hex[:12]}_{Path(filename).name}"
-    dest = upload_dir / safe_name
+    dest = (upload_dir_path / safe_name).resolve()
     dest.write_text(body, encoding="utf-8")
 
+    st = (source_type or "commentary").strip()
+    bid = (book_id or "").strip().upper() or None
     try:
-        result = index_text(
+        result = index_file(
+            dest,
+            source_type=st,
             title=doc_title,
-            source_path=str(dest),
-            source_type=(source_type or "commentary").strip(),
-            body=body,
+            book_id=bid,
             force=True,
-            book_id=(book_id or "").strip().upper() or None,
         )
     except Exception as exc:
         logger.exception("admin rag upload index failed")
-        raise HTTPException(status_code=500, detail=f"索引失败：{exc}") from exc
+        dest.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"向量化失败：{exc}") from exc
 
     docs = _list_documents()
-    matched = next((d for d in docs if d["source_path"] == str(dest)), None)
-    return {"ok": True, "index": result, "document": matched}
+    matched = next(
+        (d for d in docs if d.get("source_path") == str(dest)),
+        None,
+    )
+    if matched is None:
+        matched = next(
+            (d for d in docs if d.get("source_path") and Path(d["source_path"]).name == safe_name),
+            None,
+        )
+    return {
+        "ok": True,
+        "filename": safe_name,
+        "index": result,
+        "document": matched,
+        "message": _format_index_message(result),
+    }
 
 
 @router.delete("/rag/documents/{document_id}")
@@ -282,12 +380,14 @@ def admin_reindex_document(document_id: str, _phone: str = Depends(require_admin
     title, source_type, source_path = row
     if not source_path or not Path(source_path).is_file():
         raise HTTPException(status_code=400, detail="源文件不存在，请重新上传")
-    body = Path(source_path).read_text(encoding="utf-8")
-    result = index_text(
-        title=title,
-        source_path=source_path,
-        source_type=source_type,
-        body=body,
-        force=True,
-    )
-    return {"ok": True, "index": result}
+    try:
+        result = index_file(
+            Path(source_path),
+            source_type=source_type,
+            title=title,
+            force=True,
+        )
+    except Exception as exc:
+        logger.exception("admin reindex failed")
+        raise HTTPException(status_code=500, detail=f"重建索引失败：{exc}") from exc
+    return {"ok": True, "index": result, "message": _format_index_message(result)}

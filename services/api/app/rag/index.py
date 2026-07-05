@@ -134,7 +134,7 @@ def index_text(
             )
         conn.execute(
             "UPDATE bible_documents SET status='ready', rag_body_hash=%s, rag_embedding_sig=%s, "
-            "rag_index_at=now(), updated_at=now() WHERE id=%s",
+            "rag_index_at=now(), rag_index_error=NULL, updated_at=now() WHERE id=%s",
             (body_hash, emb_sig, doc_id),
         )
         conn.commit()

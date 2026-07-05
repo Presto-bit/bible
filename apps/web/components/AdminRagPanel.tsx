@@ -7,6 +7,9 @@ import {
   deleteRagDocument,
   fetchRagInventory,
   fetchRagStatus,
+  indexPendingUploads,
+  indexUploadFile,
+  RAG_SOURCE_TYPES,
   reindexRagDocument,
   uploadRagDocument,
   type RagInventory,
@@ -65,12 +68,16 @@ function CollectionBlock({
   busy,
   onDelete,
   onReindex,
+  onIndexFile,
+  onIndexPending,
 }: {
   collection: RagInventoryCollection;
   filter: StatusFilter;
   busy: boolean;
   onDelete: (id: string, title: string) => void;
   onReindex: (id: string) => void;
+  onIndexFile?: (doc: RagInventoryDoc, sourceType: string) => void;
+  onIndexPending?: (sourceType: string, pendingCount: number) => void;
 }) {
   const [open, setOpen] = useState(collection.counts.pending > 0 || collection.counts.failed > 0);
 
@@ -123,6 +130,21 @@ function CollectionBlock({
 
       {open ? (
         <div className="admin-rag-doc-list">
+          {collection.id === 'uploads' && (c.pending > 0 || c.failed > 0) && onIndexPending ? (
+            <div className="admin-rag-batch-bar">
+              <p className="muted" style={{ margin: 0, fontSize: 12 }}>
+                {c.pending + c.failed} 个文件待向量化
+              </p>
+              <button
+                type="button"
+                className="font-pill"
+                disabled={busy}
+                onClick={() => onIndexPending(collection.source_type, c.pending + c.failed)}
+              >
+                一键向量化
+              </button>
+            </div>
+          ) : null}
           {docs.length === 0 ? (
             <p className="muted" style={{ fontSize: 12, padding: '0 12px 12px' }}>当前筛选下无文档</p>
           ) : (
@@ -132,8 +154,10 @@ function CollectionBlock({
                 doc={d}
                 sourceType={collection.source_type}
                 busy={busy}
+                canIndexFile={collection.id === 'uploads'}
                 onDelete={onDelete}
                 onReindex={onReindex}
+                onIndexFile={onIndexFile}
               />
             ))
           )}
@@ -147,15 +171,20 @@ function DocRow({
   doc,
   sourceType,
   busy,
+  canIndexFile,
   onDelete,
   onReindex,
+  onIndexFile,
 }: {
   doc: RagInventoryDoc;
   sourceType: string;
   busy: boolean;
+  canIndexFile?: boolean;
   onDelete: (id: string, title: string) => void;
   onReindex: (id: string) => void;
+  onIndexFile?: (doc: RagInventoryDoc, sourceType: string) => void;
 }) {
+  const needsIndex = doc.inventory_status === 'pending' || doc.inventory_status === 'failed';
   return (
     <div className="card card-2 admin-rag-doc-item">
       <div className="admin-rag-doc-item-head">
@@ -183,7 +212,7 @@ function DocRow({
             disabled={busy}
             onClick={() => onReindex(doc.document_id!)}
           >
-            重建索引
+            重新向量化
           </button>
           <button
             type="button"
@@ -194,11 +223,22 @@ function DocRow({
             删除
           </button>
         </div>
-      ) : (
+      ) : canIndexFile && needsIndex && onIndexFile ? (
+        <div className="share-actions" style={{ marginTop: 8 }}>
+          <button
+            type="button"
+            className="font-pill"
+            disabled={busy}
+            onClick={() => onIndexFile(doc, sourceType)}
+          >
+            向量化
+          </button>
+        </div>
+      ) : needsIndex ? (
         <p className="muted" style={{ margin: '8px 0 0', fontSize: 11 }}>
-          文件在磁盘上，尚未写入向量库。请执行 ensure_rag.sh 或重建索引。
+          文件在磁盘上，尚未写入向量库。
         </p>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -219,7 +259,9 @@ export default function AdminRagPanel({
 
   const [title, setTitle] = useState('');
   const [bookId, setBookId] = useState('');
-  const [file, setFile] = useState<File | null>(null);
+  const [sourceType, setSourceType] = useState('commentary');
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploadOk, setUploadOk] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -240,20 +282,65 @@ export default function AdminRagPanel({
   }, [refresh]);
 
   const handleUpload = async () => {
-    if (!file || !title.trim()) {
-      setErr('请填写标题并选择 .md / .txt 文件');
+    if (files.length === 0) {
+      setErr('请选择 .md / .txt 文件');
+      return;
+    }
+    if (files.length === 1 && !title.trim()) {
+      setErr('单文件上传请填写标题');
       return;
     }
     setBusy(true);
     setErr(null);
+    setUploadOk(null);
+    const messages: string[] = [];
     try {
-      await uploadRagDocument(file, title.trim(), 'commentary', bookId.trim() || undefined);
+      for (let i = 0; i < files.length; i += 1) {
+        const f = files[i]!;
+        const docTitle = files.length === 1
+          ? title.trim()
+          : title.trim() || f.name.replace(/\.(md|txt|markdown)$/i, '');
+        const res = await uploadRagDocument(f, docTitle, sourceType, bookId.trim() || undefined);
+        messages.push(res.message ?? `「${docTitle}」上传完成`);
+      }
+      setUploadOk(messages.join('；'));
       setTitle('');
       setBookId('');
-      setFile(null);
+      setFiles([]);
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : '上传失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleIndexFile = async (doc: RagInventoryDoc, st: string) => {
+    setBusy(true);
+    setErr(null);
+    setUploadOk(null);
+    try {
+      const res = await indexUploadFile(doc.filename, { title: doc.title, sourceType: st });
+      setUploadOk(res.message ?? `「${doc.title}」向量化完成`);
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '向量化失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleIndexPending = async (st: string, count: number) => {
+    if (!window.confirm(`确定向量化 ${count} 个待处理上传文件？`)) return;
+    setBusy(true);
+    setErr(null);
+    setUploadOk(null);
+    try {
+      const res = await indexPendingUploads(st);
+      setUploadOk(`已向量化 ${res.indexed} 个，跳过 ${res.skipped} 个，失败 ${res.failed} 个`);
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '批量向量化失败');
     } finally {
       setBusy(false);
     }
@@ -276,8 +363,10 @@ export default function AdminRagPanel({
   const handleReindex = async (id: string) => {
     setBusy(true);
     setErr(null);
+    setUploadOk(null);
     try {
-      await reindexRagDocument(id);
+      const msg = await reindexRagDocument(id);
+      setUploadOk(msg);
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : '重建失败');
@@ -337,10 +426,22 @@ export default function AdminRagPanel({
 
       <div className="admin-rag-upload card card-2" style={{ marginTop: 10, padding: 12 }}>
         <p className="settings-title" style={{ marginTop: 0 }}>上传资料</p>
+        <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
+          上传后自动切块并向量化入库，立即可用于小爱检索。
+        </p>
+        <select
+          className="book-chip admin-rag-select"
+          value={sourceType}
+          onChange={(e) => setSourceType(e.target.value)}
+        >
+          {RAG_SOURCE_TYPES.map((t) => (
+            <option key={t.id} value={t.id}>{t.label}</option>
+          ))}
+        </select>
         <input
           className="book-chip"
           style={{ width: '100%', marginBottom: 8, textAlign: 'left' }}
-          placeholder="资料标题（如：约翰福音注释）"
+          placeholder="资料标题（单文件必填；多文件可留空用文件名）"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
@@ -353,13 +454,22 @@ export default function AdminRagPanel({
         />
         <input
           type="file"
+          multiple
           accept=".md,.txt,.markdown,text/markdown,text/plain"
           style={{ fontSize: 13, marginBottom: 8, width: '100%' }}
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
         />
+        {files.length > 0 ? (
+          <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
+            已选 {files.length} 个文件
+          </p>
+        ) : null}
         <button type="button" className="btn" style={{ width: '100%' }} disabled={busy} onClick={() => void handleUpload()}>
-          {busy ? '处理中…' : '上传并索引'}
+          {busy ? '向量化中…' : '上传并向量化'}
         </button>
+        {uploadOk ? (
+          <p className="admin-rag-success-text" style={{ marginTop: 8 }}>{uploadOk}</p>
+        ) : null}
       </div>
 
       <div style={{ marginTop: 10 }}>
@@ -408,6 +518,8 @@ export default function AdminRagPanel({
                 busy={busy}
                 onDelete={handleDelete}
                 onReindex={handleReindex}
+                onIndexFile={handleIndexFile}
+                onIndexPending={handleIndexPending}
               />
             ))}
             {inventory.orphans.length > 0 && (filter === 'all' || filter === 'orphan') ? (

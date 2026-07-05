@@ -63,6 +63,31 @@ def test_admin_rag_inventory_with_token():
     assert isinstance(body["collections"], list)
 
 
+def test_admin_pending_uploads_requires_auth():
+    res = client.get("/admin/rag/uploads/pending")
+    assert res.status_code == 401
+
+
+def test_admin_index_pending_requires_auth():
+    res = client.post("/admin/rag/uploads/index-pending", json={})
+    assert res.status_code == 401
+
+
+def test_admin_pending_uploads_with_token():
+    s = get_settings()
+    res = client.post("/admin/auth/login", json={"phone": s.admin_phone, "password": s.admin_password})
+    token = res.json()["token"]
+    pending = client.get(
+        "/admin/rag/uploads/pending",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert pending.status_code == 200
+    body = pending.json()
+    assert "pending" in body
+    assert "count" in body
+    assert isinstance(body["pending"], list)
+
+
 def test_admin_eligible_requires_user():
     res = client.get("/admin/auth/eligible")
     assert res.status_code == 401

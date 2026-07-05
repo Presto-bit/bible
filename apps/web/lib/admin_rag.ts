@@ -85,6 +85,41 @@ export type RagStatus = {
   documents_detail?: RagDocument[];
 };
 
+export type RagIndexResult = {
+  title?: string;
+  chunks?: number;
+  reused?: number;
+  skipped?: boolean;
+  reason?: string;
+  backend?: string;
+  error?: string;
+};
+
+export type RagUploadResult = {
+  ok: boolean;
+  filename?: string;
+  message?: string;
+  index?: RagIndexResult;
+  document?: RagDocument | null;
+};
+
+export type RagPendingUpload = {
+  filename: string;
+  path: string;
+  size_bytes: number;
+  inventory_status: RagInventoryStatus;
+  document_id?: string | null;
+  title: string;
+};
+
+export const RAG_SOURCE_TYPES = [
+  { id: 'commentary', label: '英文注释' },
+  { id: 'commentary-zh', label: '中文注释' },
+  { id: 'study-bible', label: '研经资料' },
+  { id: 'study-bible-zh', label: '中文自有资料' },
+  { id: 'reference-en', label: '英文参考词典' },
+] as const;
+
 function adminHeaders(): HeadersInit {
   const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
   if (!token) throw new Error('未登录管理员');
@@ -261,12 +296,22 @@ export async function fetchRagDocuments(): Promise<RagDocument[]> {
   return data.documents ?? [];
 }
 
+export async function fetchPendingUploads(): Promise<RagPendingUpload[]> {
+  const res = await fetch(`${API_BASE}/admin/rag/uploads/pending`, {
+    headers: adminHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '加载待向量化列表失败'));
+  const data = (await res.json()) as { pending?: RagPendingUpload[] };
+  return data.pending ?? [];
+}
+
 export async function uploadRagDocument(
   file: File,
   title: string,
   sourceType: string,
   bookId?: string,
-): Promise<void> {
+): Promise<RagUploadResult> {
   const form = new FormData();
   form.append('file', file);
   form.append('title', title);
@@ -279,6 +324,50 @@ export async function uploadRagDocument(
     body: form,
   });
   if (!res.ok) throw new Error(await readApiError(res, '上传失败'));
+  return (await res.json()) as RagUploadResult;
+}
+
+export async function indexPendingUploads(
+  sourceType = 'commentary',
+): Promise<{ pending: number; indexed: number; skipped: number; failed: number }> {
+  const res = await fetch(`${API_BASE}/admin/rag/uploads/index-pending`, {
+    method: 'POST',
+    headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_type: sourceType, force: true }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '批量向量化失败'));
+  const data = (await res.json()) as {
+    pending?: number;
+    indexed?: number;
+    skipped?: number;
+    failed?: number;
+  };
+  return {
+    pending: data.pending ?? 0,
+    indexed: data.indexed ?? 0,
+    skipped: data.skipped ?? 0,
+    failed: data.failed ?? 0,
+  };
+}
+
+export async function indexUploadFile(
+  filename: string,
+  opts?: { title?: string; sourceType?: string },
+): Promise<RagUploadResult> {
+  const res = await fetch(
+    `${API_BASE}/admin/rag/uploads/${encodeURIComponent(filename)}/index`,
+    {
+      method: 'POST',
+      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: opts?.title,
+        source_type: opts?.sourceType ?? 'commentary',
+        force: true,
+      }),
+    },
+  );
+  if (!res.ok) throw new Error(await readApiError(res, '向量化失败'));
+  return (await res.json()) as RagUploadResult;
 }
 
 export async function deleteRagDocument(id: string): Promise<void> {
@@ -289,10 +378,12 @@ export async function deleteRagDocument(id: string): Promise<void> {
   if (!res.ok) throw new Error(await readApiError(res, '删除失败'));
 }
 
-export async function reindexRagDocument(id: string): Promise<void> {
+export async function reindexRagDocument(id: string): Promise<string> {
   const res = await fetch(`${API_BASE}/admin/rag/documents/${encodeURIComponent(id)}/reindex`, {
     method: 'POST',
     headers: adminHeaders(),
   });
   if (!res.ok) throw new Error(await readApiError(res, '重建索引失败'));
+  const data = (await res.json()) as { message?: string };
+  return data.message ?? '重建索引完成';
 }

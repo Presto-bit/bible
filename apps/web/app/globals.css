@@ -4200,6 +4200,28 @@ a.today-card-link {
   line-height: 1.45;
 }
 
+.admin-rag-success-text {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #2f7d4a;
+  line-height: 1.45;
+}
+
+.admin-rag-select {
+  width: 100%;
+  margin-bottom: 8px;
+  text-align: left;
+  appearance: auto;
+}
+
+.admin-rag-batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px 4px;
+}
+
 .admin-login-form {
   margin-top: 0;
 }
