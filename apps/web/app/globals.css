@@ -2718,6 +2718,8 @@ a.today-card-link {
 
 .msg-actions {
   display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 14px;
   margin-top: 8px;
 }
@@ -3024,17 +3026,19 @@ a.today-card-link {
 }
 .answer-rich .ans-section {
   margin: 16px 0 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
   padding: 12px 14px;
   border-radius: 12px;
   background: var(--accent-wash);
   border-left: 3px solid var(--accent-deep);
 }
+.answer-rich .ans-section-line {
+  margin: 0;
+  line-height: 1.85;
+}
 .answer-rich .ans-label {
-  flex-shrink: 0;
+  display: inline;
+  margin-right: 6px;
+  vertical-align: baseline;
   background: var(--surface);
   color: var(--accent-deep);
   font-weight: 700;
@@ -3043,6 +3047,7 @@ a.today-card-link {
   border-radius: 999px;
 }
 .answer-rich .ans-label-rest {
+  display: inline;
   color: var(--ink);
   line-height: 1.85;
 }

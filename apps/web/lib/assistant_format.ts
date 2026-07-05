@@ -36,8 +36,27 @@ export function followupsOf(text: string): string[] {
   return out;
 }
 
+/** 正文末尾由模型输出的参考资料列表（UI 已有 CitationBar） */
+const TRAILING_REF_BLOCK_RE =
+  /\n[ \t]*(?:【参考资料】|参考资料\s*[:：]?)\s*(?:\n[ \t]*(?:\[\d{1,2}\]|［\d{1,2}］|【\d{1,2}】)[^\n]*)*\s*$/;
+
+const FOOTNOTE_TOKEN_RE = /(?:\[\d{1,2}\]|［\d{1,2}］|【\d{1,2}】|（\d{1,2}）)/;
+
+/** 去掉正文末尾重复的参考资料列表 */
+export function stripTrailingReferences(text: string): string {
+  return text.replace(TRAILING_REF_BLOCK_RE, '').trimEnd();
+}
+
+/** 把误拆到下一行的脚标并回上一行 */
+export function joinOrphanFootnotes(text: string): string {
+  return text.replace(
+    /\n+(\s*(?:(?:\[\d{1,2}\]|［\d{1,2}］|【\d{1,2}】|（\d{1,2}）)\s*)+)/g,
+    '$1',
+  );
+}
+
 export function bodyText(text: string): string {
-  return stripFollowups(text);
+  return joinOrphanFootnotes(stripTrailingReferences(stripFollowups(text)));
 }
 
 /**
@@ -57,6 +76,10 @@ export function softBreakSentences(text: string): string {
     if (ch !== '。' && ch !== '；' && ch !== '！' && ch !== '？') continue;
     const next = text[i + 1];
     if (!next || next === '\n') continue;
+    // 句号后紧跟脚标时不断行，保持 [1] 与句末同行
+    if (next === '[' || next === '［' || next === '【' || next === '（') continue;
+    const ahead = text.slice(i + 1).trimStart();
+    if (FOOTNOTE_TOKEN_RE.test(ahead)) continue;
     // 句号紧贴闭合标点时不断行：`。）` `。」`
     if ('）」』》】"\'”’'.includes(next)) continue;
     out += '\n';

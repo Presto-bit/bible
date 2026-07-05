@@ -5,6 +5,7 @@ import type { Citation } from '@/lib/api';
 import {
   bodyText,
   joinOrphanClosers,
+  joinOrphanFootnotes,
   renumberOrderedLines,
   softBreakSentences,
   streamingSafeBody,
@@ -13,7 +14,8 @@ import {
 const LABEL_RE = /^【([^】]+)】\s*(.*)$/;
 const FOLLOWUP_HEAD = /^[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])\s*$/;
 const CIRCLE_BULLET_RE = /^[ \t]*[①②③④⑤⑥⑦⑧⑨⑩][、.)）]?\s*(.*)$/;
-const FOOTNOTE_RE = /\[(\d{1,2})\]/g;
+const FOOTNOTE_ONLY_RE =
+  /^(\s*(?:\[\d{1,2}\]|［\d{1,2}］|【\d{1,2}】|（\d{1,2}）)\s*)+$/;
 
 function renderInline(
   text: string,
@@ -84,8 +86,19 @@ export default function AnswerText({
   if (!text) return null;
   const raw = streaming ? streamingSafeBody(text) : bodyText(text);
   const renumbered = renumberOrderedLines(raw);
-  const normalized = dense ? renumbered : joinOrphanClosers(softBreakSentences(renumbered));
-  const lines = normalized.split('\n');
+  const softened = dense ? renumbered : softBreakSentences(renumbered);
+  const normalized = joinOrphanFootnotes(
+    dense ? softened : joinOrphanClosers(softened),
+  );
+  const coalescedLines: string[] = [];
+  for (const line of normalized.split('\n')) {
+    if (FOOTNOTE_ONLY_RE.test(line.trim()) && coalescedLines.length) {
+      coalescedLines[coalescedLines.length - 1] += line.trim();
+    } else {
+      coalescedLines.push(line);
+    }
+  }
+  const lines = coalescedLines;
   const blocks: React.ReactNode[] = [];
   let list: { ordered: boolean; items: string[] } | null = null;
 
@@ -152,12 +165,14 @@ export default function AnswerText({
     } else if (labelM) {
       blocks.push(
         <div key={`lab-${key}`} className="ans-section">
-          <span className="ans-label">{labelM[1]}</span>
-          {labelM[2] && (
-            <span className="ans-label-rest">
-              {renderInline(labelM[2], `lr-${key}`, onCitationClick)}
-            </span>
-          )}
+          <p className="ans-section-line">
+            <span className="ans-label">{labelM[1]}</span>
+            {labelM[2] ? (
+              <span className="ans-label-rest">
+                {renderInline(labelM[2], `lr-${key}`, onCitationClick)}
+              </span>
+            ) : null}
+          </p>
         </div>
       );
     } else if (quote) {
@@ -191,4 +206,4 @@ export default function AnswerText({
   );
 }
 
-export { FOOTNOTE_RE };
+export { FOOTNOTE_ONLY_RE as FOOTNOTE_RE };
