@@ -157,9 +157,9 @@ export function chipUserQuestion(label: string, ref?: string): string {
     解释经文: `请解释${anchor}的原意与背景。`,
     生活应用: `请把${anchor}应用到今日生活，给出具体可行的建议。`,
     预备查经: `请帮我预备关于${anchor}的小组查经提纲。`,
-    译本对照: `请对照不同中文译本解释${anchor}的措辞差异。`,
-    原文释义: `请从圣经原文（希伯来文/希腊文）角度解释${anchor}的关键词与对照含义。`,
-    '原文（希伯来文对照解释）': `请从圣经原文（希伯来文/希腊文）角度解释${anchor}的关键词与对照含义。`,
+    译本对照: `请说明${anchor}在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。`,
+    原文释义: `请说明${anchor}在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。`,
+    '原文（希伯来文对照解释）': `请说明${anchor}在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。`,
     讲道大纲: `请为${anchor}生成讲道大纲要点。`,
   };
   return map[label] ?? `关于${anchor}，请按「${label}」作答。`;
@@ -171,15 +171,15 @@ export function chipSceneForLabel(label: string): AssistantScene {
     生活应用: 'chat_apply',
     预备查经: 'chat_study',
     译本对照: 'chat_compare',
-    原文释义: 'chat_original',
-    '原文（希伯来文对照解释）': 'chat_original',
+    原文释义: 'chat_compare',
+    '原文（希伯来文对照解释）': 'chat_compare',
     讲道大纲: 'chat_preach',
   };
   return map[label] ?? 'chat_explain';
 }
 
 export function personalizedSceneForLabel(label: string): AssistantScene {
-  if (label === '关键词释义') return 'chat_original';
+  if (label === '关键词释义') return 'chat_compare';
   if (label === '今日默想' || label === '生活应用' || label === '坚持鼓励') return 'chat_apply';
   if (label === '信仰问答') return 'chat_general';
   return 'chat_explain';

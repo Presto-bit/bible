@@ -46,8 +46,12 @@ String chipUserQuestion(String label, {String? ref}) {
   if (label == '解释经文') return '请解释$anchor的原意与背景。';
   if (label == '生活应用') return '请把$anchor应用到今日生活，给出具体可行的建议。';
   if (label == '预备查经') return '请帮我预备关于$anchor的小组查经提纲。';
-  if (label == '译本对照') return '请对照不同中文译本解释$anchor的措辞差异。';
-  if (label == '原文释义') return '请从圣经原文角度解释$anchor的关键词。';
+  if (label == '译本对照') {
+    return '请说明$anchor在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。';
+  }
+  if (label == '原文释义') {
+    return '请说明$anchor在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。';
+  }
   if (label == '讲道大纲') return '请为$anchor生成讲道大纲要点。';
   return '关于$anchor，请按「$label」作答。';
 }
@@ -58,7 +62,7 @@ AssistantScene chipSceneForLabel(String label) {
     '生活应用': AssistantScene.chatApply,
     '预备查经': AssistantScene.chatStudy,
     '译本对照': AssistantScene.chatCompare,
-    '原文释义': AssistantScene.chatOriginal,
+    '原文释义': AssistantScene.chatCompare,
     '讲道大纲': AssistantScene.chatPreach,
     '经文背景': AssistantScene.chatExplain,
     '应用': AssistantScene.chatApply,

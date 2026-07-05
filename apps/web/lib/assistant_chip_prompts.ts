@@ -20,7 +20,6 @@ export function staticAssistantChips(ref?: string): AssistantChipDef[] {
     '生活应用',
     '预备查经',
     '译本对照',
-    '原文（希伯来文对照解释）',
     '讲道大纲',
   ];
   return labels.map((label) => {
