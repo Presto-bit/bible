@@ -1218,12 +1218,13 @@ html:not([data-app-theme]) .card {
 
 /* ─── 每日经文 hero（tier3 + 晨曦场景 + 衬线经文 + 点赞/分享行） ─── */
 .hero-verse {
-  --hero-verse-base-h: 11rem;
+  --hero-verse-base-h: 16.5rem;
+  --hero-verse-max-h: 21.75rem;
   position: relative;
   overflow: hidden;
   margin-bottom: 16px;
   padding: 24px 18px;
-  min-height: clamp(11rem, 40vw, 14.5rem);
+  min-height: clamp(var(--hero-verse-base-h), 60vw, var(--hero-verse-max-h));
   display: flex;
   flex-direction: column;
   cursor: pointer;
