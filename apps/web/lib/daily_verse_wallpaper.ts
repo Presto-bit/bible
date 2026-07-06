@@ -16,8 +16,32 @@ const SCENERY_URLS = [
   'https://images.unsplash.com/photo-1418065460487-3e41a6c84dc5?auto=format&fit=crop&w=1200&q=80', // 森林雾
 ];
 
+export type DailyVerseWallpaperVariant = 'card' | 'full';
+
+function withWallpaperSize(url: string, variant: DailyVerseWallpaperVariant): string {
+  try {
+    const u = new URL(url);
+    if (variant === 'full') {
+      u.searchParams.set('w', '2400');
+      u.searchParams.set('q', '88');
+    } else {
+      u.searchParams.set('w', '1200');
+      u.searchParams.set('q', '80');
+    }
+    u.searchParams.set('auto', 'format');
+    u.searchParams.set('fit', 'crop');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 /** 按每日经文 day 选取风景壁纸，同一天全员一致。 */
-export function dailyVerseWallpaperUrl(day?: number): string {
+export function dailyVerseWallpaperUrl(
+  day?: number,
+  variant: DailyVerseWallpaperVariant = 'card',
+): string {
   const d = Math.max(1, Math.floor(day ?? 1) || 1);
-  return SCENERY_URLS[(d - 1) % SCENERY_URLS.length];
+  const base = SCENERY_URLS[(d - 1) % SCENERY_URLS.length];
+  return withWallpaperSize(base, variant);
 }

@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   manifest: `${BASE_PATH || ''}/manifest.webmanifest`,
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: PWA_HOME_NAME,
   },
   icons: {

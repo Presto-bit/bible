@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DailyVerse } from '@/lib/api';
+import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
+import { applyAppTheme } from '@/lib/app_theme';
 
 export default function DailyVerseWallpaper({
   dv,
@@ -16,30 +18,40 @@ export default function DailyVerseWallpaper({
   const [mounted, setMounted] = useState(false);
   const [bgOk, setBgOk] = useState(true);
 
+  const fullUrl = backgroundUrl ?? dailyVerseWallpaperUrl(dv.day, 'full');
+  const cardUrl = dailyVerseWallpaperUrl(dv.day, 'card');
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
     setBgOk(true);
-  }, [backgroundUrl]);
+  }, [fullUrl]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    const prev = document.body.style.overflow;
+    const prevOverflow = document.body.style.overflow;
+    document.body.classList.add('verse-full-open');
     document.body.style.overflow = 'hidden';
+    const meta = document.querySelector('meta[name="theme-color"]');
+    const prevTheme = meta?.getAttribute('content') ?? '';
+    meta?.setAttribute('content', '#000000');
     window.addEventListener('keydown', onKey);
     return () => {
-      document.body.style.overflow = prev;
+      document.body.classList.remove('verse-full-open');
+      document.body.style.overflow = prevOverflow;
+      if (prevTheme) meta?.setAttribute('content', prevTheme);
+      else applyAppTheme();
       window.removeEventListener('keydown', onKey);
     };
   }, [onClose]);
 
   if (!mounted) return null;
 
-  const showPhoto = Boolean(backgroundUrl && bgOk);
+  const showPhoto = Boolean(fullUrl && bgOk);
 
   return createPortal(
     <div
@@ -47,26 +59,29 @@ export default function DailyVerseWallpaper({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label="每日经文"
+      aria-label={dv.ref ? `每日经文 ${dv.ref}` : '每日经文'}
     >
       {showPhoto ? (
         <img
           className="verse-full-bg verse-full-bg-photo"
-          src={backgroundUrl!}
+          src={fullUrl}
+          srcSet={`${cardUrl} 1200w, ${fullUrl} 2400w`}
+          sizes="100vw"
           alt=""
           aria-hidden
+          decoding="async"
+          fetchPriority="high"
           onError={() => setBgOk(false)}
         />
       ) : (
         <div className="verse-full-bg verse-full-bg-gradient" aria-hidden />
       )}
+      <div className="verse-full-scrim-top" aria-hidden />
       <div className="verse-full-inner" onClick={(e) => e.stopPropagation()}>
-        <p className="verse-full-kicker">每日经文</p>
-        <div className="verse-full-ornament" aria-hidden>
-          ✦
+        <div className="verse-full-copy">
+          <p className="verse-full-text">「{dv.text}」</p>
+          {dv.ref ? <p className="verse-full-ref">{dv.ref}</p> : null}
         </div>
-        {dv.ref ? <p className="verse-full-ref">{dv.ref}</p> : null}
-        <p className="verse-full-text">「{dv.text}」</p>
       </div>
     </div>,
     document.body,

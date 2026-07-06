@@ -388,31 +388,30 @@ export default function HomePageClient() {
               : undefined
           }
         />
-        <div className="hero-inner">
-          <div className="hero-top">
-            <span className="hero-kicker">每日经文</span>
-          </div>
-          {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
-          <p className="verse-text">
-            {err
-              ? '内容加载失败'
-              : dv
-                ? `「${dv.text}」`
-                : dvLoading
-                  ? '加载中…'
-                  : '暂无经文'}
-          </p>
-          {err && (
-            <button
-              type="button"
-              className="text-link"
-              style={{ marginTop: 8, fontSize: 13 }}
-              onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
-            >
-              点击重试
-            </button>
-          )}
-          <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
+        <div className="hero-inner hero-inner-split">
+          <span className="hero-kicker hero-kicker-corner">每日经文</span>
+          <div className="hero-bottom">
+            {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
+            <p className="verse-text">
+              {err
+                ? '内容加载失败'
+                : dv
+                  ? `「${dv.text}」`
+                  : dvLoading
+                    ? '加载中…'
+                    : '暂无经文'}
+            </p>
+            {err && (
+              <button
+                type="button"
+                className="text-link"
+                style={{ marginTop: 8, fontSize: 13 }}
+                onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
+              >
+                点击重试
+              </button>
+            )}
+            <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className={`hero-like${liked ? ' hero-like-active' : ''}`}
@@ -452,6 +451,7 @@ export default function HomePageClient() {
             {likeErr && (
               <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
             )}
+            </div>
           </div>
         </div>
       </div>
@@ -507,7 +507,7 @@ export default function HomePageClient() {
       {verseFull && dv ? (
         <DailyVerseWallpaper
           dv={dv}
-          backgroundUrl={heroIllustration ?? dailyVerseWallpaperUrl(dv.day)}
+          backgroundUrl={dailyVerseWallpaperUrl(dv.day, 'full')}
           onClose={() => setVerseFull(false)}
         />
       ) : null}
