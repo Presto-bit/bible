@@ -122,3 +122,8 @@ def test_admin_stats_with_token():
     assert "series" in body
     assert "users" in body["totals"]
     assert "ai_requests" in body["series"]
+    assert "users" in body["series"]
+    assert "messages" in body["series"]
+    assert "uv" in body["series"]
+    assert "uv_today" in body["totals"]
+    assert "uv_7d" in body["totals"]

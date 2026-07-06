@@ -44,6 +44,7 @@ MIGRATIONS=(
   infra/postgres/init/011_group_member_nickname.sql
   infra/postgres/init/012_device_user_binding.sql
   infra/postgres/init/013_accounts_phone.sql
+  infra/postgres/init/014_daily_uv.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do

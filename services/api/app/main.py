@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from . import __version__
 from .admin.router import router as admin_router
 from .ai.router import router as ai_router
+from .analytics.middleware import DailyUvMiddleware
 from .auth.router import router as auth_router
 from .bible.router import router as bible_router
 from .config import get_settings
@@ -39,6 +40,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(DailyUvMiddleware)
 
 
 app.include_router(bible_router)

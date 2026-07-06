@@ -4281,6 +4281,21 @@ a.today-card-link {
 
 .admin-stat-card {
   padding: 12px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin-stat-card.is-active {
+  border-color: var(--accent, #3d6b8e);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent, #3d6b8e) 25%, transparent);
+}
+
+.admin-stat-tip {
+  margin: 8px 0 0;
+  font-size: 12px;
 }
 
 .admin-stat-label {
@@ -4310,6 +4325,13 @@ a.today-card-link {
 
 .admin-chart {
   padding: 12px;
+}
+
+.admin-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .admin-chart-bars {

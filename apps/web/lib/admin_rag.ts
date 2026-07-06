@@ -247,16 +247,26 @@ export type AdminStatsTotals = {
   rag_failed: number;
   ai_requests_today: number;
   ai_requests_7d: number;
+  uv_today: number;
+  uv_7d: number;
 };
 
 export type AdminStatsSeriesPoint = { date: string; count: number };
 
+export type AdminStatsSeriesKey =
+  | 'users'
+  | 'groups'
+  | 'group_members'
+  | 'friendships'
+  | 'messages'
+  | 'checkins'
+  | 'ai_requests'
+  | 'rag_documents'
+  | 'uv';
+
 export type AdminStats = {
   totals: AdminStatsTotals;
-  series: {
-    ai_requests: AdminStatsSeriesPoint[];
-    checkins: AdminStatsSeriesPoint[];
-  };
+  series: Record<AdminStatsSeriesKey, AdminStatsSeriesPoint[]>;
 };
 
 export async function fetchAdminStats(): Promise<AdminStats> {

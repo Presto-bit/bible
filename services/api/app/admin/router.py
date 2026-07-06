@@ -130,6 +130,15 @@ def _fetch_admin_stats() -> dict:
                 "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
                 "WHERE usage_date >= current_date - 6",
             ),
+            "uv_today": _scalar(
+                conn,
+                "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date",
+            ),
+            "uv_7d": _scalar(
+                conn,
+                "SELECT count(*) FROM daily_active_visitors "
+                "WHERE visit_date >= current_date - 6",
+            ),
         }
         series = {
             "ai_requests": _date_series(
@@ -150,6 +159,76 @@ def _fetch_admin_stats() -> dict:
                 WHERE kind = 'checkin' AND created_at >= current_date - %s::int
                 GROUP BY created_at::date
                 ORDER BY created_at::date
+                """,
+            ),
+            "users": _date_series(
+                conn,
+                """
+                SELECT created_at::date::text, count(*)
+                FROM users
+                WHERE created_at >= current_date - %s::int
+                GROUP BY created_at::date
+                ORDER BY created_at::date
+                """,
+            ),
+            "groups": _date_series(
+                conn,
+                """
+                SELECT created_at::date::text, count(*)
+                FROM social_group
+                WHERE created_at >= current_date - %s::int
+                GROUP BY created_at::date
+                ORDER BY created_at::date
+                """,
+            ),
+            "group_members": _date_series(
+                conn,
+                """
+                SELECT joined_at::date::text, count(*)
+                FROM group_member
+                WHERE joined_at >= current_date - %s::int
+                GROUP BY joined_at::date
+                ORDER BY joined_at::date
+                """,
+            ),
+            "friendships": _date_series(
+                conn,
+                """
+                SELECT created_at::date::text, count(*)
+                FROM friendship
+                WHERE created_at >= current_date - %s::int
+                GROUP BY created_at::date
+                ORDER BY created_at::date
+                """,
+            ),
+            "messages": _date_series(
+                conn,
+                """
+                SELECT created_at::date::text, count(*)
+                FROM group_message
+                WHERE created_at >= current_date - %s::int
+                GROUP BY created_at::date
+                ORDER BY created_at::date
+                """,
+            ),
+            "rag_documents": _date_series(
+                conn,
+                """
+                SELECT created_at::date::text, count(*)
+                FROM bible_documents
+                WHERE created_at >= current_date - %s::int
+                GROUP BY created_at::date
+                ORDER BY created_at::date
+                """,
+            ),
+            "uv": _date_series(
+                conn,
+                """
+                SELECT visit_date::text, count(*)
+                FROM daily_active_visitors
+                WHERE visit_date >= current_date - %s::int
+                GROUP BY visit_date
+                ORDER BY visit_date
                 """,
             ),
         }
