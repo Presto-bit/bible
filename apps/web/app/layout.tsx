@@ -13,6 +13,7 @@ import { PasswordSheetProvider } from '@/components/ui/PasswordSheetProvider';
 import OfflineBar from '@/components/OfflineBar';
 import WebOnboardingSheet from '@/components/WebOnboardingSheet';
 import BottomTabs from '@/components/BottomTabs';
+import TabKeepAlive from '@/components/shell/TabKeepAlive';
 
 import { BASE_PATH } from '@/lib/basePath';
 import { BRAND_FULL } from '@/lib/brand';
@@ -86,7 +87,9 @@ export default function RootLayout({
             <IdentityShell>
               <AppThemeShell />
               <OfflineBar />
-              <div className="app-body">{children}</div>
+              <div className="app-body">
+                <TabKeepAlive>{children}</TabKeepAlive>
+              </div>
               <BottomTabs />
               <StaleShellGuard />
               <PwaRegister />

@@ -130,6 +130,16 @@ const MODE_TO_SCENE: Record<string, AssistantScene> = {
   preach: 'chat_preach',
 };
 
+/** 与 Mobile 一致：仅首轮 API 请求传递经文锚点（history 为空时）。 */
+export function refForChatTurn(
+  anchorRef: string | null | undefined,
+  historyLength: number,
+): string | null {
+  if (historyLength > 0) return null;
+  const r = (anchorRef ?? '').trim();
+  return r || null;
+}
+
 export function resolveScene(
   scene?: string | null,
   mode?: string,

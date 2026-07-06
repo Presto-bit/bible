@@ -153,6 +153,18 @@ html.pwa-standalone body {
   height: 0;
 }
 
+.tab-keep-route-suppressed {
+  display: none !important;
+}
+
+.tab-keep-pane[hidden] {
+  display: none !important;
+}
+
+.tab-keep-pane-active {
+  display: block;
+}
+
 .container {
   max-width: min(720px, 100vw);
   margin: 0 auto;
@@ -2149,16 +2161,75 @@ a.today-card-link {
 }
 
 /* 历史会话项 */
+.history-item-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
 .history-item {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   text-align: left;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 12px;
   padding: 10px 12px;
-  margin-bottom: 8px;
   cursor: pointer;
+}
+
+.history-item-menu {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.history-item-more {
+  width: 36px;
+  height: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.history-item-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  min-width: 120px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.history-item-dropdown button {
+  display: block;
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.history-item-dropdown button:hover {
+  background: var(--wash);
+}
+
+.history-item-dropdown-danger {
+  color: #c0392b !important;
 }
 
 .history-item-top {
@@ -4162,7 +4233,7 @@ body.reader-active .proper-noun--artifact {
   border-bottom-color: rgba(43, 42, 39, 0.08);
 }
 
-.reader-theme-morning .reader-loc {
+.reader-theme-morning .reader-version {
   border-right-color: rgba(43, 42, 39, 0.1);
 }
 
@@ -4179,8 +4250,7 @@ body.reader-active .proper-noun--artifact {
   font-weight: 600;
   font-size: var(--reader-font-size, var(--app-font-size));
   color: var(--ink);
-  padding: 2px 10px 2px 0;
-  border-right: 1px solid var(--line);
+  padding: 2px 0 2px 10px;
 }
 
 .reader-version {
@@ -4189,7 +4259,8 @@ body.reader-active .proper-noun--artifact {
   cursor: pointer;
   font-size: var(--reader-font-size, var(--app-font-size));
   color: var(--ink-soft);
-  padding: 2px 0 2px 10px;
+  padding: 2px 10px 2px 0;
+  border-right: 1px solid var(--line);
 }
 
 .reader-topbar-right {
@@ -5896,6 +5967,9 @@ body.reader-active .proper-noun--artifact {
 
 .reader-theme-night .reader-loc {
   color: var(--reader-ink);
+}
+
+.reader-theme-night .reader-version {
   border-right-color: rgba(255, 255, 255, 0.08);
 }
 

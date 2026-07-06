@@ -93,6 +93,7 @@ import {
   getReaderReturnHref,
   readerBackHref,
 } from '@/lib/reader_return';
+import { clearReaderChrome } from '@/lib/reader_chrome';
 import {
   applyAppTheme,
   getEffectiveReaderTheme,
@@ -166,6 +167,7 @@ export default function ReaderView({
   externalOverlayOpen = false,
   flashRef = null,
   checkinGroupId = null,
+  paneActive = true,
 }: {
   book: BibleBook;
   books: BibleBook[];
@@ -181,6 +183,7 @@ export default function ReaderView({
   externalOverlayOpen?: boolean;
   flashRef?: string | null;
   checkinGroupId?: string | null;
+  paneActive?: boolean;
 }) {
   const flashToast = useToast();
   const [verses, setVerses] = useState<Verse[]>([]);
@@ -765,6 +768,10 @@ export default function ReaderView({
   }, []);
 
   useEffect(() => {
+    if (!paneActive) {
+      clearReaderChrome();
+      return;
+    }
     const bg = readerThemeBackground(theme);
     document.body.classList.add('reader-active');
     document.body.style.setProperty('--reader-surface-bg', bg);
@@ -773,18 +780,19 @@ export default function ReaderView({
     const meta = document.querySelector('meta[name="theme-color"]');
     meta?.setAttribute('content', theme === 'night' ? '#12181c' : bg);
     return () => {
-      document.body.classList.remove('reader-active', 'reader-immersive');
-      document.body.style.removeProperty('--reader-surface-bg');
-      document.body.style.background = '';
-      document.documentElement.style.background = '';
+      clearReaderChrome();
       applyAppTheme();
     };
-  }, [theme]);
+  }, [theme, paneActive]);
 
   useEffect(() => {
+    if (!paneActive) {
+      document.body.classList.remove('reader-immersive');
+      return;
+    }
     if (chromeHidden) document.body.classList.add('reader-immersive');
     else document.body.classList.remove('reader-immersive');
-  }, [chromeHidden]);
+  }, [chromeHidden, paneActive]);
 
   // 半屏面板打开时显示顶栏与底部 Tab。
   useEffect(() => {
@@ -1737,9 +1745,6 @@ export default function ReaderView({
               }}
             />
           )}
-          <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
-            {bookAbbr(book.name)} {chapter}
-          </button>
           <button type="button" className="reader-version" onClick={(e) => {
             e.stopPropagation();
             const primaryId = versions?.find((v) => v.primary)?.id ?? 'cnv';
@@ -1750,6 +1755,9 @@ export default function ReaderView({
             if (!versions) api.versions().then((d) => setVersions(d.versions)).catch(() => setVersions([]));
           }}>
             {versionLabel}
+          </button>
+          <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
+            {bookAbbr(book.name)} {chapter}
           </button>
         </div>
         <div className="reader-topbar-right">

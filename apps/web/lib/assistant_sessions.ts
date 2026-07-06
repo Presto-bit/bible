@@ -65,6 +65,22 @@ export function saveAssistantSessions(list: AssistantSessionRecord[]) {
   localStorage.setItem(SESSIONS_KEY, JSON.stringify(sortSessionsDesc(valid).slice(0, 50)));
 }
 
+export function renameAssistantSession(id: string, title: string): AssistantSessionRecord[] {
+  const trimmed = title.trim();
+  if (!trimmed) return loadAssistantSessions();
+  const next = loadAssistantSessions().map((s) =>
+    s.id === id ? { ...s, title: trimmed } : s,
+  );
+  saveAssistantSessions(next);
+  return next;
+}
+
+export function deleteAssistantSession(id: string): AssistantSessionRecord[] {
+  const next = loadAssistantSessions().filter((s) => s.id !== id);
+  saveAssistantSessions(next);
+  return next;
+}
+
 function startOfLocalDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
