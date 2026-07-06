@@ -17,7 +17,13 @@ from ..db import get_pool
 from ..rag.index import index_file
 from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
 from .rag_inventory import build_rag_inventory
-from .rag_ops import index_pending_uploads, index_upload_path, list_pending_uploads, upload_dir
+from .rag_ops import (
+    index_pending_disk,
+    index_pending_uploads,
+    index_upload_path,
+    list_pending_uploads,
+    upload_dir,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -39,6 +45,7 @@ class IndexUploadBody(BaseModel):
 class IndexPendingBody(BaseModel):
     source_type: str = "commentary"
     force: bool = True
+    collection_id: str | None = None
 
 
 @router.post("/auth/login")
@@ -244,6 +251,24 @@ def admin_index_pending_uploads(
         )
     except Exception as exc:
         logger.exception("admin index pending uploads failed")
+        raise HTTPException(status_code=500, detail=f"批量向量化失败：{exc}") from exc
+    return {"ok": True, **result}
+
+
+@router.post("/rag/index-pending-disk")
+def admin_index_pending_disk(
+    body: IndexPendingBody | None = None,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """对资料清单中所有待索引/失败的磁盘文件批量向量化（含公版注释等）。"""
+    opts = body or IndexPendingBody()
+    try:
+        result = index_pending_disk(
+            collection_id=opts.collection_id,
+            force=opts.force,
+        )
+    except Exception as exc:
+        logger.exception("admin index pending disk failed")
         raise HTTPException(status_code=500, detail=f"批量向量化失败：{exc}") from exc
     return {"ok": True, **result}
 

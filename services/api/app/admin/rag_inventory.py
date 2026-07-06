@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from ..config import REPO_ROOT, get_settings
+from ..rag.paths import normalize_source_path, path_match_keys
 
 HELLOAO_SOURCES = (
     "jamieson-fausset-brown",
@@ -106,39 +107,35 @@ def _load_db_documents() -> list[dict]:
 
 
 def _index_documents(docs: list[dict]) -> tuple[dict[str, dict], dict[str, list[dict]]]:
-    by_path: dict[str, dict] = {}
+    by_key: dict[str, dict] = {}
     by_name: dict[str, list[dict]] = {}
     for doc in docs:
         sp = (doc.get("source_path") or "").strip()
         if sp:
-            try:
-                by_path[str(Path(sp).resolve())] = doc
-            except OSError:
-                by_path[sp] = doc
+            norm = normalize_source_path(sp)
+            for key in path_match_keys(norm):
+                # 同一键冲突时保留已有 chunks 更多的记录
+                prev = by_key.get(key)
+                if prev is None or int(doc.get("chunks") or 0) >= int(prev.get("chunks") or 0):
+                    by_key[key] = doc
             name = Path(sp).name
             by_name.setdefault(name, []).append(doc)
-    return by_path, by_name
+    return by_key, by_name
 
 
 def _match_document(
     file_path: Path,
     *,
-    by_path: dict[str, dict],
+    by_key: dict[str, dict],
     by_name: dict[str, list[dict]],
 ) -> dict | None:
-    try:
-        key = str(file_path.resolve())
-        if key in by_path:
-            return by_path[key]
-    except OSError:
-        pass
+    for key in path_match_keys(file_path):
+        hit = by_key.get(key)
+        if hit is not None:
+            return hit
     hits = by_name.get(file_path.name) or []
     if len(hits) == 1:
         return hits[0]
-    rel = file_path.as_posix()
-    for sp, doc in by_path.items():
-        if sp.endswith(rel) or sp.endswith(file_path.name):
-            return doc
     return None
 
 
@@ -227,7 +224,7 @@ def _scan_collection(
     spec: dict,
     *,
     root: Path,
-    by_path: dict[str, dict],
+    by_key: dict[str, dict],
     by_name: dict[str, list[dict]],
     matched_ids: set[str],
 ) -> dict:
@@ -237,7 +234,7 @@ def _scan_collection(
     counts = {"indexed": 0, "pending": 0, "failed": 0, "indexing": 0, "orphan": 0}
 
     for fp in files:
-        doc = _match_document(fp, by_path=by_path, by_name=by_name)
+        doc = _match_document(fp, by_key=by_key, by_name=by_name)
         if doc:
             matched_ids.add(doc["id"])
         status = _inventory_status(doc, file_exists=True)
@@ -276,7 +273,7 @@ def _scan_collection(
 
 def _scan_uploads(
     *,
-    by_path: dict[str, dict],
+    by_key: dict[str, dict],
     by_name: dict[str, list[dict]],
     matched_ids: set[str],
 ) -> dict:
@@ -286,7 +283,7 @@ def _scan_uploads(
     counts = {"indexed": 0, "pending": 0, "failed": 0, "indexing": 0, "orphan": 0}
 
     for fp in files:
-        doc = _match_document(fp, by_path=by_path, by_name=by_name)
+        doc = _match_document(fp, by_key=by_key, by_name=by_name)
         if doc:
             matched_ids.add(doc["id"])
         status = _inventory_status(doc, file_exists=True)
@@ -329,15 +326,15 @@ def build_rag_inventory() -> dict:
         db_docs = []
         db_error = str(exc)
 
-    by_path, by_name = _index_documents(db_docs)
+    by_key, by_name = _index_documents(db_docs)
     matched_ids: set[str] = set()
 
     collections = [
-        _scan_collection(spec, root=root, by_path=by_path, by_name=by_name, matched_ids=matched_ids)
+        _scan_collection(spec, root=root, by_key=by_key, by_name=by_name, matched_ids=matched_ids)
         for spec in _COLLECTIONS
     ]
     collections.append(
-        _scan_uploads(by_path=by_path, by_name=by_name, matched_ids=matched_ids)
+        _scan_uploads(by_key=by_key, by_name=by_name, matched_ids=matched_ids)
     )
 
     orphans: list[dict] = []

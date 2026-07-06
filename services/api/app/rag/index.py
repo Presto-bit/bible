@@ -14,6 +14,7 @@ from pathlib import Path
 from ..db import get_pool
 from .core import split_text_into_chunks
 from .embedding import get_provider
+from .paths import normalize_source_path, path_match_keys
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +72,48 @@ def load_embedding_cache(source_type: str | None = None) -> dict[str, list]:
     return cache
 
 
+def _find_document_row(conn, source_path: str):
+    keys = list(path_match_keys(source_path))
+    if not keys:
+        return None
+    placeholders = ", ".join(["%s"] * len(keys))
+    return conn.execute(
+        f"SELECT id, rag_body_hash, rag_embedding_sig, title, source_path "
+        f"FROM bible_documents WHERE source_path IN ({placeholders}) "
+        f"ORDER BY rag_index_at DESC NULLS LAST, created_at DESC LIMIT 1",
+        tuple(keys),
+    ).fetchone()
+
+
+def _record_index_error(
+    *,
+    source_path: str,
+    title: str,
+    source_type: str,
+    error: str,
+    doc_id=None,
+) -> None:
+    source_path = normalize_source_path(source_path)
+    pool = get_pool()
+    with pool.connection() as conn:
+        if doc_id is None:
+            row = _find_document_row(conn, source_path)
+            doc_id = row[0] if row else None
+        if doc_id:
+            conn.execute(
+                "UPDATE bible_documents SET status='failed', rag_index_error=%s, "
+                "source_path=%s, updated_at=now() WHERE id=%s",
+                (error[:2000], source_path, doc_id),
+            )
+        else:
+            conn.execute(
+                "INSERT INTO bible_documents (title, source_type, source_path, status, rag_index_error) "
+                "VALUES (%s, %s, %s, 'failed', %s)",
+                (title, source_type, source_path, error[:2000]),
+            )
+        conn.commit()
+
+
 def index_text(
     *,
     title: str,
@@ -85,6 +128,7 @@ def index_text(
 
     embedding_cache：可选 chunk_text→向量 缓存，命中则复用、不调用 embedding API。
     """
+    source_path = normalize_source_path(source_path)
     provider = get_provider()
     body_hash = _body_hash(body)
     chunks = split_text_into_chunks(body)
@@ -93,51 +137,61 @@ def index_text(
     emb_sig = provider.signature(provider.dim)
 
     pool = get_pool()
-    with pool.connection() as conn:
-        row = conn.execute(
-            "SELECT id, rag_body_hash, rag_embedding_sig FROM bible_documents "
-            "WHERE title = %s AND source_path = %s",
-            (title, source_path),
-        ).fetchone()
-        if row and not force and row[1] == body_hash and row[2] == emb_sig:
-            return {"title": title, "chunks": len(chunks), "skipped": True, "reason": "unchanged"}
+    try:
+        with pool.connection() as conn:
+            row = _find_document_row(conn, source_path)
+            if row and not force and row[1] == body_hash and row[2] == emb_sig:
+                return {"title": title, "chunks": len(chunks), "skipped": True, "reason": "unchanged"}
 
-        if row:
-            doc_id = row[0]
-            conn.execute("DELETE FROM bible_rag_chunks WHERE document_id = %s", (doc_id,))
-        else:
-            doc_id = conn.execute(
-                "INSERT INTO bible_documents (title, source_type, source_path, status) "
-                "VALUES (%s, %s, %s, 'indexing') RETURNING id",
-                (title, source_type, source_path),
-            ).fetchone()[0]
+            if row:
+                doc_id = row[0]
+                conn.execute("DELETE FROM bible_rag_chunks WHERE document_id = %s", (doc_id,))
+            else:
+                doc_id = conn.execute(
+                    "INSERT INTO bible_documents (title, source_type, source_path, status) "
+                    "VALUES (%s, %s, %s, 'indexing') RETURNING id",
+                    (title, source_type, source_path),
+                ).fetchone()[0]
 
-        # 仅对缓存未命中的块调用 embedding API；命中则复用。
-        reused = 0
-        if embedding_cache is not None:
-            misses = [c for c in chunks if c not in embedding_cache]
-            new_vecs = provider.embed(misses) if misses else []
-            for c, v in zip(misses, new_vecs):
-                embedding_cache[c] = v
-            vectors = [embedding_cache[c] for c in chunks]
-            reused = len(chunks) - len(misses)
-        else:
-            vectors = provider.embed(chunks)
-        for idx, (chunk, vec) in enumerate(zip(chunks, vectors)):
-            meta = {"title": title, "source_type": source_type}
-            if book_id:
-                meta["book_id"] = book_id
+            # 仅对缓存未命中的块调用 embedding API；命中则复用。
+            reused = 0
+            if embedding_cache is not None:
+                misses = [c for c in chunks if c not in embedding_cache]
+                new_vecs = provider.embed(misses) if misses else []
+                for c, v in zip(misses, new_vecs):
+                    embedding_cache[c] = v
+                vectors = [embedding_cache[c] for c in chunks]
+                reused = len(chunks) - len(misses)
+            else:
+                vectors = provider.embed(chunks)
+            for idx, (chunk, vec) in enumerate(zip(chunks, vectors)):
+                meta = {"title": title, "source_type": source_type}
+                if book_id:
+                    meta["book_id"] = book_id
+                conn.execute(
+                    "INSERT INTO bible_rag_chunks (document_id, chunk_index, chunk_text, embedding, chunk_meta) "
+                    "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)",
+                    (doc_id, idx, chunk, json.dumps(vec), json.dumps(meta, ensure_ascii=False)),
+                )
             conn.execute(
-                "INSERT INTO bible_rag_chunks (document_id, chunk_index, chunk_text, embedding, chunk_meta) "
-                "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)",
-                (doc_id, idx, chunk, json.dumps(vec), json.dumps(meta, ensure_ascii=False)),
+                "UPDATE bible_documents SET title=%s, source_type=%s, source_path=%s, status='ready', "
+                "rag_body_hash=%s, rag_embedding_sig=%s, "
+                "rag_index_at=now(), rag_index_error=NULL, updated_at=now() WHERE id=%s",
+                (title, source_type, source_path, body_hash, emb_sig, doc_id),
             )
-        conn.execute(
-            "UPDATE bible_documents SET status='ready', rag_body_hash=%s, rag_embedding_sig=%s, "
-            "rag_index_at=now(), rag_index_error=NULL, updated_at=now() WHERE id=%s",
-            (body_hash, emb_sig, doc_id),
-        )
-        conn.commit()
+            conn.commit()
+    except Exception as exc:
+        logger.exception("index failed: %s", source_path)
+        try:
+            _record_index_error(
+                source_path=source_path,
+                title=title,
+                source_type=source_type,
+                error=str(exc),
+            )
+        except Exception:
+            logger.exception("failed to record index error for %s", source_path)
+        raise
     return {
         "title": title,
         "chunks": len(chunks),
@@ -156,6 +210,7 @@ def index_file(
     title: str | None = None,
     book_id: str | None = None,
 ) -> dict:
+    path = Path(path).resolve()
     body = path.read_text(encoding="utf-8")
     doc_title = (title or guess_document_title(body, path)).strip()
     doc_book = book_id or guess_book_id(doc_title, path)

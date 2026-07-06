@@ -73,6 +73,11 @@ def test_admin_index_pending_requires_auth():
     assert res.status_code == 401
 
 
+def test_admin_index_pending_disk_requires_auth():
+    res = client.post("/admin/rag/index-pending-disk", json={})
+    assert res.status_code == 401
+
+
 def test_admin_pending_uploads_with_token():
     s = get_settings()
     res = client.post("/admin/auth/login", json={"phone": s.admin_phone, "password": s.admin_password})

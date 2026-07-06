@@ -1,12 +1,20 @@
-"""管理员 RAG 操作：上传目录待索引、单文件向量化。"""
+"""管理员 RAG 操作：上传目录待索引、磁盘批量向量化。"""
 from __future__ import annotations
 
 import logging
 from pathlib import Path
 
 from ..config import get_settings
-from ..rag.index import guess_document_title, index_file
-from .rag_inventory import _index_documents, _inventory_status, _load_db_documents, _match_document
+from ..rag.index import guess_document_title, index_file, load_embedding_cache
+from .rag_inventory import (
+    _COLLECTIONS,
+    _commentary_root,
+    _index_documents,
+    _inventory_status,
+    _load_db_documents,
+    _match_document,
+    build_rag_inventory,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +41,10 @@ def list_pending_uploads() -> list[dict]:
         db_docs = _load_db_documents()
     except Exception:
         db_docs = []
-    by_path, by_name = _index_documents(db_docs)
+    by_key, by_name = _index_documents(db_docs)
     out: list[dict] = []
     for fp in _iter_upload_files():
-        doc = _match_document(fp, by_path=by_path, by_name=by_name)
+        doc = _match_document(fp, by_key=by_key, by_name=by_name)
         status = _inventory_status(doc, file_exists=True)
         if status in ("pending", "failed", "indexing"):
             out.append({
@@ -82,6 +90,7 @@ def index_pending_uploads(
     force: bool = True,
 ) -> dict:
     pending = list_pending_uploads()
+    cache = load_embedding_cache(None)
     results: list[dict] = []
     indexed = 0
     failed = 0
@@ -89,11 +98,12 @@ def index_pending_uploads(
     for item in pending:
         fp = upload_dir() / item["filename"]
         try:
-            result = index_upload_path(
-                fp,
-                title=item.get("title"),
+            result = index_file(
+                fp.resolve(),
                 source_type=source_type,
+                title=item.get("title"),
                 force=force,
+                embedding_cache=cache,
             )
             if result.get("skipped"):
                 skipped += 1
@@ -111,3 +121,67 @@ def index_pending_uploads(
         "failed": failed,
         "results": results,
     }
+
+
+def index_pending_disk(
+    *,
+    collection_id: str | None = None,
+    force: bool = True,
+) -> dict:
+    """对清单中 pending/failed/indexing 的磁盘文件批量向量化。"""
+    inv = build_rag_inventory()
+    root = _commentary_root()
+    udir = upload_dir()
+    cache = load_embedding_cache(None)
+
+    tasks: list[tuple[Path, str, str | None]] = []
+    for coll in inv["collections"]:
+        if collection_id and coll["id"] != collection_id:
+            continue
+        for doc in coll["documents"]:
+            if doc["inventory_status"] not in ("pending", "failed", "indexing"):
+                continue
+            if coll["id"] == "uploads":
+                fp = udir / doc["filename"]
+                st = doc.get("source_type") or "commentary"
+            else:
+                fp = root / doc["file"]
+                st = coll["source_type"]
+            tasks.append((fp, st, doc.get("title")))
+
+    indexed = skipped = failed = 0
+    results: list[dict] = []
+    for fp, st, title in tasks:
+        if not fp.is_file():
+            failed += 1
+            results.append({"file": str(fp), "error": "源文件不存在"})
+            continue
+        try:
+            result = index_file(
+                fp.resolve(),
+                source_type=st,
+                title=title,
+                force=force,
+                embedding_cache=cache,
+            )
+            if result.get("skipped"):
+                skipped += 1
+            else:
+                indexed += 1
+            results.append({"file": fp.name, **result})
+        except Exception as exc:
+            failed += 1
+            logger.exception("index pending disk failed: %s", fp)
+            results.append({"file": fp.name, "error": str(exc)})
+
+    return {
+        "pending": len(tasks),
+        "indexed": indexed,
+        "skipped": skipped,
+        "failed": failed,
+        "results": results,
+    }
+
+
+def collection_source_types() -> dict[str, str]:
+    return {spec["id"]: spec["source_type"] for spec in _COLLECTIONS}

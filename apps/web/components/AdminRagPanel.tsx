@@ -7,6 +7,7 @@ import {
   deleteRagDocument,
   fetchRagInventory,
   fetchRagStatus,
+  indexPendingDisk,
   indexPendingUploads,
   indexUploadFile,
   RAG_SOURCE_TYPES,
@@ -330,6 +331,27 @@ export default function AdminRagPanel({
     }
   };
 
+  const handleIndexPendingDisk = async () => {
+    const pending = (summary?.pending ?? 0) + (summary?.failed ?? 0);
+    if (pending === 0) {
+      setErr('当前没有待索引或失败的磁盘文件');
+      return;
+    }
+    if (!window.confirm(`确定向量化 ${pending} 个待处理文件？首次可能需数分钟。`)) return;
+    setBusy(true);
+    setErr(null);
+    setUploadOk(null);
+    try {
+      const res = await indexPendingDisk();
+      setUploadOk(`已向量化 ${res.indexed} 个，跳过 ${res.skipped} 个，失败 ${res.failed} 个`);
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '批量向量化失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleIndexPending = async (st: string, count: number) => {
     if (!window.confirm(`确定向量化 ${count} 个待处理上传文件？`)) return;
     setBusy(true);
@@ -421,6 +443,24 @@ export default function AdminRagPanel({
           <SummaryCard label="失败" value={summary.failed} tone="failed" />
           <SummaryCard label="进行中" value={summary.indexing} tone="indexing" />
           <SummaryCard label="仅数据库" value={summary.orphan} tone="orphan" />
+        </div>
+      ) : null}
+
+      {summary && (summary.pending > 0 || summary.failed > 0) ? (
+        <div className="admin-rag-repair-bar card card-2" style={{ marginTop: 10, padding: 12 }}>
+          <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
+            检测到 {summary.pending} 个待索引、{summary.failed} 个失败。
+            通常是路径未对齐或发版后尚未向量化，可一键修复。
+          </p>
+          <button
+            type="button"
+            className="btn"
+            style={{ width: '100%' }}
+            disabled={busy}
+            onClick={() => void handleIndexPendingDisk()}
+          >
+            {busy ? '向量化中…' : '修复：向量化全部待处理文件'}
+          </button>
         </div>
       ) : null}
 
