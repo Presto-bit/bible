@@ -76,7 +76,6 @@ function FriendCheckinStrip({
               key={f.author_id || f.author}
               friend={{
                 user_id: f.author_id ?? '',
-                display_name: f.author,
                 author_avatar_id: f.author_avatar_id,
               }}
               size={compact ? 24 : 28}
@@ -206,7 +205,6 @@ export function DiscoverTodayBar({
                 key={f.author_id || f.author}
                 friend={{
                   user_id: f.author_id ?? '',
-                  display_name: f.author,
                   author_avatar_id: f.author_avatar_id,
                 }}
                 size={26}
