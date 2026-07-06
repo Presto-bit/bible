@@ -1,0 +1,87 @@
+{
+  "schema": "diagrams@1",
+  "style": "低饱和示意 · 非考古复原",
+  "categories": [
+    { "id": "sanctuary", "label": "会幕与圣殿" },
+    { "id": "ritual", "label": "节期与礼仪" },
+    { "id": "event", "label": "事件示意" }
+  ],
+  "items": [
+    {
+      "id": "tabernacle-layout",
+      "title": "会幕平面图",
+      "category": "sanctuary",
+      "file": "tabernacle.svg",
+      "entity_ids": ["会幕"],
+      "refs": ["EXO 25:8", "EXO 40:34", "HEB 9:2"],
+      "summary": "外院、圣所与至圣所分区示意；尺寸非按比例。",
+      "hotspots": [
+        { "id": "court", "label": "外院", "x": 0.5, "y": 0.82, "ref": "EXO 27:9" },
+        { "id": "holy", "label": "圣所", "x": 0.5, "y": 0.48, "ref": "EXO 26:33" },
+        { "id": "most-holy", "label": "至圣所", "x": 0.5, "y": 0.22, "ref": "EXO 26:34" },
+        { "id": "ark", "label": "约柜", "x": 0.5, "y": 0.18, "ref": "EXO 25:10" }
+      ]
+    },
+    {
+      "id": "ark-of-covenant",
+      "title": "约柜示意",
+      "category": "sanctuary",
+      "file": "ark.svg",
+      "entity_ids": ["约柜"],
+      "refs": ["EXO 25:10", "HEB 9:4"],
+      "summary": "法版、施恩座与护卫基路伯的示意结构。",
+      "hotspots": [
+        { "id": "tablets", "label": "法版", "x": 0.5, "y": 0.42, "ref": "EXO 25:16" },
+        { "id": "mercy-seat", "label": "施恩座", "x": 0.5, "y": 0.28, "ref": "EXO 25:17" }
+      ]
+    },
+    {
+      "id": "temple-layout",
+      "title": "圣殿分区",
+      "category": "sanctuary",
+      "file": "temple.svg",
+      "entity_ids": ["圣殿"],
+      "refs": ["1KI 6:1", "MAT 21:12"],
+      "summary": "所罗门圣殿庭院、圣所与至圣所示意。",
+      "hotspots": [
+        { "id": "court", "label": "外院", "x": 0.5, "y": 0.78, "ref": "2CH 4:9" },
+        { "id": "holy", "label": "圣所", "x": 0.5, "y": 0.45, "ref": "1KI 6:17" }
+      ]
+    },
+    {
+      "id": "passover-door",
+      "title": "逾越节门楣示意",
+      "category": "ritual",
+      "file": "passover.svg",
+      "entity_ids": ["逾越节"],
+      "refs": ["EXO 12:7", "EXO 12:13"],
+      "summary": "门楣与门框涂血，使灭命者越过的示意。",
+      "hotspots": [
+        { "id": "lintel", "label": "门楣", "x": 0.5, "y": 0.35, "ref": "EXO 12:7" }
+      ]
+    },
+    {
+      "id": "red-sea-crossing",
+      "title": "过红海示意",
+      "category": "event",
+      "file": "red-sea.svg",
+      "entity_ids": ["红海"],
+      "refs": ["EXO 14:21", "EXO 15:1"],
+      "summary": "神分开海水、以色列人走干地过的示意场景。",
+      "hotspots": []
+    },
+    {
+      "id": "showbread-table",
+      "title": "陈设饼桌",
+      "category": "sanctuary",
+      "file": "showbread.svg",
+      "entity_ids": [],
+      "refs": ["EXO 25:23", "LEV 24:5"],
+      "summary": "圣所内陈设饼桌与灯台位置示意（会幕内）。",
+      "hotspots": [
+        { "id": "bread", "label": "陈设饼", "x": 0.38, "y": 0.5, "ref": "LEV 24:6" },
+        { "id": "lampstand", "label": "灯台", "x": 0.62, "y": 0.5, "ref": "EXO 25:31" }
+      ]
+    }
+  ]
+}

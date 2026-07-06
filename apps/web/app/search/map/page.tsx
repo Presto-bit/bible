@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type MapTour } from '@/lib/api';
 import { MapTourPanels } from '@/components/search/StoryTourPanels';
 
-export default function SearchMapStoriesPage() {
+function SearchMapStoriesContent() {
   useEdgeSwipeBack({ href: '/search' });
+  const searchParams = useSearchParams();
+  const tourParam = searchParams.get('tour');
 
   const [tours, setTours] = useState<MapTour[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,11 +30,23 @@ export default function SearchMapStoriesPage() {
         <h2 className="page-head-title">地图故事</h2>
       </header>
       <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginTop: 8 }}>
-        圣经地理路线专题，点开卡片查看站点与经文。
+        圣经地理路线专题，展开可查看地图与站点经文。
       </p>
       <div style={{ marginTop: 14 }}>
-        {loading ? <p className="muted">加载中…</p> : <MapTourPanels tours={tours} />}
+        {loading ? (
+          <p className="muted">加载中…</p>
+        ) : (
+          <MapTourPanels tours={tours} initialOpenId={tourParam} />
+        )}
       </div>
     </main>
+  );
+}
+
+export default function SearchMapStoriesPage() {
+  return (
+    <Suspense fallback={<main className="container"><p className="muted">加载中…</p></main>}>
+      <SearchMapStoriesContent />
+    </Suspense>
   );
 }

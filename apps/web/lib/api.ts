@@ -1019,6 +1019,55 @@ export interface EntityRelation {
   type: string;
   label: string;
   refs?: string[];
+  peer_id?: string;
+  peer_name?: string;
+  direction?: 'in' | 'out';
+}
+
+export interface EntityGraphNode {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface EntityGraph {
+  center: DictEntity | null;
+  edges: EntityRelation[];
+  nodes: EntityGraphNode[];
+}
+
+export interface DiagramHotspot {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  ref?: string;
+}
+
+export interface BibleDiagram {
+  id: string;
+  title: string;
+  category: string;
+  file: string;
+  entity_ids?: string[];
+  refs?: string[];
+  summary?: string;
+  hotspots?: DiagramHotspot[];
+}
+
+export interface EntityKnowledge {
+  entity: DictEntity;
+  graph: EntityGraph;
+  place: GeoPlace | null;
+  map_tours: MapTour[];
+  diagrams: BibleDiagram[];
+}
+
+export interface GraphTopic {
+  id: string;
+  title: string;
+  subtitle?: string;
+  entity_ids?: string[];
 }
 
 export interface BibleSearchHit {
@@ -1166,10 +1215,20 @@ export const api = {
         : `/content/summaries/chapters?book=${encodeURIComponent(book)}`,
     ),
   relations: (entityId?: string) =>
-    getJson<{ relations: EntityRelation[] }>(
+    getJson<EntityGraph | { relations: EntityRelation[] }>(
       entityId
         ? `/content/relations?entity_id=${encodeURIComponent(entityId)}`
         : '/content/relations',
+    ),
+  entityKnowledge: (entityId: string) =>
+    getJson<EntityKnowledge>(`/content/entities/${encodeURIComponent(entityId)}/knowledge`),
+  diagrams: () => getJson<{ schema?: string; categories?: { id: string; label: string }[]; items: BibleDiagram[] }>('/content/diagrams'),
+  diagram: (id: string) => getJson<{ diagram: BibleDiagram }>(`/content/diagrams/${encodeURIComponent(id)}`),
+  diagramFileUrl: (id: string) => `${API_BASE}/content/diagrams/${encodeURIComponent(id)}/file`,
+  graphTopics: () => getJson<{ topics: GraphTopic[] }>('/content/graph-topics'),
+  graphTopic: (id: string) =>
+    getJson<{ topic: GraphTopic; graph: { nodes: EntityGraphNode[]; edges: EntityRelation[] } }>(
+      `/content/graph-topics/${encodeURIComponent(id)}`,
     ),
   contentAttribution: () =>
     getJson<{ sources: { id: string; name: string; license: string; url: string }[] }>(

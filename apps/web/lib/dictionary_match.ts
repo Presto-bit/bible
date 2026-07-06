@@ -49,6 +49,22 @@ export function entityTypeLabel(type: string | undefined): string {
   return TYPE_ZH[type] ?? type;
 }
 
+const ARTIFACT_ENTITY_IDS = new Set([
+  '约柜', '会幕', '圣殿', '逾越节', '法柜',
+]);
+
+/** 读经正文词链样式：人物点线、地点虚线、物件波浪 */
+export function properNounClass(entity: DictEntity): string {
+  const base = 'proper-noun';
+  if (entity.type === 'person') return `${base} proper-noun--person`;
+  if (entity.type === 'place') return `${base} proper-noun--place`;
+  const eid = entity.id ?? entity.name;
+  if (entity.type === 'term' && ARTIFACT_ENTITY_IDS.has(eid)) {
+    return `${base} proper-noun--artifact`;
+  }
+  return base;
+}
+
 /** 义项切换条短标签：优先消歧名括号前部分 */
 export function entitySenseLabel(e: DictEntity): string {
   const d = e.disambiguation?.trim();

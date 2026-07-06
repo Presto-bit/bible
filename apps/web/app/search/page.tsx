@@ -260,10 +260,10 @@ export default function SearchPage() {
 
       {!hasQuery && (
         <section className="story-card-rail" style={{ marginTop: 14 }}>
-          <div className="story-card-grid story-card-grid-pair">
+          <div className="story-card-grid story-card-grid-quad">
             <Link href="/search/map" className="card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge">地图故事</span>
-              <strong className="story-tour-title">圣经背景专题</strong>
+              <strong className="story-tour-title">圣经地理路线</strong>
               <p className="muted story-tour-meta">
                 {toursReady
                   ? (mapTours.map((t) => t.title).join(' · ') || '暂无专题')
@@ -271,6 +271,20 @@ export default function SearchPage() {
                   : '加载中…'}
               </p>
               <span className="story-tour-toggle">查看详情 ›</span>
+            </Link>
+
+            <Link href="/search/diagrams" className="card card-2 story-tour-card story-entry-card">
+              <span className="story-tour-badge story-tour-badge-diagram">图鉴馆</span>
+              <strong className="story-tour-title">会幕与约柜</strong>
+              <p className="muted story-tour-meta">示意图 · 可点热区</p>
+              <span className="story-tour-toggle">查看图鉴 ›</span>
+            </Link>
+
+            <Link href="/search/graph" className="card card-2 story-tour-card story-entry-card">
+              <span className="story-tour-badge story-tour-badge-graph">关系专题</span>
+              <strong className="story-tour-title">人物关系图</strong>
+              <p className="muted story-tour-meta">出埃及 · 门徒 · 先祖</p>
+              <span className="story-tour-toggle">查看专题 ›</span>
             </Link>
 
             <Link href="/search/timeline" className="card card-2 story-tour-card story-entry-card">

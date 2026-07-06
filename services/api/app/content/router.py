@@ -465,8 +465,73 @@ def summaries_chapters(
     return {"chapters": items}
 
 
+@router.get("/graph-topics")
+def graph_topics_list() -> dict:
+    return {"topics": loader.graph_topics()}
+
+
+@router.get("/graph-topics/{topic_id}")
+def graph_topic_detail(topic_id: str) -> dict:
+    for topic in loader.graph_topics():
+        if topic.get("id") == topic_id:
+            nodes = []
+            edges = []
+            seen_edges: set[str] = set()
+            for eid in topic.get("entity_ids") or []:
+                g = loader.relations_graph_for_entity(eid)
+                if g.get("center"):
+                    nodes.append({
+                        "id": g["center"].get("id"),
+                        "name": g["center"].get("name"),
+                        "type": g["center"].get("type"),
+                    })
+                for edge in g.get("edges") or []:
+                    key = f"{edge.get('from')}-{edge.get('to')}-{edge.get('type')}"
+                    if key in seen_edges:
+                        continue
+                    seen_edges.add(key)
+                    edges.append(edge)
+                for n in g.get("nodes") or []:
+                    if not any(x.get("id") == n.get("id") for x in nodes):
+                        nodes.append(n)
+            return {"topic": topic, "graph": {"nodes": nodes, "edges": edges}}
+    raise HTTPException(status_code=404, detail=f"无关系专题：{topic_id}")
+
+
 @router.get("/relations")
 def relations(entity_id: str | None = Query(None)) -> dict:
     if entity_id:
-        return {"relations": loader.relations_for_entity(entity_id)}
+        return loader.relations_graph_for_entity(entity_id)
     return {"relations": loader.entity_relations()}
+
+
+@router.get("/entities/{entity_id}/knowledge")
+def entity_knowledge(entity_id: str) -> dict:
+    data = loader.entity_knowledge(entity_id)
+    if data is None:
+        raise HTTPException(status_code=404, detail=f"无词条：{entity_id}")
+    return data
+
+
+@router.get("/diagrams")
+def diagrams_list() -> dict:
+    return loader.diagrams_catalog()
+
+
+@router.get("/diagrams/{diagram_id}")
+def diagram_detail(diagram_id: str):
+    item = loader.diagram_by_id(diagram_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"无图鉴：{diagram_id}")
+    return {"diagram": item}
+
+
+@router.get("/diagrams/{diagram_id}/file")
+def diagram_file(diagram_id: str):
+    item = loader.diagram_by_id(diagram_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail=f"无图鉴：{diagram_id}")
+    p = loader.diagram_file_path(item.get("file") or "")
+    if p is None:
+        raise HTTPException(status_code=404, detail="图鉴文件缺失")
+    return FileResponse(p, media_type="image/svg+xml")

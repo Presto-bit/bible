@@ -475,6 +475,155 @@ def entities_at_ref(ref: str, *, limit: int = 8) -> list[dict]:
     return dictionary_lookup(ref=ref)[:limit]
 
 
+def _norm_ref_key(ref: str) -> str:
+    return str(ref or "").strip().upper().replace(".", " ").replace("  ", " ")
+
+
+_ENTITY_PLACE_ID: dict[str, str] = {
+    "红海": "red-sea",
+    "西奈山": "mount-sinai",
+    "旷野": "wilderness-of-sinai",
+}
+
+
+def entity_by_id(entity_id: str) -> dict | None:
+    eid = (entity_id or "").strip()
+    if not eid:
+        return None
+    for ent in dictionary_entities():
+        if ent.get("id") == eid or ent.get("name") == eid:
+            return ent
+    return None
+
+
+@lru_cache(maxsize=1)
+def diagrams_catalog() -> dict:
+    path = _data_dir() / "diagrams" / "index.json"
+    if not path.exists():
+        return {"schema": "diagrams@1", "items": [], "categories": []}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def diagram_items() -> list[dict]:
+    return list(diagrams_catalog().get("items") or [])
+
+
+def diagram_by_id(diagram_id: str) -> dict | None:
+    did = (diagram_id or "").strip()
+    for item in diagram_items():
+        if item.get("id") == did:
+            return item
+    return None
+
+
+def diagram_file_path(file_name: str) -> Path | None:
+    safe = Path(file_name).name
+    allowed = {it.get("file") for it in diagram_items() if it.get("file")}
+    if safe not in allowed:
+        return None
+    p = _data_dir() / "diagrams" / safe
+    return p if p.is_file() else None
+
+
+def diagrams_for_entity(entity_id: str) -> list[dict]:
+    eid = (entity_id or "").strip()
+    return [d for d in diagram_items() if eid in (d.get("entity_ids") or [])]
+
+
+def place_for_entity(entity: dict) -> dict | None:
+    if not entity:
+        return None
+    eid = (entity.get("id") or "").strip()
+    mapped = _ENTITY_PLACE_ID.get(eid) or eid
+    for p in geography_places():
+        if (p.get("id") or "").strip().lower() == mapped.lower():
+            return p
+    ent_refs = {_norm_ref_key(r) for r in (entity.get("refs") or [])}
+    if not ent_refs:
+        return None
+    best: dict | None = None
+    best_score = 0
+    for p in geography_places():
+        prefs = {_norm_ref_key(r) for r in (p.get("refs") or [])}
+        score = len(ent_refs & prefs)
+        if score > best_score:
+            best_score = score
+            best = p
+    return best if best_score > 0 else None
+
+
+def map_tours_for_place(place_id: str) -> list[dict]:
+    pid = (place_id or "").strip().lower()
+    out: list[dict] = []
+    for tour in map_tours():
+        for stop in tour.get("stops") or []:
+            if (stop.get("place_id") or "").strip().lower() == pid:
+                out.append(tour)
+                break
+    return out
+
+
+def _entity_label(entity_id: str) -> str:
+    ent = entity_by_id(entity_id)
+    if ent:
+        return ent.get("name") or entity_id
+    return entity_id
+
+
+def relations_graph_for_entity(entity_id: str, *, limit: int = 12) -> dict:
+    """关系子图：中心实体 + 邻接边（含对端名称）。"""
+    center = entity_by_id(entity_id)
+    if center is None:
+        return {"center": None, "edges": [], "nodes": []}
+    eid = center.get("id") or entity_id
+    edges: list[dict] = []
+    node_ids: set[str] = {eid}
+    for rel in relations_for_entity(eid):
+        other = rel["to"] if rel.get("from") == eid else rel["from"]
+        node_ids.add(other)
+        edges.append({
+            **rel,
+            "peer_id": other,
+            "peer_name": _entity_label(other),
+            "direction": "out" if rel.get("from") == eid else "in",
+        })
+        if len(edges) >= limit:
+            break
+    nodes = []
+    for nid in node_ids:
+        ent = entity_by_id(nid)
+        nodes.append({
+            "id": nid,
+            "name": ent.get("name") if ent else nid,
+            "type": ent.get("type") if ent else "unknown",
+        })
+    return {"center": center, "edges": edges, "nodes": nodes}
+
+
+def entity_knowledge(entity_id: str) -> dict | None:
+    center = entity_by_id(entity_id)
+    if center is None:
+        return None
+    eid = center.get("id") or entity_id
+    place = place_for_entity(center)
+    tours = map_tours_for_place(place["id"]) if place and place.get("id") else []
+    return {
+        "entity": center,
+        "graph": relations_graph_for_entity(eid),
+        "place": place,
+        "map_tours": tours,
+        "diagrams": diagrams_for_entity(eid),
+    }
+
+
+@lru_cache(maxsize=1)
+def graph_topics() -> list[dict]:
+    path = _data_dir() / "knowledge" / "graph_topics.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8")).get("topics", [])
+
+
 def content_attribution() -> dict:
     """公开数据集署名（CC-BY 等）。"""
     sources = [

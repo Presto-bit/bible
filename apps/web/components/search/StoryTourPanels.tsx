@@ -1,16 +1,41 @@
 'use client';
 
-import { useState } from 'react';
-import type { MapTour, TimelineTour } from '@/lib/api';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { api, type GeoPlace, type MapTour, type TimelineTour } from '@/lib/api';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { recordMapTour, recordTimelineTour } from '@/lib/badge_events';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
+import { GeoMiniMap } from '@/components/knowledge/GeoMiniMap';
 
-export function MapTourPanels({ tours }: { tours: MapTour[] }) {
+export function MapTourPanels({
+  tours,
+  initialOpenId,
+}: {
+  tours: MapTour[];
+  initialOpenId?: string | null;
+}) {
   const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
-  const [openId, setOpenId] = useState<string | null>(tours[0]?.id ?? null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId ?? tours[0]?.id ?? null);
+  const [detail, setDetail] = useState<MapTour | null>(null);
+  const [activeStop, setActiveStop] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!openId) {
+      setDetail(null);
+      return;
+    }
+    void api.mapTour(openId).then((d) => setDetail(d.tour)).catch(() => setDetail(null));
+  }, [openId]);
+
+  const mapPlaces = useMemo(() => {
+    const stops = detail?.stops ?? [];
+    return stops
+      .map((s) => s.place)
+      .filter((p): p is GeoPlace => Boolean(p && p.latitude && p.longitude));
+  }, [detail]);
 
   if (!tours.length) {
     return <p className="muted">暂无地图专题</p>;
@@ -29,6 +54,7 @@ export function MapTourPanels({ tours }: { tours: MapTour[] }) {
                 onClick={() => {
                   if (!open) recordMapTour(tour.id);
                   setOpenId(open ? null : tour.id);
+                  setActiveStop(null);
                 }}
               >
                 <span className="story-tour-badge">地图故事</span>
@@ -45,12 +71,37 @@ export function MapTourPanels({ tours }: { tours: MapTour[] }) {
                   {tour.description ? (
                     <p className="story-tour-lead">{tour.description}</p>
                   ) : null}
+                  {mapPlaces.length > 0 ? (
+                    <div style={{ marginBottom: 12 }}>
+                      <GeoMiniMap
+                        places={mapPlaces}
+                        activeId={activeStop}
+                        height={180}
+                      />
+                    </div>
+                  ) : null}
                   <ol className="story-step-list">
-                    {(tour.stops ?? []).map((stop, idx) => (
-                      <li key={stop.order} className="story-step">
+                    {(detail?.stops ?? tour.stops ?? []).map((stop, idx) => (
+                      <li
+                        key={stop.order}
+                        className={`story-step${activeStop === stop.place_id ? ' is-active' : ''}`}
+                      >
                         <span className="story-step-num" aria-hidden>{idx + 1}</span>
                         <div className="story-step-main">
-                          <strong className="story-step-title">{stop.label}</strong>
+                          <button
+                            type="button"
+                            className="story-step-title story-step-title-btn"
+                            onClick={() => setActiveStop(stop.place_id)}
+                          >
+                            {stop.label}
+                          </button>
+                          <Link
+                            href={`/dictionary/${encodeURIComponent(stop.place_id || stop.label)}`}
+                            className="story-step-cta"
+                            style={{ marginTop: 4, display: 'inline-block' }}
+                          >
+                            查看词条 ›
+                          </Link>
                           {stop.note ? (
                             <p className="muted story-step-note">{stop.note}</p>
                           ) : null}

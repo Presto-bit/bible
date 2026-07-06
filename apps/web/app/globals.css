@@ -137,6 +137,11 @@ body.pwa-standalone .app-body {
   padding-top: max(env(safe-area-inset-top, 0px), 4px);
 }
 
+html.pwa-standalone,
+html.pwa-standalone body {
+  background: var(--pwa-bg, #fffcfa);
+}
+
 .app-body::-webkit-scrollbar {
   display: none;
   width: 0;
@@ -2206,6 +2211,27 @@ a.today-card-link {
   align-items: start;
 }
 
+.story-card-grid-quad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+@media (max-width: 520px) {
+  .story-card-grid-quad {
+    grid-template-columns: 1fr;
+  }
+}
+
+.story-tour-badge-diagram {
+  background: color-mix(in srgb, var(--gold, #b8956a) 18%, transparent);
+}
+
+.story-tour-badge-graph {
+  background: color-mix(in srgb, var(--accent, #3d6b8e) 15%, transparent);
+}
+
 .story-card-grid-pair:has(.story-tour-card.is-open) {
   grid-template-columns: 1fr;
 }
@@ -3421,13 +3447,34 @@ a.today-card-link {
   line-height: 1.7;
 }
 
-/* 阅读器：专有名词下划线（可点查词） */
+/* 阅读器：专有名词轻高亮（可点查词） */
 .proper-noun {
-  text-decoration: underline;
-  text-decoration-color: var(--gold);
-  text-decoration-thickness: 1.5px;
-  text-underline-offset: 3px;
   cursor: pointer;
+  text-underline-offset: 3px;
+}
+
+.proper-noun--person {
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, var(--accent, #3d6b8e) 55%, transparent);
+  text-decoration-thickness: 1px;
+}
+
+.proper-noun--place {
+  text-decoration: underline dashed;
+  text-decoration-color: color-mix(in srgb, var(--gold, #b8956a) 70%, transparent);
+  text-decoration-thickness: 1px;
+}
+
+.proper-noun--artifact {
+  text-decoration: underline wavy;
+  text-decoration-color: color-mix(in srgb, var(--gold, #b8956a) 50%, transparent);
+  text-decoration-thickness: 1px;
+}
+
+.proper-noun:not(.proper-noun--person):not(.proper-noun--place):not(.proper-noun--artifact) {
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, var(--ink-muted, #8a7d6b) 40%, transparent);
+  text-decoration-thickness: 1px;
 }
 
 /* ─── 读经进度卡片 / 目录 ─── */
@@ -11191,6 +11238,151 @@ html.app-theme-dark body {
   font-weight: 600;
 }
 
+.entity-knowledge-sheet {
+  max-height: min(82vh, 680px);
+  overflow-y: auto;
+}
+
+.entity-knowledge-summary {
+  line-height: 1.7;
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.entity-knowledge-tabs {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.entity-knowledge-tab {
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.entity-knowledge-tab.is-active {
+  border-color: var(--accent, #3d6b8e);
+  color: var(--accent, #3d6b8e);
+}
+
+.entity-knowledge-panel {
+  margin-top: 12px;
+  min-height: 120px;
+}
+
+.entity-knowledge-foot {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.entity-knowledge-tour-link {
+  display: block;
+  font-size: 13px;
+  margin-top: 4px;
+  color: var(--accent, #3d6b8e);
+}
+
+.geo-mini-map {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+}
+
+.geo-mini-map-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.local-relation-graph-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.diagram-viewer-badge {
+  font-size: 11px;
+  margin: 0 0 6px;
+}
+
+.diagram-viewer-frame {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--paper-2, #f5f0e8);
+}
+
+.diagram-viewer-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.diagram-hotspot {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border-radius: 50%;
+  border: 2px solid var(--accent, #3d6b8e);
+  background: color-mix(in srgb, var(--accent, #3d6b8e) 25%, transparent);
+  cursor: pointer;
+  padding: 0;
+}
+
+.diagram-hotspot.is-active {
+  background: var(--accent, #3d6b8e);
+}
+
+.diagram-hotspot-card {
+  margin-top: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.diagram-gallery-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.diagram-gallery-card {
+  text-align: left;
+  padding: 10px;
+  cursor: pointer;
+  border: 1px solid var(--line);
+}
+
+.diagram-gallery-card.is-active {
+  border-color: var(--accent, #3d6b8e);
+}
+
+.story-step.is-active {
+  background: color-mix(in srgb, var(--accent, #3d6b8e) 8%, transparent);
+  border-radius: 8px;
+}
+
+.story-step-title-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
 .dict-disambig-sheet {
   max-height: 70vh;
 }
@@ -11232,4 +11424,148 @@ html.app-theme-dark body {
 .dict-disambig-summary {
   font-size: 13px;
   line-height: 1.45;
+}
+
+/* ── PWA 安装引导 ── */
+.install-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  max-width: 688px;
+  margin: 0 auto;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: var(--accent-deep);
+  color: #fff;
+}
+
+.install-banner-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+.install-banner-cta {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent-deep);
+}
+
+.install-banner-close {
+  flex-shrink: 0;
+  width: 44px;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.install-pwa-sheet {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.install-pwa-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--pwa-bg, #fffcfa);
+}
+
+.install-pwa-icon {
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(79, 107, 93, 0.12);
+}
+
+.install-pwa-name {
+  display: block;
+  font-size: 18px;
+  color: var(--pwa-ink, #4f6b5d);
+}
+
+.install-pwa-sub {
+  display: block;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.install-pwa-headline {
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.install-pwa-steps {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.install-pwa-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.install-pwa-step-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.install-pwa-steps strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.install-pwa-steps .muted {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.install-pwa-dismiss {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
 }

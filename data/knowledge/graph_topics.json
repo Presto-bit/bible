@@ -1,0 +1,41 @@
+{
+  "schema": "graph_topics@1",
+  "topics": [
+    {
+      "id": "exodus-core",
+      "title": "出埃及核心人物",
+      "subtitle": "摩西、亚伦与行程地标",
+      "entity_ids": ["moses", "aaron", "红海", "西奈山", "会幕", "约柜"]
+    },
+    {
+      "id": "twelve-disciples",
+      "title": "十二门徒",
+      "subtitle": "耶稣与门徒关系",
+      "entity_ids": ["jesus", "peter", "john-apostle"]
+    },
+    {
+      "id": "david-line",
+      "title": "大卫家系",
+      "subtitle": "从大卫到所罗门",
+      "entity_ids": ["david", "solomon", "圣殿"]
+    },
+    {
+      "id": "paul-companions",
+      "title": "保罗与同工",
+      "subtitle": "第一次宣教旅程",
+      "entity_ids": ["paul", "barnabas", "提摩太"]
+    },
+    {
+      "id": "patriarchs",
+      "title": "先祖族谱（节选）",
+      "subtitle": "亚伯拉罕—约瑟",
+      "entity_ids": ["abraham", "isaac", "jacob_patriarch", "joseph-son-of-jacob"]
+    },
+    {
+      "id": "jesus-ministry-places",
+      "title": "耶稣事工地",
+      "subtitle": "迦百农与耶路撒冷",
+      "entity_ids": ["jesus", "迦百农", "jerusalem"]
+    }
+  ]
+}

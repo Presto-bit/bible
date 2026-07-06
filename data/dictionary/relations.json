@@ -1,18 +1,28 @@
 {
-  "schema": "relations@1",
-  "count": 12,
+  "schema": "relations@2",
+  "count": 22,
   "relations": [
     {"from": "abraham", "to": "isaac", "type": "parent", "label": "父亲", "refs": ["GEN 22:2"]},
     {"from": "isaac", "to": "jacob_patriarch", "type": "parent", "label": "父亲", "refs": ["GEN 25:26"]},
     {"from": "jacob_patriarch", "to": "joseph-son-of-jacob", "type": "parent", "label": "父亲", "refs": ["GEN 37:3"]},
     {"from": "moses", "to": "aaron", "type": "sibling", "label": "哥哥", "refs": ["EXO 4:14"]},
+    {"from": "moses", "to": "红海", "type": "event", "label": "过红海", "refs": ["EXO 14:21"]},
+    {"from": "moses", "to": "西奈山", "type": "located_at", "label": "领受律法", "refs": ["EXO 19:20"]},
+    {"from": "moses", "to": "会幕", "type": "event", "label": "建造会幕", "refs": ["EXO 40:17"]},
+    {"from": "moses", "to": "约柜", "type": "event", "label": "法版约柜", "refs": ["EXO 25:10"]},
     {"from": "david", "to": "solomon", "type": "parent", "label": "父亲", "refs": ["1KI 1:39"]},
+    {"from": "solomon", "to": "圣殿", "type": "event", "label": "建造圣殿", "refs": ["1KI 6:1"]},
     {"from": "jesus", "to": "peter", "type": "disciple", "label": "门徒", "refs": ["MAT 16:18"]},
     {"from": "jesus", "to": "john-apostle", "type": "disciple", "label": "所爱的门徒", "refs": ["JHN 13:23"]},
+    {"from": "jesus", "to": "jerusalem", "type": "located_at", "label": "受难与复活", "refs": ["MAT 21:1"]},
+    {"from": "jesus", "to": "迦百农", "type": "located_at", "label": "事工中心", "refs": ["MAT 4:13"]},
     {"from": "paul", "to": "提摩太", "type": "mentor", "label": "属灵儿子", "refs": ["1TI 1:2"]},
     {"from": "paul", "to": "barnabas", "type": "companion", "label": "同工", "refs": ["ACT 13:2"]},
     {"from": "elijah", "to": "elisha", "type": "mentor", "label": "传承先知", "refs": ["2KI 2:9"]},
     {"from": "ruth", "to": "boaz", "type": "spouse", "label": "丈夫", "refs": ["RUT 4:13"]},
-    {"from": "mary-mother-of-jesus", "to": "jesus", "type": "parent", "label": "母亲", "refs": ["LUK 1:31"]}
+    {"from": "mary-mother-of-jesus", "to": "jesus", "type": "parent", "label": "母亲", "refs": ["LUK 1:31"]},
+    {"from": "peter", "to": "迦百农", "type": "located_at", "label": "家乡附近", "refs": ["MRK 1:29"]},
+    {"from": "会幕", "to": "约柜", "type": "contains", "label": "至圣所内", "refs": ["EXO 26:34"]},
+    {"from": "逾越节", "to": "埃及", "type": "event", "label": "出埃及", "refs": ["EXO 12:31"]}
   ]
 }

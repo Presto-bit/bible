@@ -1,7 +1,22 @@
 {
   "schema": "map_tours@1",
-  "count": 2,
+  "count": 3,
   "tours": [
+    {
+      "id": "exodus-wilderness",
+      "title": "出埃及 · 旷野行程",
+      "subtitle": "从兰塞到西奈山（传统示意路线）",
+      "era": "约公元前 15 世纪",
+      "confidence": "traditional",
+      "description": "以色列人出埃及、过红海、在玛拉与以琳，至西奈山领受律法。路线为传统示意，非考古定论。",
+      "stops": [
+        {"order": 1, "place_id": "egypt", "label": "埃及", "ref": "EXO 1:11", "note": "为奴之地"},
+        {"order": 2, "place_id": "red-sea", "label": "红海", "ref": "EXO 14:21", "note": "过海神迹"},
+        {"order": 3, "place_id": "marah", "label": "玛拉", "ref": "EXO 15:23", "note": "苦水变甜"},
+        {"order": 4, "place_id": "wilderness-of-sinai", "label": "西奈旷野", "ref": "EXO 19:1", "note": "至山前安营"},
+        {"order": 5, "place_id": "mount-sinai", "label": "西奈山", "ref": "EXO 19:20", "note": "颁布律法"}
+      ]
+    },
     {
       "id": "paul-first-journey",
       "title": "保罗第一次宣教旅程",

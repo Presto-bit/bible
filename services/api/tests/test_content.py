@@ -90,3 +90,23 @@ def test_topics_index():
 def test_attribution():
     att = loader.content_attribution()
     assert att.get("sources")
+
+
+def test_diagrams_catalog():
+    cat = loader.diagrams_catalog()
+    assert cat.get("items")
+    item = loader.diagram_by_id("tabernacle-layout")
+    assert item is not None
+    assert loader.diagram_file_path(item["file"]) is not None
+
+
+def test_entity_knowledge_moses():
+    data = loader.entity_knowledge("moses")
+    assert data is not None
+    assert data["entity"]["name"] == "摩西"
+    assert data["graph"]["edges"]
+
+
+def test_graph_topics():
+    topics = loader.graph_topics()
+    assert len(topics) >= 1

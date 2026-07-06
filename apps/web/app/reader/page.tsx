@@ -1,11 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
 import { bibleBooks } from '@/lib/bible_client';
 import CatalogView from '@/components/reader/CatalogView';
-import { SheetCloseButton } from '@/components/PageBackBar';
 import ReaderView from '@/components/reader/ReaderView';
 import { getLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
@@ -14,16 +12,14 @@ import { parseMarkRef } from '@/lib/mark_ref';
 import {
   buildDictIndex,
   dictMatchPattern,
-  entityDisplayName,
-  entitySenseLabel,
-  entitySummaryText,
-  entityTypeLabel,
   hasAlternateSenses,
   lookupDictCandidates,
+  properNounClass,
   writeDictChoice,
   type DictContext,
 } from '@/lib/dictionary_match';
 import { recordDictEntity } from '@/lib/badge_events';
+import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -98,11 +94,12 @@ export default function ReaderPage() {
       return parts.map((part, i) => {
         const candidates = dictIndex.get(part);
         if (candidates?.length) {
+          const picked = candidates[0];
           return (
             <span
               key={`${keyBase}-pn${i}`}
-              className="proper-noun"
-              title={candidates.length > 1 ? '点击查看释义（可能有多义）' : undefined}
+              className={properNounClass(picked)}
+              title={candidates.length > 1 ? '点击查看（可能有多义）' : undefined}
               onClick={(e) => {
                 e.stopPropagation();
                 handleNameClick(part, verse);
@@ -116,6 +113,15 @@ export default function ReaderPage() {
       });
     },
     [properNounRe, dictIndex, handleNameClick],
+  );
+
+  const handleNodeClick = useCallback(
+    (entityId: string) => {
+      const ent = dict.find((e) => (e.id ?? e.name) === entityId);
+      if (!ent || !dictPopup) return;
+      openEntity(ent, dictPopup.name, dictPopup.ctx, dictPopup.candidates, true);
+    },
+    [dict, dictPopup, openEntity],
   );
 
   const handlePlanJump = useCallback(
@@ -269,63 +275,16 @@ export default function ReaderPage() {
         checkinGroupId={checkinGroupId}
       />
       {dictPopup && (
-        <div className="sheet-backdrop" onClick={() => setDictPopup(null)}>
-          <div className="sheet card dict-entry-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <h3 style={{ margin: 0 }}>
-                {entityDisplayName(dictPopup.entity)}
-                {entityTypeLabel(dictPopup.entity.type) ? (
-                  <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
-                    {entityTypeLabel(dictPopup.entity.type)}
-                  </span>
-                ) : null}
-              </h3>
-              <SheetCloseButton onClick={() => setDictPopup(null)} />
-            </div>
-            {hasAlternateSenses(dictPopup.candidates, dictPopup.ctx) && (
-              <div className="dict-sense-row" role="tablist" aria-label="切换义项">
-                <span className="muted dict-sense-hint">也可能是：</span>
-                {dictPopup.candidates.map((c) => {
-                  const active = (c.id ?? c.name) === (dictPopup.entity.id ?? dictPopup.entity.name);
-                  const label = entitySenseLabel(c);
-                  return (
-                    <button
-                      key={c.id ?? c.name}
-                      type="button"
-                      role="tab"
-                      aria-selected={active}
-                      className={`dict-sense-chip${active ? ' is-active' : ''}`}
-                      onClick={() => openEntity(c, dictPopup.name, dictPopup.ctx, dictPopup.candidates, true)}
-                    >
-                      {label.length > 14 ? `${label.slice(0, 14)}…` : label}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-            <p style={{ lineHeight: 1.7, marginTop: 8 }}>{entitySummaryText(dictPopup.entity)}</p>
-            {dictPopup.entity.refs && dictPopup.entity.refs.length > 0 && (
-              <div style={{ marginTop: 10 }}>
-                <p className="muted" style={{ fontSize: 12, marginBottom: 6 }}>参考经文</p>
-                <div className="share-actions">
-                  {dictPopup.entity.refs.slice(0, 8).map((r) => (
-                    <button
-                      key={r}
-                      type="button"
-                      className="font-pill"
-                      onClick={() => setDictRefPreview({
-                        osis: r.includes('.') ? r : refSpaceToOsis(r),
-                        label: formatGroupRefLabel(r) ?? r,
-                      })}
-                    >
-                      {formatGroupRefLabel(r) ?? r}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <EntityKnowledgeSheet
+          entity={dictPopup.entity}
+          name={dictPopup.name}
+          candidates={dictPopup.candidates}
+          ctx={dictPopup.ctx}
+          onClose={() => setDictPopup(null)}
+          onPickEntity={(e, remember) => openEntity(e, dictPopup.name, dictPopup.ctx, dictPopup.candidates, remember)}
+          onRefPreview={(osis, label) => setDictRefPreview({ osis, label })}
+          onNodeClick={handleNodeClick}
+        />
       )}
       {dictRefPreview && (
         <VersePreviewSheet
