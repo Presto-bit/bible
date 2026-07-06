@@ -3418,6 +3418,7 @@ a.today-card-link {
 }
 
 /* ─── 底部 sheet ─── */
+/* 层级：tabbar 40 · reader-focus-bar 60 · sheet-backdrop 100 · citation 200 */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -6197,7 +6198,7 @@ body.reader-active .proper-noun--artifact {
   border: 1px solid var(--line);
   border-radius: 12px;
   font-family: inherit;
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.7;
   resize: vertical;
   background: var(--surface);
@@ -7013,7 +7014,7 @@ body.reader-active .proper-noun--artifact {
   left: 50%;
   bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 10px);
   transform: translateX(-50%);
-  z-index: 150;
+  z-index: 60;
   display: flex;
   gap: 2px;
   padding: 6px 8px;
@@ -7623,7 +7624,7 @@ body.reader-active .proper-noun--artifact {
 .thought-write-actions {
   flex-shrink: 0;
   padding-top: 10px;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   background: var(--surface);
 }
 
@@ -8611,6 +8612,11 @@ button.card:active,
 }
 
 .reader-tools-sheet { max-height: 70vh; overflow: auto; }
+
+.reader-tools-source {
+  margin-top: 4px;
+  margin-bottom: 12px;
+}
 .reader-tools-tabs { display: flex; gap: 8px; margin: 10px 0; flex-wrap: wrap; }
 .reader-tools-list { display: flex; flex-direction: column; gap: 8px; }
 .reader-tools-item {
@@ -9739,47 +9745,6 @@ button.card:active,
 
 .reader-settings-sheet .muted {
   margin-bottom: 6px;
-}
-
-/* 划线后轻量笔记条 */
-.mark-note-bar {
-  position: fixed;
-  left: 16px;
-  right: 16px;
-  bottom: calc(58px + env(safe-area-inset-bottom, 0px) + 12px);
-  z-index: 120;
-  background: var(--surface, #fff);
-  border: 1px solid rgba(43, 42, 39, 0.1);
-  border-radius: 14px;
-  padding: 12px 14px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
-}
-
-.mark-note-bar-label {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: var(--ink-soft, #666);
-}
-
-.mark-note-bar-input {
-  width: 100%;
-  border: 1px solid rgba(43, 42, 39, 0.12);
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 14px;
-  margin-bottom: 8px;
-}
-
-.mark-note-bar-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  align-items: center;
-}
-
-.btn-sm {
-  padding: 6px 14px;
-  font-size: 13px;
 }
 
 .verse-mark-span.verse-mark-flash,

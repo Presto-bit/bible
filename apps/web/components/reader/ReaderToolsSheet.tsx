@@ -1,40 +1,38 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { api, type CrossrefResult, type GuideResult, type StrongsWord } from '@/lib/api';
+import { api, type CrossrefResult, type GuideResult } from '@/lib/api';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
-import { recordCrossrefOpen, recordStrongsOpen } from '@/lib/badge_events';
+import { recordCrossrefOpen } from '@/lib/badge_events';
 
-type Tab = 'crossrefs' | 'strongs' | 'guide';
+type Tab = 'crossrefs' | 'guide';
 
 export function ReaderToolsSheet({
   refParam,
   refLabel,
+  sourceText,
   initialTab,
-  singleVerse,
   onClose,
 }: {
   refParam: string;
   refLabel: string;
+  /** 打开面板时选中的经文原文 */
+  sourceText?: string;
   initialTab?: Tab;
-  /** 选中单节时可查希腊原文 */
-  singleVerse?: boolean;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'crossrefs');
   const [cross, setCross] = useState<CrossrefResult | null>(null);
   const [guide, setGuide] = useState<GuideResult | null>(null);
-  const [words, setWords] = useState<StrongsWord[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [previewRef, setPreviewRef] = useState<{ osis: string; label: string } | null>(null);
 
   useEffect(() => {
-    if (initialTab && initialTab !== 'strongs') setTab(initialTab);
-    else if (initialTab === 'strongs') setTab('crossrefs');
+    if (initialTab) setTab(initialTab);
   }, [initialTab]);
 
   useEffect(() => {
@@ -52,14 +50,6 @@ export function ReaderToolsSheet({
         } else if (tab === 'guide') {
           const d = await api.guide(refParam);
           if (!cancelled) setGuide(d);
-        } else if (tab === 'strongs' && singleVerse) {
-          const d = await api.strongs(refParam);
-          if (!cancelled) {
-            setWords(d.words || []);
-            if ((d.words || []).length > 0) recordStrongsOpen();
-          }
-        } else if (tab === 'strongs') {
-          if (!cancelled) setWords([]);
         }
       } catch (e) {
         if (!cancelled) setErr(String(e));
@@ -69,18 +59,15 @@ export function ReaderToolsSheet({
     };
     void load();
     return () => { cancelled = true; };
-  }, [tab, refParam, singleVerse]);
+  }, [tab, refParam]);
 
   const tabHint: Record<Tab, string> = {
     crossrefs: '与本节主题呼应、常被一并引用的经文。点击可预览。',
-    strongs: '新约希腊文逐词、Strong\'s 编号与释义（旧约希伯来文陆续补充）。',
     guide: '查考资源与背景摘要（来自经库与注释索引）。',
   };
 
-  // 原文（Strong's）产品重设计前暂时下线
-  const tabs: { id: Tab; label: string; hidden?: boolean }[] = [
+  const tabs: { id: Tab; label: string }[] = [
     { id: 'crossrefs', label: '相关经文' },
-    { id: 'strongs', label: '原文', hidden: true },
     { id: 'guide', label: '资源' },
   ];
 
@@ -94,7 +81,7 @@ export function ReaderToolsSheet({
             <SheetCloseButton onClick={onClose} />
           </div>
           <div className="reader-tools-tabs">
-            {tabs.filter((t) => !t.hidden).map(({ id, label }) => (
+            {tabs.map(({ id, label }) => (
               <button
                 key={id}
                 type="button"
@@ -106,6 +93,13 @@ export function ReaderToolsSheet({
             ))}
           </div>
           <p className="muted reader-tools-hint">{tabHint[tab]}</p>
+          {sourceText ? (
+            <div className="thought-verse-card reader-tools-source">
+              <span className="thought-verse-label">所选经文</span>
+              <strong className="thought-verse-ref">{refLabel}</strong>
+              <p className="thought-verse-text">{sourceText}</p>
+            </div>
+          ) : null}
           {loading && <p className="muted">加载中…</p>}
           {err && <p className="muted">{err}</p>}
           {!loading && tab === 'crossrefs' && cross && (
@@ -134,23 +128,6 @@ export function ReaderToolsSheet({
                     </button>
                   );
                 })
-              )}
-            </div>
-          )}
-          {!loading && tab === 'strongs' && (
-            <div className="reader-tools-list">
-              {words.length === 0 ? (
-                <p className="muted">暂无该节原文数据（多为旧约经节或数据未就绪）。</p>
-              ) : (
-                words.map((w) => (
-                  <div key={w.position} className="reader-tools-item static">
-                    <strong>{w.word}</strong>
-                    {w.strongs ? <span className="muted"> · {w.strongs}</span> : null}
-                    {w.transliteration ? <span className="muted"> · {w.transliteration}</span> : null}
-                    {w.morphology ? <span className="muted"> · {w.morphology}</span> : null}
-                    {w.gloss ? <p style={{ margin: '4px 0 0', fontSize: 13 }}>{w.gloss}</p> : null}
-                  </div>
-                ))
               )}
             </div>
           )}

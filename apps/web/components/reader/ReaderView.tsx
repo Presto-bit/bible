@@ -105,7 +105,8 @@ import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
 import { buildPlanReadingMeta, type PlanReadingMeta } from '@/lib/plan_reading';
 import { getActivePlan } from '@/lib/plan_progress';
 import { readerUi } from '@/lib/reader_i18n';
-import MarkNoteBar from '@/components/reader/MarkNoteBar';
+import MarkNoteWriteSheet from '@/components/reader/MarkNoteWriteSheet';
+import { upsertMarkNote } from '@/lib/mark_notes';
 import { ReaderSkeleton } from '@/components/Skeleton';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { parseMarkRef } from '@/lib/mark_ref';
@@ -211,11 +212,20 @@ export default function ReaderView({
   const [wordRange, setWordRange] = useState<WordRange | null>(null);
   const [nativeSelection, setNativeSelection] = useState<NativeVerseSelection | null>(null);
   const nativeTouchSelect = isTouchPrimaryUI();
-  const [markNotePrompt, setMarkNotePrompt] = useState<null | { ref: string; label: string }>(null);
+  const [markNotePrompt, setMarkNotePrompt] = useState<null | {
+    ref: string;
+    label: string;
+    verseText?: string;
+  }>(null);
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
-  const [toolsSheet, setToolsSheet] = useState<null | 'crossrefs' | 'guide' | 'strongs'>(null);
+  const [toolsSheet, setToolsSheet] = useState<null | {
+    tab: 'crossrefs' | 'guide';
+    refParam: string;
+    refLabel: string;
+    sourceText?: string;
+  }>(null);
   const [versePreview, setVersePreview] = useState<null | { osis: string; label: string }>(null);
   const [parallelLoading, setParallelLoading] = useState(false);
   const [parallelError, setParallelError] = useState<string | null>(null);
@@ -296,6 +306,8 @@ export default function ReaderView({
     || viewNote
     || writeThoughtSheet
     || thoughtListSheet
+    || toolsSheet
+    || markNotePrompt
     || groupCheckinOpen
     || bookCelebrate,
   );
@@ -1880,7 +1892,7 @@ export default function ReaderView({
         </button>
       </div>
 
-      {hasSel && (
+      {hasSel && !overlayOpen && (
         <div
           ref={focusBarRef}
           className="reader-focus-bar reader-focus-bar-ext reader-focus-bar-near"
@@ -1911,7 +1923,12 @@ export default function ReaderView({
               className="vsb-icon-btn"
               onClick={() => {
                 setMarkPaletteOpen(false);
-                setMarkNotePrompt({ ref: selRef, label: effRefLabel });
+                setMarkNotePrompt({
+                  ref: selRef,
+                  label: effRefLabel,
+                  verseText: effSelectionText || undefined,
+                });
+                clearSelection();
               }}
             >
               <span className="vsb-icon" aria-hidden>
@@ -1975,6 +1992,7 @@ export default function ReaderView({
                 setMarkPaletteOpen(false);
                 void navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`);
                 flashToast(englishUI ? 'Copied' : '已复制');
+                clearSelection();
               }}
             >
               <span className="vsb-icon" aria-hidden>
@@ -1990,7 +2008,13 @@ export default function ReaderView({
               className="vsb-icon-btn"
               onClick={() => {
                 setMarkPaletteOpen(false);
-                setToolsSheet('crossrefs');
+                setToolsSheet({
+                  tab: 'crossrefs',
+                  refParam: effRefParam,
+                  refLabel: effRefLabel,
+                  sourceText: effSelectionText || undefined,
+                });
+                clearSelection();
               }}
             >
               <span className="vsb-icon" aria-hidden>
@@ -2023,11 +2047,15 @@ export default function ReaderView({
       )}
 
       {markNotePrompt && (
-        <MarkNoteBar
-          refStr={markNotePrompt.ref}
+        <MarkNoteWriteSheet
           refLabel={markNotePrompt.label}
-          onSaved={() => flashToast('笔记已保存')}
-          onDismiss={() => setMarkNotePrompt(null)}
+          verseText={markNotePrompt.verseText}
+          onSave={(body) => {
+            upsertMarkNote(markNotePrompt.ref, body);
+            flashToast('笔记已保存');
+            setMarkNotePrompt(null);
+          }}
+          onClose={() => setMarkNotePrompt(null)}
         />
       )}
 
@@ -2157,10 +2185,10 @@ export default function ReaderView({
 
       {toolsSheet && (
         <ReaderToolsSheet
-          refParam={effRefParam}
-          refLabel={effRefLabel}
-          initialTab={toolsSheet}
-          singleVerse={sortedSel.length === 1}
+          refParam={toolsSheet.refParam}
+          refLabel={toolsSheet.refLabel}
+          sourceText={toolsSheet.sourceText}
+          initialTab={toolsSheet.tab}
           onClose={() => setToolsSheet(null)}
         />
       )}

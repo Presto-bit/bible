@@ -5,15 +5,15 @@ import { useEffect, useRef, useState } from 'react';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { useKeyboardInset } from '@/components/reader/useKeyboardInset';
 
-export default function ThoughtWriteSheet({
+export default function MarkNoteWriteSheet({
   refLabel,
   verseText,
-  onPublish,
+  onSave,
   onClose,
 }: {
   refLabel: string;
   verseText?: string;
-  onPublish: (body: string) => void;
+  onSave: (body: string) => void;
   onClose: () => void;
 }) {
   const [body, setBody] = useState('');
@@ -29,6 +29,7 @@ export default function ThoughtWriteSheet({
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = prev;
+      inputRef.current?.blur();
     };
   }, []);
 
@@ -45,7 +46,7 @@ export default function ThoughtWriteSheet({
       >
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
-          <strong>写想法</strong>
+          <strong>写笔记</strong>
           <SheetCloseButton onClick={onClose} />
         </div>
 
@@ -61,7 +62,7 @@ export default function ThoughtWriteSheet({
           </div>
 
           <p className="muted" style={{ fontSize: 12, margin: '10px 0' }}>
-            想法将公开给读同一节经文的人
+            笔记仅保存在本机，可随时在经文旁查看
           </p>
           <textarea
             ref={inputRef}
@@ -69,7 +70,7 @@ export default function ThoughtWriteSheet({
             rows={4}
             autoFocus
             enterKeyHint="done"
-            placeholder="写下你的领受、疑问或祷告…"
+            placeholder="记录领受、疑问或祷告…"
             value={body}
             onChange={(e) => setBody(e.target.value)}
           />
@@ -80,13 +81,15 @@ export default function ThoughtWriteSheet({
             type="button"
             className="btn"
             style={{ width: '100%', marginTop: 0 }}
+            disabled={!body.trim()}
             onClick={() => {
               const t = body.trim();
               if (!t) return;
-              onPublish(t);
+              inputRef.current?.blur();
+              onSave(t);
             }}
           >
-            发布
+            保存
           </button>
         </div>
       </div>
