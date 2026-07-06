@@ -8,11 +8,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.rag.core import (  # noqa: E402
+    balance_across_documents,
     cosine,
     hybrid_rank,
     keyword_score,
     norm_minmax,
+    select_chunks_for_index,
     split_text_into_chunks,
+    split_text_into_chunks_with_meta,
 )
 
 
@@ -85,3 +88,41 @@ def test_hybrid_rank_uses_vector():
     ]
     ranked = hybrid_rank("x", cands, [1.0, 0.0], top_k=2, vector_weight=1.0, keyword_weight=0.0)
     assert ranked[0]["chunk_text"] == "A"
+
+
+def test_split_with_meta_parses_heading():
+    doc = "## JHN 1:9\n第一节注释。\n\n## JHN 1:10\n第二节注释。"
+    items = split_text_into_chunks_with_meta(
+        doc,
+        section_meta_fn=lambda h: {"chapter": 1, "chapter_id": "JHN_1"} if "JHN" in h else {},
+    )
+    assert len(items) >= 2
+    assert all(m.get("chapter_id") == "JHN_1" for _, m in items)
+
+
+def test_select_chunks_per_chapter_min():
+    items = [
+        (f"ch1-{i}", {"chapter_id": "JHN_1"}) for i in range(5)
+    ] + [
+        (f"ch2-{i}", {"chapter_id": "JHN_2"}) for i in range(5)
+    ]
+    picked = select_chunks_for_index(items, strategy="per_chapter", per_chapter_min=2, max_abs=4)
+    ch1 = sum(1 for _, m in picked if m["chapter_id"] == "JHN_1")
+    ch2 = sum(1 for _, m in picked if m["chapter_id"] == "JHN_2")
+    assert ch1 >= 2 and ch2 >= 2
+    assert len(picked) == 4
+
+
+def test_balance_across_documents():
+    ranked = [
+        {"chunk_text": "a1", "score": 0.9, "meta": {"document_id": "doc-a"}, "title": "A"},
+        {"chunk_text": "b1", "score": 0.85, "meta": {"document_id": "doc-b"}, "title": "B"},
+        {"chunk_text": "a2", "score": 0.8, "meta": {"document_id": "doc-a"}, "title": "A"},
+        {"chunk_text": "b2", "score": 0.75, "meta": {"document_id": "doc-b"}, "title": "B"},
+    ]
+    out = balance_across_documents(ranked, 3)
+    assert len(out) == 3
+    docs = [x["meta"]["document_id"] for x in out]
+    assert docs[0] == "doc-a"
+    assert docs[1] == "doc-b"
+    assert docs.count("doc-a") == 2

@@ -3,14 +3,14 @@
 流程：
   1. 解析 scripture_ref（JHN.3.16 / 约翰福音3:16 …）
   2. 从离线经文库取该处经文文本，作为检索查询主体
-  3. RAG retrieve，按卷名（book_name）过滤注释，混合排序
+  3. RAG retrieve，按卷名/章过滤注释，混合排序 + 多注释轮询
   4. 返回引用卡片（标题 / 片段 / 相关度 / 经文）
 """
 from __future__ import annotations
 
 from ..bible import reader
 from ..bible.refs import parse_ref
-from ..rag.retrieve import retrieve
+from ..rag.retrieve import retrieve_for_passage
 
 SNIPPET_CHARS = 220
 RAG_SOURCE_TYPES = ["commentary", "reference-en", "study-bible-zh", "commentary-zh"]
@@ -37,21 +37,14 @@ def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
     query = f"{ref.display} {passage}".strip()
 
     try:
-        hits = retrieve(
+        hits = retrieve_for_passage(
             query,
+            book_name=ref.book_name,
+            book_id=ref.book_id,
+            chapter=ref.chapter,
             top_k=top_k,
             source_types=RAG_SOURCE_TYPES,
-            title_contains=ref.book_name,
-            book_id=ref.book_id,
         )
-        if not hits:
-            hits = retrieve(
-                query,
-                top_k=top_k,
-                source_types=RAG_SOURCE_TYPES,
-                keywords=[ref.book_name, ref.book_id],
-                candidate_limit=1200,
-            )
     except Exception:
         hits = []
     cards = [

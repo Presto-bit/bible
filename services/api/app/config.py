@@ -49,6 +49,13 @@ class Settings(BaseSettings):
     bible_rag_index_strategy: str = "per_chapter"
     rag_hybrid_vector_weight: float = 0.55
     rag_hybrid_keyword_weight: float = 0.45
+    rag_candidate_limit_book: int = 200
+    rag_candidate_limit_chapter: int = 120
+    rag_candidate_limit_fallback: int = 800
+    rag_query_embed_cache_ttl: int = 300
+    note_rag_per_chapter_min_chunks: int = 2
+    note_rag_max_chunks_abs: int = 512
+    bible_rag_vector_backend: str = "auto"  # auto | pgvector | jsonb
 
     # ── AI 额度（游客）──
     ai_guest_daily_limit: int = 0

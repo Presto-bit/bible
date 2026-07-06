@@ -24,13 +24,13 @@ API_DIR = Path(__file__).resolve().parent.parent / "services" / "api"
 sys.path.insert(0, str(API_DIR))
 
 from app.rag.index import (  # noqa: E402
+    _prepare_chunks,
     index_directory,
     index_file,
     load_embedding_cache,
     load_embedding_cache_for_texts,
 )
-from app.rag.core import split_text_into_chunks  # noqa: E402
-from app.rag.retrieve import retrieve  # noqa: E402
+from app.rag.retrieve import retrieve, retrieve_for_passage  # noqa: E402
 
 
 def _purge_source_type(source_type: str) -> int:
@@ -62,7 +62,10 @@ def main() -> int:
     cache = None
     if args.reuse and args.file:
         body = args.file.read_text(encoding="utf-8")
-        chunks = split_text_into_chunks(body)
+        from app.rag.index import guess_book_id, guess_document_title  # noqa: E402
+
+        doc_book = guess_book_id(guess_document_title(body, args.file), args.file)
+        chunks = [t for t, _ in _prepare_chunks(body, book_id=doc_book)]
         cache = load_embedding_cache_for_texts(chunks, args.source_type)
         print(f"复用缓存：{len(cache)} 个 chunk 向量（本文件）")
     elif args.reuse and not args.dir:

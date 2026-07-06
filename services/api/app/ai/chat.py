@@ -6,7 +6,7 @@ import re
 
 from ..bible import reader
 from ..bible.refs import parse_ref
-from ..rag.retrieve import retrieve
+from ..rag.retrieve import retrieve_for_passage
 from .citations import display_citation_title
 from .prompts import DEFAULT_MODE, MODES, build_messages
 from .scenes import NO_RAG_SURFACES, resolve_scene
@@ -57,49 +57,23 @@ def _sanitize_history(history: list[dict] | None) -> list[dict[str, str]]:
     return out
 
 
-_STOP = {"什么", "怎么", "为什么", "如何", "这节", "这段", "经文", "意思", "讲的",
-         "讲什么", "请问", "可以", "我们", "他们", "关于", "以及"}
-
-
-def _keywords(text: str, limit: int = 8) -> list[str]:
-    kws: list[str] = []
-    for run in re.findall(r"[\u4e00-\u9fff]{2,}", text):
-        if run not in _STOP:
-            kws.append(run)
-        for i in range(len(run) - 1):
-            bigram = run[i:i + 2]
-            if bigram not in _STOP:
-                kws.append(bigram)
-    kws.extend(re.findall(r"[A-Za-z]{3,}", text))
-    seen: list[str] = []
-    for k in kws:
-        if k not in seen:
-            seen.append(k)
-    return seen[:limit]
-
-
-def _retrieve_hits(query: str, book_name: str | None, book_id: str | None = None) -> list[dict]:
+def _retrieve_hits(
+    query: str,
+    book_name: str | None,
+    book_id: str | None = None,
+    chapter: int | None = None,
+) -> list[dict]:
     if not query:
         return []
     try:
-        hits: list[dict] = []
-        if book_name or book_id:
-            hits = retrieve(
-                query,
-                top_k=MAX_CITATIONS,
-                source_types=RAG_SOURCE_TYPES,
-                title_contains=book_name,
-                book_id=book_id,
-            )
-        if not hits:
-            hits = retrieve(
-                query,
-                top_k=MAX_CITATIONS,
-                source_types=RAG_SOURCE_TYPES,
-                keywords=_keywords(query),
-                candidate_limit=1200,
-            )
-        return hits
+        return retrieve_for_passage(
+            query,
+            book_name=book_name,
+            book_id=book_id,
+            chapter=chapter,
+            top_k=MAX_CITATIONS,
+            source_types=RAG_SOURCE_TYPES,
+        )
     except Exception as exc:
         logger.warning("注释检索不可用，降级无脚注：%s", exc)
         return []
@@ -127,7 +101,12 @@ def prepare(
     citations: list[dict] = []
     if use_rag:
         query = f"{passage_display if ref else ''} {passage_text} {question or ''}".strip()
-        hits = _retrieve_hits(query, ref.book_name if ref else None, ref.book_id if ref else None)
+        hits = _retrieve_hits(
+            query,
+            ref.book_name if ref else None,
+            ref.book_id if ref else None,
+            ref.chapter if ref else None,
+        )
     else:
         hits = []
     for i, h in enumerate(hits, start=1):

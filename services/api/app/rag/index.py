@@ -11,10 +11,13 @@ import logging
 import re
 from pathlib import Path
 
+from ..config import get_settings
 from ..db import get_pool
-from .core import split_text_into_chunks
+from .core import select_chunks_for_index, split_text_into_chunks, split_text_into_chunks_with_meta
 from .embedding import get_provider
 from .paths import commentary_subpath, path_match_keys, storage_source_path
+from .pgvector import format_vector, pgvector_ready
+from .scripture_meta import meta_from_heading
 
 logger = logging.getLogger(__name__)
 
@@ -163,6 +166,33 @@ def _record_index_error(
         conn.commit()
 
 
+def _prepare_chunks(
+    body: str,
+    *,
+    book_id: str | None,
+) -> list[tuple[str, dict]]:
+    """切块 + 章级 meta + per_chapter 入库策略选取。"""
+    s = get_settings()
+    base_meta: dict = {}
+    if book_id:
+        base_meta["book_id"] = book_id
+    items = split_text_into_chunks_with_meta(
+        body,
+        max_chunk_chars=s.rag_chunk_chars,
+        overlap=s.rag_chunk_overlap,
+        section_meta_fn=lambda h: meta_from_heading(h, book_id),
+        base_meta=base_meta,
+    )
+    if not items:
+        return []
+    return select_chunks_for_index(
+        items,
+        strategy=s.bible_rag_index_strategy,
+        per_chapter_min=s.note_rag_per_chapter_min_chunks,
+        max_abs=s.note_rag_max_chunks_abs,
+    )
+
+
 def index_text(
     *,
     title: str,
@@ -180,8 +210,9 @@ def index_text(
     source_path = storage_source_path(source_path)
     provider = get_provider()
     body_hash = _body_hash(body)
-    chunks = split_text_into_chunks(body)
-    if not chunks:
+    doc_book = book_id or guess_book_id(title, None)
+    chunk_items = _prepare_chunks(body, book_id=doc_book)
+    if not chunk_items:
         _record_index_error(
             source_path=source_path,
             title=title,
@@ -189,6 +220,9 @@ def index_text(
             error="empty body",
         )
         return {"title": title, "chunks": 0, "skipped": True, "reason": "empty"}
+
+    chunks = [t for t, _ in chunk_items]
+    chunk_metas = [m for _, m in chunk_items]
     emb_sig = provider.signature(provider.dim)
 
     pool = get_pool()
@@ -219,15 +253,29 @@ def index_text(
                 reused = len(chunks) - len(misses)
             else:
                 vectors = provider.embed(chunks)
-            for idx, (chunk, vec) in enumerate(zip(chunks, vectors)):
-                meta = {"title": title, "source_type": source_type}
-                if book_id:
-                    meta["book_id"] = book_id
-                conn.execute(
-                    "INSERT INTO bible_rag_chunks (document_id, chunk_index, chunk_text, embedding, chunk_meta) "
-                    "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)",
-                    (doc_id, idx, chunk, json.dumps(vec), json.dumps(meta, ensure_ascii=False)),
-                )
+            use_pg = pgvector_ready(conn)
+            for idx, (chunk, vec, chunk_meta) in enumerate(zip(chunks, vectors, chunk_metas)):
+                meta = {"title": title, "source_type": source_type, **chunk_meta}
+                if doc_book and "book_id" not in meta:
+                    meta["book_id"] = doc_book
+                meta["document_id"] = str(doc_id)
+                if use_pg:
+                    conn.execute(
+                        "INSERT INTO bible_rag_chunks "
+                        "(document_id, chunk_index, chunk_text, embedding, chunk_meta, embedding_vec) "
+                        "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb, %s::vector)",
+                        (
+                            doc_id, idx, chunk, json.dumps(vec),
+                            json.dumps(meta, ensure_ascii=False),
+                            format_vector(vec),
+                        ),
+                    )
+                else:
+                    conn.execute(
+                        "INSERT INTO bible_rag_chunks (document_id, chunk_index, chunk_text, embedding, chunk_meta) "
+                        "VALUES (%s, %s, %s, %s::jsonb, %s::jsonb)",
+                        (doc_id, idx, chunk, json.dumps(vec), json.dumps(meta, ensure_ascii=False)),
+                    )
             conn.execute(
                 "UPDATE bible_documents SET title=%s, source_type=%s, source_path=%s, status='ready', "
                 "rag_body_hash=%s, rag_embedding_sig=%s, "
@@ -295,7 +343,10 @@ def index_directory(
             per_file_cache = embedding_cache
             if reuse_per_file and per_file_cache is None:
                 body = p.read_text(encoding="utf-8")
-                chunks = split_text_into_chunks(body)
+                doc_title = guess_document_title(body, p)
+                doc_book = guess_book_id(doc_title, p)
+                chunk_items = _prepare_chunks(body, book_id=doc_book)
+                chunks = [t for t, _ in chunk_items]
                 per_file_cache = load_embedding_cache_for_texts(chunks, source_type)
             results.append(index_file(
                 p, source_type=source_type, force=force,
