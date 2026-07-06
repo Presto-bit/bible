@@ -12,6 +12,29 @@ function joinVerseTexts(verses: VerseSlice[], verseNums: number[]): string {
     .join('');
 }
 
+const FULL_VERSE_RATIO = 0.85;
+
+/** 选区文本是否覆盖经节绝大部分（才用整节高亮） */
+export function nativeSelectionCoversVerses(
+  verses: VerseSlice[],
+  selection: NativeVerseSelection,
+  ratio = FULL_VERSE_RATIO,
+): boolean {
+  const full = joinVerseTexts(verses, selection.verses);
+  const picked = selection.text.trim();
+  if (!full || !picked) return false;
+  return picked.length >= full.length * ratio;
+}
+
+/** 触控原生划选：仅整节选中时对经节行加 verse-sel-active */
+export function versesForNativeLineHighlight(
+  verses: VerseSlice[],
+  selection: NativeVerseSelection | null,
+): Set<number> {
+  if (!selection || !nativeSelectionCoversVerses(verses, selection)) return new Set();
+  return new Set(selection.verses);
+}
+
 /**
  * 问小爱用的选中文本：视觉整节高亮时传整节经文，避免 sel.toString() 只剩一个字。
  */
@@ -32,7 +55,7 @@ export function resolveSelectionTextForAi(opts: {
     const full = joinVerseTexts(verses, nativeSelection.verses);
     const picked = nativeSelection.text.trim();
     if (!picked) return full;
-    if (full && picked.length < full.length * 0.85) return full;
+    if (nativeSelectionCoversVerses(verses, nativeSelection)) return full;
     return picked;
   }
 

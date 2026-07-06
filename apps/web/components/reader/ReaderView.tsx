@@ -86,7 +86,7 @@ import {
 } from '@/lib/reading';
 import { recordParallelChapter } from '@/lib/badge_events';
 import { outlineFor, outlineForAsync, type SectionMark } from '@/lib/section_titles';
-import { resolveSelectionTextForAi } from '@/lib/reader_selection_text';
+import { resolveSelectionTextForAi, versesForNativeLineHighlight, nativeSelectionCoversVerses } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { buildCheckinRef } from '@/lib/group_checkin';
 import { saveGroupCheckinDraft } from '@/lib/group_checkin_draft';
@@ -446,8 +446,8 @@ export default function ReaderView({
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, nativeSelection]);
   const nativeSelVerses = useMemo(
-    () => new Set(nativeTouchSelect && nativeSelection ? nativeSelection.verses : []),
-    [nativeTouchSelect, nativeSelection],
+    () => (nativeTouchSelect ? versesForNativeLineHighlight(verses, nativeSelection) : new Set<number>()),
+    [nativeTouchSelect, nativeSelection, verses],
   );
   const verseSelClass = useCallback(
     (verse: number) => (wholeVerseSel.includes(verse) || nativeSelVerses.has(verse) ? ' verse-sel-active' : ''),
@@ -1382,6 +1382,8 @@ export default function ReaderView({
     const collapseSystemSelection = () => {
       const pinned = readNativeVerseSelection(root);
       if (!pinned?.text) return;
+      const verseSlices = verses.map((v) => ({ verse: v.verse, text: v.text }));
+      const fullVersePick = nativeSelectionCoversVerses(verseSlices, pinned);
       setNativeSelection((prev) => {
         if (
           prev &&
@@ -1397,10 +1399,14 @@ export default function ReaderView({
       wordRangeRef.current = null;
       lastSelectAt.current = Date.now();
       swipeIgnoreUntilRef.current = Date.now() + 320;
+      if (!fullVersePick) {
+        // 部分选中：保留系统选区高亮，不扩成整节蓝底
+        return;
+      }
       pinningRef.current = true;
       const firstVerse = pinned.verses[0];
       const anchor = firstVerse ? document.getElementById(`verse-anchor-${firstVerse}`) : null;
-      // 模拟点一下选区经节，促使 iOS 收起系统复制条
+      // 整节选中：收起 iOS 系统复制条，改用应用内 verse-sel-active
       anchor?.dispatchEvent(
         new MouseEvent('click', { bubbles: true, cancelable: true, view: window }),
       );
@@ -1461,7 +1467,7 @@ export default function ReaderView({
       window.clearTimeout(settleTimer);
       window.clearTimeout(collapseTimer);
     };
-  }, [book.id, chapter, swipeTurn, nativeTouchSelect]);
+  }, [book.id, chapter, swipeTurn, nativeTouchSelect, verses]);
 
   // 桌面：长按选词 + 拖动扩选（词块 + wordRange）
   useEffect(() => {
