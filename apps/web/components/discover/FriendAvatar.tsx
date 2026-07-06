@@ -1,26 +1,28 @@
 'use client';
 
+import Avatar from '@/components/Avatar';
 import type { Friend } from '@/lib/api';
-import { friendDisplayName } from '@/lib/friend_label';
-import { friendRemarkOrName } from '@/lib/friend_remarks';
+import { friendAvatarId } from '@/lib/friend_avatar';
 
 export function FriendAvatar({
   friend,
   size = 44,
   className = '',
 }: {
-  friend: Pick<Friend, 'user_id' | 'display_name' | 'handle'>;
+  friend: Pick<Friend, 'user_id'> & {
+    avatar_id?: string | null;
+    author_avatar_id?: string | null;
+  };
   size?: number;
   className?: string;
 }) {
-  const name = friendRemarkOrName(friend.user_id, friendDisplayName(friend));
   return (
     <span
       className={`friend-avatar ${className}`.trim()}
-      style={{ width: size, height: size, fontSize: Math.round(size * 0.38) }}
+      style={{ width: size, height: size, flexShrink: 0 }}
       aria-hidden
     >
-      {name.slice(0, 1)}
+      <Avatar id={friendAvatarId(friend)} size={size} />
     </span>
   );
 }

@@ -884,6 +884,7 @@ export interface FriendActivity {
   id: string;
   author_id?: string;
   author: string;
+  author_avatar_id?: string | null;
   ref?: string | null;
   body?: string | null;
   reactions: Record<string, string[]>;
@@ -897,6 +898,7 @@ export interface Friend {
   user_id: string;
   handle?: string | null;
   display_name?: string | null;
+  avatar_id?: string | null;
 }
 export interface GroupInviteInboxItem {
   id: string;

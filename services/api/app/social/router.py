@@ -569,9 +569,10 @@ def friends_activity(user_id: str = Depends(get_current_user)) -> dict:
     with pool.connection() as conn:
         checkins = conn.execute(
             "SELECT m.id, m.user_id, u.display_name, u.handle, m.ref, m.body, m.reactions, m.created_at, "
-            "  m.group_id, g.name "
+            "  m.group_id, g.name, up.avatar_id "
             "FROM group_message m "
             "JOIN users u ON u.id = m.user_id "
+            "LEFT JOIN user_profile up ON up.user_id = u.id "
             "JOIN friendship f ON f.friend_id = m.user_id AND f.user_id = %s "
             "JOIN social_group g ON g.id = m.group_id "
             "WHERE m.kind = 'checkin' "
@@ -579,9 +580,11 @@ def friends_activity(user_id: str = Depends(get_current_user)) -> dict:
             (user_id,),
         ).fetchall()
         shares = conn.execute(
-            "SELECT s.id, s.user_id, u.display_name, u.handle, s.ref, s.body, s.kind, s.created_at, s.reactions "
+            "SELECT s.id, s.user_id, u.display_name, u.handle, s.ref, s.body, s.kind, s.created_at, s.reactions, "
+            "  up.avatar_id "
             "FROM user_share s "
             "JOIN users u ON u.id = s.user_id "
+            "LEFT JOIN user_profile up ON up.user_id = u.id "
             "JOIN friendship f ON f.friend_id = s.user_id AND f.user_id = %s "
             "ORDER BY s.created_at DESC LIMIT 20",
             (user_id,),
@@ -594,6 +597,7 @@ def friends_activity(user_id: str = Depends(get_current_user)) -> dict:
             "id": str(r[0]),
             "author_id": uid,
             "author": name,
+            "author_avatar_id": r[10] if len(r) > 10 else None,
             "ref": r[4],
             "body": r[5],
             "reactions": r[6] or {},
@@ -610,6 +614,7 @@ def friends_activity(user_id: str = Depends(get_current_user)) -> dict:
             "id": str(r[0]),
             "author_id": uid,
             "author": name,
+            "author_avatar_id": r[9] if len(r) > 9 else None,
             "ref": r[4],
             "body": r[5],
             "reactions": (r[8] or {}) if len(r) > 8 else {},
@@ -1263,13 +1268,20 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
         rows = conn.execute(
-            "SELECT u.id, u.handle, u.display_name FROM friendship f "
-            "JOIN users u ON u.id = f.friend_id WHERE f.user_id = %s "
+            "SELECT u.id, u.handle, u.display_name, up.avatar_id FROM friendship f "
+            "JOIN users u ON u.id = f.friend_id "
+            "LEFT JOIN user_profile up ON up.user_id = u.id "
+            "WHERE f.user_id = %s "
             "ORDER BY f.created_at DESC",
             (user_id,),
         ).fetchall()
     return {"friends": [
-        {"user_id": str(r[0]), "handle": r[1], "display_name": r[2]} for r in rows
+        {
+            "user_id": str(r[0]),
+            "handle": r[1],
+            "display_name": r[2],
+            "avatar_id": r[3],
+        } for r in rows
     ]}
 
 
