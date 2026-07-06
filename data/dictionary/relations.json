@@ -1,6 +1,6 @@
 {
   "schema": "relations@2",
-  "count": 22,
+  "count": 24,
   "relations": [
     {"from": "abraham", "to": "isaac", "type": "parent", "label": "父亲", "refs": ["GEN 22:2"]},
     {"from": "isaac", "to": "jacob_patriarch", "type": "parent", "label": "父亲", "refs": ["GEN 25:26"]},
@@ -13,6 +13,8 @@
     {"from": "david", "to": "solomon", "type": "parent", "label": "父亲", "refs": ["1KI 1:39"]},
     {"from": "solomon", "to": "圣殿", "type": "event", "label": "建造圣殿", "refs": ["1KI 6:1"]},
     {"from": "jesus", "to": "peter", "type": "disciple", "label": "门徒", "refs": ["MAT 16:18"]},
+    {"from": "jesus", "to": "thomas", "type": "disciple", "label": "门徒", "refs": ["JHN 20:27"]},
+    {"from": "peter", "to": "thomas", "type": "companion", "label": "同作门徒", "refs": ["JHN 21:2"]},
     {"from": "jesus", "to": "john-apostle", "type": "disciple", "label": "所爱的门徒", "refs": ["JHN 13:23"]},
     {"from": "jesus", "to": "jerusalem", "type": "located_at", "label": "受难与复活", "refs": ["MAT 21:1"]},
     {"from": "jesus", "to": "迦百农", "type": "located_at", "label": "事工中心", "refs": ["MAT 4:13"]},

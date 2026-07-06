@@ -1,17 +1,14 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type MapTour } from '@/lib/api';
-import { MapTourPanels } from '@/components/search/StoryTourPanels';
+import { mapStoryHref } from '@/lib/topic_routes';
 
-function SearchMapStoriesContent() {
+export default function SearchMapIndexPage() {
   useEdgeSwipeBack({ href: '/search' });
-  const searchParams = useSearchParams();
-  const tourParam = searchParams.get('tour');
-
   const [tours, setTours] = useState<MapTour[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,24 +26,27 @@ function SearchMapStoriesContent() {
         <PageBackBar href="/search" label="搜索" />
         <h2 className="page-head-title">地图故事</h2>
       </header>
-      <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginTop: 8 }}>
-        圣经地理路线专题，展开可查看地图与站点经文。
+      <p className="muted story-mode-sub">
+        选一条路线，按站点顺序读经。
       </p>
-      <div style={{ marginTop: 14 }}>
-        {loading ? (
-          <p className="muted">加载中…</p>
-        ) : (
-          <MapTourPanels tours={tours} initialOpenId={tourParam} />
-        )}
+      <div className="topic-picker-list" style={{ marginTop: 14 }}>
+        {loading ? <p className="muted">加载中…</p> : null}
+        {!loading && tours.length === 0 ? <p className="muted">暂无地图专题</p> : null}
+        {tours.map((tour) => (
+          <Link
+            key={tour.id}
+            href={mapStoryHref(tour.id)}
+            className="card card-2 topic-picker-card"
+          >
+            <span className="story-tour-badge">地图故事</span>
+            <strong className="story-tour-title">{tour.title}</strong>
+            <p className="muted story-tour-meta">
+              {[tour.era, tour.subtitle, `${tour.stops?.length ?? 0} 站`].filter(Boolean).join(' · ')}
+            </p>
+            <span className="story-tour-toggle">开始游览 ›</span>
+          </Link>
+        ))}
       </div>
     </main>
-  );
-}
-
-export default function SearchMapStoriesPage() {
-  return (
-    <Suspense fallback={<main className="container"><p className="muted">加载中…</p></main>}>
-      <SearchMapStoriesContent />
-    </Suspense>
   );
 }

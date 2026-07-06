@@ -20,7 +20,13 @@ import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
-import { LIFE_TOPICS } from '@/lib/discover_topics';
+import {
+  diagramTourHref,
+  graphTopicHref,
+  mapStoryHref,
+  SEARCH_HOT_KEYWORDS,
+  timelineStoryHref,
+} from '@/lib/topic_routes';
 import { getMainVersion } from '@/lib/reader_settings';
 import { testament } from '@/lib/dictionary_match';
 
@@ -246,8 +252,6 @@ export default function SearchPage() {
   };
 
   const hasQuery = !searchTooShort(query.trim());
-  const mapStopCount = mapTours.reduce((n, t) => n + (t.stops?.length ?? 0), 0);
-  const timelineEventCount = timelineTours.reduce((n, t) => n + (t.events?.length ?? 0), 0);
   const versionLabel =
     versions.find((v) => v.id === searchVersion)?.label
     || searchVersion.toUpperCase();
@@ -295,42 +299,44 @@ export default function SearchPage() {
             <span>专题</span>
           </div>
           <div className="story-entry-scroll rail">
-            <Link href="/search/map" className="rail-card card card-2 story-tour-card story-entry-card">
+            <Link href={mapStoryHref(mapTours[0]?.id)} className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge">地图故事</span>
-              <strong className="story-tour-title">圣经地理路线</strong>
+              <strong className="story-tour-title">{mapTours[0]?.title ?? '圣经地理路线'}</strong>
               <p className="muted story-tour-meta">
                 {toursReady
-                  ? (mapTours.map((t) => t.title).join(' · ') || '暂无专题')
-                    + (mapStopCount > 0 ? ` · ${mapStopCount} 站` : '')
+                  ? (mapTours[0]
+                    ? `${mapTours[0].stops?.length ?? 0} 站 · 点击开始`
+                    : '暂无专题')
                   : '加载中…'}
               </p>
-              <span className="story-tour-toggle">查看详情 ›</span>
+              <span className="story-tour-toggle">开始游览 ›</span>
             </Link>
 
-            <Link href="/search/diagrams" className="rail-card card card-2 story-tour-card story-entry-card">
+            <Link href={diagramTourHref()} className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge story-tour-badge-diagram">图鉴馆</span>
-              <strong className="story-tour-title">会幕与约柜</strong>
-              <p className="muted story-tour-meta">示意图 · 可点热区</p>
-              <span className="story-tour-toggle">查看图鉴 ›</span>
+              <strong className="story-tour-title">会幕平面图</strong>
+              <p className="muted story-tour-meta">引导式热区 · 4 处起</p>
+              <span className="story-tour-toggle">开始游览 ›</span>
             </Link>
 
-            <Link href="/search/graph" className="rail-card card card-2 story-tour-card story-entry-card">
+            <Link href={graphTopicHref()} className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge story-tour-badge-graph">关系专题</span>
-              <strong className="story-tour-title">人物关系图</strong>
-              <p className="muted story-tour-meta">出埃及 · 门徒 · 先祖</p>
+              <strong className="story-tour-title">出埃及核心人物</strong>
+              <p className="muted story-tour-meta">人物关系 · 附经文</p>
               <span className="story-tour-toggle">查看专题 ›</span>
             </Link>
 
-            <Link href="/search/timeline" className="rail-card card card-2 story-tour-card story-entry-card">
+            <Link href={timelineStoryHref(timelineTours[0]?.id)} className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge story-tour-badge-time">时间故事</span>
-              <strong className="story-tour-title">时间线专题</strong>
+              <strong className="story-tour-title">{timelineTours[0]?.title ?? '时间线专题'}</strong>
               <p className="muted story-tour-meta">
                 {toursReady
-                  ? (timelineTours.map((t) => t.title).join(' · ') || '暂无专题')
-                    + (timelineEventCount > 0 ? ` · ${timelineEventCount} 个节点` : '')
+                  ? (timelineTours[0]
+                    ? `${timelineTours[0].events?.length ?? 0} 个节点 · 点击开始`
+                    : '暂无专题')
                   : '加载中…'}
               </p>
-              <span className="story-tour-toggle">查看详情 ›</span>
+              <span className="story-tour-toggle">开始游览 ›</span>
             </Link>
           </div>
         </section>
@@ -488,14 +494,14 @@ export default function SearchPage() {
         <section style={{ marginTop: 18 }}>
           <h3 className="search-section-title">热门关键词</h3>
           <div className="theme-grid hot-keyword-grid">
-            {LIFE_TOPICS.slice(0, 8).map((t) => (
+            {SEARCH_HOT_KEYWORDS.map((kw) => (
               <button
-                key={t.id}
+                key={kw}
                 type="button"
                 className="theme-chip hot-keyword-chip"
-                onClick={() => applyHistoryQuery(t.title)}
+                onClick={() => applyHistoryQuery(kw)}
               >
-                {t.title}
+                {kw}
               </button>
             ))}
           </div>

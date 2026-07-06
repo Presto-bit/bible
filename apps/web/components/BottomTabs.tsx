@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { markReaderTabEntry } from '@/lib/reading';
 
@@ -74,6 +75,14 @@ export default function BottomTabs() {
   const compact =
     SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
     || GROUP_COMPACT_RE.test(pathname);
+
+  useEffect(() => {
+    const bar = document.querySelector<HTMLElement>('.tabbar');
+    if (!bar) return;
+    if (compact) return;
+    bar.style.removeProperty('transform');
+    bar.style.pointerEvents = '';
+  }, [compact, pathname]);
 
   const go = (href: string) => {
     if (href === '/reader') markReaderTabEntry();

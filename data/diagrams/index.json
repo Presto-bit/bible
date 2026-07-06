@@ -68,7 +68,10 @@
       "entity_ids": ["红海"],
       "refs": ["EXO 14:21", "EXO 15:1"],
       "summary": "神分开海水、以色列人走干地过的示意场景。",
-      "hotspots": []
+      "hotspots": [
+        { "id": "sea-parted", "label": "分开的海水", "x": 0.35, "y": 0.45, "ref": "EXO 14:21" },
+        { "id": "dry-ground", "label": "干地之路", "x": 0.55, "y": 0.55, "ref": "EXO 14:22" }
+      ]
     },
     {
       "id": "showbread-table",

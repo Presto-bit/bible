@@ -8,12 +8,12 @@
       "subtitle": "从所罗门分裂到被掳巴比伦",
       "description": "追踪南国犹大主要君王的统治年代与属灵光景，帮助理解先知书的历史背景。",
       "events": [
-        {"order": 1, "book": "1KI", "chapter": 11, "year_display": "约前930", "label": "所罗门晚年偏离", "note": "国分裂的伏笔"},
-        {"order": 2, "book": "1KI", "chapter": 12, "year_display": "约前930", "label": "罗波安 · 国分裂", "note": "北国以色列、南国犹大分立"},
-        {"order": 3, "book": "2KI", "chapter": 18, "year_display": "约前715", "label": "希西家改革", "note": "除偶像、守逾越节"},
-        {"order": 4, "book": "2KI", "chapter": 21, "year_display": "约前697", "label": "玛拿西恶行", "note": "引发审判预言"},
-        {"order": 5, "book": "2KI", "chapter": 22, "year_display": "约前640", "label": "约西亚发现律法书", "note": "发起宗教改革"},
-        {"order": 6, "book": "2KI", "chapter": 25, "year_display": "约前586", "label": "耶路撒冷陷落", "note": "南国灭亡，被掳巴比伦"}
+        {"order": 1, "book": "1KI", "chapter": 11, "verse": 4, "ref": "1KI 11:4", "year_display": "约前930", "label": "所罗门晚年偏离", "note": "国分裂的伏笔"},
+        {"order": 2, "book": "1KI", "chapter": 12, "verse": 16, "ref": "1KI 12:16", "year_display": "约前930", "label": "罗波安 · 国分裂", "note": "北国以色列、南国犹大分立"},
+        {"order": 3, "book": "2KI", "chapter": 18, "verse": 4, "ref": "2KI 18:4", "year_display": "约前715", "label": "希西家改革", "note": "除偶像、守逾越节"},
+        {"order": 4, "book": "2KI", "chapter": 21, "verse": 6, "ref": "2KI 21:6", "year_display": "约前697", "label": "玛拿西恶行", "note": "引发审判预言"},
+        {"order": 5, "book": "2KI", "chapter": 22, "verse": 8, "ref": "2KI 22:8", "year_display": "约前640", "label": "约西亚发现律法书", "note": "发起宗教改革"},
+        {"order": 6, "book": "2KI", "chapter": 25, "verse": 9, "ref": "2KI 25:9", "year_display": "约前586", "label": "耶路撒冷陷落", "note": "南国灭亡，被掳巴比伦"}
       ]
     },
     {
@@ -22,13 +22,13 @@
       "subtitle": "降生、事工、受难、复活",
       "description": "按四福音串联耶稣一生的关键节点，便于与经文章节对照阅读。",
       "events": [
-        {"order": 1, "book": "LUK", "chapter": 2, "year_display": "约前4", "label": "降生伯利恒", "note": "天使报信，牧羊人朝拜"},
-        {"order": 2, "book": "LUK", "chapter": 3, "year_display": "约27", "label": "受洗与试探", "note": "约翰施洗，圣灵降临"},
-        {"order": 3, "book": "MAT", "chapter": 5, "year_display": "约28", "label": "登山宝训", "note": "天国伦理教导"},
-        {"order": 4, "book": "JHN", "chapter": 11, "year_display": "约29", "label": "叫拉撒路复活", "note": "显明生命权柄"},
-        {"order": 5, "book": "MAT", "chapter": 26, "year_display": "约30", "label": "最后晚餐", "note": "设立圣餐，预言受难"},
-        {"order": 6, "book": "MAT", "chapter": 27, "year_display": "约30", "label": "受难与埋葬", "note": "十字架成就救赎"},
-        {"order": 7, "book": "MAT", "chapter": 28, "year_display": "约30", "label": "复活与大使命", "note": "门徒领受差遣"}
+        {"order": 1, "book": "LUK", "chapter": 2, "verse": 11, "ref": "LUK 2:11", "year_display": "约前4", "label": "降生伯利恒", "note": "天使报信，牧羊人朝拜"},
+        {"order": 2, "book": "LUK", "chapter": 3, "verse": 21, "ref": "LUK 3:21", "year_display": "约27", "label": "受洗与试探", "note": "约翰施洗，圣灵降临"},
+        {"order": 3, "book": "MAT", "chapter": 5, "verse": 3, "ref": "MAT 5:3", "year_display": "约28", "label": "登山宝训", "note": "天国伦理教导"},
+        {"order": 4, "book": "JHN", "chapter": 11, "verse": 43, "ref": "JHN 11:43", "year_display": "约29", "label": "叫拉撒路复活", "note": "显明生命权柄"},
+        {"order": 5, "book": "MAT", "chapter": 26, "verse": 26, "ref": "MAT 26:26", "year_display": "约30", "label": "最后晚餐", "note": "设立圣餐，预言受难"},
+        {"order": 6, "book": "MAT", "chapter": 27, "verse": 50, "ref": "MAT 27:50", "year_display": "约30", "label": "受难与埋葬", "note": "十字架成就救赎"},
+        {"order": 7, "book": "MAT", "chapter": 28, "verse": 6, "ref": "MAT 28:6", "year_display": "约30", "label": "复活与大使命", "note": "门徒领受差遣"}
       ]
     }
   ]

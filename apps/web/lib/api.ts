@@ -1016,6 +1016,8 @@ export interface TimelineTourEvent {
   order: number;
   book: string;
   chapter: number;
+  verse?: number;
+  ref?: string;
   year_display?: string;
   label: string;
   note?: string;

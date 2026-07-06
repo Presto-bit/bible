@@ -11,6 +11,7 @@ import {
   entityGraphHref,
   type EntityKnowledgeTab,
 } from '@/lib/entity_knowledge';
+import { mapStoryHref } from '@/lib/topic_routes';
 import { GeoMiniMap } from './GeoMiniMap';
 import { LocalRelationGraph } from './LocalRelationGraph';
 import { DiagramViewer } from './DiagramViewer';
@@ -129,7 +130,7 @@ export function EntityKnowledgePanel({
                   {knowledge!.map_tours.map((tour) => (
                     <Link
                       key={tour.id}
-                      href={`/search/map?tour=${encodeURIComponent(tour.id)}`}
+                      href={mapStoryHref(tour.id)}
                       className="entity-knowledge-tour-link"
                     >
                       {tour.title} ›

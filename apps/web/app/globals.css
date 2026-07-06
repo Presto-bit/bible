@@ -174,15 +174,16 @@ html.pwa-standalone body {
   left: 0;
   right: 0;
   bottom: 0;
-  min-height: 64px;
-  height: calc(56px + env(safe-area-inset-bottom, 0px));
+  z-index: 40;
   display: flex;
+  align-items: stretch;
+  min-height: calc(56px + env(safe-area-inset-bottom, 0px));
+  padding-top: 6px;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--surface);
   border-top: 1px solid var(--line);
-  z-index: 40;
-  padding-bottom: max(env(safe-area-inset-bottom, 0px), 10px);
-  padding-top: 6px;
   box-shadow: 0 -4px 20px rgba(43, 42, 39, 0.06);
+  transform: translate3d(0, 0, 0);
   transition: transform 0.28s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -215,8 +216,159 @@ body.reader-active.reader-immersive .app-body {
 
 /* 沉浸阅读：阅读器顶栏隐藏时，底部 5-Tab 同步下滑隐藏。 */
 body.reader-immersive .tabbar {
-  transform: translateY(110%);
+  transform: translate3d(0, 110%, 0);
   pointer-events: none;
+}
+
+/* ── 知识专题 · 故事模式 ── */
+.story-mode-page {
+  padding-bottom: 32px;
+}
+
+.story-mode-head {
+  margin-bottom: 4px;
+}
+
+.story-mode-sub {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.story-mode-progress {
+  margin: 14px 0 10px;
+  font-size: 13px;
+  color: var(--ink-muted, var(--ink-faint));
+}
+
+.story-mode-map {
+  margin-bottom: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.story-mode-card {
+  padding: 14px 16px;
+}
+
+.story-mode-stop-title {
+  display: block;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.story-mode-stop-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.story-mode-lead {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-muted, var(--ink-faint));
+}
+
+.story-mode-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.story-mode-back-step {
+  align-self: flex-start;
+  font-size: 13px;
+}
+
+.story-mode-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+.story-mode-timeline-rail {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0 10px;
+  margin-top: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.story-mode-timeline-chip {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.story-mode-timeline-chip.is-active {
+  border-color: var(--accent-deep);
+  color: var(--accent-deep);
+  background: var(--accent-wash, rgba(184, 134, 11, 0.08));
+}
+
+.topic-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topic-picker-card {
+  display: block;
+  padding: 14px 16px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.relation-narrative-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.relation-narrative-card {
+  padding: 12px 14px;
+}
+
+.relation-narrative-line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.relation-narrative-mid {
+  color: var(--ink-faint);
+}
+
+.diagram-viewer-summary {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+
+.diagram-viewer-placeholder {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.diagram-guided-progress {
+  margin-bottom: 10px;
+}
+
+.diagram-guided-actions {
+  margin-top: 12px;
 }
 
 .tab {
@@ -224,16 +376,17 @@ body.reader-immersive .tabbar {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
+  justify-content: flex-start;
+  gap: 2px;
+  min-height: 50px;
   margin: 0;
-  padding: 0;
+  padding: 0 0 8px;
   border: 0;
   background: transparent;
   color: var(--ink-faint);
   font-size: 11px;
   font-family: inherit;
-  line-height: 1.2;
+  line-height: 1.15;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
@@ -241,6 +394,14 @@ body.reader-immersive .tabbar {
   user-select: none;
   touch-action: manipulation;
   transition: transform 0.12s ease, color 0.12s ease;
+}
+
+.tab span {
+  display: block;
+  max-width: 100%;
+  padding: 0 2px 1px;
+  overflow: visible;
+  white-space: nowrap;
 }
 
 /* 小爱 Tab：图标与文案略收 */
@@ -961,10 +1122,14 @@ html:not([data-app-theme]) .card {
 
 /* ─── 每日经文 hero（tier3 + 晨曦场景 + 衬线经文 + 点赞/分享行） ─── */
 .hero-verse {
+  --hero-verse-base-h: 11rem;
   position: relative;
   overflow: hidden;
   margin-bottom: 16px;
-  padding: 16px 18px;
+  padding: 24px 18px;
+  min-height: calc(var(--hero-verse-base-h) * 1.5);
+  display: flex;
+  flex-direction: column;
   cursor: pointer;
 }
 
@@ -1035,6 +1200,10 @@ html:not([data-app-theme]) .card {
 .hero-inner {
   position: relative;
   z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .hero-verse .hero-kicker,
@@ -11179,9 +11348,8 @@ html.app-theme-dark .muted {
   /* wrapper hook for body padding if needed */
 }
 body:has(.tabbar-compact-nav) .tabbar {
-  transform: translateY(110%);
+  transform: translate3d(0, 110%, 0);
   pointer-events: none;
-  transition: transform 0.28s ease;
 }
 
 .onboarding-sheet {

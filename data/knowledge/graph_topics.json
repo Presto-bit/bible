@@ -9,9 +9,9 @@
     },
     {
       "id": "twelve-disciples",
-      "title": "十二门徒",
-      "subtitle": "耶稣与门徒关系",
-      "entity_ids": ["jesus", "peter", "john-apostle"]
+      "title": "十二门徒（节选）",
+      "subtitle": "耶稣与彼得、多马",
+      "entity_ids": ["jesus", "peter", "thomas"]
     },
     {
       "id": "david-line",
