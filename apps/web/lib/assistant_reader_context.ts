@@ -2,7 +2,12 @@
 
 import { listNotes } from './notes';
 import { getActivePlan } from './plan_progress';
-import { getLastRead, todayMinutes } from './reading';
+import {
+  getChapterVerseRange,
+  getLastRead,
+  getLastReadVerse,
+  todayMinutes,
+} from './reading';
 import { readingStreak } from './gamification';
 import { bookIdToChineseName } from './ref_label';
 import type { ChatReaderContext } from './api';
@@ -14,7 +19,15 @@ export function buildAssistantReaderContext(): ChatReaderContext | undefined {
   const last = getLastRead();
   if (last) {
     const book = bookIdToChineseName(last.bookId);
-    ctx.last_read_label = `${book} ${last.chapter}:${last.verse}`;
+    const verse = getLastReadVerse(last.bookId, last.chapter);
+    const range = getChapterVerseRange(last.bookId, last.chapter);
+    if (verse) {
+      ctx.last_read_label = `${book} ${last.chapter}:${verse}`;
+    } else if (range) {
+      ctx.last_read_label = `${book} ${last.chapter}:${range.max}`;
+    } else {
+      ctx.last_read_label = `${book} 第 ${last.chapter} 章`;
+    }
   }
 
   const streak = readingStreak();
