@@ -55,7 +55,10 @@ def guess_book_id(title: str, path: Path | None = None) -> str | None:
 
 
 def load_embedding_cache(source_type: str | None = None) -> dict[str, list]:
-    """加载 chunk_text → embedding 缓存，供重建时复用未变文本的向量（省 API）。"""
+    """加载 chunk_text → embedding 缓存，供重建时复用未变文本的向量（省 API）。
+
+    大库（数万 chunk）会占大量内存；目录批量索引请用 load_embedding_cache_for_texts。
+    """
     pool = get_pool()
     sql = "SELECT chunk_text, embedding FROM bible_rag_chunks"
     params: tuple = ()
@@ -69,6 +72,41 @@ def load_embedding_cache(source_type: str | None = None) -> dict[str, list]:
         for text, emb in conn.execute(sql, params).fetchall():
             if isinstance(emb, list):
                 cache[text] = emb
+    return cache
+
+
+def load_embedding_cache_for_texts(
+    texts: list[str],
+    source_type: str | None = None,
+    *,
+    batch_size: int = 200,
+) -> dict[str, list]:
+    """按文本列表从库中拉取已有向量（分批查询，避免全量载入内存）。"""
+    unique = [t for t in dict.fromkeys(texts) if t and t.strip()]
+    if not unique:
+        return {}
+    cache: dict[str, list] = {}
+    pool = get_pool()
+    with pool.connection() as conn:
+        for i in range(0, len(unique), batch_size):
+            batch = unique[i : i + batch_size]
+            placeholders = ", ".join(["%s"] * len(batch))
+            if source_type:
+                sql = (
+                    f"SELECT c.chunk_text, c.embedding FROM bible_rag_chunks c "
+                    f"JOIN bible_documents d ON d.id=c.document_id "
+                    f"WHERE d.source_type = %s AND c.chunk_text IN ({placeholders})"
+                )
+                params: tuple = (source_type, *batch)
+            else:
+                sql = (
+                    f"SELECT chunk_text, embedding FROM bible_rag_chunks "
+                    f"WHERE chunk_text IN ({placeholders})"
+                )
+                params = tuple(batch)
+            for text, emb in conn.execute(sql, params).fetchall():
+                if isinstance(emb, list):
+                    cache[text] = emb
     return cache
 
 
@@ -248,14 +286,20 @@ def index_directory(
     source_type: str = "commentary",
     force: bool = False,
     embedding_cache: dict[str, list] | None = None,
+    reuse_per_file: bool = False,
 ) -> list[dict]:
     files = sorted([p for p in directory.rglob("*") if p.suffix.lower() in (".md", ".txt")])
     results: list[dict] = []
     for p in files:
         try:
+            per_file_cache = embedding_cache
+            if reuse_per_file and per_file_cache is None:
+                body = p.read_text(encoding="utf-8")
+                chunks = split_text_into_chunks(body)
+                per_file_cache = load_embedding_cache_for_texts(chunks, source_type)
             results.append(index_file(
                 p, source_type=source_type, force=force,
-                embedding_cache=embedding_cache))
+                embedding_cache=per_file_cache))
         except Exception as exc:
             logger.exception("索引失败 %s", p)
             results.append({"title": p.stem, "error": str(exc)})

@@ -56,6 +56,26 @@ index_dir() {
   fi
 }
 
+# OCD 按子目录分批，降低单次进程内存峰值
+index_ocd_dir() {
+  local dir="$1"
+  local source_type="$2"
+  if [[ ! -d "$dir" ]]; then
+    return 0
+  fi
+  local subdirs=("$dir"/*/)
+  if [[ ! -e "${subdirs[0]}" ]]; then
+    index_dir "$dir" "$source_type"
+    return $?
+  fi
+  local ok=1
+  for sub in "${subdirs[@]}"; do
+    [[ -d "$sub" ]] || continue
+    index_dir "$sub" "$source_type" || ok=0
+  done
+  return "$ok"
+}
+
 # ── 1. 英文公版注释（HelloAO 全源 + OpenChristianData）──
 if [[ "$SKIP_IMPORT" != "1" ]]; then
   log "HelloAO 公版注释（6 源 × 66 卷，已齐全跳过）…"
@@ -94,7 +114,7 @@ fi
 ok=0
 index_dir "$STUDY_DIR" "study-bible" && ok=$((ok + 1)) || true
 index_dir "$PD_DIR" "commentary" && ok=$((ok + 1)) || true
-index_dir "$OCD_DIR" "commentary" && ok=$((ok + 1)) || true
+index_ocd_dir "$OCD_DIR" "commentary" && ok=$((ok + 1)) || true
 index_dir "$REF_DIR" "reference-en" && ok=$((ok + 1)) || true
 index_dir "$ZH_DIR" "study-bible-zh" && ok=$((ok + 1)) || true
 index_dir "$FHL_DIR" "commentary-zh" && ok=$((ok + 1)) || true

@@ -27,7 +27,9 @@ from app.rag.index import (  # noqa: E402
     index_directory,
     index_file,
     load_embedding_cache,
+    load_embedding_cache_for_texts,
 )
+from app.rag.core import split_text_into_chunks  # noqa: E402
 from app.rag.retrieve import retrieve  # noqa: E402
 
 
@@ -58,7 +60,12 @@ def main() -> int:
     args = ap.parse_args()
 
     cache = None
-    if args.reuse:
+    if args.reuse and args.file:
+        body = args.file.read_text(encoding="utf-8")
+        chunks = split_text_into_chunks(body)
+        cache = load_embedding_cache_for_texts(chunks, args.source_type)
+        print(f"复用缓存：{len(cache)} 个 chunk 向量（本文件）")
+    elif args.reuse and not args.dir:
         cache = load_embedding_cache(args.source_type)
         print(f"复用缓存：{len(cache)} 个 chunk 向量")
     if args.purge:
@@ -68,7 +75,16 @@ def main() -> int:
     if args.file:
         print(json.dumps(index_file(args.file, source_type=args.source_type, force=args.force, embedding_cache=cache), ensure_ascii=False, indent=2))
     if args.dir:
-        results = index_directory(args.dir, source_type=args.source_type, force=args.force, embedding_cache=cache)
+        reuse_per_file = bool(args.reuse)
+        if reuse_per_file:
+            print("目录索引：按文件分批复用向量（低内存模式）")
+        results = index_directory(
+            args.dir,
+            source_type=args.source_type,
+            force=args.force,
+            embedding_cache=cache,
+            reuse_per_file=reuse_per_file,
+        )
         total = sum(r.get("chunks", 0) for r in results if not r.get("error"))
         reused = sum(r.get("reused", 0) for r in results if not r.get("error"))
         print(json.dumps(results, ensure_ascii=False, indent=2))

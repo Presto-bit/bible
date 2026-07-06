@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from lib.fhl_books import load_fhl_books
+from lib.fhl_books import fhl_books_source, load_fhl_books
 
 REPO = Path(__file__).resolve().parent.parent
 OUT = REPO / "content" / "commentary" / "fhl-zh"
@@ -71,7 +71,7 @@ def _chapter_blocks(*, bid: int, engs: str, chap: int, gb: int = 1) -> list[dict
         })
         try:
             data = _fetch_json(f"{API}?{q}")
-        except (urllib.error.HTTPError, urllib.error.URLError, json.JSONDecodeError):
+        except (urllib.error.HTTPError, urllib.error.URLError, OSError, json.JSONDecodeError):
             break
         records = data.get("record") or []
         if not records:
@@ -103,6 +103,20 @@ def _count_chapters(path: Path, book: str) -> int:
     return len(re.findall(rf"^# {re.escape(LABEL)} — {re.escape(book)} \d+\s*$", text, re.MULTILINE))
 
 
+def _count_local_books(out_dir: Path) -> int:
+    return len(list(out_dir.glob("fhl-*.md"))) if out_dir.is_dir() else 0
+
+
+def _network_reachable() -> bool:
+    try:
+        req = urllib.request.Request(API, headers={"User-Agent": "bible-import/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            resp.read(128)
+        return True
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError, TimeoutError):
+        return False
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--books", nargs="*", help="OSIS 书卷，默认 66 卷")
@@ -112,7 +126,27 @@ def main() -> int:
     args = ap.parse_args()
 
     OUT.mkdir(parents=True, exist_ok=True)
-    fhl = {row[2]: row for row in load_fhl_books()}
+
+    try:
+        books = load_fhl_books()
+    except (urllib.error.URLError, urllib.error.HTTPError, OSError) as exc:
+        print(f"  ⚠ FHL 书卷表不可达：{exc}", flush=True)
+        if args.skip_existing and _count_local_books(OUT) > 0:
+            print(f"  · 离线模式：保留已有 {_count_local_books(OUT)} 卷本地文件", flush=True)
+            return 0
+        return 1
+
+    online = _network_reachable()
+    if not online:
+        print("  ⚠ FHL API 网络不可达，跳过在线拉取", flush=True)
+        if args.skip_existing:
+            n = _count_local_books(OUT)
+            print(f"  · 离线模式：保留已有 {n} 卷本地文件（书卷表来源：{fhl_books_source()}）", flush=True)
+            return 0
+        print("  ✗ 无网络时请使用 --skip-existing", flush=True)
+        return 1
+
+    fhl = {row[2]: row for row in books}
     targets = [b.upper() for b in args.books] if args.books else sorted(CHAPTER_COUNTS.keys())
 
     meta_path = OUT / "meta.json"

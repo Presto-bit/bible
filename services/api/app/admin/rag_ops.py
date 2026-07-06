@@ -5,7 +5,8 @@ import logging
 from pathlib import Path
 
 from ..config import get_settings
-from ..rag.index import guess_document_title, index_file, load_embedding_cache
+from ..rag.index import guess_document_title, index_file, load_embedding_cache_for_texts
+from ..rag.core import split_text_into_chunks
 from ..rag.paths import commentary_root, commentary_subpath, storage_source_path
 from .rag_inventory import (
     _COLLECTIONS,
@@ -91,7 +92,6 @@ def index_pending_uploads(
     force: bool = True,
 ) -> dict:
     pending = list_pending_uploads()
-    cache = load_embedding_cache(None)
     results: list[dict] = []
     indexed = 0
     failed = 0
@@ -99,6 +99,9 @@ def index_pending_uploads(
     for item in pending:
         fp = upload_dir() / item["filename"]
         try:
+            body = fp.read_text(encoding="utf-8")
+            chunks = split_text_into_chunks(body)
+            cache = load_embedding_cache_for_texts(chunks, source_type)
             result = index_file(
                 fp.resolve(),
                 source_type=source_type,
@@ -195,7 +198,6 @@ def index_pending_disk(
     inv = build_rag_inventory()
     root = _commentary_root()
     udir = upload_dir()
-    cache = load_embedding_cache(None)
 
     tasks: list[tuple[Path, str, str | None]] = []
     for coll in inv["collections"]:
@@ -224,6 +226,9 @@ def index_pending_disk(
             results.append({"file": str(fp), "error": "源文件不存在"})
             continue
         try:
+            body = fp.read_text(encoding="utf-8")
+            chunks = split_text_into_chunks(body)
+            cache = load_embedding_cache_for_texts(chunks, st)
             result = index_file(
                 fp.resolve(),
                 source_type=st,
