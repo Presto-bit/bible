@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { api, type GeoPlace, type MapTour, type TimelineTour } from '@/lib/api';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { readerHrefFromRef } from '@/lib/group_footprint';
@@ -17,6 +18,7 @@ export function MapTourPanels({
   tours: MapTour[];
   initialOpenId?: string | null;
 }) {
+  const router = useRouter();
   const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
   const [openId, setOpenId] = useState<string | null>(initialOpenId ?? tours[0]?.id ?? null);
   const [detail, setDetail] = useState<MapTour | null>(null);
@@ -71,6 +73,7 @@ export function MapTourPanels({
                   {[tour.era, tour.subtitle, `${tour.stops?.length ?? 0} 站`]
                     .filter(Boolean)
                     .join(' · ')}
+                  {tour.confidence === 'traditional' ? ' · 传统示意' : ''}
                 </p>
                 <span className="story-tour-toggle">{open ? '收起' : '展开 ›'}</span>
               </button>
@@ -79,6 +82,27 @@ export function MapTourPanels({
                   {tour.description ? (
                     <p className="story-tour-lead">{tour.description}</p>
                   ) : null}
+                  {tour.confidence === 'traditional' ? (
+                    <p className="map-confidence-hint">路线为传统示意，坐标为近似位置，非考古定论。</p>
+                  ) : (
+                    <p className="map-confidence-hint">示意图 · 坐标为近似位置</p>
+                  )}
+                  {(detail?.stops ?? tour.stops ?? [])[0]?.ref ? (
+                    <div className="story-tour-read-actions">
+                      <button
+                        type="button"
+                        className="font-pill accent"
+                        onClick={() => {
+                          const first = (detail?.stops ?? tour.stops ?? [])[0];
+                          if (!first?.ref) return;
+                          const href = readerHrefFromRef(first.ref);
+                          if (href) window.location.href = href;
+                        }}
+                      >
+                        从第 1 站开始读 ›
+                      </button>
+                    </div>
+                  ) : null}
                   {mapPlaces.length > 0 ? (
                     <div style={{ marginBottom: 12 }}>
                       <GeoMiniMap
@@ -86,11 +110,14 @@ export function MapTourPanels({
                         activeId={activeStop}
                         height={200}
                         routeStops={routeStops}
+                        onPlaceClick={(place) => {
+                          router.push(`/dictionary/${encodeURIComponent(place.id)}`);
+                        }}
                       />
                     </div>
                   ) : null}
                   <ol className="story-step-list">
-                    {(detail?.stops ?? tour.stops ?? []).map((stop, idx) => (
+                    {(detail?.stops ?? tour.stops ?? []).map((stop, idx, arr) => (
                       <li
                         key={stop.order}
                         className={`story-step${activeStop === stop.place_id ? ' is-active' : ''}`}
@@ -130,6 +157,20 @@ export function MapTourPanels({
                               }}
                             >
                               读这段 · {formatGroupRefLabel(stop.ref) || stop.ref}
+                            </button>
+                          ) : null}
+                          {idx < arr.length - 1 && arr[idx + 1]?.ref ? (
+                            <button
+                              type="button"
+                              className="story-step-cta story-step-next"
+                              onClick={() => {
+                                const next = arr[idx + 1];
+                                if (!next?.ref) return;
+                                const href = readerHrefFromRef(next.ref);
+                                if (href) window.location.href = href;
+                              }}
+                            >
+                              下一站 · {arr[idx + 1]?.label} ›
                             </button>
                           ) : null}
                         </div>

@@ -113,7 +113,13 @@ export function EntityKnowledgePanel({
           {tab === 'map' ? (
             <div>
               {mapPlaces.length > 0 ? (
-                <GeoMiniMap places={mapPlaces} activeId={knowledge?.place?.id} />
+                <GeoMiniMap
+                  places={mapPlaces}
+                  activeId={knowledge?.place?.id}
+                  onPlaceClick={(place) => {
+                    window.location.href = `/dictionary/${encodeURIComponent(place.id)}`;
+                  }}
+                />
               ) : (
                 <p className="muted" style={{ fontSize: 13 }}>暂无地图坐标</p>
               )}

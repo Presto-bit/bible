@@ -60,8 +60,50 @@ export function entityAnchorRef(entity: DictEntity): string {
   return raw.includes('.') ? raw : refSpaceToOsis(raw);
 }
 
-export function entityAssistantQuestion(entity: DictEntity): string {
+export function entityAssistantQuestion(
+  entity: DictEntity,
+  opts?: {
+    knowledge?: EntityKnowledge | null;
+    readingRef?: string;
+  },
+): string {
   const typeHint =
     entity.type === 'person' ? '人物' : entity.type === 'place' ? '地点' : '词条';
-  return `请介绍圣经中的${typeHint}「${entity.name}」，包括其在经文中的主要角色与意义。`;
+  const lines = [
+    `请介绍圣经中的${typeHint}「${entity.name}」，包括其在经文中的主要角色与意义。`,
+  ];
+  const summary = (entity.summary || '').trim();
+  if (summary && /[\u4e00-\u9fff]/.test(summary)) {
+    lines.push(`词条摘要：${summary.slice(0, 120)}${summary.length > 120 ? '…' : ''}`);
+  }
+  const neighbors = (opts?.knowledge?.graph?.edges ?? [])
+    .slice(0, 6)
+    .map((e) => `${e.peer_name ?? e.to}（${e.label || e.type}）`);
+  if (neighbors.length) {
+    lines.push(`相关关系：${neighbors.join('、')}`);
+  }
+  if (opts?.readingRef) {
+    lines.push(`我当前在读：${opts.readingRef}`);
+  }
+  return lines.join('\n');
+}
+
+export function graphTopicAssistantQuestion(topic: {
+  title: string;
+  subtitle?: string;
+  entity_ids?: string[];
+}): string {
+  const names = (topic.entity_ids ?? []).join('、');
+  const scope = topic.subtitle ? `（${topic.subtitle}）` : '';
+  return [
+    `请帮我理清圣经关系专题「${topic.title}」${scope}中各人物/地点的关系脉络。`,
+    names ? `涉及：${names}。` : '',
+    '请按经文依据说明他们之间的主要关联，并建议阅读顺序。',
+  ].filter(Boolean).join('\n');
+}
+
+export function graphTopicAnchorRef(topic: { entity_ids?: string[] }): string {
+  const first = topic.entity_ids?.[0];
+  if (!first) return 'GEN.1.1';
+  return first.includes('.') ? first : 'GEN.1.1';
 }

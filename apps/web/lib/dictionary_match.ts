@@ -149,18 +149,26 @@ function scoreEntity(e: DictEntity, ctx: DictContext): number {
   return score;
 }
 
-function choiceKey(name: string, bookId: string): string {
-  return `${CHOICE_PREFIX}${name}_${bookId.toUpperCase()}`;
+function choiceKey(name: string, bookId: string, chapter?: number): string {
+  const base = `${CHOICE_PREFIX}${name}_${bookId.toUpperCase()}`;
+  return chapter != null ? `${base}_c${chapter}` : base;
 }
 
-export function readDictChoice(name: string, bookId: string): string | null {
+export function readDictChoice(name: string, bookId: string, chapter?: number): string | null {
   if (typeof window === 'undefined') return null;
+  if (chapter != null) {
+    const byChapter = localStorage.getItem(choiceKey(name, bookId, chapter));
+    if (byChapter) return byChapter;
+  }
   return localStorage.getItem(choiceKey(name, bookId));
 }
 
-export function writeDictChoice(name: string, bookId: string, entityId: string) {
+export function writeDictChoice(name: string, bookId: string, entityId: string, chapter?: number) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(choiceKey(name, bookId), entityId);
+  if (chapter != null) {
+    localStorage.setItem(choiceKey(name, bookId, chapter), entityId);
+  }
 }
 
 export function lookupDictCandidates(
@@ -171,7 +179,7 @@ export function lookupDictCandidates(
   const list = index.get(name) ?? [];
   if (list.length <= 1) return list;
 
-  const remembered = readDictChoice(name, ctx.bookId);
+  const remembered = readDictChoice(name, ctx.bookId, ctx.chapter);
   if (remembered) {
     const hit = list.find((e) => e.id === remembered);
     if (hit) return [hit];

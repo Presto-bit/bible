@@ -293,6 +293,28 @@ export default function DiscoverPage() {
       )}
 
       <div className="section-row" style={{ marginTop: 18 }}>
+        <span>圣经知识</span>
+        <Link href="/search" className="muted">搜索 ›</Link>
+      </div>
+      <div className="rail discover-knowledge-rail" style={{ marginTop: 8 }}>
+        <Link href="/search/map" className="rail-card card card-2 discover-knowledge-card">
+          <span className="story-tour-badge">地图</span>
+          <strong>地理路线</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>出埃及 · 保罗旅程</p>
+        </Link>
+        <Link href="/search/timeline" className="rail-card card card-2 discover-knowledge-card">
+          <span className="story-tour-badge story-tour-badge-time">时间</span>
+          <strong>时间线专题</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>犹大诸王 · 耶稣生平</p>
+        </Link>
+        <Link href="/search/graph" className="rail-card card card-2 discover-knowledge-card">
+          <span className="story-tour-badge story-tour-badge-graph">关系</span>
+          <strong>人物关系图</strong>
+          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>门徒 · 先祖 · 同工</p>
+        </Link>
+      </div>
+
+      <div className="section-row" style={{ marginTop: 18 }}>
         <span>好友动态</span>
         <Link href="/friend/add" className="muted">
           加好友 ›

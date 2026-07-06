@@ -11405,6 +11405,66 @@ html.app-theme-dark body {
   margin-top: 12px;
 }
 
+.local-relation-graph-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.local-relation-graph-filters .font-pill {
+  font-size: 11px;
+  padding: 4px 10px;
+}
+
+.map-confidence-hint {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--ink-muted);
+  line-height: 1.45;
+}
+
+.story-tour-read-actions {
+  margin-bottom: 10px;
+}
+
+.story-step-next {
+  display: block;
+  margin-top: 6px;
+  color: var(--accent, #3d6b8e);
+}
+
+.discover-knowledge-rail .discover-knowledge-card {
+  min-width: 140px;
+  padding: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.discover-knowledge-card strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.search-entity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.search-entity-card {
+  display: block;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.search-section-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
 .entity-knowledge-graph-links {
   display: flex;
   flex-wrap: wrap;

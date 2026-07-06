@@ -18,6 +18,7 @@ import {
   entityKnowledgeTabs,
   type EntityKnowledgeTab,
 } from '@/lib/entity_knowledge';
+import { formatGroupRefLabel } from '@/lib/ref_label';
 import { EntityKnowledgeHeader, EntityKnowledgePanel } from './EntityKnowledgePanel';
 
 export function EntityKnowledgeSheet({
@@ -82,9 +83,14 @@ export function EntityKnowledgeSheet({
   );
 
   const askAssistant = () => {
+    const readingRef = `${ctx.bookId} ${ctx.chapter}:${ctx.verse}`;
     navigateToAssistant(entityAnchorRef(entity), {
-      question: entityAssistantQuestion(entity),
+      question: entityAssistantQuestion(entity, {
+        knowledge,
+        readingRef: formatGroupRefLabel(readingRef) ?? readingRef,
+      }),
       autoSend: true,
+      scene: 'entity_knowledge',
     });
   };
 

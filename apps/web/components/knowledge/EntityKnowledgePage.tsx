@@ -87,8 +87,9 @@ export function EntityKnowledgePage({
   const askAssistant = () => {
     if (!entity) return;
     navigateToAssistant(entityAnchorRef(entity), {
-      question: entityAssistantQuestion(entity),
+      question: entityAssistantQuestion(entity, { knowledge }),
       autoSend: true,
+      scene: 'entity_knowledge',
     });
   };
 

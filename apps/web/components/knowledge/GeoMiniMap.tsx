@@ -62,12 +62,14 @@ export function GeoMiniMap({
   activeId,
   height = 200,
   routeStops,
+  onPlaceClick,
 }: {
   places: GeoPlace[];
   activeId?: string | null;
   height?: number;
   /** 按行程顺序连线；与 places 可部分重叠 */
   routeStops?: RouteStop[];
+  onPlaceClick?: (place: GeoPlace) => void;
 }) {
   const w = 360;
   const h = height;
@@ -123,8 +125,13 @@ export function GeoMiniMap({
           const { x, y } = project(p.latitude, p.longitude, bounds, w, h, pad);
           const active = activeId && p.id === activeId;
           const onRoute = routePoints.find((r) => r.placeId === p.id);
+          const clickable = Boolean(onPlaceClick);
           return (
-            <g key={p.id}>
+            <g
+              key={p.id}
+              style={{ cursor: clickable ? 'pointer' : undefined }}
+              onClick={() => onPlaceClick?.(p)}
+            >
               <circle
                 cx={x}
                 cy={y}

@@ -1,12 +1,21 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { EntityGraph, EntityGraphNode, EntityRelation } from '@/lib/api';
 import { entityDictionaryHref, entityGraphHref } from '@/lib/entity_knowledge';
 import { entityTypeLabel } from '@/lib/dictionary_match';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
+import {
+  RELATION_FILTERS,
+  centerNeighborEdges,
+  computeRelationLayout,
+  filterRelationEdges,
+  relationCategory,
+  secondHopEdges,
+  type RelationFilterKey,
+} from '@/lib/relation_graph';
 
 const TYPE_COLOR: Record<string, string> = {
   person: '#3d6b8e',
@@ -14,15 +23,6 @@ const TYPE_COLOR: Record<string, string> = {
   term: '#8a6b3d',
   event: '#8a3d6b',
   unknown: '#8a7d6b',
-};
-
-type LayoutNode = {
-  node: EntityGraphNode;
-  edge?: EntityRelation;
-  edgeIndex?: number;
-  x: number;
-  y: number;
-  isCenter?: boolean;
 };
 
 type Selection =
@@ -54,56 +54,74 @@ export function LocalRelationGraph({
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
+  const [edgeFilter, setEdgeFilter] = useState<RelationFilterKey>('all');
 
   const w = isFullscreen ? 520 : 400;
   const h = isFullscreen ? 420 : 280;
   const cx = w / 2;
   const cy = h / 2;
-  const r = isFullscreen ? 128 : 88;
+  const baseR = isFullscreen ? 128 : 88;
   const maxScale = isFullscreen ? 3.2 : 2.4;
 
-  const layout = useMemo(() => {
-    if (!center) return { centerId: '', nodes: [] as LayoutNode[] };
-    const centerId = center.id ?? center.name;
-    const neighbors = graph.edges;
-    const nodes: LayoutNode[] = [
-      {
-        node: {
-          id: centerId,
-          name: center.name,
-          type: center.type ?? 'person',
-        },
-        x: cx,
-        y: cy,
-        isCenter: true,
-      },
-    ];
-    neighbors.forEach((edge, i) => {
-      const peerId = edge.peer_id ?? (edge.from === centerId ? edge.to : edge.from);
-      const found = graph.nodes.find((n) => n.id === peerId);
-      const angle = (2 * Math.PI * i) / Math.max(neighbors.length, 1) - Math.PI / 2;
-      nodes.push({
-        node: found ?? { id: peerId, name: edge.peer_name ?? peerId, type: 'unknown' },
-        edge,
-        edgeIndex: i,
-        x: cx + r * Math.cos(angle),
-        y: cy + r * Math.sin(angle),
-      });
-    });
-    return { centerId, nodes };
-  }, [center, graph.edges, graph.nodes, cx, cy, r]);
+  const filteredEdges = useMemo(
+    () => filterRelationEdges(graph.edges, edgeFilter),
+    [graph.edges, edgeFilter],
+  );
 
-  const selectedEdge = selection?.kind === 'edge' ? graph.edges[selection.index] : null;
+  const centerId = center?.id ?? center?.name ?? '';
+
+  const { layoutNodes, drawableEdges, positions } = useMemo(() => {
+    if (!center) {
+      return { layoutNodes: [], drawableEdges: [], positions: new Map<string, { x: number; y: number }>() };
+    }
+    const centerNode: EntityGraphNode = {
+      id: centerId,
+      name: center.name,
+      type: center.type ?? 'person',
+    };
+    const { layoutNodes: nodes, drawableEdges: draw } = computeRelationLayout({
+      centerId,
+      centerNode,
+      edges: filteredEdges,
+      nodes: graph.nodes,
+      cx,
+      cy,
+      baseR,
+    });
+    const pos = new Map(nodes.map((n) => [n.node.id, { x: n.x, y: n.y }]));
+    return { layoutNodes: nodes, drawableEdges: draw, positions: pos };
+  }, [center, centerId, filteredEdges, graph.nodes, cx, cy, baseR]);
+
+  useEffect(() => {
+    setSelection(null);
+  }, [centerId, edgeFilter]);
+
+  const selectedEdge = selection?.kind === 'edge'
+    ? filteredEdges[selection.index] ?? null
+    : null;
+
   const selectedNode = useMemo(() => {
     if (!selection) return null;
     if (selection.kind === 'center' && center) {
-      return layout.nodes.find((n) => n.isCenter)?.node ?? null;
+      return layoutNodes.find((n) => n.isCenter)?.node ?? null;
     }
     if (selection.kind === 'node') {
-      return layout.nodes.find((n) => n.node.id === selection.id)?.node ?? null;
+      return layoutNodes.find((n) => n.node.id === selection.id)?.node ?? null;
     }
     return null;
-  }, [selection, layout.nodes, center]);
+  }, [selection, layoutNodes, center]);
+
+  const selectedNodeEdge = useMemo(() => {
+    if (!selectedNode || selectedNode.id === centerId) return null;
+    return centerNeighborEdges(centerId, filteredEdges).find(
+      (e) => e.from === selectedNode.id || e.to === selectedNode.id,
+    ) ?? null;
+  }, [selectedNode, centerId, filteredEdges]);
+
+  const extraHops = useMemo(() => {
+    if (!selectedNode || selectedNode.id === centerId) return [];
+    return secondHopEdges(centerId, selectedNode.id, filteredEdges);
+  }, [selectedNode, centerId, filteredEdges]);
 
   const zoomBy = useCallback((delta: number) => {
     setScale((s) => clamp(Number((s + delta).toFixed(2)), 0.5, maxScale));
@@ -146,11 +164,17 @@ export function LocalRelationGraph({
     setSelection({ kind: 'edge', index });
   }, []);
 
+  const filterCounts = useMemo(() => {
+    const counts = new Map<RelationFilterKey, number>();
+    for (const f of RELATION_FILTERS) {
+      counts.set(f.key, filterRelationEdges(graph.edges, f.key).length);
+    }
+    return counts;
+  }, [graph.edges]);
+
   if (!center) {
     return <p className="muted" style={{ fontSize: 13 }}>暂无关系数据</p>;
   }
-
-  const neighborNodes = layout.nodes.filter((n) => !n.isCenter);
 
   return (
     <div className={`local-relation-graph${isFullscreen ? ' local-relation-graph--fullscreen' : ''}`}>
@@ -161,6 +185,25 @@ export function LocalRelationGraph({
           <button type="button" className="font-pill" aria-label="重置" onClick={resetView}>1×</button>
           <button type="button" className="font-pill" aria-label="放大" onClick={() => zoomBy(0.2)}>+</button>
         </div>
+      </div>
+
+      <div className="local-relation-graph-filters" role="tablist" aria-label="关系筛选">
+        {RELATION_FILTERS.map((f) => {
+          const count = filterCounts.get(f.key) ?? 0;
+          if (f.key !== 'all' && count === 0) return null;
+          return (
+            <button
+              key={f.key}
+              type="button"
+              role="tab"
+              aria-selected={edgeFilter === f.key}
+              className={`font-pill${edgeFilter === f.key ? ' accent' : ''}`}
+              onClick={() => setEdgeFilter(f.key)}
+            >
+              {f.label}{count > 0 ? ` ${count}` : ''}
+            </button>
+          );
+        })}
       </div>
 
       <div
@@ -182,35 +225,41 @@ export function LocalRelationGraph({
             transformOrigin: 'center center',
           }}
         >
-          <circle cx={cx} cy={cy} r={r + 28} fill="none" stroke="var(--line, #e0d8cc)" strokeWidth="1" />
-          {neighborNodes.map(({ node, edge, edgeIndex, x, y }, i) => {
-            const edgeSelected = selection?.kind === 'edge' && selection.index === edgeIndex;
+          <circle cx={cx} cy={cy} r={baseR * 1.35} fill="none" stroke="var(--line, #e0d8cc)" strokeWidth="1" />
+          {drawableEdges.map(({ edge, index }) => {
+            const fromPos = positions.get(edge.from) ?? (edge.from === centerId ? { x: cx, y: cy } : null);
+            const toPos = positions.get(edge.to) ?? (edge.to === centerId ? { x: cx, y: cy } : null);
+            if (!fromPos || !toPos) return null;
+            const edgeSelected = selection?.kind === 'edge' && selection.index === index;
+            const isCenterSpoke = edge.from === centerId || edge.to === centerId;
             return (
-              <g key={`${node.id}-${i}`}>
+              <g key={`edge-${edge.from}-${edge.to}-${index}`}>
                 <line
-                  x1={cx}
-                  y1={cy}
-                  x2={x}
-                  y2={y}
+                  x1={fromPos.x}
+                  y1={fromPos.y}
+                  x2={toPos.x}
+                  y2={toPos.y}
                   stroke={edgeSelected ? 'var(--accent, #3d6b8e)' : 'var(--line, #d8d0c4)'}
-                  strokeWidth={edgeSelected ? 2.5 : 1}
+                  strokeWidth={edgeSelected ? 2.5 : isCenterSpoke ? 1.2 : 0.9}
+                  strokeDasharray={isCenterSpoke ? undefined : '4 3'}
+                  opacity={isCenterSpoke ? 1 : 0.75}
                   style={{ cursor: 'pointer' }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (edgeIndex !== undefined) selectEdge(edgeIndex);
+                    selectEdge(index);
                   }}
                 />
-                {edge?.label ? (
+                {edge.label && isCenterSpoke ? (
                   <text
-                    x={(cx + x) / 2}
-                    y={(cy + y) / 2 - 4}
+                    x={(fromPos.x + toPos.x) / 2}
+                    y={(fromPos.y + toPos.y) / 2 - 4}
                     textAnchor="middle"
                     fontSize="9"
                     fill={edgeSelected ? 'var(--accent, #3d6b8e)' : 'var(--ink-muted, #8a7d6b)'}
                     style={{ cursor: 'pointer', pointerEvents: 'all' }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (edgeIndex !== undefined) selectEdge(edgeIndex);
+                      selectEdge(index);
                     }}
                   >
                     {edge.label.length > 10 ? `${edge.label.slice(0, 10)}…` : edge.label}
@@ -219,7 +268,7 @@ export function LocalRelationGraph({
               </g>
             );
           })}
-          {layout.nodes.map(({ node, x, y, isCenter }, i) => {
+          {layoutNodes.map(({ node, x, y, isCenter }, i) => {
             const color = TYPE_COLOR[node.type] ?? TYPE_COLOR.unknown;
             const nodeSelected =
               (selection?.kind === 'center' && isCenter)
@@ -277,11 +326,10 @@ export function LocalRelationGraph({
           {selectedEdge ? (
             <>
               <strong>{selectedEdge.label}</strong>
-              {selectedEdge.type ? (
-                <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
-                  {selectedEdge.type}
-                </span>
-              ) : null}
+              <span className="muted" style={{ marginLeft: 8, fontSize: 12 }}>
+                {RELATION_FILTERS.find((f) => f.key === relationCategory(selectedEdge.type))?.label
+                  ?? selectedEdge.type}
+              </span>
               <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
                 {selectedEdge.peer_name ?? selectedEdge.to}
               </p>
@@ -313,6 +361,40 @@ export function LocalRelationGraph({
                   {entityTypeLabel(selectedNode.type)}
                 </span>
               ) : null}
+              {selectedNodeEdge ? (
+                <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
+                  与{center.name}：{selectedNodeEdge.label}
+                </p>
+              ) : null}
+              {extraHops.length > 0 ? (
+                <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
+                  其他关联：
+                  {extraHops.slice(0, 4).map((e) => {
+                    const other = e.from === selectedNode.id ? e.to : e.from;
+                    const name = graph.nodes.find((n) => n.id === other)?.name ?? other;
+                    return `${name}（${e.label}）`;
+                  }).join('、')}
+                  {extraHops.length > 4 ? '…' : ''}
+                </p>
+              ) : null}
+              {(selectedNodeEdge?.refs ?? []).length > 0 ? (
+                <div className="share-actions" style={{ marginTop: 8 }}>
+                  <span className="muted" style={{ fontSize: 11, width: '100%' }}>关系经节</span>
+                  {(selectedNodeEdge?.refs ?? []).slice(0, 4).map((ref) => (
+                    <button
+                      key={ref}
+                      type="button"
+                      className="font-pill"
+                      onClick={() => onRefClick?.(
+                        ref.includes('.') ? ref : refSpaceToOsis(ref),
+                        formatGroupRefLabel(ref) ?? ref,
+                      )}
+                    >
+                      {formatGroupRefLabel(ref) ?? ref}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
               <div className="share-actions" style={{ marginTop: 10 }}>
                 {onNodeClick ? (
                   <button
@@ -320,7 +402,7 @@ export function LocalRelationGraph({
                     className="font-pill"
                     onClick={() => onNodeClick(selectedNode.id)}
                   >
-                    切换到此人物
+                    切换为中心
                   </button>
                 ) : null}
                 <Link

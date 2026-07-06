@@ -9,9 +9,12 @@ import {
   api,
   type BibleSearchHit,
   type BibleVersion,
+  type DictEntity,
   type MapTour,
   type TimelineTour,
 } from '@/lib/api';
+import { entityDisplayName, entityTypeLabel } from '@/lib/dictionary_match';
+import { entityDictionaryHref } from '@/lib/entity_knowledge';
 import { bibleSearch } from '@/lib/bible_client';
 import { listNotes, type LocalNote } from '@/lib/notes';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
@@ -115,6 +118,8 @@ export default function SearchPage() {
   const [scopeTab, setScopeTab] = useState<ScopeTab>('all');
   const [searchVersion, setSearchVersion] = useState('cnv');
   const [versions, setVersions] = useState<BibleVersion[]>([]);
+  const [entityHits, setEntityHits] = useState<DictEntity[]>([]);
+  const [entityLoading, setEntityLoading] = useState(false);
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -186,6 +191,30 @@ export default function SearchPage() {
       cancelled = true;
     };
   }, [query, searchVersion]);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (searchTooShort(q)) {
+      setEntityHits([]);
+      return;
+    }
+    let cancelled = false;
+    setEntityLoading(true);
+    void api
+      .dictionary(q)
+      .then((d) => {
+        if (!cancelled) setEntityHits((d.entities ?? []).slice(0, 8));
+      })
+      .catch(() => {
+        if (!cancelled) setEntityHits([]);
+      })
+      .finally(() => {
+        if (!cancelled) setEntityLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [query]);
 
   const displayHits = useMemo(() => {
     if (scopeTab === 'ot') return hits.filter((h) => testament(h.book) === 'OT');
@@ -304,7 +333,36 @@ export default function SearchPage() {
 
       {hasQuery && (
         <section style={{ marginTop: 18 }}>
-          <div className="search-result-head">
+          {(entityLoading || entityHits.length > 0) && (
+            <>
+              <h3 className="search-section-title">人物与地点</h3>
+              {entityLoading ? (
+                <p className="muted" style={{ fontSize: 13 }}>查找词条…</p>
+              ) : (
+                <div className="search-entity-list">
+                  {entityHits.map((ent) => (
+                    <Link
+                      key={ent.id ?? ent.name}
+                      href={entityDictionaryHref(ent)}
+                      className="card card-2 search-entity-card"
+                    >
+                      <strong>{entityDisplayName(ent)}</strong>
+                      {entityTypeLabel(ent.type) ? (
+                        <span className="muted" style={{ fontSize: 12, marginLeft: 8 }}>
+                          {entityTypeLabel(ent.type)}
+                        </span>
+                      ) : null}
+                      <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
+                        {(ent.summary || '').slice(0, 48)}{(ent.summary || '').length > 48 ? '…' : ''}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          <div className="search-result-head" style={{ marginTop: entityHits.length ? 16 : 0 }}>
             <h3 className="search-section-title" style={{ margin: 0 }}>经文</h3>
             <div className="search-filter-tabs" role="tablist" aria-label="搜索范围">
               <button

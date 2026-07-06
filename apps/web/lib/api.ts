@@ -979,6 +979,8 @@ export interface MapTour {
   subtitle?: string;
   era?: string;
   description?: string;
+  /** traditional = 传统示意路线，非考古定论 */
+  confidence?: 'traditional' | 'approximate';
   stops: MapTourStop[];
 }
 

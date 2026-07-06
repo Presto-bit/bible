@@ -1,15 +1,23 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type EntityGraph, type GraphTopic } from '@/lib/api';
 import { LocalRelationGraph } from '@/components/knowledge/LocalRelationGraph';
+import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { formatGroupRefLabel } from '@/lib/ref_label';
+import { navigateToAssistant } from '@/lib/assistant_prefill';
+import {
+  graphTopicAnchorRef,
+  graphTopicAssistantQuestion,
+} from '@/lib/entity_knowledge';
 
 function SearchGraphContent() {
   useEdgeSwipeBack({ href: '/search' });
+  const router = useRouter();
   const searchParams = useSearchParams();
   const topicParam = searchParams.get('topic');
 
@@ -17,6 +25,7 @@ function SearchGraphContent() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [graph, setGraph] = useState<EntityGraph | null>(null);
   const [loading, setLoading] = useState(true);
+  const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
 
   useEffect(() => {
     void api
@@ -55,14 +64,29 @@ function SearchGraphContent() {
 
   const openTopic = topics.find((t) => t.id === openId);
 
+  const handleRefClick = (osis: string, label: string) => {
+    const href = readerHrefFromRef(osis);
+    if (href) window.location.href = href;
+    else setPreview({ osis, label });
+  };
+
+  const askTopicAssistant = () => {
+    if (!openTopic) return;
+    navigateToAssistant(graphTopicAnchorRef(openTopic), {
+      question: graphTopicAssistantQuestion(openTopic),
+      autoSend: true,
+      scene: 'graph_topic',
+    });
+  };
+
   return (
-    <main className="container">
+    <main className="container entity-graph-page">
       <header className="page-head">
         <PageBackBar href="/search" label="搜索" />
         <h2 className="page-head-title">关系专题</h2>
       </header>
       <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginTop: 8 }}>
-        预设人物与地点关系子图；点节点可查看词条。
+        预设人物与地点关系子图；可筛选关系类型、点节点切换中心或查看词条。
       </p>
 
       {loading ? <p className="muted">加载中…</p> : null}
@@ -83,24 +107,41 @@ function SearchGraphContent() {
 
       {openTopic ? (
         <div className="card card-2" style={{ marginTop: 14, padding: 12 }}>
-          <strong>{openTopic.title}</strong>
-          {openTopic.subtitle ? (
-            <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>{openTopic.subtitle}</p>
-          ) : null}
+          <div className="section-row" style={{ marginTop: 0 }}>
+            <div>
+              <strong>{openTopic.title}</strong>
+              {openTopic.subtitle ? (
+                <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>{openTopic.subtitle}</p>
+              ) : null}
+            </div>
+            <button type="button" className="font-pill accent" onClick={askTopicAssistant}>
+              问小爱理清关系
+            </button>
+          </div>
           {graph ? (
             <div style={{ marginTop: 12 }}>
               <LocalRelationGraph
                 graph={graph}
-                onRefClick={(osis) => {
-                  const href = readerHrefFromRef(osis);
-                  if (href) window.location.href = href;
+                variant="fullscreen"
+                onNodeClick={(nodeId) => {
+                  if (graph.center?.id === nodeId) return;
+                  router.push(`/graph/${encodeURIComponent(nodeId)}`);
                 }}
+                onRefClick={handleRefClick}
               />
             </div>
           ) : (
             <p className="muted" style={{ fontSize: 13, marginTop: 12 }}>加载关系图…</p>
           )}
         </div>
+      ) : null}
+
+      {preview ? (
+        <VersePreviewSheet
+          refParam={preview.osis}
+          refLabel={preview.label}
+          onClose={() => setPreview(null)}
+        />
       ) : null}
     </main>
   );

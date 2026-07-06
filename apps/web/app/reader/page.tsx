@@ -70,7 +70,7 @@ export default function ReaderPage() {
     candidates: DictEntity[],
     remember: boolean,
   ) => {
-    if (remember) writeDictChoice(name, ctx.bookId, entity.id ?? entity.name);
+    if (remember) writeDictChoice(name, ctx.bookId, entity.id ?? entity.name, ctx.chapter);
     recordDictEntity(entity.id ?? entity.name);
     setDictPopup({ entity, name, candidates, ctx });
   }, []);
