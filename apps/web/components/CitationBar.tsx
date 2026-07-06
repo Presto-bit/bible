@@ -10,6 +10,8 @@ type Props = {
   className?: string;
   /** action：与复制/存笔记/分享并列的紧凑按钮 */
   variant?: 'inline' | 'action';
+  /** 底栏窄屏时用更短文案 */
+  compact?: boolean;
   activeN?: number | null;
   onActiveChange?: (n: number | null) => void;
   bookName?: string;
@@ -19,6 +21,7 @@ export function CitationBar({
   citations,
   className,
   variant = 'inline',
+  compact = false,
   activeN: controlled,
   onActiveChange,
   bookName,
@@ -66,7 +69,7 @@ export function CitationBar({
         className={['citation-action-btn', className ?? 'msg-action'].filter(Boolean).join(' ')}
         onClick={openSheet}
       >
-        参考资料（{citations.length}）
+        {compact ? `参考·${citations.length}` : `参考资料（${citations.length}）`}
       </button>
     ) : (
       <button
@@ -74,7 +77,7 @@ export function CitationBar({
         className={['assistant-citations-toggle', 'citation-action-btn', className].filter(Boolean).join(' ')}
         onClick={openSheet}
       >
-        参考资料（{citations.length}）
+        {compact ? `参考·${citations.length}` : `参考资料（${citations.length}）`}
       </button>
     );
 

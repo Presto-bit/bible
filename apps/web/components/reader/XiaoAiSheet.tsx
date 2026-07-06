@@ -18,6 +18,11 @@ import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
+import { readHalfSheetCache, writeHalfSheetCache } from '@/lib/xiaoai_halfsheet_cache';
+import {
+  AssistantThinkingState,
+  type ThinkingPhase,
+} from '@/components/assistant/AssistantThinkingState';
 
 function stripAnswer(raw: string): string {
   return bodyText(raw);
@@ -55,6 +60,9 @@ export default function XiaoAiSheet({
   const [expanded, setExpanded] = useState(true);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
   const [citations, setCitations] = useState<import('@/lib/api').Citation[]>([]);
+  const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
+  const [streamCiteCount, setStreamCiteCount] = useState(0);
+  const [slowHint, setSlowHint] = useState(false);
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
   const fetchStartedRef = useRef(false);
@@ -77,12 +85,26 @@ export default function XiaoAiSheet({
     setDone(false);
     setCopied(false);
     setCitations([]);
+    setStreamPhase('understanding');
+    setStreamCiteCount(0);
+    setSlowHint(false);
     const { scene: s, refParam: ref, selectionText: sel, userQuestion: q } = lockedRef.current;
     // 经文正文已由 ref 在后端展开，避免重复粘贴长经文挤占输出 token
     const question = sel && sel.length <= 300 ? `${q}\n\n选中文本：${sel}` : q;
+    const cached = retryKey > 0 ? null : readHalfSheetCache(s, ref, sel, question);
+    if (cached) {
+      accRef.current = cached.answer;
+      setAnswer(cached.answer);
+      setCitations(cached.citations);
+      setDone(true);
+      return () => {};
+    }
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), sceneTimeout(s));
+    const slowTimer = window.setTimeout(() => setSlowHint(true), 15000);
     let cancelled = false;
+    let cites: import('@/lib/api').Citation[] = [];
+    let gotDelta = false;
     void chatStream(
       {
         ref,
@@ -94,10 +116,17 @@ export default function XiaoAiSheet({
       {
         onMeta: (meta) => {
           const book = refLabel.replace(/\s*\d+.*$/, '').trim();
-          setCitations(localizeCitations(meta.citations || [], book || undefined));
+          cites = localizeCitations(meta.citations || [], book || undefined);
+          setCitations(cites);
+          setStreamCiteCount(cites.length);
+          setStreamPhase('refs');
         },
         onDelta: (t) => {
           if (cancelled) return;
+          if (!gotDelta) {
+            gotDelta = true;
+            setStreamPhase('writing');
+          }
           accRef.current += t;
           if (rafRef.current == null) {
             rafRef.current = requestAnimationFrame(() => {
@@ -113,21 +142,26 @@ export default function XiaoAiSheet({
           setDone(true);
         },
         onDone: () => {
-          if (!cancelled) setDone(true);
+          if (!cancelled) {
+            setDone(true);
+            writeHalfSheetCache(s, ref, sel, question, accRef.current, cites);
+          }
         },
       },
       { signal: controller.signal },
     ).finally(() => {
       window.clearTimeout(timer);
+      window.clearTimeout(slowTimer);
       if (!cancelled) setDone(true);
     });
     return () => {
       cancelled = true;
       controller.abort();
       window.clearTimeout(timer);
+      window.clearTimeout(slowTimer);
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [refLabel, retryKey]);
 
   useEffect(() => {
     if (fetchStartedRef.current && retryKey === 0) return;
@@ -208,11 +242,11 @@ export default function XiaoAiSheet({
           </div>
         </div>
         <div className="half-sheet-body" onMouseDown={stopBubble} onMouseUp={stopBubble}>
-          {selectionText && (
-            <div className="half-sheet-verse">
-              {selectionText.length > 120 ? `${selectionText.slice(0, 120)}…` : selectionText}
-            </div>
-          )}
+          <div className="half-sheet-user-bubble assistant-user-text">
+            {selectionText.trim()
+              ? (selectionText.length > 120 ? `${selectionText.slice(0, 120)}…` : selectionText)
+              : userQuestion}
+          </div>
           <div className="half-sheet-answer half-sheet-answer-rich">
             <span className="half-sheet-badge">
               {mode === 'ask' ? '小爱解读 · 摘要·背景·解释' : '小爱解释'}
@@ -245,7 +279,11 @@ export default function XiaoAiSheet({
                   )}
                 </>
               ) : (
-                <p className="muted">小爱正在解读…</p>
+                <AssistantThinkingState
+                  phase={streamPhase}
+                  citeCount={streamCiteCount}
+                  slow={slowHint && !done}
+                />
               )}
             </div>
           </div>
@@ -268,7 +306,7 @@ export default function XiaoAiSheet({
             </p>
           )}
         </div>
-        <div className="half-sheet-foot half-sheet-actions">
+        <div className="half-sheet-foot half-sheet-actions reader-ai-actions">
           {done && clean && !hasError && (
             <>
               <button type="button" className="half-sheet-action-btn" onClick={() => void copyAnswer()}>
@@ -277,15 +315,18 @@ export default function XiaoAiSheet({
               <button type="button" className="half-sheet-action-btn" onClick={saveNote}>
                 {saved ? '已存笔记' : '存笔记'}
               </button>
-              {usedCitations.length > 0 && (
+              {usedCitations.length > 0 ? (
                 <CitationBar
                   variant="action"
-                  className="half-sheet-action-btn"
+                  compact
+                  className="half-sheet-action-btn reader-ai-cite-btn"
                   citations={usedCitations}
                   activeN={citationOpen}
                   onActiveChange={setCitationOpen}
                   bookName={refLabel.split(' ')[0]}
                 />
+              ) : (
+                <span className="half-sheet-action-btn reader-ai-action-spacer" aria-hidden />
               )}
             </>
           )}

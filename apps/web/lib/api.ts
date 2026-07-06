@@ -882,6 +882,7 @@ export interface DiscoverSummary {
 }
 export interface FriendActivity {
   id: string;
+  author_id?: string;
   author: string;
   ref?: string | null;
   body?: string | null;

@@ -40,6 +40,11 @@ import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_p
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
+import { HistorySessionSwipeRow } from '@/components/assistant/HistorySessionSwipeRow';
+import {
+  AssistantThinkingState,
+  type ThinkingPhase,
+} from '@/components/assistant/AssistantThinkingState';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -103,7 +108,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeId, setActiveId] = useState<string>('current');
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyMenuId, setHistoryMenuId] = useState<string | null>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -117,6 +121,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const sessionScrollRef = useRef(true);
   /** 发送后默认锁滚（阅读优先）；用户滑到底或点「跟随」后解锁 */
   const streamFollowLockedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
+  const [streamCiteCount, setStreamCiteCount] = useState(0);
+  const [slowHint, setSlowHint] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState('');
 
   const personalized = useMemo(
     () =>
@@ -274,10 +283,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!historyOpen) setHistoryMenuId(null);
-  }, [historyOpen]);
-
-  useEffect(() => {
     if (!hydratedRef.current) return;
     if (!hasUserMessages(msgs)) {
       clearAssistantDraft();
@@ -383,6 +388,23 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     });
   };
 
+  const cancelStream = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setBusy(false);
+    setSlowHint(false);
+    setStreamPhase('understanding');
+    setStreamCiteCount(0);
+    setMsgs((prev) => {
+      if (!prev.length || prev[prev.length - 1].role !== 'assistant') return prev;
+      const last = prev[prev.length - 1];
+      if (last.text.trim()) return prev;
+      const copy = [...prev];
+      copy[copy.length - 1] = { ...last, text: '（已停止生成）' };
+      return copy;
+    });
+  };
+
   const send = async (
     question?: string,
     nextMode?: string,
@@ -418,7 +440,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     streamFollowLockedRef.current = true;
     setMsgs(base);
     setBusy(true);
+    setPendingQuestion(shown);
+    setStreamPhase('understanding');
+    setStreamCiteCount(0);
+    setSlowHint(false);
     setShowJumpToBottom(false);
+    abortRef.current = new AbortController();
+    const slowTimer = window.setTimeout(() => setSlowHint(true), 15000);
     requestAnimationFrame(() => {
       requestAnimationFrame(() => scrollToMsgStart(assistantMsgIdx));
     });
@@ -426,6 +454,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let cites: Citation[] = [];
     let serverFollowups: string[] = [];
     let sceneLabel = SCENES[scene].label;
+    let gotDelta = false;
     const applyAcc = () => {
       rafRef.current = null;
       setMsgs((prev) => {
@@ -461,8 +490,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
           cites = localizeCitations(meta.citations || [], book || undefined);
           if (meta.scene_label) sceneLabel = meta.scene_label;
+          setStreamCiteCount(cites.length);
+          setStreamPhase('refs');
         },
         onDelta: (t) => {
+          if (!gotDelta) {
+            gotDelta = true;
+            setStreamPhase('writing');
+          }
           acc += t;
           scheduleApply();
         },
@@ -477,13 +512,17 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           if (payload?.followups?.length) serverFollowups = payload.followups;
         },
       },
+      { signal: abortRef.current.signal },
     );
+    window.clearTimeout(slowTimer);
+    abortRef.current = null;
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
     applyAcc();
     setBusy(false);
+    setSlowHint(false);
     const el = scrollRef.current;
     if (streamFollowLockedRef.current && el && !isNearBottom(el)) {
       setShowJumpToBottom(true);
@@ -637,11 +676,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setMsgs(s.msgs);
     setRef(s.ref);
     setHistoryOpen(false);
-    setHistoryMenuId(null);
   };
 
   const handleRenameSession = (s: Session) => {
-    setHistoryMenuId(null);
     const next = window.prompt('重命名会话', s.title);
     if (!next?.trim()) return;
     const title = next.trim();
@@ -651,7 +688,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   };
 
   const handleDeleteSession = (s: Session) => {
-    setHistoryMenuId(null);
     if (!window.confirm(`删除「${s.title}」？本地消息将无法恢复。`)) return;
     deleteAssistantSession(s.id);
     bumpAndEnqueueAiSession(s.id, s.title, s.ref, true);
@@ -764,37 +800,34 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         </div>
       </header>
 
-      {msgs.length === 0 ? (
-        <div className="assistant-empty-fill">
-          <div className="assistant-empty-hint">
-            <p className="muted" style={{ fontSize: 13, lineHeight: 1.65, margin: '0 0 12px', padding: '0 4px' }}>
-              我是小爱，可以帮你查经文、解经义、整理笔记。需要联网。
-            </p>
-            <div className="empty-pills">
-              {personalized.map((c) => (
-                <button
-                  key={c.label}
-                  type="button"
-                  className="font-pill"
-                  disabled={busy}
-                  onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
-                >
-                  {c.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          {composer}
-        </div>
-      ) : (
-        <div className="assistant-body">
-          <div className="assistant-thread-wrap">
-            <div
-              ref={scrollRef}
-              className="assistant-thread"
-              onScroll={handleThreadScroll}
-            >
-              {msgs.map((m, i) => {
+      <div className="assistant-body">
+        <div className="assistant-thread-wrap">
+          <div
+            ref={scrollRef}
+            className="assistant-thread"
+            onScroll={handleThreadScroll}
+          >
+            {msgs.length === 0 && (
+              <div className="assistant-empty-hint">
+                <p className="muted" style={{ fontSize: 13, lineHeight: 1.65, margin: '0 0 12px', padding: '0 4px' }}>
+                  我是小爱，可以帮你查经文、解经义、整理笔记。需要联网。
+                </p>
+                <div className="empty-pills">
+                  {personalized.map((c) => (
+                    <button
+                      key={c.label}
+                      type="button"
+                      className="font-pill"
+                      disabled={busy}
+                      onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {msgs.map((m, i) => {
               const isLastAssistant = m.role === 'assistant' && i === lastAssistantIdx;
               const showFollowups = isLastAssistant && m.text && !busy;
               const followups = showFollowups
@@ -843,7 +876,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       />
                     </div>
                   ) : (
-                    <div className="muted">…</div>
+                    <AssistantThinkingState
+                      phase={isStreaming ? streamPhase : 'understanding'}
+                      citeCount={streamCiteCount}
+                      slow={isStreaming && slowHint}
+                    />
                   )
                 ) : (
                   <div className="assistant-user-text">
@@ -904,21 +941,30 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               </div>
             );
             })}
-            </div>
-            {showJumpToBottom ? (
-              <button
-                type="button"
-                className="assistant-scroll-jump"
-                aria-label="滚动到最新输出"
-                onClick={() => unlockStreamFollow(true)}
-              >
-                {busy ? '↓ 跟随最新' : '↓ 查看全文'}
-              </button>
-            ) : null}
           </div>
-          {composer}
+          {showJumpToBottom ? (
+            <button
+              type="button"
+              className="assistant-scroll-jump"
+              aria-label="滚动到最新输出"
+              onClick={() => unlockStreamFollow(true)}
+            >
+              {busy ? '↓ 跟随最新' : '↓ 查看全文'}
+            </button>
+          ) : null}
         </div>
-      )}
+        {busy && (
+          <div className="assistant-pending-bar">
+            <span className="assistant-pending-label">
+              {ref ? `关于 ${refToChineseLabel(ref) ?? ref}` : pendingQuestion.slice(0, 48)}
+            </span>
+            <button type="button" className="assistant-pending-stop" onClick={cancelStream}>
+              停止
+            </button>
+          </div>
+        )}
+        {composer}
+      </div>
 
       {historyOpen && (
         <div className="drawer-backdrop" onClick={() => setHistoryOpen(false)}>
@@ -953,12 +999,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                         </span>
                       </button>
                       {!collapsed && group.items.map((s) => (
-                        <div key={s.id} className="history-item-row">
-                          <button
-                            type="button"
-                            className="history-item"
-                            onClick={() => openSession(s as Session)}
-                          >
+                        <HistorySessionSwipeRow
+                          key={s.id}
+                          onOpen={() => openSession(s as Session)}
+                          onRename={() => handleRenameSession(s as Session)}
+                          onDelete={() => handleDeleteSession(s as Session)}
+                        >
+                          <div className="history-item">
                             <div className="history-item-top">
                               <span className="history-item-title">{s.title}</span>
                               <span className="muted" style={{ fontSize: 11 }}>
@@ -973,41 +1020,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             {s.preview && (
                               <span className="muted history-item-preview">{s.preview}</span>
                             )}
-                          </button>
-                          <div className="history-item-menu">
-                            <button
-                              type="button"
-                              className="history-item-more"
-                              aria-label="更多操作"
-                              aria-expanded={historyMenuId === s.id}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setHistoryMenuId((id) => (id === s.id ? null : s.id));
-                              }}
-                            >
-                              ⋯
-                            </button>
-                            {historyMenuId === s.id && (
-                              <div className="history-item-dropdown" role="menu">
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  onClick={() => handleRenameSession(s as Session)}
-                                >
-                                  重命名
-                                </button>
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  className="history-item-dropdown-danger"
-                                  onClick={() => handleDeleteSession(s as Session)}
-                                >
-                                  删除
-                                </button>
-                              </div>
-                            )}
                           </div>
-                        </div>
+                        </HistorySessionSwipeRow>
                       ))}
                     </div>
                   );

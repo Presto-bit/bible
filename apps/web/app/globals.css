@@ -2024,6 +2024,12 @@ a.today-card-link {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.assistant-page > .assistant-body {
+  flex: 1;
+  min-height: 0;
 }
 
 .assistant-head-actions {
@@ -2097,8 +2103,21 @@ a.today-card-link {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  padding: 12px 4px 24px;
   text-align: center;
+}
+
+.assistant-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  background: var(--paper);
+  padding-bottom: max(4px, env(safe-area-inset-bottom, 0));
+  box-shadow: 0 -8px 24px color-mix(in srgb, var(--paper) 82%, transparent);
 }
 
 .empty-pills {
@@ -2125,13 +2144,6 @@ a.today-card-link {
 }
 
 /* 输入框上方的可右滑 chip 行 */
-.assistant-composer {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
 .chip-swipe {
   display: flex;
   gap: 6px;
@@ -2271,8 +2283,98 @@ a.today-card-link {
   font-size: var(--assistant-answer-font-size);
   text-align: left;
   display: inline-block;
-  max-width: 100%;
+  max-width: 85%;
+  margin-left: auto;
+  padding: 10px 14px;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--accent-wash);
   color: var(--ink);
+}
+
+.assistant-pending-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-wash) 55%, var(--surface));
+  font-size: 12px;
+}
+
+.assistant-pending-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-soft);
+}
+
+.assistant-pending-stop {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.assistant-thinking {
+  padding: 4px 0 8px;
+}
+
+.assistant-thinking-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.assistant-thinking-line {
+  display: block;
+  height: 10px;
+  border-radius: 6px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--line) 70%, transparent) 0%,
+    color-mix(in srgb, var(--wash) 90%, transparent) 50%,
+    color-mix(in srgb, var(--line) 70%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: assistant-shimmer 1.2s ease-in-out infinite;
+}
+
+.assistant-thinking-line-short {
+  width: 72%;
+}
+
+.assistant-thinking-line-mid {
+  width: 88%;
+}
+
+.assistant-thinking-label {
+  font-size: 13px;
+  margin: 0;
+}
+
+.assistant-thinking-slow {
+  font-size: 12px;
+  margin: 6px 0 0;
+}
+
+@keyframes assistant-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.answer-rich-streaming .assistant-thinking-line,
+.answer-rich-streaming .assistant-thinking-label {
+  margin: 0;
 }
 
 .intent-row {
@@ -8008,6 +8110,105 @@ body.reader-active .proper-noun--artifact {
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
+}
+
+.share-author-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.share-author-link:hover {
+  color: var(--accent-deep);
+}
+
+.friends-swipe-row {
+  margin-top: 8px;
+}
+
+.friends-swipe-track {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 8px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.friends-swipe-track::-webkit-scrollbar {
+  display: none;
+}
+
+.friends-swipe-card {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 72px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.friends-swipe-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.friends-swipe-name {
+  font-size: 11px;
+  text-align: center;
+  line-height: 1.25;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.friends-swipe-add .friends-swipe-avatar {
+  background: var(--wash);
+  color: var(--ink-soft);
+  border: 1px dashed var(--line);
+}
+
+.friend-profile-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+.friend-profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-size: 22px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.friend-profile-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.half-sheet-user-bubble {
+  margin: 0 0 12px auto;
+  max-width: 92%;
 }
 
 /* ─── 群页微信式布局 ─── */

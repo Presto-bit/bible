@@ -1,12 +1,15 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api } from '@/lib/api';
+import { friendDisplayName } from '@/lib/friend_label';
 
 export default function AddFriendPage() {
   useEdgeSwipeBack({ href: '/' });
+  const router = useRouter();
 
   const [handle, setHandle] = useState('');
   const [msg, setMsg] = useState('');
@@ -19,7 +22,16 @@ export default function AddFriendPage() {
     setMsg('');
     try {
       const f = await api.addFriend(h);
-      setMsg(`已添加好友：${f.display_name || f.handle || f.user_id}`);
+      const id = f.user_id || (f as { friend_id?: string }).friend_id;
+      const label = friendDisplayName({
+        user_id: id ?? '',
+        display_name: f.display_name,
+        handle: f.handle ?? h,
+      });
+      setMsg(`已添加好友：${label}`);
+      if (id) {
+        window.setTimeout(() => router.push(`/discover/friends/${id}`), 600);
+      }
     } catch {
       setMsg('添加失败：未找到该用户或服务暂不可用');
     } finally {

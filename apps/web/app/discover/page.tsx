@@ -20,8 +20,10 @@ import { AssistantLink } from '@/components/AssistantLink';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
+import { FriendsSwipeRow } from '@/components/discover/FriendsSwipeRow';
 import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
+import { friendDisplayName } from '@/lib/friend_label';
 
 function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
   if (!reactions) return 0;
@@ -300,7 +302,7 @@ export default function DiscoverPage() {
       )}
 
       <div className="section-row" style={{ marginTop: 18 }}>
-        <span>好友动态</span>
+        <span>我的好友</span>
         <Link href="/friend/add" className="muted">
           加好友 ›
         </Link>
@@ -310,13 +312,22 @@ export default function DiscoverPage() {
         <div className="card" style={{ marginTop: 8 }}>
           <strong>添加好友后可见动态</strong>
           <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
-            好友的经文打卡会出现在这里，可点赞、问小爱或跳转同章阅读。
+            好友的群内打卡与主动分享会出现在下方动态，不会上传默默阅读进度。
           </p>
           <Link className="font-pill" href="/friend/add">
             加好友
           </Link>
         </div>
-      ) : shares.length === 0 ? (
+      ) : (
+        <FriendsSwipeRow friends={friends} />
+      )}
+
+      <div className="section-row" style={{ marginTop: 18 }}>
+        <span>好友动态</span>
+        <span className="muted" style={{ fontSize: 12 }}>打卡 · 分享</span>
+      </div>
+
+      {friends.length === 0 ? null : shares.length === 0 ? (
         <p className="muted" style={{ marginTop: 8 }}>
           暂无好友动态，去群里打卡或等好友分享吧
         </p>
@@ -332,7 +343,9 @@ export default function DiscoverPage() {
           return (
             <div key={`${s.source}-${s.id}`} className="card share-card">
               <div className="share-card-head">
-                <strong>{s.author}</strong>
+                <Link href={s.author_id ? `/discover/friends/${s.author_id}` : '/discover'} className="share-author-link">
+                  <strong>{s.author || friendDisplayName({ user_id: s.author_id ?? '', display_name: s.author })}</strong>
+                </Link>
                 {sourceLabel && (
                   <span className="muted" style={{ fontSize: 12 }}>
                     {sourceLabel}

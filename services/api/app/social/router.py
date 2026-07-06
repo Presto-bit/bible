@@ -226,6 +226,25 @@ def _ensure_report_table(conn) -> None:
     )
 
 
+def _ensure_group_invite_table(conn) -> None:
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS group_invite ("
+        "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),"
+        "  group_id UUID NOT NULL REFERENCES social_group(id) ON DELETE CASCADE,"
+        "  inviter_id UUID NOT NULL REFERENCES users(id),"
+        "  invitee_id UUID NOT NULL REFERENCES users(id),"
+        "  status TEXT NOT NULL DEFAULT 'pending',"
+        "  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),"
+        "  responded_at TIMESTAMPTZ,"
+        "  UNIQUE (group_id, invitee_id)"
+        ")"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS group_invite_invitee_idx "
+        "ON group_invite (invitee_id, status)"
+    )
+
+
 def _gen_code() -> str:
     return secrets.token_hex(3).upper()  # 6 位十六进制
 
@@ -325,6 +344,7 @@ def send_group_invites(
     pool = get_pool()
     sent = 0
     with pool.connection() as conn:
+        _ensure_group_invite_table(conn)
         _require_member(conn, gid, user_id)
         for fid in friend_ids:
             if fid == user_id:
@@ -364,6 +384,7 @@ def send_group_invites(
 def group_invite_inbox(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
+        _ensure_group_invite_table(conn)
         rows = conn.execute(
             "SELECT i.id, i.group_id, g.name, i.inviter_id, i.created_at "
             "FROM group_invite i "
@@ -391,6 +412,7 @@ def group_invite_inbox(user_id: str = Depends(get_current_user)) -> dict:
 def accept_group_invite(iid: str, user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
+        _ensure_group_invite_table(conn)
         row = conn.execute(
             "SELECT group_id, invitee_id, status FROM group_invite WHERE id = %s",
             (iid,),
@@ -422,6 +444,7 @@ def accept_group_invite(iid: str, user_id: str = Depends(get_current_user)) -> d
 def decline_group_invite(iid: str, user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
+        _ensure_group_invite_table(conn)
         row = conn.execute(
             "SELECT invitee_id, status FROM group_invite WHERE id = %s", (iid,),
         ).fetchone()
@@ -545,7 +568,7 @@ def friends_activity(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
         checkins = conn.execute(
-            "SELECT m.id, u.display_name, m.ref, m.body, m.reactions, m.created_at, "
+            "SELECT m.id, m.user_id, u.display_name, u.handle, m.ref, m.body, m.reactions, m.created_at, "
             "  m.group_id, g.name "
             "FROM group_message m "
             "JOIN users u ON u.id = m.user_id "
@@ -556,7 +579,7 @@ def friends_activity(user_id: str = Depends(get_current_user)) -> dict:
             (user_id,),
         ).fetchall()
         shares = conn.execute(
-            "SELECT s.id, u.display_name, s.ref, s.body, s.kind, s.created_at, s.reactions "
+            "SELECT s.id, s.user_id, u.display_name, u.handle, s.ref, s.body, s.kind, s.created_at, s.reactions "
             "FROM user_share s "
             "JOIN users u ON u.id = s.user_id "
             "JOIN friendship f ON f.friend_id = s.user_id AND f.user_id = %s "
@@ -565,28 +588,34 @@ def friends_activity(user_id: str = Depends(get_current_user)) -> dict:
         ).fetchall()
     items = []
     for r in checkins:
+        uid = str(r[1])
+        name = (r[2] or r[3] or "").strip() or f"用户{uid[:4]}"
         items.append({
             "id": str(r[0]),
-            "author": r[1],
-            "ref": r[2],
-            "body": r[3],
-            "reactions": r[4] or {},
-            "created_at": r[5].isoformat(),
+            "author_id": uid,
+            "author": name,
+            "ref": r[4],
+            "body": r[5],
+            "reactions": r[6] or {},
+            "created_at": r[7].isoformat(),
             "source": "group",
             "kind": "checkin",
-            "group_id": str(r[6]),
-            "group_name": r[7],
+            "group_id": str(r[8]),
+            "group_name": r[9],
         })
     for r in shares:
+        uid = str(r[1])
+        name = (r[2] or r[3] or "").strip() or f"用户{uid[:4]}"
         items.append({
             "id": str(r[0]),
-            "author": r[1],
-            "ref": r[2],
-            "body": r[3],
-            "reactions": (r[6] or {}) if len(r) > 6 else {},
-            "created_at": r[5].isoformat(),
+            "author_id": uid,
+            "author": name,
+            "ref": r[4],
+            "body": r[5],
+            "reactions": (r[8] or {}) if len(r) > 8 else {},
+            "created_at": r[7].isoformat(),
             "source": "share",
-            "kind": r[4],
+            "kind": r[6],
             "group_id": None,
             "group_name": None,
         })
@@ -1221,7 +1250,12 @@ def add_friend(body: AddFriend, user_id: str = Depends(get_current_user)) -> dic
                 (a, b),
             )
         conn.commit()
-    return {"friend_id": fid, "display_name": row[1]}
+    return {
+        "user_id": fid,
+        "friend_id": fid,
+        "handle": row[2],
+        "display_name": (row[1] or row[2] or "").strip() or f"用户{fid[:4]}",
+    }
 
 
 @router.get("/friends")

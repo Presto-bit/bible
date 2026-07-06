@@ -86,6 +86,7 @@ import {
 } from '@/lib/reading';
 import { recordParallelChapter } from '@/lib/badge_events';
 import { outlineFor, outlineForAsync, type SectionMark } from '@/lib/section_titles';
+import { resolveSelectionTextForAi } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { buildCheckinRef } from '@/lib/group_checkin';
 import { saveGroupCheckinDraft } from '@/lib/group_checkin_draft';
@@ -301,6 +302,8 @@ export default function ReaderView({
   const wordRangeRef = useRef<WordRange | null>(null);
   const wordDragRafRef = useRef(0);
   const wordDragPendingRef = useRef<WordRange | null>(null);
+  /** 点「问小爱」时锁定选区文本，避免 iOS selectionchange 截断 */
+  const selectionPinRef = useRef('');
 
   const overlayOpen = Boolean(
     externalOverlayOpen
@@ -457,16 +460,17 @@ export default function ReaderView({
   );
   const minV = sortedSel[0];
   const maxV = sortedSel[sortedSel.length - 1];
-  const selectionText = useMemo(() => {
-    if (wordRange) {
-      return textFromWordRange(wordRange, (v) => verses.find((x) => x.verse === v)?.text ?? '');
-    }
-    if (nativeTouchSelect && nativeSelection?.text) return nativeSelection.text;
-    const picked = verses
-      .filter((v) => wholeVerseSel.includes(v.verse))
-      .sort((a, b) => a.verse - b.verse);
-    return picked.map((v) => v.text).join('');
-  }, [verses, wholeVerseSel, wordRange, nativeTouchSelect, nativeSelection]);
+  const selectionText = useMemo(
+    () =>
+      resolveSelectionTextForAi({
+        verses,
+        wholeVerseSel,
+        wordRange,
+        nativeTouchSelect,
+        nativeSelection,
+      }),
+    [verses, wholeVerseSel, wordRange, nativeTouchSelect, nativeSelection],
+  );
   const refParam = hasSel ? `${book.id}.${chapter}.${minV}` : `${book.id}.${chapter}`;
   const refLabel = hasSel
     ? minV === maxV
@@ -2124,12 +2128,16 @@ export default function ReaderView({
             <button
               type="button"
               className="vsb-icon-btn"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                selectionPinRef.current = effSelectionText;
+              }}
               onClick={() => {
                 setMarkPaletteOpen(false);
                 setAiSheetContext({
                   refParam: effRefParam,
                   refLabel: effRefLabel,
-                  selectionText: effSelectionText,
+                  selectionText: selectionPinRef.current || effSelectionText,
                 });
                 clearSelection();
                 setAiSheet(true);
