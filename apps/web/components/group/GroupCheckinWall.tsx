@@ -88,7 +88,7 @@ export function GroupCheckinWall({
         <div className="group-poster-empty-state">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`${BASE_PATH || ''}/icon.svg`}
+            src={`${BASE_PATH || ''}/icon-192.png`}
             alt=""
             width={52}
             height={52}

@@ -11,7 +11,6 @@ import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import {
-  graphTopicAnchorRef,
   graphTopicAssistantQuestion,
 } from '@/lib/entity_knowledge';
 
@@ -72,10 +71,11 @@ function SearchGraphContent() {
 
   const askTopicAssistant = () => {
     if (!openTopic) return;
-    navigateToAssistant(graphTopicAnchorRef(openTopic), {
+    navigateToAssistant(undefined, {
       question: graphTopicAssistantQuestion(openTopic),
       autoSend: true,
       scene: 'graph_topic',
+      surface: 'graph_topic',
     });
   };
 

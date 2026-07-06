@@ -75,6 +75,8 @@ class ChatRequest(BaseModel):
     scene: str | None = None
     # 多轮上下文（客户端本地持有；local-first，不落服务端）
     history: list[Turn] | None = None
+    # 读者本地灵修上下文（最近在读、打卡、笔记等；仅注入 prompt）
+    reader_context: dict | None = None
     # surface：入口标识；home_prefill 等会关闭 RAG（见 scenes.NO_RAG_SURFACES）
     scope: str | None = None
     surface: str | None = None
@@ -118,6 +120,7 @@ def chat(
         scene=body.scene,
         history=history,
         surface=body.surface,
+        reader_context=body.reader_context,
     )
 
     def gen():

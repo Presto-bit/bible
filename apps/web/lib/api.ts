@@ -18,6 +18,22 @@ export { deviceIdToUserCode, isUserCode, USER_CODE_LEN, USER_CODE_RE } from './u
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn';
 
+/** 同源时用相对路径加载 /content 静态资源（图鉴 SVG 等），避免跨域或错误 API 基址。 */
+export function contentAssetUrl(path: string): string {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined') {
+    try {
+      if (new URL(API_BASE).origin === window.location.origin) {
+        const bp = process.env.NEXT_PUBLIC_BASE_PATH || '';
+        return `${bp}${p}`;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return `${API_BASE}${p}`;
+}
+
 export interface BibleBook {
   id: string;
   name: string;
@@ -593,6 +609,15 @@ export interface ChatHistoryTurn {
   content: string;
 }
 
+/** 客户端本地读者上下文，注入小爱 prompt（不落服务端） */
+export interface ChatReaderContext {
+  last_read_label?: string;
+  reading_streak?: number;
+  today_reading_minutes?: number;
+  recent_note_snippets?: string[];
+  active_plan_title?: string;
+}
+
 export interface ChatStreamBody {
   ref?: string | null;
   question: string;
@@ -600,6 +625,7 @@ export interface ChatStreamBody {
   scene?: string;
   history?: ChatHistoryTurn[];
   surface?: string;
+  reader_context?: ChatReaderContext;
 }
 
 export interface ChatMetaPayload {
@@ -610,6 +636,8 @@ export interface ChatMetaPayload {
   mode_label?: string;
   display?: string;
   wants_followups?: boolean;
+  use_rag?: boolean;
+  has_commentary?: boolean;
   quota?: { used: number; limit: number };
 }
 
@@ -1232,7 +1260,8 @@ export const api = {
   },
   diagrams: () => getJson<{ schema?: string; categories?: { id: string; label: string }[]; items: BibleDiagram[] }>('/content/diagrams'),
   diagram: (id: string) => getJson<{ diagram: BibleDiagram }>(`/content/diagrams/${encodeURIComponent(id)}`),
-  diagramFileUrl: (id: string) => `${API_BASE}/content/diagrams/${encodeURIComponent(id)}/file`,
+  diagramFileUrl: (id: string) =>
+    contentAssetUrl(`/content/diagrams/${encodeURIComponent(id)}/file`),
   graphTopics: () => getJson<{ topics: GraphTopic[] }>('/content/graph-topics'),
   graphTopic: (id: string) =>
     getJson<{ topic: GraphTopic; graph: { nodes: EntityGraphNode[]; edges: EntityRelation[] } }>(

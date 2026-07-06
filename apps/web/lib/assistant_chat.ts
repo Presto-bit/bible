@@ -1,6 +1,6 @@
 /** 小爱流式问答（全页 / 半屏共用） */
 
-import { chatStream, type ChatHistoryTurn, type Citation } from './api';
+import { chatStream, type ChatHistoryTurn, type ChatReaderContext, type Citation } from './api';
 import { citationsUsedInText } from './citation_display';
 import type { AssistantScene } from './assistant_scenes';
 
@@ -11,8 +11,12 @@ export type AssistantStreamOpts = {
   scene: AssistantScene;
   history?: ChatHistoryTurn[];
   surface?: string;
+  reader_context?: ChatReaderContext;
   signal?: AbortSignal;
-  onMeta?: (meta: { citations?: Citation[]; scene_label?: string }) => void;
+  onMeta?: (meta: {
+    citations?: Citation[];
+    scene_label?: string;
+  }) => void;
   onDelta?: (acc: string) => void;
   onFollowups?: (items: string[]) => void;
   onError?: (msg: string) => void;
@@ -40,6 +44,7 @@ export async function runAssistantStream(opts: AssistantStreamOpts): Promise<Ass
       scene: opts.scene,
       history: opts.history,
       surface: opts.surface,
+      reader_context: opts.reader_context,
     },
     {
       onMeta: (meta) => {

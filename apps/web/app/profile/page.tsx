@@ -336,7 +336,7 @@ export default function ProfilePage() {
         <ReadingProgress />
       </div>
 
-      <Link href="/notes" className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
+      <Link href="/notes" className="card row-card profile-memory-card" style={{ display: 'flex', marginTop: 14 }}>
         <span style={{ flex: 1 }}>经文记忆</span>
         <span className="muted">想法 · 收藏 · 划线 ›</span>
       </Link>

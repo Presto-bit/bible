@@ -89,6 +89,14 @@ export function GeoMiniMap({
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+
+  const touchDistance = (touches: React.TouchList) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.hypot(dx, dy);
+  };
 
   const { bounds, byId, routePoints, missingRoute } = useMemo(() => {
     const { valid, ...b } = boundsForPlaces(places);
@@ -130,7 +138,7 @@ export function GeoMiniMap({
   }, []);
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || pinchRef.current) return;
     dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
@@ -146,6 +154,27 @@ export function GeoMiniMap({
 
   const onPointerUp = () => {
     dragRef.current = null;
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      dragRef.current = null;
+      pinchRef.current = { dist: touchDistance(e.touches), zoom };
+    }
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    const p = pinchRef.current;
+    if (!p || e.touches.length < 2) return;
+    e.preventDefault();
+    const dist = touchDistance(e.touches);
+    if (!dist || !p.dist) return;
+    const scale = dist / p.dist;
+    setZoom((z) => Math.min(4, Math.max(0.6, p.zoom * scale)));
+  };
+
+  const onTouchEnd = () => {
+    pinchRef.current = null;
   };
 
   const valid = [...byId.values()];
@@ -169,12 +198,16 @@ export function GeoMiniMap({
       </div>
       <div
         className="geo-mini-map"
-        style={{ height }}
+        style={{ height, touchAction: 'none' }}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
       >
         <svg viewBox={viewBox} className="geo-mini-map-svg" role="img" aria-label="地图">
           <rect width={w} height={h} fill="var(--paper-2, #ebe4d6)" rx="8" />

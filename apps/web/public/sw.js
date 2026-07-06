@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v7';
+const CACHE = 'presto-bible-v8';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 const BASE_PATH = '';
@@ -13,6 +13,7 @@ const ILLUSTRATION_FILES = [
 ];
 
 const SHELL = [
+  '/offline.html',
   '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',
@@ -25,6 +26,8 @@ const SHELL = [
   '/illustrations/index.json',
   ...ILLUSTRATION_FILES.map((f) => `/illustrations/${f}`),
 ];
+
+const APP_SHELL_PATHS = ['/', '/reader', '/search', '/assistant', '/profile', '/discover'];
 
 function isHtmlNavigation(request) {
   if (request.mode === 'navigate') return true;
@@ -59,6 +62,19 @@ function isStaticAsset(url) {
   return SHELL.includes(p);
 }
 
+async function offlineNavigationFallback(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  const pathname = new URL(request.url).pathname;
+  const candidates = [pathname, ...APP_SHELL_PATHS, '/offline.html'];
+  for (const path of candidates) {
+    const hit = await caches.match(path);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()),
@@ -84,7 +100,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // HTML 页面：网络优先，避免发版后仍显示旧首页
+  // HTML 页面：网络优先；离线时回退到已缓存壳页，避免 Safari 原生错误页
   if (isHtmlNavigation(e.request)) {
     e.respondWith(
       fetch(e.request)
@@ -95,7 +111,11 @@ self.addEventListener('fetch', (e) => {
           }
           return res;
         })
-        .catch(() => caches.match(e.request)),
+        .catch(async () => {
+          const fallback = await offlineNavigationFallback(e.request);
+          if (fallback) return fallback;
+          return caches.match('/offline.html');
+        }),
     );
     return;
   }

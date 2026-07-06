@@ -87,6 +87,7 @@ def prepare(
     scene: str | None = None,
     history: list[dict] | None = None,
     surface: str | None = None,
+    reader_context: dict | None = None,
 ) -> dict:
     """返回 {meta, messages, max_tokens}。"""
     ref = parse_ref(ref_raw) if ref_raw else None
@@ -119,6 +120,7 @@ def prepare(
             }
         )
 
+    prior = _sanitize_history(history)
     base = build_messages(
         scene=spec,
         passage_display=passage_display,
@@ -126,8 +128,9 @@ def prepare(
         question=question,
         citations=citations,
         use_rag=use_rag,
+        reader_context=reader_context,
+        has_prior_turns=bool(prior),
     )
-    prior = _sanitize_history(history)
     messages = [base[0], *prior, base[1]]
     meta = {
         "scene": spec.id,
@@ -136,6 +139,7 @@ def prepare(
         "mode_label": MODES.get(effective_mode),
         "wants_followups": spec.wants_followups,
         "use_rag": use_rag,
+        "has_commentary": bool(citations),
         "surface": surface,
         "ref": ref.osis if ref else None,
         "display": passage_display,

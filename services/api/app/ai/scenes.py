@@ -47,41 +47,40 @@ SCENES: dict[str, SceneSpec] = {
         id="chat_explain",
         mode="explain",
         label="释经解释",
-        max_tokens=900,
+        max_tokens=768,
         wants_followups=True,
         format_guide=(
             "严格按以下结构输出（保留【】标题）：\n"
             "【摘要】1 句（≤40 字）。\n"
-            "【背景】2–4 句。\n"
-            "【经文解释】2–4 句。\n"
-            "总篇幅 200–350 字。"
+            "【背景】1–3 句。\n"
+            "【经文解释】2–3 句。\n"
+            "总篇幅 160–280 字。"
         ),
     ),
     "chat_understand": SceneSpec(
         id="chat_understand",
         mode="understand",
         label="理解默想",
-        max_tokens=900,
+        max_tokens=768,
         wants_followups=True,
         format_guide=(
             "【摘要】1 句。\n"
-            "【经文要旨】2–4 句。\n"
-            "【默想引导】2–3 句，温柔连接生命。\n"
-            "总篇幅 200–350 字。"
+            "【经文要旨】2–3 句。\n"
+            "【默想引导】1–2 句，温柔连接生命。\n"
+            "总篇幅 160–260 字。"
         ),
     ),
     "chat_apply": SceneSpec(
         id="chat_apply",
         mode="apply",
         label="生活应用",
-        max_tokens=900,
+        max_tokens=700,
         wants_followups=True,
         format_guide=(
             "【摘要】1 句。\n"
-            "【核心提醒】1–2 句。\n"
-            "【具体行动】3 条（用 ①②③ 编号，职场/家庭/个人各至少一条）。\n"
-            "【祷告方向】1 句简短引导。\n"
-            "总篇幅 200–300 字。"
+            "【核心提醒】1 句。\n"
+            "【具体行动】2–3 条（用 ①②③ 编号，贴近日常）。\n"
+            "总篇幅 150–240 字。"
         ),
     ),
     "chat_study": SceneSpec(
@@ -149,17 +148,16 @@ SCENES: dict[str, SceneSpec] = {
         id="chat_general",
         mode="explain",
         label="主题问答",
-        max_tokens=1200,
+        max_tokens=900,
         wants_followups=True,
         format_guide=(
             "严格按以下结构输出（保留【】标题）：\n"
             "【摘要】1 句（≤40 字），直接点明问题的核心答案。\n"
-            "【正文】分 2–4 个自然段，用清楚口语直接回答读者问题"
+            "【正文】2–3 个自然段，用清楚口语直接回答读者问题"
             "（人物生平按时间线、教义题按要点、历史题按事实链），"
             "不要套用「经文要旨」「默想引导」「经文解释」等面向单段经文的栏目。\n"
-            "【相关经节】2–4 条，格式「书卷名 章:节 — 为何值得读」；"
-            "人物题覆盖生平关键段落，教义题给出经典经文。\n"
-            "总篇幅 250–450 字。"
+            "【相关经节】2–3 条，格式「书卷名 章:节 — 为何值得读」。\n"
+            "总篇幅 200–360 字。"
         ),
     ),
     "summary_chapter": SceneSpec(

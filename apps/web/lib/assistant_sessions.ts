@@ -16,7 +16,7 @@ export interface AssistantSessionRecord {
 }
 
 const SESSIONS_KEY = 'assistant_sessions_v1';
-const RESUME_WINDOW_MS = 24 * 60 * 60 * 1000;
+const RESUME_WINDOW_MS = 72 * 60 * 60 * 1000;
 
 export function normalizeSessionRef(ref: string): string {
   return ref.trim().toUpperCase().split('@')[0] ?? '';

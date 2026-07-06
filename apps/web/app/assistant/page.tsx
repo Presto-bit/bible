@@ -35,6 +35,7 @@ import {
 } from '@/lib/assistant_sessions';
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
+import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 
@@ -439,7 +440,15 @@ function AssistantPageInner() {
       rafRef.current = requestAnimationFrame(applyAcc);
     };
     await chatStream(
-      { ref: anchor, question: q, mode: m, scene, history, surface },
+      {
+        ref: anchor,
+        question: q,
+        mode: m,
+        scene,
+        history,
+        surface,
+        reader_context: buildAssistantReaderContext(),
+      },
       {
         onMeta: (meta) => {
           const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
@@ -511,32 +520,49 @@ function AssistantPageInner() {
       return true;
     };
 
+    const isTopicLike = (surface?: string, scene?: string) =>
+      surface === 'topic' || surface === 'graph_topic' || scene === 'graph_topic';
+
     if (sid) {
       const payload = consumeAssistantPrefill(sid);
       if (payload) {
         handled = true;
-        refVal = payload.ref || refVal;
-        const resumed = refVal ? resumeIfMatch(refVal) : false;
-        if (!resumed && payload.seedMessages?.length) {
-          setMsgs(
-            payload.seedMessages.map((m) => ({
-              role: m.role,
-              text: m.text,
-              citations: m.citations,
-              scene: m.scene,
-              sceneLabel: m.sceneLabel,
-            })),
-          );
-          skipInputPrefill = true;
-        } else if (!resumed) {
+        clearAssistantDraft();
+        const topicFlow = isTopicLike(payload.surface, payload.scene);
+        if (topicFlow) {
+          refVal = '';
           question = payload.question;
+        } else {
+          refVal = payload.ref || refVal;
+          const resumed = refVal ? resumeIfMatch(refVal) : false;
+          if (!resumed && payload.seedMessages?.length) {
+            setMsgs(
+              payload.seedMessages.map((m) => ({
+                role: m.role,
+                text: m.text,
+                citations: m.citations,
+                scene: m.scene,
+                sceneLabel: m.sceneLabel,
+              })),
+            );
+            skipInputPrefill = true;
+          } else if (!resumed) {
+            question = payload.question;
+          }
         }
         if (payload.autoSend) autoSend = true;
-        if (payload.scene) {
-          prefillScene = resolveScene(payload.scene, mode);
+        if (topicFlow) {
+          prefillScene = 'chat_general';
+          setMode(SCENES.chat_general.mode);
+        } else if (payload.scene) {
+          prefillScene = resolveScene(payload.scene, mode, Boolean(refVal));
           setMode(SCENES[prefillScene].mode);
         }
         prefillSurface = payload.surface;
+      } else {
+        // sid 无效时不恢复旧草稿，避免填入无关读经位置
+        handled = true;
+        refVal = refParam;
       }
     } else {
       const draft = loadAssistantDraft();
@@ -558,14 +584,16 @@ function AssistantPageInner() {
 
     if (!skipInputPrefill && !autoSend) {
       if (!question && legacyQ) question = decodeURIComponent(legacyQ);
-      if (!question && refVal) question = explainVerseQuestion(refVal);
+      if (!question && refVal && !isTopicLike(prefillSurface, prefillScene)) {
+        question = explainVerseQuestion(refVal);
+      }
       if (question) setInput(question);
     }
-    if (handled && refVal) setRef(refVal);
+    if (handled && refVal && !isTopicLike(prefillSurface, prefillScene)) setRef(refVal);
     else if (!handled && refParam) setRef(refParam);
 
-    if (refVal && question && autoSend && !seedBoot.current) {
-      const scene = prefillScene ?? 'chat_explain';
+    if (question && autoSend && !seedBoot.current) {
+      const scene = prefillScene ?? (refVal ? 'chat_explain' : 'chat_general');
       seedBoot.current = true;
       void sendRef.current(
         question,

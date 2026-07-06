@@ -4,13 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   api,
-  type DailyDevotional,
   type DailyVerse,
   ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
-import { DailyDevotionalCard } from '@/components/home/DailyDevotionalCard';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { assistantHref } from '@/lib/assistant_prefill';
@@ -51,9 +49,6 @@ export default function HomePageClient() {
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
   const [verseFull, setVerseFull] = useState(false);
-  const [devotional, setDevotional] = useState<DailyDevotional | null>(null);
-  const [devotionalLoading, setDevotionalLoading] = useState(true);
-  const [devotionalErr, setDevotionalErr] = useState<string | null>(null);
   const [heroIllustration, setHeroIllustration] = useState<string | null>(null);
 
   const loadDailyVerse = useCallback(() => {
@@ -78,25 +73,9 @@ export default function HomePageClient() {
       .finally(() => setDvLoading(false));
   }, []);
 
-  const loadDailyDevotional = useCallback(() => {
-    setDevotionalLoading(true);
-    setDevotionalErr(null);
-    void api
-      .dailyDevotional()
-      .then((d) => {
-        setDevotional(d);
-      })
-      .catch((e) => {
-        setDevotional(null);
-        setDevotionalErr(errorMessage(e, '灵修内容加载失败'));
-      })
-      .finally(() => setDevotionalLoading(false));
-  }, []);
-
   const reloadDailyContent = useCallback(() => {
     loadDailyVerse();
-    loadDailyDevotional();
-  }, [loadDailyVerse, loadDailyDevotional]);
+  }, [loadDailyVerse]);
 
   useEffect(() => {
     reloadDailyContent();
@@ -412,7 +391,6 @@ export default function HomePageClient() {
         <div className="hero-inner">
           <div className="hero-top">
             <span className="hero-kicker">每日经文</span>
-            {dv?.theme ? <span className="muted">{dv.theme}系列</span> : null}
           </div>
           {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
           <p className="verse-text">
@@ -477,15 +455,6 @@ export default function HomePageClient() {
           </div>
         </div>
       </div>
-
-      {devotionalErr && (
-        <ErrorBanner
-          message={devotionalErr}
-          onRetry={loadDailyDevotional}
-          onDismiss={() => setDevotionalErr(null)}
-        />
-      )}
-      <DailyDevotionalCard data={devotional} loading={devotionalLoading} />
 
       <div style={{ marginTop: 18 }}>
         <HomeRail cards={railMain} />

@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, type ComponentProps } from 'react';
+import { useRouter } from 'next/navigation';
 import { assistantHref } from '@/lib/assistant_prefill';
+import type { ComponentProps, MouseEvent } from 'react';
 
 type Props = Omit<ComponentProps<typeof Link>, 'href'> & {
   /** 可选：无 ref 时仅按问题进入小爱（如人生主题） */
@@ -13,22 +14,27 @@ type Props = Omit<ComponentProps<typeof Link>, 'href'> & {
   surface?: string;
 };
 
-/** 客户端挂载后再写入 sid，避免 SSR 链接缺少 seed */
+/** 点击时同步写入 sid 再跳转，避免首屏 href 尚未带 seed 时误恢复旧草稿。 */
 export function AssistantLink({
   refParam,
   excerpt,
   question,
   autoSend,
   surface,
+  onClick,
   ...linkProps
 }: Props) {
-  const [href, setHref] = useState(() => (
-    refParam ? `/assistant?ref=${encodeURIComponent(refParam)}` : '/assistant'
-  ));
+  const router = useRouter();
 
-  useEffect(() => {
-    setHref(assistantHref(refParam, { excerpt, question, autoSend, surface }));
-  }, [refParam, excerpt, question, autoSend, surface]);
+  const handleClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    onClick?.(e);
+    if (e.defaultPrevented) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    e.preventDefault();
+    router.push(
+      assistantHref(refParam, { excerpt, question, autoSend, surface }),
+    );
+  };
 
-  return <Link href={href} {...linkProps} />;
+  return <Link href="/assistant" onClick={handleClick} {...linkProps} />;
 }

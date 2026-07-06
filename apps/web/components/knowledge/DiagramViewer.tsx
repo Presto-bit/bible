@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { BibleDiagram } from '@/lib/api';
-import { API_BASE } from '@/lib/api';
+import { api } from '@/lib/api';
 
 export function DiagramViewer({
   diagram,
@@ -12,8 +12,36 @@ export function DiagramViewer({
   onRefClick?: (ref: string) => void;
 }) {
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
-  const src = `${API_BASE}/content/diagrams/${encodeURIComponent(diagram.id)}/file`;
+  const [src, setSrc] = useState('');
+  const [loadErr, setLoadErr] = useState(false);
   const hotspot = diagram.hotspots?.find((h) => h.id === activeHotspot);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = '';
+    setLoadErr(false);
+    setSrc('');
+
+    const url = api.diagramFileUrl(diagram.id);
+    void fetch(url, { cache: 'force-cache' })
+      .then((res) => {
+        if (!res.ok) throw new Error('diagram fetch failed');
+        return res.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadErr(true);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [diagram.id]);
 
   return (
     <div className="diagram-viewer">
@@ -22,7 +50,15 @@ export function DiagramViewer({
         <p style={{ fontSize: 13, lineHeight: 1.6, margin: '0 0 8px' }}>{diagram.summary}</p>
       ) : null}
       <div className="diagram-viewer-frame">
-        <img src={src} alt={diagram.title} className="diagram-viewer-img" />
+        {loadErr ? (
+          <p className="muted" style={{ padding: 24, textAlign: 'center', fontSize: 13 }}>
+            图鉴加载失败，请检查网络后重试
+          </p>
+        ) : src ? (
+          <img src={src} alt={diagram.title} className="diagram-viewer-img" />
+        ) : (
+          <p className="muted" style={{ padding: 24, textAlign: 'center', fontSize: 13 }}>加载中…</p>
+        )}
         {(diagram.hotspots ?? []).map((h) => (
           <button
             key={h.id}

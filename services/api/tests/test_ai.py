@@ -39,10 +39,39 @@ def test_build_messages_structure_and_citations():
     )
     assert len(msgs) == 2 and msgs[0]["role"] == "system" and msgs[1]["role"] == "user"
     assert "释经" in msgs[0]["content"]
+    assert "禁用空泛套话" in msgs[0]["content"]
     assert "【相关追问】" in msgs[0]["content"]
     assert "[1]" in msgs[1]["content"]
     assert "约翰福音 3:16" in msgs[1]["content"]
     assert "这里的爱是什么意思？" in msgs[1]["content"]
+
+
+def test_build_messages_reader_context_and_continuity():
+    from app.ai.prompts import format_reader_context
+
+    ctx = format_reader_context(
+        {
+            "last_read_label": "约翰福音 6:4",
+            "reading_streak": 7,
+            "recent_note_snippets": ["恩典够用"],
+        }
+    )
+    assert "约翰福音 6:4" in ctx
+    msgs = build_messages(
+        scene=SCENES["chat_explain"],
+        passage_display="约翰福音 3:16",
+        passage_text="",
+        question="继续",
+        citations=[],
+        reader_context={
+            "last_read_label": "约翰福音 6:4",
+            "reading_streak": 7,
+        },
+        has_prior_turns=True,
+    )
+    assert "【读者上下文】" in msgs[1]["content"]
+    assert "连续读经" in msgs[1]["content"]
+    assert "上文已有" in msgs[0]["content"] or "接续前文" in msgs[0]["content"]
 
 
 def test_build_messages_scene_without_followups():
@@ -53,7 +82,7 @@ def test_build_messages_scene_without_followups():
         question=None,
         citations=[],
     )
-    assert "【相关追问】" not in msgs[0]["content"]
+    assert "列出 2–3 个简短的后续问题" not in msgs[0]["content"]
     assert "主动" in msgs[1]["content"]
     assert "暂无可用背景注释" in msgs[1]["content"]
 
@@ -68,7 +97,7 @@ def test_build_messages_general_no_ref():
     )
     assert "主题问答" in msgs[0]["content"] or "未绑定具体经文" in msgs[0]["content"]
     assert "【相关经节】" in msgs[0]["content"]
-    assert "经文要旨" not in msgs[0]["content"]
+    assert "【经文要旨】" not in msgs[0]["content"]
     assert "经文：" not in msgs[1]["content"]
     assert "介绍摩西生平" in msgs[1]["content"]
 
@@ -199,6 +228,24 @@ def test_prepare_inserts_history_between_system_and_user():
     assert msgs[2]["role"] == "assistant"
     assert msgs[-1]["role"] == "user" and "永生" in msgs[-1]["content"]
     assert prep["meta"]["scene"] == "chat_understand"
+    assert prep["meta"]["has_commentary"] is False
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")
+def test_prepare_with_reader_context():
+    from app.ai.chat import prepare
+
+    prep = prepare(
+        ref_raw="JHN.3.16",
+        question="这节怎么读？",
+        mode="explain",
+        scene="chat_explain",
+        reader_context={"last_read_label": "约翰福音 6:4", "reading_streak": 3},
+    )
+    user_msg = prep["messages"][-1]["content"]
+    assert "【读者上下文】" in user_msg
+    assert "约翰福音 6:4" in user_msg
+    assert prep["meta"]["has_commentary"] in (True, False)
 
 
 @pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")

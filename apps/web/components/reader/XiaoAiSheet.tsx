@@ -16,6 +16,7 @@ import {
 import { bodyText } from '@/lib/assistant_format';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
+import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { sceneTimeout, type AssistantScene } from '@/lib/assistant_scenes';
 
 function stripAnswer(raw: string): string {
@@ -83,7 +84,13 @@ export default function XiaoAiSheet({
     const timer = window.setTimeout(() => controller.abort(), sceneTimeout(s));
     let cancelled = false;
     void chatStream(
-      { ref, question, mode: 'explain', scene: s },
+      {
+        ref,
+        question,
+        mode: 'explain',
+        scene: s,
+        reader_context: buildAssistantReaderContext(),
+      },
       {
         onMeta: (meta) => {
           const book = refLabel.replace(/\s*\d+.*$/, '').trim();
