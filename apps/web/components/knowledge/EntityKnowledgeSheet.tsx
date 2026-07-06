@@ -128,9 +128,6 @@ export function EntityKnowledgeSheet({
         />
 
         <div className="entity-knowledge-foot">
-          <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={onClose}>
-            继续读经
-          </button>
           <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={askAssistant}>
             问小爱
           </button>
