@@ -894,7 +894,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   )
                 ) : (
                   <div className="assistant-user-block">
-                    <span className="assistant-user-label muted">你</span>
                     <div className="assistant-user-text">
                       {m.text || '…'}
                     </div>

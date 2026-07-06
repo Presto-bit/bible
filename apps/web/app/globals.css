@@ -2591,16 +2591,7 @@ body.assistant-active .app-body {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
   width: 100%;
-}
-
-.assistant-user-label {
-  flex-shrink: 0;
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--ink-faint);
 }
 
 .assistant-user-text {
