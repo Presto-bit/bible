@@ -109,6 +109,8 @@ function AssistantPageInner() {
   const rafRef = useRef<number | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const sessionScrollRef = useRef(true);
+  /** 发送后默认锁滚（阅读优先）；用户滑到底或点「跟随」后解锁 */
+  const streamFollowLockedRef = useRef(false);
 
   const [toast, setToast] = useState('');
   const personalized = useMemo(
@@ -289,16 +291,20 @@ function AssistantPageInner() {
     if (!root) return;
     const node = root.querySelector(`[data-msg-idx="${msgIdx}"]`);
     if (node instanceof HTMLElement) {
-      node.scrollIntoView({ block: 'start', behavior: 'auto' });
+      root.scrollTo({ top: Math.max(0, node.offsetTop - 8), behavior: 'auto' });
       return;
     }
     scrollThreadToLatest();
   };
 
-  /** 流式输出：仅当用户已在底部附近时跟随；否则显示「↓ 新内容」 */
+  /** 流式：锁滚时不跟滚；解锁后仅距底较近时跟随 */
   const maybeFollowStreamScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
+    if (streamFollowLockedRef.current) {
+      setShowJumpToBottom(true);
+      return;
+    }
     if (isNearBottom(el)) {
       scrollThreadToLatest();
       setShowJumpToBottom(false);
@@ -307,10 +313,25 @@ function AssistantPageInner() {
     }
   };
 
+  const unlockStreamFollow = (followNow = true) => {
+    streamFollowLockedRef.current = false;
+    setShowJumpToBottom(false);
+    if (followNow) scrollThreadToLatest();
+  };
+
   const handleThreadScroll = () => {
     const el = scrollRef.current;
-    if (!el || !busy) return;
-    if (isNearBottom(el)) setShowJumpToBottom(false);
+    if (!el) return;
+    if (isNearBottom(el)) {
+      if (streamFollowLockedRef.current) {
+        streamFollowLockedRef.current = false;
+      }
+      setShowJumpToBottom(false);
+      return;
+    }
+    if (busy && streamFollowLockedRef.current) {
+      setShowJumpToBottom(true);
+    }
   };
 
   /** 切换会话 / 进入历史：落在最新消息 */
@@ -387,12 +408,15 @@ function AssistantPageInner() {
         content: msg.role === 'assistant' ? bodyText(msg.text) : msg.text,
       }));
     const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
-    const userMsgIdx = base.length - 2;
+    const assistantMsgIdx = base.length - 1;
     sessionScrollRef.current = false;
+    streamFollowLockedRef.current = true;
     setMsgs(base);
     setBusy(true);
     setShowJumpToBottom(false);
-    requestAnimationFrame(() => scrollToMsgStart(userMsgIdx));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => scrollToMsgStart(assistantMsgIdx));
+    });
     let acc = '';
     let cites: Citation[] = [];
     let serverFollowups: string[] = [];
@@ -447,7 +471,12 @@ function AssistantPageInner() {
     }
     applyAcc();
     setBusy(false);
-    setShowJumpToBottom(false);
+    const el = scrollRef.current;
+    if (streamFollowLockedRef.current && el && !isNearBottom(el)) {
+      setShowJumpToBottom(true);
+    } else {
+      setShowJumpToBottom(false);
+    }
     setMsgs((prev) => {
       persist(prev, anchor ?? ref);
       return prev;
@@ -559,6 +588,8 @@ function AssistantPageInner() {
   }, [searchParams, router]);
 
   const startNewSession = () => {
+    streamFollowLockedRef.current = false;
+    setShowJumpToBottom(false);
     setActiveId('current');
     setMsgs([]);
     setInput('');
@@ -568,6 +599,8 @@ function AssistantPageInner() {
   };
 
   const openSession = (s: Session) => {
+    streamFollowLockedRef.current = false;
+    setShowJumpToBottom(false);
     setActiveId(s.id);
     setMsgs(s.msgs);
     setRef(s.ref);
@@ -818,17 +851,14 @@ function AssistantPageInner() {
             );
             })}
             </div>
-            {showJumpToBottom && busy ? (
+            {showJumpToBottom ? (
               <button
                 type="button"
                 className="assistant-scroll-jump"
                 aria-label="滚动到最新输出"
-                onClick={() => {
-                  scrollThreadToLatest();
-                  setShowJumpToBottom(false);
-                }}
+                onClick={() => unlockStreamFollow(true)}
               >
-                ↓ 新内容
+                {busy ? '↓ 跟随最新' : '↓ 查看全文'}
               </button>
             ) : null}
           </div>
