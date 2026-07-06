@@ -17,29 +17,13 @@ import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePend
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
+import { DiscoverTodayBar } from '@/components/discover/DiscoverTodayBar';
 import { FriendActivityCard } from '@/components/discover/FriendActivityCard';
 import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
 
 function groupStatusBadge(g: Group) {
   return groupListStatusBadge(g);
-}
-
-function summaryLinkTarget(
-  summary: DiscoverSummary | null,
-  groups: Group[],
-): string | null {
-  if (!summary) return null;
-  if (summary.first_pending_group_id) {
-    return `/discover/group/${summary.first_pending_group_id}`;
-  }
-  if (
-    (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0) &&
-    groups.length > 0
-  ) {
-    return '/discover/groups';
-  }
-  return null;
 }
 
 export default function DiscoverPage() {
@@ -117,48 +101,16 @@ export default function DiscoverPage() {
 
   const coldStart = groups.length === 0 && friends.length === 0;
 
-  const summaryText = (() => {
-    if (!summary) return '加载中…';
-    if (coldStart) return '还没有共读群 · 受邀或创建一个开始';
-    const parts: string[] = [];
-    if (summary.groups_pending_checkin > 0) {
-      parts.push(`${summary.groups_pending_checkin} 个群待打卡`);
-    }
-    if (summary.groups_pending_tasks > 0) {
-      parts.push(`${summary.groups_pending_tasks} 个群任务待完成`);
-    }
-    if (summary.friends_checked_in_today > 0) {
-      parts.push(`今天 ${summary.friends_checked_in_today} 位好友打卡`);
-    }
-    return parts.length > 0 ? parts.join(' · ') : '今日已全部打卡，继续保持';
-  })();
-
-  const todayHref = summaryLinkTarget(summary, groups);
-
-  const todayInner = (
-    <>
-      <div className="today-title">今日</div>
-      <p className="today-sub">{summaryText}</p>
-      {todayHref && <span className="today-cta muted">去看看 ›</span>}
-    </>
-  );
-
   return (
     <main className="container discover-page">
       {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
-      {todayHref ? (
-        <Link
-          href={todayHref}
-          className="card card-tint card-2 card-accent today-card today-card-link"
-        >
-          {todayInner}
-        </Link>
-      ) : (
-        <div className="card card-tint card-2 card-accent today-card">
-          {todayInner}
-        </div>
-      )}
+      <DiscoverTodayBar
+        summary={summary}
+        groups={groups}
+        pendingOnlyIds={pendingOnlyIds}
+        coldStart={coldStart}
+      />
 
       <GroupInviteInbox onChanged={() => void reload()} />
 
@@ -292,7 +244,7 @@ export default function DiscoverPage() {
         </>
       )}
 
-      <div className="section-row" style={{ marginTop: 18 }}>
+      <div id="discover-feed" className="section-row" style={{ marginTop: 18 }}>
         <span>好友动态</span>
         <Link href="/discover/friends" className="muted">
           我的好友 ›

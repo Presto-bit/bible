@@ -1805,6 +1805,134 @@ html:not([data-app-theme]) .card {
 }
 
 /* ─── 发现页 ─── */
+.discover-today {
+  margin-bottom: 0;
+}
+
+.discover-today--loading {
+  padding: 16px;
+}
+
+.discover-today-skeleton {
+  display: block;
+  height: 14px;
+  width: 48%;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--line) 80%, transparent);
+  animation: feed-verse-shimmer 1.1s ease-in-out infinite;
+}
+
+.discover-today--action {
+  padding: 14px 16px;
+}
+
+.discover-today-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.discover-today-ring {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+}
+
+.discover-today-ring-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.discover-today-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.discover-today-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 4px;
+}
+
+.discover-today-primary {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.discover-today-primary strong {
+  font-weight: 700;
+}
+
+.discover-today-secondary {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.discover-today-cta {
+  flex-shrink: 0;
+  align-self: center;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.discover-today--done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  background: color-mix(in srgb, var(--accent-deep) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 18%, var(--line));
+}
+
+.discover-today--done:active {
+  opacity: 0.88;
+}
+
+.discover-today-done-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent-deep) 14%, var(--surface));
+}
+
+.discover-today-done-chevron {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
 .today-card {
   margin-bottom: 0;
 }
