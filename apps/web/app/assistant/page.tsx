@@ -7,6 +7,13 @@ import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
 import { createNote } from '@/lib/notes';
+import {
+  recordCitationClick,
+  recordSaveAnswerNote,
+  recordShareAnswer,
+  recordXiaoAiFollowup,
+  recordXiaoAiQuestion,
+} from '@/lib/badge_events';
 import { bodyText, followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
 import { resolveScene, SCENES, type AssistantScene } from '@/lib/assistant_scenes';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
@@ -76,6 +83,12 @@ function userVisibleQuestion(question: string, refVal: string): string {
   return cn ? `关于 ${cn}` : '请教这段经文';
 }
 
+const SCROLL_NEAR_BOTTOM_PX = 96;
+
+function isNearBottom(el: HTMLElement, threshold = SCROLL_NEAR_BOTTOM_PX): boolean {
+  return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+}
+
 function AssistantPageInner() {
   const [mode, setMode] = useState('understand');
   const [ref, setRef] = useState('');
@@ -94,6 +107,8 @@ function AssistantPageInner() {
   /** 哪一条助手消息正在展示脚标弹窗（FAB 带入的历史消息也要可点） */
   const [citationMsgIdx, setCitationMsgIdx] = useState<number | null>(null);
   const rafRef = useRef<number | null>(null);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
+  const sessionScrollRef = useRef(true);
 
   const [toast, setToast] = useState('');
   const personalized = useMemo(
@@ -162,6 +177,7 @@ function AssistantPageInner() {
     if (nav.share) {
       try {
         await nav.share({ title: '小爱的解读', text });
+        recordShareAnswer();
         return;
       } catch {
         /* 用户取消或失败，降级复制 */
@@ -265,12 +281,45 @@ function AssistantPageInner() {
 
   const scrollThreadToLatest = () => {
     const el = scrollRef.current;
-    if (el) el.scrollTo(0, el.scrollHeight);
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: 'auto' });
   };
 
-  /** 有历史时进入 / 切换会话，默认落在最新消息 */
+  const scrollToMsgStart = (msgIdx: number) => {
+    const root = scrollRef.current;
+    if (!root) return;
+    const node = root.querySelector(`[data-msg-idx="${msgIdx}"]`);
+    if (node instanceof HTMLElement) {
+      node.scrollIntoView({ block: 'start', behavior: 'auto' });
+      return;
+    }
+    scrollThreadToLatest();
+  };
+
+  /** 流式输出：仅当用户已在底部附近时跟随；否则显示「↓ 新内容」 */
+  const maybeFollowStreamScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    if (isNearBottom(el)) {
+      scrollThreadToLatest();
+      setShowJumpToBottom(false);
+    } else {
+      setShowJumpToBottom(true);
+    }
+  };
+
+  const handleThreadScroll = () => {
+    const el = scrollRef.current;
+    if (!el || !busy) return;
+    if (isNearBottom(el)) setShowJumpToBottom(false);
+  };
+
+  /** 切换会话 / 进入历史：落在最新消息 */
   useEffect(() => {
     if (msgs.length === 0) return;
+    if (!sessionScrollRef.current) {
+      sessionScrollRef.current = true;
+      return;
+    }
     scrollThreadToLatest();
     const t = window.setTimeout(scrollThreadToLatest, 50);
     return () => window.clearTimeout(t);
@@ -326,6 +375,9 @@ function AssistantPageInner() {
     const scene = nextScene && hasRef
       ? nextScene
       : resolveScene(nextScene, m, hasRef);
+    const userMsgsInSession = msgs.filter((msg) => msg.role === 'user').length + 1;
+    recordXiaoAiQuestion({ scene, ref: anchor ?? undefined });
+    recordXiaoAiFollowup(userMsgsInSession);
     setMode(m);
     setInput('');
     const history = msgs
@@ -335,8 +387,12 @@ function AssistantPageInner() {
         content: msg.role === 'assistant' ? bodyText(msg.text) : msg.text,
       }));
     const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
+    const userMsgIdx = base.length - 2;
+    sessionScrollRef.current = false;
     setMsgs(base);
     setBusy(true);
+    setShowJumpToBottom(false);
+    requestAnimationFrame(() => scrollToMsgStart(userMsgIdx));
     let acc = '';
     let cites: Citation[] = [];
     let serverFollowups: string[] = [];
@@ -355,7 +411,7 @@ function AssistantPageInner() {
         };
         return copy;
       });
-      scrollThreadToLatest();
+      maybeFollowStreamScroll();
     };
     const scheduleApply = () => {
       if (rafRef.current != null) return;
@@ -391,6 +447,7 @@ function AssistantPageInner() {
     }
     applyAcc();
     setBusy(false);
+    setShowJumpToBottom(false);
     setMsgs((prev) => {
       persist(prev, anchor ?? ref);
       return prev;
@@ -644,8 +701,13 @@ function AssistantPageInner() {
         </div>
       ) : (
         <div className="assistant-body">
-          <div ref={scrollRef} className="assistant-thread">
-            {msgs.map((m, i) => {
+          <div className="assistant-thread-wrap">
+            <div
+              ref={scrollRef}
+              className="assistant-thread"
+              onScroll={handleThreadScroll}
+            >
+              {msgs.map((m, i) => {
               const isLastAssistant = m.role === 'assistant' && i === lastAssistantIdx;
               const showFollowups = isLastAssistant && m.text && !busy;
               const followups = showFollowups
@@ -669,6 +731,7 @@ function AssistantPageInner() {
               return (
               <div
                 key={i}
+                data-msg-idx={i}
                 className={`assistant-msg ${m.role === 'user' ? 'assistant-msg-user' : ''}`}
               >
                 <div className="muted assistant-msg-meta">
@@ -686,6 +749,7 @@ function AssistantPageInner() {
                         dense={Boolean(m.scene?.startsWith('summary_'))}
                         citations={m.citations}
                         onCitationClick={(n) => {
+                          recordCitationClick();
                           setCitationMsgIdx(i);
                           setCitationOpen(n);
                         }}
@@ -726,6 +790,7 @@ function AssistantPageInner() {
                         className="msg-action"
                         onClick={() => {
                           createNote(stripFollowups(m.text), ref || undefined, ['小爱']);
+                          recordSaveAnswerNote();
                           flashToast('已存笔记');
                         }}
                       >
@@ -752,6 +817,20 @@ function AssistantPageInner() {
               </div>
             );
             })}
+            </div>
+            {showJumpToBottom && busy ? (
+              <button
+                type="button"
+                className="assistant-scroll-jump"
+                aria-label="滚动到最新输出"
+                onClick={() => {
+                  scrollThreadToLatest();
+                  setShowJumpToBottom(false);
+                }}
+              >
+                ↓ 新内容
+              </button>
+            ) : null}
           </div>
           {composer}
         </div>

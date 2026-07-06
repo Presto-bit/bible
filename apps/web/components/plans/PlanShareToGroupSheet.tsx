@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { api, ensureAccountReady, type Group } from '@/lib/api';
 import { markGroupsListDirty } from '@/lib/groups_refresh';
 import { bindPlanToGroup, groupCheckinHref, groupsBoundToPlan, loadOwnerGroups } from '@/lib/plan_group_share';
+import { recordPlanSharedGroup } from '@/lib/badge_events';
 
 type Props = {
   open: boolean;
@@ -69,6 +70,7 @@ export function PlanShareToGroupSheet({
     setErr(null);
     try {
       await bindPlanToGroup(g.id, planId);
+      recordPlanSharedGroup();
       markGroupsListDirty();
       onBound?.(g.id);
       onClose();
@@ -86,6 +88,7 @@ export function PlanShareToGroupSheet({
     try {
       await ensureAccountReady();
       const g = await api.createGroupFromPlan(planId, `${planTitle} · 共读`);
+      recordPlanSharedGroup();
       markGroupsListDirty();
       onBound?.(g.id);
       onClose();

@@ -227,7 +227,7 @@ export interface ReadEvent {
   chapter: number;
 }
 
-function readEvents(): ReadEvent[] {
+export function readEvents(): ReadEvent[] {
   if (typeof window === 'undefined') return [];
   try {
     const raw = JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]');

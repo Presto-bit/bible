@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, type GroupInviteInboxItem } from '@/lib/api';
+import { recordInviteAccepted } from '@/lib/badge_events';
 
 type Props = {
   onChanged?: () => void;
@@ -25,8 +26,10 @@ export function GroupInviteInbox({ onChanged }: Props) {
   const respond = async (id: string, accept: boolean) => {
     setBusyId(id);
     try {
-      if (accept) await api.acceptGroupInvite(id);
-      else await api.declineGroupInvite(id);
+      if (accept) {
+        await api.acceptGroupInvite(id);
+        recordInviteAccepted();
+      } else await api.declineGroupInvite(id);
       reload();
       onChanged?.();
     } finally {

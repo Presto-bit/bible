@@ -8,6 +8,7 @@ import {
   normalizeCheckinBody,
   buildCheckinRef,
 } from '@/lib/group_checkin';
+import { recordGroupCheckin } from '@/lib/badge_events';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 
 type Props = {
@@ -73,6 +74,7 @@ export default function GroupCheckinSheet({
         task_id: presetTaskId || undefined,
         body: normalizeCheckinBody(body),
       });
+      recordGroupCheckin(gid);
       setSubmitted(true);
       onDone?.();
       window.setTimeout(onClose, 600);

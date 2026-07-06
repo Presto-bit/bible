@@ -82,6 +82,7 @@ import {
   setLastReadVerse,
   shouldShowResumeHint,
 } from '@/lib/reading';
+import { recordParallelChapter } from '@/lib/badge_events';
 import { outlineForAsync, type SectionMark } from '@/lib/section_titles';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { buildCheckinRef } from '@/lib/group_checkin';
@@ -1028,11 +1029,13 @@ export default function ReaderView({
       if (cur > lastScrollTop.current + 6) {
         readingEngagedRef.current = true;
         confirmChapterProgress(book.id, chapter, () => {
+          if (layout === 'parallel') recordParallelChapter();
           maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
         });
       } else if (cur < lastScrollTop.current - 6) {
         readingEngagedRef.current = true;
         confirmChapterProgress(book.id, chapter, () => {
+          if (layout === 'parallel') recordParallelChapter();
           maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
         });
       }

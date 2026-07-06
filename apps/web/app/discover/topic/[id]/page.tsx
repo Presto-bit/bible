@@ -13,6 +13,7 @@ import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
+import { recordTopicVisit } from '@/lib/badge_events';
 
 type VerseCard = { ref: string; text: string };
 
@@ -36,6 +37,10 @@ export default function TopicPage() {
   const [color, setColor] = useState(staticTopic?.color ?? topicColor(0));
   const [loading, setLoading] = useState(true);
   const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
+
+  useEffect(() => {
+    if (id) recordTopicVisit(id);
+  }, [id]);
 
   useEffect(() => {
     let cancelled = false;

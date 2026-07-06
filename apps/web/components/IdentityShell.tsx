@@ -7,6 +7,7 @@ import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
 import { syncNow } from '@/lib/sync';
+import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 import UsernameGuideSheet from '@/components/UsernameGuideSheet';
 
 /** 应用启动：身份 → 建档 → 云同步 → 离线经包 */
@@ -31,6 +32,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
   return (
     <>
       {children}
+      <BadgeUnlockToast />
       {usernameGuide ? <UsernameGuideSheet onDone={() => setUsernameGuide(false)} /> : null}
     </>
   );

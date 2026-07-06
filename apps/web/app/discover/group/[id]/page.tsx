@@ -13,6 +13,7 @@ import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteShee
 import { GroupTodayFocus } from '@/components/group/GroupTodayFocus';
 import { GroupToast } from '@/components/group/GroupToast';
 import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
+import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
 import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
@@ -214,6 +215,7 @@ function GroupPageInner() {
   const react = async (mid: string, emoji: string) => {
     try {
       await api.react(mid, emoji);
+      recordGroupResponse();
       reload();
     } catch {
       /* ignore */
@@ -266,6 +268,7 @@ function GroupPageInner() {
       ref: taskComplete.ref || undefined,
       body: taskBody,
     });
+    recordGroupCheckin(gid);
     showToast('任务完成并已分享 ✓');
     await reload();
   };
@@ -279,6 +282,7 @@ function GroupPageInner() {
     appendOptimisticCheckin(payload);
     try {
       await api.checkin(gid, payload);
+      recordGroupCheckin(gid);
       clearGroupCheckinDraft(gid);
       hapticSuccess();
       setFlyHighlight(true);

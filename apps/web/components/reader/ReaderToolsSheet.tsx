@@ -6,6 +6,7 @@ import { refToChineseLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
+import { recordCrossrefOpen, recordStrongsOpen } from '@/lib/badge_events';
 
 type Tab = 'crossrefs' | 'strongs' | 'guide';
 
@@ -44,13 +45,19 @@ export function ReaderToolsSheet({
       try {
         if (tab === 'crossrefs') {
           const d = await api.crossrefs(refParam);
-          if (!cancelled) setCross(d);
+          if (!cancelled) {
+            setCross(d);
+            recordCrossrefOpen();
+          }
         } else if (tab === 'guide') {
           const d = await api.guide(refParam);
           if (!cancelled) setGuide(d);
         } else if (tab === 'strongs' && singleVerse) {
           const d = await api.strongs(refParam);
-          if (!cancelled) setWords(d.words || []);
+          if (!cancelled) {
+            setWords(d.words || []);
+            if ((d.words || []).length > 0) recordStrongsOpen();
+          }
         } else if (tab === 'strongs') {
           if (!cancelled) setWords([]);
         }

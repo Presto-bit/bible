@@ -25,8 +25,12 @@ function readHistory(): Record<string, AnswerRecord> {
 
 export function recordAnswer(questionId: string, correct: boolean) {
   const h = readHistory();
+  const wasWrong = h[questionId] && !h[questionId].correct;
   h[questionId] = { correct, at: ymd() };
   localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  if (wasWrong && correct) {
+    void import('./badge_events').then((m) => m.recordWrongRevived());
+  }
 }
 
 export function answerStats() {

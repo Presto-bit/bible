@@ -5,6 +5,7 @@ import type { MapTour, TimelineTour } from '@/lib/api';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { refSpaceToOsis } from '@/lib/inline_ref';
+import { recordMapTour, recordTimelineTour } from '@/lib/badge_events';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 
 export function MapTourPanels({ tours }: { tours: MapTour[] }) {
@@ -25,7 +26,10 @@ export function MapTourPanels({ tours }: { tours: MapTour[] }) {
               <button
                 type="button"
                 className="story-tour-head"
-                onClick={() => setOpenId(open ? null : tour.id)}
+                onClick={() => {
+                  if (!open) recordMapTour(tour.id);
+                  setOpenId(open ? null : tour.id);
+                }}
               >
                 <span className="story-tour-badge">地图故事</span>
                 <strong className="story-tour-title">{tour.title}</strong>
@@ -107,7 +111,10 @@ export function TimelineTourPanels({ tours }: { tours: TimelineTour[] }) {
               <button
                 type="button"
                 className="story-tour-head"
-                onClick={() => setOpenId(open ? null : tour.id)}
+                onClick={() => {
+                  if (!open) recordTimelineTour(tour.id);
+                  setOpenId(open ? null : tour.id);
+                }}
               >
                 <span className="story-tour-badge story-tour-badge-time">时间故事</span>
                 <strong className="story-tour-title">{tour.title}</strong>

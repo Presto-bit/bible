@@ -23,6 +23,7 @@ import {
   writeDictChoice,
   type DictContext,
 } from '@/lib/dictionary_match';
+import { recordDictEntity } from '@/lib/badge_events';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -74,6 +75,7 @@ export default function ReaderPage() {
     remember: boolean,
   ) => {
     if (remember) writeDictChoice(name, ctx.bookId, entity.id ?? entity.name);
+    recordDictEntity(entity.id ?? entity.name);
     setDictPopup({ entity, name, candidates, ctx });
   }, []);
 

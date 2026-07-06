@@ -7,6 +7,12 @@ import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
 import { createNote } from '@/lib/notes';
+import {
+  recordCitationClick,
+  recordHalfSheetXiaoAi,
+  recordSaveAnswerNote,
+  recordXiaoAiQuestion,
+} from '@/lib/badge_events';
 import { bodyText } from '@/lib/assistant_format';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
@@ -58,6 +64,11 @@ export default function XiaoAiSheet({
   }, [scene, refParam, selectionText, userQuestion]);
 
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    recordHalfSheetXiaoAi();
+    recordXiaoAiQuestion({ scene, ref: refParam });
+  }, [scene, refParam]);
 
   const runChat = useCallback(() => {
     accRef.current = '';
@@ -165,6 +176,7 @@ export default function XiaoAiSheet({
   const saveNote = () => {
     if (!clean || hasError) return;
     createNote(clean, refParam, ['小爱', '半屏']);
+    recordSaveAnswerNote();
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
   };
@@ -218,7 +230,10 @@ export default function XiaoAiSheet({
                       streaming={!done}
                       dense={mode === 'explain'}
                       citations={citations}
-                      onCitationClick={(n) => setCitationOpen(n)}
+                      onCitationClick={(n) => {
+                        recordCitationClick();
+                        setCitationOpen(n);
+                      }}
                     />
                   )}
                 </>

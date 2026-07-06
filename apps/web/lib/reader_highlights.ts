@@ -190,6 +190,12 @@ export function highlightCount(): number {
   return Object.keys(getHighlightMap()).length;
 }
 
+export function highlightColorCount(): number {
+  const colors = new Set<string>();
+  for (const mark of Object.values(getHighlightMap())) colors.add(mark.color);
+  return colors.size;
+}
+
 export function highlightClass(mark: HighlightMark | null): string {
   if (!mark) return '';
   return `verse-mark verse-mark-color verse-mark-${mark.color}`;

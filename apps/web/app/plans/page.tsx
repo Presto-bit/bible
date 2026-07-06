@@ -6,6 +6,7 @@ import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, ensureAccountReady, type GeneratedPlan, type PlanSummary } from '@/lib/api';
 import { markGroupsListDirty, stashCreatedGroup } from '@/lib/groups_refresh';
+import { recordPlanSharedGroup } from '@/lib/badge_events';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
 import { loadGeneratedPlans, removeGeneratedPlan } from '@/lib/generated_plans';
 import { PlanScheduleSheet } from '@/components/plans/PlanScheduleSheet';
@@ -572,6 +573,7 @@ export default function PlansPage() {
                     try {
                       await ensureAccountReady();
                       const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
+                      recordPlanSharedGroup();
                       stashCreatedGroup({
                         id: g.id,
                         name: g.name || `${active.title} · 共读`,

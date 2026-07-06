@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
-  api,
   currentUserId,
   effectiveId,
   ensureAccountReady,
@@ -18,12 +17,12 @@ import SyncStatusBadge from '@/components/SyncStatusBadge';
 import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
-import { todayMinutes, bookProgressMap, buildReport } from '@/lib/reading';
+import { todayMinutes } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
-import { computeAllBadges } from '@/lib/badges';
+import type { BadgeDef } from '@/lib/badges';
+import { computeBadgesWithUnlock, profilePreviewBadges } from '@/lib/badge_unlock';
 import { favoriteReviewCards } from '@/lib/favorite_review';
-import { listNotes } from '@/lib/notes';
-import { bibleBooks } from '@/lib/bible_client';
+import { recordMemoryReview } from '@/lib/badge_events';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { syncNow } from '@/lib/sync';
@@ -51,7 +50,7 @@ export default function ProfilePage() {
   const [hasPwd, setHasPwd] = useState(false);
   const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
   const [streak, setStreak] = useState(0);
-  const [badges, setBadges] = useState<ReturnType<typeof computeAllBadges>>([]);
+  const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [adminEligible, setAdminEligible] = useState(false);
 
@@ -103,46 +102,9 @@ export default function ProfilePage() {
   useEffect(() => {
     let cancelled = false;
     const loadBadges = async () => {
-      const { highlightCount } = await import('@/lib/reader_highlights');
-      const report = buildReport();
-      const noteCount = listNotes().length;
-      let readBooks = 0;
-      let totalBooks = 66;
-      let friendCount = 0;
-      let planDays = 0;
-      try {
-        const books = await bibleBooks();
-        totalBooks = books.length || 66;
-        const totals: Record<string, number> = {};
-        for (const b of books) totals[b.id] = b.chapter_count;
-        const prog = bookProgressMap(totals);
-        readBooks = Object.values(prog).filter(
-          (p) => p.distinctChapters > 0 || p.passes >= 1,
-        ).length;
-      } catch {
-        /* ignore */
-      }
-      try {
-        const f = await api.friends();
-        friendCount = Array.isArray(f.friends) ? f.friends.length : 0;
-      } catch {
-        /* ignore */
-      }
+      const list = await computeBadgesWithUnlock();
       if (cancelled) return;
-      setBadges(
-        computeAllBadges({
-          streak: readingStreak(),
-          readBooks,
-          totalBooks,
-          noteCount,
-          monthDays: report.monthDays,
-          totalMinutes: report.totalMinutes,
-          totalChapters: report.totalChapters,
-          highlightCount: highlightCount(),
-          planDays,
-          friendCount,
-        }),
-      );
+      setBadges(list);
     };
     void loadBadges();
     return () => {
@@ -305,10 +267,14 @@ export default function ProfilePage() {
         </div>
         <div className="badge-row">
           {(() => {
-            const earned = badges.filter((b) => b.done).slice(0, 4);
-            const preview = earned.length ? earned : badges.slice(0, 4);
-            if (!preview.length) {
+            const preview = badges.length
+              ? profilePreviewBadges(badges, 4)
+              : [];
+            if (!badges.length) {
               return <span className="muted" style={{ fontSize: 12 }}>加载中…</span>;
+            }
+            if (!preview.length) {
+              return <span className="muted" style={{ fontSize: 12 }}>读经、探索与小爱互动，解锁第一枚徽章</span>;
             }
             return preview.map((b) => (
               <div key={b.id} className="badge-item">
@@ -338,6 +304,7 @@ export default function ProfilePage() {
               href={`/reader?ref=${encodeURIComponent(c.ref)}`}
               className="muted"
               style={{ display: 'block', marginTop: 8, fontSize: 13 }}
+              onClick={() => recordMemoryReview()}
             >
               {c.label}
             </Link>

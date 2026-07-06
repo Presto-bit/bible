@@ -7,6 +7,7 @@ import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, effectiveId, ensureAccountReady } from '@/lib/api';
 import { markLocalDataCreated } from '@/lib/account_guide';
 import { stashCreatedGroup } from '@/lib/groups_refresh';
+import { recordGroupCreated } from '@/lib/badge_events';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
 
 export default function CreateGroupPage() {
@@ -32,6 +33,7 @@ export default function CreateGroupPage() {
       if (!effectiveId()) throw new Error('身份未就绪');
       const g = await api.createGroup(n, intro.trim() || undefined);
       if (!g?.id) throw new Error('服务器未返回群 ID');
+      recordGroupCreated();
       stashCreatedGroup({
         id: g.id,
         name: g.name || n,
