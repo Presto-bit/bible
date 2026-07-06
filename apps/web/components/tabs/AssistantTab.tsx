@@ -283,6 +283,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   }, []);
 
   useEffect(() => {
+    if (!paneActive) return;
+    document.body.classList.add('assistant-active');
+    return () => {
+      document.body.classList.remove('assistant-active');
+    };
+  }, [paneActive]);
+
+  useEffect(() => {
     if (!hydratedRef.current) return;
     if (!hasUserMessages(msgs)) {
       clearAssistantDraft();

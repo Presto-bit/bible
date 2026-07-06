@@ -2009,6 +2009,16 @@ a.today-card-link {
   min-height: 0;
   padding-bottom: 8px;
   overflow: hidden;
+  touch-action: none;
+}
+
+body.assistant-active {
+  overflow: hidden;
+}
+
+body.assistant-active .app-body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .assistant-body {
@@ -2059,6 +2069,7 @@ a.today-card-link {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  touch-action: pan-y;
   margin-bottom: 10px;
   padding-right: 2px;
 }
@@ -2118,6 +2129,7 @@ a.today-card-link {
   background: var(--paper);
   padding-bottom: max(4px, env(safe-area-inset-bottom, 0));
   box-shadow: 0 -8px 24px color-mix(in srgb, var(--paper) 82%, transparent);
+  touch-action: none;
 }
 
 .empty-pills {
@@ -2287,8 +2299,19 @@ a.today-card-link {
   margin-left: auto;
   padding: 10px 14px;
   border-radius: 16px 16px 4px 16px;
-  background: var(--accent-wash);
+  background: color-mix(in srgb, var(--accent-deep) 16%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 24%, var(--line));
   color: var(--ink);
+}
+
+.assistant-answer {
+  display: inline-block;
+  max-width: 92%;
+  padding: 10px 14px;
+  border-radius: 16px 16px 16px 4px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 4px rgba(43, 42, 39, 0.04);
 }
 
 .assistant-pending-bar {
@@ -8204,6 +8227,305 @@ body.reader-active .proper-noun--artifact {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 12px;
+}
+
+/* ─── 好友列表 / 动态卡片 ─── */
+.friend-avatar {
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.friends-add-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+}
+
+.friends-add-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.friends-letter-list {
+  margin-top: 8px;
+}
+
+.friends-letter-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-faint);
+  padding: 10px 4px 4px;
+}
+
+.friends-list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid var(--line);
+}
+
+.friends-list-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.friends-list-row-sub {
+  font-size: 12px;
+}
+
+.friends-list-chevron {
+  font-size: 18px;
+}
+
+.friend-profile-card {
+  margin-top: 8px;
+}
+
+.friend-profile-card-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.friend-profile-card-text strong {
+  font-size: 17px;
+}
+
+.friend-profile-handle {
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+.friend-profile-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.friend-action-btn {
+  flex: 1;
+  min-width: calc(33% - 6px);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 8px 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.friend-action-accent {
+  color: var(--accent-deep);
+  border-color: color-mix(in srgb, var(--accent-deep) 30%, var(--line));
+  background: var(--accent-wash);
+}
+
+.discover-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.feed-card {
+  margin-top: 0;
+  padding: 14px 16px;
+}
+
+.feed-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.feed-card-head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-card-author {
+  font-weight: 700;
+  font-size: 15px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.feed-card-author:hover {
+  color: var(--accent-deep);
+}
+
+.feed-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.feed-card-kind {
+  color: var(--accent-deep);
+}
+
+.feed-card-dot {
+  opacity: 0.5;
+}
+
+.feed-card-time {
+  font-size: 11px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.feed-card-ref {
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 0 0 6px;
+  font-weight: 500;
+}
+
+.feed-card-body {
+  margin: 0;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.feed-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.feed-card-like,
+.feed-card-amen {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.feed-card-amen-icon {
+  font-size: 15px;
+}
+
+.group-invite-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.group-invite-copy-text {
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.group-invite-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+  margin: 14px 0 8px;
+}
+
+.group-invite-selected-track {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.group-invite-selected-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.group-invite-selected-chip.pending {
+  border-color: color-mix(in srgb, var(--accent-deep) 35%, var(--line));
+  background: var(--accent-wash);
+}
+
+.group-invite-selected-name {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-invite-selected-x {
+  color: var(--ink-faint);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.group-invite-friend-list-full .group-invite-friend-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 4px;
+  border: none;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+}
+
+.group-invite-friend-list-full .group-invite-friend-row.selected {
+  background: color-mix(in srgb, var(--accent-wash) 50%, transparent);
+}
+
+.group-invite-friend-name {
+  flex: 1;
+  min-width: 0;
+}
+
+.group-invite-friend-state {
+  font-size: 12px;
+  flex-shrink: 0;
 }
 
 .half-sheet-user-bubble {

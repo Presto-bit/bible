@@ -1273,6 +1273,50 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
     ]}
 
 
+@router.delete("/friends/{friend_id}")
+def remove_friend(friend_id: str, user_id: str = Depends(get_current_user)) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        conn.execute(
+            "DELETE FROM friendship WHERE "
+            "(user_id = %s AND friend_id = %s) OR (user_id = %s AND friend_id = %s)",
+            (user_id, friend_id, friend_id, user_id),
+        )
+        conn.commit()
+    return {"ok": True}
+
+
+@router.get("/groups/{gid}/invites/pending")
+def group_pending_invites(gid: str, user_id: str = Depends(get_current_user)) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        _ensure_group_invite_table(conn)
+        _require_member(conn, gid, user_id)
+        rows = conn.execute(
+            "SELECT invitee_id FROM group_invite "
+            "WHERE group_id = %s AND status = 'pending'",
+            (gid,),
+        ).fetchall()
+    return {"friend_ids": [str(r[0]) for r in rows]}
+
+
+@router.delete("/groups/{gid}/invites/{friend_id}")
+def cancel_group_invite(
+    gid: str, friend_id: str, user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        _ensure_group_invite_table(conn)
+        _require_member(conn, gid, user_id)
+        conn.execute(
+            "DELETE FROM group_invite "
+            "WHERE group_id = %s AND invitee_id = %s AND status = 'pending'",
+            (gid, friend_id),
+        )
+        conn.commit()
+    return {"ok": True}
+
+
 @router.post("/cron/prune-inactive-groups")
 def cron_prune_inactive_groups(
     x_cron_secret: str | None = Header(default=None, alias="X-Cron-Secret"),

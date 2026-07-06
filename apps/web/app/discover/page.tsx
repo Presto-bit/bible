@@ -13,22 +13,13 @@ import {
   type Group,
 } from '@/lib/api';
 import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
-import { readerHrefFromRef } from '@/lib/group_footprint';
-import { formatGroupRefLabel } from '@/lib/ref_label';
 import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
-import { AssistantLink } from '@/components/AssistantLink';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
-import { FriendsSwipeRow } from '@/components/discover/FriendsSwipeRow';
+import { FriendActivityCard } from '@/components/discover/FriendActivityCard';
 import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
-import { friendDisplayName } from '@/lib/friend_label';
-
-function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
-  if (!reactions) return 0;
-  return Object.values(reactions).reduce((n, users) => n + users.length, 0);
-}
 
 function groupStatusBadge(g: Group) {
   return groupListStatusBadge(g);
@@ -302,9 +293,9 @@ export default function DiscoverPage() {
       )}
 
       <div className="section-row" style={{ marginTop: 18 }}>
-        <span>我的好友</span>
-        <Link href="/friend/add" className="muted">
-          加好友 ›
+        <span>好友动态</span>
+        <Link href="/discover/friends" className="muted">
+          我的好友 ›
         </Link>
       </div>
 
@@ -318,74 +309,22 @@ export default function DiscoverPage() {
             加好友
           </Link>
         </div>
-      ) : (
-        <FriendsSwipeRow friends={friends} />
-      )}
-
-      <div className="section-row" style={{ marginTop: 18 }}>
-        <span>好友动态</span>
-        <span className="muted" style={{ fontSize: 12 }}>打卡 · 分享</span>
-      </div>
-
-      {friends.length === 0 ? null : shares.length === 0 ? (
+      ) : shares.length === 0 ? (
         <p className="muted" style={{ marginTop: 8 }}>
           暂无好友动态，去群里打卡或等好友分享吧
         </p>
       ) : (
-        shares.map((s) => {
-          const isShare = s.source === 'share';
-          const canReact = true;
-          const likes = reactionTotal(s.reactions) + (canReact && reacted[s.id] === '❤️' ? 1 : 0);
-          const refHref = s.ref ? readerHrefFromRef(s.ref) : null;
-          const sourceLabel = isShare
-            ? (s.kind === 'thought' ? '分享了想法' : '分享了笔记')
-            : s.group_name;
-          return (
-            <div key={`${s.source}-${s.id}`} className="card share-card">
-              <div className="share-card-head">
-                <Link href={s.author_id ? `/discover/friends/${s.author_id}` : '/discover'} className="share-author-link">
-                  <strong>{s.author || friendDisplayName({ user_id: s.author_id ?? '', display_name: s.author })}</strong>
-                </Link>
-                {sourceLabel && (
-                  <span className="muted" style={{ fontSize: 12 }}>
-                    {sourceLabel}
-                  </span>
-                )}
-              </div>
-              <p className="muted">{s.ref ? formatGroupRefLabel(s.ref) : (isShare ? '想法' : '打卡')}</p>
-              {s.body && <p style={{ marginTop: 6, lineHeight: 1.5 }}>{s.body}</p>}
-              {canReact && (
-                <button
-                  type="button"
-                  className="like-btn"
-                  onClick={() => toggleReact(s)}
-                >
-                  {reacted[s.id] === '❤️' ? '❤️' : '🤍'} {likes}
-                </button>
-              )}
-              <div className="share-actions">
-                {s.ref && (
-                  <AssistantLink
-                    className="font-pill"
-                    refParam={s.ref}
-                    excerpt={s.body || undefined}
-                  >
-                    问小爱
-                  </AssistantLink>
-                )}
-                {refHref ? (
-                  <Link className="font-pill" href={refHref}>
-                    我也在读
-                  </Link>
-                ) : (
-                  <Link className="font-pill" href="/reader">
-                    我也在读
-                  </Link>
-                )}
-              </div>
-            </div>
-          );
-        })
+        <div className="discover-feed">
+          {shares.map((s) => (
+            <FriendActivityCard
+              key={`${s.source}-${s.id}`}
+              item={s}
+              reacted={reacted[s.id]}
+              onReact={() => toggleReact(s)}
+              authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
+            />
+          ))}
+        </div>
       )}
     </main>
   );

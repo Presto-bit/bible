@@ -1398,6 +1398,12 @@ export const api = {
   friends: () => authed<{ friends: Friend[] }>('/social/friends'),
   addFriend: (handle: string) =>
     authed<Friend>('/social/friends', { method: 'POST', body: { handle } }),
+  removeFriend: (friendId: string) =>
+    authed<{ ok: boolean }>(`/social/friends/${friendId}`, { method: 'DELETE' }),
+  groupPendingInvites: (gid: string) =>
+    authed<{ friend_ids: string[] }>(`/social/groups/${gid}/invites/pending`),
+  cancelGroupInvite: (gid: string, friendId: string) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/invites/${friendId}`, { method: 'DELETE' }),
   publishShare: (body: { ref?: string; body: string; kind?: string }) =>
     authed<{ id: string; created_at: string }>('/social/shares', {
       method: 'POST',
