@@ -439,6 +439,14 @@ export default function ReaderView({
     }
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, nativeSelection]);
+  const nativeSelVerses = useMemo(
+    () => new Set(nativeTouchSelect && nativeSelection ? nativeSelection.verses : []),
+    [nativeTouchSelect, nativeSelection],
+  );
+  const verseSelClass = useCallback(
+    (verse: number) => (wholeVerseSel.includes(verse) || nativeSelVerses.has(verse) ? ' verse-sel-active' : ''),
+    [wholeVerseSel, nativeSelVerses],
+  );
   const hasSel = sortedSel.length > 0;
   const selectionSpan = useMemo(
     () => (wordRange ? wordRangeToSpan(wordRange).span : null),
@@ -657,7 +665,7 @@ export default function ReaderView({
     ) / 2;
     const barH = focusBarRef.current?.offsetHeight ?? 56;
     const margin = 16;
-    const systemMenuReserve = nativeTouchSelect ? 52 : 0;
+    const systemMenuReserve = 0;
     const topReserve = chromeHidden ? 12 : 58;
     const bottomReserve = chromeHidden ? 24 : 76;
     // 应用条优先在选区下方，与 iOS 系统菜单（多在上方）错开
@@ -1308,14 +1316,57 @@ export default function ReaderView({
     });
   }, []);
 
-  // 触控/PWA：同步系统原生划选；拦截 contextmenu 避免 iOS 系统复制工具栏
+  // 触控/PWA：同步系统原生划选；选区落定后收起系统菜单，保留应用工具条
   useEffect(() => {
     const root = contentRef.current;
     if (!root || !nativeTouchSelect) return;
     const blockMenu = (e: Event) => e.preventDefault();
     root.addEventListener('contextmenu', blockMenu);
     let raf = 0;
+    let settleTimer = 0;
+    let collapseTimer = 0;
+    const pinningRef = { current: false };
+
+    const collapseSystemSelection = () => {
+      const pinned = readNativeVerseSelection(root);
+      if (!pinned?.text) return;
+      setNativeSelection((prev) => {
+        if (
+          prev &&
+          prev.text === pinned.text &&
+          prev.verses.join(',') === pinned.verses.join(',')
+        ) {
+          return prev;
+        }
+        return pinned;
+      });
+      setWholeVerseSel([]);
+      setWordRange(null);
+      wordRangeRef.current = null;
+      lastSelectAt.current = Date.now();
+      swipeIgnoreUntilRef.current = Date.now() + 320;
+      pinningRef.current = true;
+      const firstVerse = pinned.verses[0];
+      const anchor = firstVerse ? document.getElementById(`verse-anchor-${firstVerse}`) : null;
+      // 模拟点一下选区经节，促使 iOS 收起系统复制条
+      anchor?.dispatchEvent(
+        new MouseEvent('click', { bubbles: true, cancelable: true, view: window }),
+      );
+      requestAnimationFrame(() => {
+        window.getSelection()?.removeAllRanges();
+        requestAnimationFrame(() => {
+          pinningRef.current = false;
+        });
+      });
+    };
+
+    const scheduleCollapse = (delayMs: number) => {
+      window.clearTimeout(collapseTimer);
+      collapseTimer = window.setTimeout(collapseSystemSelection, delayMs);
+    };
+
     const sync = () => {
+      if (pinningRef.current) return;
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
@@ -1338,14 +1389,25 @@ export default function ReaderView({
           setWholeVerseSel([]);
           setWordRange(null);
           wordRangeRef.current = null;
+          window.clearTimeout(settleTimer);
+          settleTimer = window.setTimeout(() => scheduleCollapse(0), 140);
         }
       });
     };
+
+    const onPointerUp = () => scheduleCollapse(48);
+
     document.addEventListener('selectionchange', sync);
+    root.addEventListener('touchend', onPointerUp, { passive: true });
+    root.addEventListener('pointerup', onPointerUp, { passive: true });
     return () => {
       root.removeEventListener('contextmenu', blockMenu);
       document.removeEventListener('selectionchange', sync);
+      root.removeEventListener('touchend', onPointerUp);
+      root.removeEventListener('pointerup', onPointerUp);
       if (raf) cancelAnimationFrame(raf);
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(collapseTimer);
     };
   }, [book.id, chapter, swipeTurn, nativeTouchSelect]);
 
@@ -1470,7 +1532,6 @@ export default function ReaderView({
 
   useEffect(() => {
     if (!hasSel) {
-      setMarkNotePrompt(null);
       setMarkPaletteOpen(false);
     }
   }, [hasSel]);
@@ -1609,12 +1670,11 @@ export default function ReaderView({
                         ? markForVerse(highlightMap, book.id, chapter, v.verse)
                         : null;
                       const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                      const isWholeVerseSel = wholeVerseSel.includes(v.verse);
                       return (
                         <span
                           key={v.verse}
                           id={`verse-anchor-${v.verse}`}
-                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isWholeVerseSel ? ' verse-sel-active' : ''}`}
+                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
                           onClick={(e) => handleVerseClick(e, v.verse, text)}
                           onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                         >
@@ -1680,12 +1740,11 @@ export default function ReaderView({
                     ? markForVerse(highlightMap, book.id, chapter, v.verse)
                     : null;
                   const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                  const isWholeVerseSel = wholeVerseSel.includes(v.verse);
                   return (
                     <span
                       key={v.verse}
                       id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${isWholeVerseSel ? ' verse-sel-active' : ''}`}
+                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
                       onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                       onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                     >
@@ -1929,7 +1988,8 @@ export default function ReaderView({
             <button
               type="button"
               className="vsb-icon-btn"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setMarkPaletteOpen(false);
                 setMarkNotePrompt({
                   ref: selRef,
