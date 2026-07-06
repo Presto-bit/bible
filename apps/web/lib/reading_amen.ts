@@ -1,31 +1,42 @@
 const KEY = 'reading_amen_v1';
 
-type AmenMap = Record<string, number>;
+type AmenSet = Record<string, true>;
 
-function load(): AmenMap {
+function load(): AmenSet {
   if (typeof window === 'undefined') return {};
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as AmenMap;
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    const parsed = JSON.parse(raw) as AmenSet | Record<string, number>;
+    if (!parsed || typeof parsed !== 'object') return {};
+    const out: AmenSet = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v) out[k] = true;
+    }
+    return out;
   } catch {
     return {};
   }
 }
 
-function save(map: AmenMap) {
+function save(map: AmenSet) {
   localStorage.setItem(KEY, JSON.stringify(map));
 }
 
-export function bumpReadingAmen(ref: string): number {
-  const map = load();
-  const next = (map[ref] ?? 0) + 1;
-  map[ref] = next;
-  save(map);
-  return next;
+export function activityReadingKey(source: string, id: string): string {
+  return `${source}:${id}`;
 }
 
-export function getReadingAmen(ref: string): number {
-  return load()[ref] ?? 0;
+/** 当前用户是否已对这条动态点过「在读」 */
+export function hasMarkedReading(activityKey: string): boolean {
+  return Boolean(load()[activityKey]);
+}
+
+/** 标记「在读」，每人每条动态仅一次；已标记则返回 false */
+export function markReading(activityKey: string): boolean {
+  const map = load();
+  if (map[activityKey]) return false;
+  map[activityKey] = true;
+  save(map);
+  return true;
 }

@@ -35,6 +35,7 @@ export default function FriendProfilePage() {
   const [remark, setRemark] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
+  const [reacted, setReacted] = useState<Record<string, string>>({});
 
   const reload = useCallback(async () => {
     try {
@@ -95,6 +96,17 @@ export default function FriendProfilePage() {
     }
     setInviteGroup(g);
     setInviteOpen(true);
+  };
+
+  const toggleReact = async (item: FriendActivity) => {
+    const prev = reacted[item.id];
+    setReacted((r) => ({ ...r, [item.id]: prev === '❤️' ? '' : '❤️' }));
+    try {
+      await api.react(item.id, '❤️');
+      void reload();
+    } catch {
+      setReacted((r) => ({ ...r, [item.id]: prev || '' }));
+    }
   };
 
   if (!uid) {
@@ -159,7 +171,13 @@ export default function FriendProfilePage() {
             </p>
           ) : (
             activity.map((s) => (
-              <FriendActivityCard key={`${s.source}-${s.id}`} item={s} showAuthor={false} />
+              <FriendActivityCard
+                key={`${s.source}-${s.id}`}
+                item={s}
+                showAuthor={false}
+                reacted={reacted[s.id]}
+                onReact={() => void toggleReact(s)}
+              />
             ))
           )}
         </>

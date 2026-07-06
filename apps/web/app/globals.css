@@ -1183,8 +1183,9 @@ html:not([data-app-theme]) .card {
   flex-shrink: 0;
   border-radius: 50%;
   background: conic-gradient(
-    var(--dawn-gold) calc(var(--pct, 0) * 1%),
-    var(--dawn-gold-wash) 0
+    var(--dawn-gold) 0deg,
+    var(--dawn-gold) calc(var(--pct, 0) * 3.6deg),
+    var(--dawn-gold-wash) calc(var(--pct, 0) * 3.6deg)
   );
   display: flex;
   flex-direction: column;
@@ -4110,8 +4111,9 @@ body.reader-active .proper-noun--artifact {
   align-items: center;
   justify-content: center;
   background: conic-gradient(
-    var(--accent-deep) calc(var(--pct) * 1%),
-    var(--accent-wash) 0
+    var(--accent-deep) 0deg,
+    var(--accent-deep) calc(var(--pct) * 3.6deg),
+    var(--accent-wash) calc(var(--pct) * 3.6deg)
   );
 }
 .progress-ring span {
@@ -8359,6 +8361,52 @@ body.reader-active .proper-noun--artifact {
   padding: 14px 16px;
 }
 
+.feed-card-layout {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.feed-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-card-verse {
+  flex: 0 0 38%;
+  max-width: 140px;
+  padding: 10px 10px;
+  border-radius: 10px;
+  background: var(--accent-wash);
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 12%, var(--line));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.feed-card-verse-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feed-card-verse-text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .feed-card-head {
   display: flex;
   align-items: flex-start;
@@ -8429,7 +8477,7 @@ body.reader-active .proper-noun--artifact {
 }
 
 .feed-card-like,
-.feed-card-amen {
+.feed-card-reading {
   border: none;
   background: transparent;
   font-size: 13px;
@@ -8441,8 +8489,24 @@ body.reader-active .proper-noun--artifact {
   gap: 4px;
 }
 
-.feed-card-amen-icon {
-  font-size: 15px;
+.feed-card-like:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.feed-card-like.active,
+.feed-card-reading.active {
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.feed-card-reading:disabled:not(.active) {
+  cursor: pointer;
+}
+
+.feed-card-reading:disabled.active {
+  cursor: default;
+  opacity: 1;
 }
 
 .group-invite-code-row {
@@ -10616,7 +10680,11 @@ button.card:active,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: conic-gradient(var(--accent-deep) calc(var(--pct) * 1%), var(--line) 0);
+  background: conic-gradient(
+    var(--accent-deep) 0deg,
+    var(--accent-deep) calc(var(--pct) * 3.6deg),
+    var(--line) calc(var(--pct) * 3.6deg)
+  );
   position: relative;
 }
 

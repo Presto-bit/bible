@@ -88,7 +88,6 @@ export function GroupTodayFocus({
     : '';
 
   const checkinPct = memberTotal > 0 ? Math.round((checkedIn / memberTotal) * 100) : 0;
-  const barPct = detail.plan_id ? (detail.plan_progress_pct ?? checkinPct) : checkinPct;
 
   const members = detail.members ?? [];
   const pendingMembers = members.filter((m) => !m.checked_in_today && !m.is_me);
@@ -202,7 +201,7 @@ export function GroupTodayFocus({
           onClick={() => setStatsOpen(true)}
           aria-label="查看打卡明细"
         >
-          <div className="group-today-stats-ring" style={{ '--pct': barPct } as React.CSSProperties}>
+          <div className="group-today-stats-ring" style={{ '--pct': checkinPct } as React.CSSProperties}>
             <span className="group-today-stats-pct">{checkinPct}%</span>
           </div>
           <strong className="group-today-stats-title">今日打卡</strong>
@@ -212,7 +211,7 @@ export function GroupTodayFocus({
           <div className="progress-bar group-today-stats-bar">
             <div
               className={`progress-fill${detail.plan_id ? ' plan-fill' : ''}`}
-              style={{ width: `${barPct}%` }}
+              style={{ width: `${checkinPct}%` }}
             />
           </div>
           {pendingIn > 0 && (
