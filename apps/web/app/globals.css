@@ -2587,15 +2587,32 @@ body.assistant-active .app-body {
   text-align: left;
 }
 
+.assistant-user-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.assistant-user-label {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding-top: 13px;
+  color: var(--ink-faint);
+}
+
 .assistant-user-text {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.85;
   font-size: var(--assistant-answer-font-size);
   text-align: left;
-  display: block;
-  width: 100%;
-  max-width: 100%;
+  display: inline-block;
+  width: auto;
+  max-width: calc(100% - 28px);
   box-sizing: border-box;
   margin: 0;
   padding: 12px 14px;
@@ -3859,7 +3876,8 @@ body.verse-full-open .tabbar {
   border-radius: 12px;
   padding: 12px 14px;
   background: var(--surface);
-  font-size: 15px;
+  /* ≥16px：避免 iOS 聚焦输入框时自动放大页面 */
+  font-size: 16px;
 }
 
 .chip-row {

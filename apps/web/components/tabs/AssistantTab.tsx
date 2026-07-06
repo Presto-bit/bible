@@ -862,12 +862,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 data-msg-idx={i}
                 className={`assistant-msg ${m.role === 'user' ? 'assistant-msg-user' : ''}`}
               >
-                <div className="muted assistant-msg-meta">
-                  <span>{m.role === 'user' ? '你' : '小爱'}</span>
-                  {m.role === 'assistant' && m.sceneLabel && (
-                    <span className="assistant-scene-tag">{m.sceneLabel}</span>
-                  )}
-                </div>
+                {m.role === 'assistant' && (
+                  <div className="muted assistant-msg-meta">
+                    <span>小爱</span>
+                    {m.sceneLabel && (
+                      <span className="assistant-scene-tag">{m.sceneLabel}</span>
+                    )}
+                  </div>
+                )}
                 {m.role === 'assistant' ? (
                   m.text ? (
                     <div className="assistant-answer">
@@ -891,8 +893,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                     />
                   )
                 ) : (
-                  <div className="assistant-user-text">
-                    {m.text || '…'}
+                  <div className="assistant-user-row">
+                    <span className="assistant-user-label muted">你</span>
+                    <div className="assistant-user-text">
+                      {m.text || '…'}
+                    </div>
                   </div>
                 )}
                 {showActions && (
