@@ -1297,11 +1297,20 @@ html:not([data-app-theme]) .card {
 }
 
 .hero-kicker-corner {
-  align-self: flex-start;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
 }
 
-.hero-bottom {
-  margin-top: auto;
+.hero-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  width: 100%;
+  padding-top: 18px;
+  padding-bottom: 4px;
 }
 
 .hero-verse .hero-kicker,
@@ -1373,8 +1382,9 @@ html:not([data-app-theme]) .card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: auto;
-  padding-top: 12px;
+  margin-top: 0;
+  padding-top: 8px;
+  flex-shrink: 0;
   position: relative;
   z-index: 2;
 }

@@ -390,7 +390,7 @@ export default function HomePageClient() {
         />
         <div className="hero-inner hero-inner-split">
           <span className="hero-kicker hero-kicker-corner">每日经文</span>
-          <div className="hero-bottom">
+          <div className="hero-main">
             {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
             <p className="verse-text">
               {err
@@ -411,7 +411,8 @@ export default function HomePageClient() {
                 点击重试
               </button>
             )}
-            <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
+          </div>
+          <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               className={`hero-like${liked ? ' hero-like-active' : ''}`}
@@ -451,7 +452,6 @@ export default function HomePageClient() {
             {likeErr && (
               <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
             )}
-            </div>
           </div>
         </div>
       </div>
