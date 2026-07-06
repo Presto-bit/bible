@@ -18,8 +18,10 @@ from ..rag.index import index_file
 from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
 from .rag_inventory import build_rag_inventory
 from .rag_ops import (
+    import_rag_sources,
     index_pending_disk,
     index_pending_uploads,
+    index_rag_collections,
     index_upload_path,
     list_pending_uploads,
     upload_dir,
@@ -47,6 +49,14 @@ class IndexPendingBody(BaseModel):
     force: bool = True
     collection_id: str | None = None
     limit: int | None = 8
+
+
+class RagImportBody(BaseModel):
+    skip_remote: bool = False
+
+
+class RagIndexCollectionsBody(BaseModel):
+    force: bool = False
 
 
 @router.post("/auth/login")
@@ -333,6 +343,36 @@ def admin_index_pending_uploads(
         logger.exception("admin index pending uploads failed")
         raise HTTPException(status_code=500, detail=f"批量向量化失败：{exc}") from exc
     return {"ok": True, **result}
+
+
+@router.post("/rag/import-sources")
+def admin_rag_import_sources(
+    body: RagImportBody | None = None,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """从公网拉取注释 + 生成中文 RAG 资料（发版后由管理员手动触发）。"""
+    opts = body or RagImportBody()
+    try:
+        result = import_rag_sources(skip_remote=opts.skip_remote)
+    except Exception as exc:
+        logger.exception("admin rag import sources failed")
+        raise HTTPException(status_code=500, detail=f"拉取失败：{exc}") from exc
+    return {"ok": bool(result.get("ok")), **result}
+
+
+@router.post("/rag/index-collections")
+def admin_rag_index_collections(
+    body: RagIndexCollectionsBody | None = None,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """对 commentary 目录批量向量化（等同 ensure_rag 索引段）。"""
+    opts = body or RagIndexCollectionsBody()
+    try:
+        result = index_rag_collections(force=opts.force)
+    except Exception as exc:
+        logger.exception("admin rag index collections failed")
+        raise HTTPException(status_code=500, detail=f"索引失败：{exc}") from exc
+    return {"ok": bool(result.get("ok")), **result}
 
 
 @router.post("/rag/index-pending-disk")

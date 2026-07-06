@@ -337,6 +337,47 @@ export async function uploadRagDocument(
   return (await res.json()) as RagUploadResult;
 }
 
+export type RagEnsureStep = {
+  step?: string;
+  script?: string;
+  ok?: boolean;
+  error?: string;
+  stdout?: string;
+  stderr?: string;
+  skipped?: string;
+  file_count?: number;
+  dir?: string;
+  source_type?: string;
+};
+
+export async function importRagSources(
+  skipRemote = false,
+): Promise<{ ok: boolean; steps: RagEnsureStep[] }> {
+  const res = await fetch(`${API_BASE}/admin/rag/import-sources`, {
+    method: 'POST',
+    headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ skip_remote: skipRemote }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '拉取注释失败'));
+  return (await res.json()) as { ok: boolean; steps: RagEnsureStep[] };
+}
+
+export async function indexRagCollections(
+  force = false,
+): Promise<{ ok: boolean; indexed_groups: number; steps: RagEnsureStep[] }> {
+  const res = await fetch(`${API_BASE}/admin/rag/index-collections`, {
+    method: 'POST',
+    headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '批量索引失败'));
+  return (await res.json()) as {
+    ok: boolean;
+    indexed_groups: number;
+    steps: RagEnsureStep[];
+  };
+}
+
 export async function indexPendingDisk(
   collectionId?: string,
   limit = 8,

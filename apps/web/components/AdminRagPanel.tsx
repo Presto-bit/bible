@@ -7,8 +7,10 @@ import {
   deleteRagDocument,
   fetchRagInventory,
   fetchRagStatus,
+  importRagSources,
   indexPendingDisk,
   indexPendingUploads,
+  indexRagCollections,
   indexUploadFile,
   RAG_SOURCE_TYPES,
   reindexRagDocument,
@@ -265,6 +267,9 @@ export default function AdminRagPanel({
   const [uploadOk, setUploadOk] = useState<string | null>(null);
   const [repairConfirm, setRepairConfirm] = useState(false);
   const [repairProgress, setRepairProgress] = useState<string | null>(null);
+  const [opsProgress, setOpsProgress] = useState<string | null>(null);
+  const [importConfirm, setImportConfirm] = useState(false);
+  const [indexAllConfirm, setIndexAllConfirm] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -423,6 +428,52 @@ export default function AdminRagPanel({
     }
   };
 
+  const handleImportSources = async () => {
+    setBusy(true);
+    setErr(null);
+    setUploadOk(null);
+    setOpsProgress('正在拉取公版注释与中文资料（可能需数分钟）…');
+    try {
+      const res = await importRagSources(false);
+      const failed = (res.steps ?? []).filter((s) => !s.ok);
+      if (res.ok) {
+        setUploadOk('注释资料拉取完成，可继续执行「索引全部磁盘资料」');
+      } else {
+        setErr(`部分步骤失败（${failed.length}）${failed[0]?.error ? `：${failed[0].error}` : ''}`);
+      }
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '拉取失败');
+    } finally {
+      setOpsProgress(null);
+      setImportConfirm(false);
+      setBusy(false);
+    }
+  };
+
+  const handleIndexAllCollections = async () => {
+    setBusy(true);
+    setErr(null);
+    setUploadOk(null);
+    setOpsProgress('正在对各注释目录批量向量化（可能需十余分钟）…');
+    try {
+      const res = await indexRagCollections(false);
+      if (res.ok) {
+        setUploadOk(`索引完成：${res.indexed_groups} 个目录已处理`);
+      } else {
+        const failed = (res.steps ?? []).filter((s) => !s.ok && !s.skipped);
+        setErr(`部分目录索引失败（${failed.length}）`);
+      }
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '索引失败');
+    } finally {
+      setOpsProgress(null);
+      setIndexAllConfirm(false);
+      setBusy(false);
+    }
+  };
+
   const summary = inventory?.summary;
 
   return (
@@ -472,11 +523,76 @@ export default function AdminRagPanel({
         </div>
       ) : null}
 
+      <div className="admin-rag-ops card card-2" style={{ marginTop: 10, padding: 12 }}>
+        <p className="settings-title" style={{ marginTop: 0 }}>发版后运维</p>
+        <p className="muted" style={{ margin: '0 0 10px', fontSize: 12, lineHeight: 1.5 }}>
+          部署已不再自动拉取/索引 RAG。新环境或更新注释后，请按顺序执行（需配置 DashScope Key 与出网）。
+        </p>
+        {opsProgress ? (
+          <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>{opsProgress}</p>
+        ) : null}
+        <div className="admin-rag-ops-actions">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ flex: 1 }}
+            disabled={busy}
+            onClick={() => {
+              if (!importConfirm) {
+                setImportConfirm(true);
+                setIndexAllConfirm(false);
+                return;
+              }
+              void handleImportSources();
+            }}
+          >
+            {busy && importConfirm
+              ? '拉取中…'
+              : importConfirm
+                ? '确认：拉取注释资料'
+                : '① 拉取注释资料'}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            style={{ flex: 1 }}
+            disabled={busy}
+            onClick={() => {
+              if (!indexAllConfirm) {
+                setIndexAllConfirm(true);
+                setImportConfirm(false);
+                return;
+              }
+              void handleIndexAllCollections();
+            }}
+          >
+            {busy && indexAllConfirm
+              ? '索引中…'
+              : indexAllConfirm
+                ? '确认：索引全部'
+                : '② 索引全部磁盘'}
+          </button>
+        </div>
+        {(importConfirm || indexAllConfirm) && !busy ? (
+          <button
+            type="button"
+            className="text-link"
+            style={{ marginTop: 8, fontSize: 12 }}
+            onClick={() => {
+              setImportConfirm(false);
+              setIndexAllConfirm(false);
+            }}
+          >
+            取消确认
+          </button>
+        ) : null}
+      </div>
+
       {summary && (summary.pending > 0 || summary.failed > 0) ? (
         <div className="admin-rag-repair-bar card card-2" style={{ marginTop: 10, padding: 12 }}>
           <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
             检测到 {summary.pending} 个待索引、{summary.failed} 个失败。
-            通常是路径未对齐或发版后尚未向量化，可一键修复（每批 8 个，避免超时）。
+            可先执行上方「索引全部磁盘」，或使用本修复（每批 8 个，避免超时）。
           </p>
           {repairProgress ? (
             <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>{repairProgress}</p>
@@ -510,7 +626,7 @@ export default function AdminRagPanel({
                 ? '向量化中…'
                 : repairConfirm
                   ? `确认修复 ${summary.pending + summary.failed} 个文件`
-                  : '修复：向量化全部待处理文件'}
+                  : '③ 修复：向量化待处理文件'}
             </button>
           </div>
         </div>
@@ -598,7 +714,7 @@ export default function AdminRagPanel({
           <p className="muted" style={{ fontSize: 13 }}>加载清单…</p>
         ) : inventory.collections.every((c) => c.file_count === 0) && inventory.orphans.length === 0 ? (
           <p className="muted" style={{ fontSize: 13 }}>
-            暂无磁盘资料。请执行 ensure_rag.sh 拉取注释，或上传 Markdown。
+            暂无磁盘资料。请在上方点击「拉取注释资料」，或上传 Markdown。
           </p>
         ) : (
           <div className="admin-rag-collections">

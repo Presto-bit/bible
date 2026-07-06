@@ -70,7 +70,7 @@ import-commentary-all: ## HelloAO 全源公版注释（66 卷）
 	$(PY) scripts/import_commentary_pd.py --all-sources --skip-existing
 
 .PHONY: ensure-rag
-ensure-rag: ## 英文全源 + 中文资料 + RAG 索引（发版同款）
+ensure-rag: ## 英文全源 + 中文资料 + RAG 索引（本地/SSH 手动，发版不再自动执行）
 	bash scripts/ensure_rag.sh
 
 .PHONY: import-bible

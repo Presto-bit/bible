@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# 公版注释 + 中文资料 + RAG 索引（发版幂等，可重复执行）。
+# 公版注释 + 中文资料 + RAG 索引（管理后台 / 本地手动执行，发版不再自动调用）。
 #
 # 用法（仓库根目录 / 容器内 /app）：
 #   bash scripts/ensure_rag.sh
 #   SKIP_COMMENTARY_IMPORT=1 bash scripts/ensure_rag.sh   # 仅索引，不拉远程
 #   RAG_FORCE=1 bash scripts/ensure_rag.sh                # 强制重嵌入
 #
-# Docker 发版（release.sh 自动调用）：
+# Docker（管理后台触发或手动）：
 #   docker compose -f docker-compose.prod.yml exec -T api bash /app/scripts/ensure_rag.sh
 set -euo pipefail
 

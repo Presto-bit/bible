@@ -78,6 +78,16 @@ def test_admin_index_pending_disk_requires_auth():
     assert res.status_code == 401
 
 
+def test_admin_import_sources_requires_auth():
+    res = client.post("/admin/rag/import-sources", json={})
+    assert res.status_code == 401
+
+
+def test_admin_index_collections_requires_auth():
+    res = client.post("/admin/rag/index-collections", json={})
+    assert res.status_code == 401
+
+
 def test_admin_pending_uploads_with_token():
     s = get_settings()
     res = client.post("/admin/auth/login", json={"phone": s.admin_phone, "password": s.admin_password})

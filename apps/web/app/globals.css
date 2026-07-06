@@ -4332,6 +4332,16 @@ body.reader-active .proper-noun--artifact {
 .admin-rag-summary-indexing .admin-rag-summary-value { color: #2f6fad; }
 .admin-rag-summary-orphan .admin-rag-summary-value { color: #7a7268; }
 
+.admin-rag-ops-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-rag-ops-actions .btn {
+  min-width: 0;
+}
+
 .admin-rag-filter-tabs {
   display: flex;
   flex-wrap: wrap;

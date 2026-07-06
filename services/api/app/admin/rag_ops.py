@@ -261,3 +261,118 @@ def index_pending_disk(
 
 def collection_source_types() -> dict[str, str]:
     return {spec["id"]: spec["source_type"] for spec in _COLLECTIONS}
+
+
+def _repo_root() -> Path:
+    # .../services/api/app/admin/rag_ops.py → 仓库根 /app
+    return Path(__file__).resolve().parents[4]
+
+
+def _run_py_script(
+    script: str,
+    *args: str,
+    timeout: int = 3600,
+) -> dict:
+    import subprocess
+    import sys
+
+    root = _repo_root()
+    script_path = root / "scripts" / script
+    if not script_path.is_file():
+        return {"script": script, "ok": False, "error": f"缺少脚本：{script_path}"}
+    cmd = [sys.executable, str(script_path), *args]
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+        tail_out = (proc.stdout or "")[-3000:]
+        tail_err = (proc.stderr or "")[-1500:]
+        return {
+            "script": script,
+            "ok": proc.returncode == 0,
+            "returncode": proc.returncode,
+            "stdout": tail_out,
+            "stderr": tail_err,
+        }
+    except subprocess.TimeoutExpired:
+        return {"script": script, "ok": False, "error": f"超时（>{timeout}s）"}
+    except Exception as exc:
+        logger.exception("run script failed: %s", script)
+        return {"script": script, "ok": False, "error": str(exc)}
+
+
+def _index_directory(dir_path: Path, source_type: str, *, force: bool = False) -> dict:
+    suffixes = {".md", ".txt", ".markdown"}
+    if not dir_path.is_dir():
+        return {"dir": str(dir_path), "source_type": source_type, "ok": True, "skipped": "missing"}
+    files = [p for p in dir_path.rglob("*") if p.is_file() and p.suffix.lower() in suffixes]
+    if not files:
+        return {"dir": str(dir_path), "source_type": source_type, "ok": True, "skipped": "empty"}
+    args = ["--dir", str(dir_path), "--source-type", source_type, "--reuse"]
+    if force:
+        args.append("--force")
+    result = _run_py_script("rag_index.py", *args)
+    result["dir"] = str(dir_path)
+    result["source_type"] = source_type
+    result["file_count"] = len(files)
+    return result
+
+
+def import_rag_sources(*, skip_remote: bool = False) -> dict:
+    """拉取公版/中文注释到磁盘（等同 ensure_rag.sh 前半段）。"""
+    steps: list[tuple[str, str, list[str]]] = []
+    if not skip_remote:
+        steps.extend([
+            ("helloao", "import_commentary_pd.py", ["--all-sources", "--skip-existing"]),
+            ("ocd", "import_commentary_ocd.py", ["--skip-existing"]),
+        ])
+    steps.append(("zh_content", "build_rag_zh_content.py", []))
+    if not skip_remote:
+        steps.append(("fhl", "import_fhl_commentary.py", ["--skip-existing"]))
+
+    results: list[dict] = []
+    ok = True
+    for step_id, script, args in steps:
+        row = _run_py_script(script, *args)
+        row["step"] = step_id
+        results.append(row)
+        if not row.get("ok"):
+            ok = False
+    return {"ok": ok, "steps": results}
+
+
+def index_rag_collections(*, force: bool = False) -> dict:
+    """对 commentary 各目录批量向量化（等同 ensure_rag.sh 索引段）。"""
+    root = _repo_root()
+    comment = root / "content" / "commentary"
+    results: list[dict] = []
+
+    singles = [
+        (comment / "study-bible", "study-bible"),
+        (comment / "public-domain", "commentary"),
+        (comment / "reference-en", "reference-en"),
+        (comment / "study-bible-zh", "study-bible-zh"),
+        (comment / "fhl-zh", "commentary-zh"),
+    ]
+    for dir_path, source_type in singles:
+        results.append(_index_directory(dir_path, source_type, force=force))
+
+    ocd = comment / "public-domain-ocd"
+    if ocd.is_dir():
+        subdirs = sorted(p for p in ocd.iterdir() if p.is_dir())
+        if subdirs:
+            for sub in subdirs:
+                results.append(_index_directory(sub, "commentary", force=force))
+        else:
+            results.append(_index_directory(ocd, "commentary", force=force))
+
+    succeeded = [r for r in results if r.get("ok")]
+    return {
+        "ok": len(succeeded) > 0,
+        "indexed_groups": len(succeeded),
+        "steps": results,
+    }

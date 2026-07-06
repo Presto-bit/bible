@@ -45,22 +45,19 @@ content/commentary/
 
 ## 3. 入库（索引）
 
-### 发版自动（推荐）
+### 管理后台（推荐）
 
-`release.sh` / `deploy/one_click_deploy.sh` 在 API 就绪后会自动执行 `scripts/post_deploy.sh`（内含 `ensure_rag.sh`）：
+发版 **不再** 自动执行 RAG。`release.sh` 完成后，管理员登录 **我的 → 管理后台 → RAG 资料**：
 
-1. 从 HelloAO 拉取公版英文注释（6 源 × 66 卷，已齐全跳过）
-2. 从 OpenChristianData 拉取 Wesley/Calvin/Barnes/MacLaren 等 + 词典参考
-3. 生成中文自有资料（摘要/词典/主题/专题）
-4. 从信望爱 API 拉取中文注释（book=3）
-5. 索引 `commentary` / `reference-en` / `study-bible-zh` / `commentary-zh`
+1. **① 拉取注释资料** — 等同 `ensure_rag.sh` 拉取段（HelloAO / OCD / 中文 / FHL）
+2. **② 索引全部磁盘** — 对各 commentary 目录批量向量化
+3. **③ 修复待处理** — 分批处理 pending/failed（每批 8 个）
 
-无 `RAG_EMBEDDING_API_KEY` 时用 hash 向量兜底，仍会入库。失败不阻断发版。
+需配置 `RAG_EMBEDDING_API_KEY`（或 hash 向量兜底）与出网。失败不阻断发版。
 
-手动等价：
+### 命令行（本地 / SSH）
 
 ```bash
-# 本地 / 容器内
 bash scripts/ensure_rag.sh
 # 或
 make ensure-rag

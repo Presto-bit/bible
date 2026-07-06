@@ -21,7 +21,7 @@ COPY scripts/import_cuv.py /app/scripts/import_cuv.py
 COPY scripts/import_public_data.py /app/scripts/import_public_data.py
 COPY scripts/ensure_content_data.sh /app/scripts/ensure_content_data.sh
 
-# RAG 一键发版：拉取注释 + 索引（release.sh / post_deploy.sh 调用）
+# RAG 脚本（管理后台 / 本地 ensure-rag 调用，发版不再自动执行）
 COPY scripts/ensure_rag.sh /app/scripts/ensure_rag.sh
 COPY scripts/rag_index.py /app/scripts/rag_index.py
 COPY scripts/import_commentary_pd.py /app/scripts/import_commentary_pd.py
