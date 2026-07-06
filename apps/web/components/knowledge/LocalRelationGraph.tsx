@@ -34,6 +34,14 @@ function clamp(n: number, min: number, max: number) {
   return Math.min(max, Math.max(min, n));
 }
 
+function touchDistance(touches: TouchList | React.TouchList) {
+  if (touches.length < 2) return 0;
+  const a = touches[0];
+  const b = touches[1];
+  if (!a || !b) return 0;
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
 export function LocalRelationGraph({
   graph,
   onNodeClick,
@@ -48,6 +56,8 @@ export function LocalRelationGraph({
   const center = graph.center;
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const pinchRef = useRef<{ dist: number; scale: number } | null>(null);
+  const scaleRef = useRef(1);
   const isFullscreen = variant === 'fullscreen';
 
   const [scale, setScale] = useState(1);
@@ -123,6 +133,25 @@ export function LocalRelationGraph({
     return secondHopEdges(centerId, selectedNode.id, filteredEdges);
   }, [selectedNode, centerId, filteredEdges]);
 
+  useEffect(() => {
+    scaleRef.current = scale;
+  }, [scale]);
+
+  useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const onMove = (e: TouchEvent) => {
+      const p = pinchRef.current;
+      if (!p || e.touches.length < 2) return;
+      e.preventDefault();
+      const dist = touchDistance(e.touches);
+      if (!dist || !p.dist) return;
+      setScale(clamp(p.scale * (dist / p.dist), 0.5, maxScale));
+    };
+    el.addEventListener('touchmove', onMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onMove);
+  }, [maxScale]);
+
   const zoomBy = useCallback((delta: number) => {
     setScale((s) => clamp(Number((s + delta).toFixed(2)), 0.5, maxScale));
   }, [maxScale]);
@@ -140,7 +169,7 @@ export function LocalRelationGraph({
   }, [zoomBy]);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || pinchRef.current) return;
     dragRef.current = { x: e.clientX, y: e.clientY, panX, panY };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   }, [panX, panY]);
@@ -154,6 +183,17 @@ export function LocalRelationGraph({
 
   const onPointerUp = useCallback(() => {
     dragRef.current = null;
+  }, []);
+
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      dragRef.current = null;
+      pinchRef.current = { dist: touchDistance(e.touches), scale: scaleRef.current };
+    }
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    pinchRef.current = null;
   }, []);
 
   const selectNode = useCallback((node: EntityGraphNode, isCenter: boolean) => {
@@ -179,7 +219,7 @@ export function LocalRelationGraph({
   return (
     <div className={`local-relation-graph${isFullscreen ? ' local-relation-graph--fullscreen' : ''}`}>
       <div className="local-relation-graph-toolbar">
-        <span className="muted" style={{ fontSize: 11 }}>拖动画布 · 滚轮缩放 · 点节点/连线看详情</span>
+        <span className="muted" style={{ fontSize: 11 }}>拖动画布 · 双指/滚轮缩放 · 点节点/连线看详情</span>
         <div className="local-relation-graph-zoom">
           <button type="button" className="font-pill" aria-label="缩小" onClick={() => zoomBy(-0.2)}>−</button>
           <button type="button" className="font-pill" aria-label="重置" onClick={resetView}>1×</button>
@@ -214,6 +254,9 @@ export function LocalRelationGraph({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
       >
         <svg
           viewBox={`0 0 ${w} ${h}`}

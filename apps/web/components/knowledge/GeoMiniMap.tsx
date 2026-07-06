@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoPlace } from '@/lib/api';
 
 /** 黎凡特示意海岸线（离线 SVG，非精确地理） */
@@ -90,12 +90,15 @@ export function GeoMiniMap({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
+  const zoomRef = useRef(1);
+  const mapRef = useRef<HTMLDivElement>(null);
 
-  const touchDistance = (touches: React.TouchList) => {
+  const touchDistance = (touches: TouchList | React.TouchList) => {
     if (touches.length < 2) return 0;
-    const dx = touches[0].clientX - touches[1].clientX;
-    const dy = touches[0].clientY - touches[1].clientY;
-    return Math.hypot(dx, dy);
+    const a = touches[0];
+    const b = touches[1];
+    if (!a || !b) return 0;
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   };
 
   const { bounds, byId, routePoints, missingRoute } = useMemo(() => {
@@ -131,6 +134,25 @@ export function GeoMiniMap({
     setPan({ x: 0, y: 0 });
   };
 
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  useEffect(() => {
+    const el = mapRef.current;
+    if (!el) return;
+    const onMove = (e: TouchEvent) => {
+      const p = pinchRef.current;
+      if (!p || e.touches.length < 2) return;
+      e.preventDefault();
+      const dist = touchDistance(e.touches);
+      if (!dist || !p.dist) return;
+      setZoom(Math.min(4, Math.max(0.6, p.zoom * (dist / p.dist))));
+    };
+    el.addEventListener('touchmove', onMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onMove);
+  }, []);
+
   const onWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
@@ -159,18 +181,8 @@ export function GeoMiniMap({
   const onTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
       dragRef.current = null;
-      pinchRef.current = { dist: touchDistance(e.touches), zoom };
+      pinchRef.current = { dist: touchDistance(e.touches), zoom: zoomRef.current };
     }
-  };
-
-  const onTouchMove = (e: React.TouchEvent) => {
-    const p = pinchRef.current;
-    if (!p || e.touches.length < 2) return;
-    e.preventDefault();
-    const dist = touchDistance(e.touches);
-    if (!dist || !p.dist) return;
-    const scale = dist / p.dist;
-    setZoom((z) => Math.min(4, Math.max(0.6, p.zoom * scale)));
   };
 
   const onTouchEnd = () => {
@@ -197,6 +209,7 @@ export function GeoMiniMap({
         <span className="muted geo-mini-map-scale">双指/滚轮缩放 · 拖动平移</span>
       </div>
       <div
+        ref={mapRef}
         className="geo-mini-map"
         style={{ height, touchAction: 'none' }}
         onWheel={onWheel}
@@ -205,7 +218,6 @@ export function GeoMiniMap({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
       >

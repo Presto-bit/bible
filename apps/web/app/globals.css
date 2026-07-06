@@ -2009,6 +2009,8 @@ a.today-card-link {
   max-height: calc(100dvh - 80px);
   min-height: 0;
   padding-bottom: 8px;
+  padding-left: 14px;
+  padding-right: 14px;
   overflow: hidden;
   touch-action: none;
 }
@@ -2282,11 +2284,12 @@ body.assistant-active .app-body {
 }
 
 .assistant-msg {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  width: 100%;
 }
 
 .assistant-msg-user {
-  text-align: right;
+  text-align: left;
 }
 
 .assistant-user-text {
@@ -2295,24 +2298,28 @@ body.assistant-active .app-body {
   line-height: 1.85;
   font-size: var(--assistant-answer-font-size);
   text-align: left;
-  display: inline-block;
-  max-width: 85%;
-  margin-left: auto;
-  padding: 10px 14px;
-  border-radius: 16px 16px 4px 16px;
-  background: color-mix(in srgb, var(--accent-deep) 16%, var(--surface));
-  border: 1px solid color-mix(in srgb, var(--accent-deep) 24%, var(--line));
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-deep) 12%, var(--surface-sunken));
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 18%, var(--line));
   color: var(--ink);
 }
 
 .assistant-answer {
-  display: inline-block;
-  max-width: 92%;
-  padding: 10px 14px;
-  border-radius: 16px 16px 16px 4px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: 0 1px 4px rgba(43, 42, 39, 0.04);
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 4px 0 8px;
+  border-radius: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .assistant-pending-bar {
