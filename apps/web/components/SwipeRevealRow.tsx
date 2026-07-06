@@ -61,7 +61,9 @@ export function SwipeRevealRow({
     <div className="swipe-reveal-row">
       <button
         type="button"
-        className="swipe-reveal-delete"
+        className={`swipe-reveal-delete${offset < -4 ? ' is-revealed' : ''}`}
+        tabIndex={offset < -4 ? 0 : -1}
+        aria-hidden={offset >= -4}
         onClick={(e) => {
           e.stopPropagation();
           onDelete();

@@ -191,30 +191,7 @@ export default function DiscoverGroupsPage() {
                   <span className="muted">
                     {isPendingOnly ? '同步中…' : `今日 ${checked}/${members}`}
                   </span>
-                  {isPendingOnly ? (
-                    <button
-                      type="button"
-                      className="text-link group-card-cta"
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        const ok = await confirm({
-                          title: '移除群',
-                          message: `从列表移除「${g.name}」？`,
-                          confirmLabel: '移除',
-                        });
-                        if (!ok) return;
-                        dismissPendingGroup(g.id);
-                        setGroups((prev) => prev.filter((item) => item.id !== g.id));
-                        setPendingOnlyIds((prev) => {
-                          const next = new Set(prev);
-                          next.delete(g.id);
-                          return next;
-                        });
-                      }}
-                    >
-                      移除
-                    </button>
-                  ) : badge.tone === 'pending' ? (
+                  {!isPendingOnly && badge.tone === 'pending' ? (
                     <button
                       type="button"
                       className="font-pill accent group-card-cta"
@@ -225,11 +202,11 @@ export default function DiscoverGroupsPage() {
                     >
                       去打卡
                     </button>
-                  ) : (
+                  ) : !isPendingOnly ? (
                     <span className={`group-badge group-badge-${badge.tone}`}>
                       {badge.label}
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
               </SwipeRevealRow>

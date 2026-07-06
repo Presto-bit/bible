@@ -7643,13 +7643,22 @@ body.reader-active .proper-noun--artifact {
   font-weight: 600;
   cursor: pointer;
   z-index: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.swipe-reveal-delete.is-revealed {
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .swipe-reveal-content {
   position: relative;
   z-index: 1;
+  width: 100%;
+  box-sizing: border-box;
   transition: transform 0.18s ease-out;
-  background: inherit;
+  background: var(--surface);
   touch-action: pan-y;
 }
 
