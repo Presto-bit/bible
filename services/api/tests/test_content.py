@@ -45,6 +45,21 @@ def test_daily_verses_loaded():
 
 
 @pytest.mark.skipif(not _HAS_DB, reason="缺少经库")
+def test_daily_devotional_endpoint():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    client = TestClient(app)
+    r = client.get("/content/daily-devotional")
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data.get("meditation")
+    assert data.get("prayer")
+    assert data.get("verse", {}).get("ref")
+
+
+@pytest.mark.skipif(not _HAS_DB, reason="缺少经库")
 def test_resolve_ref_text():
     txt = loader.resolve_ref_text("JHN 3:16", None, None, None, None)
     assert "神爱世人" in txt

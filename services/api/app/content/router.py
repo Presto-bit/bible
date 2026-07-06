@@ -133,16 +133,9 @@ def _no_store_headers(response: Response) -> None:
     response.headers["Pragma"] = "no-cache"
 
 
-@router.get("/daily-verse")
-def daily_verse(
-    response: Response,
-    day: int | None = Query(None, ge=1),
-    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
-) -> dict:
-    _no_store_headers(response)
+def _daily_verse_payload(day: int | None) -> dict:
+    """每日经文正文（与 /daily-verse 相同逻辑，供灵修等接口复用）。"""
     verse_day, item = _resolve_verse_day(day)
-    # 每日经文固定和合本（CUVS）；不用 json 内嵌正文，避免混入新译本
     text = loader.resolve_ref_text(
         item.get("ref"), item.get("book"), item.get("chapter"),
         item.get("verse_start"), item.get("verse_end"),
@@ -159,9 +152,21 @@ def daily_verse(
         )
         version = "cnv"
     text = (text or "").strip()
+    return {**item, "text": text, "day": verse_day, "version": version}
+
+
+@router.get("/daily-verse")
+def daily_verse(
+    response: Response,
+    day: int | None = Query(None, ge=1),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> dict:
+    _no_store_headers(response)
+    payload = _daily_verse_payload(day)
     user_code = _pick_user_code(x_user_code, x_user_id)
-    stats = _daily_verse_engagement(verse_day, user_code)
-    return {**item, "text": text, "day": verse_day, "version": version, **stats}
+    stats = _daily_verse_engagement(payload["day"], user_code)
+    return {**payload, **stats}
 
 
 @router.post("/daily-verse/like")
@@ -295,7 +300,7 @@ def prayer_today(
 # ── 每日灵修（经文 + 默想 + 祷告，确定性生成，不耗 AI 额度） ──
 @router.get("/daily-devotional")
 def daily_devotional(day: int | None = Query(None, ge=1)) -> dict:
-    item = daily_verse(day=day)
+    item = _daily_verse_payload(day)
     theme = (item.get("theme") or "").strip()
     ref = item.get("ref") or ""
     theme_part = f"关于「{theme}」" if theme else "这段经文"
