@@ -144,6 +144,12 @@ def index_text(
     body_hash = _body_hash(body)
     chunks = split_text_into_chunks(body)
     if not chunks:
+        _record_index_error(
+            source_path=source_path,
+            title=title,
+            source_type=source_type,
+            error="empty body",
+        )
         return {"title": title, "chunks": 0, "skipped": True, "reason": "empty"}
     emb_sig = provider.signature(provider.dim)
 

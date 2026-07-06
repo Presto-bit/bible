@@ -263,6 +263,8 @@ export default function AdminRagPanel({
   const [sourceType, setSourceType] = useState('commentary');
   const [files, setFiles] = useState<File[]>([]);
   const [uploadOk, setUploadOk] = useState<string | null>(null);
+  const [repairConfirm, setRepairConfirm] = useState(false);
+  const [repairProgress, setRepairProgress] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -337,10 +339,11 @@ export default function AdminRagPanel({
       setErr('当前没有待索引或失败的磁盘文件');
       return;
     }
-    if (!window.confirm(`确定向量化 ${pending} 个待处理文件？首次可能需数分钟。`)) return;
     setBusy(true);
     setErr(null);
     setUploadOk(null);
+    setRepairConfirm(false);
+    setRepairProgress(`准备处理约 ${pending} 个文件…`);
     try {
       let totalIndexed = 0;
       let totalSkipped = 0;
@@ -348,19 +351,27 @@ export default function AdminRagPanel({
       let rounds = 0;
       let hasMore = true;
       while (hasMore) {
+        rounds += 1;
+        setRepairProgress(`第 ${rounds} 批向量化中…（已完成 ${totalIndexed + totalSkipped + totalFailed} 个）`);
         const res = await indexPendingDisk();
         totalIndexed += res.indexed;
         totalSkipped += res.skipped;
         totalFailed += res.failed;
         hasMore = res.has_more;
-        rounds += 1;
-        if (hasMore) await refresh();
+        if (hasMore) {
+          setRepairProgress(
+            `第 ${rounds} 批完成：成功 ${res.indexed}，跳过 ${res.skipped}，失败 ${res.failed}；剩余约 ${res.remaining} 个…`,
+          );
+          await refresh();
+        }
       }
+      setRepairProgress(null);
       setUploadOk(
-        `已向量化 ${totalIndexed} 个，跳过 ${totalSkipped} 个，失败 ${totalFailed} 个（${rounds} 批）`,
+        `修复完成：成功 ${totalIndexed} 个，跳过 ${totalSkipped} 个，失败 ${totalFailed} 个（共 ${rounds} 批）`,
       );
       await refresh();
     } catch (e) {
+      setRepairProgress(null);
       setErr(e instanceof Error ? e.message : '批量向量化失败');
     } finally {
       setBusy(false);
@@ -465,17 +476,43 @@ export default function AdminRagPanel({
         <div className="admin-rag-repair-bar card card-2" style={{ marginTop: 10, padding: 12 }}>
           <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>
             检测到 {summary.pending} 个待索引、{summary.failed} 个失败。
-            通常是路径未对齐或发版后尚未向量化，可一键修复。
+            通常是路径未对齐或发版后尚未向量化，可一键修复（每批 8 个，避免超时）。
           </p>
-          <button
-            type="button"
-            className="btn"
-            style={{ width: '100%' }}
-            disabled={busy}
-            onClick={() => void handleIndexPendingDisk()}
-          >
-            {busy ? '向量化中…' : '修复：向量化全部待处理文件'}
-          </button>
+          {repairProgress ? (
+            <p className="muted" style={{ margin: '0 0 8px', fontSize: 12 }}>{repairProgress}</p>
+          ) : null}
+          <div className="entity-knowledge-foot" style={{ marginTop: 0 }}>
+            {repairConfirm ? (
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ flex: 1 }}
+                disabled={busy}
+                onClick={() => setRepairConfirm(false)}
+              >
+                取消
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn"
+              style={{ flex: 1 }}
+              disabled={busy}
+              onClick={() => {
+                if (!repairConfirm) {
+                  setRepairConfirm(true);
+                  return;
+                }
+                void handleIndexPendingDisk();
+              }}
+            >
+              {busy
+                ? '向量化中…'
+                : repairConfirm
+                  ? `确认修复 ${summary.pending + summary.failed} 个文件`
+                  : '修复：向量化全部待处理文件'}
+            </button>
+          </div>
         </div>
       ) : null}
 

@@ -339,11 +339,13 @@ export async function uploadRagDocument(
 
 export async function indexPendingDisk(
   collectionId?: string,
-  limit = 40,
+  limit = 8,
 ): Promise<{
   pending: number;
   processed: number;
   has_more: boolean;
+  remaining: number;
+  stale_reset: number;
   indexed: number;
   skipped: number;
   failed: number;
@@ -362,6 +364,8 @@ export async function indexPendingDisk(
     pending?: number;
     processed?: number;
     has_more?: boolean;
+    remaining?: number;
+    stale_reset?: number;
     indexed?: number;
     skipped?: number;
     failed?: number;
@@ -370,6 +374,8 @@ export async function indexPendingDisk(
     pending: data.pending ?? 0,
     processed: data.processed ?? 0,
     has_more: data.has_more === true,
+    remaining: data.remaining ?? 0,
+    stale_reset: data.stale_reset ?? 0,
     indexed: data.indexed ?? 0,
     skipped: data.skipped ?? 0,
     failed: data.failed ?? 0,

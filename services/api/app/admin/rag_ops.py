@@ -124,6 +124,28 @@ def index_pending_uploads(
     }
 
 
+def reset_stale_indexing(*, minutes: int = 30) -> int:
+    """将长时间卡在 indexing 的文档标为失败，便于修复按钮重试。"""
+    from ..db import get_pool
+
+    pool = get_pool()
+    with pool.connection() as conn:
+        rows = conn.execute(
+            """
+            UPDATE bible_documents
+            SET status = 'failed',
+                rag_index_error = COALESCE(NULLIF(rag_index_error, ''), '索引中断，请重试'),
+                updated_at = now()
+            WHERE status = 'indexing'
+              AND updated_at < now() - make_interval(mins => %s)
+            RETURNING id
+            """,
+            (minutes,),
+        ).fetchall()
+        conn.commit()
+    return len(rows)
+
+
 def realign_document_paths() -> int:
     """将历史绝对路径统一为 content/commentary/...，便于清单匹配。"""
     from ..db import get_pool
@@ -157,9 +179,14 @@ def index_pending_disk(
     *,
     collection_id: str | None = None,
     force: bool = True,
-    limit: int | None = 40,
+    limit: int | None = 8,
 ) -> dict:
     """对清单中 pending/failed/indexing 的磁盘文件批量向量化。"""
+    stale_reset = 0
+    try:
+        stale_reset = reset_stale_indexing()
+    except Exception as exc:
+        logger.warning("reset stale indexing failed: %s", exc)
     try:
         realign_document_paths()
     except Exception as exc:
@@ -218,6 +245,8 @@ def index_pending_disk(
         "pending": total,
         "processed": len(tasks),
         "has_more": len(tasks) < total,
+        "remaining": max(0, total - len(tasks)),
+        "stale_reset": stale_reset,
         "indexed": indexed,
         "skipped": skipped,
         "failed": failed,

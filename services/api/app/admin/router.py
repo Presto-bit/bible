@@ -46,7 +46,7 @@ class IndexPendingBody(BaseModel):
     source_type: str = "commentary"
     force: bool = True
     collection_id: str | None = None
-    limit: int | None = 40
+    limit: int | None = 8
 
 
 @router.post("/auth/login")
