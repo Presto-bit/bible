@@ -33,11 +33,10 @@
 ## 导出
 
 ```bash
-# 需 librsvg 或 Inkscape
-rsvg-convert -w 1024 -h 1024 apps/web/public/icon.svg -o apps/web/public/icon-512.png
-rsvg-convert -w 192 -h 192 apps/web/public/icon.svg -o apps/web/public/icon-192.png
-rsvg-convert -w 180 -h 180 apps/web/public/icon.svg -o apps/web/public/apple-touch-icon.png
+cd apps/web && npm run generate-pwa
 ```
+
+从 `icon.svg` 自动生成：192/512/1024、apple-touch、maskable-512、各机型 splash。
 
 ## 小图自检
 

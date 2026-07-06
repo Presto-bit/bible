@@ -1,5 +1,12 @@
 /* 彼爱 · 设计 token（Web / PWA 与 Flutter 对齐参考） */
 
+/* PWA 壳层：启动图 / Manifest / 首屏（不随 app 主题切换） */
+:root {
+  --pwa-bg: #fffcfa;
+  --pwa-ink: #4f6b5d;
+  --pwa-ink-soft: #7d9b8a;
+}
+
 /* 默认：典雅白（微信读书风） */
 :root,
 html[data-app-theme="classic"] {

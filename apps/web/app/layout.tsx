@@ -5,7 +5,7 @@ import { AppThemeShell } from '@/components/AppThemeShell';
 import PwaRegister from '@/components/PwaRegister';
 import PwaStandaloneShell from '@/components/PwaStandaloneShell';
 import StaleShellGuard from '@/components/StaleShellGuard';
-import InstallBanner from '@/components/InstallBanner';
+import InstallBanner from '@/components/InstallPwaGuide';
 import IdentityShell from '@/components/IdentityShell';
 import { ConfirmProvider } from '@/components/ui/ConfirmProvider';
 import { PasswordSheetProvider } from '@/components/ui/PasswordSheetProvider';
@@ -14,23 +14,38 @@ import WebOnboardingSheet from '@/components/WebOnboardingSheet';
 import BottomTabs from '@/components/BottomTabs';
 
 import { BASE_PATH } from '@/lib/basePath';
-import { BRAND_FULL, BRAND_TAGLINE } from '@/lib/brand';
+import { BRAND_FULL } from '@/lib/brand';
+import {
+  IOS_STARTUP_FALLBACK,
+  IOS_STARTUP_IMAGES,
+  PWA_BG_COLOR,
+  PWA_HOME_NAME,
+  PWA_MANIFEST_DESCRIPTION,
+} from '@/lib/pwa_brand';
 
 export const metadata: Metadata = {
   title: BRAND_FULL,
-  description: BRAND_TAGLINE,
+  description: PWA_MANIFEST_DESCRIPTION,
   manifest: `${BASE_PATH || ''}/manifest.webmanifest`,
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: BRAND_FULL },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: PWA_HOME_NAME,
+  },
   icons: {
-    apple: `${BASE_PATH || ''}/apple-touch-icon.png`,
+    apple: [
+      { url: `${BASE_PATH || ''}/apple-touch-icon.png`, sizes: '180x180' },
+      { url: `${BASE_PATH || ''}/apple-touch-icon-167.png`, sizes: '167x167' },
+    ],
   },
   other: {
     'app-version': process.env.NEXT_PUBLIC_APP_VERSION || 'dev',
+    'mobile-web-app-capable': 'yes',
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: '#ffffff',
+  themeColor: PWA_BG_COLOR,
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -43,27 +58,20 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const splashIos = `${BASE_PATH || ''}/splash-ios.png`;
+  const base = BASE_PATH || '';
 
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" style={{ backgroundColor: PWA_BG_COLOR }}>
       <head>
-        <link
-          rel="apple-touch-startup-image"
-          href={splashIos}
-          media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-        />
-        <link
-          rel="apple-touch-startup-image"
-          href={splashIos}
-          media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-        />
-        <link
-          rel="apple-touch-startup-image"
-          href={splashIos}
-          media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)"
-        />
-        <link rel="apple-touch-startup-image" href={splashIos} />
+        {IOS_STARTUP_IMAGES.map(({ file, media }) => (
+          <link
+            key={file}
+            rel="apple-touch-startup-image"
+            href={`${base}/${file}`}
+            media={media}
+          />
+        ))}
+        <link rel="apple-touch-startup-image" href={`${base}/${IOS_STARTUP_FALLBACK}`} />
       </head>
       <body>
         {/* release.sh 健康检查锚点（须出现在 SSR HTML，勿删） */}

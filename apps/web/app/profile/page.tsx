@@ -29,6 +29,8 @@ import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
+import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
+import { isStandalonePwa } from '@/lib/platform';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
@@ -53,6 +55,9 @@ export default function ProfilePage() {
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [adminEligible, setAdminEligible] = useState(false);
+  const [installedPwa, setInstalledPwa] = useState(
+    () => typeof window !== 'undefined' && isStandalonePwa(),
+  );
 
   useEffect(() => {
     if (!uid) {
@@ -358,6 +363,20 @@ export default function ProfilePage() {
                 <span style={{ flex: 1 }}>外观</span>
                 <span className="muted">›</span>
               </Link>
+              {!installedPwa ? (
+                <button
+                  type="button"
+                  className="card row-card"
+                  style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
+                  onClick={() => {
+                    setSettingsOpen(false);
+                    openPwaInstallSheet();
+                  }}
+                >
+                  <span style={{ flex: 1 }}>添加到主屏幕</span>
+                  <span className="muted">像 App 一样打开 ›</span>
+                </button>
+              ) : null}
             </div>
 
             {adminEligible ? (

@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v6';
+const CACHE = 'presto-bible-v7';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 const BASE_PATH = '';
@@ -17,7 +17,11 @@ const SHELL = [
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-512.png',
   '/apple-touch-icon.png',
+  '/apple-touch-icon-167.png',
+  '/splash-iphone16.png',
+  '/splash-iphone16plus.png',
   '/illustrations/index.json',
   ...ILLUSTRATION_FILES.map((f) => `/illustrations/${f}`),
 ];
