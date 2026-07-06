@@ -46,6 +46,7 @@ class IndexPendingBody(BaseModel):
     source_type: str = "commentary"
     force: bool = True
     collection_id: str | None = None
+    limit: int | None = 40
 
 
 @router.post("/auth/login")
@@ -345,6 +346,7 @@ def admin_index_pending_disk(
         result = index_pending_disk(
             collection_id=opts.collection_id,
             force=opts.force,
+            limit=opts.limit,
         )
     except Exception as exc:
         logger.exception("admin index pending disk failed")

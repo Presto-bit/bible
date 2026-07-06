@@ -342,8 +342,23 @@ export default function AdminRagPanel({
     setErr(null);
     setUploadOk(null);
     try {
-      const res = await indexPendingDisk();
-      setUploadOk(`已向量化 ${res.indexed} 个，跳过 ${res.skipped} 个，失败 ${res.failed} 个`);
+      let totalIndexed = 0;
+      let totalSkipped = 0;
+      let totalFailed = 0;
+      let rounds = 0;
+      let hasMore = true;
+      while (hasMore) {
+        const res = await indexPendingDisk();
+        totalIndexed += res.indexed;
+        totalSkipped += res.skipped;
+        totalFailed += res.failed;
+        hasMore = res.has_more;
+        rounds += 1;
+        if (hasMore) await refresh();
+      }
+      setUploadOk(
+        `已向量化 ${totalIndexed} 个，跳过 ${totalSkipped} 个，失败 ${totalFailed} 个（${rounds} 批）`,
+      );
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : '批量向量化失败');

@@ -14,7 +14,7 @@ from pathlib import Path
 from ..db import get_pool
 from .core import split_text_into_chunks
 from .embedding import get_provider
-from .paths import normalize_source_path, path_match_keys
+from .paths import commentary_subpath, path_match_keys, storage_source_path
 
 logger = logging.getLogger(__name__)
 
@@ -74,14 +74,25 @@ def load_embedding_cache(source_type: str | None = None) -> dict[str, list]:
 
 def _find_document_row(conn, source_path: str):
     keys = list(path_match_keys(source_path))
-    if not keys:
+    if keys:
+        placeholders = ", ".join(["%s"] * len(keys))
+        row = conn.execute(
+            f"SELECT id, rag_body_hash, rag_embedding_sig, title, source_path "
+            f"FROM bible_documents WHERE source_path IN ({placeholders}) "
+            f"ORDER BY rag_index_at DESC NULLS LAST, created_at DESC LIMIT 1",
+            tuple(keys),
+        ).fetchone()
+        if row:
+            return row
+    sub = commentary_subpath(source_path)
+    if not sub:
         return None
-    placeholders = ", ".join(["%s"] * len(keys))
     return conn.execute(
-        f"SELECT id, rag_body_hash, rag_embedding_sig, title, source_path "
-        f"FROM bible_documents WHERE source_path IN ({placeholders}) "
-        f"ORDER BY rag_index_at DESC NULLS LAST, created_at DESC LIMIT 1",
-        tuple(keys),
+        "SELECT id, rag_body_hash, rag_embedding_sig, title, source_path "
+        "FROM bible_documents "
+        "WHERE source_path = %s OR source_path LIKE %s OR source_path = %s "
+        "ORDER BY rag_index_at DESC NULLS LAST, created_at DESC LIMIT 1",
+        (sub, f"%/{sub}", f"content/commentary/{sub}"),
     ).fetchone()
 
 
@@ -93,7 +104,7 @@ def _record_index_error(
     error: str,
     doc_id=None,
 ) -> None:
-    source_path = normalize_source_path(source_path)
+    source_path = storage_source_path(source_path)
     pool = get_pool()
     with pool.connection() as conn:
         if doc_id is None:
@@ -128,7 +139,7 @@ def index_text(
 
     embedding_cache：可选 chunk_text→向量 缓存，命中则复用、不调用 embedding API。
     """
-    source_path = normalize_source_path(source_path)
+    source_path = storage_source_path(source_path)
     provider = get_provider()
     body_hash = _body_hash(body)
     chunks = split_text_into_chunks(body)

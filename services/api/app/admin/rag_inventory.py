@@ -99,8 +99,8 @@ def _load_db_documents() -> list[dict]:
             "status": r[3],
             "source_path": r[4],
             "rag_index_at": r[5].isoformat() if r[5] else None,
-            "rag_index_error": r[7],
-            "created_at": r[6].isoformat() if r[6] else None,
+            "rag_index_error": r[6],
+            "created_at": r[7].isoformat() if r[7] else None,
             "chunks": r[8] or 0,
         })
     return out
@@ -134,9 +134,22 @@ def _match_document(
         if hit is not None:
             return hit
     hits = by_name.get(file_path.name) or []
+    if not hits:
+        return None
     if len(hits) == 1:
         return hits[0]
-    return None
+    file_keys = path_match_keys(file_path)
+    best: dict | None = None
+    best_score = -1
+    for doc in hits:
+        sp = (doc.get("source_path") or "").strip()
+        doc_keys = path_match_keys(normalize_source_path(sp)) if sp else set()
+        overlap = len(file_keys & doc_keys)
+        score = overlap * 1000 + int(doc.get("chunks") or 0)
+        if score > best_score:
+            best_score = score
+            best = doc
+    return best if best_score > 0 else None
 
 
 def _inventory_status(doc: dict | None, *, file_exists: bool) -> str:

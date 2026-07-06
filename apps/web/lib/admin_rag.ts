@@ -339,24 +339,37 @@ export async function uploadRagDocument(
 
 export async function indexPendingDisk(
   collectionId?: string,
-): Promise<{ pending: number; indexed: number; skipped: number; failed: number }> {
+  limit = 40,
+): Promise<{
+  pending: number;
+  processed: number;
+  has_more: boolean;
+  indexed: number;
+  skipped: number;
+  failed: number;
+}> {
   const res = await fetch(`${API_BASE}/admin/rag/index-pending-disk`, {
     method: 'POST',
     headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({
       force: true,
       collection_id: collectionId ?? null,
+      limit,
     }),
   });
   if (!res.ok) throw new Error(await readApiError(res, '批量向量化失败'));
   const data = (await res.json()) as {
     pending?: number;
+    processed?: number;
+    has_more?: boolean;
     indexed?: number;
     skipped?: number;
     failed?: number;
   };
   return {
     pending: data.pending ?? 0,
+    processed: data.processed ?? 0,
+    has_more: data.has_more === true,
     indexed: data.indexed ?? 0,
     skipped: data.skipped ?? 0,
     failed: data.failed ?? 0,

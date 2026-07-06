@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ..config import get_settings
 from ..rag.index import guess_document_title, index_file, load_embedding_cache
+from ..rag.paths import commentary_root, commentary_subpath, storage_source_path
 from .rag_inventory import (
     _COLLECTIONS,
     _commentary_root,
@@ -123,12 +124,47 @@ def index_pending_uploads(
     }
 
 
+def realign_document_paths() -> int:
+    """将历史绝对路径统一为 content/commentary/...，便于清单匹配。"""
+    from ..db import get_pool
+
+    root = commentary_root()
+    updated = 0
+    pool = get_pool()
+    with pool.connection() as conn:
+        rows = conn.execute("SELECT id, source_path FROM bible_documents").fetchall()
+        for doc_id, sp in rows:
+            if not sp:
+                continue
+            sub = commentary_subpath(sp)
+            if not sub:
+                continue
+            fp = root / sub
+            if not fp.is_file():
+                continue
+            canonical = storage_source_path(fp)
+            if sp != canonical:
+                conn.execute(
+                    "UPDATE bible_documents SET source_path=%s, updated_at=now() WHERE id=%s",
+                    (canonical, doc_id),
+                )
+                updated += 1
+        conn.commit()
+    return updated
+
+
 def index_pending_disk(
     *,
     collection_id: str | None = None,
     force: bool = True,
+    limit: int | None = 40,
 ) -> dict:
     """对清单中 pending/failed/indexing 的磁盘文件批量向量化。"""
+    try:
+        realign_document_paths()
+    except Exception as exc:
+        logger.warning("realign document paths failed: %s", exc)
+
     inv = build_rag_inventory()
     root = _commentary_root()
     udir = upload_dir()
@@ -148,6 +184,10 @@ def index_pending_disk(
                 fp = root / doc["file"]
                 st = coll["source_type"]
             tasks.append((fp, st, doc.get("title")))
+
+    total = len(tasks)
+    if limit is not None and limit > 0:
+        tasks = tasks[:limit]
 
     indexed = skipped = failed = 0
     results: list[dict] = []
@@ -175,7 +215,9 @@ def index_pending_disk(
             results.append({"file": fp.name, "error": str(exc)})
 
     return {
-        "pending": len(tasks),
+        "pending": total,
+        "processed": len(tasks),
+        "has_more": len(tasks) < total,
         "indexed": indexed,
         "skipped": skipped,
         "failed": failed,
