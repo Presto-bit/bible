@@ -218,6 +218,9 @@ export default function ReaderView({
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [wordRange, setWordRange] = useState<WordRange | null>(null);
   const [nativeSelection, setNativeSelection] = useState<NativeVerseSelection | null>(null);
+  const [liveNativeSelection, setLiveNativeSelection] = useState<NativeVerseSelection | null>(null);
+  const [nativeSelecting, setNativeSelecting] = useState(false);
+  const nativeSelectingRef = useRef(false);
   const nativeTouchSelect = isTouchPrimaryUI();
   const [markNotePrompt, setMarkNotePrompt] = useState<null | {
     ref: string;
@@ -438,16 +441,22 @@ export default function ReaderView({
     [verses],
   );
 
+  const activeNativeSelection = nativeSelecting ? liveNativeSelection : nativeSelection;
+
   const sortedSel = useMemo(() => {
     if (wordRange) return [...wordRangeToSpan(wordRange).verses].sort((a, b) => a - b);
-    if (nativeTouchSelect && nativeSelection?.verses.length) {
-      return [...nativeSelection.verses].sort((a, b) => a - b);
+    if (nativeTouchSelect && activeNativeSelection?.verses.length) {
+      return [...activeNativeSelection.verses].sort((a, b) => a - b);
     }
     return [...wholeVerseSel].sort((a, b) => a - b);
-  }, [wordRange, wholeVerseSel, nativeTouchSelect, nativeSelection]);
+  }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
   const nativeSelVerses = useMemo(
-    () => (nativeTouchSelect ? versesForNativeLineHighlight(verses, nativeSelection) : new Set<number>()),
-    [nativeTouchSelect, nativeSelection, verses],
+    () => (
+      nativeTouchSelect && !nativeSelecting
+        ? versesForNativeLineHighlight(verses, nativeSelection)
+        : new Set<number>()
+    ),
+    [nativeTouchSelect, nativeSelection, nativeSelecting, verses],
   );
   const verseSelClass = useCallback(
     (verse: number) => (wholeVerseSel.includes(verse) || nativeSelVerses.has(verse) ? ' verse-sel-active' : ''),
@@ -467,9 +476,9 @@ export default function ReaderView({
         wholeVerseSel,
         wordRange,
         nativeTouchSelect,
-        nativeSelection,
+        nativeSelection: activeNativeSelection,
       }),
-    [verses, wholeVerseSel, wordRange, nativeTouchSelect, nativeSelection],
+    [verses, wholeVerseSel, wordRange, nativeTouchSelect, activeNativeSelection],
   );
   const refParam = hasSel ? `${book.id}.${chapter}.${minV}` : `${book.id}.${chapter}`;
   const refLabel = hasSel
@@ -1313,6 +1322,9 @@ export default function ReaderView({
   const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
     setNativeSelection(null);
+    setLiveNativeSelection(null);
+    nativeSelectingRef.current = false;
+    setNativeSelecting(false);
     setWholeVerseSel([]);
     setWordRange(null);
     wordRangeRef.current = null;
@@ -1375,11 +1387,16 @@ export default function ReaderView({
     const blockMenu = (e: Event) => e.preventDefault();
     root.addEventListener('contextmenu', blockMenu);
     let raf = 0;
-    let settleTimer = 0;
     let collapseTimer = 0;
     const pinningRef = { current: false };
 
+    const setSelecting = (on: boolean) => {
+      nativeSelectingRef.current = on;
+      setNativeSelecting(on);
+    };
+
     const collapseSystemSelection = () => {
+      if (nativeSelectingRef.current) return;
       const pinned = readNativeVerseSelection(root);
       if (!pinned?.text) return;
       const verseSlices = verses.map((v) => ({ verse: v.verse, text: v.text }));
@@ -1394,22 +1411,16 @@ export default function ReaderView({
         }
         return pinned;
       });
+      setLiveNativeSelection(pinned);
       setWholeVerseSel([]);
       setWordRange(null);
       wordRangeRef.current = null;
       lastSelectAt.current = Date.now();
       swipeIgnoreUntilRef.current = Date.now() + 320;
       if (!fullVersePick) {
-        // 部分选中：保留系统选区高亮，不扩成整节蓝底
         return;
       }
       pinningRef.current = true;
-      const firstVerse = pinned.verses[0];
-      const anchor = firstVerse ? document.getElementById(`verse-anchor-${firstVerse}`) : null;
-      // 整节选中：收起 iOS 系统复制条，改用应用内 verse-sel-active
-      anchor?.dispatchEvent(
-        new MouseEvent('click', { bubbles: true, cancelable: true, view: window }),
-      );
       requestAnimationFrame(() => {
         window.getSelection()?.removeAllRanges();
         requestAnimationFrame(() => {
@@ -1419,8 +1430,31 @@ export default function ReaderView({
     };
 
     const scheduleCollapse = (delayMs: number) => {
+      if (nativeSelectingRef.current) return;
       window.clearTimeout(collapseTimer);
       collapseTimer = window.setTimeout(collapseSystemSelection, delayMs);
+    };
+
+    const commitLiveSelection = () => {
+      const next = readNativeVerseSelection(root);
+      setLiveNativeSelection(next);
+      setNativeSelection((prev) => {
+        if (!next) return prev;
+        if (
+          prev &&
+          next.text === prev.text &&
+          next.verses.join(',') === prev.verses.join(',')
+        ) {
+          return prev;
+        }
+        return next;
+      });
+      if (next) {
+        setWholeVerseSel([]);
+        setWordRange(null);
+        wordRangeRef.current = null;
+        scheduleCollapse(120);
+      }
     };
 
     const sync = () => {
@@ -1429,9 +1463,13 @@ export default function ReaderView({
       raf = requestAnimationFrame(() => {
         raf = 0;
         const next = readNativeVerseSelection(root);
+        if (nativeSelectingRef.current) {
+          setLiveNativeSelection(next);
+          return;
+        }
+        setLiveNativeSelection(next);
         setNativeSelection((prev) => {
           if (!next) {
-            // iOS 点应用条会先 collapse 系统选区；保留 pinned 状态直到 clearSelection
             return prev;
           }
           if (
@@ -1447,24 +1485,35 @@ export default function ReaderView({
           setWholeVerseSel([]);
           setWordRange(null);
           wordRangeRef.current = null;
-          window.clearTimeout(settleTimer);
-          settleTimer = window.setTimeout(() => scheduleCollapse(0), 140);
+          scheduleCollapse(160);
         }
       });
     };
 
-    const onPointerUp = () => scheduleCollapse(48);
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      window.clearTimeout(collapseTimer);
+      setSelecting(true);
+    };
+
+    const onPointerUp = () => {
+      setSelecting(false);
+      commitLiveSelection();
+    };
 
     document.addEventListener('selectionchange', sync);
+    root.addEventListener('pointerdown', onPointerDown, { passive: true });
     root.addEventListener('touchend', onPointerUp, { passive: true });
     root.addEventListener('pointerup', onPointerUp, { passive: true });
+    root.addEventListener('pointercancel', onPointerUp, { passive: true });
     return () => {
       root.removeEventListener('contextmenu', blockMenu);
       document.removeEventListener('selectionchange', sync);
+      root.removeEventListener('pointerdown', onPointerDown);
       root.removeEventListener('touchend', onPointerUp);
       root.removeEventListener('pointerup', onPointerUp);
+      root.removeEventListener('pointercancel', onPointerUp);
       if (raf) cancelAnimationFrame(raf);
-      window.clearTimeout(settleTimer);
       window.clearTimeout(collapseTimer);
     };
   }, [book.id, chapter, swipeTurn, nativeTouchSelect, verses]);
