@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { EntityGraph, EntityGraphNode, EntityRelation } from '@/lib/api';
-import { entityDictionaryHref } from '@/lib/entity_knowledge';
+import { entityDictionaryHref, entityGraphHref } from '@/lib/entity_knowledge';
 import { entityTypeLabel } from '@/lib/dictionary_match';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
@@ -38,30 +38,34 @@ export function LocalRelationGraph({
   graph,
   onNodeClick,
   onRefClick,
+  variant = 'compact',
 }: {
   graph: EntityGraph;
   onNodeClick?: (nodeId: string) => void;
   onRefClick?: (osis: string, label: string) => void;
+  variant?: 'compact' | 'fullscreen';
 }) {
   const center = graph.center;
   const viewportRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const isFullscreen = variant === 'fullscreen';
 
   const [scale, setScale] = useState(1);
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
   const [selection, setSelection] = useState<Selection | null>(null);
 
-  const w = 400;
-  const h = 280;
+  const w = isFullscreen ? 520 : 400;
+  const h = isFullscreen ? 420 : 280;
   const cx = w / 2;
   const cy = h / 2;
-  const r = 88;
+  const r = isFullscreen ? 128 : 88;
+  const maxScale = isFullscreen ? 3.2 : 2.4;
 
   const layout = useMemo(() => {
     if (!center) return { centerId: '', nodes: [] as LayoutNode[] };
     const centerId = center.id ?? center.name;
-    const neighbors = graph.edges.slice(0, 12);
+    const neighbors = graph.edges;
     const nodes: LayoutNode[] = [
       {
         node: {
@@ -102,8 +106,8 @@ export function LocalRelationGraph({
   }, [selection, layout.nodes, center]);
 
   const zoomBy = useCallback((delta: number) => {
-    setScale((s) => clamp(Number((s + delta).toFixed(2)), 0.6, 2.4));
-  }, []);
+    setScale((s) => clamp(Number((s + delta).toFixed(2)), 0.5, maxScale));
+  }, [maxScale]);
 
   const resetView = useCallback(() => {
     setScale(1);
@@ -149,7 +153,7 @@ export function LocalRelationGraph({
   const neighborNodes = layout.nodes.filter((n) => !n.isCenter);
 
   return (
-    <div className="local-relation-graph">
+    <div className={`local-relation-graph${isFullscreen ? ' local-relation-graph--fullscreen' : ''}`}>
       <div className="local-relation-graph-toolbar">
         <span className="muted" style={{ fontSize: 11 }}>拖动画布 · 滚轮缩放 · 点节点/连线看详情</span>
         <div className="local-relation-graph-zoom">
@@ -326,6 +330,11 @@ export function LocalRelationGraph({
                 >
                   查看词条 ›
                 </Link>
+                {!isFullscreen ? (
+                  <Link href={entityGraphHref(selectedNode.id)} className="font-pill">
+                    全屏关系图 ›
+                  </Link>
+                ) : null}
               </div>
             </>
           ) : null}

@@ -506,8 +506,9 @@ def relations(entity_id: str | None = Query(None)) -> dict:
 
 
 @router.get("/entities/{entity_id}/knowledge")
-def entity_knowledge(entity_id: str) -> dict:
-    data = loader.entity_knowledge(entity_id)
+def entity_knowledge(entity_id: str, graph_limit: int = 12) -> dict:
+    limit = max(1, min(int(graph_limit), 50))
+    data = loader.entity_knowledge(entity_id, graph_limit=limit)
     if data is None:
         raise HTTPException(status_code=404, detail=f"无词条：{entity_id}")
     return data

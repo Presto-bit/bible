@@ -1220,8 +1220,14 @@ export const api = {
         ? `/content/relations?entity_id=${encodeURIComponent(entityId)}`
         : '/content/relations',
     ),
-  entityKnowledge: (entityId: string) =>
-    getJson<EntityKnowledge>(`/content/entities/${encodeURIComponent(entityId)}/knowledge`),
+  entityKnowledge: (entityId: string, opts?: { graphLimit?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.graphLimit) params.set('graph_limit', String(opts.graphLimit));
+    const qs = params.toString();
+    return getJson<EntityKnowledge>(
+      `/content/entities/${encodeURIComponent(entityId)}/knowledge${qs ? `?${qs}` : ''}`,
+    );
+  },
   diagrams: () => getJson<{ schema?: string; categories?: { id: string; label: string }[]; items: BibleDiagram[] }>('/content/diagrams'),
   diagram: (id: string) => getJson<{ diagram: BibleDiagram }>(`/content/diagrams/${encodeURIComponent(id)}`),
   diagramFileUrl: (id: string) => `${API_BASE}/content/diagrams/${encodeURIComponent(id)}/file`,

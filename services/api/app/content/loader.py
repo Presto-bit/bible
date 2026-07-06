@@ -600,7 +600,7 @@ def relations_graph_for_entity(entity_id: str, *, limit: int = 12) -> dict:
     return {"center": center, "edges": edges, "nodes": nodes}
 
 
-def entity_knowledge(entity_id: str) -> dict | None:
+def entity_knowledge(entity_id: str, *, graph_limit: int = 12) -> dict | None:
     center = entity_by_id(entity_id)
     if center is None:
         return None
@@ -609,7 +609,7 @@ def entity_knowledge(entity_id: str) -> dict | None:
     tours = map_tours_for_place(place["id"]) if place and place.get("id") else []
     return {
         "entity": center,
-        "graph": relations_graph_for_entity(eid),
+        "graph": relations_graph_for_entity(eid, limit=graph_limit),
         "place": place,
         "map_tours": tours,
         "diagrams": diagrams_for_entity(eid),

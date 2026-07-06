@@ -50,6 +50,10 @@ export function entityDictionaryHref(entity: DictEntity): string {
   return `/dictionary/${encodeURIComponent(id)}`;
 }
 
+export function entityGraphHref(entityId: string): string {
+  return `/graph/${encodeURIComponent(entityId)}`;
+}
+
 export function entityAnchorRef(entity: DictEntity): string {
   const raw = entity.refs?.[0];
   if (!raw) return 'GEN.1.1';

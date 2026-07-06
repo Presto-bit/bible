@@ -8,6 +8,7 @@ import { formatGroupRefLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import {
   ENTITY_KNOWLEDGE_TAB_LABEL,
+  entityGraphHref,
   type EntityKnowledgeTab,
 } from '@/lib/entity_knowledge';
 import { GeoMiniMap } from './GeoMiniMap';
@@ -69,15 +70,19 @@ export function EntityKnowledgePanel({
                 onNodeClick={onNodeClick}
                 onRefClick={onRefPreview}
               />
-              {graphTopicId ? (
-                <Link
-                  href={`/search/graph?topic=${encodeURIComponent(graphTopicId)}`}
-                  className="entity-knowledge-tour-link"
-                  style={{ display: 'inline-block', marginTop: 10 }}
-                >
-                  查看关系专题 ›
+              <div className="entity-knowledge-graph-links">
+                <Link href={entityGraphHref(entity.id ?? entity.name)} className="entity-knowledge-tour-link">
+                  全屏关系图 ›
                 </Link>
-              ) : null}
+                {graphTopicId ? (
+                  <Link
+                    href={`/search/graph?topic=${encodeURIComponent(graphTopicId)}`}
+                    className="entity-knowledge-tour-link"
+                  >
+                    查看关系专题 ›
+                  </Link>
+                ) : null}
+              </div>
             </div>
           ) : null}
 

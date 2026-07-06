@@ -53,6 +53,7 @@ const SECONDARY_PREFIXES = [
   '/plans',
   '/report',
   '/dictionary',
+  '/graph',
   '/login',
   '/search',
   '/wrapped',
