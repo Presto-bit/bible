@@ -11300,6 +11300,13 @@ html.app-theme-dark body {
   display: block;
 }
 
+.geo-mini-map-hint {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
 .local-relation-graph-svg {
   width: 100%;
   height: auto;

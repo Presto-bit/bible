@@ -34,7 +34,15 @@ export function MapTourPanels({
     const stops = detail?.stops ?? [];
     return stops
       .map((s) => s.place)
-      .filter((p): p is GeoPlace => Boolean(p && p.latitude && p.longitude));
+      .filter((p): p is GeoPlace => Boolean(p && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)));
+  }, [detail]);
+
+  const routeStops = useMemo(() => {
+    return (detail?.stops ?? []).map((s) => ({
+      placeId: s.place_id,
+      order: s.order,
+      label: s.label,
+    }));
   }, [detail]);
 
   if (!tours.length) {
@@ -76,7 +84,8 @@ export function MapTourPanels({
                       <GeoMiniMap
                         places={mapPlaces}
                         activeId={activeStop}
-                        height={180}
+                        height={200}
+                        routeStops={routeStops}
                       />
                     </div>
                   ) : null}
