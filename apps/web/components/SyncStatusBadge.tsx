@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getSyncState, syncStateLabel, type SyncState } from '@/lib/sync_status';
+import { getSyncState, subscribeSyncState, syncStateLabel, type SyncState } from '@/lib/sync_status';
 import { pendingCount, syncNow } from '@/lib/sync';
 
 export default function SyncStatusBadge() {
@@ -12,10 +12,12 @@ export default function SyncStatusBadge() {
   useEffect(() => {
     const tick = () => setState(getSyncState());
     tick();
+    const unsub = subscribeSyncState(tick);
     window.addEventListener('online', tick);
     window.addEventListener('offline', tick);
-    const id = window.setInterval(tick, 4000);
+    const id = window.setInterval(tick, 8000);
     return () => {
+      unsub();
       window.removeEventListener('online', tick);
       window.removeEventListener('offline', tick);
       window.clearInterval(id);

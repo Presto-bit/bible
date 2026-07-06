@@ -2218,6 +2218,21 @@ a.today-card-link {
   align-items: start;
 }
 
+.story-entry-scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.story-entry-scroll .story-entry-card {
+  flex: 0 0 min(78vw, 220px);
+  scroll-snap-align: start;
+}
+
 @media (max-width: 520px) {
   .story-card-grid-quad {
     grid-template-columns: 1fr;
@@ -3949,6 +3964,21 @@ body.reader-active .proper-noun--artifact {
   font-size: 13px;
 }
 
+.app-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 120;
+  background: rgba(0, 0, 0, 0.78);
+  color: #fff;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  pointer-events: none;
+  animation: badge-toast-in 0.28s ease;
+}
+
 /* 阅读器右侧 FAB 栈：退出计划 / 打卡 / 小爱 纵向排列，避免重叠 */
 .reader-fab-stack {
   position: fixed;
@@ -4290,6 +4320,41 @@ body.reader-active .proper-noun--artifact {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.admin-rag-doc-check {
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+.admin-rag-doc-check input {
+  width: 16px;
+  height: 16px;
+}
+
+.admin-rag-type-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-2, #f0ebe4);
+  font-size: 10px;
+}
+
+.admin-rag-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-2, #f6f3ef);
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.06));
+}
+
+.admin-rag-type-tabs {
+  flex-wrap: wrap;
 }
 
 .admin-rag-summary-grid {
@@ -11308,10 +11373,41 @@ html.app-theme-dark body {
   color: var(--accent, #3d6b8e);
 }
 
+.geo-mini-map-hint {
+  margin: 6px 2px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.geo-mini-map-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.geo-mini-map-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.geo-mini-map-scale {
+  font-size: 11px;
+  margin-left: auto;
+}
+
 .geo-mini-map {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--line);
+  touch-action: none;
+  cursor: grab;
+}
+
+.geo-mini-map:active {
+  cursor: grabbing;
 }
 
 .geo-mini-map-svg {
@@ -11320,11 +11416,9 @@ html.app-theme-dark body {
   display: block;
 }
 
-.geo-mini-map-hint {
-  margin: 6px 2px 0;
-  font-size: 11px;
-  line-height: 1.4;
-  text-align: center;
+.geo-mini-map-active {
+  padding: 10px 12px;
+  margin-top: 4px;
 }
 
 .local-relation-graph {

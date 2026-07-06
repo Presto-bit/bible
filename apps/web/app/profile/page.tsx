@@ -25,6 +25,8 @@ import { favoriteReviewCards } from '@/lib/favorite_review';
 import { recordMemoryReview } from '@/lib/badge_events';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { SheetCloseButton } from '@/components/PageBackBar';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
@@ -37,6 +39,8 @@ const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
 
 export default function ProfilePage() {
+  const confirm = useConfirm();
+  const toast = useToast();
   const [uid, setUid] = useState<string | null>(null);
   const [gid, setGid] = useState<string>('');
   const [mins, setMins] = useState(0);
@@ -150,16 +154,18 @@ export default function ProfilePage() {
 
   const handleClearCache = async () => {
     if (clearCacheBusy) return;
-    const ok = window.confirm(
-      '将清除页面与离线缓存并刷新应用，不会删除你的读经记录、笔记与账号登录状态。',
-    );
+    const ok = await confirm({
+      title: '清除缓存',
+      message: '将清除页面与离线缓存并刷新应用，不会删除你的读经记录、笔记与账号登录状态。',
+      confirmLabel: '清除并刷新',
+    });
     if (!ok) return;
     setClearCacheBusy(true);
     try {
       await clearAppCacheAndReload();
     } catch {
       setClearCacheBusy(false);
-      alert('清除失败，请尝试在浏览器设置中清除站点数据后重开');
+      toast('清除失败，请尝试在浏览器设置中清除站点数据后重开');
     }
   };
 

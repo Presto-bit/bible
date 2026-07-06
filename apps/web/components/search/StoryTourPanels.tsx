@@ -27,9 +27,14 @@ export function MapTourPanels({
   useEffect(() => {
     if (!openId) {
       setDetail(null);
+      setActiveStop(null);
       return;
     }
-    void api.mapTour(openId).then((d) => setDetail(d.tour)).catch(() => setDetail(null));
+    void api.mapTour(openId).then((d) => {
+      setDetail(d.tour);
+      const first = d.tour?.stops?.[0];
+      if (first?.place_id) setActiveStop(first.place_id);
+    }).catch(() => setDetail(null));
   }, [openId]);
 
   const mapPlaces = useMemo(() => {
@@ -108,12 +113,23 @@ export function MapTourPanels({
                       <GeoMiniMap
                         places={mapPlaces}
                         activeId={activeStop}
-                        height={200}
+                        height={240}
                         routeStops={routeStops}
                         onPlaceClick={(place) => {
-                          router.push(`/dictionary/${encodeURIComponent(place.id)}`);
+                          setActiveStop(place.id);
                         }}
                       />
+                      {activeStop ? (
+                        <div className="share-actions" style={{ marginTop: 8 }}>
+                          <button
+                            type="button"
+                            className="font-pill"
+                            onClick={() => router.push(`/dictionary/${encodeURIComponent(activeStop)}`)}
+                          >
+                            查看词条 ›
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                   <ol className="story-step-list">

@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
+import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, ensureAccountReady, type GeneratedPlan, type PlanSummary } from '@/lib/api';
 import { markGroupsListDirty, stashCreatedGroup } from '@/lib/groups_refresh';
@@ -81,6 +84,8 @@ function planIsCompleted(plan: ActivePlan): boolean {
 
 export default function PlansPage() {
   useEdgeSwipeBack({ href: '/' });
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,7 +96,6 @@ export default function PlansPage() {
   const [active, setActive] = useState<ActivePlan | null>(null);
   const [savedPlans, setSavedPlans] = useState<GeneratedPlan[]>([]);
   const [prayerSheet, setPrayerSheet] = useState<Awaited<ReturnType<typeof api.prayerToday>> | null>(null);
-  const [toast, setToast] = useState('');
   const [schedulePlan, setSchedulePlan] = useState<ActivePlan | null>(null);
   const [scheduleMode, setScheduleMode] = useState<PlanScheduleMode>('preview');
   const [scheduleItems, setScheduleItems] = useState<PlanDayScheduleItem[]>([]);
@@ -99,23 +103,22 @@ export default function PlansPage() {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [sharePlan, setSharePlan] = useState<{ planId: string; title: string } | null>(null);
 
-  const flashToast = (t: string) => {
-    setToast(t);
-    window.setTimeout(() => setToast(''), 2000);
-  };
+  const flashToast = toast;
 
-  useEffect(() => {
+  const reloadPlans = useCallback(() => {
     setLoading(true);
     setListErr(null);
     api.plans()
-      .then((p) => {
-        setPlans(p.plans);
-      })
-      .catch((e) => setListErr(String(e)))
+      .then((p) => setPlans(p.plans))
+      .catch((e) => setListErr(errorMessage(e, '计划加载失败')))
       .finally(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    reloadPlans();
     setActive(getActivePlan());
     setSavedPlans(loadGeneratedPlans());
-  }, []);
+  }, [reloadPlans]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -282,9 +285,11 @@ export default function PlansPage() {
   ) => {
     const current = getActivePlan();
     if (current && current.planId !== plan.planId) {
-      const ok = window.confirm(
-        `将结束「${current.title}」（进度仍保留，可稍后继续），开始「${plan.title}」。确定？`,
-      );
+      const ok = await confirm({
+        title: '更换计划',
+        message: `将结束「${current.title}」（进度仍保留，可稍后继续），开始「${plan.title}」。确定？`,
+        confirmLabel: '确定',
+      });
       if (!ok) return;
     }
     if (opts?.restart) {
@@ -304,10 +309,16 @@ export default function PlansPage() {
       return;
     }
     await goReadPlan(plan, day);
-  }, [goReadPlan, openManageSchedule]);
+  }, [goReadPlan, openManageSchedule, confirm]);
 
-  const handleRestartPlan = (ap: ActivePlan) => {
-    if (!window.confirm(`将重置「${ap.title}」的进度并从第 1 天开始。确定？`)) return;
+  const handleRestartPlan = async (ap: ActivePlan) => {
+    const ok = await confirm({
+      title: '重置计划',
+      message: `将重置「${ap.title}」的进度并从第 1 天开始。确定？`,
+      confirmLabel: '重置',
+      danger: true,
+    });
+    if (!ok) return;
     void adoptPlan(ap, { restart: true });
   };
 
@@ -357,8 +368,14 @@ export default function PlansPage() {
     if (planIsCompleted(schedulePlan)) {
       return {
         label: '再读一遍',
-        run: () => {
-          if (!window.confirm(`将重置「${schedulePlan.title}」的进度并从第 1 天开始。确定？`)) return;
+        run: async () => {
+          const ok = await confirm({
+            title: '重置计划',
+            message: `将重置「${schedulePlan.title}」的进度并从第 1 天开始。确定？`,
+            confirmLabel: '重置',
+            danger: true,
+          });
+          if (!ok) return;
           void adoptPlan(schedulePlan, { restart: true });
         },
       };
@@ -373,7 +390,7 @@ export default function PlansPage() {
       label: '设为我的计划并开始',
       run: () => void adoptPlan(schedulePlan),
     };
-  }, [schedulePlan, scheduleMode, active, adoptPlan, goToday]);
+  }, [schedulePlan, scheduleMode, active, adoptPlan, goToday, confirm]);
 
   const previewSecondary = useMemo(() => {
     if (!schedulePlan || scheduleMode !== 'preview') return null;
@@ -486,8 +503,14 @@ export default function PlansPage() {
     }
   };
 
-  const deleteCustomPlan = (planId: string) => {
-    if (!window.confirm('确定删除这个定制计划？进度将一并清除。')) return;
+  const deleteCustomPlan = async (planId: string) => {
+    const ok = await confirm({
+      title: '删除计划',
+      message: '确定删除这个定制计划？进度将一并清除。',
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
     removeGeneratedPlan(planId);
     setSavedPlans(loadGeneratedPlans());
     if (active?.planId === planId) {
@@ -497,8 +520,13 @@ export default function PlansPage() {
     flashToast('已删除');
   };
 
-  const cancelPlan = () => {
-    if (!window.confirm('结束进行中的计划？进度会保留，之后仍可从列表继续。')) return;
+  const cancelPlan = async () => {
+    const ok = await confirm({
+      title: '结束计划',
+      message: '结束进行中的计划？进度会保留，之后仍可从列表继续。',
+      confirmLabel: '结束',
+    });
+    if (!ok) return;
     cancelActivePlan();
     setActive(null);
     flashToast('已结束进行中');
@@ -569,7 +597,12 @@ export default function PlansPage() {
                   type="button"
                   className="font-pill plan-invite-btn"
                   onClick={async () => {
-                    if (!window.confirm(`将创建共读群并邀请好友加入。\n\n${GROUP_INACTIVE_NOTICE}\n\n继续创建？`)) return;
+                    const ok = await confirm({
+                      title: '新建共读群',
+                      message: `将创建共读群并邀请好友加入。\n\n${GROUP_INACTIVE_NOTICE}\n\n继续创建？`,
+                      confirmLabel: '继续',
+                    });
+                    if (!ok) return;
                     try {
                       await ensureAccountReady();
                       const g = await api.createGroupFromPlan(active.planId, `${active.title} · 共读`);
@@ -616,9 +649,11 @@ export default function PlansPage() {
 
       {loading && <p className="muted" style={{ marginBottom: 12 }}>加载计划中…</p>}
       {listErr && (
-        <p style={{ color: '#b1554a', marginBottom: 12 }}>
-          计划加载失败，请检查网络后刷新。
-        </p>
+        <ErrorBanner
+          message={listErr}
+          onRetry={reloadPlans}
+          onDismiss={() => setListErr(null)}
+        />
       )}
       {!loading && !listErr && featured.length === 0 && (
         <p className="muted" style={{ marginBottom: 12 }}>暂无计划，请稍后重试或联系管理员检查服务端数据。</p>
@@ -848,7 +883,6 @@ export default function PlansPage() {
         </div>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
     </main>
   );
 }

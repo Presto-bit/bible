@@ -10,6 +10,11 @@ import {
   type InstallPlatform,
 } from '@/lib/pwa_platform';
 import { BASE_PATH } from '@/lib/basePath';
+import {
+  getDeferredInstallPrompt,
+  clearDeferredInstallPrompt,
+} from '@/lib/pwa_deferred_prompt';
+import { isOnboardingSeen, ONBOARDING_DONE_EVENT } from '@/lib/onboarding';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -47,6 +52,8 @@ export function InstallPwaSheet({
 
   useEffect(() => {
     if (!open) return;
+    const cached = getDeferredInstallPrompt();
+    if (cached) setDeferred(cached as BIPEvent);
     const handler = (e: Event) => {
       e.preventDefault();
       setDeferred(e as BIPEvent);
@@ -103,6 +110,7 @@ export function InstallPwaSheet({
               await deferred.prompt();
               await deferred.userChoice;
               setDeferred(null);
+              clearDeferredInstallPrompt();
               dismiss();
             }}
           >
@@ -139,6 +147,15 @@ export default function InstallBanner() {
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setOnboardingDone(isOnboardingSeen());
+    const onDone = () => setOnboardingDone(true);
+    window.addEventListener(ONBOARDING_DONE_EVENT, onDone);
+    return () => window.removeEventListener(ONBOARDING_DONE_EVENT, onDone);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -154,12 +171,12 @@ export default function InstallBanner() {
 
   useEffect(() => {
     if (platform === null) return;
-    if (platform === 'standalone' || isDismissed()) {
+    if (platform === 'standalone' || isDismissed() || !onboardingDone) {
       setHidden(true);
     }
-  }, [platform]);
+  }, [platform, onboardingDone]);
 
-  if (hidden || !platform || platform === 'standalone') {
+  if (hidden || !platform || platform === 'standalone' || !onboardingDone) {
     return <InstallPwaSheet open={sheetOpen} onClose={() => setSheetOpen(false)} platform={platform ?? undefined} />;
   }
 

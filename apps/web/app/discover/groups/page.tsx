@@ -15,6 +15,7 @@ import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
 import { clearGroupsListDirty, dismissPendingGroup, hideGroupFromList, getPendingOnlyIds, mergePendingGroups, markGroupsListDirty, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
 
 function groupStatusBadge(g: Group) {
@@ -23,6 +24,7 @@ function groupStatusBadge(g: Group) {
 
 export default function DiscoverGroupsPage() {
   useEdgeSwipeBack({ href: '/discover' });
+  const confirm = useConfirm();
 
   const router = useRouter();
   const pathname = usePathname();
@@ -61,7 +63,13 @@ export default function DiscoverGroupsPage() {
 
   const removeGroupFromList = async (g: Group, isPendingOnly: boolean) => {
     const label = g.role === 'owner' && !isPendingOnly ? '解散' : '移除';
-    if (!window.confirm(`确定${label}「${g.name}」？`)) return;
+    const ok = await confirm({
+      title: `${label}共读群`,
+      message: `确定${label}「${g.name}」？`,
+      confirmLabel: label,
+      danger: g.role === 'owner' && !isPendingOnly,
+    });
+    if (!ok) return;
     if (isPendingOnly) {
       dismissPendingGroup(g.id);
       setGroups((prev) => prev.filter((item) => item.id !== g.id));
@@ -69,7 +77,13 @@ export default function DiscoverGroupsPage() {
     }
     try {
       if (g.role === 'owner') {
-        if (!window.confirm('解散后所有成员将被移出，且不可恢复。确定解散？')) return;
+        const okDissolve = await confirm({
+          title: '解散共读群',
+          message: '解散后所有成员将被移出，且不可恢复。确定解散？',
+          confirmLabel: '解散',
+          danger: true,
+        });
+        if (!okDissolve) return;
         await api.dissolveGroup(g.id);
       } else {
         await api.leaveGroup(g.id);
@@ -181,9 +195,14 @@ export default function DiscoverGroupsPage() {
                     <button
                       type="button"
                       className="text-link group-card-cta"
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        if (!window.confirm(`从列表移除「${g.name}」？`)) return;
+                        const ok = await confirm({
+                          title: '移除群',
+                          message: `从列表移除「${g.name}」？`,
+                          confirmLabel: '移除',
+                        });
+                        if (!ok) return;
                         dismissPendingGroup(g.id);
                         setGroups((prev) => prev.filter((item) => item.id !== g.id));
                         setPendingOnlyIds((prev) => {

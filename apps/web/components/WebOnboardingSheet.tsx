@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import { BRAND_NAME, BRAND_PWA_SUBTITLE } from '@/lib/brand';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { isStandalonePwa } from '@/lib/platform';
-
-const KEY = 'presto_onboarding_seen';
+import { ONBOARDING_DONE_EVENT, ONBOARDING_SEEN_KEY } from '@/lib/onboarding';
 
 export default function WebOnboardingSheet() {
   const [open, setOpen] = useState(false);
@@ -14,14 +13,15 @@ export default function WebOnboardingSheet() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (localStorage.getItem(KEY)) return;
+    if (localStorage.getItem(ONBOARDING_SEEN_KEY)) return;
     setCanInstall(!isStandalonePwa());
     const t = window.setTimeout(() => setOpen(true), 900);
     return () => window.clearTimeout(t);
   }, []);
 
   const finish = () => {
-    localStorage.setItem(KEY, '1');
+    localStorage.setItem(ONBOARDING_SEEN_KEY, '1');
+    window.dispatchEvent(new Event(ONBOARDING_DONE_EVENT));
     setOpen(false);
   };
 

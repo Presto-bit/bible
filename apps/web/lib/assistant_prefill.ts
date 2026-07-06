@@ -29,6 +29,16 @@ export function explainVerseQuestion(ref: string, excerpt?: string): string {
   return `请解释：${snippet}${snippet.length >= 24 ? '…' : ''}`;
 }
 
+/** 人生主题专题：不绑定无关经文，以主题为中心提问 */
+export function topicQuestion(title: string, verseRef?: string, verseText?: string): string {
+  const topic = title.trim();
+  if (verseRef && verseText) {
+    const snippet = verseText.replace(/\s+/g, ' ').trim().slice(0, 36);
+    return `关于「${topic}」这一主题，请帮我理解经文 ${verseRef}：${snippet}${snippet.length >= 36 ? '…' : ''}`;
+  }
+  return `请从圣经的角度谈谈「${topic}」这一人生主题，并推荐相关经文与实用建议。`;
+}
+
 function genSid(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -93,7 +103,7 @@ export function consumeAssistantPrefill(sid: string): AssistantPrefill | null {
  * SSR 首屏无 window 时仅带 ref，进入页后按 ref 生成默认问题。
  */
 export function assistantHref(
-  ref: string,
+  ref: string | undefined,
   opts?: {
     excerpt?: string;
     question?: string;
@@ -103,12 +113,12 @@ export function assistantHref(
     seedMessages?: AssistantSeedMessage[];
   },
 ): string {
-  const q = opts?.question ?? explainVerseQuestion(ref, opts?.excerpt);
+  const q = opts?.question ?? (ref ? explainVerseQuestion(ref, opts?.excerpt) : '');
   const params = new URLSearchParams();
-  params.set('ref', ref);
+  if (ref) params.set('ref', ref);
   if (typeof window !== 'undefined') {
     const sid = storeAssistantPrefill({
-      ref,
+      ref: ref ?? '',
       question: q,
       autoSend: opts?.autoSend,
       scene: opts?.scene,
@@ -123,7 +133,7 @@ export function assistantHref(
 
 /** 编程式跳转（搜索页等） */
 export function navigateToAssistant(
-  ref: string,
+  ref: string | undefined,
   opts?: {
     excerpt?: string;
     question?: string;

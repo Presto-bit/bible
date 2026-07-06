@@ -18,6 +18,7 @@ import { formatGroupRefLabel } from '@/lib/ref_label';
 import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import { AssistantLink } from '@/components/AssistantLink';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
 import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
@@ -49,6 +50,7 @@ function summaryLinkTarget(
 }
 
 export default function DiscoverPage() {
+  const confirm = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
   const [uid, setUid] = useState<string | null>(null);
@@ -246,9 +248,14 @@ export default function DiscoverPage() {
                       <button
                         type="button"
                         className="text-link group-card-cta"
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
-                          if (!window.confirm(`从列表移除「${g.name}」？`)) return;
+                          const ok = await confirm({
+                            title: '移除群',
+                            message: `从列表移除「${g.name}」？`,
+                            confirmLabel: '移除',
+                          });
+                          if (!ok) return;
                           dismissPendingGroup(g.id);
                           setGroups((prev) => prev.filter((item) => item.id !== g.id));
                           setPendingOnlyIds((prev) => {
@@ -291,28 +298,6 @@ export default function DiscoverPage() {
           </div>
         </>
       )}
-
-      <div className="section-row" style={{ marginTop: 18 }}>
-        <span>圣经知识</span>
-        <Link href="/search" className="muted">搜索 ›</Link>
-      </div>
-      <div className="rail discover-knowledge-rail" style={{ marginTop: 8 }}>
-        <Link href="/search/map" className="rail-card card card-2 discover-knowledge-card">
-          <span className="story-tour-badge">地图</span>
-          <strong>地理路线</strong>
-          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>出埃及 · 保罗旅程</p>
-        </Link>
-        <Link href="/search/timeline" className="rail-card card card-2 discover-knowledge-card">
-          <span className="story-tour-badge story-tour-badge-time">时间</span>
-          <strong>时间线专题</strong>
-          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>犹大诸王 · 耶稣生平</p>
-        </Link>
-        <Link href="/search/graph" className="rail-card card card-2 discover-knowledge-card">
-          <span className="story-tour-badge story-tour-badge-graph">关系</span>
-          <strong>人物关系图</strong>
-          <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>门徒 · 先祖 · 同工</p>
-        </Link>
-      </div>
 
       <div className="section-row" style={{ marginTop: 18 }}>
         <span>好友动态</span>

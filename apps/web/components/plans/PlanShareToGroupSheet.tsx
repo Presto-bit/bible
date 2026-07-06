@@ -1,6 +1,7 @@
 'use client';
 
 import { SheetCloseButton } from '@/components/PageBackBar';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, ensureAccountReady, type Group } from '@/lib/api';
@@ -26,6 +27,7 @@ export function PlanShareToGroupSheet({
   onClose,
   onBound,
 }: Props) {
+  const confirm = useConfirm();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -65,7 +67,12 @@ export function PlanShareToGroupSheet({
     const replace = g.plan_id
       ? `「${g.name}」已绑定其他计划，将替换为「${planTitle}」。继续？`
       : `将「${planTitle}」绑定到群「${g.name}」？`;
-    if (!window.confirm(replace)) return;
+    const ok = await confirm({
+      title: '绑定计划',
+      message: replace,
+      confirmLabel: '继续',
+    });
+    if (!ok) return;
     setBusyId(g.id);
     setErr(null);
     try {
@@ -82,7 +89,12 @@ export function PlanShareToGroupSheet({
   };
 
   const handleCreate = async () => {
-    if (!window.confirm(`将创建新共读群并绑定「${planTitle}」。继续？`)) return;
+    const ok = await confirm({
+      title: '新建共读群',
+      message: `将创建新共读群并绑定「${planTitle}」。继续？`,
+      confirmLabel: '继续',
+    });
+    if (!ok) return;
     setBusyId('__create__');
     setErr(null);
     try {

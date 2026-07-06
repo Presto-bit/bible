@@ -53,6 +53,7 @@ export default function HomePageClient() {
   const [verseFull, setVerseFull] = useState(false);
   const [devotional, setDevotional] = useState<DailyDevotional | null>(null);
   const [devotionalLoading, setDevotionalLoading] = useState(true);
+  const [devotionalErr, setDevotionalErr] = useState<string | null>(null);
   const [heroIllustration, setHeroIllustration] = useState<string | null>(null);
 
   const loadDailyVerse = useCallback(() => {
@@ -79,10 +80,16 @@ export default function HomePageClient() {
 
   const loadDailyDevotional = useCallback(() => {
     setDevotionalLoading(true);
+    setDevotionalErr(null);
     void api
       .dailyDevotional()
-      .then(setDevotional)
-      .catch(() => setDevotional(null))
+      .then((d) => {
+        setDevotional(d);
+      })
+      .catch((e) => {
+        setDevotional(null);
+        setDevotionalErr(errorMessage(e, '灵修内容加载失败'));
+      })
       .finally(() => setDevotionalLoading(false));
   }, []);
 
@@ -471,6 +478,13 @@ export default function HomePageClient() {
         </div>
       </div>
 
+      {devotionalErr && (
+        <ErrorBanner
+          message={devotionalErr}
+          onRetry={loadDailyDevotional}
+          onDismiss={() => setDevotionalErr(null)}
+        />
+      )}
       <DailyDevotionalCard data={devotional} loading={devotionalLoading} />
 
       <div style={{ marginTop: 18 }}>

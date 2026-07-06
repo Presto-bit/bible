@@ -11,6 +11,9 @@ export type QueuedCheckin = {
 
 const KEY = 'group_checkin_queue';
 
+export const CHECKIN_QUEUED_EVENT = 'presto-checkin-queued';
+export const CHECKIN_FLUSHED_EVENT = 'presto-checkin-flushed';
+
 function read(): QueuedCheckin[] {
   if (typeof window === 'undefined') return [];
   try {
@@ -36,6 +39,9 @@ export function queueCheckin(
     created_at: new Date().toISOString(),
   };
   write([...read(), item]);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CHECKIN_QUEUED_EVENT, { detail: { gid } }));
+  }
   return item;
 }
 
@@ -60,5 +66,8 @@ export async function flushCheckinQueue(): Promise<number> {
     }
   }
   write(remain);
+  if (sent > 0 && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(CHECKIN_FLUSHED_EVENT, { detail: { sent } }));
+  }
   return sent;
 }

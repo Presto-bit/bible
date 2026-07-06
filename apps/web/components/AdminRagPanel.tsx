@@ -13,7 +13,9 @@ import {
   indexRagCollections,
   indexUploadFile,
   RAG_SOURCE_TYPES,
+  ragSourceTypeLabel,
   reindexRagDocument,
+  renameRagDocument,
   uploadRagDocument,
   type RagInventory,
   type RagInventoryCollection,
@@ -39,6 +41,26 @@ const STATUS_LABELS: Record<RagInventoryStatus, string> = {
 };
 
 type StatusFilter = 'all' | RagInventoryStatus;
+type TypeFilter = 'all' | string;
+
+function docRowKey(collectionId: string, doc: RagInventoryDoc): string {
+  return doc.document_id ?? `${collectionId}:${doc.file}`;
+}
+
+function docSourceType(doc: RagInventoryDoc, collectionType: string): string {
+  return doc.source_type || collectionType;
+}
+
+function matchesFilters(
+  doc: RagInventoryDoc,
+  collectionType: string,
+  statusFilter: StatusFilter,
+  typeFilter: TypeFilter,
+): boolean {
+  if (typeFilter !== 'all' && docSourceType(doc, collectionType) !== typeFilter) return false;
+  if (statusFilter === 'all') return true;
+  return doc.inventory_status === statusFilter;
+}
 
 function InventoryStatusBadge({ status }: { status: RagInventoryStatus }) {
   return (
@@ -68,28 +90,36 @@ function SummaryCard({
 function CollectionBlock({
   collection,
   filter,
+  typeFilter,
   busy,
+  selected,
+  onToggle,
   onDelete,
   onReindex,
+  onRename,
   onIndexFile,
   onIndexPending,
 }: {
   collection: RagInventoryCollection;
   filter: StatusFilter;
+  typeFilter: TypeFilter;
   busy: boolean;
+  selected: Set<string>;
+  onToggle: (key: string, on: boolean) => void;
   onDelete: (id: string, title: string) => void;
   onReindex: (id: string) => void;
+  onRename: (id: string, title: string) => void;
   onIndexFile?: (doc: RagInventoryDoc, sourceType: string) => void;
   onIndexPending?: (sourceType: string, pendingCount: number) => void;
 }) {
   const [open, setOpen] = useState(collection.counts.pending > 0 || collection.counts.failed > 0);
 
   const docs = useMemo(() => {
-    if (filter === 'all') return collection.documents;
-    return collection.documents.filter((d) => d.inventory_status === filter);
-  }, [collection.documents, filter]);
+    return collection.documents.filter((d) => matchesFilters(d, collection.source_type, filter, typeFilter));
+  }, [collection.documents, collection.source_type, filter, typeFilter]);
 
-  if (!docs.length && filter !== 'all') return null;
+  if (!docs.length && filter === 'all' && typeFilter === 'all') return null;
+  if (!docs.length && (filter !== 'all' || typeFilter !== 'all')) return null;
 
   const c = collection.counts;
   const metaHint = collection.import_meta
@@ -154,12 +184,16 @@ function CollectionBlock({
             docs.map((d) => (
               <DocRow
                 key={`${collection.id}-${d.file}`}
+                rowKey={docRowKey(collection.id, d)}
                 doc={d}
                 sourceType={collection.source_type}
                 busy={busy}
+                checked={selected.has(docRowKey(collection.id, d))}
+                onToggle={onToggle}
                 canIndexFile={collection.id === 'uploads'}
                 onDelete={onDelete}
                 onReindex={onReindex}
+                onRename={onRename}
                 onIndexFile={onIndexFile}
               />
             ))
@@ -171,27 +205,44 @@ function CollectionBlock({
 }
 
 function DocRow({
+  rowKey,
   doc,
   sourceType,
   busy,
+  checked,
+  onToggle,
   canIndexFile,
   onDelete,
   onReindex,
+  onRename,
   onIndexFile,
 }: {
+  rowKey: string;
   doc: RagInventoryDoc;
   sourceType: string;
   busy: boolean;
+  checked: boolean;
+  onToggle: (key: string, on: boolean) => void;
   canIndexFile?: boolean;
   onDelete: (id: string, title: string) => void;
   onReindex: (id: string) => void;
+  onRename: (id: string, title: string) => void;
   onIndexFile?: (doc: RagInventoryDoc, sourceType: string) => void;
 }) {
   const needsIndex = doc.inventory_status === 'pending' || doc.inventory_status === 'failed';
+  const typeLabel = ragSourceTypeLabel(doc.source_type || sourceType);
   return (
     <div className="card card-2 admin-rag-doc-item">
       <div className="admin-rag-doc-item-head">
-        <strong style={{ fontSize: 14 }}>{doc.title}</strong>
+        <label className="admin-rag-doc-check">
+          <input
+            type="checkbox"
+            checked={checked}
+            disabled={busy}
+            onChange={(e) => onToggle(rowKey, e.target.checked)}
+          />
+        </label>
+        <strong style={{ fontSize: 14, flex: 1 }}>{doc.title}</strong>
         <InventoryStatusBadge status={doc.inventory_status} />
       </div>
       <p className="muted" style={{ margin: '4px 0', fontSize: 12 }}>
@@ -201,7 +252,7 @@ function DocRow({
         {doc.rag_index_at ? ` · ${new Date(doc.rag_index_at).toLocaleString()}` : ''}
       </p>
       <p className="muted" style={{ margin: 0, fontSize: 11 }}>
-        {doc.source_type || sourceType}
+        <span className="admin-rag-type-pill">{typeLabel}</span>
         {doc.db_status ? ` · DB:${doc.db_status}` : ''}
       </p>
       {doc.rag_index_error ? (
@@ -215,7 +266,15 @@ function DocRow({
             disabled={busy}
             onClick={() => onReindex(doc.document_id!)}
           >
-            重新向量化
+            重新索引
+          </button>
+          <button
+            type="button"
+            className="font-pill"
+            disabled={busy}
+            onClick={() => onRename(doc.document_id!, doc.title)}
+          >
+            改名
           </button>
           <button
             type="button"
@@ -259,6 +318,8 @@ export default function AdminRagPanel({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState<StatusFilter>('all');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
 
   const [title, setTitle] = useState('');
   const [bookId, setBookId] = useState('');
@@ -423,6 +484,152 @@ export default function AdminRagPanel({
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : '重建失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleRename = async (id: string, currentTitle: string) => {
+    const next = window.prompt('新标题', currentTitle);
+    if (!next || next.trim() === currentTitle) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await renameRagDocument(id, next.trim());
+      setUploadOk('已改名');
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '改名失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const visibleRows = useMemo(() => {
+    if (!inventory) return [] as { key: string; doc: RagInventoryDoc; collectionId: string; collectionType: string }[];
+    const rows: { key: string; doc: RagInventoryDoc; collectionId: string; collectionType: string }[] = [];
+    for (const coll of inventory.collections) {
+      for (const doc of coll.documents) {
+        if (!matchesFilters(doc, coll.source_type, filter, typeFilter)) continue;
+        rows.push({
+          key: docRowKey(coll.id, doc),
+          doc,
+          collectionId: coll.id,
+          collectionType: coll.source_type,
+        });
+      }
+    }
+    if (filter === 'all' || filter === 'orphan') {
+      for (const doc of inventory.orphans) {
+        if (typeFilter !== 'all' && doc.source_type !== typeFilter) continue;
+        rows.push({
+          key: `orphan:${doc.id}`,
+          doc: {
+            file: doc.source_path?.split('/').pop() ?? doc.id,
+            filename: doc.source_path?.split('/').pop() ?? doc.id,
+            inventory_status: 'orphan',
+            inventory_label: '仅数据库',
+            document_id: doc.id,
+            title: doc.title,
+            chunks: doc.chunks,
+            source_type: doc.source_type,
+            rag_index_at: doc.rag_index_at,
+            rag_index_error: doc.rag_index_error,
+            db_status: doc.status,
+          },
+          collectionId: 'orphans',
+          collectionType: doc.source_type,
+        });
+      }
+    }
+    return rows;
+  }, [inventory, filter, typeFilter]);
+
+  const selectedRows = useMemo(
+    () => visibleRows.filter((r) => selected.has(r.key)),
+    [visibleRows, selected],
+  );
+
+  const toggleRow = useCallback((key: string, on: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const selectAllVisible = () => {
+    setSelected(new Set(visibleRows.map((r) => r.key)));
+  };
+
+  const invertSelection = () => {
+    setSelected((prev) => {
+      const next = new Set<string>();
+      for (const row of visibleRows) {
+        if (!prev.has(row.key)) next.add(row.key);
+      }
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelected(new Set());
+
+  const handleBulkReindex = async () => {
+    const ids = selectedRows
+      .map((r) => r.doc.document_id)
+      .filter((id): id is string => Boolean(id));
+    if (!ids.length) {
+      setErr('所选条目中没有可重新索引的文档');
+      return;
+    }
+    if (!window.confirm(`确定重新索引 ${ids.length} 篇资料？`)) return;
+    setBusy(true);
+    setErr(null);
+    let ok = 0;
+    let fail = 0;
+    try {
+      for (const id of ids) {
+        try {
+          await reindexRagDocument(id);
+          ok += 1;
+        } catch {
+          fail += 1;
+        }
+      }
+      setUploadOk(`批量重新索引完成：成功 ${ok}，失败 ${fail}`);
+      clearSelection();
+      await refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = selectedRows
+      .map((r) => ({ id: r.doc.document_id, title: r.doc.title }))
+      .filter((r): r is { id: string; title: string } => Boolean(r.id));
+    if (!ids.length) {
+      setErr('所选条目中没有可删除的文档');
+      return;
+    }
+    if (!window.confirm(`确定删除 ${ids.length} 篇资料？此操作不可恢复。`)) return;
+    setBusy(true);
+    setErr(null);
+    let ok = 0;
+    let fail = 0;
+    try {
+      for (const { id } of ids) {
+        try {
+          await deleteRagDocument(id);
+          ok += 1;
+        } catch {
+          fail += 1;
+        }
+      }
+      setUploadOk(`批量删除完成：成功 ${ok}，失败 ${fail}`);
+      clearSelection();
+      await refresh();
     } finally {
       setBusy(false);
     }
@@ -710,6 +917,43 @@ export default function AdminRagPanel({
           ))}
         </div>
 
+        <div className="admin-rag-filter-tabs admin-rag-type-tabs" role="tablist" style={{ marginTop: 6 }}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={typeFilter === 'all'}
+            className={`admin-rag-filter-tab ${typeFilter === 'all' ? 'is-active' : ''}`}
+            onClick={() => setTypeFilter('all')}
+          >
+            全部类型
+          </button>
+          {RAG_SOURCE_TYPES.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              role="tab"
+              aria-selected={typeFilter === t.id}
+              className={`admin-rag-filter-tab ${typeFilter === t.id ? 'is-active' : ''}`}
+              onClick={() => setTypeFilter(t.id)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {visibleRows.length > 0 ? (
+          <div className="admin-rag-bulk-bar">
+            <span className="muted" style={{ fontSize: 12 }}>
+              已选 {selected.size} / {visibleRows.length}
+            </span>
+            <button type="button" className="font-pill" disabled={busy} onClick={selectAllVisible}>全选</button>
+            <button type="button" className="font-pill" disabled={busy} onClick={invertSelection}>反选</button>
+            <button type="button" className="font-pill" disabled={busy || !selected.size} onClick={clearSelection}>取消</button>
+            <button type="button" className="font-pill" disabled={busy || !selected.size} onClick={() => void handleBulkReindex()}>批量重新索引</button>
+            <button type="button" className="font-pill" disabled={busy || !selected.size} onClick={() => void handleBulkDelete()}>批量删除</button>
+          </div>
+        ) : null}
+
         {!inventory ? (
           <p className="muted" style={{ fontSize: 13 }}>加载清单…</p>
         ) : inventory.collections.every((c) => c.file_count === 0) && inventory.orphans.length === 0 ? (
@@ -723,44 +967,60 @@ export default function AdminRagPanel({
                 key={coll.id}
                 collection={coll}
                 filter={filter}
+                typeFilter={typeFilter}
                 busy={busy}
+                selected={selected}
+                onToggle={toggleRow}
                 onDelete={handleDelete}
                 onReindex={handleReindex}
+                onRename={handleRename}
                 onIndexFile={handleIndexFile}
                 onIndexPending={handleIndexPending}
               />
             ))}
-            {inventory.orphans.length > 0 && (filter === 'all' || filter === 'orphan') ? (
+            {inventory.orphans.length > 0 && (filter === 'all' || filter === 'orphan') && (typeFilter === 'all' || inventory.orphans.some((d) => d.source_type === typeFilter)) ? (
               <div className="admin-rag-collection card card-2">
                 <div className="admin-rag-collection-head" style={{ cursor: 'default' }}>
                   <div>
                     <strong>仅数据库（源文件缺失）</strong>
                     <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-                      {inventory.orphans.length} 条记录找不到对应 md 文件
+                      {inventory.orphans.filter((d) => typeFilter === 'all' || d.source_type === typeFilter).length} 条记录找不到对应 md 文件
                     </p>
                   </div>
                 </div>
                 <div className="admin-rag-doc-list">
-                  {inventory.orphans.map((d) => (
-                    <div key={d.id} className="card card-2 admin-rag-doc-item">
-                      <div className="admin-rag-doc-item-head">
-                        <strong style={{ fontSize: 14 }}>{d.title}</strong>
-                        <InventoryStatusBadge status="orphan" />
-                      </div>
-                      <p className="muted" style={{ margin: '4px 0', fontSize: 12 }}>
-                        {d.source_type} · {d.chunks} 块
-                        {d.source_path ? ` · ${d.source_path.split('/').pop()}` : ''}
-                      </p>
-                      <div className="share-actions" style={{ marginTop: 8 }}>
-                        <button type="button" className="font-pill" disabled={busy} onClick={() => void handleReindex(d.id)}>
-                          重建索引
-                        </button>
-                        <button type="button" className="font-pill" disabled={busy} onClick={() => void handleDelete(d.id, d.title)}>
-                          删除
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                  {inventory.orphans
+                    .filter((d) => typeFilter === 'all' || d.source_type === typeFilter)
+                    .map((d) => {
+                      const doc: RagInventoryDoc = {
+                        file: d.source_path?.split('/').pop() ?? d.id,
+                        filename: d.source_path?.split('/').pop() ?? d.id,
+                        inventory_status: 'orphan',
+                        inventory_label: '仅数据库',
+                        document_id: d.id,
+                        title: d.title,
+                        chunks: d.chunks,
+                        source_type: d.source_type,
+                        rag_index_at: d.rag_index_at,
+                        rag_index_error: d.rag_index_error,
+                        db_status: d.status,
+                      };
+                      const key = `orphan:${d.id}`;
+                      return (
+                        <DocRow
+                          key={d.id}
+                          rowKey={key}
+                          doc={doc}
+                          sourceType={d.source_type}
+                          busy={busy}
+                          checked={selected.has(key)}
+                          onToggle={toggleRow}
+                          onDelete={handleDelete}
+                          onReindex={handleReindex}
+                          onRename={handleRename}
+                        />
+                      );
+                    })}
                 </div>
               </div>
             ) : null}

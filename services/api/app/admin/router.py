@@ -537,3 +537,28 @@ def admin_reindex_document(document_id: str, _phone: str = Depends(require_admin
         logger.exception("admin reindex failed")
         raise HTTPException(status_code=500, detail=f"重建索引失败：{exc}") from exc
     return {"ok": True, "index": result, "message": _format_index_message(result)}
+
+
+class RagRenameBody(BaseModel):
+    title: str
+
+
+@router.patch("/rag/documents/{document_id}")
+def admin_rename_document(
+    document_id: str,
+    body: RagRenameBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    title = (body.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="标题不能为空")
+    pool = get_pool()
+    with pool.connection() as conn:
+        row = conn.execute(
+            "UPDATE bible_documents SET title = %s, updated_at = NOW() WHERE id = %s::uuid RETURNING id, title",
+            (title, document_id),
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="资料不存在")
+        conn.commit()
+    return {"ok": True, "id": str(row[0]), "title": row[1]}

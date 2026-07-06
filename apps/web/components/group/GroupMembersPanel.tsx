@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { api, type GroupMember } from '@/lib/api';
 import { displayMemberName } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
@@ -32,6 +33,7 @@ export function GroupMembersPanel({
   variant = 'list',
   onChanged,
 }: Props) {
+  const confirm = useConfirm();
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -54,22 +56,40 @@ export function GroupMembersPanel({
     }
   };
 
-  const removeMember = (m: GroupMember) => {
-    if (!window.confirm(`确定将「${displayMemberName(m)}」移出群？`)) return;
+  const removeMember = async (m: GroupMember) => {
+    const ok = await confirm({
+      title: '移出成员',
+      message: `确定将「${displayMemberName(m)}」移出群？`,
+      confirmLabel: '移出',
+      danger: true,
+    });
+    if (!ok) return;
     void run(`rm-${m.user_id}`, async () => {
       await api.removeGroupMember(gid, m.user_id!);
     });
   };
 
-  const transferTo = (m: GroupMember) => {
-    if (!window.confirm(`确定将群主转让给「${displayMemberName(m)}」？转让后你将成为普通成员。`)) return;
+  const transferTo = async (m: GroupMember) => {
+    const ok = await confirm({
+      title: '转让群主',
+      message: `确定将群主转让给「${displayMemberName(m)}」？转让后你将成为普通成员。`,
+      confirmLabel: '转让',
+      danger: true,
+    });
+    if (!ok) return;
     void run(`xfer-${m.user_id}`, async () => {
       await api.transferGroup(gid, m.user_id!);
     });
   };
 
-  const leave = () => {
-    if (!window.confirm('确定退出此共读群？')) return;
+  const leave = async () => {
+    const ok = await confirm({
+      title: '退出共读群',
+      message: '确定退出此共读群？',
+      confirmLabel: '退出',
+      danger: true,
+    });
+    if (!ok) return;
     void run('leave', async () => {
       await api.removeGroupMember(gid, me!.user_id!);
       dismissPendingGroup(gid);

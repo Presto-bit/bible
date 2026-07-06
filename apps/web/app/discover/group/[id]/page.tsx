@@ -12,6 +12,7 @@ import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupTodayFocus } from '@/components/group/GroupTodayFocus';
 import { GroupToast } from '@/components/group/GroupToast';
+import ErrorBanner from '@/components/ErrorBanner';
 import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
@@ -150,7 +151,7 @@ function GroupPageInner() {
       setFeed((prev) => [...older, ...prev]);
       setHasMore(f.has_more);
     } catch {
-      /* ignore */
+      showToast(errorMessage(null, '加载更多失败，请稍后再试'));
     } finally {
       setLoadingMore(false);
     }
@@ -194,7 +195,7 @@ function GroupPageInner() {
   if (err) {
     return (
       <main className="container">
-        <p className="muted">{err}</p>
+        <ErrorBanner message={errorMessage(err, '群加载失败')} onRetry={() => void reload()} />
       </main>
     );
   }
@@ -218,7 +219,7 @@ function GroupPageInner() {
       recordGroupResponse();
       reload();
     } catch {
-      /* ignore */
+      showToast(errorMessage(null, '反应发送失败，请稍后再试'));
     }
   };
 

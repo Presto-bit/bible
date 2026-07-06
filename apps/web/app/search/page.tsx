@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
+import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { backLabelForHref, useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useRouter } from 'next/navigation';
 import {
@@ -120,6 +121,7 @@ export default function SearchPage() {
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const [entityHits, setEntityHits] = useState<DictEntity[]>([]);
   const [entityLoading, setEntityLoading] = useState(false);
+  const [searchRetry, setSearchRetry] = useState(0);
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -182,7 +184,7 @@ export default function SearchPage() {
         if (!cancelled) setHits(rows);
       })
       .catch((e) => {
-        if (!cancelled) setErr(String(e));
+        if (!cancelled) setErr(errorMessage(e, '搜索失败'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -190,7 +192,7 @@ export default function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [query, searchVersion]);
+  }, [query, searchVersion, searchRetry]);
 
   useEffect(() => {
     const q = query.trim();
@@ -289,8 +291,11 @@ export default function SearchPage() {
 
       {!hasQuery && (
         <section className="story-card-rail" style={{ marginTop: 14 }}>
-          <div className="story-card-grid story-card-grid-quad">
-            <Link href="/search/map" className="card card-2 story-tour-card story-entry-card">
+          <div className="section-row" style={{ marginBottom: 8 }}>
+            <span>专题</span>
+          </div>
+          <div className="story-entry-scroll rail">
+            <Link href="/search/map" className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge">地图故事</span>
               <strong className="story-tour-title">圣经地理路线</strong>
               <p className="muted story-tour-meta">
@@ -302,21 +307,21 @@ export default function SearchPage() {
               <span className="story-tour-toggle">查看详情 ›</span>
             </Link>
 
-            <Link href="/search/diagrams" className="card card-2 story-tour-card story-entry-card">
+            <Link href="/search/diagrams" className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge story-tour-badge-diagram">图鉴馆</span>
               <strong className="story-tour-title">会幕与约柜</strong>
               <p className="muted story-tour-meta">示意图 · 可点热区</p>
               <span className="story-tour-toggle">查看图鉴 ›</span>
             </Link>
 
-            <Link href="/search/graph" className="card card-2 story-tour-card story-entry-card">
+            <Link href="/search/graph" className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge story-tour-badge-graph">关系专题</span>
               <strong className="story-tour-title">人物关系图</strong>
               <p className="muted story-tour-meta">出埃及 · 门徒 · 先祖</p>
               <span className="story-tour-toggle">查看专题 ›</span>
             </Link>
 
-            <Link href="/search/timeline" className="card card-2 story-tour-card story-entry-card">
+            <Link href="/search/timeline" className="rail-card card card-2 story-tour-card story-entry-card">
               <span className="story-tour-badge story-tour-badge-time">时间故事</span>
               <strong className="story-tour-title">时间线专题</strong>
               <p className="muted story-tour-meta">
@@ -412,7 +417,13 @@ export default function SearchPage() {
             {!loading && hits.length > 0 ? ` · ${displayHits.length}/${hits.length}` : ''}
           </p>
           {loading && <p className="muted">搜索中…</p>}
-          {err && <p className="muted">搜索失败：{err}</p>}
+          {err && (
+            <ErrorBanner
+              message={err}
+              onRetry={() => setSearchRetry((n) => n + 1)}
+              onDismiss={() => setErr(null)}
+            />
+          )}
           {!loading && !err && displayHits.length === 0 && (
             <p className="muted">
               {hits.length > 0 ? '当前约别下无匹配经文' : '未找到匹配经文'}

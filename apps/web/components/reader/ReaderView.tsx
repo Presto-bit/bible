@@ -9,6 +9,7 @@ import {
   type Verse,
 } from '@/lib/api';
 import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
+import { useToast } from '@/components/ui/ToastProvider';
 import PageBackBar from '@/components/PageBackBar';
 import SummarySheet from '@/components/reader/SummarySheet';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
@@ -180,6 +181,7 @@ export default function ReaderView({
   flashRef?: string | null;
   checkinGroupId?: string | null;
 }) {
+  const flashToast = useToast();
   const [verses, setVerses] = useState<Verse[]>([]);
   /** 中文和合本结构，用于段落断点（KJV 单栏/对照时与中文段落对齐）。 */
   const [layoutVerses, setLayoutVerses] = useState<Verse[]>([]);
@@ -192,7 +194,6 @@ export default function ReaderView({
   const [checkedVers, setCheckedVers] = useState<string[]>(['cnv']);
   const [versions, setVersions] = useState<BibleVersion[] | null>(null);
   const [chromeHidden, setChromeHidden] = useState(false);
-  const [toast, setToast] = useState('');
   const [theme, setTheme] = useState<ReaderTheme>('morning');
   const [verseNo, setVerseNo] = useState<VerseNumberMode>('inline');
   const [layout, setLayout] = useState<ReadingLayout>('single');
@@ -713,11 +714,6 @@ export default function ReaderView({
   const englishUI = mainVersionId === 'kjv';
   const ui = readerUi(englishUI);
 
-  const flashToast = (m: string) => {
-    setToast(m);
-    setTimeout(() => setToast(''), 1800);
-  };
-
   const applyMarkChoice = useCallback((color: HighlightColor) => {
     if (!underlinesOn) {
       setUnderlinesOn(true);
@@ -726,14 +722,14 @@ export default function ReaderView({
     const added = pickHighlightColor(book.id, chapter, sortedSel, color, selectionSpan);
     setHighlightMap(getHighlightMap());
     flashToast(added ? '已划线' : '已取消划线');
-  }, [book.id, chapter, sortedSel, selectionSpan, underlinesOn]);
+  }, [book.id, chapter, sortedSel, selectionSpan, underlinesOn, flashToast]);
 
   const clearMark = useCallback(() => {
     const ok = clearHighlightForSelection(book.id, chapter, sortedSel, selectionSpan);
     if (!ok) return;
     setHighlightMap(getHighlightMap());
     flashToast('已取消划线');
-  }, [book.id, chapter, sortedSel, selectionSpan]);
+  }, [book.id, chapter, sortedSel, selectionSpan, flashToast]);
 
   const scrollToChapterStart = useCallback(() => {
     requestAnimationFrame(() => {
@@ -2061,8 +2057,6 @@ export default function ReaderView({
           onClose={() => setThoughtListSheet(null)}
         />
       )}
-
-      {toast && <div className="reader-toast">{toast}</div>}
 
       {showSettings && (
         <div className="sheet-backdrop" onClick={() => setShowSettings(false)}>

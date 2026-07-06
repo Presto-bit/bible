@@ -11,6 +11,7 @@ import {
 } from '@/lib/offline_pack';
 import { offlineAutoDownloadDone } from '@/lib/offline_bootstrap';
 import { resetLocalBibleDb } from '@/lib/bible_local';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 function formatBytes(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
@@ -18,6 +19,7 @@ function formatBytes(n: number): string {
 }
 
 export function OfflineBibleCard() {
+  const confirm = useConfirm();
   const [ready, setReady] = useState(false);
   const [meta, setMeta] = useState<OfflinePackMeta | null>(null);
   const [busy, setBusy] = useState(false);
@@ -49,7 +51,13 @@ export function OfflineBibleCard() {
   };
 
   const onClear = async () => {
-    if (!window.confirm('确定清除离线经库？清除后需重新下载才能离线阅读。')) return;
+    const ok = await confirm({
+      title: '清除离线经库',
+      message: '确定清除离线经库？清除后需重新下载才能离线阅读。',
+      confirmLabel: '清除',
+      danger: true,
+    });
+    if (!ok) return;
     await clearOfflinePack();
     resetLocalBibleDb();
     localStorage.removeItem('presto_offline_auto_done');

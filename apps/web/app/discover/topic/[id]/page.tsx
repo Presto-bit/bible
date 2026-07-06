@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { topicById, type LifeTopic } from '@/lib/discover_topics';
 import { topicColor } from '@/lib/topics_display';
 import { AssistantLink } from '@/components/AssistantLink';
+import { topicQuestion } from '@/lib/assistant_prefill';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -146,6 +147,15 @@ export default function TopicPage() {
             本 App 不能替代牧养咨询；若你正经历严重情绪困扰，请寻求身边可信的牧者或专业帮助。
           </p>
         )}
+        <div className="share-actions" style={{ marginTop: 12 }}>
+          <AssistantLink
+            className="font-pill accent"
+            question={topicQuestion(topic.title)}
+            surface="topic"
+          >
+            问小爱关于本主题
+          </AssistantLink>
+        </div>
       </div>
 
       <div className="section-row" style={{ marginTop: 16 }}>
@@ -168,7 +178,11 @@ export default function TopicPage() {
             </button>
             <p style={{ lineHeight: 1.6 }}>{v.text}</p>
             <div className="share-actions">
-              <AssistantLink className="font-pill" refParam={v.ref} excerpt={v.text}>
+              <AssistantLink
+                className="font-pill"
+                question={topicQuestion(topic.title, formatGroupRefLabel(v.ref) ?? v.ref, v.text)}
+                surface="topic"
+              >
                 问小爱
               </AssistantLink>
               {href && (

@@ -118,7 +118,13 @@ export const RAG_SOURCE_TYPES = [
   { id: 'study-bible', label: '研经资料' },
   { id: 'study-bible-zh', label: '中文自有资料' },
   { id: 'reference-en', label: '英文参考词典' },
+  { id: 'mixed', label: '混合/上传' },
 ] as const;
+
+export function ragSourceTypeLabel(id?: string | null): string {
+  if (!id) return '未知';
+  return RAG_SOURCE_TYPES.find((t) => t.id === id)?.label ?? id;
+}
 
 function adminHeaders(): HeadersInit {
   const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
@@ -482,4 +488,13 @@ export async function reindexRagDocument(id: string): Promise<string> {
   if (!res.ok) throw new Error(await readApiError(res, '重建索引失败'));
   const data = (await res.json()) as { message?: string };
   return data.message ?? '重建索引完成';
+}
+
+export async function renameRagDocument(id: string, title: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/admin/rag/documents/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: title.trim() }),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '改名失败'));
 }

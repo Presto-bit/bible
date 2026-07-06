@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
+import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
 import { createNote } from '@/lib/notes';
 import {
@@ -90,6 +91,7 @@ function isNearBottom(el: HTMLElement, threshold = SCROLL_NEAR_BOTTOM_PX): boole
 }
 
 function AssistantPageInner() {
+  const flashToast = useToast();
   const [mode, setMode] = useState('understand');
   const [ref, setRef] = useState('');
   const [input, setInput] = useState('');
@@ -112,7 +114,6 @@ function AssistantPageInner() {
   /** 发送后默认锁滚（阅读优先）；用户滑到底或点「跟随」后解锁 */
   const streamFollowLockedRef = useRef(false);
 
-  const [toast, setToast] = useState('');
   const personalized = useMemo(
     () =>
       personalizedAssistantChips({
@@ -161,10 +162,6 @@ function AssistantPageInner() {
     adjustInputHeight();
   }, [input]);
 
-  const flashToast = (t: string) => {
-    setToast(t);
-    setTimeout(() => setToast(''), 1800);
-  };
   const copyText = async (t: string) => {
     try {
       await navigator.clipboard.writeText(stripFollowups(t));
@@ -930,7 +927,6 @@ function AssistantPageInner() {
         </div>
       )}
 
-      {toast && <div className="toast">{toast}</div>}
     </main>
   );
 }

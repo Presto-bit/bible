@@ -8,6 +8,7 @@ import StaleShellGuard from '@/components/StaleShellGuard';
 import InstallBanner from '@/components/InstallPwaGuide';
 import IdentityShell from '@/components/IdentityShell';
 import { ConfirmProvider } from '@/components/ui/ConfirmProvider';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 import { PasswordSheetProvider } from '@/components/ui/PasswordSheetProvider';
 import OfflineBar from '@/components/OfflineBar';
 import WebOnboardingSheet from '@/components/WebOnboardingSheet';
@@ -48,8 +49,6 @@ export const viewport: Viewport = {
   themeColor: PWA_BG_COLOR,
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: 'cover',
 };
 
@@ -60,9 +59,12 @@ export default function RootLayout({
 }) {
   const base = BASE_PATH || '';
 
+  const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
+
   return (
     <html lang="zh-CN" style={{ backgroundColor: PWA_BG_COLOR }}>
       <head>
+        <meta name="app-version" content={appVersion} />
         {IOS_STARTUP_IMAGES.map(({ file, media }) => (
           <link
             key={file}
@@ -79,6 +81,7 @@ export default function RootLayout({
           每日问答
         </span>
         <ConfirmProvider>
+          <ToastProvider>
           <PasswordSheetProvider>
             <IdentityShell>
               <AppThemeShell />
@@ -92,6 +95,7 @@ export default function RootLayout({
               <WebOnboardingSheet />
             </IdentityShell>
           </PasswordSheetProvider>
+          </ToastProvider>
         </ConfirmProvider>
       </body>
     </html>
