@@ -2584,14 +2584,14 @@ body.assistant-active .app-body {
 }
 
 .assistant-msg-user {
-  text-align: left;
+  text-align: right;
 }
 
-.assistant-user-row {
+.assistant-user-block {
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
   width: 100%;
 }
 
@@ -2600,7 +2600,6 @@ body.assistant-active .app-body {
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
-  padding-top: 13px;
   color: var(--ink-faint);
 }
 
@@ -2612,7 +2611,7 @@ body.assistant-active .app-body {
   text-align: left;
   display: inline-block;
   width: auto;
-  max-width: calc(100% - 28px);
+  max-width: 100%;
   box-sizing: border-box;
   margin: 0;
   padding: 12px 14px;
