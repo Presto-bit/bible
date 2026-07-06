@@ -110,6 +110,7 @@ export default function DiscoverPage() {
         groups={groups}
         pendingOnlyIds={pendingOnlyIds}
         coldStart={coldStart}
+        shares={shares}
       />
 
       <GroupInviteInbox onChanged={() => void reload()} />

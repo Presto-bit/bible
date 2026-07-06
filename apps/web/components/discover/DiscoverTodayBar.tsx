@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import type { DiscoverSummary, Group } from '@/lib/api';
+import type { DiscoverSummary, FriendActivity, Group } from '@/lib/api';
+import { friendDisplayName } from '@/lib/friend_label';
+import { FriendAvatar } from '@/components/discover/FriendAvatar';
 
 function firstPendingGroup(
   groups: Group[],
@@ -21,17 +23,101 @@ function firstPendingGroup(
   );
 }
 
+function todayCheckinFriends(shares: FriendActivity[]): FriendActivity[] {
+  const seen = new Set<string>();
+  const out: FriendActivity[] = [];
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  for (const item of shares) {
+    if (item.source === 'share') continue;
+    if (new Date(item.created_at) < todayStart) continue;
+    const key = item.author_id || item.author;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+    if (out.length >= 3) break;
+  }
+  return out;
+}
+
+function FriendCheckinStrip({
+  count,
+  friends,
+  compact = false,
+  standalone = false,
+}: {
+  count: number;
+  friends: FriendActivity[];
+  compact?: boolean;
+  standalone?: boolean;
+}) {
+  if (count <= 0) return null;
+  const names = friends
+    .map((f) => friendDisplayName({ user_id: f.author_id ?? '', display_name: f.author }))
+    .filter(Boolean);
+  const nameHint = names.length > 0
+    ? names.length >= 2
+      ? `${names[0]}、${names[1]}${count > 2 ? ' 等' : ''}`
+      : names[0]
+    : null;
+
+  const className = [
+    'discover-today-friends',
+    compact ? 'discover-today-friends--compact' : '',
+    standalone ? 'discover-today-friends--standalone' : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <Link href="#discover-feed" className={className}>
+      {friends.length > 0 && (
+        <span className="discover-today-avatar-stack" aria-hidden>
+          {friends.map((f) => (
+            <FriendAvatar
+              key={f.author_id || f.author}
+              friend={{
+                user_id: f.author_id ?? '',
+                display_name: f.author,
+                author_avatar_id: f.author_avatar_id,
+              }}
+              size={compact ? 24 : 28}
+            />
+          ))}
+        </span>
+      )}
+      <span className="discover-today-friends-text">
+        {nameHint ? (
+          <>
+            <strong>{nameHint}</strong>
+            <span className="muted"> 今日已打卡</span>
+          </>
+        ) : (
+          <span>今天 {count} 位好友已打卡</span>
+        )}
+      </span>
+      <span className="discover-today-friends-chevron muted" aria-hidden>›</span>
+    </Link>
+  );
+}
+
 type Props = {
   summary: DiscoverSummary | null;
   groups: Group[];
   pendingOnlyIds: Set<string>;
   coldStart: boolean;
+  shares?: FriendActivity[];
 };
 
-export function DiscoverTodayBar({ summary, groups, pendingOnlyIds, coldStart }: Props) {
+export function DiscoverTodayBar({
+  summary,
+  groups,
+  pendingOnlyIds,
+  coldStart,
+  shares = [],
+}: Props) {
   if (coldStart) return null;
 
   const realGroups = groups.filter((g) => !pendingOnlyIds.has(g.id));
+  const checkinFriends = todayCheckinFriends(shares);
 
   if (!summary) {
     return (
@@ -56,10 +142,11 @@ export function DiscoverTodayBar({ summary, groups, pendingOnlyIds, coldStart }:
     const actionHref = `/discover/group/${pendingGroup.id}?focus=checkin`;
 
     return (
-      <article className="card card-2 discover-today discover-today--action">
+      <article className={`card card-2 discover-today discover-today--action${needsCheckin ? ' discover-today--urgent' : ''}`}>
+        <div className="discover-today-glow" aria-hidden />
         <div className="discover-today-row">
           <div
-            className="discover-today-ring"
+            className={`discover-today-ring${needsCheckin ? ' discover-today-ring--pulse' : ''}`}
             style={{
               background: `conic-gradient(var(--accent-deep) ${ringPct * 3.6}deg, var(--line) 0deg)`,
             }}
@@ -90,28 +177,43 @@ export function DiscoverTodayBar({ summary, groups, pendingOnlyIds, coldStart }:
                 {pendingTasks} 个群有任务待完成
               </p>
             )}
-            {friendsChecked > 0 && (
-              <p className="discover-today-secondary muted">
-                今天 {friendsChecked} 位好友已打卡
-              </p>
-            )}
           </div>
           <Link href={actionHref} className="font-pill accent discover-today-cta">
             {needsCheckin ? '去打卡' : '去完成'}
           </Link>
         </div>
+        <FriendCheckinStrip count={friendsChecked} friends={checkinFriends} />
       </article>
     );
   }
 
   if (realGroups.length > 0) {
-    const doneLine = friendsChecked > 0
-      ? `今日功课已完成 ✓ · ${friendsChecked} 位好友已打卡`
-      : '今日功课已完成 ✓';
     return (
-      <Link href="#discover-feed" className="discover-today discover-today--done">
+      <Link href="#discover-feed" className="discover-today discover-today--done discover-today--done-gold">
         <span className="discover-today-done-icon" aria-hidden>✓</span>
-        <span>{doneLine}</span>
+        <span className="discover-today-done-main">
+          <span className="discover-today-done-title">今日功课已完成</span>
+          {friendsChecked > 0 && (
+            <span className="discover-today-done-sub muted">
+              {friendsChecked} 位好友也在打卡
+            </span>
+          )}
+        </span>
+        {friendsChecked > 0 && checkinFriends.length > 0 && (
+          <span className="discover-today-avatar-stack discover-today-avatar-stack--inline" aria-hidden>
+            {checkinFriends.map((f) => (
+              <FriendAvatar
+                key={f.author_id || f.author}
+                friend={{
+                  user_id: f.author_id ?? '',
+                  display_name: f.author,
+                  author_avatar_id: f.author_avatar_id,
+                }}
+                size={26}
+              />
+            ))}
+          </span>
+        )}
         <span className="discover-today-done-chevron muted">›</span>
       </Link>
     );
@@ -119,10 +221,12 @@ export function DiscoverTodayBar({ summary, groups, pendingOnlyIds, coldStart }:
 
   if (friendsChecked > 0) {
     return (
-      <Link href="#discover-feed" className="discover-today discover-today--done">
-        <span>今天 {friendsChecked} 位好友已打卡</span>
-        <span className="discover-today-done-chevron muted">›</span>
-      </Link>
+      <FriendCheckinStrip
+        count={friendsChecked}
+        friends={checkinFriends}
+        compact
+        standalone
+      />
     );
   }
 

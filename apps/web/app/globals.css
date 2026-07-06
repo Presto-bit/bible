@@ -1809,6 +1809,24 @@ html:not([data-app-theme]) .card {
   margin-bottom: 0;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .discover-today--action,
+  .discover-today--done-gold {
+    animation: discover-today-in 0.45s ease both;
+  }
+}
+
+@keyframes discover-today-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .discover-today--loading {
   padding: 16px;
 }
@@ -1823,24 +1841,75 @@ html:not([data-app-theme]) .card {
 }
 
 .discover-today--action {
-  padding: 14px 16px;
+  position: relative;
+  overflow: hidden;
+  padding: 16px 16px 0;
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 24%, var(--line));
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent-deep) 14%, var(--surface)) 0%,
+    var(--surface) 52%,
+    color-mix(in srgb, var(--dawn-gold) 10%, var(--surface)) 100%
+  );
+  box-shadow:
+    0 4px 22px rgba(74, 107, 82, 0.1),
+    var(--elev-2),
+    var(--hi);
+}
+
+.discover-today--urgent {
+  border-color: color-mix(in srgb, var(--accent-deep) 38%, var(--line));
+}
+
+.discover-today-glow {
+  position: absolute;
+  top: -48px;
+  right: -36px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--accent-deep) 22%, transparent) 0%,
+    transparent 68%
+  );
+  pointer-events: none;
 }
 
 .discover-today-row {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  padding-bottom: 14px;
 }
 
 .discover-today-ring {
   flex-shrink: 0;
-  width: 44px;
-  height: 44px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 3px;
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-deep) 18%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .discover-today-ring--pulse {
+    animation: discover-today-ring-pulse 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes discover-today-ring-pulse {
+  0%, 100% {
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--accent-deep) 18%, transparent);
+  }
+  50% {
+    box-shadow: 0 2px 16px color-mix(in srgb, var(--accent-deep) 32%, transparent);
+  }
 }
 
 .discover-today-ring-inner {
@@ -1864,15 +1933,14 @@ html:not([data-app-theme]) .card {
 .discover-today-label {
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-  margin-bottom: 4px;
+  letter-spacing: 0.06em;
+  color: var(--accent-deep);
+  margin-bottom: 5px;
 }
 
 .discover-today-primary {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.45;
   color: var(--ink);
 }
@@ -1882,7 +1950,7 @@ html:not([data-app-theme]) .card {
 }
 
 .discover-today-secondary {
-  margin: 4px 0 0;
+  margin: 5px 0 0;
   font-size: 12px;
   line-height: 1.45;
 }
@@ -1892,14 +1960,83 @@ html:not([data-app-theme]) .card {
   align-self: center;
   text-decoration: none;
   white-space: nowrap;
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--accent-deep) 28%, transparent);
+}
+
+.discover-today-friends {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0 14px;
+  margin-top: 0;
+  border-top: 1px solid color-mix(in srgb, var(--accent-deep) 12%, var(--line));
+  text-decoration: none;
+  color: inherit;
+}
+
+.discover-today-friends--compact {
+  padding: 0;
+  border-top: none;
+}
+
+.discover-today-friends--standalone {
+  margin-bottom: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--dawn-gold) 40%, var(--line));
+  background: linear-gradient(
+    120deg,
+    var(--gold-wash) 0%,
+    color-mix(in srgb, var(--accent-deep) 8%, var(--surface)) 100%
+  );
+  box-shadow: 0 2px 14px rgba(212, 160, 86, 0.12);
+}
+
+.discover-today-friends-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.discover-today-friends-text strong {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.discover-today-friends-chevron {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.discover-today-avatar-stack {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.discover-today-avatar-stack .friend-avatar {
+  margin-left: -9px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.discover-today-avatar-stack .friend-avatar:first-child {
+  margin-left: 0;
+}
+
+.discover-today-avatar-stack--inline {
+  margin-right: 2px;
 }
 
 .discover-today--done {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 11px 14px;
-  border-radius: 12px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
   text-decoration: none;
   color: var(--ink-soft);
   font-size: 13px;
@@ -1909,22 +2046,52 @@ html:not([data-app-theme]) .card {
   border: 1px solid color-mix(in srgb, var(--accent-deep) 18%, var(--line));
 }
 
+.discover-today--done-gold {
+  background: linear-gradient(
+    120deg,
+    var(--gold-wash) 0%,
+    color-mix(in srgb, var(--accent-deep) 8%, var(--surface)) 100%
+  );
+  border-color: color-mix(in srgb, var(--dawn-gold) 40%, var(--line));
+  box-shadow: 0 2px 14px rgba(212, 160, 86, 0.12);
+}
+
 .discover-today--done:active {
   opacity: 0.88;
 }
 
+.discover-today-done-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.discover-today-done-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.discover-today-done-sub {
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .discover-today-done-icon {
   flex-shrink: 0;
-  width: 20px;
-  height: 20px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--accent-deep);
-  background: color-mix(in srgb, var(--accent-deep) 14%, var(--surface));
+  background: color-mix(in srgb, var(--accent-deep) 16%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-deep) 22%, transparent);
 }
 
 .discover-today-done-chevron {
