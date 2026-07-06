@@ -1,33 +1,30 @@
 'use client';
 
 import type { Verse } from '@/lib/api';
+import { SectionTitle } from '@/components/reader/SectionTitle';
+import type { SectionMark } from '@/lib/section_titles';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import type { VerseNumberMode } from '@/lib/reader_settings';
 
 type Props = {
   bookId: string;
-  bookName: string;
-  bookAbbr: (name: string) => string;
   chapter: number;
   verses: Verse[] | null;
+  outline: SectionMark[];
   englishUI: boolean;
-  fontPx: number;
-  fontFamilyCss: string;
   verseNo: VerseNumberMode;
-  hideHead?: boolean;
+  verseBlockStyle: React.CSSProperties;
 };
 
+/** 跟手翻页邻章预览：版式与正式正文一致（含段落标题），无划词/笔记等交互。 */
 export default function ReaderChapterPeek({
   bookId,
-  bookName,
-  bookAbbr,
   chapter,
   verses,
+  outline,
   englishUI,
-  fontPx,
-  fontFamilyCss,
   verseNo,
-  hideHead = false,
+  verseBlockStyle,
 }: Props) {
   if (chapter < 1 || !verses?.length) {
     return (
@@ -38,37 +35,35 @@ export default function ReaderChapterPeek({
   }
 
   const poetry = isPoetryBook(bookId);
-  const paragraphs = groupVersesIntoParagraphs(bookId, verses);
+  const paragraphs = groupVersesIntoParagraphs(
+    bookId,
+    verses.map((v) => ({ verse: v.verse, text: v.text })),
+    outline.map((s) => s.verse),
+  );
 
   return (
-    <div
-      className={`reader-turn-peek ${poetry ? 'reader-poetry' : 'reader-prose'}`}
-      style={{ fontSize: fontPx, fontFamily: fontFamilyCss }}
-    >
-      {!hideHead && (
-        <div className="reader-chapter-head">
-          <span className="reader-head-link">{bookName}</span>
-          <span className="reader-head-sep">·</span>
-          <span className="reader-head-link reader-head-chapter">
-            {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
-          </span>
-        </div>
-      )}
-      {paragraphs.map((para) => (
-        <div key={para.startVerse} className="verse-paragraph">
-          {para.verses.map((v) => (
-            <span key={v.verse} className="verse-inline verse-token">
-              {verseNo !== 'hidden' && (
-                <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-              )}
-              {v.text}{' '}
-            </span>
-          ))}
-        </div>
-      ))}
-      <p className="reader-turn-peek-hint muted">
-        {englishUI ? `${bookAbbr(bookName)} ${chapter}` : `${bookAbbr(bookName)} ${chapter} 章`}
-      </p>
+    <div className={`reader-turn-peek ${poetry ? 'reader-poetry' : 'reader-prose'}`}>
+      {paragraphs.map((para) => {
+        const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
+        const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
+        return (
+          <div key={para.startVerse}>
+            {firstMark && firstMark.verse === para.startVerse && (
+              <SectionTitle title={firstMark.title} onRefClick={() => {}} />
+            )}
+            <div className={`verse-paragraph verse-no-${verseNo}`} style={verseBlockStyle}>
+              {para.verses.map((v) => (
+                <span key={v.verse} className="verse-inline verse-token">
+                  {verseNo !== 'hidden' && (
+                    <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                  )}
+                  <span className="verse-text-body">{v.text} </span>
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

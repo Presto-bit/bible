@@ -6063,20 +6063,6 @@ body.reader-active .proper-noun--artifact {
   white-space: nowrap;
 }
 
-.reader-turn-peek-banner {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  margin: 0 8px 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--accent-wash) 88%, var(--surface));
-  color: var(--accent-deep);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-}
-
 .reader-turn-panel {
   flex: 0 0 33.3333%;
   width: 33.3333%;
@@ -6103,7 +6089,6 @@ body.reader-active .proper-noun--artifact {
 }
 
 .reader-turn-peek {
-  padding: 0 10px 24px;
   height: 100%;
   overflow: hidden;
 }
@@ -6115,12 +6100,6 @@ body.reader-active .proper-noun--artifact {
   height: 100%;
   font-size: 13px;
   padding: 24px;
-}
-
-.reader-turn-peek-hint {
-  text-align: center;
-  font-size: 11px;
-  margin-top: 16px;
 }
 
 .reader-content {

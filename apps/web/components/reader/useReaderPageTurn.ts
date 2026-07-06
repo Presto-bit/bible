@@ -42,7 +42,7 @@ export function useReaderPageTurn({
   blocked: boolean;
   /** 划词结束后短时忽略横滑，避免误翻页 */
   ignoreUntilRef?: MutableRefObject<number>;
-  onChapterChange: (delta: number) => void | Promise<void>;
+  onChapterChange: (delta: number, meta?: { fromSwipe?: boolean }) => void | Promise<void>;
   onDragApproach?: (delta: number) => void;
   onBoundary?: (edge: 'prev' | 'next') => void;
 }) {
@@ -175,10 +175,13 @@ export function useReaderPageTurn({
       applyOffset(-w, true);
       await sleep(ANIM_MS);
       try {
-        await Promise.resolve(onChapterChange(1));
+        await Promise.resolve(onChapterChange(1, { fromSwipe: true }));
       } finally {
-        applyOffset(0, false);
-        setAnimating(false);
+        // 轮播回收：邻章已在视口内，同帧把轨道复位到中间格（无动画）
+        requestAnimationFrame(() => {
+          applyOffset(0, false);
+          setAnimating(false);
+        });
       }
       return;
     }
@@ -188,10 +191,12 @@ export function useReaderPageTurn({
       applyOffset(w, true);
       await sleep(ANIM_MS);
       try {
-        await Promise.resolve(onChapterChange(-1));
+        await Promise.resolve(onChapterChange(-1, { fromSwipe: true }));
       } finally {
-        applyOffset(0, false);
-        setAnimating(false);
+        requestAnimationFrame(() => {
+          applyOffset(0, false);
+          setAnimating(false);
+        });
       }
       return;
     }
