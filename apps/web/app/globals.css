@@ -3268,13 +3268,13 @@ a.today-card-link {
   color: var(--accent-deep);
   font-weight: 600;
 }
+.answer-rich {
+  counter-reset: ans-ol;
+}
 .answer-rich .ans-list {
   margin: 6px 0 12px;
   padding-left: 0;
   list-style: none;
-}
-.answer-rich ol.ans-list {
-  counter-reset: ans-ol;
 }
 .answer-rich ol.ans-list > li {
   counter-increment: ans-ol;

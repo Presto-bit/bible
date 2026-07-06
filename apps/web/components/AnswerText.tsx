@@ -140,6 +140,12 @@ export default function AnswerText({
     const circle = line.match(CIRCLE_BULLET_RE);
     const quote = line.match(/^>\s?(.*)$/);
 
+    const isStructural = Boolean(heading || labelM || bullet || numbered || circle || quote);
+    if (list && list.items.length > 0 && !isStructural && line.trim()) {
+      list.items[list.items.length - 1] += `\n${line.trim()}`;
+      return;
+    }
+
     if (bullet) {
       if (!list || list.ordered) flushList(key);
       list = list ?? { ordered: false, items: [] };

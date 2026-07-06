@@ -111,6 +111,15 @@ export function renumberOrderedLines(text: string): string {
     }
     let idx = 1;
     while (i < lines.length) {
+      if (!lines[i].trim()) {
+        let j = i + 1;
+        while (j < lines.length && !lines[j].trim()) j += 1;
+        if (j < lines.length && ORDERED_LINE_RE.test(lines[j])) {
+          i = j;
+          continue;
+        }
+        break;
+      }
       const m = lines[i].match(ORDERED_ITEM_RE);
       if (!m) break;
       const indent = m[1] ?? '';
