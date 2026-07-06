@@ -258,6 +258,44 @@ export default function ProfilePage() {
         </span>
       </Link>
 
+      <div style={{ marginTop: 12 }}>
+        <ReadingProgress />
+      </div>
+
+      <Link href="/challenge" className="card row-card challenge-card" style={{ display: 'flex', marginTop: 12 }}>
+        <span className="pill pill-active">每日问答</span>
+        <span style={{ flex: 1 }}>
+          <strong>今日 5 题</strong>
+          <span className="muted" style={{ display: 'block', fontSize: 12 }}>复习错题 · 答题统计</span>
+        </span>
+        <span className="muted">开始 ›</span>
+      </Link>
+
+      <Link href="/notes" className="card row-card profile-memory-card" style={{ display: 'flex', marginTop: 12 }}>
+        <span style={{ flex: 1 }}>经文记忆</span>
+        <span className="muted">想法 · 收藏 · 划线 ›</span>
+      </Link>
+
+      {reviewCards.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="section-row">
+            <span style={{ fontWeight: 600 }}>收藏复习</span>
+            <Link href="/notes" className="muted">全部 ›</Link>
+          </div>
+          {reviewCards.map((c) => (
+            <Link
+              key={c.ref}
+              href={`/reader?ref=${encodeURIComponent(c.ref)}`}
+              className="muted"
+              style={{ display: 'block', marginTop: 8, fontSize: 13 }}
+              onClick={() => recordMemoryReview()}
+            >
+              {c.label}
+            </Link>
+          ))}
+        </div>
+      )}
+
       <div
         className="card"
         style={{ marginTop: 12, cursor: 'pointer' }}
@@ -302,44 +340,6 @@ export default function ProfilePage() {
       {badgeOpen && (
         <BadgeGallery badges={badges} onClose={() => setBadgeOpen(false)} />
       )}
-
-      {reviewCards.length > 0 && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <div className="section-row">
-            <span style={{ fontWeight: 600 }}>收藏复习</span>
-            <Link href="/notes" className="muted">全部 ›</Link>
-          </div>
-          {reviewCards.map((c) => (
-            <Link
-              key={c.ref}
-              href={`/reader?ref=${encodeURIComponent(c.ref)}`}
-              className="muted"
-              style={{ display: 'block', marginTop: 8, fontSize: 13 }}
-              onClick={() => recordMemoryReview()}
-            >
-              {c.label}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      <Link href="/challenge" className="card row-card challenge-card" style={{ display: 'flex', marginTop: 12 }}>
-        <span className="pill pill-active">每日问答</span>
-        <span style={{ flex: 1 }}>
-          <strong>今日 5 题</strong>
-          <span className="muted" style={{ display: 'block', fontSize: 12 }}>复习错题 · 答题统计</span>
-        </span>
-        <span className="muted">开始 ›</span>
-      </Link>
-
-      <div style={{ marginTop: 12 }}>
-        <ReadingProgress />
-      </div>
-
-      <Link href="/notes" className="card row-card profile-memory-card" style={{ display: 'flex', marginTop: 14 }}>
-        <span style={{ flex: 1 }}>经文记忆</span>
-        <span className="muted">想法 · 收藏 · 划线 ›</span>
-      </Link>
 
       {settingsOpen && (
         <div className="sheet-backdrop" onClick={() => setSettingsOpen(false)}>
