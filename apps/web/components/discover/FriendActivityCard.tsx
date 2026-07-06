@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type MouseEvent } from 'react';
 import type { FriendActivity } from '@/lib/api';
 import { formatActivityTime } from '@/lib/social_time';
 import {
@@ -10,6 +10,7 @@ import {
   markReading,
 } from '@/lib/reading_amen';
 import { friendDisplayName } from '@/lib/friend_label';
+import { readerHrefFromRef } from '@/lib/group_footprint';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { FeedVersePreview } from '@/components/discover/FeedVersePreview';
 
@@ -48,13 +49,21 @@ export function FriendActivityCard({
 }: Props) {
   const kind = feedKind(item);
   const label = kindLabel(kind);
-  const likes = reactionTotal(item.reactions) + (reacted === '❤️' ? 1 : 0);
+  const liked = reacted === '❤️';
+  const likes = reactionTotal(item.reactions) + (liked ? 1 : 0);
   const activityKey = activityReadingKey(item.source, item.id);
   const [readingMarked, setReadingMarked] = useState(() => hasMarkedReading(activityKey));
+  const readerHref = item.ref ? readerHrefFromRef(item.ref) : null;
 
-  const onReading = () => {
+  const onReading = (e: MouseEvent) => {
+    e.stopPropagation();
     if (!item.ref || readingMarked) return;
     if (markReading(activityKey)) setReadingMarked(true);
+  };
+
+  const onLike = (e: MouseEvent) => {
+    e.stopPropagation();
+    onReact?.();
   };
 
   const displayName = item.author
@@ -65,85 +74,73 @@ export function FriendActivityCard({
     author_avatar_id: item.author_avatar_id,
   };
 
-  const userBlock = showAuthor ? (
-    authorHref ? (
-      <Link href={authorHref} className="feed-card-user">
-        <FriendAvatar friend={friendPick} size={40} />
-        <div className="feed-card-user-text">
-          <span className="feed-card-user-name">{displayName}</span>
-          <span className="feed-card-user-sub">
-            <span className="feed-card-badge">{label}</span>
-            {kind === 'checkin' && item.group_name && (
-              <span className="feed-card-group">{item.group_name}</span>
-            )}
-          </span>
-        </div>
-        <time className="feed-card-time">{formatActivityTime(item.created_at)}</time>
-      </Link>
-    ) : (
-      <div className="feed-card-user">
-        <FriendAvatar friend={friendPick} size={40} />
-        <div className="feed-card-user-text">
-          <span className="feed-card-user-name">{displayName}</span>
-          <span className="feed-card-user-sub">
-            <span className="feed-card-badge">{label}</span>
-            {kind === 'checkin' && item.group_name && (
-              <span className="feed-card-group">{item.group_name}</span>
-            )}
-          </span>
-        </div>
-        <time className="feed-card-time">{formatActivityTime(item.created_at)}</time>
-      </div>
-    )
-  ) : (
-    <div className="feed-card-meta-only">
+  const metaLine = (
+    <>
       <span className="feed-card-badge">{label}</span>
-      <time className="feed-card-time feed-card-time-inline">
-        {formatActivityTime(item.created_at)}
-      </time>
       {kind === 'checkin' && item.group_name && (
         <span className="feed-card-group">{item.group_name}</span>
       )}
+    </>
+  );
+
+  const headUser = showAuthor ? (
+    <>
+      <span className={`feed-card-avatar-wrap feed-card-avatar-wrap--${kind}`}>
+        <FriendAvatar friend={friendPick} size={44} />
+      </span>
+      <div className="feed-card-head-text">
+        <span className="feed-card-user-name">{displayName}</span>
+        <span className="feed-card-user-sub">{metaLine}</span>
+      </div>
+    </>
+  ) : (
+    <div className="feed-card-head-text feed-card-head-text--solo">
+      {metaLine}
     </div>
   );
 
   return (
     <article className={`card feed-card feed-card--${kind}`}>
-      <div className="feed-card-accent" aria-hidden />
+      <header className="feed-card-head">
+        {showAuthor && authorHref ? (
+          <Link href={authorHref} className="feed-card-head-user">
+            {headUser}
+          </Link>
+        ) : (
+          <div className="feed-card-head-user">{headUser}</div>
+        )}
+        <time className="feed-card-time">{formatActivityTime(item.created_at)}</time>
+      </header>
 
-      <div className="feed-card-body-row">
-        <div className="feed-card-left">
-          {userBlock}
-          {item.body ? (
-            <p className="feed-card-quote">{item.body}</p>
-          ) : (
-            <p className="feed-card-quote feed-card-quote-muted muted">
-              {kind === 'checkin' ? '完成今日打卡' : '分享了一段经文'}
-            </p>
-          )}
-        </div>
+      {item.ref && (
+        <FeedVersePreview refParam={item.ref} kind={kind} href={readerHref} />
+      )}
 
-        {item.ref && <FeedVersePreview refParam={item.ref} kind={kind} />}
-      </div>
+      {item.body ? (
+        <p className="feed-card-reflection">{item.body}</p>
+      ) : kind === 'checkin' ? (
+        <p className="feed-card-status">已完成今日打卡 ✓</p>
+      ) : null}
 
-      <footer className="feed-card-bar">
+      <footer className="feed-card-actions">
         <button
           type="button"
-          className={`feed-bar-btn${reacted === '❤️' ? ' active' : ''}`}
-          onClick={onReact}
+          className={`feed-action-pill feed-action-like${liked ? ' active' : ''}`}
+          onClick={onLike}
           disabled={!onReact}
+          aria-pressed={liked}
         >
-          <span className="feed-bar-btn-icon" aria-hidden>{reacted === '❤️' ? '♥' : '♡'}</span>
-          赞{likes > 0 ? ` ${likes}` : ''}
+          <span className="feed-action-icon" aria-hidden>{liked ? '♥' : '♡'}</span>
+          {likes > 0 ? likes : '赞'}
         </button>
         {item.ref && (
           <button
             type="button"
-            className={`feed-bar-btn${readingMarked ? ' active' : ''}`}
+            className={`feed-action-pill feed-action-read${readingMarked ? ' active' : ''}`}
             onClick={onReading}
-            disabled={readingMarked}
+            aria-pressed={readingMarked}
           >
-            在读
+            {readingMarked ? '在读中 ✓' : '标记在读'}
           </button>
         )}
       </footer>

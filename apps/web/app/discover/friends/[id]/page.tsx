@@ -170,15 +170,17 @@ export default function FriendProfilePage() {
               暂无打卡或分享。
             </p>
           ) : (
-            activity.map((s) => (
-              <FriendActivityCard
-                key={`${s.source}-${s.id}`}
-                item={s}
-                showAuthor={false}
-                reacted={reacted[s.id]}
-                onReact={() => void toggleReact(s)}
-              />
-            ))
+            <div className="discover-feed">
+              {activity.map((s) => (
+                <FriendActivityCard
+                  key={`${s.source}-${s.id}`}
+                  item={s}
+                  showAuthor={false}
+                  reacted={reacted[s.id]}
+                  onReact={() => void toggleReact(s)}
+                />
+              ))}
+            </div>
           )}
         </>
       )}
