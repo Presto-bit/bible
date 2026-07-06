@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
+import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type MapTour } from '@/lib/api';
 import { mapStoryHref } from '@/lib/topic_routes';
@@ -33,10 +33,11 @@ export default function SearchMapIndexPage() {
         {loading ? <p className="muted">加载中…</p> : null}
         {!loading && tours.length === 0 ? <p className="muted">暂无地图专题</p> : null}
         {tours.map((tour) => (
-          <Link
+          <TopicNavCard
             key={tour.id}
             href={mapStoryHref(tour.id)}
             className="card card-2 topic-picker-card"
+            ariaLabel={tour.title}
           >
             <span className="story-tour-badge">地图故事</span>
             <strong className="story-tour-title">{tour.title}</strong>
@@ -44,7 +45,7 @@ export default function SearchMapIndexPage() {
               {[tour.era, tour.subtitle, `${tour.stops?.length ?? 0} 站`].filter(Boolean).join(' · ')}
             </p>
             <span className="story-tour-toggle">开始游览 ›</span>
-          </Link>
+          </TopicNavCard>
         ))}
       </div>
     </main>

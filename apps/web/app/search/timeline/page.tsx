@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
+import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type TimelineTour } from '@/lib/api';
 import { timelineStoryHref } from '@/lib/topic_routes';
@@ -33,10 +33,11 @@ export default function SearchTimelineIndexPage() {
         {loading ? <p className="muted">加载中…</p> : null}
         {!loading && tours.length === 0 ? <p className="muted">暂无时间线专题</p> : null}
         {tours.map((tour) => (
-          <Link
+          <TopicNavCard
             key={tour.id}
             href={timelineStoryHref(tour.id)}
             className="card card-2 topic-picker-card"
+            ariaLabel={tour.title}
           >
             <span className="story-tour-badge story-tour-badge-time">时间故事</span>
             <strong className="story-tour-title">{tour.title}</strong>
@@ -44,7 +45,7 @@ export default function SearchTimelineIndexPage() {
               {[tour.subtitle, `${tour.events?.length ?? 0} 个节点`].filter(Boolean).join(' · ')}
             </p>
             <span className="story-tour-toggle">开始游览 ›</span>
-          </Link>
+          </TopicNavCard>
         ))}
       </div>
     </main>

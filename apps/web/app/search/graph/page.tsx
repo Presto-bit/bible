@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
+import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type GraphTopic } from '@/lib/api';
 import { FEATURED_GRAPH_TOPICS, graphTopicHref } from '@/lib/topic_routes';
@@ -39,10 +39,11 @@ export default function SearchGraphIndexPage() {
         {loading ? <p className="muted">加载中…</p> : null}
         {!loading && topics.length === 0 ? <p className="muted">暂无关系专题</p> : null}
         {topics.map((t) => (
-          <Link
+          <TopicNavCard
             key={t.id}
             href={graphTopicHref(t.id)}
             className="card card-2 topic-picker-card"
+            ariaLabel={t.title}
           >
             <span className="story-tour-badge story-tour-badge-graph">关系专题</span>
             <strong className="story-tour-title">{t.title}</strong>
@@ -50,7 +51,7 @@ export default function SearchGraphIndexPage() {
               <p className="muted story-tour-meta">{t.subtitle}</p>
             ) : null}
             <span className="story-tour-toggle">查看专题 ›</span>
-          </Link>
+          </TopicNavCard>
         ))}
       </div>
     </main>

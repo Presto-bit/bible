@@ -27,6 +27,7 @@ import {
   SEARCH_HOT_KEYWORDS,
   timelineStoryHref,
 } from '@/lib/topic_routes';
+import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { getMainVersion } from '@/lib/reader_settings';
 import { testament } from '@/lib/dictionary_match';
 
@@ -299,7 +300,11 @@ export default function SearchPage() {
             <span>专题</span>
           </div>
           <div className="story-entry-scroll rail">
-            <Link href={mapStoryHref(mapTours[0]?.id)} className="rail-card card card-2 story-tour-card story-entry-card">
+            <TopicNavCard
+              href={mapStoryHref(mapTours[0]?.id)}
+              className="rail-card card card-2 story-tour-card story-entry-card"
+              ariaLabel={mapTours[0]?.title ?? '地图故事'}
+            >
               <span className="story-tour-badge">地图故事</span>
               <strong className="story-tour-title">{mapTours[0]?.title ?? '圣经地理路线'}</strong>
               <p className="muted story-tour-meta">
@@ -310,23 +315,35 @@ export default function SearchPage() {
                   : '加载中…'}
               </p>
               <span className="story-tour-toggle">开始游览 ›</span>
-            </Link>
+            </TopicNavCard>
 
-            <Link href={diagramTourHref()} className="rail-card card card-2 story-tour-card story-entry-card">
+            <TopicNavCard
+              href={diagramTourHref()}
+              className="rail-card card card-2 story-tour-card story-entry-card"
+              ariaLabel="会幕平面图"
+            >
               <span className="story-tour-badge story-tour-badge-diagram">图鉴馆</span>
               <strong className="story-tour-title">会幕平面图</strong>
               <p className="muted story-tour-meta">引导式热区 · 4 处起</p>
               <span className="story-tour-toggle">开始游览 ›</span>
-            </Link>
+            </TopicNavCard>
 
-            <Link href={graphTopicHref()} className="rail-card card card-2 story-tour-card story-entry-card">
+            <TopicNavCard
+              href={graphTopicHref()}
+              className="rail-card card card-2 story-tour-card story-entry-card"
+              ariaLabel="出埃及核心人物"
+            >
               <span className="story-tour-badge story-tour-badge-graph">关系专题</span>
               <strong className="story-tour-title">出埃及核心人物</strong>
               <p className="muted story-tour-meta">人物关系 · 附经文</p>
               <span className="story-tour-toggle">查看专题 ›</span>
-            </Link>
+            </TopicNavCard>
 
-            <Link href={timelineStoryHref(timelineTours[0]?.id)} className="rail-card card card-2 story-tour-card story-entry-card">
+            <TopicNavCard
+              href={timelineStoryHref(timelineTours[0]?.id)}
+              className="rail-card card card-2 story-tour-card story-entry-card"
+              ariaLabel={timelineTours[0]?.title ?? '时间线专题'}
+            >
               <span className="story-tour-badge story-tour-badge-time">时间故事</span>
               <strong className="story-tour-title">{timelineTours[0]?.title ?? '时间线专题'}</strong>
               <p className="muted story-tour-meta">
@@ -337,7 +354,7 @@ export default function SearchPage() {
                   : '加载中…'}
               </p>
               <span className="story-tour-toggle">开始游览 ›</span>
-            </Link>
+            </TopicNavCard>
           </div>
         </section>
       )}

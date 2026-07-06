@@ -108,9 +108,12 @@ export function HomeRail({ cards }: Props) {
                   {c.reason ? <span className="muted rail-reason">{c.reason}</span> : null}
                 </div>
                 <div className="rail-title">{c.title}</div>
-                {c.kind === 'action' && c.progressPct != null && c.progressPct > 0 && (
-                  <div className="progress-bar rail-action-progress">
-                    <div className="progress-fill plan-fill" style={{ width: `${c.progressPct}%` }} />
+                {c.kind === 'action' && (
+                  <div className="progress-bar rail-action-progress" aria-hidden={c.progressPct == null || c.progressPct <= 0}>
+                    <div
+                      className="progress-fill plan-fill"
+                      style={{ width: `${Math.max(0, c.progressPct ?? 0)}%` }}
+                    />
                   </div>
                 )}
                 {c.sub ? (

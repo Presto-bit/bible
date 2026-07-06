@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
+import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type BibleDiagram } from '@/lib/api';
 import { FEATURED_DIAGRAM_IDS, diagramTourHref } from '@/lib/topic_routes';
@@ -43,10 +43,11 @@ export default function SearchDiagramsIndexPage() {
         {loading ? <p className="muted">加载中…</p> : null}
         {!loading && items.length === 0 ? <p className="muted">暂无图鉴</p> : null}
         {items.map((d) => (
-          <Link
+          <TopicNavCard
             key={d.id}
             href={diagramTourHref(d.id)}
             className="card card-2 topic-picker-card"
+            ariaLabel={d.title}
           >
             <span className="story-tour-badge story-tour-badge-diagram">图鉴馆</span>
             <strong className="story-tour-title">{d.title}</strong>
@@ -55,7 +56,7 @@ export default function SearchDiagramsIndexPage() {
               {(d.hotspots?.length ?? 0) > 0 ? ` · ${d.hotspots!.length} 处可点` : ''}
             </p>
             <span className="story-tour-toggle">开始游览 ›</span>
-          </Link>
+          </TopicNavCard>
         ))}
       </div>
     </main>

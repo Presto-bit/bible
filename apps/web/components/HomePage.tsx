@@ -355,13 +355,13 @@ export default function HomePageClient() {
       </header>
 
       {seasonal[0] && (
-        <Link href={seasonal[0].href} className="card row-card seasonal-card seasonal-card-pulse" style={{ display: 'flex', marginBottom: 14 }}>
+        <Link href={seasonal[0].href} className="card row-card home-list-row home-list-row-wrap seasonal-card seasonal-card-pulse">
           <span className="pill pill-active">{seasonal[0].badge}</span>
-          <span style={{ flex: 1 }}>
+          <span className="home-list-main">
             <strong>{seasonal[0].title}</strong>
-            <span className="muted" style={{ display: 'block', fontSize: 12 }}>{seasonal[0].subtitle}</span>
+            <span className="muted home-list-sub">{seasonal[0].subtitle}</span>
           </span>
-          <span className="muted">›</span>
+          <span className="muted home-list-chevron">›</span>
         </Link>
       )}
 
@@ -456,47 +456,51 @@ export default function HomePageClient() {
         </div>
       </div>
 
-      <div style={{ marginTop: 18 }}>
+      <div className="home-stack home-stack-rail">
         <HomeRail cards={railMain} />
       </div>
 
-      <a href="/profile" className="card-row home-reading-summary text-stat" style={{ display: 'flex', marginTop: 14 }}>
-        <span>
-          今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
-        </span>
-        <span className="muted">›</span>
-      </a>
+      <div className="home-stack">
+        <a href="/profile" className="card-row home-reading-summary home-list-row text-stat">
+          <span className="home-list-main">
+            今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </a>
 
-      <a href={groupSummary?.href ?? '/discover'} className="card row-card" style={{ display: 'flex', marginTop: 14 }}>
-        <span className="pill">小组</span>
-        <span style={{ flex: 1 }}>{groupSummary?.line ?? '去发现 · 加入共读打卡'}</span>
-        <span className="muted">去发现 ›</span>
-      </a>
+        <a href={groupSummary?.href ?? '/discover'} className="card row-card home-list-row">
+          <span className="pill">小组</span>
+          <span className="home-list-main">{groupSummary?.line ?? '去发现 · 加入共读打卡'}</span>
+          <span className="muted home-list-cta">去发现 ›</span>
+        </a>
+      </div>
 
       <p className="section-label">成长与回忆</p>
-      {pendingBook && (
-        <Link href="/challenge" className="card card-2 card-tint row-card challenge-nudge" style={{ display: 'flex', marginBottom: 10 }}>
-          <span className="pill pill-active">巩固挑战</span>
-          <span style={{ flex: 1, fontWeight: 600 }}>读完《{pendingBook.bookName}》了，来做每日问答？</span>
-          <span className="rail-cta">去闯关 ›</span>
-        </Link>
-      )}
-      <a href="/reader" className="card card-2 card-tint card-accent row-card" style={{ display: 'flex' }}>
-        <span className="pill pill-active">继续读经</span>
-        <span style={{ flex: 1, fontWeight: 600 }}>
-          {lastRead
-            ? `上次读到 ${bookIdToChineseName(lastRead.bookId)} 第 ${lastRead.chapter} 章`
-            : '打开圣经，开始今日阅读'}
-        </span>
-        <span className="rail-cta">去读 ›</span>
-      </a>
-      <a href="/report" className="card row-card" style={{ display: 'flex', marginTop: 10 }}>
-        <span className="pill">回顾</span>
-        <span style={{ flex: 1 }}>
-          {new Date().getMonth() + 1} 月回顾 · 已读 {readingSummary.monthDays} 天
-        </span>
-        <span className="muted">读经回顾 ›</span>
-      </a>
+      <div className="home-stack">
+        {pendingBook && (
+          <Link href="/challenge" className="card card-2 card-tint row-card home-list-row home-list-row-wrap challenge-nudge">
+            <span className="pill pill-active">巩固挑战</span>
+            <span className="home-list-main">读完《{pendingBook.bookName}》了，来做每日问答？</span>
+            <span className="rail-cta home-list-cta">去闯关 ›</span>
+          </Link>
+        )}
+        <a href="/reader" className="card card-2 card-tint card-accent row-card home-list-row home-list-row-wrap">
+          <span className="pill pill-active">继续读经</span>
+          <span className="home-list-main">
+            {lastRead
+              ? `上次读到 ${bookIdToChineseName(lastRead.bookId)} 第 ${lastRead.chapter} 章`
+              : '打开圣经，开始今日阅读'}
+          </span>
+          <span className="rail-cta home-list-cta">去读 ›</span>
+        </a>
+        <a href="/report" className="card row-card home-list-row">
+          <span className="pill">回顾</span>
+          <span className="home-list-main">
+            {new Date().getMonth() + 1} 月回顾 · 已读 {readingSummary.monthDays} 天
+          </span>
+          <span className="muted home-list-cta">读经回顾 ›</span>
+        </a>
+      </div>
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
 
