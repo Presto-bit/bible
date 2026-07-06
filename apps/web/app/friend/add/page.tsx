@@ -1,10 +1,13 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api } from '@/lib/api';
 
 export default function AddFriendPage() {
+  useEdgeSwipeBack({ href: '/' });
+
   const [handle, setHandle] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,9 +29,9 @@ export default function AddFriendPage() {
 
   return (
     <main className="container">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Link href="/" className="icon-btn" aria-label="返回">←</Link>
-        <h2 style={{ margin: 0, fontSize: 18 }}>加好友</h2>
+      <header className="page-head">
+        <PageBackBar href="/" label="首页" />
+        <h2 className="page-head-title">加好友</h2>
       </header>
       <p className="muted" style={{ marginBottom: 16 }}>
         输入对方的 8 位用户 ID（或历史 10 位）或用户名，查找后即可添加。

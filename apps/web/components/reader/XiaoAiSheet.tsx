@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { chatStream } from '@/lib/api';
@@ -184,7 +185,7 @@ export default function XiaoAiSheet({
           <div className="half-sheet-grab" />
           <div className="half-sheet-title">
             <strong>{mode === 'ask' ? '问小爱' : '解释'} · {refLabel}</strong>
-            <button type="button" className="text-link" onClick={onClose}>关闭</button>
+            <SheetCloseButton onClick={onClose} />
           </div>
         </div>
         <div className="half-sheet-body" onMouseDown={stopBubble} onMouseUp={stopBubble}>

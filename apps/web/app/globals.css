@@ -693,14 +693,102 @@ html:not([data-app-theme]) .card {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 17px;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
   color: var(--ink-soft);
   border: none;
   background: transparent;
   cursor: pointer;
   transition: transform 0.12s ease, background 0.12s ease;
+}
+
+/* ─── 统一返回导航（PageBackBar）─── */
+.nav-back {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px 0 4px;
+  margin-left: -4px;
+  border: none;
+  background: none;
+  color: var(--accent-deep);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-back-page {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.nav-back-sheet {
+  font-size: 15px;
+  font-weight: 500;
+  min-height: 40px;
+  padding: 0 8px 0 2px;
+  margin-left: -2px;
+}
+
+.nav-back-chevron {
+  font-size: 24px;
+  line-height: 1;
+  margin-top: -1px;
+}
+
+.nav-back-label {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+.nav-close {
+  flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--accent-deep);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.nav-close-sheet {
+  font-size: 15px;
+}
+
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 44px;
+}
+
+.page-head-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--app-heading-size, 18px);
+  font-weight: 700;
+}
+
+.page-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.page-head-spacer {
+  flex: 1;
 }
 
 .icon-btn:active {
@@ -10871,14 +10959,15 @@ body:has(.tabbar-compact-nav) .tabbar {
   margin-bottom: 10px;
 }
 
-.reader-back-link {
-  flex-shrink: 0;
-  font-size: 14px;
-  font-weight: 600;
+.reader-nav-back {
+  margin-right: 4px;
+  padding-left: 0;
   color: var(--ink-muted, #5c6b63);
-  text-decoration: none;
-  margin-right: 6px;
-  padding: 4px 2px;
+}
+
+.reader-nav-back .nav-back-chevron,
+.reader-nav-back .nav-back-label {
+  color: inherit;
 }
 
 .reader-topbar-left {

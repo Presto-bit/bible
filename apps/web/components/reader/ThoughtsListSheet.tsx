@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useCallback, useState } from 'react';
 import { effectiveId } from '@/lib/api';
 import {
@@ -73,7 +74,7 @@ export default function ThoughtsListSheet({
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>本节想法</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
 
         <div className="thought-verse-card">

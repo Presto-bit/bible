@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import {
   createNote,
   listNotes,
@@ -46,6 +48,8 @@ type FeedItem =
 const COLOR_FILTER_ALL = 'all';
 
 export default function NotesPage() {
+  useEdgeSwipeBack({ href: '/profile' });
+
   const confirm = useConfirm();
   const [tab, setTab] = useState<Tab>('all');
   const [query, setQuery] = useState('');
@@ -279,11 +283,9 @@ export default function NotesPage() {
 
   return (
     <main className="container">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <a href="/profile" className="icon-btn" aria-label="返回">
-          ←
-        </a>
-        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>经文记忆</h2>
+      <header className="page-head">
+        <PageBackBar href="/profile" label="我的" />
+        <h2 className="page-head-title">经文记忆</h2>
         <button type="button" className="font-pill" onClick={openNew}>
           + 新建
         </button>

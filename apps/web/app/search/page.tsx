@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { backLabelForHref, useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useRouter } from 'next/navigation';
 import {
   api,
@@ -90,6 +92,17 @@ function defaultSearchVersion(): string {
 export default function SearchPage() {
   const router = useRouter();
   const [backHref, setBackHref] = useState('/reader');
+
+  const goBack = () => {
+    if (backHref.startsWith('/')) router.push(backHref);
+    else router.back();
+  };
+
+  useEdgeSwipeBack({
+    href: backHref.startsWith('/') ? backHref : undefined,
+    preferHistoryBack: !backHref.startsWith('/'),
+  });
+
   const [query, setQuery] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [hits, setHits] = useState<BibleSearchHit[]>([]);
@@ -210,19 +223,12 @@ export default function SearchPage() {
 
   return (
     <main className="container">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <button
-          type="button"
-          className="icon-btn"
-          aria-label="返回"
-          onClick={() => {
-            if (backHref.startsWith('/')) router.push(backHref);
-            else router.back();
-          }}
-        >
-          ←
-        </button>
-        <h2 style={{ margin: 0, fontSize: 'var(--app-heading-size, 18px)' }}>搜索</h2>
+      <header className="page-head">
+        <PageBackBar
+          onClick={goBack}
+          label={backLabelForHref(backHref)}
+        />
+        <h2 className="page-head-title">搜索</h2>
       </header>
 
       <input

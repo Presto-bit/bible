@@ -1,14 +1,16 @@
 'use client';
 
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, effectiveId, ensureAccountReady } from '@/lib/api';
 import { markLocalDataCreated } from '@/lib/account_guide';
 import { stashCreatedGroup } from '@/lib/groups_refresh';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
 
 export default function CreateGroupPage() {
+  useEdgeSwipeBack({ href: '/' });
   const router = useRouter();
   const [name, setName] = useState('');
   const [intro, setIntro] = useState('');
@@ -52,9 +54,9 @@ export default function CreateGroupPage() {
 
   return (
     <main className="container">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Link href="/" className="icon-btn" aria-label="返回">←</Link>
-        <h2 style={{ margin: 0, fontSize: 18 }}>建群</h2>
+      <header className="page-head">
+        <PageBackBar href="/" label="首页" />
+        <h2 className="page-head-title">建群</h2>
       </header>
       <input className="search-input" placeholder="群名称" value={name} onChange={(e) => setName(e.target.value)} />
       <input

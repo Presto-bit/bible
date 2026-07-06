@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
@@ -21,6 +23,8 @@ function normalizeRef(raw: string): string {
 }
 
 export default function TopicPage() {
+  useEdgeSwipeBack({ href: '/search?from=/discover/topic' });
+
   const params = useParams();
   const id = decodeURIComponent(String(params.id || ''));
   const staticTopic = topicById(id);
@@ -123,10 +127,9 @@ export default function TopicPage() {
 
   return (
     <main className="container discover-page">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/search?from=/discover/topic" className="muted">‹ 搜索</Link>
-        <span />
-      </div>
+      <header className="page-head">
+        <PageBackBar href="/search?from=/discover/topic" label="搜索" />
+      </header>
       <div
         className="card card-tint card-2 card-accent topic-hero"
         style={{ borderLeftColor: topic.color }}

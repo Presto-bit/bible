@@ -58,6 +58,9 @@ const SECONDARY_PREFIXES = [
   '/wrapped',
   '/friend/add',
   '/profile/reminders',
+  '/profile/appearance',
+  '/admin',
+  '/discover/groups',
   '/group/create',
 ];
 

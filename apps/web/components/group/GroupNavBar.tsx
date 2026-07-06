@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
 import type { GroupDetail } from '@/lib/api';
 import { groupMemberCount } from '@/lib/group_ui';
 
@@ -14,10 +14,7 @@ export function GroupNavBar({ detail, onOpenSettings }: Props) {
 
   return (
     <header className="group-wechat-nav">
-      <Link href="/discover/groups" className="group-wechat-back" aria-label="返回群列表">
-        <span className="group-wechat-back-icon">‹</span>
-        <span className="group-wechat-back-label">返回</span>
-      </Link>
+      <PageBackBar href="/discover/groups" label="群列表" />
       <button type="button" className="group-wechat-nav-center" onClick={onOpenSettings}>
         <span className="group-wechat-name">{detail.name}</span>
         <span className="group-wechat-count">（{count}人）</span>

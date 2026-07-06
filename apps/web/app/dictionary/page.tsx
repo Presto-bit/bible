@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type DictEntity } from '@/lib/api';
 import { entityDisplayName, entitySummaryText, entityTypeLabel } from '@/lib/dictionary_match';
 
 export default function DictionaryPage() {
+  useEdgeSwipeBack({ href: '/reader' });
+
   const [term, setTerm] = useState('');
   const [entities, setEntities] = useState<DictEntity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +35,11 @@ export default function DictionaryPage() {
 
   return (
     <main className="container">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/reader" className="muted">‹ 圣经</Link>
-        <strong>圣经词典</strong>
+      <header className="page-head">
+        <PageBackBar href="/reader" label="圣经" />
+        <h2 className="page-head-title">圣经词典</h2>
         <span className="muted" style={{ fontSize: 12 }}>{loading ? '' : `${entities.length} 条`}</span>
-      </div>
+      </header>
       <div className="search-bar" style={{ marginTop: 12 }}>
         <input
           className="search-input"

@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useEffect, useState } from 'react';
 import {
   APP_THEMES,
@@ -18,6 +20,8 @@ import {
 } from '@/lib/reader_settings';
 
 export default function AppearancePage() {
+  useEdgeSwipeBack({ href: '/profile' });
+
   const [appTheme, setAppThemeState] = useState<AppThemeId>('classic');
   const [readerTheme, setReaderThemeState] = useState<ReaderTheme>('morning');
   const [followApp, setFollowApp] = useState(false);
@@ -47,11 +51,10 @@ export default function AppearancePage() {
 
   return (
     <main className="container">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/profile" className="muted">‹ 我的</Link>
-        <strong>外观</strong>
-        <span />
-      </div>
+      <header className="page-head">
+        <PageBackBar href="/profile" label="我的" />
+        <h2 className="page-head-title">外观</h2>
+      </header>
 
       <div className="settings-card" style={{ marginTop: 16 }}>
         <p className="settings-title">应用主题</p>

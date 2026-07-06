@@ -5,6 +5,7 @@ import { api, type CrossrefResult, type GuideResult, type StrongsWord } from '@/
 import { refToChineseLabel } from '@/lib/ref_label';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
+import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
 
 type Tab = 'crossrefs' | 'strongs' | 'guide';
 
@@ -81,9 +82,9 @@ export function ReaderToolsSheet({
       <div className="sheet-backdrop" onClick={onClose}>
         <div className="sheet card reader-tools-sheet" onClick={(e) => e.stopPropagation()}>
           <div className="section-row" style={{ marginTop: 0 }}>
-            <button type="button" className="text-link" onClick={onClose}>‹ 返回</button>
+            <PageBackBar variant="sheet" onClick={onClose} label="返回" />
             <strong>{refLabel}</strong>
-            <button type="button" className="text-link" onClick={onClose}>关闭</button>
+            <SheetCloseButton onClick={onClose} />
           </div>
           <div className="reader-tools-tabs">
             {tabs.filter((t) => !t.hidden).map(({ id, label }) => (

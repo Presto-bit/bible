@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Group } from '@/lib/api';
 import type { PlanReadingMeta } from '@/lib/plan_reading';
@@ -371,7 +372,7 @@ export default function PlanReadingLayer({
           <div className="sheet card plan-reflection-sheet">
             <div className="section-row" style={{ marginTop: 0 }}>
               <strong>今日反思（可选）</strong>
-              <button type="button" className="text-link" onClick={() => setReflectionOpen(false)}>关闭</button>
+              <SheetCloseButton onClick={() => setReflectionOpen(false)} />
             </div>
             <p className="muted" style={{ fontSize: 13, marginBottom: 10 }}>
               用一两句话记下今天的感动或应用。不填写可直接关闭。
@@ -407,7 +408,7 @@ export default function PlanReadingLayer({
           <div className="sheet card" onClick={(e) => e.stopPropagation()}>
             <div className="section-row" style={{ marginTop: 0 }}>
               <strong>今日安排 · 第 {meta.day} 天</strong>
-              <button type="button" className="text-link" onClick={() => setSheetOpen(false)}>关闭</button>
+              <SheetCloseButton onClick={() => setSheetOpen(false)} />
             </div>
             <p className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
               {prog.done}/{prog.total} 段已完成 · 计划模式仅可跳转今日章节

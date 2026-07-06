@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
 import { bibleBooks } from '@/lib/bible_client';
 import CatalogView from '@/components/reader/CatalogView';
+import { SheetCloseButton } from '@/components/PageBackBar';
 import ReaderView from '@/components/reader/ReaderView';
 import { getLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
@@ -277,7 +278,7 @@ export default function ReaderPage() {
                   </span>
                 ) : null}
               </h3>
-              <button type="button" className="text-link" onClick={() => setDictPopup(null)}>关闭</button>
+              <SheetCloseButton onClick={() => setDictPopup(null)} />
             </div>
             {hasAlternateSenses(dictPopup.candidates, dictPopup.ctx) && (
               <div className="dict-sense-row" role="tablist" aria-label="切换义项">

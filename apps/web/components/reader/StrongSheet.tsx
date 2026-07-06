@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
 import { api, type StrongsWord } from '@/lib/api';
 
 export function StrongSheet({
@@ -30,9 +31,9 @@ export function StrongSheet({
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet card" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
-          <button type="button" className="text-link" onClick={onClose}>‹ 返回</button>
+          <PageBackBar variant="sheet" onClick={onClose} label="返回" />
           <strong>希腊原文 · {refLabel}</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
         <p className="muted reader-tools-hint">
           逐词列出该节新约希腊文、Strong&apos;s 编号、词形与简要英文/中文释义，便于查考原文用词。

@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type MapTour } from '@/lib/api';
 import { MapTourPanels } from '@/components/search/StoryTourPanels';
 
 export default function SearchMapStoriesPage() {
+  useEdgeSwipeBack({ href: '/search' });
+
   const [tours, setTours] = useState<MapTour[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,11 +23,10 @@ export default function SearchMapStoriesPage() {
 
   return (
     <main className="container">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/search" className="muted">‹ 搜索</Link>
-        <strong>地图故事</strong>
-        <span />
-      </div>
+      <header className="page-head">
+        <PageBackBar href="/search" label="搜索" />
+        <h2 className="page-head-title">地图故事</h2>
+      </header>
       <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginTop: 8 }}>
         圣经地理路线专题，点开卡片查看站点与经文。
       </p>

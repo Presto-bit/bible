@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { buildWrapped } from '@/lib/wrapped';
@@ -8,6 +10,7 @@ import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
 
 function WrappedInner() {
+  useEdgeSwipeBack({ href: '/report' });
   const sp = useSearchParams();
   const period = sp.get('period') === 'year' ? 'year' : 'month';
   const w = buildWrapped(period);
@@ -27,13 +30,14 @@ function WrappedInner() {
 
   return (
     <main className="container wrapped-page">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/report" className="muted">‹ 读经回顾</Link>
+      <header className="page-head">
+        <PageBackBar href="/report" label="读经回顾" />
+        <div className="page-head-spacer" />
         <div className="wrapped-tabs">
           <Link href="/wrapped?period=month" className={period === 'month' ? 'active' : ''}>本月</Link>
           <Link href="/wrapped?period=year" className={period === 'year' ? 'active' : ''}>今年</Link>
         </div>
-      </div>
+      </header>
       <div className="wrapped-hero card card-tint card-2">
         <p className="muted">{w.label}</p>
         <h1 style={{ fontSize: 26, margin: '8px 0' }}>{w.highlight}</h1>

@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -25,6 +27,7 @@ function friendlyJoinError(raw: string): string {
 }
 
 function JoinGroupInner() {
+  useEdgeSwipeBack({ href: '/discover' });
   const router = useRouter();
   const searchParams = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -83,11 +86,9 @@ function JoinGroupInner() {
 
   return (
     <main className="container join-group-page">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <Link href="/discover" className="icon-btn" aria-label="返回">
-          ‹
-        </Link>
-        <h2 style={{ margin: 0, fontSize: 'var(--app-heading-size, 18px)' }}>加入共读群</h2>
+      <header className="page-head">
+        <PageBackBar href="/discover" label="发现" />
+        <h2 className="page-head-title">加入共读群</h2>
       </header>
 
       <div className="join-group-hero card card-2">

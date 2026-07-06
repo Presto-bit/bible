@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import type { PlanDayScheduleItem } from '@/lib/plan_schedule';
 import type { ActivePlan } from '@/lib/plan_progress';
 import { planCompletionPct } from '@/lib/plan_schedule';
@@ -64,7 +65,7 @@ export function PlanScheduleSheet({
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>{plan.title}</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
         <p className="muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
           {plan.kind === 'prayer' ? '祷告' : '读经'} · {plan.days} 天

@@ -25,6 +25,7 @@ import { favoriteReviewCards } from '@/lib/favorite_review';
 import { listNotes } from '@/lib/notes';
 import { bibleBooks } from '@/lib/bible_client';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
@@ -367,7 +368,7 @@ export default function ProfilePage() {
           <div className="sheet card settings-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="section-row" style={{ marginTop: 0 }}>
               <h3 style={{ margin: 0 }}>设置</h3>
-              <button type="button" className="text-link" onClick={() => setSettingsOpen(false)}>关闭</button>
+              <SheetCloseButton onClick={() => setSettingsOpen(false)} />
             </div>
 
             <div className="settings-card">

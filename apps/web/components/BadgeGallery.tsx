@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import type { BadgeDef } from '@/lib/badges';
 
 export default function BadgeGallery({
@@ -14,7 +15,7 @@ export default function BadgeGallery({
       <div className="sheet card badge-gallery" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
           <h3 style={{ margin: 0 }}>成就徽章</h3>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
         <p className="muted" style={{ fontSize: 12, marginBottom: 14 }}>
           已收集 {badges.filter((b) => b.done).length} / {badges.length}

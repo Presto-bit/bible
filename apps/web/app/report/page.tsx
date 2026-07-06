@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook } from '@/lib/api';
 import { dailyMinutes, rangeStats, type RangeStats } from '@/lib/reading';
@@ -30,6 +32,8 @@ interface Cell {
 }
 
 export default function ReportPage() {
+  useEdgeSwipeBack({ href: '/profile' });
+
   const [mode, setMode] = useState<Mode>('day');
   const [cursor, setCursor] = useState(() => new Date());
   const [sel, setSel] = useState<{ start: number; end: number; label: string } | null>(null);
@@ -195,9 +199,9 @@ export default function ReportPage() {
 
   return (
     <main className="container">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <a href="/profile" className="icon-btn" aria-label="返回">←</a>
-        <h2 style={{ margin: 0, fontSize: 18, flex: 1 }}>读经回顾</h2>
+      <header className="page-head">
+        <PageBackBar href="/profile" label="我的" />
+        <h2 className="page-head-title">读经回顾</h2>
         <Link href="/wrapped" className="muted" style={{ fontSize: 13 }}>读经报告 ›</Link>
       </header>
 

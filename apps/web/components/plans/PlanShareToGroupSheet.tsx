@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { api, ensureAccountReady, type Group } from '@/lib/api';
@@ -102,7 +103,7 @@ export function PlanShareToGroupSheet({
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>分享到共读群</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
         <p className="muted" style={{ fontSize: 13, margin: '0 0 12px', lineHeight: 1.5 }}>
           绑定后，群成员可在「今日焦点」看到同一计划并一起打卡。

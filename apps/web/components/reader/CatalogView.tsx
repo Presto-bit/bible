@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PageBackBar from '@/components/PageBackBar';
 import type { BibleBook } from '@/lib/api';
 import { allowedChaptersForBook, isChapterInPlan, planBooksInSteps } from '@/lib/plan_navigation';
 import type { PlanStep } from '@/lib/plan_steps';
@@ -119,9 +120,7 @@ function CatalogView({
       <div className="reader-bar" style={{ marginBottom: 10 }}>
         <h2 style={{ margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
           {showBack && onBack && (
-            <button type="button" className="icon-btn" aria-label="返回" onClick={onBack}>
-              ‹
-            </button>
+            <PageBackBar variant="sheet" ariaLabel="返回" onClick={onBack} />
           )}
           圣经目录{planSteps?.length ? ' · 计划模式' : ''}
         </h2>

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, ensureAccountReady, type GeneratedPlan, type PlanSummary } from '@/lib/api';
 import { markGroupsListDirty, stashCreatedGroup } from '@/lib/groups_refresh';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
@@ -77,6 +79,8 @@ function planIsCompleted(plan: ActivePlan): boolean {
 }
 
 export default function PlansPage() {
+  useEdgeSwipeBack({ href: '/' });
+
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [listErr, setListErr] = useState<string | null>(null);
@@ -501,9 +505,9 @@ export default function PlansPage() {
 
   return (
     <main className="container">
-      <header className="plans-page-head">
-        <Link href="/" className="icon-btn" aria-label="返回">←</Link>
-        <h2 className="page-title" style={{ margin: 0, flex: 1 }}>读经计划</h2>
+      <header className="page-head plans-page-head">
+        <PageBackBar href="/" label="首页" />
+        <h2 className="page-head-title">读经计划</h2>
         <button type="button" className="text-link plans-customize-btn" onClick={openCustomize}>个性定制</button>
       </header>
 
@@ -781,7 +785,7 @@ export default function PlansPage() {
           <div className="sheet card" onClick={(e) => e.stopPropagation()}>
             <div className="section-row" style={{ marginTop: 0 }}>
               <strong>{prayerSheet.title}</strong>
-              <button type="button" className="text-link" onClick={() => setPrayerSheet(null)}>关闭</button>
+              <SheetCloseButton onClick={() => setPrayerSheet(null)} />
             </div>
             <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
               {prayerSheet.plan_title ?? '祷告计划'}

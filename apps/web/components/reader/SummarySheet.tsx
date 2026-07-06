@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api, type GeoPlace, type TimelineChapter } from '@/lib/api';
@@ -91,7 +92,7 @@ export default function SummarySheet({
           <div className="half-sheet-grab" />
           <div className="half-sheet-title">
             <strong>{title}</strong>
-            <button type="button" className="text-link" onClick={onClose}>关闭</button>
+            <SheetCloseButton onClick={onClose} />
           </div>
         </div>
         <div className="half-sheet-body">

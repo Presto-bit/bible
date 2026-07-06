@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useEffect, useMemo, useState } from 'react';
 import { api, type Friend } from '@/lib/api';
 
@@ -93,7 +94,7 @@ export function GroupInviteSheet({
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>邀请好友</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
 
         <div className="group-invite-tabs">

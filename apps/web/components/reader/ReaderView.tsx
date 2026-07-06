@@ -9,6 +9,7 @@ import {
   type Verse,
 } from '@/lib/api';
 import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
+import PageBackBar from '@/components/PageBackBar';
 import SummarySheet from '@/components/reader/SummarySheet';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
@@ -1715,16 +1716,15 @@ export default function ReaderView({
       <div className="reader-topbar" aria-hidden={chromeHidden}>
         <div className="reader-topbar-left">
           {backHref && (
-            <Link
+            <PageBackBar
               href={readerBackHref()}
-              className="reader-back-link"
+              label="返回"
+              className="reader-nav-back"
               onClick={(e) => {
                 e.stopPropagation();
                 clearReaderReturnHref();
               }}
-            >
-              ‹ 返回
-            </Link>
+            />
           )}
           <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
             {bookAbbr(book.name)} {chapter}

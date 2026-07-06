@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useState } from 'react';
 import { api, type GeneratedPlan } from '@/lib/api';
 import {
@@ -112,7 +113,7 @@ export function PlanGenerateSheet({ open, onClose, onSaved }: Props) {
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>定制读经计划</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
 
         <section className="plan-gen-section">

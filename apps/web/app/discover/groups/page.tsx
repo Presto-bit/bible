@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -20,6 +22,8 @@ function groupStatusBadge(g: Group) {
 }
 
 export default function DiscoverGroupsPage() {
+  useEdgeSwipeBack({ href: '/discover' });
+
   const router = useRouter();
   const pathname = usePathname();
   const [uid, setUid] = useState<string | null>(null);
@@ -94,20 +98,18 @@ export default function DiscoverGroupsPage() {
 
   return (
     <main className="container discover-page">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/discover" className="muted">
-          ‹ 发现
-        </Link>
-        <span>我的共读群</span>
-        <div style={{ display: 'flex', gap: 8 }}>
+      <header className="page-head">
+        <PageBackBar href="/discover" label="发现" />
+        <h2 className="page-head-title">我的共读群</h2>
+        <div className="page-head-actions">
           <Link className="btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: 13 }} href="/discover/join">
             加入
           </Link>
-          <Link className="text-link" style={{ fontSize: 13, alignSelf: 'center' }} href="/group/create">
+          <Link className="text-link" style={{ fontSize: 13 }} href="/group/create">
             创建
           </Link>
         </div>
-      </div>
+      </header>
 
       {err && <p className="muted" style={{ marginTop: 8 }}>{err}</p>}
 

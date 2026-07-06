@@ -1,7 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import ChallengeFlipPlay from '@/components/ChallengeFlipPlay';
 import {
   clearPendingBookChallenge,
@@ -43,6 +44,8 @@ export default function ChallengePage() {
   const [dailyDone, setDailyDone] = useState(false);
   const [showWrongList, setShowWrongList] = useState(false);
   const pending = getPendingBookChallenge();
+
+  useEdgeSwipeBack({ href: '/', enabled: !play });
 
   useEffect(() => {
     setDailyDone(dailyQuizDone());
@@ -112,9 +115,9 @@ export default function ChallengePage() {
 
   return (
     <main className="container">
-      <header style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <Link href="/" className="icon-btn">←</Link>
-        <h2 style={{ margin: 0, fontSize: 'var(--app-heading-size, 18px)', flex: 1 }}>每日问答</h2>
+      <header className="page-head">
+        <PageBackBar href="/" label="首页" />
+        <h2 className="page-head-title">每日问答</h2>
         <span className="muted" style={{ fontSize: 12 }}>{QUESTION_BANK_SIZE} 题</span>
       </header>
 

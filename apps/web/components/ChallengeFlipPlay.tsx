@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import PageBackBar from '@/components/PageBackBar';
 import type { ChallengeQuestion } from '@/lib/challenge_levels';
 import { localizeRefsInText, refToChineseLabel } from '@/lib/ref_label';
 
@@ -68,7 +69,7 @@ export default function ChallengeFlipPlay({
   return (
     <main className="container challenge-play">
       <header className="challenge-play-head">
-        <button type="button" className="text-link" onClick={onBack}>← 返回</button>
+        <PageBackBar variant="page" onClick={onBack} label="返回" />
         <span className="muted">{title}</span>
       </header>
       {!hideProgress && (

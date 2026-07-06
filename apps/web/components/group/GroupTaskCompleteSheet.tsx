@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useState } from 'react';
 import { GROUP_CHECKIN_CHIPS, GROUP_CHECKIN_BODY_MAX, normalizeCheckinBody } from '@/lib/group_checkin';
 
@@ -38,7 +39,7 @@ export function GroupTaskCompleteSheet({ title, refLabel, onSubmit, onClose }: P
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>完成并分享</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
         <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
           将显示为「已完成任务·{title}」

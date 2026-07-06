@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useEffect, useState } from 'react';
 import {
   ensurePermission,
@@ -28,6 +30,8 @@ function slotActive(pref: ReminderPref, hour: number, minute: number) {
 }
 
 export default function RemindersPage() {
+  useEdgeSwipeBack({ href: '/profile' });
+
   const [pref, setPref] = useState<ReminderPref>({ enabled: false, hour: 8, minute: 0 });
   const [groupPref, setGroupPref] = useState<GroupEveningReminder>({
     enabled: false,
@@ -123,11 +127,10 @@ export default function RemindersPage() {
 
   return (
     <main className="container">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <Link href="/profile" className="muted">‹ 我的</Link>
-        <strong>推送提醒</strong>
-        <span />
-      </div>
+      <header className="page-head">
+        <PageBackBar href="/profile" label="我的" />
+        <h2 className="page-head-title">推送提醒</h2>
+      </header>
       {msg && <p className="muted" style={{ marginTop: 8 }}>{msg}</p>}
 
       <p className="muted reminder-policy-summary" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.55 }}>

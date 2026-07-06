@@ -1,5 +1,6 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useCallback, useEffect, useState } from 'react';
 import { api, effectiveId, ensureAccountReady } from '@/lib/api';
 import { GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
@@ -98,7 +99,7 @@ export function ShareToSocialSheet({
       <div className="sheet card share-social-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>分享</strong>
-          <button type="button" className="text-link" onClick={onClose}>关闭</button>
+          <SheetCloseButton onClick={onClose} />
         </div>
         <p className="muted" style={{ fontSize: 12 }}>{refLabel}</p>
         <textarea
