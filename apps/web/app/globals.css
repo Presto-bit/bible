@@ -11307,10 +11307,62 @@ html.app-theme-dark body {
   text-align: center;
 }
 
+.local-relation-graph {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.local-relation-graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.local-relation-graph-zoom {
+  display: flex;
+  gap: 6px;
+}
+
+.local-relation-graph-zoom .font-pill {
+  min-width: 36px;
+  justify-content: center;
+  padding: 4px 10px;
+}
+
+.local-relation-graph-viewport {
+  position: relative;
+  min-height: 220px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper-2, #f5f0e8);
+  overflow: hidden;
+  touch-action: none;
+  cursor: grab;
+}
+
+.local-relation-graph-viewport:active {
+  cursor: grabbing;
+}
+
 .local-relation-graph-svg {
   width: 100%;
   height: auto;
+  min-height: 220px;
   display: block;
+  transition: transform 0.08s ease-out;
+}
+
+.local-relation-graph-detail {
+  padding: 12px;
+}
+
+.local-relation-graph-hint {
+  margin: 0;
+  font-size: 11px;
+  text-align: center;
 }
 
 .diagram-viewer-badge {

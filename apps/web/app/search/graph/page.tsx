@@ -1,15 +1,15 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { api, type EntityGraph, type GraphTopic } from '@/lib/api';
 import { LocalRelationGraph } from '@/components/knowledge/LocalRelationGraph';
+import { readerHrefFromRef } from '@/lib/group_footprint';
 
 function SearchGraphContent() {
   useEdgeSwipeBack({ href: '/search' });
-  const router = useRouter();
   const searchParams = useSearchParams();
   const topicParam = searchParams.get('topic');
 
@@ -91,7 +91,10 @@ function SearchGraphContent() {
             <div style={{ marginTop: 12 }}>
               <LocalRelationGraph
                 graph={graph}
-                onNodeClick={(nodeId) => router.push(`/dictionary/${encodeURIComponent(nodeId)}`)}
+                onRefClick={(osis) => {
+                  const href = readerHrefFromRef(osis);
+                  if (href) window.location.href = href;
+                }}
               />
             </div>
           ) : (

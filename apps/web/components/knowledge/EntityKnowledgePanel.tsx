@@ -64,7 +64,11 @@ export function EntityKnowledgePanel({
         <div className="entity-knowledge-panel">
           {tab === 'graph' && knowledge?.graph ? (
             <div>
-              <LocalRelationGraph graph={knowledge.graph} onNodeClick={onNodeClick} />
+              <LocalRelationGraph
+                graph={knowledge.graph}
+                onNodeClick={onNodeClick}
+                onRefClick={onRefPreview}
+              />
               {graphTopicId ? (
                 <Link
                   href={`/search/graph?topic=${encodeURIComponent(graphTopicId)}`}
