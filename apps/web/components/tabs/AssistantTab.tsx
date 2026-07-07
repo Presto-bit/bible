@@ -749,8 +749,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             <textarea
               ref={inputRef}
               rows={1}
-              className="compose-input compose-textarea"
-              placeholder={ref ? `关于 ${refToChineseLabel(ref) ?? ref}，问小爱…` : '问小爱…'}
+              className={`compose-input compose-textarea${busy ? ' compose-textarea-busy' : ''}`}
+              placeholder="问小爱…"
               value={input}
               disabled={busy}
               onChange={(e) => setInput(e.target.value)}
@@ -762,25 +762,37 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               }}
             />
           )}
-          <button
-            type="button"
-            className="compose-mode-inner"
-            aria-label={voiceMode ? '切换键盘' : '切换语音'}
-            disabled={busy}
-            onClick={() => setVoiceMode((v) => !v)}
-          >
-            {voiceMode ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="8" width="18" height="11" rx="2" />
-                <path d="M7 11h0M11 11h0M15 11h0M7 15h10" />
+          {busy ? (
+            <button
+              type="button"
+              className="compose-stop-inner is-active"
+              aria-label="停止生成"
+              onClick={cancelStream}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <rect x="7" y="7" width="10" height="10" rx="1.5" />
               </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="9" y="3" width="6" height="11" rx="3" />
-                <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
-              </svg>
-            )}
-          </button>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="compose-mode-inner"
+              aria-label={voiceMode ? '切换键盘' : '切换语音'}
+              onClick={() => setVoiceMode((v) => !v)}
+            >
+              {voiceMode ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="8" width="18" height="11" rx="2" />
+                  <path d="M7 11h0M11 11h0M15 11h0M7 15h10" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="9" y="3" width="6" height="11" rx="3" />
+                  <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+                </svg>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -965,16 +977,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             </button>
           ) : null}
         </div>
-        {busy && (
-          <div className="assistant-pending-bar">
-            <span className="assistant-pending-label">
-              {ref ? `关于 ${refToChineseLabel(ref) ?? ref}` : pendingQuestion.slice(0, 48)}
-            </span>
-            <button type="button" className="assistant-pending-stop" onClick={cancelStream}>
-              停止
-            </button>
-          </div>
-        )}
         {composer}
       </div>
 

@@ -24,11 +24,16 @@ function sqlWasmUrl(file: string): string {
 async function getSql(): Promise<SqlJsStatic> {
   const g = globalThis as { __prestoSqlJs?: Promise<SqlJsStatic> };
   if (!g.__prestoSqlJs) {
-    g.__prestoSqlJs = import('sql.js').then((mod) =>
-      mod.default({
-        locateFile: sqlWasmUrl,
-      }),
-    );
+    g.__prestoSqlJs = import('sql.js')
+      .then((mod) =>
+        mod.default({
+          locateFile: sqlWasmUrl,
+        }),
+      )
+      .catch((err) => {
+        delete g.__prestoSqlJs;
+        throw err;
+      });
   }
   return g.__prestoSqlJs;
 }
@@ -39,10 +44,15 @@ export async function getLocalBibleDb(
   if (typeof window === 'undefined') return null;
   if (!dbPromises[translation]) {
     dbPromises[translation] = (async () => {
-      const buf = await loadOfflineSqliteBytes(translation);
-      if (!buf) return null;
-      const SQL = await getSql();
-      return new SQL.Database(new Uint8Array(buf));
+      try {
+        const buf = await loadOfflineSqliteBytes(translation);
+        if (!buf) return null;
+        const SQL = await getSql();
+        return new SQL.Database(new Uint8Array(buf));
+      } catch {
+        delete dbPromises[translation];
+        return null;
+      }
     })();
   }
   return dbPromises[translation]!;
@@ -57,21 +67,7 @@ export function resetLocalBibleDb() {
 const BOOKS_FALLBACK_URL = withBasePath('/offline/books.json');
 let booksCache: BibleBook[] | null = null;
 
-export async function listLocalBooks(): Promise<BibleBook[] | null> {
-  const db = await getLocalBibleDb('cnv');
-  if (db) {
-    const rows = db.exec(
-      'SELECT id, name, testament, chapter_count FROM books ORDER BY sort_order',
-    );
-    if (rows[0]?.values?.length) {
-      return rows[0].values.map((r) => ({
-        id: String(r[0]),
-        name: String(r[1]),
-        testament: String(r[2]),
-        chapter_count: Number(r[3]),
-      }));
-    }
-  }
+async function loadBooksJson(): Promise<BibleBook[] | null> {
   if (booksCache) return booksCache;
   try {
     const res = await fetch(BOOKS_FALLBACK_URL, { cache: 'force-cache' });
@@ -84,6 +80,28 @@ export async function listLocalBooks(): Promise<BibleBook[] | null> {
   }
 }
 
+export async function listLocalBooks(): Promise<BibleBook[] | null> {
+  const db = await getLocalBibleDb('cnv');
+  if (db) {
+    try {
+      const rows = db.exec(
+        'SELECT id, name, testament, chapter_count FROM books ORDER BY sort_order',
+      );
+      if (rows[0]?.values?.length) {
+        return rows[0].values.map((r) => ({
+          id: String(r[0]),
+          name: String(r[1]),
+          testament: String(r[2]),
+          chapter_count: Number(r[3]),
+        }));
+      }
+    } catch {
+      resetLocalBibleDb();
+    }
+  }
+  return loadBooksJson();
+}
+
 export async function getLocalChapter(
   bookId: string,
   chapter: number,
@@ -91,17 +109,24 @@ export async function getLocalChapter(
 ): Promise<Verse[] | null> {
   const db = await getLocalBibleDb(translation);
   if (!db) return null;
-  const stmt = db.prepare(
-    'SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse',
-  );
-  stmt.bind([bookId.toUpperCase(), chapter]);
-  const out: Verse[] = [];
-  while (stmt.step()) {
-    const row = stmt.getAsObject() as { verse: number; text: string };
-    out.push({ verse: Number(row.verse), text: String(row.text) });
+  const ids = [bookId, bookId.toUpperCase(), bookId.toLowerCase()];
+  const seen = new Set<string>();
+  for (const id of ids) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const stmt = db.prepare(
+      'SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse',
+    );
+    stmt.bind([id, chapter]);
+    const out: Verse[] = [];
+    while (stmt.step()) {
+      const row = stmt.getAsObject() as { verse: number; text: string };
+      out.push({ verse: Number(row.verse), text: String(row.text) });
+    }
+    stmt.free();
+    if (out.length) return out;
   }
-  stmt.free();
-  return out.length ? out : null;
+  return null;
 }
 
 export interface LocalSearchHit {
@@ -120,25 +145,30 @@ export async function searchLocalVerses(
   if (!db) return null;
   const q = query.trim();
   if (!q) return [];
-  const stmt = db.prepare(
-    `SELECT v.book, b.name, v.chapter, v.verse, v.text
-     FROM verses v JOIN books b ON b.id = v.book
-     WHERE v.text LIKE ? ESCAPE '\\'
-     ORDER BY b.sort_order, v.chapter, v.verse
-     LIMIT ?`,
-  );
-  stmt.bind([`%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`, limit]);
-  const out: LocalSearchHit[] = [];
-  while (stmt.step()) {
-    const row = stmt.getAsObject() as unknown as LocalSearchHit;
-    out.push({
-      book: String(row.book),
-      name: String(row.name),
-      chapter: Number(row.chapter),
-      verse: Number(row.verse),
-      text: String(row.text),
-    });
+  try {
+    const stmt = db.prepare(
+      `SELECT v.book, b.name, v.chapter, v.verse, v.text
+       FROM verses v JOIN books b ON b.id = v.book
+       WHERE v.text LIKE ? ESCAPE '\\'
+       ORDER BY b.sort_order, v.chapter, v.verse
+       LIMIT ?`,
+    );
+    stmt.bind([`%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`, limit]);
+    const out: LocalSearchHit[] = [];
+    while (stmt.step()) {
+      const row = stmt.getAsObject() as unknown as LocalSearchHit;
+      out.push({
+        book: String(row.book),
+        name: String(row.name),
+        chapter: Number(row.chapter),
+        verse: Number(row.verse),
+        text: String(row.text),
+      });
+    }
+    stmt.free();
+    return out;
+  } catch {
+    resetLocalBibleDb();
+    return null;
   }
-  stmt.free();
-  return out;
 }

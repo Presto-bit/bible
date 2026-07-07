@@ -4,8 +4,9 @@ from __future__ import annotations
 import re
 
 FOLLOWUP_SECTION_RE = re.compile(
-    r"\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])"
+    r"\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])"
 )
+SECTION_MD_RE = re.compile(r"^###\s+(.+)$", re.MULTILINE)
 SECTION_RE = re.compile(r"【([^】]+)】")
 
 
@@ -30,6 +31,13 @@ def split_body_and_followups(text: str) -> tuple[str, list[str]]:
 
 def extract_sections(text: str) -> list[dict[str, str]]:
     sections: list[dict[str, str]] = []
+    for m in SECTION_MD_RE.finditer(text):
+        title = m.group(1).strip()
+        if title == "相关追问":
+            break
+        sections.append({"id": title, "title": title})
+    if sections:
+        return sections
     for m in SECTION_RE.finditer(text):
         title = m.group(1).strip()
         if title == "相关追问":

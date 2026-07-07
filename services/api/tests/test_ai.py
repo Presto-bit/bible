@@ -40,7 +40,8 @@ def test_build_messages_structure_and_citations():
     assert len(msgs) == 2 and msgs[0]["role"] == "system" and msgs[1]["role"] == "user"
     assert "释经" in msgs[0]["content"]
     assert "禁用空泛套话" in msgs[0]["content"]
-    assert "【相关追问】" in msgs[0]["content"]
+    assert "相关追问" in msgs[0]["content"]
+    assert "Markdown" in msgs[0]["content"]
     assert "[1]" in msgs[1]["content"]
     assert "约翰福音 3:16" in msgs[1]["content"]
     assert "这里的爱是什么意思？" in msgs[1]["content"]
@@ -96,7 +97,7 @@ def test_build_messages_general_no_ref():
         citations=[],
     )
     assert "主题问答" in msgs[0]["content"] or "未绑定具体经文" in msgs[0]["content"]
-    assert "【相关经节】" in msgs[0]["content"]
+    assert "### 相关经节" in msgs[0]["content"] or "相关经节" in msgs[0]["content"]
     assert "【经文要旨】" not in msgs[0]["content"]
     assert "经文：" not in msgs[1]["content"]
     assert "介绍摩西生平" in msgs[1]["content"]
@@ -173,7 +174,7 @@ def test_build_messages_no_rag_omits_commentary():
         use_rag=False,
     )
     assert "【背景注释】" not in msgs[1]["content"]
-    assert "[1]" not in msgs[0]["content"]
+    assert "证据规则" not in msgs[0]["content"]
     assert SCENES["summary_chapter"].use_rag is False
     assert SCENES["verse_full"].use_rag is True
 

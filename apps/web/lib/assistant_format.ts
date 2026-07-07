@@ -1,7 +1,8 @@
 /** 小爱回答正文解析：追问剥离与去重 */
 
 /** 「相关追问」须单独成行，避免正文中含该词时被误截断。 */
-export const FOLLOWUP_SECTION_RE = /\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])/;
+export const FOLLOWUP_SECTION_RE =
+  /\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])/;
 
 export function stripFollowups(text: string): string {
   const idx = text.search(FOLLOWUP_SECTION_RE);
@@ -145,12 +146,17 @@ export function parseAnswer(text: string, serverFollowups?: string[]): ParsedAns
   return { body, followups };
 }
 
-/** 流式未完成时，隐藏半截【标签行 */
+/** 流式未完成时，隐藏半截标题行或【标签行 */
 export function streamingSafeBody(text: string): string {
   const t = stripFollowups(text);
   const lines = t.split('\n');
   const last = lines[lines.length - 1] ?? '';
-  if (/^【[^】]*$/.test(last.trim()) || (last.includes('【') && !last.includes('】'))) {
+  const trimmed = last.trim();
+  if (
+    /^【[^】]*$/.test(trimmed)
+    || (trimmed.includes('【') && !trimmed.includes('】'))
+    || /^###\s+[^\n]*$/.test(trimmed)
+  ) {
     return lines.slice(0, -1).join('\n').trimEnd();
   }
   return t;

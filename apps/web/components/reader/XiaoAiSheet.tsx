@@ -7,6 +7,7 @@ import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
 import { addThought } from '@/lib/reader_thoughts';
+import { extractSummaryLead } from '@/lib/assistant_markdown';
 import {
   recordCitationClick,
   recordHalfSheetXiaoAi,
@@ -175,11 +176,7 @@ export default function XiaoAiSheet({
     [clean, citations],
   );
   const hasError = clean.startsWith('⚠️');
-  const summaryMatch = clean.match(/【摘要】\s*([^\n【]+)/);
-  const summary = summaryMatch?.[1]?.trim() ?? '';
-  const bodyWithoutSummary = summary
-    ? clean.replace(/【摘要】\s*[^\n【]+/, '').trim()
-    : clean;
+  const { summary, body: bodyWithoutSummary } = extractSummaryLead(clean);
   const showCollapsed = !expanded && !hasError && summary && bodyWithoutSummary;
 
   const copyAnswer = async () => {

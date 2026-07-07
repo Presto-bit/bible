@@ -32,7 +32,7 @@ _VALID_ROLES = {"user", "assistant"}
 MAX_HISTORY_TURNS = 12
 
 _FOLLOWUP_TAIL_RE = re.compile(
-    r"\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$"
+    r"\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$"
 )
 
 

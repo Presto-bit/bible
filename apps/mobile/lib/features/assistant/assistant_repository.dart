@@ -41,7 +41,7 @@ class AssistantRepository {
                 'content': t.role == 'assistant'
                     ? t.content.replaceAll(
                         RegExp(
-                            r'\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$'),
+                            r'\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])[\s\S]*$'),
                         '',
                       )
                     : t.content,

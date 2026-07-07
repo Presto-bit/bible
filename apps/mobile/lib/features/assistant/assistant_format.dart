@@ -1,8 +1,8 @@
 /// 小爱回答正文解析：追问剥离。
 library;
 
-final _followupSectionRe =
-    RegExp(r'\n[ \t]*(?:【相关追问】|\[相关追问\]|相关追问\s*[:：])');
+final _followupSectionRe = RegExp(
+    r'\n[ \t]*(?:###\s*相关追问|【相关追问】|\[相关追问\]|相关追问\s*[:：])');
 
 String stripFollowups(String text) {
   final idx = text.indexOf(_followupSectionRe);

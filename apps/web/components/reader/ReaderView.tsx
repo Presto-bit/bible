@@ -722,16 +722,12 @@ export default function ReaderView({
     label: string,
     verseText?: string,
   ) => {
-    if (myThoughtsForRef(ref).length > 0) {
-      setThoughtHub({
-        ref,
-        label,
-        text: verseText || '',
-        verse: minV ?? 1,
-      });
-      return;
-    }
-    openThoughtWriteNew(ref, label, verseText);
+    setThoughtHub({
+      ref,
+      label,
+      text: verseText || '',
+      verse: minV ?? 1,
+    });
   };
 
   const verseThoughtClass = (verse: number) => {

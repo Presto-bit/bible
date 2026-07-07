@@ -14,17 +14,22 @@ export async function bibleBooks(): Promise<BibleBook[]> {
 
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
   if (offline) {
+    const fallback = await listLocalBooks();
+    if (fallback?.length) return fallback;
     throw new Error('离线经包未就绪，请在「我的 → 设置」下载离线圣经');
   }
 
   try {
     const remote = await api.books();
-    return remote.books;
+    if (remote.books?.length) return remote.books;
   } catch {
-    const fallback = await listLocalBooks();
-    if (fallback?.length) return fallback;
-    throw new Error('无法加载经卷目录');
+    /* API 不可用时走静态经卷目录 */
   }
+
+  const fallback = await listLocalBooks();
+  if (fallback?.length) return fallback;
+
+  throw new Error('无法加载经卷目录');
 }
 
 export async function bibleChapter(
@@ -33,6 +38,8 @@ export async function bibleChapter(
   version?: string | null,
 ): Promise<Verse[] | null> {
   const ver = version || 'cnv';
+  const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+
   if (ver === 'cnv' && (await isOfflinePackReady())) {
     const local = await getLocalChapter(bookId, chapter, 'cnv');
     if (local?.length) return local;
@@ -41,6 +48,9 @@ export async function bibleChapter(
     const local = await getLocalChapter(bookId, chapter, 'cuvs');
     if (local?.length) return local;
   }
+
+  if (offline) return null;
+
   try {
     const data = version
       ? await api.chapter(bookId, chapter, version)

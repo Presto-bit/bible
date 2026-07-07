@@ -76,10 +76,11 @@ export default function ThoughtHubSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop thought-hub-backdrop" onClick={onClose} onTouchMove={(e) => e.stopPropagation()}>
       <div
-        className="sheet card thoughts-list-sheet thought-hub-sheet"
+        className={`sheet card thoughts-list-sheet thought-hub-sheet${thoughts.length > 0 ? ' thought-hub-sheet-tall' : ''}`}
         onClick={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
       >
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
