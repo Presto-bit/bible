@@ -6,6 +6,7 @@ import { SectionTitle } from '@/components/reader/SectionTitle';
 import type { SectionMark } from '@/lib/section_titles';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import type { VerseNumberMode } from '@/lib/reader_settings';
+import type { ReadingLayout } from '@/lib/reader_settings';
 import {
   highlightClass,
   markForVerse,
@@ -14,11 +15,14 @@ import {
 
 type Props = {
   bookId: string;
+  bookName: string;
   chapter: number;
   verses: Verse[] | null;
   /** 分段结构（对照阅读时用中文结构，正文用 verses 译本） */
   structureVerses?: Verse[] | null;
   outline: SectionMark[];
+  layout: ReadingLayout;
+  parallelVerses?: Verse[] | null;
   englishUI: boolean;
   verseNo: VerseNumberMode;
   verseBlockStyle: React.CSSProperties;
@@ -57,13 +61,16 @@ function renderPeekVerseBody(
   return renderText(text, 'body');
 }
 
-/** 跟手翻页邻章预览：版式与正式正文一致（专名、划线、段落标题），无划词/笔记等交互。 */
+/** 跟手翻页邻章预览：版式与正式正文一致（章标题、专名、划线、对照列、段落标题）。 */
 export default function ReaderChapterPeek({
   bookId,
+  bookName,
   chapter,
   verses,
   structureVerses,
   outline,
+  layout,
+  parallelVerses,
   englishUI,
   verseNo,
   verseBlockStyle,
@@ -81,55 +88,128 @@ export default function ReaderChapterPeek({
 
   const poetry = isPoetryBook(bookId);
   const structure = structureVerses?.length ? structureVerses : verses;
-  const textByVerse = new Map(verses?.map((v) => [v.verse, v.text]) ?? []);
+  const textByVerse = new Map(verses.map((v) => [v.verse, v.text]));
   const paragraphs = groupVersesIntoParagraphs(
     bookId,
-    structure!.map((v) => ({ verse: v.verse, text: v.text })),
+    structure.map((v) => ({ verse: v.verse, text: v.text })),
     outline.map((s) => s.verse),
   );
+  const parallel = layout === 'parallel' && parallelVerses?.length ? parallelVerses : null;
+
+  const renderProseParagraph = (para: (typeof paragraphs)[0]) => {
+    const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
+    const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
+    return (
+      <div key={para.startVerse}>
+        {firstMark && firstMark.verse === para.startVerse && (
+          <SectionTitle title={firstMark.title} onRefClick={() => {}} />
+        )}
+        <div className={`verse-paragraph verse-no-${verseNo}`} style={verseBlockStyle}>
+          {para.verses.map((v) => {
+            const displayText = textByVerse.get(v.verse) ?? v.text;
+            const markInfo = underlinesOn
+              ? markForVerse(highlightMap, bookId, chapter, v.verse)
+              : null;
+            const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+            return (
+              <span
+                key={v.verse}
+                className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+              >
+                {verseNo !== 'hidden' && (
+                  <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                )}
+                <span className="verse-text-body">
+                  {renderPeekVerseBody(
+                    displayText,
+                    `peek-v${v.verse}`,
+                    v.verse,
+                    renderVerseText,
+                    markInfo ?? undefined,
+                  )}
+                </span>
+                {' '}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderParallelParagraph = (para: (typeof paragraphs)[0]) => {
+    const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
+    const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
+    return (
+      <div key={para.startVerse} className="reader-parallel-block">
+        {firstMark && firstMark.verse === para.startVerse && (
+          <SectionTitle title={firstMark.title} onRefClick={() => {}} />
+        )}
+        <div
+          className={`reader-parallel-row verse-paragraph verse-no-${verseNo}`}
+          style={verseBlockStyle}
+        >
+          <div className="reader-parallel-primary">
+            {para.verses.map((v) => {
+              const displayText = textByVerse.get(v.verse) ?? v.text;
+              const markInfo = underlinesOn
+                ? markForVerse(highlightMap, bookId, chapter, v.verse)
+                : null;
+              const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+              return (
+                <span
+                  key={v.verse}
+                  className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                >
+                  {verseNo !== 'hidden' && (
+                    <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                  )}
+                  <span className="verse-text-body">
+                    {renderPeekVerseBody(
+                      displayText,
+                      `peek-p${v.verse}`,
+                      v.verse,
+                      renderVerseText,
+                      markInfo ?? undefined,
+                    )}
+                  </span>
+                  {' '}
+                </span>
+              );
+            })}
+          </div>
+          <div className="reader-parallel-secondary">
+            {para.verses.map((v) => {
+              const p2 = parallel!.find((x) => x.verse === v.verse);
+              return (
+                <span key={v.verse} className="verse-inline">
+                  {verseNo !== 'hidden' && (
+                    <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                  )}
+                  {p2?.text ?? '—'}{' '}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={`reader-turn-peek ${poetry ? 'reader-poetry' : 'reader-prose'}`}>
-      {paragraphs.map((para) => {
-        const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
-        const firstMark = marks.find((m) => m.verse === para.startVerse) || marks[0];
-        return (
-          <div key={para.startVerse}>
-            {firstMark && firstMark.verse === para.startVerse && (
-              <SectionTitle title={firstMark.title} onRefClick={() => {}} />
-            )}
-            <div className={`verse-paragraph verse-no-${verseNo}`} style={verseBlockStyle}>
-              {para.verses.map((v) => {
-                const displayText = textByVerse.get(v.verse) ?? v.text;
-                const markInfo = underlinesOn
-                  ? markForVerse(highlightMap, bookId, chapter, v.verse)
-                  : null;
-                const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                return (
-                  <span
-                    key={v.verse}
-                    className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
-                  >
-                    {verseNo !== 'hidden' && (
-                      <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                    )}
-                    <span className="verse-text-body">
-                      {renderPeekVerseBody(
-                        displayText,
-                        `peek-v${v.verse}`,
-                        v.verse,
-                        renderVerseText,
-                        markInfo ?? undefined,
-                      )}
-                    </span>
-                    {' '}
-                  </span>
-                );
-              })}
-            </div>
-          </div>
-        );
-      })}
+      <div className="reader-chapter-head reader-chapter-head-peek">
+        <span className="reader-chapter-title">
+          {bookName} · {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
+        </span>
+      </div>
+      {parallel ? (
+        <div className="reader-parallel">
+          {paragraphs.map(renderParallelParagraph)}
+        </div>
+      ) : (
+        paragraphs.map(renderProseParagraph)
+      )}
     </div>
   );
 }

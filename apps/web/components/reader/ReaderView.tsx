@@ -1080,7 +1080,7 @@ export default function ReaderView({
       setChapterLoading(true);
     }
 
-    prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
+    prefetchVicinity();
 
     let cancelled = false;
     const load = async () => {
@@ -1237,15 +1237,13 @@ export default function ReaderView({
         target.book.id === peekNextBook?.id && target.chapter === peekNextChapter;
       const isPrevPeek =
         target.book.id === peekPrevBook?.id && target.chapter === peekPrevChapter;
-      const peek =
-        isNextPeek ? peekNextVerses : isPrevPeek ? peekPrevVerses : null;
-      const peekOutline =
-        isNextPeek ? peekNextOutline : isPrevPeek ? peekPrevOutline : null;
+      const peekBundle =
+        isNextPeek ? peekNextBundle : isPrevPeek ? peekPrevBundle : null;
       const version = chapterCacheVersion(mainVersionId);
       const cached = getCachedChapter(target.book.id, target.chapter, version);
-      // 优先 peek / 当前译本缓存，再回退主译本缓存，减少快滑时空窗
+      // 优先 peek 完整包 / 当前译本缓存，再回退主译本缓存，减少快滑时空窗
       let instant =
-        (peek?.length ? peek : null)
+        (peekBundle?.verses?.length ? peekBundle.verses : null)
         ?? (cached?.length ? cached : null)
         ?? getChapterVersesSync(target.book.id, target.chapter, mainVersionId)
         ?? getChapterVersesSync(target.book.id, target.chapter, null);
@@ -1253,25 +1251,33 @@ export default function ReaderView({
       // 先到位再换内容：无缓存时等加载完成再切换，消灭闪白
       if (!instant?.length) {
         setChapterLoading(true);
-        const loaded = await loadChapterVerses(
-          target.book.id,
-          target.chapter,
-          mainVersionId,
-        );
-        if (loaded?.length) {
-          instant = loaded;
-          setCachedChapter(target.book.id, target.chapter, loaded, version);
+        const loadedBundle = await loadChapterReaderBundle(target.book.id, target.chapter, bundleOpts);
+        if (loadedBundle?.verses?.length) {
+          instant = loadedBundle.verses;
+          setCachedChapter(target.book.id, target.chapter, loadedBundle.verses, version);
+        } else {
+          const loaded = await loadChapterVerses(
+            target.book.id,
+            target.chapter,
+            mainVersionId,
+          );
+          if (loaded?.length) {
+            instant = loaded;
+            setCachedChapter(target.book.id, target.chapter, loaded, version);
+          }
         }
       }
 
       const outlineReady =
-        peekOutline ?? outlineFor(target.book.id, target.chapter);
+        peekBundle?.outline ?? outlineFor(target.book.id, target.chapter);
 
       if (instant?.length) {
         if (opts?.fromSwipe) {
           skipChapterHydrateRef.current = true;
-          let structureSource = instant;
-          if (mainVersionId) {
+          let structureSource = peekBundle?.layoutVerses?.length
+            ? peekBundle.layoutVerses
+            : instant;
+          if (mainVersionId && !peekBundle?.layoutVerses?.length) {
             const cnVersion = chapterCacheVersion(null);
             structureSource =
               getChapterVersesSync(target.book.id, target.chapter, null)
@@ -1306,10 +1312,9 @@ export default function ReaderView({
       peekNextChapter,
       peekPrevBook,
       peekPrevChapter,
-      peekNextVerses,
-      peekPrevVerses,
-      peekNextOutline,
-      peekPrevOutline,
+      peekNextBundle,
+      peekPrevBundle,
+      bundleOpts,
       mainVersionId,
       swipeTurn,
       scrollToChapterStart,
@@ -1375,17 +1380,7 @@ export default function ReaderView({
         ? resolvePlanNav(books, planMeta!.steps, readerLocation, delta)
         : resolveChapterNav(books, readerLocation, delta);
       if (!target) return;
-      void loadChapterVerses(target.book.id, target.chapter, mainVersionId);
-      const syncOutline = outlineFor(target.book.id, target.chapter);
-      if (syncOutline.length) {
-        if (delta > 0) setPeekNextOutline(syncOutline);
-        else setPeekPrevOutline(syncOutline);
-        return;
-      }
-      void outlineForAsync(target.book.id, target.chapter).then((marks) => {
-        if (delta > 0) setPeekNextOutline(marks);
-        else setPeekPrevOutline(marks);
-      });
+      prefetchChapterReaderBundle(target.book.id, target.chapter, bundleOpts);
     },
     onBoundary: (edge) => {
       if (planNavActive) {
@@ -1395,6 +1390,21 @@ export default function ReaderView({
       flashToast(edge === 'next' ? '已是圣经最后一章' : '已是圣经第一章');
     },
   });
+
+  useEffect(() => {
+    const frozen = Boolean(turn.dragSide) || turn.animating;
+    peekFrozenRef.current = frozen;
+    if (frozen) return;
+    const pending = pendingPeekRef.current;
+    if (pending.prev !== null) {
+      setPeekPrevBundle(pending.prev);
+      pendingPeekRef.current.prev = null;
+    }
+    if (pending.next !== null) {
+      setPeekNextBundle(pending.next);
+      pendingPeekRef.current.next = null;
+    }
+  }, [turn.dragSide, turn.animating]);
 
   const turnHintLabel = (() => {
     if (!turn.dragSide) return '';
@@ -2149,10 +2159,13 @@ export default function ReaderView({
                 <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                   <ReaderChapterPeek
                     bookId={peekPrevBook?.id ?? book.id}
+                    bookName={peekPrevBook?.name ?? book.name}
                     chapter={peekPrevChapter}
-                    verses={peekPrevVerses}
-                    structureVerses={peekPrevLayoutVerses}
-                    outline={peekPrevOutline ?? []}
+                    verses={peekPrevBundle?.verses ?? null}
+                    structureVerses={peekPrevBundle?.layoutVerses ?? null}
+                    outline={peekPrevBundle?.outline ?? []}
+                    layout={layout}
+                    parallelVerses={peekPrevBundle?.parallelVerses}
                     englishUI={englishUI}
                     verseNo={verseNo}
                     verseBlockStyle={verseBlockStyle}
@@ -2167,10 +2180,13 @@ export default function ReaderView({
                 <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                   <ReaderChapterPeek
                     bookId={peekNextBook?.id ?? book.id}
+                    bookName={peekNextBook?.name ?? book.name}
                     chapter={peekNextChapter}
-                    verses={peekNextVerses}
-                    structureVerses={peekNextLayoutVerses}
-                    outline={peekNextOutline ?? []}
+                    verses={peekNextBundle?.verses ?? null}
+                    structureVerses={peekNextBundle?.layoutVerses ?? null}
+                    outline={peekNextBundle?.outline ?? []}
+                    layout={layout}
+                    parallelVerses={peekNextBundle?.parallelVerses}
                     englishUI={englishUI}
                     verseNo={verseNo}
                     verseBlockStyle={verseBlockStyle}

@@ -6980,6 +6980,11 @@ a.license-row-name:hover {
   overflow: hidden;
 }
 
+.reader-chapter-head-peek {
+  padding: 4px 0 8px;
+  pointer-events: none;
+}
+
 .reader-turn-peek-empty {
   display: flex;
   align-items: center;
