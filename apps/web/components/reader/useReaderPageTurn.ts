@@ -207,10 +207,8 @@ export function useReaderPageTurn({
       onBoundary?.('prev');
     }
 
-    setAnimating(true);
     applyOffset(0, true);
     await sleep(ANIM_MS);
-    setAnimating(false);
   }, [enabled, canPrev, canNext, onChapterChange, onBoundary, applyOffset]);
 
   return {

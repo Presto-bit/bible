@@ -3,9 +3,9 @@
 import { chatStream } from './api';
 import { bodyText } from './assistant_format';
 
-/** v2：作废旧版截断缓存（max_tokens 过低时写入的半截导读） */
-const CACHE_KEY = 'presto_bible_summaries_v2';
-const LEGACY_CACHE_KEYS = ['presto_bible_summaries_v1'];
+/** v3：作废旧版逐章概述格式与截断缓存 */
+const CACHE_KEY = 'presto_bible_summaries_v3';
+const LEGACY_CACHE_KEYS = ['presto_bible_summaries_v1', 'presto_bible_summaries_v2'];
 
 type CacheMap = Record<string, string>;
 
@@ -74,9 +74,11 @@ function looksTruncated(text: string, kind: 'book' | 'chapter'): boolean {
   if (/[…⋯]$|\.\.\.$/.test(t)) return true;
   if (/第\s*\d+\s*章[：:]\s*$/.test(t)) return true;
   if (kind === 'book') {
-    if (t.length < 180) return true;
+    if (t.length < 120) return true;
+    // 旧版逐章列表格式作废
+    if (/各章概述|第\s*\d+\s*章[：:]/.test(t)) return true;
     // 新格式应含结构标题；过短且无标题视为旧半截
-    if (!t.includes('【') && t.length < 400) return true;
+    if (!t.includes('【') && !t.includes('###') && t.length < 200) return true;
   } else if (t.length < 36) {
     return true;
   }
@@ -146,7 +148,7 @@ export async function loadBookSummary(bookId: string, bookName: string): Promise
   }
 
   const body = await streamAsk(
-    `请概括《${bookName}》整卷的主旨、结构与各章要点。务必写完整，不要中途截断。`,
+    `请为《${bookName}》写整卷导读：卷概览、结构脉络（分段而非逐章）、核心主题与读经提示。不要逐章概述。务必写完整，不要中途截断。`,
     bookId,
     'summary_book',
   );

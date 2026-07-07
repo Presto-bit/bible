@@ -264,6 +264,7 @@ export default function ReaderView({
   const nativePinGenRef = useRef(0);
   const nativeCollapseTimerRef = useRef(0);
   const nativePinSuppressRef = useRef(false);
+  const dismissUntilRef = useRef(0);
   const nativeTouchSelect = isTouchPrimaryUI();
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
@@ -1431,6 +1432,7 @@ export default function ReaderView({
   const dismissNativeSelection = useCallback(() => {
     window.clearTimeout(nativeCollapseTimerRef.current);
     nativeCollapseTimerRef.current = 0;
+    dismissUntilRef.current = Date.now() + 520;
     nativePinSuppressRef.current = true;
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
@@ -1450,9 +1452,9 @@ export default function ReaderView({
       wordDragRafRef.current = 0;
     }
     swipeIgnoreUntilRef.current = Date.now() + 320;
-    requestAnimationFrame(() => {
+    window.setTimeout(() => {
       nativePinSuppressRef.current = false;
-    });
+    }, 520);
   }, []);
 
   const clearSelection = dismissNativeSelection;
@@ -1523,6 +1525,7 @@ export default function ReaderView({
 
     const collapseSystemSelection = () => {
       if (nativeSelectingRef.current || nativePinSuppressRef.current) return;
+      if (Date.now() < dismissUntilRef.current) return;
       const pinned = readNativePinnedHighlight(root);
       if (pinned?.text) {
         nativePinnedHighlightRef.current = pinned;
@@ -1557,6 +1560,7 @@ export default function ReaderView({
 
     const scheduleCollapse = (delayMs: number) => {
       if (nativeSelectingRef.current || nativePinSuppressRef.current) return;
+      if (Date.now() < dismissUntilRef.current) return;
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = window.setTimeout(() => {
         nativeCollapseTimerRef.current = 0;
@@ -1789,6 +1793,23 @@ export default function ReaderView({
     readingEngagedRef.current = true;
     swipeIgnoreUntilRef.current = Date.now() + 320;
   }, [book.id, chapter]);
+
+  const handleReaderContentClick = useCallback(
+    (e: React.MouseEvent) => {
+      if (focusBarRef.current?.contains(e.target as Node)) return;
+      const t = e.target as HTMLElement;
+      if (t.closest('.verse-inline') || t.closest('.reader-focus-bar')) return;
+      const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
+      if (hasSel || hasPinned) dismissNativeSelection();
+    },
+    [hasSel, dismissNativeSelection],
+  );
+
+  useEffect(() => {
+    if (hasSel || nativePinnedHighlight?.spans.length) return;
+    nativePinnedHighlightRef.current = null;
+    clearNativePinnedHighlight();
+  }, [hasSel, nativePinnedHighlight]);
 
   const handleVerseDoubleClick = useCallback(
     (e: React.MouseEvent, verse: number) => {
@@ -2154,6 +2175,7 @@ export default function ReaderView({
         <div
           className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating ? ' verse-transition-off' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
+          onClick={handleReaderContentClick}
         >
           {swipeTurn ? (
             <div
@@ -2338,9 +2360,10 @@ export default function ReaderView({
               className="vsb-icon-btn"
               onClick={() => {
                 setMarkPaletteOpen(false);
-                void navigator.clipboard.writeText(`${effRefLabel} ${effSelectionText}`);
+                const text = `${effRefLabel} ${effSelectionText}`;
+                void navigator.clipboard.writeText(text);
                 flashToast(englishUI ? 'Copied' : '已复制');
-                clearSelection();
+                dismissNativeSelection();
               }}
             >
               <span className="vsb-icon" aria-hidden>

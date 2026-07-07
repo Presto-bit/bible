@@ -11969,18 +11969,31 @@ button.card:active,
 }
 
 /* ─── 打卡型共读群（P0–P2）── */
+body:has(.group-page-checkin) .app-body {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
 .group-page-checkin {
+  position: fixed;
+  top: env(safe-area-inset-top, 0);
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  max-height: 100dvh;
+  height: auto;
+  max-height: none;
   overflow: hidden;
   padding: 0;
   box-sizing: border-box;
+  z-index: 2;
 }
 
 .group-checkin-nav-fixed {
   flex-shrink: 0;
+  position: sticky;
+  top: 0;
   z-index: 10;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
