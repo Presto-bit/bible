@@ -71,11 +71,12 @@ export default function ThoughtWriteSheet({
   const [visOpen, setVisOpen] = useState(false);
   const { inset: kbInset, viewportHeight } = useKeyboardInset();
   const savedRef = useRef(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const cnRef = refToChineseLabel(refLabel) ?? refLabel;
   const keyboardUp = kbInset > 0;
   const verseCollapsed = keyboardUp && !verseExpanded;
   const sheetMaxHeight = viewportHeight
-    ? `${Math.max(360, viewportHeight - 8)}px`
+    ? `${Math.max(320, viewportHeight - 8)}px`
     : '92dvh';
 
   useEffect(() => {
@@ -115,14 +116,34 @@ export default function ThoughtWriteSheet({
     onClose();
   }, [persistIfNeeded, onClose]);
 
+  const handleConfirm = useCallback(() => {
+    if (!persistIfNeeded()) return;
+    onClose();
+  }, [persistIfNeeded, onClose]);
+
+  const handleInputFocus = useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      el.scrollTop = 0;
+    });
+  }, []);
+
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+    e.preventDefault();
+    handleConfirm();
+  }, [handleConfirm]);
+
   return (
     <div
       className="sheet-backdrop thought-write-backdrop thought-write-backdrop-tall"
       onClick={handleBackdropClose}
+      onTouchMove={(e) => e.stopPropagation()}
       style={{ paddingBottom: kbInset }}
     >
       <div
-        className="sheet card thought-write-sheet thought-write-sheet-expanded"
+        className={`sheet card thought-write-sheet thought-write-sheet-expanded${keyboardUp ? ' thought-write-sheet-keyboard' : ''}`}
         onClick={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
         style={{ maxHeight: sheetMaxHeight }}
@@ -136,68 +157,86 @@ export default function ThoughtWriteSheet({
             ‹ {onBack ? '返回' : '关闭'}
           </button>
           <strong className="thought-write-title">{mode === 'edit' ? '编辑想法' : '写想法'}</strong>
-          <div className="thought-vis-picker-wrap">
+          <div className="thought-write-topbar-actions">
+            <div className="thought-vis-picker-wrap">
+              <button
+                type="button"
+                className="thought-vis-picker-btn"
+                aria-label={`可见范围：${visibilityLabel(visibility)}`}
+                onClick={() => setVisOpen((v) => !v)}
+              >
+                <VisibilityIcon visibility={visibility} />
+              </button>
+              {visOpen && (
+                <div className="thought-vis-picker-menu" role="dialog" aria-label="选择可见范围">
+                  {VIS_OPTIONS.map((v) => (
+                    <button
+                      key={v}
+                      type="button"
+                      className={`thought-vis-picker-item${visibility === v ? ' is-active' : ''}`}
+                      onClick={() => {
+                        setVisibility(v);
+                        setVisOpen(false);
+                      }}
+                    >
+                      <span className="thought-vis-picker-item-head">
+                        <VisibilityIcon visibility={v} size={18} />
+                        <strong>{visibilityLabel(v)}</strong>
+                      </span>
+                      <span className="thought-vis-picker-item-hint">{visibilityHint(v)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               type="button"
-              className="thought-vis-picker-btn"
-              aria-label={`可见范围：${visibilityLabel(visibility)}`}
-              onClick={() => setVisOpen((v) => !v)}
+              className="thought-write-save"
+              disabled={!body.trim()}
+              onClick={handleConfirm}
             >
-              <VisibilityIcon visibility={visibility} />
+              完成
             </button>
-            {visOpen && (
-              <div className="thought-vis-picker-menu" role="dialog" aria-label="选择可见范围">
-                {VIS_OPTIONS.map((v) => (
-                  <button
-                    key={v}
-                    type="button"
-                    className={`thought-vis-picker-item${visibility === v ? ' is-active' : ''}`}
-                    onClick={() => {
-                      setVisibility(v);
-                      setVisOpen(false);
-                    }}
-                  >
-                    <span className="thought-vis-picker-item-head">
-                      <VisibilityIcon visibility={v} size={18} />
-                      <strong>{visibilityLabel(v)}</strong>
-                    </span>
-                    <span className="thought-vis-picker-item-hint">{visibilityHint(v)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
         </div>
 
-        <div className={`thought-verse-card thought-verse-card-compact${verseCollapsed ? ' is-collapsed' : ''}`}>
-          <button
-            type="button"
-            className="thought-verse-collapse-btn"
-            onClick={() => setVerseExpanded((v) => !v)}
-          >
-            <span className="thought-verse-label">所选经文</span>
-            <strong className="thought-verse-ref">{cnRef}</strong>
-            {verseCollapsed ? (
-              <span className="thought-verse-collapsed-text">
-                {verseText ? `${verseText.slice(0, 28)}${verseText.length > 28 ? '…' : ''}` : '（未选中具体经文）'}
-              </span>
-            ) : verseText ? (
-              <p className="thought-verse-text">{verseText}</p>
-            ) : (
-              <p className="muted thought-verse-text">（未选中具体经文内容）</p>
-            )}
-          </button>
-        </div>
+        <div
+          className="thought-write-scroll"
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          <div className={`thought-verse-card thought-verse-card-compact${verseCollapsed ? ' is-collapsed' : ''}`}>
+            <button
+              type="button"
+              className="thought-verse-collapse-btn"
+              onClick={() => setVerseExpanded((v) => !v)}
+            >
+              <span className="thought-verse-label">所选经文</span>
+              <strong className="thought-verse-ref">{cnRef}</strong>
+              {verseCollapsed ? (
+                <span className="thought-verse-collapsed-text">
+                  {verseText ? `${verseText.slice(0, 28)}${verseText.length > 28 ? '…' : ''}` : '（未选中具体经文）'}
+                </span>
+              ) : verseText ? (
+                <p className="thought-verse-text">{verseText}</p>
+              ) : (
+                <p className="muted thought-verse-text">（未选中具体经文内容）</p>
+              )}
+            </button>
+          </div>
 
-        <div className="thought-write-editor-wrap">
-          <textarea
-            className="note-editor-input thought-write-input"
-            rows={5}
-            enterKeyHint="done"
-            placeholder="写下你的领受、疑问或祷告…"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-          />
+          <div className="thought-write-editor-wrap">
+            <textarea
+              ref={textareaRef}
+              className="note-editor-input thought-write-input"
+              rows={5}
+              enterKeyHint="done"
+              placeholder="写下你的领受、疑问或祷告…"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              onFocus={handleInputFocus}
+              onKeyDown={handleInputKeyDown}
+            />
+          </div>
         </div>
       </div>
     </div>

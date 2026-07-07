@@ -718,19 +718,6 @@ export default function ReaderView({
     });
   };
 
-  const openThoughtFromSelection = (
-    ref: string,
-    label: string,
-    verseText?: string,
-  ) => {
-    setThoughtHub({
-      ref,
-      label,
-      text: verseText || '',
-      verse: minV ?? 1,
-    });
-  };
-
   const verseThoughtClass = (verse: number) => {
     if (!thoughtsOn || !(chapterThoughts[verse] ?? 0)) return '';
     return (myChapterThoughts[verse] ?? 0) > 0
@@ -1447,9 +1434,16 @@ export default function ReaderView({
     const collapseSystemSelection = () => {
       if (nativeSelectingRef.current) return;
       const pinned = readNativeVerseSelection(root);
-      if (!pinned?.text) return;
-      const verseSlices = verses.map((v) => ({ verse: v.verse, text: v.text }));
-      const fullVersePick = nativeSelectionCoversVerses(verseSlices, pinned);
+      if (!pinned?.text) {
+        pinningRef.current = true;
+        requestAnimationFrame(() => {
+          window.getSelection()?.removeAllRanges();
+          requestAnimationFrame(() => {
+            pinningRef.current = false;
+          });
+        });
+        return;
+      }
       setNativeSelection((prev) => {
         if (
           prev &&
@@ -1466,9 +1460,6 @@ export default function ReaderView({
       wordRangeRef.current = null;
       lastSelectAt.current = Date.now();
       swipeIgnoreUntilRef.current = Date.now() + 320;
-      if (!fullVersePick) {
-        return;
-      }
       pinningRef.current = true;
       requestAnimationFrame(() => {
         window.getSelection()?.removeAllRanges();
@@ -1685,6 +1676,20 @@ export default function ReaderView({
     },
     [handleVerseThoughtClick],
   );
+
+  useEffect(() => {
+    if (!thoughtWrite && !thoughtHub) return;
+    const el = contentRef.current;
+    if (!el) return;
+    const prevOverflow = el.style.overflow;
+    const prevTouchAction = el.style.touchAction;
+    el.style.overflow = 'hidden';
+    el.style.touchAction = 'none';
+    return () => {
+      el.style.overflow = prevOverflow;
+      el.style.touchAction = prevTouchAction;
+    };
+  }, [thoughtWrite, thoughtHub]);
 
   useEffect(() => {
     if (!hasSel) {
@@ -1908,6 +1913,13 @@ export default function ReaderView({
         if (Date.now() - lastSelectAt.current < 500) return;
         if (overlayOpen) return;
         if (hasSel) {
+          if (nativeTouchSelect) {
+            const sel = window.getSelection();
+            if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+              window.getSelection()?.removeAllRanges();
+              return;
+            }
+          }
           clearSelection();
           return;
         }
@@ -2125,7 +2137,7 @@ export default function ReaderView({
                 className="vsb-icon-btn"
                 onClick={() => {
                   setMarkPaletteOpen(false);
-                  openThoughtFromSelection(
+                  openThoughtWriteNew(
                     selRef,
                     effRefLabel,
                     effSelectionText || undefined,

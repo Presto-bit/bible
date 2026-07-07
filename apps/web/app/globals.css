@@ -8714,6 +8714,7 @@ body.reader-active .proper-noun--artifact {
 
 .thought-write-backdrop {
   align-items: flex-end;
+  touch-action: none;
 }
 
 .thought-write-backdrop-tall {
@@ -8725,6 +8726,11 @@ body.reader-active .proper-noun--artifact {
   max-width: min(720px, 100vw);
   border-radius: 20px 20px 0 0;
   min-height: 85dvh;
+  touch-action: pan-y;
+}
+
+.thought-write-sheet-keyboard {
+  min-height: 0;
 }
 
 .thought-write-topbar {
@@ -8734,6 +8740,14 @@ body.reader-active .proper-noun--artifact {
   gap: 8px;
   margin-bottom: 10px;
   flex-shrink: 0;
+}
+
+.thought-write-topbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  justify-self: end;
 }
 
 .thought-vis-picker-wrap {
@@ -8906,6 +8920,9 @@ body.reader-active .proper-noun--artifact {
   min-height: calc(1.45em * 5 + 20px);
   max-height: calc(1.45em * 8 + 20px);
   resize: none;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .thought-hub-backdrop {
