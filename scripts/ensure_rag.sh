@@ -23,12 +23,11 @@ PD_DIR="$ROOT/content/commentary/public-domain"
 OCD_DIR="$ROOT/content/commentary/public-domain-ocd"
 REF_DIR="$ROOT/content/commentary/reference-en"
 ZH_DIR="$ROOT/content/commentary/study-bible-zh"
-FHL_DIR="$ROOT/content/commentary/fhl-zh"
 STUDY_DIR="$ROOT/content/commentary/study-bible"
 
 log() { echo "[ensure-rag] $*"; }
 
-mkdir -p "$PD_DIR" "$OCD_DIR" "$REF_DIR" "$ZH_DIR" "$FHL_DIR" "$STUDY_DIR"
+mkdir -p "$PD_DIR" "$OCD_DIR" "$REF_DIR" "$ZH_DIR" "$STUDY_DIR"
 
 index_dir() {
   local dir="$1"
@@ -95,20 +94,9 @@ else
   log "跳过英文注释拉取（SKIP_COMMENTARY_IMPORT=1）"
 fi
 
-# ── 2. 中文自有资料 + 信望爱注释 ──
+# ── 2. 中文自有资料 ──
 log "生成中文自有 RAG 资料…"
 "$PY" "$ROOT/scripts/build_rag_zh_content.py"
-
-if [[ "$SKIP_IMPORT" != "1" ]]; then
-  log "信望爱站注释（book=3，已齐全跳过）…"
-  if "$PY" "$ROOT/scripts/import_fhl_commentary.py" --skip-existing; then
-    log "✓ FHL 中文注释就绪"
-  else
-    log "⚠ FHL 注释拉取失败"
-  fi
-else
-  log "跳过 FHL 拉取（SKIP_COMMENTARY_IMPORT=1）"
-fi
 
 # ── 3. RAG 索引（hash 未变则跳过；--reuse 复用已有向量）──
 ok=0
@@ -117,7 +105,6 @@ index_dir "$PD_DIR" "commentary" && ok=$((ok + 1)) || true
 index_ocd_dir "$OCD_DIR" "commentary" && ok=$((ok + 1)) || true
 index_dir "$REF_DIR" "reference-en" && ok=$((ok + 1)) || true
 index_dir "$ZH_DIR" "study-bible-zh" && ok=$((ok + 1)) || true
-index_dir "$FHL_DIR" "commentary-zh" && ok=$((ok + 1)) || true
 
 if [[ "$ok" -eq 0 ]]; then
   log "⚠ 未完成任何 RAG 索引"

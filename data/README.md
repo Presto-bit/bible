@@ -21,7 +21,7 @@
 | 目录 | 内容 | 格式 |
 |------|------|------|
 | `bible/cnv/` | 圣经新译本（CNV）主译本 | `verses.json` / `*.epub` |
-| `bible/kjv/` | KJV 英文对照 | 同上 |
+| `bible/kjv/` | KJV 英文对照 | `verses.json`（scrollmapper 生成） |
 | `dictionary/` | 人名、地名、专词 | `entities.json` |
 | `crossrefs/` | 交叉引用 | `cross_references.json` |
 | `plans/` | 读经计划 | CSV |
@@ -34,11 +34,17 @@
 | 路径 | 说明 |
 |------|------|
 | `bible/cnv/圣经新译本.epub` | 中文主译本源 |
-| `bible/kjv/The Holy Bible (KJV).epub` | 英文对照源 |
+| `bible/kjv/The Holy Bible (KJV).epub` | 英文对照源（已弃用，改用 scrollmapper） |
 
-转换后各目录 `verses.json`，`import_bible.py` 合并写入客户端 DB。
+KJV 经库由 scrollmapper 公版 JSON 生成，不再依赖 EPUB：
 
-## 经文 JSON 格式（`epub_to_verses.py` 实际输出）
+```bash
+python scripts/import_kjv_scrollmapper.py --sqlite build/bible_kjv.sqlite
+```
+
+旧 EPUB 流程（仅 CNV 仍使用）。
+
+## 经文 JSON 格式
 
 `bible/cnv/verses.json`、`bible/kjv/verses.json`：
 
@@ -56,7 +62,7 @@
 
 书卷代码用 USFM 风格缩写：`GEN`, `EXO`, …, `JHN`, `REV`（共 66）。CNV 文本保留神名前的全角敬空 `　`。
 
-> 生成实测：CNV = 66 卷 / 1189 章 / 31077 节（精确）；KJV = 66 卷 / 31101 节（best-effort，章界用「节号归 1」推断）。
+> 生成实测：CNV = 66 卷 / 1189 章 / 31077 节（精确）；KJV = 66 卷 / 31102 节（scrollmapper，结构标准）。
 
 ## 词典格式
 
@@ -87,15 +93,15 @@ new_testament_30,2,MAT,1,18,2,12,马太福音 1:18-2:12
 ## 数据流水线命令（已实现）
 
 ```bash
-# 1) EPUB → verses.json
+# 1) CNV：EPUB → verses.json
 python scripts/epub_to_verses.py --epub data/bible/cnv/圣经新译本.epub \
     --translation cnv --format cnv --out data/bible/cnv/verses.json
-python scripts/epub_to_verses.py --epub "data/bible/kjv/The Holy Bible (KJV).epub" \
-    --translation kjv --format kjv --out data/bible/kjv/verses.json
+
+# 1b) KJV：scrollmapper → verses.json + sqlite
+python scripts/import_kjv_scrollmapper.py --sqlite build/bible_kjv.sqlite
 
 # 2) verses.json → 离线 SQLite（books + verses + FTS5）
 python scripts/import_bible.py --input data/bible/cnv/verses.json --out build/bible_cnv.sqlite
-python scripts/import_bible.py --input data/bible/kjv/verses.json --out build/bible_kjv.sqlite
 ```
 
 产物 `build/bible_*.sqlite`（约 12–13 MB，已 gitignore）供 Flutter `assets/` 打包或离线下载。完整步骤见 [docs/SETUP.md](../docs/SETUP.md)。

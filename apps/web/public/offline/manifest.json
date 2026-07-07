@@ -1,7 +1,7 @@
 {
   "version": "2026.07.07",
   "zip": "bible_offline_2026.07.07.zip",
-  "zip_sha256": "2d7bf3445b0fc299656800d8592eb07c2aab0e990c9397eb0c5e08f7e54eefe3",
+  "zip_sha256": "76e000422af276a2ef1da51f54c1c2d138c76ebbb88f05dbb7d85ba557d814b9",
   "files": [
     {
       "path": "bible/bible_cnv.sqlite",
@@ -16,7 +16,7 @@
     {
       "path": "bible/bible_kjv.sqlite",
       "bytes": 13131776,
-      "sha256": "e2e9a04eac84ad4a2400c519e98e93cc1020259fa346af9f0b25114c41351bb1"
+      "sha256": "7f9e19aacabaf1c82b6e0bb7540e93907c9522755acd85fddab7940c670601e5"
     },
     {
       "path": "content/plans/bible_year_365.csv",

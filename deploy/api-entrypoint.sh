@@ -12,11 +12,16 @@ if [[ ! -f "$CNV" && -f /app/data/bible/cnv/verses.json ]]; then
     --out "$CNV"
 fi
 
-if [[ ! -f "$KJV" && -f /app/data/bible/kjv/verses.json ]]; then
-  echo "[entrypoint] 生成 bible_kjv.sqlite …"
-  python /app/scripts/import_bible.py \
-    --input /app/data/bible/kjv/verses.json \
-    --out "$KJV"
+if [[ ! -f "$KJV" ]]; then
+  if [[ -f /app/data/bible/kjv/verses.json ]]; then
+    echo "[entrypoint] 生成 bible_kjv.sqlite …"
+    python /app/scripts/import_bible.py \
+      --input /app/data/bible/kjv/verses.json \
+      --out "$KJV"
+  elif [[ -x /app/scripts/import_kjv_scrollmapper.py ]]; then
+    echo "[entrypoint] 拉取 scrollmapper KJV …"
+    python /app/scripts/import_kjv_scrollmapper.py --sqlite "$KJV"
+  fi
 fi
 
 if [[ ! -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
@@ -50,7 +55,6 @@ mkdir -p \
   /app/content/commentary/public-domain-ocd \
   /app/content/commentary/reference-en \
   /app/content/commentary/study-bible-zh \
-  /app/content/commentary/fhl-zh \
   /app/content/commentary/study-bible \
   /app/data/rag/uploads
 

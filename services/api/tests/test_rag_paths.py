@@ -30,8 +30,8 @@ def test_path_match_keys_includes_name_and_relative():
 
 
 def test_commentary_relative_path_from_opt_bible():
-    rel = commentary_relative_path("/opt/bible/content/commentary/fhl-zh/fhl-gen.md")
-    assert rel == "content/commentary/fhl-zh/fhl-gen.md"
+    rel = commentary_relative_path("/opt/bible/content/commentary/study-bible-zh/gen-summary.md")
+    assert rel == "content/commentary/study-bible-zh/gen-summary.md"
 
 
 def test_storage_source_path_prefers_content_prefix(tmp_path, monkeypatch):

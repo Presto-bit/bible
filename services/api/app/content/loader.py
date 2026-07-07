@@ -625,8 +625,26 @@ def graph_topics() -> list[dict]:
 
 
 def content_attribution() -> dict:
-    """公开数据集署名（CC-BY 等）。"""
+    """公开数据集与译本署名说明。"""
     sources = [
+        {
+            "id": "cnv",
+            "name": "圣经新译本（CNV）",
+            "license": "需授权",
+            "url": "https://www.worldwidebiblesociety.org",
+        },
+        {
+            "id": "cuvs",
+            "name": "midvash/bible-data (CUVS)",
+            "license": "待核实",
+            "url": "https://github.com/midvash/bible-data",
+        },
+        {
+            "id": "kjv",
+            "name": "scrollmapper/bible_databases (KJV)",
+            "license": "Public Domain",
+            "url": "https://github.com/scrollmapper/bible_databases",
+        },
         {
             "id": "openbible-crossrefs",
             "name": "OpenBible.info Cross References",
@@ -656,6 +674,12 @@ def content_attribution() -> dict:
             "name": "HelloAO Bible API (Public Domain Commentaries)",
             "license": "Public Domain",
             "url": "https://bible.helloao.org",
+        },
+        {
+            "id": "ocd",
+            "name": "OpenChristianData",
+            "license": "Public Domain",
+            "url": "https://github.com/OpenChristianData/open-christian-data",
         },
     ]
     return {"sources": sources}

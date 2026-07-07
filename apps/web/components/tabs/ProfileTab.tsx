@@ -379,6 +379,10 @@ export default function ProfileTab() {
                 <span style={{ flex: 1 }}>外观</span>
                 <span className="muted">›</span>
               </Link>
+              <Link href="/profile/licenses" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+                <span style={{ flex: 1 }}>数据来源与许可</span>
+                <span className="muted">›</span>
+              </Link>
               {!installedPwa ? (
                 <button
                   type="button"

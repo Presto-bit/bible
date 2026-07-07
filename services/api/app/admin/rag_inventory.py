@@ -47,13 +47,6 @@ _COLLECTIONS: tuple[dict, ...] = (
         "recursive": False,
     },
     {
-        "id": "fhl",
-        "label": "信望爱中文注释",
-        "source_type": "commentary-zh",
-        "subdir": "fhl-zh",
-        "recursive": False,
-    },
-    {
         "id": "manual",
         "label": "手工研经资料",
         "source_type": "study-bible",
@@ -227,9 +220,6 @@ def _file_subgroup(collection_id: str, file_path: Path, root: Path) -> str | Non
         return _helloao_source_from_stem(file_path.stem)
     if collection_id == "ocd" and len(rel.parts) > 1:
         return rel.parts[0]
-    if collection_id == "fhl":
-        m = re.match(r"fhl-([a-z0-9]+)", file_path.stem, re.I)
-        return m.group(1).upper() if m else None
     return None
 
 

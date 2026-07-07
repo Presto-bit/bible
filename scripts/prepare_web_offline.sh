@@ -14,7 +14,13 @@ if [[ ! -f "$ROOT/build/bible_cnv.sqlite" ]]; then
 fi
 
 if [[ ! -f "$ROOT/build/bible_kjv.sqlite" ]]; then
+  echo "→ 拉取 scrollmapper KJV…"
+  python3 "$ROOT/scripts/import_kjv_scrollmapper.py" --sqlite "$ROOT/build/bible_kjv.sqlite"
+elif [[ ! -f "$ROOT/data/bible/kjv/verses.json" ]]; then
   echo "→ 生成 KJV SQLite…"
+  python3 "$ROOT/scripts/import_kjv_scrollmapper.py" --sqlite "$ROOT/build/bible_kjv.sqlite"
+elif [[ "$ROOT/data/bible/kjv/verses.json" -nt "$ROOT/build/bible_kjv.sqlite" ]]; then
+  echo "→ 更新 KJV SQLite…"
   python3 "$ROOT/scripts/import_bible.py" \
     --input "$ROOT/data/bible/kjv/verses.json" \
     --out "$ROOT/build/bible_kjv.sqlite"

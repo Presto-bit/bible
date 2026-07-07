@@ -49,7 +49,7 @@ content/commentary/
 
 发版 **不再** 自动执行 RAG。`release.sh` 完成后，管理员登录 **我的 → 管理后台 → RAG 资料**：
 
-1. **① 拉取注释资料** — 等同 `ensure_rag.sh` 拉取段（HelloAO / OCD / 中文 / FHL）
+1. **① 拉取注释资料** — 等同 `ensure_rag.sh` 拉取段（HelloAO / OCD / 中文自有）
 2. **② 索引全部磁盘** — 对各 commentary 目录批量向量化
 3. **③ 修复待处理** — 分批处理 pending/failed（每批 8 个）
 
@@ -131,9 +131,8 @@ curl -N -X POST https://2sc.prestoai.cn/ai/chat \
 | 英文注释 | OpenChristianData（Wesley/Calvin/Barnes/MacLaren 等） | `commentary` |
 | 英文参考 | Easton's / Smith's / Torrey's / Hitchcock's | `reference-en` |
 | 中文自有 | 书卷章摘要、词典、主题、地图/时间线 | `study-bible-zh` |
-| 中文注释 | 信望爱站注释（FHL book=3） | `commentary-zh` |
 
-手动命令：`make import-commentary-all`、`make import-commentary-ocd`、`make rag-zh-content`、`make import-fhl-commentary`
+手动命令：`make import-commentary-all`、`make import-commentary-ocd`、`make rag-zh-content`
 
 **不要**将未授权的商业注释 PDF 直接上线。
 

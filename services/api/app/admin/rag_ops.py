@@ -331,8 +331,6 @@ def import_rag_sources(*, skip_remote: bool = False) -> dict:
             ("ocd", "import_commentary_ocd.py", ["--skip-existing"]),
         ])
     steps.append(("zh_content", "build_rag_zh_content.py", []))
-    if not skip_remote:
-        steps.append(("fhl", "import_fhl_commentary.py", ["--skip-existing"]))
 
     results: list[dict] = []
     ok = True
@@ -356,7 +354,6 @@ def index_rag_collections(*, force: bool = False) -> dict:
         (comment / "public-domain", "commentary"),
         (comment / "reference-en", "reference-en"),
         (comment / "study-bible-zh", "study-bible-zh"),
-        (comment / "fhl-zh", "commentary-zh"),
     ]
     for dir_path, source_type in singles:
         results.append(_index_directory(dir_path, source_type, force=force))

@@ -200,8 +200,16 @@ else
 fi
 
 # ── CNV / KJV 主经库（verses.json → build/bible_*.sqlite，与 entrypoint 一致）──
-for pair in "cnv:data/bible/cnv/verses.json:build/bible_cnv.sqlite" \
-            "kjv:data/bible/kjv/verses.json:build/bible_kjv.sqlite"; do
+KJV_JSON="$ROOT/data/bible/kjv/verses.json"
+if [[ ! -f "$KJV_JSON" ]]; then
+  log "拉取 scrollmapper KJV → verses.json …"
+  "$PY" "$ROOT/scripts/import_kjv_scrollmapper.py" --sqlite "$ROOT/build/bible_kjv.sqlite"
+elif need_run "$ROOT/build/bible_kjv.sqlite" "$KJV_JSON"; then
+  log "生成 bible_kjv.sqlite …"
+  "$PY" "$ROOT/scripts/import_bible.py" --input "$KJV_JSON" --out "$ROOT/build/bible_kjv.sqlite"
+fi
+
+for pair in "cnv:data/bible/cnv/verses.json:build/bible_cnv.sqlite"; do
   IFS=: read -r _ rel_in rel_out <<< "$pair"
   in="$ROOT/$rel_in"
   out="$ROOT/$rel_out"
