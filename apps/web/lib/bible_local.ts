@@ -2,6 +2,7 @@
 
 import type { Database, SqlJsStatic } from 'sql.js';
 import type { BibleBook, Verse } from './api';
+import { withBasePath } from './basePath';
 import {
   loadOfflineSqliteBytes,
   type OfflineTranslation,
@@ -9,12 +10,23 @@ import {
 
 const dbPromises: Partial<Record<OfflineTranslation, Promise<Database | null>>> = {};
 
+/** sql.js 浏览器包请求 sql-wasm-browser.wasm，静态资源目录只有 sql-wasm.wasm */
+function mapSqlWasmFile(file: string): string {
+  if (file === 'sql-wasm-browser.wasm') return 'sql-wasm.wasm';
+  if (file === 'sql-wasm-browser.js') return 'sql-wasm.js';
+  return file;
+}
+
+function sqlWasmUrl(file: string): string {
+  return withBasePath(`/sql-wasm/${mapSqlWasmFile(file)}`);
+}
+
 async function getSql(): Promise<SqlJsStatic> {
   const g = globalThis as { __prestoSqlJs?: Promise<SqlJsStatic> };
   if (!g.__prestoSqlJs) {
     g.__prestoSqlJs = import('sql.js').then((mod) =>
       mod.default({
-        locateFile: (file: string) => `/sql-wasm/${file}`,
+        locateFile: sqlWasmUrl,
       }),
     );
   }
@@ -42,7 +54,7 @@ export function resetLocalBibleDb() {
   }
 }
 
-const BOOKS_FALLBACK_URL = '/offline/books.json';
+const BOOKS_FALLBACK_URL = withBasePath('/offline/books.json');
 let booksCache: BibleBook[] | null = null;
 
 export async function listLocalBooks(): Promise<BibleBook[] | null> {

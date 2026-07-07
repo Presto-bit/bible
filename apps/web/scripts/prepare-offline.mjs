@@ -14,20 +14,30 @@ const manifestPath = path.join(webRoot, 'public/offline/manifest.json');
 const wasmDir = path.join(webRoot, 'public/sql-wasm');
 
 function ensureSqlWasm() {
-  const wasmOut = path.join(wasmDir, 'sql-wasm.wasm');
-  const jsOut = path.join(wasmDir, 'sql-wasm.js');
-  if (existsSync(wasmOut) && existsSync(jsOut)) return true;
-
   const dist = path.join(webRoot, 'node_modules/sql.js/dist');
-  const wasmSrc = path.join(dist, 'sql-wasm.wasm');
-  const jsSrc = path.join(dist, 'sql-wasm.js');
-  if (!existsSync(wasmSrc) || !existsSync(jsSrc)) return false;
-
+  const pairs = [
+    ['sql-wasm.wasm', 'sql-wasm.wasm'],
+    ['sql-wasm.js', 'sql-wasm.js'],
+    ['sql-wasm-browser.wasm', 'sql-wasm.wasm'],
+    ['sql-wasm-browser.js', 'sql-wasm.js'],
+  ];
+  let ok = true;
   mkdirSync(wasmDir, { recursive: true });
-  copyFileSync(wasmSrc, wasmOut);
-  copyFileSync(jsSrc, jsOut);
-  console.log('✓ 已从 node_modules 复制 sql-wasm');
-  return true;
+  for (const [outName, srcName] of pairs) {
+    const out = path.join(wasmDir, outName);
+    const src = path.join(dist, srcName);
+    if (existsSync(out)) continue;
+    if (!existsSync(src)) {
+      ok = false;
+      continue;
+    }
+    copyFileSync(src, out);
+  }
+  if (ok && existsSync(path.join(wasmDir, 'sql-wasm.wasm'))) {
+    console.log('✓ 已从 node_modules 复制 sql-wasm');
+    return true;
+  }
+  return false;
 }
 
 const hasPack = existsSync(zipPath) && existsSync(manifestPath);

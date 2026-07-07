@@ -25,23 +25,9 @@ import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { preloadSectionTitles } from '@/lib/section_titles';
-
-const BOOK_ABBR: Record<string, string> = {
-  创世记: '创', 出埃及记: '出', 利未记: '利', 民数记: '民', 申命记: '申',
-  约书亚记: '书', 士师记: '士', 路得记: '得', 撒母耳记上: '撒上', 撒母耳记下: '撒下',
-  列王纪上: '王上', 列王纪下: '王下', 历代志上: '代上', 历代志下: '代下', 以斯拉记: '拉',
-  尼希米记: '尼', 以斯帖记: '斯', 约伯记: '伯', 诗篇: '诗', 箴言: '箴', 传道书: '传', 雅歌: '歌',
-  以赛亚书: '赛', 耶利米书: '耶', 耶利米哀歌: '哀', 以西结书: '结', 但以理书: '但',
-  何西阿书: '何', 约珥书: '珥', 阿摩司书: '摩', 俄巴底亚书: '俄', 约拿书: '拿', 弥迦书: '弥',
-  那鸿书: '鸿', 哈巴谷书: '哈', 西番雅书: '番', 哈该书: '该', 撒迦利亚书: '亚', 玛拉基书: '玛',
-  马太福音: '太', 马可福音: '可', 路加福音: '路', 约翰福音: '约', 使徒行传: '徒',
-  罗马书: '罗', 哥林多前书: '林前', 哥林多后书: '林后', 加拉太书: '加', 以弗所书: '弗',
-  腓立比书: '腓', 歌罗西书: '西', 帖撒罗尼迦前书: '帖前', 帖撒罗尼迦后书: '帖后',
-  提摩太前书: '提前', 提摩太后书: '提后', 提多书: '多', 腓利门书: '门', 希伯来书: '来',
-  雅各书: '雅', 彼得前书: '彼前', 彼得后书: '彼后', 约翰一书: '约一', 约翰二书: '约二',
-  约翰三书: '约三', 犹大书: '犹', 启示录: '启',
-};
-const bookAbbr = (name: string) => BOOK_ABBR[name] ?? name.slice(0, 1);
+import { OfflineBibleCard } from '@/components/OfflineBibleCard';
+import { bookAbbr } from '@/lib/book_abbr';
+import { useOnline } from '@/lib/use_online';
 
 type ReaderTabProps = {
   /** PWA 保活：非当前 Tab 时为 false，用于收起阅读器壳层样式 */
@@ -62,6 +48,7 @@ export default function ReaderTab({ paneActive = true }: ReaderTabProps) {
 
 function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const searchParams = useSearchParams();
+  const online = useOnline();
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [book, setBook] = useState<BibleBook | null>(null);
   const [chapter, setChapter] = useState(1);
@@ -238,14 +225,6 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     };
   }, [books, searchParams, book]);
 
-  if (err) {
-    return (
-      <main className="container">
-        <p className="muted">加载失败：{err}</p>
-      </main>
-    );
-  }
-
   const handleNavigate = useCallback((b: BibleBook, ch: number) => {
     setBook(b);
     setChapter(Math.min(Math.max(1, ch), b.chapter_count));
@@ -265,6 +244,21 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     handleNavigate(b, ch);
     setCatalogOpen(false);
   }, [handleNavigate]);
+
+  if (err) {
+    return (
+      <main className="container">
+        <p className="muted" style={{ lineHeight: 1.55 }}>
+          {!online ? '当前离线，无法打开读经' : '加载失败'}：{err}
+        </p>
+        {!online ? (
+          <div style={{ marginTop: 14 }}>
+            <OfflineBibleCard />
+          </div>
+        ) : null}
+      </main>
+    );
+  }
 
   if (catalogOpen && book) {
     return (

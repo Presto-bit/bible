@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { markReaderTabEntry } from '@/lib/reading';
+import { isStandalonePwa } from '@/lib/platform';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
 // outline 为未选中态，filled 为选中态（与 App 的 NavigationDestination 行为一致）。
@@ -83,6 +84,12 @@ export default function BottomTabs() {
     bar.style.removeProperty('transform');
     bar.style.pointerEvents = '';
   }, [compact, pathname]);
+
+  useEffect(() => {
+    if (!isStandalonePwa()) return;
+    router.prefetch('/reader');
+    router.prefetch('/assistant');
+  }, [router]);
 
   const go = (href: string) => {
     if (href === '/reader') markReaderTabEntry();

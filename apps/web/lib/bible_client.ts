@@ -11,6 +11,12 @@ import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
 export async function bibleBooks(): Promise<BibleBook[]> {
   const local = await listLocalBooks();
   if (local?.length) return local;
+
+  const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+  if (offline) {
+    throw new Error('离线经包未就绪，请在「我的 → 设置」下载离线圣经');
+  }
+
   try {
     const remote = await api.books();
     return remote.books;

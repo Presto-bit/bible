@@ -41,6 +41,10 @@ if [[ -d "$ROOT/apps/web/node_modules/sql.js/dist" ]]; then
   cp "$ROOT/apps/web/node_modules/sql.js/dist/sql-wasm.wasm" \
      "$ROOT/apps/web/node_modules/sql.js/dist/sql-wasm.js" \
      "$ROOT/apps/web/public/sql-wasm/" 2>/dev/null || true
+  cp "$ROOT/apps/web/node_modules/sql.js/dist/sql-wasm.wasm" \
+     "$ROOT/apps/web/public/sql-wasm/sql-wasm-browser.wasm" 2>/dev/null || true
+  cp "$ROOT/apps/web/node_modules/sql.js/dist/sql-wasm.js" \
+     "$ROOT/apps/web/public/sql-wasm/sql-wasm-browser.js" 2>/dev/null || true
 fi
 
 echo "✓ 离线资源已写入 $OUT"
