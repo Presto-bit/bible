@@ -110,7 +110,7 @@ export const CONTENT_ATTRIBUTION_SECTIONS: AttributionSection[] = [
         id: 'daily-wallpapers',
         name: '每日经文风景背景',
         license: 'Unsplash（已打包）',
-        note: '12 张风景图随应用分发，用于每日经文卡片与全屏壁纸，支持离线缓存。',
+        note: '31 张风景图随应用分发，用于每日经文卡片与全屏壁纸，支持离线缓存。',
       },
     ],
   },

@@ -40,7 +40,7 @@ def test_prayer_plan():
 
 def test_daily_verses_loaded():
     d = loader.daily_verses()
-    assert d["count"] == len(d["verses"]) > 0
+    assert d["count"] == len(d["verses"]) == 365
     assert len(d["themes"]) > 0
 
 

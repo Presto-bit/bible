@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v13';
+const CACHE = 'presto-bible-v14';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -28,6 +28,11 @@ const DAILY_WALLPAPER_FILES = [
   'scenery-01.jpg', 'scenery-02.jpg', 'scenery-03.jpg', 'scenery-04.jpg',
   'scenery-05.jpg', 'scenery-06.jpg', 'scenery-07.jpg', 'scenery-08.jpg',
   'scenery-09.jpg', 'scenery-10.jpg', 'scenery-11.jpg', 'scenery-12.jpg',
+  'scenery-13.jpg', 'scenery-14.jpg', 'scenery-15.jpg', 'scenery-16.jpg',
+  'scenery-17.jpg', 'scenery-18.jpg', 'scenery-19.jpg', 'scenery-20.jpg',
+  'scenery-21.jpg', 'scenery-22.jpg', 'scenery-23.jpg', 'scenery-24.jpg',
+  'scenery-25.jpg', 'scenery-26.jpg', 'scenery-27.jpg', 'scenery-28.jpg',
+  'scenery-29.jpg', 'scenery-30.jpg', 'scenery-31.jpg',
 ];
 
 const SHELL = [

@@ -8,7 +8,7 @@
 |------|----------|------|
 | `plans/gospels_30.csv` / `new_testament_90.csv` / `bible_year_365.csv` | `scripts/build_plans.py` | 读经计划，按 66 卷规范章数均分（共 89 / 260 / 1189 章） |
 | `plans/prayer_acts_30.json` | 手工原创 | 祷告计划 · 30 天 ACTS（敬拜/认罪/感恩/祈求）逐日内容 |
-| `daily-verses/daily_verses.json` | `scripts/build_daily_verses.py` | 124 条精选真实经文引用 + 20 主题（`text=null`，由经库解析填充） |
+| `daily-verses/daily_verses.json` | `scripts/build_daily_verses.py` + `scripts/enrich_daily_verses.py` | 365 条每日经文（`text=null`，由经库解析填充） |
 | `crossrefs/cross_references.json` | 手工策划 | 30 组主题/呼应交叉引用起步集 |
 | `dictionary/entities.json` | 手工策划 | 30 个人名/地名词条（20 人 + 10 地）起步集 |
 | `illustrations/theme_*.svg` (20) + `index.json` | `scripts/build_illustrations.py` | 低饱和主题插画（每日经文 hero / 专题卡），16:9 矢量 |
