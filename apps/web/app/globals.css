@@ -1846,6 +1846,7 @@ html:not([data-app-theme]) .card {
 .discover-today--action {
   position: relative;
   overflow: hidden;
+  cursor: pointer;
   padding: 16px 16px 0;
   border: 1px solid color-mix(in srgb, var(--accent-deep) 24%, var(--line));
   background: linear-gradient(
@@ -7175,6 +7176,42 @@ a.license-row-name:hover {
   }
 }
 
+.reader-feed-activity-hint {
+  display: block;
+  width: 100%;
+  margin: 10px 0 6px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--accent-wash);
+  background: var(--accent-wash);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+  animation: reader-feed-hint-in 0.35s ease;
+}
+
+.reader-feed-activity-hint-label {
+  font-weight: 600;
+}
+
+.reader-feed-activity-hint-body {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+  white-space: pre-wrap;
+}
+
+@keyframes reader-feed-hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes resume-breath {
   0%, 100% { opacity: 0.75; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.01); }
@@ -8720,8 +8757,17 @@ a.license-row-name:hover {
 }
 
 .reader-settings-sheet {
-  max-height: 85vh;
+  max-height: min(85dvh, 85vh);
   overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.reader-sheet-backdrop {
+  z-index: 110;
+  touch-action: none;
 }
 
 .verse-thought-line {
@@ -8770,6 +8816,7 @@ a.license-row-name:hover {
 .thought-write-backdrop {
   align-items: flex-end;
   touch-action: none;
+  z-index: 110;
 }
 
 .thought-write-backdrop-tall {
@@ -8982,6 +9029,7 @@ a.license-row-name:hover {
 
 .thought-hub-backdrop {
   align-items: flex-end;
+  z-index: 110;
 }
 
 .thought-hub-sheet {
@@ -9007,7 +9055,9 @@ a.license-row-name:hover {
 .thought-hub-footer {
   flex-shrink: 0;
   padding-top: 10px;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
 }
 
 .thought-hub-new-btn {
@@ -9127,6 +9177,18 @@ a.license-row-name:hover {
   font-size: 14px;
   line-height: 1.65;
   white-space: pre-wrap;
+}
+
+.thought-item-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.thought-item-foot .thought-vis-badge {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .thought-like-btn {

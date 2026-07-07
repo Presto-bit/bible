@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { refToChineseLabel } from '@/lib/ref_label';
 import {
   clearThoughtDraft,
@@ -135,7 +136,10 @@ export default function ThoughtWriteSheet({
     handleConfirm();
   }, [handleConfirm]);
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const sheet = (
     <div
       className="sheet-backdrop thought-write-backdrop thought-write-backdrop-tall"
       onClick={handleBackdropClose}
@@ -241,4 +245,7 @@ export default function ThoughtWriteSheet({
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(sheet, document.body);
 }

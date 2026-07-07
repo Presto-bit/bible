@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
 import {
@@ -17,6 +17,7 @@ import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import ThoughtHubSheet from '@/components/reader/ThoughtHubSheet';
+import ReaderSheetPortal from '@/components/reader/ReaderSheetPortal';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
@@ -36,6 +37,12 @@ import {
   prefetchReaderVicinity,
   resolveChapterNav,
 } from '@/lib/reader_navigation';
+import {
+  type ChapterReaderBundle,
+  loadChapterReaderBundle,
+  prefetchChapterReaderBundle,
+  prefetchReaderVicinityBundles,
+} from '@/lib/chapter_reader_bundle';
 import {
   addThought,
   getDefaultVisibility,
@@ -104,7 +111,7 @@ import {
   shouldShowResumeHint,
 } from '@/lib/reading';
 import { recordParallelChapter } from '@/lib/badge_events';
-import { outlineFor, outlineForAsync, type SectionMark } from '@/lib/section_titles';
+import { outlineFor, outlineForAsync, preloadSectionTitles, type SectionMark } from '@/lib/section_titles';
 import { resolveSelectionTextForAi, versesForNativeLineHighlight, nativeSelectionCoversVerses } from '@/lib/reader_selection_text';
 import { groupVersesIntoParagraphs, isPoetryBook } from '@/lib/paragraphs';
 import { buildCheckinRef } from '@/lib/group_checkin';
@@ -131,6 +138,7 @@ import { readerUi } from '@/lib/reader_i18n';
 import { ReaderSkeleton } from '@/components/Skeleton';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { parseMarkRef } from '@/lib/mark_ref';
+import { feedHintMessage, type FeedActivityHint } from '@/lib/feed_activity';
 import { refToChineseLabel } from '@/lib/ref_label';
 import {
   clearHighlightForSelection,
@@ -178,6 +186,7 @@ export default function ReaderView({
   onPlanExit,
   externalOverlayOpen = false,
   flashRef = null,
+  feedHint = null,
   checkinGroupId = null,
   paneActive = true,
 }: {
@@ -193,6 +202,7 @@ export default function ReaderView({
   onPlanExit?: () => void;
   externalOverlayOpen?: boolean;
   flashRef?: string | null;
+  feedHint?: FeedActivityHint | null;
   checkinGroupId?: string | null;
   paneActive?: boolean;
 }) {
@@ -216,24 +226,42 @@ export default function ReaderView({
   const [mainVersionId, setMainVersionId] = useState<string | null>(null);
   const [chapterAnim, setChapterAnim] = useState('');
   const [verseTransitionOff, setVerseTransitionOff] = useState(false);
-  const [peekPrevVerses, setPeekPrevVerses] = useState<Verse[] | null>(null);
-  const [peekNextVerses, setPeekNextVerses] = useState<Verse[] | null>(null);
-  const [peekPrevOutline, setPeekPrevOutline] = useState<SectionMark[] | null>(null);
-  const [peekNextOutline, setPeekNextOutline] = useState<SectionMark[] | null>(null);
-  const [peekPrevLayoutVerses, setPeekPrevLayoutVerses] = useState<Verse[] | null>(null);
-  const [peekNextLayoutVerses, setPeekNextLayoutVerses] = useState<Verse[] | null>(null);
+  const [peekPrevBundle, setPeekPrevBundle] = useState<ChapterReaderBundle | null>(null);
+  const [peekNextBundle, setPeekNextBundle] = useState<ChapterReaderBundle | null>(null);
   const [peekPrevBook, setPeekPrevBook] = useState<BibleBook | null>(null);
   const [peekNextBook, setPeekNextBook] = useState<BibleBook | null>(null);
   const [peekPrevChapter, setPeekPrevChapter] = useState(0);
   const [peekNextChapter, setPeekNextChapter] = useState(0);
+  const peekFrozenRef = useRef(false);
+  const pendingPeekRef = useRef<{ prev: ChapterReaderBundle | null; next: ChapterReaderBundle | null }>({
+    prev: null,
+    next: null,
+  });
   const [chapterLoading, setChapterLoading] = useState(false);
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
+  const [feedHintDismissed, setFeedHintDismissed] = useState(false);
+
+  const feedHintVerse = useMemo(() => {
+    if (!feedHint || !flashRef) return null;
+    const parsed = parseMarkRef(flashRef);
+    if (!parsed || parsed.bookId !== book.id || parsed.chapter !== chapter) return null;
+    return parsed.verseStart ?? null;
+  }, [feedHint, flashRef, book.id, chapter]);
+
+  useEffect(() => {
+    setFeedHintDismissed(false);
+    if (!feedHint) return undefined;
+    const t = window.setTimeout(() => setFeedHintDismissed(true), 8000);
+    return () => window.clearTimeout(t);
+  }, [feedHint, flashRef]);
   const [wordRange, setWordRange] = useState<WordRange | null>(null);
   const [nativeSelection, setNativeSelection] = useState<NativeVerseSelection | null>(null);
   const [nativePinnedHighlight, setNativePinnedHighlight] = useState<NativePinnedHighlight | null>(null);
   const [liveNativeSelection, setLiveNativeSelection] = useState<NativeVerseSelection | null>(null);
   const [nativeSelecting, setNativeSelecting] = useState(false);
   const nativeSelectingRef = useRef(false);
+  const nativePinnedHighlightRef = useRef<NativePinnedHighlight | null>(null);
+  const nativePinGenRef = useRef(0);
   const nativeTouchSelect = isTouchPrimaryUI();
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
@@ -909,12 +937,53 @@ export default function ReaderView({
     ? canPlanNav(books, planMeta!.steps, readerLocation, 1)
     : canNavigateChapter(books, readerLocation, 1);
 
+  const bundleOpts = useMemo(
+    () => ({
+      mainVersionId,
+      parallelVer: layout === 'parallel' && !mainVersionId ? parallelVer : null,
+    }),
+    [mainVersionId, layout, parallelVer],
+  );
+
+  const applyPeekBundle = useCallback((side: 'prev' | 'next', bundle: ChapterReaderBundle | null) => {
+    if (peekFrozenRef.current) {
+      pendingPeekRef.current[side] = bundle;
+      return;
+    }
+    if (side === 'prev') setPeekPrevBundle(bundle);
+    else setPeekNextBundle(bundle);
+  }, []);
+
   const prefetchTarget = useCallback(
     (bookId: string, ch: number) => {
-      void loadChapterVerses(bookId, ch, mainVersionId);
+      prefetchChapterReaderBundle(bookId, ch, bundleOpts);
     },
-    [mainVersionId],
+    [bundleOpts],
   );
+
+  const prefetchVicinity = useCallback(() => {
+    const resolveNav = (
+      b: BibleBook[],
+      loc: { bookId: string; chapter: number },
+      delta: number,
+    ) => (
+      planNavActive
+        ? resolvePlanNav(b, planMeta!.steps, loc, delta)
+        : resolveChapterNav(b, loc, delta)
+    );
+    if (swipeTurn) {
+      prefetchReaderVicinityBundles(books, book, chapter, bundleOpts, resolveNav, 2);
+    } else {
+      prefetchReaderVicinity(books, book, chapter, mainVersionId, (bookId, ch) => {
+        void loadChapterVerses(bookId, ch, mainVersionId);
+      }, 2);
+    }
+  }, [books, book, chapter, bundleOpts, swipeTurn, mainVersionId, planNavActive, planMeta]);
+
+  useEffect(() => {
+    if (!swipeTurn) return;
+    preloadSectionTitles();
+  }, [swipeTurn]);
 
   useEffect(() => {
     if (!swipeTurn) return;
@@ -932,61 +1001,35 @@ export default function ReaderView({
 
     const hydratePeek = async (
       target: ReturnType<typeof resolveChapterNav>,
-      setVerses: (v: Verse[] | null) => void,
-      setLayoutVerses: (v: Verse[] | null) => void,
-      setOutline: (o: SectionMark[] | null) => void,
+      side: 'prev' | 'next',
     ) => {
       if (!target) {
-        setVerses(null);
-        setLayoutVerses(null);
-        setOutline(null);
+        applyPeekBundle(side, null);
         return;
       }
-      const syncOutline = outlineFor(target.book.id, target.chapter);
-      if (syncOutline.length) setOutline(syncOutline);
-      const cnVersion = chapterCacheVersion(null);
-      const layoutSync = mainVersionId
-        ? (getChapterVersesSync(target.book.id, target.chapter, null)
-          ?? getCachedChapter(target.book.id, target.chapter, cnVersion))
-        : null;
-      if (layoutSync?.length) setLayoutVerses(layoutSync);
-      const sync = getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
-      if (sync?.length) {
-        setVerses(sync);
-        if (!layoutSync?.length) setLayoutVerses(sync);
-        if (!syncOutline.length) {
-          const loadedOutline = await outlineForAsync(target.book.id, target.chapter);
-          if (!cancelled) setOutline(loadedOutline);
-        }
-        return;
-      }
-      const [loaded, loadedOutline] = await Promise.all([
-        loadChapterVerses(target.book.id, target.chapter, mainVersionId),
-        syncOutline.length ? Promise.resolve(syncOutline) : outlineForAsync(target.book.id, target.chapter),
-      ]);
-      if (!cancelled) {
-        setVerses(loaded);
-        if (mainVersionId) {
-          const cn =
-            layoutSync
-            ?? getChapterVersesSync(target.book.id, target.chapter, null)
-            ?? await loadChapterVerses(target.book.id, target.chapter, null);
-          setLayoutVerses(cn?.length ? cn : loaded);
-        } else {
-          setLayoutVerses(loaded);
-        }
-        setOutline(loadedOutline);
-      }
+      // 进入本章即预载邻章完整包；仅在齐备后一次性更新预览，避免分段排版跳动
+      const bundle = await loadChapterReaderBundle(target.book.id, target.chapter, bundleOpts);
+      if (!cancelled) applyPeekBundle(side, bundle);
     };
 
-    void hydratePeek(prev, setPeekPrevVerses, setPeekPrevLayoutVerses, setPeekPrevOutline);
-    void hydratePeek(next, setPeekNextVerses, setPeekNextLayoutVerses, setPeekNextOutline);
-    // 相邻缓冲：当前章 ±2
-    prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
+    void hydratePeek(prev, 'prev');
+    void hydratePeek(next, 'next');
+    prefetchVicinity();
     return () => {
       cancelled = true;
     };
-  }, [books, book, chapter, mainVersionId, swipeTurn, readerLocation, prefetchTarget, planNavActive, planMeta]);
+  }, [
+    books,
+    book,
+    chapter,
+    swipeTurn,
+    readerLocation,
+    bundleOpts,
+    planNavActive,
+    planMeta,
+    applyPeekBundle,
+    prefetchVicinity,
+  ]);
 
   useEffect(() => {
     setVerseTransitionOff(true);
@@ -997,7 +1040,14 @@ export default function ReaderView({
   useEffect(() => {
     setWholeVerseSel([]);
     setWordRange(null);
+    nativePinGenRef.current += 1;
+    nativePinnedHighlightRef.current = null;
+    clearNativePinnedHighlight();
+    setNativePinnedHighlight(null);
     setNativeSelection(null);
+    setLiveNativeSelection(null);
+    nativeSelectingRef.current = false;
+    setNativeSelecting(false);
     window.getSelection()?.removeAllRanges();
     setViewportCenterVerse(null);
     setBookDone(false);
@@ -1009,7 +1059,7 @@ export default function ReaderView({
     const skipHydrate = skipChapterHydrateRef.current;
     if (skipHydrate) {
       skipChapterHydrateRef.current = false;
-      prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
+      prefetchVicinity();
       scheduleChapterProgress(book.id, chapter, false, () => {
         maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
       });
@@ -1366,11 +1416,17 @@ export default function ReaderView({
     return englishUI ? `Ch. ${peekPrevChapter}` : `第 ${peekPrevChapter} 章`;
   })();
 
+  const resetNativePin = useCallback(() => {
+    nativePinGenRef.current += 1;
+    nativePinnedHighlightRef.current = null;
+    clearNativePinnedHighlight();
+    setNativePinnedHighlight(null);
+  }, []);
+
   const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
-    clearNativePinnedHighlight();
+    resetNativePin();
     setNativeSelection(null);
-    setNativePinnedHighlight(null);
     setLiveNativeSelection(null);
     nativeSelectingRef.current = false;
     setNativeSelecting(false);
@@ -1442,13 +1498,19 @@ export default function ReaderView({
     const setSelecting = (on: boolean) => {
       nativeSelectingRef.current = on;
       setNativeSelecting(on);
-      if (on) setNativePinnedHighlight(null);
+      if (on) {
+        nativePinGenRef.current += 1;
+        nativePinnedHighlightRef.current = null;
+        clearNativePinnedHighlight();
+        setNativePinnedHighlight(null);
+      }
     };
 
     const collapseSystemSelection = () => {
       if (nativeSelectingRef.current) return;
       const pinned = readNativePinnedHighlight(root);
       if (pinned?.text) {
+        nativePinnedHighlightRef.current = pinned;
         setNativeSelection({
           verses: pinned.verses,
           text: pinned.text,
@@ -1575,10 +1637,20 @@ export default function ReaderView({
       clearNativePinnedHighlight();
       return;
     }
+    const gen = nativePinGenRef.current;
     const id = requestAnimationFrame(() => {
-      applyNativePinnedHighlight(root, nativePinnedHighlight);
+      if (gen !== nativePinGenRef.current) return;
+      const pin = nativePinnedHighlightRef.current;
+      if (!pin?.spans.length) {
+        clearNativePinnedHighlight();
+        return;
+      }
+      applyNativePinnedHighlight(root, pin);
     });
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(id);
+      clearNativePinnedHighlight();
+    };
   }, [
     nativeTouchSelect,
     nativeSelecting,
@@ -1708,9 +1780,15 @@ export default function ReaderView({
   );
 
   useEffect(() => {
-    if (!thoughtWrite && !thoughtHub) return;
+    if (!overlayOpen) return;
     const el = contentRef.current;
-    if (!el) return;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    if (!el) {
+      return () => {
+        document.body.style.overflow = prevBodyOverflow;
+      };
+    }
     const prevOverflow = el.style.overflow;
     const prevTouchAction = el.style.touchAction;
     el.style.overflow = 'hidden';
@@ -1718,8 +1796,9 @@ export default function ReaderView({
     return () => {
       el.style.overflow = prevOverflow;
       el.style.touchAction = prevTouchAction;
+      document.body.style.overflow = prevBodyOverflow;
     };
-  }, [thoughtWrite, thoughtHub]);
+  }, [overlayOpen]);
 
   useEffect(() => {
     if (!hasSel) {
@@ -1788,6 +1867,18 @@ export default function ReaderView({
     });
   }, [scrollToChapterStart]);
 
+  const renderFeedHint = (verseNum: number) => {
+    if (!feedHint || feedHintDismissed || feedHintVerse !== verseNum) return null;
+    return (
+      <div className="reader-feed-activity-hint" role="status">
+        <span className="reader-feed-activity-hint-label">{feedHintMessage(feedHint)}</span>
+        {feedHint.body && feedHint.kind !== 'checkin' ? (
+          <p className="reader-feed-activity-hint-body">{feedHint.body}</p>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderChapterHead = () => (
     <div
       className="reader-chapter-head"
@@ -1835,13 +1926,14 @@ export default function ReaderView({
                         : null;
                       const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
                       return (
-                        <span
-                          key={v.verse}
-                          id={`verse-anchor-${v.verse}`}
-                          className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
-                          onClick={(e) => handleVerseClick(e, v.verse, text)}
-                          onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
-                        >
+                        <Fragment key={v.verse}>
+                          {renderFeedHint(v.verse)}
+                          <span
+                            id={`verse-anchor-${v.verse}`}
+                            className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
+                            onClick={(e) => handleVerseClick(e, v.verse, text)}
+                            onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
+                          >
                           {verseNo !== 'hidden' && (
                             <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                           )}
@@ -1855,6 +1947,7 @@ export default function ReaderView({
                             )}
                           </span>
                         </span>
+                        </Fragment>
                       );
                     })}
                   </div>
@@ -1904,26 +1997,28 @@ export default function ReaderView({
                     : null;
                   const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
                   return (
-                    <span
-                      key={v.verse}
-                      id={`verse-anchor-${v.verse}`}
-                      className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
-                      onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
-                      onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
-                    >
-                      {verseNo !== 'hidden' && (
-                        <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                      )}
-                      <span className="verse-text-body">
-                        {renderVerseBody(
-                          verseDisplayText(v.verse, v.text),
-                          `v${v.verse}`,
-                          v.verse,
-                          resumeFlashVerse === v.verse,
-                          markInfo ?? undefined,
+                    <Fragment key={v.verse}>
+                      {renderFeedHint(v.verse)}
+                      <span
+                        id={`verse-anchor-${v.verse}`}
+                        className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
+                        onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
+                        onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
+                      >
+                        {verseNo !== 'hidden' && (
+                          <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                         )}
+                        <span className="verse-text-body">
+                          {renderVerseBody(
+                            verseDisplayText(v.verse, v.text),
+                            `v${v.verse}`,
+                            v.verse,
+                            resumeFlashVerse === v.verse,
+                            markInfo ?? undefined,
+                          )}
+                        </span>
                       </span>
-                    </span>
+                    </Fragment>
                   );
                 })}
               </div>
@@ -1943,13 +2038,6 @@ export default function ReaderView({
         if (Date.now() - lastSelectAt.current < 500) return;
         if (overlayOpen) return;
         if (hasSel) {
-          if (nativeTouchSelect) {
-            const sel = window.getSelection();
-            if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
-              window.getSelection()?.removeAllRanges();
-              return;
-            }
-          }
           clearSelection();
           return;
         }
@@ -2341,9 +2429,11 @@ export default function ReaderView({
       )}
 
       {showSettings && (
-        <div className="sheet-backdrop" onClick={() => setShowSettings(false)}>
-          <div className="sheet card reader-settings-sheet" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>{ui.settings}</h3>
+        <ReaderSheetPortal
+          onClose={() => setShowSettings(false)}
+          sheetClassName="sheet card reader-settings-sheet"
+        >
+          <h3 style={{ marginTop: 0 }}>{ui.settings}</h3>
             <p className="muted" style={{ fontSize: 12 }}>阅读器主题</p>
             <div className="reader-theme-swatches">
               {READER_THEMES.map((t) => (
@@ -2419,8 +2509,7 @@ export default function ReaderView({
               <span>显示想法</span>
               <input type="checkbox" checked={thoughtsOn} onChange={(e) => { setThoughtsOn(e.target.checked); persistThoughtsOn(e.target.checked); }} />
             </label>
-          </div>
-        </div>
+        </ReaderSheetPortal>
       )}
 
       {aiSheet && aiSheetContext && (

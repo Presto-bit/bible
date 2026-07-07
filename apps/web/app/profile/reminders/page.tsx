@@ -2,6 +2,11 @@
 
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import {
+  PROFILE_SETTINGS_BACK_LABEL,
+  PROFILE_SETTINGS_HREF,
+} from '@/lib/profile_settings';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useEffect, useState } from 'react';
 import {
@@ -30,7 +35,7 @@ function slotActive(pref: ReminderPref, hour: number, minute: number) {
 }
 
 export default function RemindersPage() {
-  useEdgeSwipeBack({ href: '/profile' });
+  useEdgeSwipeBack({ href: PROFILE_SETTINGS_HREF });
 
   const [pref, setPref] = useState<ReminderPref>({ enabled: false, hour: 8, minute: 0 });
   const [groupPref, setGroupPref] = useState<GroupEveningReminder>({
@@ -128,7 +133,11 @@ export default function RemindersPage() {
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/profile" label="我的" />
+        <PageBackBar
+          href={PROFILE_SETTINGS_HREF}
+          label={PROFILE_SETTINGS_BACK_LABEL}
+          onClick={() => markRouteNavigation()}
+        />
         <h2 className="page-head-title">推送提醒</h2>
       </header>
       {msg && <p className="muted" style={{ marginTop: 8 }}>{msg}</p>}

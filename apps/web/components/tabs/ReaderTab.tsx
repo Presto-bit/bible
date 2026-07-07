@@ -10,6 +10,7 @@ import { getLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
 import { clearReaderChrome } from '@/lib/reader_chrome';
 import { parseMarkRef } from '@/lib/mark_ref';
+import { parseFeedHintFromSearchParams, type FeedActivityHint } from '@/lib/feed_activity';
 import {
   buildDictIndex,
   dictMatchPattern,
@@ -67,6 +68,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
   const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
   const [flashRef, setFlashRef] = useState<string | null>(null);
+  const [feedHint, setFeedHint] = useState<FeedActivityHint | null>(null);
   const booksLenRef = useRef(0);
   const errRef = useRef<string | null>(null);
   const loadSeqRef = useRef(0);
@@ -226,6 +228,9 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     const apply = async () => {
       if (flashParam) setFlashRef(flashParam);
       else if (refParam) setFlashRef(refParam);
+      else setFlashRef(null);
+
+      setFeedHint(parseFeedHintFromSearchParams(searchParams));
 
       const groupParam = searchParams.get('group');
       if (groupParam) setCheckinGroupId(groupParam);
@@ -382,6 +387,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         onPlanExit={planMeta ? handlePlanExit : undefined}
         externalOverlayOpen={Boolean(dictPopup)}
         flashRef={flashRef}
+        feedHint={feedHint}
         checkinGroupId={checkinGroupId}
         paneActive={paneActive}
       />

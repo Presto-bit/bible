@@ -33,6 +33,10 @@ import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import {
+  PROFILE_SETTINGS_BACK_LABEL,
+  PROFILE_SETTINGS_HREF,
+} from '@/lib/profile_settings';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
@@ -85,6 +89,8 @@ export default function ProfileTab() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const p = normalizeAppPath(pathname);
+    if (p !== '/profile') return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('settings') !== '1') return;
     setSettingsOpen(true);
@@ -92,7 +98,7 @@ export default function ProfileTab() {
     const qs = params.toString();
     const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
     window.history.replaceState({}, '', next);
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     if (!uid) {

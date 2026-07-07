@@ -17,6 +17,7 @@ import {
 } from '@/lib/api';
 import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName, getFriendRemark, setFriendRemark } from '@/lib/friend_remarks';
+import { FEED_LIKE_EMOJI, FEED_READING_EMOJI } from '@/lib/feed_activity';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
@@ -35,7 +36,7 @@ export default function FriendProfilePage() {
   const [remark, setRemark] = useState('');
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
-  const [reacted, setReacted] = useState<Record<string, string>>({});
+  const [reacted, setReacted] = useState<Record<string, Record<string, boolean>>>({});
 
   const reload = useCallback(async () => {
     try {
@@ -98,15 +99,27 @@ export default function FriendProfilePage() {
     setInviteOpen(true);
   };
 
-  const toggleReact = async (item: FriendActivity) => {
-    const prev = reacted[item.id];
-    setReacted((r) => ({ ...r, [item.id]: prev === '❤️' ? '' : '❤️' }));
+  const toggleReact = async (item: FriendActivity, emoji: string) => {
+    const prev = reacted[item.id]?.[emoji];
+    setReacted((r) => ({
+      ...r,
+      [item.id]: { ...r[item.id], [emoji]: !prev },
+    }));
     try {
-      await api.react(item.id, '❤️');
+      await api.react(item.id, emoji);
       void reload();
     } catch {
-      setReacted((r) => ({ ...r, [item.id]: prev || '' }));
+      setReacted((r) => ({
+        ...r,
+        [item.id]: { ...r[item.id], [emoji]: prev },
+      }));
     }
+  };
+
+  const isReacted = (item: FriendActivity, emoji: string) => {
+    const optimistic = reacted[item.id]?.[emoji];
+    if (optimistic !== undefined) return optimistic;
+    return uid ? Boolean(item.reactions[emoji]?.includes(uid)) : false;
   };
 
   if (!uid) {
@@ -176,8 +189,10 @@ export default function FriendProfilePage() {
                   key={`${s.source}-${s.id}`}
                   item={s}
                   showAuthor={false}
-                  reacted={reacted[s.id]}
-                  onReact={() => void toggleReact(s)}
+                  liked={isReacted(s, FEED_LIKE_EMOJI)}
+                  readingMarked={isReacted(s, FEED_READING_EMOJI)}
+                  onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
+                  onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
                 />
               ))}
             </div>

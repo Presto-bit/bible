@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatGroupRefLabel } from '@/lib/ref_label';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 type Props = {
   refParam: string;
@@ -68,7 +69,12 @@ export function FeedVersePreview({ refParam, kind = 'checkin', href }: Props) {
 
   if (href) {
     return (
-      <Link href={href} className={className} aria-label={`阅读 ${label}`}>
+      <Link
+        href={href}
+        className={className}
+        aria-label={`阅读 ${label}`}
+        onClick={() => markRouteNavigation()}
+      >
         {inner}
       </Link>
     );

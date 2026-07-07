@@ -1,30 +1,21 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type MouseEvent } from 'react';
+import { type MouseEvent } from 'react';
 import type { FriendActivity } from '@/lib/api';
 import { formatActivityTime } from '@/lib/social_time';
 import {
-  activityReadingKey,
-  hasMarkedReading,
-  markReading,
-} from '@/lib/reading_amen';
+  FEED_LIKE_EMOJI,
+  FEED_READING_EMOJI,
+  feedActivityKind,
+  reactionEmojiCount,
+  readerHrefFromFeedActivity,
+} from '@/lib/feed_activity';
 import { friendDisplayName } from '@/lib/friend_label';
-import { readerHrefFromRef } from '@/lib/group_footprint';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { FeedVersePreview } from '@/components/discover/FeedVersePreview';
 
-function reactionTotal(reactions: Record<string, string[]> | null | undefined): number {
-  if (!reactions) return 0;
-  return Object.values(reactions).reduce((n, users) => n + users.length, 0);
-}
-
 type FeedKind = 'checkin' | 'thought' | 'note';
-
-function feedKind(item: FriendActivity): FeedKind {
-  if (item.source !== 'share') return 'checkin';
-  return item.kind === 'thought' ? 'thought' : 'note';
-}
 
 function kindLabel(kind: FeedKind): string {
   if (kind === 'checkin') return '打卡';
@@ -35,35 +26,37 @@ function kindLabel(kind: FeedKind): string {
 type Props = {
   item: FriendActivity;
   showAuthor?: boolean;
-  reacted?: string;
-  onReact?: () => void;
+  liked?: boolean;
+  readingMarked?: boolean;
+  onLike?: () => void;
+  onReading?: () => void;
   authorHref?: string;
 };
 
 export function FriendActivityCard({
   item,
   showAuthor = true,
-  reacted = '',
-  onReact,
+  liked = false,
+  readingMarked = false,
+  onLike,
+  onReading,
   authorHref,
 }: Props) {
-  const kind = feedKind(item);
+  const kind = feedActivityKind(item);
   const label = kindLabel(kind);
-  const liked = reacted === '❤️';
-  const likes = reactionTotal(item.reactions) + (liked ? 1 : 0);
-  const activityKey = activityReadingKey(item.source, item.id);
-  const [readingMarked, setReadingMarked] = useState(() => hasMarkedReading(activityKey));
-  const readerHref = item.ref ? readerHrefFromRef(item.ref) : null;
+  const likeCount = reactionEmojiCount(item.reactions, FEED_LIKE_EMOJI);
+  const readingCount = reactionEmojiCount(item.reactions, FEED_READING_EMOJI);
+  const readerHref = item.ref ? readerHrefFromFeedActivity(item) : null;
 
-  const onReading = (e: MouseEvent) => {
+  const onLikeClick = (e: MouseEvent) => {
     e.stopPropagation();
-    if (!item.ref || readingMarked) return;
-    if (markReading(activityKey)) setReadingMarked(true);
+    onLike?.();
   };
 
-  const onLike = (e: MouseEvent) => {
+  const onReadingClick = (e: MouseEvent) => {
     e.stopPropagation();
-    onReact?.();
+    if (readingMarked) return;
+    onReading?.();
   };
 
   const displayName = item.author
@@ -126,21 +119,26 @@ export function FriendActivityCard({
         <button
           type="button"
           className={`feed-action-pill feed-action-like${liked ? ' active' : ''}`}
-          onClick={onLike}
-          disabled={!onReact}
+          onClick={onLikeClick}
+          disabled={!onLike}
           aria-pressed={liked}
         >
           <span className="feed-action-icon" aria-hidden>{liked ? '♥' : '♡'}</span>
-          {likes > 0 ? likes : '赞'}
+          {likeCount > 0 ? `${likeCount} 人赞` : '赞'}
         </button>
         {item.ref && (
           <button
             type="button"
             className={`feed-action-pill feed-action-read${readingMarked ? ' active' : ''}`}
-            onClick={onReading}
+            onClick={onReadingClick}
+            disabled={!onReading || readingMarked}
             aria-pressed={readingMarked}
           >
-            {readingMarked ? '在读中 ✓' : '标记在读'}
+            {readingCount > 0
+              ? `${readingCount} 人在读`
+              : readingMarked
+                ? '在读中 ✓'
+                : '标记在读'}
           </button>
         )}
       </footer>

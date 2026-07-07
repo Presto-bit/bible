@@ -219,14 +219,21 @@ export function listRefForVerse(bookId: string, chapter: number, verse: number):
   return rows.find((r) => r.ref === exact)?.ref ?? rows[0].ref;
 }
 
+/** 自己优先 → 点赞多 → 新发布 */
+export function compareThoughtRows(a: ThoughtRow, b: ThoughtRow, uid: string): number {
+  const aMine = a.authorId === uid ? 1 : 0;
+  const bMine = b.authorId === uid ? 1 : 0;
+  if (aMine !== bMine) return bMine - aMine;
+  if (b.likesCount !== a.likesCount) return b.likesCount - a.likesCount;
+  return b.createdAtMs - a.createdAtMs;
+}
+
+function sortThoughtRows(rows: ThoughtRow[], uid = userId()): ThoughtRow[] {
+  return [...rows].sort((a, b) => compareThoughtRows(a, b, uid));
+}
+
 export function sortedThoughtsForVerse(bookId: string, chapter: number, verse: number): ThoughtRow[] {
-  const rows = thoughtsAtVerse(bookId, chapter, verse);
-  const uid = userId();
-  const mine = rows.filter((t) => t.authorId === uid).sort((a, b) => b.createdAtMs - a.createdAtMs);
-  const others = rows
-    .filter((t) => t.authorId !== uid)
-    .sort((a, b) => b.likesCount - a.likesCount || b.createdAtMs - a.createdAtMs);
-  return [...mine, ...others];
+  return sortThoughtRows(thoughtsAtVerse(bookId, chapter, verse));
 }
 
 export function thoughtsForChapter(bookId: string, chapter: number): Record<number, number> {
@@ -264,11 +271,7 @@ export function myThoughtsForRef(ref: string): ThoughtRow[] {
 export function sortedThoughts(ref: string): ThoughtRow[] {
   const uid = userId();
   const rows = readAll().filter((t) => t.ref === ref && isVisibleToReader(t, uid));
-  const mine = rows.filter((t) => t.authorId === uid).sort((a, b) => b.createdAtMs - a.createdAtMs);
-  const others = rows
-    .filter((t) => t.authorId !== uid)
-    .sort((a, b) => b.likesCount - a.likesCount || b.createdAtMs - a.createdAtMs);
-  return [...mine, ...others];
+  return sortThoughtRows(rows, uid);
 }
 
 export function listAllThoughts(): ThoughtRow[] {

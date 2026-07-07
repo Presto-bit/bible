@@ -5,15 +5,24 @@ import {
   CONTENT_ATTRIBUTION_SECTIONS,
   licenseLabel,
 } from '@/lib/content_attribution';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import {
+  PROFILE_SETTINGS_BACK_LABEL,
+  PROFILE_SETTINGS_HREF,
+} from '@/lib/profile_settings';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 export default function LicensesPage() {
-  useEdgeSwipeBack({ href: '/profile' });
+  useEdgeSwipeBack({ href: PROFILE_SETTINGS_HREF });
 
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/profile" label="我的" />
+        <PageBackBar
+          href={PROFILE_SETTINGS_HREF}
+          label={PROFILE_SETTINGS_BACK_LABEL}
+          onClick={() => markRouteNavigation()}
+        />
         <h2 className="page-head-title">数据来源与许可</h2>
       </header>
 

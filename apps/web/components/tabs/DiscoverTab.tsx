@@ -22,6 +22,8 @@ import { DiscoverTodayBar } from '@/components/discover/DiscoverTodayBar';
 import { FriendActivityCard } from '@/components/discover/FriendActivityCard';
 import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
+import { FEED_LIKE_EMOJI, FEED_READING_EMOJI } from '@/lib/feed_activity';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 function groupStatusBadge(g: Group) {
   return groupListStatusBadge(g);
@@ -38,7 +40,7 @@ export default function DiscoverTab() {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [summary, setSummary] = useState<DiscoverSummary | null>(null);
   const [shares, setShares] = useState<FriendActivity[]>([]);
-  const [reacted, setReacted] = useState<Record<string, string>>({});
+  const [reacted, setReacted] = useState<Record<string, Record<string, boolean>>>({});
   const [err, setErr] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
@@ -78,15 +80,32 @@ export default function DiscoverTab() {
 
   useGroupsListRefresh(reload, Boolean(uid));
 
-  const toggleReact = async (item: FriendActivity) => {
-    const prev = reacted[item.id];
-    setReacted((r) => ({ ...r, [item.id]: prev === '❤️' ? '' : '❤️' }));
+  const toggleReact = async (item: FriendActivity, emoji: string) => {
+    const prev = reacted[item.id]?.[emoji];
+    setReacted((r) => ({
+      ...r,
+      [item.id]: { ...r[item.id], [emoji]: !prev },
+    }));
     try {
-      await api.react(item.id, '❤️');
+      await api.react(item.id, emoji);
       reload();
     } catch {
-      setReacted((r) => ({ ...r, [item.id]: prev || '' }));
+      setReacted((r) => ({
+        ...r,
+        [item.id]: { ...r[item.id], [emoji]: prev },
+      }));
     }
+  };
+
+  const goDiscover = (href: string) => {
+    markRouteNavigation();
+    router.push(href);
+  };
+
+  const isReacted = (item: FriendActivity, emoji: string) => {
+    const optimistic = reacted[item.id]?.[emoji];
+    if (optimistic !== undefined) return optimistic;
+    return uid ? Boolean(item.reactions[emoji]?.includes(uid)) : false;
   };
 
   if (!uid) {
@@ -164,11 +183,11 @@ export default function DiscoverTab() {
                   className={cardClass}
                   role="button"
                   tabIndex={0}
-                  onClick={() => router.push(`/discover/group/${g.id}`)}
+                  onClick={() => goDiscover(`/discover/group/${g.id}`)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      router.push(`/discover/group/${g.id}`);
+                      goDiscover(`/discover/group/${g.id}`);
                     }
                   }}
                 >
@@ -223,7 +242,7 @@ export default function DiscoverTab() {
                         className="font-pill accent group-card-cta"
                         onClick={(e) => {
                           e.stopPropagation();
-                          router.push(`/discover/group/${g.id}?focus=checkin`);
+                          goDiscover(`/discover/group/${g.id}?focus=checkin`);
                         }}
                       >
                         去打卡
@@ -276,8 +295,10 @@ export default function DiscoverTab() {
             <FriendActivityCard
               key={`${s.source}-${s.id}`}
               item={s}
-              reacted={reacted[s.id]}
-              onReact={() => toggleReact(s)}
+              liked={isReacted(s, FEED_LIKE_EMOJI)}
+              readingMarked={isReacted(s, FEED_READING_EMOJI)}
+              onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
+              onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
               authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
             />
           ))}

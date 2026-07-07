@@ -24,9 +24,9 @@ export const CONTENT_ATTRIBUTION_SECTIONS: AttributionSection[] = [
       {
         id: 'cnv',
         name: '圣经新译本（CNV）',
-        license: '需授权',
+        license: '待核实',
         url: 'https://www.worldwidebiblesociety.org',
-        note: '主译本；离线经库含全文。使用前须取得环球圣经公会等权利人的书面许可。',
+        note: '主译本；离线经库含全文。环球圣经公会等权利人的书面许可状态待法务核实。',
       },
       {
         id: 'cuvs',

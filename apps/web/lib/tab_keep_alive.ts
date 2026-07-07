@@ -17,9 +17,23 @@ export const PROFILE_SECONDARY_PATHS = [
   '/profile/licenses',
 ] as const;
 
+/** 发现 Tab 下的二级页（群详情、好友等），须走 Next 路由。 */
+export const DISCOVER_SECONDARY_PREFIXES = [
+  '/discover/groups',
+  '/discover/join',
+  '/discover/friends',
+  '/discover/group/',
+] as const;
+
 function isProfileSecondaryPath(pathname: string): boolean {
   return PROFILE_SECONDARY_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
+function isDiscoverSecondaryPath(pathname: string): boolean {
+  return DISCOVER_SECONDARY_PREFIXES.some(
+    (p) => pathname === p || pathname.startsWith(p),
   );
 }
 
@@ -39,6 +53,7 @@ export function keepAliveTabId(pathname: string): KeepAliveTabId | null {
     if (p === href) return id;
     if (p.startsWith(`${href}/`)) {
       if (id === 'profile' && isProfileSecondaryPath(p)) continue;
+      if (id === 'discover' && isDiscoverSecondaryPath(p)) continue;
       return id;
     }
   }

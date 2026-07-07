@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import type { DiscoverSummary, FriendActivity, Group } from '@/lib/api';
 import { friendDisplayName } from '@/lib/friend_label';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
@@ -68,7 +70,7 @@ function FriendCheckinStrip({
   ].filter(Boolean).join(' ');
 
   return (
-    <Link href="#discover-feed" className={className}>
+    <Link href="#discover-feed" className={className} onClick={(e) => e.stopPropagation()}>
       {friends.length > 0 && (
         <span className="discover-today-avatar-stack" aria-hidden>
           {friends.map((f) => (
@@ -113,6 +115,7 @@ export function DiscoverTodayBar({
   coldStart,
   shares = [],
 }: Props) {
+  const router = useRouter();
   if (coldStart) return null;
 
   const realGroups = groups.filter((g) => !pendingOnlyIds.has(g.id));
@@ -141,7 +144,22 @@ export function DiscoverTodayBar({
     const actionHref = `/discover/group/${pendingGroup.id}?focus=checkin`;
 
     return (
-      <article className={`card card-2 discover-today discover-today--action${needsCheckin ? ' discover-today--urgent' : ''}`}>
+      <article
+        className={`card card-2 discover-today discover-today--action${needsCheckin ? ' discover-today--urgent' : ''}`}
+        role="link"
+        tabIndex={0}
+        onClick={() => {
+          markRouteNavigation();
+          router.push(actionHref);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            markRouteNavigation();
+            router.push(actionHref);
+          }
+        }}
+      >
         <div className="discover-today-glow" aria-hidden />
         <div className="discover-today-row">
           <div
@@ -177,9 +195,9 @@ export function DiscoverTodayBar({
               </p>
             )}
           </div>
-          <Link href={actionHref} className="font-pill accent discover-today-cta">
+          <span className="font-pill accent discover-today-cta">
             {needsCheckin ? '去打卡' : '去完成'}
-          </Link>
+          </span>
         </div>
         <FriendCheckinStrip count={friendsChecked} friends={checkinFriends} />
       </article>

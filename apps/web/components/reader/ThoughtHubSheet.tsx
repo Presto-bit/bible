@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { effectiveId } from '@/lib/api';
 import {
-  deleteThought,
   isThoughtLiked,
   myThoughtsForRef,
   sortedThoughts,
@@ -13,7 +13,6 @@ import {
   visibilityLabel,
   type ThoughtRow,
 } from '@/lib/reader_thoughts';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 function timeLabel(ms: number) {
   const d = new Date(ms);
@@ -44,7 +43,9 @@ export default function ThoughtHubSheet({
   onWriteNew: () => void;
   onEdit: (thought: ThoughtRow) => void;
 }) {
-  const confirm = useConfirm();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   const loadThoughts = useCallback(() => {
     if (bookId != null && chapter != null && verse != null) {
       return sortedThoughtsForVerse(bookId, chapter, verse);
@@ -64,18 +65,7 @@ export default function ThoughtHubSheet({
     onChanged?.();
   }, [loadThoughts, onChanged]);
 
-  const removeMine = async (id: string) => {
-    const ok = await confirm({
-      title: '删除想法',
-      message: '确定删除这条想法？',
-      confirmLabel: '删除',
-      danger: true,
-    });
-    if (!ok) return;
-    if (deleteThought(id)) refresh();
-  };
-
-  return (
+  const sheet = (
     <div className="sheet-backdrop thought-hub-backdrop" onClick={onClose} onTouchMove={(e) => e.stopPropagation()}>
       <div
         className={`sheet card thoughts-list-sheet thought-hub-sheet${thoughts.length > 0 ? ' thought-hub-sheet-tall' : ''}`}
@@ -108,16 +98,11 @@ export default function ThoughtHubSheet({
                 <div key={t.id} className="thought-item">
                   <div className="thought-item-head">
                     <strong>{t.authorName}{mine ? ' · 我' : ''}</strong>
-                    {mine && (
-                      <span className={`thought-vis-badge thought-vis-${t.visibility}`}>
-                        {visibilityLabel(t.visibility)}
-                      </span>
-                    )}
                     <span className="muted">{timeLabel(t.createdAtMs)}</span>
                   </div>
                   <p className="thought-item-body">{t.body}</p>
-                  <div className="thought-item-actions">
-                    {!mine && (
+                  <div className="thought-item-foot">
+                    <div className="thought-item-actions">
                       <button
                         type="button"
                         className={`thought-like-btn ${liked ? 'thought-like-active' : ''}`}
@@ -128,22 +113,15 @@ export default function ThoughtHubSheet({
                       >
                         {liked ? '♥' : '♡'} {t.likesCount}
                       </button>
-                    )}
-                    {mine && (
-                      <>
+                      {mine && (
                         <button type="button" className="text-link" onClick={() => onEdit(t)}>
                           编辑
                         </button>
-                        <button
-                          type="button"
-                          className="text-link"
-                          style={{ color: '#b1554a' }}
-                          onClick={() => void removeMine(t.id)}
-                        >
-                          删除
-                        </button>
-                      </>
-                    )}
+                      )}
+                    </div>
+                    <span className={`thought-vis-badge thought-vis-${t.visibility}`}>
+                      {visibilityLabel(t.visibility)}
+                    </span>
                   </div>
                 </div>
               );
@@ -159,4 +137,7 @@ export default function ThoughtHubSheet({
       </div>
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(sheet, document.body);
 }

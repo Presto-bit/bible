@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 type EdgeSwipeBackOptions = {
   /** 固定返回路径；与 preferHistoryBack 二选一或组合使用 */
@@ -35,6 +36,7 @@ export function useEdgeSwipeBack({
         return;
       }
       if (href) {
+        markRouteNavigation();
         router.push(href);
         return;
       }
@@ -92,6 +94,7 @@ export function useEdgeSwipeBack({
 export const BACK_PATH_LABELS: Record<string, string> = {
   '/': '首页',
   '/profile': '我的',
+  '/profile?settings=1': '设置',
   '/reader': '圣经',
   '/discover': '发现',
   '/discover/friends': '好友',
