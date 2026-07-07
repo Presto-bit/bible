@@ -76,7 +76,7 @@ import {
   type WordRange,
 } from '@/lib/selection_range';
 import { isTouchPrimaryUI } from '@/lib/touch_ui';
-import { readNativeVerseSelection, type NativeVerseSelection } from '@/lib/native_verse_selection';
+import { readNativeVerseSelection, readNativeWordRange, type NativeVerseSelection } from '@/lib/native_verse_selection';
 import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
@@ -427,12 +427,14 @@ export default function ReaderView({
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
   const nativeSelVerses = useMemo(
-    () => (
-      nativeTouchSelect && !nativeSelecting
-        ? versesForNativeLineHighlight(verses, nativeSelection)
-        : new Set<number>()
-    ),
-    [nativeTouchSelect, nativeSelection, nativeSelecting, verses],
+    () => {
+      if (!nativeTouchSelect || nativeSelecting || wordRange) return new Set<number>();
+      if (!nativeSelection) return new Set<number>();
+      const full = versesForNativeLineHighlight(verses, nativeSelection);
+      if (full.size) return full;
+      return new Set(nativeSelection.verses);
+    },
+    [nativeTouchSelect, nativeSelection, nativeSelecting, verses, wordRange],
   );
   const verseSelClass = useCallback(
     (verse: number) => (wholeVerseSel.includes(verse) || nativeSelVerses.has(verse) ? ' verse-sel-active' : ''),
@@ -593,7 +595,7 @@ export default function ReaderView({
         );
       }
 
-      if (nativeTouchSelect) {
+      if (nativeTouchSelect && !wordRange) {
         return renderText(text, 'native');
       }
 
@@ -1433,6 +1435,8 @@ export default function ReaderView({
 
     const collapseSystemSelection = () => {
       if (nativeSelectingRef.current) return;
+      const verseText = (v: number) => verses.find((x) => x.verse === v)?.text ?? '';
+      const domRange = readNativeWordRange(root, verseText);
       const pinned = readNativeVerseSelection(root);
       if (!pinned?.text) {
         pinningRef.current = true;
@@ -1456,8 +1460,13 @@ export default function ReaderView({
       });
       setLiveNativeSelection(pinned);
       setWholeVerseSel([]);
-      setWordRange(null);
-      wordRangeRef.current = null;
+      if (domRange) {
+        setWordRange(domRange);
+        wordRangeRef.current = domRange;
+      } else {
+        setWordRange(null);
+        wordRangeRef.current = null;
+      }
       lastSelectAt.current = Date.now();
       swipeIgnoreUntilRef.current = Date.now() + 320;
       pinningRef.current = true;
