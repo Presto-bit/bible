@@ -55,6 +55,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const [chapter, setChapter] = useState(1);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [booksLoading, setBooksLoading] = useState(true);
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<{
     entity: DictEntity;
@@ -152,17 +153,24 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     preloadSectionTitles();
     api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
     const loadBooks = () => {
+      setBooksLoading(true);
       bibleBooks()
         .then((bookList) => {
           setBooks(bookList);
           setErr(null);
         })
-        .catch((e) => setErr(String(e)));
+        .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
+        .finally(() => setBooksLoading(false));
     };
     loadBooks();
     const onPackReady = () => loadBooks();
+    const onOnline = () => loadBooks();
     window.addEventListener('presto-offline-pack-ready', onPackReady);
-    return () => window.removeEventListener('presto-offline-pack-ready', onPackReady);
+    window.addEventListener('online', onOnline);
+    return () => {
+      window.removeEventListener('presto-offline-pack-ready', onPackReady);
+      window.removeEventListener('online', onOnline);
+    };
   }, []);
 
   useEffect(() => {
@@ -255,12 +263,27 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     setCatalogOpen(false);
   }, [handleNavigate]);
 
+  if (booksLoading && !books.length && !err) {
+    return (
+      <main className="container">
+        <p className="muted">加载经卷目录…</p>
+      </main>
+    );
+  }
+
   if (err && !books.length) {
     return (
       <main className="container reader-offline-shell">
         <OfflineInlineNotice
           title={!online ? '当前离线' : '加载失败'}
           detail={err}
+          action={{ label: '重试', onClick: () => {
+            setErr(null);
+            bibleBooks()
+              .then((bookList) => { setBooks(bookList); setErr(null); })
+              .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
+              .finally(() => setBooksLoading(false));
+          } }}
         >
           {!online ? <OfflineBibleCard /> : null}
         </OfflineInlineNotice>

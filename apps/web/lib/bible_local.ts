@@ -21,19 +21,54 @@ function sqlWasmUrl(file: string): string {
   return withBasePath(`/sql-wasm/${mapSqlWasmFile(file)}`);
 }
 
+const BOOKS_FALLBACK_URL = withBasePath('/offline/books.json');
+const BOOKS_LS_KEY = 'presto_books_cache_v1';
+let booksCache: BibleBook[] | null = null;
+
+function readBooksLsCache(): BibleBook[] | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(BOOKS_LS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as { books: BibleBook[] };
+    return data.books?.length ? data.books : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeBooksLsCache(books: BibleBook[]) {
+  if (typeof window === 'undefined' || !books.length) return;
+  try {
+    localStorage.setItem(BOOKS_LS_KEY, JSON.stringify({ books }));
+  } catch {
+    /* quota */
+  }
+}
+
+async function loadSqlFromPublic(): Promise<SqlJsStatic> {
+  const jsUrl = withBasePath('/sql-wasm/sql-wasm.js');
+  const initSqlJs = (await import(
+    /* webpackIgnore: true */
+    jsUrl
+  )).default as (config: { locateFile: (file: string) => string }) => Promise<SqlJsStatic>;
+  return initSqlJs({ locateFile: sqlWasmUrl });
+}
+
 async function getSql(): Promise<SqlJsStatic> {
   const g = globalThis as { __prestoSqlJs?: Promise<SqlJsStatic> };
   if (!g.__prestoSqlJs) {
-    g.__prestoSqlJs = import('sql.js')
-      .then((mod) =>
-        mod.default({
-          locateFile: sqlWasmUrl,
-        }),
-      )
-      .catch((err) => {
-        delete g.__prestoSqlJs;
-        throw err;
-      });
+    g.__prestoSqlJs = (async () => {
+      try {
+        return await loadSqlFromPublic();
+      } catch {
+        const mod = await import('sql.js');
+        return mod.default({ locateFile: sqlWasmUrl });
+      }
+    })().catch((err) => {
+      delete g.__prestoSqlJs;
+      throw err;
+    });
   }
   return g.__prestoSqlJs;
 }
@@ -64,41 +99,55 @@ export function resetLocalBibleDb() {
   }
 }
 
-const BOOKS_FALLBACK_URL = withBasePath('/offline/books.json');
-let booksCache: BibleBook[] | null = null;
-
 export async function loadBooksJson(): Promise<BibleBook[] | null> {
-  if (booksCache) return booksCache;
+  if (booksCache?.length) return booksCache;
+
+  const ls = readBooksLsCache();
+  if (ls?.length) {
+    booksCache = ls;
+    return ls;
+  }
+
   try {
     const res = await fetch(BOOKS_FALLBACK_URL, { cache: 'force-cache' });
     if (!res.ok) return null;
     const data = (await res.json()) as { books: BibleBook[] };
-    booksCache = data.books;
-    return booksCache;
+    if (data.books?.length) {
+      booksCache = data.books;
+      writeBooksLsCache(data.books);
+      return booksCache;
+    }
   } catch {
-    return null;
+    /* network */
   }
+  return null;
+}
+
+/** 仅从本地 SQLite 读经卷目录（不读 books.json，避免被慢 sql 阻塞）。 */
+export async function listLocalBooksFromDb(): Promise<BibleBook[] | null> {
+  const db = await getLocalBibleDb('cnv');
+  if (!db) return null;
+  try {
+    const rows = db.exec(
+      'SELECT id, name, testament, chapter_count FROM books ORDER BY sort_order',
+    );
+    if (rows[0]?.values?.length) {
+      return rows[0].values.map((r) => ({
+        id: String(r[0]),
+        name: String(r[1]),
+        testament: String(r[2]),
+        chapter_count: Number(r[3]),
+      }));
+    }
+  } catch {
+    resetLocalBibleDb();
+  }
+  return null;
 }
 
 export async function listLocalBooks(): Promise<BibleBook[] | null> {
-  const db = await getLocalBibleDb('cnv');
-  if (db) {
-    try {
-      const rows = db.exec(
-        'SELECT id, name, testament, chapter_count FROM books ORDER BY sort_order',
-      );
-      if (rows[0]?.values?.length) {
-        return rows[0].values.map((r) => ({
-          id: String(r[0]),
-          name: String(r[1]),
-          testament: String(r[2]),
-          chapter_count: Number(r[3]),
-        }));
-      }
-    } catch {
-      resetLocalBibleDb();
-    }
-  }
+  const dbBooks = await listLocalBooksFromDb();
+  if (dbBooks?.length) return dbBooks;
   return loadBooksJson();
 }
 

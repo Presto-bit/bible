@@ -3,34 +3,43 @@
 import { api, type BibleBook, type BibleSearchHit, type Verse } from './api';
 import {
   getLocalChapter,
-  listLocalBooks,
+  listLocalBooksFromDb,
   loadBooksJson,
   searchLocalVerses,
+  writeBooksLsCache,
 } from './bible_local';
 import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
 
 export async function bibleBooks(): Promise<BibleBook[]> {
-  const local = await listLocalBooks();
-  if (local?.length) return local;
+  // 1. 静态 books.json（SW 预缓存，最快）
+  const jsonBooks = await loadBooksJson();
+  if (jsonBooks?.length) return jsonBooks;
 
+  // 2. 在线 API
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
-  const cachedBooks = await loadBooksJson();
-  if (cachedBooks?.length) return cachedBooks;
+  if (!offline) {
+    try {
+      const remote = await api.books();
+      if (remote.books?.length) {
+        writeBooksLsCache(remote.books);
+        return remote.books;
+      }
+    } catch {
+      /* 走本地回退 */
+    }
+  }
+
+  // 3. SQLite 经包目录（可能较慢，不阻塞前两步）
+  const dbBooks = await listLocalBooksFromDb();
+  if (dbBooks?.length) return dbBooks;
+
+  // 4. 再试一次静态目录
+  const retryJson = await loadBooksJson();
+  if (retryJson?.length) return retryJson;
 
   if (offline) {
     throw new Error('离线经包未就绪，请在「我的 → 设置」下载离线圣经');
   }
-
-  try {
-    const remote = await api.books();
-    if (remote.books?.length) return remote.books;
-  } catch {
-    /* API 不可用时走静态经卷目录 */
-  }
-
-  const fallback = await loadBooksJson();
-  if (fallback?.length) return fallback;
-
   throw new Error('无法加载经卷目录');
 }
 
@@ -85,7 +94,6 @@ export async function bibleSearch(
 ): Promise<BibleSearchHit[]> {
   const version = opts?.version || undefined;
   const testament = opts?.testament || undefined;
-  // 本地离线包目前仅 CNV，且无法按译本切换时走在线
   const canUseLocal = (!version || version === 'cnv') && !testament;
   if (canUseLocal && (await isOfflinePackReady())) {
     const local = await searchLocalVerses(q);
