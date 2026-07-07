@@ -38,12 +38,12 @@ const AssistantTab = dynamic(() => import('@/components/tabs/AssistantTab'), {
   loading: () => paneLoading,
 });
 
-const DiscoverTab = dynamic(() => import('@/app/discover/page'), {
+const DiscoverTab = dynamic(() => import('@/components/tabs/DiscoverTab'), {
   ssr: false,
   loading: () => paneLoading,
 });
 
-const ProfileTab = dynamic(() => import('@/app/profile/page'), {
+const ProfileTab = dynamic(() => import('@/components/tabs/ProfileTab'), {
   ssr: false,
   loading: () => paneLoading,
 });

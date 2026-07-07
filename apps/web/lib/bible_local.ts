@@ -67,7 +67,7 @@ export function resetLocalBibleDb() {
 const BOOKS_FALLBACK_URL = withBasePath('/offline/books.json');
 let booksCache: BibleBook[] | null = null;
 
-async function loadBooksJson(): Promise<BibleBook[] | null> {
+export async function loadBooksJson(): Promise<BibleBook[] | null> {
   if (booksCache) return booksCache;
   try {
     const res = await fetch(BOOKS_FALLBACK_URL, { cache: 'force-cache' });

@@ -4,6 +4,7 @@ import { api, type BibleBook, type BibleSearchHit, type Verse } from './api';
 import {
   getLocalChapter,
   listLocalBooks,
+  loadBooksJson,
   searchLocalVerses,
 } from './bible_local';
 import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
@@ -13,9 +14,10 @@ export async function bibleBooks(): Promise<BibleBook[]> {
   if (local?.length) return local;
 
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+  const cachedBooks = await loadBooksJson();
+  if (cachedBooks?.length) return cachedBooks;
+
   if (offline) {
-    const fallback = await listLocalBooks();
-    if (fallback?.length) return fallback;
     throw new Error('离线经包未就绪，请在「我的 → 设置」下载离线圣经');
   }
 
@@ -26,7 +28,7 @@ export async function bibleBooks(): Promise<BibleBook[]> {
     /* API 不可用时走静态经卷目录 */
   }
 
-  const fallback = await listLocalBooks();
+  const fallback = await loadBooksJson();
   if (fallback?.length) return fallback;
 
   throw new Error('无法加载经卷目录');
@@ -49,7 +51,15 @@ export async function bibleChapter(
     if (local?.length) return local;
   }
 
-  if (offline) return null;
+  if (offline) {
+    const local = await getLocalChapter(
+      bookId,
+      chapter,
+      ver === 'cuvs' ? 'cuvs' : 'cnv',
+    );
+    if (local?.length) return local;
+    return null;
+  }
 
   try {
     const data = version
