@@ -262,6 +262,8 @@ export default function ReaderView({
   const nativeSelectingRef = useRef(false);
   const nativePinnedHighlightRef = useRef<NativePinnedHighlight | null>(null);
   const nativePinGenRef = useRef(0);
+  const nativeCollapseTimerRef = useRef(0);
+  const nativePinSuppressRef = useRef(false);
   const nativeTouchSelect = isTouchPrimaryUI();
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
@@ -1426,16 +1428,15 @@ export default function ReaderView({
     return englishUI ? `Ch. ${peekPrevChapter}` : `第 ${peekPrevChapter} 章`;
   })();
 
-  const resetNativePin = useCallback(() => {
+  const dismissNativeSelection = useCallback(() => {
+    window.clearTimeout(nativeCollapseTimerRef.current);
+    nativeCollapseTimerRef.current = 0;
+    nativePinSuppressRef.current = true;
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
     clearNativePinnedHighlight();
     setNativePinnedHighlight(null);
-  }, []);
-
-  const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
-    resetNativePin();
     setNativeSelection(null);
     setLiveNativeSelection(null);
     nativeSelectingRef.current = false;
@@ -1449,7 +1450,12 @@ export default function ReaderView({
       wordDragRafRef.current = 0;
     }
     swipeIgnoreUntilRef.current = Date.now() + 320;
+    requestAnimationFrame(() => {
+      nativePinSuppressRef.current = false;
+    });
   }, []);
+
+  const clearSelection = dismissNativeSelection;
 
   const applyWordRange = useCallback((anchor: WordAnchor, focus: WordAnchor, opts?: { commit?: boolean }) => {
     const range: WordRange = { anchor, focus };
@@ -1502,7 +1508,6 @@ export default function ReaderView({
     const blockMenu = (e: Event) => e.preventDefault();
     root.addEventListener('contextmenu', blockMenu);
     let raf = 0;
-    let collapseTimer = 0;
     const pinningRef = { current: false };
 
     const setSelecting = (on: boolean) => {
@@ -1517,7 +1522,7 @@ export default function ReaderView({
     };
 
     const collapseSystemSelection = () => {
-      if (nativeSelectingRef.current) return;
+      if (nativeSelectingRef.current || nativePinSuppressRef.current) return;
       const pinned = readNativePinnedHighlight(root);
       if (pinned?.text) {
         nativePinnedHighlightRef.current = pinned;
@@ -1551,16 +1556,24 @@ export default function ReaderView({
     };
 
     const scheduleCollapse = (delayMs: number) => {
-      if (nativeSelectingRef.current) return;
-      window.clearTimeout(collapseTimer);
-      collapseTimer = window.setTimeout(collapseSystemSelection, delayMs);
+      if (nativeSelectingRef.current || nativePinSuppressRef.current) return;
+      window.clearTimeout(nativeCollapseTimerRef.current);
+      nativeCollapseTimerRef.current = window.setTimeout(() => {
+        nativeCollapseTimerRef.current = 0;
+        collapseSystemSelection();
+      }, delayMs);
     };
 
     const commitLiveSelection = () => {
       const next = readNativeVerseSelection(root);
       setLiveNativeSelection(next);
       setNativeSelection((prev) => {
-        if (!next) return prev;
+        if (!next) {
+          if (pinningRef.current || nativeSelectingRef.current || nativePinSuppressRef.current) {
+            return prev;
+          }
+          return null;
+        }
         if (
           prev &&
           next.text === prev.text &&
@@ -1591,7 +1604,10 @@ export default function ReaderView({
         setLiveNativeSelection(next);
         setNativeSelection((prev) => {
           if (!next) {
-            return prev;
+            if (pinningRef.current || nativeSelectingRef.current || nativePinSuppressRef.current) {
+              return prev;
+            }
+            return null;
           }
           if (
             prev &&
@@ -1613,7 +1629,8 @@ export default function ReaderView({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.pointerType === 'mouse' && e.button !== 0) return;
-      window.clearTimeout(collapseTimer);
+      window.clearTimeout(nativeCollapseTimerRef.current);
+      nativeCollapseTimerRef.current = 0;
       setSelecting(true);
     };
 
@@ -1635,7 +1652,8 @@ export default function ReaderView({
       root.removeEventListener('pointerup', onPointerUp);
       root.removeEventListener('pointercancel', onPointerUp);
       if (raf) cancelAnimationFrame(raf);
-      window.clearTimeout(collapseTimer);
+      window.clearTimeout(nativeCollapseTimerRef.current);
+      nativeCollapseTimerRef.current = 0;
     };
   }, [book.id, chapter, swipeTurn, nativeTouchSelect, verses]);
 
@@ -1643,13 +1661,13 @@ export default function ReaderView({
   useEffect(() => {
     const root = contentRef.current;
     if (!root || !nativeTouchSelect) return;
-    if (nativeSelecting || !nativePinnedHighlight?.spans.length) {
+    if (nativeSelecting || nativePinSuppressRef.current || !nativePinnedHighlight?.spans.length) {
       clearNativePinnedHighlight();
       return;
     }
     const gen = nativePinGenRef.current;
     const id = requestAnimationFrame(() => {
-      if (gen !== nativePinGenRef.current) return;
+      if (gen !== nativePinGenRef.current || nativePinSuppressRef.current) return;
       const pin = nativePinnedHighlightRef.current;
       if (!pin?.spans.length) {
         clearNativePinnedHighlight();
@@ -1784,9 +1802,14 @@ export default function ReaderView({
   const handleVerseClick = useCallback(
     (e: React.MouseEvent, verse: number, text: string) => {
       e.stopPropagation();
+      const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
+      if (hasSel || hasPinned) {
+        dismissNativeSelection();
+        return;
+      }
       handleVerseThoughtClick(e, verse, text);
     },
-    [handleVerseThoughtClick],
+    [hasSel, handleVerseThoughtClick, dismissNativeSelection],
   );
 
   useEffect(() => {
@@ -2044,13 +2067,14 @@ export default function ReaderView({
       className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
+        const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
+        if (hasSel || hasPinned) {
+          dismissNativeSelection();
+          return;
+        }
         // 忽略长按/双击后的余波点击，避免立即取消选中。
         if (Date.now() - lastSelectAt.current < 500) return;
         if (overlayOpen) return;
-        if (hasSel) {
-          clearSelection();
-          return;
-        }
         toggleChrome();
       }}
     >

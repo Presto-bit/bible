@@ -11945,24 +11945,39 @@ button.card:active,
 .group-page-checkin {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - 56px);
-  padding: 0 16px calc(76px + env(safe-area-inset-bottom, 0));
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  padding: 0;
   box-sizing: border-box;
 }
 
-.group-checkin-top {
+.group-checkin-nav-fixed {
   flex-shrink: 0;
+  z-index: 10;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+  padding: 0 16px;
+}
+
+.group-checkin-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 10px 16px calc(76px + env(safe-area-inset-bottom, 0));
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 0 0 8px;
 }
 
-.group-checkin-feed {
+.group-checkin-feed-inner {
   flex: 1;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: 0 0 12px;
+  min-height: 0;
+  overflow: visible;
+  padding: 0;
+  background: transparent;
 }
 
 .group-today-focus {

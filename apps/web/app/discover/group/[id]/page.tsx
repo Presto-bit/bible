@@ -395,8 +395,11 @@ function GroupPageInner() {
 
   return (
     <main className="group-page group-page-checkin">
-      <div className="group-checkin-top">
+      <div className="group-checkin-nav-fixed">
         <GroupNavBar detail={safeDetail} onOpenSettings={() => setSettingsOpen(true)} />
+      </div>
+
+      <div className="group-checkin-scroll">
         <GroupTodayFocus
           gid={gid}
           detail={safeDetail}
@@ -414,23 +417,22 @@ function GroupPageInner() {
           flyHighlight={flyHighlight}
           onReact={react}
         />
-      </div>
-
-      <div className="group-feed-wrap group-checkin-feed" ref={feedWrapRef}>
-        <GroupActivityFeed
-          gid={gid}
-          messages={feed}
-          isOwner={isOwner}
-          hasMore={hasMore}
-          loadingMore={loadingMore}
-          onLoadMore={loadMore}
-          onOpenComposer={() => setComposerOpen(true)}
-          onReact={react}
-          onReport={reportMsg}
-          onDelete={deleteMsg}
-          onCompleteTask={completeTask}
-        />
-        <div ref={feedEndRef} />
+        <div className="group-feed-wrap group-checkin-feed-inner" ref={feedWrapRef}>
+          <GroupActivityFeed
+            gid={gid}
+            messages={feed}
+            isOwner={isOwner}
+            hasMore={hasMore}
+            loadingMore={loadingMore}
+            onLoadMore={loadMore}
+            onOpenComposer={() => setComposerOpen(true)}
+            onReact={react}
+            onReport={reportMsg}
+            onDelete={deleteMsg}
+            onCompleteTask={completeTask}
+          />
+          <div ref={feedEndRef} />
+        </div>
       </div>
 
       <GroupComposerBar disabled={busy} onOpen={() => setComposerOpen(true)} />
