@@ -1,4 +1,4 @@
-/** 本地 SQLite 经库（sql.js + IndexedDB 经包，支持 CNV / CUVS）。 */
+/** 本地 SQLite 经库（sql.js + IndexedDB 经包，支持 CNV / CUVS / KJV）。 */
 
 import type { Database, SqlJsStatic } from 'sql.js';
 import type { BibleBook, Verse } from './api';
@@ -240,8 +240,9 @@ export interface LocalSearchHit {
 export async function searchLocalVerses(
   query: string,
   limit = 24,
+  translation: OfflineTranslation = 'cnv',
 ): Promise<LocalSearchHit[] | null> {
-  const db = await getLocalBibleDb('cnv');
+  const db = await getLocalBibleDb(translation);
   if (!db) return null;
   const q = query.trim();
   if (!q) return [];
@@ -269,7 +270,7 @@ export async function searchLocalVerses(
     return out;
   } catch {
     resetLocalBibleDb();
-    await purgeOfflineTranslation('cnv');
+    await purgeOfflineTranslation(translation);
     return null;
   }
 }

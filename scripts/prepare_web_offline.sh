@@ -7,10 +7,17 @@ OUT="$ROOT/apps/web/public/offline"
 mkdir -p "$OUT" "$ROOT/apps/web/public/sql-wasm"
 
 if [[ ! -f "$ROOT/build/bible_cnv.sqlite" ]]; then
-  echo "→ 生成 SQLite…"
+  echo "→ 生成 CNV SQLite…"
   python3 "$ROOT/scripts/import_bible.py" \
     --input "$ROOT/data/bible/cnv/verses.json" \
     --out "$ROOT/build/bible_cnv.sqlite"
+fi
+
+if [[ ! -f "$ROOT/build/bible_kjv.sqlite" ]]; then
+  echo "→ 生成 KJV SQLite…"
+  python3 "$ROOT/scripts/import_bible.py" \
+    --input "$ROOT/data/bible/kjv/verses.json" \
+    --out "$ROOT/build/bible_kjv.sqlite"
 fi
 
 echo "→ 打离线 zip…"

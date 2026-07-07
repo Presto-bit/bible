@@ -25,6 +25,7 @@ import {
   getChapterVersesSync,
   loadChapterVerses,
 } from '@/lib/chapter_prefetch';
+import { bibleChapter } from '@/lib/bible_client';
 import {
   canPlanNav,
   resolvePlanNav,
@@ -881,16 +882,15 @@ export default function ReaderView({
     }
     setParallelLoading(true);
     setParallelError(null);
-    void api
-      .chapter(book.id, chapter, parallelVer)
-      .then((d) => {
-        if (!d.verses?.length) {
+    void bibleChapter(book.id, chapter, parallelVer)
+      .then((verses) => {
+        if (!verses?.length) {
           const label = versions?.find((v) => v.id === parallelVer)?.label ?? parallelVer.toUpperCase();
           setParallelError(`${label} 暂无经文`);
           setParallelVerses([]);
           return;
         }
-        setParallelVerses(d.verses);
+        setParallelVerses(verses);
         setParallelError(null);
       })
       .catch(() => {

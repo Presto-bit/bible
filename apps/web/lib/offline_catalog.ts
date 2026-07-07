@@ -35,6 +35,15 @@ export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
     idbKey: 'bible_cuvs_sqlite_v1',
   },
   {
+    id: 'kjv',
+    tab: 'bible',
+    name: 'King James Version',
+    description: 'KJV 全文',
+    paths: ['bible/bible_kjv.sqlite'],
+    kind: 'sqlite',
+    idbKey: 'bible_kjv_sqlite_v1',
+  },
+  {
     id: 'dictionary',
     tab: 'materials',
     name: '圣经词典',

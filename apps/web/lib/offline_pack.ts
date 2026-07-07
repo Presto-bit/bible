@@ -1,4 +1,4 @@
-/** 离线经包：下载 zip → 校验 → 解压 → IndexedDB 持久化（CNV + CUVS）。 */
+/** 离线经包：下载 zip → 校验 → 解压 → IndexedDB 持久化（CNV / CUVS / KJV）。 */
 
 import { unzipSync } from 'fflate';
 import { idbDelete, idbGet, idbGetBundle, idbSet, idbSetBundle } from './offline_idb';
@@ -13,12 +13,13 @@ import { withBasePath } from './basePath';
 
 export const OFFLINE_CNV_KEY = 'bible_cnv_sqlite_v1';
 export const OFFLINE_CUVS_KEY = 'bible_cuvs_sqlite_v1';
+export const OFFLINE_KJV_KEY = 'bible_kjv_sqlite_v1';
 /** @deprecated 兼容旧键名 */
 export const OFFLINE_DB_KEY = OFFLINE_CNV_KEY;
 export const OFFLINE_META_KEY = 'presto_offline_pack_meta';
 export const OFFLINE_ITEMS_REGISTRY_KEY = 'presto_offline_items_v1';
 
-export type OfflineTranslation = 'cnv' | 'cuvs';
+export type OfflineTranslation = 'cnv' | 'cuvs' | 'kjv';
 
 export type OfflineItemRecord = {
   manifestVersion: string;
@@ -119,7 +120,7 @@ function syncLegacyBibleRecords() {
     if (!manifest) return;
     const registry = loadItemsRegistry();
     let changed = false;
-    for (const id of ['cnv', 'cuvs'] as const) {
+    for (const id of ['cnv', 'cuvs', 'kjv'] as const) {
       const item = getCatalogItem(id);
       if (!item?.idbKey || registry[id]?.hasFiles) continue;
       const buf = await idbGet(item.idbKey);
@@ -267,7 +268,7 @@ export async function deleteOfflineItemFiles(itemId: string): Promise<void> {
 
 function syncPackMetaFromItems(version?: string) {
   const registry = loadItemsRegistry();
-  const bibleIds = (['cnv', 'cuvs'] as const).filter((id) => registry[id]?.hasFiles);
+  const bibleIds = (['cnv', 'cuvs', 'kjv'] as const).filter((id) => registry[id]?.hasFiles);
   if (!bibleIds.length) {
     localStorage.removeItem(OFFLINE_META_KEY);
     return;
@@ -291,7 +292,9 @@ export async function loadOfflineBundle(
 }
 
 function idbKeyForTranslation(t: OfflineTranslation): string {
-  return t === 'cuvs' ? OFFLINE_CUVS_KEY : OFFLINE_CNV_KEY;
+  if (t === 'cuvs') return OFFLINE_CUVS_KEY;
+  if (t === 'kjv') return OFFLINE_KJV_KEY;
+  return OFFLINE_CNV_KEY;
 }
 
 function uint8ToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -341,8 +344,14 @@ export async function isCuvsOfflineReady(): Promise<boolean> {
   return (await getLocalBibleDb('cuvs')) !== null;
 }
 
+export async function isKjvOfflineReady(): Promise<boolean> {
+  if ((await getOfflineItemStatus('kjv')) !== 'ready') return false;
+  const { getLocalBibleDb } = await import('./bible_local');
+  return (await getLocalBibleDb('kjv')) !== null;
+}
+
 export async function clearOfflinePack() {
-  for (const id of ['cnv', 'cuvs'] as const) {
+  for (const id of ['cnv', 'cuvs', 'kjv'] as const) {
     await deleteOfflineItemFiles(id);
   }
   localStorage.removeItem(OFFLINE_META_KEY);
@@ -354,12 +363,23 @@ export type DownloadProgress = {
   message: string;
 };
 
+/** 后台预热目标：CNV + CUVS + KJV 均已就绪。 */
+export async function isAutoBiblePackReady(): Promise<boolean> {
+  const [cnv, cuvs, kjv] = await Promise.all([
+    getOfflineItemStatus('cnv'),
+    getOfflineItemStatus('cuvs'),
+    getOfflineItemStatus('kjv'),
+  ]);
+  return cnv === 'ready' && cuvs === 'ready' && kjv === 'ready';
+}
+
 /** 下载并安装全部圣经译本（兼容旧入口 / 后台预热）。 */
 export async function downloadOfflinePack(
   onProgress?: (p: DownloadProgress) => void,
 ): Promise<number> {
   let total = 0;
-  for (const id of ['cnv', 'cuvs'] as const) {
+  for (const id of ['cnv', 'cuvs', 'kjv'] as const) {
+    if ((await getOfflineItemStatus(id)) === 'ready') continue;
     await downloadOfflineItem(id, onProgress);
     total += loadItemRecord(id)?.bytes ?? 0;
   }

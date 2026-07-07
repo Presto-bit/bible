@@ -9,7 +9,7 @@ import {
   seededBooks,
   writeBooksLsCache,
 } from './bible_local';
-import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
+import { isCuvsOfflineReady, isKjvOfflineReady, isOfflinePackReady } from './offline_pack';
 
 export async function bibleBooks(): Promise<BibleBook[]> {
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
@@ -58,7 +58,7 @@ export async function bibleChapter(
   const ver = version || 'cnv';
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-  const tryLocal = async (translation: 'cnv' | 'cuvs') => {
+  const tryLocal = async (translation: 'cnv' | 'cuvs' | 'kjv') => {
     try {
       return await getLocalChapter(bookId, chapter, translation);
     } catch {
@@ -74,9 +74,15 @@ export async function bibleChapter(
     const local = await tryLocal('cuvs');
     if (local?.length) return local;
   }
+  if (ver === 'kjv' && (await isKjvOfflineReady())) {
+    const local = await tryLocal('kjv');
+    if (local?.length) return local;
+  }
 
   if (offline) {
-    const local = await tryLocal(ver === 'cuvs' ? 'cuvs' : 'cnv');
+    const local = await tryLocal(
+      ver === 'cuvs' ? 'cuvs' : ver === 'kjv' ? 'kjv' : 'cnv',
+    );
     if (local?.length) return local;
     return null;
   }
@@ -95,6 +101,10 @@ export async function bibleChapter(
       const local = await tryLocal('cuvs');
       if (local?.length) return local;
     }
+    if (ver === 'kjv') {
+      const local = await tryLocal('kjv');
+      if (local?.length) return local;
+    }
     return null;
   }
 }
@@ -105,15 +115,24 @@ export async function bibleSearch(
 ): Promise<BibleSearchHit[]> {
   const version = opts?.version || undefined;
   const testament = opts?.testament || undefined;
-  const canUseLocal = (!version || version === 'cnv') && !testament;
-  if (canUseLocal && (await isOfflinePackReady())) {
-    const local = await searchLocalVerses(q);
+  const localTranslation =
+    version === 'kjv' ? 'kjv' : version === 'cuvs' ? 'cuvs' : 'cnv';
+  const canUseLocal =
+    (!version || version === 'cnv' || version === 'kjv') && !testament;
+  const localReady =
+    localTranslation === 'kjv'
+      ? await isKjvOfflineReady()
+      : localTranslation === 'cuvs'
+        ? await isCuvsOfflineReady()
+        : await isOfflinePackReady();
+  if (canUseLocal && localReady) {
+    const local = await searchLocalVerses(q, 24, localTranslation);
     if (local) {
       return local.map((h) => ({
         ...h,
         ref: `${h.name}${h.chapter}:${h.verse}`,
         osis: `${h.book}.${h.chapter}.${h.verse}`,
-        version: 'cnv',
+        version: localTranslation,
       }));
     }
   }
@@ -122,12 +141,12 @@ export async function bibleSearch(
     return remote.hits;
   } catch {
     if (!canUseLocal) return [];
-    const local = await searchLocalVerses(q);
+    const local = await searchLocalVerses(q, 24, localTranslation);
     return (local ?? []).map((h) => ({
       ...h,
       ref: `${h.name}${h.chapter}:${h.verse}`,
       osis: `${h.book}.${h.chapter}.${h.verse}`,
-      version: 'cnv',
+      version: localTranslation,
     }));
   }
 }

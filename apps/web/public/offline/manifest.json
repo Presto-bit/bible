@@ -1,7 +1,7 @@
 {
-  "version": "2026.07.03",
-  "zip": "bible_offline_2026.07.03.zip",
-  "zip_sha256": "c87d314882ba694aa9300faca5f8f853397ccb4d7244d02e3402678c88bd8ec8",
+  "version": "2026.07.07",
+  "zip": "bible_offline_2026.07.07.zip",
+  "zip_sha256": "2d7bf3445b0fc299656800d8592eb07c2aab0e990c9397eb0c5e08f7e54eefe3",
   "files": [
     {
       "path": "bible/bible_cnv.sqlite",
@@ -10,8 +10,13 @@
     },
     {
       "path": "bible/bible_cuvs.sqlite",
-      "bytes": 12308480,
-      "sha256": "1035fe29bb4335d7367b9d51c551ad8ee96726d877ed8c1374fae81a3f8c8703"
+      "bytes": 11423744,
+      "sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1"
+    },
+    {
+      "path": "bible/bible_kjv.sqlite",
+      "bytes": 13131776,
+      "sha256": "e2e9a04eac84ad4a2400c519e98e93cc1020259fa346af9f0b25114c41351bb1"
     },
     {
       "path": "content/plans/bible_year_365.csv",
@@ -85,8 +90,8 @@
     },
     {
       "path": "content/plans/prayer_morning_7.json",
-      "bytes": 3184,
-      "sha256": "489b46451a2ea542ecda59ab7c7430f1fb92576bbba03f1d8eeb6c402f16e65c"
+      "bytes": 3013,
+      "sha256": "7b54b7aca5a565f24cbf8e6a11a1bd87342f8928c94d5f1ae8b3817daba9ffaf"
     },
     {
       "path": "content/plans/prayer_peace_21.json",
@@ -99,9 +104,14 @@
       "sha256": "714738596d331f8a96c0593b575c9d53805aa825da860d06ee180eaef8677071"
     },
     {
+      "path": "content/daily-verses/classic_verse_pool.json",
+      "bytes": 8863,
+      "sha256": "ed85588e8f3444cce7312f7a9741f12476fb2f5afe4124fecbdd8a08de81f369"
+    },
+    {
       "path": "content/daily-verses/daily_verses.json",
-      "bytes": 35604,
-      "sha256": "cbe9b2857c0c987e25adba36f10371ba7c546f10225390c8098e2da986a533bf"
+      "bytes": 72011,
+      "sha256": "b99b7e9d31b7406d3fa7185eec01d87b0aa521378270134d9acce022d8a917fb"
     },
     {
       "path": "content/crossrefs/cross_references.json",
@@ -114,14 +124,29 @@
       "sha256": "a539ead0da6b61971a64c461a05d82fd082849eba1a23f588f6e58d682eb7cb1"
     },
     {
+      "path": "content/dictionary/disambiguation_patch.json",
+      "bytes": 1032,
+      "sha256": "153cd374ac92532cfc56a6aa3fe97247f1b1cae3225666f9f8d5d62fac28ac32"
+    },
+    {
       "path": "content/dictionary/entities.json",
-      "bytes": 591413,
-      "sha256": "6f5131e38776951158edb9056811da92d22039b8e5cd4b8a2b2f797469c7a514"
+      "bytes": 196379,
+      "sha256": "fdb5fec0e14f3f4eabb9ce9f0851beac4e8e99c7648d8c642fb6736ff4009425"
+    },
+    {
+      "path": "content/dictionary/relations.json",
+      "bytes": 2607,
+      "sha256": "15deeb37e1f4a5e5d02aabd9a355e28f32970c798a743e1290d1108208cb6826"
     },
     {
       "path": "content/topics/topics.json",
-      "bytes": 7389,
-      "sha256": "2ac905c7572685303114e1e55efb56f4cc0c9cfe84a56ff65e1a99de22f8280e"
+      "bytes": 7613,
+      "sha256": "e3cfd2f8207458776d29d6f3b1775f127c466d308605a0dc91240ba42a58aa2c"
+    },
+    {
+      "path": "content/geography/map_tours.json",
+      "bytes": 3604,
+      "sha256": "04499b31f1876b930426097410f80acd4268ab7771b2debeb1eeb61c3f856274"
     },
     {
       "path": "content/geography/places.json",
@@ -134,19 +159,49 @@
       "sha256": "bf849c92334245abeebb103ef04e5d1c9382590457fbf0ddef8db7c843c4b1ac"
     },
     {
+      "path": "content/geography/timeline_tours.json",
+      "bytes": 2920,
+      "sha256": "d54aa02902313a0ea5f36a6cc49ddddd70db547722d6a5aefc283b770f236e8a"
+    },
+    {
+      "path": "content/summaries/books.json",
+      "bytes": 14394,
+      "sha256": "f83713bf7b538a511a8698b64ad149e944f2a47867b59a8a0e07c31decd4c223"
+    },
+    {
+      "path": "content/summaries/chapters.json",
+      "bytes": 4562,
+      "sha256": "980d078a69060579bd6d58a3389cb69f4815eabbdc13e0b65d2343b3c6d0e205"
+    },
+    {
       "path": "content/strongs/strongs.sqlite",
-      "bytes": 14368768,
-      "sha256": "3fdfa65caafb44320d79124131f25467b9fb664a07a0f761917f046a684f4802"
+      "bytes": 19193856,
+      "sha256": "e5363af43c9a0443eae1913224e857df75fce07e62508aa315967f19a511b374"
     },
     {
       "path": "content/illustrations/index.json",
-      "bytes": 2763,
-      "sha256": "4aa8612774b3fe6d68d04c89a3d943e5247f4dbe185f65e73be0837b0f879ab3"
+      "bytes": 4322,
+      "sha256": "74b8740691b46b6658ba596e1e279041df83759f1c69cd4fb404076e2bdc5a08"
+    },
+    {
+      "path": "content/illustrations/theme_使命.svg",
+      "bytes": 759,
+      "sha256": "41c0574830da3a1121032b6a1746e76698b8c560f14616b734465135a3e2b79a"
     },
     {
       "path": "content/illustrations/theme_信靠.svg",
       "bytes": 698,
       "sha256": "78a5516f27d81a6c6a9d2d3e69d070787d2c77a1c3d4ebdd9486acbe79443eae"
+    },
+    {
+      "path": "content/illustrations/theme_公义.svg",
+      "bytes": 698,
+      "sha256": "78a5516f27d81a6c6a9d2d3e69d070787d2c77a1c3d4ebdd9486acbe79443eae"
+    },
+    {
+      "path": "content/illustrations/theme_创造.svg",
+      "bytes": 1992,
+      "sha256": "a26db1ed60f90a7c371f18e2c6217b0ea02977cc5b312957fe7007e38f617beb"
     },
     {
       "path": "content/illustrations/theme_力量.svg",
@@ -164,9 +219,34 @@
       "sha256": "61822e444d0c5f43c5a36d78ac1edf81a6ab8b6dd938331cdf0d2be73b18f083"
     },
     {
+      "path": "content/illustrations/theme_圣灵.svg",
+      "bytes": 756,
+      "sha256": "f90984715a997580e6292ae30cb1a1f3f2148e9369c889ab7846d126a1cbd756"
+    },
+    {
+      "path": "content/illustrations/theme_复活.svg",
+      "bytes": 1992,
+      "sha256": "89e0a739f613090a43607015d351f8f94669971991810342a6c0229dfb5fee84"
+    },
+    {
       "path": "content/illustrations/theme_安慰.svg",
       "bytes": 1088,
       "sha256": "628de79fd293a86285db7154a2e9fbb1fcb0c65dfbfd6aaeb345dbb93629fe42"
+    },
+    {
+      "path": "content/illustrations/theme_家庭.svg",
+      "bytes": 2942,
+      "sha256": "741691d6558117071d5205237480fdf506a6b2d662e12c91a8bb8b4166853aed"
+    },
+    {
+      "path": "content/illustrations/theme_宽恕.svg",
+      "bytes": 1311,
+      "sha256": "f6e8554950620645770142d0196e04fd6366ce1217c3ab584c016642f53b2ce3"
+    },
+    {
+      "path": "content/illustrations/theme_工作.svg",
+      "bytes": 759,
+      "sha256": "4b3afc98b9c2ee3be1c15eaa0138bdca0f3390076de3e3c82022755f77b892fc"
     },
     {
       "path": "content/illustrations/theme_平安.svg",
@@ -199,6 +279,16 @@
       "sha256": "bb50d3ace2af5c4570c9c38e54fe36bcb3a5cb976e964fd1be5df62648bbccda"
     },
     {
+      "path": "content/illustrations/theme_救恩.svg",
+      "bytes": 745,
+      "sha256": "86f576b4691ff3ca4cf13577cbd748b8be2d2610dc4ad62d8b1c345453be4c38"
+    },
+    {
+      "path": "content/illustrations/theme_教会.svg",
+      "bytes": 789,
+      "sha256": "7370ab13354552deea4c4d502e5a87e886d61b312799e34f3aefd8402d2ff880"
+    },
+    {
       "path": "content/illustrations/theme_敬拜.svg",
       "bytes": 1992,
       "sha256": "aec61105152b784bc4a5b38f9b389c8d9349accb9e0cb2e9899147a0ea60dd1f"
@@ -214,6 +304,11 @@
       "sha256": "9af4fbe46ec054b8f190540a4824f7855ff0fcf560648112345abc780fc733eb"
     },
     {
+      "path": "content/illustrations/theme_焦虑.svg",
+      "bytes": 1088,
+      "sha256": "7315871f59670cb7758bb1459b7e72522f9f6bf27a0e5d6fa05f5cb15f4de412"
+    },
+    {
       "path": "content/illustrations/theme_爱.svg",
       "bytes": 756,
       "sha256": "6c5893a27d5989fadfd468a0ab591572d5ab0c7919b6f38c3e90b1d753006c7f"
@@ -224,9 +319,19 @@
       "sha256": "aec61105152b784bc4a5b38f9b389c8d9349accb9e0cb2e9899147a0ea60dd1f"
     },
     {
+      "path": "content/illustrations/theme_祝福.svg",
+      "bytes": 2942,
+      "sha256": "eb8f142055f8db9eb17859834317305dd8658f0e00fe6cfef27d9ea8b46e9619"
+    },
+    {
       "path": "content/illustrations/theme_祷告.svg",
       "bytes": 789,
       "sha256": "6851e6fea5d7e1eec0f9bbbe5110d4b561cc0e3518fd97cd9e202ab8f8e82797"
+    },
+    {
+      "path": "content/illustrations/theme_苦难.svg",
+      "bytes": 698,
+      "sha256": "eb5a4a860671e1cac92498dd19ce285b4842bb11ea2cd763cae5686a519928c3"
     },
     {
       "path": "content/illustrations/theme_谦卑.svg",
