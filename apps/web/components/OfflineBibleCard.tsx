@@ -41,6 +41,7 @@ export function OfflineBibleCard() {
     try {
       await downloadOfflinePack(setProgress);
       resetLocalBibleDb();
+      window.dispatchEvent(new CustomEvent('presto-offline-pack-ready'));
       await refresh();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));

@@ -87,8 +87,9 @@ export default function BottomTabs() {
 
   useEffect(() => {
     if (!isStandalonePwa()) return;
-    router.prefetch('/reader');
-    router.prefetch('/assistant');
+    for (const href of ['/', '/reader', '/assistant', '/discover', '/profile']) {
+      router.prefetch(href);
+    }
   }, [router]);
 
   const go = (href: string) => {

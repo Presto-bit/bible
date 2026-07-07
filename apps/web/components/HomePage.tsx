@@ -27,6 +27,7 @@ import { listAllThoughts } from '@/lib/reader_thoughts';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { bookIdToChineseName } from '@/lib/ref_label';
+import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { watchChinaDayChange } from '@/lib/daily_clock';
 
 /** 与 Mobile 首页一致的时段问候 */
@@ -39,7 +40,7 @@ function timeOfDayGreeting(date = new Date()): string {
 }
 
 export default function HomePageClient() {
-  const [dv, setDv] = useState<DailyVerse | null>(null);
+  const [dv, setDv] = useState<DailyVerse | null>(() => readCachedDailyVerse());
   const [err, setErr] = useState<string | null>(null);
   const [dvLoading, setDvLoading] = useState(true);
 
@@ -53,22 +54,38 @@ export default function HomePageClient() {
   const loadDailyVerse = useCallback(() => {
     setDvLoading(true);
     setErr(null);
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const cached = readCachedDailyVerse();
+      if (cached) {
+        setDv(cached);
+        setDvLoading(false);
+        return;
+      }
+    }
     void ensureAccountReady()
       .then(() => api.dailyVerse())
       .then(async (v) => {
         const day = v.day ?? 0;
-        // 以服务端为准；本地缓存仅作离线兜底（服务端未返回 liked 时）
         const likedVal =
           typeof v.liked === 'boolean'
             ? v.liked
             : (day > 0 ? readLocalDailyVerseLike(day) : null) ?? false;
         const countVal = v.likes_count ?? 0;
         setDv(v);
+        writeCachedDailyVerse(v);
         setLiked(likedVal);
         setLikeCount(countVal);
         if (day) writeLocalDailyVerseLike(day, likedVal);
       })
-      .catch((e) => setErr(errorMessage(e, '内容加载失败')))
+      .catch((e) => {
+        const cached = readCachedDailyVerse();
+        if (cached) {
+          setDv(cached);
+          setErr(null);
+        } else {
+          setErr(errorMessage(e, '内容加载失败'));
+        }
+      })
       .finally(() => setDvLoading(false));
   }, []);
 

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
+import { useOnline } from '@/lib/use_online';
 import {
   api,
   effectiveId,
@@ -27,9 +29,11 @@ function groupStatusBadge(g: Group) {
 }
 
 export default function DiscoverPage() {
+  const suppress = useSuppressKeepAliveRoute();
   const confirm = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
+  const online = useOnline();
   const [uid, setUid] = useState<string | null>(null);
   const [groups, setGroups] = useState<Group[]>([]);
   const [pendingOnlyIds, setPendingOnlyIds] = useState<Set<string>>(() => new Set());
@@ -57,9 +61,10 @@ export default function DiscoverPage() {
       clearGroupsListDirty();
       setErr(null);
     } catch (e) {
-      setErr(errorMessage(e, '加载失败，请检查网络'));
+      if (online) setErr(errorMessage(e, '加载失败，请检查网络'));
+      else setErr(null);
     }
-  }, []);
+  }, [online]);
 
   useEffect(() => {
     void ensureAccountReady().then(() => {
@@ -86,6 +91,8 @@ export default function DiscoverPage() {
     }
   };
 
+  if (suppress) return null;
+
   if (!uid) {
     return (
       <main className="container">
@@ -103,6 +110,9 @@ export default function DiscoverPage() {
 
   return (
     <main className="container discover-page">
+      {!online ? (
+        <p className="muted offline-page-hint">当前离线，共读群与好友动态需联网后刷新。</p>
+      ) : null}
       {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
       <DiscoverTodayBar

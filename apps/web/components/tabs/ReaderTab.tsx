@@ -26,6 +26,7 @@ import { refSpaceToOsis } from '@/lib/inline_ref';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { preloadSectionTitles } from '@/lib/section_titles';
 import { OfflineBibleCard } from '@/components/OfflineBibleCard';
+import { OfflineInlineNotice } from '@/components/OfflineInlineNotice';
 import { bookAbbr } from '@/lib/book_abbr';
 import { useOnline } from '@/lib/use_online';
 
@@ -150,9 +151,18 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   useEffect(() => {
     preloadSectionTitles();
     api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
-    bibleBooks()
-      .then((bookList) => setBooks(bookList))
-      .catch((e) => setErr(String(e)));
+    const loadBooks = () => {
+      bibleBooks()
+        .then((bookList) => {
+          setBooks(bookList);
+          setErr(null);
+        })
+        .catch((e) => setErr(String(e)));
+    };
+    loadBooks();
+    const onPackReady = () => loadBooks();
+    window.addEventListener('presto-offline-pack-ready', onPackReady);
+    return () => window.removeEventListener('presto-offline-pack-ready', onPackReady);
   }, []);
 
   useEffect(() => {
@@ -245,49 +255,66 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     setCatalogOpen(false);
   }, [handleNavigate]);
 
-  if (err) {
+  if (err && !books.length) {
     return (
-      <main className="container">
-        <p className="muted" style={{ lineHeight: 1.55 }}>
-          {!online ? '当前离线，无法打开读经' : '加载失败'}：{err}
-        </p>
-        {!online ? (
-          <div style={{ marginTop: 14 }}>
-            <OfflineBibleCard />
-          </div>
-        ) : null}
+      <main className="container reader-offline-shell">
+        <OfflineInlineNotice
+          title={!online ? '当前离线' : '加载失败'}
+          detail={err}
+        >
+          {!online ? <OfflineBibleCard /> : null}
+        </OfflineInlineNotice>
       </main>
     );
   }
 
   if (catalogOpen && book) {
     return (
-      <CatalogView
-        books={books}
-        currentBookId={book.id}
-        currentChapter={chapter}
-        showBack
-        onBack={() => setCatalogOpen(false)}
-        onPickChapter={handlePickChapter}
-        bookAbbr={bookAbbr}
-        planSteps={planMeta?.steps}
-      />
+      <>
+        {err ? (
+          <main className="container reader-offline-shell">
+            <OfflineInlineNotice title="提示" detail={err} />
+          </main>
+        ) : null}
+        <CatalogView
+          books={books}
+          currentBookId={book.id}
+          currentChapter={chapter}
+          showBack
+          onBack={() => setCatalogOpen(false)}
+          onPickChapter={handlePickChapter}
+          bookAbbr={bookAbbr}
+          planSteps={planMeta?.steps}
+        />
+      </>
     );
   }
 
   if (!book) {
     return (
-      <CatalogView
-        books={books}
-        showBack={false}
-        onPickChapter={handlePickChapter}
-        bookAbbr={bookAbbr}
-      />
+      <main className="container reader-offline-shell">
+        {err ? (
+          <OfflineInlineNotice title={!online ? '离线读经' : '提示'} detail={err}>
+            {!online ? <OfflineBibleCard /> : null}
+          </OfflineInlineNotice>
+        ) : null}
+        <CatalogView
+          books={books}
+          showBack={false}
+          onPickChapter={handlePickChapter}
+          bookAbbr={bookAbbr}
+        />
+      </main>
     );
   }
 
   return (
     <>
+      {err ? (
+        <div className="container reader-offline-shell">
+          <OfflineInlineNotice title={!online ? '离线读经' : '提示'} detail={err} />
+        </div>
+      ) : null}
       <ReaderView
         book={book}
         books={books}

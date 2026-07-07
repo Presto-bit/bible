@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v10';
+const CACHE = 'presto-bible-v11';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -117,12 +117,22 @@ async function offlineNavigationFallback(request) {
   if (cached) return cached;
 
   const pathname = new URL(request.url).pathname;
-  const candidates = [pathname, ...APP_SHELL_PATHS, bp('/offline.html')];
+  const rel = relPath(pathname);
+  const candidates = [pathname];
+
+  for (const path of APP_SHELL_PATHS) {
+    const shellRel = relPath(path);
+    if (rel === shellRel || rel.startsWith(`${shellRel}/`)) {
+      candidates.push(path);
+    }
+  }
+  candidates.push(...APP_SHELL_PATHS, bp('/'));
+
   for (const path of candidates) {
     const hit = await caches.match(path);
     if (hit) return hit;
   }
-  return caches.match(bp('/offline.html'));
+  return caches.match(bp('/'));
 }
 
 function offlineTextResponse() {
@@ -155,7 +165,16 @@ async function networkFirstCache(request) {
 
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()),
+    caches.open(CACHE).then(async (c) => {
+      await c.addAll(SHELL);
+      await Promise.allSettled(
+        APP_SHELL_PATHS.map((path) =>
+          fetch(path, { credentials: 'same-origin' }).then((res) => {
+            if (res.ok) return c.put(path, res);
+          }),
+        ),
+      );
+    }).then(() => self.skipWaiting()),
   );
 });
 

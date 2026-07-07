@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import {
   currentUserId,
   effectiveId,
@@ -39,6 +40,7 @@ const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
 
 export default function ProfilePage() {
+  const suppress = useSuppressKeepAliveRoute();
   const confirm = useConfirm();
   const toast = useToast();
   const [uid, setUid] = useState<string | null>(null);
@@ -171,6 +173,8 @@ export default function ProfilePage() {
 
   const displayName = name.trim() || '读经伙伴';
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
+
+  if (suppress) return null;
 
   return (
     <main className="container">

@@ -3,6 +3,8 @@
 import { unzipSync } from 'fflate';
 import { idbDelete, idbGet, idbSet } from './offline_idb';
 
+import { withBasePath } from './basePath';
+
 export const OFFLINE_CNV_KEY = 'bible_cnv_sqlite_v1';
 export const OFFLINE_CUVS_KEY = 'bible_cuvs_sqlite_v1';
 /** @deprecated 兼容旧键名 */
@@ -29,8 +31,8 @@ export interface OfflinePackMeta {
   translations?: OfflineTranslation[];
 }
 
-const MANIFEST_URL = '/offline/manifest.json';
-const ZIP_URL = '/offline/bible_offline.zip';
+const MANIFEST_URL = withBasePath('/offline/manifest.json');
+const ZIP_URL = withBasePath('/offline/bible_offline.zip');
 
 function sqliteKeyForPath(path: string): OfflineTranslation | null {
   const p = path.toLowerCase();
