@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
   currentUserId,
@@ -32,6 +33,8 @@ import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { normalizeAppPath } from '@/lib/tab_keep_alive';
+import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { isStandalonePwa } from '@/lib/platform';
 
@@ -65,10 +68,20 @@ export default function ProfileTab() {
     () => typeof window !== 'undefined' && isStandalonePwa(),
   );
 
+  const pathname = usePathname();
+  const { enabled, activeTab } = useTabKeepAlive();
+
   const openSettingsRoute = () => {
     markRouteNavigation();
-    setSettingsOpen(false);
   };
+
+  useEffect(() => {
+    if (enabled) {
+      if (activeTab !== 'profile') setSettingsOpen(false);
+      return;
+    }
+    if (normalizeAppPath(pathname) !== '/profile') setSettingsOpen(false);
+  }, [enabled, activeTab, pathname]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

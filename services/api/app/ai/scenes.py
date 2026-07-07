@@ -150,7 +150,7 @@ SCENES: dict[str, SceneSpec] = {
         id="chat_compare",
         mode="compare",
         label="译本对照",
-        max_tokens=900,
+        max_tokens=1200,
         wants_followups=True,
         format_guide=(
             f"{_MD}\n"
@@ -171,7 +171,7 @@ SCENES: dict[str, SceneSpec] = {
         id="chat_original",
         mode="compare",
         label="原文释义",
-        max_tokens=900,
+        max_tokens=1200,
         wants_followups=True,
         format_guide=(
             f"{_MD}\n"

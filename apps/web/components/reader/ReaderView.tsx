@@ -83,6 +83,11 @@ import {
   type NativeVerseSelection,
 } from '@/lib/native_verse_selection';
 import {
+  applyNativePinnedHighlight,
+  clearNativePinnedHighlight,
+  supportsCssCustomHighlight,
+} from '@/lib/native_verse_highlight';
+import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
   logChapterDetail,
@@ -432,14 +437,6 @@ export default function ReaderView({
     }
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
-  const nativePinnedSpanMap = useMemo(() => {
-    const m = new Map<number, { start: number; end: number }>();
-    if (!nativeTouchSelect || nativeSelecting || !nativePinnedHighlight) return m;
-    for (const s of nativePinnedHighlight.spans) {
-      m.set(s.verse, { start: s.start, end: s.end });
-    }
-    return m;
-  }, [nativeTouchSelect, nativeSelecting, nativePinnedHighlight]);
   const nativeSelVerses = useMemo(
     () => (
       nativeTouchSelect && !nativeSelecting && !nativePinnedHighlight?.spans.length
@@ -607,21 +604,8 @@ export default function ReaderView({
         );
       }
 
-      if (nativeTouchSelect && !nativeSelecting) {
-        const pin = nativePinnedSpanMap.get(verseNum);
-        if (pin && pin.end > pin.start && pin.start >= 0 && pin.end <= text.length) {
-          const before = text.slice(0, pin.start);
-          const mid = text.slice(pin.start, pin.end);
-          const after = text.slice(pin.end);
-          return (
-            <>
-              {before ? renderText(before, 'sel-pre') : null}
-              <span className="verse-sel-native">{renderText(mid, 'sel-mid')}</span>
-              {after ? renderText(after, 'sel-post') : null}
-            </>
-          );
-        }
-        return renderText(text, 'native');
+      if (nativeTouchSelect) {
+        return renderText(text, 'body');
       }
 
       return (
@@ -667,7 +651,7 @@ export default function ReaderView({
         </>
       );
     },
-    [renderVerseText, wordRange, nativeTouchSelect, nativePinnedSpanMap, nativeSelecting],
+    [renderVerseText, wordRange, nativeTouchSelect],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -1384,6 +1368,7 @@ export default function ReaderView({
 
   const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
+    clearNativePinnedHighlight();
     setNativeSelection(null);
     setNativePinnedHighlight(null);
     setLiveNativeSelection(null);
@@ -1481,7 +1466,12 @@ export default function ReaderView({
       }
       pinningRef.current = true;
       requestAnimationFrame(() => {
-        window.getSelection()?.removeAllRanges();
+        const keepNativeSel = Boolean(
+          pinned?.spans.length && !supportsCssCustomHighlight(),
+        );
+        if (!keepNativeSel) {
+          window.getSelection()?.removeAllRanges();
+        }
         requestAnimationFrame(() => {
           pinningRef.current = false;
         });
@@ -1576,6 +1566,27 @@ export default function ReaderView({
       window.clearTimeout(collapseTimer);
     };
   }, [book.id, chapter, swipeTurn, nativeTouchSelect, verses]);
+
+  // 触控 pin 高亮：DOM 稳定后绘制，不改动经文 React 树
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!root || !nativeTouchSelect) return;
+    if (nativeSelecting || !nativePinnedHighlight?.spans.length) {
+      clearNativePinnedHighlight();
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      applyNativePinnedHighlight(root, nativePinnedHighlight);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [
+    nativeTouchSelect,
+    nativeSelecting,
+    nativePinnedHighlight,
+    book.id,
+    chapter,
+    verses,
+  ]);
 
   // 桌面：长按选词 + 拖动扩选（词块 + wordRange）
   useEffect(() => {

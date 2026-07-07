@@ -1,6 +1,7 @@
 'use client';
 
 import { SheetCloseButton } from '@/components/PageBackBar';
+import AnswerText from '@/components/AnswerText';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api, type GeoPlace, type TimelineChapter } from '@/lib/api';
@@ -146,7 +147,11 @@ export default function SummarySheet({
           <span className="half-sheet-badge">小爱导读</span>
           {activeBusy && !activeBody && <p className="muted">小爱正在整理…</p>}
           {activeErr && <p style={{ color: '#b1554a' }}>{activeErr}</p>}
-          {activeBody && <p className="summary-sheet-body">{activeBody}</p>}
+          {activeBody && (
+            <div className="summary-sheet-body">
+              <AnswerText text={activeBody} dense />
+            </div>
+          )}
           {showContext && (
             <div className="summary-sheet-context">
               <p className="summary-sheet-context-label">本章背景</p>
