@@ -55,7 +55,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const [chapter, setChapter] = useState(1);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [booksLoading, setBooksLoading] = useState(true);
+  const [booksLoading, setBooksLoading] = useState(false);
   const [dict, setDict] = useState<DictEntity[]>([]);
   const [dictPopup, setDictPopup] = useState<{
     entity: DictEntity;
@@ -68,7 +68,30 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
   const [flashRef, setFlashRef] = useState<string | null>(null);
   const booksLenRef = useRef(0);
+  const errRef = useRef<string | null>(null);
+  const loadSeqRef = useRef(0);
   booksLenRef.current = books.length;
+  errRef.current = err;
+
+  const loadBooks = useCallback((silent = false) => {
+    if (silent && booksLenRef.current > 0) return;
+    const seq = ++loadSeqRef.current;
+    if (!silent) setBooksLoading(true);
+    bibleBooks()
+      .then((bookList) => {
+        if (seq !== loadSeqRef.current) return;
+        setBooks(bookList);
+        setErr(null);
+      })
+      .catch((e) => {
+        if (seq !== loadSeqRef.current) return;
+        if (!silent) setErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (seq !== loadSeqRef.current) return;
+        if (!silent) setBooksLoading(false);
+      });
+  }, []);
 
   const dictIndex = useMemo(() => buildDictIndex(dict), [dict]);
   const properNounRe = useMemo(() => dictMatchPattern(dictIndex), [dictIndex]);
@@ -158,24 +181,8 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     let idleId: number | undefined;
     let timeoutId: number | undefined;
 
-    const loadBooks = (silent = false) => {
-      if (silent && booksLenRef.current > 0) return;
-      if (!silent) setBooksLoading(true);
-      bibleBooks()
-        .then((bookList) => {
-          setBooks(bookList);
-          setErr(null);
-        })
-        .catch((e) => {
-          if (!silent) setErr(e instanceof Error ? e.message : String(e));
-        })
-        .finally(() => {
-          if (!silent) setBooksLoading(false);
-        });
-    };
-
     if (paneActive) {
-      if (booksLenRef.current === 0) loadBooks(false);
+      if (booksLenRef.current === 0 || errRef.current) loadBooks(false);
     } else if (typeof navigator !== 'undefined' && navigator.onLine) {
       const run = () => loadBooks(true);
       if (typeof window.requestIdleCallback === 'function') {
@@ -186,10 +193,10 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     }
 
     const onPackReady = () => {
-      if (booksLenRef.current === 0) loadBooks(false);
+      if (booksLenRef.current === 0 || errRef.current) loadBooks(false);
     };
     const onOnline = () => {
-      if (booksLenRef.current === 0) loadBooks(!paneActive);
+      if (booksLenRef.current === 0 || errRef.current) loadBooks(!paneActive);
     };
     window.addEventListener('presto-offline-pack-ready', onPackReady);
     window.addEventListener('online', onOnline);
@@ -201,7 +208,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       window.removeEventListener('presto-offline-pack-ready', onPackReady);
       window.removeEventListener('online', onOnline);
     };
-  }, [paneActive]);
+  }, [paneActive, loadBooks]);
 
   useEffect(() => {
     if (!books.length) return;
@@ -307,13 +314,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         <OfflineInlineNotice
           title={!online ? '当前离线' : '加载失败'}
           detail={err}
-          action={{ label: '重试', onClick: () => {
-            setErr(null);
-            bibleBooks()
-              .then((bookList) => { setBooks(bookList); setErr(null); })
-              .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
-              .finally(() => setBooksLoading(false));
-          } }}
+          action={{ label: '重试', onClick: () => loadBooks(false) }}
         >
           {!online ? <OfflineBibleCard /> : null}
         </OfflineInlineNotice>

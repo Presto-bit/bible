@@ -2,7 +2,8 @@
 
 import type { Database, SqlJsStatic } from 'sql.js';
 import type { BibleBook, Verse } from './api';
-import { withBasePath } from './basePath';
+import { clientWithBasePath, withBasePath } from './basePath';
+import booksSeed from '../public/offline/books.json';
 import {
   loadOfflineSqliteBytes,
   type OfflineTranslation,
@@ -21,9 +22,14 @@ function sqlWasmUrl(file: string): string {
   return withBasePath(`/sql-wasm/${mapSqlWasmFile(file)}`);
 }
 
-const BOOKS_FALLBACK_URL = withBasePath('/offline/books.json');
 const BOOKS_LS_KEY = 'presto_books_cache_v1';
 let booksCache: BibleBook[] | null = null;
+
+const BIBLE_BOOKS_SEED: BibleBook[] = booksSeed.books ?? [];
+
+function booksJsonUrl(): string {
+  return clientWithBasePath('/offline/books.json');
+}
 
 function readBooksLsCache(): BibleBook[] | null {
   if (typeof window === 'undefined') return null;
@@ -99,6 +105,10 @@ export function resetLocalBibleDb() {
   }
 }
 
+export function seededBooks(): BibleBook[] {
+  return BIBLE_BOOKS_SEED;
+}
+
 export async function loadBooksJson(opts?: { fresh?: boolean }): Promise<BibleBook[] | null> {
   if (!opts?.fresh) {
     if (booksCache?.length) return booksCache;
@@ -112,7 +122,7 @@ export async function loadBooksJson(opts?: { fresh?: boolean }): Promise<BibleBo
 
   try {
     const online = typeof navigator !== 'undefined' && navigator.onLine;
-    const res = await fetch(BOOKS_FALLBACK_URL, {
+    const res = await fetch(booksJsonUrl(), {
       cache: online ? 'no-cache' : 'force-cache',
     });
     if (!res.ok) return null;
@@ -124,6 +134,11 @@ export async function loadBooksJson(opts?: { fresh?: boolean }): Promise<BibleBo
     }
   } catch {
     /* network */
+  }
+
+  if (BIBLE_BOOKS_SEED.length) {
+    booksCache = BIBLE_BOOKS_SEED;
+    return BIBLE_BOOKS_SEED;
   }
   return null;
 }

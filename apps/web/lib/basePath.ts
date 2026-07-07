@@ -6,3 +6,20 @@ export function withBasePath(path: string): string {
   if (!BASE_PATH) return path;
   return `${BASE_PATH}${path}`;
 }
+
+/** 客户端运行时 basePath（优先 __NEXT_DATA__，避免构建 env 与部署路径不一致） */
+export function clientBasePath(): string {
+  if (typeof window === 'undefined') return BASE_PATH;
+  const runtime = (
+    window as unknown as { __NEXT_DATA__?: { basePath?: string } }
+  ).__NEXT_DATA__?.basePath;
+  if (typeof runtime === 'string') return runtime;
+  return BASE_PATH;
+}
+
+export function clientWithBasePath(path: string): string {
+  const base = clientBasePath();
+  if (!path.startsWith('/')) return `${base}/${path}`;
+  if (!base) return path;
+  return `${base}${path}`;
+}

@@ -6,6 +6,7 @@ import {
   listLocalBooksFromDb,
   loadBooksJson,
   searchLocalVerses,
+  seededBooks,
   writeBooksLsCache,
 } from './bible_local';
 import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
@@ -13,12 +14,10 @@ import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
 export async function bibleBooks(): Promise<BibleBook[]> {
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-  // 在线时并行拉静态目录与 API，避免后台预加载时单一路径失败
+  // 始终尝试 API（PWA 下 navigator.onLine 可能短暂误报离线）
   const [jsonBooks, remote] = await Promise.all([
     loadBooksJson(),
-    offline
-      ? Promise.resolve(null as { books: BibleBook[] } | null)
-      : api.books().catch(() => null),
+    api.books().catch(() => null),
   ]);
 
   if (jsonBooks?.length) return jsonBooks;
@@ -27,17 +26,23 @@ export async function bibleBooks(): Promise<BibleBook[]> {
     return remote.books;
   }
 
+  const freshJson = await loadBooksJson({ fresh: true });
+  if (freshJson?.length) return freshJson;
+
+  // 在线时不走 SQLite/sql.js，避免经包半下载或 wasm 失败拖垮目录
   if (!offline) {
-    const freshJson = await loadBooksJson({ fresh: true });
-    if (freshJson?.length) return freshJson;
+    const seed = seededBooks();
+    if (seed.length) return seed;
   }
 
-  // SQLite 经包目录（可能较慢，不阻塞前两步）
   const dbBooks = await listLocalBooksFromDb();
   if (dbBooks?.length) return dbBooks;
 
-  const retryJson = await loadBooksJson({ fresh: !offline });
+  const retryJson = await loadBooksJson({ fresh: true });
   if (retryJson?.length) return retryJson;
+
+  const seed = seededBooks();
+  if (seed.length) return seed;
 
   if (offline) {
     throw new Error('离线经包未就绪，请在「我的 → 设置」下载离线圣经');
