@@ -11,30 +11,32 @@ import {
 import { isCuvsOfflineReady, isOfflinePackReady } from './offline_pack';
 
 export async function bibleBooks(): Promise<BibleBook[]> {
-  // 1. 静态 books.json（SW 预缓存，最快）
-  const jsonBooks = await loadBooksJson();
-  if (jsonBooks?.length) return jsonBooks;
-
-  // 2. 在线 API
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
-  if (!offline) {
-    try {
-      const remote = await api.books();
-      if (remote.books?.length) {
-        writeBooksLsCache(remote.books);
-        return remote.books;
-      }
-    } catch {
-      /* 走本地回退 */
-    }
+
+  // 在线时并行拉静态目录与 API，避免后台预加载时单一路径失败
+  const [jsonBooks, remote] = await Promise.all([
+    loadBooksJson(),
+    offline
+      ? Promise.resolve(null as { books: BibleBook[] } | null)
+      : api.books().catch(() => null),
+  ]);
+
+  if (jsonBooks?.length) return jsonBooks;
+  if (remote?.books?.length) {
+    writeBooksLsCache(remote.books);
+    return remote.books;
   }
 
-  // 3. SQLite 经包目录（可能较慢，不阻塞前两步）
+  if (!offline) {
+    const freshJson = await loadBooksJson({ fresh: true });
+    if (freshJson?.length) return freshJson;
+  }
+
+  // SQLite 经包目录（可能较慢，不阻塞前两步）
   const dbBooks = await listLocalBooksFromDb();
   if (dbBooks?.length) return dbBooks;
 
-  // 4. 再试一次静态目录
-  const retryJson = await loadBooksJson();
+  const retryJson = await loadBooksJson({ fresh: !offline });
   if (retryJson?.length) return retryJson;
 
   if (offline) {

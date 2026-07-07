@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
 import { bibleBooks } from '@/lib/bible_client';
@@ -67,6 +67,8 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
   const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
   const [flashRef, setFlashRef] = useState<string | null>(null);
+  const booksLenRef = useRef(0);
+  booksLenRef.current = books.length;
 
   const dictIndex = useMemo(() => buildDictIndex(dict), [dict]);
   const properNounRe = useMemo(() => dictMatchPattern(dictIndex), [dictIndex]);
@@ -152,26 +154,54 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   useEffect(() => {
     preloadSectionTitles();
     api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
-    const loadBooks = () => {
-      setBooksLoading(true);
+
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+
+    const loadBooks = (silent = false) => {
+      if (silent && booksLenRef.current > 0) return;
+      if (!silent) setBooksLoading(true);
       bibleBooks()
         .then((bookList) => {
           setBooks(bookList);
           setErr(null);
         })
-        .catch((e) => setErr(e instanceof Error ? e.message : String(e)))
-        .finally(() => setBooksLoading(false));
+        .catch((e) => {
+          if (!silent) setErr(e instanceof Error ? e.message : String(e));
+        })
+        .finally(() => {
+          if (!silent) setBooksLoading(false);
+        });
     };
-    loadBooks();
-    const onPackReady = () => loadBooks();
-    const onOnline = () => loadBooks();
+
+    if (paneActive) {
+      if (booksLenRef.current === 0) loadBooks(false);
+    } else if (typeof navigator !== 'undefined' && navigator.onLine) {
+      const run = () => loadBooks(true);
+      if (typeof window.requestIdleCallback === 'function') {
+        idleId = window.requestIdleCallback(run, { timeout: 8000 });
+      } else {
+        timeoutId = window.setTimeout(run, 2000);
+      }
+    }
+
+    const onPackReady = () => {
+      if (booksLenRef.current === 0) loadBooks(false);
+    };
+    const onOnline = () => {
+      if (booksLenRef.current === 0) loadBooks(!paneActive);
+    };
     window.addEventListener('presto-offline-pack-ready', onPackReady);
     window.addEventListener('online', onOnline);
     return () => {
+      if (idleId != null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) window.clearTimeout(timeoutId);
       window.removeEventListener('presto-offline-pack-ready', onPackReady);
       window.removeEventListener('online', onOnline);
     };
-  }, []);
+  }, [paneActive]);
 
   useEffect(() => {
     if (!books.length) return;

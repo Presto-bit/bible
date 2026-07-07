@@ -99,17 +99,22 @@ export function resetLocalBibleDb() {
   }
 }
 
-export async function loadBooksJson(): Promise<BibleBook[] | null> {
-  if (booksCache?.length) return booksCache;
+export async function loadBooksJson(opts?: { fresh?: boolean }): Promise<BibleBook[] | null> {
+  if (!opts?.fresh) {
+    if (booksCache?.length) return booksCache;
 
-  const ls = readBooksLsCache();
-  if (ls?.length) {
-    booksCache = ls;
-    return ls;
+    const ls = readBooksLsCache();
+    if (ls?.length) {
+      booksCache = ls;
+      return ls;
+    }
   }
 
   try {
-    const res = await fetch(BOOKS_FALLBACK_URL, { cache: 'force-cache' });
+    const online = typeof navigator !== 'undefined' && navigator.onLine;
+    const res = await fetch(BOOKS_FALLBACK_URL, {
+      cache: online ? 'no-cache' : 'force-cache',
+    });
     if (!res.ok) return null;
     const data = (await res.json()) as { books: BibleBook[] };
     if (data.books?.length) {
