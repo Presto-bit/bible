@@ -15,7 +15,6 @@ import {
 
 type Props = {
   bookId: string;
-  bookName: string;
   chapter: number;
   verses: Verse[] | null;
   /** 分段结构（对照阅读时用中文结构，正文用 verses 译本） */
@@ -64,7 +63,6 @@ function renderPeekVerseBody(
 /** 跟手翻页邻章预览：版式与正式正文一致（章标题、专名、划线、对照列、段落标题）。 */
 export default function ReaderChapterPeek({
   bookId,
-  bookName,
   chapter,
   verses,
   structureVerses,
@@ -198,11 +196,6 @@ export default function ReaderChapterPeek({
 
   return (
     <div className={`reader-turn-peek ${poetry ? 'reader-poetry' : 'reader-prose'}`}>
-      <div className="reader-chapter-head reader-chapter-head-peek">
-        <span className="reader-chapter-title">
-          {bookName} · {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
-        </span>
-      </div>
       {parallel ? (
         <div className="reader-parallel">
           {paragraphs.map(renderParallelParagraph)}

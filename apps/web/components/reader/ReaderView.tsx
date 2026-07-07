@@ -2159,7 +2159,6 @@ export default function ReaderView({
                 <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                   <ReaderChapterPeek
                     bookId={peekPrevBook?.id ?? book.id}
-                    bookName={peekPrevBook?.name ?? book.name}
                     chapter={peekPrevChapter}
                     verses={peekPrevBundle?.verses ?? null}
                     structureVerses={peekPrevBundle?.layoutVerses ?? null}
@@ -2180,7 +2179,6 @@ export default function ReaderView({
                 <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                   <ReaderChapterPeek
                     bookId={peekNextBook?.id ?? book.id}
-                    bookName={peekNextBook?.name ?? book.name}
                     chapter={peekNextChapter}
                     verses={peekNextBundle?.verses ?? null}
                     structureVerses={peekNextBundle?.layoutVerses ?? null}
