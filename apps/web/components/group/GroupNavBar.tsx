@@ -1,6 +1,7 @@
 'use client';
 
 import PageBackBar from '@/components/PageBackBar';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import type { GroupDetail } from '@/lib/api';
 import { groupMemberCount } from '@/lib/group_ui';
 
@@ -10,6 +11,7 @@ type Props = {
 };
 
 export function GroupNavBar({ detail, onOpenSettings }: Props) {
+  useEdgeSwipeBack({ href: '/discover/groups' });
   const count = groupMemberCount(detail);
 
   return (

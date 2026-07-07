@@ -11,6 +11,7 @@ import { recordMapTour } from '@/lib/badge_events';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { GeoMiniMap } from '@/components/knowledge/GeoMiniMap';
 import PageBackBar from '@/components/PageBackBar';
+import { useFlowBack } from '@/lib/use_edge_swipe_back';
 
 export function MapStoryMode({
   tourId,
@@ -22,6 +23,7 @@ export function MapStoryMode({
   backLabel?: string;
 }) {
   const router = useRouter();
+  const goBack = useFlowBack(backHref);
   const [tour, setTour] = useState<MapTour | null>(null);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -75,7 +77,7 @@ export function MapStoryMode({
   return (
     <>
       <header className="page-head story-mode-head">
-        <PageBackBar href={backHref} label={backLabel} />
+        <PageBackBar onClick={goBack} label={backLabel} />
         <h2 className="page-head-title">{tour.title}</h2>
       </header>
       <p className="muted story-mode-sub">

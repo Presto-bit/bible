@@ -2,13 +2,11 @@
 
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { MapStoryMode } from '@/components/search/MapStoryMode';
 
 function MapStoryPageContent() {
   const params = useParams();
   const tourId = decodeURIComponent(String(params.tourId || ''));
-  useEdgeSwipeBack({ href: '/search/map' });
 
   return (
     <main className="container story-mode-page">

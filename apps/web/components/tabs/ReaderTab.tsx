@@ -299,7 +299,6 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         books={books}
         chapter={chapter}
         onNavigate={handleNavigate}
-        onPickBook={() => setCatalogOpen(true)}
         bookAbbr={bookAbbr}
         renderVerseText={renderVerseText}
         planMeta={planMeta}

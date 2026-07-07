@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
 type EdgeSwipeBackOptions = {
@@ -94,10 +94,38 @@ export const BACK_PATH_LABELS: Record<string, string> = {
   '/profile': '我的',
   '/reader': '圣经',
   '/discover': '发现',
+  '/discover/friends': '好友',
+  '/discover/groups': '群列表',
   '/search': '搜索',
+  '/search/graph': '关系专题',
+  '/search/map': '地图漫游',
+  '/search/timeline': '时间轴',
+  '/search/diagrams': '图鉴馆',
+  '/dictionary': '词典',
+  '/notes': '笔记',
   '/report': '读经回顾',
 };
 
-export function backLabelForHref(href: string): string | undefined {
-  return BACK_PATH_LABELS[href];
+export function backLabelForHref(href: string): string {
+  return BACK_PATH_LABELS[href] ?? '返回';
+}
+
+/**
+ * 流程页返回：优先 history.back()，无历史时 push 到 fallback。
+ * 边缘右滑与顶栏返回共用同一规则。
+ */
+export function useFlowBack(fallbackHref: string) {
+  const router = useRouter();
+
+  const goBack = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push(fallbackHref);
+    }
+  }, [router, fallbackHref]);
+
+  useEdgeSwipeBack({ href: fallbackHref, preferHistoryBack: true });
+
+  return goBack;
 }

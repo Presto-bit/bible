@@ -11,6 +11,7 @@ import { formatGroupRefLabel } from '@/lib/ref_label';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { graphTopicAssistantQuestion } from '@/lib/entity_knowledge';
 import PageBackBar from '@/components/PageBackBar';
+import { useFlowBack } from '@/lib/use_edge_swipe_back';
 
 const NARRATIVE_EDGE_MAX = 12;
 
@@ -24,6 +25,7 @@ export function GraphTopicView({
   backLabel?: string;
 }) {
   const router = useRouter();
+  const goBack = useFlowBack(backHref);
   const [topic, setTopic] = useState<GraphTopic | null>(null);
   const [graph, setGraph] = useState<EntityGraph | null>(null);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export function GraphTopicView({
   return (
     <>
       <header className="page-head story-mode-head">
-        <PageBackBar href={backHref} label={backLabel} />
+        <PageBackBar onClick={goBack} label={backLabel} />
         <h2 className="page-head-title">{topic.title}</h2>
       </header>
       {topic.subtitle ? (

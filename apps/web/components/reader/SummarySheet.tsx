@@ -4,6 +4,9 @@ import { SheetCloseButton } from '@/components/PageBackBar';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api, type GeoPlace, type TimelineChapter } from '@/lib/api';
+import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
+
+type SummaryTab = 'chapter' | 'book';
 
 function formatEra(timeline: TimelineChapter | null): string | null {
   if (!timeline) return null;
@@ -17,21 +20,27 @@ function formatEra(timeline: TimelineChapter | null): string | null {
 }
 
 export default function SummarySheet({
-  title,
-  load,
   bookId,
+  bookName,
   chapter,
+  englishUI = false,
+  initialTab = 'chapter',
   onClose,
 }: {
-  title: string;
-  load: () => Promise<string>;
-  bookId?: string;
-  chapter?: number;
+  bookId: string;
+  bookName: string;
+  chapter: number;
+  englishUI?: boolean;
+  initialTab?: SummaryTab;
   onClose: () => void;
 }) {
-  const [body, setBody] = useState('');
-  const [busy, setBusy] = useState(true);
-  const [err, setErr] = useState<string | null>(null);
+  const [tab, setTab] = useState<SummaryTab>(initialTab);
+  const [chapterBody, setChapterBody] = useState('');
+  const [bookBody, setBookBody] = useState('');
+  const [chapterBusy, setChapterBusy] = useState(true);
+  const [bookBusy, setBookBusy] = useState(true);
+  const [chapterErr, setChapterErr] = useState<string | null>(null);
+  const [bookErr, setBookErr] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const [timeline, setTimeline] = useState<TimelineChapter | null>(null);
   const [places, setPlaces] = useState<GeoPlace[]>([]);
@@ -40,29 +49,43 @@ export default function SummarySheet({
 
   useEffect(() => {
     let cancelled = false;
-    setBusy(true);
-    setErr(null);
-    void load()
+    setChapterBusy(true);
+    setChapterErr(null);
+    void loadChapterSummary(bookId, bookName, chapter)
       .then((t) => {
-        if (!cancelled) setBody(t);
+        if (!cancelled) setChapterBody(t);
       })
       .catch((e) => {
-        if (!cancelled) setErr(String(e));
+        if (!cancelled) setChapterErr(String(e));
       })
       .finally(() => {
-        if (!cancelled) setBusy(false);
+        if (!cancelled) setChapterBusy(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [load, title]);
+  }, [bookId, bookName, chapter]);
 
   useEffect(() => {
-    if (!bookId || chapter == null) {
-      setTimeline(null);
-      setPlaces([]);
-      return;
-    }
+    let cancelled = false;
+    setBookBusy(true);
+    setBookErr(null);
+    void loadBookSummary(bookId, bookName)
+      .then((t) => {
+        if (!cancelled) setBookBody(t);
+      })
+      .catch((e) => {
+        if (!cancelled) setBookErr(String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setBookBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, bookName]);
+
+  useEffect(() => {
     let cancelled = false;
     void Promise.all([
       api.timeline(bookId, chapter),
@@ -83,7 +106,11 @@ export default function SummarySheet({
   }, [bookId, chapter]);
 
   const eraLabel = formatEra(timeline);
-  const showContext = chapter != null && (eraLabel || places.length > 0);
+  const showContext = tab === 'chapter' && (eraLabel || places.length > 0);
+  const chapterTitle = englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`;
+  const activeBusy = tab === 'chapter' ? chapterBusy : bookBusy;
+  const activeErr = tab === 'chapter' ? chapterErr : bookErr;
+  const activeBody = tab === 'chapter' ? chapterBody : bookBody;
 
   const sheet = (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -91,15 +118,35 @@ export default function SummarySheet({
         <div className="half-sheet-head">
           <div className="half-sheet-grab" />
           <div className="half-sheet-title">
-            <strong>{title}</strong>
+            <strong>{bookName}</strong>
             <SheetCloseButton onClick={onClose} />
           </div>
         </div>
         <div className="half-sheet-body">
+          <div className="summary-sheet-tabs" role="tablist" aria-label="概览类型">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'chapter'}
+              className={`summary-sheet-tab${tab === 'chapter' ? ' is-active' : ''}`}
+              onClick={() => setTab('chapter')}
+            >
+              {chapterTitle}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'book'}
+              className={`summary-sheet-tab${tab === 'book' ? ' is-active' : ''}`}
+              onClick={() => setTab('book')}
+            >
+              {englishUI ? 'Whole book' : '整卷概览'}
+            </button>
+          </div>
           <span className="half-sheet-badge">小爱导读</span>
-          {busy && !body && <p className="muted">小爱正在整理…</p>}
-          {err && <p style={{ color: '#b1554a' }}>{err}</p>}
-          {body && <p className="summary-sheet-body">{body}</p>}
+          {activeBusy && !activeBody && <p className="muted">小爱正在整理…</p>}
+          {activeErr && <p style={{ color: '#b1554a' }}>{activeErr}</p>}
+          {activeBody && <p className="summary-sheet-body">{activeBody}</p>}
           {showContext && (
             <div className="summary-sheet-context">
               <p className="summary-sheet-context-label">本章背景</p>

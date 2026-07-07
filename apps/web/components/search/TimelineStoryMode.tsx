@@ -9,6 +9,7 @@ import { refSpaceToOsis } from '@/lib/inline_ref';
 import { recordTimelineTour } from '@/lib/badge_events';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import PageBackBar from '@/components/PageBackBar';
+import { useFlowBack } from '@/lib/use_edge_swipe_back';
 
 function eventRef(ev: { ref?: string; book: string; chapter: number; verse?: number }) {
   if (ev.ref?.trim()) return ev.ref.trim();
@@ -25,6 +26,7 @@ export function TimelineStoryMode({
   backHref?: string;
   backLabel?: string;
 }) {
+  const goBack = useFlowBack(backHref);
   const [tour, setTour] = useState<TimelineTour | null>(null);
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export function TimelineStoryMode({
   return (
     <>
       <header className="page-head story-mode-head">
-        <PageBackBar href={backHref} label={backLabel} />
+        <PageBackBar onClick={goBack} label={backLabel} />
         <h2 className="page-head-title">{tour.title}</h2>
       </header>
       {tour.subtitle ? (

@@ -2,13 +2,11 @@
 
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { TimelineStoryMode } from '@/components/search/TimelineStoryMode';
 
 function TimelineStoryPageContent() {
   const params = useParams();
   const tourId = decodeURIComponent(String(params.tourId || ''));
-  useEdgeSwipeBack({ href: '/search/timeline' });
 
   return (
     <main className="container story-mode-page">

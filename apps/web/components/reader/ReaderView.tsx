@@ -19,7 +19,6 @@ import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
-import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
 import {
   chapterCacheVersion,
@@ -104,6 +103,7 @@ import {
 } from '@/lib/app_theme';
 import PlanReadingLayer from '@/components/reader/PlanReadingLayer';
 import ReaderChapterPeek from '@/components/reader/ReaderChapterPeek';
+import { ReaderLocPopover } from '@/components/reader/ReaderLocPopover';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
 import { buildPlanReadingMeta, type PlanReadingMeta } from '@/lib/plan_reading';
 import { getActivePlan } from '@/lib/plan_progress';
@@ -159,7 +159,6 @@ export default function ReaderView({
   books,
   chapter,
   onNavigate,
-  onPickBook,
   bookAbbr,
   renderVerseText,
   planMeta,
@@ -175,7 +174,6 @@ export default function ReaderView({
   books: BibleBook[];
   chapter: number;
   onNavigate: (book: BibleBook, chapter: number) => void;
-  onPickBook: () => void;
   bookAbbr: (name: string) => string;
   renderVerseText: (text: string, keyBase: string, verse: number) => React.ReactNode;
   planMeta?: PlanReadingMeta | null;
@@ -206,6 +204,7 @@ export default function ReaderView({
   const [parallelVer, setParallelVer] = useState('kjv');
   const [mainVersionId, setMainVersionId] = useState<string | null>(null);
   const [chapterAnim, setChapterAnim] = useState('');
+  const [verseTransitionOff, setVerseTransitionOff] = useState(false);
   const [peekPrevVerses, setPeekPrevVerses] = useState<Verse[] | null>(null);
   const [peekNextVerses, setPeekNextVerses] = useState<Verse[] | null>(null);
   const [peekPrevOutline, setPeekPrevOutline] = useState<SectionMark[] | null>(null);
@@ -243,12 +242,9 @@ export default function ReaderView({
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [chapterBottomTick, setChapterBottomTick] = useState(0);
   const [viewNote, setViewNote] = useState<LocalNote | null>(null);
-  const [summarySheet, setSummarySheet] = useState<null | {
-    title: string;
-    load: () => Promise<string>;
-    bookId?: string;
-    chapter?: number;
-  }>(null);
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [locPopoverOpen, setLocPopoverOpen] = useState(false);
+  const locBtnRef = useRef<HTMLButtonElement>(null);
   const [chapterNotes, setChapterNotes] = useState<Map<number, LocalNote[]>>(new Map());
   const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
   const [writeThoughtSheet, setWriteThoughtSheet] = useState<null | {
@@ -314,7 +310,8 @@ export default function ReaderView({
     || showSettings
     || showVersions
     || aiSheet
-    || summarySheet
+    || summaryOpen
+    || locPopoverOpen
     || viewNote
     || writeThoughtSheet
     || thoughtListSheet
@@ -968,6 +965,12 @@ export default function ReaderView({
       cancelled = true;
     };
   }, [books, book, chapter, mainVersionId, swipeTurn, readerLocation, prefetchTarget, planNavActive, planMeta]);
+
+  useEffect(() => {
+    setVerseTransitionOff(true);
+    const t = window.setTimeout(() => setVerseTransitionOff(false), 320);
+    return () => window.clearTimeout(t);
+  }, [book.id, chapter]);
 
   useEffect(() => {
     setWholeVerseSel([]);
@@ -1714,36 +1717,9 @@ export default function ReaderView({
       }}
       title="双击回到本章第一节"
     >
-      <button
-        type="button"
-        className="reader-head-link"
-        onClick={(e) => {
-          e.stopPropagation();
-          setSummarySheet({
-            title: `${book.name} · 整卷概览`,
-            load: () => loadBookSummary(book.id, book.name),
-            bookId: book.id,
-          });
-        }}
-      >
-        {book.name}
-      </button>
-      <span className="reader-head-sep">·</span>
-      <button
-        type="button"
-        className="reader-head-link reader-head-chapter"
-        onClick={(e) => {
-          e.stopPropagation();
-          setSummarySheet({
-            title: `${book.name} ${englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}`,
-            load: () => loadChapterSummary(book.id, book.name, chapter),
-            bookId: book.id,
-            chapter,
-          });
-        }}
-      >
-        {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
-      </button>
+      <span className="reader-chapter-title">
+        {book.name} · {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
+      </span>
     </div>
   );
 
@@ -1922,8 +1898,31 @@ export default function ReaderView({
           }}>
             {versionLabel}
           </button>
-          <button type="button" className="reader-loc" onClick={(e) => { e.stopPropagation(); onPickBook(); }}>
-            {bookAbbr(book.name)} {chapter}
+          <div className="reader-loc-wrap">
+            <button
+              ref={locBtnRef}
+              type="button"
+              className={`reader-loc${locPopoverOpen ? ' is-open' : ''}`}
+              aria-expanded={locPopoverOpen}
+              aria-haspopup="dialog"
+              onClick={(e) => {
+                e.stopPropagation();
+                setLocPopoverOpen((v) => !v);
+              }}
+            >
+              {bookAbbr(book.name)} {chapter}
+              <span className="reader-loc-chevron" aria-hidden>▾</span>
+            </button>
+          </div>
+          <button
+            type="button"
+            className="reader-summary-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSummaryOpen(true);
+            }}
+          >
+            概要
           </button>
         </div>
         <div className="reader-topbar-right">
@@ -1949,7 +1948,7 @@ export default function ReaderView({
         {renderChapterHead()}
 
         <div
-          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}`}
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff ? ' verse-transition-off' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
         >
           {swipeTurn ? (
@@ -1986,6 +1985,9 @@ export default function ReaderView({
                     englishUI={englishUI}
                     verseNo={verseNo}
                     verseBlockStyle={verseBlockStyle}
+                    renderVerseText={renderVerseText}
+                    highlightMap={highlightMap}
+                    underlinesOn={underlinesOn}
                   />
                 </div>
                 <div ref={contentRef} className="reader-turn-panel reader-turn-panel-active">
@@ -2000,6 +2002,9 @@ export default function ReaderView({
                     englishUI={englishUI}
                     verseNo={verseNo}
                     verseBlockStyle={verseBlockStyle}
+                    renderVerseText={renderVerseText}
+                    highlightMap={highlightMap}
+                    underlinesOn={underlinesOn}
                   />
                 </div>
               </div>
@@ -2370,13 +2375,27 @@ export default function ReaderView({
         </div>
       )}
 
-      {summarySheet && (
+      {locPopoverOpen && (
+        <ReaderLocPopover
+          open={locPopoverOpen}
+          anchorRef={locBtnRef}
+          books={books}
+          book={book}
+          chapter={chapter}
+          bookAbbr={bookAbbr}
+          planSteps={planMeta?.steps}
+          onPickChapter={onNavigate}
+          onClose={() => setLocPopoverOpen(false)}
+        />
+      )}
+
+      {summaryOpen && (
         <SummarySheet
-          title={summarySheet.title}
-          load={summarySheet.load}
-          bookId={summarySheet.bookId}
-          chapter={summarySheet.chapter}
-          onClose={() => setSummarySheet(null)}
+          bookId={book.id}
+          bookName={book.name}
+          chapter={chapter}
+          englishUI={englishUI}
+          onClose={() => setSummaryOpen(false)}
         />
       )}
 

@@ -2,13 +2,11 @@
 
 import { Suspense } from 'react';
 import { useParams } from 'next/navigation';
-import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { GraphTopicView } from '@/components/search/GraphTopicView';
 
 function GraphTopicPageContent() {
   const params = useParams();
   const topicId = decodeURIComponent(String(params.topicId || ''));
-  useEdgeSwipeBack({ href: '/search/graph' });
 
   return (
     <main className="container story-mode-page entity-graph-page">
