@@ -889,7 +889,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                         text={m.text}
                         streaming={isStreaming}
                         dense={Boolean(m.scene?.startsWith('summary_'))}
-                        citations={m.citations}
                         onCitationClick={(n) => {
                           recordCitationClick();
                           setCitationMsgIdx(i);

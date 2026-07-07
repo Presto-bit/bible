@@ -267,7 +267,6 @@ export default function XiaoAiSheet({
                       text={clean}
                       streaming={!done}
                       dense={mode === 'explain'}
-                      citations={citations}
                       onCitationClick={(n) => {
                         recordCitationClick();
                         setCitationOpen(n);
