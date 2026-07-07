@@ -58,21 +58,25 @@ export async function bibleChapter(
   const ver = version || 'cnv';
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
+  const tryLocal = async (translation: 'cnv' | 'cuvs') => {
+    try {
+      return await getLocalChapter(bookId, chapter, translation);
+    } catch {
+      return null;
+    }
+  };
+
   if (ver === 'cnv' && (await isOfflinePackReady())) {
-    const local = await getLocalChapter(bookId, chapter, 'cnv');
+    const local = await tryLocal('cnv');
     if (local?.length) return local;
   }
   if (ver === 'cuvs' && (await isCuvsOfflineReady())) {
-    const local = await getLocalChapter(bookId, chapter, 'cuvs');
+    const local = await tryLocal('cuvs');
     if (local?.length) return local;
   }
 
   if (offline) {
-    const local = await getLocalChapter(
-      bookId,
-      chapter,
-      ver === 'cuvs' ? 'cuvs' : 'cnv',
-    );
+    const local = await tryLocal(ver === 'cuvs' ? 'cuvs' : 'cnv');
     if (local?.length) return local;
     return null;
   }
@@ -84,11 +88,11 @@ export async function bibleChapter(
     return data.verses;
   } catch {
     if (ver === 'cnv') {
-      const local = await getLocalChapter(bookId, chapter, 'cnv');
+      const local = await tryLocal('cnv');
       if (local?.length) return local;
     }
     if (ver === 'cuvs') {
-      const local = await getLocalChapter(bookId, chapter, 'cuvs');
+      const local = await tryLocal('cuvs');
       if (local?.length) return local;
     }
     return null;

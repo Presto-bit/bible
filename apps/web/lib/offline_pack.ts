@@ -73,14 +73,30 @@ export function savePackMeta(meta: OfflinePackMeta) {
   localStorage.setItem(OFFLINE_META_KEY, JSON.stringify(meta));
 }
 
+export async function purgeOfflineTranslation(translation: OfflineTranslation): Promise<void> {
+  await idbDelete(idbKeyForTranslation(translation));
+  const meta = loadPackMeta();
+  if (!meta?.translations?.length) return;
+  const next = meta.translations.filter((t) => t !== translation);
+  if (!next.length) {
+    localStorage.removeItem(OFFLINE_META_KEY);
+    return;
+  }
+  savePackMeta({ ...meta, translations: next });
+}
+
 export async function isOfflinePackReady(): Promise<boolean> {
   const buf = await idbGet(OFFLINE_CNV_KEY);
-  return Boolean(buf && buf.byteLength > 0);
+  if (!buf?.byteLength) return false;
+  const { getLocalBibleDb } = await import('./bible_local');
+  return (await getLocalBibleDb('cnv')) !== null;
 }
 
 export async function isCuvsOfflineReady(): Promise<boolean> {
   const buf = await idbGet(OFFLINE_CUVS_KEY);
-  return Boolean(buf && buf.byteLength > 0);
+  if (!buf?.byteLength) return false;
+  const { getLocalBibleDb } = await import('./bible_local');
+  return (await getLocalBibleDb('cuvs')) !== null;
 }
 
 export async function clearOfflinePack() {

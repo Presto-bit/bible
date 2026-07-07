@@ -6,6 +6,7 @@ import { clientWithBasePath, withBasePath } from './basePath';
 import booksSeed from '../public/offline/books.json';
 import {
   loadOfflineSqliteBytes,
+  purgeOfflineTranslation,
   type OfflineTranslation,
 } from './offline_pack';
 
@@ -79,6 +80,18 @@ async function getSql(): Promise<SqlJsStatic> {
   return g.__prestoSqlJs;
 }
 
+function validateBibleDbSchema(db: Database): boolean {
+  try {
+    const res = db.exec(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('books','verses')",
+    );
+    const names = new Set((res[0]?.values ?? []).map((r) => String(r[0])));
+    return names.has('books') && names.has('verses');
+  } catch {
+    return false;
+  }
+}
+
 export async function getLocalBibleDb(
   translation: OfflineTranslation = 'cnv',
 ): Promise<Database | null> {
@@ -89,7 +102,18 @@ export async function getLocalBibleDb(
         const buf = await loadOfflineSqliteBytes(translation);
         if (!buf) return null;
         const SQL = await getSql();
-        return new SQL.Database(new Uint8Array(buf));
+        const db = new SQL.Database(new Uint8Array(buf));
+        if (!validateBibleDbSchema(db)) {
+          try {
+            db.close();
+          } catch {
+            /* ignore */
+          }
+          await purgeOfflineTranslation(translation);
+          delete dbPromises[translation];
+          return null;
+        }
+        return db;
       } catch {
         delete dbPromises[translation];
         return null;
@@ -161,6 +185,7 @@ export async function listLocalBooksFromDb(): Promise<BibleBook[] | null> {
     }
   } catch {
     resetLocalBibleDb();
+    await purgeOfflineTranslation('cnv');
   }
   return null;
 }
@@ -178,24 +203,30 @@ export async function getLocalChapter(
 ): Promise<Verse[] | null> {
   const db = await getLocalBibleDb(translation);
   if (!db) return null;
-  const ids = [bookId, bookId.toUpperCase(), bookId.toLowerCase()];
-  const seen = new Set<string>();
-  for (const id of ids) {
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    const stmt = db.prepare(
-      'SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse',
-    );
-    stmt.bind([id, chapter]);
-    const out: Verse[] = [];
-    while (stmt.step()) {
-      const row = stmt.getAsObject() as { verse: number; text: string };
-      out.push({ verse: Number(row.verse), text: String(row.text) });
+  try {
+    const ids = [bookId, bookId.toUpperCase(), bookId.toLowerCase()];
+    const seen = new Set<string>();
+    for (const id of ids) {
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      const stmt = db.prepare(
+        'SELECT verse, text FROM verses WHERE book = ? AND chapter = ? ORDER BY verse',
+      );
+      stmt.bind([id, chapter]);
+      const out: Verse[] = [];
+      while (stmt.step()) {
+        const row = stmt.getAsObject() as { verse: number; text: string };
+        out.push({ verse: Number(row.verse), text: String(row.text) });
+      }
+      stmt.free();
+      if (out.length) return out;
     }
-    stmt.free();
-    if (out.length) return out;
+    return null;
+  } catch {
+    resetLocalBibleDb();
+    await purgeOfflineTranslation(translation);
+    return null;
   }
-  return null;
 }
 
 export interface LocalSearchHit {
@@ -238,6 +269,7 @@ export async function searchLocalVerses(
     return out;
   } catch {
     resetLocalBibleDb();
+    await purgeOfflineTranslation('cnv');
     return null;
   }
 }
