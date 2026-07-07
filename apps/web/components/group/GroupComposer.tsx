@@ -225,7 +225,7 @@ export function GroupComposer({
             </div>
           </div>
 
-          <div className="group-composer-section">
+          <div className="group-composer-section group-composer-section-compose">
             <div className="group-composer-label-row">
               <span className="group-composer-label">写感想</span>
               <span className="muted group-composer-char-count">{body.length}/{GROUP_CHECKIN_BODY_MAX}</span>

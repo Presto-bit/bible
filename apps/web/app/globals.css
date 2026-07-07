@@ -2597,7 +2597,7 @@ body.assistant-active .app-body {
 .assistant-user-text {
   white-space: pre-wrap;
   word-break: break-word;
-  line-height: 1.85;
+  line-height: 1.55;
   font-size: var(--assistant-answer-font-size);
   text-align: left;
   display: inline-block;
@@ -2605,10 +2605,10 @@ body.assistant-active .app-body {
   max-width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent-deep) 12%, var(--surface-sunken));
-  border: 1px solid color-mix(in srgb, var(--accent-deep) 18%, var(--line));
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-deep) 7%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent-deep) 12%, var(--line));
   color: var(--ink);
 }
 
@@ -10537,6 +10537,10 @@ button.card:active,
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
 }
 
+.group-composer-sheet .group-composer-section-compose {
+  margin-top: 18px;
+}
+
 .group-composer-backdrop {
   z-index: 90;
 }
@@ -11863,9 +11867,9 @@ html.app-theme-dark .muted {
 .group-page-checkin .group-wechat-composer {
   left: 0;
   right: 0;
-  bottom: calc(48px + env(safe-area-inset-bottom, 0));
+  bottom: 0;
   z-index: 45;
-  padding: 14px 16px calc(10px + env(safe-area-inset-bottom, 0));
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0));
 }
 
 .group-poster-avatar {

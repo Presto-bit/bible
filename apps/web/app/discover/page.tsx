@@ -137,9 +137,7 @@ export default function DiscoverPage() {
               const isPendingOnly = pendingOnlyIds.has(g.id);
               const members = g.members || 1;
               const checked = g.checked_in_today ?? 0;
-              const barPct = g.plan_id
-                ? (g.plan_progress_pct ?? 0)
-                : Math.round((checked / members) * 100);
+              const barPct = members > 0 ? Math.round((checked / members) * 100) : 0;
               const planSub = groupListSubline(g);
               const openTasks = g.open_tasks ?? 0;
               const cardClass = [
