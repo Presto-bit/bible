@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v11';
+const CACHE = 'presto-bible-v12';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -99,7 +99,10 @@ function isDynamicRequest(url) {
 
 function isShellDataRequest(url) {
   if (!url.pathname.includes('/_next/data/')) return false;
-  return SHELL_DATA_SEGMENTS.some((seg) => url.pathname.includes(seg));
+  if (SHELL_DATA_SEGMENTS.some((seg) => url.pathname.includes(seg))) return true;
+  const tail = url.pathname.split('/_next/data/')[1] || '';
+  // 首页 RSC：/_next/data/{buildId}.json
+  return !tail.includes('/') && tail.endsWith('.json');
 }
 
 function isStaticAsset(url) {
@@ -118,21 +121,20 @@ async function offlineNavigationFallback(request) {
 
   const pathname = new URL(request.url).pathname;
   const rel = relPath(pathname);
-  const candidates = [pathname];
 
   for (const path of APP_SHELL_PATHS) {
     const shellRel = relPath(path);
     if (rel === shellRel || rel.startsWith(`${shellRel}/`)) {
-      candidates.push(path);
+      const hit = await caches.match(path);
+      if (hit) return hit;
     }
   }
-  candidates.push(...APP_SHELL_PATHS, bp('/'));
 
-  for (const path of candidates) {
-    const hit = await caches.match(path);
-    if (hit) return hit;
+  if (rel === '/' || rel === '') {
+    return caches.match(bp('/'));
   }
-  return caches.match(bp('/'));
+
+  return null;
 }
 
 function offlineTextResponse() {

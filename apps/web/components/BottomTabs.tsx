@@ -1,9 +1,16 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { markReaderTabEntry } from '@/lib/reading';
 import { isStandalonePwa } from '@/lib/platform';
+import {
+  getPwaTabPathname,
+  isPwaMainTabHref,
+  navigatePwaTab,
+  subscribePwaTabNav,
+} from '@/lib/pwa_tab_nav';
+import { normalizeAppPath } from '@/lib/tab_keep_alive';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
 // outline 为未选中态，filled 为选中态（与 App 的 NavigationDestination 行为一致）。
@@ -71,7 +78,7 @@ const GROUP_COMPACT_RE = /^\/discover\/(group\/|join)/;
 
 /** 底部 Tab：用 button 导航，避免 PWA/Safari 长按链接弹出预览与共享 */
 export default function BottomTabs() {
-  const pathname = usePathname();
+  const pathname = normalizeAppPath(useRouterPathname());
   const router = useRouter();
   const compact =
     SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
@@ -95,6 +102,10 @@ export default function BottomTabs() {
   const go = (href: string) => {
     if (href === '/reader') markReaderTabEntry();
     if (pathname === href) return;
+    if (isStandalonePwa() && isPwaMainTabHref(href)) {
+      navigatePwaTab(href);
+      return;
+    }
     router.push(href);
   };
 
@@ -126,4 +137,15 @@ export default function BottomTabs() {
       })}
     </nav>
   );
+}
+
+function useRouterPathname(): string {
+  const routerPath = usePathname();
+  const pwa = isStandalonePwa();
+  const pwaPath = useSyncExternalStore(
+    subscribePwaTabNav,
+    getPwaTabPathname,
+    () => '/',
+  );
+  return pwa ? pwaPath : routerPath;
 }

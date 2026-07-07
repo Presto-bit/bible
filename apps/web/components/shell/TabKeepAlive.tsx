@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import { isStandalonePwa } from '@/lib/platform';
 import { keepAliveTabId, type KeepAliveTabId } from '@/lib/tab_keep_alive';
+import { getPwaTabPathname, subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { TabKeepAliveProvider } from './TabKeepAliveContext';
 
 function subscribePwaDisplayMode(onChange: () => void) {
@@ -69,37 +70,30 @@ function emptyMounted(): Record<KeepAliveTabId, boolean> {
 }
 
 export default function TabKeepAlive({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const routerPathname = usePathname();
   const enabled = useSyncExternalStore(subscribePwaDisplayMode, getPwaSnapshot, () => false);
+  const pwaPathname = useSyncExternalStore(subscribePwaTabNav, getPwaTabPathname, () => '/');
+  const pathname = enabled ? pwaPathname : routerPathname;
   const activeTab = keepAliveTabId(pathname);
   const [mounted, setMounted] = useState<Record<KeepAliveTabId, boolean>>(emptyMounted);
 
   const suppressRoute = enabled && activeTab !== null;
 
   useEffect(() => {
+    if (!enabled) return;
+    setMounted({
+      home: true,
+      reader: true,
+      assistant: true,
+      discover: true,
+      profile: true,
+    });
+  }, [enabled]);
+
+  useEffect(() => {
     if (!enabled || !activeTab) return;
     setMounted((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
   }, [enabled, activeTab]);
-
-  // 在线时预热五个主 Tab，离线切换不再依赖 RSC 请求
-  useEffect(() => {
-    if (!enabled || !navigator.onLine) return;
-    const warm = () => {
-      setMounted({
-        home: true,
-        reader: true,
-        assistant: true,
-        discover: true,
-        profile: true,
-      });
-    };
-    if (typeof window.requestIdleCallback === 'function') {
-      const id = window.requestIdleCallback(warm, { timeout: 4000 });
-      return () => window.cancelIdleCallback(id);
-    }
-    const t = window.setTimeout(warm, 1500);
-    return () => window.clearTimeout(t);
-  }, [enabled]);
 
   const ctx = useMemo(
     () => ({ enabled, activeTab, suppressRoute }),
