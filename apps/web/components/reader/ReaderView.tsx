@@ -1568,14 +1568,18 @@ export default function ReaderView({
       }, delayMs);
     };
 
+    const keepSelectionState = () =>
+      pinningRef.current
+      || nativeSelectingRef.current
+      || nativePinSuppressRef.current
+      || Boolean(nativePinnedHighlightRef.current?.spans.length);
+
     const commitLiveSelection = () => {
       const next = readNativeVerseSelection(root);
       setLiveNativeSelection(next);
       setNativeSelection((prev) => {
         if (!next) {
-          if (pinningRef.current || nativeSelectingRef.current || nativePinSuppressRef.current) {
-            return prev;
-          }
+          if (keepSelectionState()) return prev;
           return null;
         }
         if (
@@ -1608,9 +1612,7 @@ export default function ReaderView({
         setLiveNativeSelection(next);
         setNativeSelection((prev) => {
           if (!next) {
-            if (pinningRef.current || nativeSelectingRef.current || nativePinSuppressRef.current) {
-              return prev;
-            }
+            if (keepSelectionState()) return prev;
             return null;
           }
           if (
@@ -1806,10 +1808,15 @@ export default function ReaderView({
   );
 
   useEffect(() => {
-    if (hasSel || nativePinnedHighlight?.spans.length) return;
+    if (hasSel) return;
+    nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
+    setNativePinnedHighlight(null);
     clearNativePinnedHighlight();
-  }, [hasSel, nativePinnedHighlight]);
+    setNativeSelection(null);
+    setLiveNativeSelection(null);
+    window.getSelection()?.removeAllRanges();
+  }, [hasSel]);
 
   const handleVerseDoubleClick = useCallback(
     (e: React.MouseEvent, verse: number) => {
@@ -2173,7 +2180,7 @@ export default function ReaderView({
         {renderChapterHead()}
 
         <div
-          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating ? ' verse-transition-off' : ''}`}
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
           onClick={handleReaderContentClick}
         >

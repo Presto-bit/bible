@@ -158,10 +158,14 @@ export function useReaderPageTurn({
 
     drag.current.active = false;
     drag.current.axis = null;
-    setDragSide(null);
-    setDragProgress(0);
+
+    const clearDragHint = () => {
+      setDragSide(null);
+      setDragProgress(0);
+    };
 
     if (!wasHorizontal) {
+      clearDragHint();
       applyOffset(0, false);
       return;
     }
@@ -171,13 +175,13 @@ export function useReaderPageTurn({
     const commit = ratio >= THRESHOLD && velocity >= VELOCITY_MIN;
 
     if (finalOffset < 0 && commit && canNext) {
+      clearDragHint();
       setAnimating(true);
       applyOffset(-w, true);
       await sleep(ANIM_MS);
       try {
         await Promise.resolve(onChapterChange(1, { fromSwipe: true }));
       } finally {
-        // 轮播回收：邻章已在视口内，同帧把轨道复位到中间格（无动画）
         requestAnimationFrame(() => {
           applyOffset(0, false);
           setAnimating(false);
@@ -187,6 +191,7 @@ export function useReaderPageTurn({
     }
 
     if (finalOffset > 0 && commit && canPrev) {
+      clearDragHint();
       setAnimating(true);
       applyOffset(w, true);
       await sleep(ANIM_MS);
@@ -207,8 +212,17 @@ export function useReaderPageTurn({
       onBoundary?.('prev');
     }
 
+    if (Math.abs(finalOffset) < 1) {
+      clearDragHint();
+      applyOffset(0, false);
+      return;
+    }
+
+    // 回弹期间保留 dragSide，冻结 peek 更新，避免松手时预览文字重排跳动
     applyOffset(0, true);
     await sleep(ANIM_MS);
+    applyOffset(0, false);
+    clearDragHint();
   }, [enabled, canPrev, canNext, onChapterChange, onBoundary, applyOffset]);
 
   return {
