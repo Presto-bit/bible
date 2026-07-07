@@ -76,7 +76,12 @@ import {
   type WordRange,
 } from '@/lib/selection_range';
 import { isTouchPrimaryUI } from '@/lib/touch_ui';
-import { readNativeVerseSelection, readNativeWordRange, type NativeVerseSelection } from '@/lib/native_verse_selection';
+import {
+  readNativePinnedHighlight,
+  readNativeVerseSelection,
+  type NativePinnedHighlight,
+  type NativeVerseSelection,
+} from '@/lib/native_verse_selection';
 import {
   cancelPendingChapterProgress,
   confirmChapterProgress,
@@ -220,6 +225,7 @@ export default function ReaderView({
   const [resumeFlashVerse, setResumeFlashVerse] = useState<number | null>(null);
   const [wordRange, setWordRange] = useState<WordRange | null>(null);
   const [nativeSelection, setNativeSelection] = useState<NativeVerseSelection | null>(null);
+  const [nativePinnedHighlight, setNativePinnedHighlight] = useState<NativePinnedHighlight | null>(null);
   const [liveNativeSelection, setLiveNativeSelection] = useState<NativeVerseSelection | null>(null);
   const [nativeSelecting, setNativeSelecting] = useState(false);
   const nativeSelectingRef = useRef(false);
@@ -426,15 +432,21 @@ export default function ReaderView({
     }
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
+  const nativePinnedSpanMap = useMemo(() => {
+    const m = new Map<number, { start: number; end: number }>();
+    if (!nativeTouchSelect || nativeSelecting || !nativePinnedHighlight) return m;
+    for (const s of nativePinnedHighlight.spans) {
+      m.set(s.verse, { start: s.start, end: s.end });
+    }
+    return m;
+  }, [nativeTouchSelect, nativeSelecting, nativePinnedHighlight]);
   const nativeSelVerses = useMemo(
-    () => {
-      if (!nativeTouchSelect || nativeSelecting || wordRange) return new Set<number>();
-      if (!nativeSelection) return new Set<number>();
-      const full = versesForNativeLineHighlight(verses, nativeSelection);
-      if (full.size) return full;
-      return new Set(nativeSelection.verses);
-    },
-    [nativeTouchSelect, nativeSelection, nativeSelecting, verses, wordRange],
+    () => (
+      nativeTouchSelect && !nativeSelecting && !nativePinnedHighlight?.spans.length
+        ? versesForNativeLineHighlight(verses, nativeSelection)
+        : new Set<number>()
+    ),
+    [nativeTouchSelect, nativeSelection, nativeSelecting, nativePinnedHighlight, verses],
   );
   const verseSelClass = useCallback(
     (verse: number) => (wholeVerseSel.includes(verse) || nativeSelVerses.has(verse) ? ' verse-sel-active' : ''),
@@ -595,7 +607,20 @@ export default function ReaderView({
         );
       }
 
-      if (nativeTouchSelect && !wordRange) {
+      if (nativeTouchSelect && !nativeSelecting) {
+        const pin = nativePinnedSpanMap.get(verseNum);
+        if (pin && pin.end > pin.start && pin.start >= 0 && pin.end <= text.length) {
+          const before = text.slice(0, pin.start);
+          const mid = text.slice(pin.start, pin.end);
+          const after = text.slice(pin.end);
+          return (
+            <>
+              {before ? renderText(before, 'sel-pre') : null}
+              <span className="verse-sel-native">{renderText(mid, 'sel-mid')}</span>
+              {after ? renderText(after, 'sel-post') : null}
+            </>
+          );
+        }
         return renderText(text, 'native');
       }
 
@@ -642,7 +667,7 @@ export default function ReaderView({
         </>
       );
     },
-    [renderVerseText, wordRange, nativeTouchSelect],
+    [renderVerseText, wordRange, nativeTouchSelect, nativePinnedSpanMap, nativeSelecting],
   );
 
   const updateFocusBarPosition = useCallback(() => {
@@ -1360,6 +1385,7 @@ export default function ReaderView({
   const clearSelection = useCallback(() => {
     window.getSelection()?.removeAllRanges();
     setNativeSelection(null);
+    setNativePinnedHighlight(null);
     setLiveNativeSelection(null);
     nativeSelectingRef.current = false;
     setNativeSelecting(false);
@@ -1431,44 +1457,28 @@ export default function ReaderView({
     const setSelecting = (on: boolean) => {
       nativeSelectingRef.current = on;
       setNativeSelecting(on);
+      if (on) setNativePinnedHighlight(null);
     };
 
     const collapseSystemSelection = () => {
       if (nativeSelectingRef.current) return;
-      const verseText = (v: number) => verses.find((x) => x.verse === v)?.text ?? '';
-      const domRange = readNativeWordRange(root, verseText);
-      const pinned = readNativeVerseSelection(root);
-      if (!pinned?.text) {
-        pinningRef.current = true;
-        requestAnimationFrame(() => {
-          window.getSelection()?.removeAllRanges();
-          requestAnimationFrame(() => {
-            pinningRef.current = false;
-          });
+      const pinned = readNativePinnedHighlight(root);
+      if (pinned?.text) {
+        setNativeSelection({
+          verses: pinned.verses,
+          text: pinned.text,
         });
-        return;
-      }
-      setNativeSelection((prev) => {
-        if (
-          prev &&
-          prev.text === pinned.text &&
-          prev.verses.join(',') === pinned.verses.join(',')
-        ) {
-          return prev;
-        }
-        return pinned;
-      });
-      setLiveNativeSelection(pinned);
-      setWholeVerseSel([]);
-      if (domRange) {
-        setWordRange(domRange);
-        wordRangeRef.current = domRange;
-      } else {
+        setLiveNativeSelection({
+          verses: pinned.verses,
+          text: pinned.text,
+        });
+        setNativePinnedHighlight(pinned);
+        setWholeVerseSel([]);
         setWordRange(null);
         wordRangeRef.current = null;
+        lastSelectAt.current = Date.now();
+        swipeIgnoreUntilRef.current = Date.now() + 320;
       }
-      lastSelectAt.current = Date.now();
-      swipeIgnoreUntilRef.current = Date.now() + 320;
       pinningRef.current = true;
       requestAnimationFrame(() => {
         window.getSelection()?.removeAllRanges();

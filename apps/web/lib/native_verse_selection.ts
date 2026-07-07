@@ -1,9 +1,13 @@
 /** 触控/PWA：读取系统原生划选，映射到经节号列表。 */
 
-import { sliceVerseWords } from '@/lib/verse_words';
-import type { WordAnchor, WordRange } from '@/lib/selection_range';
-
 export type NativeVerseSelection = { verses: number[]; text: string };
+
+/** 收起系统菜单后，按字符范围还原系统选区底色（非词块、非整行）。 */
+export type NativePinnedSpan = { verse: number; start: number; end: number };
+
+export type NativePinnedHighlight = NativeVerseSelection & {
+  spans: NativePinnedSpan[];
+};
 
 function verseFromAnchorId(id: string | null | undefined): number | null {
   if (!id) return null;
@@ -22,6 +26,21 @@ function verseFromNode(node: Node | null, root: HTMLElement): number | null {
     el = el.parentElement;
   }
   return null;
+}
+
+function verseBodyElement(root: HTMLElement, verse: number): HTMLElement | null {
+  return root.querySelector(`#verse-anchor-${verse} .verse-text-body`) as HTMLElement | null;
+}
+
+function charOffsetInVerseBody(body: HTMLElement, container: Node, offset: number): number {
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(body);
+    range.setEnd(container, offset);
+    return range.toString().length;
+  } catch {
+    return 0;
+  }
 }
 
 export function readNativeVerseSelection(root: HTMLElement | null): NativeVerseSelection | null {
@@ -56,69 +75,63 @@ export function readNativeVerseSelection(root: HTMLElement | null): NativeVerseS
   return { verses: sorted, text };
 }
 
-function verseBodyElement(root: HTMLElement, verse: number): HTMLElement | null {
-  return root.querySelector(`#verse-anchor-${verse} .verse-text-body`) as HTMLElement | null;
-}
+/** 在 removeAllRanges 前读取字符级高亮范围（与 DOM 选区一致）。 */
+export function readNativePinnedHighlight(root: HTMLElement | null): NativePinnedHighlight | null {
+  const basic = readNativeVerseSelection(root);
+  if (!basic || typeof window === 'undefined') return null;
 
-function charOffsetInVerseBody(body: HTMLElement, container: Node, offset: number): number {
-  try {
-    const range = document.createRange();
-    range.selectNodeContents(body);
-    range.setEnd(container, offset);
-    return range.toString().length;
-  } catch {
-    return 0;
-  }
-}
-
-function wordAnchorAtOffset(verse: number, text: string, charOffset: number): WordAnchor {
-  const words = sliceVerseWords(text);
-  if (!words.length) {
-    const end = Math.max(0, Math.min(charOffset, text.length));
-    return { verse, start: 0, end: end || text.length };
-  }
-  const clamped = Math.max(0, Math.min(charOffset, text.length));
-  for (const w of words) {
-    if (clamped >= w.start && clamped <= w.end) {
-      return { verse, start: w.start, end: w.end };
-    }
-  }
-  let chosen = words[0]!;
-  for (const w of words) {
-    if (w.start <= clamped) chosen = w;
-    else break;
-  }
-  return { verse, start: chosen.start, end: chosen.end };
-}
-
-/** 收起系统菜单前，把 DOM 选区映射为词级范围以保留应用内高亮。 */
-export function readNativeWordRange(
-  root: HTMLElement,
-  verseText: (verse: number) => string,
-): WordRange | null {
-  if (typeof window === 'undefined') return null;
   const sel = window.getSelection();
-  if (!sel || sel.isCollapsed || sel.rangeCount < 1) return null;
-  if (!root.contains(sel.anchorNode) || !root.contains(sel.focusNode)) return null;
+  if (!sel || sel.isCollapsed || sel.rangeCount < 1 || !root) return null;
 
   const anchorVerse = verseFromNode(sel.anchorNode, root);
   const focusVerse = verseFromNode(sel.focusNode, root);
-  if (anchorVerse == null || focusVerse == null) return null;
+  if (anchorVerse == null || focusVerse == null) {
+    return { ...basic, spans: [] };
+  }
 
   const anchorBody = verseBodyElement(root, anchorVerse);
   const focusBody = verseBodyElement(root, focusVerse);
-  if (!anchorBody || !focusBody) return null;
+  if (!anchorBody || !focusBody) {
+    return { ...basic, spans: [] };
+  }
 
-  const anchor = wordAnchorAtOffset(
-    anchorVerse,
-    verseText(anchorVerse),
-    charOffsetInVerseBody(anchorBody, sel.anchorNode!, sel.anchorOffset),
-  );
-  const focus = wordAnchorAtOffset(
-    focusVerse,
-    verseText(focusVerse),
-    charOffsetInVerseBody(focusBody, sel.focusNode!, sel.focusOffset),
-  );
+  let startVerse = anchorVerse;
+  let endVerse = focusVerse;
+  let startOff = charOffsetInVerseBody(anchorBody, sel.anchorNode!, sel.anchorOffset);
+  let endOff = charOffsetInVerseBody(focusBody, sel.focusNode!, sel.focusOffset);
 
-  return { anchor, focus };
+  if (
+    startVerse > endVerse
+    || (startVerse === endVerse && startOff > endOff)
+  ) {
+    [startVerse, endVerse] = [endVerse, startVerse];
+    [startOff, endOff] = [endOff, startOff];
+  }
+
+  const spans: NativePinnedSpan[] = [];
+  for (const verse of basic.verses) {
+    if (verse < startVerse || verse > endVerse) continue;
+    const body = verseBodyElement(root, verse);
+    if (!body) continue;
+    const len = (body.textContent ?? '').length;
+    let start = 0;
+    let end = len;
+    if (startVerse === endVerse) {
+      start = startOff;
+      end = endOff;
+    } else if (verse === startVerse) {
+      start = startOff;
+      end = len;
+    } else if (verse === endVerse) {
+      start = 0;
+      end = endOff;
+    }
+    start = Math.max(0, Math.min(start, len));
+    end = Math.max(start, Math.min(end, len));
+    if (end > start) {
+      spans.push({ verse, start, end });
+    }
+  }
+
+  return { verses: basic.verses, text: basic.text, spans };
 }

@@ -26,7 +26,7 @@ export function nativeSelectionCoversVerses(
   return picked.length >= full.length * ratio;
 }
 
-/** 触控原生划选：仅整节选中时对经节行加 verse-sel-active */
+/** 触控原生划选：整节选中时对经节行加 verse-sel-active（有字符级 pin 时不用行级）。 */
 export function versesForNativeLineHighlight(
   verses: VerseSlice[],
   selection: NativeVerseSelection | null,

@@ -2996,6 +2996,15 @@ body.verse-full-open .tabbar {
   -webkit-box-decoration-break: clone;
 }
 
+/* 触控划选 pin：与 ::selection 同色，仅盖住选中字词（非 verse-word 词块样式） */
+.verse-sel-native {
+  background: var(--reader-sel-bg, rgba(51, 144, 255, 0.28));
+  color: inherit;
+  border-radius: 2px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .verse-preview-list {
   display: flex;
   flex-direction: column;
