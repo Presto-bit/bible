@@ -1,108 +1,26 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import {
-  clearOfflinePack,
-  downloadOfflinePack,
-  isOfflinePackReady,
-  loadPackMeta,
-  type DownloadProgress,
-  type OfflinePackMeta,
-} from '@/lib/offline_pack';
-import { offlineAutoDownloadDone } from '@/lib/offline_bootstrap';
-import { resetLocalBibleDb } from '@/lib/bible_local';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useEffect, useState } from 'react';
+import { isOfflinePackReady } from '@/lib/offline_pack';
 
-function formatBytes(n: number): string {
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
-
+/** 阅读器内联离线提示：引导用户去设置下载 */
 export function OfflineBibleCard() {
-  const confirm = useConfirm();
   const [ready, setReady] = useState(false);
-  const [meta, setMeta] = useState<OfflinePackMeta | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState<DownloadProgress | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setReady(await isOfflinePackReady());
-    setMeta(loadPackMeta());
-  }, []);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void isOfflinePackReady().then(setReady);
+    const onReady = () => void isOfflinePackReady().then(setReady);
+    window.addEventListener('presto-offline-pack-ready', onReady);
+    return () => window.removeEventListener('presto-offline-pack-ready', onReady);
+  }, []);
 
-  const onDownload = async () => {
-    setBusy(true);
-    setErr(null);
-    try {
-      await downloadOfflinePack(setProgress);
-      resetLocalBibleDb();
-      window.dispatchEvent(new CustomEvent('presto-offline-pack-ready'));
-      await refresh();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-      setProgress(null);
-    }
-  };
-
-  const onClear = async () => {
-    const ok = await confirm({
-      title: '清除离线经库',
-      message: '确定清除离线经库？清除后需重新下载才能离线阅读。',
-      confirmLabel: '清除',
-      danger: true,
-    });
-    if (!ok) return;
-    await clearOfflinePack();
-    resetLocalBibleDb();
-    localStorage.removeItem('presto_offline_auto_done');
-    localStorage.removeItem('presto_offline_auto_fail');
-    await refresh();
-  };
+  if (ready) return null;
 
   return (
-    <div className="card card-2 offline-bible-card">
-      <div className="section-row" style={{ marginTop: 0 }}>
-        <strong>离线圣经</strong>
-        {ready && <span className="font-pill">已安装</span>}
-      </div>
-      <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-        下载后可在无网络时阅读圣经新译本与和合本全文并搜索（约 12 MB 压缩包，含双译本）。
-        {!ready && offlineAutoDownloadDone() === false && ' 首次打开会在后台自动下载。'}
+    <div className="offline-bible-inline">
+      <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+        离线阅读需先下载圣经经库。请打开「我的 → 设置 → 工具 → 下载」。
       </p>
-      {meta && (
-        <p className="muted" style={{ fontSize: 12 }}>
-          版本 {meta.version} · {formatBytes(meta.bytes)}
-        </p>
-      )}
-      {progress && (
-        <p className="muted" style={{ fontSize: 12 }}>
-          {progress.message} {progress.percent > 0 ? `${progress.percent}%` : ''}
-        </p>
-      )}
-      {err && <p style={{ color: '#c0392b', fontSize: 13 }}>{err}</p>}
-      <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-        {!ready ? (
-          <button type="button" className="btn btn-primary" disabled={busy} onClick={() => void onDownload()}>
-            {busy ? '下载中…' : '下载完整圣经'}
-          </button>
-        ) : (
-          <>
-            <button type="button" className="btn" disabled={busy} onClick={() => void onDownload()}>
-              重新下载
-            </button>
-            <button type="button" className="btn" onClick={() => void onClear()}>
-              清除离线包
-            </button>
-          </>
-        )}
-      </div>
     </div>
   );
 }

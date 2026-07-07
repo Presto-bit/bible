@@ -14,7 +14,7 @@ import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
 import AccountSettingsSection from '@/components/AccountSettingsSection';
 import SyncStatusBadge from '@/components/SyncStatusBadge';
-import { OfflineBibleCard } from '@/components/OfflineBibleCard';
+import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
 import { todayMinutes } from '@/lib/reading';
@@ -48,6 +48,7 @@ export default function ProfileTab() {
   const [avatarId, setAvatarId] = useState('a1');
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [downloadOpen, setDownloadOpen] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [bioEditing, setBioEditing] = useState(false);
@@ -356,7 +357,15 @@ export default function ProfileTab() {
 
             <div className="settings-card">
               <p className="settings-title">工具</p>
-              <OfflineBibleCard />
+              <button
+                type="button"
+                className="card row-card"
+                style={{ display: 'flex', width: '100%', textAlign: 'left' }}
+                onClick={() => setDownloadOpen(true)}
+              >
+                <span style={{ flex: 1 }}>下载</span>
+                <span className="muted">离线圣经与资料 ›</span>
+              </button>
               <Link href="/dictionary" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
                 <span style={{ flex: 1 }}>圣经词典</span>
                 <span className="muted">›</span>
@@ -434,6 +443,10 @@ export default function ProfileTab() {
           </div>
         </div>
       )}
+
+      {downloadOpen ? (
+        <OfflineDownloadSheet onClose={() => setDownloadOpen(false)} />
+      ) : null}
 
       {pickerOpen && (
         <div className="sheet-backdrop" onClick={() => setPickerOpen(false)}>

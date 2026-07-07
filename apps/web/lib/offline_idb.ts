@@ -22,12 +22,52 @@ export async function idbGet(key: string): Promise<ArrayBuffer | null> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE, 'readonly');
     const req = tx.objectStore(STORE).get(key);
-    req.onsuccess = () => resolve((req.result as ArrayBuffer | undefined) ?? null);
+    req.onsuccess = () => {
+      const v = req.result;
+      if (v == null) resolve(null);
+      else if (v instanceof ArrayBuffer) resolve(v);
+      else resolve(null);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** 读取结构化离线包（多文件 bundle） */
+export async function idbGetBundle(
+  key: string,
+): Promise<Record<string, ArrayBuffer> | null> {
+  if (typeof indexedDB === 'undefined') return null;
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).get(key);
+    req.onsuccess = () => {
+      const v = req.result;
+      if (!v || v instanceof ArrayBuffer) {
+        resolve(null);
+        return;
+      }
+      resolve(v as Record<string, ArrayBuffer>);
+    };
     req.onerror = () => reject(req.error);
   });
 }
 
 export async function idbSet(key: string, value: ArrayBuffer): Promise<void> {
+  if (typeof indexedDB === 'undefined') return;
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite');
+    tx.objectStore(STORE).put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+export async function idbSetBundle(
+  key: string,
+  value: Record<string, ArrayBuffer>,
+): Promise<void> {
   if (typeof indexedDB === 'undefined') return;
   const db = await openDb();
   return new Promise((resolve, reject) => {
