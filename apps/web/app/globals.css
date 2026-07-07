@@ -159,10 +159,13 @@ html.pwa-standalone body {
 
 .tab-keep-pane[hidden] {
   display: none !important;
+  pointer-events: none !important;
 }
 
 .tab-keep-pane-active {
   display: block;
+  position: relative;
+  z-index: 1;
 }
 
 .container {
@@ -4252,7 +4255,16 @@ body.verse-full-open .tabbar {
 }
 
 .answer-rich-md .ans-md-p {
-  margin: 0 0 12px;
+  margin: 0 0 14px;
+  line-height: 1.82;
+  max-width: 42em;
+}
+
+.answer-rich-md .ans-md-h-section + .ans-md-p {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  line-height: 1.78;
 }
 
 .answer-rich-md .ans-md-h {

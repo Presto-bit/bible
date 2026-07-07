@@ -1,6 +1,8 @@
 import {
   bodyText,
+  joinOrphanClosers,
   joinOrphanFootnotes,
+  softBreakSentences,
   streamingSafeBody,
   stripTrailingReferences,
 } from '@/lib/assistant_format';
@@ -36,13 +38,67 @@ function promoteSectionLabels(text: string): string {
     .join('\n');
 }
 
+/** 将无 Markdown 结构的长段落拆成 2–3 句一段，提升扫读性。 */
+function isStructuredLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return true;
+  if (/^#{1,6}\s/.test(t)) return true;
+  if (/^[-*+]\s/.test(t)) return true;
+  if (/^\d+\.\s/.test(t)) return true;
+  if (/^>\s/.test(t)) return true;
+  if (/^\|/.test(t)) return true;
+  if (/^---+$/.test(t)) return true;
+  if (FOLLOWUP_HEAD_RE.test(t)) return true;
+  return false;
+}
+
+function breakLongPlainBlocks(text: string, maxSentences = 2, minBreakLen = 72): string {
+  const lines = text.split('\n');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i]!;
+    if (isStructuredLine(line)) {
+      out.push(line);
+      i += 1;
+      continue;
+    }
+    const plainLines: string[] = [];
+    while (i < lines.length && !isStructuredLine(lines[i]!) && lines[i]!.trim()) {
+      plainLines.push(lines[i]!);
+      i += 1;
+    }
+    const joined = joinOrphanClosers(plainLines.join('\n').trim());
+    if (!joined) continue;
+    if (joined.length < minBreakLen || !/[。；！？]/.test(joined)) {
+      out.push(joined);
+      continue;
+    }
+    const withBreaks = softBreakSentences(joined);
+    const sentences = withBreaks.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (sentences.length <= maxSentences) {
+      out.push(joined);
+      continue;
+    }
+    for (let j = 0; j < sentences.length; j += maxSentences) {
+      out.push(sentences.slice(j, j + maxSentences).join(''));
+      if (j + maxSentences < sentences.length) out.push('');
+    }
+  }
+  return out.join('\n');
+}
+
 export function prepareAssistantMarkdown(text: string, streaming: boolean): string {
   let raw = streaming ? streamingSafeBody(text) : bodyText(text);
   if (streaming) {
     raw = stripTrailingReferences(raw);
     raw = joinOrphanFootnotes(raw);
   }
-  return linkifyCitations(promoteSectionLabels(raw));
+  raw = promoteSectionLabels(raw);
+  if (!streaming) {
+    raw = breakLongPlainBlocks(raw);
+  }
+  return linkifyCitations(raw);
 }
 
 export function parseCitationHref(href?: string): number | null {

@@ -31,6 +31,7 @@ import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { isStandalonePwa } from '@/lib/platform';
 
@@ -401,7 +402,10 @@ export default function ProfileTab() {
                   href="/admin"
                   className="card row-card"
                   style={{ display: 'flex', marginTop: 8 }}
-                  onClick={() => setSettingsOpen(false)}
+                  onClick={() => {
+                    markRouteNavigation();
+                    setSettingsOpen(false);
+                  }}
                 >
                   <span style={{ flex: 1 }}>管理后台</span>
                   <span className="muted">›</span>
