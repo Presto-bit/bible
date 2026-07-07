@@ -1062,18 +1062,20 @@ export function AdminLoginForm({ onSuccess }: { onSuccess: () => void }) {
     <div className="admin-login-form">
       <p className="settings-title">管理员登录</p>
       <input
-        className="book-chip"
-        style={{ width: '100%', marginBottom: 8, textAlign: 'left' }}
+        className="search-input"
+        style={{ marginBottom: 8 }}
         placeholder="手机号"
         inputMode="tel"
+        autoComplete="tel"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
       />
       <input
-        className="book-chip"
+        className="search-input"
         type="password"
-        style={{ width: '100%', marginBottom: 8, textAlign: 'left' }}
+        style={{ marginBottom: 8 }}
         placeholder="密码"
+        autoComplete="current-password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />

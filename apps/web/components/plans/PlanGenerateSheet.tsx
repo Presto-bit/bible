@@ -1,7 +1,7 @@
 'use client';
 
 import { SheetCloseButton } from '@/components/PageBackBar';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, type GeneratedPlan } from '@/lib/api';
 import {
   attachCalendarToPlan,
@@ -31,6 +31,15 @@ export function PlanGenerateSheet({ open, onClose, onSaved }: Props) {
   const [preview, setPreview] = useState<GeneratedPlan | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   if (!open) return null;
 

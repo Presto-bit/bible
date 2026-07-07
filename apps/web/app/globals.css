@@ -3926,6 +3926,22 @@ body.verse-full-open .tabbar {
   font-size: 16px;
 }
 
+/* iOS Safari：book-chip 等小号输入框聚焦会放大视口，返回后 Tab 栏可能错位 */
+@media (hover: none) and (pointer: coarse) {
+  input.book-chip,
+  textarea.book-chip,
+  input[type='password'],
+  input[type='tel'],
+  input[type='email'],
+  input[type='text'],
+  input[type='search'],
+  input[type='number'],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -4146,6 +4162,7 @@ body.verse-full-open .tabbar {
   align-items: flex-end;
   justify-content: center;
   z-index: 100;
+  overflow: hidden;
   animation: sheetBackdropIn 0.22s ease;
 }
 
@@ -7373,6 +7390,12 @@ a.license-row-name:hover {
 .plans-generate-sheet {
   max-height: 85vh;
   overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   margin-top: auto;
 }
 
@@ -7426,6 +7449,8 @@ a.license-row-name:hover {
 
 .plan-chapter-picker {
   margin-bottom: 4px;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .plan-picker-tabs {
@@ -7557,6 +7582,7 @@ a.license-row-name:hover {
 
 .plan-date-field {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -11784,6 +11810,7 @@ button.card:active,
   display: flex;
   gap: 8px;
   margin-top: 12px;
+  min-width: 0;
 }
 
 .plan-share-group-sheet {
