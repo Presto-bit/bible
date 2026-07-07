@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v12';
+const CACHE = 'presto-bible-v13';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -24,6 +24,12 @@ const ILLUSTRATION_FILES = [
   'theme_祷告.svg', 'theme_忍耐.svg', 'theme_永生.svg', 'theme_顺服.svg',
 ];
 
+const DAILY_WALLPAPER_FILES = [
+  'scenery-01.jpg', 'scenery-02.jpg', 'scenery-03.jpg', 'scenery-04.jpg',
+  'scenery-05.jpg', 'scenery-06.jpg', 'scenery-07.jpg', 'scenery-08.jpg',
+  'scenery-09.jpg', 'scenery-10.jpg', 'scenery-11.jpg', 'scenery-12.jpg',
+];
+
 const SHELL = [
   bp('/offline.html'),
   bp('/manifest.webmanifest'),
@@ -43,6 +49,7 @@ const SHELL = [
   bp('/sql-wasm/sql-wasm-browser.js'),
   bp('/sql-wasm/sql-wasm-browser.wasm'),
   ...ILLUSTRATION_FILES.map((f) => bp(`/illustrations/${f}`)),
+  ...DAILY_WALLPAPER_FILES.map((f) => bp(`/daily-wallpapers/${f}`)),
 ];
 
 const APP_SHELL_PATHS = [
@@ -109,9 +116,10 @@ function isStaticAsset(url) {
   const p = url.pathname;
   if (p.includes('/_next/static/')) return true;
   if (p.startsWith(bp('/illustrations/'))) return true;
+  if (p.startsWith(bp('/daily-wallpapers/'))) return true;
   if (p.startsWith(bp('/offline/'))) return true;
   if (p.startsWith(bp('/sql-wasm/'))) return true;
-  if (/\.(js|css|woff2?|png|svg|webp|ico|webmanifest|json|wasm)$/i.test(p)) return true;
+  if (/\.(js|css|woff2?|png|jpe?g|svg|webp|ico|webmanifest|json|wasm)$/i.test(p)) return true;
   return SHELL.includes(p);
 }
 

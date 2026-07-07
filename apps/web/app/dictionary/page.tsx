@@ -14,7 +14,7 @@ import {
 import { entityDictionaryHref } from '@/lib/entity_knowledge';
 
 function DictionaryListContent() {
-  useEdgeSwipeBack({ href: '/reader' });
+  useEdgeSwipeBack({ href: '/profile?settings=1' });
   const searchParams = useSearchParams();
   const qParam = searchParams.get('q')?.trim() ?? '';
 
@@ -60,7 +60,7 @@ function DictionaryListContent() {
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/reader" label="圣经" />
+        <PageBackBar href="/profile?settings=1" label="设置" />
         <h2 className="page-head-title">圣经词典</h2>
         <span className="muted" style={{ fontSize: 12 }}>{loading ? '' : `${entities.length} 条`}</span>
       </header>

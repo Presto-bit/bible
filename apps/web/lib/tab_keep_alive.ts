@@ -10,6 +10,19 @@ const KEEP_ALIVE_PATHS: Record<KeepAliveTabId, string> = {
   profile: '/profile',
 };
 
+/** 我的 Tab 下的二级页，不走 Tab 保活（须走 Next 路由）。 */
+export const PROFILE_SECONDARY_PATHS = [
+  '/profile/reminders',
+  '/profile/appearance',
+  '/profile/licenses',
+] as const;
+
+function isProfileSecondaryPath(pathname: string): boolean {
+  return PROFILE_SECONDARY_PATHS.some(
+    (p) => pathname === p || pathname.startsWith(`${p}/`),
+  );
+}
+
 export function normalizeAppPath(pathname: string): string {
   const base = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
   if (base && pathname.startsWith(base)) {
@@ -23,7 +36,11 @@ export function keepAliveTabId(pathname: string): KeepAliveTabId | null {
   if (p === '/' || p === '') return 'home';
   for (const [id, href] of Object.entries(KEEP_ALIVE_PATHS) as [KeepAliveTabId, string][]) {
     if (id === 'home') continue;
-    if (p === href || p.startsWith(`${href}/`)) return id;
+    if (p === href) return id;
+    if (p.startsWith(`${href}/`)) {
+      if (id === 'profile' && isProfileSecondaryPath(p)) continue;
+      return id;
+    }
   }
   return null;
 }

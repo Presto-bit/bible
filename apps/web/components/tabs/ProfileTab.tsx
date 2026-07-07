@@ -65,6 +65,22 @@ export default function ProfileTab() {
     () => typeof window !== 'undefined' && isStandalonePwa(),
   );
 
+  const openSettingsRoute = () => {
+    markRouteNavigation();
+    setSettingsOpen(false);
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('settings') !== '1') return;
+    setSettingsOpen(true);
+    params.delete('settings');
+    const qs = params.toString();
+    const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', next);
+  }, []);
+
   useEffect(() => {
     if (!uid) {
       setAdminEligible(false);
@@ -367,19 +383,39 @@ export default function ProfileTab() {
                 <span style={{ flex: 1 }}>下载</span>
                 <span className="muted">离线圣经与资料 ›</span>
               </button>
-              <Link href="/dictionary" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+              <Link
+                href="/dictionary"
+                className="card row-card"
+                style={{ display: 'flex', marginTop: 8 }}
+                onClick={openSettingsRoute}
+              >
                 <span style={{ flex: 1 }}>圣经词典</span>
                 <span className="muted">›</span>
               </Link>
-              <Link href="/profile/reminders" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+              <Link
+                href="/profile/reminders"
+                className="card row-card"
+                style={{ display: 'flex', marginTop: 8 }}
+                onClick={openSettingsRoute}
+              >
                 <span style={{ flex: 1 }}>推送提醒</span>
                 <span className="muted">›</span>
               </Link>
-              <Link href="/profile/appearance" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+              <Link
+                href="/profile/appearance"
+                className="card row-card"
+                style={{ display: 'flex', marginTop: 8 }}
+                onClick={openSettingsRoute}
+              >
                 <span style={{ flex: 1 }}>外观</span>
                 <span className="muted">›</span>
               </Link>
-              <Link href="/profile/licenses" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+              <Link
+                href="/profile/licenses"
+                className="card row-card"
+                style={{ display: 'flex', marginTop: 8 }}
+                onClick={openSettingsRoute}
+              >
                 <span style={{ flex: 1 }}>数据来源与许可</span>
                 <span className="muted">›</span>
               </Link>
@@ -407,8 +443,7 @@ export default function ProfileTab() {
                   className="card row-card"
                   style={{ display: 'flex', marginTop: 8 }}
                   onClick={() => {
-                    markRouteNavigation();
-                    setSettingsOpen(false);
+                    openSettingsRoute();
                   }}
                 >
                   <span style={{ flex: 1 }}>管理后台</span>

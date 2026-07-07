@@ -49,7 +49,10 @@ export default function HomePageClient() {
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
   const [verseFull, setVerseFull] = useState(false);
-  const [heroIllustration, setHeroIllustration] = useState<string | null>(null);
+  const [heroIllustration, setHeroIllustration] = useState<string | null>(() => {
+    const cached = readCachedDailyVerse();
+    return cached?.day ? dailyVerseWallpaperUrl(cached.day) : null;
+  });
 
   const loadDailyVerse = useCallback(() => {
     setDvLoading(true);
