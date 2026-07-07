@@ -24,7 +24,6 @@ import { nextReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
-import { listNotes } from '@/lib/notes';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { bookIdToChineseName } from '@/lib/ref_label';
@@ -252,11 +251,9 @@ export default function HomePageClient() {
     } catch {
       /* ignore */
     }
-    const thoughtN = listAllThoughts().length;
-    const noteN = listNotes().length;
-    const memCount = thoughtN + noteN;
+    const memCount = listAllThoughts().length;
     const notesCard = {
-      title: memCount > 0 ? `${memCount} 条记录` : '经文记忆',
+      title: memCount > 0 ? `${memCount} 条想法` : '我的想法',
       sub: '想法 · 收藏 · 划线',
       href: '/notes',
       count: memCount,

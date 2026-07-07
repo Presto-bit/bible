@@ -272,7 +272,7 @@ export default function ProfilePage() {
       </Link>
 
       <Link href="/notes" className="card row-card profile-memory-card" style={{ display: 'flex', marginTop: 12 }}>
-        <span style={{ flex: 1 }}>经文记忆</span>
+        <span style={{ flex: 1 }}>我的想法</span>
         <span className="muted">想法 · 收藏 · 划线 ›</span>
       </Link>
 

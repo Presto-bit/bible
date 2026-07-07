@@ -16,8 +16,8 @@ import SummarySheet from '@/components/reader/SummarySheet';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
+import ThoughtHubSheet from '@/components/reader/ThoughtHubSheet';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
-import ThoughtsListSheet from '@/components/reader/ThoughtsListSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
 import {
@@ -35,8 +35,17 @@ import {
   prefetchReaderVicinity,
   resolveChapterNav,
 } from '@/lib/reader_navigation';
-import { listNotes, type LocalNote } from '@/lib/notes';
-import { notesForChapter } from '@/lib/notes_for_chapter';
+import {
+  addThought,
+  getDefaultVisibility,
+  listRefForVerse,
+  myThoughtsForChapter,
+  myThoughtsForRef,
+  selectionRef,
+  thoughtsForChapter,
+  updateThought,
+  type ThoughtVisibility,
+} from '@/lib/reader_thoughts';
 import {
   getParallelVersion,
   getMainVersion,
@@ -108,8 +117,6 @@ import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
 import { buildPlanReadingMeta, type PlanReadingMeta } from '@/lib/plan_reading';
 import { getActivePlan } from '@/lib/plan_progress';
 import { readerUi } from '@/lib/reader_i18n';
-import MarkNoteWriteSheet from '@/components/reader/MarkNoteWriteSheet';
-import { upsertMarkNote } from '@/lib/mark_notes';
 import { ReaderSkeleton } from '@/components/Skeleton';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { parseMarkRef } from '@/lib/mark_ref';
@@ -124,13 +131,6 @@ import {
   selectionRef as markSelectionRef,
   type HighlightColor,
 } from '@/lib/reader_highlights';
-import {
-  addThought,
-  listRefForVerse,
-  myThoughtsForChapter,
-  selectionRef,
-  thoughtsForChapter,
-} from '@/lib/reader_thoughts';
 import {
   FONT_FAMILIES,
   PAGE_TURN_MODES,
@@ -221,11 +221,6 @@ export default function ReaderView({
   const [nativeSelecting, setNativeSelecting] = useState(false);
   const nativeSelectingRef = useRef(false);
   const nativeTouchSelect = isTouchPrimaryUI();
-  const [markNotePrompt, setMarkNotePrompt] = useState<null | {
-    ref: string;
-    label: string;
-    verseText?: string;
-  }>(null);
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
@@ -241,22 +236,30 @@ export default function ReaderView({
   const [versionBanner, setVersionBanner] = useState<string | null>(null);
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [chapterBottomTick, setChapterBottomTick] = useState(0);
-  const [viewNote, setViewNote] = useState<LocalNote | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
   const locBtnRef = useRef<HTMLButtonElement>(null);
-  const [chapterNotes, setChapterNotes] = useState<Map<number, LocalNote[]>>(new Map());
   const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
-  const [writeThoughtSheet, setWriteThoughtSheet] = useState<null | {
-    ref: string;
-    label: string;
-    verseText?: string;
-  }>(null);
-  const [thoughtListSheet, setThoughtListSheet] = useState<null | {
+  const [thoughtHub, setThoughtHub] = useState<null | {
     ref: string;
     label: string;
     text: string;
     verse: number;
+  }>(null);
+  const [thoughtWrite, setThoughtWrite] = useState<null | {
+    mode: 'new' | 'edit';
+    ref: string;
+    label: string;
+    verseText?: string;
+    thoughtId?: string;
+    initialBody?: string;
+    initialVisibility?: ThoughtVisibility;
+    returnHub?: {
+      ref: string;
+      label: string;
+      text: string;
+      verse: number;
+    };
   }>(null);
   const [thoughtRevision, setThoughtRevision] = useState(0);
   const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
@@ -312,29 +315,19 @@ export default function ReaderView({
     || aiSheet
     || summaryOpen
     || locPopoverOpen
-    || viewNote
-    || writeThoughtSheet
-    || thoughtListSheet
+    || thoughtHub
+    || thoughtWrite
     || toolsSheet
-    || markNotePrompt
     || groupCheckinOpen
     || bookCelebrate,
   );
   overlayOpenRef.current = overlayOpen;
-
-  const refreshChapterNotes = useCallback(() => {
-    setChapterNotes(notesForChapter(listNotes(), book.id, chapter));
-  }, [book.id, chapter]);
 
   useEffect(() => {
     setHighlightMap(getHighlightMap());
     setUnderlinesOn(getUnderlinesOn());
     setThoughtsOn(getThoughtsOn());
   }, [book.id, chapter]);
-
-  useEffect(() => {
-    refreshChapterNotes();
-  }, [refreshChapterNotes]);
 
   useEffect(() => {
     const onVis = () => {
@@ -390,26 +383,6 @@ export default function ReaderView({
     setBookDone(false);
   }, [book.id, chapter]);
 
-  const renderNotePin = (verse: number) => {
-    const pins = chapterNotes.get(verse);
-    if (!pins?.length) return null;
-    return (
-      <button
-        type="button"
-        className="verse-note-pin"
-        title={englishUI ? 'View note' : '查看笔记'}
-        aria-label={englishUI ? 'View note' : '查看笔记'}
-        onClick={(e) => {
-          e.stopPropagation();
-          setViewNote(pins[0]);
-        }}
-      >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-          <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8l-6-6z" />
-        </svg>
-      </button>
-    );
-  };
   const poetry = isPoetryBook(book.id);
   const [outline, setOutline] = useState<SectionMark[]>([]);
 
@@ -714,14 +687,46 @@ export default function ReaderView({
     };
   }, [hasSel, sortedSel, chromeHidden, updateFocusBarPosition]);
 
-  const openThoughtListForVerse = (verse: number, text: string) => {
+  const openThoughtHubForVerse = (verse: number, text: string) => {
     const refStr = listRefForVerse(book.id, chapter, verse);
-    setThoughtListSheet({
+    setThoughtHub({
       ref: refStr,
       label: `${bookAbbr(book.name)} ${chapter}:${verse}`,
       text,
       verse,
     });
+  };
+
+  const openThoughtWriteNew = (
+    ref: string,
+    label: string,
+    verseText?: string,
+    returnHub?: typeof thoughtHub,
+  ) => {
+    setThoughtWrite({
+      mode: 'new',
+      ref,
+      label,
+      verseText,
+      returnHub: returnHub ?? undefined,
+    });
+  };
+
+  const openThoughtFromSelection = (
+    ref: string,
+    label: string,
+    verseText?: string,
+  ) => {
+    if (myThoughtsForRef(ref).length > 0) {
+      setThoughtHub({
+        ref,
+        label,
+        text: verseText || '',
+        verse: minV ?? 1,
+      });
+      return;
+    }
+    openThoughtWriteNew(ref, label, verseText);
   };
 
   const verseThoughtClass = (verse: number) => {
@@ -738,7 +743,7 @@ export default function ReaderView({
   ) => {
     if (!thoughtsOn || !(chapterThoughts[verse] ?? 0)) return;
     e.stopPropagation();
-    openThoughtListForVerse(verse, text);
+    openThoughtHubForVerse(verse, text);
   };
 
   const verseBlockStyle = {
@@ -1773,7 +1778,6 @@ export default function ReaderView({
                               markInfo ?? undefined,
                             )}
                           </span>
-                          {renderNotePin(v.verse)}{' '}
                         </span>
                       );
                     })}
@@ -1843,7 +1847,6 @@ export default function ReaderView({
                           markInfo ?? undefined,
                         )}
                       </span>
-                      {renderNotePin(v.verse)}{' '}
                     </span>
                   );
                 })}
@@ -1863,10 +1866,6 @@ export default function ReaderView({
         // 忽略长按/双击后的余波点击，避免立即取消选中。
         if (Date.now() - lastSelectAt.current < 500) return;
         if (overlayOpen) return;
-        if (viewNote) {
-          setViewNote(null);
-          return;
-        }
         if (hasSel) {
           clearSelection();
           return;
@@ -2077,39 +2076,17 @@ export default function ReaderView({
             </div>
           )}
           <div className="reader-focus-row reader-focus-row-actions">
-            <button
-              type="button"
-              className="vsb-icon-btn"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMarkPaletteOpen(false);
-                setMarkNotePrompt({
-                  ref: selRef,
-                  label: effRefLabel,
-                  verseText: effSelectionText || undefined,
-                });
-                clearSelection();
-              }}
-            >
-              <span className="vsb-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0 0-3L17.5 5.5a2.1 2.1 0 0 0-3 0L4 16v4z" />
-                  <path d="M13.5 6.5l4 4" />
-                </svg>
-              </span>
-              <span className="vsb-label">{ui.note}</span>
-            </button>
             {thoughtsOn && (
               <button
                 type="button"
                 className="vsb-icon-btn"
                 onClick={() => {
                   setMarkPaletteOpen(false);
-                  setWriteThoughtSheet({
-                    ref: selRef,
-                    label: effRefLabel,
-                    verseText: effSelectionText || undefined,
-                  });
+                  openThoughtFromSelection(
+                    selRef,
+                    effRefLabel,
+                    effSelectionText || undefined,
+                  );
                   clearSelection();
                 }}
               >
@@ -2210,43 +2187,71 @@ export default function ReaderView({
         </div>
       )}
 
-      {markNotePrompt && (
-        <MarkNoteWriteSheet
-          refLabel={markNotePrompt.label}
-          verseText={markNotePrompt.verseText}
-          onSave={(body) => {
-            upsertMarkNote(markNotePrompt.ref, body);
-            flashToast('笔记已保存');
-            setMarkNotePrompt(null);
-          }}
-          onClose={() => setMarkNotePrompt(null)}
-        />
-      )}
-
-      {writeThoughtSheet && (
-        <ThoughtWriteSheet
-          refLabel={writeThoughtSheet.label}
-          verseText={writeThoughtSheet.verseText}
-          onPublish={(body) => {
-            addThought(writeThoughtSheet.ref, body);
-            setThoughtRevision((n) => n + 1);
-            flashToast('想法已发布');
-            setWriteThoughtSheet(null);
-          }}
-          onClose={() => setWriteThoughtSheet(null)}
-        />
-      )}
-
-      {thoughtListSheet && (
-        <ThoughtsListSheet
-          refStr={thoughtListSheet.ref}
-          refLabel={thoughtListSheet.label}
-          verseText={thoughtListSheet.text}
+      {thoughtHub && !thoughtWrite && (
+        <ThoughtHubSheet
+          refStr={thoughtHub.ref}
+          refLabel={thoughtHub.label}
+          verseText={thoughtHub.text}
           bookId={book.id}
           chapter={chapter}
-          verse={thoughtListSheet.verse}
+          verse={thoughtHub.verse}
           onChanged={() => setThoughtRevision((n) => n + 1)}
-          onClose={() => setThoughtListSheet(null)}
+          onClose={() => setThoughtHub(null)}
+          onWriteNew={() => {
+            openThoughtWriteNew(
+              thoughtHub.ref,
+              thoughtHub.label,
+              thoughtHub.text,
+              thoughtHub,
+            );
+            setThoughtHub(null);
+          }}
+          onEdit={(t) => {
+            setThoughtWrite({
+              mode: 'edit',
+              ref: t.ref,
+              label: thoughtHub.label,
+              verseText: thoughtHub.text,
+              thoughtId: t.id,
+              initialBody: t.body,
+              initialVisibility: t.visibility,
+              returnHub: thoughtHub,
+            });
+            setThoughtHub(null);
+          }}
+        />
+      )}
+
+      {thoughtWrite && (
+        <ThoughtWriteSheet
+          refStr={thoughtWrite.ref}
+          refLabel={thoughtWrite.label}
+          verseText={thoughtWrite.verseText}
+          mode={thoughtWrite.mode}
+          initialBody={thoughtWrite.initialBody}
+          initialVisibility={thoughtWrite.initialVisibility}
+          onSave={(body, visibility) => {
+            if (thoughtWrite.mode === 'edit' && thoughtWrite.thoughtId) {
+              updateThought(thoughtWrite.thoughtId, body, visibility);
+            } else {
+              addThought(thoughtWrite.ref, body, visibility);
+            }
+            setThoughtRevision((n) => n + 1);
+            flashToast('想法已保存');
+            const returnHub = thoughtWrite.returnHub;
+            setThoughtWrite(null);
+            if (returnHub) setThoughtHub(returnHub);
+          }}
+          onClose={() => setThoughtWrite(null)}
+          onBack={
+            thoughtWrite.returnHub
+              ? () => {
+                  const returnHub = thoughtWrite.returnHub!;
+                  setThoughtWrite(null);
+                  setThoughtHub(returnHub);
+                }
+              : undefined
+          }
         />
       )}
 
@@ -2397,27 +2402,6 @@ export default function ReaderView({
           englishUI={englishUI}
           onClose={() => setSummaryOpen(false)}
         />
-      )}
-
-      {viewNote && (
-        <div className="sheet-backdrop" onClick={() => setViewNote(null)}>
-          <div className="half-sheet note-view-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="half-sheet-head">
-              <div className="half-sheet-title">
-                <strong>{englishUI ? 'Note' : '经文笔记'}</strong>
-                <button type="button" className="text-link" onClick={() => setViewNote(null)}>{englishUI ? 'Close' : '关闭'}</button>
-              </div>
-            </div>
-            <div className="half-sheet-body">
-              {viewNote.ref && (
-                <p className="muted" style={{ fontSize: 12, marginBottom: 8 }}>
-                  {refToChineseLabel(viewNote.ref) ?? viewNote.ref}
-                </p>
-              )}
-              <p style={{ lineHeight: 1.75, whiteSpace: 'pre-wrap' }}>{viewNote.body}</p>
-            </div>
-          </div>
-        </div>
       )}
 
       {showVersions && (

@@ -4,7 +4,7 @@ import { getHighlightMap, type HighlightColor } from './reader_highlights';
 import { parseMarkRef } from './mark_ref';
 import { MARK_COLOR_SEMANTICS } from './mark_semantics';
 import { getActivePlan, getPlanDay } from './plan_progress';
-import { noteForMarkRef } from './mark_notes';
+import { thoughtPreviewForRef } from './reader_thoughts';
 
 export type MarkListItem = {
   ref: string;
@@ -18,12 +18,12 @@ export function listMarksDetailed(): MarkListItem[] {
   const meta = readMeta();
   return Object.entries(map)
     .map(([ref, mark]) => {
-      const note = noteForMarkRef(ref);
+      const preview = thoughtPreviewForRef(ref);
       return {
         ref,
         color: mark.color,
         createdAt: meta[ref]?.createdAt ?? 0,
-        notePreview: note?.body?.slice(0, 80),
+        notePreview: preview,
       };
     })
     .sort((a, b) => b.createdAt - a.createdAt || a.ref.localeCompare(b.ref));

@@ -1,57 +1,37 @@
-/** 划线 ↔ 灵修笔记绑定（本地索引；笔记正文走 notes sync）。 */
+/** 划线 ↔ 想法绑定（私密想法承接原灵修笔记）。 */
 
-import { createNote, listNotes, updateNote, type LocalNote } from './notes';
+import {
+  addThought,
+  myThoughtsForRef,
+  updateThought,
+  type ThoughtVisibility,
+} from './reader_thoughts';
 
-const LINK_KEY = 'mark_note_links_v1';
-
-function readLinks(): Record<string, string> {
-  if (typeof window === 'undefined') return {};
-  try {
-    return JSON.parse(localStorage.getItem(LINK_KEY) || '{}') as Record<string, string>;
-  } catch {
-    return {};
-  }
+export function noteIdForMarkRef(_ref: string): string | null {
+  return null;
 }
 
-function writeLinks(map: Record<string, string>) {
-  localStorage.setItem(LINK_KEY, JSON.stringify(map));
+export function bindNoteToMark(_ref: string, _noteId: string) {
+  /* legacy no-op */
 }
 
-export function noteIdForMarkRef(ref: string): string | null {
-  return readLinks()[ref] ?? null;
+export function unbindMarkRef(_ref: string) {
+  /* legacy no-op */
 }
 
-export function bindNoteToMark(ref: string, noteId: string) {
-  const map = readLinks();
-  map[ref] = noteId;
-  writeLinks(map);
+export function noteForMarkRef(ref: string): { body: string; id?: string } | null {
+  const thought = myThoughtsForRef(ref)[0];
+  if (!thought) return null;
+  return { body: thought.body, id: thought.id };
 }
 
-export function unbindMarkRef(ref: string) {
-  const map = readLinks();
-  delete map[ref];
-  writeLinks(map);
-}
-
-export function noteForMarkRef(ref: string): LocalNote | null {
-  const id = noteIdForMarkRef(ref);
-  if (!id) {
-    const byRef = listNotes().find((n) => n.ref === ref);
-    return byRef ?? null;
-  }
-  return listNotes().find((n) => n.id === id) ?? null;
-}
-
-/** 创建或更新与划线绑定的笔记。 */
-export function upsertMarkNote(ref: string, body: string): LocalNote {
+/** 创建或更新与划线绑定的私密想法。 */
+export function upsertMarkNote(ref: string, body: string, visibility: ThoughtVisibility = 'private') {
   const trimmed = body.trim();
-  const existing = noteForMarkRef(ref);
+  const existing = myThoughtsForRef(ref)[0];
   if (existing) {
-    updateNote(existing.id, trimmed);
-    bindNoteToMark(ref, existing.id);
-    return { ...existing, body: trimmed, updatedAt: Date.now() };
+    updateThought(existing.id, trimmed, visibility);
+    return { ...existing, body: trimmed, visibility };
   }
-  const note = createNote(trimmed, ref, ['灵修']);
-  bindNoteToMark(ref, note.id);
-  return note;
+  return addThought(ref, trimmed, visibility, { skipPublish: true });
 }

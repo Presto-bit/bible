@@ -17,7 +17,7 @@ import {
 import { entityDisplayName, entityTypeLabel } from '@/lib/dictionary_match';
 import { entityDictionaryHref } from '@/lib/entity_knowledge';
 import { bibleSearch } from '@/lib/bible_client';
-import { listNotes, type LocalNote } from '@/lib/notes';
+import { listAllThoughts } from '@/lib/reader_thoughts';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
@@ -119,7 +119,7 @@ export default function SearchPage() {
   const [hits, setHits] = useState<BibleSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [notes, setNotes] = useState<LocalNote[]>([]);
+  const [thoughts, setThoughts] = useState<ReturnType<typeof listAllThoughts>>([]);
   const [mapTours, setMapTours] = useState<MapTour[]>([]);
   const [timelineTours, setTimelineTours] = useState<TimelineTour[]>([]);
   const [toursReady, setToursReady] = useState(false);
@@ -132,7 +132,7 @@ export default function SearchPage() {
 
   useEffect(() => {
     setHistory(loadHistory());
-    setNotes(listNotes());
+    setThoughts(listAllThoughts());
     setSearchVersion(defaultSearchVersion());
     const params = new URLSearchParams(window.location.search);
     const from = params.get('from');
@@ -163,17 +163,17 @@ export default function SearchPage() {
     ]).finally(() => setToursReady(true));
   }, []);
 
-  const noteHits = useMemo(() => {
+  const thoughtHits = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (searchTooShort(q)) return [];
-    return notes
+    return thoughts
       .filter(
-        (n) =>
-          n.body.toLowerCase().includes(q) ||
-          (n.ref || '').toLowerCase().includes(q),
+        (t) =>
+          t.body.toLowerCase().includes(q) ||
+          (t.ref || '').toLowerCase().includes(q),
       )
       .slice(0, 10);
-  }, [notes, query]);
+  }, [thoughts, query]);
 
   // 仅关键词 / 译本变化时重新搜索；新旧约只做前端筛选
   useEffect(() => {
@@ -485,22 +485,22 @@ export default function SearchPage() {
         </section>
       )}
 
-      {hasQuery && noteHits.length > 0 && (
+      {hasQuery && thoughtHits.length > 0 && (
         <section style={{ marginTop: 18 }}>
-          <h3 className="search-section-title">笔记 · {noteHits.length}</h3>
-          {noteHits.map((n) => (
+          <h3 className="search-section-title">想法 · {thoughtHits.length}</h3>
+          {thoughtHits.map((t) => (
             <div
-              key={n.id}
+              key={t.id}
               className="card card-2"
               style={{ marginBottom: 8, padding: 14 }}
             >
-              {n.ref && (
+              {t.ref && (
                 <span style={{ fontWeight: 700, fontSize: 12, color: 'var(--gold, #b8860b)' }}>
-                  {formatGroupRefLabel(n.ref)}
+                  {formatGroupRefLabel(t.ref)}
                 </span>
               )}
-              <p style={{ margin: n.ref ? '6px 0 0' : 0, lineHeight: 1.55 }}>
-                {highlightText(n.body, query)}
+              <p style={{ margin: t.ref ? '6px 0 0' : 0, lineHeight: 1.55 }}>
+                {highlightText(t.body, query)}
               </p>
             </div>
           ))}

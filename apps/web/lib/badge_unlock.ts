@@ -2,11 +2,10 @@ import { computeAllBadges, type BadgeDef } from './badges';
 import { loadBadgeStats, markBadgeToasted, stampBadgeUnlock } from './badge_events';
 import { buildReport, bookProgressMap } from './reading';
 import { readingStreak } from './gamification';
-import { listNotes } from './notes';
+import { listAllThoughts } from './reader_thoughts';
 import { bibleBooks } from './bible_client';
 import { highlightColorCount, highlightCount } from './reader_highlights';
 import { loadFavoriteRefs } from './favorites';
-import { listAllThoughts } from './reader_thoughts';
 import { getActivePlan, getCompletedPlanDays } from './plan_progress';
 import { api, currentUserId } from './api';
 
@@ -49,7 +48,8 @@ export function profilePreviewBadges(badges: BadgeDef[], limit = 4): BadgeDef[] 
 
 export async function buildBadgeContext() {
   const report = buildReport();
-  const noteCount = listNotes().length;
+  const thoughts = listAllThoughts();
+  const noteCount = thoughts.length;
   const stats = loadBadgeStats();
   let readBooks = 0;
   let ntBooksRead = 0;
@@ -104,7 +104,7 @@ export async function buildBadgeContext() {
     highlightColors: highlightColorCount(),
     bookmarkCount: loadFavoriteRefs().length,
     thoughtCount: listAllThoughts().length,
-    maxNoteLen: Math.max(0, ...listNotes().map((n) => n.body.length)),
+    maxNoteLen: Math.max(0, ...thoughts.map((t) => t.body.length)),
     planDays,
     friendCount,
     bookTotals,

@@ -7,7 +7,7 @@ import { chatStream, type Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
-import { createNote } from '@/lib/notes';
+import { addThought } from '@/lib/reader_thoughts';
 import {
   recordCitationClick,
   recordSaveAnswerNote,
@@ -925,7 +925,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                         type="button"
                         className="msg-action"
                         onClick={() => {
-                          createNote(stripFollowups(m.text), ref || undefined, ['小爱']);
+                          if (ref) addThought(ref, stripFollowups(m.text), 'private', { skipPublish: true });
                           recordSaveAnswerNote();
                           flashToast('已存笔记');
                         }}

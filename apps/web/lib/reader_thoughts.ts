@@ -1,6 +1,9 @@
 // 经文想法（本地 JSON + 可选同步好友动态）。
 
 import { api, effectiveId, getDisplayName, getUserName } from './api';
+import { listNotes } from './notes';
+
+export type ThoughtVisibility = 'public' | 'friends' | 'private';
 
 export type ThoughtRow = {
   id: string;
@@ -10,11 +13,17 @@ export type ThoughtRow = {
   authorName: string;
   likesCount: number;
   likedBy: string[];
-  isShared: boolean;
+  /** @deprecated 使用 visibility */
+  isShared?: boolean;
+  visibility: ThoughtVisibility;
   createdAtMs: number;
 };
 
-const KEY = 'verse_thoughts_v1';
+const KEY = 'verse_thoughts_v2';
+const LEGACY_KEY = 'verse_thoughts_v1';
+const NOTES_MIGRATED_KEY = 'notes_migrated_to_thoughts_v2';
+const VIS_PREF_KEY = 'thought_visibility_pref';
+const DRAFT_PREFIX = 'thought_draft_v1:';
 
 function userId(): string {
   if (typeof window === 'undefined') return 'me';
@@ -28,17 +37,137 @@ function userName(): string {
   return getDisplayName();
 }
 
-function readAll(): ThoughtRow[] {
-  if (typeof window === 'undefined') return [];
+function normalizeVisibility(row: Partial<ThoughtRow>): ThoughtVisibility {
+  if (row.visibility === 'public' || row.visibility === 'friends' || row.visibility === 'private') {
+    return row.visibility;
+  }
+  if (row.isShared === false) return 'private';
+  return 'public';
+}
+
+function readRaw(): ThoughtRow[] {
+  migrateLegacyThoughts();
   try {
-    return JSON.parse(localStorage.getItem(KEY) || '[]') as ThoughtRow[];
+    const rows = JSON.parse(localStorage.getItem(KEY) || '[]') as Partial<ThoughtRow>[];
+    return rows.map((row) => ({
+      ...row,
+      visibility: normalizeVisibility(row),
+      likesCount: row.likesCount ?? 0,
+      likedBy: row.likedBy ?? [],
+    })) as ThoughtRow[];
   } catch {
     return [];
   }
 }
 
+function readAll(): ThoughtRow[] {
+  migrateNotesToThoughts();
+  return readRaw();
+}
+
 function writeAll(rows: ThoughtRow[]) {
   localStorage.setItem(KEY, JSON.stringify(rows));
+}
+
+function migrateLegacyThoughts() {
+  if (typeof window === 'undefined') return;
+  if (localStorage.getItem(KEY)) return;
+  try {
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]') as Partial<ThoughtRow>[];
+    if (!legacy.length) return;
+    const next = legacy.map((row) => ({
+      ...row,
+      visibility: normalizeVisibility(row),
+      likesCount: row.likesCount ?? 0,
+      likedBy: row.likedBy ?? [],
+    })) as ThoughtRow[];
+    writeAll(next);
+  } catch {
+    /* ignore */
+  }
+}
+
+function migrateNotesToThoughts() {
+  if (typeof window === 'undefined') return;
+  if (localStorage.getItem(NOTES_MIGRATED_KEY)) return;
+  const notes = listNotes();
+  const all = readRaw();
+  const existing = new Set(all.map((t) => `${t.ref}::${t.body.trim()}`));
+  for (const note of notes) {
+    if (!note.ref || !note.body.trim() || note.deleted) continue;
+    const sig = `${note.ref}::${note.body.trim()}`;
+    if (existing.has(sig)) continue;
+    all.push({
+      id: `m_${note.id}`,
+      ref: note.ref,
+      body: note.body.trim(),
+      authorId: userId(),
+      authorName: userName(),
+      likesCount: 0,
+      likedBy: [],
+      visibility: 'private',
+      createdAtMs: note.updatedAt || Date.now(),
+    });
+    existing.add(sig);
+  }
+  writeAll(all);
+  localStorage.setItem(NOTES_MIGRATED_KEY, '1');
+}
+
+export function visibilityLabel(v: ThoughtVisibility): string {
+  if (v === 'public') return '公开';
+  if (v === 'friends') return '共读';
+  return '私密';
+}
+
+export function visibilityHint(v: ThoughtVisibility): string {
+  if (v === 'public') return '读同一节经文的任何人都可见';
+  if (v === 'friends') return '仅你的好友可见';
+  return '仅自己可见';
+}
+
+export function getDefaultVisibility(context: 'normal' | 'mark' = 'normal'): ThoughtVisibility {
+  if (context === 'mark') return 'private';
+  if (typeof window === 'undefined') return 'public';
+  const pref = localStorage.getItem(VIS_PREF_KEY);
+  if (pref === 'public' || pref === 'friends' || pref === 'private') return pref;
+  return 'public';
+}
+
+export function rememberVisibility(v: ThoughtVisibility) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(VIS_PREF_KEY, v);
+}
+
+export function loadThoughtDraft(ref: string): { body: string; visibility: ThoughtVisibility } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(`${DRAFT_PREFIX}${ref}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { body?: string; visibility?: ThoughtVisibility };
+    if (!parsed.body?.trim()) return null;
+    return {
+      body: parsed.body,
+      visibility: parsed.visibility ?? getDefaultVisibility(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveThoughtDraft(ref: string, body: string, visibility: ThoughtVisibility) {
+  if (typeof window === 'undefined') return;
+  const trimmed = body.trim();
+  if (!trimmed) {
+    localStorage.removeItem(`${DRAFT_PREFIX}${ref}`);
+    return;
+  }
+  localStorage.setItem(`${DRAFT_PREFIX}${ref}`, JSON.stringify({ body: trimmed, visibility }));
+}
+
+export function clearThoughtDraft(ref: string) {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(`${DRAFT_PREFIX}${ref}`);
 }
 
 export function selectionRef(bookId: string, chapter: number, verses: number[]): string {
@@ -46,11 +175,6 @@ export function selectionRef(bookId: string, chapter: number, verses: number[]):
   if (!sel.length) return `${bookId}.${chapter}`;
   if (sel[0] === sel[sel.length - 1]) return `${bookId}.${chapter}.${sel[0]}`;
   return `${bookId}.${chapter}.${sel[0]}-${sel[sel.length - 1]}`;
-}
-
-function verseFromRef(ref: string, bookId: string, chapter: number): number | null {
-  const verses = versesFromRef(ref, bookId, chapter);
-  return verses.length ? verses[0] : null;
 }
 
 /** 想法 ref 覆盖的节号列表（支持 gen.1.3-5）。 */
@@ -75,8 +199,16 @@ export function versesFromRef(ref: string, bookId: string, chapter: number): num
   return Number.isNaN(v) ? [] : [v];
 }
 
+function isVisibleToReader(t: ThoughtRow, uid: string): boolean {
+  if (t.authorId === uid) return true;
+  return t.visibility === 'public';
+}
+
 export function thoughtsAtVerse(bookId: string, chapter: number, verse: number): ThoughtRow[] {
-  return readAll().filter((t) => versesFromRef(t.ref, bookId, chapter).includes(verse));
+  const uid = userId();
+  return readAll().filter(
+    (t) => isVisibleToReader(t, uid) && versesFromRef(t.ref, bookId, chapter).includes(verse),
+  );
 }
 
 /** 打开某节想法列表时使用的 ref（优先精确节 ref）。 */
@@ -98,8 +230,10 @@ export function sortedThoughtsForVerse(bookId: string, chapter: number, verse: n
 }
 
 export function thoughtsForChapter(bookId: string, chapter: number): Record<number, number> {
+  const uid = userId();
   const map: Record<number, number> = {};
   for (const t of readAll()) {
+    if (!isVisibleToReader(t, uid)) continue;
     for (const v of versesFromRef(t.ref, bookId, chapter)) {
       map[v] = (map[v] ?? 0) + 1;
     }
@@ -129,7 +263,7 @@ export function myThoughtsForRef(ref: string): ThoughtRow[] {
 
 export function sortedThoughts(ref: string): ThoughtRow[] {
   const uid = userId();
-  const rows = readAll().filter((t) => t.ref === ref);
+  const rows = readAll().filter((t) => t.ref === ref && isVisibleToReader(t, uid));
   const mine = rows.filter((t) => t.authorId === uid).sort((a, b) => b.createdAtMs - a.createdAtMs);
   const others = rows
     .filter((t) => t.authorId !== uid)
@@ -138,25 +272,48 @@ export function sortedThoughts(ref: string): ThoughtRow[] {
 }
 
 export function listAllThoughts(): ThoughtRow[] {
-  return readAll().sort((a, b) => b.createdAtMs - a.createdAtMs);
+  const uid = userId();
+  return readAll()
+    .filter((t) => t.authorId === uid)
+    .sort((a, b) => b.createdAtMs - a.createdAtMs);
 }
 
-export function addThought(ref: string, body: string): ThoughtRow {
+export function thoughtPreviewForRef(ref: string, maxLen = 80): string | undefined {
+  const mine = myThoughtsForRef(ref);
+  const body = mine[0]?.body?.trim();
+  if (!body) return undefined;
+  return body.length > maxLen ? `${body.slice(0, maxLen)}…` : body;
+}
+
+type AddThoughtOpts = {
+  skipPublish?: boolean;
+  createdAtMs?: number;
+  id?: string;
+};
+
+export function addThought(
+  ref: string,
+  body: string,
+  visibility: ThoughtVisibility = getDefaultVisibility(),
+  opts?: AddThoughtOpts,
+): ThoughtRow {
   const row: ThoughtRow = {
-    id: `t_${Date.now()}`,
+    id: opts?.id ?? `t_${Date.now()}`,
     ref,
     body: body.trim(),
     authorId: userId(),
     authorName: userName(),
     likesCount: 0,
     likedBy: [],
-    isShared: true,
-    createdAtMs: Date.now(),
+    visibility,
+    createdAtMs: opts?.createdAtMs ?? Date.now(),
   };
   const all = readAll();
   all.push(row);
   writeAll(all);
-  if (typeof window !== 'undefined') {
+  rememberVisibility(visibility);
+  clearThoughtDraft(ref);
+  if (!opts?.skipPublish && visibility !== 'private' && typeof window !== 'undefined') {
     void api.publishShare({ ref, body: row.body, kind: 'thought' }).catch(() => {});
   }
   return row;
@@ -187,14 +344,28 @@ export function deleteThought(id: string): boolean {
   return true;
 }
 
-export function updateThought(id: string, body: string): boolean {
+export function updateThought(
+  id: string,
+  body: string,
+  visibility?: ThoughtVisibility,
+): boolean {
   const uid = userId();
   const trimmed = body.trim();
   if (!trimmed) return false;
   const all = readAll();
   const i = all.findIndex((t) => t.id === id && t.authorId === uid);
   if (i < 0) return false;
-  all[i] = { ...all[i], body: trimmed };
+  const nextVisibility = visibility ?? all[i].visibility;
+  all[i] = { ...all[i], body: trimmed, visibility: nextVisibility };
   writeAll(all);
+  rememberVisibility(nextVisibility);
+  if (nextVisibility !== 'private' && typeof window !== 'undefined') {
+    void api.publishShare({ ref: all[i].ref, body: trimmed, kind: 'thought' }).catch(() => {});
+  }
   return true;
+}
+
+export function getThoughtById(id: string): ThoughtRow | null {
+  const uid = userId();
+  return readAll().find((t) => t.id === id && t.authorId === uid) ?? null;
 }

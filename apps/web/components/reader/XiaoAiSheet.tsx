@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
-import { createNote } from '@/lib/notes';
+import { addThought } from '@/lib/reader_thoughts';
 import {
   recordCitationClick,
   recordHalfSheetXiaoAi,
@@ -216,7 +216,7 @@ export default function XiaoAiSheet({
 
   const saveNote = () => {
     if (!clean || hasError) return;
-    createNote(clean, refParam, ['小爱', '半屏']);
+    if (refParam) addThought(refParam, clean, 'private', { skipPublish: true });
     recordSaveAnswerNote();
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);

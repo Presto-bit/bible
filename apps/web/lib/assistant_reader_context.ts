@@ -1,6 +1,6 @@
 /** 小爱请求附带：读者本地灵修上下文（local-first，仅注入 prompt） */
 
-import { listNotes } from './notes';
+import { listAllThoughts } from './reader_thoughts';
 import { getActivePlan } from './plan_progress';
 import {
   getChapterVerseRange,
@@ -39,16 +39,14 @@ export function buildAssistantReaderContext(): ChatReaderContext | undefined {
   const plan = getActivePlan();
   if (plan?.title) ctx.active_plan_title = plan.title;
 
-  const notes = listNotes()
-    .filter((n) => !n.deleted && n.body.trim())
-    .sort((a, b) => b.updatedAt - a.updatedAt)
+  const snippets = listAllThoughts()
     .slice(0, 2)
-    .map((n) => {
-      const body = n.body.replace(/\s+/g, ' ').trim().slice(0, 80);
-      const ref = n.ref ? `（${n.ref}）` : '';
+    .map((t) => {
+      const body = t.body.replace(/\s+/g, ' ').trim().slice(0, 80);
+      const ref = t.ref ? `（${t.ref}）` : '';
       return `${body}${body.length >= 80 ? '…' : ''}${ref}`;
     });
-  if (notes.length) ctx.recent_note_snippets = notes;
+  if (snippets.length) ctx.recent_note_snippets = snippets;
 
   return Object.keys(ctx).length ? ctx : undefined;
 }
