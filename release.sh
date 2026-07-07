@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # 服务器快速发版：git pull → docker compose build → up → 健康检查
 #
-# 用法（SSH 登录 ECS 后）：
-#   cd /opt/bible
-#   bash release.sh
+# 用法（SSH 登录 ECS 后，root 或 presto 均可）：
+#   cd /opt/bible && bash release.sh
+#   # 或任意目录：bash /opt/bible/release.sh
 #
 # 环境变量：
 #   APP_DIR=/opt/bible
+#   DEPLOY_USER=presto   发版系统用户（非该用户时自动 sudo 切换）
 #   REMOTE=origin
 #   BRANCH=main
 #   GIT_PULL=0          跳过 git pull（离线包发版）
@@ -14,6 +15,7 @@
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/bible}"
+DEPLOY_USER="${DEPLOY_USER:-presto}"
 REMOTE="${REMOTE:-origin}"
 BRANCH="${BRANCH:-main}"
 GIT_PULL="${GIT_PULL:-1}"
@@ -23,25 +25,31 @@ ENV_FILE=".env.production"
 log() { echo "[$(date +'%F %T')] $*"; }
 die() { echo "❌ $*" >&2; exit 1; }
 
+# root / 其它用户：自动 sudo 到 presto，进入仓库并拉代码后发版（等价于原 one-liner）
+if [[ "${RELEASE_BOOTSTRAPPED:-0}" != "1" && "$(id -un)" != "$DEPLOY_USER" ]]; then
+  id -u "$DEPLOY_USER" &>/dev/null || die "发版用户不存在: $DEPLOY_USER"
+  [[ -d "$APP_DIR" ]] || die "项目目录不存在: $APP_DIR"
+  release_script="$APP_DIR/release.sh"
+  [[ -f "$release_script" ]] || release_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+  pull_part=""
+  inner_git_pull="$GIT_PULL"
+  if [[ "$GIT_PULL" == "1" ]]; then
+    pull_part="git fetch '$REMOTE' '$BRANCH' && git pull --ff-only '$REMOTE' '$BRANCH' && "
+    inner_git_pull=0
+  fi
+  log "当前用户 $(id -un)，切换为 $DEPLOY_USER 后发版"
+  exec sudo -u "$DEPLOY_USER" -H bash -c \
+    "cd '$APP_DIR' && ${pull_part}APP_DIR='$APP_DIR' DEPLOY_USER='$DEPLOY_USER' REMOTE='$REMOTE' BRANCH='$BRANCH' \
+     GIT_PULL='$inner_git_pull' COMPOSE_BUILD_PULL='${COMPOSE_BUILD_PULL:-1}' \
+     NEXT_PUBLIC_APP_VERSION='${NEXT_PUBLIC_APP_VERSION:-}' RELEASE_BOOTSTRAPPED=1 \
+     bash '$release_script'"
+fi
+
 command -v docker >/dev/null 2>&1 || die "未找到 docker"
 docker compose version >/dev/null 2>&1 || die "未找到 docker compose v2"
 command -v curl >/dev/null 2>&1 || die "未找到 curl"
 
 [[ -d "$APP_DIR" ]] || die "项目目录不存在: $APP_DIR"
-
-# root 操作 presto 属主的仓库会触发 git「dubious ownership」；自动切到目录属主
-if [[ "${EUID:-0}" -eq 0 && "${RELEASE_AS_ROOT:-0}" != "1" ]]; then
-  repo_owner="$(stat -c '%U' "$APP_DIR" 2>/dev/null || true)"
-  if [[ -n "$repo_owner" && "$repo_owner" != "root" ]] && id -u "$repo_owner" &>/dev/null; then
-    release_script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    log "检测到 root 运行但 $APP_DIR 属主为 $repo_owner，切换用户后继续（请改用 presto 登录发版）"
-    exec sudo -u "$repo_owner" -H \
-      APP_DIR="$APP_DIR" REMOTE="$REMOTE" BRANCH="$BRANCH" \
-      GIT_PULL="$GIT_PULL" COMPOSE_BUILD_PULL="${COMPOSE_BUILD_PULL:-1}" \
-      NEXT_PUBLIC_APP_VERSION="${NEXT_PUBLIC_APP_VERSION:-}" \
-      bash "$release_script"
-  fi
-fi
 
 cd "$APP_DIR" || die "无法进入: $APP_DIR"
 [[ -f "$COMPOSE_FILE" ]] || die "缺少 $COMPOSE_FILE"
