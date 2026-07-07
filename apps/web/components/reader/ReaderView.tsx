@@ -209,6 +209,8 @@ export default function ReaderView({
   const [peekNextVerses, setPeekNextVerses] = useState<Verse[] | null>(null);
   const [peekPrevOutline, setPeekPrevOutline] = useState<SectionMark[] | null>(null);
   const [peekNextOutline, setPeekNextOutline] = useState<SectionMark[] | null>(null);
+  const [peekPrevLayoutVerses, setPeekPrevLayoutVerses] = useState<Verse[] | null>(null);
+  const [peekNextLayoutVerses, setPeekNextLayoutVerses] = useState<Verse[] | null>(null);
   const [peekPrevBook, setPeekPrevBook] = useState<BibleBook | null>(null);
   const [peekNextBook, setPeekNextBook] = useState<BibleBook | null>(null);
   const [peekPrevChapter, setPeekPrevChapter] = useState(0);
@@ -295,6 +297,8 @@ export default function ReaderView({
   const readStartRef = useRef(Date.now());
   const readingEngagedRef = useRef(false);
   const skipResumeOnLoadRef = useRef(false);
+  /** 横滑松手后 applyNavigate 已灌入经文，章 effect 跳过重复加载 */
+  const skipChapterHydrateRef = useRef(false);
   const overlayOpenRef = useRef(false);
   /** 划词结束后短时忽略横滑 */
   const swipeIgnoreUntilRef = useRef(0);
@@ -387,6 +391,7 @@ export default function ReaderView({
   const [outline, setOutline] = useState<SectionMark[]>([]);
 
   useEffect(() => {
+    if (skipChapterHydrateRef.current) return;
     let cancelled = false;
     void outlineForAsync(book.id, chapter).then((marks) => {
       if (!cancelled) setOutline(marks);
@@ -934,18 +939,27 @@ export default function ReaderView({
     const hydratePeek = async (
       target: ReturnType<typeof resolveChapterNav>,
       setVerses: (v: Verse[] | null) => void,
+      setLayoutVerses: (v: Verse[] | null) => void,
       setOutline: (o: SectionMark[] | null) => void,
     ) => {
       if (!target) {
         setVerses(null);
+        setLayoutVerses(null);
         setOutline(null);
         return;
       }
       const syncOutline = outlineFor(target.book.id, target.chapter);
       if (syncOutline.length) setOutline(syncOutline);
+      const cnVersion = chapterCacheVersion(null);
+      const layoutSync = mainVersionId
+        ? (getChapterVersesSync(target.book.id, target.chapter, null)
+          ?? getCachedChapter(target.book.id, target.chapter, cnVersion))
+        : null;
+      if (layoutSync?.length) setLayoutVerses(layoutSync);
       const sync = getChapterVersesSync(target.book.id, target.chapter, mainVersionId);
       if (sync?.length) {
         setVerses(sync);
+        if (!layoutSync?.length) setLayoutVerses(sync);
         if (!syncOutline.length) {
           const loadedOutline = await outlineForAsync(target.book.id, target.chapter);
           if (!cancelled) setOutline(loadedOutline);
@@ -958,12 +972,21 @@ export default function ReaderView({
       ]);
       if (!cancelled) {
         setVerses(loaded);
+        if (mainVersionId) {
+          const cn =
+            layoutSync
+            ?? getChapterVersesSync(target.book.id, target.chapter, null)
+            ?? await loadChapterVerses(target.book.id, target.chapter, null);
+          setLayoutVerses(cn?.length ? cn : loaded);
+        } else {
+          setLayoutVerses(loaded);
+        }
         setOutline(loadedOutline);
       }
     };
 
-    void hydratePeek(prev, setPeekPrevVerses, setPeekPrevOutline);
-    void hydratePeek(next, setPeekNextVerses, setPeekNextOutline);
+    void hydratePeek(prev, setPeekPrevVerses, setPeekPrevLayoutVerses, setPeekPrevOutline);
+    void hydratePeek(next, setPeekNextVerses, setPeekNextLayoutVerses, setPeekNextOutline);
     // 相邻缓冲：当前章 ±2
     prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
     return () => {
@@ -973,7 +996,7 @@ export default function ReaderView({
 
   useEffect(() => {
     setVerseTransitionOff(true);
-    const t = window.setTimeout(() => setVerseTransitionOff(false), 320);
+    const t = window.setTimeout(() => setVerseTransitionOff(false), 480);
     return () => window.clearTimeout(t);
   }, [book.id, chapter]);
 
@@ -988,6 +1011,19 @@ export default function ReaderView({
     readingEngagedRef.current = false;
     cancelPendingChapterProgress();
     setChapterAnim(swipeTurn ? '' : 'chapter-enter');
+
+    const skipHydrate = skipChapterHydrateRef.current;
+    if (skipHydrate) {
+      skipChapterHydrateRef.current = false;
+      prefetchReaderVicinity(books, book, chapter, mainVersionId, prefetchTarget, 2);
+      scheduleChapterProgress(book.id, chapter, false, () => {
+        maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+      });
+      setLastRead(book.id, chapter);
+      return () => {
+        cancelPendingChapterProgress();
+      };
+    }
 
     const version = chapterCacheVersion(mainVersionId);
     const cached = getCachedChapter(book.id, chapter, version);
@@ -1189,10 +1225,19 @@ export default function ReaderView({
 
       if (instant?.length) {
         if (opts?.fromSwipe) {
+          skipChapterHydrateRef.current = true;
+          let structureSource = instant;
+          if (mainVersionId) {
+            const cnVersion = chapterCacheVersion(null);
+            structureSource =
+              getChapterVersesSync(target.book.id, target.chapter, null)
+              ?? getCachedChapter(target.book.id, target.chapter, cnVersion)
+              ?? instant;
+          }
           flushSync(() => {
-            setLayoutVerses(instant);
+            setLayoutVerses(structureSource);
             setVerses(instant);
-            setOutline(outlineReady);
+            setOutline(outlineReady ?? []);
             setChapterLoading(false);
           });
           if (contentRef.current) contentRef.current.scrollTop = 0;
@@ -1947,7 +1992,7 @@ export default function ReaderView({
         {renderChapterHead()}
 
         <div
-          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff ? ' verse-transition-off' : ''}`}
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating ? ' verse-transition-off' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
         >
           {swipeTurn ? (
@@ -1980,6 +2025,7 @@ export default function ReaderView({
                     bookId={peekPrevBook?.id ?? book.id}
                     chapter={peekPrevChapter}
                     verses={peekPrevVerses}
+                    structureVerses={peekPrevLayoutVerses}
                     outline={peekPrevOutline ?? []}
                     englishUI={englishUI}
                     verseNo={verseNo}
@@ -1997,6 +2043,7 @@ export default function ReaderView({
                     bookId={peekNextBook?.id ?? book.id}
                     chapter={peekNextChapter}
                     verses={peekNextVerses}
+                    structureVerses={peekNextLayoutVerses}
                     outline={peekNextOutline ?? []}
                     englishUI={englishUI}
                     verseNo={verseNo}

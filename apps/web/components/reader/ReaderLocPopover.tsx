@@ -32,6 +32,7 @@ export function ReaderLocPopover({
   onClose,
 }: Props) {
   const [tab, setTab] = useState<LocTab>('chapters');
+  const [selectedBookId, setSelectedBookId] = useState(book.id);
   const [pickWarn, setPickWarn] = useState<string | null>(null);
   const [style, setStyle] = useState<CSSProperties>({});
   const [mounted, setMounted] = useState(false);
@@ -42,8 +43,11 @@ export function ReaderLocPopover({
   useEffect(() => {
     if (!open) return;
     setTab('chapters');
+    setSelectedBookId(book.id);
     setPickWarn(null);
   }, [open, book.id]);
+
+  const selectedBook = books.find((b) => b.id === selectedBookId) ?? book;
 
   useLayoutEffect(() => {
     if (!open || !anchorRef.current) return;
@@ -75,14 +79,14 @@ export function ReaderLocPopover({
     if (!open || tab !== 'chapters') return;
     const el = panelRef.current?.querySelector('.chapter-cell-active');
     el?.scrollIntoView({ block: 'nearest' });
-  }, [open, tab, book.id, chapter]);
+  }, [open, tab, selectedBook.id, chapter, book.id]);
 
   const planBookIds = planSteps?.length ? new Set(planBooksInSteps(planSteps)) : null;
   const visibleBooks = planBookIds
     ? books.filter((b) => planBookIds.has(b.id))
     : books;
-  const allowedChapters = planSteps?.length
-    ? new Set(allowedChaptersForBook(planSteps, book.id))
+  const allowedChaptersForSelected = planSteps?.length
+    ? new Set(allowedChaptersForBook(planSteps, selectedBook.id))
     : null;
 
   const tryPickChapter = (b: BibleBook, n: number) => {
@@ -100,11 +104,8 @@ export function ReaderLocPopover({
       return;
     }
     setPickWarn(null);
-    if (b.id === book.id) {
-      setTab('chapters');
-      return;
-    }
-    tryPickChapter(b, 1);
+    setSelectedBookId(b.id);
+    setTab('chapters');
   };
 
   if (!mounted || !open) return null;
@@ -122,7 +123,7 @@ export function ReaderLocPopover({
             <button
               key={b.id}
               type="button"
-              className={`reader-loc-book-cell${book.id === b.id ? ' is-active' : ''}`}
+              className={`reader-loc-book-cell${selectedBookId === b.id ? ' is-active' : ''}`}
               onClick={() => pickBook(b)}
             >
               {bookAbbr(b.name)}
@@ -145,9 +146,11 @@ export function ReaderLocPopover({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="reader-loc-popover-head">
-          <strong>{book.name}</strong>
+          <strong>{selectedBook.name}</strong>
           <span className="muted reader-loc-popover-sub">
-            {tab === 'chapters' ? `第 ${chapter} 章` : '选卷'}
+            {tab === 'chapters'
+              ? (selectedBook.id === book.id ? `第 ${chapter} 章` : '选章')
+              : '选卷'}
           </span>
         </div>
 
@@ -156,34 +159,37 @@ export function ReaderLocPopover({
         <div className="seg-tabs reader-loc-seg-tabs">
           <button
             type="button"
-            className={`seg-tab ${tab === 'chapters' ? 'seg-tab-active' : ''}`}
-            onClick={() => { setTab('chapters'); setPickWarn(null); }}
-          >
-            章
-          </button>
-          <button
-            type="button"
             className={`seg-tab ${tab === 'books' ? 'seg-tab-active' : ''}`}
             onClick={() => { setTab('books'); setPickWarn(null); }}
           >
             卷
+          </button>
+          <button
+            type="button"
+            className={`seg-tab ${tab === 'chapters' ? 'seg-tab-active' : ''}`}
+            onClick={() => { setTab('chapters'); setPickWarn(null); }}
+          >
+            章
           </button>
         </div>
 
         {tab === 'chapters' ? (
           <div className="reader-loc-chapters">
             <div className="chapter-grid reader-loc-chapter-grid">
-              {Array.from({ length: book.chapter_count }, (_, i) => i + 1).map((n) => {
-                const disabled = allowedChapters != null && !allowedChapters.has(n);
+              {Array.from({ length: selectedBook.chapter_count }, (_, i) => i + 1).map((n) => {
+                const disabled =
+                  allowedChaptersForSelected != null && !allowedChaptersForSelected.has(n);
+                const isCurrent =
+                  selectedBook.id === book.id && chapter === n;
                 return (
                   <button
                     key={n}
                     type="button"
                     disabled={disabled}
                     className={`chapter-cell${
-                      chapter === n ? ' chapter-cell-active' : ''
+                      isCurrent ? ' chapter-cell-active' : ''
                     }${disabled ? ' chapter-cell-disabled' : ''}`}
-                    onClick={() => tryPickChapter(book, n)}
+                    onClick={() => tryPickChapter(selectedBook, n)}
                   >
                     {n}
                   </button>

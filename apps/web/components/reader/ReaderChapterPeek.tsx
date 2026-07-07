@@ -16,6 +16,8 @@ type Props = {
   bookId: string;
   chapter: number;
   verses: Verse[] | null;
+  /** 分段结构（对照阅读时用中文结构，正文用 verses 译本） */
+  structureVerses?: Verse[] | null;
   outline: SectionMark[];
   englishUI: boolean;
   verseNo: VerseNumberMode;
@@ -60,6 +62,7 @@ export default function ReaderChapterPeek({
   bookId,
   chapter,
   verses,
+  structureVerses,
   outline,
   englishUI,
   verseNo,
@@ -77,9 +80,11 @@ export default function ReaderChapterPeek({
   }
 
   const poetry = isPoetryBook(bookId);
+  const structure = structureVerses?.length ? structureVerses : verses;
+  const textByVerse = new Map(verses?.map((v) => [v.verse, v.text]) ?? []);
   const paragraphs = groupVersesIntoParagraphs(
     bookId,
-    verses.map((v) => ({ verse: v.verse, text: v.text })),
+    structure!.map((v) => ({ verse: v.verse, text: v.text })),
     outline.map((s) => s.verse),
   );
 
@@ -95,6 +100,7 @@ export default function ReaderChapterPeek({
             )}
             <div className={`verse-paragraph verse-no-${verseNo}`} style={verseBlockStyle}>
               {para.verses.map((v) => {
+                const displayText = textByVerse.get(v.verse) ?? v.text;
                 const markInfo = underlinesOn
                   ? markForVerse(highlightMap, bookId, chapter, v.verse)
                   : null;
@@ -109,7 +115,7 @@ export default function ReaderChapterPeek({
                     )}
                     <span className="verse-text-body">
                       {renderPeekVerseBody(
-                        v.text,
+                        displayText,
                         `peek-v${v.verse}`,
                         v.verse,
                         renderVerseText,
