@@ -27,10 +27,9 @@ import { listAllThoughts } from '@/lib/reader_thoughts';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
-import { HomeDailyCarousel } from '@/components/home/HomeDailyCarousel';
 import { HomeSocialLine } from '@/components/home/HomeSocialLine';
 import { buildHomeSocialLine, type HomeSocialLine as HomeSocialLineData } from '@/lib/home_social_line';
-import { useAdminSession } from '@/lib/use_admin_session';
+import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { bookIdToChineseName } from '@/lib/ref_label';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { watchChinaDayChange } from '@/lib/daily_clock';
@@ -133,13 +132,9 @@ export default function HomePageClient() {
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [railMain, setRailMain] = useState<RailCard[]>([]);
   const [userName, setUserName] = useState('');
-  const [groupSummary, setGroupSummary] = useState<{
-    line: string;
-    href: string;
-  } | null>(null);
-  const [adminSocialLine, setAdminSocialLine] = useState<HomeSocialLineData | null>(null);
+  const [socialLine, setSocialLine] = useState<HomeSocialLineData | null>(null);
   const [socialLoading, setSocialLoading] = useState(false);
-  const { isAdmin } = useAdminSession();
+  const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
 
   useEffect(() => {
@@ -211,7 +206,6 @@ export default function HomePageClient() {
       statPct?: number;
       statLabel?: string;
     } | undefined;
-    let summaryLine: { line: string; href: string } | null = null;
     let summary: Awaited<ReturnType<typeof api.discoverSummary>> | null = null;
     try {
       const [groupsRes, summaryRes] = await Promise.all([
@@ -220,7 +214,7 @@ export default function HomePageClient() {
       ]);
       const groups = groupsRes.groups;
       summary = summaryRes;
-      setAdminSocialLine(buildHomeSocialLine(groups, summary));
+      setSocialLine(buildHomeSocialLine(groups, summary));
       const pending = groups.find((g) => !g.my_checked_in_today)
         ?? groups.find((g) => (g.open_tasks ?? 0) > 0);
       if (pending && (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0)) {
@@ -239,33 +233,10 @@ export default function HomePageClient() {
           statLabel: `${checked}/${members}`,
         };
       }
-      if (groups.length > 0) {
-        const checked = groups.reduce((n, g) => n + (g.checked_in_today ?? 0), 0);
-        const parts: string[] = [];
-        if (summary.groups_pending_checkin > 0) {
-          parts.push(`${summary.groups_pending_checkin} 个群待打卡`);
-        }
-        if (summary.groups_pending_tasks > 0) {
-          parts.push(`${summary.groups_pending_tasks} 个群任务`);
-        }
-        if (summary.friends_checked_in_today > 0) {
-          parts.push(`今天 ${summary.friends_checked_in_today} 位好友打卡`);
-        }
-        summaryLine = {
-          line: parts.length > 0
-            ? parts.join(' · ')
-            : `${groups[0].name} · 今日 ${checked} 人已打卡`,
-          href: pending ? `/discover/group/${pending.id}` : '/discover',
-        };
-      } else {
-        summaryLine = { line: '输入邀请码，加入共读群', href: '/discover/join' };
-      }
     } catch {
-      summaryLine = { line: '输入邀请码，加入共读群', href: '/discover/join' };
-      setAdminSocialLine(buildHomeSocialLine([], null));
+      setSocialLine(buildHomeSocialLine([], null));
     }
     setSocialLoading(false);
-    setGroupSummary(summaryLine);
     const suggest = nextReadingSuggestion();
     let assistantCard: { title: string; sub: string; href: string } | undefined;
     try {
@@ -317,7 +288,6 @@ export default function HomePageClient() {
   }, [refreshRail]);
 
   useEffect(() => {
-    if (!isAdmin) return;
     const onRefresh = () => {
       if (document.visibilityState !== 'visible') return;
       void refreshRail();
@@ -328,7 +298,11 @@ export default function HomePageClient() {
       document.removeEventListener('visibilitychange', onRefresh);
       window.removeEventListener('focus', onRefresh);
     };
-  }, [isAdmin, refreshRail]);
+  }, [refreshRail]);
+
+  useEffect(() => {
+    if (activeTab === 'home') void refreshRail();
+  }, [activeTab, refreshRail]);
 
   const lastRead = getLastRead();
 
@@ -371,17 +345,7 @@ export default function HomePageClient() {
   return (
     <main className="container">
       <header className="greet">
-        {isAdmin ? (
-          <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
-        ) : (
-          <div className="greet-text">
-            <span className="greet-prefix">{timeOfDayGreeting()}</span>
-            <span className="greet-name">
-              <i className="greet-bar" />
-              {userName}
-            </span>
-          </div>
-        )}
+        <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
         <div className="greet-actions">
           <a href="/search" aria-label="搜索" className="icon-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -505,32 +469,13 @@ export default function HomePageClient() {
         </div>
       </div>
 
-      {isAdmin ? <HomeDailyCarousel /> : null}
-
       <div className="home-stack home-stack-rail">
         <HomeRail cards={railMain} />
       </div>
 
-      {isAdmin ? (
-        <div className="home-stack">
-          <HomeSocialLine line={adminSocialLine} loading={socialLoading} />
-        </div>
-      ) : (
-        <div className="home-stack">
-          <a href="/profile" className="card-row home-reading-summary home-list-row text-stat">
-            <span className="home-list-main">
-              今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
-            </span>
-            <span className="muted home-list-chevron">›</span>
-          </a>
-
-          <a href={groupSummary?.href ?? '/discover'} className="card row-card home-list-row">
-            <span className="pill">小组</span>
-            <span className="home-list-main">{groupSummary?.line ?? '去发现 · 加入共读打卡'}</span>
-            <span className="muted home-list-cta">去发现 ›</span>
-          </a>
-        </div>
-      )}
+      <div className="home-stack">
+        <HomeSocialLine line={socialLine} loading={socialLoading} />
+      </div>
 
       <p className="section-label">成长与回忆</p>
       <div className="home-stack">
