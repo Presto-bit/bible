@@ -1,4 +1,4 @@
-/** PWA 主 Tab 客户端导航：离线时不触发 Next RSC 请求。 */
+/** 主 Tab 客户端导航：保活模式下离线切换不触发 Next RSC 请求。 */
 
 import { keepAliveTabId, normalizeAppPath } from './tab_keep_alive';
 import { withBasePath } from './basePath';

@@ -82,7 +82,7 @@ import {
   type WordAnchor,
   type WordRange,
 } from '@/lib/selection_range';
-import { isTouchPrimaryUI } from '@/lib/touch_ui';
+import { isTouchPrimaryUI, useNativeVerseSelection } from '@/lib/touch_ui';
 import {
   readNativePinnedHighlight,
   readNativeVerseSelection,
@@ -265,7 +265,7 @@ export default function ReaderView({
   const nativeCollapseTimerRef = useRef(0);
   const nativePinSuppressRef = useRef(false);
   const dismissUntilRef = useRef(0);
-  const nativeTouchSelect = isTouchPrimaryUI();
+  const nativeTouchSelect = useNativeVerseSelection();
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
@@ -1399,7 +1399,7 @@ export default function ReaderView({
   });
 
   useEffect(() => {
-    const frozen = Boolean(turn.dragSide) || turn.animating;
+    const frozen = Boolean(turn.dragSide) || turn.animating || turn.offCenter;
     peekFrozenRef.current = frozen;
     if (frozen) return;
     const pending = pendingPeekRef.current;
@@ -1411,7 +1411,7 @@ export default function ReaderView({
       setPeekNextBundle(pending.next);
       pendingPeekRef.current.next = null;
     }
-  }, [turn.dragSide, turn.animating]);
+  }, [turn.dragSide, turn.animating, turn.offCenter]);
 
   const turnHintLabel = (() => {
     if (!turn.dragSide) return '';
@@ -1436,7 +1436,7 @@ export default function ReaderView({
   const dismissNativeSelection = useCallback(() => {
     window.clearTimeout(nativeCollapseTimerRef.current);
     nativeCollapseTimerRef.current = 0;
-    dismissUntilRef.current = Date.now() + 800;
+    dismissUntilRef.current = Date.now() + 2000;
     nativePinSuppressRef.current = true;
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
@@ -1456,12 +1456,72 @@ export default function ReaderView({
       wordDragRafRef.current = 0;
     }
     swipeIgnoreUntilRef.current = Date.now() + 320;
+    requestAnimationFrame(() => {
+      clearNativePinnedHighlight();
+      window.getSelection()?.removeAllRanges();
+    });
     window.setTimeout(() => {
       nativePinSuppressRef.current = false;
-    }, 800);
+    }, 2000);
   }, []);
 
   const clearSelection = dismissNativeSelection;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.key === 'Escape') {
+        if (hasSel) {
+          e.preventDefault();
+          dismissNativeSelection();
+          return;
+        }
+        if (markPaletteOpen) {
+          setMarkPaletteOpen(false);
+          return;
+        }
+        if (locPopoverOpen) setLocPopoverOpen(false);
+        else if (summaryOpen) setSummaryOpen(false);
+        else if (showSettings) setShowSettings(false);
+        else if (showVersions) setShowVersions(false);
+        else if (aiSheet) setAiSheet(false);
+        else if (toolsSheet) setToolsSheet(null);
+        else if (thoughtWrite) setThoughtWrite(null);
+        else if (thoughtHub) setThoughtHub(null);
+        else if (groupCheckinOpen) setGroupCheckinOpen(false);
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
+      if (hasSel || overlayOpen) return;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (canNavPrev) navChapter(-1);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        if (canNavNext) navChapter(1);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [
+    hasSel,
+    overlayOpen,
+    markPaletteOpen,
+    locPopoverOpen,
+    summaryOpen,
+    showSettings,
+    showVersions,
+    aiSheet,
+    toolsSheet,
+    thoughtWrite,
+    thoughtHub,
+    groupCheckinOpen,
+    canNavPrev,
+    canNavNext,
+    dismissNativeSelection,
+    navChapter,
+  ]);
 
   const applyWordRange = useCallback((anchor: WordAnchor, focus: WordAnchor, opts?: { commit?: boolean }) => {
     const range: WordRange = { anchor, focus };
@@ -1683,7 +1743,12 @@ export default function ReaderView({
   useEffect(() => {
     const root = contentRef.current;
     if (!root || !nativeTouchSelect) return;
-    if (nativeSelecting || nativePinSuppressRef.current || !nativePinnedHighlight?.spans.length) {
+    if (
+      !hasSel
+      || nativeSelecting
+      || nativePinSuppressRef.current
+      || !nativePinnedHighlight?.spans.length
+    ) {
       clearNativePinnedHighlight();
       return;
     }
@@ -1702,6 +1767,7 @@ export default function ReaderView({
       clearNativePinnedHighlight();
     };
   }, [
+    hasSel,
     nativeTouchSelect,
     nativeSelecting,
     nativePinnedHighlight,
@@ -2204,10 +2270,10 @@ export default function ReaderView({
             <div
               className="reader-turn-viewport"
               ref={turn.viewportRef}
-              onTouchStart={turn.onTouchStart}
-              onTouchMove={turn.onTouchMove}
-              onTouchEnd={turn.onTouchEnd}
-              onTouchCancel={turn.onTouchCancel}
+              onPointerDown={turn.onPointerDown}
+              onPointerMove={turn.onPointerMove}
+              onPointerUp={turn.onPointerUp}
+              onPointerCancel={turn.onPointerCancel}
             >
               {turn.dragSide && (
                 <div
@@ -2237,7 +2303,9 @@ export default function ReaderView({
                     englishUI={englishUI}
                     verseNo={verseNo}
                     verseBlockStyle={verseBlockStyleFor(peekPrevBook?.id ?? book.id)}
-                    renderVerseText={renderVerseText}
+                    renderVerseBody={(text, keyBase, verseNum, markInfo) =>
+                      renderVerseBody(text, keyBase, verseNum, false, markInfo)
+                    }
                     highlightMap={highlightMap}
                     underlinesOn={underlinesOn}
                   />
@@ -2259,7 +2327,9 @@ export default function ReaderView({
                     englishUI={englishUI}
                     verseNo={verseNo}
                     verseBlockStyle={verseBlockStyleFor(peekNextBook?.id ?? book.id)}
-                    renderVerseText={renderVerseText}
+                    renderVerseBody={(text, keyBase, verseNum, markInfo) =>
+                      renderVerseBody(text, keyBase, verseNum, false, markInfo)
+                    }
                     highlightMap={highlightMap}
                     underlinesOn={underlinesOn}
                   />
@@ -2315,6 +2385,8 @@ export default function ReaderView({
           style={focusBarStyle}
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
         >
           {underlinesOn && markPaletteOpen && !currentMark && (
             <div className="reader-focus-row reader-focus-row-mark" role="group" aria-label="划线颜色">
@@ -2328,6 +2400,7 @@ export default function ReaderView({
                   onClick={() => {
                     applyMarkChoice(c);
                     setMarkPaletteOpen(false);
+                    dismissNativeSelection();
                   }}
                 />
               ))}
@@ -2365,6 +2438,7 @@ export default function ReaderView({
                   if (currentMark) {
                     clearMark();
                     setMarkPaletteOpen(false);
+                    dismissNativeSelection();
                     return;
                   }
                   setMarkPaletteOpen((v) => !v);
@@ -2388,17 +2462,7 @@ export default function ReaderView({
                 const text = `${effRefLabel} ${effSelectionText}`;
                 void navigator.clipboard.writeText(text);
                 flashToast(englishUI ? 'Copied' : '已复制');
-                flushSync(() => {
-                  dismissNativeSelection();
-                });
-                requestAnimationFrame(() => {
-                  clearNativePinnedHighlight();
-                  window.getSelection()?.removeAllRanges();
-                  requestAnimationFrame(() => {
-                    clearNativePinnedHighlight();
-                    window.getSelection()?.removeAllRanges();
-                  });
-                });
+                dismissNativeSelection();
               }}
             >
               <span className="vsb-icon" aria-hidden>

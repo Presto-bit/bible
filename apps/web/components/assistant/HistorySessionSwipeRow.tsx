@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type ReactNode } from 'react';
+import { isFinePointerUI } from '@/lib/touch_ui';
 
 type Props = {
   children: ReactNode;
@@ -32,12 +33,13 @@ function DeleteIcon() {
   );
 }
 
-/** 历史会话左滑露出「改名 / 删除」图标 */
+/** 历史会话左滑露出「改名 / 删除」；桌面悬停显示操作钮 */
 export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }: Props) {
   const [offset, setOffset] = useState(0);
   const offsetRef = useRef(0);
   const startX = useRef(0);
   const dragging = useRef(false);
+  const finePointer = isFinePointerUI();
   const revealed = offset < -4;
 
   const setOffsetSafe = (next: number) => {
@@ -46,12 +48,13 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
+    if (finePointer) return;
     startX.current = e.touches[0].clientX;
     dragging.current = true;
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current) return;
+    if (!dragging.current || finePointer) return;
     const dx = e.touches[0].clientX - startX.current;
     if (dx < 0) setOffsetSafe(Math.max(dx, -REVEAL_PX));
     else setOffsetSafe(0);
@@ -101,9 +104,35 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
           <DeleteIcon />
         </button>
       </div>
+      {finePointer ? (
+        <div className="swipe-reveal-desktop-actions">
+          <button
+            type="button"
+            className="swipe-reveal-desktop-btn"
+            aria-label="改名"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRename();
+            }}
+          >
+            改名
+          </button>
+          <button
+            type="button"
+            className="swipe-reveal-desktop-btn swipe-reveal-desktop-btn-delete"
+            aria-label="删除"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            删除
+          </button>
+        </div>
+      ) : null}
       <div
         className="swipe-reveal-content history-swipe-content"
-        style={{ transform: `translateX(${offset}px)` }}
+        style={finePointer ? undefined : { transform: `translateX(${offset}px)` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}

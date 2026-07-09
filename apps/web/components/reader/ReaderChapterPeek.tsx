@@ -13,6 +13,8 @@ import {
   type HighlightMark,
 } from '@/lib/reader_highlights';
 
+type MarkInfo = ReturnType<typeof markForVerse>;
+
 type Props = {
   bookId: string;
   chapter: number;
@@ -25,40 +27,16 @@ type Props = {
   englishUI: boolean;
   verseNo: VerseNumberMode;
   verseBlockStyle: React.CSSProperties;
-  renderVerseText: (text: string, keyBase: string, verse: number) => ReactNode;
+  /** 与正式正文共用同一渲染函数，保证预览/松手后版式一致 */
+  renderVerseBody: (
+    text: string,
+    keyBase: string,
+    verseNum: number,
+    markInfo?: MarkInfo,
+  ) => ReactNode;
   highlightMap: Record<string, HighlightMark>;
   underlinesOn: boolean;
 };
-
-function renderPeekVerseBody(
-  text: string,
-  keyBase: string,
-  verseNum: number,
-  renderVerseText: Props['renderVerseText'],
-  markInfo?: ReturnType<typeof markForVerse>,
-) {
-  const span = markInfo?.span;
-  const mark = markInfo?.mark ?? null;
-  const renderText = (t: string, suffix: string) =>
-    renderVerseText(t, `${keyBase}-${suffix}`, verseNum);
-
-  if (span && mark && span.end > span.start && span.start >= 0 && span.end <= text.length) {
-    const before = text.slice(0, span.start);
-    const mid = text.slice(span.start, span.end);
-    const after = text.slice(span.end);
-    return (
-      <>
-        {before ? renderText(before, 'pre') : null}
-        <span className={`verse-mark-span ${highlightClass(mark)}`}>
-          {renderText(mid, 'mid')}
-        </span>
-        {after ? renderText(after, 'post') : null}
-      </>
-    );
-  }
-
-  return renderText(text, 'body');
-}
 
 /** 跟手翻页邻章预览：版式与正式正文一致（章标题、专名、划线、对照列、段落标题）。 */
 export default function ReaderChapterPeek({
@@ -72,7 +50,7 @@ export default function ReaderChapterPeek({
   englishUI,
   verseNo,
   verseBlockStyle,
-  renderVerseText,
+  renderVerseBody,
   highlightMap,
   underlinesOn,
 }: Props) {
@@ -118,15 +96,8 @@ export default function ReaderChapterPeek({
                   <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                 )}
                 <span className="verse-text-body">
-                  {renderPeekVerseBody(
-                    displayText,
-                    `peek-v${v.verse}`,
-                    v.verse,
-                    renderVerseText,
-                    markInfo ?? undefined,
-                  )}
+                  {renderVerseBody(displayText, `peek-v${v.verse}`, v.verse, markInfo ?? undefined)}
                 </span>
-                {' '}
               </span>
             );
           })}
@@ -163,15 +134,8 @@ export default function ReaderChapterPeek({
                     <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                   )}
                   <span className="verse-text-body">
-                    {renderPeekVerseBody(
-                      displayText,
-                      `peek-p${v.verse}`,
-                      v.verse,
-                      renderVerseText,
-                      markInfo ?? undefined,
-                    )}
+                    {renderVerseBody(displayText, `peek-p${v.verse}`, v.verse, markInfo ?? undefined)}
                   </span>
-                  {' '}
                 </span>
               );
             })}
@@ -184,7 +148,7 @@ export default function ReaderChapterPeek({
                   {verseNo !== 'hidden' && (
                     <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                   )}
-                  {p2?.text ?? '—'}{' '}
+                  {p2?.text ?? '—'}
                 </span>
               );
             })}

@@ -3,7 +3,7 @@ import {
   useRef,
   useState,
   type MutableRefObject,
-  type TouchEvent,
+  type PointerEvent,
 } from 'react';
 
 /** 位移 ≥ 25% 且水平速度够快才翻页 */
@@ -47,6 +47,7 @@ export function useReaderPageTurn({
   onBoundary?: (edge: 'prev' | 'next') => void;
 }) {
   const [animating, setAnimating] = useState(false);
+  const [offCenter, setOffCenter] = useState(false);
   const [dragSide, setDragSide] = useState<TurnDragSide | null>(null);
   const [dragProgress, setDragProgress] = useState(0);
 
@@ -55,6 +56,7 @@ export function useReaderPageTurn({
   const offsetRef = useRef(0);
   const drag = useRef({
     active: false,
+    pointerId: -1,
     startX: 0,
     startY: 0,
     startTime: 0,
@@ -64,6 +66,7 @@ export function useReaderPageTurn({
 
   const applyOffset = useCallback((px: number, withAnim: boolean) => {
     offsetRef.current = px;
+    setOffCenter(Math.abs(px) > 0.5);
     const el = trackRef.current;
     if (!el) return;
     el.style.transition = withAnim ? `transform ${ANIM_MS}ms ease-out` : 'none';
@@ -97,58 +100,6 @@ export function useReaderPageTurn({
     return false;
   }, [blocked, ignoreUntilRef]);
 
-  const onTouchStart = useCallback(
-    (e: TouchEvent) => {
-      if (!enabled || animating || isIgnored()) return;
-      const sel = window.getSelection();
-      if (sel && !sel.isCollapsed) return;
-      drag.current = {
-        active: true,
-        startX: e.touches[0].clientX,
-        startY: e.touches[0].clientY,
-        startTime: performance.now(),
-        axis: null,
-        prefetched: false,
-      };
-    },
-    [enabled, animating, isIgnored],
-  );
-
-  const onTouchMove = useCallback(
-    (e: TouchEvent) => {
-      if (!enabled || !drag.current.active || isIgnored()) return;
-      const dx = e.touches[0].clientX - drag.current.startX;
-      const dy = e.touches[0].clientY - drag.current.startY;
-
-      if (!drag.current.axis) {
-        const adx = Math.abs(dx);
-        const ady = Math.abs(dy);
-        if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
-        // 竖滑优先：仅当水平明显主导时才锁横滑翻页
-        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
-          drag.current.axis = 'x';
-        } else {
-          drag.current.axis = 'y';
-        }
-      }
-
-      if (drag.current.axis !== 'x') return;
-      e.preventDefault();
-
-      const next = clampOffset(dx);
-      applyOffset(next, false);
-      updateDragHint(next);
-
-      const w = viewportRef.current?.clientWidth ?? window.innerWidth;
-      const ratio = Math.abs(next) / w;
-      if (!drag.current.prefetched && ratio >= PREFETCH_RATIO && onDragApproach) {
-        drag.current.prefetched = true;
-        onDragApproach(next < 0 ? 1 : -1);
-      }
-    },
-    [enabled, isIgnored, clampOffset, applyOffset, updateDragHint, onDragApproach],
-  );
-
   const finishDrag = useCallback(async () => {
     if (!enabled || !drag.current.active) return;
     const wasHorizontal = drag.current.axis === 'x';
@@ -157,6 +108,7 @@ export function useReaderPageTurn({
     const velocity = Math.abs(finalOffset) / elapsed;
 
     drag.current.active = false;
+    drag.current.pointerId = -1;
     drag.current.axis = null;
 
     const clearDragHint = () => {
@@ -218,12 +170,89 @@ export function useReaderPageTurn({
       return;
     }
 
-    // 回弹期间保留 dragSide，冻结 peek 更新，避免松手时预览文字重排跳动
+    setAnimating(true);
+    clearDragHint();
     applyOffset(0, true);
     await sleep(ANIM_MS);
     applyOffset(0, false);
-    clearDragHint();
+    setAnimating(false);
   }, [enabled, canPrev, canNext, onChapterChange, onBoundary, applyOffset]);
+
+  const onPointerDown = useCallback(
+    (e: PointerEvent) => {
+      if (!enabled || animating || isIgnored()) return;
+      if (e.button !== 0) return;
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) return;
+      drag.current = {
+        active: true,
+        pointerId: e.pointerId,
+        startX: e.clientX,
+        startY: e.clientY,
+        startTime: performance.now(),
+        axis: null,
+        prefetched: false,
+      };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    [enabled, animating, isIgnored],
+  );
+
+  const onPointerMove = useCallback(
+    (e: PointerEvent) => {
+      if (!enabled || !drag.current.active || e.pointerId !== drag.current.pointerId) return;
+      if (isIgnored()) return;
+      const dx = e.clientX - drag.current.startX;
+      const dy = e.clientY - drag.current.startY;
+
+      if (!drag.current.axis) {
+        const adx = Math.abs(dx);
+        const ady = Math.abs(dy);
+        if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
+        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
+          drag.current.axis = 'x';
+        } else {
+          drag.current.axis = 'y';
+        }
+      }
+
+      if (drag.current.axis !== 'x') return;
+      e.preventDefault();
+
+      const next = clampOffset(dx);
+      applyOffset(next, false);
+      updateDragHint(next);
+
+      const w = viewportRef.current?.clientWidth ?? window.innerWidth;
+      const ratio = Math.abs(next) / w;
+      if (!drag.current.prefetched && ratio >= PREFETCH_RATIO && onDragApproach) {
+        drag.current.prefetched = true;
+        onDragApproach(next < 0 ? 1 : -1);
+      }
+    },
+    [enabled, isIgnored, clampOffset, applyOffset, updateDragHint, onDragApproach],
+  );
+
+  const onPointerUp = useCallback(
+    (e: PointerEvent) => {
+      if (!drag.current.active || e.pointerId !== drag.current.pointerId) return;
+      try {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      void finishDrag();
+    },
+    [finishDrag],
+  );
+
+  const onPointerCancel = useCallback(
+    (e: PointerEvent) => {
+      if (!drag.current.active || e.pointerId !== drag.current.pointerId) return;
+      void finishDrag();
+    },
+    [finishDrag],
+  );
 
   return {
     viewportRef,
@@ -231,13 +260,10 @@ export function useReaderPageTurn({
     dragSide,
     dragProgress,
     animating,
-    onTouchStart,
-    onTouchMove,
-    onTouchEnd: () => {
-      void finishDrag();
-    },
-    onTouchCancel: () => {
-      void finishDrag();
-    },
+    offCenter,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp,
+    onPointerCancel,
   };
 }

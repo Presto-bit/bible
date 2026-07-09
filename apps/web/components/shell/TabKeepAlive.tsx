@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { isStandalonePwa } from '@/lib/platform';
+import { isTabKeepAliveEnabled } from '@/lib/platform';
 import { keepAliveTabId, normalizeAppPath, type KeepAliveTabId } from '@/lib/tab_keep_alive';
 import {
   getPwaTabPathname,
@@ -13,14 +13,14 @@ import {
 } from '@/lib/pwa_tab_nav';
 import { TabKeepAliveProvider } from './TabKeepAliveContext';
 
-function subscribePwaDisplayMode(onChange: () => void) {
+function subscribeKeepAlive(onChange: () => void) {
   const mq = window.matchMedia('(display-mode: standalone)');
   mq.addEventListener('change', onChange);
   return () => mq.removeEventListener('change', onChange);
 }
 
-function getPwaSnapshot() {
-  return isStandalonePwa();
+function getKeepAliveSnapshot() {
+  return isTabKeepAliveEnabled();
 }
 
 const paneLoading = (
@@ -76,7 +76,7 @@ function emptyMounted(): Record<KeepAliveTabId, boolean> {
 
 export default function TabKeepAlive({ children }: { children: React.ReactNode }) {
   const routerPathname = usePathname();
-  const enabled = useSyncExternalStore(subscribePwaDisplayMode, getPwaSnapshot, () => false);
+  const enabled = useSyncExternalStore(subscribeKeepAlive, getKeepAliveSnapshot, () => false);
   const pwaPathname = useSyncExternalStore(subscribePwaTabNav, getPwaTabPathname, () => '/');
   const prevRouterRef = useRef(routerPathname);
   if (enabled && prevRouterRef.current !== routerPathname) {

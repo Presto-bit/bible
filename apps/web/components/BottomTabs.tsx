@@ -3,7 +3,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { markReaderTabEntry } from '@/lib/reading';
-import { isStandalonePwa } from '@/lib/platform';
+import { isTabKeepAliveEnabled } from '@/lib/platform';
 import {
   getPwaTabPathname,
   isPwaMainTabHref,
@@ -94,7 +94,7 @@ export default function BottomTabs() {
   }, [compact, pathname]);
 
   useEffect(() => {
-    if (!isStandalonePwa()) return;
+    if (!isTabKeepAliveEnabled()) return;
     for (const href of ['/', '/reader', '/assistant', '/discover', '/profile']) {
       router.prefetch(href);
     }
@@ -103,7 +103,7 @@ export default function BottomTabs() {
   const go = (href: string) => {
     if (href === '/reader') markReaderTabEntry();
     if (pathname === href) return;
-    if (isStandalonePwa() && isPwaMainTabHref(href)) {
+    if (isTabKeepAliveEnabled() && isPwaMainTabHref(href)) {
       navigatePwaTab(href);
       return;
     }
@@ -142,11 +142,11 @@ export default function BottomTabs() {
 
 function useRouterPathname(): string {
   const routerPath = usePathname();
-  const pwa = isStandalonePwa();
+  const keepAlive = isTabKeepAliveEnabled();
   const pwaPath = useSyncExternalStore(
     subscribePwaTabNav,
     getPwaTabPathname,
     () => '/',
   );
-  return pwa ? resolvePwaPathname(routerPath, pwaPath) : normalizeAppPath(routerPath);
+  return keepAlive ? resolvePwaPathname(routerPath, pwaPath) : normalizeAppPath(routerPath);
 }

@@ -36,8 +36,16 @@ export function fontFamilyCss(f: ReaderFontFamily): string {
   return FONT_FAMILIES.find((x) => x.id === f)?.css ?? FONT_FAMILIES[0].css;
 }
 
+function defaultPageTurn(): PageTurnMode {
+  if (typeof window === 'undefined') return 'swipe';
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return 'scroll';
+  return 'swipe';
+}
+
 export function getPageTurn(): PageTurnMode {
-  return read(PAGE_TURN_KEY, 'swipe') === 'scroll' ? 'scroll' : 'swipe';
+  const saved = read(PAGE_TURN_KEY, '');
+  if (saved === 'scroll' || saved === 'swipe') return saved;
+  return defaultPageTurn();
 }
 
 export function setPageTurn(p: PageTurnMode) {

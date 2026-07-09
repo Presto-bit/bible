@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { BRAND_NAME, BRAND_PWA_SUBTITLE } from '@/lib/brand';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
-import { isStandalonePwa } from '@/lib/platform';
+import { isFinePointerDesktop, isStandalonePwa } from '@/lib/platform';
 import { ONBOARDING_DONE_EVENT, ONBOARDING_SEEN_KEY } from '@/lib/onboarding';
 
 export default function WebOnboardingSheet() {
@@ -14,7 +14,7 @@ export default function WebOnboardingSheet() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (localStorage.getItem(ONBOARDING_SEEN_KEY)) return;
-    setCanInstall(!isStandalonePwa());
+    setCanInstall(!isStandalonePwa() && !isFinePointerDesktop());
     const t = window.setTimeout(() => setOpen(true), 900);
     return () => window.clearTimeout(t);
   }, []);

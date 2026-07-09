@@ -8560,6 +8560,55 @@ a.license-row-name:hover {
   touch-action: pan-y;
 }
 
+@media (hover: hover) and (pointer: fine) {
+  .swipe-reveal-desktop-actions {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .swipe-reveal-row:hover .swipe-reveal-desktop-actions,
+  .swipe-reveal-row:focus-within .swipe-reveal-desktop-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .swipe-reveal-desktop-btn {
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--ink-soft);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .swipe-reveal-desktop-btn:hover {
+    background: var(--accent-wash);
+    color: var(--accent-deep);
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--line));
+  }
+
+  .swipe-reveal-desktop-btn-delete:hover {
+    background: #fde8e8;
+    color: #b1554a;
+    border-color: #e8b4b0;
+  }
+
+  .history-swipe-row .swipe-reveal-desktop-actions {
+    right: 10px;
+  }
+}
+
 .reader-focus-row-mark {
   justify-content: center;
   align-items: center;

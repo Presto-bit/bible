@@ -171,12 +171,12 @@ export default function InstallBanner() {
 
   useEffect(() => {
     if (platform === null) return;
-    if (platform === 'standalone' || isDismissed() || !onboardingDone) {
+    if (platform === 'standalone' || platform === 'desktop' || isDismissed() || !onboardingDone) {
       setHidden(true);
     }
   }, [platform, onboardingDone]);
 
-  if (hidden || !platform || platform === 'standalone' || !onboardingDone) {
+  if (hidden || !platform || platform === 'standalone' || platform === 'desktop' || !onboardingDone) {
     return <InstallPwaSheet open={sheetOpen} onClose={() => setSheetOpen(false)} platform={platform ?? undefined} />;
   }
 

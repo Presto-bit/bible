@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState, type ReactNode } from 'react';
+import { isFinePointerUI } from '@/lib/touch_ui';
 
 type Props = {
   children: ReactNode;
@@ -24,6 +25,7 @@ export function SwipeRevealRow({
   const offsetRef = useRef(0);
   const startX = useRef(0);
   const dragging = useRef(false);
+  const finePointer = isFinePointerUI();
 
   const setOffsetSafe = (next: number) => {
     offsetRef.current = next;
@@ -31,13 +33,13 @@ export function SwipeRevealRow({
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
-    if (disabled) return;
+    if (disabled || finePointer) return;
     startX.current = e.touches[0].clientX;
     dragging.current = true;
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current || disabled) return;
+    if (!dragging.current || disabled || finePointer) return;
     const dx = e.touches[0].clientX - startX.current;
     if (dx < 0) setOffsetSafe(Math.max(dx, -REVEAL_PX));
     else setOffsetSafe(0);
@@ -72,9 +74,24 @@ export function SwipeRevealRow({
       >
         {deleteLabel}
       </button>
+      {finePointer ? (
+        <div className="swipe-reveal-desktop-actions">
+          <button
+            type="button"
+            className="swipe-reveal-desktop-btn swipe-reveal-desktop-btn-delete"
+            aria-label={deleteLabel}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            {deleteLabel}
+          </button>
+        </div>
+      ) : null}
       <div
         className="swipe-reveal-content"
-        style={{ transform: `translateX(${offset}px)` }}
+        style={finePointer ? undefined : { transform: `translateX(${offset}px)` }}
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
