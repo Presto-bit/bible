@@ -88,6 +88,7 @@ import {
   type WordRange,
 } from '@/lib/selection_range';
 import {
+  isFinePointerUI,
   isTouchPrimaryUI,
   shouldAutoCollapseNativeSelection,
   useNativeVerseSelection,
@@ -274,6 +275,7 @@ export default function ReaderView({
   const nativeCollapseTimerRef = useRef(0);
   const nativePinSuppressRef = useRef(false);
   const dismissUntilRef = useRef(0);
+  const nativeSelectionRef = useRef<NativeVerseSelection | null>(null);
   const nativeTouchSelect = useNativeVerseSelection();
   const autoCollapseNativeSel = shouldAutoCollapseNativeSelection();
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
@@ -497,6 +499,9 @@ export default function ReaderView({
   useEffect(() => {
     hasSelRef.current = hasSel;
   }, [hasSel]);
+  useEffect(() => {
+    nativeSelectionRef.current = nativeSelection;
+  }, [nativeSelection]);
   const selectionSpan = useMemo(
     () => (wordRange ? wordRangeToSpan(wordRange).span : null),
     [wordRange],
@@ -1473,6 +1478,11 @@ export default function ReaderView({
     return englishUI ? `Ch. ${peekPrevChapter}` : `第 ${peekPrevChapter} 章`;
   })();
 
+  const markNativeSelectionCommitted = useCallback(() => {
+    lastSelectAt.current = Date.now();
+    swipeIgnoreUntilRef.current = Date.now() + 320;
+  }, []);
+
   const clearSelectionVisual = useCallback(() => {
     clearNativePinnedHighlight();
     window.getSelection()?.removeAllRanges();
@@ -1681,12 +1691,28 @@ export default function ReaderView({
       }, delayMs);
     };
 
+    const browserHasNativeSelection = () => {
+      const sel = window.getSelection();
+      return Boolean(
+        sel
+        && !sel.isCollapsed
+        && sel.rangeCount > 0
+        && root.contains(sel.anchorNode)
+        && root.contains(sel.focusNode),
+      );
+    };
+
     const keepSelectionState = () => {
       if (Date.now() < dismissUntilRef.current) return false;
       return (
         pinningRef.current
         || nativeSelectingRef.current
         || Boolean(nativePinnedHighlightRef.current?.spans.length)
+        || (
+          !autoCollapseNativeSel
+          && browserHasNativeSelection()
+          && Boolean(nativeSelectionRef.current?.verses.length)
+        )
       );
     };
 
@@ -1719,6 +1745,7 @@ export default function ReaderView({
         setWholeVerseSel([]);
         setWordRange(null);
         wordRangeRef.current = null;
+        markNativeSelectionCommitted();
         if (autoCollapseNativeSel) scheduleCollapse(120);
       }
     };
@@ -1757,9 +1784,35 @@ export default function ReaderView({
           setWholeVerseSel([]);
           setWordRange(null);
           wordRangeRef.current = null;
+          markNativeSelectionCommitted();
           if (autoCollapseNativeSel) scheduleCollapse(160);
         }
       });
+    };
+
+    let suppressGhostClickUntil = 0;
+    const blockGhostClick = (ev: MouseEvent) => {
+      if (Date.now() > suppressGhostClickUntil) {
+        root.removeEventListener('click', blockGhostClick, true);
+        return;
+      }
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      setSelecting(false);
+      commitLiveSelection();
+      if (e.pointerType === 'mouse' && isFinePointerUI()) {
+        const next = readNativeVerseSelection(root);
+        if (next) {
+          suppressGhostClickUntil = Date.now() + 400;
+          root.addEventListener('click', blockGhostClick, true);
+          window.setTimeout(() => {
+            root.removeEventListener('click', blockGhostClick, true);
+          }, 420);
+        }
+      }
     };
 
     const onPointerDown = (e: PointerEvent) => {
@@ -1767,11 +1820,6 @@ export default function ReaderView({
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = 0;
       setSelecting(true);
-    };
-
-    const onPointerUp = () => {
-      setSelecting(false);
-      commitLiveSelection();
     };
 
     document.addEventListener('selectionchange', sync);
@@ -1786,11 +1834,12 @@ export default function ReaderView({
       root.removeEventListener('touchend', onPointerUp);
       root.removeEventListener('pointerup', onPointerUp);
       root.removeEventListener('pointercancel', onPointerUp);
+      root.removeEventListener('click', blockGhostClick, true);
       if (raf) cancelAnimationFrame(raf);
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = 0;
     };
-  }, [book.id, chapter, swipeTurn, nativeTouchSelect, autoCollapseNativeSel, verses]);
+  }, [book.id, chapter, swipeTurn, nativeTouchSelect, autoCollapseNativeSel, markNativeSelectionCommitted, verses]);
 
   // 触控 pin 高亮：DOM 稳定后绘制，不改动经文 React 树
   useEffect(() => {
@@ -1991,13 +2040,25 @@ export default function ReaderView({
       const t = e.target as HTMLElement;
       if (t.closest('.verse-inline') || t.closest('.reader-focus-bar')) return;
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
-      if (hasSel || hasPinned) dismissNativeSelection();
+      if (hasSel || hasPinned) {
+        if (Date.now() - lastSelectAt.current < 500) return;
+        dismissNativeSelection();
+      }
     },
     [hasSel, dismissNativeSelection],
   );
 
   useEffect(() => {
     if (hasSel || nativeSelecting) return;
+    const root = contentRef.current;
+    if (!autoCollapseNativeSel && root) {
+      const live = readNativeVerseSelection(root);
+      if (live) {
+        setNativeSelection(live);
+        setLiveNativeSelection(live);
+        return;
+      }
+    }
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
     setNativePinnedHighlight(null);
@@ -2005,7 +2066,7 @@ export default function ReaderView({
     setNativeSelection(null);
     setLiveNativeSelection(null);
     window.getSelection()?.removeAllRanges();
-  }, [hasSel, nativeSelecting]);
+  }, [hasSel, nativeSelecting, autoCollapseNativeSel]);
 
   const handleVerseDoubleClick = useCallback(
     (e: React.MouseEvent, verse: number) => {
@@ -2286,6 +2347,7 @@ export default function ReaderView({
         if (focusBarRef.current?.contains(e.target as Node)) return;
         const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
         if (hasSel || hasPinned) {
+          if (Date.now() - lastSelectAt.current < 500) return;
           dismissNativeSelection();
           return;
         }

@@ -1,5 +1,3 @@
-import { isStandalonePwa } from './platform';
-
 /** 是否以触控为主（手机 H5 / 平板竖屏） */
 export function isTouchPrimaryUI(): boolean {
   if (typeof window === 'undefined') return false;
@@ -12,10 +10,9 @@ export function isFinePointerUI(): boolean {
   return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 }
 
-/** 读经划选：触控 / PWA 走系统原生划选；桌面精确指针走词块点选 */
+/** 读经划选：系统原生划选 + 应用工具条（含桌面鼠标拖选） */
 export function useNativeVerseSelection(): boolean {
-  if (typeof window === 'undefined') return false;
-  return isTouchPrimaryUI() || isStandalonePwa();
+  return typeof window !== 'undefined';
 }
 
 /** 原生划选落定后是否自动收起系统选区（桌面保留浏览器高亮，避免工具条闪灭） */
