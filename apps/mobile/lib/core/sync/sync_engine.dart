@@ -12,7 +12,9 @@ import 'package:drift/drift.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../database/app_database.dart';
+import '../badge_catalog.dart' show normalizeBadgeId;
 import '../features/plans/plan_session.dart';
+import 'sync_contract.dart';
 
 class SyncResult {
   SyncResult({this.pushed = 0, this.skipped = 0, this.pulled = 0, this.cursor = 0});
@@ -116,6 +118,34 @@ class SyncEngine {
         'data': {'minutes': r.minutes, 'chapters': r.chapters},
       });
 
+  Future<void> enqueueReadEvent({
+    required String id,
+    required int ts,
+    required String book,
+    required int chapter,
+  }) =>
+      _enqueue('read_event', {
+        'entity': 'read_event',
+        'op': 'update',
+        'id': id,
+        'version': 1,
+        'client_ts': _iso(ts),
+        'data': {'ts': ts, 'book': book.toUpperCase(), 'chapter': chapter},
+      });
+
+  Future<void> enqueueBadgeUnlock({
+    required String badgeId,
+    required int unlockedAtMs,
+  }) =>
+      _enqueue('badge_unlock', {
+        'entity': 'badge_unlock',
+        'op': 'update',
+        'id': badgeId,
+        'version': 1,
+        'client_ts': _iso(unlockedAtMs),
+        'data': {'badge_id': badgeId, 'unlocked_at': unlockedAtMs},
+      });
+
   Future<void> enqueueReadingProgress(ReadingProgressData r) =>
       _enqueue('reading_progress', {
         'entity': 'reading_progress',
@@ -146,7 +176,10 @@ class SyncEngine {
   // ── pull ─────────────────────────────────────────────────────────
   Future<({int pulled, int cursor})> pull() async {
     final since = int.tryParse(await _db.meta(_kCursor) ?? '0') ?? 0;
-    final res = await _dio.get('/sync/pull', queryParameters: {'since': since});
+    final res = await _dio.get('/sync/pull', queryParameters: {
+      'since': since,
+      'entities': SyncContract.pullEntities.join(','),
+    });
     final changes = (res.data['changes'] ?? []) as List;
     var pulled = 0;
     for (final c in changes.cast<Map<String, dynamic>>()) {
@@ -169,6 +202,10 @@ class SyncEngine {
         return _applyAiSession(c);
       case 'reading_log':
         return _applyReadingLog(c);
+      case 'read_event':
+        return _applyReadEvent(c);
+      case 'badge_unlock':
+        return _applyBadgeUnlock(c);
       case 'plan_progress':
         return _applyPlanProgress(c);
       case 'reading_progress':
@@ -302,12 +339,81 @@ class SyncEngine {
       return true;
     }
     final data = (c['data'] ?? const {}) as Map<String, dynamic>;
+    final incM = (data['minutes'] ?? 0) as int;
+    final incC = (data['chapters'] ?? 0) as int;
+    final prev = await _db.readingLogByDate(date);
+    final mergedM = SyncContract.mergeMinutes(prev?.minutes ?? 0, incM);
+    final mergedC = SyncContract.mergeChapters(prev?.chapters ?? 0, incC);
+    if (prev != null && mergedM == prev.minutes && mergedC == prev.chapters) {
+      return false;
+    }
     await _db.into(_db.readingLogs).insertOnConflictUpdate(ReadingLogsCompanion(
           date: Value(date),
-          minutes: Value((data['minutes'] ?? 0) as int),
-          chapters: Value((data['chapters'] ?? 0) as int),
+          minutes: Value(mergedM),
+          chapters: Value(mergedC),
           updatedAtMs: Value(ms),
         ));
+    return true;
+  }
+
+  Future<bool> _applyReadEvent(Map<String, dynamic> c) async {
+    if (_prefs == null) return false;
+    final id = c['id'] as String?;
+    if (id == null) return false;
+    if (c['op'] == 'delete') return false;
+    final data = (c['data'] ?? const {}) as Map<String, dynamic>;
+    final ts = (data['ts'] as num?)?.toInt();
+    final book = data['book'] as String?;
+    final chapter = (data['chapter'] as num?)?.toInt();
+    if (ts == null || book == null || chapter == null) return false;
+    const key = 'read_chapter_events';
+    final raw = _prefs!.getString(key);
+    final list = <Map<String, dynamic>>[];
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        list.addAll((jsonDecode(raw) as List).cast<Map<String, dynamic>>());
+      } catch (_) {}
+    }
+    final syncId = SyncContract.readEventSyncId(book, chapter, ts);
+    if (list.any((e) =>
+        SyncContract.readEventSyncId(
+              '${e['book']}',
+              (e['chapter'] as num).toInt(),
+              (e['ts'] as num).toInt(),
+            ) ==
+            syncId)) {
+      return false;
+    }
+    list.add({'ts': ts, 'book': book.toUpperCase(), 'chapter': chapter});
+    if (list.length > 2000) {
+      list.removeRange(0, list.length - 2000);
+    }
+    await _prefs!.setString(key, jsonEncode(list));
+    return true;
+  }
+
+  Future<bool> _applyBadgeUnlock(Map<String, dynamic> c) async {
+    if (_prefs == null) return false;
+    final id = normalizeBadgeId(c['id'] as String? ?? '');
+    if (id.isEmpty) return false;
+    if (c['op'] == 'delete') return false;
+    final data = (c['data'] ?? const {}) as Map<String, dynamic>;
+    final at = (data['unlocked_at'] as num?)?.toInt();
+    if (at == null) return false;
+    const key = 'badge_unlock_at';
+    final raw = _prefs!.getString(key);
+    final map = <String, int>{};
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw) as Map<String, dynamic>;
+        for (final e in decoded.entries) {
+          map[normalizeBadgeId(e.key)] = (e.value as num).toInt();
+        }
+      } catch (_) {}
+    }
+    final prev = map[id];
+    map[id] = prev == null ? at : (prev < at ? prev : at);
+    await _prefs!.setString(key, jsonEncode(map));
     return true;
   }
 
@@ -315,13 +421,24 @@ class SyncEngine {
     final ms = _tsToMs(c['updated_at']);
     final data = (c['data'] ?? const {}) as Map<String, dynamic>;
     if (data['book'] == null) return false;
+    final local = await _db.currentReadingProgress();
+    final remoteBook = data['book'] as String;
+    final remoteChapter = (data['chapter'] ?? 1) as int;
+    final remoteVerse = (data['verse'] ?? 1) as int;
+    if (local != null) {
+      final sameBook = local.book == remoteBook;
+      final ahead = sameBook &&
+          (remoteChapter > local.chapter ||
+              (remoteChapter == local.chapter && remoteVerse > local.verse));
+      if (!ahead && ms <= local.updatedAtMs) return false;
+    }
     await _db
         .into(_db.readingProgress)
         .insertOnConflictUpdate(ReadingProgressCompanion(
           singleton: const Value(0),
-          book: Value(data['book'] as String),
-          chapter: Value((data['chapter'] ?? 1) as int),
-          verse: Value((data['verse'] ?? 1) as int),
+          book: Value(remoteBook),
+          chapter: Value(remoteChapter),
+          verse: Value(remoteVerse),
           updatedAtMs: Value(ms),
         ));
     return true;

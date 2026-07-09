@@ -1,0 +1,866 @@
+{
+  "version": 1,
+  "categories": {
+    "persistence": "坚持",
+    "explore": "探索",
+    "xiaoai": "小爱",
+    "devotional": "灵修",
+    "social": "群体",
+    "easter_egg": "彩蛋"
+  },
+  "categoryOrder": [
+    "persistence",
+    "explore",
+    "xiaoai",
+    "devotional",
+    "social",
+    "easter_egg"
+  ],
+  "badges": [
+    {
+      "id": "streak_1",
+      "label": "初识经文",
+      "desc": "迈出读经第一步",
+      "hint": "连续读经 1 天",
+      "icon": "🌱",
+      "category": "persistence",
+      "interesting": false,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "streak",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "streak",
+        "max": 1
+      }
+    },
+    {
+      "id": "streak_7",
+      "label": "连续一周",
+      "desc": "七天同行",
+      "hint": "连续读经 7 天",
+      "icon": "🔥",
+      "category": "persistence",
+      "interesting": false,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "streak",
+        "value": 7
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "streak",
+        "max": 7
+      }
+    },
+    {
+      "id": "streak_30",
+      "label": "月度同行",
+      "desc": "三十日坚持",
+      "hint": "连续读经 30 天",
+      "icon": "🏅",
+      "category": "persistence",
+      "interesting": false,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "streak",
+        "value": 30
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "streak",
+        "max": 30
+      }
+    },
+    {
+      "id": "streak_365",
+      "label": "全年守望",
+      "desc": "与神同行一整年",
+      "hint": "连续读经 365 天",
+      "icon": "👑",
+      "category": "persistence",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "streak",
+        "value": 365
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "streak",
+        "max": 365
+      }
+    },
+    {
+      "id": "books_5",
+      "label": "五卷起步",
+      "desc": "探索五卷书卷",
+      "hint": "读过 5 卷不同书卷",
+      "icon": "📖",
+      "category": "persistence",
+      "interesting": false,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "readBooks",
+        "value": 5
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "readBooks",
+        "max": 5
+      }
+    },
+    {
+      "id": "books_27",
+      "label": "新约通读",
+      "desc": "新约二十七卷均有足迹",
+      "hint": "新约 27 卷均有阅读",
+      "icon": "✝",
+      "category": "persistence",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "ntBooksRead",
+        "value": 27
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "ntBooksRead",
+        "max": 27
+      }
+    },
+    {
+      "id": "books_20_ot",
+      "label": "旧约旅人",
+      "desc": "旧约二十卷均有足迹",
+      "hint": "旧约 20 卷均有阅读",
+      "icon": "🏜",
+      "category": "persistence",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "otBooksRead",
+        "value": 20
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "otBooksRead",
+        "max": 20
+      }
+    },
+    {
+      "id": "books_66",
+      "label": "全经行者",
+      "desc": "六十六卷均有足迹",
+      "hint": "66 卷均有阅读",
+      "icon": "🌍",
+      "category": "persistence",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "readBooks",
+        "value": 66
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "readBooks",
+        "max": 66
+      }
+    },
+    {
+      "id": "crossref_first",
+      "label": "串珠初探",
+      "desc": "看见经文之间的关联",
+      "hint": "打开串珠工具 1 次",
+      "icon": "🔗",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "crossref_open",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.crossref_open",
+        "max": 1
+      }
+    },
+    {
+      "id": "strongs_first",
+      "label": "原文好奇者",
+      "desc": "追溯词语根源",
+      "hint": "查看 Strong 编号 1 次",
+      "icon": "🔤",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "strongs_open",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.strongs_open",
+        "max": 1
+      }
+    },
+    {
+      "id": "parallel_reader",
+      "label": "对照读者",
+      "desc": "多译本并排阅读",
+      "hint": "对照模式读完 1 章",
+      "icon": "📑",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "parallel_chapters",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.parallel_chapters",
+        "max": 1
+      }
+    },
+    {
+      "id": "dict_3",
+      "label": "词典旅人",
+      "desc": "认识圣经人物与地名",
+      "hint": "查阅 3 个不同词条",
+      "icon": "📚",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "stats_array_len_gte",
+        "field": "dict_entities",
+        "value": 3
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.dict_entities.length",
+        "max": 3
+      }
+    },
+    {
+      "id": "map_tour",
+      "label": "地图行者",
+      "desc": "在地图上行走故事",
+      "hint": "展开一个地图故事专题",
+      "icon": "🗺",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "stats_array_len_gte",
+        "field": "map_tours",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.map_tours.length",
+        "max": 1
+      }
+    },
+    {
+      "id": "timeline_tour",
+      "label": "时间旅人",
+      "desc": "沿时间线追溯历史",
+      "hint": "展开一个时间线专题",
+      "icon": "⏳",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "stats_array_len_gte",
+        "field": "timeline_tours",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.timeline_tours.length",
+        "max": 1
+      }
+    },
+    {
+      "id": "topic_3",
+      "label": "主题采撷",
+      "desc": "按主题发现经文",
+      "hint": "浏览 3 个不同主题页",
+      "icon": "🌿",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "stats_array_len_gte",
+        "field": "topic_ids",
+        "value": 3
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.topic_ids.length",
+        "max": 3
+      }
+    },
+    {
+      "id": "short_book_complete",
+      "label": "整卷速读",
+      "desc": "一口气读完短篇书卷",
+      "hint": "读完 1 卷 10 章以内的书",
+      "icon": "⚡",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "short_book_complete"
+      },
+      "progress": {
+        "type": "custom",
+        "name": "short_book_complete"
+      }
+    },
+    {
+      "id": "psalm_day_15",
+      "label": "诗篇一日",
+      "desc": "一日诗篇漫游",
+      "hint": "同一天读 15 篇不同诗篇",
+      "icon": "🎵",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "psalm_day",
+        "args": {
+          "min": 15
+        }
+      },
+      "progress": {
+        "type": "custom",
+        "name": "psalm_day",
+        "args": {
+          "min": 15
+        }
+      }
+    },
+    {
+      "id": "four_gospels",
+      "label": "四福音巡游",
+      "desc": "四福音各读一章",
+      "hint": "马太、马可、路加、约翰各读 1 章",
+      "icon": "🕊",
+      "category": "explore",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "gospels_started",
+        "args": {
+          "min": 4
+        }
+      },
+      "progress": {
+        "type": "custom",
+        "name": "gospels_started",
+        "args": {
+          "min": 4
+        }
+      }
+    },
+    {
+      "id": "xiaoai_first",
+      "label": "初次请教",
+      "desc": "向小爱提出第一个问题",
+      "hint": "向小爱提问 1 次",
+      "icon": "✦",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "xiaoai_questions",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.xiaoai_questions",
+        "max": 1
+      }
+    },
+    {
+      "id": "citation_first",
+      "label": "脚注学者",
+      "desc": "顺藤摸瓜读出处",
+      "hint": "点击脚注引用 1 次",
+      "icon": "📎",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "citation_clicks",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.citation_clicks",
+        "max": 1
+      }
+    },
+    {
+      "id": "save_answer_note",
+      "label": "存笔记达人",
+      "desc": "把亮光存下来",
+      "hint": "从小爱回答存笔记 1 次",
+      "icon": "📝",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "save_answer_notes",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.save_answer_notes",
+        "max": 1
+      }
+    },
+    {
+      "id": "followup_3",
+      "label": "追问三连",
+      "desc": "刨根问底",
+      "hint": "同一会话连续追问 3 次",
+      "icon": "💬",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "max_followups_session",
+        "value": 3
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.max_followups_session",
+        "max": 3
+      }
+    },
+    {
+      "id": "half_sheet",
+      "label": "半屏知己",
+      "desc": "阅读中随时请教",
+      "hint": "使用半屏小爱 1 次",
+      "icon": "📱",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "half_sheet_xiaoai",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.half_sheet_xiaoai",
+        "max": 1
+      }
+    },
+    {
+      "id": "life_apply",
+      "label": "生活应用派",
+      "desc": "把真理带入生活",
+      "hint": "使用「生活应用」场景提问",
+      "icon": "🌱",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "stats_includes",
+        "field": "scenes_used",
+        "value": "chat_apply"
+      },
+      "progress": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": "triple_scene",
+      "label": "同一节三重奏",
+      "desc": "多角度认识一节经文",
+      "hint": "对同一节经文用 3 种场景提问",
+      "icon": "🎼",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "triple_scene",
+        "args": {
+          "min": 3
+        }
+      },
+      "progress": {
+        "type": "custom",
+        "name": "triple_scene",
+        "args": {
+          "min": 3
+        }
+      }
+    },
+    {
+      "id": "share_answer",
+      "label": "分享亮光",
+      "desc": "把好答案分享出去",
+      "hint": "分享小爱回答 1 次",
+      "icon": "📤",
+      "category": "xiaoai",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "share_answers",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.share_answers",
+        "max": 1
+      }
+    },
+    {
+      "id": "note_first",
+      "label": "首笔心得",
+      "desc": "记录第一段感动",
+      "hint": "写 1 条笔记",
+      "icon": "✎",
+      "category": "devotional",
+      "interesting": false,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "noteCount",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "noteCount",
+        "max": 1
+      }
+    },
+    {
+      "id": "note_deep",
+      "label": "深度反思",
+      "desc": "沉潜思考",
+      "hint": "单条笔记不少于 100 字",
+      "icon": "📓",
+      "category": "devotional",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "maxNoteLen",
+        "value": 100
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "maxNoteLen",
+        "max": 100
+      }
+    },
+    {
+      "id": "highlight_3",
+      "label": "彩色经文",
+      "desc": "用颜色标记重点",
+      "hint": "使用 3 种不同划线颜色",
+      "icon": "🖍",
+      "category": "devotional",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "highlightColors",
+        "value": 3
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "highlightColors",
+        "max": 3
+      }
+    },
+    {
+      "id": "bookmark_10",
+      "label": "书签收藏家",
+      "desc": "珍藏重要经节",
+      "hint": "收藏 10 节经文",
+      "icon": "🔖",
+      "category": "devotional",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "bookmarkCount",
+        "value": 10
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "bookmarkCount",
+        "max": 10
+      }
+    },
+    {
+      "id": "thought_first",
+      "label": "想法发布者",
+      "desc": "分享读经想法",
+      "hint": "发布 1 条读经想法",
+      "icon": "💭",
+      "category": "devotional",
+      "interesting": true,
+      "rule": {
+        "type": "ctx_gte",
+        "field": "thoughtCount",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "thoughtCount",
+        "max": 1
+      }
+    },
+    {
+      "id": "memory_review",
+      "label": "复习卡片",
+      "desc": "温故知新",
+      "hint": "从收藏复习进入阅读 1 次",
+      "icon": "🃏",
+      "category": "devotional",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "memory_reviews",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.memory_reviews",
+        "max": 1
+      }
+    },
+    {
+      "id": "checkin_first",
+      "label": "第一次打卡",
+      "desc": "在群体中见证",
+      "hint": "在共读群打卡 1 次",
+      "icon": "📍",
+      "category": "social",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "group_checkins",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.group_checkins",
+        "max": 1
+      }
+    },
+    {
+      "id": "checkin_streak_7",
+      "label": "守群人",
+      "desc": "与群友彼此守望",
+      "hint": "同一群连续打卡 7 天",
+      "icon": "🛡",
+      "category": "social",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "group_checkin_streak",
+        "args": {
+          "min": 7
+        }
+      },
+      "progress": {
+        "type": "custom",
+        "name": "group_checkin_streak",
+        "args": {
+          "min": 7
+        }
+      }
+    },
+    {
+      "id": "respond_first",
+      "label": "回应同伴",
+      "desc": "彼此鼓励",
+      "hint": "回应群友打卡 1 次",
+      "icon": "🤝",
+      "category": "social",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "group_responses",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.group_responses",
+        "max": 1
+      }
+    },
+    {
+      "id": "group_create",
+      "label": "群主初任",
+      "desc": "发起共读",
+      "hint": "创建 1 个共读群",
+      "icon": "👥",
+      "category": "social",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "groups_created",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.groups_created",
+        "max": 1
+      }
+    },
+    {
+      "id": "plan_share",
+      "label": "计划同行",
+      "desc": "与群一起读计划",
+      "hint": "将读经计划分享到群",
+      "icon": "📅",
+      "category": "social",
+      "interesting": true,
+      "rule": {
+        "type": "stats_bool",
+        "field": "plan_shared_group"
+      },
+      "progress": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": "invite_accept",
+      "label": "邀请使者",
+      "desc": "应邀加入群体",
+      "hint": "接受 1 次群邀请",
+      "icon": "✉",
+      "category": "social",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "invites_accepted",
+        "value": 1
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.invites_accepted",
+        "max": 1
+      }
+    },
+    {
+      "id": "jas_short",
+      "label": "最短的一节",
+      "desc": "遇见雅 4:15",
+      "hint": "阅读雅 4:15",
+      "icon": "📏",
+      "category": "easter_egg",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "has_verse_ref",
+        "args": {
+          "ref": "JAS.4.15"
+        }
+      },
+      "progress": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": "ps119",
+      "label": "最长的一章",
+      "desc": "读完诗 119 篇",
+      "hint": "阅读诗 119 篇",
+      "icon": "📜",
+      "category": "easter_egg",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "has_chapter",
+        "args": {
+          "book": "PSA",
+          "chapter": 119
+        }
+      },
+      "progress": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": "twelve_apostles",
+      "label": "十二使徒",
+      "desc": "读太 10 章",
+      "hint": "阅读太 10 章",
+      "icon": "🐟",
+      "category": "easter_egg",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "has_chapter",
+        "args": {
+          "book": "MAT",
+          "chapter": 10
+        }
+      },
+      "progress": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": "prodigal",
+      "label": "浪子回家",
+      "desc": "读路 15 章",
+      "hint": "阅读路 15 章",
+      "icon": "🏠",
+      "category": "easter_egg",
+      "interesting": true,
+      "rule": {
+        "type": "custom",
+        "name": "has_chapter",
+        "args": {
+          "book": "LUK",
+          "chapter": 15
+        }
+      },
+      "progress": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": "night_xiaoai",
+      "label": "Still Small Voice",
+      "desc": "深夜向小爱倾诉",
+      "hint": "23:00–5:00 向小爱提问",
+      "icon": "🌙",
+      "category": "easter_egg",
+      "interesting": true,
+      "rule": {
+        "type": "stats_bool",
+        "field": "night_xiaoai"
+      },
+      "progress": {
+        "type": "bool"
+      }
+    },
+    {
+      "id": "wrong_revive",
+      "label": "错题复活",
+      "desc": "把错题重新答对",
+      "hint": "累计复活 5 道错题",
+      "icon": "🔄",
+      "category": "easter_egg",
+      "interesting": true,
+      "rule": {
+        "type": "stats_gte",
+        "field": "wrong_revived",
+        "value": 5
+      },
+      "progress": {
+        "type": "ratio",
+        "field": "stats.wrong_revived",
+        "max": 5
+      }
+    }
+  ]
+}

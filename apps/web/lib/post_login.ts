@@ -24,6 +24,10 @@ export async function mergeGuest(): Promise<void> {
 export async function afterLogin(): Promise<{ pushed: number; pulled: number } | null> {
   await mergeGuest();
   try {
+    const { needsSyncMigration, enqueueLocalReadingMigration } = await import('./sync_migrate');
+    if (needsSyncMigration()) {
+      enqueueLocalReadingMigration();
+    }
     return await syncNow();
   } catch {
     return null;

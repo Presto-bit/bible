@@ -24,8 +24,19 @@ function read(): Record<string, DayLog> {
   }
 }
 
+export function getReadingLogMap(): Record<string, DayLog> {
+  return read();
+}
+
 function write(logs: Record<string, DayLog>) {
   localStorage.setItem(KEY, JSON.stringify(logs));
+  if (typeof window !== 'undefined') {
+    const day = ymd(new Date());
+    const log = logs[day];
+    if (log) {
+      void import('./reading_log_sync').then((m) => m.pushReadingLog(day, log));
+    }
+  }
 }
 
 function addDwellSeconds(sec: number) {
@@ -157,10 +168,12 @@ export function getLastReadVerse(bookId: string, chapter: number): number | null
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 
-export function setLastRead(bookId: string, chapter: number) {
+export function setLastRead(bookId: string, chapter: number, opts?: { skipSync?: boolean }) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(LAST_KEY, JSON.stringify({ bookId, chapter }));
-  void import('./reading_progress_sync').then((m) => m.pushReadingProgress({ bookId, chapter }));
+  if (!opts?.skipSync) {
+    void import('./reading_progress_sync').then((m) => m.pushReadingProgress({ bookId, chapter }));
+  }
 }
 
 export function getLastRead(): LastRead | null {
@@ -250,6 +263,7 @@ export function logChapterDetail(book: string, chapter: number) {
   // 仅保留最近 2000 条，控制体积。
   const trimmed = events.slice(-2000);
   localStorage.setItem(EVENTS_KEY, JSON.stringify(trimmed));
+  void import('./read_event_sync').then((m) => m.pushReadEvent({ ts: now, book, chapter }));
 }
 
 /** 若该卷刚读完一遍，触发知识挑战弱推送（仅首次）。 */

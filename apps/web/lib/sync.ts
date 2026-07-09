@@ -24,7 +24,17 @@ import {
 } from './ai_session_sync';
 import { applyRemoteReadingProgress } from './reading_progress_sync';
 import { applyRemoteProfile } from './profile_sync';
+import { mergeRemoteReadingLog } from './reading_log_sync';
+import { mergeRemoteReadEvent } from './read_event_sync';
+import { applyRemoteBadgeUnlock } from './badge_unlock_sync';
+import { SYNC_PULL_ENTITIES } from './sync_contract';
 import { removeHighlight, setHighlight, type HighlightColor } from './reader_highlights';
+
+let syncPullDepth = 0;
+
+export function isSyncPullActive(): boolean {
+  return syncPullDepth > 0;
+}
 
 export interface Envelope {
   entity: string;
@@ -107,10 +117,11 @@ async function push(): Promise<number> {
 
 async function pull(): Promise<number> {
   markSyncStart();
+  syncPullDepth += 1;
   try {
     const since = Number(localStorage.getItem(CURSOR_KEY) || '0');
     const res = await fetch(
-      `${API_BASE}/sync/pull?since=${since}&entities=note,plan_progress,highlight,bookmark,ai_session,reading_progress,user_profile`,
+      `${API_BASE}/sync/pull?since=${since}&entities=${SYNC_PULL_ENTITIES.join(',')}`,
       { headers: authHeaders(), cache: 'no-store' },
     );
     if (!res.ok) throw new Error(`拉取失败 ${res.status}`);
@@ -131,9 +142,15 @@ async function pull(): Promise<number> {
       color?: string;
       book?: string;
       chapter?: number;
+      verse?: number | null;
+      minutes?: number;
+      chapters?: number;
+      ts?: number;
+      badge_id?: string;
+      unlocked_at?: number;
       avatar_id?: string;
     } | null;
-    keys?: { plan_id?: string };
+    keys?: { plan_id?: string; date?: string };
   }>;
   const aiSessionChanges: RemoteAiSession[] = [];
   for (const c of changes) {
@@ -181,7 +198,16 @@ async function pull(): Promise<number> {
       });
     }
     if (c.entity === 'reading_progress' && c.op === 'update') {
-      applyRemoteReadingProgress(c.data);
+      applyRemoteReadingProgress(c.data, c.updated_at);
+    }
+    if (c.entity === 'reading_log' && c.op === 'update' && c.keys?.date) {
+      mergeRemoteReadingLog(c.keys.date, c.data);
+    }
+    if (c.entity === 'read_event' && c.op === 'update' && c.id) {
+      mergeRemoteReadEvent({ id: c.id, ...c.data });
+    }
+    if (c.entity === 'badge_unlock' && c.op === 'update') {
+      applyRemoteBadgeUnlock(c.data, { silent: true });
     }
     if (c.entity === 'user_profile' && c.op === 'update') {
       applyRemoteProfile(c.data);
@@ -193,6 +219,7 @@ async function pull(): Promise<number> {
   if (data.cursor != null) localStorage.setItem(CURSOR_KEY, String(data.cursor));
   return changes.length;
   } finally {
+    syncPullDepth -= 1;
     markSyncDone();
   }
 }

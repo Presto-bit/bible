@@ -1,5 +1,6 @@
 import { computeAllBadges, type BadgeDef } from './badges';
 import { loadBadgeStats, markBadgeToasted, stampBadgeUnlock } from './badge_events';
+import { normalizeBadgeId } from './badge_catalog';
 import { buildReport, bookProgressMap } from './reading';
 import { readingStreak } from './gamification';
 import { listAllThoughts } from './reader_thoughts';
@@ -8,6 +9,8 @@ import { highlightColorCount, highlightCount } from './reader_highlights';
 import { loadFavoriteRefs } from './favorites';
 import { getActivePlan, getCompletedPlanDays } from './plan_progress';
 import { api, currentUserId } from './api';
+import { isSyncPullActive } from './sync';
+import { pushBadgeUnlock } from './badge_unlock_sync';
 
 export const BADGE_UNLOCK_EVENT = 'presto-badge-unlock';
 
@@ -16,14 +19,18 @@ export function syncBadgeUnlockTimestamps(badges: BadgeDef[]): BadgeDef[] {
   const now = Date.now();
   return badges.map((b) => {
     if (!b.done) return b;
-    const at = stats.unlocked_at[b.id] ?? now;
-    if (!stats.unlocked_at[b.id]) stampBadgeUnlock(b.id, at);
+    const id = normalizeBadgeId(b.id);
+    const at = stats.unlocked_at[id] ?? now;
+    if (!stats.unlocked_at[id]) {
+      stampBadgeUnlock(id, at);
+      pushBadgeUnlock(id, at);
+    }
     return { ...b, unlockedAt: at };
   });
 }
 
 export function notifyNewBadgeUnlocks(badges: BadgeDef[]) {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined' || isSyncPullActive()) return;
   const stats = loadBadgeStats();
   for (const b of badges) {
     if (!b.done || stats.toasted_ids.includes(b.id)) continue;

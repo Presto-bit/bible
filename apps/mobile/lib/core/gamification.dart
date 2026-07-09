@@ -1,4 +1,4 @@
-/// 游戏化：连续打卡、徽章、知识卡、节期活动、小爱闯关（本地优先）。
+/// 游戏化：连续打卡、知识卡、节期活动、小爱闯关（本地优先）。
 library;
 
 import 'dart:convert';
@@ -10,26 +10,11 @@ import '../features/bible/bible_repository.dart';
 import '../features/bible/reading_repository.dart';
 import 'api_client.dart';
 
+export 'badge_eval.dart' show BadgeDef, profilePreviewBadges;
+export 'badge_engine.dart' show badgesProvider, badgeCatalogProvider;
+
 const _quizKey = 'presto_quiz_progress';
 const _aiQuizKey = 'presto_ai_quiz_progress';
-
-class BadgeDef {
-  BadgeDef({
-    required this.id,
-    required this.label,
-    required this.desc,
-    required this.icon,
-    required this.done,
-    required this.progress,
-  });
-
-  final String id;
-  final String label;
-  final String desc;
-  final String icon;
-  final bool done;
-  final String progress;
-}
 
 class QuizCard {
   QuizCard({
@@ -104,102 +89,6 @@ int readingStreak(ReviewData data) {
     d = d.subtract(const Duration(days: 1));
   }
   return streak;
-}
-
-int _quizCorrectCount(SharedPreferences prefs) {
-  try {
-    final raw = jsonDecode(prefs.getString(_quizKey) ?? '{}') as Map;
-    return raw.values.where((v) => v == true).length;
-  } catch (_) {
-    return 0;
-  }
-}
-
-int _aiQuizWins(SharedPreferences prefs) {
-  try {
-    final raw = jsonDecode(prefs.getString(_aiQuizKey) ?? '{}') as Map;
-    return raw.values.where((v) => v == true).length;
-  } catch (_) {
-    return 0;
-  }
-}
-
-List<BadgeDef> computeBadges({
-  required int streak,
-  required int readBooks,
-  required int totalBooks,
-  int noteCount = 0,
-  int quizCount = 0,
-  int aiWins = 0,
-}) {
-  final ntDone = readBooks >= 27;
-  final psaPct = (readBooks / (totalBooks > 0 ? totalBooks : 1) * 150).round().clamp(0, 100);
-  return [
-    BadgeDef(
-      id: 'streak7',
-      label: '连续7天',
-      desc: '连续读经打卡',
-      icon: '🔥',
-      done: streak >= 7,
-      progress: '${streak.clamp(0, 7)}/7',
-    ),
-    BadgeDef(
-      id: 'streak30',
-      label: '连续30天',
-      desc: '坚持一个月',
-      icon: '🔥',
-      done: streak >= 30,
-      progress: '${streak.clamp(0, 30)}/30',
-    ),
-    BadgeDef(
-      id: 'books10',
-      label: '读完10卷',
-      desc: '探索圣经各卷',
-      icon: '📖',
-      done: readBooks >= 10,
-      progress: '${readBooks.clamp(0, 10)}/10',
-    ),
-    BadgeDef(
-      id: 'nt',
-      label: '新约通读',
-      desc: '新约 27 卷',
-      icon: '✝',
-      done: ntDone,
-      progress: ntDone ? '✓' : '$readBooks/27',
-    ),
-    BadgeDef(
-      id: 'notes10',
-      label: '10条笔记',
-      desc: '记录灵修心得',
-      icon: '✎',
-      done: noteCount >= 10,
-      progress: '${noteCount.clamp(0, 10)}/10',
-    ),
-    BadgeDef(
-      id: 'quiz50',
-      label: '挑战达人',
-      desc: '答对 50 道知识卡',
-      icon: '🃏',
-      done: quizCount >= 50,
-      progress: '${quizCount.clamp(0, 50)}/50',
-    ),
-    BadgeDef(
-      id: 'psa',
-      label: '诗篇旅人',
-      desc: '读经旅程推进',
-      icon: '🎵',
-      done: psaPct >= 100,
-      progress: '$psaPct%',
-    ),
-    BadgeDef(
-      id: 'ai5',
-      label: '小爱闯关',
-      desc: '完成 5 次闯关',
-      icon: '✦',
-      done: aiWins >= 5,
-      progress: '${aiWins.clamp(0, 5)}/5',
-    ),
-  ];
 }
 
 final quizCards = <QuizCard>[
@@ -408,20 +297,3 @@ Map<String, String>? getPendingBookChallenge(SharedPreferences prefs) {
 void clearPendingBookChallenge(SharedPreferences prefs) {
   prefs.remove(_pendingBookKey);
 }
-
-final badgesProvider = FutureProvider<List<BadgeDef>>((ref) async {
-  final data = await ref.watch(reviewDataProvider.future);
-  final books = await ref.watch(booksProvider.future);
-  final prefs = ref.watch(prefsProvider);
-  final totals = {for (final b in books) b.id: b.chapterCount};
-  final prog = data.bookProgress(totals);
-  final readBooks =
-      prog.values.where((p) => p.distinctChapters > 0 || p.passes >= 1).length;
-  return computeBadges(
-    streak: readingStreak(data),
-    readBooks: readBooks,
-    totalBooks: books.length,
-    quizCount: _quizCorrectCount(prefs),
-    aiWins: _aiQuizWins(prefs),
-  );
-});

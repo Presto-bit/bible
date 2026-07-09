@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/database/app_database.dart';
+import '../../core/sync/sync_contract.dart';
 import '../notes/notes_repository.dart' show dbProvider, syncEngineProvider;
 
 final readingProgressStreamProvider =
@@ -56,6 +57,13 @@ class ReadingRepository {
     list.add({'ts': now, 'book': book, 'chapter': chapter});
     if (list.length > 2000) list.removeRange(0, list.length - 2000);
     _prefs.setString(_chapterEventsKey, jsonEncode(list));
+    final syncId = SyncContract.readEventSyncId(book, chapter, now);
+    _sync.enqueueReadEvent(
+      id: syncId,
+      ts: now,
+      book: book,
+      chapter: chapter,
+    );
   }
 
   // 金句记录：阅读时点选某节即记一次（去抖 10s）。

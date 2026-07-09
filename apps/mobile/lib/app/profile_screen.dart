@@ -46,98 +46,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      builder: (ctx) => DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.72,
-        maxChildSize: 0.92,
-        builder: (_, scroll) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.line,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text('成就徽章',
-                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700, color: AppColors.ink)),
-              Text(
-                  '已收集 ${badges.where((b) => b.done).length} / ${badges.length}',
-                  style: const TextStyle(
-                      fontSize: 12, color: AppColors.inkFaint)),
-              const SizedBox(height: 16),
-              Expanded(
-                child: GridView.builder(
-                  controller: scroll,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.82,
-                  ),
-                  itemCount: badges.length,
-                  itemBuilder: (_, i) {
-                    final b = badges[i];
-                    return Opacity(
-                      opacity: b.done ? 1 : 0.5,
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 52,
-                            height: 52,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  AppColors.accentWash,
-                                  AppColors.goldWash,
-                                ],
-                              ),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                  color: b.done
-                                      ? AppColors.accentDeep
-                                      : AppColors.line),
-                            ),
-                            child: Center(
-                              child: Text(
-                                  b.done ? b.icon : b.progress,
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.accentDeep)),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(b.label,
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 11, color: AppColors.ink)),
-                          Text(b.desc,
-                              textAlign: TextAlign.center,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  fontSize: 10, color: AppColors.inkFaint)),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      builder: (ctx) => _BadgeGallerySheet(badges: badges),
     );
   }
 
@@ -637,15 +546,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             height: 72,
                             child: Center(child: CircularProgressIndicator())),
                         error: (_, __) => const SizedBox.shrink(),
-                        data: (badges) => SizedBox(
+                        data: (badges) {
+                          final preview = profilePreviewBadges(badges);
+                          return SizedBox(
                           height: 72,
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
-                            itemCount: badges.take(4).length,
+                            itemCount: preview.length,
                             separatorBuilder: (_, __) =>
                                 const SizedBox(width: 10),
                             itemBuilder: (_, i) {
-                              final b = badges[i];
+                              final b = preview[i];
                               return Column(
                                 children: [
                                   Container(
@@ -684,7 +595,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               );
                             },
                           ),
-                        ),
+                        );
+                        },
                       ),
                 ],
               ),
@@ -1019,6 +931,191 @@ class _InfoTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _BadgeGallerySheet extends ConsumerStatefulWidget {
+  const _BadgeGallerySheet({required this.badges});
+
+  final List<BadgeDef> badges;
+
+  @override
+  ConsumerState<_BadgeGallerySheet> createState() => _BadgeGallerySheetState();
+}
+
+class _BadgeGallerySheetState extends ConsumerState<_BadgeGallerySheet> {
+  String _tab = 'all';
+
+  @override
+  Widget build(BuildContext context) {
+    final catalog = ref.watch(badgeCatalogProvider);
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.72,
+      maxChildSize: 0.92,
+      builder: (_, scroll) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: catalog.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, __) => const SizedBox.shrink(),
+          data: (cat) {
+            final filtered = _tab == 'all'
+                ? widget.badges
+                : widget.badges.where((b) => b.category == _tab).toList();
+            final earned = widget.badges.where((b) => b.done).length;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.line,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text('成就徽章',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700, color: AppColors.ink)),
+                Text('已收集 $earned / ${widget.badges.length}',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.inkFaint)),
+                const SizedBox(height: 12),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _BadgeTab(
+                        label: '全部',
+                        active: _tab == 'all',
+                        onTap: () => setState(() => _tab = 'all'),
+                      ),
+                      for (final c in cat.categoryOrder)
+                        _BadgeTab(
+                          label: cat.categoryLabels[c] ?? c,
+                          active: _tab == c,
+                          onTap: () => setState(() => _tab = c),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Expanded(
+                  child: GridView.builder(
+                    controller: scroll,
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 3,
+                      mainAxisSpacing: 14,
+                      crossAxisSpacing: 10,
+                      childAspectRatio: 0.72,
+                    ),
+                    itemCount: filtered.length,
+                    itemBuilder: (_, i) {
+                      final b = filtered[i];
+                      return Opacity(
+                        opacity: b.done ? 1 : 0.55,
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    AppColors.accentWash,
+                                    AppColors.goldWash,
+                                  ],
+                                ),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: b.done
+                                        ? AppColors.accentDeep
+                                        : AppColors.line),
+                              ),
+                              child: Center(
+                                child: Text(b.icon,
+                                    style: const TextStyle(fontSize: 20)),
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(b.label,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.ink)),
+                            Text(b.desc,
+                                textAlign: TextAlign.center,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 10, color: AppColors.inkFaint)),
+                            if (!b.done) ...[
+                              Text(b.hint,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      fontSize: 9, color: AppColors.accentDeep)),
+                              Text(b.progress,
+                                  style: const TextStyle(
+                                      fontSize: 10,
+                                      color: AppColors.inkFaint)),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _BadgeTab extends StatelessWidget {
+  const _BadgeTab({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: active ? AppColors.accentWash : AppColors.paper,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: active ? AppColors.accentDeep : AppColors.line),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                  color: active ? AppColors.accentDeep : AppColors.inkSoft)),
+        ),
+      ),
     );
   }
 }

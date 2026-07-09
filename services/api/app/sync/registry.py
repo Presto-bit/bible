@@ -55,6 +55,14 @@ REGISTRY: dict[str, EntitySpec] = {
         "user_profile", "user_profile", ("user_id",), (),
         ("avatar_id", "bio", "username", "user_code"), False,
     ),
+    "read_event": EntitySpec(
+        "read_event", "read_event", ("id",), ("id",),
+        ("ts", "book", "chapter"), True,
+    ),
+    "badge_unlock": EntitySpec(
+        "badge_unlock", "badge_unlock", ("id",), ("id",),
+        ("badge_id", "unlocked_at"), True,
+    ),
 }
 
 

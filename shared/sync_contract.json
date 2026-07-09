@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "entities": [
+    "note",
+    "highlight",
+    "bookmark",
+    "ai_session",
+    "plan_progress",
+    "reading_progress",
+    "reading_log",
+    "read_event",
+    "badge_unlock",
+    "user_profile"
+  ],
+  "merge": {
+    "reading_log": {
+      "strategy": "per_day_max",
+      "keys": ["date"],
+      "fields": { "minutes": "max", "chapters": "max" }
+    },
+    "reading_progress": {
+      "strategy": "lww",
+      "tiebreak": "higher_verse_same_chapter"
+    },
+    "read_event": {
+      "strategy": "idempotent",
+      "id": "{date}:{book}:{chapter}",
+      "local_dedupe_ms": 1800000
+    },
+    "badge_unlock": {
+      "strategy": "lww",
+      "unlocked_at": "earliest"
+    }
+  }
+}

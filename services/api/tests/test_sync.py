@@ -49,6 +49,12 @@ def test_registry_specs_consistent():
             assert ac in spec.data_cols
 
 
+def test_registry_includes_reading_telemetry():
+    assert "reading_log" in REGISTRY
+    assert "read_event" in REGISTRY
+    assert "badge_unlock" in REGISTRY
+
+
 def test_keyvals_id_entity():
     spec = get_spec("note")
     kv = _keyvals(spec, {"entity": "note", "id": "abc", "data": {"body": "hi"}})

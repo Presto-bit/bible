@@ -172,6 +172,57 @@ def _upsert(conn, spec: EntitySpec, user_id: str, change: dict, device_id: str |
     conn.execute(sql, tuple(vals))
 
 
+def _merge_reading_log_change(
+    conn,
+    user_id: str,
+    change: dict,
+) -> tuple[dict, bool]:
+    """reading_log 按日合并：minutes/chapters 取较大值，避免 LWW 覆盖丢数据。"""
+    keys = change.get("keys") or {}
+    date = keys.get("date")
+    if not date:
+        return change, True
+    row = conn.execute(
+        "SELECT minutes, chapters, client_ts FROM reading_log WHERE user_id = %s AND date = %s",
+        (user_id, date),
+    ).fetchone()
+    data = dict(change.get("data") or {})
+    inc_m = int(data.get("minutes") or 0)
+    inc_c = int(data.get("chapters") or 0)
+    if not row:
+        return {**change, "data": {"minutes": inc_m, "chapters": inc_c}}, True
+    ex_m, ex_c, ex_ts = int(row[0] or 0), int(row[1] or 0), row[2]
+    merged_m = max(ex_m, inc_m)
+    merged_c = max(ex_c, inc_c)
+    merged = {**change, "data": {"minutes": merged_m, "chapters": merged_c}}
+    if merged_m > ex_m or merged_c > ex_c:
+        return merged, True
+    inc_ts = _parse_ts(change.get("client_ts"))
+    if not should_apply(ex_ts, None, inc_ts, None):
+        return merged, False
+    return merged, True
+
+
+def _merge_badge_unlock_change(conn, user_id: str, change: dict) -> dict:
+    """badge_unlock：unlocked_at 取较早时间（首次解锁为准）。"""
+    badge_id = change.get("id") or (change.get("data") or {}).get("badge_id")
+    if not badge_id:
+        return change
+    row = conn.execute(
+        "SELECT unlocked_at FROM badge_unlock WHERE user_id = %s AND id = %s AND deleted = false",
+        (user_id, badge_id),
+    ).fetchone()
+    data = dict(change.get("data") or {})
+    inc_at = int(data.get("unlocked_at") or 0)
+    if not row:
+        data.setdefault("badge_id", badge_id)
+        return {**change, "data": data}
+    ex_at = int(row[0] or 0)
+    data["badge_id"] = badge_id
+    data["unlocked_at"] = min(ex_at, inc_at) if ex_at and inc_at else (ex_at or inc_at)
+    return {**change, "data": data}
+
+
 def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
     applied, skipped, errors = 0, 0, []
     pool = get_pool()
@@ -183,6 +234,13 @@ def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
                 continue
             try:
                 keyvals = _keyvals(spec, change)
+                if spec.entity == "reading_log":
+                    change, apply = _merge_reading_log_change(conn, user_id, change)
+                    if not apply:
+                        skipped += 1
+                        continue
+                elif spec.entity == "badge_unlock":
+                    change = _merge_badge_unlock_change(conn, user_id, change)
                 ex_ts, ex_ver = _existing(conn, spec, user_id, keyvals)
                 inc_ts = _parse_ts(change.get("client_ts"))
                 inc_ver = int(change.get("version") or 1)
