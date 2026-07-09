@@ -244,10 +244,9 @@ export default function ProfileTab() {
             <SyncStatusBadge />
           </div>
           {bioEditing ? (
-            <div style={{ marginTop: 4 }}>
+            <div className="profile-bio-edit-wrap">
               <input
-                className="book-chip"
-                style={{ width: '100%', textAlign: 'left', fontSize: 12 }}
+                className="book-chip profile-bio-input"
                 placeholder="一句话签名（≤15 字）"
                 value={bio}
                 maxLength={15}

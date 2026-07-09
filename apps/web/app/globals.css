@@ -4312,6 +4312,26 @@ body.verse-full-open .tabbar {
   text-align: left;
 }
 
+.profile-bio-edit-wrap {
+  margin-top: 2px;
+}
+
+.profile-bio-input {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  padding: 2px 8px;
+  min-height: 0;
+  font-size: 12px;
+}
+
+/* iOS：小号输入聚焦会放大视口，签名编辑保持 16px */
+@media (hover: none) and (pointer: coarse) {
+  .profile-bio-input {
+    font-size: 16px;
+  }
+}
+
 .profile-bio-edit:hover .muted {
   color: var(--ink-soft);
 }
