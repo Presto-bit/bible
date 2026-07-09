@@ -7016,17 +7016,9 @@ a.license-row-name:hover {
 }
 
 .reader-turn-panel-active {
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  overflow: hidden;
   height: 100%;
-  padding-bottom: var(--reader-scroll-bottom);
-  box-sizing: border-box;
-}
-
-.reader-turn-panel-active::-webkit-scrollbar {
-  display: none;
+  min-height: 0;
 }
 
 .reader-turn-panel-peek {
@@ -7038,6 +7030,25 @@ a.license-row-name:hover {
 .reader-turn-peek {
   height: 100%;
   overflow: hidden;
+}
+
+.reader-turn-panel-active .reader-turn-peek {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.reader-turn-panel-active .reader-turn-peek::-webkit-scrollbar {
+  display: none;
+}
+
+.reader-turn-panel-active .reader-turn-peek::after,
+.reader-scroll-panel::after {
+  content: '';
+  display: block;
+  height: var(--reader-scroll-bottom);
+  flex-shrink: 0;
 }
 
 .reader-turn-peek-empty {
@@ -7067,8 +7078,6 @@ a.license-row-name:hover {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
-  padding-bottom: var(--reader-scroll-bottom);
-  box-sizing: border-box;
 }
 
 .reader-scroll-panel::-webkit-scrollbar {
@@ -7110,7 +7119,7 @@ a.license-row-name:hover {
 
   .reader-page .reader-content,
   .reader-page .reader-scroll-panel,
-  .reader-page .reader-turn-panel {
+  .reader-page .reader-turn-panel-active .reader-turn-peek {
     touch-action: pan-y;
   }
 }
