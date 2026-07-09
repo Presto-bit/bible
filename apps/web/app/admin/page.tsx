@@ -2,7 +2,7 @@
 
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import AdminRagPanel, { AdminLoginForm } from '@/components/AdminRagPanel';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
@@ -16,7 +16,7 @@ function parseTab(value: string | null): AdminTab {
   return 'stats';
 }
 
-export default function AdminPage() {
+function AdminPageInner() {
   useEdgeSwipeBack({ href: '/profile' });
   const searchParams = useSearchParams();
 
@@ -100,5 +100,13 @@ export default function AdminPage() {
         </>
       )}
     </main>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={<main className="page admin-page"><p className="muted" style={{ fontSize: 13 }}>加载中…</p></main>}>
+      <AdminPageInner />
+    </Suspense>
   );
 }
