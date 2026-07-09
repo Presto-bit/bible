@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { readingStreak } from '@/lib/gamification';
 import { todayMinutes } from '@/lib/reading';
+import { subscribeLocalDataChanged } from '@/lib/local_data_events';
+import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 
 type Props = {
   greeting: string;
@@ -10,8 +13,24 @@ type Props = {
 };
 
 export function HomeGreetStreak({ greeting, userName }: Props) {
-  const streak = readingStreak();
-  const minutes = todayMinutes();
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const bump = () => setTick((n) => n + 1);
+    const unsubSync = subscribeSyncState(() => {
+      if (getSyncState() === 'synced') bump();
+    });
+    const unsubData = subscribeLocalDataChanged(bump);
+    return () => {
+      unsubSync();
+      unsubData();
+    };
+  }, []);
+
+  const { streak, minutes } = useMemo(
+    () => ({ streak: readingStreak(), minutes: todayMinutes() }),
+    [tick],
+  );
   const readToday = minutes > 0;
 
   let streakLine: string;

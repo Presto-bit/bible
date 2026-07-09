@@ -29,6 +29,7 @@ import { mergeRemoteReadEvent } from './read_event_sync';
 import { applyRemoteBadgeUnlock } from './badge_unlock_sync';
 import { SYNC_PULL_ENTITIES } from './sync_contract';
 import { removeHighlight, setHighlight, type HighlightColor } from './reader_highlights';
+import { notifyLocalDataChanged } from './local_data_events';
 
 let syncPullDepth = 0;
 
@@ -219,6 +220,7 @@ async function pull(): Promise<number> {
   if (data.cursor != null) localStorage.setItem(CURSOR_KEY, String(data.cursor));
   if (changes.length > 0) {
     void import('./badge_unlock').then((m) => m.runBadgeRecheck());
+    notifyLocalDataChanged('sync-pull');
   }
   return changes.length;
   } finally {

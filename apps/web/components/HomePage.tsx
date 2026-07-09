@@ -33,6 +33,8 @@ import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { bookIdToChineseName } from '@/lib/ref_label';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { watchChinaDayChange } from '@/lib/daily_clock';
+import { subscribeLocalDataChanged } from '@/lib/local_data_events';
+import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 
 /** 与 Mobile 首页一致的时段问候 */
 function timeOfDayGreeting(date = new Date()): string {
@@ -145,7 +147,15 @@ export default function HomePageClient() {
     };
     refreshName();
     window.addEventListener('focus', refreshName);
-    return () => window.removeEventListener('focus', refreshName);
+    const unsubSync = subscribeSyncState(() => {
+      if (getSyncState() === 'synced') refreshName();
+    });
+    const unsubData = subscribeLocalDataChanged(refreshName);
+    return () => {
+      window.removeEventListener('focus', refreshName);
+      unsubSync();
+      unsubData();
+    };
   }, []);
 
   const refreshRail = useCallback(async () => {

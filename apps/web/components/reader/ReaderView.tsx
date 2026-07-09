@@ -87,7 +87,11 @@ import {
   type WordAnchor,
   type WordRange,
 } from '@/lib/selection_range';
-import { isTouchPrimaryUI, useNativeVerseSelection } from '@/lib/touch_ui';
+import {
+  isTouchPrimaryUI,
+  shouldAutoCollapseNativeSelection,
+  useNativeVerseSelection,
+} from '@/lib/touch_ui';
 import {
   readNativePinnedHighlight,
   readNativeVerseSelection,
@@ -271,6 +275,7 @@ export default function ReaderView({
   const nativePinSuppressRef = useRef(false);
   const dismissUntilRef = useRef(0);
   const nativeTouchSelect = useNativeVerseSelection();
+  const autoCollapseNativeSel = shouldAutoCollapseNativeSelection();
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
@@ -1714,7 +1719,7 @@ export default function ReaderView({
         setWholeVerseSel([]);
         setWordRange(null);
         wordRangeRef.current = null;
-        scheduleCollapse(120);
+        if (autoCollapseNativeSel) scheduleCollapse(120);
       }
     };
 
@@ -1752,7 +1757,7 @@ export default function ReaderView({
           setWholeVerseSel([]);
           setWordRange(null);
           wordRangeRef.current = null;
-          scheduleCollapse(160);
+          if (autoCollapseNativeSel) scheduleCollapse(160);
         }
       });
     };
@@ -1785,7 +1790,7 @@ export default function ReaderView({
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = 0;
     };
-  }, [book.id, chapter, swipeTurn, nativeTouchSelect, verses]);
+  }, [book.id, chapter, swipeTurn, nativeTouchSelect, autoCollapseNativeSel, verses]);
 
   // 触控 pin 高亮：DOM 稳定后绘制，不改动经文 React 树
   useEffect(() => {
@@ -1909,16 +1914,62 @@ export default function ReaderView({
       window.getSelection()?.removeAllRanges();
     };
 
+    const onMouseDown = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      const w = wordFromPoint(e.clientX, e.clientY);
+      if (!w) return;
+      window.getSelection()?.removeAllRanges();
+      anchor = { ...w, x: e.clientX, y: e.clientY };
+      dragging = false;
+    };
+
+    const onMouseMove = (e: MouseEvent) => {
+      if (!anchor) return;
+      if (!dragging && Math.hypot(e.clientX - anchor.x, e.clientY - anchor.y) < 4) return;
+      dragging = true;
+      const w = wordFromPoint(e.clientX, e.clientY);
+      if (!w) return;
+      scheduleWordRangeDuringDrag(anchor, w);
+    };
+
+    const onMouseUp = () => {
+      if (!anchor) return;
+      if (dragging) {
+        const pending = wordDragPendingRef.current;
+        if (pending) {
+          applyWordRangeRef.current(pending.anchor, pending.focus, { commit: false });
+        }
+        if (wordRangeRef.current) {
+          commitWordRangeProgress(wordRangeRef.current);
+          swipeIgnoreUntilRef.current = Date.now() + 320;
+        }
+      }
+      if (wordDragRafRef.current) {
+        cancelAnimationFrame(wordDragRafRef.current);
+        wordDragRafRef.current = 0;
+      }
+      wordDragPendingRef.current = null;
+      anchor = null;
+      dragging = false;
+      window.getSelection()?.removeAllRanges();
+    };
+
     el.addEventListener('touchstart', onTouchStart, { passive: true });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     el.addEventListener('touchend', onTouchEnd, { passive: true });
     el.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    el.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
     return () => {
       clearLongPress();
       el.removeEventListener('touchstart', onTouchStart);
       el.removeEventListener('touchmove', onTouchMove);
       el.removeEventListener('touchend', onTouchEnd);
       el.removeEventListener('touchcancel', onTouchEnd);
+      el.removeEventListener('mousedown', onMouseDown);
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
     };
   }, [book.id, chapter, swipeTurn, scheduleWordRangeDuringDrag, commitWordRangeProgress, nativeTouchSelect]);
 
@@ -1946,7 +1997,7 @@ export default function ReaderView({
   );
 
   useEffect(() => {
-    if (hasSel) return;
+    if (hasSel || nativeSelecting) return;
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
     setNativePinnedHighlight(null);
@@ -1954,7 +2005,7 @@ export default function ReaderView({
     setNativeSelection(null);
     setLiveNativeSelection(null);
     window.getSelection()?.removeAllRanges();
-  }, [hasSel]);
+  }, [hasSel, nativeSelecting]);
 
   const handleVerseDoubleClick = useCallback(
     (e: React.MouseEvent, verse: number) => {

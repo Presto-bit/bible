@@ -28,6 +28,8 @@ import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
+import { subscribeLocalDataChanged } from '@/lib/local_data_events';
+import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar } from '@/lib/profile_sync';
 import { isAccountComplete } from '@/lib/account_guide';
@@ -155,6 +157,22 @@ export default function ProfileTab() {
     void loadBadges();
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshReading = () => {
+      setMins(todayMinutes());
+      setStreak(readingStreak());
+      void computeBadgesWithUnlock().then(setBadges);
+    };
+    const unsubSync = subscribeSyncState(() => {
+      if (getSyncState() === 'synced') refreshReading();
+    });
+    const unsubData = subscribeLocalDataChanged(refreshReading);
+    return () => {
+      unsubSync();
+      unsubData();
     };
   }, []);
 
