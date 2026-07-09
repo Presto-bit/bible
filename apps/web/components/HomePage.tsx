@@ -26,6 +26,11 @@ import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
+import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
+import { HomeDailyCarousel } from '@/components/home/HomeDailyCarousel';
+import { HomeSocialLine } from '@/components/home/HomeSocialLine';
+import { buildHomeSocialLine, type HomeSocialLine as HomeSocialLineData } from '@/lib/home_social_line';
+import { useAdminSession } from '@/lib/use_admin_session';
 import { bookIdToChineseName } from '@/lib/ref_label';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { watchChinaDayChange } from '@/lib/daily_clock';
@@ -132,6 +137,9 @@ export default function HomePageClient() {
     line: string;
     href: string;
   } | null>(null);
+  const [adminSocialLine, setAdminSocialLine] = useState<HomeSocialLineData | null>(null);
+  const [socialLoading, setSocialLoading] = useState(false);
+  const { isAdmin } = useAdminSession();
   const seasonal = currentSeasonalEvents();
 
   useEffect(() => {
@@ -146,6 +154,7 @@ export default function HomePageClient() {
   }, []);
 
   const refreshRail = useCallback(async () => {
+    setSocialLoading(true);
     setPendingBook(getPendingBookChallenge());
     const report = buildReport();
     setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
@@ -203,12 +212,15 @@ export default function HomePageClient() {
       statLabel?: string;
     } | undefined;
     let summaryLine: { line: string; href: string } | null = null;
+    let summary: Awaited<ReturnType<typeof api.discoverSummary>> | null = null;
     try {
-      const [groupsRes, summary] = await Promise.all([
+      const [groupsRes, summaryRes] = await Promise.all([
         api.myGroups(),
         api.discoverSummary(),
       ]);
       const groups = groupsRes.groups;
+      summary = summaryRes;
+      setAdminSocialLine(buildHomeSocialLine(groups, summary));
       const pending = groups.find((g) => !g.my_checked_in_today)
         ?? groups.find((g) => (g.open_tasks ?? 0) > 0);
       if (pending && (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0)) {
@@ -250,7 +262,9 @@ export default function HomePageClient() {
       }
     } catch {
       summaryLine = { line: '输入邀请码，加入共读群', href: '/discover/join' };
+      setAdminSocialLine(buildHomeSocialLine([], null));
     }
+    setSocialLoading(false);
     setGroupSummary(summaryLine);
     const suggest = nextReadingSuggestion();
     let assistantCard: { title: string; sub: string; href: string } | undefined;
@@ -302,6 +316,20 @@ export default function HomePageClient() {
     refreshRail();
   }, [refreshRail]);
 
+  useEffect(() => {
+    if (!isAdmin) return;
+    const onRefresh = () => {
+      if (document.visibilityState !== 'visible') return;
+      void refreshRail();
+    };
+    document.addEventListener('visibilitychange', onRefresh);
+    window.addEventListener('focus', onRefresh);
+    return () => {
+      document.removeEventListener('visibilitychange', onRefresh);
+      window.removeEventListener('focus', onRefresh);
+    };
+  }, [isAdmin, refreshRail]);
+
   const lastRead = getLastRead();
 
   const openVerseWallpaper = () => {
@@ -343,13 +371,17 @@ export default function HomePageClient() {
   return (
     <main className="container">
       <header className="greet">
-        <div className="greet-text">
-          <span className="greet-prefix">{timeOfDayGreeting()}</span>
-          <span className="greet-name">
-            <i className="greet-bar" />
-            {userName}
-          </span>
-        </div>
+        {isAdmin ? (
+          <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
+        ) : (
+          <div className="greet-text">
+            <span className="greet-prefix">{timeOfDayGreeting()}</span>
+            <span className="greet-name">
+              <i className="greet-bar" />
+              {userName}
+            </span>
+          </div>
+        )}
         <div className="greet-actions">
           <a href="/search" aria-label="搜索" className="icon-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -473,24 +505,32 @@ export default function HomePageClient() {
         </div>
       </div>
 
+      {isAdmin ? <HomeDailyCarousel /> : null}
+
       <div className="home-stack home-stack-rail">
         <HomeRail cards={railMain} />
       </div>
 
-      <div className="home-stack">
-        <a href="/profile" className="card-row home-reading-summary home-list-row text-stat">
-          <span className="home-list-main">
-            今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
-          </span>
-          <span className="muted home-list-chevron">›</span>
-        </a>
+      {isAdmin ? (
+        <div className="home-stack">
+          <HomeSocialLine line={adminSocialLine} loading={socialLoading} />
+        </div>
+      ) : (
+        <div className="home-stack">
+          <a href="/profile" className="card-row home-reading-summary home-list-row text-stat">
+            <span className="home-list-main">
+              今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
+            </span>
+            <span className="muted home-list-chevron">›</span>
+          </a>
 
-        <a href={groupSummary?.href ?? '/discover'} className="card row-card home-list-row">
-          <span className="pill">小组</span>
-          <span className="home-list-main">{groupSummary?.line ?? '去发现 · 加入共读打卡'}</span>
-          <span className="muted home-list-cta">去发现 ›</span>
-        </a>
-      </div>
+          <a href={groupSummary?.href ?? '/discover'} className="card row-card home-list-row">
+            <span className="pill">小组</span>
+            <span className="home-list-main">{groupSummary?.line ?? '去发现 · 加入共读打卡'}</span>
+            <span className="muted home-list-cta">去发现 ›</span>
+          </a>
+        </div>
+      )}
 
       <p className="section-label">成长与回忆</p>
       <div className="home-stack">

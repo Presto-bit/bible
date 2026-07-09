@@ -105,6 +105,37 @@ export function dailyQuizDone(): boolean {
   }
 }
 
+/** 首页预览：今日 5 题进度与当前题 */
+export function dailyQuizProgress(total = 5): {
+  done: boolean;
+  total: number;
+  answered: number;
+  current: QuestionBankEntry | null;
+  currentIndex: number;
+} {
+  const today = ymd();
+  const questions = dailyQuizQuestions(total);
+  if (dailyQuizDone()) {
+    return { done: true, total, answered: total, current: null, currentIndex: total };
+  }
+  const history = readHistory();
+  let answered = 0;
+  let currentIndex = 0;
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const rec = history[q.id];
+    if (rec?.at === today) {
+      answered += 1;
+      currentIndex = i + 1;
+    } else {
+      currentIndex = i;
+      break;
+    }
+  }
+  const current = questions[Math.min(currentIndex, questions.length - 1)] ?? null;
+  return { done: false, total, answered, current, currentIndex };
+}
+
 export function markDailyQuizDone() {
   const today = ymd();
   const cached = typeof window !== 'undefined' ? localStorage.getItem(DAILY_KEY) : null;
