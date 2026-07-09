@@ -71,7 +71,12 @@ import {
   type ReadingLayout,
   type VerseNumberMode,
 } from '@/lib/reader_settings';
-import { centerVerseInScroll, sectionRangeForVerse } from '@/lib/reader_viewport';
+import {
+  centerVerseInScroll,
+  readerScrollEl,
+  resetReaderScroll,
+  sectionRangeForVerse,
+} from '@/lib/reader_viewport';
 import { sliceVerseWords } from '@/lib/verse_words';
 import {
   textFromWordRange,
@@ -327,6 +332,8 @@ export default function ReaderView({
   const [pageTurn, setPageTurnState] = useState<PageTurnMode>('swipe');
   const swipeTurn = pageTurn === 'swipe';
   const contentRef = useRef<HTMLDivElement>(null);
+  const peekPrevPanelRef = useRef<HTMLDivElement>(null);
+  const peekNextPanelRef = useRef<HTMLDivElement>(null);
   const focusBarRef = useRef<HTMLDivElement>(null);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const lastScrollTop = useRef(0);
@@ -530,7 +537,9 @@ export default function ReaderView({
     const verseNums = verses.map((v) => v.verse);
     const centerV =
       viewportCenterVerse
-      ?? (contentRef.current ? centerVerseInScroll(contentRef.current, verseNums) : null)
+      ?? (contentRef.current
+        ? centerVerseInScroll(readerScrollEl(contentRef.current) ?? contentRef.current, verseNums)
+        : null)
       ?? getLastReadVerse(book.id, chapter)
       ?? verses[0]?.verse
       ?? 1;
@@ -729,7 +738,7 @@ export default function ReaderView({
     }
     updateFocusBarPosition();
     const raf = requestAnimationFrame(updateFocusBarPosition);
-    const el = contentRef.current;
+    const el = readerScrollEl(contentRef.current);
     el?.addEventListener('scroll', updateFocusBarPosition, { passive: true });
     window.addEventListener('resize', updateFocusBarPosition);
     return () => {
@@ -811,9 +820,14 @@ export default function ReaderView({
     flashToast('已取消划线');
   }, [book.id, chapter, sortedSel, selectionSpan, flashToast]);
 
+  const resetPeekPanelsScroll = useCallback(() => {
+    resetReaderScroll(peekPrevPanelRef.current);
+    resetReaderScroll(peekNextPanelRef.current);
+  }, []);
+
   const scrollToChapterStart = useCallback(() => {
     requestAnimationFrame(() => {
-      if (contentRef.current) contentRef.current.scrollTop = 0;
+      resetReaderScroll(contentRef.current);
     });
   }, []);
 
@@ -963,6 +977,9 @@ export default function ReaderView({
     }
     if (side === 'prev') setPeekPrevBundle(bundle);
     else setPeekNextBundle(bundle);
+    requestAnimationFrame(() => {
+      resetReaderScroll(side === 'prev' ? peekPrevPanelRef.current : peekNextPanelRef.current);
+    });
   }, []);
 
   const prefetchTarget = useCallback(
@@ -1132,7 +1149,7 @@ export default function ReaderView({
 
         requestAnimationFrame(() => {
           const skipScrollReset = skipResumeOnLoadRef.current;
-          if (!skipScrollReset && contentRef.current) contentRef.current.scrollTop = 0;
+          if (!skipScrollReset) resetReaderScroll(contentRef.current);
           const flashParsed = flashRef ? parseMarkRef(flashRef) : null;
           const flashVerse =
             flashParsed &&
@@ -1175,7 +1192,7 @@ export default function ReaderView({
   }, [book, chapter, mainVersionId, bookAbbr, flashRef, swipeTurn, books, prefetchTarget]);
 
   useEffect(() => {
-    const el = contentRef.current;
+    const el = readerScrollEl(contentRef.current);
     if (!el) return;
     const onScroll = () => {
       if (overlayOpenRef.current) {
@@ -1301,7 +1318,7 @@ export default function ReaderView({
             setOutline(outlineReady ?? []);
             setChapterLoading(false);
           });
-          if (contentRef.current) contentRef.current.scrollTop = 0;
+          if (contentRef.current) resetReaderScroll(contentRef.current);
         } else {
           setLayoutVerses(instant);
           setVerses(instant);
@@ -1405,6 +1422,7 @@ export default function ReaderView({
   useEffect(() => {
     const frozen = Boolean(turn.dragSide) || turn.animating || turn.offCenter;
     peekFrozenRef.current = frozen;
+    if (turn.dragSide) resetPeekPanelsScroll();
     if (frozen) return;
     const pending = pendingPeekRef.current;
     if (pending.prev !== null) {
@@ -1415,7 +1433,20 @@ export default function ReaderView({
       setPeekNextBundle(pending.next);
       pendingPeekRef.current.next = null;
     }
-  }, [turn.dragSide, turn.animating, turn.offCenter]);
+    requestAnimationFrame(resetPeekPanelsScroll);
+  }, [turn.dragSide, turn.animating, turn.offCenter, resetPeekPanelsScroll]);
+
+  useEffect(() => {
+    if (!swipeTurn) return;
+    resetPeekPanelsScroll();
+  }, [
+    swipeTurn,
+    peekPrevChapter,
+    peekNextChapter,
+    peekPrevBook?.id,
+    peekNextBook?.id,
+    resetPeekPanelsScroll,
+  ]);
 
   const turnHintLabel = (() => {
     if (!turn.dragSide) return '';
@@ -2316,7 +2347,7 @@ export default function ReaderView({
                 ref={turn.trackRef}
                 style={{ transform: 'translateX(-33.3333%)' }}
               >
-                <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                <div ref={peekPrevPanelRef} className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                   <ReaderChapterPeek
                     bookId={peekPrevBook?.id ?? book.id}
                     chapter={peekPrevChapter}
@@ -2340,7 +2371,7 @@ export default function ReaderView({
                     {renderChapterVerses()}
                   </div>
                 </div>
-                <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
+                <div ref={peekNextPanelRef} className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                   <ReaderChapterPeek
                     bookId={peekNextBook?.id ?? book.id}
                     chapter={peekNextChapter}

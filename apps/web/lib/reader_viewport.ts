@@ -2,6 +2,19 @@
 
 import type { VerseParagraph } from './paragraphs';
 
+/** 滑动翻页时滚动在 .reader-turn-peek 内；普通模式在 .reader-scroll-panel 上 */
+export function readerScrollEl(container: HTMLElement | null): HTMLElement | null {
+  if (!container) return null;
+  if (container.classList.contains('reader-scroll-panel')) return container;
+  const peek = container.querySelector<HTMLElement>(':scope > .reader-turn-peek');
+  return peek ?? container;
+}
+
+export function resetReaderScroll(container: HTMLElement | null): void {
+  const el = readerScrollEl(container);
+  if (el) el.scrollTop = 0;
+}
+
 export interface SectionMarkLike {
   verse: number;
 }

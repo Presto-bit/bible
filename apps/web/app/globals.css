@@ -7039,7 +7039,15 @@ a.license-row-name:hover {
   scrollbar-width: none;
 }
 
-.reader-turn-panel-active .reader-turn-peek::-webkit-scrollbar {
+.reader-turn-panel-peek .reader-turn-peek {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.reader-turn-panel-active .reader-turn-peek::-webkit-scrollbar,
+.reader-turn-panel-peek .reader-turn-peek::-webkit-scrollbar {
   display: none;
 }
 
@@ -7119,7 +7127,8 @@ a.license-row-name:hover {
 
   .reader-page .reader-content,
   .reader-page .reader-scroll-panel,
-  .reader-page .reader-turn-panel-active .reader-turn-peek {
+  .reader-page .reader-turn-panel-active .reader-turn-peek,
+  .reader-page .reader-turn-panel-peek .reader-turn-peek {
     touch-action: pan-y;
   }
 }
