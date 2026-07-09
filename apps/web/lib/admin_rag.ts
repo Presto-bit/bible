@@ -2,6 +2,14 @@ import { API_BASE } from './api';
 
 const ADMIN_TOKEN_KEY = 'bible_admin_token';
 
+/** 管理员 token 写入/清除时派发，供保活 Tab 刷新管理员 UI */
+export const ADMIN_SESSION_EVENT = 'bible-admin-session';
+
+function notifyAdminSessionChange() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event(ADMIN_SESSION_EVENT));
+}
+
 export type RagDocument = {
   id: string;
   title: string;
@@ -174,10 +182,12 @@ export function getAdminToken(): string | null {
 
 export function setAdminToken(token: string) {
   sessionStorage.setItem(ADMIN_TOKEN_KEY, token);
+  notifyAdminSessionChange();
 }
 
 export function clearAdminToken() {
   sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+  notifyAdminSessionChange();
 }
 
 export async function adminLogin(phone: string, password: string): Promise<void> {
