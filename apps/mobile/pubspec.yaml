@@ -49,6 +49,10 @@ dependencies:
   timezone: ^0.10.1
   flutter_svg: ^2.0.10+1
   speech_to_text: ^7.0.0
+  archive: ^4.0.7
+  path_provider: ^2.1.5
+  share_plus: ^12.0.1
+  sqlite3: ^3.3.3
 
 dev_dependencies:
   flutter_test:
@@ -76,6 +80,7 @@ flutter:
 
   assets:
     - assets/badges.json
+    - assets/question_bank.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

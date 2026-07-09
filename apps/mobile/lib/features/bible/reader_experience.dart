@@ -19,6 +19,7 @@ import '../plans/plan_reading.dart';
 import '../plans/plan_session.dart';
 import '../plans/plans_repository.dart';
 import '../plans/plan_steps.dart';
+import '../notes/notes_for_chapter.dart';
 import '../notes/notes_repository.dart';
 import 'bible_repository.dart';
 import 'content_repository.dart';
@@ -26,7 +27,9 @@ import 'markings_repository.dart';
 import 'models.dart';
 import 'outlines.dart';
 import 'paragraphs.dart';
+import '../social/share_to_social_sheet.dart';
 import 'reader_focus_bar.dart';
+import 'reader_tools_sheet.dart';
 import 'reader_marking_models.dart';
 import 'reader_preferences.dart';
 import 'reader_thoughts_sheet.dart';
@@ -70,16 +73,18 @@ class ReaderFontNotifier extends Notifier<ReaderFontSize> {
 final readerFontProvider =
     NotifierProvider<ReaderFontNotifier, ReaderFontSize>(ReaderFontNotifier.new);
 
-enum ReaderExperienceTheme { morning, night }
+enum ReaderExperienceTheme { morning, sepia, night }
 
 extension ReaderExperienceThemeX on ReaderExperienceTheme {
   String get label => switch (this) {
         ReaderExperienceTheme.morning => '清晨',
+        ReaderExperienceTheme.sepia => '护眼黄',
         ReaderExperienceTheme.night => '夜深',
       };
 
   Color get background => switch (this) {
         ReaderExperienceTheme.morning => const Color(0xFFFFFCFA),
+        ReaderExperienceTheme.sepia => const Color(0xFFF5F0E1),
         ReaderExperienceTheme.night => const Color(0xFF12181C),
       };
 
@@ -101,6 +106,7 @@ class ReaderExperienceThemeNotifier extends Notifier<ReaderExperienceTheme> {
     final prefs = ref.read(prefsProvider);
     final raw = prefs.getString(_themeKey);
     if (raw == 'night') return ReaderExperienceTheme.night;
+    if (raw == 'sepia') return ReaderExperienceTheme.sepia;
     if (raw == 'paper') {
       prefs.setString(_themeKey, 'morning');
     }
@@ -267,7 +273,7 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
 }
 
 class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
-  final Set<int> _selected = {};
+  Set<int> _selected = {};
   bool _bookDone = false;
   int? _resumeFlashVerse;
   final _resumeAnchorKey = GlobalKey();
@@ -493,7 +499,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   Future<void> _pickHighlightColor(String color) async {
     final sel = _sortedSel;
     if (sel.isEmpty) return;
-    final map = ref.read(highlightMapProvider).valueOrNull ?? {};
+    final map = ref.read(highlightMapProvider).value ?? {};
     final storageRef = _highlightStorageRef(map, sel) ??
         selectionRef(widget.book.id, widget.chapter, sel);
     final added = await ref.read(markingsRepoProvider).toggleHighlight(
@@ -571,7 +577,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   Future<void> _clearHighlight() async {
     final sel = _sortedSel;
     if (sel.isEmpty) return;
-    final map = ref.read(highlightMapProvider).valueOrNull ?? {};
+    final map = ref.read(highlightMapProvider).value ?? {};
     final storageRef = _highlightStorageRef(map, sel);
     if (storageRef == null) return;
     await ref.read(markingsRepoProvider).toggleHighlight(
@@ -999,6 +1005,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 underlinesEnabled: toggles.underlines,
                 onLightAi: () => widget.onAskAi(
                     _refStr, _refLabel, _selectionText(async.value), false),
+                onTools: () => showReaderToolsSheet(
+                  context,
+                  refParam: _selectionRefStr,
+                  refLabel: _refLabel,
+                  sourceText: _selectionText(async.value),
+                ),
                 onBookmark: _toggleBookmark,
                 onCopy: () {
                   final t = _selectionText(async.value);
@@ -1012,6 +1024,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 },
                 onThought: () => _writeThought(async.value),
                 onWriteNote: () => _promptMarkNote(_selectionRefStr),
+                onShare: () => showShareToSocialSheet(
+                  context,
+                  ref,
+                  refText: _selectionRefStr,
+                  refLabel: _refLabel,
+                  body: _selectionText(async.value),
+                ),
                 onPickColor: _pickHighlightColor,
                 onClearMark: _clearHighlight,
                 onClose: _clearSelection,
@@ -1180,7 +1199,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             return Padding(
               padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
               child: Text(r,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                       color: _selected.isNotEmpty
@@ -1308,7 +1327,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             return Padding(
               padding: const EdgeInsets.fromLTRB(0, 16, 0, 4),
               child: Text(r,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w700,
                       color: _selected.isNotEmpty

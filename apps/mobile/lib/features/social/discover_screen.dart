@@ -9,6 +9,7 @@ import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
 import '../assistant/assistant_screen.dart';
+import 'group_invite_inbox.dart';
 import 'group_screen.dart';
 import 'social_repository.dart';
 
@@ -87,10 +88,12 @@ class _DiscoverBody extends ConsumerWidget {
         ref.invalidate(myGroupsProvider);
         ref.invalidate(friendsProvider);
         ref.invalidate(friendActivityProvider);
+        ref.invalidate(groupInvitesProvider);
       },
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
+          const GroupInviteInbox(),
           groups.when(
             loading: () => const _TodayCard(text: '加载中…'),
             error: (_, __) => const _TodayCard(

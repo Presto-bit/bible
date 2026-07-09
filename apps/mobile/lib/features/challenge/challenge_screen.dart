@@ -10,6 +10,7 @@ import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'challenge_levels.dart';
 import 'challenge_progress.dart';
+import 'daily_quiz.dart';
 
 class ChallengeScreen extends ConsumerStatefulWidget {
   const ChallengeScreen({super.key});
@@ -20,6 +21,8 @@ class ChallengeScreen extends ConsumerStatefulWidget {
 
 class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
   ChallengeLevel? _activeLevel;
+  List<QuestionBankEntry>? _bankPlay;
+  String? _bankTitle;
   var _qIdx = 0;
   int? _picked;
   var _correctCount = 0;
@@ -84,10 +87,71 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
   void _startLevel(ChallengeLevel lv) {
     setState(() {
       _activeLevel = lv;
+      _bankPlay = null;
+      _bankTitle = null;
       _qIdx = 0;
       _picked = null;
       _correctCount = 0;
     });
+  }
+
+  void _startBank(List<QuestionBankEntry> qs, String title) {
+    if (qs.isEmpty) return;
+    setState(() {
+      _bankPlay = qs;
+      _bankTitle = title;
+      _activeLevel = null;
+      _qIdx = 0;
+      _picked = null;
+      _correctCount = 0;
+    });
+  }
+
+  Future<void> _startDaily() async {
+    final qs = await dailyQuizQuestions(ref.read(prefsProvider));
+    _startBank(qs, '每日问答');
+  }
+
+  Future<void> _startRandom() async {
+    final qs = await randomQuizQuestions();
+    _startBank(qs, '随机挑战');
+  }
+
+  Future<void> _startWrongReview() async {
+    final qs = await wrongReviewQuestions(ref.read(prefsProvider));
+    _startBank(qs, '错题重练');
+  }
+
+  void _pickBank(int i) {
+    final play = _bankPlay;
+    if (play == null || _picked != null) return;
+    final q = play[_qIdx];
+    setState(() => _picked = i);
+    final ok = i == q.answer;
+    final nextCorrect = _correctCount + (ok ? 1 : 0);
+    recordAnswer(ref.read(prefsProvider), q.id, ok);
+    if (_qIdx + 1 >= play.length) {
+      Future.delayed(const Duration(milliseconds: 700), () {
+        if (mounted) {
+          setState(() {
+            _bankPlay = null;
+            _bankTitle = null;
+            _qIdx = 0;
+            _picked = null;
+            _correctCount = 0;
+          });
+        }
+      });
+    } else {
+      Future.delayed(const Duration(milliseconds: 700), () {
+        if (!mounted) return;
+        setState(() {
+          _correctCount = nextCorrect;
+          _qIdx++;
+          _picked = null;
+        });
+      });
+    }
   }
 
   @override
@@ -96,6 +160,18 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
     final levels = levelsIncludingPending(prefs);
     final summary = challengeSummary(prefs, levels);
     final pending = getPendingBookChallenge(prefs);
+    final stats = answerStats(prefs);
+
+    if (_bankPlay != null) {
+      return _BankPlayView(
+        title: _bankTitle ?? '问答',
+        questions: _bankPlay!,
+        qIdx: _qIdx,
+        picked: _picked,
+        onBack: () => setState(() => _bankPlay = null),
+        onPick: _pickBank,
+      );
+    }
 
     if (_activeLevel != null) {
       return _PlayView(
@@ -118,7 +194,17 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
         children: [
-          _HeroCard(summary: summary),
+          _HeroCard(summary: summary, stats: stats),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ActionChip(label: const Text('每日问答'), onPressed: () => _startDaily()),
+              ActionChip(label: const Text('随机10题'), onPressed: () => _startRandom()),
+              ActionChip(label: const Text('错题重练'), onPressed: () => _startWrongReview()),
+            ],
+          ),
           if (pending != null) ...[
             const SizedBox(height: 12),
             _PendingNudge(
@@ -146,9 +232,10 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
 }
 
 class _HeroCard extends StatelessWidget {
-  const _HeroCard({required this.summary});
+  const _HeroCard({required this.summary, required this.stats});
 
   final ChallengeSummary summary;
+  final ({int correct, int wrong, int total, int accuracyPct}) stats;
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +286,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '答对 ${summary.correctQ} / ${summary.totalQ} 题',
+                  '题库正确率 ${stats.accuracyPct}% · 经典 ${summary.completedLevels}/${summary.totalLevels} 关',
                   style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.inkFaint,
@@ -537,6 +624,97 @@ class _PlayView extends StatelessWidget {
               const SizedBox(height: 16),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BankPlayView extends StatelessWidget {
+  const _BankPlayView({
+    required this.title,
+    required this.questions,
+    required this.qIdx,
+    required this.picked,
+    required this.onBack,
+    required this.onPick,
+  });
+
+  final String title;
+  final List<QuestionBankEntry> questions;
+  final int qIdx;
+  final int? picked;
+  final VoidCallback onBack;
+  final void Function(int) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    final q = questions[qIdx];
+    final progress = (qIdx + (picked != null ? 1 : 0)) / questions.length;
+
+    return Scaffold(
+      backgroundColor: AppColors.paper,
+      appBar: AppBar(
+        leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack),
+        title: Text('$title · ${qIdx + 1}/${questions.length}'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 4,
+                backgroundColor: AppColors.surfaceSunken,
+                color: AppColors.accent,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(q.category, style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+            const SizedBox(height: 8),
+            Text(
+              q.question,
+              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, height: 1.5),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: ListView.separated(
+                itemCount: q.options.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (context, i) {
+                  final show = picked != null;
+                  final isAns = i == q.answer;
+                  final isPick = i == picked;
+                  Color? bg;
+                  var border = AppColors.line;
+                  if (show && isAns) {
+                    bg = AppColors.accentWash;
+                    border = AppColors.accent;
+                  } else if (show && isPick && !isAns) {
+                    bg = const Color(0xFFFCEAEA);
+                    border = const Color(0xFFD88A8A);
+                  }
+                  return OutlinedButton(
+                    onPressed: picked == null ? () => onPick(i) : null,
+                    style: OutlinedButton.styleFrom(
+                      alignment: Alignment.centerLeft,
+                      backgroundColor: bg,
+                      side: BorderSide(color: border),
+                    ),
+                    child: Text(q.options[i]),
+                  );
+                },
+              ),
+            ),
+            if (picked != null) ...[
+              const SizedBox(height: 12),
+              Text(q.explain, style: const TextStyle(fontSize: 14, height: 1.6, color: AppColors.inkSoft)),
+            ],
+            const SizedBox(height: 16),
+          ],
         ),
       ),
     );

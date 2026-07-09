@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../database/app_database.dart';
 import '../badge_catalog.dart' show normalizeBadgeId;
-import '../features/plans/plan_session.dart';
+import '../../features/plans/plan_session.dart';
 import 'sync_contract.dart';
 
 class SyncResult {
@@ -154,6 +154,14 @@ class SyncEngine {
         'data': {'book': r.book, 'chapter': r.chapter, 'verse': r.verse},
       });
 
+  Future<void> enqueueUserProfile(Map<String, dynamic> data) =>
+      _enqueue('user_profile', {
+        'entity': 'user_profile',
+        'op': 'update',
+        'client_ts': _iso(DateTime.now().millisecondsSinceEpoch),
+        'data': data,
+      });
+
   // ── push ─────────────────────────────────────────────────────────
   Future<({int applied, int skipped})> push() async {
     final rows = await (_db.select(_db.outbox)
@@ -210,6 +218,8 @@ class SyncEngine {
         return _applyPlanProgress(c);
       case 'reading_progress':
         return _applyReadingProgress(c);
+      case 'user_profile':
+        return _applyUserProfile(c);
       default:
         return false;
     }
@@ -442,6 +452,35 @@ class SyncEngine {
           updatedAtMs: Value(ms),
         ));
     return true;
+  }
+
+  Future<bool> _applyUserProfile(Map<String, dynamic> c) async {
+    if (_prefs == null) return false;
+    if (c['op'] == 'delete') return false;
+    final data = (c['data'] ?? const {}) as Map<String, dynamic>;
+    var changed = false;
+    final avatar = data['avatar_id'];
+    if (avatar is String && avatar.isNotEmpty) {
+      if (_prefs!.getString('profile_avatar') != avatar) {
+        await _prefs!.setString('profile_avatar', avatar);
+        changed = true;
+      }
+    }
+    final bio = data['bio'];
+    if (bio is String) {
+      if (_prefs!.getString('profile_bio') != bio) {
+        await _prefs!.setString('profile_bio', bio);
+        changed = true;
+      }
+    }
+    final username = data['username'];
+    if (username is String && username.isNotEmpty) {
+      if (_prefs!.getString('onboarding_name') != username) {
+        await _prefs!.setString('onboarding_name', username);
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   // ── 一键全量 ──

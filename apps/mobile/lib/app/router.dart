@@ -20,6 +20,11 @@ import '../features/social/add_friend_screen.dart';
 import '../features/social/create_group_screen.dart';
 import '../features/social/discover_screen.dart';
 import '../features/social/group_screen.dart';
+import '../features/bible/dictionary_screen.dart';
+import '../features/search/search_screen.dart';
+import '../features/bible/wrapped_screen.dart';
+import '../features/settings/appearance_screen.dart';
+import '../features/knowledge/knowledge_explore.dart';
 import 'app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -72,6 +77,52 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/report',
           builder: (context, state) => const ReadingReportScreen()),
+      GoRoute(
+          path: '/dictionary',
+          builder: (context, state) => const DictionaryScreen()),
+      GoRoute(
+          path: '/search',
+          builder: (context, state) => const SearchScreen()),
+      GoRoute(
+          path: '/search/map',
+          builder: (context, state) => const MapToursScreen()),
+      GoRoute(
+        path: '/search/map/:id',
+        builder: (context, state) =>
+            MapTourDetailScreen(tourId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+          path: '/search/timeline',
+          builder: (context, state) => const TimelineToursScreen()),
+      GoRoute(
+        path: '/search/timeline/:id',
+        builder: (context, state) =>
+            TimelineTourDetailScreen(tourId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+          path: '/search/diagrams',
+          builder: (context, state) => const DiagramsScreen()),
+      GoRoute(
+          path: '/search/graph',
+          builder: (context, state) => const GraphTopicsScreen()),
+      GoRoute(
+        path: '/search/graph/:id',
+        builder: (context, state) =>
+            GraphTopicDetailScreen(topicId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/search/diagrams/:id',
+        builder: (context, state) =>
+            DiagramDetailScreen(diagramId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+          path: '/wrapped',
+          builder: (context, state) => WrappedScreen(
+                initialPeriod: state.uri.queryParameters['period'] ?? 'month',
+              )),
+      GoRoute(
+          path: '/profile/appearance',
+          builder: (context, state) => const AppearanceScreen()),
       GoRoute(
         path: '/group/:id',
         builder: (context, state) =>

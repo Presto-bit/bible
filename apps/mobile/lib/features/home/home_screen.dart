@@ -20,7 +20,10 @@ import '../bible/bible_repository.dart';
 import '../bible/models.dart';
 import '../bible/reading_repository.dart';
 import 'daily_verse_wallpaper_screen.dart';
+import 'hero_b_campaign.dart';
+import 'home_hero_carousel.dart';
 import '../search/search_screen.dart';
+import '../social/social_repository.dart';
 
 class DailyVerse {
   DailyVerse({
@@ -60,14 +63,38 @@ class DailyVerse {
 }
 
 final dailyVerseProvider = FutureProvider<DailyVerse>((ref) async {
+  final boot = await ref.watch(homeBootstrapProvider.future);
+  return boot.dailyVerse;
+});
+
+class HomeBootstrap {
+  HomeBootstrap({required this.dailyVerse, this.heroBCampaign});
+  final DailyVerse dailyVerse;
+  final HeroBCampaign? heroBCampaign;
+}
+
+final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
   final Dio dio = ref.watch(dioProvider);
   final session = ref.watch(sessionProvider);
   final prefs = ref.watch(prefsProvider);
-  final res = await dio.get('/content/daily-verse');
-  final v = DailyVerse.fromJson(res.data as Map<String, dynamic>);
-  if (v.day < 1) return v;
-  await writeLocalDailyVerseLike(prefs, session, v.day, v.liked);
-  return v;
+  final today = DateTime.now();
+  final ymd =
+      '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+  final res = await dio.get('/content/home/bootstrap', queryParameters: {'_d': ymd});
+  final data = res.data as Map<String, dynamic>;
+  final v = DailyVerse.fromJson(data['dailyVerse'] as Map<String, dynamic>);
+  if (v.day > 0) {
+    await writeLocalDailyVerseLike(prefs, session, v.day, v.liked);
+  }
+  HeroBCampaign? campaign;
+  final raw = data['heroBCampaign'];
+  if (raw is Map<String, dynamic> && '${raw['id'] ?? ''}'.isNotEmpty) {
+    campaign = HeroBCampaign.fromJson(raw);
+    await writeCachedHeroBCampaign(prefs, campaign);
+  } else {
+    await writeCachedHeroBCampaign(prefs, null);
+  }
+  return HomeBootstrap(dailyVerse: v, heroBCampaign: campaign);
 });
 
 /// 今日祷告（ACTS 计划）。
@@ -112,7 +139,9 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final boot = ref.watch(homeBootstrapProvider);
     final dv = ref.watch(dailyVerseProvider);
+    final review = ref.watch(reviewDataProvider);
     final progress = ref.watch(planProgressMapProvider).value ?? const {};
     final plansAsync = ref.watch(plansListProvider);
     final generated = ref.watch(generatedPlansProvider).value ?? const [];
@@ -188,7 +217,10 @@ class HomeScreen extends ConsumerWidget {
     return Scaffold(
       body: SafeArea(
         child: RefreshIndicator(
-          onRefresh: () async => ref.refresh(dailyVerseProvider.future),
+          onRefresh: () async {
+            ref.invalidate(homeBootstrapProvider);
+            await ref.read(homeBootstrapProvider.future);
+          },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
             children: [
@@ -230,7 +262,7 @@ class HomeScreen extends ConsumerWidget {
                 );
               }),
               const SizedBox(height: 14),
-              dv.when(
+              boot.when(
                 loading: () => const _VerseCardSkeleton(),
                 error: (e, _) => const _VerseCard(
                   day: 0,
@@ -240,14 +272,25 @@ class HomeScreen extends ConsumerWidget {
                   initialLiked: false,
                   initialLikeCount: 0,
                 ),
-                data: (v) => _VerseCard(
-                  day: v.day,
-                  theme: v.theme.isEmpty ? '每日经文' : v.theme,
-                  ref: v.ref,
-                  text: v.text,
-                  initialLiked: v.liked,
-                  initialLikeCount: v.likesCount,
-                ),
+                data: (b) {
+                  final v = b.dailyVerse;
+                  final verseCard = _VerseCard(
+                    day: v.day,
+                    theme: v.theme.isEmpty ? '每日经文' : v.theme,
+                    ref: v.ref,
+                    text: v.text,
+                    initialLiked: v.liked,
+                    initialLikeCount: v.likesCount,
+                  );
+                  return HomeHeroCarousel(
+                    verseSlide: verseCard,
+                    campaign: b.heroBCampaign,
+                    campaignReady: b.heroBCampaign != null,
+                    onCampaignTap: b.heroBCampaign == null
+                        ? null
+                        : () => _openHeroB(context, ref, b.heroBCampaign!.href),
+                  );
+                },
               ),
               const SizedBox(height: 14),
               _ForYouRail(
@@ -268,11 +311,30 @@ class HomeScreen extends ConsumerWidget {
               PaperCard(
                 onTap: () => goTab(4),
                 child: Row(
-                  children: const [
-                    Text('今日 12 分钟 · 本月已读 9 天',
-                        style: AppTypography.stat),
-                    Spacer(),
-                    Text('›', style: AppTypography.meta.copyWith(fontSize: AppTypography.lg)),
+                  children: [
+                    Expanded(
+                      child: Text(
+                        review.maybeWhen(
+                          data: (d) {
+                            final today = DateTime.now();
+                            final ymd =
+                                '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+                            final mins = d.minutesByDay[ymd] ?? 0;
+                            final monthStart = DateTime(today.year, today.month, 1);
+                            final monthEnd =
+                                DateTime(today.year, today.month + 1, 1);
+                            final stats = d.rangeStats(
+                              monthStart.millisecondsSinceEpoch,
+                              monthEnd.millisecondsSinceEpoch,
+                            );
+                            return '今日 $mins 分钟 · 本月已读 ${stats.days} 天';
+                          },
+                          orElse: () => '今日读经 · 查看回顾',
+                        ),
+                        style: AppTypography.stat,
+                      ),
+                    ),
+                    const Text('›', style: TextStyle(color: AppColors.inkFaint)),
                   ],
                 ),
               ),
@@ -288,6 +350,19 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+void _openHeroB(BuildContext context, WidgetRef ref, String href) {
+  final tab = heroBTabIndex(href);
+  if (tab != null) {
+    ref.read(navIndexProvider.notifier).set(tab);
+    return;
+  }
+  final path = heroBRoutePath(href);
+  if (path.startsWith('/reader')) {
+    ref.read(navIndexProvider.notifier).set(1);
+  }
+  context.push(path);
 }
 
 // 微信式加号菜单：锚定在按钮附近，点项跳转独立页。
@@ -652,7 +727,7 @@ class _ForYouRailState extends State<_ForYouRail> {
   }
 }
 
-class _BelowFold extends StatelessWidget {
+class _BelowFold extends ConsumerWidget {
   const _BelowFold({
     required this.onOpenDiscover,
     required this.onContinueReading,
@@ -663,7 +738,26 @@ class _BelowFold extends StatelessWidget {
   final VoidCallback onOpenReview;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(discoverSummaryProvider);
+    final groups = ref.watch(myGroupsProvider);
+    final groupLine = summary.maybeWhen(
+      data: (s) {
+        final pending = (s['groups_pending_checkin'] as num?)?.toInt() ?? 0;
+        if (pending > 0) return '$pending 个群待打卡';
+        return null;
+      },
+      orElse: () => null,
+    );
+    final groupName = groups.maybeWhen(
+      data: (list) => list.isNotEmpty ? list.first.name : null,
+      orElse: () => null,
+    );
+    final socialText = groupLine != null
+        ? groupLine
+        : groupName != null
+            ? '$groupName · 一起去发现'
+            : '创建或加入共读群';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -673,9 +767,9 @@ class _BelowFold extends StatelessWidget {
             children: [
               const _Pill('小组'),
               const SizedBox(width: 8),
-              const Expanded(
-                child: Text('新约共读群 · 今日 6 人已打卡',
-                    style: TextStyle(fontSize: 13, color: AppColors.ink)),
+              Expanded(
+                child: Text(socialText,
+                    style: const TextStyle(fontSize: 13, color: AppColors.ink)),
               ),
               const Text('去发现 ›',
                   style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
@@ -731,13 +825,13 @@ class _BelowFold extends StatelessWidget {
           ),
         ),
         PaperCard(
-          onTap: onOpenReview,
+          onTap: () => context.push('/wrapped'),
           child: Row(
             children: [
               const _Pill('回顾'),
               const SizedBox(width: 8),
               const Expanded(
-                child: Text('6 月回顾 · 已读 9 天 · 标记 14 处',
+                child: Text('月/年度读经回顾',
                     style: TextStyle(fontSize: 13, color: AppColors.ink)),
               ),
               const Text('生成回顾 ›',

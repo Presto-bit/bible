@@ -208,6 +208,28 @@ class Friend {
       );
 }
 
+class GroupInvite {
+  GroupInvite({
+    required this.id,
+    required this.groupId,
+    required this.groupName,
+    this.inviterName,
+    this.message,
+  });
+  final String id;
+  final String groupId;
+  final String groupName;
+  final String? inviterName;
+  final String? message;
+  factory GroupInvite.fromJson(Map<String, dynamic> j) => GroupInvite(
+        id: j['id'] as String,
+        groupId: j['group_id'] as String,
+        groupName: (j['group_name'] ?? '') as String,
+        inviterName: j['inviter_name'] as String?,
+        message: j['message'] as String?,
+      );
+}
+
 class SocialRepository {
   SocialRepository(this._dio);
   final Dio _dio;
@@ -281,6 +303,84 @@ class SocialRepository {
         userId: res.data['friend_id'] as String,
         displayName: res.data['display_name'] as String?);
   }
+
+  Future<List<GroupInvite>> inviteInbox() async {
+    final res = await _dio.get('/social/invites/inbox');
+    return ((res.data['invites'] ?? []) as List)
+        .map((e) => GroupInvite.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Group> acceptInvite(String inviteId) async {
+    final res = await _dio.post('/social/invites/$inviteId/accept');
+    return Group(
+      id: res.data['group_id'] as String,
+      name: res.data['name'] as String,
+      role: 'member',
+    );
+  }
+
+  Future<void> declineInvite(String inviteId) =>
+      _dio.post('/social/invites/$inviteId/decline');
+
+  Future<void> bindPlan(String gid, String? planId) => _dio.patch(
+        '/social/groups/$gid',
+        data: planId == null ? {'clear_plan': true} : {'plan_id': planId},
+      );
+
+  Future<Group> createGroupFromPlan(String planId, {String? name}) async {
+    final res = await _dio.post('/social/groups/from-plan', data: {
+      'plan_id': planId,
+      if (name != null) 'name': name,
+    });
+    return Group.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<void> shareToGroup(String gid, {String? ref, String? body}) =>
+      _dio.post('/social/groups/$gid/checkin', data: {
+        if (ref != null) 'ref': ref,
+        if (body != null) 'body': body,
+      });
+
+  Future<void> publishShare({String? ref, required String body, String kind = 'verse'}) =>
+      _dio.post('/social/shares', data: {
+        if (ref != null) 'ref': ref,
+        'body': body,
+        'kind': kind,
+      });
+
+  Future<int> sendGroupInvites(String gid, List<String> friendIds) async {
+    final res = await _dio.post('/social/groups/$gid/invites',
+        data: {'friend_ids': friendIds});
+    return (res.data['sent'] ?? 0) as int;
+  }
+
+  Future<List<String>> groupPendingInviteIds(String gid) async {
+    final res = await _dio.get('/social/groups/$gid/invites/pending');
+    return ((res.data['friend_ids'] ?? []) as List).cast<String>();
+  }
+
+  Future<void> cancelGroupInvite(String gid, String friendId) =>
+      _dio.delete('/social/groups/$gid/invites/$friendId');
+
+  Future<void> updateGroup(
+    String gid, {
+    String? name,
+    String? announcement,
+    String? planId,
+    bool clearPlan = false,
+  }) =>
+      _dio.patch('/social/groups/$gid', data: {
+        if (name != null) 'name': name,
+        if (announcement != null) 'announcement': announcement,
+        if (clearPlan) 'clear_plan': true,
+        if (planId != null) 'plan_id': planId,
+      });
+
+  Future<Map<String, dynamic>> discoverSummary() async {
+    final res = await _dio.get('/social/discover/summary');
+    return (res.data as Map).cast<String, dynamic>();
+  }
 }
 
 final socialRepoProvider =
@@ -297,3 +397,9 @@ final groupFeedProvider = FutureProvider.family<List<GroupMessage>, String>(
 
 final groupDetailProvider = FutureProvider.family<GroupDetail, String>(
     (ref, gid) => ref.read(socialRepoProvider).detail(gid));
+
+final groupInvitesProvider = FutureProvider<List<GroupInvite>>(
+    (ref) => ref.read(socialRepoProvider).inviteInbox());
+
+final discoverSummaryProvider = FutureProvider<Map<String, dynamic>>(
+    (ref) => ref.read(socialRepoProvider).discoverSummary());

@@ -3,6 +3,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'app_theme.dart' show AppThemeId;
+
 class AppColors {
   static const paper = Color(0xFFFFFCFA);
   static const surface = Color(0xFFFFFFFF);
@@ -74,20 +76,20 @@ class AppTypography {
 }
 
 class AppTheme {
-  static ThemeData light() {
+  static ThemeData forApp(AppThemeId id) {
+    final palette = _palette(id);
     final base = ThemeData(
       useMaterial3: true,
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: AppColors.paper,
+      brightness: id == AppThemeId.dark ? Brightness.dark : Brightness.light,
+      scaffoldBackgroundColor: palette.paper,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.accent,
-        brightness: Brightness.light,
-        surface: AppColors.surface,
+        seedColor: palette.accent,
+        brightness: id == AppThemeId.dark ? Brightness.dark : Brightness.light,
+        surface: palette.surface,
       ).copyWith(
-        primary: AppColors.accentDeep,
-        secondary: AppColors.gold,
+        primary: palette.accentDeep,
+        secondary: palette.gold,
       ),
-      fontFamily: null, // 用系统字体（中文 PingFang）
     );
 
     final textTheme = base.textTheme.copyWith(
@@ -104,26 +106,86 @@ class AppTheme {
 
     return base.copyWith(
       textTheme: textTheme.apply(
-        bodyColor: AppColors.ink,
-        displayColor: AppColors.ink,
+        bodyColor: palette.ink,
+        displayColor: palette.ink,
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: AppColors.paper,
-        foregroundColor: AppColors.ink,
+        backgroundColor: palette.paper,
+        foregroundColor: palette.ink,
         elevation: 0,
         centerTitle: false,
         scrolledUnderElevation: 0,
-        titleTextStyle: AppTypography.title,
+        titleTextStyle: AppTypography.title.copyWith(color: palette.ink),
       ),
-      dividerColor: AppColors.line,
+      dividerColor: palette.line,
       cardTheme: CardThemeData(
-        color: AppColors.surface,
+        color: palette.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: AppColors.line),
+          side: BorderSide(color: palette.line),
         ),
       ),
     );
   }
+
+  static ThemeData light() => forApp(AppThemeId.classic);
 }
+
+class _ThemePalette {
+  const _ThemePalette({
+    required this.paper,
+    required this.surface,
+    required this.line,
+    required this.ink,
+    required this.accent,
+    required this.accentDeep,
+    required this.gold,
+  });
+  final Color paper;
+  final Color surface;
+  final Color line;
+  final Color ink;
+  final Color accent;
+  final Color accentDeep;
+  final Color gold;
+}
+
+_ThemePalette _palette(AppThemeId id) => switch (id) {
+      AppThemeId.dark => const _ThemePalette(
+            paper: Color(0xFF12181C),
+            surface: Color(0xFF1A2228),
+            line: Color(0xFF2C353D),
+            ink: Color(0xFFD8E0E6),
+            accent: Color(0xFF6E8B6E),
+            accentDeep: Color(0xFF8FB08F),
+            gold: Color(0xFFB08953),
+          ),
+      AppThemeId.dawn => const _ThemePalette(
+            paper: Color(0xFFFFF8F3),
+            surface: Color(0xFFFFFFFF),
+            line: Color(0xFFE5E5EA),
+            ink: Color(0xFF1C1C1E),
+            accent: Color(0xFF6E8B6E),
+            accentDeep: Color(0xFF52684F),
+            gold: Color(0xFFB08953),
+          ),
+      AppThemeId.sepia => const _ThemePalette(
+            paper: Color(0xFFF5F0E1),
+            surface: Color(0xFFFAF6EA),
+            line: Color(0xFFE0D8C8),
+            ink: Color(0xFF2C2418),
+            accent: Color(0xFF6E8B6E),
+            accentDeep: Color(0xFF52684F),
+            gold: Color(0xFFB08953),
+          ),
+      _ => const _ThemePalette(
+            paper: Color(0xFFFFFCFA),
+            surface: Color(0xFFFFFFFF),
+            line: Color(0xFFE5E5EA),
+            ink: Color(0xFF1C1C1E),
+            accent: Color(0xFF6E8B6E),
+            accentDeep: Color(0xFF52684F),
+            gold: Color(0xFFB08953),
+          ),
+    };

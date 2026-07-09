@@ -10,6 +10,7 @@ import '../features/assistant/assistant_screen.dart';
 import '../features/bible/reader_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/social/discover_screen.dart';
+import '../features/bible/offline_notice.dart';
 import 'profile_screen.dart';
 
 /// 当前底部导航选中页（供首页“继续阅读”等跨页跳转使用）。
@@ -55,7 +56,14 @@ class _AppShellState extends ConsumerState<AppShell> {
     final immersive = ref.watch(readerImmersiveProvider) && index == 1;
     return SyncLifecycle(
       child: Scaffold(
-      body: IndexedStack(index: index, children: _pages),
+        body: Column(
+          children: [
+            const OfflineStatusBar(),
+            Expanded(
+              child: IndexedStack(index: index, children: _pages),
+            ),
+          ],
+        ),
       bottomNavigationBar: AnimatedSize(
         duration: const Duration(milliseconds: 260),
         curve: Curves.easeOut,
@@ -63,37 +71,38 @@ class _AppShellState extends ConsumerState<AppShell> {
         child: immersive
             ? const SizedBox(width: double.infinity, height: 0)
             : NavigationBar(
-        height: 58,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        selectedIndex: index,
-        onDestinationSelected: (i) =>
-            ref.read(navIndexProvider.notifier).set(i),
-        backgroundColor: AppColors.surface,
-        indicatorColor: AppColors.accentWash,
-        destinations: const [
-          NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: '首页'),
-          NavigationDestination(
-              icon: Icon(Icons.menu_book_outlined),
-              selectedIcon: Icon(Icons.menu_book),
-              label: '圣经'),
-          NavigationDestination(
-              icon: Icon(Icons.auto_awesome_outlined),
-              selectedIcon: Icon(Icons.auto_awesome),
-              label: '小爱'),
-          NavigationDestination(
-              icon: Icon(Icons.explore_outlined),
-              selectedIcon: Icon(Icons.explore),
-              label: '发现'),
-          NavigationDestination(
-              icon: Icon(Icons.person_outline),
-              selectedIcon: Icon(Icons.person),
-              label: '我的'),
-        ],
+                height: 58,
+                labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                selectedIndex: index,
+                onDestinationSelected: (i) =>
+                    ref.read(navIndexProvider.notifier).set(i),
+                backgroundColor: AppColors.surface,
+                indicatorColor: AppColors.accentWash,
+                destinations: const [
+                  NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: '首页'),
+                  NavigationDestination(
+                      icon: Icon(Icons.menu_book_outlined),
+                      selectedIcon: Icon(Icons.menu_book),
+                      label: '圣经'),
+                  NavigationDestination(
+                      icon: Icon(Icons.auto_awesome_outlined),
+                      selectedIcon: Icon(Icons.auto_awesome),
+                      label: '小爱'),
+                  NavigationDestination(
+                      icon: Icon(Icons.explore_outlined),
+                      selectedIcon: Icon(Icons.explore),
+                      label: '发现'),
+                  NavigationDestination(
+                      icon: Icon(Icons.person_outline),
+                      selectedIcon: Icon(Icons.person),
+                      label: '我的'),
+                ],
+              ),
       ),
-      ),
+    ),
     );
   }
 }

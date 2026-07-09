@@ -10,6 +10,7 @@ import '../../core/theme.dart';
 import 'generate_plan_screen.dart';
 import 'generated_plan_detail_screen.dart';
 import 'plan_detail_screen.dart';
+import '../social/plan_share_sheet.dart';
 import 'plan_reading.dart';
 import 'plans_repository.dart';
 
@@ -272,6 +273,21 @@ class _ActivePlanCard extends ConsumerWidget {
                   },
                 ),
               const Spacer(),
+              if (kind == 'reading')
+                TextButton(
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  onPressed: () => showPlanShareToGroupSheet(
+                    context,
+                    ref,
+                    planId: planId,
+                    planTitle: title,
+                  ),
+                  child: const Text('分享到群', style: TextStyle(fontSize: 12)),
+                ),
               TextButton(
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,

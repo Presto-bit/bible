@@ -23,10 +23,12 @@ import '../plans/plan_navigation.dart';
 import '../plans/plan_reading.dart';
 import '../plans/plan_session.dart';
 import '../plans/plan_steps.dart';
+import 'offline_notice.dart';
 import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_experience.dart';
 import 'reader_settings_menu.dart';
+import '../plans/plans_repository.dart';
 import 'reading_repository.dart';
 
 /// 阅读器跳转目标（串珠/词典点选后跳章）。
@@ -249,7 +251,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             );
             _seeded = true;
           }
-          return ReaderChapterBody(
+          return Column(
+            children: [
+              const OfflineBibleCard(),
+              Expanded(
+                child: ReaderChapterBody(
             book: _book!,
             chapter: _chapter,
             books: books,
@@ -298,6 +304,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 );
               }
             },
+          ),
+              ),
+            ],
           );
         },
       ),

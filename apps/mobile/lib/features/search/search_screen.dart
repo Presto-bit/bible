@@ -8,6 +8,7 @@ import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
+import '../knowledge/knowledge_explore.dart';
 import '../assistant/assistant_seed.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../notes/notes_repository.dart';
@@ -110,6 +111,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             onSubmitted: _saveHistory,
           ),
+          const SizedBox(height: 14),
+          const Text('知识探索',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                  color: AppColors.ink)),
+          const SizedBox(height: 8),
+          const KnowledgeHub(),
           const SizedBox(height: 8),
           const Text(
             '高级语法： "整段精确"  ·  书卷:约翰福音  ·  -排除词',

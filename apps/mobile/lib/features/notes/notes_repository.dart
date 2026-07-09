@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../core/api_client.dart';
 import '../../core/database/app_database.dart';
+import '../../core/sync/profile_sync.dart';
 import '../../core/sync/sync_engine.dart';
 
 final dbProvider = Provider<AppDatabase>((ref) {
@@ -22,6 +23,10 @@ final syncEngineProvider = Provider<SyncEngine>(
     ref.watch(dioProvider),
     ref.watch(prefsProvider),
   ),
+);
+
+final profileSyncProvider = Provider<ProfileSync>(
+  (ref) => ProfileSync(ref.watch(syncEngineProvider)),
 );
 
 final notesRepoProvider = Provider<NotesRepository>(

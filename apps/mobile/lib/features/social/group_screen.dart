@@ -4,9 +4,14 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_client.dart' show prefsProvider;
 import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import '../../core/ref_label.dart';
+import '../plans/plan_reading.dart';
+import 'group_invite_sheet.dart';
+import 'group_settings_sheet.dart';
+import 'share_to_social_sheet.dart';
 import 'social_repository.dart';
 
 const _emojis = ['🙏', '❤️', '🔥'];
@@ -32,7 +37,7 @@ class GroupScreen extends ConsumerWidget {
           detail.maybeWhen(
             data: (d) => IconButton(
               icon: const Icon(Icons.info_outline),
-              onPressed: () => _showInfo(context, d),
+              onPressed: () => _showInfo(context, ref, d),
             ),
             orElse: () => const SizedBox.shrink(),
           ),
@@ -57,6 +62,9 @@ class GroupScreen extends ConsumerWidget {
                     child: _TodayFocusCard(
                       detail: d,
                       onCheckin: () => _checkin(context, ref, d),
+                      onAdoptPlan: d.planId != null && d.myPlanDay > 0
+                          ? () => _adoptPlan(context, ref, d)
+                          : null,
                     ),
                   ),
                 ),
@@ -117,7 +125,15 @@ class GroupScreen extends ConsumerWidget {
                 onPressed: () => _createTask(context, ref, d),
                 child: const Icon(Icons.assignment_add),
               ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            FloatingActionButton.small(
+              heroTag: 'share',
+              backgroundColor: AppColors.surface,
+              foregroundColor: AppColors.accentDeep,
+              onPressed: () => showShareToGroupSheet(context, ref),
+              child: const Icon(Icons.ios_share),
+            ),
+            const SizedBox(width: 8),
             FloatingActionButton.extended(
               heroTag: 'checkin',
               backgroundColor: AppColors.accentDeep,
@@ -132,7 +148,21 @@ class GroupScreen extends ConsumerWidget {
     );
   }
 
-  void _showInfo(BuildContext context, GroupDetail d) {
+  Future<void> _adoptPlan(
+      BuildContext context, WidgetRef ref, GroupDetail d) async {
+    await openPlanReading(
+      context,
+      ref,
+      ref.read(prefsProvider),
+      planId: d.planId!,
+      planTitle: d.planTitle ?? '群计划',
+      day: d.myPlanDay,
+      totalDays: d.planDaysTotal > 0 ? d.planDaysTotal : 30,
+      source: 'featured',
+    );
+  }
+
+  void _showInfo(BuildContext context, WidgetRef ref, GroupDetail d) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.surface,
@@ -151,6 +181,34 @@ class GroupScreen extends ConsumerWidget {
                 Text(d.intro!, style: const TextStyle(color: AppColors.inkSoft)),
               ],
               const SizedBox(height: 12),
+              Row(
+                children: [
+                  if (d.isOwner)
+                    OutlinedButton(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        showGroupSettingsSheet(context, ref, detail: d);
+                      },
+                      child: const Text('群设置'),
+                    ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      showGroupInviteSheet(
+                        context,
+                        ref,
+                        gid: d.id,
+                        groupName: d.name,
+                        joinCode: d.joinCode ?? '',
+                        memberUserIds:
+                            d.members.map((m) => m.userId).toList(),
+                      );
+                    },
+                    child: const Text('邀请好友'),
+                  ),
+                ],
+              ),
               if (d.joinCode != null)
                 Row(children: [
                   const Icon(Icons.qr_code, size: 18, color: AppColors.inkFaint),
@@ -239,9 +297,14 @@ class GroupScreen extends ConsumerWidget {
 }
 
 class _TodayFocusCard extends StatelessWidget {
-  const _TodayFocusCard({required this.detail, required this.onCheckin});
+  const _TodayFocusCard({
+    required this.detail,
+    required this.onCheckin,
+    this.onAdoptPlan,
+  });
   final GroupDetail detail;
   final VoidCallback onCheckin;
+  final VoidCallback? onAdoptPlan;
 
   @override
   Widget build(BuildContext context) {
@@ -290,6 +353,13 @@ class _TodayFocusCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(detail.planTitle!,
                           style: const TextStyle(fontWeight: FontWeight.w600)),
+                    ],
+                    if (onAdoptPlan != null) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton(
+                        onPressed: onAdoptPlan,
+                        child: Text('采纳并阅读 · 第 ${detail.myPlanDay} 天'),
+                      ),
                     ],
                   ],
                 ),

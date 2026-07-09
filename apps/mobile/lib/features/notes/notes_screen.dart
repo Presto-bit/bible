@@ -10,10 +10,13 @@ import '../../core/api_client.dart';
 import '../../core/database/app_database.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../core/theme.dart';
-import '../bible/reader_marking_models.dart';
-import '../../core/mark_ref.dart' show parseMarkRef, markColorSemantics;
+import '../bible/markings_repository.dart';
+import '../bible/reader_marking_models.dart' show chipColor, markColorSemantics;
+import '../../core/ref_label.dart' show formatGroupRefLabel;
+import '../../core/mark_ref.dart' show parseMarkRef;
 import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../../app/app_shell.dart' show navIndexProvider;
+import '../social/share_to_social_sheet.dart';
 import 'notes_repository.dart';
 
 class NotesScreen extends ConsumerStatefulWidget {
@@ -124,6 +127,17 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                               : null,
                           onDelete: () =>
                               ref.read(notesRepoProvider).remove(filtered[i]),
+                          onShare: (filtered[i].ref ?? '').isNotEmpty
+                              ? () => showShareToSocialSheet(
+                                    context,
+                                    ref,
+                                    refText: filtered[i].ref!,
+                                    refLabel: formatGroupRefLabel(
+                                        filtered[i].ref),
+                                    body: filtered[i].body,
+                                    kind: 'note',
+                                  )
+                              : null,
                         ),
                       );
                     },
@@ -160,6 +174,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                                 refStr: e.key,
                                 color: e.value.color,
                                 onOpen: () => _openRef(e.key),
+                                onShare: () => showShareToSocialSheet(
+                                  context,
+                                  ref,
+                                  refText: e.key,
+                                  refLabel: formatGroupRefLabel(e.key),
+                                  kind: 'verse',
+                                ),
                               );
                             },
                           );
@@ -282,11 +303,13 @@ class _NoteCard extends StatelessWidget {
     required this.onEdit,
     required this.onDelete,
     this.onOpenRef,
+    this.onShare,
   });
   final Note note;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback? onOpenRef;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -341,12 +364,22 @@ class _NoteCard extends StatelessWidget {
                         .toList(),
                   ),
                 ),
-              if (onOpenRef != null)
+              if (onOpenRef != null || onShare != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: TextButton(
-                    onPressed: onOpenRef,
-                    child: const Text('跳转经文'),
+                  child: Row(
+                    children: [
+                      if (onOpenRef != null)
+                        TextButton(
+                          onPressed: onOpenRef,
+                          child: const Text('跳转经文'),
+                        ),
+                      if (onShare != null)
+                        TextButton(
+                          onPressed: onShare,
+                          child: const Text('分享'),
+                        ),
+                    ],
                   ),
                 ),
             ],
@@ -428,10 +461,12 @@ class _HighlightCard extends StatelessWidget {
     required this.refStr,
     required this.color,
     required this.onOpen,
+    this.onShare,
   });
   final String refStr;
   final String color;
   final VoidCallback onOpen;
+  final VoidCallback? onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -467,6 +502,8 @@ class _HighlightCard extends StatelessWidget {
             ),
           ),
           TextButton(onPressed: onOpen, child: const Text('跳转')),
+          if (onShare != null)
+            TextButton(onPressed: onShare, child: const Text('分享')),
         ],
       ),
     );

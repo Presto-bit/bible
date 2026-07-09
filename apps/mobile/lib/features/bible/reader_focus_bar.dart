@@ -11,10 +11,12 @@ class ReaderFocusBar extends StatelessWidget {
     super.key,
     required this.currentMark,
     required this.onLightAi,
+    required this.onTools,
     required this.onBookmark,
     required this.onCopy,
     required this.onThought,
     required this.onWriteNote,
+    required this.onShare,
     required this.onPickColor,
     required this.onClearMark,
     required this.onClose,
@@ -23,10 +25,12 @@ class ReaderFocusBar extends StatelessWidget {
 
   final HighlightMark? currentMark;
   final VoidCallback onLightAi;
+  final VoidCallback onTools;
   final VoidCallback onBookmark;
   final VoidCallback onCopy;
   final VoidCallback onThought;
   final VoidCallback onWriteNote;
+  final VoidCallback onShare;
   final void Function(String color) onPickColor;
   final VoidCallback onClearMark;
   final VoidCallback onClose;
@@ -45,6 +49,8 @@ class ReaderFocusBar extends StatelessWidget {
           child: Row(
             children: [
               _btn('✦ 问小爱', onLightAi),
+              _btn('串珠', onTools),
+              _btn('分享', onShare),
               if (underlinesEnabled) ...[
                 const SizedBox(width: 4),
                 Container(width: 1, height: 22, color: AppColors.line),

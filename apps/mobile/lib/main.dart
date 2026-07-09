@@ -8,6 +8,7 @@ import 'core/api_client.dart';
 import 'core/config.dart';
 import 'core/device_id.dart';
 import 'core/session.dart';
+import 'core/app_theme.dart';
 import 'core/theme.dart';
 import 'features/auth/auth_api.dart';
 
@@ -36,10 +37,11 @@ class PrestoBibleApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final appTheme = ref.watch(appThemeProvider);
     return MaterialApp.router(
       title: '彼爱',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
+      theme: AppTheme.forApp(appTheme),
       routerConfig: ref.watch(routerProvider),
     );
   }

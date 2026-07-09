@@ -7,30 +7,46 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import 'offline_bible.dart';
 import 'models.dart';
 
 class BibleRepository {
-  BibleRepository(this._dio);
+  BibleRepository(this._dio, {OfflineBibleService? offline}) : _offline = offline;
   final Dio _dio;
+  final OfflineBibleService? _offline;
 
   Future<List<BibleBook>> books() async {
-    final res = await _dio.get('/bible/books');
-    final list = (res.data['books'] ?? []) as List;
-    return list
-        .map((e) => BibleBook.fromJson(e as Map<String, dynamic>))
-        .toList();
+    try {
+      final res = await _dio.get('/bible/books');
+      final list = (res.data['books'] ?? []) as List;
+      return list
+          .map((e) => BibleBook.fromJson(e as Map<String, dynamic>))
+          .toList();
+    } catch (e) {
+      final local = await _offline?.listBooks() ?? [];
+      if (local.isNotEmpty) return local;
+      rethrow;
+    }
   }
 
   Future<Chapter> chapter(String book, int chapter, {String? version}) async {
-    final res = await _dio.get(
-      '/bible/chapter',
-      queryParameters: {
-        'book': book,
-        'chapter': chapter,
-        if (version != null) 'version': version,
-      },
-    );
-    return Chapter.fromJson(res.data as Map<String, dynamic>);
+    try {
+      final res = await _dio.get(
+        '/bible/chapter',
+        queryParameters: {
+          'book': book,
+          'chapter': chapter,
+          if (version != null) 'version': version,
+        },
+      );
+      return Chapter.fromJson(res.data as Map<String, dynamic>);
+    } catch (e) {
+      if (version == null || version == 'cnv') {
+        final local = await _offline?.chapter(book, chapter);
+        if (local != null) return local;
+      }
+      rethrow;
+    }
   }
 
   Future<List<BibleVersion>> versions() async {
@@ -135,7 +151,10 @@ class VerseRendition {
 }
 
 final bibleRepoProvider = Provider<BibleRepository>(
-  (ref) => BibleRepository(ref.watch(dioProvider)),
+  (ref) => BibleRepository(
+    ref.watch(dioProvider),
+    offline: ref.watch(offlineBibleProvider),
+  ),
 );
 
 final booksProvider = FutureProvider<List<BibleBook>>(

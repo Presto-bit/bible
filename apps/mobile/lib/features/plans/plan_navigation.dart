@@ -1,7 +1,7 @@
 /// 计划模式翻页：仅在当日 Step 章节序列内导航。
 library;
 
-import '../../core/models/bible_book.dart';
+import '../bible/models.dart';
 import 'plan_steps.dart';
 
 typedef PlanChapterRef = ({String bookId, int chapter, String stepId});

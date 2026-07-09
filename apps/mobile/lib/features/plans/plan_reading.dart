@@ -34,7 +34,7 @@ class PlanReadingMeta {
 }
 
 Future<List<PlanStep>> loadStepsForDay(
-  Ref ref,
+  WidgetRef ref,
   String planId,
   int day, {
   required String source,
@@ -66,7 +66,7 @@ Future<List<PlanStep>> loadStepsForDay(
 }
 
 Future<PlanReadingMeta?> buildPlanReadingMeta(
-  Ref ref,
+  WidgetRef ref,
   SharedPreferences prefs, {
   required String planId,
   required String planTitle,
@@ -98,7 +98,7 @@ int resumeStepIndex(PlanReadingMeta meta) {
 }
 
 Future<String?> segmentProgressLabel(
-  Ref ref,
+  WidgetRef ref,
   SharedPreferences prefs, {
   required String planId,
   required int day,

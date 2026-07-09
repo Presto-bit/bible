@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/api_client.dart';
 import '../core/config.dart';
@@ -20,7 +21,13 @@ import '../features/bible/reader_experience.dart' show readerFontProvider, Reade
 import '../features/bible/reading_progress_card.dart';
 import '../features/bible/reading_report_screen.dart';
 import '../features/bible/reading_repository.dart';
+import '../features/notes/notes_repository.dart' show profileSyncProvider;
 import '../features/notes/notes_screen.dart';
+import '../features/bible/offline_download_sheet.dart';
+import '../features/notes/favorite_review.dart';
+import '../features/bible/markings_repository.dart';
+import '../core/widgets/paper_card.dart';
+import '../core/notifications.dart';
 
 final healthProvider = FutureProvider<bool>((ref) async {
   final Dio dio = ref.watch(dioProvider);
@@ -216,6 +223,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
     if (picked != null) {
       await ref.read(prefsProvider).setString('profile_avatar', picked);
+      await ref.read(profileSyncProvider).pushAvatar(picked);
       if (mounted) setState(() {});
     }
   }
@@ -257,6 +265,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         text = text.substring(0, maxLength);
       }
       await ref.read(prefsProvider).setString(key, text);
+      final sync = ref.read(profileSyncProvider);
+      if (key == 'profile_bio') {
+        await sync.pushBio(text);
+      } else if (key == 'onboarding_name') {
+        await sync.pushUsername(text);
+      }
       if (mounted) setState(() {});
     }
   }
@@ -495,6 +509,56 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 14),
+            PaperCard(
+              tier: 2,
+              onTap: () => context.push('/wrapped'),
+              child: const Row(
+                children: [
+                  Text('读经 Wrapped',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, fontSize: 14)),
+                  Spacer(),
+                  Text('月/年回顾 ›',
+                      style: TextStyle(
+                          color: AppColors.inkFaint, fontSize: 12)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            ref.watch(bookmarksProvider).maybeWhen(
+                  data: (bookmarks) {
+                    final cards = favoriteReviewCards(bookmarks);
+                    if (cards.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('收藏复习',
+                            style: TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 14)),
+                        const SizedBox(height: 8),
+                        ...cards.map((c) => Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: PaperCard(
+                                onTap: () {
+                                  final m = RegExp(r'^([A-Za-z0-9]+)\.(\d+)')
+                                      .firstMatch(c.ref);
+                                  if (m != null) {
+                                    context.push(
+                                        '/reader?book=${m.group(1)}&chapter=${m.group(2)}');
+                                  }
+                                },
+                                child: Text(c.label,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600)),
+                              ),
+                            )),
+                        const SizedBox(height: 6),
+                      ],
+                    );
+                  },
+                  orElse: () => const SizedBox.shrink(),
+                ),
             ref.watch(reviewDataProvider).maybeWhen(
                   data: (data) {
                     final streak = readingStreak(data);
@@ -775,7 +839,19 @@ class _SettingsSheet extends ConsumerWidget {
                       title: '昵称', key: 'onboarding_name', current: name)),
             ]),
             const SizedBox(height: 12),
+            _section('提醒', [
+              _ReminderRow(prefs: prefs),
+            ]),
+            const SizedBox(height: 12),
             _section('阅读', [
+              _row('外观', '主题与翻页', onTap: () {
+                Navigator.pop(context);
+                context.push('/profile/appearance');
+              }),
+              _row('离线圣经', '下载 CNV 经包', onTap: () {
+                Navigator.pop(context);
+                showOfflineDownloadSheet(context, ref);
+              }),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 child: Row(
@@ -912,6 +988,93 @@ class _SettingsSheet extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ReminderRow extends StatefulWidget {
+  const _ReminderRow({required this.prefs});
+  final SharedPreferences prefs;
+
+  @override
+  State<_ReminderRow> createState() => _ReminderRowState();
+}
+
+class _ReminderRowState extends State<_ReminderRow> {
+  static const _enabledKey = 'reminder_daily_enabled';
+  static const _hourKey = 'reminder_daily_hour';
+  static const _minuteKey = 'reminder_daily_minute';
+
+  late bool _enabled;
+  late TimeOfDay _time;
+
+  @override
+  void initState() {
+    super.initState();
+    _enabled = widget.prefs.getBool(_enabledKey) ?? false;
+    _time = TimeOfDay(
+      hour: widget.prefs.getInt(_hourKey) ?? 7,
+      minute: widget.prefs.getInt(_minuteKey) ?? 30,
+    );
+  }
+
+  Future<void> _toggle(bool on) async {
+    if (on) {
+      final ok = await NotificationService.instance.requestPermission();
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('请在系统设置中允许通知')),
+        );
+        return;
+      }
+    }
+    setState(() => _enabled = on);
+    await widget.prefs.setBool(_enabledKey, on);
+    if (on) {
+      await NotificationService.instance.scheduleDaily(_time.hour, _time.minute);
+    } else {
+      await NotificationService.instance.cancelDaily();
+    }
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(context: context, initialTime: _time);
+    if (picked == null) return;
+    setState(() => _time = picked);
+    await widget.prefs.setInt(_hourKey, picked.hour);
+    await widget.prefs.setInt(_minuteKey, picked.minute);
+    if (_enabled) {
+      await NotificationService.instance.scheduleDaily(picked.hour, picked.minute);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('每日读经提醒'),
+          subtitle: Text(
+            _enabled
+                ? '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')} 推送本地通知'
+                : '关闭',
+            style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+          ),
+          value: _enabled,
+          onChanged: _toggle,
+        ),
+        if (_enabled)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('提醒时间'),
+            trailing: Text(
+              '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')}',
+              style: const TextStyle(color: AppColors.accentDeep),
+            ),
+            onTap: _pickTime,
+          ),
+      ],
     );
   }
 }
