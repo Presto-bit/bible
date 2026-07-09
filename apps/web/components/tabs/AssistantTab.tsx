@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { chatStream, type Citation } from '@/lib/api';
@@ -38,6 +37,8 @@ import {
 import { readingStreak } from '@/lib/gamification';
 import { consumeAssistantPrefill, explainVerseQuestion } from '@/lib/assistant_prefill';
 import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
+import { readerHrefFromRef } from '@/lib/group_footprint';
+import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { HistorySessionSwipeRow } from '@/components/assistant/HistorySessionSwipeRow';
@@ -145,6 +146,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       return true;
     });
   }, [personalized, ref]);
+  const readerHref = useMemo(() => (ref ? readerHrefFromRef(ref) : null), [ref]);
 
   useEffect(() => {
     if (!historyOpen) return;
@@ -810,10 +812,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           </svg>
         </button>
         <div className="assistant-head-actions">
-          {ref ? (
-            <Link href="/reader" className="rail-cta">
+          {ref && readerHref ? (
+            <button
+              type="button"
+              className="rail-cta"
+              onClick={() => navigateToReaderHref(readerHref, router)}
+            >
               {refToChineseLabel(ref) ?? ref} ›
-            </Link>
+            </button>
           ) : (
             <span />
           )}
