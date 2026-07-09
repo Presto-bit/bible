@@ -1173,11 +1173,9 @@ export const api = {
     q.set('_d', chinaTodayYmd());
     if (previewCampaignId) q.set('preview_campaign_id', previewCampaignId);
     const token = getAdminToken();
-    const extra = token ? { Authorization: `Bearer ${token}` } : {};
-    return getJson<HomeBootstrap>(`/content/home/bootstrap?${q}`, {
-      ...authHeaders(),
-      ...extra,
-    });
+    const headers: Record<string, string> = { ...authHeaders() };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    return getJson<HomeBootstrap>(`/content/home/bootstrap?${q}`, headers);
   },
   dailyVerse: (day?: number) => {
     const q = new URLSearchParams();

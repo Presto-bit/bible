@@ -1153,6 +1153,143 @@ html:not([data-app-theme]) .card {
   min-height: 48px;
 }
 
+/* ─── 首页 Hero 轮播（经文 + 活动全图） ─── */
+.home-hero-carousel {
+  position: relative;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.home-hero-carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.home-hero-carousel-dot {
+  border: none;
+  background: var(--line);
+  color: var(--ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.home-hero-carousel-dot.is-active {
+  background: var(--dawn-gold-wash);
+  color: var(--accent-deep);
+}
+
+.home-hero-carousel-track {
+  display: flex;
+  width: 100%;
+  transition: transform 0.45s ease;
+  will-change: transform;
+}
+
+.home-hero-carousel-slide {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+.home-hero-carousel-slide .hero-verse {
+  margin-bottom: 0;
+}
+
+.hero-b-campaign {
+  --hero-verse-base-h: 16.5rem;
+  --hero-verse-max-h: 21.75rem;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  min-height: clamp(var(--hero-verse-base-h, 16.5rem), 60vw, var(--hero-verse-max-h, 21.75rem));
+  text-decoration: none;
+  color: inherit;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.hero-b-campaign:active {
+  transform: scale(0.985);
+  opacity: 0.92;
+}
+
+.hero-b-campaign-img {
+  width: 100%;
+  height: 100%;
+  min-height: clamp(var(--hero-verse-base-h, 16.5rem), 60vw, var(--hero-verse-max-h, 21.75rem));
+  object-fit: cover;
+  display: block;
+}
+
+.hero-b-campaign-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: rgba(20, 24, 28, 0.45);
+  border-radius: 6px;
+  padding: 3px 8px;
+}
+
+.admin-ops-hero-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.admin-ops-hero-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-ops-hero-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+}
+
+.admin-ops-hero-thumb {
+  width: 72px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.admin-ops-hero-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.admin-ops-hero-preview {
+  width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.admin-ops-hero-form-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+
 /* 首页列表行：统一高度与对齐 */
 .home-list-row {
   display: flex;

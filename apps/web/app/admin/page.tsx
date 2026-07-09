@@ -5,9 +5,10 @@ import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useEffect, useState } from 'react';
 import AdminRagPanel, { AdminLoginForm } from '@/components/AdminRagPanel';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
+import AdminOpsHeroPanel from '@/components/admin/AdminOpsHeroPanel';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
 
-type AdminTab = 'rag' | 'stats';
+type AdminTab = 'rag' | 'stats' | 'ops';
 
 export default function AdminPage() {
   useEdgeSwipeBack({ href: '/profile' });
@@ -69,10 +70,21 @@ export default function AdminPage() {
             >
               数据概览
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'ops'}
+              className={`admin-tab ${tab === 'ops' ? 'admin-tab-active' : ''}`}
+              onClick={() => setTab('ops')}
+            >
+              运营
+            </button>
           </div>
 
           <div className="settings-card admin-tab-panel">
-            {tab === 'rag' ? <AdminRagPanel showLogout={false} /> : <AdminStatsPanel />}
+            {tab === 'rag' ? <AdminRagPanel showLogout={false} /> : null}
+            {tab === 'stats' ? <AdminStatsPanel /> : null}
+            {tab === 'ops' ? <AdminOpsHeroPanel /> : null}
           </div>
         </>
       )}
