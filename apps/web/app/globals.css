@@ -218,6 +218,8 @@ body.reader-active {
 
 body.reader-active .app-body {
   background: var(--reader-surface-bg);
+  /* 阅读器全屏自管底部留白，避免与 .reader-body 双重预留 */
+  padding-bottom: 0;
 }
 
 body.reader-active .tabbar {
@@ -3000,6 +3002,29 @@ body.verse-full-open .tabbar {
 /* 触控划选 pin：CSS Highlight API，不包裹词块、不改 DOM */
 ::highlight(verse-native-pinned) {
   background: var(--reader-sel-bg, rgba(51, 144, 255, 0.35));
+  color: inherit;
+}
+
+/* 工具栏关闭后强制隐藏残留选区底色（Highlight API / 行级高亮兜底） */
+.reader-content.reader-sel-cleared ::highlight(verse-native-pinned) {
+  background-color: transparent !important;
+  color: inherit;
+}
+
+.reader-content.reader-sel-cleared .verse-sel-active {
+  background: transparent !important;
+}
+
+.reader-content.reader-sel-cleared .verse-word.is-active {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.reader-content.reader-sel-cleared .verse-inline::selection,
+.reader-content.reader-sel-cleared .verse-text-body::selection,
+.reader-content.reader-sel-cleared .verse-word::selection,
+.reader-content.reader-sel-cleared .verse-word *::selection {
+  background: transparent !important;
   color: inherit;
 }
 
@@ -6799,6 +6824,7 @@ a.license-row-name:hover {
 
 .reader-page {
   --reader-sel-bg: rgba(51, 144, 255, 0.28);
+  --reader-scroll-bottom: calc(var(--tabbar-h) + 4px);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -6819,11 +6845,14 @@ a.license-row-name:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.reader-page.reader-chrome-hidden {
+  --reader-scroll-bottom: max(16px, env(safe-area-inset-bottom, 0px));
 }
 
 .reader-page.reader-chrome-hidden .reader-body {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: 0;
 }
 
 /* 清晨（晨光）：阅读区默认主题。 */
@@ -6992,6 +7021,8 @@ a.license-row-name:hover {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   height: 100%;
+  padding-bottom: var(--reader-scroll-bottom);
+  box-sizing: border-box;
 }
 
 .reader-turn-panel-active::-webkit-scrollbar {
@@ -7036,6 +7067,8 @@ a.license-row-name:hover {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  padding-bottom: var(--reader-scroll-bottom);
+  box-sizing: border-box;
 }
 
 .reader-scroll-panel::-webkit-scrollbar {

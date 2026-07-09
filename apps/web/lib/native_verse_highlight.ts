@@ -57,6 +57,12 @@ export function supportsCssCustomHighlight(): boolean {
 
 export function clearNativePinnedHighlight(): void {
   if (!supportsCssCustomHighlight()) return;
+  try {
+    // WebKit 上仅 delete 偶发不生效，先置空再删更可靠
+    CSS.highlights.set(HIGHLIGHT_NAME, new Highlight());
+  } catch {
+    /* ignore */
+  }
   CSS.highlights.delete(HIGHLIGHT_NAME);
 }
 

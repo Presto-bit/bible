@@ -481,6 +481,10 @@ export default function ReaderView({
     [wholeVerseSel, nativeSelVerses],
   );
   const hasSel = sortedSel.length > 0;
+  const hasSelRef = useRef(hasSel);
+  useEffect(() => {
+    hasSelRef.current = hasSel;
+  }, [hasSel]);
   const selectionSpan = useMemo(
     () => (wordRange ? wordRangeToSpan(wordRange).span : null),
     [wordRange],
@@ -1433,37 +1437,46 @@ export default function ReaderView({
     return englishUI ? `Ch. ${peekPrevChapter}` : `第 ${peekPrevChapter} 章`;
   })();
 
+  const clearSelectionVisual = useCallback(() => {
+    clearNativePinnedHighlight();
+    window.getSelection()?.removeAllRanges();
+  }, []);
+
   const dismissNativeSelection = useCallback(() => {
     window.clearTimeout(nativeCollapseTimerRef.current);
     nativeCollapseTimerRef.current = 0;
-    dismissUntilRef.current = Date.now() + 2000;
+    dismissUntilRef.current = Date.now() + 3000;
     nativePinSuppressRef.current = true;
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
-    clearNativePinnedHighlight();
-    setNativePinnedHighlight(null);
-    window.getSelection()?.removeAllRanges();
-    setNativeSelection(null);
-    setLiveNativeSelection(null);
-    nativeSelectingRef.current = false;
-    setNativeSelecting(false);
-    setWholeVerseSel([]);
-    setWordRange(null);
-    wordRangeRef.current = null;
+    clearSelectionVisual();
+    flushSync(() => {
+      setNativePinnedHighlight(null);
+      setNativeSelection(null);
+      setLiveNativeSelection(null);
+      setWholeVerseSel([]);
+      setWordRange(null);
+      wordRangeRef.current = null;
+      nativeSelectingRef.current = false;
+      setNativeSelecting(false);
+    });
     wordDragPendingRef.current = null;
     if (wordDragRafRef.current) {
       cancelAnimationFrame(wordDragRafRef.current);
       wordDragRafRef.current = 0;
     }
     swipeIgnoreUntilRef.current = Date.now() + 320;
+    clearSelectionVisual();
     requestAnimationFrame(() => {
-      clearNativePinnedHighlight();
-      window.getSelection()?.removeAllRanges();
+      clearSelectionVisual();
+      requestAnimationFrame(clearSelectionVisual);
     });
     window.setTimeout(() => {
       nativePinSuppressRef.current = false;
-    }, 2000);
-  }, []);
+    }, 3000);
+  }, [clearSelectionVisual]);
+
+  const finishToolbarAction = dismissNativeSelection;
 
   const clearSelection = dismissNativeSelection;
 
@@ -1632,10 +1645,14 @@ export default function ReaderView({
       }, delayMs);
     };
 
-    const keepSelectionState = () =>
-      pinningRef.current
-      || nativeSelectingRef.current
-      || Boolean(nativePinnedHighlightRef.current?.spans.length);
+    const keepSelectionState = () => {
+      if (Date.now() < dismissUntilRef.current) return false;
+      return (
+        pinningRef.current
+        || nativeSelectingRef.current
+        || Boolean(nativePinnedHighlightRef.current?.spans.length)
+      );
+    };
 
     const selectionLocked = () =>
       nativePinSuppressRef.current || Date.now() < dismissUntilRef.current;
@@ -1754,7 +1771,15 @@ export default function ReaderView({
     }
     const gen = nativePinGenRef.current;
     const id = requestAnimationFrame(() => {
-      if (gen !== nativePinGenRef.current || nativePinSuppressRef.current) return;
+      if (
+        !hasSelRef.current
+        || gen !== nativePinGenRef.current
+        || nativePinSuppressRef.current
+        || Date.now() < dismissUntilRef.current
+      ) {
+        clearNativePinnedHighlight();
+        return;
+      }
       const pin = nativePinnedHighlightRef.current;
       if (!pin?.spans.length) {
         clearNativePinnedHighlight();
@@ -2262,7 +2287,7 @@ export default function ReaderView({
         {renderChapterHead()}
 
         <div
-          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}`}
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}${!hasSel ? ' reader-sel-cleared' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
           onClick={handleReaderContentClick}
         >
@@ -2400,7 +2425,7 @@ export default function ReaderView({
                   onClick={() => {
                     applyMarkChoice(c);
                     setMarkPaletteOpen(false);
-                    dismissNativeSelection();
+                    finishToolbarAction();
                   }}
                 />
               ))}
@@ -2438,7 +2463,7 @@ export default function ReaderView({
                   if (currentMark) {
                     clearMark();
                     setMarkPaletteOpen(false);
-                    dismissNativeSelection();
+                    finishToolbarAction();
                     return;
                   }
                   setMarkPaletteOpen((v) => !v);
@@ -2460,9 +2485,9 @@ export default function ReaderView({
               onClick={() => {
                 setMarkPaletteOpen(false);
                 const text = `${effRefLabel} ${effSelectionText}`;
+                finishToolbarAction();
                 void navigator.clipboard.writeText(text);
                 flashToast(englishUI ? 'Copied' : '已复制');
-                dismissNativeSelection();
               }}
             >
               <span className="vsb-icon" aria-hidden>
