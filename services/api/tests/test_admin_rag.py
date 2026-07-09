@@ -137,3 +137,5 @@ def test_admin_stats_with_token():
     assert "uv" in body["series"]
     assert "uv_today" in body["totals"]
     assert "uv_7d" in body["totals"]
+    assert "dod" in body
+    assert "users_new" in body["dod"]

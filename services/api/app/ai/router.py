@@ -15,6 +15,7 @@ from .chat import prepare
 from .llm import stream_chat
 from .parse_output import extract_sections, split_body_and_followups
 from .usage import consume_quota, record_ai_request
+from .request_log import log_ai_request
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -127,12 +128,21 @@ def chat(
     def gen():
         yield _sse("meta", {**prep["meta"], "quota": {"used": used, "limit": limit}})
         full = []
+        scene = prep["meta"].get("scene")
         try:
             for piece in stream_chat(prep["messages"], max_tokens=prep["max_tokens"]):
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
+            log_ai_request(
+                device_id=x_guest_id,
+                user_id=logged_in,
+                scene=scene,
+                mode=body.mode,
+                surface=body.surface,
+                status="error",
+            )
             yield _sse("error", {"message": f"小爱暂时无法回应：{exc}"})
             return
         text = "".join(full)
@@ -148,6 +158,14 @@ def chat(
                 "sections": sections,
                 "followups": followups,
             },
+        )
+        log_ai_request(
+            device_id=x_guest_id,
+            user_id=logged_in,
+            scene=scene,
+            mode=body.mode,
+            surface=body.surface,
+            status="ok",
         )
 
     return StreamingResponse(

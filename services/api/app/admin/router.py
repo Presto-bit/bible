@@ -34,6 +34,7 @@ from .hero_b_ops import (
     upsert_campaign,
 )
 from ..content.hero_b_link import LINK_CATALOG, resolve_hero_b_href, HeroBLinkError
+from .stats_ops import STATS_DETAIL_METRICS, fetch_admin_stats, fetch_admin_stats_detail
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -96,370 +97,13 @@ def admin_eligible(user_id: str = Depends(get_current_user)) -> dict:
     return {"admin_eligible": phone_is_admin(phone)}
 
 
-def _scalar(conn, sql: str, params: tuple = ()) -> int:
-    row = conn.execute(sql, params).fetchone()
-    return int(row[0] or 0) if row else 0
-
-
-def _date_series(conn, sql: str, days: int = 7) -> list[dict]:
-    rows = conn.execute(sql, (days - 1,)).fetchall()
-    by_date = {str(r[0]): int(r[1] or 0) for r in rows}
-    start = date.today() - timedelta(days=days - 1)
-    out: list[dict] = []
-    for i in range(days):
-        d = start + timedelta(days=i)
-        key = d.isoformat()
-        out.append({"date": key, "count": by_date.get(key, 0)})
-    return out
-
-
-def _fetch_admin_stats() -> dict:
-    pool = get_pool()
-    with pool.connection() as conn:
-        totals = {
-            "users": _scalar(conn, "SELECT count(*) FROM users"),
-            "accounts": _scalar(conn, "SELECT count(*) FROM accounts"),
-            "groups": _scalar(conn, "SELECT count(*) FROM social_group"),
-            "group_members": _scalar(conn, "SELECT count(*) FROM group_member"),
-            "friendships": _scalar(conn, "SELECT count(*) FROM friendship"),
-            "messages_today": _scalar(
-                conn,
-                "SELECT count(*) FROM group_message WHERE created_at >= current_date",
-            ),
-            "checkins_today": _scalar(
-                conn,
-                "SELECT count(*) FROM group_message "
-                "WHERE kind = 'checkin' AND created_at >= current_date",
-            ),
-            "rag_documents": _scalar(conn, "SELECT count(*) FROM bible_documents"),
-            "rag_chunks": _scalar(conn, "SELECT count(*) FROM bible_rag_chunks"),
-            "rag_failed": _scalar(
-                conn,
-                "SELECT count(*) FROM bible_documents "
-                "WHERE rag_index_error IS NOT NULL "
-                "OR status NOT IN ('ready', 'indexed')",
-            ),
-            "ai_requests_today": _scalar(
-                conn,
-                "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date = current_date",
-            ),
-            "ai_requests_7d": _scalar(
-                conn,
-                "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date >= current_date - 6",
-            ),
-            "uv_today": _scalar(
-                conn,
-                "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date",
-            ),
-            "uv_7d": _scalar(
-                conn,
-                "SELECT count(*) FROM daily_active_visitors "
-                "WHERE visit_date >= current_date - 6",
-            ),
-        }
-        series = {
-            "ai_requests": _date_series(
-                conn,
-                """
-                SELECT usage_date::text, coalesce(sum(request_count), 0)
-                FROM ai_usage_daily
-                WHERE usage_date >= current_date - %s::int
-                GROUP BY usage_date
-                ORDER BY usage_date
-                """,
-            ),
-            "checkins": _date_series(
-                conn,
-                """
-                SELECT created_at::date::text, count(*)
-                FROM group_message
-                WHERE kind = 'checkin' AND created_at >= current_date - %s::int
-                GROUP BY created_at::date
-                ORDER BY created_at::date
-                """,
-            ),
-            "users": _date_series(
-                conn,
-                """
-                SELECT created_at::date::text, count(*)
-                FROM users
-                WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date
-                ORDER BY created_at::date
-                """,
-            ),
-            "groups": _date_series(
-                conn,
-                """
-                SELECT created_at::date::text, count(*)
-                FROM social_group
-                WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date
-                ORDER BY created_at::date
-                """,
-            ),
-            "group_members": _date_series(
-                conn,
-                """
-                SELECT joined_at::date::text, count(*)
-                FROM group_member
-                WHERE joined_at >= current_date - %s::int
-                GROUP BY joined_at::date
-                ORDER BY joined_at::date
-                """,
-            ),
-            "friendships": _date_series(
-                conn,
-                """
-                SELECT created_at::date::text, count(*)
-                FROM friendship
-                WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date
-                ORDER BY created_at::date
-                """,
-            ),
-            "messages": _date_series(
-                conn,
-                """
-                SELECT created_at::date::text, count(*)
-                FROM group_message
-                WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date
-                ORDER BY created_at::date
-                """,
-            ),
-            "rag_documents": _date_series(
-                conn,
-                """
-                SELECT created_at::date::text, count(*)
-                FROM bible_documents
-                WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date
-                ORDER BY created_at::date
-                """,
-            ),
-            "uv": _date_series(
-                conn,
-                """
-                SELECT visit_date::text, count(*)
-                FROM daily_active_visitors
-                WHERE visit_date >= current_date - %s::int
-                GROUP BY visit_date
-                ORDER BY visit_date
-                """,
-            ),
-        }
-    return {"totals": totals, "series": series}
-
-
-_STATS_DETAIL_METRICS = frozenset(
-    {
-        "users",
-        "groups",
-        "friendships",
-        "messages",
-        "uv",
-        "ai_requests",
-        "rag_documents",
-    }
-)
-
-
-def _fetch_admin_stats_detail(metric: str, *, limit: int = 50) -> dict:
-    stats = _fetch_admin_stats()
-    series = stats["series"].get(metric, [])
-    totals = stats["totals"]
-    title_map = {
-        "users": "注册用户",
-        "groups": "读经群",
-        "friendships": "好友关系",
-        "messages": "群消息",
-        "uv": "访问 UV",
-        "ai_requests": "AI 请求",
-        "rag_documents": "RAG 资料",
-    }
-    title = title_map.get(metric, metric)
-    pool = get_pool()
-    with pool.connection() as conn:
-        if metric == "users":
-            rows = conn.execute(
-                """
-                SELECT u.id::text, u.handle, u.display_name, u.created_at::text,
-                       (SELECT count(*) FROM accounts a WHERE a.user_id = u.id) AS account_count
-                FROM users u
-                ORDER BY u.created_at DESC
-                LIMIT %s
-                """,
-                (limit,),
-            ).fetchall()
-            items = [
-                {
-                    "id": r[0],
-                    "handle": r[1],
-                    "display_name": r[2],
-                    "created_at": r[3],
-                    "has_account": int(r[4] or 0) > 0,
-                }
-                for r in rows
-            ]
-            summary = f"累计 {totals['users']} 人 · 账号 {totals['accounts']}"
-        elif metric == "groups":
-            rows = conn.execute(
-                """
-                SELECT g.id::text, g.name, g.join_code, g.created_at::text,
-                       (SELECT count(*) FROM group_member m WHERE m.group_id = g.id) AS members
-                FROM social_group g
-                ORDER BY g.created_at DESC
-                LIMIT %s
-                """,
-                (limit,),
-            ).fetchall()
-            items = [
-                {
-                    "id": r[0],
-                    "name": r[1],
-                    "join_code": r[2],
-                    "created_at": r[3],
-                    "members": int(r[4] or 0),
-                }
-                for r in rows
-            ]
-            summary = f"累计 {totals['groups']} 群 · {totals['group_members']} 成员"
-        elif metric == "friendships":
-            rows = conn.execute(
-                """
-                SELECT f.user_a::text, f.user_b::text, f.created_at::text
-                FROM friendship f
-                ORDER BY f.created_at DESC
-                LIMIT %s
-                """,
-                (limit,),
-            ).fetchall()
-            items = [
-                {"user_a": r[0], "user_b": r[1], "created_at": r[2]} for r in rows
-            ]
-            summary = f"累计 {totals['friendships']} 对好友关系"
-        elif metric == "messages":
-            rows = conn.execute(
-                """
-                SELECT m.id::text, g.name, m.kind, m.ref, m.created_at::text
-                FROM group_message m
-                JOIN social_group g ON g.id = m.group_id
-                WHERE m.created_at >= current_date
-                ORDER BY m.created_at DESC
-                LIMIT %s
-                """,
-                (limit,),
-            ).fetchall()
-            items = [
-                {
-                    "id": r[0],
-                    "group": r[1],
-                    "kind": r[2],
-                    "ref": r[3],
-                    "created_at": r[4],
-                }
-                for r in rows
-            ]
-            summary = (
-                f"今日消息 {totals['messages_today']} · 打卡 {totals['checkins_today']}"
-            )
-        elif metric == "uv":
-            rows = conn.execute(
-                """
-                SELECT visitor_key, created_at::text
-                FROM daily_active_visitors
-                WHERE visit_date = current_date
-                ORDER BY created_at DESC
-                LIMIT %s
-                """,
-                (limit,),
-            ).fetchall()
-            items = [
-                {
-                    "visitor_key": (r[0][:8] + "…") if r[0] and len(r[0]) > 10 else r[0],
-                    "type": "用户" if r[0] and "-" in r[0] else "设备",
-                    "created_at": r[1],
-                }
-                for r in rows
-            ]
-            summary = f"今日 UV {totals['uv_today']} · 近 7 日 {totals['uv_7d']}"
-        elif metric == "ai_requests":
-            rows = conn.execute(
-                """
-                SELECT coalesce(a.user_id::text, ''), gd.device_fingerprint,
-                       a.request_count, a.usage_date::text
-                FROM ai_usage_daily a
-                LEFT JOIN guest_devices gd ON gd.guest_id = a.guest_id
-                WHERE a.usage_date >= current_date - 6
-                ORDER BY a.usage_date DESC, a.request_count DESC
-                LIMIT %s
-                """,
-                (limit,),
-            ).fetchall()
-            items = []
-            for r in rows:
-                user_id = r[0] or None
-                device = r[1]
-                items.append(
-                    {
-                        "user_id": (user_id[:8] + "…") if user_id and len(user_id) > 10 else user_id,
-                        "device": (device[:12] + "…") if device and len(device) > 14 else device,
-                        "request_count": int(r[2] or 0),
-                        "usage_date": r[3],
-                        "logged_in": bool(user_id),
-                    }
-                )
-            summary = (
-                f"今日 {totals['ai_requests_today']} 次 · 近 7 日 {totals['ai_requests_7d']} 次"
-            )
-        elif metric == "rag_documents":
-            rows = conn.execute(
-                """
-                SELECT d.id::text, d.title, d.source_type, d.status,
-                       d.rag_index_at::text, d.rag_index_error,
-                       (SELECT count(*) FROM bible_rag_chunks c WHERE c.document_id = d.id) AS chunks,
-                       d.created_at::text
-                FROM bible_documents d
-                ORDER BY d.updated_at DESC
-                LIMIT %s
-                """,
-                (limit,),
-            ).fetchall()
-            items = [
-                {
-                    "id": r[0],
-                    "title": r[1],
-                    "source_type": r[2],
-                    "status": r[3],
-                    "indexed_at": r[4],
-                    "error": r[5],
-                    "chunks": int(r[6] or 0),
-                    "created_at": r[7],
-                }
-                for r in rows
-            ]
-            summary = (
-                f"{totals['rag_documents']} 篇 · {totals['rag_chunks']} 向量块"
-                + (f" · {totals['rag_failed']} 异常" if totals["rag_failed"] else "")
-            )
-        else:
-            raise HTTPException(status_code=404, detail="未知指标")
-    return {
-        "metric": metric,
-        "title": title,
-        "summary": summary,
-        "series": series,
-        "items": items,
-    }
-
-
 @router.get("/stats")
-def admin_stats(_phone: str = Depends(require_admin)) -> dict:
+def admin_stats(
+    days: int = Query(7, ge=1, le=90),
+    _phone: str = Depends(require_admin),
+) -> dict:
     try:
-        return _fetch_admin_stats()
+        return fetch_admin_stats(series_days=days)
     except Exception as exc:
         logger.exception("admin stats failed")
         raise HTTPException(status_code=503, detail=f"统计数据不可用：{exc}") from exc
@@ -469,17 +113,30 @@ def admin_stats(_phone: str = Depends(require_admin)) -> dict:
 def admin_stats_detail(
     metric: str,
     limit: int = Query(50, ge=1, le=200),
+    preset: str | None = Query(None, pattern="^(today|7d|30d|custom)$"),
+    days: int | None = Query(None, ge=1, le=90),
+    date_from: date | None = Query(None),
+    date_to: date | None = Query(None),
     _phone: str = Depends(require_admin),
 ) -> dict:
-    if metric not in _STATS_DETAIL_METRICS:
+    if metric not in STATS_DETAIL_METRICS:
         raise HTTPException(status_code=404, detail="未知指标")
     try:
-        return _fetch_admin_stats_detail(metric, limit=limit)
+        return fetch_admin_stats_detail(
+            metric,
+            limit=limit,
+            preset=preset,
+            days=days,
+            date_from=date_from,
+            date_to=date_to,
+        )
     except HTTPException:
         raise
     except Exception as exc:
         logger.exception("admin stats detail failed metric=%s", metric)
         raise HTTPException(status_code=503, detail=f"明细不可用：{exc}") from exc
+
+
 
 
 def _format_index_message(result: dict) -> str:

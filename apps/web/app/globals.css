@@ -6200,6 +6200,120 @@ a.license-row-name:hover {
   color: var(--ink-muted);
 }
 
+.admin-stat-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.admin-stat-dod {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--muted, #888) 12%, transparent);
+  color: var(--muted, #888);
+  white-space: nowrap;
+}
+
+.admin-stat-dod.is-up {
+  color: #2d7a4f;
+  background: color-mix(in srgb, #2d7a4f 12%, transparent);
+}
+
+.admin-stat-dod.is-down {
+  color: #c45c4a;
+  background: color-mix(in srgb, #c45c4a 12%, transparent);
+}
+
+.admin-stats-range {
+  margin: 10px 0;
+  padding: 10px 12px;
+}
+
+.admin-stats-range-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-stats-range-btn {
+  border: 1px solid color-mix(in srgb, var(--text, #333) 12%, transparent);
+  background: transparent;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.admin-stats-range-btn.is-active {
+  border-color: var(--accent, #3d6b8e);
+  color: var(--accent, #3d6b8e);
+  background: color-mix(in srgb, var(--accent, #3d6b8e) 8%, transparent);
+}
+
+.admin-stats-range-custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.admin-stats-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.admin-stats-range-field input {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--text, #333) 15%, transparent);
+  background: var(--card, #fff);
+  color: inherit;
+}
+
+.admin-insight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.admin-insight-card {
+  padding: 10px 12px;
+}
+
+.admin-insight-label {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted, #888);
+}
+
+.admin-insight-value {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.admin-insight-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+.admin-chart-bars.is-dense .admin-chart-date {
+  font-size: 9px;
+}
+
+.admin-chart-bars.is-dense .admin-chart-bar-wrap {
+  min-width: 14px;
+}
+
 .admin-stat-value {
   margin: 6px 0 0;
   font-size: 22px;

@@ -267,6 +267,12 @@ export type AdminStatsTotals = {
   uv_7d: number;
 };
 
+export type AdminStatsDod = {
+  today: number;
+  yesterday: number;
+  pct: number | null;
+};
+
 export type AdminStatsSeriesPoint = { date: string; count: number };
 
 export type AdminStatsSeriesKey =
@@ -283,10 +289,34 @@ export type AdminStatsSeriesKey =
 export type AdminStats = {
   totals: AdminStatsTotals;
   series: Record<AdminStatsSeriesKey, AdminStatsSeriesPoint[]>;
+  dod: Record<string, AdminStatsDod>;
 };
 
-export async function fetchAdminStats(): Promise<AdminStats> {
-  const res = await fetch(`${API_BASE}/admin/stats`, {
+export type AdminStatsRangePreset = 'today' | '7d' | '30d' | 'custom';
+
+export type AdminStatsInsight = {
+  label: string;
+  value: string | number;
+  hint?: string;
+};
+
+export type AdminStatsColumn = { key: string; label: string };
+
+export type AdminStatsSection = {
+  key: string;
+  title: string;
+  columns: AdminStatsColumn[];
+  items: Record<string, string | number | boolean | null>[];
+};
+
+export type AdminStatsRange = {
+  from: string;
+  to: string;
+  preset: string;
+};
+
+export async function fetchAdminStats(seriesDays = 7): Promise<AdminStats> {
+  const res = await fetch(`${API_BASE}/admin/stats?days=${seriesDays}`, {
     headers: adminHeaders(),
     cache: 'no-store',
   });
@@ -298,16 +328,32 @@ export type AdminStatsDetail = {
   metric: AdminStatsSeriesKey;
   title: string;
   summary: string;
+  range: AdminStatsRange | null;
   series: AdminStatsSeriesPoint[];
+  insights: AdminStatsInsight[];
+  sections: AdminStatsSection[];
   items: Record<string, string | number | boolean | null>[];
 };
 
 export async function fetchAdminStatsDetail(
   metric: AdminStatsSeriesKey,
-  limit = 50,
+  opts: {
+    limit?: number;
+    preset?: AdminStatsRangePreset;
+    days?: number;
+    dateFrom?: string;
+    dateTo?: string;
+  } = {},
 ): Promise<AdminStatsDetail> {
+  const params = new URLSearchParams();
+  if (opts.limit) params.set('limit', String(opts.limit));
+  if (opts.preset) params.set('preset', opts.preset);
+  if (opts.days) params.set('days', String(opts.days));
+  if (opts.dateFrom) params.set('date_from', opts.dateFrom);
+  if (opts.dateTo) params.set('date_to', opts.dateTo);
+  const qs = params.toString();
   const res = await fetch(
-    `${API_BASE}/admin/stats/detail/${encodeURIComponent(metric)}?limit=${limit}`,
+    `${API_BASE}/admin/stats/detail/${encodeURIComponent(metric)}${qs ? `?${qs}` : ''}`,
     {
       headers: adminHeaders(),
       cache: 'no-store',
