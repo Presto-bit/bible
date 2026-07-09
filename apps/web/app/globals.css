@@ -5744,8 +5744,10 @@ body.reader-active .proper-noun--artifact {
 
 /* 设置弹窗（对齐 canvas SettingsScreen） */
 .settings-sheet {
-  max-height: 84vh;
+  max-height: min(84dvh, 100dvh);
   overflow-y: auto;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  -webkit-overflow-scrolling: touch;
 }
 
 .settings-card {
@@ -5762,8 +5764,15 @@ body.reader-active .proper-noun--artifact {
 }
 
 .offline-download-sheet {
-  max-height: 86vh;
-  overflow-y: auto;
+  max-height: min(88dvh, calc(100dvh - env(safe-area-inset-top, 0px)));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.offline-download-sheet-head {
+  flex-shrink: 0;
 }
 
 .offline-download-tabs {
@@ -5771,16 +5780,22 @@ body.reader-active .proper-noun--artifact {
 }
 
 .offline-download-list {
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-top: 8px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding-bottom: 20px;
 }
 
 .offline-download-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
   gap: 12px;
   padding: 12px;
   border: 1px solid var(--line);
@@ -5793,6 +5808,10 @@ body.reader-active .proper-noun--artifact {
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+}
+
+.offline-download-row-main strong {
+  word-break: break-word;
 }
 
 .offline-download-row-desc,
