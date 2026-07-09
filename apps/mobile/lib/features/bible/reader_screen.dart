@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider, readerImmersiveProvider;
+import '../../core/badge_stats.dart';
 import '../../core/api_client.dart' show prefsProvider;
 import '../../core/gamification.dart' show maybeNotifyBookComplete;
 import '../../core/theme.dart';
@@ -284,6 +285,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             },
             onRead: (b, c) {
               ref.read(readingRepoProvider).record(b, c);
+              if (_compareVersionId != null) {
+                ref.read(badgeStatsRecorderProvider).recordParallelChapter();
+              }
               final book = _book;
               if (book != null && book.id == b) {
                 maybeNotifyBookComplete(
@@ -344,6 +348,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     String selectionText = '',
     bool explainOnly = false,
   }) {
+    ref.read(badgeStatsRecorderProvider).recordHalfSheetXiaoAi();
     final b = _book;
     if (b == null) return;
     final r = refStr ?? '${b.id}.$_chapter';

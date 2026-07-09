@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../core/sync/sync_controller.dart';
 import '../core/theme.dart';
 import '../features/assistant/assistant_screen.dart';
 import '../features/bible/reader_screen.dart';
@@ -32,9 +33,14 @@ final readerImmersiveProvider =
     NotifierProvider<ReaderImmersiveNotifier, bool>(
         ReaderImmersiveNotifier.new);
 
-class AppShell extends ConsumerWidget {
+class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key});
 
+  @override
+  ConsumerState<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<AppShell> {
   static const _pages = [
     HomeScreen(),
     ReaderScreen(),
@@ -44,11 +50,11 @@ class AppShell extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final index = ref.watch(navIndexProvider);
-    // 仅在圣经 Tab 阅读且顶栏隐藏时收起底部导航；点按页面恢复。
     final immersive = ref.watch(readerImmersiveProvider) && index == 1;
-    return Scaffold(
+    return SyncLifecycle(
+      child: Scaffold(
       body: IndexedStack(index: index, children: _pages),
       bottomNavigationBar: AnimatedSize(
         duration: const Duration(milliseconds: 260),

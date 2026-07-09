@@ -38,6 +38,8 @@ export const LEGACY_BADGE_ID_MAP: Record<string, string> = {
   books10: 'books_5',
   nt: 'books_27',
   notes10: 'note_first',
+  quiz50: 'memory_review',
+  ai5: 'xiaoai_first',
 };
 
 export function normalizeBadgeId(id: string): string {

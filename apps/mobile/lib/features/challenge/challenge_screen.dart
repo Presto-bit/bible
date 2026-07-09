@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/badge_stats.dart';
 import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'challenge_levels.dart';
@@ -44,6 +45,7 @@ class _ChallengeScreenState extends ConsumerState<ChallengeScreen> {
       correct,
       play.questions.length,
     );
+    ref.read(badgeStatsRecorderProvider).recordMemoryReview();
     if (play.bookId != null) {
       clearPendingBookChallenge(ref.read(prefsProvider));
     }

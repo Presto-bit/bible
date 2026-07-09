@@ -445,6 +445,11 @@ class SyncEngine {
   }
 
   // ── 一键全量 ──
+  Future<int> pendingCount() async {
+    final rows = await _db.select(_db.outbox).get();
+    return rows.length;
+  }
+
   Future<SyncResult> syncOnce() async {
     final p = await push();
     final q = await pull();

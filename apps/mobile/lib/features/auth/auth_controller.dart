@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/sync/sync_controller.dart';
 
 class AuthState {
   const AuthState({required this.signedIn, this.displayName, this.hasPassword = false});
@@ -33,6 +34,13 @@ class AuthController extends Notifier<AuthState> {
     _refresh();
   }
 
+  Future<void> _afterAuth() async {
+    try {
+      await ref.read(syncControllerProvider.notifier).runSync(force: true);
+    } catch (_) {}
+    _refresh();
+  }
+
   Future<void> login(String handle, {String? displayName}) async {
     final dio = ref.read(dioProvider);
     final res = await dio.post('/auth/dev-login', data: {
@@ -48,6 +56,7 @@ class AuthController extends Notifier<AuthState> {
     } on DioException {
       /* 忽略 */
     }
+    await _afterAuth();
     state = AuthState(signedIn: true, displayName: display);
   }
 
@@ -64,6 +73,7 @@ class AuthController extends Notifier<AuthState> {
     } on DioException {
       /* 忽略 */
     }
+    await _afterAuth();
     state = AuthState(signedIn: true, displayName: userId);
   }
 
@@ -90,7 +100,7 @@ class AuthController extends Notifier<AuthState> {
           username: username,
           password: password,
         );
-    _refresh();
+    await _afterAuth();
   }
 
   Future<void> markOnboarded() async {
@@ -99,7 +109,7 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> loginWithIdentifier(String identifier, String password) async {
     await ref.read(authApiProvider).loginWithIdentifier(identifier, password);
-    _refresh();
+    await _afterAuth();
   }
 
   Future<void> changePassword({

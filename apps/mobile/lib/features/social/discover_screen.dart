@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/app_shell.dart';
+import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
 import '../assistant/assistant_screen.dart';
@@ -262,6 +263,7 @@ class _DiscoverBody extends ConsumerWidget {
     if (name == null || name.trim().isEmpty) return;
     try {
       await ref.read(socialRepoProvider).createGroup(name.trim());
+      ref.read(badgeStatsRecorderProvider).recordGroupCreated();
       ref.invalidate(myGroupsProvider);
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('建群失败：$e')));
@@ -274,6 +276,7 @@ class _DiscoverBody extends ConsumerWidget {
     if (code == null || code.trim().isEmpty) return;
     try {
       await ref.read(socialRepoProvider).joinGroup(code.trim());
+      ref.read(badgeStatsRecorderProvider).recordInviteAccepted();
       ref.invalidate(myGroupsProvider);
     } catch (e) {
       messenger.showSnackBar(const SnackBar(content: Text('加入失败：邀请码无效')));

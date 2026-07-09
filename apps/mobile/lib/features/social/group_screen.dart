@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import '../../core/ref_label.dart';
 import 'social_repository.dart';
@@ -226,6 +227,7 @@ class GroupScreen extends ConsumerWidget {
     try {
       await ref.read(socialRepoProvider).checkin(d.id,
           ref: result.ref, taskId: result.taskId, body: result.body);
+      ref.read(badgeStatsRecorderProvider).recordGroupCheckin(groupId: d.id);
       ref.invalidate(groupFeedProvider(d.id));
     } catch (e) {
       if (context.mounted) {

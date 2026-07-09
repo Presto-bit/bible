@@ -71,6 +71,8 @@ const legacyBadgeIdMap = <String, String>{
   'books10': 'books_5',
   'nt': 'books_27',
   'notes10': 'note_first',
+  'quiz50': 'memory_review',
+  'ai5': 'xiaoai_first',
 };
 
 String normalizeBadgeId(String id) => legacyBadgeIdMap[id] ?? id;

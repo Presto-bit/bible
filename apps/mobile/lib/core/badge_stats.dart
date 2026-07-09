@@ -1,6 +1,10 @@
 import 'dart:convert';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'api_client.dart';
+import 'badge_recheck.dart';
 
 /// 成就埋点（与 Web presto_badge_stats 对齐）
 class BadgeStats {
@@ -120,4 +124,154 @@ int maxGroupCheckinStreak(BadgeStats stats) {
     if (localBest > best) best = localBest;
   }
   return best;
+}
+
+final badgeStatsRecorderProvider = Provider<BadgeStatsRecorder>(
+  (ref) => BadgeStatsRecorder(ref),
+);
+
+class BadgeStatsRecorder {
+  BadgeStatsRecorder(this._ref);
+
+  final Ref _ref;
+
+  SharedPreferences get _prefs => _ref.read(prefsProvider);
+
+  String _ymd([DateTime? d]) {
+    final x = d ?? DateTime.now();
+    return '${x.year.toString().padLeft(4, '0')}-'
+        '${x.month.toString().padLeft(2, '0')}-'
+        '${x.day.toString().padLeft(2, '0')}';
+  }
+
+  void _patch(void Function(Map<String, dynamic> s) mutator) {
+    Map<String, dynamic> m;
+    try {
+      m = jsonDecode(_prefs.getString(BadgeStats._key) ?? '{}') as Map<String, dynamic>;
+    } catch (_) {
+      m = {};
+    }
+    mutator(m);
+    _prefs.setString(BadgeStats._key, jsonEncode(m));
+    _queueRecheck();
+  }
+
+  void _queueRecheck() => queueBadgeRecheck(_ref);
+
+  List<String> _uniqueAdd(List<dynamic>? arr, String v) {
+    final list = [...?arr?.cast<String>()];
+    if (!list.contains(v)) list.add(v);
+    return list;
+  }
+
+  void recordCrossrefOpen() {
+    _patch((s) => s['crossref_open'] = ((s['crossref_open'] ?? 0) as int) + 1);
+  }
+
+  void recordStrongsOpen() {
+    _patch((s) => s['strongs_open'] = ((s['strongs_open'] ?? 0) as int) + 1);
+  }
+
+  void recordDictEntity(String id) {
+    if (id.isEmpty) return;
+    _patch((s) => s['dict_entities'] = _uniqueAdd(s['dict_entities'] as List?, id));
+  }
+
+  void recordMapTour(String id) {
+    if (id.isEmpty) return;
+    _patch((s) => s['map_tours'] = _uniqueAdd(s['map_tours'] as List?, id));
+  }
+
+  void recordTimelineTour(String id) {
+    if (id.isEmpty) return;
+    _patch((s) => s['timeline_tours'] = _uniqueAdd(s['timeline_tours'] as List?, id));
+  }
+
+  void recordTopicVisit(String id) {
+    if (id.isEmpty) return;
+    _patch((s) => s['topic_ids'] = _uniqueAdd(s['topic_ids'] as List?, id));
+  }
+
+  void recordParallelChapter() {
+    _patch((s) =>
+        s['parallel_chapters'] = ((s['parallel_chapters'] ?? 0) as int) + 1);
+  }
+
+  void recordXiaoAiQuestion({String? scene, String? ref}) {
+    _patch((s) {
+      s['xiaoai_questions'] = ((s['xiaoai_questions'] ?? 0) as int) + 1;
+      if (scene != null && scene.isNotEmpty) {
+        s['scenes_used'] = _uniqueAdd(s['scenes_used'] as List?, scene);
+      }
+      if (ref != null && ref.isNotEmpty && scene != null && scene.isNotEmpty) {
+        final rs = Map<String, dynamic>.from(s['ref_scenes'] as Map? ?? {});
+        final scenes = _uniqueAdd(rs[ref] as List?, scene);
+        rs[ref] = scenes;
+        s['ref_scenes'] = rs;
+      }
+      final h = DateTime.now().hour;
+      if (h >= 23 || h < 5) s['night_xiaoai'] = true;
+    });
+  }
+
+  void recordXiaoAiFollowup(int countInSession) {
+    _patch((s) {
+      final prev = (s['max_followups_session'] ?? 0) as int;
+      if (countInSession > prev) s['max_followups_session'] = countInSession;
+    });
+  }
+
+  void recordCitationClick() {
+    _patch((s) => s['citation_clicks'] = ((s['citation_clicks'] ?? 0) as int) + 1);
+  }
+
+  void recordSaveAnswerNote() {
+    _patch((s) => s['save_answer_notes'] = ((s['save_answer_notes'] ?? 0) as int) + 1);
+  }
+
+  void recordShareAnswer() {
+    _patch((s) => s['share_answers'] = ((s['share_answers'] ?? 0) as int) + 1);
+  }
+
+  void recordHalfSheetXiaoAi() {
+    _patch((s) => s['half_sheet_xiaoai'] = ((s['half_sheet_xiaoai'] ?? 0) as int) + 1);
+  }
+
+  void recordGroupCheckin({String? groupId}) {
+    _patch((s) {
+      s['group_checkins'] = ((s['group_checkins'] ?? 0) as int) + 1;
+      if (groupId != null && groupId.isNotEmpty) {
+        final dates = Map<String, dynamic>.from(
+            s['group_checkin_dates'] as Map? ?? {});
+        final day = _ymd();
+        final list = _uniqueAdd(dates[groupId] as List?, day);
+        dates[groupId] = list;
+        s['group_checkin_dates'] = dates;
+      }
+    });
+  }
+
+  void recordGroupResponse() {
+    _patch((s) => s['group_responses'] = ((s['group_responses'] ?? 0) as int) + 1);
+  }
+
+  void recordGroupCreated() {
+    _patch((s) => s['groups_created'] = ((s['groups_created'] ?? 0) as int) + 1);
+  }
+
+  void recordPlanSharedGroup() {
+    _patch((s) => s['plan_shared_group'] = true);
+  }
+
+  void recordInviteAccepted() {
+    _patch((s) => s['invites_accepted'] = ((s['invites_accepted'] ?? 0) as int) + 1);
+  }
+
+  void recordMemoryReview() {
+    _patch((s) => s['memory_reviews'] = ((s['memory_reviews'] ?? 0) as int) + 1);
+  }
+
+  void recordWrongRevived() {
+    _patch((s) => s['wrong_revived'] = ((s['wrong_revived'] ?? 0) as int) + 1);
+  }
 }

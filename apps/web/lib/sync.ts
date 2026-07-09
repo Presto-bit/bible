@@ -217,6 +217,9 @@ async function pull(): Promise<number> {
     applyRemoteAiSessionPull(aiSessionChanges);
   }
   if (data.cursor != null) localStorage.setItem(CURSOR_KEY, String(data.cursor));
+  if (changes.length > 0) {
+    void import('./badge_unlock').then((m) => m.runBadgeRecheck());
+  }
   return changes.length;
   } finally {
     syncPullDepth -= 1;

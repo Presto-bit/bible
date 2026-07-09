@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/badge_stats.dart';
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/theme.dart';
 import 'content_repository.dart';
@@ -72,7 +73,11 @@ class _EntityCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Container(
+    return InkWell(
+      onTap: () =>
+          ref.read(badgeStatsRecorderProvider).recordDictEntity(entity.name),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -136,6 +141,7 @@ class _EntityCard extends ConsumerWidget {
           ],
         ],
       ),
+    ),
     );
   }
 }

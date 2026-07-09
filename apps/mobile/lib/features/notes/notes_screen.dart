@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
 import '../../core/database/app_database.dart';
+import '../../core/sync/sync_controller.dart';
 import '../../core/theme.dart';
 import '../bible/reader_marking_models.dart';
 import '../../core/mark_ref.dart' show parseMarkRef, markColorSemantics;
@@ -38,7 +39,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     if (!ref.read(sessionProvider).isSignedIn) return;
     _autoSynced = true;
     try {
-      await ref.read(syncEngineProvider).syncOnce();
+      await ref.read(syncControllerProvider.notifier).runSync();
     } catch (_) {}
   }
 

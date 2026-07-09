@@ -8,6 +8,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/database/app_database.dart';
+import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import 'answer_text.dart';
 import 'assistant_format.dart';
@@ -184,6 +185,14 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _turns.add(ChatTurn(role: 'user', content: text));
       await repo.addMessage(sid, 'user', text);
       await repo.maybeTitleFromFirst(sid, text);
+      ref.read(badgeStatsRecorderProvider).recordXiaoAiQuestion(
+            scene: activeScene.id,
+            ref: _anchorRef,
+          );
+      final userTurns = _turns.where((t) => t.role == 'user').length;
+      if (userTurns > 1) {
+        ref.read(badgeStatsRecorderProvider).recordXiaoAiFollowup(userTurns - 1);
+      }
     }
     final reply = ChatTurn(
       role: 'assistant',
