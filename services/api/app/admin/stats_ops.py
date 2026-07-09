@@ -121,6 +121,66 @@ def _mask_id(value: str | None, keep: int = 8) -> str | None:
     return value[:keep] + "…"
 
 
+def _table_exists(conn, table_name: str) -> bool:
+    row = conn.execute(
+        "SELECT to_regclass(%s) IS NOT NULL",
+        (f"public.{table_name}",),
+    ).fetchone()
+    return bool(row and row[0])
+
+
+def _count_active_users(conn, *, span_days: int = 7) -> tuple[int, str | None]:
+    """近 N 日活跃用户数；返回 (数量, 可选说明)。"""
+    since = span_days - 1
+    parts: list[str] = []
+    if _table_exists(conn, "reading_log"):
+        parts.append(
+            f"SELECT user_id FROM reading_log WHERE date >= current_date - {since}"
+        )
+    if _table_exists(conn, "read_event"):
+        parts.append(
+            "SELECT user_id FROM read_event "
+            f"WHERE deleted = false AND updated_at >= current_date - {since}"
+        )
+    if parts:
+        sql = f"SELECT count(DISTINCT user_id) FROM ({' UNION '.join(parts)}) t"
+        return _scalar(conn, sql), None
+    if _table_exists(conn, "daily_active_visitors"):
+        return _scalar(
+            conn,
+            """
+            SELECT count(DISTINCT visitor_key) FROM daily_active_visitors
+            WHERE visit_date >= current_date - %s AND visitor_key LIKE 'u:%%'
+            """,
+            (since,),
+        ), "按 UV 登录用户估算（无 reading_log）"
+    return 0, "缺少 reading_log / read_event 表"
+
+
+def _count_dormant_users(conn, *, span_days: int = 30) -> tuple[int, str | None]:
+    """近 N 日无读经记录的用户数。"""
+    since = span_days - 1
+    has_log = _table_exists(conn, "reading_log")
+    has_event = _table_exists(conn, "read_event")
+    if not has_log and not has_event:
+        return 0, "缺少 reading_log / read_event 表"
+    clauses = []
+    if has_log:
+        clauses.append(
+            "NOT EXISTS (SELECT 1 FROM reading_log rl "
+            f"WHERE rl.user_id = u.id AND rl.date >= current_date - {since})"
+        )
+    if has_event:
+        clauses.append(
+            "NOT EXISTS (SELECT 1 FROM read_event re "
+            "WHERE re.user_id = u.id AND re.deleted = false "
+            f"AND re.updated_at >= current_date - {since})"
+        )
+    sql = f"SELECT count(*) FROM users u WHERE {' AND '.join(clauses)}"
+    hint = None if has_event else "未含 read_event，仅按 reading_log"
+    return _scalar(conn, sql), hint
+
+
 def fetch_admin_stats(*, series_days: int = 7) -> dict:
     span = max(1, min(series_days, 90))
     pool = get_pool()
@@ -421,37 +481,15 @@ def fetch_admin_stats_detail(
         summary = ""
 
         if metric == "users":
-            active_7d = _scalar(
-                conn,
-                """
-                SELECT count(DISTINCT user_id) FROM (
-                  SELECT user_id FROM reading_log WHERE date >= current_date - 6
-                  UNION
-                  SELECT user_id FROM read_event
-                  WHERE deleted = false AND updated_at >= current_date - 6
-                ) t
-                """,
-            )
-            dormant_30d = _scalar(
-                conn,
-                """
-                SELECT count(*) FROM users u WHERE NOT EXISTS (
-                  SELECT 1 FROM reading_log rl
-                  WHERE rl.user_id = u.id AND rl.date >= current_date - 29
-                ) AND NOT EXISTS (
-                  SELECT 1 FROM read_event re
-                  WHERE re.user_id = u.id AND re.deleted = false
-                    AND re.updated_at >= current_date - 29
-                )
-                """,
-            )
+            active_7d, active_hint = _count_active_users(conn, span_days=7)
+            dormant_30d, dormant_hint = _count_dormant_users(conn, span_days=30)
             with_account = _scalar(
                 conn,
                 "SELECT count(DISTINCT user_id) FROM accounts",
             )
             insights = [
-                _insight("近 7 日活跃", active_7d, "有读经记录"),
-                _insight("沉睡用户", dormant_30d, "30 日无读经"),
+                _insight("近 7 日活跃", active_7d, active_hint or "有读经记录"),
+                _insight("沉睡用户", dormant_30d, dormant_hint or "30 日无读经"),
                 _insight("已绑账号", with_account, f"占 {totals['users']} 人"),
             ]
             rows = conn.execute(
