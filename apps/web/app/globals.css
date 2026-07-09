@@ -6377,7 +6377,19 @@ a.license-row-name:hover {
   margin-bottom: 14px;
   text-align: justify;
   font-size: var(--reader-font-size);
-  line-height: 1.75;
+  line-height: 1.9;
+}
+
+/* 滑动预览与正式正文：统一经节排版容器 */
+.reader-turn-panel-active .reader-turn-peek,
+.reader-turn-panel-peek .reader-turn-peek {
+  width: 100%;
+}
+
+.reader-turn-panel-active .reader-turn-peek .verse-paragraph,
+.reader-turn-panel-peek .reader-turn-peek .verse-paragraph {
+  font-size: var(--reader-font-size);
+  text-align: justify;
 }
 
 .verse-inline {

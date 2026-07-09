@@ -777,11 +777,15 @@ export default function ReaderView({
     openThoughtHubForVerse(verse, text);
   };
 
-  const verseBlockStyle = {
-    fontSize: fontPx,
-    lineHeight: poetry ? 2.1 : 1.9,
-    fontFamily: fontFamilyCss(fontFamily),
-  };
+  const verseBlockStyleFor = useCallback(
+    (bookId: string) => ({
+      fontSize: fontPx,
+      fontFamily: fontFamilyCss(fontFamily),
+      lineHeight: isPoetryBook(bookId) ? 2.1 : 1.9,
+    }),
+    [fontPx, fontFamily],
+  );
+  const verseBlockStyle = verseBlockStyleFor(book.id);
 
   const englishUI = mainVersionId === 'kjv';
   const ui = readerUi(englishUI);
@@ -1432,7 +1436,7 @@ export default function ReaderView({
   const dismissNativeSelection = useCallback(() => {
     window.clearTimeout(nativeCollapseTimerRef.current);
     nativeCollapseTimerRef.current = 0;
-    dismissUntilRef.current = Date.now() + 520;
+    dismissUntilRef.current = Date.now() + 800;
     nativePinSuppressRef.current = true;
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
@@ -1454,7 +1458,7 @@ export default function ReaderView({
     swipeIgnoreUntilRef.current = Date.now() + 320;
     window.setTimeout(() => {
       nativePinSuppressRef.current = false;
-    }, 520);
+    }, 800);
   }, []);
 
   const clearSelection = dismissNativeSelection;
@@ -1571,10 +1575,17 @@ export default function ReaderView({
     const keepSelectionState = () =>
       pinningRef.current
       || nativeSelectingRef.current
-      || nativePinSuppressRef.current
       || Boolean(nativePinnedHighlightRef.current?.spans.length);
 
+    const selectionLocked = () =>
+      nativePinSuppressRef.current || Date.now() < dismissUntilRef.current;
+
     const commitLiveSelection = () => {
+      if (selectionLocked()) {
+        setLiveNativeSelection(null);
+        window.getSelection()?.removeAllRanges();
+        return;
+      }
       const next = readNativeVerseSelection(root);
       setLiveNativeSelection(next);
       setNativeSelection((prev) => {
@@ -1604,6 +1615,11 @@ export default function ReaderView({
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
+        if (selectionLocked()) {
+          setLiveNativeSelection(null);
+          window.getSelection()?.removeAllRanges();
+          return;
+        }
         const next = readNativeVerseSelection(root);
         if (nativeSelectingRef.current) {
           setLiveNativeSelection(next);
@@ -2220,14 +2236,16 @@ export default function ReaderView({
                     parallelVerses={peekPrevBundle?.parallelVerses}
                     englishUI={englishUI}
                     verseNo={verseNo}
-                    verseBlockStyle={verseBlockStyle}
+                    verseBlockStyle={verseBlockStyleFor(peekPrevBook?.id ?? book.id)}
                     renderVerseText={renderVerseText}
                     highlightMap={highlightMap}
                     underlinesOn={underlinesOn}
                   />
                 </div>
                 <div ref={contentRef} className="reader-turn-panel reader-turn-panel-active">
-                  {renderChapterVerses()}
+                  <div className={`reader-turn-peek ${poetry ? 'reader-poetry' : 'reader-prose'}`}>
+                    {renderChapterVerses()}
+                  </div>
                 </div>
                 <div className="reader-turn-panel reader-turn-panel-peek" aria-hidden>
                   <ReaderChapterPeek
@@ -2240,7 +2258,7 @@ export default function ReaderView({
                     parallelVerses={peekNextBundle?.parallelVerses}
                     englishUI={englishUI}
                     verseNo={verseNo}
-                    verseBlockStyle={verseBlockStyle}
+                    verseBlockStyle={verseBlockStyleFor(peekNextBook?.id ?? book.id)}
                     renderVerseText={renderVerseText}
                     highlightMap={highlightMap}
                     underlinesOn={underlinesOn}
@@ -2370,7 +2388,17 @@ export default function ReaderView({
                 const text = `${effRefLabel} ${effSelectionText}`;
                 void navigator.clipboard.writeText(text);
                 flashToast(englishUI ? 'Copied' : '已复制');
-                dismissNativeSelection();
+                flushSync(() => {
+                  dismissNativeSelection();
+                });
+                requestAnimationFrame(() => {
+                  clearNativePinnedHighlight();
+                  window.getSelection()?.removeAllRanges();
+                  requestAnimationFrame(() => {
+                    clearNativePinnedHighlight();
+                    window.getSelection()?.removeAllRanges();
+                  });
+                });
               }}
             >
               <span className="vsb-icon" aria-hidden>
