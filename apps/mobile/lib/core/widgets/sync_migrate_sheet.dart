@@ -31,12 +31,23 @@ class _SyncMigrateSheetState extends ConsumerState<SyncMigrateSheet> {
       builder: (context, snap) {
         final hasData = snap.data ?? false;
         return AlertDialog(
-          title: const Text('同步阅读记录'),
+          backgroundColor: AppColors.surface,
+          title: const Text(
+            '同步阅读记录',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: AppColors.ink,
+            ),
+          ),
           content: Text(
             hasData
                 ? '检测到本机有阅读打卡、章节记录或成就。合并到账号后，手机与电脑将显示一致的连续天数与进度。'
                 : '开启云同步后，阅读打卡与成就会在多设备间保持一致。',
-            style: const TextStyle(fontSize: 14, color: AppColors.inkSoft, height: 1.5),
+            style: const TextStyle(
+              fontSize: 15,
+              height: 1.65,
+              color: AppColors.ink,
+            ),
           ),
           actions: [
             if (hasData)
@@ -80,6 +91,7 @@ class _SyncMigrateSheetState extends ConsumerState<SyncMigrateSheet> {
                       widget.onDone();
                       ref.read(syncControllerProvider.notifier).scheduleSync();
                     },
+              style: TextButton.styleFrom(foregroundColor: AppColors.inkSoft),
               child: Text(hasData ? '暂不合并' : '关闭'),
             ),
           ],

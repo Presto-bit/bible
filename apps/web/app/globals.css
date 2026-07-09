@@ -4239,6 +4239,15 @@ body.verse-full-open .tabbar {
 .sync-migrate-sheet h2 {
   margin: 0 0 8px;
   font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sync-migrate-sheet .sync-migrate-desc {
+  margin: 0;
+  font-size: var(--font-base, 15px);
+  line-height: 1.65;
+  color: var(--ink-soft);
 }
 
 .sync-migrate-actions {
@@ -4246,6 +4255,16 @@ body.verse-full-open .tabbar {
   flex-direction: column;
   gap: 10px;
   margin-top: 20px;
+}
+
+.sync-migrate-actions .btn {
+  margin-top: 0;
+}
+
+.sync-migrate-actions .btn.ghost {
+  background: var(--surface, #fff);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
 }
 
 /* ─── 小爱富文本输出（可读性 / 视觉增强，字号与读经默认一致） ─── */

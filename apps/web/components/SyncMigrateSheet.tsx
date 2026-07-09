@@ -40,7 +40,7 @@ export default function SyncMigrateSheet({ onDone }: Props) {
         onClick={(e) => e.stopPropagation()}
       >
         <h2 id="sync-migrate-title">同步阅读记录</h2>
-        <p className="muted">
+        <p className="sync-migrate-desc">
           {hasData
             ? '检测到本机有阅读打卡、章节记录或成就。合并到账号后，手机与电脑将显示一致的连续天数与进度。'
             : '开启云同步后，阅读打卡与成就会在多设备间保持一致。'}
