@@ -1800,10 +1800,10 @@ export default function ReaderView({
       ev.stopPropagation();
     };
 
-    const onPointerUp = (e: PointerEvent) => {
+    const onPointerUp = (e: PointerEvent | TouchEvent) => {
       setSelecting(false);
       commitLiveSelection();
-      if (e.pointerType === 'mouse' && isFinePointerUI()) {
+      if (e instanceof PointerEvent && e.pointerType === 'mouse' && isFinePointerUI()) {
         const next = readNativeVerseSelection(root);
         if (next) {
           suppressGhostClickUntil = Date.now() + 400;
