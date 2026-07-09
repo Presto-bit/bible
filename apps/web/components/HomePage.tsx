@@ -28,7 +28,15 @@ import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
 import { HomeSocialLine } from '@/components/home/HomeSocialLine';
+import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
 import { buildHomeSocialLine, type HomeSocialLine as HomeSocialLineData } from '@/lib/home_social_line';
+import {
+  type HeroBCampaign,
+  preloadHeroBCampaignImage,
+  readCachedHeroBCampaign,
+  writeCachedHeroBCampaign,
+} from '@/lib/hero_b_campaign';
+import { consumeHeroReturnToVerse } from '@/lib/hero_b_nav';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { bookIdToChineseName } from '@/lib/ref_label';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
@@ -59,21 +67,46 @@ export default function HomePageClient() {
     const cached = readCachedDailyVerse();
     return cached?.day ? dailyVerseWallpaperUrl(cached.day) : null;
   });
+  const [heroBCampaign, setHeroBCampaign] = useState<HeroBCampaign | null>(() => readCachedHeroBCampaign());
+  const [heroBCampaignReady, setHeroBCampaignReady] = useState(false);
+  const [bootstrapReady, setBootstrapReady] = useState(false);
+  const [heroResetNonce, setHeroResetNonce] = useState(0);
 
-  const loadDailyVerse = useCallback(() => {
+  const applyHeroBCampaign = useCallback(async (campaign: HeroBCampaign | null) => {
+    if (!campaign) {
+      setHeroBCampaign(null);
+      setHeroBCampaignReady(false);
+      writeCachedHeroBCampaign(null);
+      return;
+    }
+    const ok = await preloadHeroBCampaignImage(campaign);
+    if (!ok) {
+      setHeroBCampaign(null);
+      setHeroBCampaignReady(false);
+      return;
+    }
+    setHeroBCampaign(campaign);
+    setHeroBCampaignReady(true);
+    writeCachedHeroBCampaign(campaign);
+  }, []);
+
+  const loadHomeBootstrap = useCallback(() => {
     setDvLoading(true);
     setErr(null);
+    setBootstrapReady(false);
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       const cached = readCachedDailyVerse();
       if (cached) {
         setDv(cached);
         setDvLoading(false);
+        void applyHeroBCampaign(readCachedHeroBCampaign()).then(() => setBootstrapReady(true));
         return;
       }
     }
     void ensureAccountReady()
-      .then(() => api.dailyVerse())
-      .then(async (v) => {
+      .then(() => api.homeBootstrap())
+      .then(async (boot) => {
+        const v = boot.dailyVerse;
         const day = v.day ?? 0;
         const likedVal =
           typeof v.liked === 'boolean'
@@ -85,22 +118,29 @@ export default function HomePageClient() {
         setLiked(likedVal);
         setLikeCount(countVal);
         if (day) writeLocalDailyVerseLike(day, likedVal);
+        await applyHeroBCampaign(boot.heroBCampaign);
       })
-      .catch((e) => {
+      .catch(async (e) => {
         const cached = readCachedDailyVerse();
         if (cached) {
           setDv(cached);
           setErr(null);
+          await applyHeroBCampaign(readCachedHeroBCampaign());
         } else {
           setErr(errorMessage(e, '内容加载失败'));
+          setHeroBCampaign(null);
+          setHeroBCampaignReady(false);
         }
       })
-      .finally(() => setDvLoading(false));
-  }, []);
+      .finally(() => {
+        setDvLoading(false);
+        setBootstrapReady(true);
+      });
+  }, [applyHeroBCampaign]);
 
   const reloadDailyContent = useCallback(() => {
-    loadDailyVerse();
-  }, [loadDailyVerse]);
+    loadHomeBootstrap();
+  }, [loadHomeBootstrap]);
 
   useEffect(() => {
     reloadDailyContent();
@@ -311,8 +351,14 @@ export default function HomePageClient() {
   }, [refreshRail]);
 
   useEffect(() => {
-    if (activeTab === 'home') void refreshRail();
-  }, [activeTab, refreshRail]);
+    if (activeTab === 'home') {
+      void refreshRail();
+      void reloadDailyContent();
+      if (consumeHeroReturnToVerse()) {
+        setHeroResetNonce((n) => n + 1);
+      }
+    }
+  }, [activeTab, refreshRail, reloadDailyContent]);
 
   const lastRead = getLastRead();
 
@@ -388,6 +434,8 @@ export default function HomePageClient() {
         </Link>
       )}
 
+      <HomeHeroCarousel
+        verseSlide={(
       <div
         className={`card card-3 hero-verse hero-verse-has-art ${heroThemeClass(dv?.theme)}`}
         role="button"
@@ -429,7 +477,7 @@ export default function HomePageClient() {
                 type="button"
                 className="text-link"
                 style={{ marginTop: 8, fontSize: 13 }}
-                onClick={(e) => { e.stopPropagation(); loadDailyVerse(); }}
+                onClick={(e) => { e.stopPropagation(); loadHomeBootstrap(); }}
               >
                 点击重试
               </button>
@@ -478,6 +526,12 @@ export default function HomePageClient() {
           </div>
         </div>
       </div>
+        )}
+        campaign={heroBCampaign}
+        campaignReady={heroBCampaignReady}
+        bootstrapReady={bootstrapReady}
+        resetToVerseNonce={heroResetNonce}
+      />
 
       <div className="home-stack home-stack-rail">
         <HomeRail cards={railMain} />

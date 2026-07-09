@@ -134,7 +134,7 @@ export function ragSourceTypeLabel(id?: string | null): string {
   return RAG_SOURCE_TYPES.find((t) => t.id === id)?.label ?? id;
 }
 
-function adminHeaders(): HeadersInit {
+export function adminHeaders(): HeadersInit {
   const token = sessionStorage.getItem(ADMIN_TOKEN_KEY);
   if (!token) throw new Error('未登录管理员');
   return {

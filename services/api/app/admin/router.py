@@ -5,7 +5,7 @@ import logging
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from datetime import date, timedelta
@@ -26,6 +26,14 @@ from .rag_ops import (
     list_pending_uploads,
     upload_dir,
 )
+from .hero_b_ops import (
+    delete_campaign,
+    get_campaign,
+    list_campaigns,
+    upload_hero_image,
+    upsert_campaign,
+)
+from ..content.hero_b_link import LINK_CATALOG, resolve_hero_b_href, HeroBLinkError
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -562,3 +570,130 @@ def admin_rename_document(
             raise HTTPException(status_code=404, detail="资料不存在")
         conn.commit()
     return {"ok": True, "id": str(row[0]), "title": row[1]}
+
+
+# ── 运营：首页 Hero B ──
+
+
+class HeroBCampaignBody(BaseModel):
+    id: str
+    name: str
+    enabled: bool = True
+    status: str = "draft"
+    priority: int = 0
+    startAt: str
+    endAt: str
+    imageUrl: str
+    imageUrlDark: str | None = None
+    imageVersion: int = 1
+    alt: str
+    badge: str | None = None
+    link: dict
+    audience: str = "all"
+
+
+class HeroBLinkPreviewBody(BaseModel):
+    link: dict
+
+
+@router.get("/ops/hero-b")
+def admin_list_hero_b(_phone: str = Depends(require_admin)) -> dict:
+    try:
+        items = list_campaigns()
+    except Exception as exc:
+        logger.exception("list hero b campaigns failed")
+        raise HTTPException(status_code=503, detail="活动列表暂不可用") from exc
+    return {"campaigns": items}
+
+
+@router.get("/ops/hero-b/{campaign_id}")
+def admin_get_hero_b(campaign_id: str, _phone: str = Depends(require_admin)) -> dict:
+    item = get_campaign(campaign_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="活动不存在")
+    return {"campaign": item}
+
+
+@router.post("/ops/hero-b")
+def admin_create_hero_b(body: HeroBCampaignBody, _phone: str = Depends(require_admin)) -> dict:
+    try:
+        saved = upsert_campaign(body.model_dump(), is_new=True)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("create hero b campaign failed")
+        raise HTTPException(status_code=503, detail="创建失败") from exc
+    return {"campaign": saved}
+
+
+@router.put("/ops/hero-b/{campaign_id}")
+def admin_update_hero_b(
+    campaign_id: str,
+    body: HeroBCampaignBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    if body.id != campaign_id:
+        raise HTTPException(status_code=400, detail="id 不一致")
+    try:
+        saved = upsert_campaign(body.model_dump(), is_new=False)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("update hero b campaign failed")
+        raise HTTPException(status_code=503, detail="更新失败") from exc
+    return {"campaign": saved}
+
+
+@router.delete("/ops/hero-b/{campaign_id}")
+def admin_delete_hero_b(campaign_id: str, _phone: str = Depends(require_admin)) -> dict:
+    try:
+        delete_campaign(campaign_id)
+    except Exception as exc:
+        logger.exception("delete hero b campaign failed")
+        raise HTTPException(status_code=503, detail="删除失败") from exc
+    return {"ok": True}
+
+
+@router.post("/ops/hero-b/upload")
+async def admin_upload_hero_b_image(
+    file: UploadFile = File(...),
+    campaign_id: str | None = Form(None),
+    _phone: str = Depends(require_admin),
+) -> dict:
+    try:
+        return await upload_hero_image(file, campaign_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("hero b upload failed")
+        raise HTTPException(status_code=500, detail="上传失败") from exc
+
+
+@router.post("/ops/hero-b/resolve-link")
+def admin_resolve_hero_b_link(
+    body: HeroBLinkPreviewBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    try:
+        href = resolve_hero_b_href(body.link)
+    except HeroBLinkError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    return {"href": href}
+
+
+@router.get("/ops/hero-b/link-catalog")
+def admin_hero_b_link_catalog(_phone: str = Depends(require_admin)) -> dict:
+    return {"catalog": LINK_CATALOG}
+
+
+@router.get("/ops/hero-b/preview-url")
+def admin_hero_b_preview_url(
+    campaign_id: str = Query(...),
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """真机预览：带 preview_campaign_id 的首页 bootstrap。"""
+    return {
+        "previewPath": f"/content/home/bootstrap?preview_campaign_id={campaign_id}",
+        "hint": "在已登录管理员的 App 中请求该接口并打开首页查看 Hero B",
+    }
+

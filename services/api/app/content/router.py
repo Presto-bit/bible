@@ -541,3 +541,62 @@ def diagram_file(diagram_id: str):
     if p is None:
         raise HTTPException(status_code=404, detail="图鉴文件缺失")
     return FileResponse(p, media_type="image/svg+xml")
+
+
+# ── 首页 Hero B 运营位 ──
+
+from pathlib import Path
+
+from ..admin.auth import verify_admin_token
+from ..admin.hero_b_ops import hero_b_assets_dir, pick_active_campaign
+from .hero_b_link import LINK_CATALOG
+
+
+def _is_admin_request(authorization: str | None = Header(default=None, alias="Authorization")) -> bool:
+    if not authorization or not authorization.lower().startswith("bearer "):
+        return False
+    token = authorization.split(" ", 1)[1].strip()
+    return verify_admin_token(token) is not None
+
+
+@router.get("/hero-b/assets/{filename}")
+def hero_b_asset(filename: str):
+    safe = Path(filename).name
+    if safe != filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="无效文件名")
+    path = hero_b_assets_dir() / safe
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    media = "image/webp" if safe.endswith(".webp") else "image/jpeg"
+    if safe.endswith(".png"):
+        media = "image/png"
+    return FileResponse(path, media_type=media)
+
+
+@router.get("/home/bootstrap")
+def home_bootstrap(
+    response: Response,
+    preview_campaign_id: str | None = Query(None),
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> dict:
+    """每日经文 + Hero B 活动（合并首页首屏请求）。"""
+    _no_store_headers(response)
+    payload = _daily_verse_payload(None)
+    user_code = _pick_user_code(x_user_code, x_user_id)
+    stats = _daily_verse_engagement(payload["day"], user_code)
+    admin_preview = _is_admin_request(authorization)
+    campaign = pick_active_campaign(
+        admin_preview=admin_preview,
+        preview_campaign_id=preview_campaign_id,
+    )
+    return {
+        "dailyVerse": {**payload, **stats},
+        "heroBCampaign": campaign,
+    }
+
+
+@router.get("/hero-b/link-catalog")
+def hero_b_link_catalog() -> dict:
+    return {"catalog": LINK_CATALOG}

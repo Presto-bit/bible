@@ -1,5 +1,6 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
 import { chinaTodayYmd } from './daily_clock';
+import { getAdminToken } from './admin_rag';
 import {
   bindDeviceGuestId,
   clearDeviceGuestBinding,
@@ -58,6 +59,20 @@ export interface DailyVerse {
   likes_count?: number;
   liked?: boolean;
   shares_count?: number;
+}
+
+export interface HeroBCampaignPublic {
+  id: string;
+  imageUrl: string;
+  imageUrlDark?: string | null;
+  alt: string;
+  href: string;
+  badge?: string | null;
+}
+
+export interface HomeBootstrap {
+  dailyVerse: DailyVerse;
+  heroBCampaign: HeroBCampaignPublic | null;
 }
 
 export interface DailyDevotional {
@@ -1153,6 +1168,17 @@ export interface GuideResult {
 }
 
 export const api = {
+  homeBootstrap: (previewCampaignId?: string) => {
+    const q = new URLSearchParams();
+    q.set('_d', chinaTodayYmd());
+    if (previewCampaignId) q.set('preview_campaign_id', previewCampaignId);
+    const token = getAdminToken();
+    const extra = token ? { Authorization: `Bearer ${token}` } : {};
+    return getJson<HomeBootstrap>(`/content/home/bootstrap?${q}`, {
+      ...authHeaders(),
+      ...extra,
+    });
+  },
   dailyVerse: (day?: number) => {
     const q = new URLSearchParams();
     if (day != null) q.set('day', String(day));
