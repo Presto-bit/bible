@@ -6,6 +6,18 @@ from datetime import date, timedelta
 from fastapi import HTTPException
 
 from ..db import get_pool
+from ..analytics.uv import UV_IDENTITY_SQL
+from ..analytics.uv_stats import (
+    UV_IDENTITY_A,
+    UV_IDENTITY_B,
+    uv_converted_sql,
+    uv_deduped_count_sql,
+    uv_guest_rows_sql,
+    uv_login_rows_sql,
+    uv_login_users_sql,
+    uv_schema_v2,
+    uv_series_deduped_sql,
+)
 
 STATS_DETAIL_METRICS = frozenset(
     {
@@ -146,6 +158,12 @@ def _count_active_users(conn, *, span_days: int = 7) -> tuple[int, str | None]:
         sql = f"SELECT count(DISTINCT user_id) FROM ({' UNION '.join(parts)}) t"
         return _scalar(conn, sql), None
     if _table_exists(conn, "daily_active_visitors"):
+        if uv_schema_v2(conn):
+            return _scalar(
+                conn,
+                uv_deduped_count_sql(where="visit_date >= current_date - %s"),
+                (since,),
+            ), None
         return _scalar(
             conn,
             """
@@ -181,10 +199,47 @@ def _count_dormant_users(conn, *, span_days: int = 30) -> tuple[int, str | None]
     return _scalar(conn, sql), hint
 
 
+def _uv_metrics(conn, *, where: str) -> dict[str, int]:
+    if uv_schema_v2(conn):
+        return {
+            "deduped": _scalar(conn, uv_deduped_count_sql(where=where)),
+            "guest_rows": _scalar(conn, uv_guest_rows_sql(where=where)),
+            "login_rows": _scalar(conn, uv_login_rows_sql(where=where)),
+            "login_users": _scalar(conn, uv_login_users_sql(where=where)),
+            "converted": _scalar(conn, uv_converted_sql(where=where)),
+        }
+    login_rows = _scalar(
+        conn,
+        f"SELECT count(*) FROM daily_active_visitors WHERE {where} "
+        "AND visitor_key LIKE 'u:%%'",
+    )
+    guest_rows = _scalar(
+        conn,
+        f"SELECT count(*) FROM daily_active_visitors WHERE {where} "
+        "AND visitor_key LIKE 'd:%%'",
+    )
+    return {
+        "deduped": login_rows + guest_rows,
+        "guest_rows": guest_rows,
+        "login_rows": login_rows,
+        "login_users": login_rows,
+        "converted": 0,
+    }
+
+
 def fetch_admin_stats(*, series_days: int = 7) -> dict:
     span = max(1, min(series_days, 90))
     pool = get_pool()
     with pool.connection() as conn:
+        uv_today = _uv_metrics(conn, where="visit_date = current_date")
+        uv_7d_where = "visit_date >= current_date - 6"
+        if uv_schema_v2(conn):
+            uv_7d = _scalar(conn, uv_deduped_count_sql(where=uv_7d_where))
+        else:
+            uv_7d = _scalar(
+                conn,
+                f"SELECT count(*) FROM daily_active_visitors WHERE {uv_7d_where}",
+            )
         totals = {
             "users": _scalar(conn, "SELECT count(*) FROM users"),
             "accounts": _scalar(conn, "SELECT count(*) FROM accounts"),
@@ -218,15 +273,12 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
                 "WHERE usage_date >= current_date - 6",
             ),
-            "uv_today": _scalar(
-                conn,
-                "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date",
-            ),
-            "uv_7d": _scalar(
-                conn,
-                "SELECT count(*) FROM daily_active_visitors "
-                "WHERE visit_date >= current_date - 6",
-            ),
+            "uv_today": uv_today["deduped"],
+            "uv_today_guest": uv_today["guest_rows"],
+            "uv_today_login": uv_today["login_users"],
+            "uv_login_visits": uv_today["login_rows"],
+            "uv_converted_today": uv_today["converted"],
+            "uv_7d": uv_7d,
         }
         dod = {
             "users_new": _dod(
@@ -255,8 +307,12 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             ),
             "uv_today": _dod(
                 conn,
-                "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date",
-                "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date - 1",
+                uv_deduped_count_sql(where="visit_date = current_date")
+                if uv_schema_v2(conn)
+                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date",
+                uv_deduped_count_sql(where="visit_date = current_date - 1")
+                if uv_schema_v2(conn)
+                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date - 1",
             ),
             "ai_requests_today": _dod(
                 conn,
@@ -349,7 +405,9 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             ),
             "uv": _date_series(
                 conn,
-                """
+                uv_series_deduped_sql()
+                if uv_schema_v2(conn)
+                else """
                 SELECT visit_date::text, count(*)
                 FROM daily_active_visitors
                 WHERE visit_date >= current_date - %s::int
@@ -384,9 +442,16 @@ def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
             "GROUP BY created_at::date ORDER BY created_at::date"
         ),
         "uv": (
-            "SELECT visit_date::text, count(*) FROM daily_active_visitors "
+            f"SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL}) "
+            "FROM daily_active_visitors "
             "WHERE visit_date BETWEEN %s AND %s "
             "GROUP BY visit_date ORDER BY visit_date"
+            if uv_schema_v2(conn)
+            else (
+                "SELECT visit_date::text, count(*) FROM daily_active_visitors "
+                "WHERE visit_date BETWEEN %s AND %s "
+                "GROUP BY visit_date ORDER BY visit_date"
+            )
         ),
         "ai_requests": (
             "SELECT usage_date::text, coalesce(sum(request_count), 0) FROM ai_usage_daily "
@@ -758,92 +823,198 @@ def fetch_admin_stats_detail(
             summary = f"今日 {totals['messages_today']} · 打卡 {totals['checkins_today']}"
 
         elif metric == "uv":
-            login_uv = _scalar(
-                conn,
-                """
-                SELECT count(*) FROM daily_active_visitors
-                WHERE visit_date BETWEEN %s AND %s AND visitor_key LIKE 'u:%%'
-                """,
-                (start, end),
-            )
-            guest_uv = _scalar(
-                conn,
-                """
-                SELECT count(*) FROM daily_active_visitors
-                WHERE visit_date BETWEEN %s AND %s AND visitor_key LIKE 'd:%%'
-                """,
-                (start, end),
-            )
-            total_uv = login_uv + guest_uv
-            login_pct = round(login_uv / total_uv * 100, 1) if total_uv else 0
-            d1_num = _scalar(
-                conn,
-                """
-                SELECT count(DISTINCT a.visitor_key) FROM daily_active_visitors a
-                JOIN daily_active_visitors b
-                  ON a.visitor_key = b.visitor_key AND b.visit_date = a.visit_date + 1
-                WHERE a.visit_date BETWEEN %s AND %s - 1
-                """,
-                (start, end),
-            )
-            d1_den = _scalar(
-                conn,
-                "SELECT count(DISTINCT visitor_key) FROM daily_active_visitors "
-                "WHERE visit_date BETWEEN %s AND %s - 1",
-                (start, end),
-            )
+            range_where = "visit_date BETWEEN %s AND %s"
+            range_args = (start, end)
+            if uv_schema_v2(conn):
+                deduped = _scalar(
+                    conn, uv_deduped_count_sql(where=range_where), range_args,
+                )
+                guest_uv = _scalar(
+                    conn, uv_guest_rows_sql(where=range_where), range_args,
+                )
+                login_users = _scalar(
+                    conn, uv_login_users_sql(where=range_where), range_args,
+                )
+                login_visits = _scalar(
+                    conn, uv_login_rows_sql(where=range_where), range_args,
+                )
+                converted = _scalar(
+                    conn, uv_converted_sql(where=range_where), range_args,
+                )
+                identity = UV_IDENTITY_A
+                identity_b = UV_IDENTITY_B
+                d1_num = _scalar(
+                    conn,
+                    f"""
+                    SELECT count(DISTINCT {identity}) FROM daily_active_visitors a
+                    JOIN daily_active_visitors b
+                      ON {identity} = {identity_b}
+                     AND b.visit_date = a.visit_date + 1
+                    WHERE a.visit_date BETWEEN %s AND %s - 1
+                    """,
+                    range_args,
+                )
+                d1_den = _scalar(
+                    conn,
+                    f"""
+                    SELECT count(DISTINCT {UV_IDENTITY_SQL}) FROM daily_active_visitors
+                    WHERE visit_date BETWEEN %s AND %s - 1
+                    """,
+                    range_args,
+                )
+                d7_num = _scalar(
+                    conn,
+                    f"""
+                    SELECT count(DISTINCT {identity}) FROM daily_active_visitors a
+                    JOIN daily_active_visitors b
+                      ON {identity} = {identity_b}
+                     AND b.visit_date = a.visit_date + 7
+                    WHERE a.visit_date BETWEEN %s AND %s - 7
+                    """,
+                    range_args,
+                )
+                d7_den = _scalar(
+                    conn,
+                    f"""
+                    SELECT count(DISTINCT {UV_IDENTITY_SQL}) FROM daily_active_visitors
+                    WHERE visit_date BETWEEN %s AND %s - 7
+                    """,
+                    range_args,
+                )
+                rows = conn.execute(
+                    """
+                    SELECT device_fingerprint, user_id::text, visit_date::text,
+                           created_at::text, user_bound_at::text
+                    FROM daily_active_visitors
+                    WHERE visit_date BETWEEN %s AND %s
+                    ORDER BY visit_date DESC, created_at DESC
+                    LIMIT %s
+                    """,
+                    (start, end, limit),
+                ).fetchall()
+                items = []
+                for r in rows:
+                    device, uid, vdate, created, bound = r
+                    converted_today = bool(
+                        uid and bound and str(bound)[:10] == vdate
+                    )
+                    items.append({
+                        "type": "登录" if uid else "游客",
+                        "device": _mask_id(device, 10),
+                        "user": _mask_id(uid) if uid else "—",
+                        "converted": "是" if converted_today else "—",
+                        "visit_date": vdate,
+                        "created_at": created,
+                    })
+                visitor_cols = [
+                    _col("type", "类型"),
+                    _col("device", "设备"),
+                    _col("user", "用户"),
+                    _col("converted", "当日转化"),
+                    _col("visit_date", "日期"),
+                    _col("created_at", "时间"),
+                ]
+            else:
+                deduped = _scalar(
+                    conn,
+                    "SELECT count(*) FROM daily_active_visitors WHERE visit_date BETWEEN %s AND %s",
+                    range_args,
+                )
+                login_uv = _scalar(
+                    conn,
+                    """
+                    SELECT count(*) FROM daily_active_visitors
+                    WHERE visit_date BETWEEN %s AND %s AND visitor_key LIKE 'u:%%'
+                    """,
+                    range_args,
+                )
+                guest_uv = _scalar(
+                    conn,
+                    """
+                    SELECT count(*) FROM daily_active_visitors
+                    WHERE visit_date BETWEEN %s AND %s AND visitor_key LIKE 'd:%%'
+                    """,
+                    range_args,
+                )
+                login_users = login_uv
+                login_visits = login_uv
+                converted = 0
+                d1_num = _scalar(
+                    conn,
+                    """
+                    SELECT count(DISTINCT a.visitor_key) FROM daily_active_visitors a
+                    JOIN daily_active_visitors b
+                      ON a.visitor_key = b.visitor_key AND b.visit_date = a.visit_date + 1
+                    WHERE a.visit_date BETWEEN %s AND %s - 1
+                    """,
+                    range_args,
+                )
+                d1_den = _scalar(
+                    conn,
+                    "SELECT count(DISTINCT visitor_key) FROM daily_active_visitors "
+                    "WHERE visit_date BETWEEN %s AND %s - 1",
+                    range_args,
+                )
+                d7_num = _scalar(
+                    conn,
+                    """
+                    SELECT count(DISTINCT a.visitor_key) FROM daily_active_visitors a
+                    JOIN daily_active_visitors b
+                      ON a.visitor_key = b.visitor_key AND b.visit_date = a.visit_date + 7
+                    WHERE a.visit_date BETWEEN %s AND %s - 7
+                    """,
+                    range_args,
+                )
+                d7_den = _scalar(
+                    conn,
+                    "SELECT count(DISTINCT visitor_key) FROM daily_active_visitors "
+                    "WHERE visit_date BETWEEN %s AND %s - 7",
+                    range_args,
+                )
+                rows = conn.execute(
+                    """
+                    SELECT visitor_key, visit_date::text, created_at::text
+                    FROM daily_active_visitors
+                    WHERE visit_date BETWEEN %s AND %s
+                    ORDER BY visit_date DESC, created_at DESC
+                    LIMIT %s
+                    """,
+                    (start, end, limit),
+                ).fetchall()
+                items = [
+                    {
+                        "type": "用户" if r[0] and r[0].startswith("u:") else "设备",
+                        "visitor_key": (r[0][2:10] + "…") if r[0] and len(r[0]) > 12 else r[0],
+                        "visit_date": r[1],
+                        "created_at": r[2],
+                    }
+                    for r in rows
+                ]
+                visitor_cols = [
+                    _col("type", "类型"),
+                    _col("visitor_key", "标识"),
+                    _col("visit_date", "日期"),
+                    _col("created_at", "时间"),
+                ]
             d1 = round(d1_num / d1_den * 100, 1) if d1_den else None
-            d7_num = _scalar(
-                conn,
-                """
-                SELECT count(DISTINCT a.visitor_key) FROM daily_active_visitors a
-                JOIN daily_active_visitors b
-                  ON a.visitor_key = b.visitor_key AND b.visit_date = a.visit_date + 7
-                WHERE a.visit_date BETWEEN %s AND %s - 7
-                """,
-                (start, end),
-            )
-            d7_den = _scalar(
-                conn,
-                "SELECT count(DISTINCT visitor_key) FROM daily_active_visitors "
-                "WHERE visit_date BETWEEN %s AND %s - 7",
-                (start, end),
-            )
             d7 = round(d7_num / d7_den * 100, 1) if d7_den else None
+            guest_pct = round(guest_uv / deduped * 100, 1) if deduped else 0
+            convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("登录 UV", login_uv, f"占 {login_pct}%"),
-                _insight("游客 UV", guest_uv),
+                _insight("去重 UV", deduped, "COALESCE(用户, 设备)"),
+                _insight("游客设备", guest_uv, f"占 {guest_pct}%"),
+                _insight("登录用户", login_users, f"访问 {login_visits} 次"),
+                _insight("当日转化", converted, f"游客→登录 {convert_pct}%" if converted else None),
                 _insight("次日留存", f"{d1}%" if d1 is not None else "—"),
                 _insight("7 日留存", f"{d7}%" if d7 is not None else "—"),
             ]
-            rows = conn.execute(
-                """
-                SELECT visitor_key, visit_date::text, created_at::text
-                FROM daily_active_visitors
-                WHERE visit_date BETWEEN %s AND %s
-                ORDER BY visit_date DESC, created_at DESC
-                LIMIT %s
-                """,
-                (start, end, limit),
-            ).fetchall()
-            items = [
-                {
-                    "visitor_key": (r[0][2:10] + "…") if r[0] and len(r[0]) > 12 else r[0],
-                    "type": "用户" if r[0] and r[0].startswith("u:") else "设备",
-                    "visit_date": r[1],
-                    "created_at": r[2],
-                }
-                for r in rows
-            ]
             sections.append(
-                _section(
-                    "visitors",
-                    "访客明细（脱敏）",
-                    [_col("type", "类型"), _col("visitor_key", "标识"), _col("visit_date", "日期"), _col("created_at", "时间")],
-                    items,
-                )
+                _section("visitors", "访客明细（脱敏）", visitor_cols, items)
             )
-            summary = f"今日 UV {totals['uv_today']} · 区间 {total_uv}"
+            summary = (
+                f"今日去重 {totals['uv_today']} · 区间去重 {deduped} · "
+                f"转化 {totals.get('uv_converted_today', converted)}"
+            )
 
         elif metric == "ai_requests":
             has_log = conn.execute(

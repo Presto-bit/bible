@@ -264,6 +264,10 @@ export type AdminStatsTotals = {
   ai_requests_today: number;
   ai_requests_7d: number;
   uv_today: number;
+  uv_today_guest: number;
+  uv_today_login: number;
+  uv_login_visits: number;
+  uv_converted_today: number;
   uv_7d: number;
 };
 

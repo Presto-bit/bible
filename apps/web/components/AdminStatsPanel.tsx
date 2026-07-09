@@ -55,7 +55,8 @@ const METRICS: MetricDef[] = [
     key: 'uv',
     label: '今日 UV',
     total: (t) => t.uv_today,
-    hint: (t) => `7 日合计 ${t.uv_7d} 人次`,
+    hint: (t) =>
+      `去重 · 游客 ${t.uv_today_guest ?? 0} · 登录 ${t.uv_today_login ?? 0} · 转化 ${t.uv_converted_today ?? 0} · 7日 ${t.uv_7d}`,
     dodKey: 'uv_today',
     dodLabel: '较昨日',
   },
