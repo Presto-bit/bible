@@ -14,7 +14,7 @@ from ..db import get_pool
 from .chat import prepare
 from .llm import stream_chat
 from .parse_output import extract_sections, split_body_and_followups
-from .usage import consume_quota
+from .usage import consume_quota, record_ai_request
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
@@ -100,6 +100,7 @@ def chat(
     logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
     if logged_in:
         allowed, used, limit = True, 0, 0
+        record_ai_request(x_guest_id, logged_in)
     else:
         allowed, used, limit = consume_quota(x_guest_id, settings.ai_guest_daily_limit)
     if not allowed:

@@ -6210,6 +6210,52 @@ a.license-row-name:hover {
 .admin-stat-hint {
   margin: 4px 0 0;
   font-size: 11px;
+  line-height: 1.35;
+}
+
+.admin-stats-detail-title {
+  margin: 12px 0 4px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.admin-stats-detail-summary {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.admin-stats-table-wrap {
+  margin-top: 12px;
+  padding: 12px;
+}
+
+.admin-stats-table-scroll {
+  overflow-x: auto;
+}
+
+.admin-stats-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.admin-stats-table th,
+.admin-stats-table td {
+  padding: 6px 8px;
+  text-align: left;
+  border-bottom: 1px solid color-mix(in srgb, var(--text, #333) 8%, transparent);
+  white-space: nowrap;
+}
+
+.admin-stats-table th {
+  font-weight: 600;
+  color: var(--muted, #888);
+}
+
+.admin-stats-table td {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-chart-grid {

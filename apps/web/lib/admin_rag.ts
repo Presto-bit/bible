@@ -294,6 +294,29 @@ export async function fetchAdminStats(): Promise<AdminStats> {
   return (await res.json()) as AdminStats;
 }
 
+export type AdminStatsDetail = {
+  metric: AdminStatsSeriesKey;
+  title: string;
+  summary: string;
+  series: AdminStatsSeriesPoint[];
+  items: Record<string, string | number | boolean | null>[];
+};
+
+export async function fetchAdminStatsDetail(
+  metric: AdminStatsSeriesKey,
+  limit = 50,
+): Promise<AdminStatsDetail> {
+  const res = await fetch(
+    `${API_BASE}/admin/stats/detail/${encodeURIComponent(metric)}?limit=${limit}`,
+    {
+      headers: adminHeaders(),
+      cache: 'no-store',
+    },
+  );
+  if (!res.ok) throw new Error(await readApiError(res, '加载明细失败'));
+  return (await res.json()) as AdminStatsDetail;
+}
+
 export async function fetchRagStatus(): Promise<RagStatus> {
   const res = await fetch(`${API_BASE}/admin/rag/status`, {
     headers: adminHeaders(),

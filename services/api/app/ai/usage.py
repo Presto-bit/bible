@@ -29,6 +29,38 @@ def _ensure_guest(conn, device_id: str) -> str:
     ).fetchone()[0]
 
 
+def _increment_usage(conn, guest_id: str, user_id: str | None = None) -> int:
+    used = conn.execute(
+        "SELECT request_count FROM ai_usage_daily "
+        "WHERE guest_id = %s AND usage_date = CURRENT_DATE",
+        (guest_id,),
+    ).fetchone()
+    used = used[0] if used else 0
+    conn.execute(
+        "INSERT INTO ai_usage_daily (guest_id, user_id, usage_date, request_count) "
+        "VALUES (%s, %s, CURRENT_DATE, 1) "
+        "ON CONFLICT (guest_id, usage_date) "
+        "DO UPDATE SET request_count = ai_usage_daily.request_count + 1, "
+        "user_id = COALESCE(EXCLUDED.user_id, ai_usage_daily.user_id)",
+        (guest_id, user_id),
+    )
+    return used + 1
+
+
+def record_ai_request(device_id: str | None, user_id: str | None = None) -> None:
+    """记录一次 AI 请求（统计用；登录用户不限额但仍计数）。"""
+    if not device_id:
+        return
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            guest_id = _ensure_guest(conn, device_id)
+            _increment_usage(conn, guest_id, user_id)
+            conn.commit()
+    except Exception as exc:
+        logger.warning("AI 用量统计失败，已忽略：%s", exc)
+
+
 def consume_quota(device_id: str | None, limit: int) -> tuple[bool, int, int]:
     """预扣一次额度。返回 (allowed, used_after, limit)。
 
@@ -52,13 +84,7 @@ def consume_quota(device_id: str | None, limit: int) -> tuple[bool, int, int]:
             if used >= limit:
                 conn.commit()
                 return False, used, limit
-            conn.execute(
-                "INSERT INTO ai_usage_daily (guest_id, usage_date, request_count) "
-                "VALUES (%s, CURRENT_DATE, 1) "
-                "ON CONFLICT (guest_id, usage_date) "
-                "DO UPDATE SET request_count = ai_usage_daily.request_count + 1",
-                (guest_id,),
-            )
+            _increment_usage(conn, guest_id)
             conn.commit()
             return True, used + 1, limit
     except Exception as exc:

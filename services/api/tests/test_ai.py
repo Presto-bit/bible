@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ai.prompts import DEFAULT_MODE, MODES, build_messages  # noqa: E402
 from app.ai.scenes import SCENES  # noqa: E402
-from app.ai.usage import consume_quota  # noqa: E402
+from app.ai.usage import consume_quota, record_ai_request  # noqa: E402
 from app.config import get_settings  # noqa: E402
 
 _HAS_DB = Path(get_settings().bible_db_path).exists()
@@ -143,6 +143,10 @@ def test_build_messages_unknown_mode_falls_back():
 def test_consume_quota_no_device_unlimited():
     allowed, used, limit = consume_quota(None, 10)
     assert allowed is True and limit == 10
+
+
+def test_record_ai_request_no_device_is_noop():
+    record_ai_request(None, "00000000-0000-0000-0000-000000000001")
 
 
 def test_sanitize_history_filters_and_caps():

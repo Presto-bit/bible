@@ -3,6 +3,7 @@
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import AdminRagPanel, { AdminLoginForm } from '@/components/AdminRagPanel';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
 import AdminOpsHeroPanel from '@/components/admin/AdminOpsHeroPanel';
@@ -10,10 +11,16 @@ import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
 
 type AdminTab = 'rag' | 'stats' | 'ops';
 
+function parseTab(value: string | null): AdminTab {
+  if (value === 'ops' || value === 'rag' || value === 'stats') return value;
+  return 'stats';
+}
+
 export default function AdminPage() {
   useEdgeSwipeBack({ href: '/profile' });
+  const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<AdminTab>('rag');
+  const [tab, setTab] = useState<AdminTab>(() => parseTab(searchParams.get('tab')));
   const [loggedIn, setLoggedIn] = useState(false);
   const [checking, setChecking] = useState(true);
 
@@ -23,6 +30,10 @@ export default function AdminPage() {
       setChecking(false);
     });
   }, []);
+
+  useEffect(() => {
+    setTab(parseTab(searchParams.get('tab')));
+  }, [searchParams]);
 
   const handleLogout = () => {
     clearAdminToken();
@@ -55,15 +66,6 @@ export default function AdminPage() {
             <button
               type="button"
               role="tab"
-              aria-selected={tab === 'rag'}
-              className={`admin-tab ${tab === 'rag' ? 'admin-tab-active' : ''}`}
-              onClick={() => setTab('rag')}
-            >
-              RAG 注释库
-            </button>
-            <button
-              type="button"
-              role="tab"
               aria-selected={tab === 'stats'}
               className={`admin-tab ${tab === 'stats' ? 'admin-tab-active' : ''}`}
               onClick={() => setTab('stats')}
@@ -78,6 +80,15 @@ export default function AdminPage() {
               onClick={() => setTab('ops')}
             >
               运营
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'rag'}
+              className={`admin-tab ${tab === 'rag' ? 'admin-tab-active' : ''}`}
+              onClick={() => setTab('rag')}
+            >
+              RAG 注释库
             </button>
           </div>
 

@@ -20,6 +20,15 @@ async function adminFetch<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (!res.ok) {
     const detail = (data as { detail?: string }).detail;
+    if (res.status === 404) {
+      throw new Error(
+        detail ||
+          '运营接口未找到（HTTP 404）。请确认 API 已部署含 /admin/ops/hero-b 的版本，并执行 hero_b_campaign 表迁移后重启服务。',
+      );
+    }
+    if (res.status === 503) {
+      throw new Error(detail || '运营服务暂不可用，请检查数据库迁移与服务日志。');
+    }
     throw new Error(detail || `请求失败（HTTP ${res.status}）`);
   }
   return data as T;
