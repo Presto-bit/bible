@@ -164,6 +164,47 @@ _OWNER_JOINS = (
     "LEFT JOIN user_profile up ON up.user_id = g.owner_id"
 )
 
+# 旧 visitor_key：u:{uuid|user_code|误写的 device_id}，避免 ::uuid 强转报错
+_VK_SUFFIX = "substring(v.visitor_key from 3)"
+_UUID_IDENT_RE = (
+    "^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+)
+_CODE_IDENT_RE = r"^\d{8}$|^\d{10}$"
+_LEGACY_VK_JOINS = f"""
+LEFT JOIN users u ON v.visitor_key LIKE 'u:%%'
+  AND {_VK_SUFFIX} ~* '{_UUID_IDENT_RE}'
+  AND u.id = {_VK_SUFFIX}::uuid
+LEFT JOIN accounts a ON a.user_id = u.id
+LEFT JOIN user_profile up ON up.user_id = u.id
+LEFT JOIN accounts a2 ON v.visitor_key LIKE 'u:%%'
+  AND {_VK_SUFFIX} ~ '{_CODE_IDENT_RE}'
+  AND a2.user_code = {_VK_SUFFIX}
+LEFT JOIN user_profile up2 ON up2.user_id = a2.user_id
+"""
+
+
+def _legacy_vk_user_code_sql() -> str:
+    return (
+        "coalesce(nullif(trim(a.user_code), ''), nullif(trim(a2.user_code), ''), "
+        "nullif(trim(up.user_code), ''), nullif(trim(up2.user_code), ''), '—')"
+    )
+
+
+def _legacy_vk_username_sql() -> str:
+    return (
+        "coalesce(nullif(trim(a.username), ''), nullif(trim(a2.username), ''), "
+        "nullif(trim(up.username), ''), nullif(trim(up2.username), ''), "
+        "nullif(trim(u.display_name), ''), nullif(trim(u.handle), ''), '—')"
+    )
+
+
+def _legacy_vk_is_login_sql() -> str:
+    return (
+        f"(v.visitor_key LIKE 'u:%%' AND ("
+        f"{_VK_SUFFIX} ~* '{_UUID_IDENT_RE}' OR {_VK_SUFFIX} ~ '{_CODE_IDENT_RE}'"
+        f"))"
+    )
+
 def _mask_id(value: str | None, keep: int = 8) -> str | None:
     if not value:
         return None
@@ -1033,7 +1074,6 @@ def fetch_admin_stats_detail(
                     _col("created_at", "时间"),
                 ]
             else:
-                labels = _user_label_sql()
                 deduped = _scalar(
                     conn,
                     "SELECT count(*) FROM daily_active_visitors WHERE visit_date BETWEEN %s AND %s",
@@ -1095,13 +1135,11 @@ def fetch_admin_stats_detail(
                     SELECT v.visitor_key,
                            v.visit_date::text,
                            {_ts_sql("v.created_at")},
-                           {labels["user_code"]},
-                           {labels["username"]},
-                           v.visitor_key LIKE 'u:%%' AS is_login
+                           {_legacy_vk_user_code_sql()},
+                           {_legacy_vk_username_sql()},
+                           {_legacy_vk_is_login_sql()} AS is_login
                     FROM daily_active_visitors v
-                    LEFT JOIN users u ON v.visitor_key LIKE 'u:%%'
-                      AND u.id = substring(v.visitor_key from 3)::uuid
-                    {_USER_JOINS}
+                    {_LEGACY_VK_JOINS}
                     WHERE v.visit_date BETWEEN %s AND %s
                     ORDER BY v.visit_date DESC, v.created_at DESC
                     LIMIT %s
