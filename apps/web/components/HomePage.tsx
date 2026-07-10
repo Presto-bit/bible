@@ -37,7 +37,8 @@ import {
 } from '@/lib/hero_b_campaign';
 import { consumeHeroReturnToVerse } from '@/lib/hero_b_nav';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
-import { bookIdToChineseName } from '@/lib/ref_label';
+import { buildHomeGrowthCards, type HomeGrowthCard } from '@/lib/home_growth_cards';
+import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
@@ -170,7 +171,6 @@ export default function HomePageClient() {
     };
   }, [reloadDailyContent]);
 
-  const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
   const plusBtnRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
 
@@ -179,8 +179,8 @@ export default function HomePageClient() {
   }, [router]);
 
   const [plusOpen, setPlusOpen] = useState(false);
-  const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [railMain, setRailMain] = useState<RailCard[]>([]);
+  const [growthCards, setGrowthCards] = useState<HomeGrowthCard[]>([]);
   const [userName, setUserName] = useState('');
   const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
@@ -189,7 +189,12 @@ export default function HomePageClient() {
     const refreshName = () => {
       setUserName(getDisplayName());
       const report = buildReport();
-      setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
+      setGrowthCards(
+        buildHomeGrowthCards({
+          todayMin: todayMinutes(),
+          monthDays: report.monthDays,
+        }),
+      );
     };
     refreshName();
     window.addEventListener('focus', refreshName);
@@ -205,9 +210,7 @@ export default function HomePageClient() {
   }, []);
 
   const refreshRail = useCallback(async () => {
-    setPendingBook(getPendingBookChallenge());
     const report = buildReport();
-    setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
     let planCard: { title: string; sub: string; href: string; progressPct?: number } | undefined;
     let prayerCard: { title: string; sub: string; href: string } | undefined;
     const active = getActivePlan();
@@ -309,6 +312,12 @@ export default function HomePageClient() {
         : undefined,
     });
     setRailMain(main);
+    setGrowthCards(
+      buildHomeGrowthCards({
+        todayMin: todayMinutes(),
+        monthDays: report.monthDays,
+      }),
+    );
   }, []);
 
   useEffect(() => {
@@ -337,8 +346,6 @@ export default function HomePageClient() {
       }
     }
   }, [activeTab, refreshRail, reloadDailyContent]);
-
-  const lastRead = getLastRead();
 
   const openVerseWallpaper = () => {
     if (!dv?.text) return;
@@ -527,54 +534,7 @@ export default function HomePageClient() {
       </div>
 
       <p className="section-label">成长与回忆</p>
-      <div className="home-stack">
-        <button
-          type="button"
-          className="card row-card home-list-row home-reading-summary"
-          onClick={() => go('/profile')}
-        >
-          <span className="pill pill-active">今日</span>
-          <span className="home-list-main">
-            今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
-          </span>
-          <span className="muted home-list-chevron">›</span>
-        </button>
-        {pendingBook && (
-          <button
-            type="button"
-            className="card card-2 card-tint row-card home-list-row home-list-row-wrap challenge-nudge"
-            onClick={() => go('/challenge')}
-          >
-            <span className="pill pill-active">巩固挑战</span>
-            <span className="home-list-main">读完《{pendingBook.bookName}》了，来做每日问答？</span>
-            <span className="rail-cta home-list-cta">去闯关 ›</span>
-          </button>
-        )}
-        <button
-          type="button"
-          className="card card-2 card-tint card-accent row-card home-list-row home-list-row-wrap"
-          onClick={() => go('/reader')}
-        >
-          <span className="pill pill-active">继续读经</span>
-          <span className="home-list-main">
-            {lastRead
-              ? `上次读到 ${bookIdToChineseName(lastRead.bookId)} 第 ${lastRead.chapter} 章`
-              : '打开圣经，开始今日阅读'}
-          </span>
-          <span className="rail-cta home-list-cta">去读 ›</span>
-        </button>
-        <button
-          type="button"
-          className="card row-card home-list-row"
-          onClick={() => go('/report')}
-        >
-          <span className="pill">回顾</span>
-          <span className="home-list-main">
-            {new Date().getMonth() + 1} 月回顾 · 已读 {readingSummary.monthDays} 天
-          </span>
-          <span className="muted home-list-cta">读经回顾 ›</span>
-        </button>
-      </div>
+      <HomeGrowthStack cards={growthCards} onGo={go} />
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
 
