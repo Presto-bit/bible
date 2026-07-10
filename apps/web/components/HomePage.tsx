@@ -207,7 +207,7 @@ export default function HomePageClient() {
     setPendingBook(getPendingBookChallenge());
     const report = buildReport();
     setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
-    let planCard: { title: string; sub: string; href: string } | undefined;
+    let planCard: { title: string; sub: string; href: string; progressPct?: number } | undefined;
     let prayerCard: { title: string; sub: string; href: string } | undefined;
     const active = getActivePlan();
     if (active?.kind === 'prayer') {
