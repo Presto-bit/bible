@@ -7,10 +7,25 @@ import { todayMinutes } from '@/lib/reading';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 
+const NAME_MAX_LEN = 6;
+
 type Props = {
   greeting: string;
   userName: string;
 };
+
+function truncateDisplayName(name: string, maxLen = NAME_MAX_LEN): string {
+  const trimmed = name.trim() || '读经伙伴';
+  if (trimmed.length <= maxLen) return trimmed;
+  return `${trimmed.slice(0, maxLen)}…`;
+}
+
+function shortReadingLabel(streak: number, minutes: number, readToday: boolean): string {
+  if (streak <= 0 && !readToday) return '今日未读';
+  if (streak <= 0 && readToday) return `今日${minutes}分`;
+  if (minutes > 0) return `连续${streak}天·${minutes}分`;
+  return `连续${streak}天`;
+}
 
 export function HomeGreetStreak({ greeting, userName }: Props) {
   const [tick, setTick] = useState(0);
@@ -32,27 +47,19 @@ export function HomeGreetStreak({ greeting, userName }: Props) {
     [tick],
   );
   const readToday = minutes > 0;
-
-  let streakLine: string;
-  if (streak <= 0 && !readToday) {
-    streakLine = '今天读一点，开启连续打卡';
-  } else if (streak <= 0 && readToday) {
-    streakLine = `今日已读 ${minutes} 分钟 · 明天继续就连续啦`;
-  } else {
-    streakLine = `已连续读经 ${streak} 天 · 今日 ${minutes} 分钟`;
-  }
-
-  const displayName = userName.trim() || '读经伙伴';
+  const fullName = userName.trim() || '读经伙伴';
+  const displayName = truncateDisplayName(fullName);
+  const readingLabel = shortReadingLabel(streak, minutes, readToday);
 
   return (
     <div className="home-greet-streak">
-      <div className="greet-text">
-        <span className="greet-prefix">{greeting}</span>
-        <span className="greet-name">{displayName}</span>
-      </div>
-      <Link href="/report" className="home-greet-streak-line muted">
-        {streakLine}
-        <span className="home-list-chevron" aria-hidden>›</span>
+      <span className="home-greet-name" title={fullName}>
+        {displayName}
+      </span>
+      <span className="home-greet-time">{greeting}</span>
+      <Link href="/report" className="home-greet-stats" aria-label={`读经回顾：${readingLabel}`}>
+        {readingLabel}
+        <span className="home-greet-stats-chevron" aria-hidden>›</span>
       </Link>
     </div>
   );

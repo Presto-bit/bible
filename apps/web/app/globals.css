@@ -1155,16 +1155,46 @@ html:not([data-app-theme]) .card {
 .home-greet-streak {
   flex: 1;
   min-width: 0;
-}
-
-.home-greet-streak-line {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 8px;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.home-greet-name {
+  flex-shrink: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.home-greet-time {
+  flex-shrink: 0;
   font-size: 13px;
-  text-decoration: none;
+  font-weight: 500;
   color: var(--ink-soft);
+  line-height: 1.2;
+}
+
+.home-greet-stats {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-greet-stats-chevron {
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.65;
 }
 
 /* ─── 首页：软玻璃卡片（home-page） ─── */
@@ -1177,27 +1207,22 @@ html:not([data-app-theme]) .card {
 }
 
 .home-greet-header {
-  align-items: flex-start;
+  align-items: center;
   margin-bottom: 18px;
-}
-
-.home-page .greet-prefix {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--ink-faint);
-  letter-spacing: 0.01em;
-}
-
-.home-page .greet-name {
-  font-size: 1.625rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  margin-top: 4px;
-  line-height: 1.2;
+  gap: 8px;
 }
 
 .home-page .greet-actions {
-  margin-top: 2px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+}
+
+.home-page .greet-actions .icon-btn {
+  width: 40px;
+  height: 40px;
 }
 
 .home-page .icon-btn {
