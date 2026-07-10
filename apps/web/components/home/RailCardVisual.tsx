@@ -59,7 +59,11 @@ export function RailCardVisual({ card }: Props) {
     return (
       <div className={`rail-card-media rail-card-media-cover rail-card-media-${card.tint}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={bookCoverDataUrl(card.bookId)} alt="" className="rail-card-cover-img" />
+        <img
+          src={bookCoverDataUrl(card.bookId, { chapter: card.chapter })}
+          alt=""
+          className="rail-card-cover-img"
+        />
         {showRing ? <ProgressRing pct={card.progressPct!} /> : null}
       </div>
     );
