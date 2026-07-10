@@ -44,13 +44,17 @@ import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 
-/** 与 Mobile 首页一致的时段问候 */
+/** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
   const hour = date.getHours();
-  if (hour < 6) return '夜深了';
-  if (hour < 12) return '早安';
-  if (hour < 18) return '午安';
-  return '晚安';
+  if (hour < 5) return '夜深了';
+  if (hour < 8) return '清晨好';
+  if (hour < 11) return '上午好';
+  if (hour < 13) return '中午好';
+  if (hour < 17) return '下午好';
+  if (hour < 19) return '傍晚好';
+  if (hour < 23) return '晚上好';
+  return '夜深了';
 }
 
 export default function HomePageClient() {
@@ -539,6 +543,15 @@ export default function HomePageClient() {
 
       <div className="home-stack">
         <HomeSocialLine line={socialLine} loading={socialLoading} />
+      </div>
+
+      <div className="home-stack">
+        <a href="/profile" className="card row-card home-list-row home-reading-summary">
+          <span className="home-list-main">
+            今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </a>
       </div>
 
       <p className="section-label">成长与回忆</p>
