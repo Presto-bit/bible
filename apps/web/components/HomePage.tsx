@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   api,
   type DailyVerse,
@@ -27,9 +27,8 @@ import { listAllThoughts } from '@/lib/reader_thoughts';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
 import { HomeRail } from '@/components/home/HomeRail';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
-import { HomeSocialLine } from '@/components/home/HomeSocialLine';
 import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
-import { buildHomeSocialLine, type HomeSocialLine as HomeSocialLineData } from '@/lib/home_social_line';
+import { buildHomeGroupRailInput } from '@/lib/home_social_line';
 import {
   type HeroBCampaign,
   preloadHeroBCampaignImage,
@@ -173,13 +172,16 @@ export default function HomePageClient() {
 
   const [readingSummary, setReadingSummary] = useState({ todayMin: 0, monthDays: 0 });
   const plusBtnRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
+
+  const go = useCallback((href: string) => {
+    router.push(href);
+  }, [router]);
 
   const [plusOpen, setPlusOpen] = useState(false);
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [railMain, setRailMain] = useState<RailCard[]>([]);
   const [userName, setUserName] = useState('');
-  const [socialLine, setSocialLine] = useState<HomeSocialLineData | null>(null);
-  const [socialLoading, setSocialLoading] = useState(false);
   const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
 
@@ -203,7 +205,6 @@ export default function HomePageClient() {
   }, []);
 
   const refreshRail = useCallback(async () => {
-    setSocialLoading(true);
     setPendingBook(getPendingBookChallenge());
     const report = buildReport();
     setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
@@ -254,44 +255,16 @@ export default function HomePageClient() {
         };
       }
     }
-    let groupCard: {
-      title: string;
-      sub: string;
-      href: string;
-      statPct?: number;
-      statLabel?: string;
-    } | undefined;
-    let summary: Awaited<ReturnType<typeof api.discoverSummary>> | null = null;
+    let groupCard = buildHomeGroupRailInput([], null);
     try {
       const [groupsRes, summaryRes] = await Promise.all([
         api.myGroups(),
         api.discoverSummary(),
       ]);
-      const groups = groupsRes.groups;
-      summary = summaryRes;
-      setSocialLine(buildHomeSocialLine(groups, summary));
-      const pending = groups.find((g) => !g.my_checked_in_today)
-        ?? groups.find((g) => (g.open_tasks ?? 0) > 0);
-      if (pending && (summary.groups_pending_checkin > 0 || summary.groups_pending_tasks > 0)) {
-        const members = pending.members || 1;
-        const checked = pending.checked_in_today ?? 0;
-        const actionResult = !pending.my_checked_in_today
-          ? '今日待打卡'
-          : (pending.open_tasks ?? 0) > 0
-            ? `${pending.open_tasks} 个任务`
-            : '今日已打卡';
-        groupCard = {
-          title: actionResult,
-          sub: pending.name,
-          href: `/discover/group/${pending.id}?focus=checkin`,
-          statPct: members > 0 ? Math.round((checked / members) * 100) : 0,
-          statLabel: `${checked}/${members}`,
-        };
-      }
+      groupCard = buildHomeGroupRailInput(groupsRes.groups, summaryRes);
     } catch {
-      setSocialLine(buildHomeSocialLine([], null));
+      /* 离线时保留默认邀请卡 */
     }
-    setSocialLoading(false);
     const suggest = nextReadingSuggestion();
     let assistantCard: { title: string; sub: string; href: string } | undefined;
     try {
@@ -300,7 +273,7 @@ export default function HomePageClient() {
         const q = '这段经文里，神的应许对你意味着什么？';
         assistantCard = {
           title: dv.ref,
-          sub: '聊聊今日经文',
+          sub: '',
           href: assistantHref(dv.ref, {
             question: q,
             autoSend: true,
@@ -324,7 +297,7 @@ export default function HomePageClient() {
       resume: resumeCard,
       group: groupCard,
       prayer: prayerCard,
-      suggest: suggest ? { title: suggest.title, sub: suggest.reason, href: suggest.href } : undefined,
+      suggest: suggest ? { title: suggest.title, sub: '', href: suggest.href } : undefined,
       assistant: assistantCard,
       notes: notesCard,
       challenge: pendingBookLocal
@@ -408,12 +381,17 @@ export default function HomePageClient() {
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
         <div className="greet-actions">
-          <a href="/search" aria-label="搜索" className="icon-btn">
+          <button
+            type="button"
+            aria-label="搜索"
+            className="icon-btn"
+            onClick={() => go('/search')}
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4-4" />
             </svg>
-          </a>
+          </button>
           <button
             ref={plusBtnRef}
             type="button"
@@ -429,14 +407,18 @@ export default function HomePageClient() {
       </header>
 
       {seasonal[0] && (
-        <Link href={seasonal[0].href} className="card row-card home-list-row home-list-row-wrap seasonal-card seasonal-card-pulse">
+        <button
+          type="button"
+          className="card row-card home-list-row home-list-row-wrap seasonal-card seasonal-card-pulse"
+          onClick={() => go(seasonal[0].href)}
+        >
           <span className="pill pill-active">{seasonal[0].badge}</span>
           <span className="home-list-main">
             <strong>{seasonal[0].title}</strong>
             <span className="muted home-list-sub">{seasonal[0].subtitle}</span>
           </span>
           <span className="muted home-list-chevron">›</span>
-        </Link>
+        </button>
       )}
 
       <HomeHeroCarousel
@@ -447,6 +429,7 @@ export default function HomePageClient() {
         tabIndex={dv?.text ? 0 : -1}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
         onClick={openVerseWallpaper}
+        onContextMenu={(e) => e.preventDefault()}
         onKeyDown={(e) => {
           if (e.key !== 'Enter' && e.key !== ' ') return;
           e.preventDefault();
@@ -538,31 +521,40 @@ export default function HomePageClient() {
         resetToVerseNonce={heroResetNonce}
       />
 
+      <p className="section-label home-rail-section-label">今日推荐</p>
       <div className="home-stack home-stack-rail">
         <HomeRail cards={railMain} />
       </div>
 
-      <div className="home-stack">
-        <HomeSocialLine line={socialLine} loading={socialLoading} />
-      </div>
-
       <p className="section-label">成长与回忆</p>
       <div className="home-stack">
-        <a href="/profile" className="card row-card home-list-row home-reading-summary">
+        <button
+          type="button"
+          className="card row-card home-list-row home-reading-summary"
+          onClick={() => go('/profile')}
+        >
           <span className="pill pill-active">今日</span>
           <span className="home-list-main">
             今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
           </span>
           <span className="muted home-list-chevron">›</span>
-        </a>
+        </button>
         {pendingBook && (
-          <Link href="/challenge" className="card card-2 card-tint row-card home-list-row home-list-row-wrap challenge-nudge">
+          <button
+            type="button"
+            className="card card-2 card-tint row-card home-list-row home-list-row-wrap challenge-nudge"
+            onClick={() => go('/challenge')}
+          >
             <span className="pill pill-active">巩固挑战</span>
             <span className="home-list-main">读完《{pendingBook.bookName}》了，来做每日问答？</span>
             <span className="rail-cta home-list-cta">去闯关 ›</span>
-          </Link>
+          </button>
         )}
-        <a href="/reader" className="card card-2 card-tint card-accent row-card home-list-row home-list-row-wrap">
+        <button
+          type="button"
+          className="card card-2 card-tint card-accent row-card home-list-row home-list-row-wrap"
+          onClick={() => go('/reader')}
+        >
           <span className="pill pill-active">继续读经</span>
           <span className="home-list-main">
             {lastRead
@@ -570,14 +562,18 @@ export default function HomePageClient() {
               : '打开圣经，开始今日阅读'}
           </span>
           <span className="rail-cta home-list-cta">去读 ›</span>
-        </a>
-        <a href="/report" className="card row-card home-list-row">
+        </button>
+        <button
+          type="button"
+          className="card row-card home-list-row"
+          onClick={() => go('/report')}
+        >
           <span className="pill">回顾</span>
           <span className="home-list-main">
             {new Date().getMonth() + 1} 月回顾 · 已读 {readingSummary.monthDays} 天
           </span>
           <span className="muted home-list-cta">读经回顾 ›</span>
-        </a>
+        </button>
       </div>
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />

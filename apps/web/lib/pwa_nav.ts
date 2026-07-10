@@ -5,29 +5,14 @@ import { isStandalonePwa } from './platform';
 const SKIP_TOUCH_TARGET =
   'input, textarea, select, [contenteditable="true"]';
 
-function findNavAnchor(target: EventTarget | null): HTMLAnchorElement | null {
-  if (!(target instanceof Element)) return null;
-  const anchor = target.closest('a[href]');
-  if (!(anchor instanceof HTMLAnchorElement)) return null;
-  if (anchor.closest(SKIP_TOUCH_TARGET)) return null;
-  return anchor;
-}
-
 function markAnchorNoDrag(anchor: HTMLAnchorElement) {
   anchor.setAttribute('draggable', 'false');
   anchor.style.setProperty('-webkit-user-drag', 'none');
 }
 
-/** 阻止 iOS 长按链接弹出 URL 预览/拖拽气泡（需 touchstart preventDefault） */
+/** 阻止 iOS 长按链接弹出 URL 预览：CSS + draggable；勿 touchstart preventDefault（会阻断 Link 点击）。 */
 export function initPwaLinkPreviewGuard() {
   if (typeof document === 'undefined' || !isStandalonePwa()) return;
-
-  const onTouchStart = (e: TouchEvent) => {
-    if (!findNavAnchor(e.target)) return;
-    e.preventDefault();
-  };
-
-  document.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
 
   const scanAnchors = (root: ParentNode = document) => {
     root.querySelectorAll('a[href]').forEach((node) => {

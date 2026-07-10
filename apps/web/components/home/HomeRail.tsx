@@ -95,6 +95,7 @@ export function HomeRail({ cards }: Props) {
               className={cardClass(c, activeIdx === i)}
               style={c.kind === 'action' && c.tint === 'gold' ? { ['--tint' as string]: 'var(--dawn-gold)' } : undefined}
               onClick={() => router.push(c.href)}
+              onContextMenu={(e) => e.preventDefault()}
             >
               <span
                 className={`rail-card-circle rail-card-circle-${c.tint}${circle.kind === 'text' ? ' rail-card-circle-text' : ''}`}

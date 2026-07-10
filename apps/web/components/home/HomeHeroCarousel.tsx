@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   useCallback,
   useEffect,
@@ -8,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { useRouter } from 'next/navigation';
 import type { HeroBCampaign } from '@/lib/hero_b_campaign';
 import { heroBCampaignImageSrc } from '@/lib/hero_b_campaign';
 import { markHeroReturnToVerse } from '@/lib/hero_b_nav';
@@ -30,6 +30,7 @@ export function HomeHeroCarousel({
   resetToVerseNonce = 0,
   bootstrapReady,
 }: Props) {
+  const router = useRouter();
   const hasOps = Boolean(campaign && campaignReady);
   const [slide, setSlide] = useState(0);
   const slideRef = useRef(0);
@@ -146,11 +147,14 @@ export function HomeHeroCarousel({
       >
         <div className="home-hero-carousel-slide">{verseSlide}</div>
         <div className="home-hero-carousel-slide">
-          <Link
-            href={campaign!.href}
+          <button
+            type="button"
             className="hero-b-campaign card card-3"
             aria-label={campaign!.alt}
-            onClick={() => markHeroReturnToVerse()}
+            onClick={() => {
+              markHeroReturnToVerse();
+              router.push(campaign!.href);
+            }}
           >
             {campaign!.badge ? (
               <span className="hero-b-campaign-badge">{campaign!.badge}</span>
@@ -162,7 +166,7 @@ export function HomeHeroCarousel({
               alt={campaign!.alt}
               draggable={false}
             />
-          </Link>
+          </button>
         </div>
       </div>
     </section>

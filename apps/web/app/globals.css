@@ -1220,6 +1220,7 @@ html:not([data-app-theme]) .card {
   --home-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
   --home-shadow-lift: 0 4px 16px rgba(15, 23, 42, 0.08), 0 12px 40px rgba(15, 23, 42, 0.12);
   padding-top: 16px;
+  touch-action: pan-y;
 }
 
 .home-greet-header {
@@ -1256,7 +1257,16 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .home-hero-carousel {
-  margin-bottom: 18px;
+  margin-bottom: 12px;
+}
+
+.home-page .home-rail-section-label {
+  margin-top: 0;
+  margin-bottom: 14px;
+}
+
+.home-page .home-stack-rail {
+  margin-top: 0;
 }
 
 .home-page .home-hero-carousel-dots {
@@ -1290,6 +1300,18 @@ html:not([data-app-theme]) .card {
 
 .home-page .hero-verse {
   margin-bottom: 0;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.home-page .hero-verse .verse-text,
+.home-page .hero-verse .hero-ref,
+.home-page .hero-verse .hero-kicker,
+.home-page .hero-b-campaign {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .home-page .hero-verse .hero-scene {
@@ -1324,6 +1346,11 @@ html:not([data-app-theme]) .card {
 .home-page .home-rail {
   gap: 14px;
   padding: 4px 2px 8px;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: auto;
+  scroll-snap-type: x proximity;
 }
 
 .home-page .home-rail .rail-card,
@@ -1334,6 +1361,7 @@ html:not([data-app-theme]) .card {
   border: 1px solid color-mix(in srgb, var(--ink-faint) 22%, var(--line));
   border-radius: var(--home-card-radius);
   box-shadow: var(--home-shadow);
+  touch-action: manipulation;
 }
 
 .home-page .home-rail .rail-card-row {
@@ -1341,9 +1369,16 @@ html:not([data-app-theme]) .card {
   align-items: flex-start;
   justify-content: flex-start;
   height: auto;
-  min-height: 132px;
+  min-height: 0;
   padding: 14px;
   gap: 10px;
+}
+
+.home-page .home-rail .rail-card,
+.home-page .home-rail .rail-card * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .home-page .home-rail .rail-card-body {
@@ -1403,6 +1438,28 @@ html:not([data-app-theme]) .card {
   box-shadow: var(--home-shadow);
   min-height: 56px;
   padding: 14px 16px;
+}
+
+.home-page .home-list-row:active,
+.home-page .home-social-line:active {
+  transform: none;
+}
+
+.home-page button.home-list-row,
+.home-page button.seasonal-card {
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  border: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .home-page .seasonal-card {
@@ -1503,9 +1560,21 @@ html:not([data-app-theme]) .card {
   transition: transform 0.12s ease, opacity 0.12s ease;
 }
 
-.hero-b-campaign:active {
-  transform: scale(0.985);
-  opacity: 0.92;
+button.hero-b-campaign {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  font: inherit;
+  width: 100%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.home-page .hero-b-campaign:active,
+.home-page .hero-verse:active {
+  transform: none;
+  opacity: 1;
 }
 
 .hero-b-campaign-img {

@@ -63,13 +63,46 @@ export function trimRailSub(text: string, max = RAIL_SUB_MAX): string {
 }
 
 function normalizeRailCard(card: RailCard): RailCard {
-  const sub =
-    card.kind === 'stat' && card.statLabel
-      ? trimRailSub(`打卡 ${card.statLabel}`)
-      : trimRailSub(card.sub);
+  const title = trimRailTitle(card.title);
+  let sub = '';
+
+  switch (card.id) {
+    case 'resume':
+      sub = trimRailSub(card.sub || '继续阅读');
+      break;
+    case 'plan':
+      sub = trimRailSub(card.sub);
+      break;
+    case 'prayer':
+      sub = trimRailSub(card.sub);
+      break;
+    case 'group':
+      if (card.kind === 'stat' && card.statLabel) {
+        sub = trimRailSub(`打卡 ${card.statLabel}`);
+      } else {
+        sub = trimRailSub(card.sub);
+      }
+      break;
+    case 'assistant':
+    case 'suggest':
+      break;
+    case 'challenge':
+      sub = trimRailSub(card.sub || '巩固问答');
+      break;
+    case 'notes':
+      sub = trimRailSub(card.title.includes('条') ? '查看全部' : (card.sub || '收藏与划线'));
+      break;
+    case 'plans':
+    case 'discover':
+      sub = trimRailSub(card.sub);
+      break;
+    default:
+      sub = trimRailSub(card.sub);
+  }
+
   return {
     ...card,
-    title: trimRailTitle(card.title),
+    title,
     sub,
     reason: '',
   };
@@ -157,10 +190,11 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
       if (!input.group) return null;
       return {
         id,
-        kind: 'stat',
+        kind:
+          input.group.statPct != null && input.group.statLabel ? 'stat' : 'ghost',
         tint: 'green',
-        tag: '小组',
-        reason: '共读群',
+        tag: '共读',
+        reason: '',
         title: input.group.title,
         sub: input.group.sub,
         href: input.group.href,
@@ -272,6 +306,7 @@ export function buildHomeRail(input: HomeRailInput): {
 
   const ids = new Set(available.map((c) => c.id));
   for (const item of ALWAYS_MORE) {
+    if (item.id === 'discover' && ids.has('group')) continue;
     if (!ids.has(item.id)) {
       available.push(moreItemToCard(item));
       ids.add(item.id);
