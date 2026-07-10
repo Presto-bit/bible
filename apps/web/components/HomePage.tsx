@@ -25,6 +25,7 @@ import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
+import { bookIdFromReaderHref } from '@/lib/book_cover';
 import { HomeRail } from '@/components/home/HomeRail';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
 import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
@@ -221,7 +222,16 @@ export default function HomePageClient() {
 
   const refreshRail = useCallback(async () => {
     const report = buildReport();
-    let planCard: { title: string; sub: string; href: string; progressPct?: number } | undefined;
+    let planCard:
+      | {
+          title: string;
+          sub: string;
+          href: string;
+          progressPct?: number;
+          bookId?: string;
+          chapter?: number;
+        }
+      | undefined;
     let prayerCard: { title: string; sub: string; href: string } | undefined;
     const active = getActivePlan();
     if (active?.kind === 'prayer') {
@@ -245,10 +255,20 @@ export default function HomePageClient() {
           sub: `第 ${day} 天 · ${p.done}/${p.total} 段`,
           href: readerHref(fullMeta, idx),
           progressPct: p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined,
+          bookId: step.bookId,
+          chapter: step.chapterStart,
         };
       }
     }
-    let resumeCard: { title: string; sub: string; href: string } | undefined;
+    let resumeCard:
+      | {
+          title: string;
+          sub: string;
+          href: string;
+          bookId: string;
+          chapter: number;
+        }
+      | undefined;
     const last = getLastRead();
     if (last) {
       try {
@@ -259,12 +279,16 @@ export default function HomePageClient() {
           title: `${name} ${last.chapter} 章`,
           sub: '继续阅读',
           href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+          bookId: last.bookId,
+          chapter: last.chapter,
         };
       } catch {
         resumeCard = {
           title: `第 ${last.chapter} 章`,
           sub: '继续阅读',
           href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+          bookId: last.bookId,
+          chapter: last.chapter,
         };
       }
     }
@@ -298,11 +322,13 @@ export default function HomePageClient() {
       /* ignore */
     }
     const memCount = listAllThoughts().length;
+    const latestThought = listAllThoughts()[0];
     const notesCard = {
       title: memCount > 0 ? `${memCount} 条想法` : '我的想法',
       sub: memCount > 0 ? '查看全部' : '收藏与划线',
       href: '/notes',
       count: memCount,
+      excerpt: latestThought?.body?.trim().slice(0, 48),
     };
     const pendingBookLocal = getPendingBookChallenge();
     const { main } = buildHomeRail({
@@ -310,7 +336,14 @@ export default function HomePageClient() {
       resume: resumeCard,
       group: groupCard,
       prayer: prayerCard,
-      suggest: suggest ? { title: suggest.title, sub: '', href: suggest.href } : undefined,
+      suggest: suggest
+        ? {
+            title: suggest.title,
+            sub: suggest.reason,
+            href: suggest.href,
+            bookId: bookIdFromReaderHref(suggest.href)?.bookId,
+          }
+        : undefined,
       assistant: assistantCard,
       notes: notesCard,
       challenge: pendingBookLocal
@@ -318,6 +351,7 @@ export default function HomePageClient() {
             title: `《${pendingBookLocal.bookName}》`,
             sub: '巩固问答',
             href: '/challenge',
+            bookId: pendingBookLocal.bookId,
           }
         : undefined,
     });

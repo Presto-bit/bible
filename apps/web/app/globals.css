@@ -1357,11 +1357,156 @@ html:not([data-app-theme]) .card {
 .home-page .home-rail .rail-card.card-tint {
   flex: 0 0 calc((100% - 14px) / 2.12);
   max-width: calc((100% - 14px) / 2.12);
-  background: var(--surface);
   border: 1px solid color-mix(in srgb, var(--ink-faint) 22%, var(--line));
   border-radius: var(--home-card-radius);
   box-shadow: var(--home-shadow);
   touch-action: manipulation;
+  overflow: hidden;
+}
+
+.home-page .home-rail .rail-card-content {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+  min-height: 0;
+  height: auto;
+}
+
+.home-page .home-rail .rail-card-content.card-tint {
+  background:
+    var(--grain),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tint, var(--accent)) 14%, transparent) 0%,
+      color-mix(in srgb, var(--tint, var(--accent)) 3%, transparent) 55%,
+      var(--surface) 100%
+    ),
+    var(--surface);
+  background-size: 160px 160px, 100% 100%, 100% 100%;
+}
+
+.home-page .home-rail .rail-card-layout-cover.card-tint-gold {
+  --tint: var(--dawn-gold);
+}
+
+.home-page .home-rail .rail-card-body-padded {
+  padding: 12px 14px 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.home-page .home-rail .rail-card-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.home-page .home-rail .rail-card-cover-img,
+.home-page .home-rail .rail-card-scene-img,
+.home-page .home-rail .rail-card-scene-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.home-page .home-rail .rail-card-media-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(15, 23, 42, 0.18) 100%);
+  pointer-events: none;
+}
+
+.home-page .home-rail .rail-card-progress-ring {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 40px;
+  height: 40px;
+}
+
+.home-page .home-rail .rail-card-media-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background:
+    linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--tint, var(--accent)) 22%, #fff) 0%,
+      color-mix(in srgb, var(--tint, var(--accent)) 8%, var(--surface)) 100%
+    );
+}
+
+.home-page .home-rail .rail-card-stat-pct {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-page .home-rail .rail-card-stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.home-page .home-rail .rail-card-media-note,
+.home-page .home-rail .rail-card-media-verse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+.home-page .home-rail .rail-card-media-note .rail-card-scene-bg,
+.home-page .home-rail .rail-card-media-verse .rail-card-scene-bg {
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+}
+
+.home-page .home-rail .rail-card-note-excerpt,
+.home-page .home-rail .rail-card-note-empty {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-page .home-rail .rail-card-note-empty {
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+.home-page .home-rail .rail-card-verse-ref {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--ink);
+  text-align: center;
+}
+
+.home-page .home-rail .rail-title-verse-hint {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
 }
 
 .home-page .home-rail .rail-card-row {
@@ -1486,6 +1631,38 @@ html:not([data-app-theme]) .card {
   min-height: 52px;
   padding: 14px 16px;
   font-variant-numeric: tabular-nums;
+}
+
+.home-page .home-growth-stack button.home-list-row {
+  min-height: 72px;
+  align-items: center;
+}
+
+.home-page .home-growth-stack .home-reading-summary {
+  min-height: 72px;
+}
+
+.home-page .home-growth-stack .home-list-sub-placeholder {
+  visibility: hidden;
+}
+
+.home-page .home-growth-stack .home-list-main {
+  display: block;
+  white-space: normal;
+}
+
+.home-page .home-growth-stack .home-list-main strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-page .home-growth-stack .home-list-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: calc(12px * 1.35);
 }
 
 .home-page .home-social-line.card {

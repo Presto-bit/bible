@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { railDotClass, railShowsProgress, type RailCard } from '@/lib/home_rail';
-import { RailLineIcon } from '@/components/home/RailLineIcon';
+import { railDotClass, type RailCard } from '@/lib/home_rail';
+import { isTabKeepAliveEnabled } from '@/lib/platform';
+import { isPwaMainTabHref, navigatePwaTab, navigateToReaderHref } from '@/lib/pwa_tab_nav';
+import { RailCardVisual } from '@/components/home/RailCardVisual';
 
 type Props = {
   cards: RailCard[];
@@ -12,22 +14,27 @@ type Props = {
 function cardClass(c: RailCard, active: boolean): string {
   const parts = [
     'rail-card',
-    'rail-card-row',
+    'rail-card-content',
     'card',
     `card-${c.kind}`,
     `card-tint-${c.tint}`,
-    c.kind === 'action' ? 'card-3 card-tint card-accent rail-card-action' : 'card-2',
+    `rail-card-layout-${c.layout}`,
+    c.kind === 'action' ? 'card-3 card-tint card-accent rail-card-action' : 'card-2 card-tint',
     active ? 'rail-card-active' : 'rail-card-inactive',
   ];
   return parts.filter(Boolean).join(' ');
 }
 
-/** 圆形图标：线性 SVG；统计卡显示百分比文字 */
-function circleContent(c: RailCard): { kind: 'icon' | 'text'; iconId?: RailCard['icon']; value?: string } {
-  if (c.kind === 'stat' && c.statPct != null) {
-    return { kind: 'text', value: `${Math.round(c.statPct)}%` };
+function navigateRailHref(href: string, router: ReturnType<typeof useRouter>) {
+  if (href.startsWith('/reader')) {
+    navigateToReaderHref(href, router);
+    return;
   }
-  return { kind: 'icon', iconId: c.icon };
+  if (isTabKeepAliveEnabled() && isPwaMainTabHref(href)) {
+    navigatePwaTab(href);
+    return;
+  }
+  router.push(href);
 }
 
 export function HomeRail({ cards }: Props) {
@@ -84,53 +91,37 @@ export function HomeRail({ cards }: Props) {
   return (
     <>
       <div className="rail home-rail" ref={railRef} onScroll={onScroll}>
-        {cards.map((c, i) => {
-          const circle = circleContent(c);
-          return (
-            <button
-              key={c.id}
-              type="button"
-              ref={(el) => { cardRefs.current[i] = el; }}
-              data-rail-idx={i}
-              className={cardClass(c, activeIdx === i)}
-              style={c.kind === 'action' && c.tint === 'gold' ? { ['--tint' as string]: 'var(--dawn-gold)' } : undefined}
-              onClick={() => router.push(c.href)}
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              <span
-                className={`rail-card-circle rail-card-circle-${c.tint}${circle.kind === 'text' ? ' rail-card-circle-text' : ''}`}
-                aria-hidden
-              >
-                {circle.kind === 'icon' && circle.iconId ? (
-                  <RailLineIcon id={circle.iconId} size={22} className="rail-line-icon" />
-                ) : (
-                  circle.value
-                )}
-              </span>
-              <div className="rail-card-body">
-                <div className="rail-head">
-                  <span className={`pill ${c.kind === 'action' || c.kind === 'stat' ? 'pill-active' : ''}`}>
-                    {c.tag}
-                  </span>
-                </div>
-                <div className="rail-title">{c.title}</div>
-                {railShowsProgress(c) ? (
-                  <div className="progress-bar rail-action-progress">
-                    <div
-                      className="progress-fill plan-fill"
-                      style={{ width: `${Math.max(0, c.progressPct ?? 0)}%` }}
-                    />
-                  </div>
-                ) : null}
-                {c.sub ? (
-                  <div className="rail-foot">
-                    <span className="rail-sub">{c.sub}</span>
-                  </div>
-                ) : null}
+        {cards.map((c, i) => (
+          <button
+            key={c.id}
+            type="button"
+            ref={(el) => { cardRefs.current[i] = el; }}
+            data-rail-idx={i}
+            className={cardClass(c, activeIdx === i)}
+            style={c.kind === 'action' && c.tint === 'gold' ? { ['--tint' as string]: 'var(--dawn-gold)' } : undefined}
+            onClick={() => navigateRailHref(c.href, router)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <RailCardVisual card={c} />
+            <div className="rail-card-body rail-card-body-padded">
+              <div className="rail-head">
+                <span className={`pill ${c.kind === 'action' || c.kind === 'stat' ? 'pill-active' : ''}`}>
+                  {c.tag}
+                </span>
               </div>
-            </button>
-          );
-        })}
+              {c.layout !== 'verse' ? (
+                <div className="rail-title">{c.title}</div>
+              ) : (
+                <div className="rail-title rail-title-verse-hint">问小爱这段经文</div>
+              )}
+              {c.sub ? (
+                <div className="rail-foot">
+                  <span className="rail-sub">{c.sub}</span>
+                </div>
+              ) : null}
+            </div>
+          </button>
+        ))}
       </div>
       <div className="dots home-rail-dots">
         {cards.map((c, i) => (

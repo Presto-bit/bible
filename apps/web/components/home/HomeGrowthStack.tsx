@@ -20,7 +20,7 @@ export function HomeGrowthStack({ cards, onGo }: Props) {
             'card',
             'row-card',
             'home-list-row',
-            c.sub ? 'home-list-row-wrap' : '',
+            'home-list-row-wrap',
             c.accent ? 'card-2 card-tint card-accent' : '',
             c.id === 'today' ? 'home-reading-summary' : '',
           ]
@@ -31,14 +31,10 @@ export function HomeGrowthStack({ cards, onGo }: Props) {
         >
           <span className={`pill${c.pillActive ? ' pill-active' : ''}`}>{c.tag}</span>
           <span className="home-list-main">
-            {c.sub ? (
-              <>
-                <strong>{c.title}</strong>
-                <span className="muted home-list-sub">{c.sub}</span>
-              </>
-            ) : (
-              c.title
-            )}
+            <strong>{c.title}</strong>
+            <span className={`muted home-list-sub${c.sub ? '' : ' home-list-sub-placeholder'}`}>
+              {c.sub || '\u00a0'}
+            </span>
           </span>
           <span className="muted home-list-chevron">›</span>
         </button>
