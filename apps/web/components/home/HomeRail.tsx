@@ -122,6 +122,7 @@ export function HomeRail({ cards }: Props) {
                   </div>
                 ) : null}
               </div>
+              <span className="home-rail-chevron" aria-hidden>›</span>
             </a>
           );
         })}

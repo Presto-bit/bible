@@ -1138,10 +1138,307 @@ html:not([data-app-theme]) .card {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 4px;
+  margin-top: 8px;
   font-size: 13px;
   text-decoration: none;
   color: var(--ink-soft);
+}
+
+.home-greet-action-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-page .home-greet-actions {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 0;
+}
+
+.home-page .home-greet-actions .icon-btn {
+  width: 40px;
+  height: 40px;
+}
+
+.home-greet-avatar {
+  flex-shrink: 0;
+  display: block;
+  border-radius: 50%;
+  box-shadow:
+    0 4px 16px rgba(15, 23, 42, 0.1),
+    0 0 0 2px rgba(255, 255, 255, 0.85);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.home-greet-avatar:active {
+  transform: scale(0.96);
+}
+
+/* ─── 首页：软玻璃风格（仅 home-active） ─── */
+body.home-active {
+  --tabbar-float-gap: 12px;
+  --tabbar-h: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 4px);
+}
+
+body.home-active .app-body {
+  background:
+    radial-gradient(ellipse 130% 70% at 50% -18%, rgba(7, 193, 96, 0.09), transparent 58%),
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(16, 174, 255, 0.05), transparent 50%),
+    #f5f7f8;
+  padding-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 12px);
+}
+
+body.home-active .tabbar {
+  left: 50%;
+  right: auto;
+  width: min(720px, calc(100vw - 32px));
+  bottom: calc(var(--tabbar-float-gap) + var(--tabbar-safe));
+  min-height: var(--tabbar-inner);
+  padding-top: 6px;
+  padding-bottom: 8px;
+  border: none;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.12),
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  transform: translateX(-50%);
+}
+
+html.pwa-standalone body.home-active .tabbar {
+  box-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.12),
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  padding-bottom: 8px;
+}
+
+body.home-active .tab {
+  position: relative;
+  border-radius: 18px;
+  margin: 0 1px;
+  padding: 4px 0 2px;
+}
+
+body.home-active .tab-active {
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent-deep) 11%, transparent);
+}
+
+body.home-active .tab-active svg {
+  transform: scale(1.04);
+}
+
+body.home-active .tab span {
+  font-weight: 600;
+}
+
+body.home-active .tab:not(.tab-active) span {
+  font-weight: 500;
+}
+
+.home-page {
+  --home-card-radius: 24px;
+  --home-hero-radius: 28px;
+  --home-shadow: 0 8px 32px rgba(15, 23, 42, 0.07);
+  --home-shadow-lift: 0 12px 40px rgba(15, 23, 42, 0.1);
+  padding-top: 16px;
+}
+
+.home-greet-header {
+  align-items: flex-start;
+  margin-bottom: 18px;
+}
+
+.home-page .greet-prefix {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink-faint);
+  letter-spacing: 0.01em;
+}
+
+.home-page .greet-name {
+  font-size: 1.625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.home-page .greet-actions {
+  margin-top: 2px;
+}
+
+.home-page .icon-btn {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 14px rgba(15, 23, 42, 0.06);
+  color: var(--ink);
+}
+
+.home-page .icon-btn-fill {
+  background: var(--accent-deep);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(7, 193, 96, 0.28);
+}
+
+.home-page .home-hero-carousel {
+  margin-bottom: 18px;
+}
+
+.home-page .home-hero-carousel-dots {
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.home-page .home-hero-carousel-dot {
+  min-width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-faint) 28%, transparent);
+  font-size: 0;
+  color: transparent;
+  overflow: hidden;
+  transition: min-width 0.22s ease, background 0.15s ease;
+}
+
+.home-page .home-hero-carousel-dot.is-active {
+  min-width: 28px;
+  background: var(--accent-deep);
+}
+
+.home-page .hero-verse,
+.home-page .hero-b-campaign {
+  border: none;
+  border-radius: var(--home-hero-radius);
+  box-shadow: var(--home-shadow-lift);
+}
+
+.home-page .hero-verse {
+  margin-bottom: 0;
+}
+
+.home-page .hero-verse .hero-scene {
+  background:
+    radial-gradient(180px 140px at 88% 12%, rgba(255, 200, 140, 0.62), transparent 72%),
+    radial-gradient(140px 110px at 8% 88%, rgba(7, 193, 96, 0.14), transparent 70%),
+    linear-gradient(175deg, rgba(255, 236, 220, 0.82) 0%, rgba(255, 248, 243, 0) 68%);
+}
+
+.home-page .hero-like {
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.home-page .hero-verse.hero-verse-has-art .hero-like {
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.home-page .hero-verse.hero-verse-has-art .hero-like-active {
+  background: rgba(255, 255, 255, 0.32);
+  color: #ffb4bc;
+}
+
+.home-page .home-rail {
+  gap: 14px;
+  padding: 4px 2px 8px;
+}
+
+.home-page .home-rail .rail-card {
+  flex: 0 0 min(82%, 320px);
+  max-width: min(82%, 320px);
+  border: none;
+  border-radius: var(--home-card-radius);
+  box-shadow: var(--home-shadow);
+}
+
+.home-page .home-rail .rail-card-row {
+  height: 124px;
+  padding: 16px;
+  gap: 14px;
+}
+
+.home-page .home-rail .rail-card-circle {
+  width: 52px;
+  height: 52px;
+  font-size: 24px;
+  box-shadow:
+    0 4px 14px rgba(15, 23, 42, 0.06),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent-deep) 10%, transparent);
+}
+
+.home-page .home-rail-chevron {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ink-soft);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+}
+
+.home-page .home-rail-dots .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  transition: width 0.2s ease, background 0.15s ease;
+}
+
+.home-page .home-rail-dots .dot-active {
+  width: 18px;
+  border-radius: 999px;
+}
+
+.home-page .home-stack {
+  gap: 12px;
+}
+
+.home-page .card.home-list-row,
+.home-page .card.row-card.home-list-row {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  min-height: 56px;
+  padding: 14px 16px;
+}
+
+.home-page .seasonal-card {
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+}
+
+.home-page .section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+  margin-top: 20px;
+}
+
+.home-page .home-social-line.card {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
 }
 
 .home-social-line {
@@ -3035,6 +3332,10 @@ body.verse-full-open {
 body.verse-full-open .tabbar {
   transform: translate3d(0, 110%, 0);
   pointer-events: none;
+}
+
+body.home-active.verse-full-open .tabbar {
+  transform: translate3d(-50%, 110%, 0);
 }
 
 .verse-full {
@@ -10936,6 +11237,7 @@ body.pwa-standalone .tabbar {
   box-shadow: 0 -1px 0 var(--line), 0 -8px 24px rgba(43, 42, 39, 0.08);
   /* 文案整体上移，避免贴 Home 指示条或被滚动内容压住 */
   padding-bottom: calc(var(--tabbar-safe) + 2px);
+  background: var(--surface);
 }
 
 body.pwa-standalone .tab {

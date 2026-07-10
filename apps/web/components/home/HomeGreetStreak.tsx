@@ -42,14 +42,13 @@ export function HomeGreetStreak({ greeting, userName }: Props) {
     streakLine = `已连续读经 ${streak} 天 · 今日 ${minutes} 分钟`;
   }
 
+  const displayName = userName.trim() || '读经伙伴';
+
   return (
     <div className="home-greet-streak">
       <div className="greet-text">
         <span className="greet-prefix">{greeting}</span>
-        <span className="greet-name">
-          <i className="greet-bar" />
-          {userName}
-        </span>
+        <span className="greet-name">{displayName}</span>
       </div>
       <Link href="/report" className="home-greet-streak-line muted">
         {streakLine}
