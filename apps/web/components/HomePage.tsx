@@ -1,12 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
   api,
   type DailyVerse,
-  effectiveId,
   ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
@@ -24,7 +22,6 @@ import { sessionProgress } from '@/lib/plan_steps';
 import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
 import { nextReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
-import Avatar, { defaultAvatarId } from '@/components/Avatar';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
@@ -46,7 +43,6 @@ import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_c
 import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
-import { getLocalAvatarId } from '@/lib/profile_sync';
 
 /** 与 Mobile 首页一致的时段问候 */
 function timeOfDayGreeting(date = new Date()): string {
@@ -178,25 +174,14 @@ export default function HomePageClient() {
   const [pendingBook, setPendingBook] = useState<ReturnType<typeof getPendingBookChallenge>>(null);
   const [railMain, setRailMain] = useState<RailCard[]>([]);
   const [userName, setUserName] = useState('');
-  const [avatarId, setAvatarId] = useState('a1');
   const [socialLine, setSocialLine] = useState<HomeSocialLineData | null>(null);
   const [socialLoading, setSocialLoading] = useState(false);
-  const { activeTab, enabled: keepAlive } = useTabKeepAlive();
-  const pathname = usePathname();
+  const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
-
-  useEffect(() => {
-    const onHome = keepAlive ? activeTab === 'home' : pathname === '/';
-    if (!onHome) return;
-    document.body.classList.add('home-active');
-    return () => document.body.classList.remove('home-active');
-  }, [keepAlive, activeTab, pathname]);
 
   useEffect(() => {
     const refreshName = () => {
       setUserName(getDisplayName());
-      const saved = getLocalAvatarId();
-      setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
       const report = buildReport();
       setReadingSummary({ todayMin: todayMinutes(), monthDays: report.monthDays });
     };
@@ -417,9 +402,8 @@ export default function HomePageClient() {
     <main className="container home-page">
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
-        <div className="greet-actions home-greet-actions">
-          <div className="home-greet-action-tools">
-            <a href="/search" aria-label="搜索" className="icon-btn">
+        <div className="greet-actions">
+          <a href="/search" aria-label="搜索" className="icon-btn">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4-4" />
@@ -436,10 +420,6 @@ export default function HomePageClient() {
               <path d="M12 5v14M5 12h14" />
             </svg>
           </button>
-          </div>
-          <Link href="/profile" className="home-greet-avatar" aria-label="我的">
-            <Avatar id={avatarId} size={44} />
-          </Link>
         </div>
       </header>
 

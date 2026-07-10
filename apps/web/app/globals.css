@@ -22,8 +22,9 @@
 
   /* 底部 Tab：内容区高度 + 安全区（PWA 主屏幕与 app-body 留白共用） */
   --tabbar-inner: 58px;
+  --tabbar-float-gap: 12px;
   --tabbar-safe: env(safe-area-inset-bottom, 0px);
-  --tabbar-h: calc(var(--tabbar-inner) + var(--tabbar-safe));
+  --tabbar-h: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 4px);
 
   /* 字体体系：UI 与阅读区分开
      xs/sm/md = 次要信息；base = 正文；lg/xl = 标题；display = 少数强调数字 */
@@ -188,22 +189,29 @@ html.pwa-standalone body {
   color: var(--ink);
 }
 
-/* 底部 5-Tab 导航 */
+/* 底部 5-Tab 导航：浮动胶囊 */
 .tabbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  right: auto;
+  width: min(720px, calc(100vw - 32px));
+  bottom: calc(var(--tabbar-float-gap) + var(--tabbar-safe));
   z-index: 90;
   display: flex;
   align-items: stretch;
-  min-height: var(--tabbar-h);
-  padding-top: 4px;
-  padding-bottom: var(--tabbar-safe);
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  box-shadow: 0 -4px 20px rgba(43, 42, 39, 0.06);
-  transform: translate3d(0, 0, 0);
+  min-height: var(--tabbar-inner);
+  padding-top: 6px;
+  padding-bottom: 8px;
+  border: none;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.12),
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
+  transform: translateX(-50%);
   transition: transform 0.28s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -223,14 +231,19 @@ body.reader-active .app-body {
 }
 
 body.reader-active .tabbar {
-  background: var(--reader-surface-bg);
-  border-top-color: rgba(43, 42, 39, 0.08);
-  box-shadow: none;
+  background: color-mix(in srgb, var(--reader-surface-bg) 90%, transparent);
+  box-shadow:
+    0 8px 32px rgba(15, 23, 42, 0.1),
+    0 2px 8px rgba(15, 23, 42, 0.05),
+    inset 0 0 0 1px color-mix(in srgb, var(--reader-surface-bg) 60%, transparent);
 }
 
 body.reader-active.reader-theme-night .tabbar,
 body.reader-body-night .tabbar {
-  border-top-color: rgba(255, 255, 255, 0.08);
+  background: color-mix(in srgb, var(--reader-surface-bg) 92%, transparent);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.28),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 body.reader-active.reader-immersive .app-body {
@@ -239,7 +252,7 @@ body.reader-active.reader-immersive .app-body {
 
 /* 沉浸阅读：阅读器顶栏隐藏时，底部 5-Tab 同步下滑隐藏。 */
 body.reader-immersive .tabbar {
-  transform: translate3d(0, 110%, 0);
+  transform: translate3d(-50%, 110%, 0);
   pointer-events: none;
 }
 
@@ -415,9 +428,10 @@ body.reader-immersive .tabbar {
   justify-content: center;
   gap: 3px;
   min-height: 0;
-  margin: 0;
-  padding: 2px 0 4px;
+  margin: 0 1px;
+  padding: 4px 0 2px;
   border: 0;
+  border-radius: 18px;
   background: transparent;
   color: var(--ink-faint);
   font-size: 11px;
@@ -429,7 +443,7 @@ body.reader-immersive .tabbar {
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
-  transition: transform 0.12s ease, color 0.12s ease;
+  transition: transform 0.12s ease, color 0.12s ease, background 0.12s ease;
 }
 
 .tab svg {
@@ -444,15 +458,24 @@ body.reader-immersive .tabbar {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
-/* 小爱 Tab：图标与文案略收 */
 .tab:active {
   transform: scale(0.94);
 }
 
 .tab-active {
   color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent-deep) 11%, transparent);
+}
+
+.tab-active svg {
+  transform: scale(1.04);
+}
+
+.tab-active span {
+  font-weight: 600;
 }
 
 .page-title {
@@ -1144,109 +1167,12 @@ html:not([data-app-theme]) .card {
   color: var(--ink-soft);
 }
 
-.home-greet-action-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.home-page .home-greet-actions {
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-  margin-top: 0;
-}
-
-.home-page .home-greet-actions .icon-btn {
-  width: 40px;
-  height: 40px;
-}
-
-.home-greet-avatar {
-  flex-shrink: 0;
-  display: block;
-  border-radius: 50%;
-  box-shadow:
-    0 4px 16px rgba(15, 23, 42, 0.1),
-    0 0 0 2px rgba(255, 255, 255, 0.85);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-.home-greet-avatar:active {
-  transform: scale(0.96);
-}
-
-/* ─── 首页：软玻璃风格（仅 home-active） ─── */
-body.home-active {
-  --tabbar-float-gap: 12px;
-  --tabbar-h: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 4px);
-}
-
-body.home-active .app-body {
-  background:
-    radial-gradient(ellipse 130% 70% at 50% -18%, rgba(7, 193, 96, 0.09), transparent 58%),
-    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(16, 174, 255, 0.05), transparent 50%),
-    #f5f7f8;
-  padding-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 12px);
-}
-
-body.home-active .tabbar {
-  left: 50%;
-  right: auto;
-  width: min(720px, calc(100vw - 32px));
-  bottom: calc(var(--tabbar-float-gap) + var(--tabbar-safe));
-  min-height: var(--tabbar-inner);
-  padding-top: 6px;
-  padding-bottom: 8px;
-  border: none;
-  border-radius: 28px;
-  background: rgba(255, 255, 255, 0.84);
-  backdrop-filter: blur(20px) saturate(1.2);
-  -webkit-backdrop-filter: blur(20px) saturate(1.2);
-  box-shadow:
-    0 8px 32px rgba(15, 23, 42, 0.12),
-    0 2px 8px rgba(15, 23, 42, 0.06),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
-  transform: translateX(-50%);
-}
-
-html.pwa-standalone body.home-active .tabbar {
-  box-shadow:
-    0 8px 32px rgba(15, 23, 42, 0.12),
-    0 2px 8px rgba(15, 23, 42, 0.06),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.72);
-  padding-bottom: 8px;
-}
-
-body.home-active .tab {
-  position: relative;
-  border-radius: 18px;
-  margin: 0 1px;
-  padding: 4px 0 2px;
-}
-
-body.home-active .tab-active {
-  color: var(--accent-deep);
-  background: color-mix(in srgb, var(--accent-deep) 11%, transparent);
-}
-
-body.home-active .tab-active svg {
-  transform: scale(1.04);
-}
-
-body.home-active .tab span {
-  font-weight: 600;
-}
-
-body.home-active .tab:not(.tab-active) span {
-  font-weight: 500;
-}
-
+/* ─── 首页：软玻璃卡片（home-page） ─── */
 .home-page {
   --home-card-radius: 24px;
   --home-hero-radius: 28px;
-  --home-shadow: 0 8px 32px rgba(15, 23, 42, 0.07);
-  --home-shadow-lift: 0 12px 40px rgba(15, 23, 42, 0.1);
+  --home-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
+  --home-shadow-lift: 0 4px 16px rgba(15, 23, 42, 0.08), 0 12px 40px rgba(15, 23, 42, 0.12);
   padding-top: 16px;
 }
 
@@ -1359,10 +1285,12 @@ body.home-active .tab:not(.tab-active) span {
   padding: 4px 2px 8px;
 }
 
-.home-page .home-rail .rail-card {
+.home-page .home-rail .rail-card,
+.home-page .home-rail .rail-card.card-tint {
   flex: 0 0 min(82%, 320px);
   max-width: min(82%, 320px);
-  border: none;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--ink-faint) 22%, var(--line));
   border-radius: var(--home-card-radius);
   box-shadow: var(--home-shadow);
 }
@@ -3364,12 +3292,8 @@ body.verse-full-open {
 }
 
 body.verse-full-open .tabbar {
-  transform: translate3d(0, 110%, 0);
-  pointer-events: none;
-}
-
-body.home-active.verse-full-open .tabbar {
   transform: translate3d(-50%, 110%, 0);
+  pointer-events: none;
 }
 
 .verse-full {
@@ -11268,10 +11192,7 @@ a.feed-verse-hero:active {
 
 body.pwa-standalone .tabbar {
   z-index: 95;
-  box-shadow: 0 -1px 0 var(--line), 0 -8px 24px rgba(43, 42, 39, 0.08);
-  /* 文案整体上移，避免贴 Home 指示条或被滚动内容压住 */
-  padding-bottom: calc(var(--tabbar-safe) + 2px);
-  background: var(--surface);
+  padding-bottom: 8px;
 }
 
 body.pwa-standalone .tab {
@@ -14428,7 +14349,7 @@ html.app-theme-dark .muted {
   /* wrapper hook for body padding if needed */
 }
 body:has(.tabbar-compact-nav) .tabbar {
-  transform: translate3d(0, 110%, 0);
+  transform: translate3d(-50%, 110%, 0);
   pointer-events: none;
 }
 
