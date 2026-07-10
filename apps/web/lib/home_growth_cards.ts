@@ -6,6 +6,7 @@ import { readingStreak } from './gamification';
 import { bookIdToChineseName } from './ref_label';
 import { listAllThoughts } from './reader_thoughts';
 import { buildReport, rangeStats, todayMinutes } from './reading';
+import { PROFILE_BADGES_HREF } from './profile_settings';
 import { buildWrapped } from './wrapped';
 
 export type HomeGrowthCard = {
@@ -69,7 +70,7 @@ export function buildHomeGrowthCards(opts?: {
       id: 'today',
       tag: '今日',
       title: `今日 ${todayMin} 分钟 · 本月已读 ${monthDays} 天`,
-      href: '/profile',
+      href: '/report',
       pillActive: true,
     },
   ];
@@ -127,7 +128,7 @@ export function buildHomeGrowthCards(opts?: {
         id: 'badge-recent',
         tag: '成就',
         title: trimTitle(`解锁「${badge.label}」`, 22),
-        href: '/profile',
+        href: PROFILE_BADGES_HREF,
         pillActive: true,
       },
     });
@@ -139,7 +140,7 @@ export function buildHomeGrowthCards(opts?: {
         tag: '成就',
         title: trimTitle(badge.label, 20),
         sub: '查看全部徽章',
-        href: '/profile',
+        href: PROFILE_BADGES_HREF,
       },
     });
   }

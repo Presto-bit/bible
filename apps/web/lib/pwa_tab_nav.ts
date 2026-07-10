@@ -33,6 +33,33 @@ export function navigatePwaTab(href: PwaMainTabHref): void {
   window.dispatchEvent(new Event('presto-tab-nav'));
 }
 
+/** 统一应用内跳转：主 Tab（含 query）、读经页、二级页。 */
+export function navigateAppHref(
+  href: string,
+  router: { push: (url: string, options?: { scroll?: boolean }) => void },
+): void {
+  if (typeof window === 'undefined') return;
+  const normalized = href.startsWith('/') ? href : `/${href}`;
+  if (normalized.startsWith('/reader')) {
+    navigateToReaderHref(normalized, router);
+    return;
+  }
+  const pathOnly = normalizeAppPath(normalized.split('?')[0] ?? normalized);
+  if (isTabKeepAliveEnabled() && isPwaMainTabHref(pathOnly)) {
+    const fullHref = clientWithBasePath(normalized);
+    const currentPath = normalizeAppPath(window.location.pathname);
+    const currentUrl = `${window.location.pathname}${window.location.search}`;
+    lastNavSource = 'tab';
+    if (currentPath !== pathOnly || currentUrl !== fullHref) {
+      window.history.pushState({ pwaTab: true }, '', fullHref);
+    }
+    window.dispatchEvent(new Event('presto-tab-nav'));
+    return;
+  }
+  markRouteNavigation();
+  router.push(normalized);
+}
+
 /**
  * PWA 下合并 Next router 与 pushState Tab 路径。
  * 二级页走 router；底栏 Tab 走 pwaPath，避免 /admin 被旧 Tab 路径盖住。

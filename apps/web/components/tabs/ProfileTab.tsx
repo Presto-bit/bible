@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   currentUserId,
   effectiveId,
@@ -41,6 +41,7 @@ import {
 } from '@/lib/profile_settings';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
+import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { isStandalonePwa } from '@/lib/platform';
 
@@ -81,26 +82,48 @@ export default function ProfileTab() {
     markRouteNavigation();
   };
 
-  useEffect(() => {
-    if (enabled) {
-      if (activeTab !== 'profile') setSettingsOpen(false);
-      return;
-    }
-    if (normalizeAppPath(pathname) !== '/profile') setSettingsOpen(false);
-  }, [enabled, activeTab, pathname]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const p = normalizeAppPath(pathname);
-    if (p !== '/profile') return;
+  const consumeProfileQueryFlag = (flag: string): boolean => {
+    if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('settings') !== '1') return;
-    setSettingsOpen(true);
-    params.delete('settings');
+    if (params.get(flag) !== '1') return false;
+    params.delete(flag);
     const qs = params.toString();
     const next = `${window.location.pathname}${qs ? `?${qs}` : ''}${window.location.hash}`;
     window.history.replaceState({}, '', next);
-  }, [pathname]);
+    return true;
+  };
+
+  const applyProfileDeepLinks = useCallback(() => {
+    const onProfile = enabled
+      ? activeTab === 'profile'
+      : normalizeAppPath(pathname) === '/profile';
+    if (!onProfile) return;
+    if (consumeProfileQueryFlag('settings')) setSettingsOpen(true);
+    if (consumeProfileQueryFlag('badges')) setBadgeOpen(true);
+  }, [enabled, activeTab, pathname]);
+
+  useEffect(() => {
+    if (enabled) {
+      if (activeTab !== 'profile') {
+        setSettingsOpen(false);
+        setBadgeOpen(false);
+      }
+      return;
+    }
+    if (normalizeAppPath(pathname) !== '/profile') {
+      setSettingsOpen(false);
+      setBadgeOpen(false);
+    }
+  }, [enabled, activeTab, pathname]);
+
+  useEffect(() => {
+    applyProfileDeepLinks();
+  }, [applyProfileDeepLinks]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    return subscribePwaTabNav(() => applyProfileDeepLinks());
+  }, [enabled, applyProfileDeepLinks]);
 
   useEffect(() => {
     if (!uid) {
