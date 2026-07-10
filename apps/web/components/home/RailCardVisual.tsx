@@ -1,6 +1,6 @@
 'use client';
 
-import { bookCoverDataUrl } from '@/lib/book_cover';
+import { bookCoverImageUrl, bookCoverLabel } from '@/lib/book_cover';
 import type { RailCard } from '@/lib/home_rail';
 import { railShowsProgress } from '@/lib/home_rail';
 import { railSceneUrl } from '@/lib/rail_scene';
@@ -60,10 +60,12 @@ export function RailCardVisual({ card }: Props) {
       <div className={`rail-card-media rail-card-media-cover rail-card-media-${card.tint}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={bookCoverDataUrl(card.bookId, { chapter: card.chapter })}
+          src={bookCoverImageUrl(card.bookId)}
           alt=""
-          className="rail-card-cover-img"
+          className="rail-card-cover-photo"
         />
+        <div className="rail-card-cover-veil" aria-hidden />
+        <p className="rail-card-cover-title">{bookCoverLabel(card.bookId)}</p>
         {showRing ? <ProgressRing pct={card.progressPct!} /> : null}
       </div>
     );
