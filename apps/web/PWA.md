@@ -36,7 +36,7 @@ cd apps/web && npm run generate-pwa
 
 ## PWA 背景色
 
-全站 token：`--pwa-bg: #E32626`（`styles/design_tokens.css`）
+全站壳层：`--pwa-bg: #FFFCFA`（应用内背景）；开屏红底 `#E32626` 仅用于 manifest `background_color` 与 iOS startup 图。
 
 同步至：`manifest.webmanifest`、`layout` viewport、启动图、Standalone 首屏。
 

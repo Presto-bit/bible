@@ -1,8 +1,9 @@
 /* 彼爱 · 设计 token（Web / PWA 与 Flutter 对齐参考） */
 
-/* PWA 壳层：启动图 / Manifest / 首屏（不随 app 主题切换） */
+/* PWA：开屏色与壳层色分离（--pwa-bg 仅应用内，勿用于 manifest 开屏） */
 :root {
-  --pwa-bg: #e32626;
+  --pwa-splash-bg: #e32626;
+  --pwa-bg: #fffcfa;
   --pwa-ink: #4f6b5d;
   --pwa-ink-soft: #7d9b8a;
 }

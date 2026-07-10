@@ -2881,6 +2881,40 @@ body.assistant-active .app-body {
   text-align: center;
 }
 
+/* 无对话：欢迎语 + 输入区作为一组垂直居中（非贴顶/贴底） */
+.assistant-body.is-empty {
+  justify-content: center;
+  gap: 20px;
+}
+
+.assistant-body.is-empty .assistant-thread-wrap {
+  flex: 0 0 auto;
+}
+
+.assistant-body.is-empty .assistant-thread {
+  flex: 0 0 auto;
+  overflow: visible;
+  margin-bottom: 0;
+}
+
+.assistant-body.is-empty .assistant-composer {
+  border-top: none;
+  padding-top: 0;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* 空态 empty-hint 已有推荐 pill，composer 内 chip 行去重 */
+.assistant-body.is-empty .assistant-composer .chip-swipe {
+  display: none;
+}
+
+body.assistant-active .assistant-page {
+  /* 与 app-body tabbar 留白对齐，空态居中才落在视觉中线 */
+  height: calc(100dvh - var(--tabbar-h) - env(safe-area-inset-top, 0px));
+  max-height: calc(100dvh - var(--tabbar-h) - env(safe-area-inset-top, 0px));
+}
+
 .assistant-composer {
   display: flex;
   flex-direction: column;

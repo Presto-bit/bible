@@ -870,7 +870,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         </div>
       </header>
 
-      <div className="assistant-body">
+      <div className={`assistant-body${msgs.length === 0 ? ' is-empty' : ''}`}>
         <div className="assistant-thread-wrap">
           <div
             ref={scrollRef}

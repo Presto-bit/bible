@@ -20,9 +20,9 @@ import { BRAND_FULL } from '@/lib/brand';
 import {
   IOS_STARTUP_FALLBACK,
   IOS_STARTUP_IMAGES,
-  PWA_BG_COLOR,
   PWA_HOME_NAME,
   PWA_MANIFEST_DESCRIPTION,
+  PWA_SHELL_BG_COLOR,
 } from '@/lib/pwa_brand';
 
 export const metadata: Metadata = {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: PWA_BG_COLOR,
+  themeColor: PWA_SHELL_BG_COLOR,
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
@@ -63,7 +63,7 @@ export default function RootLayout({
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 
   return (
-    <html lang="zh-CN" style={{ backgroundColor: PWA_BG_COLOR }}>
+    <html lang="zh-CN" style={{ backgroundColor: PWA_SHELL_BG_COLOR }}>
       <head>
         <meta name="app-version" content={appVersion} />
         {IOS_STARTUP_IMAGES.map(({ file, media }) => (
