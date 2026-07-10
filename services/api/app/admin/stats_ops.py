@@ -171,38 +171,73 @@ _UUID_IDENT_RE = (
 )
 _CODE_IDENT_RE = r"^\d{8}$|^\d{10}$"
 _LEGACY_VK_JOINS = f"""
-LEFT JOIN users u ON v.visitor_key LIKE 'u:%%'
-  AND {_VK_SUFFIX} ~* '{_UUID_IDENT_RE}'
-  AND u.id = {_VK_SUFFIX}::uuid
+LEFT JOIN LATERAL (
+  SELECT id FROM users
+  WHERE {_VK_SUFFIX} ~* '{_UUID_IDENT_RE}'
+    AND id = {_VK_SUFFIX}::uuid
+  LIMIT 1
+) u_lat ON v.visitor_key LIKE 'u:%%'
+LEFT JOIN users u ON u.id = u_lat.id
 LEFT JOIN accounts a ON a.user_id = u.id
 LEFT JOIN user_profile up ON up.user_id = u.id
 LEFT JOIN accounts a2 ON v.visitor_key LIKE 'u:%%'
   AND {_VK_SUFFIX} ~ '{_CODE_IDENT_RE}'
   AND a2.user_code = {_VK_SUFFIX}
 LEFT JOIN user_profile up2 ON up2.user_id = a2.user_id
+LEFT JOIN device_user_bindings dub ON (
+  (v.visitor_key LIKE 'd:%%' AND dub.device_fingerprint = {_VK_SUFFIX})
+  OR (v.visitor_key LIKE 'u:%%' AND dub.device_fingerprint = {_VK_SUFFIX})
+)
+LEFT JOIN accounts a_dev ON a_dev.user_code = dub.user_code
+LEFT JOIN user_profile up_dev ON up_dev.user_id = a_dev.user_id
+"""
+
+_V2_DEVICE_BIND_JOINS = """
+LEFT JOIN device_user_bindings dub ON dub.device_fingerprint = d.device_fingerprint
+LEFT JOIN accounts a_bind ON a_bind.user_code = dub.user_code
+LEFT JOIN user_profile up_bind ON up_bind.user_id = a_bind.user_id
+LEFT JOIN users u_bind ON u_bind.id = a_bind.user_id
 """
 
 
+def _coalesce_label_sql(*fields: str) -> str:
+    parts = [f"nullif(trim({f}), '')" for f in fields]
+    return f"coalesce({', '.join(parts)}, '—')"
+
+
 def _legacy_vk_user_code_sql() -> str:
-    return (
-        "coalesce(nullif(trim(a.user_code), ''), nullif(trim(a2.user_code), ''), "
-        "nullif(trim(up.user_code), ''), nullif(trim(up2.user_code), ''), '—')"
+    return _coalesce_label_sql(
+        "a.user_code", "a2.user_code", "a_dev.user_code",
+        "up.user_code", "up2.user_code", "up_dev.user_code",
     )
 
 
-def _legacy_vk_username_sql() -> str:
-    return (
-        "coalesce(nullif(trim(a.username), ''), nullif(trim(a2.username), ''), "
-        "nullif(trim(up.username), ''), nullif(trim(up2.username), ''), "
-        "nullif(trim(u.display_name), ''), nullif(trim(u.handle), ''), '—')"
+def _legacy_vk_nickname_sql() -> str:
+    return _coalesce_label_sql(
+        "up.username", "up2.username", "up_dev.username",
+        "u.display_name", "u.handle",
+        "a.username", "a2.username", "a_dev.username",
+    )
+
+
+def _v2_uv_user_code_sql() -> str:
+    return _coalesce_label_sql(
+        "a.user_code", "a_bind.user_code", "up.user_code", "up_bind.user_code",
+    )
+
+
+def _v2_uv_nickname_sql() -> str:
+    return _coalesce_label_sql(
+        "up.username", "up_bind.username",
+        "u.display_name", "u_bind.display_name",
+        "u.handle", "u_bind.handle",
+        "a.username", "a_bind.username",
     )
 
 
 def _legacy_vk_is_login_sql() -> str:
     return (
-        f"(v.visitor_key LIKE 'u:%%' AND ("
-        f"{_VK_SUFFIX} ~* '{_UUID_IDENT_RE}' OR {_VK_SUFFIX} ~ '{_CODE_IDENT_RE}'"
-        f"))"
+        f"(({_legacy_vk_user_code_sql()}) <> '—')"
     )
 
 def _mask_id(value: str | None, keep: int = 8) -> str | None:
@@ -641,7 +676,6 @@ def fetch_admin_stats_detail(
             rows = conn.execute(
                 f"""
                 SELECT {labels["user_code"]},
-                       {labels["username"]},
                        {labels["nickname"]},
                        {_ts_sql("u.created_at")},
                        (a.user_code IS NOT NULL)
@@ -656,10 +690,9 @@ def fetch_admin_stats_detail(
             items = [
                 {
                     "user_code": r[0],
-                    "username": r[1],
-                    "nickname": r[2],
-                    "created_at": r[3],
-                    "has_account": bool(r[4]),
+                    "nickname": r[1],
+                    "created_at": r[2],
+                    "has_account": bool(r[3]),
                 }
                 for r in rows
             ]
@@ -669,7 +702,6 @@ def fetch_admin_stats_detail(
                     "区间内新注册用户",
                     [
                         _col("user_code", "用户ID"),
-                        _col("username", "用户名"),
                         _col("nickname", "昵称"),
                         _col("created_at", "注册时间"),
                         _col("has_account", "已绑账号"),
@@ -860,16 +892,32 @@ def fetch_admin_stats_detail(
             dist_items = [{"friends": int(r[0]), "users": int(r[1])} for r in dist_rows]
             recent_rows = conn.execute(
                 f"""
-                SELECT user_id::text, friend_id::text, {_ts_sql("created_at")}
-                FROM friendship
-                WHERE created_at::date BETWEEN %s AND %s
-                ORDER BY created_at DESC
+                SELECT coalesce(nullif(trim(a1.user_code), ''), '—'),
+                       {_coalesce_label_sql("up1.username", "u1.display_name", "u1.handle", "a1.username")},
+                       coalesce(nullif(trim(a2.user_code), ''), '—'),
+                       {_coalesce_label_sql("up2.username", "u2.display_name", "u2.handle", "a2.username")},
+                       {_ts_sql("f.created_at")}
+                FROM friendship f
+                LEFT JOIN accounts a1 ON a1.user_id = f.user_id
+                LEFT JOIN user_profile up1 ON up1.user_id = f.user_id
+                LEFT JOIN users u1 ON u1.id = f.user_id
+                LEFT JOIN accounts a2 ON a2.user_id = f.friend_id
+                LEFT JOIN user_profile up2 ON up2.user_id = f.friend_id
+                LEFT JOIN users u2 ON u2.id = f.friend_id
+                WHERE f.created_at::date BETWEEN %s AND %s
+                ORDER BY f.created_at DESC
                 LIMIT %s
                 """,
                 (start, end, limit),
             ).fetchall()
             items = [
-                {"user": _mask_id(r[0]), "friend": _mask_id(r[1]), "created_at": r[2]}
+                {
+                    "user_code": r[0],
+                    "user_nickname": r[1],
+                    "friend_code": r[2],
+                    "friend_nickname": r[3],
+                    "created_at": r[4],
+                }
                 for r in recent_rows
             ]
             sections = [
@@ -882,7 +930,13 @@ def fetch_admin_stats_detail(
                 _section(
                     "recent",
                     "区间新增关系",
-                    [_col("user", "用户"), _col("friend", "好友"), _col("created_at", "时间")],
+                    [
+                        _col("user_code", "用户ID"),
+                        _col("user_nickname", "昵称"),
+                        _col("friend_code", "好友ID"),
+                        _col("friend_nickname", "好友昵称"),
+                        _col("created_at", "时间"),
+                    ],
                     items,
                 ),
             ]
@@ -1033,18 +1087,18 @@ def fetch_admin_stats_detail(
                     """,
                     range_args,
                 )
-                labels = _user_label_sql()
                 rows = conn.execute(
                     f"""
-                    SELECT {labels["user_code"]},
-                           {labels["username"]},
+                    SELECT {_v2_uv_user_code_sql()},
+                           {_v2_uv_nickname_sql()},
                            d.visit_date::text,
                            {_ts_sql("d.created_at")},
                            {_ts_sql("d.user_bound_at")},
-                           d.user_id IS NOT NULL AS is_login
+                           (d.user_id IS NOT NULL OR a_bind.user_code IS NOT NULL) AS is_login
                     FROM daily_active_visitors d
                     LEFT JOIN users u ON u.id = d.user_id
                     {_USER_JOINS}
+                    {_V2_DEVICE_BIND_JOINS}
                     WHERE d.visit_date BETWEEN %s AND %s
                     ORDER BY d.visit_date DESC, d.created_at DESC
                     LIMIT %s
@@ -1053,14 +1107,14 @@ def fetch_admin_stats_detail(
                 ).fetchall()
                 items = []
                 for r in rows:
-                    user_code, username, vdate, created, bound, is_login = r
+                    user_code, nickname, vdate, created, bound, is_login = r
                     converted_today = bool(
                         is_login and bound and bound != "—" and bound[:10] == vdate
                     )
                     items.append({
                         "type": "登录" if is_login else "游客",
-                        "user_code": user_code if is_login else "—",
-                        "username": username if is_login else "—",
+                        "user_code": user_code,
+                        "nickname": nickname,
                         "converted": "是" if converted_today else "—",
                         "visit_date": vdate,
                         "created_at": created,
@@ -1068,7 +1122,7 @@ def fetch_admin_stats_detail(
                 visitor_cols = [
                     _col("type", "类型"),
                     _col("user_code", "用户ID"),
-                    _col("username", "用户名"),
+                    _col("nickname", "昵称"),
                     _col("converted", "当日转化"),
                     _col("visit_date", "日期"),
                     _col("created_at", "时间"),
@@ -1136,8 +1190,8 @@ def fetch_admin_stats_detail(
                            v.visit_date::text,
                            {_ts_sql("v.created_at")},
                            {_legacy_vk_user_code_sql()},
-                           {_legacy_vk_username_sql()},
-                           {_legacy_vk_is_login_sql()} AS is_login
+                           {_legacy_vk_nickname_sql()},
+                           ({_legacy_vk_is_login_sql()}) AS is_login
                     FROM daily_active_visitors v
                     {_LEGACY_VK_JOINS}
                     WHERE v.visit_date BETWEEN %s AND %s
@@ -1149,8 +1203,8 @@ def fetch_admin_stats_detail(
                 items = [
                     {
                         "type": "登录" if r[5] else "游客",
-                        "user_code": r[3] if r[5] else "—",
-                        "username": r[4] if r[5] else "—",
+                        "user_code": r[3],
+                        "nickname": r[4],
                         "visit_date": r[1],
                         "created_at": r[2],
                     }
@@ -1159,7 +1213,7 @@ def fetch_admin_stats_detail(
                 visitor_cols = [
                     _col("type", "类型"),
                     _col("user_code", "用户ID"),
-                    _col("username", "用户名"),
+                    _col("nickname", "昵称"),
                     _col("visit_date", "日期"),
                     _col("created_at", "时间"),
                 ]
@@ -1168,7 +1222,7 @@ def fetch_admin_stats_detail(
             guest_pct = round(guest_uv / deduped * 100, 1) if deduped else 0
             convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("去重 UV", deduped, "COALESCE(用户, 设备)"),
+                _insight("去重 UV", deduped, "按用户ID去重"),
                 _insight("游客设备", guest_uv, f"占 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
                 _insight("当日转化", converted, f"游客→登录 {convert_pct}%" if converted else None),
@@ -1227,11 +1281,19 @@ def fetch_admin_stats_detail(
                 ).fetchall()
                 hour_items = [{"hour": f"{int(r[0]):02d}:00", "count": int(r[1])} for r in hour_rows]
                 top_rows = conn.execute(
-                    """
-                    SELECT coalesce(user_id::text, '游客') AS uid, count(*) AS cnt
-                    FROM ai_request_log
-                    WHERE created_at::date BETWEEN %s AND %s
-                    GROUP BY user_id
+                    f"""
+                    SELECT coalesce(nullif(trim(max(ac.user_code)), ''), '游客') AS user_code,
+                           {_coalesce_label_sql(
+                               "max(up.username)", "max(u.display_name)",
+                               "max(u.handle)", "max(ac.username)"
+                           )},
+                           count(*) AS cnt
+                    FROM ai_request_log l
+                    LEFT JOIN accounts ac ON ac.user_id = l.user_id
+                    LEFT JOIN user_profile up ON up.user_id = l.user_id
+                    LEFT JOIN users u ON u.id = l.user_id
+                    WHERE l.created_at::date BETWEEN %s AND %s
+                    GROUP BY l.user_id
                     ORDER BY cnt DESC
                     LIMIT 10
                     """,
@@ -1239,8 +1301,9 @@ def fetch_admin_stats_detail(
                 ).fetchall()
                 top_items = [
                     {
-                        "user": _mask_id(r[0]) if r[0] != "游客" else "游客",
-                        "requests": int(r[1]),
+                        "user_code": r[0],
+                        "nickname": r[1],
+                        "requests": int(r[2]),
                     }
                     for r in top_rows
                 ]
@@ -1273,8 +1336,8 @@ def fetch_admin_stats_detail(
                     ),
                     _section(
                         "top_users",
-                        "Top 用户（脱敏）",
-                        [_col("user", "用户"), _col("requests", "请求数")],
+                        "Top 用户",
+                        [_col("user_code", "用户ID"), _col("nickname", "昵称"), _col("requests", "请求数")],
                         top_items,
                     ),
                     _section(
@@ -1288,11 +1351,19 @@ def fetch_admin_stats_detail(
             else:
                 insights = [_insight("提示", "需执行 017_ai_request_log 迁移")]
                 rows = conn.execute(
-                    """
-                    SELECT coalesce(a.user_id::text, ''), gd.device_fingerprint,
-                           a.request_count, a.usage_date::text
+                    f"""
+                    SELECT coalesce(nullif(trim(ac.user_code), ''), nullif(trim(a_dev.user_code), ''), '—'),
+                           {_coalesce_label_sql("up.username", "u.display_name", "u.handle", "ac.username", "up_dev.username", "a_dev.username")},
+                           a.request_count,
+                           a.usage_date::text
                     FROM ai_usage_daily a
+                    LEFT JOIN accounts ac ON ac.user_id = a.user_id
+                    LEFT JOIN user_profile up ON up.user_id = a.user_id
+                    LEFT JOIN users u ON u.id = a.user_id
                     LEFT JOIN guest_devices gd ON gd.guest_id = a.guest_id
+                    LEFT JOIN device_user_bindings dub ON dub.device_fingerprint = gd.device_fingerprint
+                    LEFT JOIN accounts a_dev ON a_dev.user_code = dub.user_code
+                    LEFT JOIN user_profile up_dev ON up_dev.user_id = a_dev.user_id
                     WHERE a.usage_date BETWEEN %s AND %s
                     ORDER BY a.usage_date DESC, a.request_count DESC
                     LIMIT %s
@@ -1301,8 +1372,8 @@ def fetch_admin_stats_detail(
                 ).fetchall()
                 items = [
                     {
-                        "user_id": _mask_id(r[0]) or "—",
-                        "device": (r[1][:12] + "…") if r[1] and len(r[1]) > 14 else r[1],
+                        "user_code": r[0],
+                        "nickname": r[1],
                         "request_count": int(r[2] or 0),
                         "usage_date": r[3],
                     }
@@ -1312,7 +1383,12 @@ def fetch_admin_stats_detail(
                     _section(
                         "daily_usage",
                         "日汇总（迁移后可见场景明细）",
-                        [_col("usage_date", "日期"), _col("request_count", "请求数"), _col("user_id", "用户"), _col("device", "设备")],
+                        [
+                            _col("usage_date", "日期"),
+                            _col("request_count", "请求数"),
+                            _col("user_code", "用户ID"),
+                            _col("nickname", "昵称"),
+                        ],
                         items,
                     )
                 )

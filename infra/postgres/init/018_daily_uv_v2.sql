@@ -15,7 +15,9 @@ SET
     ELSE visitor_key
   END,
   user_id = CASE
-    WHEN visitor_key LIKE 'u:%' THEN substring(visitor_key FROM 3)::uuid
+    WHEN visitor_key LIKE 'u:%'
+      AND substring(visitor_key FROM 3) ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+    THEN substring(visitor_key FROM 3)::uuid
     ELSE user_id
   END,
   user_bound_at = CASE
