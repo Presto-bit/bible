@@ -1222,7 +1222,7 @@ def fetch_admin_stats_detail(
             guest_pct = round(guest_uv / deduped * 100, 1) if deduped else 0
             convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("去重 UV", deduped, "按用户ID去重"),
+                _insight("去重 UV", deduped, "同一用户ID全天计 1"),
                 _insight("游客设备", guest_uv, f"占 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
                 _insight("当日转化", converted, f"游客→登录 {convert_pct}%" if converted else None),

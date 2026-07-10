@@ -7,8 +7,21 @@ logger = logging.getLogger(__name__)
 
 _SKIP_PREFIXES = ("/health", "/admin", "/docs", "/openapi.json", "/redoc")
 
-# 统计去重身份（人去重：同 user 多设备仍计多 UV；同设备游客→登录计 1）
-UV_IDENTITY_SQL = "COALESCE(user_id::text, device_fingerprint)"
+# 统计去重身份：同一 user_id（含设备绑定账号）全天仅计 1 UV；未绑定设备按设备计
+def uv_identity_sql(alias: str | None = None) -> str:
+    prefix = f"{alias}." if alias else "daily_active_visitors."
+    fp = f"{alias}.device_fingerprint" if alias else "daily_active_visitors.device_fingerprint"
+    bound = f"""(
+      SELECT ac.user_id::text
+      FROM device_user_bindings dub
+      JOIN accounts ac ON ac.user_code = dub.user_code
+      WHERE dub.device_fingerprint = {fp}
+      LIMIT 1
+    )"""
+    return f"COALESCE({prefix}user_id::text, {bound}, {prefix}device_fingerprint)"
+
+
+UV_IDENTITY_SQL = uv_identity_sql()
 
 
 def should_record_uv(path: str, method: str) -> bool:
@@ -62,6 +75,20 @@ def _has_uv_v2(conn) -> bool:
     return bool(row)
 
 
+def _lookup_bound_user_id(conn, device_fingerprint: str) -> str | None:
+    row = conn.execute(
+        """
+        SELECT a.user_id::text
+        FROM device_user_bindings dub
+        JOIN accounts ac ON ac.user_code = dub.user_code
+        WHERE dub.device_fingerprint = %s
+        LIMIT 1
+        """,
+        (device_fingerprint,),
+    ).fetchone()
+    return row[0] if row else None
+
+
 def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
     fingerprint = resolve_device_fingerprint(user_id=user_id, device_id=device_id)
     if not fingerprint:
@@ -73,6 +100,9 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
         pool = get_pool()
         with pool.connection() as conn:
             if _has_uv_v2(conn):
+                effective_user_id = user_id
+                if not effective_user_id:
+                    effective_user_id = _lookup_bound_user_id(conn, fingerprint)
                 conn.execute(
                     """
                     INSERT INTO daily_active_visitors (
@@ -97,7 +127,7 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                       END,
                       updated_at = now()
                     """,
-                    (fingerprint, user_id, legacy_key, user_id),
+                    (fingerprint, effective_user_id, legacy_key, effective_user_id),
                 )
             else:
                 conn.execute(

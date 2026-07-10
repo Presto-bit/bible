@@ -1,10 +1,10 @@
 """UV 统计 SQL 片段（V2 去重 + 看板指标）。"""
 from __future__ import annotations
 
-from .uv import UV_IDENTITY_SQL
+from .uv import UV_IDENTITY_SQL, uv_identity_sql
 
-UV_IDENTITY_A = "COALESCE(a.user_id::text, a.device_fingerprint)"
-UV_IDENTITY_B = "COALESCE(b.user_id::text, b.device_fingerprint)"
+UV_IDENTITY_A = uv_identity_sql("a")
+UV_IDENTITY_B = uv_identity_sql("b")
 
 
 def uv_schema_v2(conn) -> bool:
@@ -43,9 +43,18 @@ def uv_login_rows_sql(*, where: str = "visit_date = current_date") -> str:
 
 
 def uv_login_users_sql(*, where: str = "visit_date = current_date") -> str:
+    """当日去重后归属到账号的 UV（含设备绑定）。"""
     return f"""
-        SELECT count(DISTINCT user_id) FROM daily_active_visitors
-        WHERE {where} AND user_id IS NOT NULL
+        SELECT count(DISTINCT {UV_IDENTITY_SQL})
+        FROM daily_active_visitors
+        WHERE {where}
+          AND (
+            user_id IS NOT NULL
+            OR EXISTS (
+              SELECT 1 FROM device_user_bindings dub
+              WHERE dub.device_fingerprint = daily_active_visitors.device_fingerprint
+            )
+          )
     """
 
 
