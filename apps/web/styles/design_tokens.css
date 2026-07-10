@@ -2,7 +2,7 @@
 
 /* PWA 壳层：启动图 / Manifest / 首屏（不随 app 主题切换） */
 :root {
-  --pwa-bg: #fffcfa;
+  --pwa-bg: #e32626;
   --pwa-ink: #4f6b5d;
   --pwa-ink-soft: #7d9b8a;
 }

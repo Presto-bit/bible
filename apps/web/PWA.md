@@ -6,8 +6,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `public/icon.svg` | **唯一主稿**（512 viewBox，窄门） |
-| `scripts/generate_pwa_assets.mjs` | 从 SVG 批量导出 PNG 与启动图 |
+| `../../icon.png` | **唯一主稿**（红底窄门 + BIBLE） |
+| `scripts/generate_pwa_assets.mjs` | 从 PNG 批量导出图标与启动图 |
 
 ```bash
 cd apps/web && npm run generate-pwa
@@ -36,13 +36,13 @@ cd apps/web && npm run generate-pwa
 
 ## PWA 背景色
 
-全站 token：`--pwa-bg: #FFFCFA`（`styles/design_tokens.css`）
+全站 token：`--pwa-bg: #E32626`（`styles/design_tokens.css`）
 
 同步至：`manifest.webmanifest`、`layout` viewport、启动图、Standalone 首屏。
 
 ## 启动图
 
-- 策略：**极简品牌屏**（图标 + 彼爱 + 安静读经）
+- 策略：**品牌开屏**（icon.png 图形 + 彼爱 + 安静读经，红底 `#E32626`）
 - 设计基准：iPhone 15/16 逻辑 **393×852 @3x**
 - 其它机型：脚本等比生成 + `apple-touch-startup-image` media 查询
 

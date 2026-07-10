@@ -2,18 +2,18 @@
 
 import { BRAND_NAME, BRAND_PWA_SUBTITLE } from './brand';
 
-/** 主视觉源：apps/web/public/icon.svg */
-export const PWA_ICON_SOURCE = '/icon.svg';
+/** 主视觉源：仓库根 icon.png（npm run generate-pwa 导出） */
+export const PWA_ICON_SOURCE = '/icon-512.png';
 
 export const PWA_HOME_NAME = BRAND_NAME;
 export const PWA_HOME_SUBTITLE = BRAND_PWA_SUBTITLE;
 export const PWA_MANIFEST_DESCRIPTION = `${PWA_HOME_SUBTITLE}，在话语中相遇`;
 
-/** 启动图 / Manifest 背景（与 icon.svg 画布一致，不随 app 主题变） */
-export const PWA_BG_COLOR = '#FFFCFA';
+/** 启动图 / Manifest 背景（与 icon.png 红底一致，不随 app 主题变） */
+export const PWA_BG_COLOR = '#E32626';
 
-export const PWA_INK = '#4F6B5D';
-export const PWA_INK_SOFT = '#7D9B8A';
+export const PWA_INK = '#FFFFFF';
+export const PWA_INK_SOFT = 'rgba(255,255,255,0.85)';
 
 /** iPhone 15/16 竖屏逻辑尺寸（pt） */
 export const PWA_SPLASH_BASE = { width: 393, height: 852, dpr: 3 } as const;

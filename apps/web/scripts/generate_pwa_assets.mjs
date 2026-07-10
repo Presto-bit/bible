@@ -1,21 +1,24 @@
 #!/usr/bin/env node
 /**
- * 从 public/icon.svg 生成 PWA 图标与 iOS 启动图（极简品牌屏）。
- * 用法：node scripts/generate_pwa_assets.mjs
+ * 从仓库根目录 icon.png 生成 PWA 图标与 iOS 启动图（系统级开屏，非 App 内 Tab 切换）。
+ * 用法：cd apps/web && npm run generate-pwa
  */
-import { readFileSync, mkdirSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+const REPO_ROOT = join(ROOT, '../..');
 const PUBLIC = join(ROOT, 'public');
-const ICON_SVG = join(PUBLIC, 'icon.svg');
+/** 主视觉源：仓库根 icon.png */
+const ICON_PNG = join(REPO_ROOT, 'icon.png');
 
-const PWA_BG = '#FFFCFA';
-const PWA_INK = '#4F6B5D';
-const PWA_INK_SOFT = '#7D9B8A';
+/** 与 icon.png 背景一致 */
+const PWA_BG = '#E32626';
+const PWA_INK = '#FFFFFF';
+const PWA_INK_SOFT = 'rgba(255,255,255,0.85)';
 const HOME_NAME = '彼爱';
 const HOME_SUBTITLE = '安静读经';
 
@@ -27,9 +30,8 @@ const ICON_SIZES = [
   { name: 'apple-touch-icon-167.png', size: 167 },
 ];
 
-/** maskable：同源图标缩至 64% 居中，Android 与 iOS 视觉一致 */
 const MASKABLE_SIZE = 512;
-const MASKABLE_INNER = Math.round(MASKABLE_SIZE * 0.64);
+const MASKABLE_INNER = Math.round(MASKABLE_SIZE * 0.72);
 
 const SPLASH_DEVICES = [
   { file: 'splash-iphone16.png', w: 393, h: 852, dpr: 3 },
@@ -41,7 +43,7 @@ const SPLASH_DEVICES = [
 ];
 
 function iconBuffer(size) {
-  return sharp(ICON_SVG).resize(size, size).png();
+  return sharp(ICON_PNG).resize(size, size, { fit: 'contain', background: PWA_BG }).png();
 }
 
 async function writeMaskable() {
@@ -63,11 +65,11 @@ async function writeMaskable() {
 
 function splashTextSvg(w, h, iconSize) {
   const cx = w / 2;
-  const iconBottom = h * 0.42 + iconSize / 2;
-  const titleY = iconBottom + h * 0.06;
-  const subY = titleY + h * 0.045;
-  const titleSize = Math.round(w * 0.11);
-  const subSize = Math.round(w * 0.055);
+  const iconBottom = h * 0.4 + iconSize / 2;
+  const titleY = iconBottom + h * 0.055;
+  const subY = titleY + h * 0.042;
+  const titleSize = Math.round(w * 0.1);
+  const subSize = Math.round(w * 0.048);
   return Buffer.from(`<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg">
   <rect width="${w}" height="${h}" fill="${PWA_BG}"/>
   <text x="${cx}" y="${titleY}" text-anchor="middle" font-family="PingFang SC, Hiragino Sans GB, Microsoft YaHei, sans-serif" font-size="${titleSize}" font-weight="600" fill="${PWA_INK}">${HOME_NAME}</text>
@@ -78,8 +80,8 @@ function splashTextSvg(w, h, iconSize) {
 async function writeSplash({ file, w, h, dpr }) {
   const W = w * dpr;
   const H = h * dpr;
-  const iconSize = Math.round(W * 0.28);
-  const iconY = Math.round(H * 0.42 - iconSize / 2);
+  const iconSize = Math.round(W * 0.32);
+  const iconY = Math.round(H * 0.4 - iconSize / 2);
 
   const icon = await iconBuffer(iconSize);
   const textLayer = splashTextSvg(W, H, iconSize);
@@ -94,19 +96,18 @@ async function writeSplash({ file, w, h, dpr }) {
 
 async function main() {
   mkdirSync(PUBLIC, { recursive: true });
-  console.log('Generating PWA icons from icon.svg…');
+  console.log(`Generating PWA icons from ${ICON_PNG}…`);
   for (const { name, size } of ICON_SIZES) {
     await iconBuffer(size).toFile(join(PUBLIC, name));
     console.log(`  ${name}`);
   }
   await writeMaskable();
 
-  console.log('Generating iOS splash screens…');
+  console.log('Generating iOS startup splash screens…');
   for (const spec of SPLASH_DEVICES) {
     await writeSplash(spec);
   }
 
-  // 兼容旧路径
   await sharp(join(PUBLIC, 'splash-iphone16plus.png')).toFile(join(PUBLIC, 'splash-ios.png'));
   console.log('  splash-ios.png (legacy alias)');
   console.log('Done.');
