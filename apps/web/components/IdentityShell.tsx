@@ -7,7 +7,7 @@ import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
 import { syncNow, pendingCount } from '@/lib/sync';
-import { needsSyncMigration, markSyncMigrated } from '@/lib/sync_migrate';
+import { needsSyncMigration } from '@/lib/sync_migrate';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 import UsernameGuideSheet from '@/components/UsernameGuideSheet';
 import SyncMigrateSheet from '@/components/SyncMigrateSheet';
@@ -58,10 +58,9 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       <BadgeUnlockToast />
       {migrateSheet ? (
         <SyncMigrateSheet
-          onDone={() => {
-            markSyncMigrated();
-            setMigrateSheet(false);
-          }}
+          onMerged={() => setMigrateSheet(false)}
+          onDismiss={() => setMigrateSheet(false)}
+          onAcknowledged={() => setMigrateSheet(false)}
         />
       ) : null}
       {usernameGuide ? <UsernameGuideSheet onDone={() => setUsernameGuide(false)} /> : null}

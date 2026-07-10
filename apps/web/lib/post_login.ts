@@ -1,6 +1,6 @@
-/** 登录成功后：合并游客额度 + 静默云同步 */
+/** 登录成功后：合并游客额度 + 全量拉取云端（不在此自动弹窗合并） */
 import { API_BASE, currentUserId, getDeviceId } from './api';
-import { syncNow } from './sync';
+import { syncResyncAccount } from './sync';
 
 export async function mergeGuest(): Promise<void> {
   const uid = currentUserId();
@@ -24,11 +24,7 @@ export async function mergeGuest(): Promise<void> {
 export async function afterLogin(): Promise<{ pushed: number; pulled: number } | null> {
   await mergeGuest();
   try {
-    const { needsSyncMigration, enqueueLocalReadingMigration } = await import('./sync_migrate');
-    if (needsSyncMigration()) {
-      enqueueLocalReadingMigration();
-    }
-    return await syncNow();
+    return await syncResyncAccount();
   } catch {
     return null;
   }

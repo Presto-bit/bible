@@ -5,8 +5,10 @@ import { bulkPushLocalReadEvents } from './read_event_sync';
 import { bulkPushLocalBadgeUnlocks } from './badge_unlock_sync';
 import { loadBadgeStats } from './badge_events';
 import { getReadingLogMap } from './reading';
-
-const MIGRATE_KEY = 'presto_sync_migrated_v1';
+import {
+  isSyncMigratedForUser,
+  markSyncMigratedForUser,
+} from './sync_account';
 
 export function hasLocalReadingData(): boolean {
   if (typeof window === 'undefined') return false;
@@ -24,12 +26,12 @@ export function hasLocalReadingData(): boolean {
 
 export function needsSyncMigration(): boolean {
   if (typeof window === 'undefined') return false;
-  if (localStorage.getItem(MIGRATE_KEY) === '1') return false;
+  if (isSyncMigratedForUser()) return false;
   return hasLocalReadingData();
 }
 
 export function markSyncMigrated() {
-  localStorage.setItem(MIGRATE_KEY, '1');
+  markSyncMigratedForUser();
 }
 
 /** 本机阅读日志、章节明细、已解锁成就 → outbox */

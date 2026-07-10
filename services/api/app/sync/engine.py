@@ -203,6 +203,64 @@ def _merge_reading_log_change(
     return merged, True
 
 
+CANON_BOOK_IDS = (
+    "GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT", "1SA", "2SA",
+    "1KI", "2KI", "1CH", "2CH", "EZR", "NEH", "EST", "JOB", "PSA", "PRO",
+    "ECC", "SNG", "ISA", "JER", "LAM", "EZK", "DAN", "HOS", "JOL", "AMO",
+    "OBA", "JON", "MIC", "NAH", "HAB", "ZEP", "HAG", "ZEC", "MAL", "MAT",
+    "MRK", "LUK", "JHN", "ACT", "ROM", "1CO", "2CO", "GAL", "EPH", "PHP",
+    "COL", "1TH", "2TH", "1TI", "2TI", "TIT", "PHM", "HEB", "JAS", "1PE",
+    "2PE", "1JN", "2JN", "3JN", "JUD", "REV",
+)
+
+
+def _reading_progress_rank(book: str | None, chapter: int, verse: int) -> tuple[int, int, int]:
+    b = (book or "").upper()
+    try:
+        bi = CANON_BOOK_IDS.index(b)
+    except ValueError:
+        bi = -1
+    return (bi, chapter, verse)
+
+
+def _merge_reading_progress_change(
+    conn,
+    user_id: str,
+    change: dict,
+) -> tuple[dict, bool]:
+    """reading_progress：同卷取更远章/节，避免较新时间戳把进度写退。"""
+    data = dict(change.get("data") or {})
+    inc_book = data.get("book")
+    inc_ch = int(data.get("chapter") or 0)
+    inc_v = int(data.get("verse") or 1)
+    if not inc_book or inc_ch < 1:
+        return change, True
+    row = conn.execute(
+        "SELECT book, chapter, verse, client_ts FROM reading_progress WHERE user_id = %s",
+        (user_id,),
+    ).fetchone()
+    if not row:
+        return change, True
+    ex_book, ex_ch, ex_v, ex_ts = row[0], int(row[1] or 0), int(row[2] or 1), row[3]
+    if inc_book.upper() == (ex_book or "").upper():
+        if inc_ch > ex_ch or (inc_ch == ex_ch and inc_v > ex_v):
+            return change, True
+        if inc_ch < ex_ch or (inc_ch == ex_ch and inc_v < ex_v):
+            return change, False
+        return change, False
+    inc_rank = _reading_progress_rank(inc_book, inc_ch, inc_v)
+    ex_rank = _reading_progress_rank(ex_book, ex_ch, ex_v)
+    if inc_rank[0] >= 0 and ex_rank[0] >= 0:
+        if inc_rank > ex_rank:
+            return change, True
+        if inc_rank < ex_rank:
+            return change, False
+    inc_ts = _parse_ts(change.get("client_ts"))
+    if not should_apply(ex_ts, None, inc_ts, None):
+        return change, False
+    return change, True
+
+
 def _merge_badge_unlock_change(conn, user_id: str, change: dict) -> dict:
     """badge_unlock：unlocked_at 取较早时间（首次解锁为准）。"""
     badge_id = change.get("id") or (change.get("data") or {}).get("badge_id")
@@ -236,6 +294,11 @@ def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
                 keyvals = _keyvals(spec, change)
                 if spec.entity == "reading_log":
                     change, apply = _merge_reading_log_change(conn, user_id, change)
+                    if not apply:
+                        skipped += 1
+                        continue
+                elif spec.entity == "reading_progress":
+                    change, apply = _merge_reading_progress_change(conn, user_id, change)
                     if not apply:
                         skipped += 1
                         continue

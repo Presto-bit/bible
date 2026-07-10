@@ -30,6 +30,15 @@ import { applyRemoteBadgeUnlock } from './badge_unlock_sync';
 import { SYNC_PULL_ENTITIES } from './sync_contract';
 import { removeHighlight, setHighlight, type HighlightColor } from './reader_highlights';
 import { notifyLocalDataChanged } from './local_data_events';
+import {
+  dropLegacyGlobalSyncKeys,
+  getSyncCursor,
+  migrateLegacyOutboxIfNeeded,
+  outboxStorageKey,
+  resetSyncCursor,
+  setSyncCursor,
+  syncAccountId,
+} from './sync_account';
 
 let syncPullDepth = 0;
 
@@ -46,9 +55,6 @@ export interface Envelope {
   client_ts?: string;
   data?: Record<string, unknown>;
 }
-
-const OUTBOX_KEY = 'presto_outbox';
-const CURSOR_KEY = 'presto_sync_cursor';
 
 function iso(ms: number): string {
   return new Date(ms).toISOString();
@@ -74,18 +80,19 @@ export function noteEnvelope(n: LocalNote, isDelete: boolean): Envelope {
   };
 }
 
-function readOutbox(): Envelope[] {
+function readOutbox(userCode?: string): Envelope[] {
   if (typeof window === 'undefined') return [];
+  migrateLegacyOutboxIfNeeded(userCode);
   try {
-    const raw = JSON.parse(localStorage.getItem(OUTBOX_KEY) || '[]');
+    const raw = JSON.parse(localStorage.getItem(outboxStorageKey(userCode)) || '[]');
     return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
   }
 }
 
-function writeOutbox(items: Envelope[]) {
-  localStorage.setItem(OUTBOX_KEY, JSON.stringify(items));
+function writeOutbox(items: Envelope[], userCode?: string) {
+  localStorage.setItem(outboxStorageKey(userCode), JSON.stringify(items));
 }
 
 export function enqueue(env: Envelope) {
@@ -98,7 +105,8 @@ export function pendingCount(): number {
 }
 
 async function push(): Promise<number> {
-  const outbox = readOutbox();
+  const userCode = syncAccountId();
+  const outbox = readOutbox(userCode);
   if (outbox.length === 0) return 0;
   markSyncStart();
   try {
@@ -108,7 +116,7 @@ async function push(): Promise<number> {
       body: JSON.stringify({ changes: outbox }),
     });
     if (!res.ok) throw new Error(`推送失败 ${res.status}`);
-    writeOutbox([]);
+    writeOutbox([], userCode);
     const data = await res.json();
     return (data.applied ?? 0) as number;
   } finally {
@@ -116,43 +124,34 @@ async function push(): Promise<number> {
   }
 }
 
-async function pull(): Promise<number> {
-  markSyncStart();
-  syncPullDepth += 1;
-  try {
-    const since = Number(localStorage.getItem(CURSOR_KEY) || '0');
-    const res = await fetch(
-      `${API_BASE}/sync/pull?since=${since}&entities=${SYNC_PULL_ENTITIES.join(',')}`,
-      { headers: authHeaders(), cache: 'no-store' },
-    );
-    if (!res.ok) throw new Error(`拉取失败 ${res.status}`);
-  const data = await res.json();
-  const changes = (data.changes ?? []) as Array<{
-    entity: string;
-    id?: string;
-    op: string;
-    version?: number | null;
-    updated_at?: string | null;
-    data?: {
-      ref?: string | null;
-      body?: string;
-      tags?: string[];
-      day?: number;
-      status?: string;
-      session?: Record<string, unknown> | null;
-      color?: string;
-      book?: string;
-      chapter?: number;
-      verse?: number | null;
-      minutes?: number;
-      chapters?: number;
-      ts?: number;
-      badge_id?: string;
-      unlocked_at?: number;
-      avatar_id?: string;
-    } | null;
-    keys?: { plan_id?: string; date?: string };
-  }>;
+type PullChange = {
+  entity: string;
+  id?: string;
+  op: string;
+  version?: number | null;
+  updated_at?: string | null;
+  data?: {
+    ref?: string | null;
+    body?: string;
+    tags?: string[];
+    day?: number;
+    status?: string;
+    session?: Record<string, unknown> | null;
+    color?: string;
+    book?: string;
+    chapter?: number;
+    verse?: number | null;
+    minutes?: number;
+    chapters?: number;
+    ts?: number;
+    badge_id?: string;
+    unlocked_at?: number;
+    avatar_id?: string;
+  } | null;
+  keys?: { plan_id?: string; date?: string };
+};
+
+function applyPullChanges(changes: PullChange[]): number {
   const aiSessionChanges: RemoteAiSession[] = [];
   for (const c of changes) {
     if (c.entity === 'note' && c.id) applyRemoteNote({ ...c, id: c.id });
@@ -217,12 +216,51 @@ async function pull(): Promise<number> {
   if (aiSessionChanges.length > 0) {
     applyRemoteAiSessionPull(aiSessionChanges);
   }
-  if (data.cursor != null) localStorage.setItem(CURSOR_KEY, String(data.cursor));
   if (changes.length > 0) {
     void import('./badge_unlock').then((m) => m.runBadgeRecheck());
     notifyLocalDataChanged('sync-pull');
   }
   return changes.length;
+}
+
+async function pullOnce(userCode?: string): Promise<{ count: number; hasMore: boolean }> {
+  const id = syncAccountId(userCode);
+  const since = getSyncCursor(id);
+  const res = await fetch(
+    `${API_BASE}/sync/pull?since=${since}&entities=${SYNC_PULL_ENTITIES.join(',')}`,
+    { headers: authHeaders(), cache: 'no-store' },
+  );
+  if (!res.ok) throw new Error(`拉取失败 ${res.status}`);
+  const data = await res.json();
+  const changes = (data.changes ?? []) as PullChange[];
+  const count = applyPullChanges(changes);
+  if (data.cursor != null) setSyncCursor(id, Number(data.cursor));
+  return { count, hasMore: Boolean(data.has_more) };
+}
+
+async function pullAll(userCode?: string): Promise<number> {
+  markSyncStart();
+  syncPullDepth += 1;
+  try {
+    let total = 0;
+    for (let guard = 0; guard < 200; guard += 1) {
+      const { count, hasMore } = await pullOnce(userCode);
+      total += count;
+      if (!hasMore) break;
+    }
+    return total;
+  } finally {
+    syncPullDepth -= 1;
+    markSyncDone();
+  }
+}
+
+async function pull(): Promise<number> {
+  markSyncStart();
+  syncPullDepth += 1;
+  try {
+    const { count } = await pullOnce();
+    return count;
   } finally {
     syncPullDepth -= 1;
     markSyncDone();
@@ -234,12 +272,41 @@ export interface SyncResult {
   pulled: number;
 }
 
-// 完整一轮同步：先推后拉。隐式账号就绪后可用。
-export async function syncNow(): Promise<SyncResult> {
+export type SyncOptions = {
+  /** 先拉后推（登录/合并场景，避免未拉全就上行覆盖） */
+  pullFirst?: boolean;
+  /** 重置游标并分页拉全量 */
+  fullPull?: boolean;
+};
+
+// 完整一轮同步。默认先推后拉（离线编辑优先）；登录/合并用 pullFirst + fullPull。
+export async function syncNow(opts: SyncOptions = {}): Promise<SyncResult> {
   await ensureAccountReady();
   const uid = effectiveId();
   if (!uid) throw new Error('账号未就绪');
+  dropLegacyGlobalSyncKeys();
+  migrateLegacyOutboxIfNeeded(uid);
+
+  if (opts.fullPull) resetSyncCursor(uid);
+
+  if (opts.pullFirst) {
+    const pulled = opts.fullPull ? await pullAll(uid) : await pull();
+    const pushed = await push();
+    const pulledAfter = await pull();
+    return { pushed, pulled: pulled + pulledAfter };
+  }
+
   const pushed = await push();
-  const pulled = await pull();
+  const pulled = opts.fullPull ? await pullAll(uid) : await pull();
   return { pushed, pulled };
+}
+
+/** 登录/换号：游标归零 → 拉全量 → 推 outbox → 再拉增量 */
+export async function syncResyncAccount(): Promise<SyncResult> {
+  return syncNow({ pullFirst: true, fullPull: true });
+}
+
+/** 仅从云端拉取（合并弹窗「暂不合并」：先补齐云端，不上行本机迁移） */
+export async function syncPullFirst(): Promise<SyncResult> {
+  return syncNow({ pullFirst: true, fullPull: true });
 }

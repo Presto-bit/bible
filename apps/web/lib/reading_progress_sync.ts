@@ -6,16 +6,15 @@ import {
   setLastReadVerse,
   type LastRead,
 } from './reading';
-
-const REMOTE_TS_KEY = 'presto_reading_progress_remote_ts';
-
-function remoteTs(): number {
-  return Number(localStorage.getItem(REMOTE_TS_KEY) || '0');
-}
-
-function setRemoteTs(ms: number) {
-  localStorage.setItem(REMOTE_TS_KEY, String(ms));
-}
+import {
+  getReadingProgressRemoteTs,
+  setReadingProgressRemoteTs,
+} from './sync_account';
+import {
+  compareReadingProgress,
+  isReadingProgressAhead,
+  type ReadingProgressPoint,
+} from './reading_progress_compare';
 
 export function pushReadingProgress(local?: LastRead | null) {
   const lr = local ?? getLastRead();
@@ -40,22 +39,43 @@ export function applyRemoteReadingProgress(
   if (!data?.book || !data.chapter) return;
   const remoteMs = updatedAt ? Date.parse(updatedAt) : Date.now();
   const local = getLastRead();
-  const localVerse = local
-    ? getLastReadVerse(local.bookId, local.chapter) ?? 1
-    : 1;
   const remoteVerse = data.verse ?? 1;
+  const remotePoint: ReadingProgressPoint = {
+    book: data.book,
+    chapter: data.chapter,
+    verse: remoteVerse,
+  };
 
   const shouldApply = (() => {
     if (!local) return true;
-    if (local.bookId !== data.book) return remoteMs >= remoteTs();
-    if (local.chapter !== data.chapter) return data.chapter > local.chapter || remoteMs >= remoteTs();
-    return remoteVerse > localVerse || remoteMs >= remoteTs();
+    const localVerse = getLastReadVerse(local.bookId, local.chapter) ?? 1;
+    const localPoint: ReadingProgressPoint = {
+      book: local.bookId,
+      chapter: local.chapter,
+      verse: localVerse,
+    };
+    const cmp = compareReadingProgress(remotePoint, localPoint);
+    if (cmp > 0) return true;
+    if (cmp < 0) return false;
+    if (local.bookId.toUpperCase() === data.book.toUpperCase()) return false;
+    return remoteMs >= getReadingProgressRemoteTs();
   })();
 
   if (!shouldApply) return;
-  setRemoteTs(remoteMs);
+  setReadingProgressRemoteTs(remoteMs);
   setLastRead(data.book, data.chapter, { skipSync: true });
   if (remoteVerse > 1) {
     setLastReadVerse(data.book, data.chapter, remoteVerse);
   }
+}
+
+export function mergeReadingProgressPoints(
+  local: ReadingProgressPoint | null,
+  remote: ReadingProgressPoint | null,
+): ReadingProgressPoint | null {
+  if (!local) return remote;
+  if (!remote) return local;
+  if (isReadingProgressAhead(remote, local)) return remote;
+  if (isReadingProgressAhead(local, remote)) return local;
+  return local;
 }
