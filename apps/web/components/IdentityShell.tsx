@@ -6,7 +6,7 @@ import { shouldPromptUsername } from '@/lib/account_guide';
 import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
-import { syncNow } from '@/lib/sync';
+import { syncNow, pendingCount } from '@/lib/sync';
 import { needsSyncMigration, markSyncMigrated } from '@/lib/sync_migrate';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 import UsernameGuideSheet from '@/components/UsernameGuideSheet';
@@ -18,11 +18,15 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
   const [migrateSheet, setMigrateSheet] = useState(false);
 
   useEffect(() => {
+    const runBackgroundSync = () => {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      void syncNow().catch(() => {});
+    };
     void ensureAccountReady().then(() => {
       if (needsSyncMigration()) {
         setMigrateSheet(true);
       } else {
-        void syncNow().catch(() => {});
+        runBackgroundSync();
       }
       void flushCheckinQueue().catch(() => {});
       rescheduleGroupEveningReminder();
@@ -31,9 +35,21 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
     });
     const onOnline = () => {
       void flushCheckinQueue().catch(() => {});
+      runBackgroundSync();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') runBackgroundSync();
     };
     window.addEventListener('online', onOnline);
-    return () => window.removeEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
+    const syncInterval = window.setInterval(() => {
+      if (pendingCount() > 0) runBackgroundSync();
+    }, 30000);
+    return () => {
+      window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(syncInterval);
+    };
   }, []);
 
   return (

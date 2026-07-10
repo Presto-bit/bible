@@ -81,10 +81,21 @@ function MiniBarChart({
 function formatCell(value: string | number | boolean | null | undefined): string {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? '是' : '否';
-  if (typeof value === 'string' && value.includes('T')) {
-    const d = new Date(value);
-    if (!Number.isNaN(d.getTime())) {
-      return d.toLocaleString('zh-CN', { hour12: false });
+  if (typeof value === 'string') {
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value)) return value;
+    if (value.includes('T') || /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(value)) {
+      const d = new Date(value.includes('T') ? value : value.replace(' ', 'T'));
+      if (!Number.isNaN(d.getTime())) {
+        return d.toLocaleString('zh-CN', {
+          hour12: false,
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        });
+      }
     }
   }
   return String(value);

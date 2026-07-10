@@ -125,6 +125,45 @@ def _col(key: str, label: str) -> dict:
     return {"key": key, "label": label}
 
 
+def _ts_sql(column: str) -> str:
+    """北京时间，精确到秒。"""
+    return f"to_char({column} AT TIME ZONE 'Asia/Shanghai', 'YYYY-MM-DD HH24:MI:SS')"
+
+
+def _user_label_sql(*, user_alias: str = "u", account_alias: str = "a", profile_alias: str = "up") -> dict[str, str]:
+    """accounts / users / user_profile 已 JOIN 时的展示字段 SQL。"""
+    return {
+        "user_code": (
+            f"coalesce(nullif(trim({account_alias}.user_code), ''), "
+            f"nullif(trim({profile_alias}.user_code), ''), '—')"
+        ),
+        "username": f"coalesce(nullif(trim({account_alias}.username), ''), '—')",
+        "nickname": (
+            f"coalesce(nullif(trim({profile_alias}.username), ''), "
+            f"nullif(trim({user_alias}.display_name), ''), "
+            f"nullif(trim({user_alias}.handle), ''), "
+            f"nullif(trim({account_alias}.username), ''), '—')"
+        ),
+        "display": (
+            f"coalesce(nullif(trim({account_alias}.username), ''), "
+            f"nullif(trim({profile_alias}.username), ''), "
+            f"nullif(trim({user_alias}.display_name), ''), "
+            f"nullif(trim({user_alias}.handle), ''), '—')"
+        ),
+    }
+
+
+_USER_JOINS = (
+    "LEFT JOIN accounts a ON a.user_id = u.id "
+    "LEFT JOIN user_profile up ON up.user_id = u.id"
+)
+
+_OWNER_JOINS = (
+    "LEFT JOIN users ou ON ou.id = g.owner_id "
+    "LEFT JOIN accounts ac ON ac.user_id = g.owner_id "
+    "LEFT JOIN user_profile up ON up.user_id = g.owner_id"
+)
+
 def _mask_id(value: str | None, keep: int = 8) -> str | None:
     if not value:
         return None
@@ -472,11 +511,11 @@ def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
 
 def _fetch_rag_detail(conn, totals: dict, limit: int) -> dict:
     rows = conn.execute(
-        """
+        f"""
         SELECT d.id::text, d.title, d.source_type, d.status,
-               d.rag_index_at::text, d.rag_index_error,
+               {_ts_sql("d.rag_index_at")}, d.rag_index_error,
                (SELECT count(*) FROM bible_rag_chunks c WHERE c.document_id = d.id) AS chunks,
-               d.created_at::text
+               {_ts_sql("d.created_at")}
         FROM bible_documents d
         ORDER BY d.updated_at DESC
         LIMIT %s
@@ -557,11 +596,16 @@ def fetch_admin_stats_detail(
                 _insight("沉睡用户", dormant_30d, dormant_hint or "30 日无读经"),
                 _insight("已绑账号", with_account, f"占 {totals['users']} 人"),
             ]
+            labels = _user_label_sql()
             rows = conn.execute(
-                """
-                SELECT u.id::text, u.handle, u.display_name, u.created_at::text,
-                       EXISTS(SELECT 1 FROM accounts a WHERE a.user_id = u.id) AS has_account
+                f"""
+                SELECT {labels["user_code"]},
+                       {labels["username"]},
+                       {labels["nickname"]},
+                       {_ts_sql("u.created_at")},
+                       (a.user_code IS NOT NULL)
                 FROM users u
+                {_USER_JOINS}
                 WHERE u.created_at::date BETWEEN %s AND %s
                 ORDER BY u.created_at DESC
                 LIMIT %s
@@ -570,9 +614,9 @@ def fetch_admin_stats_detail(
             ).fetchall()
             items = [
                 {
-                    "id": _mask_id(r[0]),
-                    "handle": r[1],
-                    "display_name": r[2],
+                    "user_code": r[0],
+                    "username": r[1],
+                    "nickname": r[2],
                     "created_at": r[3],
                     "has_account": bool(r[4]),
                 }
@@ -582,20 +626,29 @@ def fetch_admin_stats_detail(
                 _section(
                     "recent_users",
                     "区间内新注册用户",
-                    [_col("handle", "用户名"), _col("display_name", "昵称"), _col("created_at", "注册时间"), _col("has_account", "已绑账号")],
+                    [
+                        _col("user_code", "用户ID"),
+                        _col("username", "用户名"),
+                        _col("nickname", "昵称"),
+                        _col("created_at", "注册时间"),
+                        _col("has_account", "已绑账号"),
+                    ],
                     items,
                 )
             )
             summary = f"累计 {totals['users']} 人 · 区间新增 {sum(p['count'] for p in series)}"
 
         elif metric == "groups":
+            creator_sql = _user_label_sql(user_alias="ou", account_alias="ac", profile_alias="up")["display"]
             rows_top = conn.execute(
-                """
+                f"""
                 SELECT g.name,
+                       max({creator_sql}) AS creator_name,
                        count(*) FILTER (WHERE m.kind = 'checkin'
                          AND m.created_at::date = current_date) AS checkins_today,
                        (SELECT count(*) FROM group_member gm WHERE gm.group_id = g.id) AS members
                 FROM social_group g
+                {_OWNER_JOINS}
                 LEFT JOIN group_message m ON m.group_id = g.id
                 GROUP BY g.id, g.name
                 HAVING (SELECT count(*) FROM group_member gm WHERE gm.group_id = g.id) > 0
@@ -605,19 +658,21 @@ def fetch_admin_stats_detail(
             ).fetchall()
             top_items = []
             for r in rows_top:
-                members = int(r[2] or 0)
-                checkins = int(r[1] or 0)
+                members = int(r[3] or 0)
+                checkins = int(r[2] or 0)
                 rate = round(checkins / members * 100, 1) if members else 0
                 top_items.append({
                     "name": r[0],
+                    "creator": r[1] or "—",
                     "checkins_today": checkins,
                     "members": members,
                     "checkin_rate": f"{rate}%",
                 })
             rows_active = conn.execute(
-                """
-                SELECT g.name, count(m.id) AS msg_count
+                f"""
+                SELECT g.name, max({creator_sql}) AS creator_name, count(m.id) AS msg_count
                 FROM social_group g
+                {_OWNER_JOINS}
                 JOIN group_message m ON m.group_id = g.id
                 WHERE m.created_at::date BETWEEN %s AND %s
                 GROUP BY g.id, g.name
@@ -626,13 +681,18 @@ def fetch_admin_stats_detail(
                 """,
                 (start, end, min(limit, 10)),
             ).fetchall()
-            active_items = [{"name": r[0], "messages": int(r[1])} for r in rows_active]
+            active_items = [
+                {"name": r[0], "creator": r[1] or "—", "messages": int(r[2])}
+                for r in rows_active
+            ]
             zombie_rows = conn.execute(
-                """
+                f"""
                 SELECT g.name,
+                       max({creator_sql}) AS creator_name,
                        (SELECT count(*) FROM group_member gm WHERE gm.group_id = g.id) AS members,
-                       coalesce(max(m.created_at)::date::text, '—') AS last_msg
+                       coalesce({_ts_sql("max(m.created_at)")}, '—') AS last_msg
                 FROM social_group g
+                {_OWNER_JOINS}
                 LEFT JOIN group_message m ON m.group_id = g.id
                 GROUP BY g.id, g.name
                 HAVING coalesce(max(m.created_at), g.created_at) < current_date - 29
@@ -643,8 +703,37 @@ def fetch_admin_stats_detail(
                 (min(limit, 20),),
             ).fetchall()
             zombie_items = [
-                {"name": r[0], "members": int(r[1] or 0), "last_message": r[2]}
+                {
+                    "name": r[0],
+                    "creator": r[1] or "—",
+                    "members": int(r[2] or 0),
+                    "last_message": r[3],
+                }
                 for r in zombie_rows
+            ]
+            recent_group_rows = conn.execute(
+                f"""
+                SELECT g.name,
+                       max({creator_sql}) AS creator_name,
+                       (SELECT count(*) FROM group_member gm WHERE gm.group_id = g.id) AS members,
+                       {_ts_sql("g.created_at")}
+                FROM social_group g
+                {_OWNER_JOINS}
+                WHERE g.created_at::date BETWEEN %s AND %s
+                GROUP BY g.id, g.name, g.created_at
+                ORDER BY g.created_at DESC
+                LIMIT %s
+                """,
+                (start, end, limit),
+            ).fetchall()
+            recent_group_items = [
+                {
+                    "name": r[0],
+                    "creator": r[1] or "—",
+                    "members": int(r[2] or 0),
+                    "created_at": r[3],
+                }
+                for r in recent_group_rows
             ]
             insights = [
                 _insight("累计群数", totals["groups"]),
@@ -653,21 +742,43 @@ def fetch_admin_stats_detail(
             ]
             sections = [
                 _section(
+                    "recent_groups",
+                    f"区间内新建群（{range_preset}）",
+                    [
+                        _col("name", "群名"),
+                        _col("creator", "创建者"),
+                        _col("members", "成员"),
+                        _col("created_at", "创建时间"),
+                    ],
+                    recent_group_items,
+                ),
+                _section(
                     "top_checkin",
                     "今日打卡率 Top",
-                    [_col("name", "群名"), _col("checkins_today", "今日打卡"), _col("members", "成员"), _col("checkin_rate", "打卡率")],
+                    [
+                        _col("name", "群名"),
+                        _col("creator", "创建者"),
+                        _col("checkins_today", "今日打卡"),
+                        _col("members", "成员"),
+                        _col("checkin_rate", "打卡率"),
+                    ],
                     top_items,
                 ),
                 _section(
                     "active_groups",
                     f"区间活跃群（{range_preset}）",
-                    [_col("name", "群名"), _col("messages", "消息数")],
+                    [_col("name", "群名"), _col("creator", "创建者"), _col("messages", "消息数")],
                     active_items,
                 ),
                 _section(
                     "zombie_groups",
                     "空群 / 30 日无消息",
-                    [_col("name", "群名"), _col("members", "成员"), _col("last_message", "最近消息")],
+                    [
+                        _col("name", "群名"),
+                        _col("creator", "创建者"),
+                        _col("members", "成员"),
+                        _col("last_message", "最近消息"),
+                    ],
                     zombie_items,
                 ),
             ]
@@ -707,8 +818,8 @@ def fetch_admin_stats_detail(
             ).fetchall()
             dist_items = [{"friends": int(r[0]), "users": int(r[1])} for r in dist_rows]
             recent_rows = conn.execute(
-                """
-                SELECT user_id::text, friend_id::text, created_at::text
+                f"""
+                SELECT user_id::text, friend_id::text, {_ts_sql("created_at")}
                 FROM friendship
                 WHERE created_at::date BETWEEN %s AND %s
                 ORDER BY created_at DESC
@@ -789,8 +900,8 @@ def fetch_admin_stats_detail(
             ).fetchall()
             hour_items = [{"hour": f"{int(r[0]):02d}:00", "count": int(r[1])} for r in hour_rows]
             recent_rows = conn.execute(
-                """
-                SELECT g.name, m.kind, m.ref, m.created_at::text
+                f"""
+                SELECT g.name, m.kind, m.ref, {_ts_sql("m.created_at")}
                 FROM group_message m
                 JOIN social_group g ON g.id = m.group_id
                 WHERE m.created_at::date BETWEEN %s AND %s
@@ -881,40 +992,48 @@ def fetch_admin_stats_detail(
                     """,
                     range_args,
                 )
+                labels = _user_label_sql()
                 rows = conn.execute(
-                    """
-                    SELECT device_fingerprint, user_id::text, visit_date::text,
-                           created_at::text, user_bound_at::text
-                    FROM daily_active_visitors
-                    WHERE visit_date BETWEEN %s AND %s
-                    ORDER BY visit_date DESC, created_at DESC
+                    f"""
+                    SELECT {labels["user_code"]},
+                           {labels["username"]},
+                           d.visit_date::text,
+                           {_ts_sql("d.created_at")},
+                           {_ts_sql("d.user_bound_at")},
+                           d.user_id IS NOT NULL AS is_login
+                    FROM daily_active_visitors d
+                    LEFT JOIN users u ON u.id = d.user_id
+                    {_USER_JOINS}
+                    WHERE d.visit_date BETWEEN %s AND %s
+                    ORDER BY d.visit_date DESC, d.created_at DESC
                     LIMIT %s
                     """,
                     (start, end, limit),
                 ).fetchall()
                 items = []
                 for r in rows:
-                    device, uid, vdate, created, bound = r
+                    user_code, username, vdate, created, bound, is_login = r
                     converted_today = bool(
-                        uid and bound and str(bound)[:10] == vdate
+                        is_login and bound and bound != "—" and bound[:10] == vdate
                     )
                     items.append({
-                        "type": "登录" if uid else "游客",
-                        "device": _mask_id(device, 10),
-                        "user": _mask_id(uid) if uid else "—",
+                        "type": "登录" if is_login else "游客",
+                        "user_code": user_code if is_login else "—",
+                        "username": username if is_login else "—",
                         "converted": "是" if converted_today else "—",
                         "visit_date": vdate,
                         "created_at": created,
                     })
                 visitor_cols = [
                     _col("type", "类型"),
-                    _col("device", "设备"),
-                    _col("user", "用户"),
+                    _col("user_code", "用户ID"),
+                    _col("username", "用户名"),
                     _col("converted", "当日转化"),
                     _col("visit_date", "日期"),
                     _col("created_at", "时间"),
                 ]
             else:
+                labels = _user_label_sql()
                 deduped = _scalar(
                     conn,
                     "SELECT count(*) FROM daily_active_visitors WHERE visit_date BETWEEN %s AND %s",
@@ -972,19 +1091,28 @@ def fetch_admin_stats_detail(
                     range_args,
                 )
                 rows = conn.execute(
-                    """
-                    SELECT visitor_key, visit_date::text, created_at::text
-                    FROM daily_active_visitors
-                    WHERE visit_date BETWEEN %s AND %s
-                    ORDER BY visit_date DESC, created_at DESC
+                    f"""
+                    SELECT v.visitor_key,
+                           v.visit_date::text,
+                           {_ts_sql("v.created_at")},
+                           {labels["user_code"]},
+                           {labels["username"]},
+                           v.visitor_key LIKE 'u:%%' AS is_login
+                    FROM daily_active_visitors v
+                    LEFT JOIN users u ON v.visitor_key LIKE 'u:%%'
+                      AND u.id = substring(v.visitor_key from 3)::uuid
+                    {_USER_JOINS}
+                    WHERE v.visit_date BETWEEN %s AND %s
+                    ORDER BY v.visit_date DESC, v.created_at DESC
                     LIMIT %s
                     """,
                     (start, end, limit),
                 ).fetchall()
                 items = [
                     {
-                        "type": "用户" if r[0] and r[0].startswith("u:") else "设备",
-                        "visitor_key": (r[0][2:10] + "…") if r[0] and len(r[0]) > 12 else r[0],
+                        "type": "登录" if r[5] else "游客",
+                        "user_code": r[3] if r[5] else "—",
+                        "username": r[4] if r[5] else "—",
                         "visit_date": r[1],
                         "created_at": r[2],
                     }
@@ -992,7 +1120,8 @@ def fetch_admin_stats_detail(
                 ]
                 visitor_cols = [
                     _col("type", "类型"),
-                    _col("visitor_key", "标识"),
+                    _col("user_code", "用户ID"),
+                    _col("username", "用户名"),
                     _col("visit_date", "日期"),
                     _col("created_at", "时间"),
                 ]
@@ -1078,8 +1207,8 @@ def fetch_admin_stats_detail(
                     for r in top_rows
                 ]
                 recent_rows = conn.execute(
-                    """
-                    SELECT coalesce(scene, '—'), mode, surface, status, created_at::text
+                    f"""
+                    SELECT coalesce(scene, '—'), mode, surface, status, {_ts_sql("created_at")}
                     FROM ai_request_log
                     WHERE created_at::date BETWEEN %s AND %s
                     ORDER BY created_at DESC

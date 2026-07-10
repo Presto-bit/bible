@@ -361,10 +361,54 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       sessionScrollRef.current = true;
       return;
     }
-    scrollThreadToLatest();
-    const t = window.setTimeout(scrollThreadToLatest, 50);
-    return () => window.clearTimeout(t);
+    const scroll = () => scrollThreadToLatest();
+    scroll();
+    const t1 = window.setTimeout(scroll, 50);
+    const t2 = window.setTimeout(scroll, 200);
+    let ro: ResizeObserver | undefined;
+    const el = scrollRef.current;
+    if (el && typeof ResizeObserver !== 'undefined') {
+      let ticks = 0;
+      ro = new ResizeObserver(() => {
+        scroll();
+        ticks += 1;
+        if (ticks >= 8) ro?.disconnect();
+      });
+      ro.observe(el);
+    }
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      ro?.disconnect();
+    };
   }, [activeId, msgs.length]);
+
+  /** 切回小爱 Tab / App 从后台恢复：默认滚到最新输出 */
+  useEffect(() => {
+    if (!paneActive || msgs.length === 0) return;
+    streamFollowLockedRef.current = false;
+    setShowJumpToBottom(false);
+    sessionScrollRef.current = true;
+    const scroll = () => scrollThreadToLatest();
+    scroll();
+    requestAnimationFrame(() => requestAnimationFrame(scroll));
+    const t = window.setTimeout(scroll, 120);
+    return () => window.clearTimeout(t);
+  }, [paneActive, msgs.length]);
+
+  useEffect(() => {
+    if (!paneActive || msgs.length === 0) return;
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      streamFollowLockedRef.current = false;
+      setShowJumpToBottom(false);
+      sessionScrollRef.current = true;
+      scrollThreadToLatest();
+      window.setTimeout(scrollThreadToLatest, 120);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [paneActive, msgs.length]);
 
   const persist = (nextMsgs: Msg[], anchor: string) => {
     if (!hasUserMessages(nextMsgs)) return;

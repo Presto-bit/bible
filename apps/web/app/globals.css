@@ -14071,7 +14071,8 @@ html.app-theme-dark .muted {
   border: 1px solid var(--line);
   background: var(--surface);
   font-size: 11px;
-  cursor: pointer;
+  cursor: default;
+  user-select: none;
 }
 .sync-status-toast {
   position: fixed;
