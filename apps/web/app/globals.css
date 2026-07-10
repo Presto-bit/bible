@@ -1460,6 +1460,9 @@ html:not([data-app-theme]) .card {
   border: none;
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .home-page .seasonal-card {

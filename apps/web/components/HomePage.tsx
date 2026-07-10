@@ -43,6 +43,8 @@ import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_c
 import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
+import { isTabKeepAliveEnabled } from '@/lib/platform';
+import { isPwaMainTabHref, navigatePwaTab, navigateToReaderHref } from '@/lib/pwa_tab_nav';
 
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
@@ -175,6 +177,14 @@ export default function HomePageClient() {
   const router = useRouter();
 
   const go = useCallback((href: string) => {
+    if (href.startsWith('/reader')) {
+      navigateToReaderHref(href, router);
+      return;
+    }
+    if (isTabKeepAliveEnabled() && isPwaMainTabHref(href)) {
+      navigatePwaTab(href);
+      return;
+    }
     router.push(href);
   }, [router]);
 

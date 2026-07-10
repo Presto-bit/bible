@@ -27,6 +27,7 @@ export function HomeGrowthStack({ cards, onGo }: Props) {
             .filter(Boolean)
             .join(' ')}
           onClick={() => onGo(c.href)}
+          onContextMenu={(e) => e.preventDefault()}
         >
           <span className={`pill${c.pillActive ? ' pill-active' : ''}`}>{c.tag}</span>
           <span className="home-list-main">
