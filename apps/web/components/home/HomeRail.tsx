@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { railDotClass, type RailCard } from '@/lib/home_rail';
+import { RailLineIcon } from '@/components/home/RailLineIcon';
 
 type Props = {
   cards: RailCard[];
@@ -20,14 +21,12 @@ function cardClass(c: RailCard, active: boolean): string {
   return parts.filter(Boolean).join(' ');
 }
 
-/** 圆形图标：优先 emoji；统计卡显示百分比文字 */
-function circleContent(c: RailCard): { kind: 'icon' | 'text'; value: string } {
+/** 圆形图标：线性 SVG；统计卡显示百分比文字 */
+function circleContent(c: RailCard): { kind: 'icon' | 'text'; iconId?: RailCard['icon']; value?: string } {
   if (c.kind === 'stat' && c.statPct != null) {
     return { kind: 'text', value: `${Math.round(c.statPct)}%` };
   }
-  if (c.icon?.trim()) return { kind: 'icon', value: c.icon.trim() };
-  const label = (c.tag || c.title || '?').trim();
-  return { kind: 'text', value: label.slice(0, 2) };
+  return { kind: 'icon', iconId: c.icon };
 }
 
 export function HomeRail({ cards }: Props) {
@@ -98,7 +97,11 @@ export function HomeRail({ cards }: Props) {
                 className={`rail-card-circle rail-card-circle-${c.tint}${circle.kind === 'text' ? ' rail-card-circle-text' : ''}`}
                 aria-hidden
               >
-                {circle.value}
+                {circle.kind === 'icon' && circle.iconId ? (
+                  <RailLineIcon id={circle.iconId} size={22} className="rail-line-icon" />
+                ) : (
+                  circle.value
+                )}
               </span>
               <div className="rail-card-body">
                 <div className="rail-head">

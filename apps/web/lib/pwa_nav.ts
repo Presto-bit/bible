@@ -2,6 +2,19 @@
 
 import { isStandalonePwa } from './platform';
 
+export function initPwaContextMenuGuard() {
+  if (typeof document === 'undefined' || !isStandalonePwa()) return;
+
+  const blockMenu = (e: Event) => {
+    const target = e.target;
+    if (!(target instanceof Element)) return;
+    if (target.closest('input, textarea, [contenteditable="true"]')) return;
+    e.preventDefault();
+  };
+
+  document.addEventListener('contextmenu', blockMenu, { capture: true });
+}
+
 export function initPwaNavGuard() {
   if (typeof document === 'undefined' || !isStandalonePwa()) return;
 

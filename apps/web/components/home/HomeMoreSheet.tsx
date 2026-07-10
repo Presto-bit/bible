@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import type { HomeMoreItem } from '@/lib/home_rail';
+import { RailLineIcon, isRailIconId } from '@/components/home/RailLineIcon';
 
 type Props = {
   open: boolean;
@@ -26,7 +27,13 @@ export function HomeMoreSheet({ open, items, onClose }: Props) {
           {items.map((item) => (
             <li key={item.id}>
               <Link href={item.href} className="home-more-row card-row" onClick={onClose}>
-                <span className="home-more-icon" aria-hidden>{item.icon}</span>
+                <span className="home-more-icon" aria-hidden>
+                  {isRailIconId(item.icon) ? (
+                    <RailLineIcon id={item.icon} size={20} className="rail-line-icon" />
+                  ) : (
+                    item.icon
+                  )}
+                </span>
                 <span className="home-more-main">
                   <span className="home-more-tag">{item.tag}</span>
                   <strong>{item.title}</strong>

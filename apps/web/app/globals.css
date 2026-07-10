@@ -146,6 +146,16 @@ body.pwa-standalone .app-body {
 html.pwa-standalone,
 html.pwa-standalone body {
   background: var(--pwa-bg, #fffcfa);
+  -webkit-touch-callout: none;
+}
+
+html.pwa-standalone .app-body {
+  -webkit-touch-callout: none;
+}
+
+html.pwa-standalone .app-body a,
+html.pwa-standalone .app-body button {
+  -webkit-touch-callout: none;
 }
 
 .app-body::-webkit-scrollbar {
@@ -1318,6 +1328,15 @@ html:not([data-app-theme]) .card {
   box-shadow:
     0 4px 14px rgba(15, 23, 42, 0.06),
     inset 0 0 0 1px color-mix(in srgb, var(--accent-deep) 10%, transparent);
+}
+
+.home-page .rail-line-icon {
+  display: block;
+  flex-shrink: 0;
+}
+
+.rail-card-circle .rail-line-icon {
+  display: block;
 }
 
 .home-page .home-rail-chevron {

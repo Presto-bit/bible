@@ -545,17 +545,15 @@ export default function HomePageClient() {
         <HomeSocialLine line={socialLine} loading={socialLoading} />
       </div>
 
+      <p className="section-label">成长与回忆</p>
       <div className="home-stack">
         <a href="/profile" className="card row-card home-list-row home-reading-summary">
+          <span className="pill pill-active">今日</span>
           <span className="home-list-main">
             今日 {readingSummary.todayMin} 分钟 · 本月已读 {readingSummary.monthDays} 天
           </span>
           <span className="muted home-list-chevron">›</span>
         </a>
-      </div>
-
-      <p className="section-label">成长与回忆</p>
-      <div className="home-stack">
         {pendingBook && (
           <Link href="/challenge" className="card card-2 card-tint row-card home-list-row home-list-row-wrap challenge-nudge">
             <span className="pill pill-active">巩固挑战</span>

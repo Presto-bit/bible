@@ -1,21 +1,33 @@
 /** 首页横滑卡：左圆标 + 右文案（点击整卡进入，无 CTA） */
 
+export type RailIconId =
+  | 'resume'
+  | 'plan'
+  | 'prayer'
+  | 'group'
+  | 'notes'
+  | 'suggest'
+  | 'assistant'
+  | 'challenge'
+  | 'plans'
+  | 'discover';
+
 export type RailCardKind = 'action' | 'media' | 'stat' | 'ghost';
 export type RailTint = 'gold' | 'green' | 'rose' | 'slate';
 
 /** 圆标固定语义，形成记忆点（统计卡圆内显示百分比，不用 icon） */
-export const RAIL_ICONS = {
-  resume: '📖',
-  plan: '📅',
-  prayer: '🙏',
-  group: '👥',
-  notes: '📝',
-  suggest: '💡',
-  assistant: '✦',
-  challenge: '✓',
-  plans: '📅',
-  discover: '👥',
-} as const;
+export const RAIL_ICONS: Record<string, RailIconId> = {
+  resume: 'resume',
+  plan: 'plan',
+  prayer: 'prayer',
+  group: 'group',
+  notes: 'notes',
+  suggest: 'suggest',
+  assistant: 'assistant',
+  challenge: 'challenge',
+  plans: 'plans',
+  discover: 'discover',
+};
 
 export type RailCard = {
   id: string;
@@ -27,7 +39,7 @@ export type RailCard = {
   title: string;
   sub: string;
   href: string;
-  icon: string;
+  icon: RailIconId;
   statPct?: number;
   statLabel?: string;
   progressPct?: number;
@@ -39,7 +51,7 @@ export type HomeMoreItem = {
   title: string;
   sub: string;
   href: string;
-  icon: string;
+  icon: RailIconId;
 };
 
 export type HomeRailInput = {
