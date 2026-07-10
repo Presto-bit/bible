@@ -172,7 +172,6 @@ export function RailCardVisual({ card }: Props) {
           <>
             <div className="rail-card-group-glow" aria-hidden />
             <div className="rail-card-group-veil" aria-hidden />
-            <span className="rail-card-scene-badge">同行</span>
           </>
         ) : null}
       </div>
