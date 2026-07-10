@@ -109,12 +109,14 @@ export function HomeRail({ cards }: Props) {
                   {c.tag}
                 </span>
               </div>
-              {c.layout !== 'verse' ? (
-                <div className="rail-title">{c.title}</div>
-              ) : (
+              {c.layout === 'verse' ? (
                 <div className="rail-title rail-title-verse-hint">问小爱这段经文</div>
+              ) : c.layout === 'scene-caption' ? (
+                c.sub ? <div className="rail-title">{c.sub}</div> : null
+              ) : (
+                <div className="rail-title">{c.title}</div>
               )}
-              {c.sub ? (
+              {c.sub && c.layout !== 'scene-caption' ? (
                 <div className="rail-foot">
                   <span className="rail-sub">{c.sub}</span>
                 </div>

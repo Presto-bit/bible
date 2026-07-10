@@ -21,7 +21,7 @@ function ProgressRing({ pct }: { pct: number }) {
         cy="20"
         r={r}
         fill="none"
-        stroke="rgba(15,23,42,0.12)"
+        stroke="rgba(15, 23, 42, 0.12)"
         strokeWidth="3"
       />
       <circle
@@ -51,13 +51,30 @@ function ProgressRing({ pct }: { pct: number }) {
   );
 }
 
+function SceneBackdrop({ sceneId }: { sceneId: NonNullable<RailCard['sceneId']> }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={railSceneUrl(sceneId)} alt="" className="rail-card-scene-img" />
+  );
+}
+
 export function RailCardVisual({ card }: Props) {
   const { layout } = card;
+  const isChallenge = card.coverVariant === 'challenge';
 
   if (layout === 'cover' && card.bookId) {
     const showRing = railShowsProgress(card) && (card.progressPct ?? 0) > 0;
     return (
-      <div className={`rail-card-media rail-card-media-cover rail-card-media-${card.tint}`}>
+      <div
+        className={[
+          'rail-card-media',
+          'rail-card-media-cover',
+          `rail-card-media-${card.tint}`,
+          isChallenge ? 'rail-card-media-cover-challenge' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={bookCoverImageUrl(card.bookId)}
@@ -66,28 +83,58 @@ export function RailCardVisual({ card }: Props) {
         />
         <div className="rail-card-cover-veil" aria-hidden />
         <p className="rail-card-cover-title">{bookCoverLabel(card.bookId)}</p>
+        {isChallenge ? <span className="rail-card-cover-badge">问答</span> : null}
+        {showRing ? <ProgressRing pct={card.progressPct!} /> : null}
+      </div>
+    );
+  }
+
+  if (layout === 'scene-caption' && card.sceneId) {
+    const showRing = railShowsProgress(card) && (card.progressPct ?? 0) > 0;
+    return (
+      <div className={`rail-card-media rail-card-media-scene-caption rail-card-media-${card.tint}`}>
+        <SceneBackdrop sceneId={card.sceneId} />
+        <div className="rail-card-scene-veil" aria-hidden />
+        {card.mediaCaption ? (
+          <p className="rail-card-scene-caption">{card.mediaCaption}</p>
+        ) : null}
         {showRing ? <ProgressRing pct={card.progressPct!} /> : null}
       </div>
     );
   }
 
   if (layout === 'stat' && card.statPct != null) {
+    const ratioLabel = card.statLabel && /^\d+\/\d+$/.test(card.statLabel);
     return (
       <div className={`rail-card-media rail-card-media-stat rail-card-media-${card.tint}`}>
-        <span className="rail-card-stat-pct">{Math.round(card.statPct)}%</span>
-        {card.statLabel ? (
-          <span className="rail-card-stat-label">{card.statLabel}</span>
-        ) : null}
+        {card.sceneId ? <SceneBackdrop sceneId={card.sceneId} /> : null}
+        <div className="rail-card-stat-veil" aria-hidden />
+        <div className="rail-card-stat-body">
+          <span className="rail-card-stat-pct">
+            {ratioLabel ? card.statLabel : `${Math.round(card.statPct)}%`}
+          </span>
+          <span className="rail-card-stat-label">
+            {ratioLabel ? '今日打卡' : card.statLabel}
+          </span>
+        </div>
       </div>
     );
   }
 
   if (layout === 'note') {
     return (
-      <div className={`rail-card-media rail-card-media-note rail-card-media-${card.tint}`}>
-        {card.sceneId ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={railSceneUrl(card.sceneId)} alt="" className="rail-card-scene-bg" />
+      <div
+        className={[
+          'rail-card-media',
+          'rail-card-media-note',
+          `rail-card-media-${card.tint}`,
+          card.noteExcerpt ? 'rail-card-media-note-filled' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
+        {!card.noteExcerpt && card.sceneId ? (
+          <SceneBackdrop sceneId={card.sceneId} />
         ) : null}
         {card.noteExcerpt ? (
           <p className="rail-card-note-excerpt">&ldquo;{card.noteExcerpt}&rdquo;</p>
@@ -101,10 +148,7 @@ export function RailCardVisual({ card }: Props) {
   if (layout === 'verse') {
     return (
       <div className={`rail-card-media rail-card-media-verse rail-card-media-${card.tint}`}>
-        {card.sceneId ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={railSceneUrl(card.sceneId)} alt="" className="rail-card-scene-bg" />
-        ) : null}
+        <div className="rail-card-verse-glow" aria-hidden />
         <p className="rail-card-verse-ref">{card.title}</p>
       </div>
     );
@@ -113,8 +157,7 @@ export function RailCardVisual({ card }: Props) {
   if (card.sceneId) {
     return (
       <div className={`rail-card-media rail-card-media-scene rail-card-media-${card.tint}`}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={railSceneUrl(card.sceneId)} alt="" className="rail-card-scene-img" />
+        <SceneBackdrop sceneId={card.sceneId} />
       </div>
     );
   }

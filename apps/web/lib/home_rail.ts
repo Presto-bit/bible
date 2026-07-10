@@ -16,8 +16,9 @@ export type RailIconId =
 
 export type RailCardKind = 'action' | 'media' | 'stat' | 'ghost';
 export type RailTint = 'gold' | 'green' | 'rose' | 'slate';
-/** 横滑卡顶部视觉：封面 / 场景 / 统计 / 笔记摘录 / 经文 */
-export type RailLayout = 'cover' | 'scene' | 'stat' | 'note' | 'verse';
+/** 横滑卡顶部视觉 */
+export type RailLayout = 'cover' | 'scene' | 'scene-caption' | 'stat' | 'note' | 'verse';
+export type RailCoverVariant = 'default' | 'challenge';
 
 /** 圆标固定语义，形成记忆点（统计卡圆内显示百分比，不用 icon） */
 export const RAIL_ICONS: Record<string, RailIconId> = {
@@ -53,6 +54,9 @@ export type RailCard = {
   chapter?: number;
   sceneId?: RailSceneId;
   noteExcerpt?: string;
+  /** 场景卡顶部一行主文案（计划名 / 第 N 天等） */
+  mediaCaption?: string;
+  coverVariant?: RailCoverVariant;
 };
 
 const RAIL_TITLE_MAX = 24;
@@ -74,6 +78,7 @@ export function trimRailSub(text: string, max = RAIL_SUB_MAX): string {
 
 function normalizeRailCard(card: RailCard): RailCard {
   const title = trimRailTitle(card.title);
+  const mediaCaption = card.mediaCaption ? trimRailTitle(card.mediaCaption, 20) : undefined;
   let sub = '';
 
   switch (card.id) {
@@ -115,6 +120,7 @@ function normalizeRailCard(card: RailCard): RailCard {
     title,
     sub,
     reason: '',
+    mediaCaption,
   };
 }
 
@@ -192,7 +198,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         id,
         kind: 'media',
         tint: 'green',
-        layout: input.plan.bookId ? 'cover' : 'scene',
+        layout: 'scene-caption',
         tag: '计划',
         reason: '今日计划',
         title: input.plan.title,
@@ -200,9 +206,8 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         href: input.plan.href,
         icon: RAIL_ICONS.plan,
         progressPct: input.plan.progressPct,
-        bookId: input.plan.bookId,
-        chapter: input.plan.chapter,
-        sceneId: input.plan.bookId ? undefined : 'plan',
+        sceneId: 'plan',
+        mediaCaption: input.plan.title,
       };
     case 'prayer':
       if (!input.prayer) return null;
@@ -210,7 +215,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         id,
         kind: 'media',
         tint: 'rose',
-        layout: 'scene',
+        layout: 'scene-caption',
         tag: '祷告',
         reason: '今日祷告',
         title: input.prayer.title,
@@ -218,6 +223,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         href: input.prayer.href,
         icon: RAIL_ICONS.prayer,
         sceneId: 'prayer',
+        mediaCaption: input.prayer.title,
       };
     case 'group':
       if (!input.group) return null;
@@ -227,7 +233,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
           input.group.statPct != null && input.group.statLabel ? 'stat' : 'ghost',
         tint: 'green',
         layout:
-          input.group.statPct != null && input.group.statLabel ? 'stat' : 'scene',
+          input.group.statPct != null && input.group.statLabel ? 'stat' : 'scene-caption',
         tag: '共读',
         reason: '',
         title: input.group.title,
@@ -237,6 +243,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         statPct: input.group.statPct,
         statLabel: input.group.statLabel,
         sceneId: 'group',
+        mediaCaption: input.group.statPct != null ? undefined : input.group.title,
       };
     case 'notes':
       return {
@@ -259,7 +266,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         id,
         kind: 'ghost',
         tint: 'slate',
-        layout: input.suggest.bookId ? 'cover' : 'scene',
+        layout: input.suggest.bookId ? 'cover' : 'scene-caption',
         tag: '推荐',
         reason: '为你推荐',
         title: input.suggest.title,
@@ -268,6 +275,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         icon: RAIL_ICONS.suggest,
         bookId: input.suggest.bookId,
         sceneId: input.suggest.bookId ? undefined : 'plan',
+        mediaCaption: input.suggest.bookId ? undefined : input.suggest.title,
       };
     case 'assistant':
       if (!input.assistant) return null;
@@ -282,7 +290,6 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         sub: input.assistant.sub,
         href: input.assistant.href,
         icon: RAIL_ICONS.assistant,
-        sceneId: 'assistant',
       };
     case 'challenge':
       if (!input.challenge) return null;
@@ -298,7 +305,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         href: input.challenge.href,
         icon: RAIL_ICONS.challenge,
         bookId: input.challenge.bookId,
-        sceneId: 'challenge',
+        coverVariant: 'challenge',
       };
     default:
       return null;
@@ -311,7 +318,7 @@ function moreItemToCard(item: HomeMoreItem): RailCard {
     id: item.id,
     kind: 'ghost',
     tint: 'slate',
-    layout: 'scene',
+    layout: 'scene-caption',
     tag: item.tag,
     reason: item.sub.split(' · ')[0] ?? item.tag,
     title: item.title,
@@ -319,6 +326,7 @@ function moreItemToCard(item: HomeMoreItem): RailCard {
     href: item.href,
     icon: item.icon,
     sceneId,
+    mediaCaption: item.title,
   };
 }
 
