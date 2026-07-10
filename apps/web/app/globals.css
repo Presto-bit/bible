@@ -3207,10 +3207,12 @@ a.today-card-link {
 .assistant-page {
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
   height: calc(100dvh - 80px);
   max-height: calc(100dvh - 80px);
   min-height: 0;
-  padding-bottom: 8px;
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   padding-left: 14px;
   padding-right: 14px;
   overflow: hidden;
@@ -3224,6 +3226,9 @@ body.assistant-active {
 body.assistant-active .app-body {
   overflow: hidden;
   overscroll-behavior: none;
+  /* 小爱全屏自管顶/底安全区，避免与 .assistant-page 双重预留 */
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 .assistant-body {
@@ -3352,9 +3357,9 @@ body.assistant-active .app-body {
 }
 
 body.assistant-active .assistant-page {
-  /* 与 app-body tabbar 留白对齐，空态居中才落在视觉中线 */
-  height: calc(100dvh - var(--tabbar-h) - env(safe-area-inset-top, 0px));
-  max-height: calc(100dvh - var(--tabbar-h) - env(safe-area-inset-top, 0px));
+  /* 顶栏 safe-area 已计入 padding-top，高度只扣 tabbar */
+  height: calc(100dvh - var(--tabbar-h));
+  max-height: calc(100dvh - var(--tabbar-h));
 }
 
 .assistant-composer {
@@ -5823,9 +5828,10 @@ body.reader-active .proper-noun--artifact {
   min-width: 240px;
   max-width: 360px;
   height: 100%;
+  box-sizing: border-box;
   background: var(--surface);
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.12);
-  padding: 18px 16px;
+  padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(18px + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
   animation: drawer-in 0.22s ease;
 }
