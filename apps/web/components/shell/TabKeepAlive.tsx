@@ -54,7 +54,7 @@ const ProfileTab = dynamic(() => import('@/components/tabs/ProfileTab'), {
   loading: () => paneLoading,
 });
 
-const TAB_COMPONENTS: Record<KeepAliveTabId, React.ComponentType> = {
+const TAB_COMPONENTS: Record<KeepAliveTabId, React.ComponentType<{ paneActive?: boolean }>> = {
   home: HomeTab,
   reader: ReaderTab,
   assistant: AssistantTab,
@@ -110,6 +110,14 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     setMounted((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
   }, [enabled, activeTab]);
 
+  useEffect(() => {
+    if (!enabled) return;
+    const el = document.activeElement;
+    if (!(el instanceof HTMLElement)) return;
+    const pane = el.closest('.tab-keep-pane');
+    if (pane?.hasAttribute('hidden')) el.blur();
+  }, [activeTab, enabled]);
+
   const ctx = useMemo(
     () => ({ enabled, activeTab, suppressRoute }),
     [enabled, activeTab, suppressRoute],
@@ -135,7 +143,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
             hidden={!active}
             aria-hidden={!active}
           >
-            {tab === 'reader' ? <ReaderTab paneActive={active} /> : <Pane />}
+            {tab === 'reader' ? <ReaderTab paneActive={active} /> : <Pane paneActive={active} />}
           </div>
         );
       })}

@@ -476,16 +476,9 @@ export default function HomePageClient() {
         verseSlide={(
       <div
         className={`card card-3 hero-verse hero-verse-has-art ${heroThemeClass(dv?.theme)}`}
-        role="button"
-        tabIndex={dv?.text ? 0 : -1}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
         onClick={openVerseWallpaper}
         onContextMenu={(e) => e.preventDefault()}
-        onKeyDown={(e) => {
-          if (e.key !== 'Enter' && e.key !== ' ') return;
-          e.preventDefault();
-          openVerseWallpaper();
-        }}
       >
         <div
           className={`hero-scene${heroIllustration ? ' hero-scene-has-art' : ''}`}

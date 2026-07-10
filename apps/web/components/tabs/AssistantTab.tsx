@@ -293,6 +293,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   }, [paneActive]);
 
   useEffect(() => {
+    if (paneActive) return;
+    inputRef.current?.blur();
+    const el = document.activeElement;
+    if (el instanceof HTMLElement && el.closest('.assistant-page')) el.blur();
+  }, [paneActive]);
+
+  useEffect(() => {
     if (!hydratedRef.current) return;
     if (!hasUserMessages(msgs)) {
       clearAssistantDraft();

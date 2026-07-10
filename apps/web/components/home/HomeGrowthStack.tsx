@@ -12,7 +12,9 @@ export function HomeGrowthStack({ cards, onGo }: Props) {
 
   return (
     <div className="home-stack home-growth-stack">
-      {cards.map((c) => (
+      {cards.map((c) => {
+        const singleLine = !c.sub;
+        return (
         <button
           key={c.id}
           type="button"
@@ -20,7 +22,7 @@ export function HomeGrowthStack({ cards, onGo }: Props) {
             'card',
             'row-card',
             'home-list-row',
-            'home-list-row-wrap',
+            singleLine ? 'home-growth-row-single' : 'home-list-row-wrap',
             c.accent ? 'card-2 card-tint card-accent' : '',
             c.id === 'today' ? 'home-reading-summary' : '',
           ]
@@ -32,13 +34,14 @@ export function HomeGrowthStack({ cards, onGo }: Props) {
           <span className={`pill${c.pillActive ? ' pill-active' : ''}`}>{c.tag}</span>
           <span className="home-list-main">
             <strong>{c.title}</strong>
-            <span className={`muted home-list-sub${c.sub ? '' : ' home-list-sub-placeholder'}`}>
-              {c.sub || '\u00a0'}
-            </span>
+            {c.sub ? (
+              <span className="muted home-list-sub">{c.sub}</span>
+            ) : null}
           </span>
           <span className="muted home-list-chevron">›</span>
         </button>
-      ))}
+        );
+      })}
     </div>
   );
 }

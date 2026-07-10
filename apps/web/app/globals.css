@@ -193,6 +193,12 @@ html.pwa-standalone a[href] {
   pointer-events: none !important;
 }
 
+.tab-keep-pane[hidden] input,
+.tab-keep-pane[hidden] textarea,
+.tab-keep-pane[hidden] [contenteditable='true'] {
+  pointer-events: none !important;
+}
+
 .tab-keep-pane-active {
   display: block;
   position: relative;
@@ -1303,6 +1309,7 @@ html:not([data-app-theme]) .card {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+  cursor: pointer;
 }
 
 .home-page .hero-verse .verse-text,
@@ -1675,12 +1682,30 @@ html:not([data-app-theme]) .card {
   align-items: center;
 }
 
+.home-page .home-growth-stack button.home-growth-row-single {
+  min-height: 56px;
+}
+
 .home-page .home-growth-stack .home-reading-summary {
   min-height: 72px;
 }
 
-.home-page .home-growth-stack .home-list-sub-placeholder {
-  visibility: hidden;
+.home-page .home-growth-stack button.home-growth-row-single.home-reading-summary {
+  min-height: 56px;
+}
+
+.home-page .home-growth-stack .home-growth-row-single .home-list-main {
+  display: flex;
+  align-items: center;
+  min-height: 0;
+}
+
+.home-page .home-growth-stack .home-growth-row-single .home-list-main strong {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
 }
 
 .home-page .home-growth-stack .home-list-main {
