@@ -92,11 +92,7 @@ function normalizeRailCard(card: RailCard): RailCard {
       sub = trimRailSub(card.sub);
       break;
     case 'group':
-      if (card.kind === 'stat' && card.statLabel) {
-        sub = trimRailSub(`打卡 ${card.statLabel}`);
-      } else {
-        sub = trimRailSub(card.sub);
-      }
+      sub = trimRailSub(card.sub);
       break;
     case 'assistant':
     case 'suggest':
@@ -229,21 +225,16 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
       if (!input.group) return null;
       return {
         id,
-        kind:
-          input.group.statPct != null && input.group.statLabel ? 'stat' : 'ghost',
+        kind: 'media',
         tint: 'green',
-        layout:
-          input.group.statPct != null && input.group.statLabel ? 'stat' : 'scene-caption',
+        layout: 'scene',
         tag: '共读',
         reason: '',
         title: input.group.title,
         sub: input.group.sub,
         href: input.group.href,
         icon: RAIL_ICONS.group,
-        statPct: input.group.statPct,
-        statLabel: input.group.statLabel,
         sceneId: 'group',
-        mediaCaption: input.group.statPct != null ? undefined : input.group.title,
       };
     case 'notes':
       return {
@@ -350,6 +341,18 @@ const ALWAYS_MORE: HomeMoreItem[] = [
   },
 ];
 
+/** 横滑轨去重：同 href 保留优先级靠前者 */
+function dedupeRailCards(cards: RailCard[]): RailCard[] {
+  const seen = new Set<string>();
+  const out: RailCard[] = [];
+  for (const card of cards) {
+    if (seen.has(card.href)) continue;
+    seen.add(card.href);
+    out.push(card);
+  }
+  return out;
+}
+
 export function buildHomeRail(input: HomeRailInput): {
   main: RailCard[];
   more: HomeMoreItem[];
@@ -358,6 +361,8 @@ export function buildHomeRail(input: HomeRailInput): {
   for (const id of PRIORITY) {
     if (id === 'plan' && input.prayer) continue;
     if (id === 'prayer' && input.plan) continue;
+    /* 继续读 / 计划已占位时，推荐会指向同一去处 */
+    if (id === 'suggest' && (input.resume || input.plan)) continue;
     const c = cardFromId(id, input);
     if (c) available.push(c);
   }
@@ -371,7 +376,7 @@ export function buildHomeRail(input: HomeRailInput): {
     }
   }
 
-  return { main: available.map(normalizeRailCard), more: [] };
+  return { main: dedupeRailCards(available).map(normalizeRailCard), more: [] };
 }
 
 /** 每日经文 hero 晨曦主题 class */

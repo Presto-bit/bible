@@ -155,9 +155,26 @@ export function RailCardVisual({ card }: Props) {
   }
 
   if (card.sceneId) {
+    const isGroup = card.id === 'group';
     return (
-      <div className={`rail-card-media rail-card-media-scene rail-card-media-${card.tint}`}>
+      <div
+        className={[
+          'rail-card-media',
+          'rail-card-media-scene',
+          `rail-card-media-${card.tint}`,
+          isGroup ? 'rail-card-media-group' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <SceneBackdrop sceneId={card.sceneId} />
+        {isGroup ? (
+          <>
+            <div className="rail-card-group-glow" aria-hidden />
+            <div className="rail-card-group-veil" aria-hidden />
+            <span className="rail-card-scene-badge">同行</span>
+          </>
+        ) : null}
       </div>
     );
   }
