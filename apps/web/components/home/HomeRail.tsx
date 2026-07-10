@@ -1,7 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { railDotClass, type RailCard } from '@/lib/home_rail';
+import { useRouter } from 'next/navigation';
+import { railDotClass, railShowsProgress, type RailCard } from '@/lib/home_rail';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
 
 type Props = {
@@ -30,6 +31,7 @@ function circleContent(c: RailCard): { kind: 'icon' | 'text'; iconId?: RailCard[
 }
 
 export function HomeRail({ cards }: Props) {
+  const router = useRouter();
   const railRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLElement | null)[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
@@ -85,13 +87,14 @@ export function HomeRail({ cards }: Props) {
         {cards.map((c, i) => {
           const circle = circleContent(c);
           return (
-            <a
+            <button
               key={c.id}
+              type="button"
               ref={(el) => { cardRefs.current[i] = el; }}
               data-rail-idx={i}
-              href={c.href}
               className={cardClass(c, activeIdx === i)}
               style={c.kind === 'action' && c.tint === 'gold' ? { ['--tint' as string]: 'var(--dawn-gold)' } : undefined}
+              onClick={() => router.push(c.href)}
             >
               <span
                 className={`rail-card-circle rail-card-circle-${c.tint}${circle.kind === 'text' ? ' rail-card-circle-text' : ''}`}
@@ -108,25 +111,23 @@ export function HomeRail({ cards }: Props) {
                   <span className={`pill ${c.kind === 'action' || c.kind === 'stat' ? 'pill-active' : ''}`}>
                     {c.tag}
                   </span>
-                  {c.reason ? <span className="muted rail-reason">{c.reason}</span> : null}
                 </div>
                 <div className="rail-title">{c.title}</div>
-                {c.kind === 'action' && (
-                  <div className="progress-bar rail-action-progress" aria-hidden={c.progressPct == null || c.progressPct <= 0}>
+                {railShowsProgress(c) ? (
+                  <div className="progress-bar rail-action-progress">
                     <div
                       className="progress-fill plan-fill"
                       style={{ width: `${Math.max(0, c.progressPct ?? 0)}%` }}
                     />
                   </div>
-                )}
+                ) : null}
                 {c.sub ? (
                   <div className="rail-foot">
                     <span className="rail-sub">{c.sub}</span>
                   </div>
                 ) : null}
               </div>
-              <span className="home-rail-chevron" aria-hidden>›</span>
-            </a>
+            </button>
           );
         })}
       </div>

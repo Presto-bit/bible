@@ -228,8 +228,9 @@ export default function HomePageClient() {
         const p = sessionProgress(meta.steps, sess.stepsDone);
         planCard = {
           title: step.label,
-          sub: `${active.title} · 第 ${day} 天 · ${p.done}/${p.total} 段`,
+          sub: `第 ${day} 天 · ${p.done}/${p.total} 段`,
           href: readerHref(fullMeta, idx),
+          progressPct: p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined,
         };
       }
     }
@@ -241,14 +242,14 @@ export default function HomePageClient() {
         const book = books.find((b) => b.id === last.bookId);
         const name = book?.name ?? last.bookId;
         resumeCard = {
-          title: `${name} 第 ${last.chapter} 章`,
-          sub: '从上次继续',
+          title: `${name} ${last.chapter} 章`,
+          sub: '继续阅读',
           href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
         };
       } catch {
         resumeCard = {
           title: `第 ${last.chapter} 章`,
-          sub: '从上次继续',
+          sub: '继续阅读',
           href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
         };
       }
@@ -299,7 +300,7 @@ export default function HomePageClient() {
         const q = '这段经文里，神的应许对你意味着什么？';
         assistantCard = {
           title: dv.ref,
-          sub: '小爱想和你聊聊今日经文',
+          sub: '聊聊今日经文',
           href: assistantHref(dv.ref, {
             question: q,
             autoSend: true,
@@ -313,7 +314,7 @@ export default function HomePageClient() {
     const memCount = listAllThoughts().length;
     const notesCard = {
       title: memCount > 0 ? `${memCount} 条想法` : '我的想法',
-      sub: '想法 · 收藏 · 划线',
+      sub: memCount > 0 ? '查看全部' : '收藏与划线',
       href: '/notes',
       count: memCount,
     };
@@ -329,7 +330,7 @@ export default function HomePageClient() {
       challenge: pendingBookLocal
         ? {
             title: `《${pendingBookLocal.bookName}》`,
-            sub: '巩固问答 · 复习错题',
+            sub: '巩固问答',
             href: '/challenge',
           }
         : undefined,

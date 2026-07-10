@@ -1,4 +1,4 @@
-/** 首页横滑卡：左圆标 + 右文案（点击整卡进入，无 CTA） */
+/** 首页横滑卡：双列露边 · 上图标下文案（紧凑信息层级） */
 
 export type RailIconId =
   | 'resume'
@@ -45,6 +45,40 @@ export type RailCard = {
   progressPct?: number;
 };
 
+const RAIL_TITLE_MAX = 24;
+const RAIL_SUB_MAX = 14;
+
+/** 双列卡标题/副文案统一截断 */
+export function trimRailTitle(text: string, max = RAIL_TITLE_MAX): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+export function trimRailSub(text: string, max = RAIL_SUB_MAX): string {
+  const t = text.trim();
+  if (!t) return '';
+  if (t.length <= max) return t;
+  return `${t.slice(0, max - 1)}…`;
+}
+
+function normalizeRailCard(card: RailCard): RailCard {
+  const sub =
+    card.kind === 'stat' && card.statLabel
+      ? trimRailSub(`打卡 ${card.statLabel}`)
+      : trimRailSub(card.sub);
+  return {
+    ...card,
+    title: trimRailTitle(card.title),
+    sub,
+    reason: '',
+  };
+}
+
+export function railShowsProgress(card: RailCard): boolean {
+  return (card.id === 'resume' || card.id === 'plan') && (card.progressPct ?? 0) > 0;
+}
+
 export type HomeMoreItem = {
   id: string;
   tag: string;
@@ -56,7 +90,7 @@ export type HomeMoreItem = {
 
 export type HomeRailInput = {
   resume?: { title: string; sub: string; href: string; progressPct?: number };
-  plan?: { title: string; sub: string; href: string };
+  plan?: { title: string; sub: string; href: string; progressPct?: number };
   prayer?: { title: string; sub: string; href: string };
   group?: { title: string; sub: string; href: string; statPct?: number; statLabel?: string };
   notes?: { title: string; sub: string; href: string; count?: number };
@@ -104,6 +138,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         sub: input.plan.sub,
         href: input.plan.href,
         icon: RAIL_ICONS.plan,
+        progressPct: input.plan.progressPct,
       };
     case 'prayer':
       if (!input.prayer) return null;
@@ -209,7 +244,7 @@ const ALWAYS_MORE: HomeMoreItem[] = [
     id: 'plans',
     tag: '计划',
     title: '读经计划',
-    sub: '热门计划 · 个性定制',
+    sub: '个性定制',
     href: '/plans',
     icon: RAIL_ICONS.plans,
   },
@@ -217,7 +252,7 @@ const ALWAYS_MORE: HomeMoreItem[] = [
     id: 'discover',
     tag: '小组',
     title: '共读群',
-    sub: '打卡 · 任务 · 同行',
+    sub: '打卡同行',
     href: '/discover',
     icon: RAIL_ICONS.discover,
   },
@@ -243,7 +278,7 @@ export function buildHomeRail(input: HomeRailInput): {
     }
   }
 
-  return { main: available, more: [] };
+  return { main: available.map(normalizeRailCard), more: [] };
 }
 
 /** 每日经文 hero 晨曦主题 class */

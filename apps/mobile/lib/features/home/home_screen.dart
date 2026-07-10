@@ -162,8 +162,8 @@ class HomeScreen extends ConsumerWidget {
       final gen = generated.where((g) => g.id == activeId).firstOrNull;
       if (featured != null && !featured.isPrayer) {
         planRail = _PlanRailData(
-          title: '${featured.title} · 第 $day 天',
-          sub: '继续今日计划',
+          title: featured.title,
+          sub: '第 $day 天',
           onTap: () => openPlanReading(
             context,
             ref,
@@ -177,8 +177,8 @@ class HomeScreen extends ConsumerWidget {
         );
       } else if (gen != null) {
         planRail = _PlanRailData(
-          title: '${gen.title} · 第 $day 天',
-          sub: '继续今日计划',
+          title: gen.title,
+          sub: '第 $day 天',
           onTap: () => openPlanReading(
             context,
             ref,
@@ -209,8 +209,8 @@ class HomeScreen extends ConsumerWidget {
         }
       }
       if (book != null) {
-        continueTitle = '${book.name} ${reading.chapter}';
-        continueSub = '从上次继续';
+        continueTitle = '${book.name} ${reading.chapter} 章';
+        continueSub = '继续阅读';
       }
     }
 
@@ -533,24 +533,6 @@ class _Pill extends StatelessWidget {
   }
 }
 
-class _RailCardData {
-  _RailCardData(
-      {required this.tag,
-      required this.title,
-      required this.sub,
-      required this.cta,
-      required this.reason,
-      this.onTap,
-      this.accent = false});
-  final String tag;
-  final String title;
-  final String sub;
-  final String cta;
-  final String reason;
-  final VoidCallback? onTap;
-  final bool accent;
-}
-
 class _PlanRailData {
   const _PlanRailData({
     required this.title,
@@ -560,6 +542,42 @@ class _PlanRailData {
   final String title;
   final String sub;
   final VoidCallback onTap;
+}
+
+class _RailCardData {
+  const _RailCardData({
+    required this.tag,
+    required this.title,
+    required this.sub,
+    required this.icon,
+    required this.iconBg,
+    required this.iconColor,
+    this.onTap,
+    this.accentPill = false,
+    this.progressPct,
+  });
+  final String tag;
+  final String title;
+  final String sub;
+  final IconData icon;
+  final Color iconBg;
+  final Color iconColor;
+  final VoidCallback? onTap;
+  final bool accentPill;
+  final int? progressPct;
+}
+
+String _trimRailTitle(String text, [int max = 24]) {
+  final t = text.trim();
+  if (t.length <= max) return t;
+  return '${t.substring(0, max - 1)}…';
+}
+
+String _trimRailSub(String text, [int max = 14]) {
+  final t = text.trim();
+  if (t.isEmpty) return '';
+  if (t.length <= max) return t;
+  return '${t.substring(0, max - 1)}…';
 }
 
 class _ForYouRail extends StatefulWidget {
@@ -585,7 +603,8 @@ class _ForYouRail extends StatefulWidget {
 }
 
 class _ForYouRailState extends State<_ForYouRail> {
-  final _controller = PageController(viewportFraction: 0.82);
+  static const _viewportFraction = 0.47;
+  final _controller = PageController(viewportFraction: _viewportFraction);
   int _page = 0;
 
   @override
@@ -600,45 +619,50 @@ class _ForYouRailState extends State<_ForYouRail> {
     final cards = <_RailCardData>[
       _RailCardData(
         tag: '计划',
-        reason: '今日计划',
-        title: plan?.title ?? '开始读经计划',
-        sub: plan?.sub ?? '热门计划 · 个性定制',
-        cta: plan != null ? '去读 ›' : '去看看 ›',
-        accent: true,
+        title: _trimRailTitle(plan?.title ?? '读经计划'),
+        sub: _trimRailSub(plan?.sub ?? '个性定制'),
+        icon: Icons.calendar_today_outlined,
+        iconBg: AppColors.goldWash,
+        iconColor: AppColors.gold,
+        accentPill: plan != null,
         onTap: plan?.onTap ?? () => context.push('/plans'),
       ),
       _RailCardData(
-        tag: '挑战',
-        reason: '知识闯关',
-        title: '圣经知识闯关',
-        sub: '关卡制答题 · 巩固所学',
-        cta: '闯关 ›',
-        onTap: () => context.push('/challenge'),
-      ),
-      _RailCardData(
         tag: '继续',
-        reason: '你上次读到这里',
-        title: widget.continueTitle,
-        sub: widget.continueSub,
-        cta: '读 ›',
+        title: _trimRailTitle(widget.continueTitle),
+        sub: _trimRailSub(widget.continueSub),
+        icon: Icons.menu_book_outlined,
+        iconBg: AppColors.goldWash,
+        iconColor: AppColors.gold,
+        accentPill: true,
         onTap: widget.onContinueReading,
       ),
       _RailCardData(
         tag: '小爱',
-        reason: '基于今日经文',
-        title: '小爱想问你',
-        sub: '「这段经文里，神的应许对你意味着什么？」',
-        cta: '聊聊 ›',
+        title: _trimRailTitle('今日经文'),
+        sub: _trimRailSub('聊聊今日经文'),
+        icon: Icons.auto_awesome_outlined,
+        iconBg: const Color(0xFFFCE8EC),
+        iconColor: const Color(0xFFC45C6A),
         onTap: widget.meditationPrompt != null
             ? () => widget.onMeditate(widget.meditationPrompt!)
             : widget.onAskXiaoAi,
+      ),
+      _RailCardData(
+        tag: '问答',
+        title: _trimRailTitle('知识闯关'),
+        sub: _trimRailSub('巩固所学'),
+        icon: Icons.emoji_events_outlined,
+        iconBg: AppColors.surfaceSunken,
+        iconColor: AppColors.inkSoft,
+        onTap: () => context.push('/challenge'),
       ),
     ];
 
     return Column(
       children: [
         SizedBox(
-          height: 132,
+          height: 140,
           child: PageView.builder(
             controller: _controller,
             padEnds: false,
@@ -647,57 +671,64 @@ class _ForYouRailState extends State<_ForYouRail> {
             itemBuilder: (_, i) {
               final c = cards[i];
               return Padding(
-                padding: const EdgeInsets.only(right: 10),
+                padding: EdgeInsets.only(right: i == cards.length - 1 ? 0 : 14),
                 child: PaperCard(
                   tier: 2,
-                  tint: c.accent ? AppColors.accent : null,
-                  accent: c.accent,
                   onTap: c.onTap,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          _Pill(c.tag, active: c.accent),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(c.reason,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: AppColors.inkFaint, fontSize: 12)),
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: c.iconBg,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: c.iconColor.withValues(alpha: 0.12),
                           ),
-                        ],
+                        ),
+                        child: Icon(c.icon, size: 22, color: c.iconColor),
                       ),
-                      const SizedBox(height: 8),
-                      Text(c.title,
+                      const SizedBox(height: 10),
+                      _Pill(c.tag, active: c.accentPill),
+                      const SizedBox(height: 6),
+                      Text(
+                        c.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          height: 1.35,
+                          color: AppColors.ink,
+                        ),
+                      ),
+                      if (c.progressPct != null && c.progressPct! > 0) ...[
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            value: c.progressPct! / 100,
+                            minHeight: 3,
+                            backgroundColor: AppColors.line,
+                            color: AppColors.accentDeep,
+                          ),
+                        ),
+                      ],
+                      if (c.sub.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          c.sub,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: AppColors.ink)),
-                      const SizedBox(height: 6),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Expanded(
-                            child: Text(c.sub,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: AppColors.inkSoft,
-                                    fontSize: 12,
-                                    height: 1.4)),
+                            color: AppColors.inkSoft,
+                            fontSize: 12,
+                            height: 1.4,
                           ),
-                          const SizedBox(width: 8),
-                          Text(c.cta,
-                              style: const TextStyle(
-                                  color: AppColors.accentDeep,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12)),
-                        ],
-                      ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
