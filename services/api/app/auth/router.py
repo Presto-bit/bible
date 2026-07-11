@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from ..config import get_settings
 from ..content.engagement_migrate import migrate_daily_verse_engagement
 from ..db import get_pool
+from .account_profile import resolve_register_username, upsert_user_profile
 from .session import get_current_user
 from .user_code import is_user_code, pick_user_code, uuid_for_code as _uuid_for_code
 
@@ -196,21 +197,25 @@ def change_password(
                     raise HTTPException(status_code=401, detail="当前密码不正确")
             pwd_salt = secrets.token_hex(8)
             pwd_hash = _hash_pwd(new_pwd, pwd_salt)
+            uid = _uuid_for_code(code)
+            uname = resolve_register_username(conn, user_code=code, requested=None)
             conn.execute(
                 "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
-                (_uuid_for_code(code),),
+                (uid,),
             )
             conn.execute(
                 """
-                INSERT INTO accounts (user_code, user_id, pwd_hash, pwd_salt, updated_at)
-                VALUES (%s, %s, %s, %s, now())
+                INSERT INTO accounts (user_code, user_id, username, pwd_hash, pwd_salt, updated_at)
+                VALUES (%s, %s, %s, %s, %s, now())
                 ON CONFLICT (user_code) DO UPDATE SET
+                  username = COALESCE(accounts.username, EXCLUDED.username),
                   pwd_hash = EXCLUDED.pwd_hash,
                   pwd_salt = EXCLUDED.pwd_salt,
                   updated_at = now()
                 """,
-                (code, _uuid_for_code(code), pwd_hash, pwd_salt),
+                (code, uid, uname, pwd_hash, pwd_salt),
             )
+            upsert_user_profile(conn, user_id=uid, user_code=code, username=uname)
             conn.commit()
         return {"ok": True, "has_password": True}
     except HTTPException:
@@ -331,7 +336,6 @@ def register(
     code = requested
     if not is_user_code(code):
         raise HTTPException(status_code=400, detail="用户ID 必须为 8 位数字")
-    name = (body.username or "").strip() or None
     user_id = _uuid_for_code(code)
     pwd_hash = pwd_salt = None
     if body.password:
@@ -345,13 +349,9 @@ def register(
             if bound:
                 code = bound
                 user_id = _uuid_for_code(code)
-            if name:
-                taken = conn.execute(
-                    "SELECT user_code FROM accounts WHERE lower(username) = lower(%s)",
-                    (name,),
-                ).fetchone()
-                if taken and taken[0] != code:
-                    raise HTTPException(status_code=409, detail="用户名已被占用")
+            name = resolve_register_username(
+                conn, user_code=code, requested=(body.username or "").strip() or None
+            )
             conn.execute(
                 "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
                 (user_id,),
@@ -361,13 +361,14 @@ def register(
                 INSERT INTO accounts (user_code, user_id, username, pwd_hash, pwd_salt, updated_at)
                 VALUES (%s, %s, %s, %s, %s, now())
                 ON CONFLICT (user_code) DO UPDATE SET
-                  username = COALESCE(EXCLUDED.username, accounts.username),
+                  username = EXCLUDED.username,
                   pwd_hash = COALESCE(EXCLUDED.pwd_hash, accounts.pwd_hash),
                   pwd_salt = COALESCE(EXCLUDED.pwd_salt, accounts.pwd_salt),
                   updated_at = now()
                 """,
                 (code, user_id, name, pwd_hash, pwd_salt),
             )
+            upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
             _bind_device_user(conn, x_device_id, code)
             former = pick_user_code(requested, x_user_code)
             _maybe_migrate_engagement(conn, former, code)
