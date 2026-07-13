@@ -1,29 +1,36 @@
 'use client';
 
 import PageBackBar from '@/components/PageBackBar';
+import AdminCommandPalette, { type AdminTab } from '@/components/admin/AdminCommandPalette';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminLoginForm } from '@/components/AdminRagPanel';
 import AdminRagWorkspace from '@/components/admin/AdminRagWorkspace';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
 import AdminOpsHeroPanel from '@/components/admin/AdminOpsHeroPanel';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
 
-type AdminTab = 'rag' | 'stats' | 'ops';
-
 function parseTab(value: string | null): AdminTab {
   if (value === 'ops' || value === 'rag' || value === 'stats') return value;
   return 'stats';
 }
 
+const NAV: { id: AdminTab; label: string; desc: string }[] = [
+  { id: 'stats', label: '数据预览', desc: '健康与趋势' },
+  { id: 'ops', label: '运营', desc: 'Hero B 活动' },
+  { id: 'rag', label: 'RAG 注释库', desc: 'Notion 式资料' },
+];
+
 function AdminPageInner() {
   useEdgeSwipeBack({ href: '/profile' });
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [tab, setTab] = useState<AdminTab>(() => parseTab(searchParams.get('tab')));
   const [loggedIn, setLoggedIn] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [cmdOpen, setCmdOpen] = useState(false);
 
   useEffect(() => {
     void adminCheck().then((ok) => {
@@ -36,78 +43,155 @@ function AdminPageInner() {
     setTab(parseTab(searchParams.get('tab')));
   }, [searchParams]);
 
+  const goTab = useCallback(
+    (next: AdminTab) => {
+      setTab(next);
+      const q = new URLSearchParams(searchParams.toString());
+      q.set('tab', next);
+      router.replace(`/admin?${q.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdOpen(true);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [loggedIn]);
+
   const handleLogout = () => {
     clearAdminToken();
     setLoggedIn(false);
   };
 
+  const currentNav = NAV.find((n) => n.id === tab);
+
+  const panel = checking ? (
+    <p className="muted" style={{ fontSize: 13 }}>验证登录…</p>
+  ) : !loggedIn ? (
+    <div className="settings-card admin-login-card">
+      <AdminLoginForm onSuccess={() => setLoggedIn(true)} />
+    </div>
+  ) : (
+    <>
+      {tab === 'rag' ? <AdminRagWorkspace /> : null}
+      {tab === 'stats' ? <AdminStatsPanel /> : null}
+      {tab === 'ops' ? <AdminOpsHeroPanel /> : null}
+    </>
+  );
+
   return (
-    <main className="page admin-page admin-page-pc">
-      <div className="admin-page-head page-head" style={{ marginBottom: 0 }}>
-        <PageBackBar href="/profile" label="我的" />
-        <span className="page-head-spacer" />
-        {loggedIn ? (
-          <button type="button" className="text-link" onClick={handleLogout}>
-            退出管理
-          </button>
-        ) : null}
-      </div>
-
-      <div className="admin-page-title-row">
-        <h1 className="admin-page-title">管理后台</h1>
-        {loggedIn ? (
-          <div className="admin-tabs admin-tabs-pc" role="tablist">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'stats'}
-              className={`admin-tab ${tab === 'stats' ? 'admin-tab-active' : ''}`}
-              onClick={() => setTab('stats')}
-            >
-              数据概览
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'ops'}
-              className={`admin-tab ${tab === 'ops' ? 'admin-tab-active' : ''}`}
-              onClick={() => setTab('ops')}
-            >
-              运营
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'rag'}
-              className={`admin-tab ${tab === 'rag' ? 'admin-tab-active' : ''}`}
-              onClick={() => setTab('rag')}
-            >
-              RAG 注释库
-            </button>
+    <main className="page admin-page admin-console">
+      <div className="admin-shell">
+        <aside className="admin-pc-nav" aria-label="PC 导航">
+          <div className="admin-pc-brand">
+            <strong>管理后台</strong>
+            <span className="muted">Desktop</span>
           </div>
-        ) : null}
+          <nav className="admin-pc-nav-list">
+            {NAV.map((n) => (
+              <button
+                key={n.id}
+                type="button"
+                className={`admin-pc-nav-item ${tab === n.id ? 'is-active' : ''}`}
+                onClick={() => goTab(n.id)}
+              >
+                <span className="admin-pc-nav-label">{n.label}</span>
+                <span className="admin-pc-nav-desc">{n.desc}</span>
+              </button>
+            ))}
+          </nav>
+          <div className="admin-pc-nav-foot">
+            <button type="button" className="admin-pc-nav-ghost" onClick={() => setCmdOpen(true)}>
+              搜索 ⌘K
+            </button>
+            <a className="admin-pc-nav-ghost" href="/profile">
+              返回我的
+            </a>
+            {loggedIn ? (
+              <button type="button" className="admin-pc-nav-ghost" onClick={handleLogout}>
+                退出
+              </button>
+            ) : null}
+          </div>
+        </aside>
+
+        <div className="admin-shell-main">
+          <div className="admin-mobile-chrome">
+            <div className="admin-page-head page-head" style={{ marginBottom: 0 }}>
+              <PageBackBar href="/profile" label="我的" />
+              <span className="page-head-spacer" />
+              {loggedIn ? (
+                <button type="button" className="text-link" onClick={handleLogout}>
+                  退出管理
+                </button>
+              ) : null}
+            </div>
+            <div className="admin-page-title-row">
+              <h1 className="admin-page-title">管理后台</h1>
+              {loggedIn ? (
+                <div className="admin-tabs" role="tablist">
+                  {NAV.map((n) => (
+                    <button
+                      key={n.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === n.id}
+                      className={`admin-tab ${tab === n.id ? 'admin-tab-active' : ''}`}
+                      onClick={() => goTab(n.id)}
+                    >
+                      {n.label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <header className="admin-pc-topbar">
+            <div>
+              <h1 className="admin-pc-title">{currentNav?.label}</h1>
+              <p className="muted admin-pc-subtitle">{currentNav?.desc}</p>
+            </div>
+            {loggedIn ? (
+              <button type="button" className="admin-pc-search-btn" onClick={() => setCmdOpen(true)}>
+                <span>搜索导航 / 活动 / 文件</span>
+                <kbd>⌘K</kbd>
+              </button>
+            ) : null}
+          </header>
+
+          <div className={`admin-shell-content admin-shell-content-${tab}`}>{panel}</div>
+        </div>
       </div>
 
-      {checking ? (
-        <p className="muted" style={{ fontSize: 13 }}>验证登录…</p>
-      ) : !loggedIn ? (
-        <div className="settings-card admin-login-card">
-          <AdminLoginForm onSuccess={() => setLoggedIn(true)} />
-        </div>
-      ) : (
-        <div className={`admin-tab-panel admin-tab-panel-pc admin-tab-panel-${tab}`}>
-          {tab === 'rag' ? <AdminRagWorkspace /> : null}
-          {tab === 'stats' ? <AdminStatsPanel /> : null}
-          {tab === 'ops' ? <AdminOpsHeroPanel /> : null}
-        </div>
-      )}
+      {loggedIn ? (
+        <AdminCommandPalette
+          open={cmdOpen}
+          onClose={() => setCmdOpen(false)}
+          tab={tab}
+          onTab={goTab}
+        />
+      ) : null}
     </main>
   );
 }
 
 export default function AdminPage() {
   return (
-    <Suspense fallback={<main className="page admin-page"><p className="muted" style={{ fontSize: 13 }}>加载中…</p></main>}>
+    <Suspense
+      fallback={
+        <main className="page admin-page">
+          <p className="muted" style={{ fontSize: 13 }}>加载中…</p>
+        </main>
+      }
+    >
       <AdminPageInner />
     </Suspense>
   );

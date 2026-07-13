@@ -35,7 +35,7 @@ const STATUS_LABELS: Record<RagInventoryStatus, string> = {
 };
 
 type StatusFilter = 'all' | RagInventoryStatus;
-type DetailTab = 'preview' | 'edit' | 'chunks';
+type DetailMode = 'split' | 'preview' | 'edit';
 
 type Selection =
   | { kind: 'collection'; collectionId: string }
@@ -50,31 +50,6 @@ function StatusDot({ status }: { status?: RagInventoryStatus }) {
       title={STATUS_LABELS[status]}
       aria-label={STATUS_LABELS[status]}
     />
-  );
-}
-
-function MetricChip({
-  label,
-  value,
-  active,
-  onClick,
-  tone,
-}: {
-  label: string;
-  value: number;
-  active?: boolean;
-  onClick?: () => void;
-  tone?: string;
-}) {
-  return (
-    <button
-      type="button"
-      className={`admin-ws-metric ${tone ? `admin-ws-metric-${tone}` : ''} ${active ? 'is-active' : ''}`}
-      onClick={onClick}
-    >
-      <strong>{value}</strong>
-      <span>{label}</span>
-    </button>
   );
 }
 
@@ -93,10 +68,14 @@ export default function AdminRagWorkspace() {
   const [file, setFile] = useState<RagWorkspaceFile | null>(null);
   const [draft, setDraft] = useState('');
   const [dirty, setDirty] = useState(false);
-  const [detailTab, setDetailTab] = useState<DetailTab>('preview');
+  const [mode, setMode] = useState<DetailMode>('split');
+  const [showChunks, setShowChunks] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const [chunks, setChunks] = useState<RagWorkspaceChunk[]>([]);
   const [chunkTotal, setChunkTotal] = useState(0);
   const [batchSelected, setBatchSelected] = useState<Set<string>>(new Set());
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     setLoading(true);
@@ -126,15 +105,27 @@ export default function AdminRagWorkspace() {
     void reload();
   }, [reload]);
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [menuOpen]);
+
   const openFile = useCallback(async (collectionId: string, path: string) => {
     setSelected({ kind: 'file', collectionId, path });
     setMsg(null);
+    setShowChunks(false);
     try {
       const f = await fetchRagWorkspaceFile(collectionId, path);
       setFile(f);
       setDraft(f.content);
       setDirty(false);
-      setDetailTab(f.writable ? 'edit' : 'preview');
+      setMode(f.writable ? 'split' : 'preview');
       setChunks([]);
       setChunkTotal(0);
       if (f.document_id) {
@@ -150,6 +141,17 @@ export default function AdminRagWorkspace() {
       setErr(e instanceof Error ? e.message : '打开失败');
     }
   }, []);
+
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<{ collectionId: string; path: string }>).detail;
+      if (detail?.collectionId && detail?.path) {
+        void openFile(detail.collectionId, detail.path);
+      }
+    };
+    window.addEventListener('admin-rag-open', onOpen);
+    return () => window.removeEventListener('admin-rag-open', onOpen);
+  }, [openFile]);
 
   const summary = tree?.summary;
   const collections = tree?.collections ?? [];
@@ -193,6 +195,7 @@ export default function AdminRagWorkspace() {
     setBusy(true);
     setMsg(null);
     setErr(null);
+    setMenuOpen(false);
     try {
       const r = await fn();
       setMsg(typeof r === 'string' ? r : `${label}完成`);
@@ -276,12 +279,12 @@ export default function AdminRagWorkspace() {
       setErr('请先选中可写集合');
       return;
     }
-    let name = promptName('新建文件名（含 .md）', 'untitled.md');
+    let name = promptName('新建页面文件名（含 .md）', 'untitled.md');
     if (!name) return;
     if (!/\.(md|txt|markdown)$/i.test(name)) name = `${name}.md`;
     const base = parentPathForCreate();
     const path = base ? `${base}/${name}` : name;
-    await run('新建文件', async () => {
+    await run('新建页面', async () => {
       const f = await createRagWorkspaceFile(coll.id, path);
       await openFile(coll.id, f.path);
       return '已创建';
@@ -312,22 +315,6 @@ export default function AdminRagWorkspace() {
     });
   };
 
-  const onDelete = async () => {
-    if (!selected || selected.kind === 'collection') return;
-    const coll = collections.find((c) => c.id === selected.collectionId);
-    if (!coll?.writable) {
-      setErr('只读集合不可删除');
-      return;
-    }
-    if (!window.confirm(`确定删除「${selected.path}」？将同步清理数据库索引。`)) return;
-    await run('删除', async () => {
-      await deleteRagWorkspace(selected.collectionId, selected.path, true);
-      setSelected(null);
-      setFile(null);
-      return '已删除';
-    });
-  };
-
   const onMove = async () => {
     if (!selected || selected.kind === 'collection') return;
     const coll = collections.find((c) => c.id === selected.collectionId);
@@ -349,14 +336,30 @@ export default function AdminRagWorkspace() {
     });
   };
 
+  const onDelete = async () => {
+    if (!selected || selected.kind === 'collection') return;
+    const coll = collections.find((c) => c.id === selected.collectionId);
+    if (!coll?.writable) {
+      setErr('只读集合不可删除');
+      return;
+    }
+    if (!window.confirm(`确定删除「${selected.path}」？将同步清理数据库索引。`)) return;
+    await run('删除', async () => {
+      await deleteRagWorkspace(selected.collectionId, selected.path, true);
+      setSelected(null);
+      setFile(null);
+      return '已删除';
+    });
+  };
+
   const onUpload = async (fileList: FileList | null) => {
-    const file = fileList?.[0];
-    if (!file) return;
+    const f = fileList?.[0];
+    if (!f) return;
     const coll = currentWritableCollection;
     const sourceType = coll?.source_type || 'commentary';
-    const title = file.name.replace(/\.(md|txt|markdown)$/i, '');
+    const title = f.name.replace(/\.(md|txt|markdown)$/i, '');
     await run('上传', async () => {
-      const r = await uploadRagDocument(file, title, sourceType);
+      const r = await uploadRagDocument(f, title, sourceType);
       await reload();
       return r.message || '已上传到暂存区';
     });
@@ -375,8 +378,8 @@ export default function AdminRagWorkspace() {
         await indexRagWorkspaceFile(collectionId, path, true);
         ok += 1;
       }
-      setMsg(`批量索引完成 ${ok}/${keys.length}`);
       setBatchSelected(new Set());
+      setMsg(`批量索引完成 ${ok}/${keys.length}`);
       await reload();
     } catch (e) {
       setErr(e instanceof Error ? e.message : '批量索引失败');
@@ -394,42 +397,77 @@ export default function AdminRagWorkspace() {
     });
   };
 
-  const toggleBatch = (collectionId: string, path: string, on: boolean) => {
-    const key = `${collectionId}::${path}`;
-    setBatchSelected((prev) => {
-      const next = new Set(prev);
-      if (on) next.add(key);
-      else next.delete(key);
-      return next;
+  const dropTargetKey = (collectionId: string, folderPath: string) =>
+    `${collectionId}::${folderPath || ''}`;
+
+  const onDropMove = async (
+    collectionId: string,
+    folderPath: string,
+    fromKey: string,
+  ) => {
+    const [fromColl, ...rest] = fromKey.split('::');
+    const fromPath = rest.join('::');
+    if (fromColl !== collectionId) {
+      setErr('暂不支持跨集合拖拽，请用「移动」');
+      return;
+    }
+    const name = fromPath.split('/').pop() || fromPath;
+    const toPath = folderPath ? `${folderPath}/${name}` : name;
+    if (toPath === fromPath) return;
+    await run('拖拽移动', async () => {
+      const r = await moveRagWorkspace({
+        collectionId,
+        fromPath,
+        toPath,
+      });
+      await openFile(r.collection_id, r.path);
+      return '已移动';
     });
   };
 
   const renderNode = (collection: RagWorkspaceCollection, node: RagWorkspaceNode, depth: number) => {
+    const pad = 10 + depth * 14;
     if (node.type === 'folder') {
-      const id = `${collection.id}/${node.path}`;
+      const id = `${collection.id}:${node.path}`;
       const open = expanded.has(id);
+      const dropKey = dropTargetKey(collection.id, node.path);
       return (
-        <div key={id} className="admin-ws-tree-folder">
-          <button
-            type="button"
-            className={`admin-ws-tree-row is-folder ${selected?.kind === 'folder' && selected.path === node.path && selected.collectionId === collection.id ? 'is-selected' : ''}`}
-            style={{ paddingLeft: 8 + depth * 14 }}
-            onClick={() => {
-              toggleExpand(id);
-              setSelected({ kind: 'folder', collectionId: collection.id, path: node.path });
+        <div key={id} className="admin-notion-folder">
+          <div
+            className={`admin-notion-row is-folder ${selected?.kind === 'folder' && selected.path === node.path && selected.collectionId === collection.id ? 'is-selected' : ''} ${dragOver === dropKey ? 'is-drop' : ''}`}
+            style={{ paddingLeft: pad }}
+            onDragOver={(e) => {
+              if (!collection.writable) return;
+              e.preventDefault();
+              setDragOver(dropKey);
+            }}
+            onDragLeave={() => setDragOver((k) => (k === dropKey ? null : k))}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(null);
+              const from = e.dataTransfer.getData('text/plain');
+              if (from) void onDropMove(collection.id, node.path, from);
             }}
           >
-            <span className="admin-ws-tree-caret">{open ? '▾' : '▸'}</span>
-            <span className="admin-ws-tree-name">{node.name}</span>
-          </button>
-          {open
-            ? (node.children || []).map((child) => renderNode(collection, child, depth + 1))
-            : null}
+            <button
+              type="button"
+              className="admin-notion-row-main"
+              onClick={() => {
+                toggleExpand(id);
+                setSelected({ kind: 'folder', collectionId: collection.id, path: node.path });
+              }}
+            >
+              <span className="admin-ws-tree-caret">{open ? '▾' : '▸'}</span>
+              <span className="admin-notion-icon is-folder" aria-hidden />
+              <span className="admin-ws-tree-name">{node.name}</span>
+            </button>
+          </div>
+          {open ? (node.children || []).map((child) => renderNode(collection, child, depth + 1)) : null}
         </div>
       );
     }
 
-    const batchKey = `${collection.id}::${node.path}`;
+    const key = `${collection.id}::${node.path}`;
     const isSel =
       selected?.kind === 'file' &&
       selected.collectionId === collection.id &&
@@ -437,16 +475,28 @@ export default function AdminRagWorkspace() {
 
     return (
       <div
-        key={`${collection.id}:${node.path}`}
-        className={`admin-ws-tree-row is-file ${isSel ? 'is-selected' : ''}`}
-        style={{ paddingLeft: 8 + depth * 14 }}
+        key={key}
+        className={`admin-notion-row is-file ${isSel ? 'is-selected' : ''}`}
+        style={{ paddingLeft: pad }}
+        draggable={!!collection.writable}
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/plain', key);
+          e.dataTransfer.effectAllowed = 'move';
+        }}
       >
         {collection.writable ? (
           <label className="admin-ws-tree-check" onClick={(e) => e.stopPropagation()}>
             <input
               type="checkbox"
-              checked={batchSelected.has(batchKey)}
-              onChange={(e) => toggleBatch(collection.id, node.path, e.target.checked)}
+              checked={batchSelected.has(key)}
+              onChange={(e) => {
+                setBatchSelected((prev) => {
+                  const next = new Set(prev);
+                  if (e.target.checked) next.add(key);
+                  else next.delete(key);
+                  return next;
+                });
+              }}
             />
           </label>
         ) : (
@@ -454,96 +504,113 @@ export default function AdminRagWorkspace() {
         )}
         <button
           type="button"
-          className="admin-ws-tree-file-btn"
+          className="admin-notion-row-main"
           onClick={() => void openFile(collection.id, node.path)}
         >
           <StatusDot status={node.inventory_status} />
+          <span className="admin-notion-icon is-file" aria-hidden />
           <span className="admin-ws-tree-name">{node.title || node.name}</span>
-          {node.chunks ? <span className="muted admin-ws-tree-meta">{node.chunks}</span> : null}
         </button>
       </div>
     );
   };
 
-  return (
-    <div className="admin-ws">
-      <header className="admin-ws-top">
-        <div className="admin-ws-top-metrics">
-          <MetricChip
-            label="磁盘文件"
-            value={summary?.files_on_disk ?? 0}
-            tone="total"
-            active={filter === 'all'}
-            onClick={() => setFilter('all')}
-          />
-          <MetricChip
-            label="已索引"
-            value={summary?.indexed ?? 0}
-            tone="indexed"
-            active={filter === 'indexed'}
-            onClick={() => setFilter('indexed')}
-          />
-          <MetricChip
-            label="待索引"
-            value={summary?.pending ?? 0}
-            tone="pending"
-            active={filter === 'pending'}
-            onClick={() => setFilter('pending')}
-          />
-          <MetricChip
-            label="失败"
-            value={summary?.failed ?? 0}
-            tone="failed"
-            active={filter === 'failed'}
-            onClick={() => setFilter('failed')}
-          />
-          <MetricChip label="向量块" value={summary?.db_chunks ?? 0} tone="total" />
-          <MetricChip
-            label="孤儿"
-            value={summary?.orphan ?? 0}
-            tone="orphan"
-            active={filter === 'orphan'}
-            onClick={() => setFilter('orphan')}
-          />
-        </div>
-        <div className="admin-ws-top-status">
-          <span className={`pill ${status?.rag_ready ? 'pill-active' : ''}`}>
-            RAG {status?.rag_ready ? '就绪' : '未就绪'}
-          </span>
-          <span className={`pill ${status?.embedding_configured ? 'pill-active' : ''}`}>
-            Embedding {status?.embedding_configured ? '✓' : '✗'}
-          </span>
-          <span className={`pill ${status?.db_ok ? 'pill-active' : ''}`}>
-            DB {status?.db_ok ? '✓' : '✗'}
-          </span>
-        </div>
-      </header>
+  const views: { id: StatusFilter; label: string; count?: number }[] = [
+    { id: 'all', label: '全部', count: summary?.files_on_disk },
+    { id: 'pending', label: '待索引', count: summary?.pending },
+    { id: 'failed', label: '失败', count: summary?.failed },
+    { id: 'orphan', label: '孤儿', count: summary?.orphan },
+  ];
 
-      <div className="admin-ws-toolbar">
-        <input
-          className="admin-ws-search"
-          placeholder="搜索文件名 / 标题…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <div className="admin-ws-toolbar-actions">
-          <button type="button" className="font-pill" disabled={busy} onClick={() => void reload()}>
-            刷新
+  return (
+    <div className="admin-notion">
+      <aside className="admin-notion-sidebar">
+        <div className="admin-notion-side-head">
+          <input
+            className="admin-notion-search"
+            placeholder="筛选页面…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <div className="admin-notion-views">
+            {views.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                className={`admin-notion-view ${filter === v.id ? 'is-active' : ''}`}
+                onClick={() => setFilter(v.id)}
+              >
+                {v.label}
+                {typeof v.count === 'number' ? <em>{v.count}</em> : null}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="admin-notion-tree">
+          {loading && !tree ? (
+            <p className="muted" style={{ fontSize: 13, padding: 12 }}>加载中…</p>
+          ) : (
+            visibleCollections.map((coll) => {
+              const open = expanded.has(coll.id);
+              const rootDrop = dropTargetKey(coll.id, '');
+              return (
+                <div key={coll.id} className="admin-notion-collection">
+                  <div
+                    className={`admin-notion-coll-head ${selected?.collectionId === coll.id && selected.kind === 'collection' ? 'is-selected' : ''} ${dragOver === rootDrop ? 'is-drop' : ''}`}
+                    onDragOver={(e) => {
+                      if (!coll.writable) return;
+                      e.preventDefault();
+                      setDragOver(rootDrop);
+                    }}
+                    onDragLeave={() => setDragOver((k) => (k === rootDrop ? null : k))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOver(null);
+                      const from = e.dataTransfer.getData('text/plain');
+                      if (from) void onDropMove(coll.id, '', from);
+                    }}
+                  >
+                    <button
+                      type="button"
+                      className="admin-notion-row-main"
+                      onClick={() => {
+                        toggleExpand(coll.id);
+                        setSelected({ kind: 'collection', collectionId: coll.id });
+                      }}
+                    >
+                      <span className="admin-ws-tree-caret">{open ? '▾' : '▸'}</span>
+                      <strong>
+                        {coll.label}
+                        {coll.writable ? '' : ' 🔒'}
+                      </strong>
+                    </button>
+                    <span className="muted admin-notion-coll-count">{coll.file_count}</span>
+                  </div>
+                  {open ? coll.children.map((node) => renderNode(coll, node, 1)) : null}
+                </div>
+              );
+            })
+          )}
+          {tree?.orphans?.length ? (
+            <div className="admin-notion-orphans">
+              <p className="admin-notion-group-label">孤儿文档（仅库）</p>
+              {tree.orphans.slice(0, 20).map((o) => (
+                <div key={o.id} className="admin-notion-row is-file" style={{ paddingLeft: 22 }}>
+                  <StatusDot status="orphan" />
+                  <span className="admin-ws-tree-name">{o.title}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="admin-notion-side-actions">
+          <button type="button" className="font-pill" disabled={busy} onClick={() => void onCreateFile()}>
+            + 新建页面
           </button>
           <button type="button" className="font-pill" disabled={busy} onClick={() => void onMkdir()}>
-            新建文件夹
-          </button>
-          <button type="button" className="font-pill" disabled={busy} onClick={() => void onCreateFile()}>
-            新建文件
-          </button>
-          <button type="button" className="font-pill" disabled={busy} onClick={() => void onRename()}>
-            重命名
-          </button>
-          <button type="button" className="font-pill" disabled={busy} onClick={() => void onMove()}>
-            移动
-          </button>
-          <button type="button" className="font-pill" disabled={busy} onClick={() => void onDelete()}>
-            删除
+            + 文件夹
           </button>
           <input
             ref={uploadRef}
@@ -555,192 +622,156 @@ export default function AdminRagWorkspace() {
               e.target.value = '';
             }}
           />
-          <button
-            type="button"
-            className="font-pill"
-            disabled={busy}
-            onClick={() => uploadRef.current?.click()}
-          >
+          <button type="button" className="font-pill" disabled={busy} onClick={() => uploadRef.current?.click()}>
             上传
           </button>
           {batchSelected.size > 0 ? (
             <button type="button" className="btn" disabled={busy} onClick={() => void onBatchIndex()}>
-              批量索引 ({batchSelected.size})
+              批量索引 {batchSelected.size}
             </button>
           ) : null}
-          <button
-            type="button"
-            className="font-pill"
-            disabled={busy}
-            onClick={() =>
-              void run('拉取公版', async () => {
-                const r = await importRagSources();
-                return r.ok ? `完成 ${r.steps?.length ?? 0} 步` : '拉取完成';
-              })
-            }
-          >
-            拉取公版
-          </button>
-          <button
-            type="button"
-            className="font-pill"
-            disabled={busy}
-            onClick={() =>
-              void run('索引集合', async () => {
-                const r = await indexRagCollections();
-                return `已索引分组 ${r.indexed_groups ?? 0}`;
-              })
-            }
-          >
-            索引集合
-          </button>
-          <button
-            type="button"
-            className="font-pill"
-            disabled={busy}
-            onClick={() =>
-              void run('索引磁盘待处理', async () => {
-                const r = await indexPendingDisk();
-                return `处理 ${r.processed ?? 0} · 成功 ${r.indexed ?? 0} · 失败 ${r.failed ?? 0}`;
-              })
-            }
-          >
-            索引待处理
-          </button>
         </div>
-      </div>
+      </aside>
 
-      {err ? <p className="admin-rag-error-text">{err}</p> : null}
-      {msg ? <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>{msg}</p> : null}
-
-      <div className="admin-ws-body">
-        <aside className="admin-ws-left">
-          {loading && !tree ? (
-            <p className="muted" style={{ fontSize: 13, padding: 12 }}>加载中…</p>
-          ) : (
-            visibleCollections.map((coll) => {
-              const open = expanded.has(coll.id);
-              return (
-                <div key={coll.id} className="admin-ws-collection">
+      <section className="admin-notion-page">
+        <div className="admin-notion-page-toolbar">
+          <div className="admin-notion-status-pills">
+            <span className={`pill ${status?.rag_ready ? 'pill-active' : ''}`}>
+              RAG {status?.rag_ready ? '就绪' : '未就绪'}
+            </span>
+            <span className="muted" style={{ fontSize: 12 }}>
+              已索引 {summary?.indexed ?? 0} · 块 {summary?.db_chunks ?? 0}
+            </span>
+          </div>
+          <div className="admin-notion-toolbar-right">
+            <button type="button" className="font-pill" disabled={busy} onClick={() => void reload()}>
+              刷新
+            </button>
+            <div className="admin-notion-menu-wrap" ref={menuRef}>
+              <button type="button" className="font-pill" onClick={() => setMenuOpen((v) => !v)}>
+                ···
+              </button>
+              {menuOpen ? (
+                <div className="admin-notion-menu">
+                  <button type="button" disabled={busy} onClick={() => void onRename()}>重命名</button>
+                  <button type="button" disabled={busy} onClick={() => void onMove()}>移动到…</button>
+                  <button type="button" disabled={busy} onClick={() => void onDelete()}>删除</button>
+                  <hr />
                   <button
                     type="button"
-                    className={`admin-ws-collection-head ${selected?.collectionId === coll.id && selected.kind === 'collection' ? 'is-selected' : ''}`}
-                    onClick={() => {
-                      toggleExpand(coll.id);
-                      setSelected({ kind: 'collection', collectionId: coll.id });
-                    }}
+                    disabled={busy}
+                    onClick={() =>
+                      void run('拉取公版', async () => {
+                        const r = await importRagSources();
+                        return r.ok ? `完成 ${r.steps?.length ?? 0} 步` : '拉取完成';
+                      })
+                    }
                   >
-                    <span className="admin-ws-tree-caret">{open ? '▾' : '▸'}</span>
-                    <div className="admin-ws-collection-meta">
-                      <strong>
-                        {coll.label}
-                        {coll.writable ? '' : ' · 只读'}
-                      </strong>
-                      <span className="muted">
-                        {coll.file_count} 文件 · 待 {coll.counts.pending || 0} · 败 {coll.counts.failed || 0}
-                      </span>
-                    </div>
+                    拉取公版
                   </button>
-                  {open
-                    ? coll.children.map((node) => renderNode(coll, node, 1))
-                    : null}
-                </div>
-              );
-            })
-          )}
-          {tree?.orphans?.length ? (
-            <div className="admin-ws-orphans">
-              <p className="settings-title" style={{ margin: '12px 8px 6px', fontSize: 13 }}>
-                孤儿文档（仅库）
-              </p>
-              {tree.orphans.slice(0, 20).map((o) => (
-                <div key={o.id} className="admin-ws-tree-row is-file" style={{ paddingLeft: 22 }}>
-                  <StatusDot status="orphan" />
-                  <span className="admin-ws-tree-name">{o.title}</span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </aside>
-
-        <section className="admin-ws-right">
-          {!file || selected?.kind !== 'file' ? (
-            <div className="admin-ws-empty">
-              <p className="muted">从左侧选择文件查看状态与预览</p>
-              <p className="muted" style={{ fontSize: 12 }}>
-                公版目录只读；中文自有 / 手工 / 上传区可新建、编辑、删除
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="admin-ws-file-head">
-                <div>
-                  <h3 style={{ margin: 0 }}>{file.title}</h3>
-                  <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-                    {file.collection_id} / {file.path}
-                    {file.content_stale ? ' · 内容已更新，待重新索引' : ''}
-                  </p>
-                </div>
-                <div className="admin-ws-file-actions">
-                  <span className={`admin-rag-status-badge admin-rag-status-${file.inventory_status}`}>
-                    {file.inventory_label}
-                  </span>
-                  {file.writable && dirty ? (
-                    <button type="button" className="btn" disabled={busy} onClick={() => void onSave()}>
-                      保存
-                    </button>
-                  ) : null}
-                  <button type="button" className="font-pill" disabled={busy} onClick={() => void onIndex()}>
-                    {file.document_id ? '重新索引' : '索引入库'}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run('索引集合', async () => {
+                        const r = await indexRagCollections();
+                        return `已索引分组 ${r.indexed_groups ?? 0}`;
+                      })
+                    }
+                  >
+                    索引集合
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() =>
+                      void run('索引待处理', async () => {
+                        const r = await indexPendingDisk();
+                        return `处理 ${r.processed ?? 0} · 成功 ${r.indexed ?? 0}`;
+                      })
+                    }
+                  >
+                    索引待处理
                   </button>
                 </div>
-              </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
 
-              <div className="admin-ws-file-meta">
-                <span>类型 {file.source_type || '—'}</span>
-                <span>大小 {Math.round((file.size_bytes || 0) / 1024)} KB</span>
-                <span>块 {file.chunks || chunkTotal || 0}</span>
-                <span>索引于 {file.rag_index_at?.slice(0, 19).replace('T', ' ') || '—'}</span>
-                {file.rag_index_error ? (
-                  <span className="admin-rag-error-text">错误：{file.rag_index_error}</span>
+        {err ? <p className="admin-rag-error-text">{err}</p> : null}
+        {msg ? <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>{msg}</p> : null}
+
+        {!file || selected?.kind !== 'file' ? (
+          <div className="admin-notion-empty">
+            <h2>选择左侧页面开始</h2>
+            <p className="muted">
+              公版目录只读 🔒；中文自有 / 手工 / 上传可编辑。可拖拽文件到文件夹移动。
+            </p>
+          </div>
+        ) : (
+          <>
+            <header className="admin-notion-doc-head">
+              <input
+                className="admin-notion-title"
+                value={file.title}
+                readOnly
+                title="标题来自文件名 / 库记录"
+              />
+              <div className="admin-notion-props">
+                <span className={`admin-rag-status-badge admin-rag-status-${file.inventory_status}`}>
+                  {file.inventory_label}
+                </span>
+                {file.content_stale ? (
+                  <span className="admin-rag-status-badge admin-rag-status-pending">内容待重索引</span>
                 ) : null}
+                <span className="admin-notion-prop">{file.collection_id}</span>
+                <span className="admin-notion-prop">{file.path}</span>
+                <span className="admin-notion-prop">{file.chunks || chunkTotal || 0} chunks</span>
+                <span className="admin-notion-prop">
+                  {file.rag_index_at?.slice(0, 19).replace('T', ' ') || '未索引'}
+                </span>
               </div>
-
-              <div className="admin-ws-detail-tabs">
-                <button
-                  type="button"
-                  className={detailTab === 'preview' ? 'is-active' : ''}
-                  onClick={() => setDetailTab('preview')}
-                >
-                  预览
-                </button>
+              <div className="admin-notion-doc-actions">
                 {file.writable ? (
-                  <button
-                    type="button"
-                    className={detailTab === 'edit' ? 'is-active' : ''}
-                    onClick={() => setDetailTab('edit')}
-                  >
-                    编辑{dirty ? ' *' : ''}
-                  </button>
+                  <>
+                    <div className="admin-notion-mode">
+                      {(['split', 'edit', 'preview'] as DetailMode[]).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          className={mode === m ? 'is-active' : ''}
+                          onClick={() => setMode(m)}
+                        >
+                          {m === 'split' ? '分屏' : m === 'edit' ? '编辑' : '预览'}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" className="btn" disabled={busy || !dirty} onClick={() => void onSave()}>
+                      {dirty ? '保存 *' : '已保存'}
+                    </button>
+                  </>
                 ) : null}
+                <button type="button" className="font-pill" disabled={busy} onClick={() => void onIndex()}>
+                  {file.document_id ? '重新索引' : '索引入库'}
+                </button>
                 <button
                   type="button"
-                  className={detailTab === 'chunks' ? 'is-active' : ''}
-                  onClick={() => setDetailTab('chunks')}
+                  className="font-pill"
+                  onClick={() => setShowChunks((v) => !v)}
                 >
                   Chunks ({chunkTotal || file.chunks || 0})
                 </button>
               </div>
-
-              {detailTab === 'preview' ? (
-                <div className="admin-ws-preview">
-                  <ReactMarkdown>{file.content.slice(0, 40000)}</ReactMarkdown>
-                </div>
+              {file.rag_index_error ? (
+                <p className="admin-rag-error-text">错误：{file.rag_index_error}</p>
               ) : null}
+            </header>
 
-              {detailTab === 'edit' && file.writable ? (
+            <div className={`admin-notion-body ${file.writable && mode === 'split' ? 'is-split' : ''}`}>
+              {file.writable && (mode === 'edit' || mode === 'split') ? (
                 <textarea
-                  className="admin-ws-editor"
+                  className="admin-notion-editor"
                   value={draft}
                   onChange={(e) => {
                     setDraft(e.target.value);
@@ -749,28 +780,39 @@ export default function AdminRagWorkspace() {
                   spellCheck={false}
                 />
               ) : null}
-
-              {detailTab === 'chunks' ? (
-                <div className="admin-ws-chunks">
-                  {!chunks.length ? (
-                    <p className="muted" style={{ fontSize: 13 }}>暂无向量块，请先索引</p>
-                  ) : (
-                    chunks.map((c) => (
-                      <article key={c.index} className="admin-ws-chunk">
-                        <header>
-                          <strong>#{c.index}</strong>
-                          <span className="muted">{c.length} 字</span>
-                        </header>
-                        <p>{c.preview}</p>
-                      </article>
-                    ))
-                  )}
+              {(!file.writable || mode === 'preview' || mode === 'split') ? (
+                <div className="admin-notion-preview">
+                  <ReactMarkdown>{(file.writable ? draft : file.content).slice(0, 40000)}</ReactMarkdown>
                 </div>
               ) : null}
-            </>
-          )}
-        </section>
-      </div>
+            </div>
+
+            {showChunks ? (
+              <aside className="admin-notion-chunks">
+                <div className="section-row" style={{ marginTop: 0 }}>
+                  <strong>向量块</strong>
+                  <button type="button" className="text-link" onClick={() => setShowChunks(false)}>
+                    收起
+                  </button>
+                </div>
+                {!chunks.length ? (
+                  <p className="muted" style={{ fontSize: 13 }}>暂无向量块，请先索引</p>
+                ) : (
+                  chunks.map((c) => (
+                    <article key={c.index} className="admin-ws-chunk">
+                      <header>
+                        <strong>#{c.index}</strong>
+                        <span className="muted">{c.length} 字</span>
+                      </header>
+                      <p>{c.preview}</p>
+                    </article>
+                  ))
+                )}
+              </aside>
+            ) : null}
+          </>
+        )}
+      </section>
     </div>
   );
 }

@@ -30,6 +30,8 @@ const EMPTY_FORM: Partial<HeroBCampaignAdmin> & { link: HeroBLink } = {
   link: { kind: 'challenge', params: {} },
 };
 
+type ListFilter = 'all' | 'published' | 'draft' | 'disabled';
+
 function toLocalInputValue(iso: string): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -54,12 +56,15 @@ export default function AdminOpsHeroPanel() {
   const [items, setItems] = useState<HeroBCampaignAdmin[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Partial<HeroBCampaignAdmin> & { link: HeroBLink } | null>(null);
+  const [editing, setEditing] = useState<(Partial<HeroBCampaignAdmin> & { link: HeroBLink }) | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [hrefPreview, setHrefPreview] = useState('');
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [listFilter, setListFilter] = useState<ListFilter>('all');
   const fileRef = useRef<HTMLInputElement>(null);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,21 +82,7 @@ export default function AdminOpsHeroPanel() {
     void load();
   }, [load]);
 
-  useEffect(() => {
-    if (!editing?.link) {
-      setHrefPreview('');
-      return;
-    }
-    try {
-      setHrefPreview(resolveHeroBHref(editing.link));
-    } catch {
-      setHrefPreview('');
-    }
-  }, [editing?.link]);
-
-  const catalog = DEFAULT_LINK_CATALOG;
-
-  const startEdit = (item?: HeroBCampaignAdmin) => {
+  const startEdit = useCallback((item?: HeroBCampaignAdmin) => {
     if (item) {
       setIsNew(false);
       setActiveId(item.id);
@@ -111,7 +102,32 @@ export default function AdminOpsHeroPanel() {
         endAt: toLocalInputValue(later.toISOString()),
       });
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (!id) return;
+      const found = itemsRef.current.find((i) => i.id === id);
+      if (found) startEdit(found);
+    };
+    window.addEventListener('admin-ops-open', onOpen);
+    return () => window.removeEventListener('admin-ops-open', onOpen);
+  }, [startEdit]);
+
+  useEffect(() => {
+    if (!editing?.link) {
+      setHrefPreview('');
+      return;
+    }
+    try {
+      setHrefPreview(resolveHeroBHref(editing.link));
+    } catch {
+      setHrefPreview('');
+    }
+  }, [editing?.link]);
+
+  const catalog = DEFAULT_LINK_CATALOG;
 
   const updateLink = (patch: Partial<HeroBLink> & { kind?: string }) => {
     if (!editing) return;
@@ -168,6 +184,15 @@ export default function AdminOpsHeroPanel() {
       setBusy(false);
     }
   };
+
+  const filtered = useMemo(() => {
+    return items.filter((item) => {
+      if (listFilter === 'all') return true;
+      if (listFilter === 'disabled') return !item.enabled;
+      if (listFilter === 'draft') return item.status === 'draft';
+      return item.enabled && item.status === 'published';
+    });
+  }, [items, listFilter]);
 
   const linkFields = useMemo(() => {
     if (!editing) return null;
@@ -281,74 +306,111 @@ export default function AdminOpsHeroPanel() {
       );
     }
     return <p className="muted" style={{ fontSize: 13, margin: 0 }}>无需额外参数</p>;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalog, editing]);
 
   if (loading) {
     return <p className="muted">加载活动列表…</p>;
   }
 
+  const previewImage = editing?.imageUrl
+    ? contentAssetUrl(editing.imageUrl)
+    : null;
+
   return (
-    <div className="admin-ops-pc">
+    <div className="admin-ops-studio">
       {err ? <p className="admin-rag-error-text">{err}</p> : null}
 
-      <div className="admin-ops-pc-head">
-        <div>
-          <h2>首页运营 · Hero B</h2>
-          <p className="muted">左侧选活动，右侧编辑与预览。无活动时首页只展示每日经文。</p>
-        </div>
-        <div className="admin-ops-hero-toolbar" style={{ marginBottom: 0 }}>
+      <div className="admin-ops-studio-head">
+        <p className="muted" style={{ margin: 0, fontSize: 13 }}>
+          列表 · 手机预览 · 属性面板。无活动时首页只展示每日经文。
+        </p>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <button type="button" className="btn" onClick={() => startEdit()}>新建活动</button>
           <button type="button" className="text-link" onClick={() => void load()}>刷新</button>
         </div>
       </div>
 
-      <div className="admin-ops-pc-body">
-        <aside className="admin-ops-pc-list">
-          {items.length === 0 ? (
+      <div className="admin-ops-studio-body">
+        <aside className="admin-ops-studio-list">
+          <div className="admin-ops-studio-filters">
+            {([
+              ['all', '全部'],
+              ['published', '已发布'],
+              ['draft', '草稿'],
+              ['disabled', '停用'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={listFilter === id ? 'is-active' : ''}
+                onClick={() => setListFilter(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {filtered.length === 0 ? (
             <p className="muted" style={{ fontSize: 13, padding: 8 }}>暂无活动</p>
           ) : (
-            items.map((item) => (
+            filtered.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className={`card card-2 admin-ops-pc-card ${activeId === item.id && editing ? 'is-active' : ''}`}
+                className={`admin-ops-studio-card ${activeId === item.id && editing ? 'is-active' : ''}`}
                 onClick={() => startEdit(item)}
               >
                 {item.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={contentAssetUrl(item.imageUrl)}
-                    alt=""
-                    className="admin-ops-pc-card-thumb"
-                  />
+                  <img src={contentAssetUrl(item.imageUrl)} alt="" />
                 ) : (
-                  <div className="admin-ops-pc-card-thumb is-empty">无图</div>
+                  <div className="is-empty">无图</div>
                 )}
-                <div className="admin-ops-pc-card-meta">
+                <div>
                   <strong>{item.name}</strong>
-                  <p className="muted">{item.href}</p>
-                  <p className="muted">P{item.priority} · {item.audience === 'admin_preview' ? '仅预览' : '全员'}</p>
-                </div>
-                <div className="admin-ops-pc-card-badges">
-                  <span className="pill">{statusLabel(item)}</span>
-                  <span className="muted">{item.id}</span>
+                  <p className="muted">{statusLabel(item)} · P{item.priority}</p>
                 </div>
               </button>
             ))
           )}
         </aside>
 
-        <section className="admin-ops-pc-editor">
+        <div className="admin-ops-studio-preview">
+          <div className="admin-ops-phone">
+            <div className="admin-ops-phone-notch" />
+            <div className="admin-ops-phone-screen">
+              {previewImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={previewImage} alt="Hero B 预览" />
+              ) : (
+                <div className="admin-ops-phone-placeholder">
+                  <p>Hero B</p>
+                  <span className="muted">上传主图后在此预览</span>
+                </div>
+              )}
+              {editing?.badge ? <span className="admin-ops-phone-badge">{editing.badge}</span> : null}
+            </div>
+            {hrefPreview ? (
+              <a className="admin-ops-phone-href muted" href={hrefPreview} target="_blank" rel="noreferrer">
+                点击跳转 → {hrefPreview}
+              </a>
+            ) : (
+              <p className="admin-ops-phone-href muted">配置链接后可预览跳转</p>
+            )}
+          </div>
+        </div>
+
+        <section className="admin-ops-studio-props">
           {!editing ? (
             <div className="admin-ops-pc-editor-empty">
-              <p className="muted">从左侧选择活动，或新建一条 Hero B 配置</p>
+              <p className="muted">选择左侧活动，或新建</p>
               <button type="button" className="btn" onClick={() => startEdit()}>新建活动</button>
             </div>
           ) : (
             <>
               <div className="section-row" style={{ marginTop: 0, marginBottom: 12 }}>
-                <p className="settings-title" style={{ margin: 0 }}>{isNew ? '新建活动' : '编辑活动'}</p>
-                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <strong>{isNew ? '新建' : '属性'}</strong>
+                <div style={{ display: 'flex', gap: 8 }}>
                   {!isNew && editing.id ? (
                     <>
                       <button
@@ -358,7 +420,7 @@ export default function AdminOpsHeroPanel() {
                           void navigator.clipboard.writeText(adminHeroPreviewHint(String(editing.id)));
                         }}
                       >
-                        复制预览 API
+                        预览 API
                       </button>
                       <button
                         type="button"
@@ -376,115 +438,94 @@ export default function AdminOpsHeroPanel() {
                       </button>
                     </>
                   ) : null}
-                  <button type="button" className="text-link" onClick={() => { setEditing(null); setActiveId(null); }}>
-                    关闭
-                  </button>
                 </div>
               </div>
 
-              <div className="admin-ops-pc-preview-wrap" style={{ marginBottom: 14 }}>
-                <div className="admin-ops-pc-form-grid">
-                  <div className="admin-ops-pc-field">
-                    <label>活动 ID</label>
-                    <input
-                      className="search-input"
-                      placeholder="英文 slug"
-                      disabled={!isNew}
-                      value={editing.id}
-                      onChange={(e) => setEditing({ ...editing, id: e.target.value })}
-                    />
-                  </div>
-                  <div className="admin-ops-pc-field">
-                    <label>活动名称</label>
-                    <input
-                      className="search-input"
-                      placeholder="运营内部名称"
-                      value={editing.name}
-                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="admin-ops-pc-field">
-                    <label>开始时间</label>
-                    <input
-                      className="search-input"
-                      type="datetime-local"
-                      value={String(editing.startAt)}
-                      onChange={(e) => setEditing({ ...editing, startAt: e.target.value })}
-                    />
-                  </div>
-                  <div className="admin-ops-pc-field">
-                    <label>结束时间</label>
-                    <input
-                      className="search-input"
-                      type="datetime-local"
-                      value={String(editing.endAt)}
-                      onChange={(e) => setEditing({ ...editing, endAt: e.target.value })}
-                    />
-                  </div>
-                  <div className="admin-ops-pc-field">
-                    <label>优先级</label>
-                    <input
-                      className="search-input"
-                      type="number"
-                      value={editing.priority ?? 0}
-                      onChange={(e) => setEditing({ ...editing, priority: Number(e.target.value) })}
-                    />
-                  </div>
-                  <div className="admin-ops-pc-field">
-                    <label>状态</label>
-                    <select
-                      className="search-input"
-                      value={editing.status}
-                      onChange={(e) => setEditing({ ...editing, status: e.target.value as 'draft' | 'published' })}
-                    >
-                      <option value="draft">草稿</option>
-                      <option value="published">已发布</option>
-                    </select>
-                  </div>
-                  <div className="admin-ops-pc-field">
-                    <label>受众</label>
-                    <select
-                      className="search-input"
-                      value={editing.audience}
-                      onChange={(e) => setEditing({ ...editing, audience: e.target.value as 'all' | 'admin_preview' })}
-                    >
-                      <option value="all">全员</option>
-                      <option value="admin_preview">仅管理员预览</option>
-                    </select>
-                  </div>
-                  <div className="admin-ops-pc-field">
-                    <label>角标（≤6 字）</label>
-                    <input
-                      className="search-input"
-                      value={editing.badge ?? ''}
-                      onChange={(e) => setEditing({ ...editing, badge: e.target.value })}
-                    />
-                  </div>
-                  <div className="admin-ops-pc-field span-2">
-                    <label>alt 无障碍描述</label>
-                    <input
-                      className="search-input"
-                      value={editing.alt ?? ''}
-                      onChange={(e) => setEditing({ ...editing, alt: e.target.value })}
-                    />
-                  </div>
+              <div className="admin-ops-pc-form-grid admin-ops-studio-form">
+                <div className="admin-ops-pc-field">
+                  <label>活动 ID</label>
+                  <input
+                    className="search-input"
+                    disabled={!isNew}
+                    value={editing.id}
+                    onChange={(e) => setEditing({ ...editing, id: e.target.value })}
+                  />
                 </div>
-                <div>
-                  <div className="admin-ops-pc-field" style={{ marginBottom: 8 }}>
-                    <label>主图预览</label>
-                    {editing.imageUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={contentAssetUrl(editing.imageUrl)}
-                        alt="预览"
-                        className="admin-ops-pc-live-preview"
-                      />
-                    ) : (
-                      <div className="admin-ops-pc-live-preview admin-ops-pc-card-thumb is-empty" style={{ height: 'auto' }}>
-                        上传 KV 图
-                      </div>
-                    )}
-                  </div>
+                <div className="admin-ops-pc-field">
+                  <label>名称</label>
+                  <input
+                    className="search-input"
+                    value={editing.name}
+                    onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  />
+                </div>
+                <div className="admin-ops-pc-field">
+                  <label>开始</label>
+                  <input
+                    className="search-input"
+                    type="datetime-local"
+                    value={String(editing.startAt)}
+                    onChange={(e) => setEditing({ ...editing, startAt: e.target.value })}
+                  />
+                </div>
+                <div className="admin-ops-pc-field">
+                  <label>结束</label>
+                  <input
+                    className="search-input"
+                    type="datetime-local"
+                    value={String(editing.endAt)}
+                    onChange={(e) => setEditing({ ...editing, endAt: e.target.value })}
+                  />
+                </div>
+                <div className="admin-ops-pc-field">
+                  <label>优先级</label>
+                  <input
+                    className="search-input"
+                    type="number"
+                    value={editing.priority ?? 0}
+                    onChange={(e) => setEditing({ ...editing, priority: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="admin-ops-pc-field">
+                  <label>状态</label>
+                  <select
+                    className="search-input"
+                    value={editing.status}
+                    onChange={(e) => setEditing({ ...editing, status: e.target.value as 'draft' | 'published' })}
+                  >
+                    <option value="draft">草稿</option>
+                    <option value="published">已发布</option>
+                  </select>
+                </div>
+                <div className="admin-ops-pc-field">
+                  <label>受众</label>
+                  <select
+                    className="search-input"
+                    value={editing.audience}
+                    onChange={(e) => setEditing({ ...editing, audience: e.target.value as 'all' | 'admin_preview' })}
+                  >
+                    <option value="all">全员</option>
+                    <option value="admin_preview">仅管理员预览</option>
+                  </select>
+                </div>
+                <div className="admin-ops-pc-field">
+                  <label>角标</label>
+                  <input
+                    className="search-input"
+                    value={editing.badge ?? ''}
+                    onChange={(e) => setEditing({ ...editing, badge: e.target.value })}
+                  />
+                </div>
+                <div className="admin-ops-pc-field span-2">
+                  <label>alt</label>
+                  <input
+                    className="search-input"
+                    value={editing.alt ?? ''}
+                    onChange={(e) => setEditing({ ...editing, alt: e.target.value })}
+                  />
+                </div>
+                <div className="admin-ops-pc-field span-2">
+                  <label>主图</label>
                   <input
                     ref={fileRef}
                     type="file"
@@ -492,18 +533,10 @@ export default function AdminOpsHeroPanel() {
                     hidden
                     onChange={(e) => void onUpload(e.target.files?.[0] ?? null)}
                   />
-                  <button
-                    type="button"
-                    className="font-pill"
-                    disabled={busy}
-                    onClick={() => fileRef.current?.click()}
-                  >
+                  <button type="button" className="font-pill" disabled={busy} onClick={() => fileRef.current?.click()}>
                     上传主图
                   </button>
                 </div>
-              </div>
-
-              <div className="admin-ops-pc-form-grid">
                 <div className="admin-ops-pc-field span-2">
                   <label>链接类型</label>
                   <select
@@ -531,7 +564,7 @@ export default function AdminOpsHeroPanel() {
               </div>
 
               <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-                解析结果：<code>{hrefPreview || '—'}</code>
+                <code>{hrefPreview || '—'}</code>
               </p>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 13 }}>
                 <input
@@ -550,7 +583,7 @@ export default function AdminOpsHeroPanel() {
                   className="text-link"
                   onClick={() => { setEditing(null); setActiveId(null); }}
                 >
-                  取消
+                  关闭
                 </button>
               </div>
             </>
