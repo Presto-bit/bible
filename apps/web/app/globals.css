@@ -248,7 +248,7 @@ html.pwa-standalone a[href] {
     0 2px 8px rgba(15, 23, 42, 0.06),
     inset 0 0 0 1px rgba(255, 255, 255, 0.72);
   transform: translateX(-50%);
-  transition: transform 0.28s ease, opacity 0.28s ease, bottom 0.28s ease;
+  transition: transform 0.28s ease, opacity 0.28s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -5438,10 +5438,10 @@ body.assistant-active .assistant-page {
   padding-bottom: 8px;
 }
 
-/* 键盘打开：用 bottom 滑出（保留 translateX 居中），避免改 transform 导致收起后底栏卡在半空 */
+/* 键盘打开：只隐藏，不改 bottom/transform，避免收起后底栏悬空留白 */
 body.assistant-keyboard .tabbar {
-  bottom: calc(-1 * (var(--tabbar-h) + 16px));
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 

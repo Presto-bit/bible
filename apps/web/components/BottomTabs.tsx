@@ -96,6 +96,7 @@ export default function BottomTabs() {
     bar.style.removeProperty('bottom');
     bar.style.removeProperty('top');
     bar.style.removeProperty('opacity');
+    bar.style.removeProperty('visibility');
     bar.style.removeProperty('position');
     bar.style.removeProperty('transition');
     bar.style.pointerEvents = '';

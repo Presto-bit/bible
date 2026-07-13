@@ -309,7 +309,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
   }, [paneActive]);
 
-  /** iOS：键盘顶起后 fixed 底栏常错位；开键盘时收起 Tab，关键盘时强制回到原固定位置 */
+  /** iOS：键盘打开时只隐藏 Tab（不改 bottom/transform），避免收起后底栏悬空留白 */
   useEffect(() => {
     if (!paneActive) return;
     const vv = window.visualViewport;
@@ -325,59 +325,78 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       }
     };
 
-    const resetTabbar = () => {
+    const clearTabbarInline = () => {
+      const bar = document.querySelector<HTMLElement>('.tabbar');
+      if (!bar) return;
+      bar.style.removeProperty('transition');
+      bar.style.removeProperty('transform');
+      bar.style.removeProperty('bottom');
+      bar.style.removeProperty('top');
+      bar.style.removeProperty('opacity');
+      bar.style.removeProperty('visibility');
+      bar.style.removeProperty('position');
+      bar.style.pointerEvents = '';
+    };
+
+    /** 键盘收起后强制把 fixed 底栏按 visualViewport 贴回屏幕底，消除下方空白 */
+    const restoreTabbar = () => {
       const bar = document.querySelector<HTMLElement>('.tabbar');
       if (!bar) return;
       document.body.classList.remove('assistant-keyboard');
       document.documentElement.style.removeProperty('--assistant-vv-h');
-      // 先关掉过渡，硬写回原位，避免 iOS 在 viewport 动画中把 fixed 底栏卡在半空
-      bar.style.setProperty('transition', 'none');
-      bar.style.setProperty('transform', 'translateX(-50%)');
-      bar.style.setProperty('bottom', 'calc(var(--tabbar-float-gap) + var(--tabbar-safe))');
-      bar.style.setProperty('opacity', '1');
-      bar.style.pointerEvents = '';
-      bar.style.removeProperty('top');
-      void bar.offsetHeight;
-      // iOS 偶发需切换 position 才能让 fixed 相对布局视口重新锚定
-      bar.style.setProperty('position', 'absolute');
-      void bar.offsetHeight;
-      bar.style.setProperty('position', 'fixed');
+      clearTabbarInline();
+
+      const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      // 视口尚未完全回弹时，先按剩余 inset 补偿，避免底栏停在半空
+      if (gap > 2) {
+        bar.style.setProperty('transition', 'none');
+        bar.style.setProperty(
+          'bottom',
+          `calc(${gap}px + var(--tabbar-float-gap) + var(--tabbar-safe))`,
+        );
+        void bar.offsetHeight;
+      }
+
       window.scrollTo(0, 0);
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
-      requestAnimationFrame(() => {
-        bar.style.removeProperty('transition');
-        bar.style.removeProperty('transform');
-        bar.style.removeProperty('bottom');
-        bar.style.removeProperty('opacity');
-        bar.style.removeProperty('position');
-      });
+
+      // 视口回弹后再清掉补偿，回到 CSS 固定位
+      if (gap <= 2) {
+        clearTabbarInline();
+        return;
+      }
+      window.setTimeout(() => {
+        const settled = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+        if (settled <= 2) clearTabbarInline();
+      }, 320);
     };
 
-    const scheduleReset = () => {
+    const scheduleRestore = () => {
       clearResetTimers();
-      resetTimers.push(window.setTimeout(resetTabbar, 0));
-      resetTimers.push(window.setTimeout(resetTabbar, 80));
-      resetTimers.push(window.setTimeout(resetTabbar, 360));
+      resetTimers.push(window.setTimeout(restoreTabbar, 0));
+      resetTimers.push(window.setTimeout(restoreTabbar, 120));
+      resetTimers.push(window.setTimeout(restoreTabbar, 400));
     };
 
     const setKeyboardOpen = (open: boolean) => {
       if (open) {
         clearResetTimers();
+        clearTabbarInline();
         document.body.classList.add('assistant-keyboard');
         document.documentElement.style.setProperty('--assistant-vv-h', `${Math.round(vv.height)}px`);
       } else if (lastOpen) {
-        scheduleReset();
+        scheduleRestore();
       } else {
         document.body.classList.remove('assistant-keyboard');
         document.documentElement.style.removeProperty('--assistant-vv-h');
+        clearTabbarInline();
       }
       lastOpen = open;
     };
 
     const sync = () => {
       const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      // 以「输入框焦点 + 视口收缩」共同判定，避免仅焦点时误抬底栏，或收起后仍卡在半高
       const open = composerFocused && kb > 80;
       setKeyboardOpen(open);
       if (open) {
@@ -397,11 +416,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     const onFocusOut = (e: FocusEvent) => {
       const t = e.target;
       if (!(t instanceof HTMLElement) || !t.closest('.assistant-composer')) return;
-      // relatedTarget 仍在 composer 内则不算失焦
       const next = e.relatedTarget;
       if (next instanceof HTMLElement && next.closest('.assistant-composer')) return;
       composerFocused = false;
-      // 不等待 vv 完全回弹，先排队复位，防止底栏停在升高位置
       setKeyboardOpen(false);
       sync();
     };
@@ -419,7 +436,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       window.removeEventListener('focusout', onFocusOut);
       document.body.classList.remove('assistant-keyboard');
       document.documentElement.style.removeProperty('--assistant-vv-h');
-      resetTabbar();
+      clearTabbarInline();
     };
   }, [paneActive]);
 
