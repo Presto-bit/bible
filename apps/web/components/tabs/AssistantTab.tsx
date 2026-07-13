@@ -329,6 +329,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     /** 相对键盘顶再上抬，避免输入框被挡 */
     const LIFT_PX = 20;
 
+    const pinScroll = () => {
+      window.scrollTo(0, 0);
+      root.scrollTop = 0;
+      body.scrollTop = 0;
+      const app = document.querySelector('.app-body');
+      if (app instanceof HTMLElement) app.scrollTop = 0;
+    };
+
     const syncViewport = () => {
       body.classList.toggle('assistant-keyboard', composerFocused);
       if (!composerFocused) {
@@ -337,6 +345,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         root.style.removeProperty('--assistant-kb-inset');
         return;
       }
+      pinScroll();
       const layoutH = window.innerHeight || root.clientHeight || 0;
       const vvH = vv?.height ?? layoutH;
       const offsetTop = vv?.offsetTop ?? 0;
@@ -366,6 +375,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (!t.closest('.assistant-composer')) return;
       if (t.tagName !== 'TEXTAREA' && t.tagName !== 'INPUT') return;
       setComposerFocused(true);
+      pinScroll();
     };
 
     const onFocusOut = (e: FocusEvent) => {
@@ -376,6 +386,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       setComposerFocused(false);
     };
 
+    const onWindowScroll = () => {
+      if (composerFocused) pinScroll();
+    };
+
     syncViewport();
     vv?.addEventListener('resize', onViewport);
     vv?.addEventListener('scroll', onViewport);
@@ -383,6 +397,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     window.addEventListener('orientationchange', onViewport);
     window.addEventListener('focusin', onFocusIn);
     window.addEventListener('focusout', onFocusOut);
+    window.addEventListener('scroll', onWindowScroll, { passive: true });
 
     return () => {
       cancelAnimationFrame(raf);
@@ -392,6 +407,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       window.removeEventListener('orientationchange', onViewport);
       window.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('focusout', onFocusOut);
+      window.removeEventListener('scroll', onWindowScroll);
       body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
       root.style.removeProperty('--assistant-vv-h');
       root.style.removeProperty('--assistant-kb-inset');
