@@ -6,8 +6,9 @@ import { shouldPromptUsername } from '@/lib/account_guide';
 import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
-import { syncNow, syncResyncAccount, pendingCount } from '@/lib/sync';
+import { syncNow, syncPullFirst, syncResyncAccount, pendingCount } from '@/lib/sync';
 import {
+  enqueueLocalReadingMigration,
   hasLocalReadingData,
   needsCloudReadingRestore,
   needsSyncMigration,
@@ -20,13 +21,31 @@ import { isStandalonePwa } from '@/lib/platform';
 import { notifyLocalDataChanged } from '@/lib/local_data_events';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 import UsernameGuideSheet from '@/components/UsernameGuideSheet';
-import SyncMigrateSheet from '@/components/SyncMigrateSheet';
 import RestoreAccountSheet from '@/components/RestoreAccountSheet';
 
 const RESTORE_PROMPT_DISMISS_KEY = 'presto_restore_prompt_dismissed';
 
 function cloudRestoreAttemptKey(uid: string) {
   return `presto_cloud_restore_attempted:${uid}`;
+}
+
+/** 默认同步本机阅读到账号（不再弹窗确认） */
+async function autoSaveReadingToAccount(): Promise<void> {
+  try {
+    await syncPullFirst();
+    enqueueLocalReadingMigration();
+    await syncNow();
+    const uid = currentUserId() || effectiveId();
+    if (uid) await backupLocalReadingSnapshot(uid);
+    notifyLocalDataChanged('auto-migrate-reading');
+  } catch {
+    try {
+      enqueueLocalReadingMigration();
+    } catch {
+      /* ignore */
+    }
+    void syncNow().catch(() => {});
+  }
 }
 
 async function restoreReadingForAccount(uid: string): Promise<void> {
@@ -53,7 +72,6 @@ async function restoreReadingForAccount(uid: string): Promise<void> {
 /** 应用启动：身份 → 建档 → 云同步 → 离线经包 */
 export default function IdentityShell({ children }: { children: React.ReactNode }) {
   const [usernameGuide, setUsernameGuide] = useState(false);
-  const [migrateSheet, setMigrateSheet] = useState(false);
   const [restoreSheet, setRestoreSheet] = useState(false);
 
   useEffect(() => {
@@ -74,8 +92,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         sessionStorage.getItem(cloudRestoreAttemptKey(uid)) === '1';
 
       if (needsSyncMigration()) {
-        setMigrateSheet(true);
-        runBackgroundSync();
+        await autoSaveReadingToAccount();
       } else if (uid && needsCloudReadingRestore() && !restoreAttempted) {
         // 相同 user_id + 本机读经空：先 IDB 再云端全量拉
         try {
@@ -173,16 +190,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
     <>
       {children}
       <BadgeUnlockToast />
-      {migrateSheet ? (
-        <SyncMigrateSheet
-          onMerged={() => setMigrateSheet(false)}
-          onDismiss={() => setMigrateSheet(false)}
-          onAcknowledged={() => setMigrateSheet(false)}
-        />
-      ) : null}
-      {restoreSheet && !migrateSheet ? (
-        <RestoreAccountSheet onDismiss={dismissRestore} />
-      ) : null}
+      {restoreSheet ? <RestoreAccountSheet onDismiss={dismissRestore} /> : null}
       {usernameGuide ? <UsernameGuideSheet onDone={() => setUsernameGuide(false)} /> : null}
     </>
   );
