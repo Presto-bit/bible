@@ -55,22 +55,27 @@ async function autoSaveReadingToAccount(): Promise<void> {
 
 /**
  * 按用户 ID 恢复最新读经：IDB → 专用 reading-state 快照 →（仍空则）全量 sync。
+ * 注意：勿在启动关键路径上长时间 await，以免拖慢圣经 Tab 首屏。
  */
 async function restoreReadingForAccount(uid: string): Promise<void> {
   const fromIdb = await restoreLocalReadingSnapshotIfNeeded(uid);
   if (fromIdb) notifyLocalDataChanged('idb-reading-restore');
 
+  // 本机已有读经时只做轻量快照合并，避免每次启动全量 sync 占满带宽
+  const hadLocal = !needsCloudReadingRestore();
+
   try {
     await pullReadingStateByUser();
     notifyLocalDataChanged('cloud-reading-restore');
   } catch {
-    /* 快照失败时再走全量 */
-    try {
-      await syncResyncAccount();
-      notifyLocalDataChanged('cloud-reading-restore');
-    } catch {
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
-        void syncNow().catch(() => {});
+    if (!hadLocal) {
+      try {
+        await syncResyncAccount();
+        notifyLocalDataChanged('cloud-reading-restore');
+      } catch {
+        if (typeof navigator !== 'undefined' && navigator.onLine) {
+          void syncNow().catch(() => {});
+        }
       }
     }
   }
@@ -87,7 +92,7 @@ async function restoreReadingForAccount(uid: string): Promise<void> {
   await backupLocalReadingSnapshot(uid);
 }
 
-/** 应用启动：身份 → 建档 → 按用户 ID 同步读经 → 离线经包 */
+/** 应用启动：身份 → 建档 → 云同步（后台）→ 离线经包 */
 export default function IdentityShell({ children }: { children: React.ReactNode }) {
   const [usernameGuide, setUsernameGuide] = useState(false);
   const [restoreSheet, setRestoreSheet] = useState(false);
@@ -97,7 +102,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       void syncNow().catch(() => {});
     };
-    void ensureAccountReady().then(async () => {
+    void ensureAccountReady().then(() => {
       // 一次性初始化：清掉今天未同步/卡住的 outbox，解除「同步中」死锁
       forceMarkSyncIdle();
       initializeCloudSyncQueue();
@@ -109,15 +114,16 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         typeof window !== 'undefined' &&
         sessionStorage.getItem(RESTORE_PROMPT_DISMISS_KEY) === '1';
 
-      if (needsSyncMigration()) {
-        await autoSaveReadingToAccount();
-      }
-
-      // 只要有用户 ID：每次启动都按 ID 拉最新读经（合并本地），解决删 PWA 后同 ID 无历史
-      if (uid) {
-        await restoreReadingForAccount(uid);
-      }
-      runBackgroundSync();
+      // 迁移 / 读经恢复放到后台，不阻塞圣经 Tab 拉目录与经文
+      void (async () => {
+        if (needsSyncMigration()) {
+          await autoSaveReadingToAccount();
+        }
+        if (uid) {
+          await restoreReadingForAccount(uid);
+        }
+        runBackgroundSync();
+      })();
 
       if (
         standalone &&
@@ -130,7 +136,10 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
 
       void flushCheckinQueue().catch(() => {});
       rescheduleGroupEveningReminder();
-      void ensureOfflinePackAutoDownload();
+      // 延后离线经包，避免与圣经首屏 API 抢带宽（删 PWA 后经包常需重下）
+      window.setTimeout(() => {
+        void ensureOfflinePackAutoDownload();
+      }, 2500);
       if (shouldPromptUsername()) setUsernameGuide(true);
     });
     const onOnline = () => {
