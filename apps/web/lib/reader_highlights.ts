@@ -98,23 +98,31 @@ export function findHighlightStorageRef(
   return null;
 }
 
-export function removeHighlight(ref: string): boolean {
+export function removeHighlight(ref: string, opts?: { skipSync?: boolean }): boolean {
   const map = getHighlightMap();
   if (!(ref in map)) return false;
   const prevColor = map[ref].color;
   delete map[ref];
   writeMap(map);
   unbindMarkRef(ref);
-  enqueueHighlight(syncRef(ref), prevColor, true);
+  if (!opts?.skipSync) {
+    enqueueHighlight(syncRef(ref), prevColor, true);
+  }
   return true;
 }
 
-export function setHighlight(ref: string, color: HighlightColor) {
+export function setHighlight(
+  ref: string,
+  color: HighlightColor,
+  opts?: { skipSync?: boolean },
+) {
   const map = getHighlightMap();
   map[ref] = { color };
   writeMap(map);
   touchMarkMeta(ref);
-  enqueueHighlight(syncRef(ref), color, false);
+  if (!opts?.skipSync) {
+    enqueueHighlight(syncRef(ref), color, false);
+  }
 }
 
 /** 微信读书式：点色即应用；再点同色删除。 */

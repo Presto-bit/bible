@@ -376,10 +376,13 @@ function applyPullChanges(changes: PullChange[]): number {
       const incoming = c.version ?? 1;
       if (remoteVersionForRef(ref) > incoming && c.op !== 'delete') continue;
       if (c.op === 'delete') {
-        removeHighlight(ref);
+        // skipSync：远端合并不得再入 outbox，否则「推完又拉回排队」永远待同步
+        removeHighlight(ref, { skipSync: true });
         clearHighlightSyncMeta(ref);
       } else {
-        setHighlight(ref, (c.data?.color || 'yellow') as HighlightColor);
+        setHighlight(ref, (c.data?.color || 'yellow') as HighlightColor, {
+          skipSync: true,
+        });
         recordRemoteHighlight(ref, c.id, incoming);
       }
     }
