@@ -4,7 +4,7 @@ import { bulkPushLocalReadingLogs } from './reading_log_sync';
 import { bulkPushLocalReadEvents } from './read_event_sync';
 import { bulkPushLocalBadgeUnlocks } from './badge_unlock_sync';
 import { loadBadgeStats } from './badge_events';
-import { getReadingLogMap } from './reading';
+import { getReadingLogMap, getLastRead } from './reading';
 import {
   isSyncMigratedForUser,
   markSyncMigratedForUser,
@@ -22,6 +22,14 @@ export function hasLocalReadingData(): boolean {
   }
   const stats = loadBadgeStats();
   return Object.keys(stats.unlocked_at).length > 0;
+}
+
+/** 账号已设密但本机无打卡/进度：需从云端全量拉回（删 PWA 图标后常见） */
+export function needsCloudReadingRestore(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (hasLocalReadingData()) return false;
+  if (getLastRead()) return false;
+  return true;
 }
 
 export function needsSyncMigration(): boolean {

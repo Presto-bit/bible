@@ -7,7 +7,11 @@ import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
 import { syncNow, syncResyncAccount, pendingCount } from '@/lib/sync';
-import { hasLocalReadingData, needsSyncMigration } from '@/lib/sync_migrate';
+import {
+  hasLocalReadingData,
+  needsCloudReadingRestore,
+  needsSyncMigration,
+} from '@/lib/sync_migrate';
 import { isStandalonePwa } from '@/lib/platform';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 import UsernameGuideSheet from '@/components/UsernameGuideSheet';
@@ -15,6 +19,10 @@ import SyncMigrateSheet from '@/components/SyncMigrateSheet';
 import RestoreAccountSheet from '@/components/RestoreAccountSheet';
 
 const RESTORE_PROMPT_DISMISS_KEY = 'presto_restore_prompt_dismissed';
+
+function cloudRestoreAttemptKey(uid: string) {
+  return `presto_cloud_restore_attempted:${uid}`;
+}
 
 /** 应用启动：身份 → 建档 → 云同步 → 离线经包 */
 export default function IdentityShell({ children }: { children: React.ReactNode }) {
@@ -28,21 +36,37 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       void syncNow().catch(() => {});
     };
     void ensureAccountReady().then(() => {
-      const loggedInWithPwd = Boolean(currentUserId() && hasPassword());
-      const emptyLocal = !hasLocalReadingData();
+      const uid = currentUserId();
+      const loggedInWithPwd = Boolean(uid && hasPassword());
+      const emptyLocal = needsCloudReadingRestore();
       const standalone = isStandalonePwa();
       const restoreDismissed =
         typeof window !== 'undefined' &&
         sessionStorage.getItem(RESTORE_PROMPT_DISMISS_KEY) === '1';
+      const restoreAttempted =
+        Boolean(uid) &&
+        typeof window !== 'undefined' &&
+        sessionStorage.getItem(cloudRestoreAttemptKey(uid!)) === '1';
 
       if (needsSyncMigration()) {
         setMigrateSheet(true);
         // 弹窗期间仍后台刷出box，避免读完立刻卸 App 导致云端无数据
         runBackgroundSync();
-      } else if (standalone && loggedInWithPwd && emptyLocal) {
-        // 已登录但本机空（例如重装后会话残留 / 未拉完）：强制全量拉回
+      } else if (loggedInWithPwd && emptyLocal && !restoreAttempted) {
+        // 删桌面图标后 device_id 常仍在，用户 ID 不变，但 localStorage 读经被清。
+        // 网页/PWA 都要全量拉，不能只靠增量一页。
+        try {
+          sessionStorage.setItem(cloudRestoreAttemptKey(uid!), '1');
+        } catch {
+          /* ignore */
+        }
         void syncResyncAccount().catch(() => runBackgroundSync());
-      } else if (standalone && !loggedInWithPwd && emptyLocal && !restoreDismissed) {
+      } else if (
+        standalone &&
+        !loggedInWithPwd &&
+        !hasLocalReadingData() &&
+        !restoreDismissed
+      ) {
         // 重装后新游客：引导登录账号恢复
         setRestoreSheet(true);
         runBackgroundSync();
@@ -59,7 +83,23 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       runBackgroundSync();
     };
     const onVisible = () => {
-      if (document.visibilityState === 'visible') runBackgroundSync();
+      if (document.visibilityState !== 'visible') return;
+      const uid = currentUserId();
+      if (
+        uid &&
+        hasPassword() &&
+        needsCloudReadingRestore() &&
+        sessionStorage.getItem(cloudRestoreAttemptKey(uid)) !== '1'
+      ) {
+        try {
+          sessionStorage.setItem(cloudRestoreAttemptKey(uid), '1');
+        } catch {
+          /* ignore */
+        }
+        void syncResyncAccount().catch(() => runBackgroundSync());
+        return;
+      }
+      runBackgroundSync();
     };
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
