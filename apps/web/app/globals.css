@@ -11493,8 +11493,9 @@ a.license-row-name:hover {
 /* ── 共读群：发现页 + 群聊页 ── */
 .discover-page {
   --home-card-radius: 24px;
-  --home-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
-  --home-shadow-lift: 0 4px 16px rgba(15, 23, 42, 0.08), 0 12px 40px rgba(15, 23, 42, 0.12);
+  --home-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 6px 18px rgba(15, 23, 42, 0.08);
+  --home-shadow-lift: 0 2px 6px rgba(15, 23, 42, 0.06), 0 10px 28px rgba(15, 23, 42, 0.1);
+  --soft-card-edge: 1px solid color-mix(in srgb, var(--ink-faint) 32%, var(--line));
 }
 
 /* 各 Tab 共用：首页式分区标（左标题 + 可选右链） */
@@ -11524,14 +11525,14 @@ a.license-row-name:hover {
 
 .discover-page .discover-hero {
   margin-top: 14px;
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
 }
 
 .discover-page .discover-empty-card {
   margin-top: 0;
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
   padding: 16px 18px;
@@ -11543,34 +11544,37 @@ a.license-row-name:hover {
 
 .discover-page .discover-group-rail .group-card,
 .discover-page .discover-group-rail .group-card.card-2 {
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
   padding: 16px;
 }
 
 .discover-page .group-card-pending {
-  border-left: none;
-  box-shadow:
-    var(--home-shadow),
-    inset 3px 0 0 var(--accent);
+  border-left: 3px solid var(--accent);
+  box-shadow: var(--home-shadow);
 }
 
 .discover-page .group-card-has-tasks {
   box-shadow:
     var(--home-shadow),
-    inset 0 0 0 1px rgba(200, 160, 60, 0.22);
+    inset 0 0 0 1px rgba(200, 160, 60, 0.28);
 }
 
 .discover-page .discover-today--action,
-.discover-page .discover-today--done-gold {
-  border: none;
+.discover-page .discover-today--done-gold,
+.discover-page .discover-today--done {
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow-lift);
 }
 
+.discover-page .discover-today--action {
+  border-color: color-mix(in srgb, var(--accent-deep) 28%, var(--line));
+}
+
 .discover-page .feed-card {
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
 }
