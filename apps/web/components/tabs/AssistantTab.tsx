@@ -149,17 +149,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     });
   }, [personalized, ref]);
 
-  const emptyPrimary = useMemo(() => {
-    const prefer = personalized.find((c) =>
-      c.label === '今日默想' || c.label === '经文背景',
-    );
-    return prefer ?? personalized[0] ?? composerChips[0] ?? null;
-  }, [personalized, composerChips]);
-
-  const emptyPills = useMemo(() => {
-    const skip = emptyPrimary?.label;
-    return composerChips.filter((c) => c.label !== skip).slice(0, 8);
-  }, [composerChips, emptyPrimary]);
+  const emptyPills = useMemo(() => composerChips.slice(0, 8), [composerChips]);
 
   const readerHref = useMemo(() => (ref ? readerHrefFromRef(ref) : null), [ref]);
 
@@ -1037,31 +1027,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 <div className="assistant-empty-scene" aria-hidden>
                   <span className="assistant-empty-scene-glow" />
                   <p className="assistant-empty-scene-kicker">小爱</p>
-                  <p className="assistant-empty-scene-title">读着不懂？先问一句</p>
+                  <p className="assistant-empty-scene-title">一起把经文聊明白</p>
                 </div>
                 <p className="muted assistant-empty-desc">
-                  查经文、解经义、整理笔记。需要联网。
+                  查经文，解经义，基于资料的回答，需要联网
                 </p>
-                {emptyPrimary ? (
-                  <button
-                    type="button"
-                    className="btn assistant-empty-primary"
-                    disabled={busy}
-                    onClick={() =>
-                      send(
-                        emptyPrimary.q,
-                        emptyPrimary.mode,
-                        undefined,
-                        emptyPrimary.label,
-                        emptyPrimary.scene,
-                      )
-                    }
-                  >
-                    {emptyPrimary.label === '今日默想' || emptyPrimary.label === '经文背景'
-                      ? '聊聊今日经文'
-                      : emptyPrimary.label}
-                  </button>
-                ) : null}
                 <div className="empty-pills">
                   {emptyPills.map((c) => (
                     <button
@@ -1071,7 +1041,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       disabled={busy}
                       onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
                     >
-                      {c.label}
+                      {c.label === '今日默想' || c.label === '经文背景'
+                        ? '聊聊今日经文'
+                        : c.label}
                     </button>
                   ))}
                 </div>
