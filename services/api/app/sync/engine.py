@@ -73,11 +73,20 @@ def pull(user_id: str, since: int, entities: list[str] | None, limit: int = PULL
             if spec.id_based and "id" not in sel:
                 sel.append("id")
             col_sql = ", ".join(dict.fromkeys(sel))
-            rows = conn.execute(
-                f"SELECT {col_sql} FROM {spec.table} "
-                f"WHERE user_id = %s AND server_seq > %s ORDER BY server_seq LIMIT %s",
-                (user_id, since, limit + 1),
-            ).fetchall()
+            try:
+                rows = conn.execute(
+                    f"SELECT {col_sql} FROM {spec.table} "
+                    f"WHERE user_id = %s AND server_seq > %s ORDER BY server_seq LIMIT %s",
+                    (user_id, since, limit + 1),
+                ).fetchall()
+            except Exception as exc:
+                # 缺表/缺列时跳过该实体，避免整次 pull 500（部署漏跑迁移时常见）
+                logger.exception("pull 跳过 entity=%s table=%s: %s", spec.entity, spec.table, exc)
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                continue
             cols = list(dict.fromkeys(sel))
             for r in rows:
                 collected.append(_row_to_change(spec, cols, r))
@@ -91,24 +100,48 @@ def pull(user_id: str, since: int, entities: list[str] | None, limit: int = PULL
 def reading_state(user_id: str) -> dict:
     """按用户一次性返回读经相关全量（不走增量分页，专供重装/换端恢复）。"""
     pool = get_pool()
+    logs: list = []
+    progress = None
+    events: list = []
     with pool.connection() as conn:
-        logs = conn.execute(
-            "SELECT date, minutes, chapters FROM reading_log WHERE user_id = %s ORDER BY date",
-            (user_id,),
-        ).fetchall()
-        progress = conn.execute(
-            "SELECT book, chapter, verse, updated_at FROM reading_progress WHERE user_id = %s",
-            (user_id,),
-        ).fetchone()
-        events = conn.execute(
-            """
-            SELECT id, ts, book, chapter FROM read_event
-            WHERE user_id = %s AND deleted = false
-            ORDER BY ts DESC
-            LIMIT 2000
-            """,
-            (user_id,),
-        ).fetchall()
+        try:
+            logs = conn.execute(
+                "SELECT date, minutes, chapters FROM reading_log WHERE user_id = %s ORDER BY date",
+                (user_id,),
+            ).fetchall()
+        except Exception as exc:
+            logger.exception("reading_state reading_log 失败: %s", exc)
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        try:
+            progress = conn.execute(
+                "SELECT book, chapter, verse, updated_at FROM reading_progress WHERE user_id = %s",
+                (user_id,),
+            ).fetchone()
+        except Exception as exc:
+            logger.exception("reading_state reading_progress 失败: %s", exc)
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        try:
+            events = conn.execute(
+                """
+                SELECT id, ts, book, chapter FROM read_event
+                WHERE user_id = %s AND deleted = false
+                ORDER BY ts DESC
+                LIMIT 2000
+                """,
+                (user_id,),
+            ).fetchall()
+        except Exception as exc:
+            logger.exception("reading_state read_event 失败（可能未建表）: %s", exc)
+            try:
+                conn.rollback()
+            except Exception:
+                pass
     return {
         "reading_log": [
             {
@@ -138,7 +171,6 @@ def reading_state(user_id: str) -> dict:
             for r in events
         ],
     }
-
 
 # ── PUSH ──────────────────────────────────────────────────────────────────
 def _existing(conn, spec: EntitySpec, user_id: str, keyvals: dict) -> tuple[datetime | None, int | None]:

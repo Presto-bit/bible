@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 对已存在的 Postgres 卷补跑 init 脚本（001–005，幂等）
+# 对已存在的 Postgres 卷补跑 init 脚本（幂等）
 # 用法：cd /opt/bible && bash scripts/ensure_pg_schema.sh
 set -euo pipefail
 
@@ -34,6 +34,7 @@ MIGRATIONS=(
   infra/postgres/init/002_user_sync.sql
   infra/postgres/init/003_social.sql
   infra/postgres/init/003_plan_session.sql
+  infra/postgres/init/003_read_events_badges.sql
   infra/postgres/init/004_accounts.sql
   infra/postgres/init/005_daily_verse_engagement.sql
   infra/postgres/init/006_social_group_meta.sql
@@ -44,12 +45,24 @@ MIGRATIONS=(
   infra/postgres/init/011_group_member_nickname.sql
   infra/postgres/init/012_device_user_binding.sql
   infra/postgres/init/013_accounts_phone.sql
+  infra/postgres/init/013_group_invite.sql
   infra/postgres/init/014_daily_uv.sql
+  infra/postgres/init/015_bible_rag_pgvector.sql
+  infra/postgres/init/016_hero_b_campaign.sql
+  infra/postgres/init/017_ai_request_log.sql
+  infra/postgres/init/018_daily_uv_v2.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do
   [[ -f "$sql" ]] || die "缺少迁移文件: $sql"
   log "应用 $sql"
+  # pgvector 为可选扩展：无扩展时跳过，不阻断后续迁移
+  if [[ "$sql" == *015_bible_rag_pgvector.sql ]]; then
+    if ! "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" < "$sql"; then
+      log "跳过 $sql（可能未安装 vector 扩展）"
+    fi
+    continue
+  fi
   "${compose[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U "$DB_USER" -d "$DB_NAME" < "$sql"
 done
 
@@ -72,8 +85,14 @@ FROM information_schema.columns
 WHERE table_schema = 'public'
   AND table_name = 'plan_progress'
   AND column_name = 'session';
+
+SELECT CASE WHEN COUNT(*) = 2 THEN 'ok' ELSE 'missing' END AS check_read_event_badge
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('read_event', 'badge_unlock');
 SQL
 
 log "完成 — 可验证："
+log "  curl -s 'http://127.0.0.1:8011/sync/pull?since=0' -H 'X-User-Code: 1234567890'"
 log "  curl -s -X POST http://127.0.0.1:8011/content/daily-verse/like -H 'X-User-Code: 1234567890'"
 log "  curl -s http://127.0.0.1:8011/social/groups -H 'X-User-Code: 1234567890'"
