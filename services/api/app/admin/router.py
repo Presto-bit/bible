@@ -16,7 +16,7 @@ from ..config import get_settings
 from ..db import get_pool
 from ..rag.index import index_file
 from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
-from .rag_inventory import build_rag_inventory
+from .rag_inventory import build_rag_inventory, purge_rag_orphans
 from .rag_ops import (
     import_rag_sources,
     index_pending_disk,
@@ -206,6 +206,16 @@ def admin_rag_inventory(_phone: str = Depends(require_admin)) -> dict:
     except Exception as exc:
         logger.exception("admin rag inventory failed")
         raise HTTPException(status_code=503, detail=f"资料清单不可用：{exc}") from exc
+
+
+@router.post("/rag/orphans/purge")
+def admin_purge_rag_orphans(_phone: str = Depends(require_admin)) -> dict:
+    """一键删除孤儿文档（仅库、磁盘无对应文件）。"""
+    try:
+        return purge_rag_orphans()
+    except Exception as exc:
+        logger.exception("admin purge rag orphans failed")
+        raise HTTPException(status_code=500, detail=f"清除孤儿文档失败：{exc}") from exc
 
 
 @router.get("/rag/documents")

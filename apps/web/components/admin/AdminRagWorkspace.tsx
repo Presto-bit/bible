@@ -15,6 +15,7 @@ import {
   indexRagWorkspaceFile,
   mkdirRagWorkspace,
   moveRagWorkspace,
+  purgeRagOrphans,
   saveRagWorkspaceFile,
   uploadRagDocument,
   type RagInventoryStatus,
@@ -352,6 +353,25 @@ export default function AdminRagWorkspace() {
     });
   };
 
+  const onPurgeOrphans = async () => {
+    const count = tree?.orphans?.length ?? 0;
+    if (!count) {
+      setMsg('没有孤儿文档');
+      return;
+    }
+    if (
+      !window.confirm(
+        `确定一键删除 ${count} 条孤儿文档（仅数据库、磁盘无文件）？此操作不可恢复。`,
+      )
+    ) {
+      return;
+    }
+    await run('清除孤儿', async () => {
+      const r = await purgeRagOrphans();
+      return `已删除 ${r.deleted} 条孤儿文档`;
+    });
+  };
+
   const onUpload = async (fileList: FileList | null) => {
     const f = fileList?.[0];
     if (!f) return;
@@ -594,13 +614,28 @@ export default function AdminRagWorkspace() {
           )}
           {tree?.orphans?.length ? (
             <div className="admin-notion-orphans">
-              <p className="admin-notion-group-label">孤儿文档（仅库）</p>
+              <div className="admin-notion-orphans-head">
+                <p className="admin-notion-group-label">孤儿文档（仅库）</p>
+                <button
+                  type="button"
+                  className="font-pill admin-notion-orphan-purge"
+                  disabled={busy}
+                  onClick={() => void onPurgeOrphans()}
+                >
+                  一键删除
+                </button>
+              </div>
               {tree.orphans.slice(0, 20).map((o) => (
                 <div key={o.id} className="admin-notion-row is-file" style={{ paddingLeft: 22 }}>
                   <StatusDot status="orphan" />
                   <span className="admin-ws-tree-name">{o.title}</span>
                 </div>
               ))}
+              {tree.orphans.length > 20 ? (
+                <p className="muted" style={{ fontSize: 12, padding: '4px 8px' }}>
+                  另有 {tree.orphans.length - 20} 条未展开，一键删除会全部清除
+                </p>
+              ) : null}
             </div>
           ) : null}
         </div>

@@ -563,6 +563,15 @@ export async function deleteRagDocument(id: string): Promise<void> {
   if (!res.ok) throw new Error(await readApiError(res, '删除失败'));
 }
 
+export async function purgeRagOrphans(): Promise<{ ok: boolean; deleted: number; ids: string[] }> {
+  const res = await fetch(`${API_BASE}/admin/rag/orphans/purge`, {
+    method: 'POST',
+    headers: adminHeaders(),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '清除孤儿文档失败'));
+  return (await res.json()) as { ok: boolean; deleted: number; ids: string[] };
+}
+
 export async function reindexRagDocument(id: string): Promise<string> {
   const res = await fetch(`${API_BASE}/admin/rag/documents/${encodeURIComponent(id)}/reindex`, {
     method: 'POST',

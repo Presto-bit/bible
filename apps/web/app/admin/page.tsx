@@ -2,6 +2,7 @@
 
 import PageBackBar from '@/components/PageBackBar';
 import AdminCommandPalette, { type AdminTab } from '@/components/admin/AdminCommandPalette';
+import AdminPcNav from '@/components/admin/AdminPcNav';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -89,38 +90,37 @@ function AdminPageInner() {
   return (
     <main className="page admin-page admin-console">
       <div className="admin-shell">
-        <aside className="admin-pc-nav" aria-label="PC 导航">
-          <div className="admin-pc-brand">
-            <strong>管理后台</strong>
-            <span className="muted">Desktop</span>
-          </div>
-          <nav className="admin-pc-nav-list">
-            {NAV.map((n) => (
-              <button
-                key={n.id}
-                type="button"
-                className={`admin-pc-nav-item ${tab === n.id ? 'is-active' : ''}`}
-                onClick={() => goTab(n.id)}
-              >
-                <span className="admin-pc-nav-label">{n.label}</span>
-                <span className="admin-pc-nav-desc">{n.desc}</span>
+        <AdminPcNav
+          items={NAV.map((n) => ({
+            ...n,
+            active: tab === n.id,
+            onClick: () => goTab(n.id),
+          }))}
+          foot={
+            <>
+              <button type="button" className="admin-pc-nav-ghost" onClick={() => setCmdOpen(true)}>
+                <span className="admin-pc-nav-ghost-icon" aria-hidden>
+                  ⌕
+                </span>
+                <span className="admin-pc-nav-ghost-label">搜索 ⌘K</span>
               </button>
-            ))}
-          </nav>
-          <div className="admin-pc-nav-foot">
-            <button type="button" className="admin-pc-nav-ghost" onClick={() => setCmdOpen(true)}>
-              搜索 ⌘K
-            </button>
-            <a className="admin-pc-nav-ghost" href="/profile">
-              返回我的
-            </a>
-            {loggedIn ? (
-              <button type="button" className="admin-pc-nav-ghost" onClick={handleLogout}>
-                退出
-              </button>
-            ) : null}
-          </div>
-        </aside>
+              <a className="admin-pc-nav-ghost" href="/profile">
+                <span className="admin-pc-nav-ghost-icon" aria-hidden>
+                  ←
+                </span>
+                <span className="admin-pc-nav-ghost-label">返回我的</span>
+              </a>
+              {loggedIn ? (
+                <button type="button" className="admin-pc-nav-ghost" onClick={handleLogout}>
+                  <span className="admin-pc-nav-ghost-icon" aria-hidden>
+                    ⎋
+                  </span>
+                  <span className="admin-pc-nav-ghost-label">退出</span>
+                </button>
+              ) : null}
+            </>
+          }
+        />
 
         <div className="admin-shell-main">
           <div className="admin-mobile-chrome">

@@ -325,14 +325,18 @@ export default function AdminOpsHeroPanel() {
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
           列表 · 手机预览 · 属性面板。无活动时首页只展示每日经文。
         </p>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button type="button" className="btn" onClick={() => startEdit()}>新建活动</button>
-          <button type="button" className="text-link" onClick={() => void load()}>刷新</button>
-        </div>
+        <button type="button" className="text-link" onClick={() => void load()}>
+          刷新
+        </button>
       </div>
 
       <div className="admin-ops-studio-body">
         <aside className="admin-ops-studio-list">
+          <div className="admin-ops-studio-list-actions">
+            <button type="button" className="btn" onClick={() => startEdit()}>
+              新建活动
+            </button>
+          </div>
           <div className="admin-ops-studio-filters">
             {([
               ['all', '全部'],
@@ -403,8 +407,7 @@ export default function AdminOpsHeroPanel() {
         <section className="admin-ops-studio-props">
           {!editing ? (
             <div className="admin-ops-pc-editor-empty">
-              <p className="muted">选择左侧活动，或新建</p>
-              <button type="button" className="btn" onClick={() => startEdit()}>新建活动</button>
+              <p className="muted">选择左侧活动，或点击左侧「新建活动」</p>
             </div>
           ) : (
             <>

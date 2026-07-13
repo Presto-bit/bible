@@ -12,6 +12,7 @@ import {
   indexPendingUploads,
   indexRagCollections,
   indexUploadFile,
+  purgeRagOrphans,
   RAG_SOURCE_TYPES,
   ragSourceTypeLabel,
   reindexRagDocument,
@@ -635,6 +636,28 @@ export default function AdminRagPanel({
     }
   };
 
+  const handlePurgeOrphans = async () => {
+    const count = inventory?.orphans?.length ?? 0;
+    if (!count) {
+      setUploadOk('没有孤儿文档');
+      return;
+    }
+    if (!window.confirm(`确定一键删除 ${count} 条孤儿文档（仅数据库）？此操作不可恢复。`)) return;
+    setBusy(true);
+    setErr(null);
+    setUploadOk(null);
+    try {
+      const r = await purgeRagOrphans();
+      setUploadOk(`已删除 ${r.deleted} 条孤儿文档`);
+      clearSelection();
+      await refresh();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '清除孤儿文档失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleImportSources = async () => {
     setBusy(true);
     setErr(null);
@@ -987,6 +1010,14 @@ export default function AdminRagPanel({
                       {inventory.orphans.filter((d) => typeFilter === 'all' || d.source_type === typeFilter).length} 条记录找不到对应 md 文件
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy}
+                    onClick={() => void handlePurgeOrphans()}
+                  >
+                    一键删除
+                  </button>
                 </div>
                 <div className="admin-rag-doc-list">
                   {inventory.orphans

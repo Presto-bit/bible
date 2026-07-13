@@ -376,3 +376,29 @@ def build_rag_inventory() -> dict:
         "collections": collections,
         "orphans": orphans,
     }
+
+
+def list_orphan_document_ids() -> list[str]:
+    """返回仅存在于数据库、磁盘无对应文件的文档 ID。"""
+    inv = build_rag_inventory()
+    if inv.get("db_error"):
+        raise RuntimeError(inv["db_error"])
+    return [str(o["id"]) for o in (inv.get("orphans") or []) if o.get("id")]
+
+
+def purge_rag_orphans() -> dict:
+    """删除所有孤儿文档（chunks 随 FK CASCADE 清理）。"""
+    from ..db import get_pool
+
+    ids = list_orphan_document_ids()
+    if not ids:
+        return {"ok": True, "deleted": 0, "ids": []}
+
+    pool = get_pool()
+    with pool.connection() as conn:
+        conn.execute(
+            "DELETE FROM bible_documents WHERE id = ANY(%s::uuid[])",
+            (ids,),
+        )
+        conn.commit()
+    return {"ok": True, "deleted": len(ids), "ids": ids}
