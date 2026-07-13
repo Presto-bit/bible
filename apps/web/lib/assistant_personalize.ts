@@ -6,13 +6,20 @@ import {
   SCENES,
   type AssistantScene,
 } from './assistant_scenes';
-import { bookIdToChineseName } from './ref_label';
 
 export interface AssistantChip {
   label: string;
   mode: string;
   scene: AssistantScene;
   q: string;
+}
+
+function chip(
+  label: string,
+  scene: AssistantScene,
+  q: string,
+): AssistantChip {
+  return { label, scene, mode: SCENES[scene].mode, q };
 }
 
 export function personalizedAssistantChips(opts: {
@@ -22,67 +29,47 @@ export function personalizedAssistantChips(opts: {
   streak?: number;
 }): AssistantChip[] {
   const anchor = opts.ref || opts.dailyVerseRef || '';
-  const last = getLastRead();
   const refLabel = anchor || undefined;
-
   const chips: AssistantChip[] = [];
 
   if (anchor) {
-    chips.push({
-      label: '经文背景',
-      scene: 'chat_explain',
-      mode: SCENES.chat_explain.mode,
-      q: chipUserQuestion('解释经文', refLabel),
-    });
-    chips.push({
-      label: '生活应用',
-      scene: 'chat_apply',
-      mode: SCENES.chat_apply.mode,
-      q: chipUserQuestion('生活应用', refLabel),
-    });
-  } else if (last) {
-    chips.push({
-      label: '续读导读',
-      scene: 'chat_explain',
-      mode: SCENES.chat_explain.mode,
-      q: `我上次读到 ${bookIdToChineseName(last.bookId)} 第 ${last.chapter} 章，请帮我预习下一章的核心信息与默想问题。`,
-    });
-    chips.push({
-      label: '生活应用',
-      scene: 'chat_apply',
-      mode: SCENES.chat_apply.mode,
-      q: chipUserQuestion('生活应用'),
-    });
+    chips.push(
+      chip('经文背景', 'chat_explain', chipUserQuestion('解释经文', refLabel)),
+      chip('生活应用', 'chat_apply', chipUserQuestion('生活应用', refLabel)),
+      chip('预备查经', 'chat_study', chipUserQuestion('预备查经', refLabel)),
+      chip('译本对照', 'chat_compare', chipUserQuestion('译本对照', refLabel)),
+    );
   } else {
-    chips.push({
-      label: '今日默想',
-      scene: 'chat_apply',
-      mode: SCENES.chat_apply.mode,
-      q: `根据今日经文${opts.dailyTheme ? `（主题：${opts.dailyTheme}）` : ''}，请给我 3 个适合个人的默想问题。`,
-    });
-    chips.push({
-      label: '信仰问答',
-      scene: 'chat_understand',
-      mode: SCENES.chat_understand.mode,
-      q: '作为读经初学者，请用浅显的中文解释「因信称义」是什么意思。',
-    });
+    chips.push(
+      chip(
+        '今日默想',
+        'chat_apply',
+        `根据今日经文${opts.dailyTheme ? `（主题：${opts.dailyTheme}）` : ''}，请给我 3 个适合个人的默想问题。`,
+      ),
+      chip('生活应用', 'chat_apply', chipUserQuestion('生活应用', refLabel)),
+      chip('信仰问答', 'chat_understand', '作为读经初学者，请用浅显的中文解释「因信称义」是什么意思。'),
+      chip('预备查经', 'chat_study', chipUserQuestion('预备查经', refLabel)),
+    );
+    // 有续读位置时仍给平行 pill，但不使用「续读导读」
+    if (getLastRead()) {
+      chips.push(chip('解释经文', 'chat_explain', chipUserQuestion('解释经文', refLabel)));
+    }
   }
 
   if ((opts.streak ?? 0) >= 7) {
-    chips.push({
-      label: '坚持鼓励',
-      scene: 'chat_apply',
-      mode: SCENES.chat_apply.mode,
-      q: `我已连续读经 ${opts.streak} 天，请根据这段属灵旅程给我一段鼓励与下一步建议。`,
-    });
-  } else if (!chips.some((c) => c.label === '生活应用')) {
-    chips.push({
-      label: '生活应用',
-      scene: 'chat_apply',
-      mode: SCENES.chat_apply.mode,
-      q: chipUserQuestion('生活应用', refLabel),
-    });
+    chips.push(
+      chip(
+        '坚持鼓励',
+        'chat_apply',
+        `我已连续读经 ${opts.streak} 天，请根据这段属灵旅程给我一段鼓励与下一步建议。`,
+      ),
+    );
   }
 
-  return chips.slice(0, 4);
+  const seen = new Set<string>();
+  return chips.filter((c) => {
+    if (seen.has(c.label)) return false;
+    seen.add(c.label);
+    return true;
+  }).slice(0, 6);
 }

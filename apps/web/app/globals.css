@@ -3780,14 +3780,76 @@ a.today-card-link {
 }
 
 .profile-page .profile-block-label {
-  margin-top: 16px;
-  margin-bottom: 10px;
+  margin-top: 22px;
+  margin-bottom: 14px;
 }
 
 .profile-page .profile-soft-stack {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.profile-page .profile-streak-title {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.profile-page .profile-streak-flame {
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  margin-right: 2px;
+  vertical-align: -1px;
+}
+
+.profile-page .profile-meta-line .profile-streak-flame {
+  font-size: 12px;
+  margin-right: 3px;
+}
+
+.profile-page .profile-badge-card {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  padding: 16px 16px 14px;
+  margin: 0;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+}
+
+.profile-page .profile-badge-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.profile-page .profile-badge-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.profile-page .profile-badge-preview {
+  margin: 0;
+  min-height: 72px;
+}
+
+.profile-page .profile-badge-preview .badge-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 26px;
+  font-size: 24px;
 }
 
 .profile-page .profile-soft-row.card,
@@ -4172,6 +4234,11 @@ body.assistant-active .assistant-page {
   gap: 8px;
   justify-content: center;
   margin-top: 4px;
+  max-width: 340px;
+}
+
+.empty-pills .font-pill {
+  flex: 0 0 auto;
 }
 
 .assistant-title-btn {
@@ -5921,24 +5988,72 @@ body.verse-full-open .tabbar {
 .avatar-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 8px;
-  max-height: 280px;
+  gap: 10px;
+  max-height: min(42vh, 320px);
   overflow-y: auto;
-  margin-top: 10px;
-  padding: 2px;
+  margin-top: 12px;
+  padding: 4px 2px 8px;
 }
 
 .avatar-cell {
-  border: 2px solid transparent;
+  border: none;
   background: none;
-  padding: 2px;
-  border-radius: 50%;
+  padding: 0;
+  border-radius: 16px;
   cursor: pointer;
   line-height: 0;
 }
 
-.avatar-cell-active {
-  border-color: var(--accent-deep);
+.avatar-cell-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ink-faint) 8%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-faint) 16%, transparent);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.avatar-cell-active .avatar-cell-frame {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  box-shadow: inset 0 0 0 2px var(--accent-deep);
+}
+
+.avatar-cell-check {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent-deep);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+}
+
+.sheet-backdrop-above-tab {
+  z-index: 120;
+  padding-bottom: calc(var(--tabbar-h) + 8px);
+  box-sizing: border-box;
+}
+
+.avatar-picker-sheet {
+  margin-bottom: 0;
+  max-height: min(70vh, 520px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.avatar-picker-sheet .avatar-grid {
+  flex: 1;
+  min-height: 0;
 }
 
 /* ─── 底部 sheet ─── */

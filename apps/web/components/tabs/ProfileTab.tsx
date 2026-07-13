@@ -295,7 +295,14 @@ export default function ProfileTab() {
             </button>
           )}
           <p className="profile-meta-line muted">
-            {streak > 0 ? `连续 ${streak} 天` : '开始连续读经'}
+            {streak > 0 ? (
+              <>
+                <span className="streak-flame profile-streak-flame" aria-hidden>🔥</span>
+                连续 {streak} 天
+              </>
+            ) : (
+              '开始连续读经'
+            )}
             {idValue && !accountComplete ? (
               <>
                 {' · '}
@@ -329,8 +336,15 @@ export default function ProfileTab() {
         <Link href="/report" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
           <span className="pill pill-active">成长</span>
           <span className="home-list-main">
-            <strong>
-              {streak > 0 ? `连续 ${streak} 天` : '读经回顾'}
+            <strong className="profile-streak-title">
+              {streak > 0 ? (
+                <>
+                  <span className="streak-flame profile-streak-flame" aria-hidden>🔥</span>
+                  连续 {streak} 天
+                </>
+              ) : (
+                '读经回顾'
+              )}
               {' · '}
               今日 {mins} 分钟
             </strong>
@@ -341,26 +355,40 @@ export default function ProfileTab() {
 
         <button
           type="button"
-          className="card row-card home-list-row home-list-row-wrap profile-soft-row profile-badge-row"
+          className="card profile-badge-card"
           onClick={() => setBadgeOpen(true)}
         >
-          <span className="pill">成就</span>
-          <span className="home-list-main">
-            <strong>
+          <div className="profile-badge-card-head">
+            <span className="profile-badge-card-title">成就</span>
+            <span className="muted">
               {badges.length
-                ? `已收集 ${badges.filter((b) => b.done).length}/${badges.length}`
-                : '成就徽章'}
-            </strong>
-            <span className="muted home-list-sub">
-              {(() => {
-                if (!badges.length) return '加载中…';
-                const preview = profilePreviewBadges(badges, 4);
-                if (!preview.length) return '继续读经解锁徽章';
-                return preview.map((b) => b.icon).join(' ');
-              })()}
+                ? `已收集 ${badges.filter((b) => b.done).length}/${badges.length} ›`
+                : '查看全部 ›'}
             </span>
-          </span>
-          <span className="muted home-list-chevron">›</span>
+          </div>
+          <div className="badge-row profile-badge-preview">
+            {(() => {
+              if (!badges.length) {
+                return <span className="muted" style={{ fontSize: 12 }}>加载中…</span>;
+              }
+              const preview = profilePreviewBadges(badges, 4);
+              if (!preview.length) {
+                return (
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    读经、探索与小爱互动，解锁第一枚徽章
+                  </span>
+                );
+              }
+              return preview.map((b) => (
+                <div key={b.id} className="badge-item">
+                  <div className={`badge-circle ${b.done ? 'badge-done' : ''}`}>
+                    {b.icon}
+                  </div>
+                  <span>{b.label}</span>
+                </div>
+              ));
+            })()}
+          </div>
         </button>
       </div>
 
@@ -545,9 +573,17 @@ export default function ProfileTab() {
       ) : null}
 
       {pickerOpen && (
-        <div className="sheet-backdrop" onClick={() => setPickerOpen(false)}>
-          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>选择头像</h3>
+        <div
+          className="sheet-backdrop sheet-backdrop-above-tab"
+          onClick={() => setPickerOpen(false)}
+        >
+          <div
+            className="sheet card avatar-picker-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-labelledby="avatar-picker-title"
+          >
+            <h3 id="avatar-picker-title" style={{ marginTop: 0 }}>选择头像</h3>
             <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>
               {PRESET_AVATARS.length} 款预设 · 圣经主题插画
             </p>
@@ -558,9 +594,15 @@ export default function ProfileTab() {
                   type="button"
                   className={`avatar-cell ${a.id === avatarId ? 'avatar-cell-active' : ''}`}
                   title={a.label}
+                  aria-pressed={a.id === avatarId}
                   onClick={() => chooseAvatar(a.id)}
                 >
-                  <Avatar id={a.id} size={44} />
+                  <span className="avatar-cell-frame">
+                    <Avatar id={a.id} size={44} />
+                    {a.id === avatarId ? (
+                      <span className="avatar-cell-check" aria-hidden>✓</span>
+                    ) : null}
+                  </span>
                 </button>
               ))}
             </div>

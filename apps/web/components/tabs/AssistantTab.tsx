@@ -138,14 +138,28 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   );
   const sessionGroups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
   const composerChips = useMemo(() => {
-    const merged = [...personalized.slice(0, 2), ...staticAssistantChips(ref || undefined)];
+    const merged = [...personalized, ...staticAssistantChips(ref || undefined)];
     const seen = new Set<string>();
     return merged.filter((c) => {
+      if (c.label === '续读导读') return false;
       if (seen.has(c.label)) return false;
       seen.add(c.label);
       return true;
     });
   }, [personalized, ref]);
+
+  const emptyPrimary = useMemo(() => {
+    const prefer = personalized.find((c) =>
+      c.label === '今日默想' || c.label === '经文背景',
+    );
+    return prefer ?? personalized[0] ?? composerChips[0] ?? null;
+  }, [personalized, composerChips]);
+
+  const emptyPills = useMemo(() => {
+    const skip = emptyPrimary?.label;
+    return composerChips.filter((c) => c.label !== skip).slice(0, 8);
+  }, [composerChips, emptyPrimary]);
+
   const readerHref = useMemo(() => (ref ? readerHrefFromRef(ref) : null), [ref]);
 
   useEffect(() => {
@@ -894,28 +908,28 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 <p className="muted assistant-empty-desc">
                   查经文、解经义、整理笔记。需要联网。
                 </p>
-                {personalized[0] ? (
+                {emptyPrimary ? (
                   <button
                     type="button"
                     className="btn assistant-empty-primary"
                     disabled={busy}
                     onClick={() =>
                       send(
-                        personalized[0].q,
-                        personalized[0].mode,
+                        emptyPrimary.q,
+                        emptyPrimary.mode,
                         undefined,
-                        personalized[0].label,
-                        personalized[0].scene,
+                        emptyPrimary.label,
+                        emptyPrimary.scene,
                       )
                     }
                   >
-                    {personalized[0].label === '今日默想' || personalized[0].label === '经文背景'
+                    {emptyPrimary.label === '今日默想' || emptyPrimary.label === '经文背景'
                       ? '聊聊今日经文'
-                      : personalized[0].label}
+                      : emptyPrimary.label}
                   </button>
                 ) : null}
                 <div className="empty-pills">
-                  {personalized.slice(1).map((c) => (
+                  {emptyPills.map((c) => (
                     <button
                       key={c.label}
                       type="button"
