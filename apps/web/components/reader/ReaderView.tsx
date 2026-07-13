@@ -18,6 +18,7 @@ import { SectionTitle } from '@/components/reader/SectionTitle';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import ThoughtHubSheet from '@/components/reader/ThoughtHubSheet';
 import ReaderSheetPortal from '@/components/reader/ReaderSheetPortal';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
@@ -2874,13 +2875,15 @@ export default function ReaderView({
       )}
 
       {bookCelebrate && (
-        <div className="book-complete-overlay" onClick={() => setBookCelebrate(false)}>
-          <div className="book-complete-card">
-            <span className="book-complete-icon">📖</span>
-            <strong>读完 {book.name}！</strong>
-            <p className="muted">愿话语继续在你心里动工</p>
+        <AppBodyPortal>
+          <div className="book-complete-overlay" onClick={() => setBookCelebrate(false)}>
+            <div className="book-complete-card">
+              <span className="book-complete-icon">📖</span>
+              <strong>读完 {book.name}！</strong>
+              <p className="muted">愿话语继续在你心里动工</p>
+            </div>
           </div>
-        </div>
+        </AppBodyPortal>
       )}
 
       {locPopoverOpen && (
@@ -2908,74 +2911,76 @@ export default function ReaderView({
       )}
 
       {showVersions && (
-        <div className="version-pop-backdrop" onClick={() => setShowVersions(false)}>
-          <div className="version-pop card" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>{ui.pickVersion}</h3>
-            <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{ui.versionHint}</p>
-            {(versions ?? []).map((vv) => {
-              const primaryId = versions?.find((v) => v.primary)?.id ?? 'cnv';
-              const checked = checkedVers.includes(vv.id);
-              return (
-                <button
-                  key={vv.id}
-                  type="button"
-                  className={`version-row ${checked ? 'version-row-active' : ''}`}
-                  disabled={!vv.available}
-                  onClick={() => {
-                    let next = [...checkedVers];
-                    if (checked) {
-                      if (vv.primary && next.length === 1) return;
-                      next = next.filter((x) => x !== vv.id);
-                      if (next.length === 0) next = [primaryId];
-                    } else if (next.length < 2) {
-                      next.push(vv.id);
-                    } else {
-                      next = [next[0], vv.id];
-                    }
-                    setCheckedVers(next);
-                    const primary = versions?.find((v) => v.primary);
-                    const primaryLabel = primary?.label ?? (englishUI ? 'Chinese Union' : '和合本');
-                    if (next.length === 1) {
-                      const id = next[0];
-                      if (id === primaryId) {
+        <AppBodyPortal>
+          <div className="version-pop-backdrop" onClick={() => setShowVersions(false)}>
+            <div className="version-pop card" onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0 }}>{ui.pickVersion}</h3>
+              <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>{ui.versionHint}</p>
+              {(versions ?? []).map((vv) => {
+                const primaryId = versions?.find((v) => v.primary)?.id ?? 'cnv';
+                const checked = checkedVers.includes(vv.id);
+                return (
+                  <button
+                    key={vv.id}
+                    type="button"
+                    className={`version-row ${checked ? 'version-row-active' : ''}`}
+                    disabled={!vv.available}
+                    onClick={() => {
+                      let next = [...checkedVers];
+                      if (checked) {
+                        if (vv.primary && next.length === 1) return;
+                        next = next.filter((x) => x !== vv.id);
+                        if (next.length === 0) next = [primaryId];
+                      } else if (next.length < 2) {
+                        next.push(vv.id);
+                      } else {
+                        next = [next[0], vv.id];
+                      }
+                      setCheckedVers(next);
+                      const primary = versions?.find((v) => v.primary);
+                      const primaryLabel = primary?.label ?? (englishUI ? 'Chinese Union' : '和合本');
+                      if (next.length === 1) {
+                        const id = next[0];
+                        if (id === primaryId) {
+                          setMainVersionId(null);
+                          setMainVersion(null);
+                          setLayout('single');
+                          setReadingLayout('single');
+                          setVersionLabel(primary?.label ?? primaryLabel);
+                        } else {
+                          setMainVersionId(id);
+                          setMainVersion(id);
+                          setLayout('single');
+                          setReadingLayout('single');
+                          const v = versions?.find((x) => x.id === id);
+                          setVersionLabel(v?.label ?? id.toUpperCase());
+                        }
+                      } else {
+                        const compareId = next.find((x) => x !== primaryId) ?? 'kjv';
+                        const compare = versions?.find((v) => v.id === compareId);
                         setMainVersionId(null);
                         setMainVersion(null);
-                        setLayout('single');
-                        setReadingLayout('single');
-                        setVersionLabel(primary?.label ?? primaryLabel);
-                      } else {
-                        setMainVersionId(id);
-                        setMainVersion(id);
-                        setLayout('single');
-                        setReadingLayout('single');
-                        const v = versions?.find((x) => x.id === id);
-                        setVersionLabel(v?.label ?? id.toUpperCase());
+                        setParallelVer(compareId);
+                        setParallelVersion(compareId);
+                        setLayout('parallel');
+                        setReadingLayout('parallel');
+                        setVersionLabel(`${primaryLabel} · ${compare?.label ?? compareId.toUpperCase()}`);
                       }
-                    } else {
-                      const compareId = next.find((x) => x !== primaryId) ?? 'kjv';
-                      const compare = versions?.find((v) => v.id === compareId);
-                      setMainVersionId(null);
-                      setMainVersion(null);
-                      setParallelVer(compareId);
-                      setParallelVersion(compareId);
-                      setLayout('parallel');
-                      setReadingLayout('parallel');
-                      setVersionLabel(`${primaryLabel} · ${compare?.label ?? compareId.toUpperCase()}`);
-                    }
-                  }}
-                >
-                  <span>{vv.label}</span>
-                  <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>
-                    {checked ? '✓' : vv.primary ? (englishUI ? 'Default' : '默认') : ''}
-                  </span>
-                </button>
-              );
-            })}
-            <button type="button" className="btn" style={{ width: '100%', marginTop: 12 }} onClick={() => setShowVersions(false)}>
-              {englishUI ? 'Done' : '完成'}
-            </button>
+                    }}
+                  >
+                    <span>{vv.label}</span>
+                    <span className="muted" style={{ fontSize: 11, marginLeft: 8 }}>
+                      {checked ? '✓' : vv.primary ? (englishUI ? 'Default' : '默认') : ''}
+                    </span>
+                  </button>
+                );
+              })}
+              <button type="button" className="btn" style={{ width: '100%', marginTop: 12 }} onClick={() => setShowVersions(false)}>
+                {englishUI ? 'Done' : '完成'}
+              </button>
+            </div>
           </div>
-        </div>
+        </AppBodyPortal>
       )}
 
       {groupCheckinOpen && (

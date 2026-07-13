@@ -248,7 +248,7 @@ html.pwa-standalone a[href] {
     0 2px 8px rgba(15, 23, 42, 0.06),
     inset 0 0 0 1px rgba(255, 255, 255, 0.72);
   transform: translateX(-50%);
-  transition: transform 0.28s ease, opacity 0.28s ease;
+  transition: transform 0.28s ease, opacity 0.28s ease, bottom 0.28s ease;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -5438,13 +5438,9 @@ body.assistant-active .assistant-page {
   padding-bottom: 8px;
 }
 
-/* 键盘打开：收起浮动 Tab，页面贴合 visualViewport，避免底栏错位 */
+/* 键盘打开：用 bottom 滑出（保留 translateX 居中），避免改 transform 导致收起后底栏卡在半空 */
 body.assistant-keyboard .tabbar {
-  transform: translate3d(
-    -50%,
-    calc(100% + var(--tabbar-float-gap) + var(--tabbar-safe) + 16px),
-    0
-  );
+  bottom: calc(-1 * (var(--tabbar-h) + 16px));
   opacity: 0;
   pointer-events: none;
 }
@@ -7299,7 +7295,7 @@ body.verse-full-open .tabbar {
 }
 
 /* ─── 底部 sheet ─── */
-/* 层级：tabbar 90 · reader-focus-bar 60 · sheet-backdrop 100 · citation 200 */
+/* 层级：tabbar 90 · focus/fab 80 · sheet-backdrop 100 · reader-sheet 110 · citation 200 */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
@@ -8413,7 +8409,7 @@ body.reader-active .proper-noun--artifact {
 .reader-fab-stack {
   position: fixed;
   right: 16px;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 8px);
+  bottom: calc(var(--tabbar-h) + 8px);
   z-index: 80;
   display: flex;
   flex-direction: column;
@@ -9550,13 +9546,13 @@ a.license-row-name:hover {
 .plus-menu-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: 100;
   background: transparent;
 }
 
 .plus-menu-pop {
   position: fixed;
-  z-index: 91;
+  z-index: 101;
   min-width: 168px;
   max-width: min(200px, calc(100vw - 24px));
   padding: 4px 0;
@@ -11721,9 +11717,9 @@ a.license-row-name:hover {
 .reader-focus-bar {
   position: fixed;
   left: 50%;
-  bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 10px);
+  bottom: calc(var(--tabbar-h) + 10px);
   transform: translateX(-50%);
-  z-index: 60;
+  z-index: 80;
   display: flex;
   gap: 2px;
   padding: 6px 8px;
@@ -11943,8 +11939,9 @@ a.license-row-name:hover {
   gap: 8px;
 }
 
+/* portal 后沿用 .sheet-backdrop(100)，勿再压到 tabbar 下 */
 .plan-reflection-backdrop {
-  z-index: 60;
+  z-index: 110;
 }
 
 .plan-reflection-sheet {
@@ -14229,7 +14226,7 @@ a.feed-verse-hero:active {
 }
 
 .group-settings-backdrop {
-  z-index: 90;
+  z-index: 110;
 }
 
 .group-settings-sheet {
@@ -15416,7 +15413,7 @@ button.card:active,
 }
 
 .group-composer-backdrop {
-  z-index: 90;
+  z-index: 110;
 }
 
 .group-toast {
@@ -15634,10 +15631,10 @@ button.card:active,
 .plan-day-complete-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--tabbar-h) + 16px);
   transform: translateX(-50%);
   width: min(360px, calc(100vw - 36px));
-  z-index: 55;
+  z-index: 110;
   box-shadow: var(--elev-2, 0 8px 24px rgba(0, 0, 0, 0.12));
   animation: plan-celebrate-in 0.28s ease;
 }
@@ -15862,9 +15859,9 @@ button.card:active,
 .plan-plan-complete-sheet {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--tabbar-h) + 12px);
   transform: translateX(-50%);
-  z-index: 90;
+  z-index: 110;
   width: min(92vw, 400px);
   padding: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
@@ -18235,7 +18232,7 @@ html.app-theme-dark body {
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--tabbar-h) + 12px);
   max-width: 688px;
   margin: 0 auto;
   z-index: 50;

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook } from '@/lib/api';
 import { bookProgressMap, lastChapterOf, type BookProgress } from '@/lib/reading';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 const BOOK_ABBR: Record<string, string> = {
   创世记: '创', 出埃及记: '出', 利未记: '利', 民数记: '民', 申命记: '申',
@@ -138,22 +139,24 @@ export default function ReadingProgress() {
       </button>
 
       {open && (
-        <div className="sheet-backdrop" onClick={() => setOpen(false)}>
-          <div
-            className="sheet card"
-            style={{ maxHeight: '88vh', overflowY: 'auto' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <h3 style={{ margin: 0 }}>读经目录</h3>
-              <button type="button" className="text-link" onClick={() => setOpen(false)}>
-                关闭
-              </button>
+        <AppBodyPortal>
+          <div className="sheet-backdrop" onClick={() => setOpen(false)}>
+            <div
+              className="sheet card"
+              style={{ maxHeight: '88vh', overflowY: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="section-row" style={{ marginTop: 0 }}>
+                <h3 style={{ margin: 0 }}>读经目录</h3>
+                <button type="button" className="text-link" onClick={() => setOpen(false)}>
+                  关闭
+                </button>
+              </div>
+              {ot.length > 0 && renderGroup('旧约', ot)}
+              {nt.length > 0 && renderGroup('新约', nt)}
             </div>
-            {ot.length > 0 && renderGroup('旧约', ot)}
-            {nt.length > 0 && renderGroup('新约', nt)}
           </div>
-        </div>
+        </AppBodyPortal>
       )}
     </>
   );

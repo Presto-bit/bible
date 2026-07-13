@@ -10,6 +10,7 @@ import {
 } from '@/lib/group_checkin';
 import { recordGroupCheckin } from '@/lib/badge_events';
 import { formatGroupRefLabel } from '@/lib/ref_label';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 type Props = {
   bookId: string;
@@ -86,8 +87,9 @@ export default function GroupCheckinSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet card group-checkin-sheet group-checkin-compact" onClick={(e) => e.stopPropagation()}>
+    <AppBodyPortal>
+      <div className="sheet-backdrop" onClick={onClose}>
+        <div className="sheet card group-checkin-sheet group-checkin-compact" onClick={(e) => e.stopPropagation()}>
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong style={{ fontSize: 15 }}>打卡到共读群</strong>
@@ -181,5 +183,6 @@ export default function GroupCheckinSheet({
         {err && <p className="group-composer-err" role="alert">{err}</p>}
       </div>
     </div>
+    </AppBodyPortal>
   );
 }

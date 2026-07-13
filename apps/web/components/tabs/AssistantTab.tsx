@@ -42,6 +42,7 @@ import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { HistorySessionSwipeRow } from '@/components/assistant/HistorySessionSwipeRow';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import {
   AssistantThinkingState,
   type ThinkingPhase,
@@ -308,51 +309,114 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
   }, [paneActive]);
 
-  /** iOS：键盘顶起后 fixed 底栏常错位；开键盘时收起 Tab，关键盘时强制复位 */
+  /** iOS：键盘顶起后 fixed 底栏常错位；开键盘时收起 Tab，关键盘时强制回到原固定位置 */
   useEffect(() => {
     if (!paneActive) return;
     const vv = window.visualViewport;
     if (!vv) return;
 
     let lastOpen = false;
+    let composerFocused = false;
+    const resetTimers: number[] = [];
+
+    const clearResetTimers = () => {
+      while (resetTimers.length) {
+        window.clearTimeout(resetTimers.pop());
+      }
+    };
+
     const resetTabbar = () => {
       const bar = document.querySelector<HTMLElement>('.tabbar');
       if (!bar) return;
-      bar.style.removeProperty('bottom');
+      document.body.classList.remove('assistant-keyboard');
+      document.documentElement.style.removeProperty('--assistant-vv-h');
+      // 先关掉过渡，硬写回原位，避免 iOS 在 viewport 动画中把 fixed 底栏卡在半空
+      bar.style.setProperty('transition', 'none');
+      bar.style.setProperty('transform', 'translateX(-50%)');
+      bar.style.setProperty('bottom', 'calc(var(--tabbar-float-gap) + var(--tabbar-safe))');
+      bar.style.setProperty('opacity', '1');
+      bar.style.pointerEvents = '';
       bar.style.removeProperty('top');
-      bar.style.removeProperty('transform');
-      // 触发一次重排，避免 iOS 键盘收起后仍停在错误 offset
       void bar.offsetHeight;
+      // iOS 偶发需切换 position 才能让 fixed 相对布局视口重新锚定
+      bar.style.setProperty('position', 'absolute');
+      void bar.offsetHeight;
+      bar.style.setProperty('position', 'fixed');
       window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      requestAnimationFrame(() => {
+        bar.style.removeProperty('transition');
+        bar.style.removeProperty('transform');
+        bar.style.removeProperty('bottom');
+        bar.style.removeProperty('opacity');
+        bar.style.removeProperty('position');
+      });
     };
 
-    const sync = () => {
-      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      const open = kb > 80;
-      document.body.classList.toggle('assistant-keyboard', open);
+    const scheduleReset = () => {
+      clearResetTimers();
+      resetTimers.push(window.setTimeout(resetTabbar, 0));
+      resetTimers.push(window.setTimeout(resetTabbar, 80));
+      resetTimers.push(window.setTimeout(resetTabbar, 360));
+    };
+
+    const setKeyboardOpen = (open: boolean) => {
       if (open) {
+        clearResetTimers();
+        document.body.classList.add('assistant-keyboard');
         document.documentElement.style.setProperty('--assistant-vv-h', `${Math.round(vv.height)}px`);
+      } else if (lastOpen) {
+        scheduleReset();
       } else {
+        document.body.classList.remove('assistant-keyboard');
         document.documentElement.style.removeProperty('--assistant-vv-h');
-        if (lastOpen) {
-          // 键盘刚收起：延迟复位，等 Safari 动画结束
-          window.setTimeout(resetTabbar, 50);
-          window.setTimeout(resetTabbar, 320);
-        }
       }
       lastOpen = open;
     };
 
+    const sync = () => {
+      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      // 以「输入框焦点 + 视口收缩」共同判定，避免仅焦点时误抬底栏，或收起后仍卡在半高
+      const open = composerFocused && kb > 80;
+      setKeyboardOpen(open);
+      if (open) {
+        document.documentElement.style.setProperty('--assistant-vv-h', `${Math.round(vv.height)}px`);
+      }
+    };
+
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      if (!t.closest('.assistant-composer')) return;
+      if (t.tagName !== 'TEXTAREA' && t.tagName !== 'INPUT') return;
+      composerFocused = true;
+      sync();
+    };
+
+    const onFocusOut = (e: FocusEvent) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement) || !t.closest('.assistant-composer')) return;
+      // relatedTarget 仍在 composer 内则不算失焦
+      const next = e.relatedTarget;
+      if (next instanceof HTMLElement && next.closest('.assistant-composer')) return;
+      composerFocused = false;
+      // 不等待 vv 完全回弹，先排队复位，防止底栏停在升高位置
+      setKeyboardOpen(false);
+      sync();
+    };
+
     vv.addEventListener('resize', sync);
     vv.addEventListener('scroll', sync);
-    window.addEventListener('focusin', sync);
-    window.addEventListener('focusout', sync);
+    window.addEventListener('focusin', onFocusIn);
+    window.addEventListener('focusout', onFocusOut);
     sync();
     return () => {
+      clearResetTimers();
       vv.removeEventListener('resize', sync);
       vv.removeEventListener('scroll', sync);
-      window.removeEventListener('focusin', sync);
-      window.removeEventListener('focusout', sync);
+      window.removeEventListener('focusin', onFocusIn);
+      window.removeEventListener('focusout', onFocusOut);
       document.body.classList.remove('assistant-keyboard');
       document.documentElement.style.removeProperty('--assistant-vv-h');
       resetTabbar();
@@ -1129,69 +1193,71 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       </div>
 
       {historyOpen && (
-        <div className="drawer-backdrop" onClick={() => setHistoryOpen(false)}>
-          <div className="drawer-left" onClick={(e) => e.stopPropagation()}>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <strong>历史会话</strong>
-              <button type="button" className="btn" style={{ marginTop: 0 }} onClick={startNewSession}>
-                + 新会话
-              </button>
-            </div>
-            {sessions.length === 0 ? (
-              <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
-            ) : (
-              <div className="history-group-list" style={{ marginTop: 8 }}>
-                {sessionGroups.map((group) => {
-                  const collapsed = collapsedGroups[group.label] ?? group.label !== '今天';
-                  return (
-                    <div key={group.label} className="history-date-group">
-                      <button
-                        type="button"
-                        className="history-date-head"
-                        onClick={() =>
-                          setCollapsedGroups((prev) => ({
-                            ...prev,
-                            [group.label]: !collapsed,
-                          }))
-                        }
-                      >
-                        <span>{group.label}</span>
-                        <span className="muted" style={{ fontSize: 11 }}>
-                          {group.items.length} 条 · {collapsed ? '展开' : '收起'}
-                        </span>
-                      </button>
-                      {!collapsed && group.items.map((s) => (
-                        <HistorySessionSwipeRow
-                          key={s.id}
-                          onOpen={() => openSession(s as Session)}
-                          onRename={() => handleRenameSession(s as Session)}
-                          onDelete={() => handleDeleteSession(s as Session)}
-                        >
-                          <div className="history-item">
-                            <div className="history-item-top">
-                              <span className="history-item-title">{s.title}</span>
-                              <span className="muted" style={{ fontSize: 11 }}>
-                                {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
-                              </span>
-                            </div>
-                            {s.ref && (
-                              <span className="history-item-ref">
-                                {refToChineseLabel(s.ref) ?? s.ref}
-                              </span>
-                            )}
-                            {s.preview && (
-                              <span className="muted history-item-preview">{s.preview}</span>
-                            )}
-                          </div>
-                        </HistorySessionSwipeRow>
-                      ))}
-                    </div>
-                  );
-                })}
+        <AppBodyPortal>
+          <div className="drawer-backdrop" onClick={() => setHistoryOpen(false)}>
+            <div className="drawer-left" onClick={(e) => e.stopPropagation()}>
+              <div className="section-row" style={{ marginTop: 0 }}>
+                <strong>历史会话</strong>
+                <button type="button" className="btn" style={{ marginTop: 0 }} onClick={startNewSession}>
+                  + 新会话
+                </button>
               </div>
-            )}
+              {sessions.length === 0 ? (
+                <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
+              ) : (
+                <div className="history-group-list" style={{ marginTop: 8 }}>
+                  {sessionGroups.map((group) => {
+                    const collapsed = collapsedGroups[group.label] ?? group.label !== '今天';
+                    return (
+                      <div key={group.label} className="history-date-group">
+                        <button
+                          type="button"
+                          className="history-date-head"
+                          onClick={() =>
+                            setCollapsedGroups((prev) => ({
+                              ...prev,
+                              [group.label]: !collapsed,
+                            }))
+                          }
+                        >
+                          <span>{group.label}</span>
+                          <span className="muted" style={{ fontSize: 11 }}>
+                            {group.items.length} 条 · {collapsed ? '展开' : '收起'}
+                          </span>
+                        </button>
+                        {!collapsed && group.items.map((s) => (
+                          <HistorySessionSwipeRow
+                            key={s.id}
+                            onOpen={() => openSession(s as Session)}
+                            onRename={() => handleRenameSession(s as Session)}
+                            onDelete={() => handleDeleteSession(s as Session)}
+                          >
+                            <div className="history-item">
+                              <div className="history-item-top">
+                                <span className="history-item-title">{s.title}</span>
+                                <span className="muted" style={{ fontSize: 11 }}>
+                                  {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
+                                </span>
+                              </div>
+                              {s.ref && (
+                                <span className="history-item-ref">
+                                  {refToChineseLabel(s.ref) ?? s.ref}
+                                </span>
+                              )}
+                              {s.preview && (
+                                <span className="muted history-item-preview">{s.preview}</span>
+                              )}
+                            </div>
+                          </HistorySessionSwipeRow>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </AppBodyPortal>
       )}
 
     </main>

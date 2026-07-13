@@ -89,7 +89,15 @@ export default function BottomTabs() {
     const bar = document.querySelector<HTMLElement>('.tabbar');
     if (!bar) return;
     if (compact) return;
+    // 切 Tab / 离开小爱键盘态时清掉可能残留的 inline 定位，回到 CSS 固定位
+    document.body.classList.remove('assistant-keyboard');
+    document.documentElement.style.removeProperty('--assistant-vv-h');
     bar.style.removeProperty('transform');
+    bar.style.removeProperty('bottom');
+    bar.style.removeProperty('top');
+    bar.style.removeProperty('opacity');
+    bar.style.removeProperty('position');
+    bar.style.removeProperty('transition');
     bar.style.pointerEvents = '';
   }, [compact, pathname]);
 

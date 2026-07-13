@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 const ITEMS = [
   { id: 'friend', label: '加好友', sub: '搜索 ID / 用户名', href: '/friend/add', icon: '👤' },
@@ -47,7 +48,7 @@ export default function PlusMenu({
   if (!open) return null;
 
   return (
-    <>
+    <AppBodyPortal>
       <div className="plus-menu-backdrop" onClick={onClose} />
       <div
         ref={menuRef}
@@ -75,6 +76,6 @@ export default function PlusMenu({
           </button>
         ))}
       </div>
-    </>
+    </AppBodyPortal>
   );
 }

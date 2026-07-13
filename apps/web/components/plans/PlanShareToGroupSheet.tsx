@@ -8,6 +8,7 @@ import { api, ensureAccountReady, type Group } from '@/lib/api';
 import { markGroupsListDirty } from '@/lib/groups_refresh';
 import { bindPlanToGroup, groupCheckinHref, groupsBoundToPlan, loadOwnerGroups } from '@/lib/plan_group_share';
 import { recordPlanSharedGroup } from '@/lib/badge_events';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 type Props = {
   open: boolean;
@@ -113,8 +114,9 @@ export function PlanShareToGroupSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet card plan-share-group-sheet" onClick={(e) => e.stopPropagation()}>
+    <AppBodyPortal>
+      <div className="sheet-backdrop" onClick={onClose}>
+        <div className="sheet card plan-share-group-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>分享到共读群</strong>
@@ -198,5 +200,6 @@ export function PlanShareToGroupSheet({
         )}
       </div>
     </div>
+    </AppBodyPortal>
   );
 }

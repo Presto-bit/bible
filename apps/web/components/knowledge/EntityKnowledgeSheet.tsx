@@ -20,6 +20,7 @@ import {
 } from '@/lib/entity_knowledge';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { EntityKnowledgeHeader, EntityKnowledgePanel } from './EntityKnowledgePanel';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 export function EntityKnowledgeSheet({
   entity,
@@ -95,57 +96,59 @@ export function EntityKnowledgeSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet card entity-knowledge-sheet" onClick={(e) => e.stopPropagation()}>
-        <EntityKnowledgeHeader entity={entity} trailing={<SheetCloseButton onClick={onClose} />} />
+    <AppBodyPortal>
+      <div className="sheet-backdrop" onClick={onClose}>
+        <div className="sheet card entity-knowledge-sheet" onClick={(e) => e.stopPropagation()}>
+          <EntityKnowledgeHeader entity={entity} trailing={<SheetCloseButton onClick={onClose} />} />
 
-        {hasAlternateSenses(candidates, ctx) && (
-          <div className="dict-sense-row" role="tablist" aria-label="切换义项">
-            <span className="muted dict-sense-hint">也可能是：</span>
-            {candidates.map((c) => {
-              const active = (c.id ?? c.name) === (entity.id ?? entity.name);
-              const label = entitySenseLabel(c);
-              return (
-                <button
-                  key={c.id ?? c.name}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  className={`dict-sense-chip${active ? ' is-active' : ''}`}
-                  onClick={() => onPickEntity(c, true)}
-                >
-                  {label.length > 14 ? `${label.slice(0, 14)}…` : label}
-                </button>
-              );
-            })}
+          {hasAlternateSenses(candidates, ctx) && (
+            <div className="dict-sense-row" role="tablist" aria-label="切换义项">
+              <span className="muted dict-sense-hint">也可能是：</span>
+              {candidates.map((c) => {
+                const active = (c.id ?? c.name) === (entity.id ?? entity.name);
+                const label = entitySenseLabel(c);
+                return (
+                  <button
+                    key={c.id ?? c.name}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    className={`dict-sense-chip${active ? ' is-active' : ''}`}
+                    onClick={() => onPickEntity(c, true)}
+                  >
+                    {label.length > 14 ? `${label.slice(0, 14)}…` : label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <EntityKnowledgePanel
+            entity={entity}
+            knowledge={knowledge}
+            loading={loading}
+            tab={tab}
+            onTabChange={setTab}
+            tabs={tabs}
+            onRefPreview={onRefPreview}
+            onNodeClick={onNodeClick}
+            graphTopicId={graphTopicId}
+          />
+
+          <div className="entity-knowledge-foot">
+            <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={askAssistant}>
+              问小爱
+            </button>
+            <Link
+              href={entityDictionaryHref(entity)}
+              className="btn"
+              style={{ flex: 1, textAlign: 'center' }}
+            >
+              全屏查看
+            </Link>
           </div>
-        )}
-
-        <EntityKnowledgePanel
-          entity={entity}
-          knowledge={knowledge}
-          loading={loading}
-          tab={tab}
-          onTabChange={setTab}
-          tabs={tabs}
-          onRefPreview={onRefPreview}
-          onNodeClick={onNodeClick}
-          graphTopicId={graphTopicId}
-        />
-
-        <div className="entity-knowledge-foot">
-          <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={askAssistant}>
-            问小爱
-          </button>
-          <Link
-            href={entityDictionaryHref(entity)}
-            className="btn"
-            style={{ flex: 1, textAlign: 'center' }}
-          >
-            全屏查看
-          </Link>
         </div>
       </div>
-    </div>
+    </AppBodyPortal>
   );
 }

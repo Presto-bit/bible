@@ -20,6 +20,7 @@ import {
   type OfflinePackManifest,
 } from '@/lib/offline_pack';
 import { resetLocalBibleDb } from '@/lib/bible_local';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 type Props = {
   onClose: () => void;
@@ -97,11 +98,12 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
   const items = catalogItemsForTab(tab);
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div
-        className="sheet card offline-download-sheet"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <AppBodyPortal>
+      <div className="sheet-backdrop" onClick={onClose}>
+        <div
+          className="sheet card offline-download-sheet"
+          onClick={(e) => e.stopPropagation()}
+        >
         <div className="offline-download-sheet-head">
         <div className="section-row" style={{ marginTop: 0 }}>
           <h3 style={{ margin: 0 }}>下载</h3>
@@ -153,6 +155,7 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
         </div>
       </div>
     </div>
+    </AppBodyPortal>
   );
 }
 

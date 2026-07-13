@@ -28,6 +28,7 @@ import { advancePlanDay, isPlanDayCompleted, markPlanDayCompleted, setPlanDay, t
 import { enqueuePlanProgress } from '@/lib/plan_sync';
 import { savePlanReflection } from '@/lib/plan_reflection';
 import { groupCheckinHref, groupsBoundToPlan, loadOwnerGroups } from '@/lib/plan_group_share';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import { PlanShareToGroupSheet } from '@/components/plans/PlanShareToGroupSheet';
 import PlanBar from '@/components/reader/PlanBar';
 
@@ -273,122 +274,128 @@ export default function PlanReadingLayer({
       )}
 
       {planAllDone && (
-        <div className="plan-day-complete card plan-plan-complete-sheet plan-day-complete-solid">
-          <p className="plan-segment-done-title">🎉 「{meta.planTitle}」已全部完成</p>
-          <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.5 }}>
-            共 {meta.totalDays} 天 · 可在计划页「已完成」中查看或再读一遍
-          </p>
-          <div className="plan-complete-actions">
-            <Link href="/plans?tab=completed" className="font-pill">查看计划</Link>
-            {checkinGid ? (
-              <Link href={groupCheckinHref(checkinGid, checkinRef)} className="font-pill accent">
-                去群里打卡 ›
-              </Link>
-            ) : (
-              <button type="button" className="font-pill accent" onClick={() => setShareOpen(true)}>
-                分享到群打卡
-              </button>
-            )}
+        <AppBodyPortal>
+          <div className="plan-day-complete card plan-plan-complete-sheet plan-day-complete-solid">
+            <p className="plan-segment-done-title">🎉 「{meta.planTitle}」已全部完成</p>
+            <p className="muted" style={{ fontSize: 13, margin: '6px 0 12px', lineHeight: 1.5 }}>
+              共 {meta.totalDays} 天 · 可在计划页「已完成」中查看或再读一遍
+            </p>
+            <div className="plan-complete-actions">
+              <Link href="/plans?tab=completed" className="font-pill">查看计划</Link>
+              {checkinGid ? (
+                <Link href={groupCheckinHref(checkinGid, checkinRef)} className="font-pill accent">
+                  去群里打卡 ›
+                </Link>
+              ) : (
+                <button type="button" className="font-pill accent" onClick={() => setShareOpen(true)}>
+                  分享到群打卡
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              className="text-link"
+              style={{ marginTop: 10 }}
+              onClick={() => setPlanAllDone(false)}
+            >
+              继续浏览经文
+            </button>
           </div>
-          <button
-            type="button"
-            className="text-link"
-            style={{ marginTop: 10 }}
-            onClick={() => setPlanAllDone(false)}
-          >
-            继续浏览经文
-          </button>
-        </div>
+        </AppBodyPortal>
       )}
 
       {dayCompleted && completedDayNum != null && !planAllDone
         && !celebrationDismissedRef.current.has(completedDayNum) && (
-        <div className="plan-day-complete card plan-day-complete-toast plan-day-complete-solid">
-          <div className="plan-day-complete-head">
-            <p className="plan-segment-done-title">🎉 第 {completedDayNum} 天已完成</p>
+        <AppBodyPortal>
+          <div className="plan-day-complete card plan-day-complete-toast plan-day-complete-solid">
+            <div className="plan-day-complete-head">
+              <p className="plan-segment-done-title">🎉 第 {completedDayNum} 天已完成</p>
+              <button
+                type="button"
+                className="text-link"
+                aria-label="关闭"
+                onClick={dismissDayCelebration}
+              >
+                关闭
+              </button>
+            </div>
+            <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+              {prog.total}/{prog.total} 段已读完
+              {completedDayNum < meta.totalDays
+                ? ` · 可以开始第 ${completedDayNum + 1} 天`
+                : ' · 计划已全部完成'}
+            </p>
+            <div className="plan-complete-actions" style={{ marginTop: 10 }}>
+              {completedDayNum < meta.totalDays && onContinueNextDay && (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: '100%', marginBottom: 8 }}
+                  onClick={() => {
+                    const next = completedDayNum + 1;
+                    dismissDayCelebration();
+                    onContinueNextDay(next);
+                  }}
+                >
+                  开始第 {completedDayNum + 1} 天 ›
+                </button>
+              )}
+              {checkinGid ? (
+                <Link
+                  href={groupCheckinHref(checkinGid, checkinRef)}
+                  className="font-pill accent"
+                >
+                  去群里打卡 ›
+                </Link>
+              ) : (
+                <button type="button" className="font-pill accent" onClick={() => setShareOpen(true)}>
+                  分享到群打卡
+                </button>
+              )}
+              <button
+                type="button"
+                className="font-pill"
+                onClick={() => setReflectionOpen(true)}
+              >
+                写今日反思
+              </button>
+            </div>
             <button
               type="button"
               className="text-link"
-              aria-label="关闭"
+              style={{ marginTop: 10 }}
               onClick={dismissDayCelebration}
             >
-              关闭
+              稍后再读，继续浏览经文
             </button>
           </div>
-          <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
-            {prog.total}/{prog.total} 段已读完
-            {completedDayNum < meta.totalDays
-              ? ` · 可以开始第 ${completedDayNum + 1} 天`
-              : ' · 计划已全部完成'}
-          </p>
-          <div className="plan-complete-actions" style={{ marginTop: 10 }}>
-            {completedDayNum < meta.totalDays && onContinueNextDay && (
-              <button
-                type="button"
-                className="btn"
-                style={{ width: '100%', marginBottom: 8 }}
-                onClick={() => {
-                  const next = completedDayNum + 1;
-                  dismissDayCelebration();
-                  onContinueNextDay(next);
-                }}
-              >
-                开始第 {completedDayNum + 1} 天 ›
-              </button>
-            )}
-            {checkinGid ? (
-              <Link
-                href={groupCheckinHref(checkinGid, checkinRef)}
-                className="font-pill accent"
-              >
-                去群里打卡 ›
-              </Link>
-            ) : (
-              <button type="button" className="font-pill accent" onClick={() => setShareOpen(true)}>
-                分享到群打卡
-              </button>
-            )}
-            <button
-              type="button"
-              className="font-pill"
-              onClick={() => setReflectionOpen(true)}
-            >
-              写今日反思
-            </button>
-          </div>
-          <button
-            type="button"
-            className="text-link"
-            style={{ marginTop: 10 }}
-            onClick={dismissDayCelebration}
-          >
-            稍后再读，继续浏览经文
-          </button>
-        </div>
+        </AppBodyPortal>
       )}
 
       {reflectionOpen && (
-        <div className="sheet-backdrop plan-reflection-backdrop">
-          <div className="sheet card plan-reflection-sheet">
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <strong>今日反思（可选）</strong>
-              <SheetCloseButton onClick={() => setReflectionOpen(false)} />
+        <AppBodyPortal>
+          <div className="sheet-backdrop plan-reflection-backdrop">
+            <div className="sheet card plan-reflection-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="section-row" style={{ marginTop: 0 }}>
+                <strong>今日反思（可选）</strong>
+                <SheetCloseButton onClick={() => setReflectionOpen(false)} />
+              </div>
+              <p className="muted" style={{ fontSize: 13, marginBottom: 10 }}>
+                用一两句话记下今天的感动或应用。不填写可直接关闭。
+              </p>
+              <textarea
+                className="group-composer-text"
+                rows={3}
+                placeholder="今天神对我说…"
+                value={reflectionText}
+                onChange={(e) => setReflectionText(e.target.value)}
+              />
+              <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={saveReflection}>
+                保存反思
+              </button>
             </div>
-            <p className="muted" style={{ fontSize: 13, marginBottom: 10 }}>
-              用一两句话记下今天的感动或应用。不填写可直接关闭。
-            </p>
-            <textarea
-              className="group-composer-text"
-              rows={3}
-              placeholder="今天神对我说…"
-              value={reflectionText}
-              onChange={(e) => setReflectionText(e.target.value)}
-            />
-            <button type="button" className="btn" style={{ width: '100%', marginTop: 10 }} onClick={saveReflection}>
-              保存反思
-            </button>
           </div>
-        </div>
+        </AppBodyPortal>
       )}
 
       <PlanShareToGroupSheet
@@ -404,27 +411,29 @@ export default function PlanReadingLayer({
       />
 
       {sheetOpen && (
-        <div className="sheet-backdrop" onClick={() => setSheetOpen(false)}>
-          <div className="sheet card" onClick={(e) => e.stopPropagation()}>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <strong>今日安排 · 第 {meta.day} 天</strong>
-              <SheetCloseButton onClick={() => setSheetOpen(false)} />
+        <AppBodyPortal>
+          <div className="sheet-backdrop" onClick={() => setSheetOpen(false)}>
+            <div className="sheet card" onClick={(e) => e.stopPropagation()}>
+              <div className="section-row" style={{ marginTop: 0 }}>
+                <strong>今日安排 · 第 {meta.day} 天</strong>
+                <SheetCloseButton onClick={() => setSheetOpen(false)} />
+              </div>
+              <p className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
+                {prog.done}/{prog.total} 段已完成 · 计划模式仅可跳转今日章节
+              </p>
+              {meta.steps.map((s, i) => (
+                <StepRow
+                  key={s.id}
+                  step={s}
+                  index={i}
+                  done={meta.session.stepsDone.includes(s.id)}
+                  active={i === stepIdx}
+                  onGo={() => { handleJumpStep(i); setSheetOpen(false); }}
+                />
+              ))}
             </div>
-            <p className="muted" style={{ fontSize: 12, marginBottom: 12 }}>
-              {prog.done}/{prog.total} 段已完成 · 计划模式仅可跳转今日章节
-            </p>
-            {meta.steps.map((s, i) => (
-              <StepRow
-                key={s.id}
-                step={s}
-                index={i}
-                done={meta.session.stepsDone.includes(s.id)}
-                active={i === stepIdx}
-                onGo={() => { handleJumpStep(i); setSheetOpen(false); }}
-              />
-            ))}
           </div>
-        </div>
+        </AppBodyPortal>
       )}
     </>
   );

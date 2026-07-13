@@ -18,6 +18,7 @@ import SyncStatusBadge from '@/components/SyncStatusBadge';
 import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import { todayMinutes } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
 import type { BadgeDef } from '@/lib/badges';
@@ -427,131 +428,133 @@ export default function ProfileTab() {
       )}
 
       {settingsOpen && (
-        <div className="sheet-backdrop" onClick={() => setSettingsOpen(false)}>
-          <div className="sheet card settings-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <h3 style={{ margin: 0 }}>设置</h3>
-              <SheetCloseButton onClick={() => setSettingsOpen(false)} />
-            </div>
+        <AppBodyPortal>
+          <div className="sheet-backdrop" onClick={() => setSettingsOpen(false)}>
+            <div className="sheet card settings-sheet" onClick={(e) => e.stopPropagation()}>
+              <div className="section-row" style={{ marginTop: 0 }}>
+                <h3 style={{ margin: 0 }}>设置</h3>
+                <SheetCloseButton onClick={() => setSettingsOpen(false)} />
+              </div>
 
-            <div className="settings-card">
-              <p className="settings-title">账号</p>
-              <AccountSettingsSection onAccountChange={refreshAccount} />
-            </div>
+              <div className="settings-card">
+                <p className="settings-title">账号</p>
+                <AccountSettingsSection onAccountChange={refreshAccount} />
+              </div>
 
-            <div className="settings-card">
-              <p className="settings-title">工具</p>
-              <button
-                type="button"
-                className="card row-card"
-                style={{ display: 'flex', width: '100%', textAlign: 'left' }}
-                onClick={() => setDownloadOpen(true)}
-              >
-                <span style={{ flex: 1 }}>下载</span>
-                <span className="muted">离线圣经与资料 ›</span>
-              </button>
-              <Link
-                href="/dictionary"
-                className="card row-card"
-                style={{ display: 'flex', marginTop: 8 }}
-                onClick={openSettingsRoute}
-              >
-                <span style={{ flex: 1 }}>圣经词典</span>
-                <span className="muted">›</span>
-              </Link>
-              <Link
-                href="/profile/reminders"
-                className="card row-card"
-                style={{ display: 'flex', marginTop: 8 }}
-                onClick={openSettingsRoute}
-              >
-                <span style={{ flex: 1 }}>推送提醒</span>
-                <span className="muted">›</span>
-              </Link>
-              <Link
-                href="/profile/appearance"
-                className="card row-card"
-                style={{ display: 'flex', marginTop: 8 }}
-                onClick={openSettingsRoute}
-              >
-                <span style={{ flex: 1 }}>外观</span>
-                <span className="muted">›</span>
-              </Link>
-              <Link
-                href="/profile/licenses"
-                className="card row-card"
-                style={{ display: 'flex', marginTop: 8 }}
-                onClick={openSettingsRoute}
-              >
-                <span style={{ flex: 1 }}>数据来源与许可</span>
-                <span className="muted">›</span>
-              </Link>
-              {!installedPwa ? (
+              <div className="settings-card">
+                <p className="settings-title">工具</p>
                 <button
                   type="button"
                   className="card row-card"
-                  style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
-                  onClick={() => {
-                    setSettingsOpen(false);
-                    openPwaInstallSheet();
-                  }}
+                  style={{ display: 'flex', width: '100%', textAlign: 'left' }}
+                  onClick={() => setDownloadOpen(true)}
                 >
-                  <span style={{ flex: 1 }}>保存到桌面 App</span>
-                  <span className="muted">保存读经记录 ›</span>
+                  <span style={{ flex: 1 }}>下载</span>
+                  <span className="muted">离线圣经与资料 ›</span>
                 </button>
-              ) : null}
-            </div>
-
-            {adminEligible ? (
-              <div className="settings-card">
-                <p className="settings-title">管理</p>
                 <Link
-                  href="/admin"
+                  href="/dictionary"
                   className="card row-card"
                   style={{ display: 'flex', marginTop: 8 }}
-                  onClick={() => {
-                    openSettingsRoute();
-                  }}
+                  onClick={openSettingsRoute}
                 >
-                  <span style={{ flex: 1 }}>管理后台</span>
+                  <span style={{ flex: 1 }}>圣经词典</span>
                   <span className="muted">›</span>
                 </Link>
+                <Link
+                  href="/profile/reminders"
+                  className="card row-card"
+                  style={{ display: 'flex', marginTop: 8 }}
+                  onClick={openSettingsRoute}
+                >
+                  <span style={{ flex: 1 }}>推送提醒</span>
+                  <span className="muted">›</span>
+                </Link>
+                <Link
+                  href="/profile/appearance"
+                  className="card row-card"
+                  style={{ display: 'flex', marginTop: 8 }}
+                  onClick={openSettingsRoute}
+                >
+                  <span style={{ flex: 1 }}>外观</span>
+                  <span className="muted">›</span>
+                </Link>
+                <Link
+                  href="/profile/licenses"
+                  className="card row-card"
+                  style={{ display: 'flex', marginTop: 8 }}
+                  onClick={openSettingsRoute}
+                >
+                  <span style={{ flex: 1 }}>数据来源与许可</span>
+                  <span className="muted">›</span>
+                </Link>
+                {!installedPwa ? (
+                  <button
+                    type="button"
+                    className="card row-card"
+                    style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
+                    onClick={() => {
+                      setSettingsOpen(false);
+                      openPwaInstallSheet();
+                    }}
+                  >
+                    <span style={{ flex: 1 }}>保存到桌面 App</span>
+                    <span className="muted">保存读经记录 ›</span>
+                  </button>
+                ) : null}
               </div>
-            ) : null}
 
-            <div className="settings-card">
-              <p className="settings-title">账号</p>
-              <Link href="/login" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
-                <span style={{ flex: 1 }}>在其他设备恢复账号</span>
-                <span className="muted">›</span>
-              </Link>
-              <button
-                type="button"
-                className="clear-cache-btn"
-                onClick={handleClearCache}
-                disabled={clearCacheBusy}
-              >
-                {clearCacheBusy ? '清除中…' : '清除缓存'}
-              </button>
-              {uid ? (
+              {adminEligible ? (
+                <div className="settings-card">
+                  <p className="settings-title">管理</p>
+                  <Link
+                    href="/admin"
+                    className="card row-card"
+                    style={{ display: 'flex', marginTop: 8 }}
+                    onClick={() => {
+                      openSettingsRoute();
+                    }}
+                  >
+                    <span style={{ flex: 1 }}>管理后台</span>
+                    <span className="muted">›</span>
+                  </Link>
+                </div>
+              ) : null}
+
+              <div className="settings-card">
+                <p className="settings-title">账号</p>
+                <Link href="/login" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
+                  <span style={{ flex: 1 }}>在其他设备恢复账号</span>
+                  <span className="muted">›</span>
+                </Link>
                 <button
                   type="button"
-                  className="logout-btn settings-logout-btn"
-                  onClick={() => {
-                    logout();
-                    setUid(null);
-                    setSettingsOpen(false);
-                  }}
+                  className="clear-cache-btn"
+                  onClick={handleClearCache}
+                  disabled={clearCacheBusy}
                 >
-                  退出登录
+                  {clearCacheBusy ? '清除中…' : '清除缓存'}
                 </button>
-              ) : null}
-              <p className="muted settings-version-line">
-                版本 {appVersion}
-              </p>
+                {uid ? (
+                  <button
+                    type="button"
+                    className="logout-btn settings-logout-btn"
+                    onClick={() => {
+                      logout();
+                      setUid(null);
+                      setSettingsOpen(false);
+                    }}
+                  >
+                    退出登录
+                  </button>
+                ) : null}
+                <p className="muted settings-version-line">
+                  版本 {appVersion}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </AppBodyPortal>
       )}
 
       {downloadOpen ? (
@@ -559,41 +562,43 @@ export default function ProfileTab() {
       ) : null}
 
       {pickerOpen && (
-        <div
-          className="sheet-backdrop sheet-backdrop-above-tab"
-          onClick={() => setPickerOpen(false)}
-        >
+        <AppBodyPortal>
           <div
-            className="sheet card avatar-picker-sheet"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-labelledby="avatar-picker-title"
+            className="sheet-backdrop"
+            onClick={() => setPickerOpen(false)}
           >
-            <h3 id="avatar-picker-title" style={{ marginTop: 0 }}>选择头像</h3>
-            <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>
-              {PRESET_AVATARS.length} 款预设 · 圣经主题插画
-            </p>
-            <div className="avatar-grid">
-              {PRESET_AVATARS.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  className={`avatar-cell ${a.id === avatarId ? 'avatar-cell-active' : ''}`}
-                  title={a.label}
-                  aria-pressed={a.id === avatarId}
-                  onClick={() => chooseAvatar(a.id)}
-                >
-                  <span className="avatar-cell-frame">
-                    <Avatar id={a.id} size={44} />
-                    {a.id === avatarId ? (
-                      <span className="avatar-cell-check" aria-hidden>✓</span>
-                    ) : null}
-                  </span>
-                </button>
-              ))}
+            <div
+              className="sheet card avatar-picker-sheet"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-labelledby="avatar-picker-title"
+            >
+              <h3 id="avatar-picker-title" style={{ marginTop: 0 }}>选择头像</h3>
+              <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>
+                {PRESET_AVATARS.length} 款预设 · 圣经主题插画
+              </p>
+              <div className="avatar-grid">
+                {PRESET_AVATARS.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className={`avatar-cell ${a.id === avatarId ? 'avatar-cell-active' : ''}`}
+                    title={a.label}
+                    aria-pressed={a.id === avatarId}
+                    onClick={() => chooseAvatar(a.id)}
+                  >
+                    <span className="avatar-cell-frame">
+                      <Avatar id={a.id} size={44} />
+                      {a.id === avatarId ? (
+                        <span className="avatar-cell-check" aria-hidden>✓</span>
+                      ) : null}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        </AppBodyPortal>
       )}
 
     </main>
