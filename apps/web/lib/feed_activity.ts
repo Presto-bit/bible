@@ -4,6 +4,9 @@ import { readerHrefFromRef } from '@/lib/group_footprint';
 export const FEED_LIKE_EMOJI = '❤️';
 export const FEED_READING_EMOJI = '📖';
 
+/** 发现页主 Feed 新鲜度窗口（小时） */
+export const FEED_FRESH_HOURS = 48;
+
 export type FeedActivityKind = 'checkin' | 'thought' | 'note';
 
 export type FeedActivityHint = {
@@ -24,6 +27,23 @@ export function reactionEmojiCount(
 ): number {
   if (!reactions) return 0;
   return reactions[emoji]?.length ?? 0;
+}
+
+/** 按新鲜度拆分：近 N 小时置顶，更早默认折叠。 */
+export function splitFriendActivityByFreshness(
+  items: FriendActivity[],
+  hours = FEED_FRESH_HOURS,
+  nowMs = Date.now(),
+): { recent: FriendActivity[]; older: FriendActivity[] } {
+  const cutoff = nowMs - hours * 3600_000;
+  const recent: FriendActivity[] = [];
+  const older: FriendActivity[] = [];
+  for (const item of items) {
+    const t = Date.parse(item.created_at);
+    if (Number.isFinite(t) && t >= cutoff) recent.push(item);
+    else older.push(item);
+  }
+  return { recent, older };
 }
 
 export function feedHintMessage(h: FeedActivityHint): string {

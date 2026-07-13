@@ -12983,6 +12983,38 @@ a.license-row-name:hover {
   margin-top: 10px;
 }
 
+.discover-feed-older {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.discover-feed-older-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 10px 2px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  text-align: left;
+}
+
+.discover-feed-older-toggle:hover {
+  color: var(--ink);
+}
+
+.discover-feed-older-list {
+  margin-top: 0;
+}
+
 .feed-card {
   position: relative;
   margin-top: 0;

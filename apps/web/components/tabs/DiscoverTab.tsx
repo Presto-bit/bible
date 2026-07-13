@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useOnline } from '@/lib/use_online';
 import {
   api,
@@ -22,7 +22,12 @@ import { DiscoverTodayBar } from '@/components/discover/DiscoverTodayBar';
 import { FriendActivityCard } from '@/components/discover/FriendActivityCard';
 import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
 import { sortGroupsByActionPriority } from '@/lib/group_sort';
-import { FEED_LIKE_EMOJI, FEED_READING_EMOJI } from '@/lib/feed_activity';
+import {
+  FEED_FRESH_HOURS,
+  FEED_LIKE_EMOJI,
+  FEED_READING_EMOJI,
+  splitFriendActivityByFreshness,
+} from '@/lib/feed_activity';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 function groupStatusBadge(g: Group) {
@@ -107,6 +112,12 @@ export default function DiscoverTab() {
     if (optimistic !== undefined) return optimistic;
     return uid ? Boolean(item.reactions[emoji]?.includes(uid)) : false;
   };
+
+  const { recent: freshShares, older: olderShares } = useMemo(
+    () => splitFriendActivityByFreshness(shares, FEED_FRESH_HOURS),
+    [shares],
+  );
+  const [olderOpen, setOlderOpen] = useState(false);
 
   if (!uid) {
     return (
@@ -291,17 +302,53 @@ export default function DiscoverTab() {
         </p>
       ) : (
         <div className="discover-feed">
-          {shares.map((s) => (
-            <FriendActivityCard
-              key={`${s.source}-${s.id}`}
-              item={s}
-              liked={isReacted(s, FEED_LIKE_EMOJI)}
-              readingMarked={isReacted(s, FEED_READING_EMOJI)}
-              onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
-              onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
-              authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
-            />
-          ))}
+          {freshShares.length === 0 ? (
+            <p className="muted discover-feed-empty">
+              好友最近还没有新动态
+              {olderShares.length > 0 ? '，可查看更早的内容' : '，去群里打个卡吧'}
+            </p>
+          ) : (
+            freshShares.map((s) => (
+              <FriendActivityCard
+                key={`${s.source}-${s.id}`}
+                item={s}
+                liked={isReacted(s, FEED_LIKE_EMOJI)}
+                readingMarked={isReacted(s, FEED_READING_EMOJI)}
+                onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
+                onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
+                authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
+              />
+            ))
+          )}
+
+          {olderShares.length > 0 ? (
+            <div className="discover-feed-older">
+              <button
+                type="button"
+                className="discover-feed-older-toggle"
+                aria-expanded={olderOpen}
+                onClick={() => setOlderOpen((v) => !v)}
+              >
+                <span>{olderOpen ? '收起更早的动态' : `查看更早的动态 · ${olderShares.length}`}</span>
+                <span className="muted" aria-hidden>{olderOpen ? '▴' : '▾'}</span>
+              </button>
+              {olderOpen ? (
+                <div className="discover-feed discover-feed-older-list">
+                  {olderShares.map((s) => (
+                    <FriendActivityCard
+                      key={`older-${s.source}-${s.id}`}
+                      item={s}
+                      liked={isReacted(s, FEED_LIKE_EMOJI)}
+                      readingMarked={isReacted(s, FEED_READING_EMOJI)}
+                      onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
+                      onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
+                      authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       )}
     </main>
