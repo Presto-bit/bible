@@ -92,6 +92,9 @@ export default function BottomTabs() {
     // 切 Tab / 离开小爱键盘态时清掉可能残留的 inline 定位，回到 CSS 固定位
     document.body.classList.remove('assistant-keyboard');
     document.documentElement.style.removeProperty('--assistant-vv-h');
+    document.documentElement.style.removeProperty('--assistant-kb-inset');
+    document.documentElement.style.removeProperty('height');
+    document.body.style.removeProperty('height');
     bar.style.removeProperty('transform');
     bar.style.removeProperty('bottom');
     bar.style.removeProperty('top');

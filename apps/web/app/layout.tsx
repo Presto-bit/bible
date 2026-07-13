@@ -51,6 +51,8 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
+  // 键盘弹出时缩小 layout viewport，避免 iOS/PWA fixed 底栏收起后悬空留白
+  interactiveWidget: 'resizes-content',
 };
 
 export default function RootLayout({
