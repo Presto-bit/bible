@@ -295,14 +295,7 @@ export default function ProfileTab() {
             </button>
           )}
           <p className="profile-meta-line muted">
-            {streak > 0 ? (
-              <>
-                <span className="streak-flame profile-streak-flame" aria-hidden>🔥</span>
-                连续 {streak} 天
-              </>
-            ) : (
-              '开始连续读经'
-            )}
+            {streak > 0 ? `连续 ${streak} 天` : '开始连续读经'}
             {idValue && !accountComplete ? (
               <>
                 {' · '}
@@ -337,14 +330,7 @@ export default function ProfileTab() {
           <span className="pill pill-active">成长</span>
           <span className="home-list-main">
             <strong className="profile-streak-title">
-              {streak > 0 ? (
-                <>
-                  <span className="streak-flame profile-streak-flame" aria-hidden>🔥</span>
-                  连续 {streak} 天
-                </>
-              ) : (
-                '读经回顾'
-              )}
+              {streak > 0 ? `连续 ${streak} 天` : '读经回顾'}
               {' · '}
               今日 {mins} 分钟
             </strong>

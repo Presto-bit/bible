@@ -14,19 +14,16 @@ import {
   shouldMuteSyncFailPrompt,
 } from '@/lib/sync';
 
-/** 云同步状态：可点击重试；卡住「同步中」也可强制重试 */
+/** 云同步状态：小号文案；有待传时可点重试，不展示条数 */
 export default function SyncStatusBadge() {
   const [state, setState] = useState<SyncState>('synced');
   const [pending, setPending] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [hint, setHint] = useState<string | null>(null);
-  const [muteFail, setMuteFail] = useState(false);
 
   useEffect(() => {
     const tick = () => {
       setState(getSyncState());
       setPending(pendingCount());
-      setMuteFail(shouldMuteSyncFailPrompt());
     };
     tick();
     const unsub = subscribeSyncState(tick);
@@ -41,40 +38,21 @@ export default function SyncStatusBadge() {
     };
   }, []);
 
-  // 有待传即可点；「同步中」卡住时也允许强制重试
   const canClick = pending > 0 && !busy;
 
   const onRetry = async () => {
     if (!canClick) return;
-    if (state === 'offline') {
-      if (!shouldMuteSyncFailPrompt()) {
-        setHint('当前离线，请联网后再试');
-      }
-      return;
-    }
+    if (state === 'offline') return;
     setBusy(true);
-    setHint(null);
     forceMarkSyncIdle();
     try {
       await retryPendingUpload();
-      const left = pendingCount();
-      setPending(left);
+      setPending(pendingCount());
       setState(getSyncState());
-      setMuteFail(shouldMuteSyncFailPrompt());
-      if (left === 0) {
-        setHint(null);
-      } else if (!shouldMuteSyncFailPrompt()) {
-        setHint('仍有条目未上传，可再点重试');
-      } else {
-        setHint(null);
-      }
     } catch {
       forceMarkSyncIdle();
-      setMuteFail(shouldMuteSyncFailPrompt());
       if (!shouldMuteSyncFailPrompt()) {
-        setHint('上传失败，请检查网络后重试');
-      } else {
-        setHint(null);
+        /* 静默：小号徽章不展示失败文案 */
       }
       setPending(pendingCount());
       setState(getSyncState());
@@ -84,37 +62,29 @@ export default function SyncStatusBadge() {
     }
   };
 
+  const raw = busy ? '同步中…' : syncStateLabel(state);
+  const label =
+    raw === '已同步到云端'
+      ? '已同步'
+      : raw === '离线 · 待同步'
+        ? '离线'
+        : raw === '同步中…'
+          ? '同步中'
+          : raw;
+
   return (
     <button
       type="button"
-      className="sync-status-badge"
+      className="sync-status-badge sync-status-badge--compact"
       data-state={state}
       role="status"
       aria-live="polite"
       disabled={!canClick}
       title={canClick ? '点击重新上传' : undefined}
       onClick={() => void onRetry()}
-      style={{
-        cursor: canClick ? 'pointer' : 'default',
-        border: 'none',
-        background: 'transparent',
-        padding: 0,
-        font: 'inherit',
-        textAlign: 'left',
-      }}
     >
       <span className="sync-status-dot" aria-hidden />
-      <span>{busy ? '同步中…' : syncStateLabel(state)}</span>
-      {pending > 0 && state !== 'offline' ? (
-        <span className="muted" style={{ fontSize: 11 }}>
-          （{pending} 条待上传{canClick ? ' · 点此重试' : ''}）
-        </span>
-      ) : null}
-      {hint && !muteFail ? (
-        <span className="muted" style={{ fontSize: 11, display: 'block', marginTop: 2 }}>
-          {hint}
-        </span>
-      ) : null}
+      <span>{label}</span>
     </button>
   );
 }

@@ -4804,6 +4804,11 @@ a.today-card-link {
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink);
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .profile-page .profile-name-row {
@@ -4811,6 +4816,7 @@ a.today-card-link {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .profile-page .profile-bio-text {
@@ -4849,8 +4855,12 @@ a.today-card-link {
 }
 
 .profile-page .profile-block-label {
-  margin-top: 22px;
-  margin-bottom: 14px;
+  margin-top: 24px;
+  margin-bottom: 16px;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
 }
 
 .profile-page .profile-soft-stack {
@@ -4860,23 +4870,18 @@ a.today-card-link {
 }
 
 .profile-page .profile-streak-title {
-  display: inline-flex;
+  display: inline;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 2px;
+  flex-wrap: nowrap;
+  gap: 0;
 }
 
 .profile-page .profile-streak-flame {
-  display: inline-block;
-  font-size: 14px;
-  line-height: 1;
-  margin-right: 2px;
-  vertical-align: -1px;
+  display: none;
 }
 
 .profile-page .profile-meta-line .profile-streak-flame {
-  font-size: 12px;
-  margin-right: 3px;
+  display: none;
 }
 
 .profile-page .profile-badge-card {
@@ -5071,11 +5076,11 @@ body.pwa-standalone .profile-page .profile-soft-row.card {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  height: calc(100dvh - 80px);
-  max-height: calc(100dvh - 80px);
+  /* 为浮动 Tab + 安全区留足空间，避免输入框被底栏遮挡 */
+  height: calc(100dvh - var(--tabbar-h) - 8px);
+  max-height: calc(100dvh - var(--tabbar-h) - 8px);
   min-height: 0;
   padding-top: max(10px, env(safe-area-inset-top, 0px));
-  /* 底栏上方只需小缝，勿再叠 safe-area（浮动 Tab 已吃掉底部安全区） */
   padding-bottom: 8px;
   padding-left: 14px;
   padding-right: 14px;
@@ -5285,12 +5290,9 @@ body.assistant-active .app-body {
 }
 
 body.assistant-active .assistant-page {
-  /*
-   * 只扣浮动胶囊实际高度 + 与输入区的缝隙。
-   * 勿用完整 --tabbar-h（内含 safe + 额外 4px），否则输入框被顶得过高、对话区变矮。
-   */
-  height: calc(100dvh - var(--tabbar-inner) - var(--tabbar-float-gap) - 10px);
-  max-height: calc(100dvh - var(--tabbar-inner) - var(--tabbar-float-gap) - 10px);
+  /* 与 --tabbar-h 对齐：内高 + 浮动间隙 + 底部安全区 + 余量 */
+  height: calc(100dvh - var(--tabbar-h) - 8px);
+  max-height: calc(100dvh - var(--tabbar-h) - 8px);
   padding-bottom: 8px;
 }
 
@@ -16842,6 +16844,32 @@ html.app-theme-dark .muted {
   color: var(--ink-soft);
 }
 
+.sync-status-badge--compact {
+  flex-shrink: 0;
+  gap: 4px;
+  max-width: 4.5em;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink-faint, var(--ink-soft));
+  cursor: default;
+  text-align: left;
+}
+
+.sync-status-badge--compact:not(:disabled) {
+  cursor: pointer;
+}
+
+.sync-status-badge--compact .sync-status-dot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+}
+
 .sync-status-dot {
   width: 7px;
   height: 7px;
@@ -17037,6 +17065,24 @@ html.app-theme-dark .muted {
   font-size: 11px;
   cursor: default;
   user-select: none;
+}
+
+.sync-status-badge.sync-status-badge--compact {
+  gap: 4px;
+  max-width: none;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink-faint, var(--ink-soft));
+}
+
+.sync-status-badge.sync-status-badge--compact .sync-status-dot {
+  width: 5px;
+  height: 5px;
 }
 .sync-status-toast {
   position: fixed;
