@@ -13,7 +13,9 @@ import {
   pendingCount,
   pullReadingStateByUser,
   flushOutboxKeepalive,
+  initializeCloudSyncQueue,
 } from '@/lib/sync';
+import { forceMarkSyncIdle } from '@/lib/sync_status';
 import {
   enqueueLocalReadingMigration,
   hasLocalReadingData,
@@ -96,6 +98,10 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       void syncNow().catch(() => {});
     };
     void ensureAccountReady().then(async () => {
+      // 一次性初始化：清掉今天未同步/卡住的 outbox，解除「同步中」死锁
+      forceMarkSyncIdle();
+      initializeCloudSyncQueue();
+
       const uid = currentUserId() || effectiveId();
       const loggedInWithPwd = Boolean(currentUserId() && hasPassword());
       const standalone = isStandalonePwa();

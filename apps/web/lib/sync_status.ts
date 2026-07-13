@@ -46,6 +46,17 @@ export function markSyncDone() {
   syncChannel?.postMessage({ type: 'sync-done' });
 }
 
+/** 卡住「同步中」时强制恢复空闲（超时 / 初始化） */
+export function forceMarkSyncIdle() {
+  if (!syncing) {
+    notifyLocal();
+    return;
+  }
+  syncing = false;
+  notifyLocal();
+  syncChannel?.postMessage({ type: 'sync-done' });
+}
+
 export function getLastSyncedAt(): number | null {
   return lastSyncedAt;
 }

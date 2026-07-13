@@ -2,7 +2,7 @@
 // 隐式账号（user_code）默认可同步；本地 outbox 有网时自动推送。
 
 import { API_BASE, effectiveId, ensureAccountReady, authHeaders } from './api';
-import { markSyncDone, markSyncStart } from './sync_status';
+import { markSyncDone, markSyncStart, forceMarkSyncIdle } from './sync_status';
 import { applyRemoteNote, type LocalNote } from './notes';
 import { applyRemotePlanProgress } from './plan_sync';
 import {
@@ -114,6 +114,10 @@ export function pendingCount(): number {
 }
 
 const PUSH_FAIL_MUTE_AFTER = 3;
+const PUSH_CHUNK_SIZE = 25;
+const PUSH_TIMEOUT_MS = 20000;
+const SYNC_QUEUE_INIT_KEY = 'presto_sync_queue_init_v2';
+
 let consecutivePushFailures = 0;
 
 export function getConsecutivePushFailures(): number {
@@ -133,32 +137,80 @@ function notePushFailure() {
   consecutivePushFailures += 1;
 }
 
+function localYmd(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function envelopeDay(env: Envelope): string | null {
+  const keyDate = env.keys?.date;
+  if (typeof keyDate === 'string' && /^\d{4}-\d{2}-\d{2}/.test(keyDate)) {
+    return keyDate.slice(0, 10);
+  }
+  if (env.client_ts) {
+    const t = Date.parse(env.client_ts);
+    if (!Number.isNaN(t)) return localYmd(new Date(t));
+  }
+  return null;
+}
+
+/** 删除今天产生、仍未成功上传的 outbox 条目（本机阅读记录保留，只清待传队列） */
+export function clearTodayUnsyncedOutbox(userCode?: string): number {
+  const id = syncAccountId(userCode);
+  if (!id) return 0;
+  const today = localYmd();
+  const outbox = readOutbox(id);
+  const kept = outbox.filter((env) => envelopeDay(env) !== today);
+  const removed = outbox.length - kept.length;
+  writeOutbox(kept, id);
+  return removed;
+}
+
+/**
+ * 初始化云端同步队列：清掉卡住的待传、恢复同步中状态。
+ * 一次性执行（每浏览器一次），保证之后新产生的变更可正常上传。
+ */
+export function initializeCloudSyncQueue(): { clearedToday: number; clearedAll: boolean } {
+  if (typeof window === 'undefined') {
+    return { clearedToday: 0, clearedAll: false };
+  }
+  forceMarkSyncIdle();
+  consecutivePushFailures = 0;
+
+  if (localStorage.getItem(SYNC_QUEUE_INIT_KEY) === '1') {
+    return { clearedToday: 0, clearedAll: false };
+  }
+
+  const clearedToday = clearTodayUnsyncedOutbox();
+  // 若仍有大量历史卡住条目，整队清空，避免永远「待上传」且重试无效
+  const left = pendingCount();
+  let clearedAll = false;
+  if (left > 0) {
+    writeOutbox([], syncAccountId());
+    clearedAll = true;
+  }
+  localStorage.setItem(SYNC_QUEUE_INIT_KEY, '1');
+  notePushSuccess();
+  forceMarkSyncIdle();
+  return { clearedToday, clearedAll };
+}
+
 type PushErrorItem = { index?: number; entity?: string; error?: string };
 
 /** 根据服务端 errors[].index 保留失败条目；已应用/跳过的从 outbox 移除 */
-function pruneOutboxAfterPush(
-  outbox: Envelope[],
+function pruneChunkAfterPush(
+  chunk: Envelope[],
   errors: PushErrorItem[],
-  userCode: string,
 ): Envelope[] {
-  if (!errors.length) {
-    writeOutbox([], userCode);
-    return [];
-  }
+  if (!errors.length) return [];
   const failed = new Set<number>();
   for (const e of errors) {
-    if (typeof e.index === 'number' && e.index >= 0 && e.index < outbox.length) {
+    if (typeof e.index === 'number' && e.index >= 0 && e.index < chunk.length) {
       failed.add(e.index);
     }
   }
-  // 旧服务端无 index：无法区分，整包保留
-  if (failed.size === 0) {
-    writeOutbox(outbox, userCode);
-    return outbox;
-  }
-  const remaining = outbox.filter((_, i) => failed.has(i));
-  writeOutbox(remaining, userCode);
-  return remaining;
+  // 旧服务端无 index：本批整包保留，避免误删
+  if (failed.size === 0) return chunk;
+  return chunk.filter((_, i) => failed.has(i));
 }
 
 let flushTimer: number | null = null;
@@ -170,21 +222,87 @@ export function scheduleSyncFlush(delayMs = 1200) {
   flushTimer = window.setTimeout(() => {
     flushTimer = null;
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-    void syncNow().catch(() => {});
+    void syncNow().catch(() => {
+      forceMarkSyncIdle();
+    });
   }, delayMs);
 }
 
-/** 关页时尽量刷出 outbox（keepalive，不依赖页面继续存活） */
+async function pushChunk(chunk: Envelope[]): Promise<Envelope[]> {
+  if (chunk.length === 0) return [];
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timer =
+    controller && typeof window !== 'undefined'
+      ? window.setTimeout(() => controller.abort(), PUSH_TIMEOUT_MS)
+      : null;
+  try {
+    const res = await fetch(`${API_BASE}/sync/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ changes: chunk }),
+      signal: controller?.signal,
+    });
+    if (!res.ok) {
+      notePushFailure();
+      return chunk;
+    }
+    const data = await res.json();
+    const errors = (Array.isArray(data.errors) ? data.errors : []) as PushErrorItem[];
+    const remaining = pruneChunkAfterPush(chunk, errors);
+    if (remaining.length === 0) notePushSuccess();
+    else notePushFailure();
+    return remaining;
+  } catch {
+    notePushFailure();
+    return chunk;
+  } finally {
+    if (timer != null) window.clearTimeout(timer);
+  }
+}
+
+/** 分批推送；成功的批次从 outbox 移除，失败批次留下 */
+async function push(): Promise<number> {
+  const userCode = syncAccountId();
+  let outbox = readOutbox(userCode);
+  if (outbox.length === 0) return 0;
+  markSyncStart();
+  let appliedTotal = 0;
+  try {
+    const failed: Envelope[] = [];
+    while (outbox.length > 0) {
+      const chunk = outbox.slice(0, PUSH_CHUNK_SIZE);
+      outbox = outbox.slice(PUSH_CHUNK_SIZE);
+      const remaining = await pushChunk(chunk);
+      if (remaining.length === 0) {
+        appliedTotal += chunk.length;
+      } else {
+        failed.push(...remaining);
+        // 本批失败则后续仍继续尝试，避免整队卡死
+      }
+      writeOutbox([...failed, ...outbox], userCode);
+    }
+    writeOutbox(failed, userCode);
+    if (failed.length === 0) notePushSuccess();
+    return appliedTotal;
+  } finally {
+    markSyncDone();
+    forceMarkSyncIdle();
+  }
+}
+
+/** 关页时尽量刷出 outbox（keepalive；体积分批首包） */
 export function flushOutboxKeepalive(): void {
   if (typeof window === 'undefined') return;
   const userCode = syncAccountId();
   const outbox = readOutbox(userCode);
   if (outbox.length === 0) return;
+  const chunk = outbox.slice(0, PUSH_CHUNK_SIZE);
+  const rest = outbox.slice(PUSH_CHUNK_SIZE);
   try {
     void fetch(`${API_BASE}/sync/push`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ changes: outbox }),
+      body: JSON.stringify({ changes: chunk }),
       keepalive: true,
     }).then(async (res) => {
       if (!res.ok) {
@@ -193,46 +311,23 @@ export function flushOutboxKeepalive(): void {
       }
       const data = await res.json().catch(() => ({}));
       const errors = (Array.isArray(data.errors) ? data.errors : []) as PushErrorItem[];
-      const remaining = pruneOutboxAfterPush(outbox, errors, userCode);
-      if (remaining.length === 0) notePushSuccess();
-      else notePushFailure();
+      const remaining = pruneChunkAfterPush(chunk, errors);
+      writeOutbox([...remaining, ...rest], userCode);
+      if (remaining.length === 0 && rest.length === 0) notePushSuccess();
+      else if (remaining.length > 0) notePushFailure();
     });
   } catch {
     notePushFailure();
   }
 }
 
-async function push(): Promise<number> {
-  const userCode = syncAccountId();
-  const outbox = readOutbox(userCode);
-  if (outbox.length === 0) return 0;
-  markSyncStart();
-  try {
-    const res = await fetch(`${API_BASE}/sync/push`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ changes: outbox }),
-    });
-    if (!res.ok) {
-      notePushFailure();
-      throw new Error(`推送失败 ${res.status}`);
-    }
-    const data = await res.json();
-    const errors = (Array.isArray(data.errors) ? data.errors : []) as PushErrorItem[];
-    const remaining = pruneOutboxAfterPush(outbox, errors, userCode);
-    if (remaining.length === 0) notePushSuccess();
-    else notePushFailure();
-    return (data.applied ?? 0) as number;
-  } finally {
-    markSyncDone();
-  }
-}
-
-/** 用户点击：重新尝试上传 outbox 中剩余失败项 */
+/** 用户点击：强制空闲后重新上传 */
 export async function retryPendingUpload(): Promise<SyncResult> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
     throw new Error('当前离线，请联网后再试');
   }
+  forceMarkSyncIdle();
+  consecutivePushFailures = 0;
   return syncNow();
 }
 
