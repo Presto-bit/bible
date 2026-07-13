@@ -12682,7 +12682,7 @@ a.license-row-name:hover {
 
 .discover-page .feed-card {
   border: var(--soft-card-edge);
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: var(--home-shadow);
 }
 
@@ -12988,7 +12988,7 @@ a.license-row-name:hover {
 .discover-feed {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   margin-top: 10px;
 }
 
@@ -13031,14 +13031,182 @@ a.license-row-name:hover {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  border-radius: 14px;
+  border-radius: 16px;
   box-shadow: var(--home-shadow, var(--elev-1));
 }
 
-.feed-card-compact {
+.feed-card-compact,
+.feed-card-mid {
   border: var(--soft-card-edge, 1px solid var(--line));
 }
 
+/* ── 中等 Hero 卡 ── */
+.feed-card-mid-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 8px;
+  min-width: 0;
+}
+
+.feed-card-mid-avatar {
+  flex-shrink: 0;
+  display: block;
+  border-radius: 50%;
+  line-height: 0;
+  text-decoration: none;
+}
+
+.feed-card-mid-avatar .friend-avatar {
+  display: block;
+}
+
+.feed-card-mid-who {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
+.feed-card-mid-name {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+a.feed-card-mid-name:hover {
+  color: var(--accent-deep);
+}
+
+.feed-card-mid-meta {
+  font-weight: 500;
+  color: var(--ink-faint);
+}
+
+.feed-card-mid-time {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.feed-verse-mid {
+  display: block;
+  margin: 0 12px;
+  padding: 10px 12px;
+  min-height: 56px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+  background: linear-gradient(
+    155deg,
+    var(--feed-hero-from) 0%,
+    var(--surface) 70%
+  );
+  border: 1px solid color-mix(in srgb, var(--feed-accent) 22%, var(--line));
+}
+
+a.feed-verse-mid:active {
+  transform: scale(0.99);
+}
+
+.feed-verse-mid-ref {
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--feed-accent, var(--accent-deep));
+  margin-bottom: 4px;
+}
+
+.feed-verse-mid-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feed-verse-mid-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feed-verse-mid-skeleton span {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--ink-faint) 18%, var(--surface));
+  animation: feed-verse-shimmer 1.1s ease-in-out infinite;
+}
+
+.feed-verse-mid-skeleton span:nth-child(1) { width: 88%; }
+.feed-verse-mid-skeleton span:nth-child(2) { width: 64%; animation-delay: 0.12s; }
+
+.feed-card-mid-foot {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 14px 12px;
+  min-height: 36px;
+}
+
+.feed-card-mid-foot-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.feed-card-mid-thought {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.feed-card-mid-like {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 0;
+  background: transparent;
+  padding: 4px 2px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink-faint);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.feed-card-mid-like em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.feed-card-mid-like.is-active {
+  color: #c45c4a;
+}
+
+.feed-card-mid-like:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── 旧紧凑行（备用） ── */
 .feed-card-compact-inner {
   display: flex;
   align-items: flex-start;
@@ -13225,7 +13393,7 @@ a.feed-verse-line:hover .feed-verse-line-ref {
   --feed-hero-from: color-mix(in srgb, var(--dawn-sky) 22%, var(--surface));
 }
 
-/* 旧版大 Hero（仅保留样式，发现页已改用紧凑行） */
+/* 旧版大 Hero（仅保留样式） */
 .feed-card-head {
   display: flex;
   align-items: flex-start;

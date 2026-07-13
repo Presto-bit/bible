@@ -12,7 +12,7 @@ import {
 } from '@/lib/feed_activity';
 import { friendDisplayName } from '@/lib/friend_label';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
-import { FeedVerseLine } from '@/components/discover/FeedVersePreview';
+import { FeedVerseMedium } from '@/components/discover/FeedVersePreview';
 
 type FeedKind = 'checkin' | 'thought' | 'note';
 
@@ -42,6 +42,7 @@ export function FriendActivityCard({
   const likeCount = reactionEmojiCount(item.reactions, FEED_LIKE_EMOJI);
   const readerHref = item.ref ? readerHrefFromFeedActivity(item) : null;
   const body = item.body?.trim() || '';
+  const showThought = Boolean(body);
 
   const onLikeClick = (e: MouseEvent) => {
     e.preventDefault();
@@ -60,73 +61,65 @@ export function FriendActivityCard({
   const metaBits = [label];
   if (kind === 'checkin' && item.group_name) metaBits.push(item.group_name);
 
-  const row2 = (() => {
-    if (item.ref) {
-      return (
-        <FeedVerseLine
-          refParam={item.ref}
-          href={readerHref}
-          bodyHint={kind !== 'checkin' && body ? body : null}
-        />
-      );
-    }
-    if (body) {
-      return <p className="feed-card-compact-body">{body}</p>;
-    }
-    return <p className="feed-card-compact-body muted">分享了一条动态</p>;
-  })();
-
   return (
-    <article className={`card feed-card feed-card-compact feed-card--${kind}`}>
-      <div className="feed-card-compact-inner">
+    <article
+      className={`card feed-card feed-card-mid feed-card--${kind}${showThought ? ' has-thought' : ''}`}
+    >
+      <div className="feed-card-mid-head">
         {showAuthor ? (
           authorHref ? (
             <Link
               href={authorHref}
-              className="feed-card-compact-avatar"
+              className="feed-card-mid-avatar"
               aria-label={displayName}
             >
               <FriendAvatar friend={friendPick} size={28} />
             </Link>
           ) : (
-            <span className="feed-card-compact-avatar">
+            <span className="feed-card-mid-avatar">
               <FriendAvatar friend={friendPick} size={28} />
             </span>
           )
         ) : null}
 
-        <div className="feed-card-compact-main">
-          <div className="feed-card-compact-row1">
-            <div className="feed-card-compact-who">
-              {showAuthor && authorHref ? (
-                <Link href={authorHref} className="feed-card-compact-name">
-                  {displayName}
-                </Link>
-              ) : showAuthor ? (
-                <span className="feed-card-compact-name">{displayName}</span>
-              ) : null}
-              <span className="feed-card-compact-meta">
-                {showAuthor ? ` · ${metaBits.join(' · ')}` : metaBits.join(' · ')}
-              </span>
-            </div>
-            <time className="feed-card-compact-time">{formatActivityTime(item.created_at)}</time>
-          </div>
-
-          <div className="feed-card-compact-row2">
-            <div className="feed-card-compact-content">{row2}</div>
-            <button
-              type="button"
-              className={`feed-card-compact-like${liked ? ' is-active' : ''}`}
-              onClick={onLikeClick}
-              disabled={!onLike}
-              aria-pressed={liked}
-              aria-label={liked ? '取消赞' : '赞'}
-            >
-              <span aria-hidden>{liked ? '♥' : '♡'}</span>
-              {likeCount > 0 ? <em>{likeCount}</em> : null}
-            </button>
-          </div>
+        <div className="feed-card-mid-who">
+          {showAuthor && authorHref ? (
+            <Link href={authorHref} className="feed-card-mid-name">
+              {displayName}
+            </Link>
+          ) : showAuthor ? (
+            <span className="feed-card-mid-name">{displayName}</span>
+          ) : null}
+          <span className="feed-card-mid-meta">
+            {showAuthor ? ` · ${metaBits.join(' · ')}` : metaBits.join(' · ')}
+          </span>
         </div>
+        <time className="feed-card-mid-time">{formatActivityTime(item.created_at)}</time>
+      </div>
+
+      {item.ref ? (
+        <FeedVerseMedium refParam={item.ref} kind={kind} href={readerHref} />
+      ) : null}
+
+      <div className="feed-card-mid-foot">
+        <div className="feed-card-mid-foot-main">
+          {showThought ? (
+            <p className="feed-card-mid-thought">{body}</p>
+          ) : !item.ref ? (
+            <p className="feed-card-mid-thought muted">分享了一条动态</p>
+          ) : null}
+        </div>
+        <button
+          type="button"
+          className={`feed-card-mid-like${liked ? ' is-active' : ''}`}
+          onClick={onLikeClick}
+          disabled={!onLike}
+          aria-pressed={liked}
+          aria-label={liked ? '取消赞' : '赞'}
+        >
+          <span aria-hidden>{liked ? '♥' : '♡'}</span>
+          {likeCount > 0 ? <em>{likeCount}</em> : null}
+        </button>
       </div>
     </article>
   );

@@ -12,7 +12,7 @@ type Props = {
   href?: string | null;
 };
 
-/** @deprecated 大 Hero 预览；发现页已改用 FeedVerseLine 紧凑行 */
+/** @deprecated 大 Hero；发现页已改用 FeedVerseMedium */
 export function FeedVersePreview({ refParam, kind = 'checkin', href }: Props) {
   const [label, setLabel] = useState(() => formatGroupRefLabel(refParam));
   const [snippet, setSnippet] = useState('');
@@ -88,6 +88,81 @@ export function FeedVersePreview({ refParam, kind = 'checkin', href }: Props) {
   );
 }
 
+type MediumProps = {
+  refParam: string;
+  kind?: 'checkin' | 'thought' | 'note';
+  href?: string | null;
+};
+
+/** 中等 Hero：引用 + 经文摘录两行，点进阅读器 */
+export function FeedVerseMedium({ refParam, kind = 'checkin', href }: MediumProps) {
+  const [label, setLabel] = useState(() => formatGroupRefLabel(refParam));
+  const [snippet, setSnippet] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void api
+      .scriptureRef(refParam)
+      .then((d) => {
+        if (cancelled) return;
+        setLabel(d.display || formatGroupRefLabel(refParam));
+        const combined = (d.verses ?? []).map((v) => v.text).join('');
+        if (!combined) {
+          setSnippet('');
+          return;
+        }
+        const max = 56;
+        setSnippet(combined.length > max ? `${combined.slice(0, max)}…` : combined);
+      })
+      .catch(() => {
+        if (!cancelled) setSnippet('');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refParam]);
+
+  const onNav = (e: MouseEvent) => {
+    e.stopPropagation();
+    markRouteNavigation();
+  };
+
+  const className = `feed-verse-mid feed-verse-mid--${kind}`;
+  const inner = (
+    <>
+      <div className="feed-verse-mid-ref">{label}</div>
+      {loading ? (
+        <div className="feed-verse-mid-skeleton" aria-hidden>
+          <span />
+          <span />
+        </div>
+      ) : (
+        <p className="feed-verse-mid-text">{snippet ? `「${snippet}」` : '…'}</p>
+      )}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className={className}
+        aria-label={`阅读 ${label}`}
+        onClick={onNav}
+      >
+        {inner}
+      </Link>
+    );
+  }
+
+  return <div className={className}>{inner}</div>;
+}
+
 type LineProps = {
   refParam: string;
   href?: string | null;
@@ -95,7 +170,7 @@ type LineProps = {
   bodyHint?: string | null;
 };
 
-/** 紧凑卡第 2 行：经文引用 + 一行摘录 */
+/** 紧凑行：经文引用 + 一行摘录（备用） */
 export function FeedVerseLine({ refParam, href, bodyHint }: LineProps) {
   const [label, setLabel] = useState(() => formatGroupRefLabel(refParam));
   const [snippet, setSnippet] = useState('');
