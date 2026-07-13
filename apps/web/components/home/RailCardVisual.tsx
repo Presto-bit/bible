@@ -91,10 +91,27 @@ export function RailCardVisual({ card }: Props) {
 
   if (layout === 'scene-caption' && card.sceneId) {
     const showRing = railShowsProgress(card) && (card.progressPct ?? 0) > 0;
+    const isGroup = card.id === 'group';
     return (
-      <div className={`rail-card-media rail-card-media-scene-caption rail-card-media-${card.tint}`}>
+      <div
+        className={[
+          'rail-card-media',
+          'rail-card-media-scene-caption',
+          `rail-card-media-${card.tint}`,
+          isGroup ? 'rail-card-media-group' : '',
+        ]
+          .filter(Boolean)
+          .join(' ')}
+      >
         <SceneBackdrop sceneId={card.sceneId} />
-        <div className="rail-card-scene-veil" aria-hidden />
+        {isGroup ? (
+          <>
+            <div className="rail-card-group-glow" aria-hidden />
+            <div className="rail-card-group-veil" aria-hidden />
+          </>
+        ) : (
+          <div className="rail-card-scene-veil" aria-hidden />
+        )}
         {card.mediaCaption ? (
           <p className="rail-card-scene-caption">{card.mediaCaption}</p>
         ) : null}

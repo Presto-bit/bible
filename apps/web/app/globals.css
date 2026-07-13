@@ -725,6 +725,51 @@ html:not([data-app-theme]) .card {
   margin: 14px 0 8px;
 }
 
+.reader-catalog-page {
+  --catalog-soft-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+.reader-catalog-page .catalog-page-bar {
+  margin-bottom: 12px;
+}
+
+.reader-catalog-page .catalog-page-title {
+  margin: 0;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reader-catalog-page .catalog-resume-card {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--catalog-soft-shadow);
+  min-height: 56px;
+  padding: 14px 16px;
+  margin: 0 0 14px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+}
+
+.reader-catalog-page .catalog-section-label {
+  margin: 16px 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
 .catalog-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -743,8 +788,20 @@ html:not([data-app-theme]) .card {
   cursor: pointer;
 }
 
+.reader-catalog-page .catalog-card {
+  border-radius: 14px;
+  border: none;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
+}
+
 .catalog-card:active {
   border-color: var(--accent);
+}
+
+.reader-catalog-page .catalog-card:active {
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent-deep) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
 }
 
 .catalog-card {
@@ -767,9 +824,11 @@ html:not([data-app-theme]) .card {
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
-.reader-catalog-page {
-  overflow-x: hidden;
-  max-width: 100vw;
+.reader-catalog-page .catalog-card-reading,
+.reader-catalog-page .catalog-card-active {
+  border: none;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent-deep) 40%, transparent);
 }
 
 .catalog-flag {
@@ -1399,10 +1458,20 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .home-rail .rail-card-body-padded {
-  padding: 8px 12px 10px;
+  padding: 6px 12px 10px;
   width: 100%;
   box-sizing: border-box;
   min-height: 54px;
+}
+
+/* 共读 / 计划：主文案在图上，底区更紧，标签与「继续」齐平 */
+.home-page .home-rail .rail-card-layout-scene-caption .rail-card-body-padded {
+  min-height: 0;
+}
+
+.home-page .home-rail .rail-card-layout-cover .rail-card-body-padded .rail-head,
+.home-page .home-rail .rail-card-layout-scene-caption .rail-card-body-padded .rail-head {
+  margin-bottom: 2px;
 }
 
 .home-page .home-rail .rail-card-media {
@@ -1525,7 +1594,7 @@ html:not([data-app-theme]) .card {
   right: 12px;
   bottom: 10px;
   margin: 0;
-  z-index: 1;
+  z-index: 2;
   color: #fff;
   font-size: 14px;
   font-weight: 700;
@@ -3136,11 +3205,126 @@ a.today-card-link {
 }
 
 /* ─── 我的页 ─── */
+.profile-page {
+  --home-card-radius: 24px;
+  --home-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
+  padding-top: 8px;
+}
+
 .profile-head {
   display: flex;
   gap: 12px;
   align-items: flex-start;
   margin-bottom: 14px;
+}
+
+.profile-page .profile-greet-head {
+  align-items: center;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.profile-page .profile-display-name {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.profile-page .profile-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.profile-page .profile-bio-text {
+  font-size: 13px;
+}
+
+.profile-page .profile-meta-line {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.profile-page .profile-id-inline {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.profile-page .profile-settings-btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow: var(--home-shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.profile-page .profile-block-label {
+  margin-top: 16px;
+  margin-bottom: 10px;
+}
+
+.profile-page .profile-soft-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-page .profile-soft-row.card,
+.profile-page a.profile-soft-row.card {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  min-height: 64px;
+  padding: 14px 16px;
+  margin: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--surface);
+}
+
+.profile-page .profile-progress-wrap .progress-card {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  margin: 0;
+}
+
+.profile-page .profile-review-card {
+  margin-top: 14px;
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  padding: 14px 16px;
+}
+
+.profile-page .profile-review-link {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  text-decoration: none;
 }
 
 .profile-avatar {
@@ -3362,6 +3546,70 @@ body.assistant-active .app-body {
   align-items: center;
   padding: 12px 4px 24px;
   text-align: center;
+}
+
+.assistant-empty-scene {
+  position: relative;
+  width: min(100%, 320px);
+  margin: 0 auto 14px;
+  padding: 28px 20px 24px;
+  border-radius: 24px;
+  overflow: hidden;
+  background:
+    linear-gradient(165deg, color-mix(in srgb, var(--dawn-rose, #c45c6a) 12%, transparent) 0%, transparent 55%),
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, var(--surface)) 0%, var(--surface) 100%);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.assistant-empty-scene-glow {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 70% 55% at 50% 20%, rgba(255, 248, 240, 0.55) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.assistant-empty-scene-kicker {
+  position: relative;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+}
+
+.assistant-empty-scene-title {
+  position: relative;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.35;
+}
+
+.assistant-empty-desc {
+  font-size: 13px;
+  line-height: 1.65;
+  margin: 0 0 14px;
+  padding: 0 8px;
+  max-width: 28em;
+}
+
+.assistant-empty-primary {
+  margin-bottom: 12px;
+  min-width: 180px;
+}
+
+.assistant-page .history-item {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08);
+  padding: 12px 14px;
+}
+
+.assistant-page .history-item-more {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 /* 无对话：欢迎语 + 输入区作为一组垂直居中（非贴顶/贴底） */
@@ -10559,8 +10807,88 @@ a.license-row-name:hover {
 }
 
 /* ── 共读群：发现页 + 群聊页 ── */
+.discover-page {
+  --home-card-radius: 24px;
+  --home-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
+  --home-shadow-lift: 0 4px 16px rgba(15, 23, 42, 0.08), 0 12px 40px rgba(15, 23, 42, 0.12);
+}
+
+/* 各 Tab 共用：首页式分区标（左标题 + 可选右链） */
+.tab-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  margin-bottom: 10px;
+}
+
+.tab-section-label.section-label {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  letter-spacing: 0.02em;
+}
+
+.tab-section-link {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
 .discover-page .discover-hero {
   margin-top: 14px;
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+}
+
+.discover-page .discover-empty-card {
+  margin-top: 0;
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  padding: 16px 18px;
+}
+
+.discover-page .discover-feed-empty {
+  margin-top: 4px;
+}
+
+.discover-page .discover-group-rail .group-card,
+.discover-page .discover-group-rail .group-card.card-2 {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  padding: 16px;
+}
+
+.discover-page .group-card-pending {
+  border-left: none;
+  box-shadow:
+    var(--home-shadow),
+    inset 3px 0 0 var(--accent);
+}
+
+.discover-page .group-card-has-tasks {
+  box-shadow:
+    var(--home-shadow),
+    inset 0 0 0 1px rgba(200, 160, 60, 0.22);
+}
+
+.discover-page .discover-today--action,
+.discover-page .discover-today--done-gold {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow-lift);
+}
+
+.discover-page .feed-card {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
 }
 
 .discover-hero-actions {

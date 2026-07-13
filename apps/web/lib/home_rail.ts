@@ -227,7 +227,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         id,
         kind: 'media',
         tint: 'green',
-        layout: 'scene',
+        layout: 'scene-caption',
         tag: '共读',
         reason: '',
         title: input.group.title,
@@ -235,6 +235,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         href: input.group.href,
         icon: RAIL_ICONS.group,
         sceneId: 'group',
+        mediaCaption: input.group.title,
       };
     case 'notes':
       return {

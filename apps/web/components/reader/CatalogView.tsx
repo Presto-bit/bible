@@ -6,6 +6,7 @@ import type { BibleBook } from '@/lib/api';
 import { allowedChaptersForBook, isChapterInPlan, planBooksInSteps } from '@/lib/plan_navigation';
 import type { PlanStep } from '@/lib/plan_steps';
 import { clearReaderChrome } from '@/lib/reader_chrome';
+import { getLastRead } from '@/lib/reading';
 
 type CatalogTab = 'books' | 'chapters';
 
@@ -61,6 +62,9 @@ function CatalogView({
     ? books.filter((b) => planBookIds.has(b.id))
     : books;
 
+  const last = !planSteps?.length ? getLastRead() : null;
+  const lastBook = last ? books.find((b) => b.id === last.bookId) : null;
+
   const tryPickChapter = (b: BibleBook, n: number) => {
     if (planSteps?.length && !isChapterInPlan(planSteps, b.id, n)) {
       setPickWarn('该章节不在今日计划内，请从计划段列表选择');
@@ -85,7 +89,7 @@ function CatalogView({
     if (!items.length) return null;
     return (
     <>
-      <p className="section-head">{label}</p>
+      <p className="section-label tab-section-label catalog-section-label">{label}</p>
       <div className="catalog-grid">
         {items.map((b) => (
           <button
@@ -117,14 +121,31 @@ function CatalogView({
 
   return (
     <main className="container reader-catalog-page">
-      <div className="reader-bar" style={{ marginBottom: 10 }}>
-        <h2 style={{ margin: 0, fontSize: 18, display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="reader-bar catalog-page-bar">
+        <h2 className="catalog-page-title">
           {showBack && onBack && (
             <PageBackBar variant="sheet" ariaLabel="返回" onClick={onBack} />
           )}
           圣经目录{planSteps?.length ? ' · 计划模式' : ''}
         </h2>
       </div>
+
+      {lastBook && last && tab === 'books' ? (
+        <button
+          type="button"
+          className="card row-card home-list-row catalog-resume-card"
+          onClick={() => tryPickChapter(lastBook, last.chapter)}
+        >
+          <span className="pill pill-active">继续</span>
+          <span className="home-list-main">
+            <strong>
+              {lastBook.name} {last.chapter} 章
+            </strong>
+            <span className="muted home-list-sub">从上次读到的地方继续</span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </button>
+      ) : null}
 
       {pickWarn && (
         <p className="muted plan-catalog-warn" style={{ fontSize: 13, marginBottom: 10 }}>

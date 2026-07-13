@@ -150,13 +150,13 @@ export default function DiscoverTab() {
         </div>
       ) : (
         <>
-          <div className="section-row" style={{ marginTop: 14 }}>
-            <span>我的共读</span>
-            <Link href="/discover/groups" className="muted">
+          <div className="tab-section-head">
+            <p className="section-label tab-section-label">我的共读</p>
+            <Link href="/discover/groups" className="tab-section-link muted">
               查看全部 ›
             </Link>
           </div>
-          <div className="rail discover-group-rail" style={{ marginTop: 8 }}>
+          <div className="rail discover-group-rail">
             {groups.map((g) => {
               const badge = groupStatusBadge(g);
               const isPendingOnly = pendingOnlyIds.has(g.id);
@@ -268,15 +268,15 @@ export default function DiscoverTab() {
         </>
       )}
 
-      <div id="discover-feed" className="section-row" style={{ marginTop: 18 }}>
-        <span>好友动态</span>
-        <Link href="/discover/friends" className="muted">
+      <div id="discover-feed" className="tab-section-head">
+        <p className="section-label tab-section-label">好友动态</p>
+        <Link href="/discover/friends" className="tab-section-link muted">
           我的好友 ›
         </Link>
       </div>
 
       {friends.length === 0 ? (
-        <div className="card" style={{ marginTop: 8 }}>
+        <div className="card discover-empty-card">
           <strong>添加好友后可见动态</strong>
           <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
             好友的群内打卡与主动分享会出现在下方动态，不会上传默默阅读进度。
@@ -286,7 +286,7 @@ export default function DiscoverTab() {
           </Link>
         </div>
       ) : shares.length === 0 ? (
-        <p className="muted" style={{ marginTop: 8 }}>
+        <p className="muted discover-feed-empty">
           暂无好友动态，去群里打卡或等好友分享吧
         </p>
       ) : (

@@ -886,11 +886,36 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           >
             {msgs.length === 0 && (
               <div className="assistant-empty-hint">
-                <p className="muted" style={{ fontSize: 13, lineHeight: 1.65, margin: '0 0 12px', padding: '0 4px' }}>
-                  我是小爱，可以帮你查经文、解经义、整理笔记。需要联网。
+                <div className="assistant-empty-scene" aria-hidden>
+                  <span className="assistant-empty-scene-glow" />
+                  <p className="assistant-empty-scene-kicker">小爱</p>
+                  <p className="assistant-empty-scene-title">读着不懂？先问一句</p>
+                </div>
+                <p className="muted assistant-empty-desc">
+                  查经文、解经义、整理笔记。需要联网。
                 </p>
+                {personalized[0] ? (
+                  <button
+                    type="button"
+                    className="btn assistant-empty-primary"
+                    disabled={busy}
+                    onClick={() =>
+                      send(
+                        personalized[0].q,
+                        personalized[0].mode,
+                        undefined,
+                        personalized[0].label,
+                        personalized[0].scene,
+                      )
+                    }
+                  >
+                    {personalized[0].label === '今日默想' || personalized[0].label === '经文背景'
+                      ? '聊聊今日经文'
+                      : personalized[0].label}
+                  </button>
+                ) : null}
                 <div className="empty-pills">
-                  {personalized.map((c) => (
+                  {personalized.slice(1).map((c) => (
                     <button
                       key={c.label}
                       type="button"

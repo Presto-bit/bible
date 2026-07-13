@@ -251,8 +251,8 @@ export default function ProfileTab() {
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 
   return (
-    <main className="container">
-      <header className="profile-head">
+    <main className="container profile-page">
+      <header className="profile-head profile-greet-head">
         <button
           type="button"
           className="profile-avatar-btn"
@@ -262,8 +262,8 @@ export default function ProfileTab() {
           <Avatar id={avatarId} size={56} />
         </button>
         <div className="profile-meta">
-          <div className="section-row" style={{ marginTop: 0, gap: 8 }}>
-            <strong>{displayName}</strong>
+          <div className="profile-name-row">
+            <strong className="profile-display-name">{displayName}</strong>
             <SyncStatusBadge />
           </div>
           {bioEditing ? (
@@ -289,24 +289,27 @@ export default function ProfileTab() {
               onClick={() => setBioEditing(true)}
               aria-label="编辑签名"
             >
-              <span className="muted" style={{ fontSize: 12 }}>
+              <span className="muted profile-bio-text">
                 {bio.trim() ? bio : '点击添加签名'}
               </span>
-              <span className="muted" style={{ fontSize: 11, marginLeft: 4 }}>编辑</span>
             </button>
           )}
-          {idValue && !accountComplete && (
-            <button type="button" className="id-chip" onClick={copyId}>
-              {idCopied ? '已复制 ✓' : `ID ${idValue}`}
-            </button>
-          )}
-          <span className="muted" style={{ fontSize: 11, marginTop: 4, display: 'block' }}>
-            {hasPwd ? '已设密码 · 换机可恢复' : '建议设置用户名，换机更方便'}
-          </span>
+          <p className="profile-meta-line muted">
+            {streak > 0 ? `连续 ${streak} 天` : '开始连续读经'}
+            {idValue && !accountComplete ? (
+              <>
+                {' · '}
+                <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
+                  {idCopied ? '已复制' : `ID ${idValue}`}
+                </button>
+              </>
+            ) : null}
+            {hasPwd ? ' · 已设密码' : ' · 建议设置用户名'}
+          </p>
         </div>
         <button
           type="button"
-          className="icon-btn"
+          className="icon-btn profile-settings-btn"
           aria-label="设置"
           onClick={() => setSettingsOpen(true)}
         >
@@ -321,50 +324,82 @@ export default function ProfileTab() {
         <AccountSecurityCard onComplete={refreshAccount} />
       ) : null}
 
-      {streak > 0 && (
-        <div className="streak-banner" style={{ marginTop: 12 }}>
-          <span className="streak-flame">🔥</span>
-          <span>连续读经 <strong>{streak}</strong> 天</span>
-        </div>
-      )}
+      <p className="section-label tab-section-label profile-block-label">成长</p>
+      <div className="profile-soft-stack">
+        <Link href="/report" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
+          <span className="pill pill-active">成长</span>
+          <span className="home-list-main">
+            <strong>
+              {streak > 0 ? `连续 ${streak} 天` : '读经回顾'}
+              {' · '}
+              今日 {mins} 分钟
+            </strong>
+            <span className="muted home-list-sub">读经回顾 ›</span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </Link>
 
-      <Link href="/report" className="card row-card profile-reading-card" style={{ display: 'flex', marginTop: streak > 0 ? 12 : 0 }}>
-        <span className="profile-reading-label">阅读时长</span>
-        <span className="muted profile-reading-meta">
-          今日 {mins} 分钟 · 读经回顾 ›
-        </span>
-      </Link>
-
-      <div style={{ marginTop: 12 }}>
-        <ReadingProgress />
+        <button
+          type="button"
+          className="card row-card home-list-row home-list-row-wrap profile-soft-row profile-badge-row"
+          onClick={() => setBadgeOpen(true)}
+        >
+          <span className="pill">成就</span>
+          <span className="home-list-main">
+            <strong>
+              {badges.length
+                ? `已收集 ${badges.filter((b) => b.done).length}/${badges.length}`
+                : '成就徽章'}
+            </strong>
+            <span className="muted home-list-sub">
+              {(() => {
+                if (!badges.length) return '加载中…';
+                const preview = profilePreviewBadges(badges, 4);
+                if (!preview.length) return '继续读经解锁徽章';
+                return preview.map((b) => b.icon).join(' ');
+              })()}
+            </span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </button>
       </div>
 
-      <Link href="/challenge" className="card row-card challenge-card" style={{ display: 'flex', marginTop: 12 }}>
-        <span className="pill pill-active">每日问答</span>
-        <span style={{ flex: 1 }}>
-          <strong>今日 5 题</strong>
-          <span className="muted" style={{ display: 'block', fontSize: 12 }}>复习错题 · 答题统计</span>
-        </span>
-        <span className="muted">开始 ›</span>
-      </Link>
+      <p className="section-label tab-section-label profile-block-label">常用</p>
+      <div className="profile-soft-stack">
+        <Link href="/challenge" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
+          <span className="pill pill-active">问答</span>
+          <span className="home-list-main">
+            <strong>今日 5 题</strong>
+            <span className="muted home-list-sub">复习错题 · 答题统计</span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </Link>
 
-      <Link href="/notes" className="card row-card profile-memory-card" style={{ display: 'flex', marginTop: 12 }}>
-        <span style={{ flex: 1 }}>我的想法</span>
-        <span className="muted">想法 · 收藏 · 划线 ›</span>
-      </Link>
+        <Link href="/notes" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
+          <span className="pill">想法</span>
+          <span className="home-list-main">
+            <strong>我的想法</strong>
+            <span className="muted home-list-sub">想法 · 收藏 · 划线</span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </Link>
+
+        <div className="profile-progress-wrap">
+          <ReadingProgress />
+        </div>
+      </div>
 
       {reviewCards.length > 0 && (
-        <div className="card" style={{ marginTop: 12 }}>
-          <div className="section-row">
-            <span style={{ fontWeight: 600 }}>收藏复习</span>
-            <Link href="/notes" className="muted">全部 ›</Link>
+        <div className="card profile-review-card">
+          <div className="tab-section-head" style={{ marginTop: 0, marginBottom: 8 }}>
+            <p className="section-label tab-section-label">收藏复习</p>
+            <Link href="/notes" className="tab-section-link muted">全部 ›</Link>
           </div>
           {reviewCards.map((c) => (
             <Link
               key={c.ref}
               href={`/reader?ref=${encodeURIComponent(c.ref)}`}
-              className="muted"
-              style={{ display: 'block', marginTop: 8, fontSize: 13 }}
+              className="muted profile-review-link"
               onClick={() => recordMemoryReview()}
             >
               {c.label}
@@ -372,47 +407,6 @@ export default function ProfileTab() {
           ))}
         </div>
       )}
-
-      <div
-        className="card"
-        style={{ marginTop: 12, cursor: 'pointer' }}
-        role="button"
-        tabIndex={0}
-        onClick={() => setBadgeOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') setBadgeOpen(true);
-        }}
-      >
-        <div className="section-row">
-          <span style={{ fontWeight: 600 }}>成就徽章</span>
-          <span className="muted">
-            {badges.length
-              ? `已收集 ${badges.filter((b) => b.done).length}/${badges.length} ›`
-              : '查看全部 ›'}
-          </span>
-        </div>
-        <div className="badge-row">
-          {(() => {
-            const preview = badges.length
-              ? profilePreviewBadges(badges, 4)
-              : [];
-            if (!badges.length) {
-              return <span className="muted" style={{ fontSize: 12 }}>加载中…</span>;
-            }
-            if (!preview.length) {
-              return <span className="muted" style={{ fontSize: 12 }}>读经、探索与小爱互动，解锁第一枚徽章</span>;
-            }
-            return preview.map((b) => (
-              <div key={b.id} className="badge-item">
-                <div className={`badge-circle ${b.done ? 'badge-done' : ''}`}>
-                  {b.icon}
-                </div>
-                <span>{b.label}</span>
-              </div>
-            ));
-          })()}
-        </div>
-      </div>
 
       {badgeOpen && (
         <BadgeGallery badges={badges} onClose={() => setBadgeOpen(false)} />
