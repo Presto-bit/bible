@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 
 from ..db import get_pool
@@ -31,11 +31,19 @@ def _parse_ts(val: Any) -> datetime | None:
         return None
 
 
+def _jsonable(val: Any) -> Any:
+    if isinstance(val, datetime):
+        return val.isoformat()
+    if isinstance(val, date):
+        return val.isoformat()
+    return val
+
+
 # ── PULL ──────────────────────────────────────────────────────────────────
 def _row_to_change(spec: EntitySpec, cols: list[str], row: tuple) -> dict:
     rec = dict(zip(cols, row))
-    data = {c: rec.get(c) for c in spec.data_cols}
-    keys = {c: rec.get(c) for c in spec.key_cols}
+    data = {c: _jsonable(rec.get(c)) for c in spec.data_cols}
+    keys = {c: _jsonable(rec.get(c)) for c in spec.key_cols}
     deleted = bool(rec.get("deleted")) if spec.versioned else False
     out = {
         "entity": spec.entity,
@@ -78,6 +86,58 @@ def pull(user_id: str, since: int, entities: list[str] | None, limit: int = PULL
     page = collected[:limit]
     cursor = page[-1]["server_seq"] if page else since
     return {"changes": page, "cursor": cursor, "has_more": has_more}
+
+
+def reading_state(user_id: str) -> dict:
+    """按用户一次性返回读经相关全量（不走增量分页，专供重装/换端恢复）。"""
+    pool = get_pool()
+    with pool.connection() as conn:
+        logs = conn.execute(
+            "SELECT date, minutes, chapters FROM reading_log WHERE user_id = %s ORDER BY date",
+            (user_id,),
+        ).fetchall()
+        progress = conn.execute(
+            "SELECT book, chapter, verse, updated_at FROM reading_progress WHERE user_id = %s",
+            (user_id,),
+        ).fetchone()
+        events = conn.execute(
+            """
+            SELECT id, ts, book, chapter FROM read_event
+            WHERE user_id = %s AND deleted = false
+            ORDER BY ts DESC
+            LIMIT 2000
+            """,
+            (user_id,),
+        ).fetchall()
+    return {
+        "reading_log": [
+            {
+                "date": _jsonable(r[0]),
+                "minutes": int(r[1] or 0),
+                "chapters": int(r[2] or 0),
+            }
+            for r in logs
+        ],
+        "reading_progress": (
+            {
+                "book": progress[0],
+                "chapter": int(progress[1] or 0),
+                "verse": int(progress[2] or 1),
+                "updated_at": progress[3].isoformat() if progress[3] else None,
+            }
+            if progress
+            else None
+        ),
+        "read_events": [
+            {
+                "id": str(r[0]),
+                "ts": int(r[1] or 0),
+                "book": r[2],
+                "chapter": int(r[3] or 0),
+            }
+            for r in events
+        ],
+    }
 
 
 # ── PUSH ──────────────────────────────────────────────────────────────────

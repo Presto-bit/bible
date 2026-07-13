@@ -46,6 +46,12 @@ def pull(
     return engine.pull(user_id, since, ent_list, limit)
 
 
+@router.get("/reading-state")
+def reading_state(user_id: str = Depends(get_current_user)) -> dict:
+    """按当前用户 ID 返回读经全量快照（打卡 / 进度 / 章节事件），供 PWA 重装恢复。"""
+    return engine.reading_state(user_id)
+
+
 @router.get("/entities")
 def entities() -> dict:
     return {"entities": all_entities()}

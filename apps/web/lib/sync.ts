@@ -98,10 +98,55 @@ function writeOutbox(items: Envelope[], userCode?: string) {
 export function enqueue(env: Envelope) {
   if (typeof window === 'undefined') return;
   writeOutbox([...readOutbox(), env]);
+  // 读经相关写入后尽快上行，避免卸 PWA 前 outbox 未刷出
+  if (
+    env.entity === 'reading_log' ||
+    env.entity === 'reading_progress' ||
+    env.entity === 'read_event' ||
+    env.entity === 'badge_unlock'
+  ) {
+    scheduleSyncFlush(1200);
+  }
 }
 
 export function pendingCount(): number {
   return readOutbox().length;
+}
+
+let flushTimer: number | null = null;
+
+/** 防抖触发一轮同步（阅读写入后） */
+export function scheduleSyncFlush(delayMs = 1200) {
+  if (typeof window === 'undefined') return;
+  if (flushTimer != null) window.clearTimeout(flushTimer);
+  flushTimer = window.setTimeout(() => {
+    flushTimer = null;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    void syncNow().catch(() => {});
+  }, delayMs);
+}
+
+/** 关页时尽量刷出 outbox（keepalive，不依赖页面继续存活） */
+export function flushOutboxKeepalive(): void {
+  if (typeof window === 'undefined') return;
+  const userCode = syncAccountId();
+  const outbox = readOutbox(userCode);
+  if (outbox.length === 0) return;
+  try {
+    void fetch(`${API_BASE}/sync/push`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeaders() },
+      body: JSON.stringify({ changes: outbox }),
+      keepalive: true,
+    }).then(async (res) => {
+      if (!res.ok) return;
+      const data = await res.json().catch(() => ({}));
+      const errors = Array.isArray(data.errors) ? data.errors : [];
+      if (errors.length === 0) writeOutbox([], userCode);
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 async function push(): Promise<number> {
@@ -314,4 +359,61 @@ export async function syncResyncAccount(): Promise<SyncResult> {
 /** 仅从云端拉取（合并弹窗「暂不合并」：先补齐云端，不上行本机迁移） */
 export async function syncPullFirst(): Promise<SyncResult> {
   return syncNow({ pullFirst: true, fullPull: true });
+}
+
+type ReadingStatePayload = {
+  reading_log?: Array<{ date?: string; minutes?: number; chapters?: number }>;
+  reading_progress?: {
+    book?: string;
+    chapter?: number;
+    verse?: number;
+    updated_at?: string | null;
+  } | null;
+  read_events?: Array<{ id?: string; ts?: number; book?: string; chapter?: number }>;
+};
+
+/**
+ * 按当前用户 ID 拉取读经全量快照（不走增量分页）。
+ * 专供删 PWA / 重装后恢复：同 ID 即可拿回最新打卡与进度。
+ */
+export async function pullReadingStateByUser(): Promise<{
+  logs: number;
+  events: number;
+  hasProgress: boolean;
+}> {
+  await ensureAccountReady();
+  const res = await fetch(`${API_BASE}/sync/reading-state`, {
+    headers: authHeaders(),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`读经快照拉取失败 ${res.status}`);
+  const data = (await res.json()) as ReadingStatePayload;
+  const logRows = data.reading_log ?? [];
+  for (const row of logRows) {
+    if (!row?.date) continue;
+    mergeRemoteReadingLog(row.date, {
+      minutes: row.minutes ?? 0,
+      chapters: row.chapters ?? 0,
+    });
+  }
+  let events = 0;
+  for (const ev of data.read_events ?? []) {
+    if (mergeRemoteReadEvent(ev)) events += 1;
+  }
+  const prog = data.reading_progress;
+  if (prog?.book && prog.chapter) {
+    applyRemoteReadingProgress(
+      { book: prog.book, chapter: prog.chapter, verse: prog.verse },
+      prog.updated_at,
+    );
+  }
+  if (logRows.length > 0 || events > 0 || prog?.book) {
+    notifyLocalDataChanged('reading-state');
+    void import('./reading_durable').then((m) => m.scheduleReadingSnapshotBackup());
+  }
+  return {
+    logs: logRows.length,
+    events,
+    hasProgress: Boolean(prog?.book),
+  };
 }

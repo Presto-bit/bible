@@ -39,6 +39,12 @@ export async function afterLogin(): Promise<AfterLoginResult> {
     // 设密场景：本机已有阅读时先入队，避免只拉空云端、本地未上行
     if (hasLocalReadingData()) enqueueLocalReadingMigration();
     const result = await syncResyncAccount();
+    try {
+      const { pullReadingStateByUser } = await import('./sync');
+      await pullReadingStateByUser();
+    } catch {
+      /* 快照失败不影响登录 */
+    }
     notifyLocalDataChanged('after-login');
     void import('./reading_durable').then((m) => m.backupLocalReadingSnapshot());
     return { ...result, ok: true };

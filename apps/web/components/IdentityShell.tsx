@@ -6,7 +6,14 @@ import { shouldPromptUsername } from '@/lib/account_guide';
 import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
-import { syncNow, syncPullFirst, syncResyncAccount, pendingCount } from '@/lib/sync';
+import {
+  syncNow,
+  syncPullFirst,
+  syncResyncAccount,
+  pendingCount,
+  pullReadingStateByUser,
+  flushOutboxKeepalive,
+} from '@/lib/sync';
 import {
   enqueueLocalReadingMigration,
   hasLocalReadingData,
@@ -24,10 +31,6 @@ import UsernameGuideSheet from '@/components/UsernameGuideSheet';
 import RestoreAccountSheet from '@/components/RestoreAccountSheet';
 
 const RESTORE_PROMPT_DISMISS_KEY = 'presto_restore_prompt_dismissed';
-
-function cloudRestoreAttemptKey(uid: string) {
-  return `presto_cloud_restore_attempted:${uid}`;
-}
 
 /** 默认同步本机阅读到账号（不再弹窗确认） */
 async function autoSaveReadingToAccount(): Promise<void> {
@@ -48,28 +51,41 @@ async function autoSaveReadingToAccount(): Promise<void> {
   }
 }
 
+/**
+ * 按用户 ID 恢复最新读经：IDB → 专用 reading-state 快照 →（仍空则）全量 sync。
+ */
 async function restoreReadingForAccount(uid: string): Promise<void> {
-  // 1) 先从 IDB 快照回填（删桌面图标后 localStorage 常空、IDB 仍在）
   const fromIdb = await restoreLocalReadingSnapshotIfNeeded(uid);
   if (fromIdb) notifyLocalDataChanged('idb-reading-restore');
 
-  // 2) 仍空或不完整：全量拉云端（不依赖本地 hasPassword 缓存）
-  if (needsCloudReadingRestore() || !hasLocalReadingData()) {
+  try {
+    await pullReadingStateByUser();
+    notifyLocalDataChanged('cloud-reading-restore');
+  } catch {
+    /* 快照失败时再走全量 */
     try {
       await syncResyncAccount();
       notifyLocalDataChanged('cloud-reading-restore');
-      await backupLocalReadingSnapshot(uid);
     } catch {
       if (typeof navigator !== 'undefined' && navigator.onLine) {
         void syncNow().catch(() => {});
       }
     }
-  } else {
-    void backupLocalReadingSnapshot(uid);
   }
+
+  if (needsCloudReadingRestore()) {
+    try {
+      await syncResyncAccount();
+      notifyLocalDataChanged('cloud-reading-restore');
+    } catch {
+      /* ignore */
+    }
+  }
+
+  await backupLocalReadingSnapshot(uid);
 }
 
-/** 应用启动：身份 → 建档 → 云同步 → 离线经包 */
+/** 应用启动：身份 → 建档 → 按用户 ID 同步读经 → 离线经包 */
 export default function IdentityShell({ children }: { children: React.ReactNode }) {
   const [usernameGuide, setUsernameGuide] = useState(false);
   const [restoreSheet, setRestoreSheet] = useState(false);
@@ -86,41 +102,26 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       const restoreDismissed =
         typeof window !== 'undefined' &&
         sessionStorage.getItem(RESTORE_PROMPT_DISMISS_KEY) === '1';
-      const restoreAttempted =
-        Boolean(uid) &&
-        typeof window !== 'undefined' &&
-        sessionStorage.getItem(cloudRestoreAttemptKey(uid)) === '1';
 
       if (needsSyncMigration()) {
         await autoSaveReadingToAccount();
-      } else if (uid && needsCloudReadingRestore() && !restoreAttempted) {
-        // 相同 user_id + 本机读经空：先 IDB 再云端全量拉
-        try {
-          sessionStorage.setItem(cloudRestoreAttemptKey(uid), '1');
-        } catch {
-          /* ignore */
-        }
+      }
+
+      // 只要有用户 ID：每次启动都按 ID 拉最新读经（合并本地），解决删 PWA 后同 ID 无历史
+      if (uid) {
         await restoreReadingForAccount(uid);
-        // 若仍空，允许本会话在 visibility 时再试一次
-        if (needsCloudReadingRestore()) {
-          try {
-            sessionStorage.removeItem(cloudRestoreAttemptKey(uid));
-          } catch {
-            /* ignore */
-          }
-        }
-      } else if (
+      }
+      runBackgroundSync();
+
+      if (
         standalone &&
         !loggedInWithPwd &&
         !hasLocalReadingData() &&
         !restoreDismissed
       ) {
         setRestoreSheet(true);
-        runBackgroundSync();
-      } else {
-        if (uid) void backupLocalReadingSnapshot(uid);
-        runBackgroundSync();
       }
+
       void flushCheckinQueue().catch(() => {});
       rescheduleGroupEveningReminder();
       void ensureOfflinePackAutoDownload();
@@ -128,30 +129,15 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
     });
     const onOnline = () => {
       void flushCheckinQueue().catch(() => {});
-      runBackgroundSync();
+      const uid = currentUserId() || effectiveId();
+      if (uid) void restoreReadingForAccount(uid);
+      else runBackgroundSync();
     };
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
       const uid = currentUserId() || effectiveId();
-      if (
-        uid &&
-        needsCloudReadingRestore() &&
-        sessionStorage.getItem(cloudRestoreAttemptKey(uid)) !== '1'
-      ) {
-        try {
-          sessionStorage.setItem(cloudRestoreAttemptKey(uid), '1');
-        } catch {
-          /* ignore */
-        }
-        void restoreReadingForAccount(uid).then(() => {
-          if (needsCloudReadingRestore()) {
-            try {
-              sessionStorage.removeItem(cloudRestoreAttemptKey(uid));
-            } catch {
-              /* ignore */
-            }
-          }
-        });
+      if (uid && needsCloudReadingRestore()) {
+        void restoreReadingForAccount(uid);
         return;
       }
       runBackgroundSync();
@@ -161,7 +147,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
     const onPageHide = () => {
       const uid = currentUserId() || effectiveId();
       if (uid) void backupLocalReadingSnapshot(uid);
-      if (pendingCount() > 0) runBackgroundSync();
+      flushOutboxKeepalive();
     };
     window.addEventListener('pagehide', onPageHide);
     const syncInterval = window.setInterval(() => {
