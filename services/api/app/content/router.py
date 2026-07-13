@@ -573,6 +573,29 @@ def hero_b_asset(filename: str):
     return FileResponse(path, media_type=media)
 
 
+@router.get("/group-task/assets/{filename}")
+def group_task_asset(filename: str):
+    from ..social.task_ops import task_attachments_dir
+
+    safe = Path(filename).name
+    if safe != filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="无效文件名")
+    path = task_attachments_dir() / safe
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    media = "application/octet-stream"
+    lower = safe.lower()
+    if lower.endswith((".jpg", ".jpeg")):
+        media = "image/jpeg"
+    elif lower.endswith(".png"):
+        media = "image/png"
+    elif lower.endswith(".webp"):
+        media = "image/webp"
+    elif lower.endswith(".pdf"):
+        media = "application/pdf"
+    return FileResponse(path, media_type=media)
+
+
 @router.get("/home/bootstrap")
 def home_bootstrap(
     response: Response,

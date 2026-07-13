@@ -242,32 +242,124 @@ class GroupScreen extends ConsumerWidget {
       BuildContext context, WidgetRef ref, GroupDetail d) async {
     final titleC = TextEditingController();
     final refC = TextEditingController();
+    var taskType = 'custom';
+    var duePreset = 'days3';
+    var seriesDays = 0;
+    const types = [
+      ('read', '读经'),
+      ('memorize', '金句'),
+      ('pray', '代祷'),
+      ('share', '分享'),
+      ('custom', '自定义'),
+    ];
+    const dues = [
+      ('today', '今天'),
+      ('tomorrow', '明天'),
+      ('sunday', '本周日'),
+      ('days3', '3天后'),
+      ('none', '不限'),
+    ];
+    String? dueAtFrom(String preset) {
+      final now = DateTime.now();
+      DateTime endOf(DateTime d) =>
+          DateTime(d.year, d.month, d.day, 23, 59);
+      switch (preset) {
+        case 'today':
+          return endOf(now).toUtc().toIso8601String();
+        case 'tomorrow':
+          return endOf(now.add(const Duration(days: 1))).toUtc().toIso8601String();
+        case 'sunday':
+          final add = now.weekday == DateTime.sunday ? 0 : 7 - now.weekday;
+          return endOf(now.add(Duration(days: add))).toUtc().toIso8601String();
+        case 'days3':
+          return now.add(const Duration(days: 3)).toUtc().toIso8601String();
+        default:
+          return null;
+      }
+    }
+
+    String ruleFor(String type) => switch (type) {
+          'read' => 'read_done',
+          'memorize' => 'checkin_ref',
+          'pray' => 'tap',
+          'share' => 'checkin_text',
+          _ => 'checkin_text',
+        };
+
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('发布任务'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-                controller: titleC,
-                autofocus: true,
-                decoration: const InputDecoration(labelText: '任务标题')),
-            TextField(
-                controller: refC,
-                decoration:
-                    const InputDecoration(labelText: '关联经文（可选，如 JHN.3）')),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setLocal) => AlertDialog(
+          title: const Text('发布任务'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    for (final t in types)
+                      ChoiceChip(
+                        label: Text(t.$2),
+                        selected: taskType == t.$1,
+                        onSelected: (_) => setLocal(() => taskType = t.$1),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                    controller: titleC,
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: '任务标题')),
+                TextField(
+                    controller: refC,
+                    decoration: const InputDecoration(
+                        labelText: '关联经文（可选，如 JHN.3）')),
+                const SizedBox(height: 8),
+                const Text('截止', style: TextStyle(fontSize: 12)),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final p in dues)
+                      ChoiceChip(
+                        label: Text(p.$2),
+                        selected: duePreset == p.$1,
+                        onSelected: (_) => setLocal(() => duePreset = p.$1),
+                      ),
+                  ],
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('系列任务（7 天）', style: TextStyle(fontSize: 14)),
+                  value: seriesDays >= 2,
+                  onChanged: (v) => setLocal(() => seriesDays = v ? 7 : 0),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('取消')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('发布')),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('发布')),
-        ],
       ),
     );
     if (ok != true || titleC.text.trim().isEmpty) return;
-    await ref.read(socialRepoProvider).createTask(d.id, titleC.text.trim(),
-        ref: refC.text.trim().isEmpty ? null : refC.text.trim());
+    await ref.read(socialRepoProvider).createTask(
+          d.id,
+          titleC.text.trim(),
+          ref: refC.text.trim().isEmpty ? null : refC.text.trim(),
+          dueAt: dueAtFrom(duePreset),
+          taskType: taskType,
+          completionRule: ruleFor(taskType),
+          seriesDays: seriesDays >= 2 ? seriesDays : null,
+        );
     ref.invalidate(groupDetailProvider(d.id));
   }
 

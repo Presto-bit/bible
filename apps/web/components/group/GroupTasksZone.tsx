@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import type { GroupDetail, GroupTask } from '@/lib/api';
+import { contentAssetUrl } from '@/lib/api';
 import { formatDueCountdown, groupMemberCount } from '@/lib/group_ui';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { GROUP_TASK_TYPES } from '@/lib/group_task_templates';
 
 type Props = {
   detail: GroupDetail;
@@ -86,16 +88,37 @@ function TaskRow({
   const dueLabel = formatDueCountdown(task.due_at);
   const taskHref =
     task.ref && readerHrefFromRef(task.ref, { group: gid, task: task.id });
+  const typeLabel = GROUP_TASK_TYPES.find((t) => t.id === task.task_type)?.label;
+  const statusLabel = task.status === 'scheduled' ? '定时' : null;
+  const attachments = task.attachments || [];
 
   return (
     <div className={`group-wechat-task-row${pinned ? ' pinned' : ''}`}>
       <div className="group-wechat-task-main">
         {pinned && <span className="group-wechat-task-pin" aria-hidden>📌</span>}
         <strong>{task.title}</strong>
+        {typeLabel && <span className="muted" style={{ fontSize: 11, marginLeft: 6 }}>{typeLabel}</span>}
+        {statusLabel && <span className="group-task-due-badge">{statusLabel}</span>}
         {dueLabel && <span className="group-task-due-badge">{dueLabel}</span>}
+        {attachments.length > 0 && (
+          <div style={{ marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {attachments.map((a) => (
+              <a
+                key={a.id || a.url}
+                href={contentAssetUrl(a.url)}
+                target="_blank"
+                rel="noreferrer"
+                className="font-pill"
+                style={{ fontSize: 11 }}
+              >
+                {a.file_name}
+              </a>
+            ))}
+          </div>
+        )}
       </div>
       <div className="group-wechat-task-actions">
-        {taskHref && !task.completed && (
+        {taskHref && !task.completed && task.status !== 'scheduled' && (
           <Link
             href={`${taskHref}&taskTitle=${encodeURIComponent(task.title)}`}
             className="font-pill"
@@ -103,7 +126,7 @@ function TaskRow({
             去读
           </Link>
         )}
-        {!task.completed && onCompleteTask && (
+        {!task.completed && task.status !== 'scheduled' && onCompleteTask && (
           <button
             type="button"
             className="font-pill accent"

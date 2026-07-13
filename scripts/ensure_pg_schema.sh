@@ -51,6 +51,7 @@ MIGRATIONS=(
   infra/postgres/init/016_hero_b_campaign.sql
   infra/postgres/init/017_ai_request_log.sql
   infra/postgres/init/018_daily_uv_v2.sql
+  infra/postgres/init/020_group_task_v2.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do
@@ -90,6 +91,17 @@ SELECT CASE WHEN COUNT(*) = 2 THEN 'ok' ELSE 'missing' END AS check_read_event_b
 FROM information_schema.tables
 WHERE table_schema = 'public'
   AND table_name IN ('read_event', 'badge_unlock');
+
+SELECT CASE WHEN COUNT(*) >= 5 THEN 'ok' ELSE 'missing' END AS check_group_task_v2_cols
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'group_task'
+  AND column_name IN ('task_type', 'completion_rule', 'status', 'publish_at', 'source');
+
+SELECT CASE WHEN COUNT(*) = 3 THEN 'ok' ELSE 'missing' END AS check_group_task_v2_tables
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name IN ('group_task_series', 'group_task_attachment', 'group_task_assignee');
 SQL
 
 log "完成 — 可验证："

@@ -42,6 +42,10 @@ class GroupTask {
     this.dueAt,
     this.completed = false,
     this.pinned = false,
+    this.taskType = 'custom',
+    this.completionRule = 'checkin_text',
+    this.status = 'published',
+    this.body,
   });
   final String id;
   final String title;
@@ -49,6 +53,10 @@ class GroupTask {
   final String? dueAt;
   final bool completed;
   final bool pinned;
+  final String taskType;
+  final String completionRule;
+  final String status;
+  final String? body;
   factory GroupTask.fromJson(Map<String, dynamic> j) => GroupTask(
         id: j['id'] as String,
         title: j['title'] as String,
@@ -56,6 +64,10 @@ class GroupTask {
         dueAt: j['due_at'] as String?,
         completed: (j['completed'] ?? false) as bool,
         pinned: (j['pinned'] ?? false) as bool,
+        taskType: (j['task_type'] ?? 'custom') as String,
+        completionRule: (j['completion_rule'] ?? 'checkin_text') as String,
+        status: (j['status'] ?? 'published') as String,
+        body: j['body'] as String?,
       );
 }
 
@@ -269,10 +281,40 @@ class SocialRepository {
       _dio.post('/social/groups/$gid/checkin',
           data: {'ref': ref, 'task_id': taskId, 'body': body});
 
-  Future<GroupTask> createTask(String gid, String title, {String? ref}) async {
-    final res = await _dio.post('/social/groups/$gid/tasks',
-        data: {'title': title, 'ref': ?ref});
-    return GroupTask.fromJson(res.data as Map<String, dynamic>);
+  Future<GroupTask> createTask(
+    String gid,
+    String title, {
+    String? ref,
+    String? dueAt,
+    String? templateId,
+    String? taskType,
+    String? completionRule,
+    String? body,
+    int? seriesDays,
+  }) async {
+    final res = await _dio.post('/social/groups/$gid/tasks', data: {
+      'title': title,
+      if (ref != null) 'ref': ref,
+      if (dueAt != null) 'due_at': dueAt,
+      if (templateId != null) 'template_id': templateId,
+      if (taskType != null) 'task_type': taskType,
+      if (completionRule != null) 'completion_rule': completionRule,
+      if (body != null) 'body': body,
+      if (seriesDays != null) 'series_days': seriesDays,
+    });
+    final data = res.data as Map<String, dynamic>;
+    if (data['series'] == true) {
+      final ids = (data['task_ids'] as List?) ?? const [];
+      return GroupTask(
+        id: ids.isNotEmpty ? '${ids.first}' : '${data['series_id'] ?? ''}',
+        title: title,
+        ref: ref,
+        dueAt: dueAt,
+        taskType: taskType ?? 'custom',
+        completionRule: completionRule ?? 'checkin_text',
+      );
+    }
+    return GroupTask.fromJson(data);
   }
 
   Future<Map<String, List<String>>> react(String mid, String emoji) async {

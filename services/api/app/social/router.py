@@ -5,11 +5,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import secrets
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
 from psycopg import errors as pg_errors
 from pydantic import BaseModel, Field
 
@@ -19,6 +20,9 @@ from ..config import get_settings
 from ..content import loader
 from ..db import get_pool
 from .moderation import ModerationError, moderate_text
+from . import task_ops
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/social", tags=["social"])
 
@@ -48,6 +52,28 @@ class CreateTask(BaseModel):
     ref: str | None = None
     due_at: str | None = None
     template_id: str | None = None
+    task_type: str | None = None
+    completion_rule: str | None = None
+    body: str | None = Field(default=None, max_length=2000)
+    publish_at: str | None = None
+    assignee_ids: list[str] = Field(default_factory=list, max_length=50)
+    attachments: list[dict] = Field(default_factory=list, max_length=3)
+    # 系列：>1 时创建多天任务
+    series_days: int | None = None
+    series_due_hours: int | None = 24
+
+
+class CreateTaskSeries(BaseModel):
+    title: str
+    ref: str | None = None
+    body: str | None = Field(default=None, max_length=2000)
+    task_type: str | None = None
+    completion_rule: str | None = None
+    total_days: int = Field(default=7, ge=2, le=30)
+    start_at: str | None = None
+    due_hours: int = Field(default=24, ge=1, le=168)
+    assignee_ids: list[str] = Field(default_factory=list, max_length=50)
+    attachments: list[dict] = Field(default_factory=list, max_length=3)
 
 
 class Checkin(BaseModel):
@@ -645,6 +671,7 @@ def _group_today_stats(conn, gid: str, user_id: str) -> dict:
     ).fetchone() is not None
     open_tasks = conn.execute(
         "SELECT count(*)::int FROM group_task gt WHERE gt.group_id = %s "
+        "AND COALESCE(gt.status, 'published') = 'published' "
         "AND NOT EXISTS ("
         "  SELECT 1 FROM group_message m "
         "  WHERE m.group_id = %s AND m.user_id = %s AND m.kind = 'checkin' "
@@ -699,6 +726,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         if not g:
             raise HTTPException(404, "群不存在")
         plan_id = g[3]
+        g_owner = g[7]
         if plan_id:
             members = conn.execute(
                 f"SELECT u.id, {_member_display_sql()}, m.role, "
@@ -735,10 +763,32 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 (gid, gid),
             ).fetchall()
         tasks = conn.execute(
-            "SELECT id, title, ref, due_at FROM group_task WHERE group_id = %s "
+            "SELECT id, title, ref, due_at, task_type, completion_rule, body, status, "
+            "publish_at, series_id, series_day, template_id, source, plan_id, plan_day "
+            "FROM group_task WHERE group_id = %s "
+            "AND (status = 'published' OR (status = 'scheduled' AND created_by = %s::uuid)) "
             "ORDER BY created_at DESC",
-            (gid,),
+            (gid, user_id),
         ).fetchall()
+        # 发布到期定时任务 + 到期提醒 + 计划日自动任务
+        try:
+            task_ops.publish_due_scheduled_tasks(conn, gid=gid)
+            task_ops.send_due_reminders(conn, gid=gid)
+            if g[3]:
+                task_ops.ensure_plan_day_task(conn, gid=gid, plan_id=str(g[3]), owner_id=str(g_owner))
+            conn.commit()
+            # 刷新任务列表（含刚发布/自动生成）
+            tasks = conn.execute(
+                "SELECT id, title, ref, due_at, task_type, completion_rule, body, status, "
+                "publish_at, series_id, series_day, template_id, source, plan_id, plan_day "
+                "FROM group_task WHERE group_id = %s "
+                "AND (status = 'published' OR (status = 'scheduled' AND created_by = %s::uuid)) "
+                "ORDER BY created_at DESC",
+                (gid, user_id),
+            ).fetchall()
+        except Exception:
+            logger.exception("group task publish/remind/plan_day failed gid=%s", gid)
+            conn.rollback()
         stats = _group_today_stats(conn, gid, user_id)
         plan_stats = _group_plan_progress(conn, gid, g[3], user_id)
         weekly = _weekly_group_stats(conn, gid)
@@ -748,9 +798,14 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         ).fetchone()
         muted = bool(muted_row[0]) if muted_row else False
         pinned_task_id = str(g[6]) if g[6] else None
+        is_owner = role == "owner"
         task_rows = []
         for t in tasks:
             tid = str(t[0])
+            if not task_ops.user_can_see_task(
+                conn, task_id=tid, user_id=user_id, is_owner=is_owner,
+            ):
+                continue
             done = conn.execute(
                 "SELECT 1 FROM group_message "
                 "WHERE group_id = %s AND user_id = %s AND kind = 'checkin' "
@@ -762,8 +817,21 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 "title": t[1],
                 "ref": t[2],
                 "due_at": t[3].isoformat() if t[3] else None,
+                "task_type": t[4] or "custom",
+                "completion_rule": t[5] or "checkin_text",
+                "body": t[6],
+                "status": t[7] or "published",
+                "publish_at": t[8].isoformat() if t[8] else None,
+                "series_id": str(t[9]) if t[9] else None,
+                "series_day": t[10],
+                "template_id": t[11],
+                "source": t[12] or "manual",
+                "plan_id": t[13],
+                "plan_day": t[14],
                 "completed": done,
                 "pinned": tid == pinned_task_id,
+                "assignee_ids": task_ops.list_assignee_ids(conn, tid),
+                "attachments": task_ops.list_attachments(conn, tid),
             })
     return {
         "id": gid, "name": g[0], "intro": g[1], "join_code": g[2], "role": role,
@@ -1000,10 +1068,35 @@ def checkin(gid: str, body: Checkin, user_id: str = Depends(get_current_user)) -
     pool = get_pool()
     with pool.connection() as conn:
         _require_member(conn, gid, user_id)
+        check_ref = body.ref
+        check_body = body.body
+        if body.task_id:
+            task = task_ops.validate_checkin_for_task(
+                conn,
+                task_id=body.task_id,
+                user_id=user_id,
+                body=body.body,
+                ref=body.ref,
+            )
+            role_row = conn.execute(
+                "SELECT role FROM group_member WHERE group_id = %s AND user_id = %s",
+                (gid, user_id),
+            ).fetchone()
+            is_owner = bool(role_row and role_row[0] == "owner")
+            if not task_ops.user_can_see_task(
+                conn, task_id=body.task_id, user_id=user_id, is_owner=is_owner,
+            ):
+                raise HTTPException(403, "你不在该任务的指派名单中")
+            if not check_ref:
+                check_ref = task.get("ref")
+            if task["completion_rule"] == "tap" and not (check_body or "").strip():
+                check_body = f"已完成任务·{task['title']}"
+            if task["completion_rule"] == "read_done" and not (check_body or "").strip():
+                check_body = f"已完成读经·{task['title']}"
         row = conn.execute(
             "INSERT INTO group_message (group_id, user_id, kind, ref, task_id, body) "
             "VALUES (%s, %s, 'checkin', %s, %s, %s) RETURNING id",
-            (gid, user_id, body.ref, body.task_id, body.body),
+            (gid, user_id, check_ref, body.task_id, check_body),
         ).fetchone()
         owner = conn.execute(
             "SELECT owner_id FROM social_group WHERE id = %s", (gid,),
@@ -1026,21 +1119,148 @@ def create_task(gid: str, body: CreateTask, user_id: str = Depends(get_current_u
             raise HTTPException(403, "仅群主可发布任务")
         try:
             moderate_text(body.title)
+            if body.body:
+                moderate_text(body.body)
         except ModerationError as e:
             raise HTTPException(400, e.reason) from e
+
+        task_type = task_ops.normalize_task_type(body.task_type)
+        completion_rule = task_ops.normalize_completion_rule(body.completion_rule, task_type)
+        due_at = task_ops.parse_due_at(body.due_at)
+        publish_at = task_ops.parse_publish_at(body.publish_at)
+        now = datetime.now(timezone.utc)
+        if publish_at and publish_at > now:
+            status = "scheduled"
+        else:
+            status = "published"
+            publish_at = publish_at or now
+
+        # 系列任务
+        if body.series_days and int(body.series_days) > 1:
+            result = task_ops.create_series_tasks(
+                conn,
+                gid=gid,
+                owner_id=user_id,
+                title=body.title.strip(),
+                task_type=task_type,
+                completion_rule=completion_rule,
+                body=(body.body or "").strip() or None,
+                ref=body.ref,
+                total_days=int(body.series_days),
+                start_at=publish_at,
+                due_hours=int(body.series_due_hours or 24),
+                assignee_ids=body.assignee_ids,
+                attachments=body.attachments,
+            )
+            conn.commit()
+            return {
+                "ok": True,
+                "series": True,
+                **result,
+                "title": body.title.strip(),
+                "task_type": task_type,
+                "completion_rule": completion_rule,
+            }
+
         row = conn.execute(
-            "INSERT INTO group_task (group_id, title, ref, created_by, due_at, template_id) "
-            "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
-            (gid, body.title.strip(), body.ref, user_id, body.due_at, body.template_id),
+            "INSERT INTO group_task ("
+            "  group_id, title, ref, created_by, due_at, template_id, "
+            "  task_type, completion_rule, body, status, publish_at, source"
+            ") VALUES ("
+            "  %s, %s, %s, %s, %s, %s, "
+            "  %s, %s, %s, %s, %s, 'manual'"
+            ") RETURNING id",
+            (
+                gid,
+                body.title.strip(),
+                body.ref,
+                user_id,
+                due_at,
+                body.template_id,
+                task_type,
+                completion_rule,
+                (body.body or "").strip() or None,
+                status,
+                publish_at,
+            ),
         ).fetchone()
         task_id = row[0]
-        conn.execute(
-            "INSERT INTO group_message (group_id, user_id, kind, ref, task_id, body) "
-            "VALUES (%s, %s, 'task', %s, %s, %s)",
-            (gid, user_id, body.ref, task_id, body.title.strip()),
+        task_ops.insert_assignees(conn, gid=gid, task_id=str(task_id), user_ids=body.assignee_ids)
+        task_ops.insert_attachments(conn, gid=gid, task_id=str(task_id), attachments=body.attachments)
+        if status == "published":
+            conn.execute(
+                "INSERT INTO group_message (group_id, user_id, kind, ref, task_id, body) "
+                "VALUES (%s, %s, 'task', %s, %s, %s)",
+                (gid, user_id, body.ref, task_id, body.title.strip()),
+            )
+        attachments = task_ops.list_attachments(conn, str(task_id))
+        assignee_ids = task_ops.list_assignee_ids(conn, str(task_id))
+        conn.commit()
+        return {
+            "id": str(task_id),
+            "title": body.title.strip(),
+            "ref": body.ref,
+            "task_type": task_type,
+            "completion_rule": completion_rule,
+            "status": status,
+            "due_at": due_at.isoformat() if due_at else None,
+            "publish_at": publish_at.isoformat() if publish_at else None,
+            "template_id": body.template_id,
+            "assignee_ids": assignee_ids,
+            "attachments": attachments,
+        }
+
+
+@router.post("/groups/{gid}/tasks/series")
+def create_task_series(
+    gid: str, body: CreateTaskSeries, user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        role = _require_member(conn, gid, user_id)
+        if role != "owner":
+            raise HTTPException(403, "仅群主可发布任务")
+        try:
+            moderate_text(body.title)
+            if body.body:
+                moderate_text(body.body)
+        except ModerationError as e:
+            raise HTTPException(400, e.reason) from e
+        task_type = task_ops.normalize_task_type(body.task_type)
+        completion_rule = task_ops.normalize_completion_rule(body.completion_rule, task_type)
+        start_at = task_ops.parse_publish_at(body.start_at) or datetime.now(timezone.utc)
+        result = task_ops.create_series_tasks(
+            conn,
+            gid=gid,
+            owner_id=user_id,
+            title=body.title.strip(),
+            task_type=task_type,
+            completion_rule=completion_rule,
+            body=(body.body or "").strip() or None,
+            ref=body.ref,
+            total_days=body.total_days,
+            start_at=start_at,
+            due_hours=body.due_hours,
+            assignee_ids=body.assignee_ids,
+            attachments=body.attachments,
         )
         conn.commit()
-    return {"id": str(task_id), "title": body.title.strip(), "ref": body.ref}
+    return {"ok": True, **result}
+
+
+@router.post("/groups/{gid}/tasks/upload")
+async def upload_task_attachment(
+    gid: str,
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    with pool.connection() as conn:
+        role = _require_member(conn, gid, user_id)
+        if role != "owner":
+            raise HTTPException(403, "仅群主可上传任务附件")
+    meta = await task_ops.save_task_upload(gid=gid, file=file)
+    return {"ok": True, **meta}
 
 
 @router.patch("/groups/{gid}/tasks/{tid}/pin")

@@ -870,6 +870,15 @@ export interface Group {
   members_on_plan?: number;
   my_plan_day?: number;
 }
+export interface GroupTaskAttachment {
+  id: string;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  url: string;
+  created_at?: string | null;
+}
+
 export interface GroupTask {
   id: string;
   title: string;
@@ -877,6 +886,19 @@ export interface GroupTask {
   due_at?: string | null;
   completed?: boolean;
   pinned?: boolean;
+  task_type?: string;
+  completion_rule?: string;
+  body?: string | null;
+  status?: string;
+  publish_at?: string | null;
+  series_id?: string | null;
+  series_day?: number | null;
+  template_id?: string | null;
+  source?: string;
+  plan_id?: string | null;
+  plan_day?: number | null;
+  assignee_ids?: string[];
+  attachments?: GroupTaskAttachment[];
 }
 export interface GroupMember {
   user_id?: string;
@@ -1414,11 +1436,63 @@ export const api = {
       method: 'POST',
       body,
     }),
-  createTask: (gid: string, title: string, ref?: string, opts?: { due_at?: string; template_id?: string }) =>
-    authed<GroupTask>(`/social/groups/${gid}/tasks`, {
+  createTask: (
+    gid: string,
+    title: string,
+    ref?: string,
+    opts?: {
+      due_at?: string;
+      template_id?: string;
+      task_type?: string;
+      completion_rule?: string;
+      body?: string;
+      publish_at?: string;
+      assignee_ids?: string[];
+      attachments?: Array<{
+        file_name: string;
+        mime_type: string;
+        size_bytes: number;
+        storage_path: string;
+        url: string;
+      }>;
+      series_days?: number;
+      series_due_hours?: number;
+    },
+  ) =>
+    authed<GroupTask & { ok?: boolean; series?: boolean; series_id?: string; task_ids?: string[] }>(
+      `/social/groups/${gid}/tasks`,
+      {
+        method: 'POST',
+        body: { title, ref, ...opts },
+      },
+    ),
+  uploadTaskAttachment: async (gid: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await fetch(`${API_BASE}/social/groups/${gid}/tasks/upload`, {
       method: 'POST',
-      body: { title, ref, ...opts },
-    }),
+      headers: authHeaders(),
+      body: form,
+      cache: 'no-store',
+    });
+    if (!res.ok) {
+      let detail = `${res.status}`;
+      try {
+        detail = (await res.json()).detail || detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(typeof detail === 'string' ? detail : '上传失败');
+    }
+    return res.json() as Promise<{
+      ok: boolean;
+      file_name: string;
+      mime_type: string;
+      size_bytes: number;
+      storage_path: string;
+      url: string;
+    }>;
+  },
   nudgeGroup: (gid: string) =>
     authed<{ ok: boolean; pending_members: number; message?: string }>(
       `/social/groups/${gid}/nudge`,

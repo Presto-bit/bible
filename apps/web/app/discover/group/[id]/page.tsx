@@ -50,6 +50,7 @@ function GroupPageInner() {
     taskId: string;
     title: string;
     ref?: string | null;
+    completion_rule?: string;
   } | null>(null);
   const [flyHighlight, setFlyHighlight] = useState(false);
   const feedWrapRef = useRef<HTMLDivElement>(null);
@@ -250,15 +251,27 @@ function GroupPageInner() {
   };
 
   const completeTask = (taskId: string, title: string, ref?: string | null) => {
-    setTaskComplete({ taskId, title, ref });
+    const task = tasks.find((t) => t.id === taskId);
+    setTaskComplete({
+      taskId,
+      title: task?.title || title,
+      ref: task?.ref ?? ref,
+      completion_rule: task?.completion_rule || 'checkin_text',
+    });
   };
 
   const submitTaskComplete = async (body: string) => {
     if (!taskComplete) return;
+    const rule = taskComplete.completion_rule || 'checkin_text';
     const extra = body.trim();
-    const taskBody = extra
-      ? `已完成任务·${taskComplete.title} · ${extra}`
-      : `已完成任务·${taskComplete.title}`;
+    let taskBody: string | undefined;
+    if (rule === 'tap' || rule === 'read_done') {
+      taskBody = extra || undefined;
+    } else if (extra) {
+      taskBody = `已完成任务·${taskComplete.title} · ${extra}`;
+    } else {
+      taskBody = `已完成任务·${taskComplete.title}`;
+    }
     appendOptimisticCheckin({
       task_id: taskComplete.taskId,
       ref: taskComplete.ref || undefined,
@@ -314,14 +327,42 @@ function GroupPageInner() {
     ref?: string;
     due_at?: string;
     template_id?: string;
+    task_type?: string;
+    completion_rule?: string;
+    body?: string;
+    publish_at?: string;
+    assignee_ids?: string[];
+    attachments?: Array<{
+      file_name: string;
+      mime_type: string;
+      size_bytes: number;
+      storage_path: string;
+      url: string;
+    }>;
+    series_days?: number;
+    series_due_hours?: number;
   }) => {
     setBusy(true);
     try {
-      await api.createTask(gid, payload.title, payload.ref, {
+      const res = await api.createTask(gid, payload.title, payload.ref, {
         due_at: payload.due_at,
         template_id: payload.template_id,
+        task_type: payload.task_type,
+        completion_rule: payload.completion_rule,
+        body: payload.body,
+        publish_at: payload.publish_at,
+        assignee_ids: payload.assignee_ids,
+        attachments: payload.attachments,
+        series_days: payload.series_days,
+        series_due_hours: payload.series_due_hours,
       });
-      showToast('任务已发布 ✓');
+      if (res.series) {
+        showToast(`系列任务已创建（${res.task_ids?.length || payload.series_days} 天）✓`);
+      } else if (payload.publish_at && new Date(payload.publish_at).getTime() > Date.now()) {
+        showToast('任务已预约发布 ✓');
+      } else {
+        showToast('任务已发布 ✓');
+      }
       setComposerOpen(false);
       await reload();
     } finally {
@@ -443,6 +484,7 @@ function GroupPageInner() {
         gid={gid}
         isOwner={isOwner}
         tasks={tasks}
+        members={members}
         busy={busy}
         groupName={detail.name}
         onCheckin={handleCheckin}
@@ -478,6 +520,7 @@ function GroupPageInner() {
         <GroupTaskCompleteSheet
           title={taskComplete.title}
           refLabel={taskComplete.ref ? formatGroupRefLabel(taskComplete.ref) : undefined}
+          completionRule={taskComplete.completion_rule}
           onSubmit={submitTaskComplete}
           onClose={() => setTaskComplete(null)}
         />

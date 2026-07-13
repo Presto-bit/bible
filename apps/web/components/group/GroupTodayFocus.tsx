@@ -278,16 +278,18 @@ function TaskRow({
 }) {
   const dueLabel = formatDueCountdown(task.due_at);
   const taskHref = task.ref ? readerHrefFromRef(task.ref, { group: gid, task: task.id }) : null;
+  const scheduled = task.status === 'scheduled';
 
   return (
     <div className={`group-today-task-row${pinned ? ' pinned' : ''}`}>
       <div className="group-today-task-main">
         {pinned && <span aria-hidden>📌 </span>}
         <strong>{task.title}</strong>
+        {scheduled && <span className="group-task-due-badge">定时</span>}
         {dueLabel && <span className="group-task-due-badge">{dueLabel}</span>}
       </div>
       <div className="group-today-task-actions">
-        {taskHref && !task.completed && (
+        {taskHref && !task.completed && !scheduled && (
           <Link
             href={`${taskHref}&taskTitle=${encodeURIComponent(task.title)}`}
             className="font-pill"
@@ -300,7 +302,7 @@ function TaskRow({
             去读
           </Link>
         )}
-        {!task.completed && onCompleteTask && (
+        {!task.completed && !scheduled && onCompleteTask && (
           <button
             type="button"
             className="font-pill accent"
