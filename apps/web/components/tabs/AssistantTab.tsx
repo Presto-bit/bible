@@ -299,7 +299,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
   }, [paneActive]);
 
-  /** iOS：键盘打开时只隐藏 Tab（不改 bottom/transform），避免收起后底栏悬空留白 */
+  /** iOS：键盘打开时只隐藏 Tab；收起后清干净 inline，绝不留 gap 抬高（否则底栏下大块空白） */
   useEffect(() => {
     if (!paneActive) return;
     const vv = window.visualViewport;
@@ -328,45 +328,45 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       bar.style.pointerEvents = '';
     };
 
-    /** 键盘收起后强制把 fixed 底栏按 visualViewport 贴回屏幕底，消除下方空白 */
-    const restoreTabbar = () => {
-      const bar = document.querySelector<HTMLElement>('.tabbar');
-      if (!bar) return;
-      document.body.classList.remove('assistant-keyboard');
-      document.documentElement.style.removeProperty('--assistant-vv-h');
-      clearTabbarInline();
-
-      const gap = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      // 视口尚未完全回弹时，先按剩余 inset 补偿，避免底栏停在半空
-      if (gap > 2) {
-        bar.style.setProperty('transition', 'none');
-        bar.style.setProperty(
-          'bottom',
-          `calc(${gap}px + var(--tabbar-float-gap) + var(--tabbar-safe))`,
-        );
-        void bar.offsetHeight;
-      }
-
+    const scrollViewportHome = () => {
       window.scrollTo(0, 0);
       document.documentElement.scrollTop = 0;
       document.body.scrollTop = 0;
-
-      // 视口回弹后再清掉补偿，回到 CSS 固定位
-      if (gap <= 2) {
-        clearTabbarInline();
-        return;
+      // 纠正 iOS visualViewport 残留 offset，避免 fixed 底栏相对错位
+      if (vv.offsetTop > 0) {
+        window.scrollTo(0, vv.offsetTop);
+        window.scrollTo(0, 0);
       }
-      window.setTimeout(() => {
-        const settled = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-        if (settled <= 2) clearTabbarInline();
-      }, 320);
+    };
+
+    /** 键盘收起：去掉 keyboard 态 + 清 inline；短暂钉回 CSS bottom，再彻底去掉 inline */
+    const restoreTabbar = () => {
+      const bar = document.querySelector<HTMLElement>('.tabbar');
+      document.body.classList.remove('assistant-keyboard');
+      document.documentElement.style.removeProperty('--assistant-vv-h');
+      scrollViewportHome();
+      if (!bar) return;
+
+      clearTabbarInline();
+      bar.style.setProperty('transition', 'none');
+      bar.style.setProperty('transform', 'translateX(-50%)');
+      bar.style.setProperty('bottom', 'calc(var(--tabbar-float-gap) + var(--tabbar-safe))');
+      bar.style.setProperty('opacity', '1');
+      bar.style.setProperty('visibility', 'visible');
+      void bar.offsetHeight;
+      // 下一帧回到纯 CSS，避免残留任何 inline bottom（含曾用的 gap 补偿）
+      requestAnimationFrame(() => {
+        clearTabbarInline();
+        scrollViewportHome();
+      });
     };
 
     const scheduleRestore = () => {
       clearResetTimers();
-      resetTimers.push(window.setTimeout(restoreTabbar, 0));
-      resetTimers.push(window.setTimeout(restoreTabbar, 120));
-      resetTimers.push(window.setTimeout(restoreTabbar, 400));
+      // 多拍清扫：覆盖键盘动画与 visualViewport 晚回弹
+      for (const ms of [0, 80, 200, 400, 700]) {
+        resetTimers.push(window.setTimeout(restoreTabbar, ms));
+      }
     };
 
     const setKeyboardOpen = (open: boolean) => {
@@ -410,7 +410,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (next instanceof HTMLElement && next.closest('.assistant-composer')) return;
       composerFocused = false;
       setKeyboardOpen(false);
-      sync();
+      // 无论键盘是否曾判定为 open，失焦都清扫底栏，避免 gap 补偿残留
+      scheduleRestore();
     };
 
     vv.addEventListener('resize', sync);
