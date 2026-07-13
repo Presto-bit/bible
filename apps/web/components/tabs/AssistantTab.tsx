@@ -303,6 +303,59 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     document.body.classList.add('assistant-active');
     return () => {
       document.body.classList.remove('assistant-active');
+      document.body.classList.remove('assistant-keyboard');
+      document.documentElement.style.removeProperty('--assistant-vv-h');
+    };
+  }, [paneActive]);
+
+  /** iOS：键盘顶起后 fixed 底栏常错位；开键盘时收起 Tab，关键盘时强制复位 */
+  useEffect(() => {
+    if (!paneActive) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    let lastOpen = false;
+    const resetTabbar = () => {
+      const bar = document.querySelector<HTMLElement>('.tabbar');
+      if (!bar) return;
+      bar.style.removeProperty('bottom');
+      bar.style.removeProperty('top');
+      bar.style.removeProperty('transform');
+      // 触发一次重排，避免 iOS 键盘收起后仍停在错误 offset
+      void bar.offsetHeight;
+      window.scrollTo(0, 0);
+    };
+
+    const sync = () => {
+      const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      const open = kb > 80;
+      document.body.classList.toggle('assistant-keyboard', open);
+      if (open) {
+        document.documentElement.style.setProperty('--assistant-vv-h', `${Math.round(vv.height)}px`);
+      } else {
+        document.documentElement.style.removeProperty('--assistant-vv-h');
+        if (lastOpen) {
+          // 键盘刚收起：延迟复位，等 Safari 动画结束
+          window.setTimeout(resetTabbar, 50);
+          window.setTimeout(resetTabbar, 320);
+        }
+      }
+      lastOpen = open;
+    };
+
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    window.addEventListener('focusin', sync);
+    window.addEventListener('focusout', sync);
+    sync();
+    return () => {
+      vv.removeEventListener('resize', sync);
+      vv.removeEventListener('scroll', sync);
+      window.removeEventListener('focusin', sync);
+      window.removeEventListener('focusout', sync);
+      document.body.classList.remove('assistant-keyboard');
+      document.documentElement.style.removeProperty('--assistant-vv-h');
+      resetTabbar();
     };
   }, [paneActive]);
 
