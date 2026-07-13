@@ -5218,16 +5218,16 @@ body.pwa-standalone .profile-page .profile-soft-row.card {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /* 小爱整页隐藏底栏，占满可视高度 */
-  height: calc(100dvh - 8px);
-  max-height: calc(100dvh - 8px);
+  height: calc(100dvh - var(--tabbar-h) - 8px);
+  max-height: calc(100dvh - var(--tabbar-h) - 8px);
   min-height: 0;
   padding-top: max(10px, env(safe-area-inset-top, 0px));
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  padding-bottom: 8px;
   padding-left: 14px;
   padding-right: 14px;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-y;
+  position: relative;
 }
 
 body.assistant-active {
@@ -5237,9 +5237,54 @@ body.assistant-active {
 body.assistant-active .app-body {
   overflow: hidden;
   overscroll-behavior: none;
-  /* 小爱全屏自管顶/底安全区，避免与 .assistant-page 双重预留 */
   padding-top: 0;
   padding-bottom: 0;
+}
+
+/* 沉浸：默认藏底栏，占满屏；点按/横滑可临时唤回 */
+body.assistant-immersive:not(.assistant-tabbar-peek) .tabbar {
+  transform: translate3d(
+    -50%,
+    calc(100% + var(--tabbar-float-gap) + var(--tabbar-safe) + 16px),
+    0
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.assistant-immersive:not(.assistant-tabbar-peek) .assistant-page {
+  height: calc(100dvh - 8px);
+  max-height: calc(100dvh - 8px);
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+body.assistant-immersive.assistant-tabbar-peek .assistant-page {
+  height: calc(100dvh - var(--tabbar-h) - 8px);
+  max-height: calc(100dvh - var(--tabbar-h) - 8px);
+  padding-bottom: 8px;
+}
+
+/* 键盘：跟随 layout 收缩（interactiveWidget）；空态输入区贴底，勿再垂直居中 */
+body.assistant-keyboard.assistant-active .assistant-page {
+  height: 100dvh;
+  max-height: 100dvh;
+  padding-bottom: 0;
+}
+
+/* 仅当 layout 未随键盘收缩时，才用 visualViewport 高度兜底 */
+body.assistant-keyboard-vv.assistant-active .assistant-page {
+  height: var(--assistant-vv-h, 100dvh);
+  max-height: var(--assistant-vv-h, 100dvh);
+}
+
+body.assistant-keyboard.assistant-active .assistant-body.is-empty {
+  justify-content: flex-end;
+}
+
+body.assistant-keyboard.assistant-active .tabbar {
+  opacity: 0 !important;
+  visibility: hidden;
+  pointer-events: none !important;
 }
 
 .assistant-body {
@@ -5432,15 +5477,10 @@ body.assistant-active .app-body {
 }
 
 body.assistant-active .assistant-page {
-  height: calc(100dvh - 8px);
-  max-height: calc(100dvh - 8px);
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  /* default overridden by immersive / peek / keyboard states */
 }
 
-/* 键盘打开：用 padding 顶起输入区（底栏在小爱页本就隐藏） */
-body.assistant-keyboard.assistant-active .assistant-page {
-  padding-bottom: max(8px, var(--assistant-kb-inset, 0px));
-}
+/* 键盘态见上方 body.assistant-keyboard 规则 */
 
 .assistant-composer {
   display: flex;

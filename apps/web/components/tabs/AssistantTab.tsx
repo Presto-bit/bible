@@ -128,6 +128,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const [streamCiteCount, setStreamCiteCount] = useState(0);
   const [slowHint, setSlowHint] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState('');
+  const [tabbarPeek, setTabbarPeek] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
+  const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const personalized = useMemo(
     () =>
@@ -289,64 +293,98 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
   }, []);
 
+  const clearPeekTimer = () => {
+    if (peekTimerRef.current) {
+      clearTimeout(peekTimerRef.current);
+      peekTimerRef.current = null;
+    }
+  };
+
+  const hideTabbarPeek = () => {
+    clearPeekTimer();
+    setTabbarPeek(false);
+  };
+
+  const showTabbarPeek = (ms = 4000) => {
+    if (composerFocused) return;
+    setTabbarPeek(true);
+    clearPeekTimer();
+    peekTimerRef.current = setTimeout(() => {
+      peekTimerRef.current = null;
+      setTabbarPeek(false);
+    }, ms);
+  };
+
+  /** 沉浸藏底栏；单击页面 / 左右滑临时唤回；键盘仅在输入聚焦时进入 */
   useEffect(() => {
-    if (!paneActive) return;
-    document.body.classList.add('assistant-active');
-    return () => {
-      document.body.classList.remove('assistant-active');
-      document.body.classList.remove('assistant-keyboard');
-      document.documentElement.style.removeProperty('--assistant-kb-inset');
+    if (!paneActive) {
+      clearPeekTimer();
+      setTabbarPeek(false);
+      setComposerFocused(false);
+      document.body.classList.remove(
+        'assistant-active',
+        'assistant-immersive',
+        'assistant-tabbar-peek',
+        'assistant-keyboard',
+      );
       document.documentElement.style.removeProperty('--assistant-vv-h');
+      document.documentElement.style.removeProperty('--assistant-kb-inset');
+      return;
+    }
+    document.body.classList.add('assistant-active', 'assistant-immersive');
+    return () => {
+      clearPeekTimer();
+      document.body.classList.remove(
+        'assistant-active',
+        'assistant-immersive',
+        'assistant-tabbar-peek',
+        'assistant-keyboard',
+      );
+      document.documentElement.style.removeProperty('--assistant-vv-h');
+      document.documentElement.style.removeProperty('--assistant-kb-inset');
     };
   }, [paneActive]);
 
-  /**
-   * 小爱页已整页隐藏底栏；键盘只需用 padding 顶起输入区，不再改动 tabbar 定位。
-   */
   useEffect(() => {
     if (!paneActive) return;
+    document.body.classList.toggle('assistant-tabbar-peek', tabbarPeek);
+  }, [paneActive, tabbarPeek]);
+
+  useEffect(() => {
+    if (!paneActive) return;
+    const root = document.documentElement;
+    const body = document.body;
     const vv = window.visualViewport;
-    if (!vv) return;
+    let raf = 0;
 
-    let lastOpen = false;
-    let composerFocused = false;
-    let baselineH = Math.round(Math.max(window.innerHeight, vv.height));
-
-    const keyboardLift = () => {
-      const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
-      const shrink = Math.max(0, Math.round(baselineH - vv.height));
-      return Math.max(inset, shrink);
-    };
-
-    const setKeyboardOpen = (open: boolean) => {
-      if (open) {
-        const lift = keyboardLift();
-        document.body.classList.add('assistant-keyboard');
-        document.documentElement.style.setProperty(
-          '--assistant-kb-inset',
-          `${lift > 40 ? lift : 0}px`,
-        );
-      } else if (lastOpen) {
-        document.body.classList.remove('assistant-keyboard');
-        document.documentElement.style.removeProperty('--assistant-kb-inset');
-        if (keyboardLift() <= 2) {
-          baselineH = Math.round(Math.max(window.innerHeight, vv.height));
-        }
+    const syncViewport = () => {
+      // 只在输入框真正聚焦时进键盘态，避免把浏览器底栏/URL 栏缩减误判成键盘
+      body.classList.toggle('assistant-keyboard', composerFocused);
+      if (!composerFocused) {
+        body.classList.remove('assistant-keyboard-vv');
+        root.style.removeProperty('--assistant-vv-h');
+        root.style.removeProperty('--assistant-kb-inset');
+        return;
+      }
+      const layoutH = window.innerHeight || root.clientHeight || 0;
+      const vvH = vv?.height ?? layoutH;
+      const offsetTop = vv?.offsetTop ?? 0;
+      const gap = Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
+      // interactiveWidget:resizes-content 已缩 layout 时 gap≈0，跟 100dvh 即可；
+      // 未缩小时才用 vv 高度把页面压到键盘上方。
+      if (gap > 40) {
+        root.style.setProperty('--assistant-vv-h', `${Math.round(vvH)}px`);
+        body.classList.add('assistant-keyboard-vv');
       } else {
-        document.body.classList.remove('assistant-keyboard');
-        document.documentElement.style.removeProperty('--assistant-kb-inset');
+        root.style.removeProperty('--assistant-vv-h');
+        body.classList.remove('assistant-keyboard-vv');
       }
-      lastOpen = open;
+      root.style.removeProperty('--assistant-kb-inset');
     };
 
-    const sync = () => {
-      setKeyboardOpen(composerFocused);
-      if (composerFocused) {
-        const lift = keyboardLift();
-        if (lift > 40) {
-          document.documentElement.style.setProperty('--assistant-kb-inset', `${lift}px`);
-        }
-      }
+    const onViewport = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(syncViewport);
     };
 
     const onFocusIn = (e: FocusEvent) => {
@@ -354,8 +392,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (!(t instanceof HTMLElement)) return;
       if (!t.closest('.assistant-composer')) return;
       if (t.tagName !== 'TEXTAREA' && t.tagName !== 'INPUT') return;
-      composerFocused = true;
-      sync();
+      setComposerFocused(true);
     };
 
     const onFocusOut = (e: FocusEvent) => {
@@ -363,24 +400,61 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (!(t instanceof HTMLElement) || !t.closest('.assistant-composer')) return;
       const next = e.relatedTarget;
       if (next instanceof HTMLElement && next.closest('.assistant-composer')) return;
-      composerFocused = false;
-      setKeyboardOpen(false);
+      setComposerFocused(false);
     };
 
-    vv.addEventListener('resize', sync);
-    vv.addEventListener('scroll', sync);
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (composerFocused) return;
+      const start = touchStartRef.current;
+      touchStartRef.current = null;
+      const t = e.changedTouches[0];
+      if (!start || !t) return;
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.35) {
+        setTabbarPeek(true);
+        clearPeekTimer();
+        peekTimerRef.current = setTimeout(() => {
+          peekTimerRef.current = null;
+          setTabbarPeek(false);
+        }, 4000);
+      }
+    };
+
+    syncViewport();
+    vv?.addEventListener('resize', onViewport);
+    vv?.addEventListener('scroll', onViewport);
+    window.addEventListener('resize', onViewport);
+    window.addEventListener('orientationchange', onViewport);
     window.addEventListener('focusin', onFocusIn);
     window.addEventListener('focusout', onFocusOut);
-    sync();
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+
     return () => {
-      vv.removeEventListener('resize', sync);
-      vv.removeEventListener('scroll', sync);
+      cancelAnimationFrame(raf);
+      vv?.removeEventListener('resize', onViewport);
+      vv?.removeEventListener('scroll', onViewport);
+      window.removeEventListener('resize', onViewport);
+      window.removeEventListener('orientationchange', onViewport);
       window.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('focusout', onFocusOut);
-      document.body.classList.remove('assistant-keyboard');
-      document.documentElement.style.removeProperty('--assistant-kb-inset');
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchend', onTouchEnd);
+      body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
+      root.style.removeProperty('--assistant-vv-h');
+      root.style.removeProperty('--assistant-kb-inset');
     };
-  }, [paneActive]);
+  }, [paneActive, composerFocused]);
+
+  useEffect(() => {
+    if (composerFocused) hideTabbarPeek();
+  }, [composerFocused]);
 
   useEffect(() => {
     if (paneActive) return;
@@ -942,7 +1016,24 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   );
 
   return (
-    <main className="container assistant-page" aria-hidden={!paneActive}>
+    <main
+      className="container assistant-page"
+      aria-hidden={!paneActive}
+      onClick={(e) => {
+        if (composerFocused) return;
+        const t = e.target;
+        if (!(t instanceof Element)) return;
+        // 点按钮/输入/链接等交互控件时不唤回，避免误触
+        if (
+          t.closest(
+            'a, button, input, textarea, select, label, [role="button"], .assistant-composer, .compose-input-wrap, .chip-swipe, .msg-actions, .font-pill, .history-sheet, .citation-bar',
+          )
+        ) {
+          return;
+        }
+        showTabbarPeek();
+      }}
+    >
       <header className="assistant-head">
         <button type="button" className="assistant-title-btn" onClick={() => setHistoryOpen(true)}>
           <strong>小爱</strong>

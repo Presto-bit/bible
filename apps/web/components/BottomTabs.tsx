@@ -82,16 +82,15 @@ export default function BottomTabs() {
   const pathname = normalizeAppPath(useRouterPathname());
   const router = useRouter();
   const compact =
-    pathname === '/assistant'
-    || pathname.startsWith('/assistant/')
-    || SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+    SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
     || GROUP_COMPACT_RE.test(pathname);
 
   useEffect(() => {
     const bar = document.querySelector<HTMLElement>('.tabbar');
     if (!bar) return;
     if (compact) return;
-    // 切 Tab / 离开小爱键盘态时清掉可能残留的 inline 定位，回到 CSS 固定位
+    // 小爱页自己管沉浸/键盘态，离开小爱后再清残留
+    if (pathname === '/assistant' || pathname.startsWith('/assistant/')) return;
     document.body.classList.remove('assistant-keyboard');
     document.documentElement.style.removeProperty('--assistant-vv-h');
     document.documentElement.style.removeProperty('--assistant-kb-inset');
