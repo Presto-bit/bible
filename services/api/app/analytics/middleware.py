@@ -14,7 +14,7 @@ def _visitor_ids_from_request(request: Request) -> tuple[str | None, str | None]
         request.headers.get("x-user-id"),
     )
     user_id = uuid_for_code(code) if code else None
-    device_id = request.headers.get("x-guest-id") or request.headers.get("x-device-id")
+    device_id = request.headers.get("x-device-id") or request.headers.get("x-guest-id")
     return user_id, device_id
 
 

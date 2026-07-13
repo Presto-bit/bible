@@ -29,9 +29,16 @@ def uv_deduped_count_sql(*, where: str = "visit_date = current_date") -> str:
 
 
 def uv_guest_rows_sql(*, where: str = "visit_date = current_date") -> str:
+    """纯游客 UV：无 user_id、也未绑定账号的设备（按身份去重）。"""
     return f"""
-        SELECT count(*) FROM daily_active_visitors
-        WHERE {where} AND user_id IS NULL
+        SELECT count(DISTINCT {UV_IDENTITY_SQL})
+        FROM daily_active_visitors
+        WHERE {where}
+          AND user_id IS NULL
+          AND NOT EXISTS (
+            SELECT 1 FROM device_user_bindings dub
+            WHERE dub.device_fingerprint = daily_active_visitors.device_fingerprint
+          )
     """
 
 

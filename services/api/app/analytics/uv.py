@@ -7,18 +7,26 @@ logger = logging.getLogger(__name__)
 
 _SKIP_PREFIXES = ("/health", "/admin", "/docs", "/openapi.json", "/redoc")
 
-# 统计去重身份：同一 user_id（含设备绑定账号）全天仅计 1 UV；未绑定设备按设备计
+# 统计去重身份：优先归并到 8 位 user_code（多设备 / 先游客后登录只计 1）；否则按设备计
 def uv_identity_sql(alias: str | None = None) -> str:
     prefix = f"{alias}." if alias else "daily_active_visitors."
     fp = f"{alias}.device_fingerprint" if alias else "daily_active_visitors.device_fingerprint"
-    bound = f"""(
-      SELECT ac.user_id::text
+    by_user = f"""(
+      SELECT ac.user_code
+      FROM accounts ac
+      WHERE ac.user_id = {prefix}user_id
+      LIMIT 1
+    )"""
+    by_bind = f"""(
+      SELECT dub.user_code
       FROM device_user_bindings dub
-      JOIN accounts ac ON ac.user_code = dub.user_code
       WHERE dub.device_fingerprint = {fp}
       LIMIT 1
     )"""
-    return f"COALESCE({prefix}user_id::text, {bound}, {prefix}device_fingerprint)"
+    return (
+        f"COALESCE({by_user}, {by_bind}, "
+        f"{prefix}user_id::text, {prefix}device_fingerprint)"
+    )
 
 
 UV_IDENTITY_SQL = uv_identity_sql()
@@ -78,7 +86,7 @@ def _has_uv_v2(conn) -> bool:
 def _lookup_bound_user_id(conn, device_fingerprint: str) -> str | None:
     row = conn.execute(
         """
-        SELECT a.user_id::text
+        SELECT ac.user_id::text
         FROM device_user_bindings dub
         JOIN accounts ac ON ac.user_code = dub.user_code
         WHERE dub.device_fingerprint = %s

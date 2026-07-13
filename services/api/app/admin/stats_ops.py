@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from fastapi import HTTPException
 
 from ..db import get_pool
-from ..analytics.uv import UV_IDENTITY_SQL
+from ..analytics.uv import UV_IDENTITY_SQL, uv_identity_sql
 from ..analytics.uv_stats import (
     UV_IDENTITY_A,
     UV_IDENTITY_B,
@@ -1089,25 +1089,36 @@ def fetch_admin_stats_detail(
                 )
                 rows = conn.execute(
                     f"""
-                    SELECT {_v2_uv_user_code_sql()},
-                           {_v2_uv_nickname_sql()},
-                           d.visit_date::text,
-                           {_ts_sql("d.created_at")},
-                           {_ts_sql("d.user_bound_at")},
-                           (d.user_id IS NOT NULL OR a_bind.user_code IS NOT NULL) AS is_login
-                    FROM daily_active_visitors d
-                    LEFT JOIN users u ON u.id = d.user_id
-                    {_USER_JOINS}
-                    {_V2_DEVICE_BIND_JOINS}
-                    WHERE d.visit_date BETWEEN %s AND %s
-                    ORDER BY d.visit_date DESC, d.created_at DESC
-                    LIMIT %s
+                    SELECT user_code, nickname, visit_date, created_at, bound_at, is_login, identity
+                    FROM (
+                      SELECT {_v2_uv_user_code_sql()} AS user_code,
+                             {_v2_uv_nickname_sql()} AS nickname,
+                             d.visit_date::text AS visit_date,
+                             {_ts_sql("d.created_at")} AS created_at,
+                             {_ts_sql("d.user_bound_at")} AS bound_at,
+                             (d.user_id IS NOT NULL OR a_bind.user_code IS NOT NULL) AS is_login,
+                             {uv_identity_sql("d")} AS identity
+                      FROM daily_active_visitors d
+                      LEFT JOIN users u ON u.id = d.user_id
+                      {_USER_JOINS}
+                      {_V2_DEVICE_BIND_JOINS}
+                      WHERE d.visit_date BETWEEN %s AND %s
+                    ) v
+                    ORDER BY visit_date DESC,
+                             identity,
+                             is_login DESC,
+                             created_at DESC
                     """,
-                    (start, end, limit),
+                    (start, end),
                 ).fetchall()
                 items = []
+                seen_day_identity: set[tuple[str, str]] = set()
                 for r in rows:
-                    user_code, nickname, vdate, created, bound, is_login = r
+                    user_code, nickname, vdate, created, bound, is_login, identity = r
+                    key = (vdate, str(identity or user_code or created))
+                    if key in seen_day_identity:
+                        continue
+                    seen_day_identity.add(key)
                     converted_today = bool(
                         is_login and bound and bound != "—" and bound[:10] == vdate
                     )
@@ -1119,6 +1130,8 @@ def fetch_admin_stats_detail(
                         "visit_date": vdate,
                         "created_at": created,
                     })
+                    if len(items) >= limit:
+                        break
                 visitor_cols = [
                     _col("type", "类型"),
                     _col("user_code", "用户ID"),
@@ -1127,6 +1140,7 @@ def fetch_admin_stats_detail(
                     _col("visit_date", "日期"),
                     _col("created_at", "时间"),
                 ]
+
             else:
                 deduped = _scalar(
                     conn,
@@ -1222,7 +1236,7 @@ def fetch_admin_stats_detail(
             guest_pct = round(guest_uv / deduped * 100, 1) if deduped else 0
             convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("去重 UV", deduped, "同一用户ID全天计 1"),
+                _insight("去重 UV", deduped, "同一用户ID（多设备合并）全天计 1"),
                 _insight("游客设备", guest_uv, f"占 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
                 _insight("当日转化", converted, f"游客→登录 {convert_pct}%" if converted else None),

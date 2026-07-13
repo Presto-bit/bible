@@ -3,6 +3,7 @@ from app.analytics.uv import (
     legacy_visitor_key,
     resolve_device_fingerprint,
     should_record_uv,
+    uv_identity_sql,
     visitor_key,
 )
 
@@ -39,3 +40,13 @@ def test_should_record_uv_skips_admin_and_health():
     assert should_record_uv("/admin/stats", "GET") is False
     assert should_record_uv("/content/daily-verse", "GET") is True
     assert should_record_uv("/bible/books", "OPTIONS") is False
+
+
+def test_uv_identity_prefers_user_code():
+    sql = uv_identity_sql()
+    assert "accounts" in sql
+    assert "user_code" in sql
+    assert "device_user_bindings" in sql
+    aliased = uv_identity_sql("d")
+    assert "d.user_id" in aliased
+    assert "d.device_fingerprint" in aliased
