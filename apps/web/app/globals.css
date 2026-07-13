@@ -2664,13 +2664,24 @@ button.hero-b-campaign {
     width: 100%;
     margin: 0;
     padding: 0;
-    min-height: 100vh;
+    /* 扣掉底栏与 app-body 留白，避免整页假滚动、内容区却被裁切 */
+    height: calc(100dvh - var(--tabbar-h) - 24px);
+    max-height: calc(100dvh - var(--tabbar-h) - 24px);
+    min-height: 0;
+    overflow: hidden;
     background: color-mix(in srgb, var(--bg, #f4f2ee) 92%, #fff);
   }
 
   .admin-shell {
     flex-direction: row;
-    min-height: 100vh;
+    height: 100%;
+    min-height: 0;
+    max-height: 100%;
+  }
+
+  .admin-shell-main {
+    min-height: 0;
+    overflow: hidden;
   }
 
   .admin-mobile-chrome {
@@ -2686,6 +2697,9 @@ button.hero-b-campaign {
     padding: 18px 12px;
     border-right: 1px solid var(--line, rgba(0, 0, 0, 0.08));
     background: var(--card, #fff);
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .admin-pc-brand {
@@ -2776,6 +2790,7 @@ button.hero-b-campaign {
     justify-content: space-between;
     gap: 16px;
     padding: 16px 22px 10px;
+    flex-shrink: 0;
   }
 
   .admin-pc-title {
@@ -2813,12 +2828,30 @@ button.hero-b-campaign {
   }
 
   .admin-shell-content {
+    flex: 1;
+    min-height: 0;
     padding: 0 18px 20px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .admin-shell-content::-webkit-scrollbar {
+    display: block;
+    width: 8px;
+    height: 8px;
+  }
+
+  .admin-shell-content::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--muted, #888) 35%, transparent);
+    border-radius: 999px;
   }
 
   .admin-shell-content-rag {
     padding: 0;
-    height: calc(100vh - 78px);
+    overflow: hidden;
     display: flex;
     flex-direction: column;
   }
@@ -3469,7 +3502,7 @@ button.hero-b-campaign {
     grid-template-columns: 240px minmax(280px, 1fr) minmax(300px, 360px);
     gap: 16px;
     align-items: start;
-    min-height: calc(100vh - 140px);
+    min-height: 0;
   }
 }
 
@@ -3477,8 +3510,15 @@ button.hero-b-campaign {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: calc(100vh - 160px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+@media (min-width: 1100px) {
+  .admin-ops-studio-list {
+    max-height: calc(100dvh - var(--tabbar-h) - 160px);
+    overflow: auto;
+  }
 }
 
 .admin-ops-studio-filters {
@@ -3632,8 +3672,15 @@ button.hero-b-campaign {
   border-radius: 12px;
   background: var(--card, #fff);
   padding: 14px 16px 18px;
-  max-height: calc(100vh - 140px);
-  overflow: auto;
+  max-height: none;
+  overflow: visible;
+}
+
+@media (min-width: 1100px) {
+  .admin-ops-studio-props {
+    max-height: calc(100dvh - var(--tabbar-h) - 160px);
+    overflow: auto;
+  }
 }
 
 .admin-ops-studio-form {
@@ -4735,6 +4782,7 @@ a.today-card-link {
 .profile-page {
   --home-card-radius: 24px;
   --home-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
+  --soft-card-edge: 1px solid color-mix(in srgb, var(--ink-faint) 32%, var(--line));
   padding-top: 8px;
 }
 
@@ -4832,7 +4880,7 @@ a.today-card-link {
 }
 
 .profile-page .profile-badge-card {
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
   padding: 16px 16px 14px;
@@ -4875,7 +4923,7 @@ a.today-card-link {
 
 .profile-page .profile-soft-row.card,
 .profile-page a.profile-soft-row.card {
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
   min-height: 64px;
@@ -4895,7 +4943,7 @@ a.today-card-link {
 }
 
 .profile-page .profile-progress-wrap .progress-card {
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
   margin: 0;
@@ -4903,10 +4951,16 @@ a.today-card-link {
 
 .profile-page .profile-review-card {
   margin-top: 14px;
-  border: none;
+  border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
   padding: 14px 16px;
+}
+
+/* 覆盖 body.pwa-standalone .card 的 elev 阴影，与成长卡一致 */
+body.pwa-standalone .profile-page .profile-badge-card,
+body.pwa-standalone .profile-page .profile-soft-row.card {
+  box-shadow: var(--home-shadow);
 }
 
 .profile-page .profile-review-link {
