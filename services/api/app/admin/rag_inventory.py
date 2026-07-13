@@ -44,14 +44,14 @@ _COLLECTIONS: tuple[dict, ...] = (
         "label": "中文自有资料",
         "source_type": "study-bible-zh",
         "subdir": "study-bible-zh",
-        "recursive": False,
+        "recursive": True,
     },
     {
         "id": "manual",
         "label": "手工研经资料",
         "source_type": "study-bible",
         "subdir": "study-bible",
-        "recursive": False,
+        "recursive": True,
     },
 )
 

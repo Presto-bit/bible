@@ -26,6 +26,17 @@ from .rag_ops import (
     list_pending_uploads,
     upload_dir,
 )
+from .rag_workspace import (
+    build_workspace_tree,
+    create_workspace_file,
+    delete_workspace_path,
+    index_workspace_file,
+    list_document_chunks,
+    mkdir_workspace,
+    read_workspace_file,
+    rename_or_move_workspace,
+    save_workspace_file,
+)
 from .hero_b_ops import (
     delete_campaign,
     get_campaign,
@@ -446,6 +457,141 @@ def admin_rename_document(
             raise HTTPException(status_code=404, detail="资料不存在")
         conn.commit()
     return {"ok": True, "id": str(row[0]), "title": row[1]}
+
+
+# ── RAG 工作台（PC 文件树 / 预览编辑）──
+
+
+class WorkspacePathBody(BaseModel):
+    collection_id: str
+    path: str
+
+
+class WorkspaceSaveBody(BaseModel):
+    collection_id: str
+    path: str
+    content: str
+
+
+class WorkspaceCreateFileBody(BaseModel):
+    collection_id: str
+    path: str
+    content: str | None = None
+
+
+class WorkspaceMoveBody(BaseModel):
+    collection_id: str
+    from_path: str
+    to_path: str
+    to_collection_id: str | None = None
+
+
+class WorkspaceDeleteBody(BaseModel):
+    collection_id: str
+    path: str
+    purge_db: bool = True
+
+
+class WorkspaceIndexBody(BaseModel):
+    collection_id: str
+    path: str
+    force: bool = True
+
+
+@router.get("/rag/workspace/tree")
+def admin_rag_workspace_tree(_phone: str = Depends(require_admin)) -> dict:
+    try:
+        return build_workspace_tree()
+    except Exception as exc:
+        logger.exception("workspace tree failed")
+        raise HTTPException(status_code=500, detail=f"加载文件树失败：{exc}") from exc
+
+
+@router.get("/rag/workspace/file")
+def admin_rag_workspace_file(
+    collection_id: str = Query(...),
+    path: str = Query(...),
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return read_workspace_file(collection_id=collection_id, path=path)
+
+
+@router.put("/rag/workspace/file")
+def admin_rag_workspace_save(
+    body: WorkspaceSaveBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return save_workspace_file(
+        collection_id=body.collection_id,
+        path=body.path,
+        content=body.content,
+    )
+
+
+@router.post("/rag/workspace/mkdir")
+def admin_rag_workspace_mkdir(
+    body: WorkspacePathBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return mkdir_workspace(collection_id=body.collection_id, path=body.path)
+
+
+@router.post("/rag/workspace/create-file")
+def admin_rag_workspace_create_file(
+    body: WorkspaceCreateFileBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return create_workspace_file(
+        collection_id=body.collection_id,
+        path=body.path,
+        content=body.content,
+    )
+
+
+@router.post("/rag/workspace/move")
+def admin_rag_workspace_move(
+    body: WorkspaceMoveBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return rename_or_move_workspace(
+        collection_id=body.collection_id,
+        from_path=body.from_path,
+        to_path=body.to_path,
+        to_collection_id=body.to_collection_id,
+    )
+
+
+@router.post("/rag/workspace/delete")
+def admin_rag_workspace_delete(
+    body: WorkspaceDeleteBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return delete_workspace_path(
+        collection_id=body.collection_id,
+        path=body.path,
+        purge_db=body.purge_db,
+    )
+
+
+@router.post("/rag/workspace/index")
+def admin_rag_workspace_index(
+    body: WorkspaceIndexBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return index_workspace_file(
+        collection_id=body.collection_id,
+        path=body.path,
+        force=body.force,
+    )
+
+
+@router.get("/rag/workspace/chunks")
+def admin_rag_workspace_chunks(
+    document_id: str = Query(...),
+    limit: int = Query(50, ge=1, le=200),
+    _phone: str = Depends(require_admin),
+) -> dict:
+    return list_document_chunks(document_id, limit=limit)
 
 
 # ── 运营：首页 Hero B ──

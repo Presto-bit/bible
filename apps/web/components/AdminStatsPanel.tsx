@@ -147,9 +147,14 @@ export default function AdminStatsPanel() {
   const dod = stats?.dod ?? {};
 
   return (
-    <div className="admin-stats-panel">
+    <div className="admin-stats-panel admin-stats-panel-pc">
       <div className="section-row" style={{ marginTop: 0 }}>
-        <p className="settings-title" style={{ margin: 0 }}>数据概览</p>
+        <div>
+          <p className="settings-title" style={{ margin: 0 }}>数据概览</p>
+          <p className="muted admin-stat-tip" style={{ marginTop: 4 }}>
+            宽屏指标卡 · 点击进入趋势明细 · 角标为较昨日环比
+          </p>
+        </div>
         <button type="button" className="text-link" disabled={loading} onClick={() => void refresh()}>
           刷新
         </button>
@@ -158,22 +163,19 @@ export default function AdminStatsPanel() {
       {loading && !stats ? <p className="muted" style={{ fontSize: 13 }}>加载中…</p> : null}
 
       {t ? (
-        <>
-          <p className="muted admin-stat-tip">点击卡片查看趋势与明细 · 角标为较昨日环比</p>
-          <div className="admin-stat-grid">
-            {METRICS.map((m) => (
-              <StatCard
-                key={m.key}
-                href={`/admin/stats/${m.key}`}
-                label={m.label}
-                value={m.total(t)}
-                hint={m.hint?.(t)}
-                dod={dod[m.dodKey]}
-                dodLabel={m.dodLabel}
-              />
-            ))}
-          </div>
-        </>
+        <div className="admin-stat-grid">
+          {METRICS.map((m) => (
+            <StatCard
+              key={m.key}
+              href={`/admin/stats/${m.key}`}
+              label={m.label}
+              value={m.total(t)}
+              hint={m.hint?.(t)}
+              dod={dod[m.dodKey]}
+              dodLabel={m.dodLabel}
+            />
+          ))}
+        </div>
       ) : null}
 
       {err ? (

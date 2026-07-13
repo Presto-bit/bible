@@ -581,3 +581,165 @@ export async function renameRagDocument(id: string, title: string): Promise<void
   });
   if (!res.ok) throw new Error(await readApiError(res, '改名失败'));
 }
+
+/* ── RAG 工作台（PC）── */
+
+export type RagWorkspaceNode = {
+  type: 'file' | 'folder';
+  name: string;
+  path: string;
+  inventory_status?: RagInventoryStatus;
+  inventory_label?: string;
+  document_id?: string | null;
+  title?: string;
+  chunks?: number;
+  size_bytes?: number;
+  rag_index_error?: string | null;
+  writable?: boolean;
+  children?: RagWorkspaceNode[];
+};
+
+export type RagWorkspaceCollection = {
+  id: string;
+  label: string;
+  source_type: string;
+  dir: string;
+  dir_exists: boolean;
+  writable: boolean;
+  file_count: number;
+  counts: Record<string, number>;
+  children: RagWorkspaceNode[];
+};
+
+export type RagWorkspaceTree = {
+  summary: RagInventory['summary'];
+  orphans: RagDocument[];
+  collections: RagWorkspaceCollection[];
+  commentary_root?: string;
+};
+
+export type RagWorkspaceFile = {
+  collection_id: string;
+  path: string;
+  filename: string;
+  writable: boolean;
+  source_type?: string;
+  size_bytes: number;
+  mtime: string;
+  content: string;
+  content_stale: boolean;
+  inventory_status: RagInventoryStatus;
+  inventory_label: string;
+  document_id?: string | null;
+  title: string;
+  chunks: number;
+  rag_index_at?: string | null;
+  rag_index_error?: string | null;
+  db_status?: string | null;
+};
+
+export type RagWorkspaceChunk = {
+  index: number;
+  preview: string;
+  length: number;
+};
+
+async function workspaceJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      ...adminHeaders(),
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      ...init?.headers,
+    },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '操作失败'));
+  return (await res.json()) as T;
+}
+
+export function fetchRagWorkspaceTree(): Promise<RagWorkspaceTree> {
+  return workspaceJson('/admin/rag/workspace/tree');
+}
+
+export function fetchRagWorkspaceFile(collectionId: string, path: string): Promise<RagWorkspaceFile> {
+  const q = new URLSearchParams({ collection_id: collectionId, path });
+  return workspaceJson(`/admin/rag/workspace/file?${q}`);
+}
+
+export function saveRagWorkspaceFile(
+  collectionId: string,
+  path: string,
+  content: string,
+): Promise<RagWorkspaceFile> {
+  return workspaceJson('/admin/rag/workspace/file', {
+    method: 'PUT',
+    body: JSON.stringify({ collection_id: collectionId, path, content }),
+  });
+}
+
+export function mkdirRagWorkspace(collectionId: string, path: string): Promise<{ ok: boolean; path: string }> {
+  return workspaceJson('/admin/rag/workspace/mkdir', {
+    method: 'POST',
+    body: JSON.stringify({ collection_id: collectionId, path }),
+  });
+}
+
+export function createRagWorkspaceFile(
+  collectionId: string,
+  path: string,
+  content?: string,
+): Promise<RagWorkspaceFile> {
+  return workspaceJson('/admin/rag/workspace/create-file', {
+    method: 'POST',
+    body: JSON.stringify({ collection_id: collectionId, path, content: content ?? null }),
+  });
+}
+
+export function moveRagWorkspace(opts: {
+  collectionId: string;
+  fromPath: string;
+  toPath: string;
+  toCollectionId?: string;
+}): Promise<{ ok: boolean; collection_id: string; path: string }> {
+  return workspaceJson('/admin/rag/workspace/move', {
+    method: 'POST',
+    body: JSON.stringify({
+      collection_id: opts.collectionId,
+      from_path: opts.fromPath,
+      to_path: opts.toPath,
+      to_collection_id: opts.toCollectionId ?? null,
+    }),
+  });
+}
+
+export function deleteRagWorkspace(
+  collectionId: string,
+  path: string,
+  purgeDb = true,
+): Promise<{ ok: boolean }> {
+  return workspaceJson('/admin/rag/workspace/delete', {
+    method: 'POST',
+    body: JSON.stringify({ collection_id: collectionId, path, purge_db: purgeDb }),
+  });
+}
+
+export function indexRagWorkspaceFile(
+  collectionId: string,
+  path: string,
+  force = true,
+): Promise<{ ok: boolean; file: RagWorkspaceFile; index?: RagIndexResult }> {
+  return workspaceJson('/admin/rag/workspace/index', {
+    method: 'POST',
+    body: JSON.stringify({ collection_id: collectionId, path, force }),
+  });
+}
+
+export function fetchRagWorkspaceChunks(
+  documentId: string,
+  limit = 50,
+): Promise<{ document_id: string; title: string; total: number; chunks: RagWorkspaceChunk[] }> {
+  const q = new URLSearchParams({ document_id: documentId, limit: String(limit) });
+  return workspaceJson(`/admin/rag/workspace/chunks?${q}`);
+}
+

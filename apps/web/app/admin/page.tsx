@@ -4,7 +4,8 @@ import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import AdminRagPanel, { AdminLoginForm } from '@/components/AdminRagPanel';
+import { AdminLoginForm } from '@/components/AdminRagPanel';
+import AdminRagWorkspace from '@/components/admin/AdminRagWorkspace';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
 import AdminOpsHeroPanel from '@/components/admin/AdminOpsHeroPanel';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
@@ -41,7 +42,7 @@ function AdminPageInner() {
   };
 
   return (
-    <main className="page admin-page">
+    <main className="page admin-page admin-page-pc">
       <div className="admin-page-head page-head" style={{ marginBottom: 0 }}>
         <PageBackBar href="/profile" label="我的" />
         <span className="page-head-spacer" />
@@ -52,17 +53,10 @@ function AdminPageInner() {
         ) : null}
       </div>
 
-      <h1 className="admin-page-title">管理后台</h1>
-
-      {checking ? (
-        <p className="muted" style={{ fontSize: 13 }}>验证登录…</p>
-      ) : !loggedIn ? (
-        <div className="settings-card">
-          <AdminLoginForm onSuccess={() => setLoggedIn(true)} />
-        </div>
-      ) : (
-        <>
-          <div className="admin-tabs" role="tablist">
+      <div className="admin-page-title-row">
+        <h1 className="admin-page-title">管理后台</h1>
+        {loggedIn ? (
+          <div className="admin-tabs admin-tabs-pc" role="tablist">
             <button
               type="button"
               role="tab"
@@ -91,13 +85,21 @@ function AdminPageInner() {
               RAG 注释库
             </button>
           </div>
+        ) : null}
+      </div>
 
-          <div className="settings-card admin-tab-panel">
-            {tab === 'rag' ? <AdminRagPanel showLogout={false} /> : null}
-            {tab === 'stats' ? <AdminStatsPanel /> : null}
-            {tab === 'ops' ? <AdminOpsHeroPanel /> : null}
-          </div>
-        </>
+      {checking ? (
+        <p className="muted" style={{ fontSize: 13 }}>验证登录…</p>
+      ) : !loggedIn ? (
+        <div className="settings-card admin-login-card">
+          <AdminLoginForm onSuccess={() => setLoggedIn(true)} />
+        </div>
+      ) : (
+        <div className={`admin-tab-panel admin-tab-panel-pc admin-tab-panel-${tab}`}>
+          {tab === 'rag' ? <AdminRagWorkspace /> : null}
+          {tab === 'stats' ? <AdminStatsPanel /> : null}
+          {tab === 'ops' ? <AdminOpsHeroPanel /> : null}
+        </div>
       )}
     </main>
   );
