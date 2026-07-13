@@ -345,10 +345,14 @@ def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
     applied, skipped, errors = 0, 0, []
     pool = get_pool()
     with pool.connection() as conn:
-        for change in changes:
+        for idx, change in enumerate(changes):
             spec = get_spec(change.get("entity"))
             if not spec:
-                errors.append({"entity": change.get("entity"), "error": "unknown_entity"})
+                errors.append({
+                    "index": idx,
+                    "entity": change.get("entity"),
+                    "error": "unknown_entity",
+                })
                 continue
             try:
                 keyvals = _keyvals(spec, change)
@@ -374,6 +378,10 @@ def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
                 applied += 1
             except Exception as exc:
                 logger.exception("push 失败 entity=%s", change.get("entity"))
-                errors.append({"entity": change.get("entity"), "error": str(exc)})
+                errors.append({
+                    "index": idx,
+                    "entity": change.get("entity"),
+                    "error": str(exc),
+                })
         conn.commit()
     return {"applied": applied, "skipped": skipped, "errors": errors}

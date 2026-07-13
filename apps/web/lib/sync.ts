@@ -113,6 +113,54 @@ export function pendingCount(): number {
   return readOutbox().length;
 }
 
+const PUSH_FAIL_MUTE_AFTER = 3;
+let consecutivePushFailures = 0;
+
+export function getConsecutivePushFailures(): number {
+  return consecutivePushFailures;
+}
+
+/** 连续推送失败达到阈值后，UI 不再提示「失败」文案 */
+export function shouldMuteSyncFailPrompt(): boolean {
+  return consecutivePushFailures >= PUSH_FAIL_MUTE_AFTER;
+}
+
+function notePushSuccess() {
+  consecutivePushFailures = 0;
+}
+
+function notePushFailure() {
+  consecutivePushFailures += 1;
+}
+
+type PushErrorItem = { index?: number; entity?: string; error?: string };
+
+/** 根据服务端 errors[].index 保留失败条目；已应用/跳过的从 outbox 移除 */
+function pruneOutboxAfterPush(
+  outbox: Envelope[],
+  errors: PushErrorItem[],
+  userCode: string,
+): Envelope[] {
+  if (!errors.length) {
+    writeOutbox([], userCode);
+    return [];
+  }
+  const failed = new Set<number>();
+  for (const e of errors) {
+    if (typeof e.index === 'number' && e.index >= 0 && e.index < outbox.length) {
+      failed.add(e.index);
+    }
+  }
+  // 旧服务端无 index：无法区分，整包保留
+  if (failed.size === 0) {
+    writeOutbox(outbox, userCode);
+    return outbox;
+  }
+  const remaining = outbox.filter((_, i) => failed.has(i));
+  writeOutbox(remaining, userCode);
+  return remaining;
+}
+
 let flushTimer: number | null = null;
 
 /** 防抖触发一轮同步（阅读写入后） */
@@ -139,13 +187,18 @@ export function flushOutboxKeepalive(): void {
       body: JSON.stringify({ changes: outbox }),
       keepalive: true,
     }).then(async (res) => {
-      if (!res.ok) return;
+      if (!res.ok) {
+        notePushFailure();
+        return;
+      }
       const data = await res.json().catch(() => ({}));
-      const errors = Array.isArray(data.errors) ? data.errors : [];
-      if (errors.length === 0) writeOutbox([], userCode);
+      const errors = (Array.isArray(data.errors) ? data.errors : []) as PushErrorItem[];
+      const remaining = pruneOutboxAfterPush(outbox, errors, userCode);
+      if (remaining.length === 0) notePushSuccess();
+      else notePushFailure();
     });
   } catch {
-    /* ignore */
+    notePushFailure();
   }
 }
 
@@ -160,17 +213,27 @@ async function push(): Promise<number> {
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
       body: JSON.stringify({ changes: outbox }),
     });
-    if (!res.ok) throw new Error(`推送失败 ${res.status}`);
-    const data = await res.json();
-    const errors = Array.isArray(data.errors) ? data.errors : [];
-    // 有实体写入失败时保留 outbox，避免 reading_log 等被误清
-    if (errors.length === 0) {
-      writeOutbox([], userCode);
+    if (!res.ok) {
+      notePushFailure();
+      throw new Error(`推送失败 ${res.status}`);
     }
+    const data = await res.json();
+    const errors = (Array.isArray(data.errors) ? data.errors : []) as PushErrorItem[];
+    const remaining = pruneOutboxAfterPush(outbox, errors, userCode);
+    if (remaining.length === 0) notePushSuccess();
+    else notePushFailure();
     return (data.applied ?? 0) as number;
   } finally {
     markSyncDone();
   }
+}
+
+/** 用户点击：重新尝试上传 outbox 中剩余失败项 */
+export async function retryPendingUpload(): Promise<SyncResult> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    throw new Error('当前离线，请联网后再试');
+  }
+  return syncNow();
 }
 
 type PullChange = {
