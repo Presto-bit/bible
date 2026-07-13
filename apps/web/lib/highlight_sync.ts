@@ -2,13 +2,14 @@
 
 import { enqueue, type Envelope } from './sync';
 import type { HighlightColor } from './reader_highlights';
+import { userLsGet, userLsSet } from './user_storage';
 
 const ID_MAP_KEY = 'highlight_sync_ids_v1';
 const VER_MAP_KEY = 'highlight_sync_versions_v1';
 
 function readIds(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem(ID_MAP_KEY) || '{}');
+    return JSON.parse(userLsGet(ID_MAP_KEY) || '{}');
   } catch {
     return {};
   }
@@ -16,18 +17,18 @@ function readIds(): Record<string, string> {
 
 function readVers(): Record<string, number> {
   try {
-    return JSON.parse(localStorage.getItem(VER_MAP_KEY) || '{}');
+    return JSON.parse(userLsGet(VER_MAP_KEY) || '{}');
   } catch {
     return {};
   }
 }
 
 function writeIds(m: Record<string, string>) {
-  localStorage.setItem(ID_MAP_KEY, JSON.stringify(m));
+  userLsSet(ID_MAP_KEY, JSON.stringify(m));
 }
 
 function writeVers(m: Record<string, number>) {
-  localStorage.setItem(VER_MAP_KEY, JSON.stringify(m));
+  userLsSet(VER_MAP_KEY, JSON.stringify(m));
 }
 
 export function highlightIdForRef(ref: string): string {

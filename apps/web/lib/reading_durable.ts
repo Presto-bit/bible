@@ -5,16 +5,20 @@
 
 import { effectiveId } from './api';
 import { notifyLocalDataChanged } from './local_data_events';
+import {
+  lastReadStorageKey,
+  lastVerseMapStorageKey,
+  migrateLegacyReadingStorageIfNeeded,
+  readEventsStorageKey,
+  readingLogStorageKey,
+} from './reading_storage';
+import { scopedUserKey, migrateLegacyUserStorageIfNeeded } from './user_storage';
 
 const IDB_NAME = 'presto_identity';
 const IDB_STORE = 'kv';
 const SNAPSHOT_PREFIX = 'reading_snapshot_v1:';
 
-const LS_READING_LOG = 'presto_reading_log';
-const LS_LAST_READ = 'presto_last_read';
-const LS_LAST_VERSE = 'presto_last_verse';
-const LS_READ_EVENTS = 'presto_read_events';
-const LS_BADGE_STATS = 'presto_badge_stats';
+const LS_BADGE_STATS_BASE = 'presto_badge_stats';
 
 type Snapshot = {
   userCode: string;
@@ -92,16 +96,17 @@ function writeLs(key: string, value: string | null) {
   localStorage.setItem(key, value);
 }
 
-function localHasAnyReading(): boolean {
+function localHasAnyReading(userCode: string): boolean {
+  migrateLegacyReadingStorageIfNeeded(userCode);
   try {
-    const log = JSON.parse(localStorage.getItem(LS_READING_LOG) || '{}');
+    const log = JSON.parse(localStorage.getItem(readingLogStorageKey(userCode)) || '{}');
     if (log && typeof log === 'object' && Object.keys(log).length > 0) return true;
   } catch {
     /* ignore */
   }
-  if (localStorage.getItem(LS_LAST_READ)) return true;
+  if (localStorage.getItem(lastReadStorageKey(userCode))) return true;
   try {
-    const ev = JSON.parse(localStorage.getItem(LS_READ_EVENTS) || '[]');
+    const ev = JSON.parse(localStorage.getItem(readEventsStorageKey(userCode)) || '[]');
     if (Array.isArray(ev) && ev.length > 0) return true;
   } catch {
     /* ignore */
@@ -114,15 +119,16 @@ export async function backupLocalReadingSnapshot(userCode?: string): Promise<voi
   if (typeof window === 'undefined') return;
   const code = userCode || effectiveId();
   if (!code) return;
-  if (!localHasAnyReading()) return;
+  migrateLegacyReadingStorageIfNeeded(code);
+  if (!localHasAnyReading(code)) return;
   const snap: Snapshot = {
     userCode: code,
     savedAt: Date.now(),
-    readingLog: readLs(LS_READING_LOG),
-    lastRead: readLs(LS_LAST_READ),
-    lastVerse: readLs(LS_LAST_VERSE),
-    readEvents: readLs(LS_READ_EVENTS),
-    badgeStats: readLs(LS_BADGE_STATS),
+    readingLog: readLs(readingLogStorageKey(code)),
+    lastRead: readLs(lastReadStorageKey(code)),
+    lastVerse: readLs(lastVerseMapStorageKey(code)),
+    readEvents: readLs(readEventsStorageKey(code)),
+    badgeStats: (migrateLegacyUserStorageIfNeeded(code), readLs(scopedUserKey(LS_BADGE_STATS_BASE, code))),
   };
   await idbSet(snapshotKey(code), JSON.stringify(snap));
 }
@@ -137,7 +143,8 @@ export async function restoreLocalReadingSnapshotIfNeeded(
   if (typeof window === 'undefined') return false;
   const code = userCode || effectiveId();
   if (!code) return false;
-  if (localHasAnyReading()) return false;
+  migrateLegacyReadingStorageIfNeeded(code);
+  if (localHasAnyReading(code)) return false;
 
   const raw = await idbGet(snapshotKey(code));
   if (!raw) return false;
@@ -150,11 +157,11 @@ export async function restoreLocalReadingSnapshotIfNeeded(
   if (!snap || snap.userCode !== code) return false;
   if (!snap.readingLog && !snap.lastRead && !snap.readEvents) return false;
 
-  writeLs(LS_READING_LOG, snap.readingLog);
-  writeLs(LS_LAST_READ, snap.lastRead);
-  writeLs(LS_LAST_VERSE, snap.lastVerse);
-  writeLs(LS_READ_EVENTS, snap.readEvents);
-  if (snap.badgeStats) writeLs(LS_BADGE_STATS, snap.badgeStats);
+  writeLs(readingLogStorageKey(code), snap.readingLog);
+  writeLs(lastReadStorageKey(code), snap.lastRead);
+  writeLs(lastVerseMapStorageKey(code), snap.lastVerse);
+  writeLs(readEventsStorageKey(code), snap.readEvents);
+  if (snap.badgeStats) writeLs(scopedUserKey(LS_BADGE_STATS_BASE, code), snap.badgeStats);
   notifyLocalDataChanged('idb-reading-restore');
   return true;
 }

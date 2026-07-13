@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
 import '../../core/sync/sync_controller.dart';
+import '../../core/user_storage.dart';
+import '../notes/notes_repository.dart' show dbProvider;
 
 class AuthState {
   const AuthState({required this.signedIn, this.displayName, this.hasPassword = false});
@@ -24,7 +26,7 @@ class AuthController extends Notifier<AuthState> {
     final prefs = ref.read(prefsProvider);
     return AuthState(
       signedIn: s.isSignedIn,
-      displayName: prefs.getString(_kName),
+      displayName: userPrefGetString(prefs, _kName),
       hasPassword: ref.read(authApiProvider).hasPassword,
     );
   }
@@ -35,6 +37,8 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> _afterAuth() async {
+    ref.read(activeUserCodeProvider.notifier).syncFromSession();
+    ref.invalidate(dbProvider);
     try {
       await ref.read(syncControllerProvider.notifier).runSync(force: true);
     } catch (_) {}
@@ -79,15 +83,17 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> logout() async {
     await ref.read(sessionProvider).signOut();
+    ref.read(activeUserCodeProvider.notifier).syncFromSession();
+    ref.invalidate(dbProvider);
     state = AuthState(
       signedIn: false,
-      displayName: ref.read(prefsProvider).getString(_kName),
+      displayName: userPrefGetString(ref.read(prefsProvider), _kName),
       hasPassword: ref.read(authApiProvider).hasPassword,
     );
   }
 
   bool get isOnboarded =>
-      ref.read(prefsProvider).getBool(_kOnboarded) ?? false;
+      userPrefGetBool(ref.read(prefsProvider), _kOnboarded) ?? false;
 
   Future<bool> usernameAvailable(String username) =>
       ref.read(authApiProvider).usernameAvailable(username);
@@ -104,7 +110,7 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> markOnboarded() async {
-    await ref.read(prefsProvider).setBool(_kOnboarded, true);
+    await userPrefSetBool(ref.read(prefsProvider), _kOnboarded, true);
   }
 
   Future<void> loginWithIdentifier(String identifier, String password) async {
@@ -127,7 +133,7 @@ class AuthController extends Notifier<AuthState> {
     final prefs = ref.read(prefsProvider);
     state = AuthState(
       signedIn: ref.read(sessionProvider).isSignedIn,
-      displayName: prefs.getString(_kName),
+      displayName: userPrefGetString(prefs, _kName),
       hasPassword: ref.read(authApiProvider).hasPassword,
     );
   }

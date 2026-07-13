@@ -1,5 +1,6 @@
 import { defaultAvatarId } from '@/components/Avatar';
 import type { GroupMember } from './api';
+import { userLsGet } from './user_storage';
 
 const PROFILE_AVATAR_KEY = 'profile_avatar';
 
@@ -7,7 +8,7 @@ const PROFILE_AVATAR_KEY = 'profile_avatar';
 export function memberAvatarId(member: GroupMember): string {
   if (member.avatar_id) return member.avatar_id;
   if (member.is_me && typeof window !== 'undefined') {
-    const local = localStorage.getItem(PROFILE_AVATAR_KEY)?.trim();
+    const local = userLsGet(PROFILE_AVATAR_KEY)?.trim();
     if (local) return local;
   }
   return defaultAvatarId(member.user_id || member.name || 'member');

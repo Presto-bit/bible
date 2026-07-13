@@ -1,3 +1,4 @@
+import { userLsGet, userLsSet } from './user_storage';
 /** 小爱本地会话：续接、分组、校验 */
 
 export interface AssistantSessionMsg {
@@ -29,7 +30,7 @@ export function hasUserMessages(msgs: AssistantSessionMsg[]): boolean {
 export function loadAssistantSessions(): AssistantSessionRecord[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(SESSIONS_KEY);
+    const raw = userLsGet(SESSIONS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     if (!Array.isArray(parsed)) return [];
     return sortSessionsDesc(
@@ -62,7 +63,7 @@ function inferUpdatedAt(label: string | undefined): number {
 export function saveAssistantSessions(list: AssistantSessionRecord[]) {
   if (typeof window === 'undefined') return;
   const valid = list.filter((s) => hasUserMessages(s.msgs));
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(sortSessionsDesc(valid).slice(0, 50)));
+  userLsSet(SESSIONS_KEY, JSON.stringify(sortSessionsDesc(valid).slice(0, 50)));
 }
 
 export function renameAssistantSession(id: string, title: string): AssistantSessionRecord[] {

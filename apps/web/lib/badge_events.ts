@@ -1,6 +1,7 @@
 /** 成就埋点与解锁时间戳（localStorage） */
 
 import { normalizeUnlockedAtMap } from './badge_catalog';
+import { userLsGet, userLsSet } from './user_storage';
 
 const KEY = 'presto_badge_stats';
 
@@ -69,7 +70,7 @@ function ymd(d = new Date()): string {
 function readStats(): BadgeStats {
   if (typeof window === 'undefined') return { ...EMPTY };
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || '{}') as Partial<BadgeStats>;
+    const raw = JSON.parse(userLsGet(KEY) || '{}') as Partial<BadgeStats>;
     const unlocked = normalizeUnlockedAtMap(raw.unlocked_at ?? {});
     return { ...EMPTY, ...raw, unlocked_at: unlocked, toasted_ids: raw.toasted_ids ?? [] };
   } catch {
@@ -79,7 +80,7 @@ function readStats(): BadgeStats {
 
 function writeStats(s: BadgeStats) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(KEY, JSON.stringify(s));
+  userLsSet(KEY, JSON.stringify(s));
 }
 
 export function loadBadgeStats(): BadgeStats {

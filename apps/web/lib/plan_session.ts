@@ -2,6 +2,7 @@
 
 import type { PlanStep } from './plan_steps';
 import { nextIncompleteStep } from './plan_steps';
+import { userLsGet, userLsSet } from './user_storage';
 
 export interface PlanSession {
   planId: string;
@@ -17,14 +18,14 @@ const SESSION_KEY = 'presto_plan_sessions';
 function readAll(): Record<string, PlanSession> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(SESSION_KEY) || '{}') as Record<string, PlanSession>;
+    return JSON.parse(userLsGet(SESSION_KEY) || '{}') as Record<string, PlanSession>;
   } catch {
     return {};
   }
 }
 
 function writeAll(map: Record<string, PlanSession>) {
-  localStorage.setItem(SESSION_KEY, JSON.stringify(map));
+  userLsSet(SESSION_KEY, JSON.stringify(map));
 }
 
 function key(planId: string, day: number) {

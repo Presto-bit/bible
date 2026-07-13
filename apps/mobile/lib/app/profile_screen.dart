@@ -28,6 +28,7 @@ import '../features/notes/favorite_review.dart';
 import '../features/bible/markings_repository.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
+import '../core/user_storage.dart';
 
 final healthProvider = FutureProvider<bool>((ref) async {
   final Dio dio = ref.watch(dioProvider);
@@ -73,7 +74,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     final gid = ref.read(sessionProvider).guestId;
     final nameCtl = TextEditingController(
-        text: ref.read(prefsProvider).getString('onboarding_name') ?? '');
+        text: userPrefGetString(ref.read(prefsProvider), 'onboarding_name') ?? '');
     final pwdCtl = TextEditingController();
     String? err;
     final result = await showDialog<String>(
@@ -222,7 +223,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
     );
     if (picked != null) {
-      await ref.read(prefsProvider).setString('profile_avatar', picked);
+      await userPrefSetString(ref.read(prefsProvider), 'profile_avatar', picked);
       await ref.read(profileSyncProvider).pushAvatar(picked);
       if (mounted) setState(() {});
     }
@@ -264,7 +265,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (maxLength != null && text.length > maxLength) {
         text = text.substring(0, maxLength);
       }
-      await ref.read(prefsProvider).setString(key, text);
+      await userPrefSetString(ref.read(prefsProvider), key, text);
       final sync = ref.read(profileSyncProvider);
       if (key == 'profile_bio') {
         await sync.pushBio(text);
@@ -362,13 +363,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final prefs = ref.watch(prefsProvider);
     final todayMin = ref.watch(todayReadingProvider);
 
-    final name = prefs.getString('onboarding_name') ??
+    final name = userPrefGetString(prefs, 'onboarding_name') ??
         auth.displayName ??
         '读经伙伴';
-    final bio = prefs.getString('profile_bio') ?? '愿日日亲近主话';
+    final bio = userPrefGetString(prefs, 'profile_bio') ?? '愿日日亲近主话';
     final userId = session.userId ?? session.guestId;
     final avatarId =
-        prefs.getString('profile_avatar') ?? defaultAvatarId(userId);
+        userPrefGetString(prefs, 'profile_avatar') ?? defaultAvatarId(userId);
 
     return Scaffold(
       body: SafeArea(
@@ -806,7 +807,7 @@ class _SettingsSheet extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     final font = ref.watch(readerFontProvider);
 
-    final name = prefs.getString('onboarding_name') ?? '读经伙伴';
+    final name = userPrefGetString(prefs, 'onboarding_name') ?? '读经伙伴';
     final userId = session.userId ?? session.guestId;
 
     return SafeArea(

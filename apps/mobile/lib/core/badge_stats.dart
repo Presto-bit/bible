@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 import 'badge_recheck.dart';
+import 'user_storage.dart';
 
 /// 成就埋点（与 Web presto_badge_stats 对齐）
 class BadgeStats {
@@ -63,7 +64,7 @@ class BadgeStats {
   static const _key = 'presto_badge_stats';
 
   static BadgeStats load(SharedPreferences prefs) {
-    final raw = prefs.getString(_key);
+    final raw = userPrefGetString(prefs, _key);
     if (raw == null || raw.isEmpty) return BadgeStats();
     try {
       final m = jsonDecode(raw) as Map<String, dynamic>;
@@ -147,12 +148,12 @@ class BadgeStatsRecorder {
   void _patch(void Function(Map<String, dynamic> s) mutator) {
     Map<String, dynamic> m;
     try {
-      m = jsonDecode(_prefs.getString(BadgeStats._key) ?? '{}') as Map<String, dynamic>;
+      m = jsonDecode(userPrefGetString(_prefs, BadgeStats._key) ?? '{}') as Map<String, dynamic>;
     } catch (_) {
       m = {};
     }
     mutator(m);
-    _prefs.setString(BadgeStats._key, jsonEncode(m));
+    userPrefSetString(_prefs, BadgeStats._key, jsonEncode(m));
     _queueRecheck();
   }
 

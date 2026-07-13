@@ -5,6 +5,7 @@ import { parseMarkRef } from './mark_ref';
 import { MARK_COLOR_SEMANTICS } from './mark_semantics';
 import { getActivePlan, getPlanDay } from './plan_progress';
 import { thoughtPreviewForRef } from './reader_thoughts';
+import { userLsGet, userLsSet } from './user_storage';
 
 export type MarkListItem = {
   ref: string;
@@ -36,7 +37,7 @@ type MarkMeta = { createdAt: number };
 function readMeta(): Record<string, MarkMeta> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(META_KEY) || '{}') as Record<string, MarkMeta>;
+    return JSON.parse(userLsGet(META_KEY) || '{}') as Record<string, MarkMeta>;
   } catch {
     return {};
   }
@@ -46,7 +47,7 @@ export function touchMarkMeta(ref: string) {
   if (typeof window === 'undefined') return;
   const meta = readMeta();
   if (!meta[ref]) meta[ref] = { createdAt: Date.now() };
-  localStorage.setItem(META_KEY, JSON.stringify(meta));
+  userLsSet(META_KEY, JSON.stringify(meta));
 }
 
 export function statsByColor(): Record<HighlightColor, number> {

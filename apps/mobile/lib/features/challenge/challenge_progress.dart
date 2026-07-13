@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'challenge_levels.dart';
+import '../../core/user_storage.dart';
 
 const _levelProgressKey = 'presto_challenge_level_progress';
 const _pendingBookKey = 'presto_pending_book_challenge';
@@ -41,7 +42,7 @@ typedef LevelProgress = Map<String, LevelProgressEntry>;
 
 LevelProgress levelProgress(SharedPreferences prefs) {
   try {
-    final raw = prefs.getString(_levelProgressKey);
+    final raw = userPrefGetString(prefs, _levelProgressKey);
     if (raw == null || raw.isEmpty) return {};
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
     return decoded.map(
@@ -68,17 +69,16 @@ void markLevelProgress(
     total: total,
   );
   p[levelId] = entry;
-  prefs.setString(
-    _levelProgressKey,
+  userPrefSetString(prefs, _levelProgressKey,
     jsonEncode(p.map((k, v) => MapEntry(k, v.toJson()))),
   );
 
   // 同步旧 quiz key 兼容徽章
   try {
-    final legacyRaw = prefs.getString(_legacyQuizKey) ?? '{}';
+    final legacyRaw = userPrefGetString(prefs, _legacyQuizKey) ?? '{}';
     final legacy = Map<String, dynamic>.from(jsonDecode(legacyRaw) as Map);
     legacy[levelId] = entry.done;
-    prefs.setString(_legacyQuizKey, jsonEncode(legacy));
+    userPrefSetString(prefs, _legacyQuizKey, jsonEncode(legacy));
   } catch (_) {}
 }
 
@@ -159,7 +159,7 @@ class PendingBookChallenge {
 
 PendingBookChallenge? getPendingBookChallenge(SharedPreferences prefs) {
   try {
-    final raw = prefs.getString(_pendingBookKey);
+    final raw = userPrefGetString(prefs, _pendingBookKey);
     if (raw == null || raw.isEmpty) return null;
     return PendingBookChallenge.fromJson(
       jsonDecode(raw) as Map<String, dynamic>,
@@ -175,7 +175,7 @@ void setPendingBookChallenge(
   String bookName,
 ) {
   final pushed = <String>{};
-  final pr = prefs.getString(_pushedBooksKey);
+  final pr = userPrefGetString(prefs, _pushedBooksKey);
   if (pr != null && pr.isNotEmpty) {
     try {
       pushed.addAll((jsonDecode(pr) as List).cast<String>());
@@ -184,11 +184,10 @@ void setPendingBookChallenge(
   final id = bookId.toUpperCase();
   if (pushed.contains(id)) return;
   pushed.add(id);
-  prefs.setString(_pushedBooksKey, jsonEncode(pushed.toList()));
+  userPrefSetString(prefs, _pushedBooksKey, jsonEncode(pushed.toList()));
 
   final lv = bookChallengeLevel(bookId, bookName);
-  prefs.setString(
-    _pendingBookKey,
+  userPrefSetString(prefs, _pendingBookKey,
     jsonEncode(PendingBookChallenge(
       bookId: id,
       bookName: bookName,
@@ -198,7 +197,7 @@ void setPendingBookChallenge(
 }
 
 void clearPendingBookChallenge(SharedPreferences prefs) {
-  prefs.remove(_pendingBookKey);
+  userPrefRemove(prefs, _pendingBookKey);
 }
 
 List<ChallengeLevel> levelsIncludingPending(SharedPreferences prefs) {

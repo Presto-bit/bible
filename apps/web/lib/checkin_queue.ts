@@ -1,4 +1,5 @@
 import { api } from './api';
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
 export type QueuedCheckin = {
   id: string;
@@ -17,7 +18,7 @@ export const CHECKIN_FLUSHED_EVENT = 'presto-checkin-flushed';
 function read(): QueuedCheckin[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || '[]');
+    const raw = JSON.parse(userLsGet(KEY) || '[]');
     return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
@@ -25,7 +26,7 @@ function read(): QueuedCheckin[] {
 }
 
 function write(items: QueuedCheckin[]) {
-  localStorage.setItem(KEY, JSON.stringify(items));
+  userLsSet(KEY, JSON.stringify(items));
 }
 
 export function queueCheckin(

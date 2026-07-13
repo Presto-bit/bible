@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/device_id.dart';
 import '../../core/session.dart';
+import '../../core/user_storage.dart';
 
 class AuthApi {
   AuthApi(this._dio, this._session, this._device);
@@ -55,9 +56,9 @@ class AuthApi {
       final d = res.data as Map<String, dynamic>;
       final username = d['username'] as String?;
       if (username != null && username.isNotEmpty) {
-        await _session.prefs.setString(_kName, username);
+        await userPrefSetString(_session.prefs, _kName, username);
       }
-      await _session.prefs.setBool(_kHasPwd, d['has_password'] == true);
+      await userPrefSetBool(_session.prefs, _kHasPwd, d['has_password'] == true);
     } on DioException {
       /* 离线可用 */
     }
@@ -86,9 +87,9 @@ class AuthApi {
     final code = _session.effectiveUserCode;
     final u = username.trim();
     if (u.isNotEmpty) {
-      await _session.prefs.setString(_kName, u);
+      await userPrefSetString(_session.prefs, _kName, u);
     }
-    await _session.prefs.setBool(_kOnboarded, true);
+    await userPrefSetBool(_session.prefs, _kOnboarded, true);
     await _session.devSignIn(code);
     final res = await _dio.post(
       '/auth/register',
@@ -100,7 +101,7 @@ class AuthApi {
       options: Options(headers: _deviceHeaders()),
     );
     final d = res.data as Map<String, dynamic>;
-    await _session.prefs.setBool(_kHasPwd, d['has_password'] == true);
+    await userPrefSetBool(_session.prefs, _kHasPwd, d['has_password'] == true);
     try {
       await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
     } on DioException {
@@ -125,10 +126,10 @@ class AuthApi {
     await _session.devSignIn(code);
     final username = d['username'] as String?;
     if (username != null && username.isNotEmpty) {
-      await _session.prefs.setString(_kName, username);
+      await userPrefSetString(_session.prefs, _kName, username);
     }
-    await _session.prefs.setBool(_kHasPwd, d['has_password'] == true);
-    await _session.prefs.setBool(_kOnboarded, true);
+    await userPrefSetBool(_session.prefs, _kHasPwd, d['has_password'] == true);
+    await userPrefSetBool(_session.prefs, _kOnboarded, true);
     try {
       await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
     } on DioException {
@@ -151,8 +152,8 @@ class AuthApi {
       },
       options: Options(headers: _deviceHeaders()),
     );
-    await _session.prefs.setBool(_kHasPwd, true);
+    await userPrefSetBool(_session.prefs, _kHasPwd, true);
   }
 
-  bool get hasPassword => _session.prefs.getBool(_kHasPwd) ?? false;
+  bool get hasPassword => userPrefGetBool(_session.prefs, _kHasPwd) ?? false;
 }

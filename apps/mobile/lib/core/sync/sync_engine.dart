@@ -15,6 +15,7 @@ import '../database/app_database.dart';
 import '../badge_catalog.dart' show normalizeBadgeId;
 import '../../features/plans/plan_session.dart';
 import 'sync_contract.dart';
+import '../user_storage.dart';
 
 class SyncResult {
   SyncResult({this.pushed = 0, this.skipped = 0, this.pulled = 0, this.cursor = 0});
@@ -377,7 +378,7 @@ class SyncEngine {
     final chapter = (data['chapter'] as num?)?.toInt();
     if (ts == null || book == null || chapter == null) return false;
     const key = 'read_chapter_events';
-    final raw = _prefs!.getString(key);
+    final raw = userPrefGetString(_prefs!, key);
     final list = <Map<String, dynamic>>[];
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -398,7 +399,7 @@ class SyncEngine {
     if (list.length > 2000) {
       list.removeRange(0, list.length - 2000);
     }
-    await _prefs!.setString(key, jsonEncode(list));
+    await userPrefSetString(_prefs!, key, jsonEncode(list));
     return true;
   }
 
@@ -411,7 +412,7 @@ class SyncEngine {
     final at = (data['unlocked_at'] as num?)?.toInt();
     if (at == null) return false;
     const key = 'badge_unlock_at';
-    final raw = _prefs!.getString(key);
+    final raw = userPrefGetString(_prefs!, key);
     final map = <String, int>{};
     if (raw != null && raw.isNotEmpty) {
       try {
@@ -423,7 +424,7 @@ class SyncEngine {
     }
     final prev = map[id];
     map[id] = prev == null ? at : (prev < at ? prev : at);
-    await _prefs!.setString(key, jsonEncode(map));
+    await userPrefSetString(_prefs!, key, jsonEncode(map));
     return true;
   }
 
@@ -461,22 +462,22 @@ class SyncEngine {
     var changed = false;
     final avatar = data['avatar_id'];
     if (avatar is String && avatar.isNotEmpty) {
-      if (_prefs!.getString('profile_avatar') != avatar) {
-        await _prefs!.setString('profile_avatar', avatar);
+      if (userPrefGetString(_prefs!, 'profile_avatar') != avatar) {
+        await userPrefSetString(_prefs!, 'profile_avatar', avatar);
         changed = true;
       }
     }
     final bio = data['bio'];
     if (bio is String) {
-      if (_prefs!.getString('profile_bio') != bio) {
-        await _prefs!.setString('profile_bio', bio);
+      if (userPrefGetString(_prefs!, 'profile_bio') != bio) {
+        await userPrefSetString(_prefs!, 'profile_bio', bio);
         changed = true;
       }
     }
     final username = data['username'];
     if (username is String && username.isNotEmpty) {
-      if (_prefs!.getString('onboarding_name') != username) {
-        await _prefs!.setString('onboarding_name', username);
+      if (userPrefGetString(_prefs!, 'onboarding_name') != username) {
+        await userPrefSetString(_prefs!, 'onboarding_name', username);
         changed = true;
       }
     }

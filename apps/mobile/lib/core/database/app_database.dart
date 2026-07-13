@@ -9,6 +9,9 @@ library;
 
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../user_storage.dart';
 
 part 'app_database.g.dart';
 
@@ -157,8 +160,12 @@ class SyncMeta extends Table {
   SyncMeta,
 ])
 class AppDatabase extends _$AppDatabase {
-  AppDatabase([QueryExecutor? executor])
-      : super(executor ?? driftDatabase(name: 'presto_bible'));
+  /// [executor] 用于测试内存库；正式环境传 [name] 按用户分库。
+  AppDatabase([QueryExecutor? executor, String name = 'presto_bible'])
+      : super(executor ?? driftDatabase(name: name));
+
+  factory AppDatabase.forUser(String userCode) =>
+      AppDatabase(null, driftDbNameForUser(userCode));
 
   @override
   int get schemaVersion => 2;
@@ -269,4 +276,84 @@ class AppDatabase extends _$AppDatabase {
   Stream<ReadingProgressData?> watchReadingProgress() =>
       (select(readingProgress)..where((t) => t.singleton.equals(0)))
           .watchSingleOrNull();
+}
+
+/// 将旧版单库 `presto_bible` 认领到当前用户库（仅一次）。
+Future<void> claimLegacyDriftIfNeeded(
+  AppDatabase userDb,
+  String userCode,
+  SharedPreferences prefs,
+) async {
+  final id = userCode.trim();
+  if (id.isEmpty) return;
+  final claimed = (prefs.getString(driftLegacyClaimedKey) ?? '').trim();
+  if (claimed.isNotEmpty) return;
+
+  final targetName = driftDbNameForUser(id);
+  if (targetName == 'presto_bible') {
+    await prefs.setString(driftLegacyClaimedKey, id);
+    return;
+  }
+
+  // 目标库已有数据：视为已归属，只打认领标记
+  final existingNotes = await userDb.select(userDb.notes).get();
+  final existingLogs = await userDb.select(userDb.readingLogs).get();
+  if (existingNotes.isNotEmpty || existingLogs.isNotEmpty) {
+    await prefs.setString(driftLegacyClaimedKey, id);
+    return;
+  }
+
+  AppDatabase? legacy;
+  try {
+    legacy = AppDatabase(null, 'presto_bible');
+    await _copyDriftContents(legacy, userDb);
+  } catch (_) {
+    /* 无旧库或拷贝失败：仍认领，避免反复尝试 */
+  } finally {
+    await legacy?.close();
+  }
+  await prefs.setString(driftLegacyClaimedKey, id);
+}
+
+Future<void> _copyDriftContents(AppDatabase from, AppDatabase to) async {
+  for (final row in await from.select(from.notes).get()) {
+    await to.into(to.notes).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.highlights).get()) {
+    await to.into(to.highlights).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.bookmarks).get()) {
+    await to.into(to.bookmarks).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.aiSessions).get()) {
+    await to.into(to.aiSessions).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.chatMessages).get()) {
+    await to.into(to.chatMessages).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.generatedPlans).get()) {
+    await to.into(to.generatedPlans).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.readingLogs).get()) {
+    await to.into(to.readingLogs).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.planProgress).get()) {
+    await to.into(to.planProgress).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.readingProgress).get()) {
+    await to.into(to.readingProgress).insertOnConflictUpdate(row);
+  }
+  for (final row in await from.select(from.outbox).get()) {
+    await to.into(to.outbox).insert(
+          OutboxCompanion.insert(
+            entity: row.entity,
+            op: row.op,
+            envelopeJson: row.envelopeJson,
+            createdAtMs: row.createdAtMs,
+          ),
+        );
+  }
+  for (final row in await from.select(from.syncMeta).get()) {
+    await to.into(to.syncMeta).insertOnConflictUpdate(row);
+  }
 }

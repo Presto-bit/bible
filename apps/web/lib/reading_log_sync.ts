@@ -1,21 +1,25 @@
 import { enqueue } from './sync';
 import { mergeReadingLogDay } from './sync_contract';
+import {
+  migrateLegacyReadingStorageIfNeeded,
+  readingLogStorageKey,
+} from './reading_storage';
 
 export type DayLog = { minutes: number; chapters: number };
 
-const LOG_KEY = 'presto_reading_log';
-
 function readAll(): Record<string, DayLog> {
   if (typeof window === 'undefined') return {};
+  migrateLegacyReadingStorageIfNeeded();
   try {
-    return JSON.parse(localStorage.getItem(LOG_KEY) || '{}') as Record<string, DayLog>;
+    return JSON.parse(localStorage.getItem(readingLogStorageKey()) || '{}') as Record<string, DayLog>;
   } catch {
     return {};
   }
 }
 
 function writeAll(logs: Record<string, DayLog>) {
-  localStorage.setItem(LOG_KEY, JSON.stringify(logs));
+  migrateLegacyReadingStorageIfNeeded();
+  localStorage.setItem(readingLogStorageKey(), JSON.stringify(logs));
 }
 
 /** 云端 DATE 可能序列化为 YYYY-MM-DD 或带时间的 ISO */

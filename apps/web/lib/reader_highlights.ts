@@ -2,6 +2,7 @@ import { enqueueHighlight } from './highlight_sync';
 import { parseMarkRef, selectionRef as buildSelectionRef, syncRef } from './mark_ref';
 import { touchMarkMeta } from './mark_stats';
 import { unbindMarkRef } from './mark_notes';
+import { userLsGet, userLsRemove, userLsSet } from './user_storage';
 
 export type HighlightColor = 'yellow' | 'green' | 'blue' | 'pink' | 'orange';
 
@@ -16,7 +17,7 @@ function migrateLegacy(): Record<string, HighlightMark> {
   if (typeof window === 'undefined') return {};
   try {
     const legacy = JSON.parse(
-      localStorage.getItem(LEGACY_HL_KEY) || '{}',
+      userLsGet(LEGACY_HL_KEY) || '{}',
     ) as Record<string, HighlightColor>;
     if (!Object.keys(legacy).length) return {};
     const map: Record<string, HighlightMark> = {};
@@ -24,9 +25,9 @@ function migrateLegacy(): Record<string, HighlightMark> {
       map[ref] = { color };
       touchMarkMeta(ref);
     }
-    localStorage.setItem(HL_KEY, JSON.stringify(map));
-    localStorage.removeItem(LEGACY_HL_KEY);
-    localStorage.removeItem(LEGACY_STYLE_KEY);
+    userLsSet(HL_KEY, JSON.stringify(map));
+    userLsRemove(LEGACY_HL_KEY);
+    userLsRemove(LEGACY_STYLE_KEY);
     return map;
   } catch {
     return {};
@@ -36,7 +37,7 @@ function migrateLegacy(): Record<string, HighlightMark> {
 export function getHighlightMap(): Record<string, HighlightMark> {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = localStorage.getItem(HL_KEY);
+    const raw = userLsGet(HL_KEY);
     if (!raw) return migrateLegacy();
     return JSON.parse(raw) as Record<string, HighlightMark>;
   } catch {
@@ -45,7 +46,7 @@ export function getHighlightMap(): Record<string, HighlightMark> {
 }
 
 function writeMap(map: Record<string, HighlightMark>) {
-  localStorage.setItem(HL_KEY, JSON.stringify(map));
+  userLsSet(HL_KEY, JSON.stringify(map));
 }
 
 export function selectionRef(
@@ -207,7 +208,7 @@ const NOTE_KEY = 'reader_margin_notes_v1';
 export function getMarginNotes(): Record<string, string> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(NOTE_KEY) || '{}');
+    return JSON.parse(userLsGet(NOTE_KEY) || '{}');
   } catch {
     return {};
   }
@@ -217,7 +218,7 @@ export function setMarginNote(ref: string, text: string) {
   const m = getMarginNotes();
   if (text.trim()) m[ref] = text.trim();
   else delete m[ref];
-  localStorage.setItem(NOTE_KEY, JSON.stringify(m));
+  userLsSet(NOTE_KEY, JSON.stringify(m));
 }
 
 /** @deprecated 样式已移除，始终返回 color */

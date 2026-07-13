@@ -6,6 +6,7 @@ import {
   setPlanDay,
   type ActivePlan,
 } from './plan_progress';
+import { loadGeneratedPlans } from './generated_plans';
 
 export function isOnGroupPlan(planId: string): boolean {
   return getActivePlan()?.planId === planId;
@@ -21,9 +22,7 @@ export async function adoptGroupPlan(
     return active;
   }
   try {
-    const raw = localStorage.getItem('presto_generated_plans');
-    const generated = raw ? (JSON.parse(raw) as Array<{ id: string; title: string; days_count: number }>) : [];
-    const saved = generated.find((p) => p.id === planId);
+    const saved = loadGeneratedPlans().find((p) => p.id === planId);
     if (saved) {
       const plan: ActivePlan = {
         planId: saved.id,

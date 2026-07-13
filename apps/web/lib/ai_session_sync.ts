@@ -2,6 +2,7 @@
 
 import { currentUserId } from './api';
 import { enqueue, type Envelope } from './sync';
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
 export interface AiSessionMeta {
   id: string;
@@ -24,7 +25,7 @@ function loadLocalSessions(): Array<{
 }> {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(SESSIONS_KEY);
+    const raw = userLsGet(SESSIONS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -42,13 +43,13 @@ function saveLocalSessions(
     msgs: unknown[];
   }>,
 ) {
-  localStorage.setItem(SESSIONS_KEY, JSON.stringify(list.slice(0, 50)));
+  userLsSet(SESSIONS_KEY, JSON.stringify(list.slice(0, 50)));
 }
 
 function readVersions(): Record<string, number> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(VERSION_KEY) || '{}') as Record<string, number>;
+    return JSON.parse(userLsGet(VERSION_KEY) || '{}') as Record<string, number>;
   } catch {
     return {};
   }
@@ -57,7 +58,7 @@ function readVersions(): Record<string, number> {
 function writeVersion(id: string, version: number) {
   const map = readVersions();
   map[id] = version;
-  localStorage.setItem(VERSION_KEY, JSON.stringify(map));
+  userLsSet(VERSION_KEY, JSON.stringify(map));
 }
 
 export function versionForSession(id: string): number {

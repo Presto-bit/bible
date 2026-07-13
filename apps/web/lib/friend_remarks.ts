@@ -1,3 +1,4 @@
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 const KEY = 'friend_remarks_v1';
 
 type RemarkMap = Record<string, string>;
@@ -5,7 +6,7 @@ type RemarkMap = Record<string, string>;
 function load(): RemarkMap {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = userLsGet(KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as RemarkMap;
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -15,7 +16,7 @@ function load(): RemarkMap {
 }
 
 function save(map: RemarkMap) {
-  localStorage.setItem(KEY, JSON.stringify(map));
+  userLsSet(KEY, JSON.stringify(map));
 }
 
 export function getFriendRemark(friendId: string): string {

@@ -1,4 +1,5 @@
 import { enqueue } from './sync';
+import { userLsGet, userLsSet } from './user_storage';
 
 const AVATAR_KEY = 'profile_avatar';
 
@@ -13,12 +14,12 @@ export function pushProfileAvatar(avatarId: string) {
 
 export function applyRemoteProfile(data?: { avatar_id?: string | null } | null) {
   if (!data?.avatar_id || typeof window === 'undefined') return;
-  const local = localStorage.getItem(AVATAR_KEY);
+  const local = userLsGet(AVATAR_KEY);
   if (local === data.avatar_id) return;
-  localStorage.setItem(AVATAR_KEY, data.avatar_id);
+  userLsSet(AVATAR_KEY, data.avatar_id);
 }
 
 export function getLocalAvatarId(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem(AVATAR_KEY);
+  return userLsGet(AVATAR_KEY);
 }

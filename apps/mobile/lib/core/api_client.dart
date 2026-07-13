@@ -22,6 +22,19 @@ final prefsProvider = Provider<SharedPreferences>((ref) {
   throw UnimplementedError('prefsProvider 必须在 main() 中 override');
 });
 
+/// 当前生效的 user_code；登录/登出后由 AuthController 刷新，驱动 Drift 换库。
+class ActiveUserCode extends Notifier<String> {
+  @override
+  String build() => ref.read(sessionProvider).effectiveUserCode;
+
+  void syncFromSession() {
+    state = ref.read(sessionProvider).effectiveUserCode;
+  }
+}
+
+final activeUserCodeProvider =
+    NotifierProvider<ActiveUserCode, String>(ActiveUserCode.new);
+
 final authApiProvider = Provider<AuthApi>((ref) {
   return AuthApi(
     ref.watch(dioProvider),

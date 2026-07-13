@@ -1,8 +1,8 @@
 // 游戏化：连续打卡、徽章、知识卡、节期活动、小爱闯关（本地优先）。
 
-import { dailyMinutes, type DayLog } from './reading';
+import { dailyMinutes, getReadingLogMap, type DayLog } from './reading';
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
-const LOG_KEY = 'presto_reading_log';
 const QUIZ_PROGRESS_KEY = 'presto_quiz_progress';
 const AI_QUIZ_KEY = 'presto_ai_quiz_progress';
 
@@ -11,12 +11,7 @@ function ymd(d: Date): string {
 }
 
 function readLogs(): Record<string, DayLog> {
-  if (typeof window === 'undefined') return {};
-  try {
-    return JSON.parse(localStorage.getItem(LOG_KEY) || '{}') as Record<string, DayLog>;
-  } catch {
-    return {};
-  }
+  return getReadingLogMap();
 }
 
 function activeDay(logs: Record<string, DayLog>, date: string): boolean {
@@ -111,7 +106,7 @@ export const QUIZ_CARDS: QuizCard[] = [
 export function quizProgress(): Record<string, boolean> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(QUIZ_PROGRESS_KEY) || '{}');
+    return JSON.parse(userLsGet(QUIZ_PROGRESS_KEY) || '{}');
   } catch {
     return {};
   }
@@ -120,7 +115,7 @@ export function quizProgress(): Record<string, boolean> {
 export function markQuizCorrect(id: string) {
   const p = quizProgress();
   p[id] = true;
-  localStorage.setItem(QUIZ_PROGRESS_KEY, JSON.stringify(p));
+  userLsSet(QUIZ_PROGRESS_KEY, JSON.stringify(p));
 }
 
 export function quizCorrectCount(): number {
@@ -176,7 +171,7 @@ export const AI_QUIZ_LEVELS: AiQuizLevel[] = [
 export function aiQuizWins(): number {
   if (typeof window === 'undefined') return 0;
   try {
-    const raw = JSON.parse(localStorage.getItem(AI_QUIZ_KEY) || '{}');
+    const raw = JSON.parse(userLsGet(AI_QUIZ_KEY) || '{}');
     return Object.values(raw as Record<string, boolean>).filter(Boolean).length;
   } catch {
     return 0;
@@ -184,9 +179,9 @@ export function aiQuizWins(): number {
 }
 
 export function markAiQuizWin(id: string) {
-  const raw = aiQuizWins() >= 0 ? JSON.parse(localStorage.getItem(AI_QUIZ_KEY) || '{}') : {};
+  const raw = aiQuizWins() >= 0 ? JSON.parse(userLsGet(AI_QUIZ_KEY) || '{}') : {};
   (raw as Record<string, boolean>)[id] = true;
-  localStorage.setItem(AI_QUIZ_KEY, JSON.stringify(raw));
+  userLsSet(AI_QUIZ_KEY, JSON.stringify(raw));
 }
 
 // ── 季节/节期活动 ──

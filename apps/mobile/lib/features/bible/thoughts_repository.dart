@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../core/api_client.dart';
+import '../../core/user_storage.dart';
 
 const _thoughtsKey = 'verse_thoughts_v1';
 
@@ -77,7 +78,7 @@ class VerseThoughtData {
 
 List<VerseThoughtData> _readAll(SharedPreferences prefs) {
   try {
-    final raw = prefs.getString(_thoughtsKey);
+    final raw = userPrefGetString(prefs, _thoughtsKey);
     if (raw == null || raw.isEmpty) return [];
     return (jsonDecode(raw) as List)
         .map((e) => VerseThoughtData.fromJson(e as Map<String, dynamic>))
@@ -89,8 +90,7 @@ List<VerseThoughtData> _readAll(SharedPreferences prefs) {
 
 Future<void> _writeAll(
     SharedPreferences prefs, List<VerseThoughtData> rows) async {
-  await prefs.setString(
-      _thoughtsKey, jsonEncode(rows.map((e) => e.toJson()).toList()));
+  await userPrefSetString(prefs, _thoughtsKey, jsonEncode(rows.map((e) => e.toJson()).toList()));
 }
 
 String selectionRef(String bookId, int chapter, List<int> verses) {
@@ -144,10 +144,10 @@ class ThoughtsRepository {
 
   String get _userId =>
       _prefs.getString('user_id') ??
-      _prefs.getString('onboarding_name') ??
+      userPrefGetString(_prefs, 'onboarding_name') ??
       'me';
 
-  String get _userName => _prefs.getString('onboarding_name') ?? '我';
+  String get _userName => userPrefGetString(_prefs, 'onboarding_name') ?? '我';
 
   void _notify() => _ref.read(thoughtsRevisionProvider.notifier).bump();
 

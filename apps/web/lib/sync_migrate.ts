@@ -4,7 +4,7 @@ import { bulkPushLocalReadingLogs } from './reading_log_sync';
 import { bulkPushLocalReadEvents } from './read_event_sync';
 import { bulkPushLocalBadgeUnlocks } from './badge_unlock_sync';
 import { loadBadgeStats } from './badge_events';
-import { getReadingLogMap, getLastRead } from './reading';
+import { getReadingLogMap, getLastRead, readEvents } from './reading';
 import {
   isSyncMigratedForUser,
   markSyncMigratedForUser,
@@ -15,8 +15,8 @@ export function hasLocalReadingData(): boolean {
   const logs = getReadingLogMap();
   if (Object.keys(logs).length > 0) return true;
   try {
-    const events = JSON.parse(localStorage.getItem('presto_read_events') || '[]');
-    if (Array.isArray(events) && events.length > 0) return true;
+    const events = readEvents();
+    if (events.length > 0) return true;
   } catch {
     /* ignore */
   }

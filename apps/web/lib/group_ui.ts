@@ -1,5 +1,6 @@
 import { effectiveId, type GroupDetail, type GroupMember, type GroupTask } from './api';
 import type { FootprintRef } from './group_footprint';
+import { userLsGet } from './user_storage';
 
 export function asGroupMembers(v: unknown): GroupMember[] {
   return Array.isArray(v) ? v : [];
@@ -37,7 +38,7 @@ export function normalizeGroupDetail(detail: GroupDetail): GroupDetail {
 export function displayMemberName(m: GroupMember): string {
   if (m.is_me) {
     if (typeof window !== 'undefined') {
-      const profile = localStorage.getItem('profile_name')?.trim();
+      const profile = userLsGet('profile_name')?.trim();
       if (profile) return profile;
     }
     return '我';
@@ -105,7 +106,7 @@ export function groupFootprintsBySource(footprints: FootprintRef[]): {
 
 export function myDisplayName(): string {
   if (typeof window === 'undefined') return '我';
-  const name = localStorage.getItem('profile_name')?.trim();
+  const name = userLsGet('profile_name')?.trim();
   if (name) return name;
   const id = effectiveId();
   return id ? `用户${id.slice(-4)}` : '我';

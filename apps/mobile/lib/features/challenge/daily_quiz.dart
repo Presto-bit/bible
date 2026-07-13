@@ -6,6 +6,7 @@ import 'dart:math';
 
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../core/user_storage.dart';
 
 class QuestionBankEntry {
   QuestionBankEntry({
@@ -58,7 +59,7 @@ String _ymd([DateTime? d]) {
 }
 
 Map<String, ({bool correct, String at})> readHistory(SharedPreferences prefs) {
-  final raw = prefs.getString(_historyKey);
+  final raw = userPrefGetString(prefs, _historyKey);
   if (raw == null || raw.isEmpty) return {};
   try {
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
@@ -83,8 +84,7 @@ Future<void> recordAnswer(
 ) async {
   final h = readHistory(prefs);
   h[questionId] = (correct: correct, at: _ymd());
-  await prefs.setString(
-    _historyKey,
+  await userPrefSetString(prefs, _historyKey,
     jsonEncode(h.map((k, v) => MapEntry(k, {'correct': v.correct, 'at': v.at}))),
   );
 }
@@ -127,7 +127,7 @@ Future<List<QuestionBankEntry>> dailyQuizQuestions(
 }) async {
   final bank = await loadQuestionBank();
   final today = _ymd();
-  final cached = prefs.getString(_dailyKey);
+  final cached = userPrefGetString(prefs, _dailyKey);
   if (cached != null && cached.isNotEmpty) {
     try {
       final parsed = jsonDecode(cached) as Map<String, dynamic>;
@@ -160,8 +160,7 @@ Future<List<QuestionBankEntry>> dailyQuizQuestions(
     );
     picked = [...picked, ...rest.take(count - picked.length)];
   }
-  await prefs.setString(
-    _dailyKey,
+  await userPrefSetString(prefs, _dailyKey,
     jsonEncode({'day': today, 'ids': picked.map((q) => q.id).toList()}),
   );
   return picked;

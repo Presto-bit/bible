@@ -2,6 +2,7 @@
 
 import { api, effectiveId, getDisplayName, getUserName } from './api';
 import { listNotes } from './notes';
+import { userLsGet, userLsSet, userLsRemove, userPrefixedGet, userPrefixedSet, userPrefixedRemove } from './user_storage';
 
 export type ThoughtVisibility = 'public' | 'friends' | 'private';
 
@@ -48,7 +49,7 @@ function normalizeVisibility(row: Partial<ThoughtRow>): ThoughtVisibility {
 function readRaw(): ThoughtRow[] {
   migrateLegacyThoughts();
   try {
-    const rows = JSON.parse(localStorage.getItem(KEY) || '[]') as Partial<ThoughtRow>[];
+    const rows = JSON.parse(userLsGet(KEY) || '[]') as Partial<ThoughtRow>[];
     return rows.map((row) => ({
       ...row,
       visibility: normalizeVisibility(row),
@@ -66,14 +67,14 @@ function readAll(): ThoughtRow[] {
 }
 
 function writeAll(rows: ThoughtRow[]) {
-  localStorage.setItem(KEY, JSON.stringify(rows));
+  userLsSet(KEY, JSON.stringify(rows));
 }
 
 function migrateLegacyThoughts() {
   if (typeof window === 'undefined') return;
-  if (localStorage.getItem(KEY)) return;
+  if (userLsGet(KEY)) return;
   try {
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_KEY) || '[]') as Partial<ThoughtRow>[];
+    const legacy = JSON.parse(userLsGet(LEGACY_KEY) || '[]') as Partial<ThoughtRow>[];
     if (!legacy.length) return;
     const next = legacy.map((row) => ({
       ...row,
@@ -89,7 +90,7 @@ function migrateLegacyThoughts() {
 
 function migrateNotesToThoughts() {
   if (typeof window === 'undefined') return;
-  if (localStorage.getItem(NOTES_MIGRATED_KEY)) return;
+  if (userLsGet(NOTES_MIGRATED_KEY)) return;
   const notes = listNotes();
   const all = readRaw();
   const existing = new Set(all.map((t) => `${t.ref}::${t.body.trim()}`));
@@ -111,7 +112,7 @@ function migrateNotesToThoughts() {
     existing.add(sig);
   }
   writeAll(all);
-  localStorage.setItem(NOTES_MIGRATED_KEY, '1');
+  userLsSet(NOTES_MIGRATED_KEY, '1');
 }
 
 export function visibilityLabel(v: ThoughtVisibility): string {
@@ -129,20 +130,20 @@ export function visibilityHint(v: ThoughtVisibility): string {
 export function getDefaultVisibility(context: 'normal' | 'mark' = 'normal'): ThoughtVisibility {
   if (context === 'mark') return 'private';
   if (typeof window === 'undefined') return 'public';
-  const pref = localStorage.getItem(VIS_PREF_KEY);
+  const pref = userLsGet(VIS_PREF_KEY);
   if (pref === 'public' || pref === 'friends' || pref === 'private') return pref;
   return 'public';
 }
 
 export function rememberVisibility(v: ThoughtVisibility) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(VIS_PREF_KEY, v);
+  userLsSet(VIS_PREF_KEY, v);
 }
 
 export function loadThoughtDraft(ref: string): { body: string; visibility: ThoughtVisibility } | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(`${DRAFT_PREFIX}${ref}`);
+    const raw = userPrefixedGet(DRAFT_PREFIX, ref);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { body?: string; visibility?: ThoughtVisibility };
     if (!parsed.body?.trim()) return null;
@@ -159,15 +160,15 @@ export function saveThoughtDraft(ref: string, body: string, visibility: ThoughtV
   if (typeof window === 'undefined') return;
   const trimmed = body.trim();
   if (!trimmed) {
-    localStorage.removeItem(`${DRAFT_PREFIX}${ref}`);
+    userPrefixedRemove(DRAFT_PREFIX, ref);
     return;
   }
-  localStorage.setItem(`${DRAFT_PREFIX}${ref}`, JSON.stringify({ body: trimmed, visibility }));
+  userPrefixedSet(DRAFT_PREFIX, ref, JSON.stringify({ body: trimmed, visibility }));
 }
 
 export function clearThoughtDraft(ref: string) {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(`${DRAFT_PREFIX}${ref}`);
+  userPrefixedRemove(DRAFT_PREFIX, ref);
 }
 
 export function selectionRef(bookId: string, chapter: number, verses: number[]): string {

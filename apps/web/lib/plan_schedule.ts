@@ -7,6 +7,7 @@ import {
   type ActivePlan,
 } from './plan_progress';
 import { planDayLabel } from './plan_calendar';
+import { loadGeneratedPlans } from './generated_plans';
 import {
   stepsForReadingRows,
   type GeneratedDayRow,
@@ -25,10 +26,7 @@ export interface PlanDayScheduleItem {
 export async function loadPlanSchedule(plan: ActivePlan): Promise<PlanDayScheduleItem[]> {
   if (plan.source === 'generated') {
     try {
-      const raw = localStorage.getItem('presto_generated_plans');
-      const list = raw
-        ? (JSON.parse(raw) as Array<{ id: string; days: GeneratedDayRow[] }>)
-        : [];
+      const list = loadGeneratedPlans() as Array<{ id: string; days: GeneratedDayRow[] }>;
       const found = list.find((p) => p.id === plan.planId);
       if (!found) return [];
       return found.days.map((d) => ({

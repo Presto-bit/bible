@@ -1,13 +1,23 @@
 // H5 阅读日志（本地优先，localStorage）。与 App reading_log（minutes/chapters）对齐：
 // 按日期聚合，供「读经回顾」报告页计算本月磁贴 / 近 6 月趋势 / 累计。
+// 存储按 user_code 分桶，见 reading_storage.ts。
+
+import {
+  chapterVerseRangeStorageKey as scopedChapterVerseRangeKey,
+  lastReadStorageKey,
+  lastVerseStorageKey as scopedLastVerseKey,
+  migrateLegacyReadingStorageIfNeeded,
+  readEventsStorageKey,
+  readSecBufferStorageKey,
+  readingLogStorageKey,
+  verseEventsStorageKey,
+} from './reading_storage';
+import { userLsGet, userLsSet } from './user_storage';
 
 export interface DayLog {
   minutes: number;
   chapters: number;
 }
-
-const KEY = 'presto_reading_log';
-const SEC_BUFFER_KEY = 'presto_read_sec_buffer';
 
 function ymd(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
@@ -17,8 +27,9 @@ function ymd(d: Date): string {
 
 function read(): Record<string, DayLog> {
   if (typeof window === 'undefined') return {};
+  migrateLegacyReadingStorageIfNeeded();
   try {
-    return JSON.parse(localStorage.getItem(KEY) || '{}') as Record<string, DayLog>;
+    return JSON.parse(localStorage.getItem(readingLogStorageKey()) || '{}') as Record<string, DayLog>;
   } catch {
     return {};
   }
@@ -29,7 +40,8 @@ export function getReadingLogMap(): Record<string, DayLog> {
 }
 
 function write(logs: Record<string, DayLog>) {
-  localStorage.setItem(KEY, JSON.stringify(logs));
+  migrateLegacyReadingStorageIfNeeded();
+  localStorage.setItem(readingLogStorageKey(), JSON.stringify(logs));
   if (typeof window !== 'undefined') {
     const day = ymd(new Date());
     const log = logs[day];
@@ -42,17 +54,18 @@ function write(logs: Record<string, DayLog>) {
 
 function addDwellSeconds(sec: number) {
   if (sec <= 0 || typeof window === 'undefined') return;
+  migrateLegacyReadingStorageIfNeeded();
   const day = ymd(new Date());
   let buffers: Record<string, number> = {};
   try {
-    buffers = JSON.parse(localStorage.getItem(SEC_BUFFER_KEY) || '{}') as Record<string, number>;
+    buffers = JSON.parse(localStorage.getItem(readSecBufferStorageKey()) || '{}') as Record<string, number>;
   } catch {
     buffers = {};
   }
   const totalSec = (buffers[day] || 0) + sec;
   const addMin = Math.floor(totalSec / 60);
   buffers[day] = totalSec % 60;
-  localStorage.setItem(SEC_BUFFER_KEY, JSON.stringify(buffers));
+  localStorage.setItem(readSecBufferStorageKey(), JSON.stringify(buffers));
   if (addMin <= 0) return;
   const logs = read();
   const cur = logs[day] || { minutes: 0, chapters: 0 };
@@ -78,15 +91,10 @@ export function readerDwellPause() {
 }
 
 // 上次阅读位置（进入圣经默认续读）。
-const LAST_KEY = 'presto_last_read';
-
 export interface LastRead {
   bookId: string;
   chapter: number;
 }
-
-const LAST_VERSE_KEY = 'presto_last_verse';
-const CHAPTER_VERSE_RANGE_KEY = 'presto_chapter_verse_range';
 
 interface ChapterVerseRange {
   date: string;
@@ -95,11 +103,12 @@ interface ChapterVerseRange {
 }
 
 function chapterVerseRangeStorageKey(bookId: string, chapter: number): string {
-  return `${CHAPTER_VERSE_RANGE_KEY}:${bookId.toUpperCase()}:${chapter}`;
+  return scopedChapterVerseRangeKey(bookId, chapter);
 }
 
 function readChapterVerseRange(bookId: string, chapter: number): ChapterVerseRange | null {
   if (typeof window === 'undefined') return null;
+  migrateLegacyReadingStorageIfNeeded();
   try {
     const raw = localStorage.getItem(chapterVerseRangeStorageKey(bookId, chapter));
     if (!raw) return null;
@@ -114,6 +123,7 @@ function readChapterVerseRange(bookId: string, chapter: number): ChapterVerseRan
 /** 记录本章今日读到的经节范围（滚动/划词/整节选择均会扩展 min–max）。 */
 export function noteChapterVerseTouch(bookId: string, chapter: number, verse: number) {
   if (typeof window === 'undefined' || !bookId || chapter < 1 || verse < 1) return;
+  migrateLegacyReadingStorageIfNeeded();
   const today = ymd(new Date());
   const prev = readChapterVerseRange(bookId, chapter);
   const next: ChapterVerseRange =
@@ -150,14 +160,11 @@ export function todayChaptersInBook(bookId: string): number[] {
   return out;
 }
 
-function lastVerseStorageKey(bookId: string, chapter: number): string {
-  return `${LAST_VERSE_KEY}:${bookId.toUpperCase()}:${chapter}`;
-}
-
 /** 记录本章已读到的最高经节（只增不减，按卷章隔离）。 */
 export function setLastReadVerse(bookId: string, chapter: number, verse: number) {
   if (typeof window === 'undefined' || !bookId || chapter < 1 || verse < 1) return;
-  const key = lastVerseStorageKey(bookId, chapter);
+  migrateLegacyReadingStorageIfNeeded();
+  const key = scopedLastVerseKey(bookId, chapter);
   const prev = getLastReadVerse(bookId, chapter);
   const next = prev != null ? Math.max(prev, verse) : verse;
   localStorage.setItem(key, String(next));
@@ -165,13 +172,15 @@ export function setLastReadVerse(bookId: string, chapter: number, verse: number)
 
 export function getLastReadVerse(bookId: string, chapter: number): number | null {
   if (typeof window === 'undefined' || !bookId || chapter < 1) return null;
-  const v = Number(localStorage.getItem(lastVerseStorageKey(bookId, chapter)));
+  migrateLegacyReadingStorageIfNeeded();
+  const v = Number(localStorage.getItem(scopedLastVerseKey(bookId, chapter)));
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 
 export function setLastRead(bookId: string, chapter: number, opts?: { skipSync?: boolean }) {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(LAST_KEY, JSON.stringify({ bookId, chapter }));
+  migrateLegacyReadingStorageIfNeeded();
+  localStorage.setItem(lastReadStorageKey(), JSON.stringify({ bookId, chapter }));
   if (!opts?.skipSync) {
     void import('./reading_progress_sync').then((m) => m.pushReadingProgress({ bookId, chapter }));
   }
@@ -180,8 +189,9 @@ export function setLastRead(bookId: string, chapter: number, opts?: { skipSync?:
 
 export function getLastRead(): LastRead | null {
   if (typeof window === 'undefined') return null;
+  migrateLegacyReadingStorageIfNeeded();
   try {
-    const raw = localStorage.getItem(LAST_KEY);
+    const raw = localStorage.getItem(lastReadStorageKey());
     if (!raw) return null;
     const v = JSON.parse(raw);
     if (v && typeof v.bookId === 'string' && typeof v.chapter === 'number') return v;
@@ -234,8 +244,6 @@ export function logChapterRead() {
 }
 
 // ── 章节级阅读明细（供日历回顾「常读卷/章」与读经进度） ──
-const EVENTS_KEY = 'presto_read_events';
-
 export interface ReadEvent {
   ts: number; // 毫秒时间戳
   book: string; // 卷 id（如 JHN）
@@ -244,8 +252,9 @@ export interface ReadEvent {
 
 export function readEvents(): ReadEvent[] {
   if (typeof window === 'undefined') return [];
+  migrateLegacyReadingStorageIfNeeded();
   try {
-    const raw = JSON.parse(localStorage.getItem(EVENTS_KEY) || '[]');
+    const raw = JSON.parse(localStorage.getItem(readEventsStorageKey()) || '[]');
     return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
@@ -264,7 +273,7 @@ export function logChapterDetail(book: string, chapter: number) {
   events.push({ ts: now, book, chapter });
   // 仅保留最近 2000 条，控制体积。
   const trimmed = events.slice(-2000);
-  localStorage.setItem(EVENTS_KEY, JSON.stringify(trimmed));
+  localStorage.setItem(readEventsStorageKey(), JSON.stringify(trimmed));
   void import('./read_event_sync').then((m) => m.pushReadEvent({ ts: now, book, chapter }));
 }
 
@@ -284,8 +293,6 @@ export function maybeNotifyBookComplete(
 }
 
 // ── 金句（常读经节）记录：阅读时选中/聚焦某节即记一次 ──
-const VERSE_EVENTS_KEY = 'presto_verse_events';
-
 export interface VerseEvent {
   ts: number;
   ref: string; // 形如 JHN.3.16
@@ -293,8 +300,9 @@ export interface VerseEvent {
 
 function readVerseEvents(): VerseEvent[] {
   if (typeof window === 'undefined') return [];
+  migrateLegacyReadingStorageIfNeeded();
   try {
-    const raw = JSON.parse(localStorage.getItem(VERSE_EVENTS_KEY) || '[]');
+    const raw = JSON.parse(localStorage.getItem(verseEventsStorageKey()) || '[]');
     return Array.isArray(raw) ? raw : [];
   } catch {
     return [];
@@ -308,7 +316,7 @@ export function logVerseRead(ref: string) {
   const recent = events.find((e) => e.ref === ref && now - e.ts < 10 * 1000);
   if (recent) return;
   events.push({ ts: now, ref });
-  localStorage.setItem(VERSE_EVENTS_KEY, JSON.stringify(events.slice(-3000)));
+  localStorage.setItem(verseEventsStorageKey(), JSON.stringify(events.slice(-3000)));
 }
 
 /** 快速翻页不计进度：未滚动/停留不足时不记入章节进度。 */
@@ -503,7 +511,7 @@ const PRAYER_KEY = 'presto_prayer_log';
 function readPrayer(): Record<string, number> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(PRAYER_KEY) || '{}') as Record<string, number>;
+    return JSON.parse(userLsGet(PRAYER_KEY) || '{}') as Record<string, number>;
   } catch {
     return {};
   }
@@ -515,7 +523,7 @@ export function logPrayer() {
   const logs = readPrayer();
   const k = ymd(new Date());
   logs[k] = (logs[k] || 0) + 1;
-  localStorage.setItem(PRAYER_KEY, JSON.stringify(logs));
+  userLsSet(PRAYER_KEY, JSON.stringify(logs));
 }
 
 export function prayedToday(): boolean {

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../features/bible/bible_repository.dart';
 import '../features/bible/reading_repository.dart';
 import 'api_client.dart';
+import 'user_storage.dart';
 
 export 'badge_eval.dart' show BadgeDef, profilePreviewBadges;
 export 'badge_engine.dart' show badgesProvider, badgeCatalogProvider;
@@ -187,7 +188,7 @@ final aiQuizLevels = <AiQuizLevel>[
 
 Map<String, bool> quizProgress(SharedPreferences prefs) {
   try {
-    final raw = jsonDecode(prefs.getString(_quizKey) ?? '{}') as Map;
+    final raw = jsonDecode(userPrefGetString(prefs, _quizKey) ?? '{}') as Map;
     return raw.map((k, v) => MapEntry('$k', v == true));
   } catch (_) {
     return {};
@@ -197,13 +198,13 @@ Map<String, bool> quizProgress(SharedPreferences prefs) {
 void markQuizCorrect(SharedPreferences prefs, String id) {
   final p = quizProgress(prefs);
   p[id] = true;
-  prefs.setString(_quizKey, jsonEncode(p));
+  userPrefSetString(prefs, _quizKey, jsonEncode(p));
 }
 
 void markAiQuizWin(SharedPreferences prefs, String id) {
-  final raw = jsonDecode(prefs.getString(_aiQuizKey) ?? '{}') as Map;
+  final raw = jsonDecode(userPrefGetString(prefs, _aiQuizKey) ?? '{}') as Map;
   raw[id] = true;
-  prefs.setString(_aiQuizKey, jsonEncode(raw));
+  userPrefSetString(prefs, _aiQuizKey, jsonEncode(raw));
 }
 
 List<SeasonalEvent> currentSeasonalEvents() {
@@ -254,7 +255,7 @@ void maybeNotifyBookComplete(
 ) {
   if (chapterCount <= 0) return;
   final events = <Map<String, dynamic>>[];
-  final raw = prefs.getString('read_chapter_events');
+  final raw = userPrefGetString(prefs, 'read_chapter_events');
   if (raw != null && raw.isNotEmpty) {
     try {
       events.addAll((jsonDecode(raw) as List).cast<Map<String, dynamic>>());
@@ -263,7 +264,7 @@ void maybeNotifyBookComplete(
   final reads = events.where((e) => e['book'] == bookId.toUpperCase()).length;
   if (reads < chapterCount) return;
   final pushed = <String>{};
-  final pr = prefs.getString(_pushedBooksKey);
+  final pr = userPrefGetString(prefs, _pushedBooksKey);
   if (pr != null) {
     try {
       pushed.addAll((jsonDecode(pr) as List).cast<String>());
@@ -272,15 +273,14 @@ void maybeNotifyBookComplete(
   final id = bookId.toUpperCase();
   if (pushed.contains(id)) return;
   pushed.add(id);
-  prefs.setString(_pushedBooksKey, jsonEncode(pushed.toList()));
-  prefs.setString(
-    _pendingBookKey,
+  userPrefSetString(prefs, _pushedBooksKey, jsonEncode(pushed.toList()));
+  userPrefSetString(prefs, _pendingBookKey,
     jsonEncode({'bookId': id, 'bookName': bookName, 'levelId': 'book-$id'}),
   );
 }
 
 Map<String, String>? getPendingBookChallenge(SharedPreferences prefs) {
-  final raw = prefs.getString(_pendingBookKey);
+  final raw = userPrefGetString(prefs, _pendingBookKey);
   if (raw == null) return null;
   try {
     final m = jsonDecode(raw) as Map<String, dynamic>;
@@ -295,5 +295,5 @@ Map<String, String>? getPendingBookChallenge(SharedPreferences prefs) {
 }
 
 void clearPendingBookChallenge(SharedPreferences prefs) {
-  prefs.remove(_pendingBookKey);
+  userPrefRemove(prefs, _pendingBookKey);
 }

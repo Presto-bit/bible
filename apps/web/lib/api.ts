@@ -12,6 +12,7 @@ import {
   stableDeviceFingerprint,
 } from './device_id';
 import { deviceIdToUserCode, isUserCode, USER_CODE_RE } from './user_code';
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
 export { getDeviceId, stableDeviceFingerprint } from './device_id';
 export { deviceIdToUserCode, isUserCode, USER_CODE_LEN, USER_CODE_RE } from './user_code';
@@ -164,10 +165,10 @@ async function refreshAccountStatus(code: string): Promise<void> {
     );
     if (!res.ok) return;
     const d = await res.json();
-    if (d.username) localStorage.setItem(NAME_KEY, d.username);
+    if (d.username) userLsSet(NAME_KEY, d.username);
     applyAccountPhone(d.phone ?? null, code);
     if (d.has_password) setHasPasswordCached(true);
-    else if (!localStorage.getItem(NAME_KEY)?.trim()) setHasPasswordCached(false);
+    else if (!userLsGet(NAME_KEY)?.trim()) setHasPasswordCached(false);
     // 服务端已有用户名+密码时，视为引导完成
     if (d.username && d.has_password) markOnboarded();
   } catch {
@@ -213,7 +214,7 @@ function clearLocalAccountIdentity() {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem(PHONE_KEY);
   localStorage.removeItem(PHONE_OWNER_KEY);
-  localStorage.removeItem(NAME_KEY);
+  userLsRemove(NAME_KEY);
   localStorage.removeItem(HAS_PWD_KEY);
   localStorage.removeItem(ONBOARDED_KEY);
   clearDeviceGuestBinding();
@@ -255,7 +256,7 @@ export async function ensureIdentityReady(): Promise<void> {
           }
           // 服务端未绑定：若本地已设好用户名+密码，保留并稍后 register 重新绑定（避免反复清空又提示设置）
           const local = localStorage.getItem(GUEST_KEY);
-          if (local && isUserCode(local) && localStorage.getItem(NAME_KEY)?.trim()
+          if (local && isUserCode(local) && userLsGet(NAME_KEY)?.trim()
             && localStorage.getItem(HAS_PWD_KEY) === '1') {
             bindDeviceGuestId(local);
             ensureFirstSeen();
@@ -327,7 +328,7 @@ export async function ensureAccountReady(): Promise<void> {
       if (res.ok) {
         const d = await res.json();
         if (d.user_code && isUserCode(d.user_code)) applyServerUserCode(d.user_code);
-        if (d.username) localStorage.setItem(NAME_KEY, d.username);
+        if (d.username) userLsSet(NAME_KEY, d.username);
         // 勿用「无密码」覆盖本地已确认的设密状态（避免 register 回包异常导致反复引导）
         if (d.has_password) setHasPasswordCached(true);
         else if (localStorage.getItem(HAS_PWD_KEY) !== '1') setHasPasswordCached(false);
@@ -419,7 +420,7 @@ function writeRegistry(r: Record<string, RegistryEntry>) {
 
 export function getUserName(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem(NAME_KEY) || '';
+  return userLsGet(NAME_KEY) || '';
 }
 
 export function getBoundPhone(): string {
@@ -520,7 +521,7 @@ export async function setCredentials(username: string, password: string): Promis
     }
     reg[u] = { id };
     writeRegistry(reg);
-    localStorage.setItem(NAME_KEY, u);
+    userLsSet(NAME_KEY, u);
   }
   markOnboarded();
   localStorage.setItem(USER_KEY, id);
@@ -546,7 +547,7 @@ export async function setCredentials(username: string, password: string): Promis
         reg[u] = { id: serverCode };
         writeRegistry(reg);
       }
-      if (d.username) localStorage.setItem(NAME_KEY, d.username);
+      if (d.username) userLsSet(NAME_KEY, d.username);
       // 本次提交了密码则本地直接记为已设密，避免回包缺字段导致引导不消失
       if (password.length >= 6 || d.has_password) setHasPasswordCached(true);
       else setHasPasswordCached(Boolean(d.has_password));
@@ -620,7 +621,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
   const d = await res.json();
   const code = d.user_code as string;
   adoptAuthenticatedUserCode(code);
-  if (d.username) localStorage.setItem(NAME_KEY, d.username);
+  if (d.username) userLsSet(NAME_KEY, d.username);
   applyAccountPhone(d.phone ?? null, code);
   setHasPasswordCached(Boolean(d.has_password));
   markOnboarded();

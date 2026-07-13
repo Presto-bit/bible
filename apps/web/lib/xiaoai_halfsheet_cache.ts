@@ -3,6 +3,7 @@
 import type { Citation } from './api';
 import type { AssistantScene } from './assistant_scenes';
 import { chinaTodayYmd } from './daily_clock';
+import { userLsGet, userLsSet } from './user_storage';
 
 const STORAGE_KEY = 'presto_xiaoai_halfsheet_v1';
 const MAX_ENTRIES = 48;
@@ -28,7 +29,7 @@ function buildKey(
 function readMap(): CacheMap {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = userLsGet(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     return parsed && typeof parsed === 'object' ? parsed : {};
   } catch {
@@ -40,7 +41,7 @@ function writeMap(map: CacheMap) {
   if (typeof window === 'undefined') return;
   const entries = Object.entries(map).sort((a, b) => b[1].savedAt - a[1].savedAt);
   const trimmed = Object.fromEntries(entries.slice(0, MAX_ENTRIES));
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  userLsSet(STORAGE_KEY, JSON.stringify(trimmed));
 }
 
 export function readHalfSheetCache(

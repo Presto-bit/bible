@@ -12,7 +12,11 @@ import '../../core/sync/profile_sync.dart';
 import '../../core/sync/sync_engine.dart';
 
 final dbProvider = Provider<AppDatabase>((ref) {
-  final db = AppDatabase();
+  final code = ref.watch(activeUserCodeProvider);
+  final prefs = ref.watch(prefsProvider);
+  final db = AppDatabase.forUser(code);
+  // 异步认领旧单库；失败不影响打开
+  Future.microtask(() => claimLegacyDriftIfNeeded(db, code, prefs));
   ref.onDispose(db.close);
   return db;
 });

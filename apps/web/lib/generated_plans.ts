@@ -1,11 +1,12 @@
 import type { GeneratedPlan } from './api';
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
 const KEY = 'presto_generated_plans';
 
 export function loadGeneratedPlans(): GeneratedPlan[] {
   if (typeof window === 'undefined') return [];
   try {
-    const parsed = JSON.parse(localStorage.getItem(KEY) || '[]');
+    const parsed = JSON.parse(userLsGet(KEY) || '[]');
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
@@ -13,7 +14,7 @@ export function loadGeneratedPlans(): GeneratedPlan[] {
 }
 
 function writeGeneratedPlans(plans: GeneratedPlan[]) {
-  localStorage.setItem(KEY, JSON.stringify(plans));
+  userLsSet(KEY, JSON.stringify(plans));
 }
 
 export function saveGeneratedPlan(plan: GeneratedPlan): GeneratedPlan {

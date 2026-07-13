@@ -1,4 +1,5 @@
 import { localDayKey } from './group_ui';
+import { userLsGet, userLsSet } from './user_storage';
 
 const KEY = 'group_gentle_nudge';
 
@@ -7,7 +8,7 @@ type Record = { day: string; gid: string };
 function read(): Record | null {
   if (typeof window === 'undefined') return null;
   try {
-    return JSON.parse(localStorage.getItem(KEY) || 'null') as Record | null;
+    return JSON.parse(userLsGet(KEY) || 'null') as Record | null;
   } catch {
     return null;
   }
@@ -21,5 +22,5 @@ export function canGentleNudgeToday(gid: string): boolean {
 }
 
 export function markGentleNudgeSent(gid: string) {
-  localStorage.setItem(KEY, JSON.stringify({ day: localDayKey(new Date()), gid }));
+  userLsSet(KEY, JSON.stringify({ day: localDayKey(new Date()), gid }));
 }

@@ -21,6 +21,7 @@ import {
   type PlanStep,
   type ReadingDayRow,
 } from './plan_steps';
+import { loadGeneratedPlans } from './generated_plans';
 
 export interface PlanReadingMeta {
   planId: string;
@@ -37,8 +38,7 @@ export async function loadStepsForDay(
   day: number,
 ): Promise<PlanStep[]> {
   if (plan.source === 'generated') {
-    const raw = localStorage.getItem('presto_generated_plans');
-    const list = raw ? (JSON.parse(raw) as Array<{ id: string; days: GeneratedDayRow[] }>) : [];
+    const list = loadGeneratedPlans() as Array<{ id: string; days: GeneratedDayRow[] }>;
     const found = list.find((p) => p.id === plan.planId);
     const dayRow = found?.days.find((d) => d.day === day);
     return dayRow ? stepsForGeneratedDay(dayRow) : [];
@@ -98,8 +98,7 @@ export async function hydratePlanFromUrl(
     return buildPlanReadingMeta(active, day);
   }
   try {
-    const raw = localStorage.getItem('presto_generated_plans');
-    const generated = raw ? (JSON.parse(raw) as Array<{ id: string; title: string; days_count: number }>) : [];
+    const generated = loadGeneratedPlans();
     const saved = generated.find((p) => p.id === planId);
     if (saved) {
       const plan: ActivePlan = {

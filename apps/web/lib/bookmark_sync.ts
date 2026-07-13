@@ -1,13 +1,14 @@
 // 收藏（书签）云同步
 
 import { enqueue, type Envelope } from './sync';
+import { userLsGet, userLsSet } from './user_storage';
 
 const ID_MAP_KEY = 'bookmark_sync_ids_v1';
 const VER_MAP_KEY = 'bookmark_sync_versions_v1';
 
 function readIds(): Record<string, string> {
   try {
-    return JSON.parse(localStorage.getItem(ID_MAP_KEY) || '{}');
+    return JSON.parse(userLsGet(ID_MAP_KEY) || '{}');
   } catch {
     return {};
   }
@@ -15,18 +16,18 @@ function readIds(): Record<string, string> {
 
 function readVers(): Record<string, number> {
   try {
-    return JSON.parse(localStorage.getItem(VER_MAP_KEY) || '{}');
+    return JSON.parse(userLsGet(VER_MAP_KEY) || '{}');
   } catch {
     return {};
   }
 }
 
 function writeIds(m: Record<string, string>) {
-  localStorage.setItem(ID_MAP_KEY, JSON.stringify(m));
+  userLsSet(ID_MAP_KEY, JSON.stringify(m));
 }
 
 function writeVers(m: Record<string, number>) {
-  localStorage.setItem(VER_MAP_KEY, JSON.stringify(m));
+  userLsSet(VER_MAP_KEY, JSON.stringify(m));
 }
 
 export function bookmarkIdForRef(ref: string): string {

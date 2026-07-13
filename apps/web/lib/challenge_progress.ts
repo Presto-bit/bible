@@ -5,6 +5,7 @@ import {
   bookChallengeLevel,
   type ChallengeLevel,
 } from './challenge_levels';
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
 const LEVEL_PROGRESS_KEY = 'presto_challenge_level_progress';
 const PENDING_BOOK_KEY = 'presto_pending_book_challenge';
@@ -15,7 +16,7 @@ export type LevelProgress = Record<string, { done: boolean; correct: number; tot
 export function levelProgress(): LevelProgress {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(LEVEL_PROGRESS_KEY) || '{}') as LevelProgress;
+    return JSON.parse(userLsGet(LEVEL_PROGRESS_KEY) || '{}') as LevelProgress;
   } catch {
     return {};
   }
@@ -24,12 +25,12 @@ export function levelProgress(): LevelProgress {
 export function markLevelProgress(levelId: string, correct: number, total: number) {
   const p = levelProgress();
   p[levelId] = { done: correct >= Math.ceil(total * 0.6), correct, total };
-  localStorage.setItem(LEVEL_PROGRESS_KEY, JSON.stringify(p));
+  userLsSet(LEVEL_PROGRESS_KEY, JSON.stringify(p));
   // 同步旧 quiz key 兼容徽章
   try {
-    const legacy = JSON.parse(localStorage.getItem('presto_quiz_progress') || '{}') as Record<string, boolean>;
+    const legacy = JSON.parse(userLsGet('presto_quiz_progress') || '{}') as Record<string, boolean>;
     legacy[levelId] = p[levelId].done;
-    localStorage.setItem('presto_quiz_progress', JSON.stringify(legacy));
+    userLsSet('presto_quiz_progress', JSON.stringify(legacy));
   } catch { /* ignore */ }
 }
 
@@ -65,7 +66,7 @@ export interface PendingBookChallenge {
 export function getPendingBookChallenge(): PendingBookChallenge | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem(PENDING_BOOK_KEY);
+    const raw = userLsGet(PENDING_BOOK_KEY);
     return raw ? (JSON.parse(raw) as PendingBookChallenge) : null;
   } catch {
     return null;
@@ -73,19 +74,19 @@ export function getPendingBookChallenge(): PendingBookChallenge | null {
 }
 
 export function setPendingBookChallenge(bookId: string, bookName: string) {
-  const pushed = new Set<string>(JSON.parse(localStorage.getItem(PUSHED_BOOKS_KEY) || '[]'));
+  const pushed = new Set<string>(JSON.parse(userLsGet(PUSHED_BOOKS_KEY) || '[]'));
   if (pushed.has(bookId.toUpperCase())) return;
   pushed.add(bookId.toUpperCase());
-  localStorage.setItem(PUSHED_BOOKS_KEY, JSON.stringify([...pushed]));
+  userLsSet(PUSHED_BOOKS_KEY, JSON.stringify([...pushed]));
   const lv = bookChallengeLevel(bookId, bookName);
-  localStorage.setItem(
+  userLsSet(
     PENDING_BOOK_KEY,
     JSON.stringify({ bookId: bookId.toUpperCase(), bookName, levelId: lv.id } satisfies PendingBookChallenge),
   );
 }
 
 export function clearPendingBookChallenge() {
-  localStorage.removeItem(PENDING_BOOK_KEY);
+  userLsRemove(PENDING_BOOK_KEY);
 }
 
 export function levelsIncludingPending(): ChallengeLevel[] {

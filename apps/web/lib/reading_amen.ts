@@ -1,3 +1,4 @@
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 const KEY = 'reading_amen_v1';
 
 type AmenSet = Record<string, true>;
@@ -5,7 +6,7 @@ type AmenSet = Record<string, true>;
 function load(): AmenSet {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = userLsGet(KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as AmenSet | Record<string, number>;
     if (!parsed || typeof parsed !== 'object') return {};
@@ -20,7 +21,7 @@ function load(): AmenSet {
 }
 
 function save(map: AmenSet) {
-  localStorage.setItem(KEY, JSON.stringify(map));
+  userLsSet(KEY, JSON.stringify(map));
 }
 
 export function activityReadingKey(source: string, id: string): string {

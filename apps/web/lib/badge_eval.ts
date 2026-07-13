@@ -2,6 +2,10 @@ import { readEvents } from './reading';
 import { maxGroupCheckinStreak, type BadgeStats } from './badge_events';
 import type { BadgeProgress, BadgeRule, BadgeSpec } from './badge_catalog';
 import type { BadgeCtx, BadgeDef } from './badges';
+import {
+  migrateLegacyReadingStorageIfNeeded,
+  verseEventsStorageKey,
+} from './reading_storage';
 
 function ymd(ts: number): string {
   const d = new Date(ts);
@@ -10,8 +14,11 @@ function ymd(ts: number): string {
 
 function readVerseRefs(): string[] {
   if (typeof window === 'undefined') return [];
+  migrateLegacyReadingStorageIfNeeded();
   try {
-    const raw = JSON.parse(localStorage.getItem('presto_verse_events') || '[]') as { ref: string }[];
+    const raw = JSON.parse(localStorage.getItem(verseEventsStorageKey()) || '[]') as {
+      ref: string;
+    }[];
     return Array.isArray(raw) ? raw.map((e) => e.ref.toUpperCase()) : [];
   } catch {
     return [];

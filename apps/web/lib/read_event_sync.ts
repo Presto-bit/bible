@@ -2,6 +2,10 @@ import { enqueue } from './sync';
 import { readEventSyncId, READ_EVENT_DEDUPE_MS } from './sync_contract';
 import type { ReadEvent } from './reading';
 import { readEvents } from './reading';
+import {
+  migrateLegacyReadingStorageIfNeeded,
+  readEventsStorageKey,
+} from './reading_storage';
 
 export function mergeRemoteReadEvent(data?: {
   id?: string;
@@ -22,7 +26,8 @@ export function mergeRemoteReadEvent(data?: {
   if (recent) return false;
   events.push({ ts, book, chapter });
   const trimmed = events.slice(-2000);
-  localStorage.setItem('presto_read_events', JSON.stringify(trimmed));
+  migrateLegacyReadingStorageIfNeeded();
+  localStorage.setItem(readEventsStorageKey(), JSON.stringify(trimmed));
   return true;
 }
 

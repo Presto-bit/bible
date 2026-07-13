@@ -1,3 +1,4 @@
+import { userLsGet } from './user_storage';
 /** 首次产生本地数据后，轻引导设置用户名（一次） */
 
 import { hasPassword } from './api';
@@ -26,7 +27,7 @@ export function shouldPromptUsername(): boolean {
 /** 用户名 + 密码均已设置，视为账号引导完成 */
 export function isAccountComplete(): boolean {
   if (typeof window === 'undefined') return false;
-  const name = (localStorage.getItem('profile_name') || '').trim();
+  const name = (userLsGet('profile_name') || '').trim();
   return name.length >= 2 && hasPassword();
 }
 

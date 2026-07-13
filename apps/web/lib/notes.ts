@@ -4,6 +4,7 @@
 
 import { markLocalDataCreated } from './account_guide';
 import { enqueue, noteEnvelope } from './sync';
+import { userLsGet, userLsSet } from './user_storage';
 
 export interface LocalNote {
   id: string;
@@ -20,7 +21,7 @@ const KEY = 'presto_notes';
 function read(): LocalNote[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = JSON.parse(localStorage.getItem(KEY) || '[]') as LocalNote[];
+    const raw = JSON.parse(userLsGet(KEY) || '[]') as LocalNote[];
     return Array.isArray(raw)
       ? raw.map((n) => ({ ...n, version: n.version ?? 1 }))
       : [];
@@ -30,7 +31,7 @@ function read(): LocalNote[] {
 }
 
 function write(notes: LocalNote[]) {
-  localStorage.setItem(KEY, JSON.stringify(notes));
+  userLsSet(KEY, JSON.stringify(notes));
 }
 
 // 供 sync.ts 在 pull 时把服务端变更合并回本地（行级 LWW）。

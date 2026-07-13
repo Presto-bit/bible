@@ -1,6 +1,7 @@
 // 每日问答：5 道题，优先未答过或答错的题
 
 import { QUESTION_BANK, seededShuffle, type QuestionBankEntry } from './question_bank';
+import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
 const HISTORY_KEY = 'presto_q_answer_history';
 const DAILY_KEY = 'presto_daily_quiz_day';
@@ -17,7 +18,7 @@ function ymd(d = new Date()): string {
 function readHistory(): Record<string, AnswerRecord> {
   if (typeof window === 'undefined') return {};
   try {
-    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '{}') as Record<string, AnswerRecord>;
+    return JSON.parse(userLsGet(HISTORY_KEY) || '{}') as Record<string, AnswerRecord>;
   } catch {
     return {};
   }
@@ -27,7 +28,7 @@ export function recordAnswer(questionId: string, correct: boolean) {
   const h = readHistory();
   const wasWrong = h[questionId] && !h[questionId].correct;
   h[questionId] = { correct, at: ymd() };
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(h));
+  userLsSet(HISTORY_KEY, JSON.stringify(h));
   if (wasWrong && correct) {
     void import('./badge_events').then((m) => m.recordWrongRevived());
   }
@@ -57,7 +58,7 @@ export function wrongQuestionIds(): string[] {
 /** 今日 5 题：未答或答错优先；不足则从全库补 */
 export function dailyQuizQuestions(count = 5): QuestionBankEntry[] {
   const today = ymd();
-  const cached = typeof window !== 'undefined' ? localStorage.getItem(DAILY_KEY) : null;
+  const cached = typeof window !== 'undefined' ? userLsGet(DAILY_KEY) : null;
   if (cached) {
     try {
       const { day, ids } = JSON.parse(cached) as { day: string; ids: string[] };
@@ -88,14 +89,14 @@ export function dailyQuizQuestions(count = 5): QuestionBankEntry[] {
     picked = [...picked, ...rest.slice(0, count - picked.length)];
   }
   if (typeof window !== 'undefined') {
-    localStorage.setItem(DAILY_KEY, JSON.stringify({ day: today, ids: picked.map((q) => q.id) }));
+    userLsSet(DAILY_KEY, JSON.stringify({ day: today, ids: picked.map((q) => q.id) }));
   }
   return picked;
 }
 
 export function dailyQuizDone(): boolean {
   const today = ymd();
-  const cached = typeof window !== 'undefined' ? localStorage.getItem(DAILY_KEY) : null;
+  const cached = typeof window !== 'undefined' ? userLsGet(DAILY_KEY) : null;
   if (!cached) return false;
   try {
     const { day, done } = JSON.parse(cached) as { day: string; done?: boolean };
@@ -107,12 +108,12 @@ export function dailyQuizDone(): boolean {
 
 export function markDailyQuizDone() {
   const today = ymd();
-  const cached = typeof window !== 'undefined' ? localStorage.getItem(DAILY_KEY) : null;
+  const cached = typeof window !== 'undefined' ? userLsGet(DAILY_KEY) : null;
   let ids: string[] = [];
   if (cached) {
     try {
       ids = (JSON.parse(cached) as { ids?: string[] }).ids ?? [];
     } catch { /* ignore */ }
   }
-  localStorage.setItem(DAILY_KEY, JSON.stringify({ day: today, ids, done: true }));
+  userLsSet(DAILY_KEY, JSON.stringify({ day: today, ids, done: true }));
 }

@@ -9,6 +9,7 @@ import '../badge_catalog.dart' show normalizeBadgeId;
 import '../database/app_database.dart';
 import 'sync_contract.dart';
 import 'sync_engine.dart';
+import '../user_storage.dart';
 
 const syncMigrateKey = 'presto_sync_migrated_v1';
 const _chapterEventsKey = 'read_chapter_events';
@@ -17,14 +18,14 @@ const _badgeUnlockKey = 'badge_unlock_at';
 bool hasLocalReadingData(SharedPreferences prefs, AppDatabase db) {
   // drift reading logs
   // checked async in needsSyncMigrationAsync
-  final raw = prefs.getString(_chapterEventsKey);
+  final raw = userPrefGetString(prefs, _chapterEventsKey);
   if (raw != null && raw.isNotEmpty) {
     try {
       final list = jsonDecode(raw) as List;
       if (list.isNotEmpty) return true;
     } catch (_) {}
   }
-  final unlocks = prefs.getString(_badgeUnlockKey);
+  final unlocks = userPrefGetString(prefs, _badgeUnlockKey);
   if (unlocks != null && unlocks.isNotEmpty) {
     try {
       final m = jsonDecode(unlocks) as Map;
@@ -44,7 +45,7 @@ Future<bool> hasLocalReadingDataAsync(
 }
 
 bool isSyncMigrated(SharedPreferences prefs) =>
-    prefs.getString(syncMigrateKey) == '1';
+    userPrefGetString(prefs, syncMigrateKey) == '1';
 
 Future<bool> needsSyncMigration(
   SharedPreferences prefs,
@@ -55,7 +56,7 @@ Future<bool> needsSyncMigration(
 }
 
 void markSyncMigrated(SharedPreferences prefs) {
-  prefs.setString(syncMigrateKey, '1');
+  userPrefSetString(prefs, syncMigrateKey, '1');
 }
 
 /// 本机阅读日志、章节明细、已解锁成就 → outbox
@@ -69,7 +70,7 @@ Future<void> enqueueLocalReadingMigration(
     await sync.enqueueReadingLog(row);
   }
 
-  final raw = prefs.getString(_chapterEventsKey);
+  final raw = userPrefGetString(prefs, _chapterEventsKey);
   if (raw != null && raw.isNotEmpty) {
     try {
       final list = (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
@@ -83,7 +84,7 @@ Future<void> enqueueLocalReadingMigration(
     } catch (_) {}
   }
 
-  final unlockRaw = prefs.getString(_badgeUnlockKey);
+  final unlockRaw = userPrefGetString(prefs, _badgeUnlockKey);
   if (unlockRaw != null && unlockRaw.isNotEmpty) {
     try {
       final m = jsonDecode(unlockRaw) as Map<String, dynamic>;

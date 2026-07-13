@@ -10,6 +10,7 @@ import '../../core/api_client.dart' show prefsProvider;
 import '../../core/database/app_database.dart';
 import '../../core/sync/sync_contract.dart';
 import '../notes/notes_repository.dart' show dbProvider, syncEngineProvider;
+import '../../core/user_storage.dart';
 
 final readingProgressStreamProvider =
     StreamProvider<ReadingProgressData?>((ref) => ref.watch(dbProvider).watchReadingProgress());
@@ -56,7 +57,7 @@ class ReadingRepository {
     if (recent) return;
     list.add({'ts': now, 'book': book, 'chapter': chapter});
     if (list.length > 2000) list.removeRange(0, list.length - 2000);
-    _prefs.setString(_chapterEventsKey, jsonEncode(list));
+    userPrefSetString(_prefs, _chapterEventsKey, jsonEncode(list));
     final syncId = SyncContract.readEventSyncId(book, chapter, now);
     _sync.enqueueReadEvent(
       id: syncId,
@@ -76,11 +77,11 @@ class ReadingRepository {
     if (recent) return;
     list.add({'ts': now, 'ref': ref});
     if (list.length > 3000) list.removeRange(0, list.length - 3000);
-    _prefs.setString(_verseEventsKey, jsonEncode(list));
+    userPrefSetString(_prefs, _verseEventsKey, jsonEncode(list));
   }
 
   List<Map<String, dynamic>> _readJsonList(String key) {
-    final raw = _prefs.getString(key);
+    final raw = userPrefGetString(_prefs, key);
     if (raw == null || raw.isEmpty) return [];
     try {
       return (jsonDecode(raw) as List).cast<Map<String, dynamic>>();
@@ -175,7 +176,7 @@ final readingReportProvider = FutureProvider<ReadingReport>((ref) async {
 
   // 本月祷告次数（来自 prayer_log prefs，{date:count}）。
   int monthPrayers = 0;
-  final raw = ref.watch(prefsProvider).getString('prayer_log');
+  final raw = userPrefGetString(ref.watch(prefsProvider), 'prayer_log');
   if (raw != null && raw.isNotEmpty) {
     try {
       final log = jsonDecode(raw) as Map<String, dynamic>;
@@ -366,7 +367,7 @@ final reviewDataProvider = FutureProvider<ReviewData>((ref) async {
   }
   final prefs = ref.watch(prefsProvider);
   List<Map<String, dynamic>> rd(String k) {
-    final raw = prefs.getString(k);
+    final raw = userPrefGetString(prefs, k);
     if (raw == null || raw.isEmpty) return [];
     try {
       return (jsonDecode(raw) as List).cast<Map<String, dynamic>>();

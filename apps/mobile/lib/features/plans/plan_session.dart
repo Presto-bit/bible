@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'plan_steps.dart';
+import '../../core/user_storage.dart';
 
 class PlanSession {
   PlanSession({
@@ -70,7 +71,7 @@ const _sessionKey = 'presto_plan_sessions';
 
 Future<Map<String, PlanSession>> _readAll(SharedPreferences prefs) async {
   try {
-    final raw = prefs.getString(_sessionKey);
+    final raw = userPrefGetString(prefs, _sessionKey);
     if (raw == null || raw.isEmpty) return {};
     final map = jsonDecode(raw) as Map<String, dynamic>;
     return map.map((k, v) =>
@@ -83,7 +84,7 @@ Future<Map<String, PlanSession>> _readAll(SharedPreferences prefs) async {
 Future<void> _writeAll(
     SharedPreferences prefs, Map<String, PlanSession> map) async {
   final encoded = jsonEncode(map.map((k, v) => MapEntry(k, v.toJson())));
-  await prefs.setString(_sessionKey, encoded);
+  await userPrefSetString(prefs, _sessionKey, encoded);
 }
 
 String _key(String planId, int day) => '$planId:$day';

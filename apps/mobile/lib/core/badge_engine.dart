@@ -12,6 +12,7 @@ import 'badge_catalog.dart';
 import 'badge_eval.dart';
 import 'badge_stats.dart';
 import 'gamification.dart' show readingStreak;
+import 'user_storage.dart';
 
 final badgeCatalogProvider = FutureProvider<BadgeCatalog>((ref) => BadgeCatalog.load());
 
@@ -21,7 +22,7 @@ Future<void> _syncBadgeUnlocks(
   List<BadgeDef> badges,
 ) async {
   const key = 'badge_unlock_at';
-  final raw = prefs.getString(key);
+  final raw = userPrefGetString(prefs, key);
   final map = <String, int>{};
   if (raw != null && raw.isNotEmpty) {
     try {
@@ -44,7 +45,7 @@ Future<void> _syncBadgeUnlocks(
     }
   }
   if (changed) {
-    await prefs.setString(key, jsonEncode(map));
+    await userPrefSetString(prefs, key, jsonEncode(map));
   }
 }
 
@@ -130,7 +131,7 @@ final badgesProvider = FutureProvider<List<BadgeDef>>((ref) async {
 
 Map<String, int> _readUnlockMap(SharedPreferences prefs) {
   const key = 'badge_unlock_at';
-  final raw = prefs.getString(key);
+  final raw = userPrefGetString(prefs, key);
   final map = <String, int>{};
   if (raw == null || raw.isEmpty) return map;
   try {

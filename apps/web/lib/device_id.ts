@@ -1,6 +1,7 @@
 /** 设备级持久标识（PWA：硬件级指纹 + 多层备份；原生 App 见 mobile device_id.dart） */
 
 import { deviceIdToUserCode, isUserCode } from './user_code';
+import { userLsRemove } from './user_storage';
 
 export { deviceIdToUserCode } from './user_code';
 
@@ -351,7 +352,7 @@ export async function resetInstallIdentity(): Promise<void> {
   localStorage.removeItem('presto_user_id');
   localStorage.removeItem('account_phone');
   localStorage.removeItem('account_phone_owner');
-  localStorage.removeItem('profile_name');
+  userLsRemove('profile_name');
   localStorage.removeItem('account_has_password');
   localStorage.removeItem('account_onboarded');
   if (typeof document !== 'undefined') {
