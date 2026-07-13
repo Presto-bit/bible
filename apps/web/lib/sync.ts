@@ -223,6 +223,7 @@ function applyPullChanges(changes: PullChange[]): number {
   if (changes.length > 0) {
     void import('./badge_unlock').then((m) => m.runBadgeRecheck());
     notifyLocalDataChanged('sync-pull');
+    void import('./reading_durable').then((m) => m.scheduleReadingSnapshotBackup());
   }
   return changes.length;
 }

@@ -44,6 +44,8 @@ async function backupBeforeInstall(): Promise<boolean> {
     );
     if (hasLocalReadingData()) enqueueLocalReadingMigration();
     await syncResyncAccount();
+    const { backupLocalReadingSnapshot } = await import('@/lib/reading_durable');
+    await backupLocalReadingSnapshot();
     return true;
   } catch {
     return false;

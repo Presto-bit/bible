@@ -36,6 +36,7 @@ function write(logs: Record<string, DayLog>) {
     if (log) {
       void import('./reading_log_sync').then((m) => m.pushReadingLog(day, log));
     }
+    void import('./reading_durable').then((m) => m.scheduleReadingSnapshotBackup());
   }
 }
 
@@ -174,6 +175,7 @@ export function setLastRead(bookId: string, chapter: number, opts?: { skipSync?:
   if (!opts?.skipSync) {
     void import('./reading_progress_sync').then((m) => m.pushReadingProgress({ bookId, chapter }));
   }
+  void import('./reading_durable').then((m) => m.scheduleReadingSnapshotBackup());
 }
 
 export function getLastRead(): LastRead | null {

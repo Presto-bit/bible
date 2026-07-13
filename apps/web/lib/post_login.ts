@@ -40,6 +40,7 @@ export async function afterLogin(): Promise<AfterLoginResult> {
     if (hasLocalReadingData()) enqueueLocalReadingMigration();
     const result = await syncResyncAccount();
     notifyLocalDataChanged('after-login');
+    void import('./reading_durable').then((m) => m.backupLocalReadingSnapshot());
     return { ...result, ok: true };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);

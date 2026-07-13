@@ -41,6 +41,7 @@ export function mergeRemoteReadingLog(
   if (merged.minutes === cur.minutes && merged.chapters === cur.chapters) return null;
   logs[day] = merged;
   writeAll(logs);
+  void import('./reading_durable').then((m) => m.scheduleReadingSnapshotBackup());
   return merged;
 }
 

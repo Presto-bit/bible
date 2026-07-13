@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { currentUserId, ensureAccountReady, hasPassword } from '@/lib/api';
+import { currentUserId, effectiveId, ensureAccountReady, hasPassword } from '@/lib/api';
 import { shouldPromptUsername } from '@/lib/account_guide';
 import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
@@ -12,7 +12,12 @@ import {
   needsCloudReadingRestore,
   needsSyncMigration,
 } from '@/lib/sync_migrate';
+import {
+  backupLocalReadingSnapshot,
+  restoreLocalReadingSnapshotIfNeeded,
+} from '@/lib/reading_durable';
 import { isStandalonePwa } from '@/lib/platform';
+import { notifyLocalDataChanged } from '@/lib/local_data_events';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
 import UsernameGuideSheet from '@/components/UsernameGuideSheet';
 import SyncMigrateSheet from '@/components/SyncMigrateSheet';
@@ -22,6 +27,27 @@ const RESTORE_PROMPT_DISMISS_KEY = 'presto_restore_prompt_dismissed';
 
 function cloudRestoreAttemptKey(uid: string) {
   return `presto_cloud_restore_attempted:${uid}`;
+}
+
+async function restoreReadingForAccount(uid: string): Promise<void> {
+  // 1) 先从 IDB 快照回填（删桌面图标后 localStorage 常空、IDB 仍在）
+  const fromIdb = await restoreLocalReadingSnapshotIfNeeded(uid);
+  if (fromIdb) notifyLocalDataChanged('idb-reading-restore');
+
+  // 2) 仍空或不完整：全量拉云端（不依赖本地 hasPassword 缓存）
+  if (needsCloudReadingRestore() || !hasLocalReadingData()) {
+    try {
+      await syncResyncAccount();
+      notifyLocalDataChanged('cloud-reading-restore');
+      await backupLocalReadingSnapshot(uid);
+    } catch {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        void syncNow().catch(() => {});
+      }
+    }
+  } else {
+    void backupLocalReadingSnapshot(uid);
+  }
 }
 
 /** 应用启动：身份 → 建档 → 云同步 → 离线经包 */
@@ -35,10 +61,9 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
       void syncNow().catch(() => {});
     };
-    void ensureAccountReady().then(() => {
-      const uid = currentUserId();
-      const loggedInWithPwd = Boolean(uid && hasPassword());
-      const emptyLocal = needsCloudReadingRestore();
+    void ensureAccountReady().then(async () => {
+      const uid = currentUserId() || effectiveId();
+      const loggedInWithPwd = Boolean(currentUserId() && hasPassword());
       const standalone = isStandalonePwa();
       const restoreDismissed =
         typeof window !== 'undefined' &&
@@ -46,31 +71,37 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       const restoreAttempted =
         Boolean(uid) &&
         typeof window !== 'undefined' &&
-        sessionStorage.getItem(cloudRestoreAttemptKey(uid!)) === '1';
+        sessionStorage.getItem(cloudRestoreAttemptKey(uid)) === '1';
 
       if (needsSyncMigration()) {
         setMigrateSheet(true);
-        // 弹窗期间仍后台刷出box，避免读完立刻卸 App 导致云端无数据
         runBackgroundSync();
-      } else if (loggedInWithPwd && emptyLocal && !restoreAttempted) {
-        // 删桌面图标后 device_id 常仍在，用户 ID 不变，但 localStorage 读经被清。
-        // 网页/PWA 都要全量拉，不能只靠增量一页。
+      } else if (uid && needsCloudReadingRestore() && !restoreAttempted) {
+        // 相同 user_id + 本机读经空：先 IDB 再云端全量拉
         try {
-          sessionStorage.setItem(cloudRestoreAttemptKey(uid!), '1');
+          sessionStorage.setItem(cloudRestoreAttemptKey(uid), '1');
         } catch {
           /* ignore */
         }
-        void syncResyncAccount().catch(() => runBackgroundSync());
+        await restoreReadingForAccount(uid);
+        // 若仍空，允许本会话在 visibility 时再试一次
+        if (needsCloudReadingRestore()) {
+          try {
+            sessionStorage.removeItem(cloudRestoreAttemptKey(uid));
+          } catch {
+            /* ignore */
+          }
+        }
       } else if (
         standalone &&
         !loggedInWithPwd &&
         !hasLocalReadingData() &&
         !restoreDismissed
       ) {
-        // 重装后新游客：引导登录账号恢复
         setRestoreSheet(true);
         runBackgroundSync();
       } else {
+        if (uid) void backupLocalReadingSnapshot(uid);
         runBackgroundSync();
       }
       void flushCheckinQueue().catch(() => {});
@@ -84,10 +115,9 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
     };
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return;
-      const uid = currentUserId();
+      const uid = currentUserId() || effectiveId();
       if (
         uid &&
-        hasPassword() &&
         needsCloudReadingRestore() &&
         sessionStorage.getItem(cloudRestoreAttemptKey(uid)) !== '1'
       ) {
@@ -96,7 +126,15 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         } catch {
           /* ignore */
         }
-        void syncResyncAccount().catch(() => runBackgroundSync());
+        void restoreReadingForAccount(uid).then(() => {
+          if (needsCloudReadingRestore()) {
+            try {
+              sessionStorage.removeItem(cloudRestoreAttemptKey(uid));
+            } catch {
+              /* ignore */
+            }
+          }
+        });
         return;
       }
       runBackgroundSync();
@@ -104,11 +142,15 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
     window.addEventListener('online', onOnline);
     document.addEventListener('visibilitychange', onVisible);
     const onPageHide = () => {
+      const uid = currentUserId() || effectiveId();
+      if (uid) void backupLocalReadingSnapshot(uid);
       if (pendingCount() > 0) runBackgroundSync();
     };
     window.addEventListener('pagehide', onPageHide);
     const syncInterval = window.setInterval(() => {
       if (pendingCount() > 0) runBackgroundSync();
+      const uid = currentUserId() || effectiveId();
+      if (uid && hasLocalReadingData()) void backupLocalReadingSnapshot(uid);
     }, 30000);
     return () => {
       window.removeEventListener('online', onOnline);
