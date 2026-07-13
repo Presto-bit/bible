@@ -128,10 +128,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const [streamCiteCount, setStreamCiteCount] = useState(0);
   const [slowHint, setSlowHint] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState('');
-  const [tabbarPeek, setTabbarPeek] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
-  const peekTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const personalized = useMemo(
     () =>
@@ -293,52 +290,30 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
   }, []);
 
-  const clearPeekTimer = () => {
-    if (peekTimerRef.current) {
-      clearTimeout(peekTimerRef.current);
-      peekTimerRef.current = null;
-    }
-  };
-
-  const hideTabbarPeek = () => {
-    clearPeekTimer();
-    setTabbarPeek(false);
-  };
-
-  const showTabbarPeek = (ms = 4000) => {
-    if (composerFocused) return;
-    setTabbarPeek(true);
-    clearPeekTimer();
-    peekTimerRef.current = setTimeout(() => {
-      peekTimerRef.current = null;
-      setTabbarPeek(false);
-    }, ms);
-  };
-
-  /** 沉浸藏底栏；单击页面 / 左右滑临时唤回；键盘仅在输入聚焦时进入 */
+  /** 底栏常驻；仅输入聚焦时进入键盘态并略上抬输入区 */
   useEffect(() => {
     if (!paneActive) {
-      clearPeekTimer();
-      setTabbarPeek(false);
       setComposerFocused(false);
       document.body.classList.remove(
         'assistant-active',
         'assistant-immersive',
         'assistant-tabbar-peek',
         'assistant-keyboard',
+        'assistant-keyboard-vv',
       );
       document.documentElement.style.removeProperty('--assistant-vv-h');
       document.documentElement.style.removeProperty('--assistant-kb-inset');
       return;
     }
-    document.body.classList.add('assistant-active', 'assistant-immersive');
+    document.body.classList.add('assistant-active');
+    document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
     return () => {
-      clearPeekTimer();
       document.body.classList.remove(
         'assistant-active',
         'assistant-immersive',
         'assistant-tabbar-peek',
         'assistant-keyboard',
+        'assistant-keyboard-vv',
       );
       document.documentElement.style.removeProperty('--assistant-vv-h');
       document.documentElement.style.removeProperty('--assistant-kb-inset');
@@ -347,18 +322,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
 
   useEffect(() => {
     if (!paneActive) return;
-    document.body.classList.toggle('assistant-tabbar-peek', tabbarPeek);
-  }, [paneActive, tabbarPeek]);
-
-  useEffect(() => {
-    if (!paneActive) return;
     const root = document.documentElement;
     const body = document.body;
     const vv = window.visualViewport;
     let raf = 0;
+    /** 相对键盘顶再上抬，避免输入框被挡 */
+    const LIFT_PX = 20;
 
     const syncViewport = () => {
-      // 只在输入框真正聚焦时进键盘态，避免把浏览器底栏/URL 栏缩减误判成键盘
       body.classList.toggle('assistant-keyboard', composerFocused);
       if (!composerFocused) {
         body.classList.remove('assistant-keyboard-vv');
@@ -370,16 +341,18 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       const vvH = vv?.height ?? layoutH;
       const offsetTop = vv?.offsetTop ?? 0;
       const gap = Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
-      // interactiveWidget:resizes-content 已缩 layout 时 gap≈0，跟 100dvh 即可；
-      // 未缩小时才用 vv 高度把页面压到键盘上方。
+      // layout 未随键盘收缩时，用 vv 高度压到键盘上方并留出 lift
       if (gap > 40) {
-        root.style.setProperty('--assistant-vv-h', `${Math.round(vvH)}px`);
+        root.style.setProperty(
+          '--assistant-vv-h',
+          `${Math.max(120, Math.round(vvH) - LIFT_PX)}px`,
+        );
         body.classList.add('assistant-keyboard-vv');
       } else {
         root.style.removeProperty('--assistant-vv-h');
         body.classList.remove('assistant-keyboard-vv');
       }
-      root.style.removeProperty('--assistant-kb-inset');
+      root.style.setProperty('--assistant-kb-inset', `${LIFT_PX}px`);
     };
 
     const onViewport = () => {
@@ -403,29 +376,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       setComposerFocused(false);
     };
 
-    const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1) return;
-      touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    };
-
-    const onTouchEnd = (e: TouchEvent) => {
-      if (composerFocused) return;
-      const start = touchStartRef.current;
-      touchStartRef.current = null;
-      const t = e.changedTouches[0];
-      if (!start || !t) return;
-      const dx = t.clientX - start.x;
-      const dy = t.clientY - start.y;
-      if (Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.35) {
-        setTabbarPeek(true);
-        clearPeekTimer();
-        peekTimerRef.current = setTimeout(() => {
-          peekTimerRef.current = null;
-          setTabbarPeek(false);
-        }, 4000);
-      }
-    };
-
     syncViewport();
     vv?.addEventListener('resize', onViewport);
     vv?.addEventListener('scroll', onViewport);
@@ -433,8 +383,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     window.addEventListener('orientationchange', onViewport);
     window.addEventListener('focusin', onFocusIn);
     window.addEventListener('focusout', onFocusOut);
-    window.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchend', onTouchEnd, { passive: true });
 
     return () => {
       cancelAnimationFrame(raf);
@@ -444,17 +392,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       window.removeEventListener('orientationchange', onViewport);
       window.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('focusout', onFocusOut);
-      window.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('touchend', onTouchEnd);
       body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
       root.style.removeProperty('--assistant-vv-h');
       root.style.removeProperty('--assistant-kb-inset');
     };
   }, [paneActive, composerFocused]);
-
-  useEffect(() => {
-    if (composerFocused) hideTabbarPeek();
-  }, [composerFocused]);
 
   useEffect(() => {
     if (paneActive) return;
@@ -1016,24 +958,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   );
 
   return (
-    <main
-      className="container assistant-page"
-      aria-hidden={!paneActive}
-      onClick={(e) => {
-        if (composerFocused) return;
-        const t = e.target;
-        if (!(t instanceof Element)) return;
-        // 点按钮/输入/链接等交互控件时不唤回，避免误触
-        if (
-          t.closest(
-            'a, button, input, textarea, select, label, [role="button"], .assistant-composer, .compose-input-wrap, .chip-swipe, .msg-actions, .font-pill, .history-sheet, .citation-bar',
-          )
-        ) {
-          return;
-        }
-        showTabbarPeek();
-      }}
-    >
+    <main className="container assistant-page" aria-hidden={!paneActive}>
       <header className="assistant-head">
         <button type="button" className="assistant-title-btn" onClick={() => setHistoryOpen(true)}>
           <strong>小爱</strong>

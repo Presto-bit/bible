@@ -89,7 +89,7 @@ export default function BottomTabs() {
     const bar = document.querySelector<HTMLElement>('.tabbar');
     if (!bar) return;
     if (compact) return;
-    // 小爱页自己管沉浸/键盘态，离开小爱后再清残留
+    // 离开小爱键盘态时清掉可能残留的定位
     if (pathname === '/assistant' || pathname.startsWith('/assistant/')) return;
     document.body.classList.remove('assistant-keyboard');
     document.documentElement.style.removeProperty('--assistant-vv-h');

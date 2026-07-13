@@ -5241,37 +5241,14 @@ body.assistant-active .app-body {
   padding-bottom: 0;
 }
 
-/* 沉浸：默认藏底栏，占满屏；点按/横滑可临时唤回 */
-body.assistant-immersive:not(.assistant-tabbar-peek) .tabbar {
-  transform: translate3d(
-    -50%,
-    calc(100% + var(--tabbar-float-gap) + var(--tabbar-safe) + 16px),
-    0
-  );
-  opacity: 0;
-  pointer-events: none;
-}
-
-body.assistant-immersive:not(.assistant-tabbar-peek) .assistant-page {
-  height: calc(100dvh - 8px);
-  max-height: calc(100dvh - 8px);
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-}
-
-body.assistant-immersive.assistant-tabbar-peek .assistant-page {
-  height: calc(100dvh - var(--tabbar-h) - 8px);
-  max-height: calc(100dvh - var(--tabbar-h) - 8px);
-  padding-bottom: 8px;
-}
-
-/* 键盘：跟随 layout 收缩（interactiveWidget）；空态输入区贴底，勿再垂直居中 */
+/* 键盘：layout 已缩时跟 100dvh，并留一点上抬；空态输入区贴底 */
 body.assistant-keyboard.assistant-active .assistant-page {
   height: 100dvh;
   max-height: 100dvh;
-  padding-bottom: 0;
+  padding-bottom: var(--assistant-kb-inset, 20px);
 }
 
-/* 仅当 layout 未随键盘收缩时，才用 visualViewport 高度兜底 */
+/* layout 未随键盘收缩时，用 visualViewport 高度兜底（已含 lift） */
 body.assistant-keyboard-vv.assistant-active .assistant-page {
   height: var(--assistant-vv-h, 100dvh);
   max-height: var(--assistant-vv-h, 100dvh);
@@ -5281,6 +5258,7 @@ body.assistant-keyboard.assistant-active .assistant-body.is-empty {
   justify-content: flex-end;
 }
 
+/* 打字时藏底栏，避免与键盘叠层；失焦后恢复常驻 */
 body.assistant-keyboard.assistant-active .tabbar {
   opacity: 0 !important;
   visibility: hidden;
@@ -5477,7 +5455,7 @@ body.assistant-keyboard.assistant-active .tabbar {
 }
 
 body.assistant-active .assistant-page {
-  /* default overridden by immersive / peek / keyboard states */
+  /* height / padding overridden by keyboard state when focused */
 }
 
 /* 键盘态见上方 body.assistant-keyboard 规则 */
