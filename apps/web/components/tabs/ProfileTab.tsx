@@ -510,8 +510,8 @@ export default function ProfileTab() {
                     openPwaInstallSheet();
                   }}
                 >
-                  <span style={{ flex: 1 }}>添加到主屏幕</span>
-                  <span className="muted">像 App 一样打开 ›</span>
+                  <span style={{ flex: 1 }}>保存到桌面 App</span>
+                  <span className="muted">保存读经记录 ›</span>
                 </button>
               ) : null}
             </div>

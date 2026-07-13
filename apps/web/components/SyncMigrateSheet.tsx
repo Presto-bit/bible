@@ -7,6 +7,7 @@ import {
   markSyncMigrated,
 } from '@/lib/sync_migrate';
 import { syncNow, syncPullFirst } from '@/lib/sync';
+import { isFinePointerDesktop, isStandalonePwa } from '@/lib/platform';
 
 type Props = {
   onMerged: () => void;
@@ -18,6 +19,7 @@ type Props = {
 export default function SyncMigrateSheet({ onMerged, onDismiss, onAcknowledged }: Props) {
   const [busy, setBusy] = useState(false);
   const hasData = hasLocalReadingData();
+  const desktopLike = typeof window !== 'undefined' && (isFinePointerDesktop() || isStandalonePwa());
 
   const handleMerge = async () => {
     setBusy(true);
@@ -27,7 +29,6 @@ export default function SyncMigrateSheet({ onMerged, onDismiss, onAcknowledged }
       await syncNow();
       onMerged();
     } catch {
-      /* 离线时 outbox 已入队 */
       onMerged();
     } finally {
       setBusy(false);
@@ -36,7 +37,17 @@ export default function SyncMigrateSheet({ onMerged, onDismiss, onAcknowledged }
 
   const handleDismiss = () => {
     onDismiss();
-    void syncPullFirst().catch(() => {});
+    // 「暂不保存」仍尽量上行本机阅读，避免重装后云端真空
+    if (hasData) {
+      try {
+        enqueueLocalReadingMigration();
+      } catch {
+        /* ignore */
+      }
+      void syncNow().catch(() => {});
+    } else {
+      void syncPullFirst().catch(() => {});
+    }
   };
 
   const handleAcknowledge = () => {
@@ -44,6 +55,15 @@ export default function SyncMigrateSheet({ onMerged, onDismiss, onAcknowledged }
     onAcknowledged();
     void syncPullFirst().catch(() => {});
   };
+
+  const title = desktopLike ? '保存阅读记录到账号' : '同步阅读记录';
+  const desc = hasData
+    ? desktopLike
+      ? '检测到本机有阅读打卡、章节记录或成就。保存到账号后，桌面 App 重装或换设备登录也能找回。'
+      : '检测到本机有阅读打卡、章节记录或成就。将先从云端拉取已有数据，再合并本机记录，避免覆盖其他设备上的进度。'
+    : desktopLike
+      ? '设置账号并保存后，读经记录会留在账号里，便于桌面 App 重装后恢复。'
+      : '开启后，阅读打卡与成就会在多设备间保持一致。';
 
   return (
     <div className="sheet-backdrop" role="presentation" onClick={() => !busy && handleDismiss()}>
@@ -53,16 +73,12 @@ export default function SyncMigrateSheet({ onMerged, onDismiss, onAcknowledged }
         aria-labelledby="sync-migrate-title"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 id="sync-migrate-title">同步阅读记录</h2>
-        <p className="sync-migrate-desc">
-          {hasData
-            ? '检测到本机有阅读打卡、章节记录或成就。将先从云端拉取已有数据，再合并本机记录，避免覆盖其他设备上的进度。'
-            : '开启云同步后，阅读打卡与成就会在多设备间保持一致。'}
-        </p>
+        <h2 id="sync-migrate-title">{title}</h2>
+        <p className="sync-migrate-desc">{desc}</p>
         <div className="sync-migrate-actions">
           {hasData ? (
             <button type="button" className="btn primary" disabled={busy} onClick={() => void handleMerge()}>
-              {busy ? '合并中…' : '合并到账号'}
+              {busy ? '保存中…' : desktopLike ? '保存到账号' : '合并到账号'}
             </button>
           ) : (
             <button type="button" className="btn primary" disabled={busy} onClick={() => handleAcknowledge()}>
@@ -75,7 +91,7 @@ export default function SyncMigrateSheet({ onMerged, onDismiss, onAcknowledged }
             disabled={busy}
             onClick={() => (hasData ? handleDismiss() : handleAcknowledge())}
           >
-            {hasData ? '暂不合并' : '关闭'}
+            {hasData ? (desktopLike ? '暂不保存' : '暂不合并') : '关闭'}
           </button>
         </div>
       </div>

@@ -94,8 +94,9 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
       ];
     case 'desktop':
       return [
-        { title: '地址栏安装图标', detail: 'Chrome / Edge 地址栏右侧可能有 ⊕' },
-        { title: '或浏览器菜单', detail: '「安装彼爱…」或「创建快捷方式」' },
+        { title: '设置账号密码', detail: '在「我的」设置用户名与密码，读经记录才会保存在账号里' },
+        { title: '保存到桌面 App', detail: 'Chrome / Edge 地址栏右侧 ⊕，或菜单「安装彼爱…」' },
+        { title: '重装勿清数据', detail: '卸载时不要勾选「清除网站数据」；之后用同一账号登录即可找回' },
       ];
     default:
       return [];
@@ -115,7 +116,7 @@ export function installHeadline(platform: InstallPlatform): string {
     case 'android-other':
       return '从浏览器菜单添加到主屏幕';
     case 'desktop':
-      return '安装到桌面';
+      return '把读经记录保存到桌面 App，重装后也能找回';
     default:
       return '已安装到主屏幕';
   }

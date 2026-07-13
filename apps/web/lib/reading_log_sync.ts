@@ -18,29 +18,39 @@ function writeAll(logs: Record<string, DayLog>) {
   localStorage.setItem(LOG_KEY, JSON.stringify(logs));
 }
 
+/** 云端 DATE 可能序列化为 YYYY-MM-DD 或带时间的 ISO */
+function normalizeLogDate(date: string): string {
+  const s = String(date).trim();
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : s;
+}
+
 export function mergeRemoteReadingLog(
   date: string,
   remote?: { minutes?: number; chapters?: number } | null,
 ): DayLog | null {
   if (!date || !remote) return null;
+  const day = normalizeLogDate(date);
+  if (!day) return null;
   const logs = readAll();
-  const cur = logs[date] || { minutes: 0, chapters: 0 };
+  const cur = logs[day] || { minutes: 0, chapters: 0 };
   const merged = mergeReadingLogDay(cur, {
     minutes: remote.minutes ?? 0,
     chapters: remote.chapters ?? 0,
   });
   if (merged.minutes === cur.minutes && merged.chapters === cur.chapters) return null;
-  logs[date] = merged;
+  logs[day] = merged;
   writeAll(logs);
   return merged;
 }
 
 export function pushReadingLog(date: string, log: DayLog) {
-  if (!date) return;
+  const day = normalizeLogDate(date);
+  if (!day) return;
   enqueue({
     entity: 'reading_log',
     op: 'update',
-    keys: { date },
+    keys: { date: day },
     client_ts: new Date().toISOString(),
     data: { minutes: log.minutes, chapters: log.chapters },
   });

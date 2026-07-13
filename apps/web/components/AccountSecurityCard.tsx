@@ -24,7 +24,7 @@ export default function AccountSecurityCard({ onComplete }: Props) {
         <SyncStatusBadge />
       </div>
       <p className="muted" style={{ fontSize: 12, lineHeight: 1.5, margin: '6px 0 12px' }}>
-        {platformAccountHint()} 打开即可使用，笔记与进度会自动备份到云端。
+        {platformAccountHint()}
       </p>
 
       <div className="account-promo-banner">

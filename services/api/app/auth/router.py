@@ -301,21 +301,37 @@ def _lookup_bound_user_code(conn, *fingerprints: str | None) -> str | None:
     return None
 
 
-def _bind_device_user(conn, device_id: str | None, user_code: str) -> None:
-    """仅绑定安装级 device_id；拒绝弱硬件指纹 dev-*，避免同型号撞号。"""
+def _bind_device_user(conn, device_id: str | None, user_code: str, *, reclaim: bool = False) -> None:
+    """仅绑定安装级 device_id；拒绝弱硬件指纹 dev-*，避免同型号撞号。
+
+    reclaim=True（登录/设密）：允许覆盖已有绑定，避免重装后游客抢绑导致无法回到密码账号。
+    reclaim=False（静默建档）：已有绑定则不覆盖，避免新游客冲掉旧账号。
+    """
     fp = (device_id or "").strip()
     if not fp or not is_user_code(user_code):
         return
     if fp.startswith("dev-"):
         return
-    conn.execute(
-        """
-        INSERT INTO device_user_bindings (device_fingerprint, user_code, updated_at)
-        VALUES (%s, %s, now())
-        ON CONFLICT (device_fingerprint) DO NOTHING
-        """,
-        (fp, user_code),
-    )
+    if reclaim:
+        conn.execute(
+            """
+            INSERT INTO device_user_bindings (device_fingerprint, user_code, updated_at)
+            VALUES (%s, %s, now())
+            ON CONFLICT (device_fingerprint) DO UPDATE SET
+              user_code = EXCLUDED.user_code,
+              updated_at = now()
+            """,
+            (fp, user_code),
+        )
+    else:
+        conn.execute(
+            """
+            INSERT INTO device_user_bindings (device_fingerprint, user_code, updated_at)
+            VALUES (%s, %s, now())
+            ON CONFLICT (device_fingerprint) DO NOTHING
+            """,
+            (fp, user_code),
+        )
 
 
 def _maybe_migrate_engagement(conn, from_code: str | None, to_code: str) -> None:
@@ -344,11 +360,13 @@ def register(
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            # 仅按安装级 device_id 恢复；不用硬件指纹（同型号会误绑）
-            bound = _lookup_bound_user_code(conn, x_device_id)
-            if bound:
-                code = bound
-                user_id = _uuid_for_code(code)
+            # 静默建档：按 device 恢复已有绑定；设密/改资料：用请求的 user_code 并抢绑
+            securing = bool(body.password) or bool((body.username or "").strip())
+            if not securing:
+                bound = _lookup_bound_user_code(conn, x_device_id)
+                if bound:
+                    code = bound
+                    user_id = _uuid_for_code(code)
             name = resolve_register_username(
                 conn, user_code=code, requested=(body.username or "").strip() or None
             )
@@ -369,7 +387,8 @@ def register(
                 (code, user_id, name, pwd_hash, pwd_salt),
             )
             upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
-            _bind_device_user(conn, x_device_id, code)
+            # 设密时抢绑；纯静默建档不抢绑
+            _bind_device_user(conn, x_device_id, code, reclaim=securing)
             former = pick_user_code(requested, x_user_code)
             _maybe_migrate_engagement(conn, former, code)
             conn.commit()
@@ -406,7 +425,7 @@ def login(
                     (idf,),
                 ).fetchone()
                 if row is None:
-                    _bind_device_user(conn, x_device_id, idf)
+                    _bind_device_user(conn, x_device_id, idf, reclaim=True)
                     former = pick_user_code(x_user_code)
                     _maybe_migrate_engagement(conn, former, idf)
                     conn.commit()
@@ -431,8 +450,8 @@ def login(
                     raise HTTPException(status_code=401, detail="密码不正确")
             elif not is_user_code(idf):
                 raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID登录")
-            # 仅绑定安装级 device_id，不绑定硬件指纹
-            _bind_device_user(conn, x_device_id, code)
+            # 登录成功：抢绑安装级 device_id，覆盖重装后的游客绑定
+            _bind_device_user(conn, x_device_id, code, reclaim=True)
             former = pick_user_code(x_user_code, idf if is_user_code(idf) else None)
             _maybe_migrate_engagement(conn, former, code)
             conn.commit()

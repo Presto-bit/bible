@@ -116,8 +116,12 @@ async function push(): Promise<number> {
       body: JSON.stringify({ changes: outbox }),
     });
     if (!res.ok) throw new Error(`推送失败 ${res.status}`);
-    writeOutbox([], userCode);
     const data = await res.json();
+    const errors = Array.isArray(data.errors) ? data.errors : [];
+    // 有实体写入失败时保留 outbox，避免 reading_log 等被误清
+    if (errors.length === 0) {
+      writeOutbox([], userCode);
+    }
     return (data.applied ?? 0) as number;
   } finally {
     markSyncDone();

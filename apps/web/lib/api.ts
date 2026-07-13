@@ -184,14 +184,28 @@ function deviceHeaders(): Record<string, string> {
   return h;
 }
 
-function applyServerUserCode(code: string): void {
+function applyServerUserCode(code: string, opts?: { forceUser?: boolean }): void {
   if (!isUserCode(code)) return;
   localStorage.setItem(GUEST_KEY, code);
   bindDeviceGuestId(code);
-  if (!currentUserId()) localStorage.setItem(USER_KEY, code);
+  if (opts?.forceUser || !currentUserId()) localStorage.setItem(USER_KEY, code);
+}
+
+/** 登录/设密成功后：GUEST 与 USER 必须与服务端 user_code 对齐 */
+function adoptAuthenticatedUserCode(code: string): void {
+  if (!isUserCode(code)) return;
+  localStorage.setItem(GUEST_KEY, code);
+  bindDeviceGuestId(code);
+  localStorage.setItem(USER_KEY, code);
 }
 
 let ensureIdentityPromise: Promise<void> | null = null;
+
+/** 登录/换号后清空，避免沿用游客建档期的 ensure 缓存 */
+export function resetAccountEnsureCaches() {
+  ensureAccountPromise = null;
+  ensureIdentityPromise = null;
+}
 
 /** 丢弃本地账号缓存（保留安装级 device_id），用于服务端已解绑时自动换新 ID */
 function clearLocalAccountIdentity() {
@@ -216,6 +230,19 @@ export async function ensureIdentityReady(): Promise<void> {
     // 在线：服务端绑定优先；未绑定则自动换新账号（清库/撞号后两台设备无需手动点）
     if (deviceId && !deviceId.startsWith('dev-')) {
       try {
+        // 本机已是密码账号：不要被设备上的游客绑定覆盖（登录抢绑前的竞态窗口）
+        const securedLocal =
+          localStorage.getItem(HAS_PWD_KEY) === '1' &&
+          Boolean(currentUserId() || localStorage.getItem(GUEST_KEY));
+        if (securedLocal) {
+          const localCode = currentUserId() || localStorage.getItem(GUEST_KEY);
+          if (localCode && isUserCode(localCode)) {
+            bindDeviceGuestId(localCode);
+            ensureFirstSeen();
+            markIdentityBootstrapped();
+            return;
+          }
+        }
         const params = new URLSearchParams({ device_id: deviceId });
         const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
         if (res.ok) {
@@ -509,19 +536,29 @@ export async function setCredentials(username: string, password: string): Promis
     });
     if (res.ok) {
       const d = await res.json();
-      if (d.user_code && isUserCode(d.user_code)) applyServerUserCode(d.user_code);
+      const serverCode = d.user_code && isUserCode(d.user_code) ? (d.user_code as string) : id;
+      adoptAuthenticatedUserCode(serverCode);
+      if (u) {
+        const reg = readRegistry();
+        for (const key of Object.keys(reg)) {
+          if (reg[key].id === id || reg[key].id === serverCode) delete reg[key];
+        }
+        reg[u] = { id: serverCode };
+        writeRegistry(reg);
+      }
       if (d.username) localStorage.setItem(NAME_KEY, d.username);
       // 本次提交了密码则本地直接记为已设密，避免回包缺字段导致引导不消失
       if (password.length >= 6 || d.has_password) setHasPasswordCached(true);
       else setHasPasswordCached(Boolean(d.has_password));
-      await refreshAccountStatus((d.user_code as string) || id);
+      await refreshAccountStatus(serverCode);
     } else if (password) {
       throw new Error('保存失败，请检查网络');
     }
   } catch (e) {
     if (password) throw e instanceof Error ? e : new Error(String(e));
   }
-  void import('./post_login').then((m) => m.afterLogin());
+  resetAccountEnsureCaches();
+  await import('./post_login').then((m) => m.afterLogin());
 }
 
 export async function changePassword(oldPassword: string | null, newPassword: string): Promise<void> {
@@ -582,14 +619,14 @@ export async function loginWithIdentifier(identifier: string, password: string):
 
   const d = await res.json();
   const code = d.user_code as string;
-  localStorage.setItem(GUEST_KEY, code);
-  bindDeviceGuestId(code);
-  localStorage.setItem(USER_KEY, code);
+  adoptAuthenticatedUserCode(code);
   if (d.username) localStorage.setItem(NAME_KEY, d.username);
   applyAccountPhone(d.phone ?? null, code);
   setHasPasswordCached(Boolean(d.has_password));
   markOnboarded();
-  void import('./post_login').then((m) => m.afterLogin());
+  // 必须等全量拉取完成再返回，否则登录页会提前显示「已恢复」而读经仍为空
+  resetAccountEnsureCaches();
+  await import('./post_login').then((m) => m.afterLogin());
   return code;
 }
 
@@ -605,8 +642,7 @@ export function logout() {
  * （同型号手机曾因硬件指纹撞号共用一个账号。）
  */
 export async function startFreshAccount(): Promise<void> {
-  ensureAccountPromise = null;
-  ensureIdentityPromise = null;
+  resetAccountEnsureCaches();
   await resetInstallIdentity();
   await ensureIdentityReady();
   await ensureAccountReady();
