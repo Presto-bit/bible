@@ -7,6 +7,7 @@ import {
   currentUserId,
   effectiveId,
   ensureAccountReady,
+  getDisplayName,
   guestId,
   hasPassword,
   logout,
@@ -32,8 +33,8 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { syncNow } from '@/lib/sync';
-import { pushProfileAvatar } from '@/lib/profile_sync';
-import { isAccountComplete } from '@/lib/account_guide';
+import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
+import { hasSecuredAccount, isAccountComplete } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import {
@@ -45,9 +46,9 @@ import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { isStandalonePwa } from '@/lib/platform';
+import { userLsGet, userLsSet } from '@/lib/user_storage';
 
 const AVATAR_KEY = 'profile_avatar';
-const NAME_KEY = 'profile_name';
 const BIO_KEY = 'profile_bio';
 
 export default function ProfileTab() {
@@ -63,6 +64,7 @@ export default function ProfileTab() {
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
+  const [dataStatus, setDataStatus] = useState<string | null>(null);
   const [bioEditing, setBioEditing] = useState(false);
   const [accountComplete, setAccountComplete] = useState(false);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
@@ -156,10 +158,10 @@ export default function ProfileTab() {
       if (cancelled) return;
       setUid(currentUserId());
       setGid(guestId());
-      const saved = localStorage.getItem(AVATAR_KEY);
+      const saved = userLsGet(AVATAR_KEY);
       setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
-      setName(localStorage.getItem(NAME_KEY) || '');
-      setBio(localStorage.getItem(BIO_KEY) || '');
+      setName(getDisplayName());
+      setBio(userLsGet(BIO_KEY) || '');
       setMins(todayMinutes());
       setStreak(readingStreak());
       setHasPwd(hasPassword());
@@ -188,9 +190,22 @@ export default function ProfileTab() {
     const refreshReading = () => {
       setMins(todayMinutes());
       setStreak(readingStreak());
+      setName(getDisplayName());
+      setBio(userLsGet(BIO_KEY) || '');
       void computeBadgesWithUnlock().then(setBadges);
     };
+    const refreshStatus = () => {
+      if (getSyncState() === 'syncing') {
+        setDataStatus('恢复中…');
+      } else if (!hasSecuredAccount()) {
+        setDataStatus('未登录，数据仅本机');
+      } else {
+        setDataStatus(null);
+      }
+    };
+    refreshStatus();
     const unsubSync = subscribeSyncState(() => {
+      refreshStatus();
       if (getSyncState() === 'synced') refreshReading();
     });
     const unsubData = subscribeLocalDataChanged(refreshReading);
@@ -201,19 +216,23 @@ export default function ProfileTab() {
   }, []);
 
   const refreshAccount = () => {
-    setName(localStorage.getItem(NAME_KEY) || '');
+    setName(getDisplayName());
     setHasPwd(hasPassword());
     setAccountComplete(isAccountComplete());
+    if (getSyncState() === 'syncing') setDataStatus('恢复中…');
+    else if (!hasSecuredAccount()) setDataStatus('未登录，数据仅本机');
+    else setDataStatus(null);
   };
   const saveBio = (v: string) => {
     const t = v.slice(0, 15);
     setBio(t);
-    localStorage.setItem(BIO_KEY, t);
+    userLsSet(BIO_KEY, t);
+    pushProfileBio(t);
   };
 
   const chooseAvatar = (id: string) => {
     setAvatarId(id);
-    localStorage.setItem(AVATAR_KEY, id);
+    userLsSet(AVATAR_KEY, id);
     pushProfileAvatar(id);
     setPickerOpen(false);
   };
@@ -248,7 +267,7 @@ export default function ProfileTab() {
     }
   };
 
-  const displayName = name.trim() || '读经伙伴';
+  const displayName = getDisplayName() || name.trim() || '读经伙伴';
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 
   return (
@@ -267,6 +286,9 @@ export default function ProfileTab() {
             <strong className="profile-display-name">{displayName}</strong>
             <SyncStatusBadge />
           </div>
+          {dataStatus ? (
+            <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>{dataStatus}</p>
+          ) : null}
           {bioEditing ? (
             <div className="profile-bio-edit-wrap">
               <input

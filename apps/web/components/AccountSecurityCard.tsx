@@ -26,11 +26,14 @@ export default function AccountSecurityCard({ onComplete }: Props) {
       <p className="muted" style={{ fontSize: 12, lineHeight: 1.5, margin: '6px 0 12px' }}>
         {platformAccountHint()}
       </p>
+      <p className="muted" style={{ fontSize: 12, lineHeight: 1.55, margin: '0 0 12px' }}>
+        重装或换机：用手机号/用户名登录 → 等待同步完成。未登录时数据仅保存在本机。
+      </p>
 
       <div className="account-promo-banner">
         <strong>建议设置用户名与密码</strong>
         <p className="muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
-          换手机时凭「用户名 + 密码」即可恢复，无需记住数字 ID。
+          删掉主屏幕重装后，凭「用户名/手机号 + 密码」登录即可拉回读经进度与成就。
         </p>
         <input
           className="book-chip"

@@ -273,8 +273,12 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         if (last) {
           const b = books.find((x) => x.id === last.bookId.toUpperCase());
           if (b) {
+            const ch = Math.min(Math.max(1, last.chapter), b.chapter_count);
             setBook(b);
-            setChapter(Math.min(Math.max(1, last.chapter), b.chapter_count));
+            setChapter(ch);
+            void import('@/lib/chapter_prefetch').then((m) => {
+              void m.loadChapterVerses(b.id, ch, null);
+            });
           }
         }
       }
@@ -306,9 +310,12 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   }, [handleNavigate]);
 
   if (booksLoading && !books.length && !err) {
+    const last = typeof window !== 'undefined' ? getLastRead() : null;
     return (
       <main className="container">
-        <p className="muted">加载经卷目录…</p>
+        <p className="muted">
+          {last ? '正在打开上次阅读…' : '加载经卷目录…'}
+        </p>
       </main>
     );
   }

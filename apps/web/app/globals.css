@@ -5218,12 +5218,12 @@ body.pwa-standalone .profile-page .profile-soft-row.card {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /* 为浮动 Tab + 安全区留足空间，避免输入框被底栏遮挡 */
-  height: calc(100dvh - var(--tabbar-h) - 8px);
-  max-height: calc(100dvh - var(--tabbar-h) - 8px);
+  /* 小爱整页隐藏底栏，占满可视高度 */
+  height: calc(100dvh - 8px);
+  max-height: calc(100dvh - 8px);
   min-height: 0;
   padding-top: max(10px, env(safe-area-inset-top, 0px));
-  padding-bottom: 8px;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
   padding-left: 14px;
   padding-right: 14px;
   overflow: hidden;
@@ -5432,19 +5432,12 @@ body.assistant-active .app-body {
 }
 
 body.assistant-active .assistant-page {
-  /* 与 --tabbar-h 对齐：内高 + 浮动间隙 + 底部安全区 + 余量 */
-  height: calc(100dvh - var(--tabbar-h) - 8px);
-  max-height: calc(100dvh - var(--tabbar-h) - 8px);
-  padding-bottom: 8px;
+  height: calc(100dvh - 8px);
+  max-height: calc(100dvh - 8px);
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 
-/* 键盘打开：只隐藏底栏；页面高度保持不变，用 padding 顶起输入区 */
-body.assistant-keyboard .tabbar {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
+/* 键盘打开：用 padding 顶起输入区（底栏在小爱页本就隐藏） */
 body.assistant-keyboard.assistant-active .assistant-page {
   padding-bottom: max(8px, var(--assistant-kb-inset, 0px));
 }

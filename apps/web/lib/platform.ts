@@ -21,10 +21,10 @@ export function isFinePointerDesktop(): boolean {
 
 export function platformAccountHint(): string {
   if (isStandalonePwa()) {
-    return '已保存到桌面/主屏幕：请登录账号，读经记录会保存在账号中。重装前务必已登录；卸载时不要清除网站数据。';
+    return '已保存到主屏幕：请用手机号/用户名登录并等待同步完成。重装前务必已登录；删掉重装后需重新登录才能拉回进度与成就。';
   }
   if (isFinePointerDesktop()) {
-    return '电脑浏览器：建议登录后保存到桌面 App。仅本机不设密码时，重装桌面版后读经历史可能丢失。';
+    return '电脑浏览器：建议登录后保存到桌面。未登录时数据仅本机，重装后可能丢失。';
   }
-  return '浏览器临时访问：建议添加到主屏幕，或设置用户名以便换机恢复。';
+  return '浏览器临时访问：建议登录并添加到主屏幕；换机请用手机号/用户名登录后等待同步完成。';
 }

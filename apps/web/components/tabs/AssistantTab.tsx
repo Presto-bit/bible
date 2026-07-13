@@ -301,10 +301,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   }, [paneActive]);
 
   /**
-   * iOS PWA：聚焦输入会顶起 visualViewport；改页面 height 易导致收起后底栏下留白。
-   * - 键盘开：隐藏底栏 + padding 顶起（不改 height）
-   * - 键盘关：清 inline + 强制 layout/scroll 复位；绝不写 gap/top 补偿（那会直接造成底栏下留白）
-   * - open 判定以焦点为准（resizes-content 下 inset 可能为 0）
+   * 小爱页已整页隐藏底栏；键盘只需用 padding 顶起输入区，不再改动 tabbar 定位。
    */
   useEffect(() => {
     if (!paneActive) return;
@@ -314,24 +311,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let lastOpen = false;
     let composerFocused = false;
     let baselineH = Math.round(Math.max(window.innerHeight, vv.height));
-    const timers: number[] = [];
-
-    const clearTimers = () => {
-      while (timers.length) window.clearTimeout(timers.pop());
-    };
-
-    const clearTabbarInline = () => {
-      const bar = document.querySelector<HTMLElement>('.tabbar');
-      if (!bar) return;
-      bar.style.removeProperty('transition');
-      bar.style.removeProperty('transform');
-      bar.style.removeProperty('bottom');
-      bar.style.removeProperty('top');
-      bar.style.removeProperty('opacity');
-      bar.style.removeProperty('visibility');
-      bar.style.removeProperty('position');
-      bar.style.pointerEvents = '';
-    };
 
     const keyboardLift = () => {
       const inset = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
@@ -339,49 +318,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       return Math.max(inset, shrink);
     };
 
-    const scrollHome = () => {
-      window.scrollTo(0, 0);
-      document.documentElement.scrollTop = 0;
-      document.body.scrollTop = 0;
-    };
-
-    const forceLayoutRefresh = () => {
-      // 短暂锁到 visual 高度再释放，逼 iOS 丢掉键盘遗留的 layout 错位
-      const h = `${Math.round(vv.height)}px`;
-      document.documentElement.style.setProperty('height', h);
-      document.body.style.setProperty('height', h);
-      scrollHome();
-      // 触发 reflow
-      void document.body.offsetHeight;
-      document.documentElement.style.removeProperty('height');
-      document.body.style.removeProperty('height');
-      scrollHome();
-      clearTabbarInline();
-    };
-
-    const restoreAfterKeyboard = () => {
-      document.body.classList.remove('assistant-keyboard');
-      document.documentElement.style.removeProperty('--assistant-kb-inset');
-      document.documentElement.style.removeProperty('--assistant-vv-h');
-      clearTabbarInline();
-      scrollHome();
-      forceLayoutRefresh();
-      if (keyboardLift() <= 2) {
-        baselineH = Math.round(Math.max(window.innerHeight, vv.height));
-      }
-    };
-
-    const scheduleRestore = () => {
-      clearTimers();
-      for (const ms of [0, 50, 120, 280, 500, 900, 1400]) {
-        timers.push(window.setTimeout(restoreAfterKeyboard, ms));
-      }
-    };
-
     const setKeyboardOpen = (open: boolean) => {
       if (open) {
-        clearTimers();
-        clearTabbarInline();
         const lift = keyboardLift();
         document.body.classList.add('assistant-keyboard');
         document.documentElement.style.setProperty(
@@ -389,20 +327,21 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           `${lift > 40 ? lift : 0}px`,
         );
       } else if (lastOpen) {
-        scheduleRestore();
+        document.body.classList.remove('assistant-keyboard');
+        document.documentElement.style.removeProperty('--assistant-kb-inset');
+        if (keyboardLift() <= 2) {
+          baselineH = Math.round(Math.max(window.innerHeight, vv.height));
+        }
       } else {
         document.body.classList.remove('assistant-keyboard');
         document.documentElement.style.removeProperty('--assistant-kb-inset');
-        clearTabbarInline();
-        scrollHome();
       }
       lastOpen = open;
     };
 
     const sync = () => {
-      const open = composerFocused;
-      setKeyboardOpen(open);
-      if (open) {
+      setKeyboardOpen(composerFocused);
+      if (composerFocused) {
         const lift = keyboardLift();
         if (lift > 40) {
           document.documentElement.style.setProperty('--assistant-kb-inset', `${lift}px`);
@@ -426,7 +365,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (next instanceof HTMLElement && next.closest('.assistant-composer')) return;
       composerFocused = false;
       setKeyboardOpen(false);
-      scheduleRestore();
     };
 
     vv.addEventListener('resize', sync);
@@ -435,17 +373,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     window.addEventListener('focusout', onFocusOut);
     sync();
     return () => {
-      clearTimers();
       vv.removeEventListener('resize', sync);
       vv.removeEventListener('scroll', sync);
       window.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('focusout', onFocusOut);
       document.body.classList.remove('assistant-keyboard');
       document.documentElement.style.removeProperty('--assistant-kb-inset');
-      document.documentElement.style.removeProperty('--assistant-vv-h');
-      document.documentElement.style.removeProperty('height');
-      document.body.style.removeProperty('height');
-      clearTabbarInline();
     };
   }, [paneActive]);
 

@@ -136,6 +136,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
 
       void flushCheckinQueue().catch(() => {});
       rescheduleGroupEveningReminder();
+      void import('@/lib/bible_warmup').then((m) => m.scheduleBibleWarmup());
       // 延后离线经包，避免与圣经首屏 API 抢带宽（删 PWA 后经包常需重下）
       window.setTimeout(() => {
         void ensureOfflinePackAutoDownload();

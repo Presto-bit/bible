@@ -82,7 +82,9 @@ export default function BottomTabs() {
   const pathname = normalizeAppPath(useRouterPathname());
   const router = useRouter();
   const compact =
-    SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+    pathname === '/assistant'
+    || pathname.startsWith('/assistant/')
+    || SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
     || GROUP_COMPACT_RE.test(pathname);
 
   useEffect(() => {

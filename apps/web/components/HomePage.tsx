@@ -199,6 +199,7 @@ export default function HomePageClient() {
       );
     };
     refreshName();
+    void import('@/lib/bible_warmup').then((m) => m.scheduleBibleWarmup());
     window.addEventListener('focus', refreshName);
     const unsubSync = subscribeSyncState(() => {
       if (getSyncState() === 'synced') refreshName();

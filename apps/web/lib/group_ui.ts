@@ -1,4 +1,4 @@
-import { effectiveId, type GroupDetail, type GroupMember, type GroupTask } from './api';
+import { effectiveId, getDisplayName, type GroupDetail, type GroupMember, type GroupTask } from './api';
 import type { FootprintRef } from './group_footprint';
 import { userLsGet } from './user_storage';
 
@@ -38,8 +38,10 @@ export function normalizeGroupDetail(detail: GroupDetail): GroupDetail {
 export function displayMemberName(m: GroupMember): string {
   if (m.is_me) {
     if (typeof window !== 'undefined') {
-      const profile = userLsGet('profile_name')?.trim();
-      if (profile) return profile;
+      const profile = getDisplayName();
+      if (profile && profile !== '读经伙伴') return profile;
+      const raw = userLsGet('profile_name')?.trim();
+      if (raw) return raw;
     }
     return '我';
   }
@@ -106,8 +108,7 @@ export function groupFootprintsBySource(footprints: FootprintRef[]): {
 
 export function myDisplayName(): string {
   if (typeof window === 'undefined') return '我';
-  const name = userLsGet('profile_name')?.trim();
-  if (name) return name;
-  const id = effectiveId();
-  return id ? `用户${id.slice(-4)}` : '我';
+  const name = getDisplayName();
+  if (name && name !== '读经伙伴') return name;
+  return '我';
 }

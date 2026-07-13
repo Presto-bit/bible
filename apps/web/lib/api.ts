@@ -473,12 +473,13 @@ export async function unbindDevice(deviceId: string): Promise<void> {
   if (!res.ok) throw new Error('解绑失败');
 }
 
-/** 首页问候等展示名：优先用户名，否则游客 ID 后缀。 */
+/** 全 App 统一显示名：资料昵称/用户名 → 游客后缀 → 读经伙伴 */
 export function getDisplayName(): string {
   const name = getUserName().trim();
   if (name) return name;
   const g = guestId();
-  return g ? `用户${g.slice(-4)}` : '朋友';
+  if (g) return `用户${g.slice(-4)}`;
+  return '读经伙伴';
 }
 
 export function isOnboarded(): boolean {
@@ -522,6 +523,7 @@ export async function setCredentials(username: string, password: string): Promis
     reg[u] = { id };
     writeRegistry(reg);
     userLsSet(NAME_KEY, u);
+    void import('./profile_sync').then((m) => m.pushProfileName(u));
   }
   markOnboarded();
   localStorage.setItem(USER_KEY, id);
