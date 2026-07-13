@@ -17,7 +17,7 @@ import {
 } from '@/lib/api';
 import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName, getFriendRemark, setFriendRemark } from '@/lib/friend_remarks';
-import { FEED_LIKE_EMOJI, FEED_READING_EMOJI } from '@/lib/feed_activity';
+import { FEED_LIKE_EMOJI } from '@/lib/feed_activity';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
@@ -190,9 +190,7 @@ export default function FriendProfilePage() {
                   item={s}
                   showAuthor={false}
                   liked={isReacted(s, FEED_LIKE_EMOJI)}
-                  readingMarked={isReacted(s, FEED_READING_EMOJI)}
                   onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
-                  onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
                 />
               ))}
             </div>

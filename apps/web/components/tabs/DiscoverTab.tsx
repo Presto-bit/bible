@@ -25,7 +25,6 @@ import { sortGroupsByActionPriority } from '@/lib/group_sort';
 import {
   FEED_FRESH_HOURS,
   FEED_LIKE_EMOJI,
-  FEED_READING_EMOJI,
   splitFriendActivityByFreshness,
 } from '@/lib/feed_activity';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
@@ -313,9 +312,7 @@ export default function DiscoverTab() {
                 key={`${s.source}-${s.id}`}
                 item={s}
                 liked={isReacted(s, FEED_LIKE_EMOJI)}
-                readingMarked={isReacted(s, FEED_READING_EMOJI)}
                 onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
-                onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
                 authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
               />
             ))
@@ -339,9 +336,7 @@ export default function DiscoverTab() {
                       key={`older-${s.source}-${s.id}`}
                       item={s}
                       liked={isReacted(s, FEED_LIKE_EMOJI)}
-                      readingMarked={isReacted(s, FEED_READING_EMOJI)}
                       onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
-                      onReading={() => void toggleReact(s, FEED_READING_EMOJI)}
                       authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
                     />
                   ))}

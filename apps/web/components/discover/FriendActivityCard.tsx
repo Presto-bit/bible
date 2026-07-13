@@ -6,14 +6,13 @@ import type { FriendActivity } from '@/lib/api';
 import { formatActivityTime } from '@/lib/social_time';
 import {
   FEED_LIKE_EMOJI,
-  FEED_READING_EMOJI,
   feedActivityKind,
   reactionEmojiCount,
   readerHrefFromFeedActivity,
 } from '@/lib/feed_activity';
 import { friendDisplayName } from '@/lib/friend_label';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
-import { FeedVersePreview } from '@/components/discover/FeedVersePreview';
+import { FeedVerseLine } from '@/components/discover/FeedVersePreview';
 
 type FeedKind = 'checkin' | 'thought' | 'note';
 
@@ -27,9 +26,7 @@ type Props = {
   item: FriendActivity;
   showAuthor?: boolean;
   liked?: boolean;
-  readingMarked?: boolean;
   onLike?: () => void;
-  onReading?: () => void;
   authorHref?: string;
 };
 
@@ -37,26 +34,19 @@ export function FriendActivityCard({
   item,
   showAuthor = true,
   liked = false,
-  readingMarked = false,
   onLike,
-  onReading,
   authorHref,
 }: Props) {
   const kind = feedActivityKind(item);
   const label = kindLabel(kind);
   const likeCount = reactionEmojiCount(item.reactions, FEED_LIKE_EMOJI);
-  const readingCount = reactionEmojiCount(item.reactions, FEED_READING_EMOJI);
   const readerHref = item.ref ? readerHrefFromFeedActivity(item) : null;
+  const body = item.body?.trim() || '';
 
   const onLikeClick = (e: MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     onLike?.();
-  };
-
-  const onReadingClick = (e: MouseEvent) => {
-    e.stopPropagation();
-    if (readingMarked) return;
-    onReading?.();
   };
 
   const displayName = item.author
@@ -67,81 +57,77 @@ export function FriendActivityCard({
     author_avatar_id: item.author_avatar_id,
   };
 
-  const metaLine = (
-    <>
-      <span className="feed-card-badge">{label}</span>
-      {kind === 'checkin' && item.group_name && (
-        <span className="feed-card-group">{item.group_name}</span>
-      )}
-    </>
-  );
+  const metaBits = [label];
+  if (kind === 'checkin' && item.group_name) metaBits.push(item.group_name);
 
-  const headUser = showAuthor ? (
-    <>
-      <span className={`feed-card-avatar-wrap feed-card-avatar-wrap--${kind}`}>
-        <FriendAvatar friend={friendPick} size={44} />
-      </span>
-      <div className="feed-card-head-text">
-        <span className="feed-card-user-name">{displayName}</span>
-        <span className="feed-card-user-sub">{metaLine}</span>
-      </div>
-    </>
-  ) : (
-    <div className="feed-card-head-text feed-card-head-text--solo">
-      {metaLine}
-    </div>
-  );
+  const row2 = (() => {
+    if (item.ref) {
+      return (
+        <FeedVerseLine
+          refParam={item.ref}
+          href={readerHref}
+          bodyHint={kind !== 'checkin' && body ? body : null}
+        />
+      );
+    }
+    if (body) {
+      return <p className="feed-card-compact-body">{body}</p>;
+    }
+    return <p className="feed-card-compact-body muted">分享了一条动态</p>;
+  })();
 
   return (
-    <article className={`card feed-card feed-card--${kind}`}>
-      <header className="feed-card-head">
-        {showAuthor && authorHref ? (
-          <Link href={authorHref} className="feed-card-head-user">
-            {headUser}
-          </Link>
-        ) : (
-          <div className="feed-card-head-user">{headUser}</div>
-        )}
-        <time className="feed-card-time">{formatActivityTime(item.created_at)}</time>
-      </header>
+    <article className={`card feed-card feed-card-compact feed-card--${kind}`}>
+      <div className="feed-card-compact-inner">
+        {showAuthor ? (
+          authorHref ? (
+            <Link
+              href={authorHref}
+              className="feed-card-compact-avatar"
+              aria-label={displayName}
+            >
+              <FriendAvatar friend={friendPick} size={28} />
+            </Link>
+          ) : (
+            <span className="feed-card-compact-avatar">
+              <FriendAvatar friend={friendPick} size={28} />
+            </span>
+          )
+        ) : null}
 
-      {item.ref && (
-        <FeedVersePreview refParam={item.ref} kind={kind} href={readerHref} />
-      )}
+        <div className="feed-card-compact-main">
+          <div className="feed-card-compact-row1">
+            <div className="feed-card-compact-who">
+              {showAuthor && authorHref ? (
+                <Link href={authorHref} className="feed-card-compact-name">
+                  {displayName}
+                </Link>
+              ) : showAuthor ? (
+                <span className="feed-card-compact-name">{displayName}</span>
+              ) : null}
+              <span className="feed-card-compact-meta">
+                {showAuthor ? ` · ${metaBits.join(' · ')}` : metaBits.join(' · ')}
+              </span>
+            </div>
+            <time className="feed-card-compact-time">{formatActivityTime(item.created_at)}</time>
+          </div>
 
-      {item.body ? (
-        <p className="feed-card-reflection">{item.body}</p>
-      ) : kind === 'checkin' ? (
-        <p className="feed-card-status">已完成今日打卡 ✓</p>
-      ) : null}
-
-      <footer className="feed-card-actions">
-        <button
-          type="button"
-          className={`feed-action-pill feed-action-like${liked ? ' active' : ''}`}
-          onClick={onLikeClick}
-          disabled={!onLike}
-          aria-pressed={liked}
-        >
-          <span className="feed-action-icon" aria-hidden>{liked ? '♥' : '♡'}</span>
-          {likeCount > 0 ? `${likeCount} 人赞` : '赞'}
-        </button>
-        {item.ref && (
-          <button
-            type="button"
-            className={`feed-action-pill feed-action-read${readingMarked ? ' active' : ''}`}
-            onClick={onReadingClick}
-            disabled={!onReading || readingMarked}
-            aria-pressed={readingMarked}
-          >
-            {readingCount > 0
-              ? `${readingCount} 人在读`
-              : readingMarked
-                ? '在读中 ✓'
-                : '标记在读'}
-          </button>
-        )}
-      </footer>
+          <div className="feed-card-compact-row2">
+            <div className="feed-card-compact-content">{row2}</div>
+            <button
+              type="button"
+              className={`feed-card-compact-like${liked ? ' is-active' : ''}`}
+              onClick={onLikeClick}
+              disabled={!onLike}
+              aria-pressed={liked}
+              aria-label={liked ? '取消赞' : '赞'}
+            >
+              <span aria-hidden>{liked ? '♥' : '♡'}</span>
+              {likeCount > 0 ? <em>{likeCount}</em> : null}
+            </button>
+          </div>
+        </div>
+      </div>
     </article>
   );
 }
