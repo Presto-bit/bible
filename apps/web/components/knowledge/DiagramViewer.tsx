@@ -17,11 +17,11 @@ export function DiagramViewer({
   const hotspots = useMemo(() => diagram.hotspots ?? [], [diagram.hotspots]);
   const [step, setStep] = useState(0);
   const [activeHotspot, setActiveHotspot] = useState<string | null>(null);
-  const [src, setSrc] = useState('');
   const [loadErr, setLoadErr] = useState(false);
 
   const guidedMode = guided && hotspots.length > 0;
   const hotspot = hotspots.find((h) => h.id === activeHotspot);
+  const src = api.diagramFileUrl(diagram.id);
 
   useEffect(() => {
     if (!guidedMode) return;
@@ -35,30 +35,7 @@ export function DiagramViewer({
   }, [guidedMode, step, hotspots]);
 
   useEffect(() => {
-    let cancelled = false;
-    let objectUrl = '';
     setLoadErr(false);
-    setSrc('');
-
-    const url = api.diagramFileUrl(diagram.id);
-    void fetch(url, { cache: 'force-cache' })
-      .then((res) => {
-        if (!res.ok) throw new Error('diagram fetch failed');
-        return res.blob();
-      })
-      .then((blob) => {
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setSrc(objectUrl);
-      })
-      .catch(() => {
-        if (!cancelled) setLoadErr(true);
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
   }, [diagram.id]);
 
   return (
@@ -76,10 +53,13 @@ export function DiagramViewer({
       <div className="diagram-viewer-frame">
         {loadErr ? (
           <p className="muted diagram-viewer-placeholder">图鉴加载失败，请检查网络后重试</p>
-        ) : src ? (
-          <img src={src} alt={diagram.title} className="diagram-viewer-img" />
         ) : (
-          <p className="muted diagram-viewer-placeholder">加载中…</p>
+          <img
+            src={src}
+            alt={diagram.title}
+            className="diagram-viewer-img"
+            onError={() => setLoadErr(true)}
+          />
         )}
         {hotspots.map((h) => (
           <button

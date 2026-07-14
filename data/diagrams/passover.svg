@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 220" fill="none">
   <rect width="300" height="220" fill="#f5f0e8"/>
-  <text x="150" y="22" text-anchor="middle" font-size="12" fill="#5c5348" font-family="system-ui,sans-serif">>���c:	</text>
+  <text x="150" y="22" text-anchor="middle" font-size="12" fill="#5c5348" font-family="system-ui,sans-serif">逾越节门楣示意</text>
   <rect x="90" y="60" width="120" height="140" stroke="#8a7d6b" stroke-width="2" fill="#ebe4d6"/>
   <rect x="90" y="60" width="120" height="12" fill="#9e4a3a"/>
   <rect x="90" y="60" width="8" height="140" fill="#9e4a3a"/>
   <rect x="202" y="60" width="8" height="140" fill="#9e4a3a"/>
-  <text x="150" y="130" text-anchor="middle" font-size="10" fill="#5c5348" font-family="system-ui,sans-serif">�</text>
+  <text x="150" y="130" text-anchor="middle" font-size="10" fill="#5c5348" font-family="system-ui,sans-serif">门</text>
 </svg>

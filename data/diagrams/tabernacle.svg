@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 280" fill="none">
   <rect width="400" height="280" fill="#f5f0e8"/>
+  <text x="200" y="20" text-anchor="middle" font-size="13" fill="#5c5348" font-family="system-ui,sans-serif">会幕平面示意</text>
   <rect x="40" y="30" width="320" height="220" rx="4" stroke="#8a7d6b" stroke-width="2" fill="#ebe4d6"/>
-  <text x="200" y="20" text-anchor="middle" font-size="13" fill="#5c5348" font-family="system-ui,sans-serif">Usb�:	</text>
   <rect x="100" y="70" width="200" height="150" stroke="#6b7d8a" stroke-width="2" fill="#e8eef2"/>
   <rect x="140" y="70" width="120" height="55" stroke="#3d6b8e" stroke-width="2" fill="#d4e4ef"/>
-  <text x="200" y="102" text-anchor="middle" font-size="11" fill="#3d4a56" font-family="system-ui,sans-serif">�#@ � ��</text>
-  <text x="200" y="155" text-anchor="middle" font-size="11" fill="#3d4a56" font-family="system-ui,sans-serif">#@</text>
-  <text x="200" y="235" text-anchor="middle" font-size="11" fill="#5c5348" font-family="system-ui,sans-serif">b</text>
+  <text x="200" y="102" text-anchor="middle" font-size="11" fill="#3d4a56" font-family="system-ui,sans-serif">至圣所 · 约柜</text>
+  <text x="200" y="155" text-anchor="middle" font-size="11" fill="#3d4a56" font-family="system-ui,sans-serif">圣所</text>
+  <text x="200" y="235" text-anchor="middle" font-size="11" fill="#5c5348" font-family="system-ui,sans-serif">外院</text>
   <rect x="175" y="200" width="50" height="30" stroke="#8a7d6b" stroke-width="1.5" fill="#f0ebe0"/>
-  <text x="200" y="218" text-anchor="middle" font-size="9" fill="#6b6358" font-family="system-ui,sans-serif">m[</text>
+  <text x="200" y="218" text-anchor="middle" font-size="9" fill="#6b6358" font-family="system-ui,sans-serif">祭坛</text>
 </svg>

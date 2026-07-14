@@ -540,7 +540,7 @@ def diagram_file(diagram_id: str):
     p = loader.diagram_file_path(item.get("file") or "")
     if p is None:
         raise HTTPException(status_code=404, detail="图鉴文件缺失")
-    return FileResponse(p, media_type="image/svg+xml")
+    return FileResponse(p, media_type="image/svg+xml; charset=utf-8")
 
 
 # ── 首页 Hero B 运营位 ──
