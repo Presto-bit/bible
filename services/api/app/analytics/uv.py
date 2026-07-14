@@ -85,6 +85,19 @@ def _has_uv_v2(conn) -> bool:
     return bool(row)
 
 
+def _has_device_unique(conn) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1 FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND tablename = 'daily_active_visitors'
+          AND indexname = 'daily_active_visitors_date_device_uq'
+        LIMIT 1
+        """
+    ).fetchone()
+    return bool(row)
+
+
 def _lookup_bound_user_id(conn, device_fingerprint: str) -> str | None:
     row = conn.execute(
         """
@@ -142,11 +155,56 @@ def _upsert_uv_v2(
     )
 
 
+def _upsert_uv_by_visitor_key(
+    conn,
+    *,
+    fingerprint: str,
+    user_id: str | None,
+    legacy_key: str,
+) -> None:
+    """当 (visit_date, device_fingerprint) 唯一索引缺失时，退回旧 PK 幂等。"""
+    if _has_uv_v2(conn):
+        conn.execute(
+            f"""
+            INSERT INTO daily_active_visitors (
+              visit_date, device_fingerprint, user_id, visitor_key,
+              user_bound_at, updated_at
+            )
+            VALUES (
+              {CN_TODAY_SQL}, %s, %s, %s,
+              CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
+              now()
+            )
+            ON CONFLICT (visit_date, visitor_key)
+            DO UPDATE SET
+              device_fingerprint = COALESCE(
+                daily_active_visitors.device_fingerprint, EXCLUDED.device_fingerprint
+              ),
+              user_id = COALESCE(EXCLUDED.user_id, daily_active_visitors.user_id),
+              user_bound_at = COALESCE(
+                daily_active_visitors.user_bound_at,
+                CASE WHEN EXCLUDED.user_id IS NOT NULL THEN now() ELSE NULL END
+              ),
+              updated_at = now()
+            """,
+            (fingerprint, user_id, legacy_key, user_id),
+        )
+        return
+    conn.execute(
+        f"""
+        INSERT INTO daily_active_visitors (visit_date, visitor_key)
+        VALUES ({CN_TODAY_SQL}, %s)
+        ON CONFLICT (visit_date, visitor_key) DO NOTHING
+        """,
+        (legacy_key,),
+    )
+
+
 def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
     fingerprint = resolve_device_fingerprint(user_id=user_id, device_id=device_id)
     if not fingerprint:
         return
-    legacy_key = legacy_visitor_key(user_id=user_id, device_id=device_id) or fingerprint
+    legacy_key = legacy_visitor_key(user_id=user_id, device_id=device_id) or f"d:{fingerprint}"
     try:
         from ..db import get_pool
 
@@ -158,33 +216,37 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                     effective_user_id = _lookup_bound_user_id(conn, fingerprint)
                 if effective_user_id:
                     _ensure_users_row(conn, effective_user_id)
+
+                def _try_write(uid: str | None) -> None:
+                    key = legacy_visitor_key(user_id=uid, device_id=device_id) or f"d:{fingerprint}"
+                    if _has_device_unique(conn):
+                        _upsert_uv_v2(
+                            conn,
+                            fingerprint=fingerprint,
+                            user_id=uid,
+                            legacy_key=key,
+                        )
+                    else:
+                        _upsert_uv_by_visitor_key(
+                            conn,
+                            fingerprint=fingerprint,
+                            user_id=uid,
+                            legacy_key=key,
+                        )
+
                 try:
-                    _upsert_uv_v2(
-                        conn,
-                        fingerprint=fingerprint,
-                        user_id=effective_user_id,
-                        legacy_key=legacy_key,
-                    )
+                    _try_write(effective_user_id)
                     conn.commit()
                 except Exception as exc:
                     conn.rollback()
-                    if not effective_user_id:
-                        raise
-                    # FK / 约束异常时仍计设备 UV，避免「有登录却今日 UV=0」
-                    logger.warning(
-                        "UV 带 user_id 写入失败，降级为仅设备：%s", exc
-                    )
-                    device_legacy = (
-                        legacy_visitor_key(user_id=None, device_id=device_id)
-                        or fingerprint
-                    )
-                    _upsert_uv_v2(
-                        conn,
-                        fingerprint=fingerprint,
-                        user_id=None,
-                        legacy_key=device_legacy,
-                    )
-                    conn.commit()
+                    logger.warning("UV V2 写入失败，尝试降级：%s", exc)
+                    try:
+                        # 去掉 user_id 再试（规避 FK），再不行走 visitor_key 幂等
+                        _try_write(None)
+                        conn.commit()
+                    except Exception as exc2:
+                        conn.rollback()
+                        logger.warning("UV 降级写入仍失败（已忽略）：%s", exc2)
             else:
                 conn.execute(
                     f"""

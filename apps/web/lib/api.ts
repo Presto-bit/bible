@@ -100,9 +100,10 @@ export interface PrayerToday {
 }
 
 async function getJson<T>(path: string, headers?: Record<string, string>): Promise<T> {
+  // 默认带上设备/用户身份头，供服务端每日 UV 计数（否则 /bible、/content 会漏计）
   const res = await fetch(`${API_BASE}${path}`, {
     cache: 'no-store',
-    headers: headers ? { ...headers } : undefined,
+    headers: { ...authHeaders(), ...headers },
   });
   if (!res.ok) throw new Error(`请求失败 ${res.status}: ${path}`);
   return res.json() as Promise<T>;

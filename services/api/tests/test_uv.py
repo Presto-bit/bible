@@ -29,6 +29,10 @@ def test_resolve_device_fingerprint_user_only():
     assert resolve_device_fingerprint(user_id="u1", device_id=None) == "uid:u1"
 
 
+def test_resolve_device_fingerprint_ip_device():
+    assert resolve_device_fingerprint(user_id=None, device_id="ip:1.2.3.4") == "ip:1.2.3.4"
+
+
 def test_legacy_visitor_key_matches_visitor_key():
     assert legacy_visitor_key(user_id="u1", device_id="d1") == visitor_key(
         user_id="u1", device_id="d1"
@@ -39,6 +43,7 @@ def test_should_record_uv_skips_admin_and_health():
     assert should_record_uv("/health", "GET") is False
     assert should_record_uv("/admin/stats", "GET") is False
     assert should_record_uv("/content/daily-verse", "GET") is True
+    assert should_record_uv("/bible/books", "GET") is True
     assert should_record_uv("/bible/books", "OPTIONS") is False
 
 
