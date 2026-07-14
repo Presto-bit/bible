@@ -1,10 +1,13 @@
 """UV 统计 SQL 片段（V2 去重 + 看板指标）。"""
 from __future__ import annotations
 
+from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from .uv import UV_IDENTITY_SQL, uv_identity_sql
 
 UV_IDENTITY_A = uv_identity_sql("a")
 UV_IDENTITY_B = uv_identity_sql("b")
+
+_TODAY = f"visit_date = {CN_TODAY_SQL}"
 
 
 def uv_schema_v2(conn) -> bool:
@@ -20,7 +23,7 @@ def uv_schema_v2(conn) -> bool:
     return bool(row)
 
 
-def uv_deduped_count_sql(*, where: str = "visit_date = current_date") -> str:
+def uv_deduped_count_sql(*, where: str = _TODAY) -> str:
     return f"""
         SELECT count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
@@ -28,7 +31,7 @@ def uv_deduped_count_sql(*, where: str = "visit_date = current_date") -> str:
     """
 
 
-def uv_guest_rows_sql(*, where: str = "visit_date = current_date") -> str:
+def uv_guest_rows_sql(*, where: str = _TODAY) -> str:
     """纯游客 UV：无 user_id、也未绑定账号的设备（按身份去重）。"""
     return f"""
         SELECT count(DISTINCT {UV_IDENTITY_SQL})
@@ -42,14 +45,14 @@ def uv_guest_rows_sql(*, where: str = "visit_date = current_date") -> str:
     """
 
 
-def uv_login_rows_sql(*, where: str = "visit_date = current_date") -> str:
+def uv_login_rows_sql(*, where: str = _TODAY) -> str:
     return f"""
         SELECT count(*) FROM daily_active_visitors
         WHERE {where} AND user_id IS NOT NULL
     """
 
 
-def uv_login_users_sql(*, where: str = "visit_date = current_date") -> str:
+def uv_login_users_sql(*, where: str = _TODAY) -> str:
     """当日去重后归属到账号的 UV（含设备绑定）。"""
     return f"""
         SELECT count(DISTINCT {UV_IDENTITY_SQL})
@@ -65,14 +68,15 @@ def uv_login_users_sql(*, where: str = "visit_date = current_date") -> str:
     """
 
 
-def uv_converted_sql(*, where: str = "visit_date = current_date") -> str:
+def uv_converted_sql(*, where: str = _TODAY) -> str:
     """当日设备在当天绑定 user_id（游客→登录）。"""
+    bound_day = cn_day_sql("user_bound_at")
     return f"""
         SELECT count(*) FROM daily_active_visitors
         WHERE {where}
           AND user_id IS NOT NULL
           AND user_bound_at IS NOT NULL
-          AND user_bound_at::date = visit_date
+          AND {bound_day} = visit_date
     """
 
 
@@ -80,7 +84,7 @@ def uv_series_deduped_sql() -> str:
     return f"""
         SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
-        WHERE visit_date >= current_date - %s::int
+        WHERE visit_date >= {CN_TODAY_SQL} - %s::int
         GROUP BY visit_date
         ORDER BY visit_date
     """

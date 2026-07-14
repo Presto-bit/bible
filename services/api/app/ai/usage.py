@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 
 from ..db import get_pool
+from ..time_cn import CN_TODAY_SQL
 
 logger = logging.getLogger(__name__)
 
@@ -31,17 +32,17 @@ def _ensure_guest(conn, device_id: str) -> str:
 
 def _increment_usage(conn, guest_id: str, user_id: str | None = None) -> int:
     used = conn.execute(
-        "SELECT request_count FROM ai_usage_daily "
-        "WHERE guest_id = %s AND usage_date = CURRENT_DATE",
+        f"SELECT request_count FROM ai_usage_daily "
+        f"WHERE guest_id = %s AND usage_date = {CN_TODAY_SQL}",
         (guest_id,),
     ).fetchone()
     used = used[0] if used else 0
     conn.execute(
-        "INSERT INTO ai_usage_daily (guest_id, user_id, usage_date, request_count) "
-        "VALUES (%s, %s, CURRENT_DATE, 1) "
-        "ON CONFLICT (guest_id, usage_date) "
-        "DO UPDATE SET request_count = ai_usage_daily.request_count + 1, "
-        "user_id = COALESCE(EXCLUDED.user_id, ai_usage_daily.user_id)",
+        f"INSERT INTO ai_usage_daily (guest_id, user_id, usage_date, request_count) "
+        f"VALUES (%s, %s, {CN_TODAY_SQL}, 1) "
+        f"ON CONFLICT (guest_id, usage_date) "
+        f"DO UPDATE SET request_count = ai_usage_daily.request_count + 1, "
+        f"user_id = COALESCE(EXCLUDED.user_id, ai_usage_daily.user_id)",
         (guest_id, user_id),
     )
     return used + 1
@@ -76,8 +77,8 @@ def consume_quota(device_id: str | None, limit: int) -> tuple[bool, int, int]:
         with pool.connection() as conn:
             guest_id = _ensure_guest(conn, device_id)
             used = conn.execute(
-                "SELECT request_count FROM ai_usage_daily "
-                "WHERE guest_id = %s AND usage_date = CURRENT_DATE",
+                f"SELECT request_count FROM ai_usage_daily "
+                f"WHERE guest_id = %s AND usage_date = {CN_TODAY_SQL}",
                 (guest_id,),
             ).fetchone()
             used = used[0] if used else 0

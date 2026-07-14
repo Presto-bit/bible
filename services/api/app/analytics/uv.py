@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import logging
 
+from ..time_cn import CN_TODAY_SQL
+
 logger = logging.getLogger(__name__)
 
 _SKIP_PREFIXES = ("/health", "/admin", "/docs", "/openapi.json", "/redoc")
@@ -112,13 +114,13 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                 if not effective_user_id:
                     effective_user_id = _lookup_bound_user_id(conn, fingerprint)
                 conn.execute(
-                    """
+                    f"""
                     INSERT INTO daily_active_visitors (
                       visit_date, device_fingerprint, user_id, visitor_key,
                       user_bound_at, updated_at
                     )
                     VALUES (
-                      CURRENT_DATE, %s, %s, %s,
+                      {CN_TODAY_SQL}, %s, %s, %s,
                       CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
                       now()
                     )
@@ -139,9 +141,9 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                 )
             else:
                 conn.execute(
-                    """
+                    f"""
                     INSERT INTO daily_active_visitors (visit_date, visitor_key)
-                    VALUES (CURRENT_DATE, %s)
+                    VALUES ({CN_TODAY_SQL}, %s)
                     ON CONFLICT (visit_date, visitor_key) DO NOTHING
                     """,
                     (legacy_key,),

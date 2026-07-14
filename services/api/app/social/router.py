@@ -19,10 +19,20 @@ from ..auth.user_code import pick_user_code, uuid_for_code
 from ..config import get_settings
 from ..content import loader
 from ..db import get_pool
+from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from .moderation import ModerationError, moderate_text
 from . import task_ops
 
 logger = logging.getLogger(__name__)
+
+# 北京自然日（打卡「今日」）
+_CN_TODAY = CN_TODAY_SQL
+_CN_MSG_DAY = cn_day_sql("created_at")
+_CN_M_DAY = cn_day_sql("m.created_at")
+_CN_GM_DAY = cn_day_sql("gm.created_at")
+_CN_WEEK_START = (
+    f"(date_trunc('week', {CN_TODAY_SQL})::timestamp AT TIME ZONE 'Asia/Shanghai')"
+)
 
 router = APIRouter(prefix="/social", tags=["social"])
 
@@ -173,13 +183,13 @@ def _group_plan_progress(
 def _weekly_group_stats(conn, gid: str) -> dict:
     checkins = conn.execute(
         "SELECT count(*)::int FROM group_message WHERE group_id = %s "
-        "AND kind = 'checkin' AND created_at >= date_trunc('week', CURRENT_DATE)",
+        f"AND kind = 'checkin' AND created_at >= {_CN_WEEK_START}",
         (gid,),
     ).fetchone()[0]
     active_days = conn.execute(
-        "SELECT count(DISTINCT created_at::date)::int FROM group_message "
+        f"SELECT count(DISTINCT {_CN_MSG_DAY})::int FROM group_message "
         "WHERE group_id = %s AND kind IN ('checkin', 'task', 'system') "
-        "AND created_at >= date_trunc('week', CURRENT_DATE)",
+        f"AND created_at >= {_CN_WEEK_START}",
         (gid,),
     ).fetchone()[0]
     return {"weekly_checkins": checkins, "weekly_active_days": active_days}
@@ -193,14 +203,14 @@ def _maybe_milestone_all_checked(conn, gid: str, owner_id: str) -> None:
         return
     cc = conn.execute(
         "SELECT count(DISTINCT user_id)::int FROM group_message "
-        "WHERE group_id = %s AND kind = 'checkin' AND created_at::date = CURRENT_DATE",
+        f"WHERE group_id = %s AND kind = 'checkin' AND {_CN_MSG_DAY} = {_CN_TODAY}",
         (gid,),
     ).fetchone()[0]
     if cc < mc:
         return
     exists = conn.execute(
         "SELECT 1 FROM group_message WHERE group_id = %s AND kind = 'system' "
-        "AND created_at::date = CURRENT_DATE AND body LIKE %s",
+        f"AND {_CN_MSG_DAY} = {_CN_TODAY} AND body LIKE %s",
         (gid, "%全员打卡%"),
     ).fetchone()
     if exists:
@@ -531,7 +541,7 @@ def discover_summary(user_id: str = Depends(get_current_user)) -> dict:
         friends_checked_in_today = conn.execute(
             "SELECT count(DISTINCT m.user_id)::int FROM group_message m "
             "JOIN friendship f ON f.friend_id = m.user_id AND f.user_id = %s "
-            "WHERE m.kind = 'checkin' AND m.created_at::date = CURRENT_DATE",
+            f"WHERE m.kind = 'checkin' AND {_CN_M_DAY} = {_CN_TODAY}",
             (user_id,),
         ).fetchone()[0]
         first_pending_group_id = None
@@ -660,13 +670,13 @@ def _group_today_stats(conn, gid: str, user_id: str) -> dict:
     ).fetchone()[0]
     checked_today = conn.execute(
         "SELECT count(DISTINCT user_id)::int FROM group_message "
-        "WHERE group_id = %s AND kind = 'checkin' AND created_at::date = CURRENT_DATE",
+        f"WHERE group_id = %s AND kind = 'checkin' AND {_CN_MSG_DAY} = {_CN_TODAY}",
         (gid,),
     ).fetchone()[0]
     my_checked = conn.execute(
         "SELECT 1 FROM group_message "
         "WHERE group_id = %s AND user_id = %s AND kind = 'checkin' "
-        "AND created_at::date = CURRENT_DATE LIMIT 1",
+        f"AND {_CN_MSG_DAY} = {_CN_TODAY} LIMIT 1",
         (gid, user_id),
     ).fetchone() is not None
     open_tasks = conn.execute(
@@ -733,7 +743,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 "  EXISTS ("
                 "    SELECT 1 FROM group_message gm "
                 "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
-                "    AND gm.created_at::date = CURRENT_DATE"
+                f"    AND {_CN_GM_DAY} = {_CN_TODAY}"
                 "  ) AS checked_today, "
                 "  COALESCE(pp.day, 0) AS plan_day, "
                 "  up.avatar_id "
@@ -751,7 +761,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 "  EXISTS ("
                 "    SELECT 1 FROM group_message gm "
                 "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
-                "    AND gm.created_at::date = CURRENT_DATE"
+                f"    AND {_CN_GM_DAY} = {_CN_TODAY}"
                 "  ) AS checked_today, "
                 "  0 AS plan_day, "
                 "  up.avatar_id "
@@ -1387,7 +1397,7 @@ def nudge_group(gid: str, user_id: str = Depends(get_current_user)) -> dict:
             "AND NOT EXISTS ("
             "  SELECT 1 FROM group_message m WHERE m.group_id = %s "
             "  AND m.user_id = gm.user_id AND m.kind = 'checkin' "
-            "  AND m.created_at::date = CURRENT_DATE"
+            f"  AND {_CN_M_DAY} = {_CN_TODAY}"
             ")",
             (gid, gid),
         ).fetchone()[0]

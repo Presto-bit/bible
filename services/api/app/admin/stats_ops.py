@@ -262,12 +262,12 @@ def _count_active_users(conn, *, span_days: int = 7) -> tuple[int, str | None]:
     parts: list[str] = []
     if _table_exists(conn, "reading_log"):
         parts.append(
-            f"SELECT user_id FROM reading_log WHERE date >= current_date - {since}"
+            f"SELECT user_id FROM reading_log WHERE date >= (timezone('Asia/Shanghai', now()))::date - {since}"
         )
     if _table_exists(conn, "read_event"):
         parts.append(
             "SELECT user_id FROM read_event "
-            f"WHERE deleted = false AND updated_at >= current_date - {since}"
+            f"WHERE deleted = false AND updated_at >= (((timezone('Asia/Shanghai', now()))::date - {since})::timestamp AT TIME ZONE 'Asia/Shanghai')"
         )
     if parts:
         sql = f"SELECT count(DISTINCT user_id) FROM ({' UNION '.join(parts)}) t"
@@ -276,14 +276,14 @@ def _count_active_users(conn, *, span_days: int = 7) -> tuple[int, str | None]:
         if uv_schema_v2(conn):
             return _scalar(
                 conn,
-                uv_deduped_count_sql(where="visit_date >= current_date - %s"),
+                uv_deduped_count_sql(where="visit_date >= (timezone('Asia/Shanghai', now()))::date - %s"),
                 (since,),
             ), None
         return _scalar(
             conn,
             """
             SELECT count(DISTINCT visitor_key) FROM daily_active_visitors
-            WHERE visit_date >= current_date - %s AND visitor_key LIKE 'u:%%'
+            WHERE visit_date >= (timezone('Asia/Shanghai', now()))::date - %s AND visitor_key LIKE 'u:%%'
             """,
             (since,),
         ), "按 UV 登录用户估算（无 reading_log）"
@@ -301,13 +301,13 @@ def _count_dormant_users(conn, *, span_days: int = 30) -> tuple[int, str | None]
     if has_log:
         clauses.append(
             "NOT EXISTS (SELECT 1 FROM reading_log rl "
-            f"WHERE rl.user_id = u.id AND rl.date >= current_date - {since})"
+            f"WHERE rl.user_id = u.id AND rl.date >= (timezone('Asia/Shanghai', now()))::date - {since})"
         )
     if has_event:
         clauses.append(
             "NOT EXISTS (SELECT 1 FROM read_event re "
             "WHERE re.user_id = u.id AND re.deleted = false "
-            f"AND re.updated_at >= current_date - {since})"
+            f"AND re.updated_at >= (((timezone('Asia/Shanghai', now()))::date - {since})::timestamp AT TIME ZONE 'Asia/Shanghai'))"
         )
     sql = f"SELECT count(*) FROM users u WHERE {' AND '.join(clauses)}"
     hint = None if has_event else "未含 read_event，仅按 reading_log"
@@ -346,8 +346,8 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
     span = max(1, min(series_days, 90))
     pool = get_pool()
     with pool.connection() as conn:
-        uv_today = _uv_metrics(conn, where="visit_date = current_date")
-        uv_7d_where = "visit_date >= current_date - 6"
+        uv_today = _uv_metrics(conn, where="visit_date = (timezone('Asia/Shanghai', now()))::date")
+        uv_7d_where = "visit_date >= (timezone('Asia/Shanghai', now()))::date - 6"
         if uv_schema_v2(conn):
             uv_7d = _scalar(conn, uv_deduped_count_sql(where=uv_7d_where))
         else:
@@ -363,12 +363,12 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             "friendships": _scalar(conn, "SELECT count(*) FROM friendship"),
             "messages_today": _scalar(
                 conn,
-                "SELECT count(*) FROM group_message WHERE created_at >= current_date",
+                "SELECT count(*) FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "checkins_today": _scalar(
                 conn,
                 "SELECT count(*) FROM group_message "
-                "WHERE kind = 'checkin' AND created_at >= current_date",
+                "WHERE kind = 'checkin' AND created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "rag_documents": _scalar(conn, "SELECT count(*) FROM bible_documents"),
             "rag_chunks": _scalar(conn, "SELECT count(*) FROM bible_rag_chunks"),
@@ -381,12 +381,12 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             "ai_requests_today": _scalar(
                 conn,
                 "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date = current_date",
+                "WHERE usage_date = (timezone('Asia/Shanghai', now()))::date",
             ),
             "ai_requests_7d": _scalar(
                 conn,
                 "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date >= current_date - 6",
+                "WHERE usage_date >= (timezone('Asia/Shanghai', now()))::date - 6",
             ),
             "uv_today": uv_today["deduped"],
             "uv_today_guest": uv_today["guest_rows"],
@@ -398,49 +398,49 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
         dod = {
             "users_new": _dod(
                 conn,
-                "SELECT count(*) FROM users WHERE created_at >= current_date",
-                "SELECT count(*) FROM users WHERE created_at >= current_date - 1 "
-                "AND created_at < current_date",
+                "SELECT count(*) FROM users WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                "SELECT count(*) FROM users WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
+                "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "groups_new": _dod(
                 conn,
-                "SELECT count(*) FROM social_group WHERE created_at >= current_date",
-                "SELECT count(*) FROM social_group WHERE created_at >= current_date - 1 "
-                "AND created_at < current_date",
+                "SELECT count(*) FROM social_group WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                "SELECT count(*) FROM social_group WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
+                "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "friendships_new": _dod(
                 conn,
-                "SELECT count(*) FROM friendship WHERE created_at >= current_date",
-                "SELECT count(*) FROM friendship WHERE created_at >= current_date - 1 "
-                "AND created_at < current_date",
+                "SELECT count(*) FROM friendship WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                "SELECT count(*) FROM friendship WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
+                "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "messages_today": _dod(
                 conn,
-                "SELECT count(*) FROM group_message WHERE created_at >= current_date",
-                "SELECT count(*) FROM group_message WHERE created_at >= current_date - 1 "
-                "AND created_at < current_date",
+                "SELECT count(*) FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                "SELECT count(*) FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
+                "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "uv_today": _dod(
                 conn,
-                uv_deduped_count_sql(where="visit_date = current_date")
+                uv_deduped_count_sql(where="visit_date = (timezone('Asia/Shanghai', now()))::date")
                 if uv_schema_v2(conn)
-                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date",
-                uv_deduped_count_sql(where="visit_date = current_date - 1")
+                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = (timezone('Asia/Shanghai', now()))::date",
+                uv_deduped_count_sql(where="visit_date = (timezone('Asia/Shanghai', now()))::date - 1")
                 if uv_schema_v2(conn)
-                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = current_date - 1",
+                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = (timezone('Asia/Shanghai', now()))::date - 1",
             ),
             "ai_requests_today": _dod(
                 conn,
                 "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date = current_date",
+                "WHERE usage_date = (timezone('Asia/Shanghai', now()))::date",
                 "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date = current_date - 1",
+                "WHERE usage_date = (timezone('Asia/Shanghai', now()))::date - 1",
             ),
             "rag_documents_new": _dod(
                 conn,
-                "SELECT count(*) FROM bible_documents WHERE created_at >= current_date",
-                "SELECT count(*) FROM bible_documents WHERE created_at >= current_date - 1 "
-                "AND created_at < current_date",
+                "SELECT count(*) FROM bible_documents WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                "SELECT count(*) FROM bible_documents WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
+                "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
         }
         series = {
@@ -449,7 +449,7 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 """
                 SELECT usage_date::text, coalesce(sum(request_count), 0)
                 FROM ai_usage_daily
-                WHERE usage_date >= current_date - %s::int
+                WHERE usage_date >= (timezone('Asia/Shanghai', now()))::date - %s::int
                 GROUP BY usage_date ORDER BY usage_date
                 """,
                 span,
@@ -457,64 +457,64 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             "checkins": _date_series(
                 conn,
                 """
-                SELECT created_at::date::text, count(*)
+                SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
                 FROM group_message
-                WHERE kind = 'checkin' AND created_at >= current_date - %s::int
-                GROUP BY created_at::date ORDER BY created_at::date
+                WHERE kind = 'checkin' AND created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date
                 """,
                 span,
             ),
             "users": _date_series(
                 conn,
                 """
-                SELECT created_at::date::text, count(*)
-                FROM users WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date ORDER BY created_at::date
+                SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
+                FROM users WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date
                 """,
                 span,
             ),
             "groups": _date_series(
                 conn,
                 """
-                SELECT created_at::date::text, count(*)
-                FROM social_group WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date ORDER BY created_at::date
+                SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
+                FROM social_group WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date
                 """,
                 span,
             ),
             "group_members": _date_series(
                 conn,
                 """
-                SELECT joined_at::date::text, count(*)
-                FROM group_member WHERE joined_at >= current_date - %s::int
-                GROUP BY joined_at::date ORDER BY joined_at::date
+                SELECT (timezone('Asia/Shanghai', joined_at))::date::text, count(*)
+                FROM group_member WHERE joined_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', joined_at))::date ORDER BY (timezone('Asia/Shanghai', joined_at))::date
                 """,
                 span,
             ),
             "friendships": _date_series(
                 conn,
                 """
-                SELECT created_at::date::text, count(*)
-                FROM friendship WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date ORDER BY created_at::date
+                SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
+                FROM friendship WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date
                 """,
                 span,
             ),
             "messages": _date_series(
                 conn,
                 """
-                SELECT created_at::date::text, count(*)
-                FROM group_message WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date ORDER BY created_at::date
+                SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
+                FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date
                 """,
                 span,
             ),
             "rag_documents": _date_series(
                 conn,
                 """
-                SELECT created_at::date::text, count(*)
-                FROM bible_documents WHERE created_at >= current_date - %s::int
-                GROUP BY created_at::date ORDER BY created_at::date
+                SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*)
+                FROM bible_documents WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - %s::int)::timestamp AT TIME ZONE 'Asia/Shanghai')
+                GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date
                 """,
                 span,
             ),
@@ -525,7 +525,7 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 else """
                 SELECT visit_date::text, count(*)
                 FROM daily_active_visitors
-                WHERE visit_date >= current_date - %s::int
+                WHERE visit_date >= (timezone('Asia/Shanghai', now()))::date - %s::int
                 GROUP BY visit_date ORDER BY visit_date
                 """,
                 span,
@@ -537,24 +537,24 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
 def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
     sql_map = {
         "users": (
-            "SELECT created_at::date::text, count(*) FROM users "
-            "WHERE created_at::date BETWEEN %s AND %s "
-            "GROUP BY created_at::date ORDER BY created_at::date"
+            "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM users "
+            "WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
+            "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
         ),
         "groups": (
-            "SELECT created_at::date::text, count(*) FROM social_group "
-            "WHERE created_at::date BETWEEN %s AND %s "
-            "GROUP BY created_at::date ORDER BY created_at::date"
+            "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM social_group "
+            "WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
+            "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
         ),
         "friendships": (
-            "SELECT created_at::date::text, count(*) FROM friendship "
-            "WHERE created_at::date BETWEEN %s AND %s "
-            "GROUP BY created_at::date ORDER BY created_at::date"
+            "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM friendship "
+            "WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
+            "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
         ),
         "messages": (
-            "SELECT created_at::date::text, count(*) FROM group_message "
-            "WHERE created_at::date BETWEEN %s AND %s "
-            "GROUP BY created_at::date ORDER BY created_at::date"
+            "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM group_message "
+            "WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
+            "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
         ),
         "uv": (
             f"SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL}) "
@@ -574,9 +574,9 @@ def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
             "GROUP BY usage_date ORDER BY usage_date"
         ),
         "rag_documents": (
-            "SELECT created_at::date::text, count(*) FROM bible_documents "
-            "WHERE created_at::date BETWEEN %s AND %s "
-            "GROUP BY created_at::date ORDER BY created_at::date"
+            "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM bible_documents "
+            "WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
+            "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
         ),
     }
     sql = sql_map.get(metric)
@@ -681,7 +681,7 @@ def fetch_admin_stats_detail(
                        (a.user_code IS NOT NULL)
                 FROM users u
                 {_USER_JOINS}
-                WHERE u.created_at::date BETWEEN %s AND %s
+                WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
                 ORDER BY u.created_at DESC
                 LIMIT %s
                 """,
@@ -718,7 +718,7 @@ def fetch_admin_stats_detail(
                 SELECT g.name,
                        max({creator_sql}) AS creator_name,
                        count(*) FILTER (WHERE m.kind = 'checkin'
-                         AND m.created_at::date = current_date) AS checkins_today,
+                         AND (timezone('Asia/Shanghai', m.created_at))::date = (timezone('Asia/Shanghai', now()))::date) AS checkins_today,
                        (SELECT count(*) FROM group_member gm WHERE gm.group_id = g.id) AS members
                 FROM social_group g
                 {_OWNER_JOINS}
@@ -747,7 +747,7 @@ def fetch_admin_stats_detail(
                 FROM social_group g
                 {_OWNER_JOINS}
                 JOIN group_message m ON m.group_id = g.id
-                WHERE m.created_at::date BETWEEN %s AND %s
+                WHERE (timezone('Asia/Shanghai', m.created_at))::date BETWEEN %s AND %s
                 GROUP BY g.id, g.name
                 ORDER BY msg_count DESC
                 LIMIT %s
@@ -768,7 +768,7 @@ def fetch_admin_stats_detail(
                 {_OWNER_JOINS}
                 LEFT JOIN group_message m ON m.group_id = g.id
                 GROUP BY g.id, g.name
-                HAVING coalesce(max(m.created_at), g.created_at) < current_date - 29
+                HAVING coalesce(max(m.created_at), g.created_at) < (((timezone('Asia/Shanghai', now()))::date - 29)::timestamp AT TIME ZONE 'Asia/Shanghai')
                     OR (SELECT count(*) FROM group_member gm WHERE gm.group_id = g.id) = 0
                 ORDER BY members ASC, g.created_at ASC
                 LIMIT %s
@@ -792,7 +792,7 @@ def fetch_admin_stats_detail(
                        {_ts_sql("g.created_at")}
                 FROM social_group g
                 {_OWNER_JOINS}
-                WHERE g.created_at::date BETWEEN %s AND %s
+                WHERE (timezone('Asia/Shanghai', g.created_at))::date BETWEEN %s AND %s
                 GROUP BY g.id, g.name, g.created_at
                 ORDER BY g.created_at DESC
                 LIMIT %s
@@ -904,7 +904,7 @@ def fetch_admin_stats_detail(
                 LEFT JOIN accounts a2 ON a2.user_id = f.friend_id
                 LEFT JOIN user_profile up2 ON up2.user_id = f.friend_id
                 LEFT JOIN users u2 ON u2.id = f.friend_id
-                WHERE f.created_at::date BETWEEN %s AND %s
+                WHERE (timezone('Asia/Shanghai', f.created_at))::date BETWEEN %s AND %s
                 ORDER BY f.created_at DESC
                 LIMIT %s
                 """,
@@ -945,19 +945,19 @@ def fetch_admin_stats_detail(
         elif metric == "messages":
             total_in_range = _scalar(
                 conn,
-                "SELECT count(*) FROM group_message WHERE created_at::date BETWEEN %s AND %s",
+                "SELECT count(*) FROM group_message WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s",
                 (start, end),
             )
             checkins = _scalar(
                 conn,
                 "SELECT count(*) FROM group_message WHERE kind = 'checkin' "
-                "AND created_at::date BETWEEN %s AND %s",
+                "AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s",
                 (start, end),
             )
             tasks = _scalar(
                 conn,
                 "SELECT count(*) FROM group_message WHERE kind = 'task' "
-                "AND created_at::date BETWEEN %s AND %s",
+                "AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s",
                 (start, end),
             )
             checkin_pct = round(checkins / total_in_range * 100, 1) if total_in_range else 0
@@ -973,7 +973,7 @@ def fetch_admin_stats_detail(
                        count(*) FILTER (WHERE m.kind = 'task') AS tasks
                 FROM group_message m
                 JOIN social_group g ON g.id = m.group_id
-                WHERE m.created_at::date BETWEEN %s AND %s
+                WHERE (timezone('Asia/Shanghai', m.created_at))::date BETWEEN %s AND %s
                 GROUP BY g.id, g.name
                 ORDER BY total DESC
                 LIMIT %s
@@ -988,7 +988,7 @@ def fetch_admin_stats_detail(
                 """
                 SELECT extract(hour from created_at)::int AS hour, count(*) AS cnt
                 FROM group_message
-                WHERE created_at::date BETWEEN %s AND %s
+                WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
                 GROUP BY hour ORDER BY hour
                 """,
                 (start, end),
@@ -999,7 +999,7 @@ def fetch_admin_stats_detail(
                 SELECT g.name, m.kind, m.ref, {_ts_sql("m.created_at")}
                 FROM group_message m
                 JOIN social_group g ON g.id = m.group_id
-                WHERE m.created_at::date BETWEEN %s AND %s
+                WHERE (timezone('Asia/Shanghai', m.created_at))::date BETWEEN %s AND %s
                 ORDER BY m.created_at DESC
                 LIMIT %s
                 """,
@@ -1258,13 +1258,13 @@ def fetch_admin_stats_detail(
             if has_log:
                 total_req = _scalar(
                     conn,
-                    "SELECT count(*) FROM ai_request_log WHERE created_at::date BETWEEN %s AND %s",
+                    "SELECT count(*) FROM ai_request_log WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s",
                     (start, end),
                 )
                 ok_cnt = _scalar(
                     conn,
                     "SELECT count(*) FROM ai_request_log WHERE status = 'ok' "
-                    "AND created_at::date BETWEEN %s AND %s",
+                    "AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s",
                     (start, end),
                 )
                 err_cnt = total_req - ok_cnt
@@ -1278,7 +1278,7 @@ def fetch_admin_stats_detail(
                     """
                     SELECT coalesce(scene, 'unknown') AS scene, count(*) AS cnt
                     FROM ai_request_log
-                    WHERE created_at::date BETWEEN %s AND %s
+                    WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
                     GROUP BY scene ORDER BY cnt DESC LIMIT 12
                     """,
                     (start, end),
@@ -1288,7 +1288,7 @@ def fetch_admin_stats_detail(
                     """
                     SELECT extract(hour from created_at)::int AS hour, count(*) AS cnt
                     FROM ai_request_log
-                    WHERE created_at::date BETWEEN %s AND %s
+                    WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
                     GROUP BY hour ORDER BY hour
                     """,
                     (start, end),
@@ -1306,7 +1306,7 @@ def fetch_admin_stats_detail(
                     LEFT JOIN accounts ac ON ac.user_id = l.user_id
                     LEFT JOIN user_profile up ON up.user_id = l.user_id
                     LEFT JOIN users u ON u.id = l.user_id
-                    WHERE l.created_at::date BETWEEN %s AND %s
+                    WHERE l.(timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
                     GROUP BY l.user_id
                     ORDER BY cnt DESC
                     LIMIT 10
@@ -1325,7 +1325,7 @@ def fetch_admin_stats_detail(
                     f"""
                     SELECT coalesce(scene, '—'), mode, surface, status, {_ts_sql("created_at")}
                     FROM ai_request_log
-                    WHERE created_at::date BETWEEN %s AND %s
+                    WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
                     ORDER BY created_at DESC
                     LIMIT %s
                     """,

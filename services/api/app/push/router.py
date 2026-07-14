@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel
@@ -12,6 +11,7 @@ from ..auth.session import get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from ..social.router import push_digest
+from ..time_cn import china_now
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/push", tags=["push"])
@@ -146,10 +146,10 @@ def cron_tick(
     s = get_settings()
     if not s.push_cron_secret or x_cron_secret != s.push_cron_secret:
         raise HTTPException(403, "无效 cron 密钥")
-    now = datetime.now(timezone.utc)
-    # 默认按 UTC+8 本地钟面（中国用户）；后续可扩展 user timezone
-    local_h = (now.hour + 8) % 24
-    local_m = now.minute
+    # 默认按北京时间本地钟面（中国用户）；后续可扩展 user timezone
+    local = china_now()
+    local_h = local.hour
+    local_m = local.minute
     pool = get_pool()
     with pool.connection() as conn:
         rows = conn.execute(
