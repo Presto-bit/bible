@@ -25,6 +25,57 @@ ENV_FILE=".env.production"
 log() { echo "[$(date +'%F %T')] $*"; }
 die() { echo "❌ $*" >&2; exit 1; }
 
+# 允许的跳转目标主机（与 PUBLIC_WEB_URL / 本机一致）；其它外域 Location 视为劫持
+WEB_HIJACK_DENY_RE='rebirthstress|stresser|booter|register\?ref='
+
+# 检查 URL 响应头：禁止外域劫持跳转；允许同域跳转或无 Location 的成功响应
+assert_web_not_hijacked() {
+  local url="$1"
+  local label="${2:-$url}"
+  local headers code loc host allow_host
+  headers="$(curl -sSI --connect-timeout 5 --max-time 15 --max-redirs 0 "$url" 2>/dev/null || true)"
+  if [[ -z "$headers" ]]; then
+    die "劫持检查失败：无法访问 $label（连接失败，Web 可能未就绪）"
+  fi
+  code="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'toupper($1) ~ /^HTTP\//{print $2; exit}')"
+  loc="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="location:"{print $2; exit}')"
+
+  if printf '%s\n' "$headers"$'\n'"$loc" | grep -qiE "$WEB_HIJACK_DENY_RE"; then
+    die "检测到 Web 劫持跳转：$label → ${loc:-?}（请重建 web 镜像并检查服务器是否被控）"
+  fi
+
+  if [[ -n "$loc" ]]; then
+    # 相对路径跳转视为同站
+    if [[ "$loc" == /* ]]; then
+      :
+    else
+      host="$(printf '%s' "$loc" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://([^/]+).*#\1#' | tr '[:upper:]' '[:lower:]')"
+      allow_host=""
+      if [[ -n "${PUBLIC_WEB_URL_HOST:-}" ]]; then
+        allow_host="$PUBLIC_WEB_URL_HOST"
+      fi
+      case "$host" in
+        localhost|127.0.0.1|"$allow_host"|"www.$allow_host") ;;
+        *)
+          die "Web 跳转到未知外域：$label → $loc（禁止发布）"
+          ;;
+      esac
+    fi
+  fi
+
+  # 不跟随跳转：本机页应直接 200/304；若仍是 3xx 且上面未放行则已 die
+  if [[ "$code" == "301" || "$code" == "302" || "$code" == "303" || "$code" == "307" || "$code" == "308" ]]; then
+    if [[ -z "$loc" ]]; then
+      die "Web 返回 $code 但无 Location：$label"
+    fi
+    log "  ✓ $label HTTP $code → $loc（同域，已放行）"
+  elif [[ "$code" != "200" && "$code" != "304" ]]; then
+    die "Web 劫持检查异常：$label HTTP ${code:-?}（期望 200）"
+  else
+    log "  ✓ $label HTTP $code（无外域跳转）"
+  fi
+}
+
 # root / 其它用户：自动 sudo 到 presto，进入仓库并拉代码后发版（等价于原 one-liner）
 if [[ "${RELEASE_BOOTSTRAPPED:-0}" != "1" && "$(id -un)" != "$DEPLOY_USER" ]]; then
   id -u "$DEPLOY_USER" &>/dev/null || die "发版用户不存在: $DEPLOY_USER"
@@ -139,14 +190,26 @@ if [[ "$social_code" != "200" && "$social_code" != "000" ]]; then
   log "⚠️  社交 API 返回 HTTP $social_code（期望 200）"
 fi
 
-log "健康检查 Web /"
+pub_url=""
+PUBLIC_WEB_URL_HOST=""
+if grep -qE '^PUBLIC_WEB_URL=' "$ENV_FILE" 2>/dev/null; then
+  pub_url="$(grep -E '^PUBLIC_WEB_URL=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ' \"\047')"
+  PUBLIC_WEB_URL_HOST="$(printf '%s' "${pub_url}" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://([^/]+).*#\1#' | tr '[:upper:]' '[:lower:]')"
+fi
+PUBLIC_WEB_URL_HOST="${PUBLIC_WEB_URL_HOST:-2sc.prestoai.cn}"
+export PUBLIC_WEB_URL_HOST
+
+log "健康检查 Web /（不跟随外域跳转）"
 web_ok=0
-for i in $(seq 1 30); do
-  if curl -fsS --connect-timeout 3 --max-time 15 -o /dev/null "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null; then
+for i in $(seq 1 40); do
+  # --max-redirs 0：避免劫持 307 后目标站 200 被误判为健康
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 3 --max-time 15 --max-redirs 0 \
+    "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null || echo "000")"
+  if [[ "$code" == "200" || "$code" == "304" ]]; then
     web_ok=1
     break
   fi
-  log "Web / 未就绪 (${i}/30)…"
+  log "Web / 未就绪 code=${code} (${i}/40)…"
   sleep 3
 done
 if [[ "$web_ok" -ne 1 ]]; then
@@ -154,20 +217,21 @@ if [[ "$web_ok" -ne 1 ]]; then
   die "Web 健康检查失败"
 fi
 
+log "劫持检查：本机 Web 禁止外域跳转"
+assert_web_not_hijacked "http://127.0.0.1:${WEB_HOST_PORT}/" "本机 /"
+assert_web_not_hijacked "http://127.0.0.1:${WEB_HOST_PORT}/login" "本机 /login"
+
 log "健康检查 Web 静态资源（CSS）"
-css_path="$(curl -fsS --connect-timeout 3 --max-time 15 "http://127.0.0.1:${WEB_HOST_PORT}/" \
+css_path="$(curl -fsS --connect-timeout 3 --max-time 15 --max-redirs 0 "http://127.0.0.1:${WEB_HOST_PORT}/" \
   | grep -oE '/_next/static/css/[^" ]+\.css' | head -1 || true)"
-if [[ -z "$css_path" ]] || ! curl -fsS --connect-timeout 3 --max-time 15 -o /dev/null \
+if [[ -z "$css_path" ]] || ! curl -fsS --connect-timeout 3 --max-time 15 --max-redirs 0 -o /dev/null \
   "http://127.0.0.1:${WEB_HOST_PORT}${css_path}" 2>/dev/null; then
   die "Web 静态资源不可访问（CSS 404）。请执行: docker compose -f $COMPOSE_FILE --env-file $ENV_FILE build --no-cache web && ... up -d web"
 fi
+assert_web_not_hijacked "http://127.0.0.1:${WEB_HOST_PORT}${css_path}" "本机 CSS"
 
-pub_url=""
-if grep -qE '^PUBLIC_WEB_URL=' "$ENV_FILE" 2>/dev/null; then
-  pub_url="$(grep -E '^PUBLIC_WEB_URL=' "$ENV_FILE" | tail -1 | cut -d= -f2- | tr -d ' \"\047')"
-fi
 if [[ -n "$pub_url" && -n "$css_path" ]]; then
-  pub_code="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 20 \
+  pub_code="$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 --max-time 20 --max-redirs 0 \
     "${pub_url%/}${css_path}" 2>/dev/null || echo "000")"
   if [[ "$pub_code" != "200" ]]; then
     log "⚠️  本机 ${WEB_HOST_PORT} CSS 正常，但公网 ${pub_url}${css_path} 返回 HTTP ${pub_code}"
@@ -183,9 +247,12 @@ for svc in postgres api web; do
 done
 
 # 首页 HTML 须为新版本（旧版含假数据「3,842 人点赞」）
-home_html="$(curl -fsS "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null || true)"
+home_html="$(curl -fsS --max-redirs 0 "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null || true)"
 if [[ -z "$home_html" ]]; then
   die "无法拉取首页 HTML"
+fi
+if echo "$home_html" | grep -qiE "$WEB_HIJACK_DENY_RE"; then
+  die "首页 HTML 含劫持特征串，请勿上线"
 fi
 if echo "$home_html" | grep -q '3,842'; then
   die "首页仍是旧版（含 3,842 假点赞），请 docker compose build --no-cache web 后重试"
@@ -198,9 +265,16 @@ if ! echo "$home_html" | grep -q "$NEXT_PUBLIC_APP_VERSION"; then
 fi
 
 if [[ -n "$pub_url" ]]; then
-  pub_home="$(curl -fsS --connect-timeout 5 --max-time 20 "${pub_url%/}/" 2>/dev/null || true)"
-  pub_home_bust="$(curl -fsS --connect-timeout 5 --max-time 20 "${pub_url%/}/?_nc=$(date +%s)" 2>/dev/null || true)"
+  log "劫持检查：公网 Web"
+  assert_web_not_hijacked "${pub_url%/}/" "公网 /"
+  assert_web_not_hijacked "${pub_url%/}/login" "公网 /login"
+
+  pub_home="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 "${pub_url%/}/" 2>/dev/null || true)"
+  pub_home_bust="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 "${pub_url%/}/?_nc=$(date +%s)" 2>/dev/null || true)"
   if [[ -n "$pub_home" ]]; then
+    if echo "$pub_home" | grep -qiE "$WEB_HIJACK_DENY_RE"; then
+      die "公网首页 HTML 含劫持特征串"
+    fi
     if echo "$pub_home" | grep -q '3,842'; then
       log "⚠️  公网 / 仍是旧版（含 3,842）"
       if [[ -n "$pub_home_bust" ]] && ! echo "$pub_home_bust" | grep -q '3,842'; then
