@@ -371,6 +371,7 @@ body.reader-immersive .tabbar {
   display: flex;
   gap: 8px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 4px 0 10px;
   margin-top: 10px;
   -webkit-overflow-scrolling: touch;
@@ -4178,6 +4179,8 @@ button.hero-b-campaign {
   display: flex;
   gap: 10px;
   overflow-x: auto;
+  /* 仅横向滚动：若 overflow-y 也是 auto，PC 滚轮悬停横滑区会被吃掉、整页无法下滑 */
+  overflow-y: hidden;
   flex-wrap: nowrap;
   padding: 6px 4px 4px;
   scroll-snap-type: x mandatory;
@@ -5163,6 +5166,7 @@ body.pwa-standalone .profile-page .profile-soft-row.card {
   display: flex;
   gap: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   margin-top: 10px;
   padding-bottom: 4px;
 }
@@ -5535,6 +5539,7 @@ body.assistant-active .assistant-page {
   display: flex;
   gap: 6px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 2px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
@@ -6208,6 +6213,7 @@ body.verse-full-open .tabbar {
   flex-direction: row;
   gap: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 4px;
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
@@ -13056,6 +13062,7 @@ a.license-row-name:hover {
   display: flex;
   gap: 10px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding: 4px 2px 8px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
