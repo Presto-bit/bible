@@ -6,6 +6,7 @@ from datetime import date, timedelta
 from fastapi import HTTPException
 
 from ..db import get_pool
+from ..time_cn import china_today
 from ..analytics.uv import UV_IDENTITY_SQL, uv_identity_sql
 from ..analytics.uv_stats import (
     UV_IDENTITY_A,
@@ -346,8 +347,15 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
     span = max(1, min(series_days, 90))
     pool = get_pool()
     with pool.connection() as conn:
-        uv_today = _uv_metrics(conn, where="visit_date = (timezone('Asia/Shanghai', now()))::date")
-        uv_7d_where = "visit_date >= (timezone('Asia/Shanghai', now()))::date - 6"
+        # 与写入侧共用 Python 北京日期，避免仅 SQL timezone 表达式读写错位
+        cn_today = china_today().isoformat()
+        uv_today_where = f"visit_date = DATE '{cn_today}'"
+        uv_today = _uv_metrics(conn, where=uv_today_where)
+        uv_today_raw = _scalar(
+            conn,
+            f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where}",
+        )
+        uv_7d_where = f"visit_date >= DATE '{cn_today}' - 6"
         if uv_schema_v2(conn):
             uv_7d = _scalar(conn, uv_deduped_count_sql(where=uv_7d_where))
         else:
@@ -389,6 +397,7 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 "WHERE usage_date >= (timezone('Asia/Shanghai', now()))::date - 6",
             ),
             "uv_today": uv_today["deduped"],
+            "uv_today_raw": uv_today_raw,
             "uv_today_guest": uv_today["guest_rows"],
             "uv_today_login": uv_today["login_users"],
             "uv_login_visits": uv_today["login_rows"],
@@ -422,12 +431,12 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             ),
             "uv_today": _dod(
                 conn,
-                uv_deduped_count_sql(where="visit_date = (timezone('Asia/Shanghai', now()))::date")
+                uv_deduped_count_sql(where=uv_today_where)
                 if uv_schema_v2(conn)
-                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = (timezone('Asia/Shanghai', now()))::date",
-                uv_deduped_count_sql(where="visit_date = (timezone('Asia/Shanghai', now()))::date - 1")
+                else f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where}",
+                uv_deduped_count_sql(where=f"visit_date = DATE '{cn_today}' - 1")
                 if uv_schema_v2(conn)
-                else "SELECT count(*) FROM daily_active_visitors WHERE visit_date = (timezone('Asia/Shanghai', now()))::date - 1",
+                else f"SELECT count(*) FROM daily_active_visitors WHERE visit_date = DATE '{cn_today}' - 1",
             ),
             "ai_requests_today": _dod(
                 conn,

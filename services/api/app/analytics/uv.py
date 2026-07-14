@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from ..time_cn import CN_TODAY_SQL
+from ..time_cn import china_today
 
 logger = logging.getLogger(__name__)
 
@@ -99,42 +99,59 @@ def _has_device_unique(conn) -> bool:
 
 
 def _lookup_bound_user_id(conn, device_fingerprint: str) -> str | None:
-    row = conn.execute(
-        """
-        SELECT ac.user_id::text
-        FROM device_user_bindings dub
-        JOIN accounts ac ON ac.user_code = dub.user_code
-        WHERE dub.device_fingerprint = %s
-        LIMIT 1
-        """,
-        (device_fingerprint,),
-    ).fetchone()
-    return row[0] if row else None
+    try:
+        row = conn.execute(
+            """
+            SELECT ac.user_id::text
+            FROM device_user_bindings dub
+            JOIN accounts ac ON ac.user_code = dub.user_code
+            WHERE dub.device_fingerprint = %s
+            LIMIT 1
+            """,
+            (device_fingerprint,),
+        ).fetchone()
+        return row[0] if row else None
+    except Exception as exc:
+        # 绑表缺失/异常时不影响 UV 主路径
+        logger.warning("UV 设备绑定查询失败（已忽略）：%s", exc)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
 
 
 def _ensure_users_row(conn, user_id: str) -> None:
     """UV 表 user_id 有 FK → users(id)；中间件不走 resolve_user_id，须自行补行。"""
-    conn.execute(
-        "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
-        (user_id,),
-    )
+    try:
+        conn.execute(
+            "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
+            (user_id,),
+        )
+    except Exception as exc:
+        logger.warning("UV 补 users 行失败（已忽略）：%s", exc)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
 
 
 def _upsert_uv_v2(
     conn,
     *,
+    visit_day,
     fingerprint: str,
     user_id: str | None,
     legacy_key: str,
 ) -> None:
     conn.execute(
-        f"""
+        """
         INSERT INTO daily_active_visitors (
           visit_date, device_fingerprint, user_id, visitor_key,
           user_bound_at, updated_at
         )
         VALUES (
-          {CN_TODAY_SQL}, %s, %s, %s,
+          %s, %s, %s, %s,
           CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
           now()
         )
@@ -151,13 +168,14 @@ def _upsert_uv_v2(
           END,
           updated_at = now()
         """,
-        (fingerprint, user_id, legacy_key, user_id),
+        (visit_day, fingerprint, user_id, legacy_key, user_id),
     )
 
 
 def _upsert_uv_by_visitor_key(
     conn,
     *,
+    visit_day,
     fingerprint: str,
     user_id: str | None,
     legacy_key: str,
@@ -165,13 +183,13 @@ def _upsert_uv_by_visitor_key(
     """当 (visit_date, device_fingerprint) 唯一索引缺失时，退回旧 PK 幂等。"""
     if _has_uv_v2(conn):
         conn.execute(
-            f"""
+            """
             INSERT INTO daily_active_visitors (
               visit_date, device_fingerprint, user_id, visitor_key,
               user_bound_at, updated_at
             )
             VALUES (
-              {CN_TODAY_SQL}, %s, %s, %s,
+              %s, %s, %s, %s,
               CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
               now()
             )
@@ -187,16 +205,16 @@ def _upsert_uv_by_visitor_key(
               ),
               updated_at = now()
             """,
-            (fingerprint, user_id, legacy_key, user_id),
+            (visit_day, fingerprint, user_id, legacy_key, user_id),
         )
         return
     conn.execute(
-        f"""
+        """
         INSERT INTO daily_active_visitors (visit_date, visitor_key)
-        VALUES ({CN_TODAY_SQL}, %s)
+        VALUES (%s, %s)
         ON CONFLICT (visit_date, visitor_key) DO NOTHING
         """,
-        (legacy_key,),
+        (visit_day, legacy_key),
     )
 
 
@@ -204,6 +222,8 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
     fingerprint = resolve_device_fingerprint(user_id=user_id, device_id=device_id)
     if not fingerprint:
         return
+    # 业务日用 Python 北京日期绑定，避免依赖 PG timezone 数据 / session TZ
+    visit_day = china_today()
     legacy_key = legacy_visitor_key(user_id=user_id, device_id=device_id) or f"d:{fingerprint}"
     try:
         from ..db import get_pool
@@ -222,6 +242,7 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                     if _has_device_unique(conn):
                         _upsert_uv_v2(
                             conn,
+                            visit_day=visit_day,
                             fingerprint=fingerprint,
                             user_id=uid,
                             legacy_key=key,
@@ -229,6 +250,7 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                     else:
                         _upsert_uv_by_visitor_key(
                             conn,
+                            visit_day=visit_day,
                             fingerprint=fingerprint,
                             user_id=uid,
                             legacy_key=key,
@@ -241,7 +263,6 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                     conn.rollback()
                     logger.warning("UV V2 写入失败，尝试降级：%s", exc)
                     try:
-                        # 去掉 user_id 再试（规避 FK），再不行走 visitor_key 幂等
                         _try_write(None)
                         conn.commit()
                     except Exception as exc2:
@@ -249,12 +270,12 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> None:
                         logger.warning("UV 降级写入仍失败（已忽略）：%s", exc2)
             else:
                 conn.execute(
-                    f"""
+                    """
                     INSERT INTO daily_active_visitors (visit_date, visitor_key)
-                    VALUES ({CN_TODAY_SQL}, %s)
+                    VALUES (%s, %s)
                     ON CONFLICT (visit_date, visitor_key) DO NOTHING
                     """,
-                    (legacy_key,),
+                    (visit_day, legacy_key),
                 )
                 conn.commit()
     except Exception as exc:

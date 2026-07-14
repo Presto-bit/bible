@@ -264,6 +264,8 @@ export type AdminStatsTotals = {
   ai_requests_today: number;
   ai_requests_7d: number;
   uv_today: number;
+  /** 今日未去重行数，用于区分「没写入」与「去重后为 0」 */
+  uv_today_raw?: number;
   uv_today_guest: number;
   uv_today_login: number;
   uv_login_visits: number;

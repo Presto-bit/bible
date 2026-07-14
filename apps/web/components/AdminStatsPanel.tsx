@@ -26,7 +26,9 @@ const METRICS: MetricDef[] = [
     key: 'uv',
     label: '今日 UV',
     total: (t) => t.uv_today,
-    hint: (t) => `游客 ${t.uv_today_guest ?? 0} · 登录 ${t.uv_today_login ?? 0}`,
+    hint: (t) =>
+      `游客 ${t.uv_today_guest ?? 0} · 登录 ${t.uv_today_login ?? 0}`
+      + (t.uv_today_raw != null ? ` · 行 ${t.uv_today_raw}` : ''),
     dodKey: 'uv_today',
     dodLabel: '较昨日',
     seriesKey: 'uv',
