@@ -1,6 +1,5 @@
 /** 离线经包：下载 zip → 校验 → 解压 → IndexedDB 持久化（CNV / CUVS / KJV）。 */
 
-import { unzipSync } from 'fflate';
 import { idbDelete, idbGet, idbGetBundle, idbSet, idbSetBundle } from './offline_idb';
 import {
   bundleIdbKey,
@@ -10,6 +9,7 @@ import {
 } from './offline_catalog';
 
 import { withBasePath } from './basePath';
+import { unzipOfflineZip } from './offline_unzip';
 
 export const OFFLINE_CNV_KEY = 'bible_cnv_sqlite_v1';
 export const OFFLINE_CUVS_KEY = 'bible_cuvs_sqlite_v1';
@@ -197,7 +197,10 @@ export async function downloadOfflineItem(
   const zipBuf = await fetchOfflineZip(manifest);
 
   onProgress?.({ phase: 'extract', percent: 45, message: '解压…' });
-  const files = unzipSync(new Uint8Array(zipBuf));
+  const files = await unzipOfflineZip(
+    zipBuf,
+    manifestFiles.map((f) => f.path),
+  );
   const bundle: Record<string, ArrayBuffer> = {};
   const fileHashes: Record<string, string> = {};
   let totalBytes = 0;

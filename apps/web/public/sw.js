@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v14';
+const CACHE = 'presto-bible-v15';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -35,6 +35,17 @@ const DAILY_WALLPAPER_FILES = [
   'scenery-29.jpg', 'scenery-30.jpg', 'scenery-31.jpg',
 ];
 
+/** 与后端 verse_day_for_date(pool=365) + 前端 (day-1)%31 对齐：仅预缓存「今天」壁纸 */
+function todayDailyWallpaperPath() {
+  const cn = new Date(Date.now() + 8 * 60 * 60 * 1000);
+  const y = cn.getUTCFullYear();
+  const start = Date.UTC(y, 0, 0);
+  const yday = Math.floor((Date.UTC(y, cn.getUTCMonth(), cn.getUTCDate()) - start) / 86400000);
+  const verseDay = ((yday - 1) % 365) + 1;
+  const file = DAILY_WALLPAPER_FILES[(verseDay - 1) % DAILY_WALLPAPER_FILES.length];
+  return bp(`/daily-wallpapers/${file}`);
+}
+
 const SHELL = [
   bp('/offline.html'),
   bp('/manifest.webmanifest'),
@@ -54,7 +65,7 @@ const SHELL = [
   bp('/sql-wasm/sql-wasm-browser.js'),
   bp('/sql-wasm/sql-wasm-browser.wasm'),
   ...ILLUSTRATION_FILES.map((f) => bp(`/illustrations/${f}`)),
-  ...DAILY_WALLPAPER_FILES.map((f) => bp(`/daily-wallpapers/${f}`)),
+  todayDailyWallpaperPath(),
 ];
 
 const APP_SHELL_PATHS = [
@@ -181,7 +192,8 @@ async function networkFirstCache(request) {
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then(async (c) => {
-      await c.addAll(SHELL);
+      // addAll 遇单一失败会整批失败；壁纸/个别资源用 allSettled 兜底
+      await Promise.allSettled(SHELL.map((url) => c.add(url)));
       await Promise.allSettled(
         APP_SHELL_PATHS.map((path) =>
           fetch(path, { credentials: 'same-origin' }).then((res) => {

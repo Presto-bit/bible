@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { isStandalonePwa } from '@/lib/platform';
+import { isLowEndDevice, isStandalonePwa } from '@/lib/platform';
 import {
   initPwaContextMenuGuard,
   initPwaLinkPreviewGuard,
@@ -16,6 +16,9 @@ export default function PwaStandaloneShell() {
       const standalone = isStandalonePwa();
       document.body.classList.toggle('pwa-standalone', standalone);
       document.documentElement.classList.toggle('pwa-standalone', standalone);
+      const perfLite = isLowEndDevice();
+      document.documentElement.classList.toggle('perf-lite', perfLite);
+      document.body.classList.toggle('perf-lite', perfLite);
     };
     apply();
     initPwaNavGuard();
