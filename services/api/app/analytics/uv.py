@@ -330,7 +330,33 @@ def _upsert_uv_by_visitor_key(
     )
 
 
-def _insert_legacy_only(conn, *, visit_day, legacy_key: str) -> None:
+def _insert_legacy_only(
+    conn,
+    *,
+    visit_day,
+    legacy_key: str,
+    fingerprint: str | None = None,
+) -> None:
+    """最后兜底：一律带上 device_fingerprint（V2 列为 NOT NULL）。"""
+    if _has_uv_v2(conn):
+        fp = fingerprint or (
+            legacy_key[2:] if legacy_key.startswith(("d:", "u:")) else legacy_key
+        )
+        conn.execute(
+            """
+            INSERT INTO daily_active_visitors (
+              visit_date, visitor_key, device_fingerprint, updated_at
+            )
+            VALUES (%s, %s, %s, now())
+            ON CONFLICT (visit_date, visitor_key) DO UPDATE SET
+              device_fingerprint = COALESCE(
+                daily_active_visitors.device_fingerprint, EXCLUDED.device_fingerprint
+              ),
+              updated_at = now()
+            """,
+            (visit_day, legacy_key, fp),
+        )
+        return
     conn.execute(
         """
         INSERT INTO daily_active_visitors (visit_date, visitor_key)
@@ -373,22 +399,26 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> bool:
 
                 def _try_write(uid: str | None) -> None:
                     key = legacy_visitor_key(user_id=uid, device_id=device_id) or f"d:{fingerprint}"
-                    if _has_device_unique(conn):
-                        _upsert_uv_v2(
-                            conn,
-                            visit_day=visit_day,
-                            fingerprint=fingerprint,
-                            user_id=uid,
-                            legacy_key=key,
-                        )
-                    else:
-                        _upsert_uv_by_visitor_key(
-                            conn,
-                            visit_day=visit_day,
-                            fingerprint=fingerprint,
-                            user_id=uid,
-                            legacy_key=key,
-                        )
+                    # 优先走 visitor_key PK（一定存在）；有设备唯一索引再 upsert 设备维
+                    _upsert_uv_by_visitor_key(
+                        conn,
+                        visit_day=visit_day,
+                        fingerprint=fingerprint,
+                        user_id=uid,
+                        legacy_key=key,
+                    )
+                    if _has_device_unique(conn) and uid:
+                        # 登录后按设备维再合并一次（失败不影响 visitor_key 已写入）
+                        try:
+                            _upsert_uv_v2(
+                                conn,
+                                visit_day=visit_day,
+                                fingerprint=fingerprint,
+                                user_id=uid,
+                                legacy_key=key,
+                            )
+                        except Exception as exc:
+                            logger.warning("UV 设备维合并失败（visitor_key 已写入）：%s", exc)
 
                 try:
                     _try_write(effective_user_id)
@@ -405,9 +435,14 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> bool:
                         return True
                     except Exception as exc2:
                         conn.rollback()
-                        logger.warning("UV 降级仍失败，尝试仅 visitor_key：%s", exc2)
+                        logger.warning("UV 降级仍失败，尝试兜底写入：%s", exc2)
                         try:
-                            _insert_legacy_only(conn, visit_day=visit_day, legacy_key=legacy_key)
+                            _insert_legacy_only(
+                                conn,
+                                visit_day=visit_day,
+                                legacy_key=legacy_key,
+                                fingerprint=fingerprint,
+                            )
                             conn.commit()
                             _set_err(None)
                             return True
@@ -417,7 +452,12 @@ def record_daily_visit(*, user_id: str | None, device_id: str | None) -> bool:
                             logger.warning("UV 最终写入失败（已忽略）：%s", exc3)
                             return False
             else:
-                _insert_legacy_only(conn, visit_day=visit_day, legacy_key=legacy_key)
+                _insert_legacy_only(
+                    conn,
+                    visit_day=visit_day,
+                    legacy_key=legacy_key,
+                    fingerprint=fingerprint,
+                )
                 conn.commit()
                 _set_err(None)
                 return True
