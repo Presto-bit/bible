@@ -67,7 +67,9 @@ body {
   font-size: var(--app-font-size);
   -webkit-font-smoothing: antialiased;
   line-height: var(--app-line-height);
-  overflow-x: hidden;
+  /* clip 避免 overflow-x:hidden 把 overflow-y 算成 auto，造成嵌套滚动层吞 PC 滚轮 */
+  overflow-x: clip;
+  overflow-y: auto;
   max-width: 100vw;
   touch-action: pan-y;
   -webkit-text-size-adjust: 100%;
@@ -130,7 +132,8 @@ a {
   min-height: 100dvh;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(var(--tabbar-h) + 12px);
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   max-width: 100vw;
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -209,7 +212,8 @@ html.pwa-standalone a[href] {
   max-width: min(720px, 100vw);
   margin: 0 auto;
   padding: 20px 18px 24px;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
   overscroll-behavior-x: none;
   touch-action: pan-y;
   background: var(--paper);
@@ -7392,6 +7396,16 @@ body.verse-full-open .tabbar {
   border: 1px solid var(--line);
 }
 
+.btn.ghost {
+  background: var(--surface, #fff);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+
+.account-gate-sheet .book-chip {
+  box-sizing: border-box;
+}
+
 /* ─── 小爱富文本输出（可读性 / 视觉增强，字号与读经默认一致） ─── */
 .answer-rich {
   line-height: 1.85;
@@ -10358,6 +10372,45 @@ a.license-row-name:hover {
   overflow: hidden;
   max-width: 100vw;
   box-sizing: border-box;
+}
+
+/* PC：左右点击热区翻章（触控端隐藏，避免挡划选） */
+.reader-edge-nav {
+  display: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .reader-edge-nav {
+    display: block;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: min(18%, 112px);
+    z-index: 6;
+    border: none;
+    padding: 0;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .reader-edge-nav-prev {
+    left: 0;
+  }
+
+  .reader-edge-nav-next {
+    right: 0;
+  }
+
+  .reader-edge-nav:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--reader-ink, #1c1c1e) 4%, transparent);
+  }
+
+  .reader-edge-nav:disabled {
+    cursor: default;
+    pointer-events: none;
+  }
 }
 
 .reader-body {

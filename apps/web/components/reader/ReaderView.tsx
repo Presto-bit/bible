@@ -1529,6 +1529,7 @@ export default function ReaderView({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (!paneActive) return;
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.key === 'Escape') {
@@ -1565,6 +1566,7 @@ export default function ReaderView({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [
+    paneActive,
     hasSel,
     overlayOpen,
     markPaletteOpen,
@@ -2358,6 +2360,32 @@ export default function ReaderView({
         toggleChrome();
       }}
     >
+      {!overlayOpen && !hasSel && (
+        <>
+          <button
+            type="button"
+            className="reader-edge-nav reader-edge-nav-prev"
+            aria-label="上一章"
+            title="上一章（←）"
+            disabled={!canNavPrev}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (canNavPrev) navChapter(-1);
+            }}
+          />
+          <button
+            type="button"
+            className="reader-edge-nav reader-edge-nav-next"
+            aria-label="下一章"
+            title="下一章（→）"
+            disabled={!canNavNext}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (canNavNext) navChapter(1);
+            }}
+          />
+        </>
+      )}
       <div className="reader-topbar" aria-hidden={chromeHidden}>
         <div className="reader-topbar-left">
           {backHref && (

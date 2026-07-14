@@ -45,6 +45,7 @@ import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
+import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
 
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
@@ -186,6 +187,11 @@ export default function HomePageClient() {
   const [userName, setUserName] = useState('');
   const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
+
+  useEffect(() => {
+    if (activeTab != null && activeTab !== 'home') return;
+    return initPcWheelPassthrough();
+  }, [activeTab]);
 
   useEffect(() => {
     const refreshName = () => {
