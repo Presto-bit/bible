@@ -102,6 +102,16 @@ SELECT CASE WHEN COUNT(*) = 3 THEN 'ok' ELSE 'missing' END AS check_group_task_v
 FROM information_schema.tables
 WHERE table_schema = 'public'
   AND table_name IN ('group_task_series', 'group_task_attachment', 'group_task_assignee');
+
+SELECT CASE WHEN COUNT(*) = 1 THEN 'ok' ELSE 'missing' END AS check_daily_uv
+FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name = 'daily_active_visitors';
+
+SELECT CASE WHEN COUNT(*) >= 2 THEN 'ok' ELSE 'missing' END AS check_daily_uv_v2
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'daily_active_visitors'
+  AND column_name IN ('device_fingerprint', 'user_id');
 SQL
 
 log "完成 — 可验证："

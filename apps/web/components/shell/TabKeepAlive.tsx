@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { isTabKeepAliveEnabled, shouldEagerMountTabs } from '@/lib/platform';
+import { isTabKeepAliveEnabled } from '@/lib/platform';
 import { keepAliveTabId, normalizeAppPath, type KeepAliveTabId } from '@/lib/tab_keep_alive';
 import {
   getPwaTabPathname,
@@ -95,7 +95,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   const suppressRoute = enabled && activeTab !== null;
 
   useEffect(() => {
-    if (!enabled || !shouldEagerMountTabs()) return;
+    if (!enabled) return;
     setMounted({
       home: true,
       reader: true,

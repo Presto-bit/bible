@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { currentUserId, effectiveId, ensureAccountReady, hasPassword } from '@/lib/api';
+import { currentUserId, effectiveId, ensureAccountReady, hasPassword, api } from '@/lib/api';
 import { shouldPromptUsername } from '@/lib/account_guide';
 import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
@@ -106,6 +106,9 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       // 一次性初始化：清掉今天未同步/卡住的 outbox，解除「同步中」死锁
       forceMarkSyncIdle();
       initializeCloudSyncQueue();
+
+      // 显式 UV 打点（有设备头），避免仅靠中间件静默失败导致看板为 0
+      void api.analyticsVisit().catch(() => {});
 
       const uid = currentUserId() || effectiveId();
       const loggedInWithPwd = Boolean(currentUserId() && hasPassword());

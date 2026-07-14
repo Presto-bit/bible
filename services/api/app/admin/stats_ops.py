@@ -7,7 +7,7 @@ from fastapi import HTTPException
 
 from ..db import get_pool
 from ..time_cn import china_today
-from ..analytics.uv import UV_IDENTITY_SQL, uv_identity_sql
+from ..analytics.uv import UV_IDENTITY_SQL, uv_identity_sql, uv_last_error
 from ..analytics.uv_stats import (
     UV_IDENTITY_A,
     UV_IDENTITY_B,
@@ -52,7 +52,7 @@ def resolve_stats_range(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> tuple[date, date, str]:
-    today = date.today()
+    today = china_today()
     if date_from and date_to:
         if date_from > date_to:
             raise HTTPException(status_code=400, detail="开始日期不能晚于结束日期")
@@ -93,7 +93,7 @@ def _dod(conn, today_sql: str, yesterday_sql: str, params_today: tuple = (), par
 def _date_series(conn, sql: str, span_days: int) -> list[dict]:
     rows = conn.execute(sql, (span_days - 1,)).fetchall()
     by_date = {str(r[0]): int(r[1] or 0) for r in rows}
-    start = date.today() - timedelta(days=span_days - 1)
+    start = china_today() - timedelta(days=span_days - 1)
     out: list[dict] = []
     for i in range(span_days):
         d = start + timedelta(days=i)
@@ -317,13 +317,24 @@ def _count_dormant_users(conn, *, span_days: int = 30) -> tuple[int, str | None]
 
 def _uv_metrics(conn, *, where: str) -> dict[str, int]:
     if uv_schema_v2(conn):
-        return {
-            "deduped": _scalar(conn, uv_deduped_count_sql(where=where)),
-            "guest_rows": _scalar(conn, uv_guest_rows_sql(where=where)),
-            "login_rows": _scalar(conn, uv_login_rows_sql(where=where)),
-            "login_users": _scalar(conn, uv_login_users_sql(where=where)),
-            "converted": _scalar(conn, uv_converted_sql(where=where)),
-        }
+        try:
+            return {
+                "deduped": _scalar(conn, uv_deduped_count_sql(where=where)),
+                "guest_rows": _scalar(conn, uv_guest_rows_sql(where=where)),
+                "login_rows": _scalar(conn, uv_login_rows_sql(where=where)),
+                "login_users": _scalar(conn, uv_login_users_sql(where=where)),
+                "converted": _scalar(conn, uv_converted_sql(where=where)),
+            }
+        except Exception:
+            # 去重 SQL（accounts/bindings）异常时退回原始行数，避免看板整页 0
+            raw = _scalar(conn, f"SELECT count(*) FROM daily_active_visitors WHERE {where}")
+            return {
+                "deduped": raw,
+                "guest_rows": raw,
+                "login_rows": 0,
+                "login_users": 0,
+                "converted": 0,
+            }
     login_rows = _scalar(
         conn,
         f"SELECT count(*) FROM daily_active_visitors WHERE {where} "
@@ -402,6 +413,7 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             "uv_today_login": uv_today["login_users"],
             "uv_login_visits": uv_today["login_rows"],
             "uv_converted_today": uv_today["converted"],
+            "uv_write_error": uv_last_error(),
             "uv_7d": uv_7d,
         }
         dod = {

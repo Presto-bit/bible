@@ -1,6 +1,8 @@
 """请求级 UV 中间件：响应后记一次，不阻塞主流程外的身份识别。"""
 from __future__ import annotations
 
+import asyncio
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
@@ -39,8 +41,10 @@ class DailyUvMiddleware(BaseHTTPMiddleware):
             return response
         user_id, device_id = _visitor_ids_from_request(request)
         try:
-            record_daily_visit(user_id=user_id, device_id=device_id)
+            # UV 写入放线程池，避免卡死事件循环
+            await asyncio.to_thread(
+                lambda: record_daily_visit(user_id=user_id, device_id=device_id)
+            )
         except Exception:
-            # 兜底：绝不因 UV 影响响应（record 内部已吞异常，此处防未捕获）
             pass
         return response

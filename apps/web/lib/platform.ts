@@ -34,14 +34,9 @@ export function isLowEndDevice(): boolean {
   return false;
 }
 
-/** 五 Tab 保活：PWA 与 PC 浏览器均启用，二级页仍走 Next 路由 */
+/** 五 Tab 保活：低端机关闭，走 Next 路由；其余端启用 */
 export function isTabKeepAliveEnabled(): boolean {
-  return typeof window !== 'undefined';
-}
-
-/** 高端机首屏预挂全部 Tab；低端机按访问延迟挂载 */
-export function shouldEagerMountTabs(): boolean {
-  return isTabKeepAliveEnabled() && !isLowEndDevice();
+  return typeof window !== 'undefined' && !isLowEndDevice();
 }
 
 export function isFinePointerDesktop(): boolean {

@@ -10,6 +10,7 @@ from . import __version__
 from .admin.router import router as admin_router
 from .ai.router import router as ai_router
 from .analytics.middleware import DailyUvMiddleware
+from .analytics.router import router as analytics_router
 from .auth.router import router as auth_router
 from .bible.router import router as bible_router
 from .config import get_settings
@@ -52,6 +53,7 @@ app.include_router(sync_router)
 app.include_router(content_router)
 app.include_router(social_router)
 app.include_router(push_router)
+app.include_router(analytics_router)
 
 
 @app.get("/health")

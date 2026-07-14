@@ -5,11 +5,17 @@ Postgres / 容器常为 UTC：裸 CURRENT_DATE / ::date 会在北京 0:00–8:00
 """
 from __future__ import annotations
 
-from datetime import date, datetime
-from zoneinfo import ZoneInfo
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-CHINA_TZ = ZoneInfo("Asia/Shanghai")
 CHINA_TZ_NAME = "Asia/Shanghai"
+CN_OFFSET = timezone(timedelta(hours=8))
+
+try:
+    CHINA_TZ: timezone | ZoneInfo = ZoneInfo(CHINA_TZ_NAME)
+except ZoneInfoNotFoundError:
+    # 无 tzdata 时退回固定 UTC+8（无 DST，对中国足够）
+    CHINA_TZ = CN_OFFSET
 
 # 北京时间「今天」的 date 表达式（可直接嵌入 SQL）
 CN_TODAY_SQL = f"(timezone('{CHINA_TZ_NAME}', now()))::date"

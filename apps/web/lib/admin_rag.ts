@@ -268,6 +268,8 @@ export type AdminStatsTotals = {
   uv_today_raw?: number;
   uv_today_guest: number;
   uv_today_login: number;
+  /** 最近一次 UV 写入错误（无则 null） */
+  uv_write_error?: string | null;
   uv_login_visits: number;
   uv_converted_today: number;
   uv_7d: number;

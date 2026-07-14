@@ -1257,6 +1257,11 @@ export const api = {
     ),
   dailyDevotional: () =>
     getJson<DailyDevotional>(`/content/daily-devotional?_d=${chinaTodayYmd()}`),
+  /** 显式打点今日 UV（启动后调用，不依赖中间件） */
+  analyticsVisit: () =>
+    authed<{ ok: boolean; day: string; error?: string | null }>('/analytics/visit', {
+      method: 'POST',
+    }),
   prayerToday: (planId?: string, day?: number) => {
     const q = new URLSearchParams();
     if (planId) q.set('plan_id', planId);
