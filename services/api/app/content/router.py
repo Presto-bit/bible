@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 import re
 
-from fastapi import APIRouter, Header, HTTPException, Query, Response
+from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -599,13 +599,33 @@ def group_task_asset(filename: str):
 @router.get("/home/bootstrap")
 def home_bootstrap(
     response: Response,
+    request: Request,
     preview_campaign_id: str | None = Query(None),
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
 ) -> dict:
     """每日经文 + Hero B 活动（合并首页首屏请求）。"""
     _no_store_headers(response)
+    # 首页必经路径内联记 UV，避免仅依赖中间件 / 未反代的 /analytics
+    try:
+        from ..analytics.uv import record_daily_visit
+        from ..auth.user_code import pick_user_code, uuid_for_code
+
+        code = pick_user_code(x_user_code, x_user_id)
+        uid = uuid_for_code(code) if code else None
+        device = (x_device_id or x_guest_id or "").strip() or None
+        if not device and not uid:
+            forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+            if forwarded:
+                device = f"ip:{forwarded[:64]}"
+            elif request.client and request.client.host:
+                device = f"ip:{request.client.host[:64]}"
+        record_daily_visit(user_id=uid, device_id=device)
+    except Exception:
+        pass
     payload = _daily_verse_payload(None)
     user_code = _pick_user_code(x_user_code, x_user_id)
     stats = _daily_verse_engagement(payload["day"], user_code)
@@ -617,6 +637,36 @@ def home_bootstrap(
     return {
         "dailyVerse": {**payload, **stats},
         "heroBCampaign": campaign,
+    }
+
+
+@router.post("/uv-visit")
+def content_uv_visit(
+    request: Request,
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+) -> dict:
+    """UV 心跳（走已反代的 /content，兼容未加 analytics 的 Nginx）。"""
+    from ..analytics.uv import record_daily_visit, uv_last_error
+    from ..auth.user_code import pick_user_code, uuid_for_code
+    from ..time_cn import china_today
+
+    code = pick_user_code(x_user_code, x_user_id)
+    uid = uuid_for_code(code) if code else None
+    device = (x_device_id or x_guest_id or "").strip() or None
+    if not device and not uid:
+        forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        if forwarded:
+            device = f"ip:{forwarded[:64]}"
+        elif request.client and request.client.host:
+            device = f"ip:{request.client.host[:64]}"
+    ok = record_daily_visit(user_id=uid, device_id=device)
+    return {
+        "ok": ok,
+        "day": china_today().isoformat(),
+        "error": None if ok else uv_last_error(),
     }
 
 

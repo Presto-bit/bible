@@ -8,7 +8,15 @@ from ..time_cn import china_today
 
 logger = logging.getLogger(__name__)
 
-_SKIP_PREFIXES = ("/health", "/admin", "/docs", "/openapi.json", "/redoc", "/analytics/visit")
+_SKIP_PREFIXES = (
+    "/health",
+    "/admin",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/analytics/visit",
+    "/content/uv-visit",
+)
 
 _schema_lock = threading.Lock()
 _schema_ready = False
