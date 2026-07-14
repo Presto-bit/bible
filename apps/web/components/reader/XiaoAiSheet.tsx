@@ -311,19 +311,17 @@ export default function XiaoAiSheet({
               <button type="button" className="half-sheet-action-btn" onClick={saveNote}>
                 {saved ? '已存笔记' : '存笔记'}
               </button>
-              {usedCitations.length > 0 ? (
+              {citations.length > 0 ? (
                 <CitationBar
                   variant="action"
                   compact
                   className="half-sheet-action-btn reader-ai-cite-btn"
-                  citations={usedCitations}
+                  citations={usedCitations.length > 0 ? usedCitations : citations}
                   activeN={citationOpen}
                   onActiveChange={setCitationOpen}
                   bookName={refLabel.split(' ')[0]}
                 />
-              ) : (
-                <span className="half-sheet-action-btn reader-ai-action-spacer" aria-hidden />
-              )}
+              ) : null}
             </>
           )}
           <button
@@ -331,7 +329,7 @@ export default function XiaoAiSheet({
             className="half-sheet-action-btn half-sheet-action-primary"
             onClick={continueWithAssistant}
           >
-            与小爱继续聊
+            继续聊
           </button>
         </div>
       </div>

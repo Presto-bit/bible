@@ -129,6 +129,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const [slowHint, setSlowHint] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState('');
   const [composerFocused, setComposerFocused] = useState(false);
+  /** 程序改写输入后 remount，避免 iOS 把清空记入「撤销键入」栈 */
+  const [composerNonce, setComposerNonce] = useState(0);
+
+  const replaceComposerValue = (next: string) => {
+    inputRef.current?.blur();
+    setInput(next);
+    setComposerNonce((n) => n + 1);
+  };
 
   const personalized = useMemo(
     () =>
@@ -616,7 +624,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     recordXiaoAiQuestion({ scene, ref: refForApi ?? undefined });
     recordXiaoAiFollowup(userMsgsInSession);
     setMode(m);
-    setInput('');
+    replaceComposerValue('');
     const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
     const assistantMsgIdx = base.length - 1;
     sessionScrollRef.current = false;
@@ -816,7 +824,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       if (!question && refVal && !isTopicLike(prefillSurface, prefillScene)) {
         question = explainVerseQuestion(refVal);
       }
-      if (question) setInput(question);
+      if (question) replaceComposerValue(question);
     }
     if (handled && refVal && !isTopicLike(prefillSurface, prefillScene)) setRef(refVal);
     else if (!handled && refParam) setRef(refParam);
@@ -846,7 +854,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setShowJumpToBottom(false);
     setActiveId('current');
     setMsgs([]);
-    setInput('');
+    replaceComposerValue('');
     setRef('');
     setHistoryOpen(false);
     clearAssistantDraft();
@@ -922,6 +930,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             </button>
           ) : (
             <textarea
+              key={composerNonce}
               ref={inputRef}
               rows={1}
               className={`compose-input compose-textarea${busy ? ' compose-textarea-busy' : ''}`}

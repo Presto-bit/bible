@@ -8669,6 +8669,27 @@ body.reader-active .proper-noun--artifact {
   color: #fff;
 }
 
+/* 小爱半屏底栏：窄屏保底可见，避免第三钮被挤没或空白占位 */
+.reader-ai-actions {
+  gap: 8px;
+}
+
+.reader-ai-actions .half-sheet-action-btn {
+  min-width: 0;
+  flex: 1 1 0;
+  padding: 8px 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reader-ai-actions .reader-ai-cite-btn,
+.reader-ai-actions .citation-action-btn {
+  color: var(--ink);
+  opacity: 1;
+}
+
 .half-sheet-answer-rich .half-sheet-answer-body {
   margin-top: 10px;
 }

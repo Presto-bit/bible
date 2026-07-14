@@ -76,6 +76,7 @@ export function GroupComposer({
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [body, setBody] = useState('');
+  const [bodyNonce, setBodyNonce] = useState(0);
   const [taskTitle, setTaskTitle] = useState('');
   const [taskRef, setTaskRef] = useState('');
   const [taskBody, setTaskBody] = useState('');
@@ -139,6 +140,7 @@ export function GroupComposer({
     setSelectedRef(null);
     setSelectedTaskId(null);
     setBody('');
+    setBodyNonce((n) => n + 1);
     setErr(null);
   };
 
@@ -343,6 +345,7 @@ export function GroupComposer({
               <span className="muted group-composer-char-count">{body.length}/{GROUP_CHECKIN_BODY_MAX}</span>
             </div>
             <textarea
+              key={bodyNonce}
               className="group-composer-text search-input compose-textarea"
               rows={3}
               placeholder="写下今天的感受（可选）"
