@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 服务器快速发版：git pull → docker compose build → up → 健康检查
+# 服务器快速发版：git pull → docker compose build → up → 健康检查 / 劫持检查
 #
 # 用法（SSH 登录 ECS 后，root 或 presto 均可）：
 #   cd /opt/bible && bash release.sh
@@ -10,8 +10,14 @@
 #   DEPLOY_USER=presto   发版系统用户（非该用户时自动 sudo 切换）
 #   REMOTE=origin
 #   BRANCH=main
-#   GIT_PULL=0          跳过 git pull（离线包发版）
+#   GIT_PULL=0           跳过 git pull（离线包发版）
 #   COMPOSE_BUILD_PULL=0|1
+#   ALLOW_DIRTY=1          允许脏工作区发版（默认 0：拒绝）
+#   WEB_BUILD_NO_CACHE=0   web 不用 --no-cache（默认 1：强制无缓存重建，防脏镜像）
+#   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测 cron（默认 0）
+#
+# 适合放进本脚本：干净 git、web 无缓存重建、启动命令/容器内扫描、外域跳转拦截、可选 cron。
+# 不适合：改宝塔/SSH 密码、安全组、同机其它项目排查——仍需人工。
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/bible}"
@@ -19,6 +25,9 @@ DEPLOY_USER="${DEPLOY_USER:-presto}"
 REMOTE="${REMOTE:-origin}"
 BRANCH="${BRANCH:-main}"
 GIT_PULL="${GIT_PULL:-1}"
+ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
+WEB_BUILD_NO_CACHE="${WEB_BUILD_NO_CACHE:-1}"
+INSTALL_HIJACK_CRON="${INSTALL_HIJACK_CRON:-0}"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.production"
 
@@ -76,6 +85,42 @@ assert_web_not_hijacked() {
   fi
 }
 
+# 发版后：确认 web 容器仍是「干净 Next standalone」，未被改启动命令/植入跳转串
+# 成功返回 0；失败打印原因并返回 1（不直接 exit，便于重试）
+assert_web_container_clean() {
+  local cid name cmd mounts hits
+  cid="$("${compose[@]}" ps -q web 2>/dev/null || true)"
+  if [[ -z "$cid" ]]; then
+    echo "找不到 web 容器" >&2
+    return 1
+  fi
+  name="$(docker inspect -f '{{.Name}}' "$cid" 2>/dev/null | sed 's#^/##')"
+  cmd="$(docker inspect -f '{{json .Config.Cmd}} {{json .Args}}' "$cid" 2>/dev/null || true)"
+  if ! printf '%s' "$cmd" | grep -q 'server.js'; then
+    echo "web 容器启动命令异常（期望含 server.js）：$cmd" >&2
+    return 1
+  fi
+  mounts="$(docker inspect -f '{{range .Mounts}}{{.Destination}}={{.Source}};{{end}}' "$cid" 2>/dev/null || true)"
+  if printf '%s' "$mounts" | grep -qE '/app(=|/)' ; then
+    echo "web 容器把宿主机目录挂到 /app，存在运行时被改风险：$mounts" >&2
+    return 1
+  fi
+  if ! docker exec "$cid" true 2>/dev/null; then
+    echo "web 容器尚未可 docker exec" >&2
+    return 1
+  fi
+  hits="$(docker exec "$cid" sh -c \
+    "grep -RniE '$WEB_HIJACK_DENY_RE' /app --include='*.js' --include='*.json' --include='*.html' 2>/dev/null | head -20" \
+    || true)"
+  if [[ -n "$hits" ]]; then
+    printf '%s\n' "$hits" >&2
+    echo "web 容器 /app 内检出劫持特征串（$name）" >&2
+    return 1
+  fi
+  log "  ✓ web 容器完整性：$name 启动命令与 /app 扫描通过"
+  return 0
+}
+
 # root / 其它用户：自动 sudo 到 presto，进入仓库并拉代码后发版（等价于原 one-liner）
 if [[ "${RELEASE_BOOTSTRAPPED:-0}" != "1" && "$(id -un)" != "$DEPLOY_USER" ]]; then
   id -u "$DEPLOY_USER" &>/dev/null || die "发版用户不存在: $DEPLOY_USER"
@@ -92,6 +137,8 @@ if [[ "${RELEASE_BOOTSTRAPPED:-0}" != "1" && "$(id -un)" != "$DEPLOY_USER" ]]; t
   exec sudo -u "$DEPLOY_USER" -H bash -c \
     "cd '$APP_DIR' && ${pull_part}APP_DIR='$APP_DIR' DEPLOY_USER='$DEPLOY_USER' REMOTE='$REMOTE' BRANCH='$BRANCH' \
      GIT_PULL='$inner_git_pull' COMPOSE_BUILD_PULL='${COMPOSE_BUILD_PULL:-1}' \
+     ALLOW_DIRTY='$ALLOW_DIRTY' WEB_BUILD_NO_CACHE='$WEB_BUILD_NO_CACHE' \
+     INSTALL_HIJACK_CRON='$INSTALL_HIJACK_CRON' \
      NEXT_PUBLIC_APP_VERSION='${NEXT_PUBLIC_APP_VERSION:-}' RELEASE_BOOTSTRAPPED=1 \
      bash '$release_script'"
 fi
@@ -124,6 +171,28 @@ else
   log "GIT_PULL=0，跳过 git pull"
 fi
 
+# 干净工作区：避免把服务器上被改过的脏文件打进镜像
+if [[ "$ALLOW_DIRTY" != "1" ]]; then
+  dirty="$(git status --porcelain 2>/dev/null || true)"
+  if [[ -n "$dirty" ]]; then
+    printf '%s\n' "$dirty" >&2
+    die "工作区不干净（ALLOW_DIRTY=1 可强制）。请 git status 清理后再发版，勿在容器/宿主机热改代码"
+  fi
+  log "  ✓ git 工作区干净"
+else
+  log "⚠️  ALLOW_DIRTY=1，跳过工作区干净检查"
+fi
+
+# 与远端分支一致（防本地偷偷超前/落后误发）
+if git rev-parse "$REMOTE/$BRANCH" >/dev/null 2>&1; then
+  local_sha="$(git rev-parse HEAD)"
+  remote_sha="$(git rev-parse "$REMOTE/$BRANCH")"
+  if [[ "$local_sha" != "$remote_sha" ]]; then
+    die "本地 HEAD ($local_sha) ≠ $REMOTE/$BRANCH ($remote_sha)；请先 pull/对齐再发版"
+  fi
+  log "  ✓ HEAD 对齐 $REMOTE/$BRANCH ($local_sha)"
+fi
+
 export NEXT_PUBLIC_APP_VERSION="${NEXT_PUBLIC_APP_VERSION:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 log "Web 构建版本: $NEXT_PUBLIC_APP_VERSION"
 
@@ -132,11 +201,34 @@ compose=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 build_flags=()
 [[ "$COMPOSE_BUILD_PULL" == "1" ]] && build_flags+=(--pull)
 
-log "构建镜像 api + web"
-"${compose[@]}" build "${build_flags[@]}" api web || die "docker compose build 失败"
+log "构建镜像 api"
+"${compose[@]}" build "${build_flags[@]}" api || die "docker compose build api 失败"
+
+if [[ "$WEB_BUILD_NO_CACHE" == "1" ]]; then
+  log "构建镜像 web（--no-cache，防脏层/污染缓存）"
+  "${compose[@]}" build "${build_flags[@]}" --no-cache web || die "docker compose build web 失败"
+else
+  log "构建镜像 web（WEB_BUILD_NO_CACHE=0，沿用缓存）"
+  "${compose[@]}" build "${build_flags[@]}" web || die "docker compose build web 失败"
+fi
 
 log "启动容器"
 "${compose[@]}" up -d || die "docker compose up 失败"
+
+log "容器完整性：web 启动命令与 /app 扫描"
+web_clean_ok=0
+for i in $(seq 1 15); do
+  if assert_web_container_clean 2>/tmp/bible-web-clean.err; then
+    web_clean_ok=1
+    break
+  fi
+  log "web 容器完整性未就绪 (${i}/15)…"
+  sleep 2
+done
+if [[ "$web_clean_ok" -ne 1 ]]; then
+  cat /tmp/bible-web-clean.err >&2 || true
+  die "web 容器完整性检查失败"
+fi
 
 log "健康检查 API"
 api_ok=0
@@ -293,3 +385,18 @@ log "发布成功"
 log "  API: http://127.0.0.1:8011/health"
 log "  Web: http://127.0.0.1:${WEB_HOST_PORT}/  →  https://2sc.prestoai.cn/"
 log "若前有 Nginx/CDN，请确认反代与缓存策略（见 DEPLOYMENT.md）"
+
+if [[ "$INSTALL_HIJACK_CRON" == "1" ]]; then
+  cron_src="$APP_DIR/scripts/check_web_hijack.sh"
+  [[ -f "$cron_src" ]] || die "缺少 $cron_src"
+  chmod +x "$cron_src" || true
+  cron_line="* * * * * root APP_DIR=$APP_DIR $cron_src >/dev/null 2>&1"
+  if [[ "$(id -u)" -eq 0 ]]; then
+    echo "$cron_line" > /etc/cron.d/bible-web-hijack-check
+    chmod 644 /etc/cron.d/bible-web-hijack-check
+    log "  ✓ 已安装 /etc/cron.d/bible-web-hijack-check"
+  else
+    log "⚠️  INSTALL_HIJACK_CRON=1 需要 root 写 /etc/cron.d；请手动："
+    log "   echo '$cron_line' | sudo tee /etc/cron.d/bible-web-hijack-check"
+  fi
+fi
