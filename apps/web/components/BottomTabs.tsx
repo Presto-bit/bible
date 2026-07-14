@@ -89,11 +89,7 @@ export default function BottomTabs() {
     const bar = document.querySelector<HTMLElement>('.tabbar');
     if (!bar) return;
     if (compact) return;
-    // 离开小爱键盘态时清掉可能残留的定位
-    if (pathname === '/assistant' || pathname.startsWith('/assistant/')) return;
-    document.body.classList.remove('assistant-keyboard');
-    document.documentElement.style.removeProperty('--assistant-vv-h');
-    document.documentElement.style.removeProperty('--assistant-kb-inset');
+    // 先清残留 inline，保证各 Tab 底栏同位（含刚进入小爱）
     document.documentElement.style.removeProperty('height');
     document.body.style.removeProperty('height');
     bar.style.removeProperty('transform');
@@ -104,6 +100,11 @@ export default function BottomTabs() {
     bar.style.removeProperty('position');
     bar.style.removeProperty('transition');
     bar.style.pointerEvents = '';
+    // 仍在小爱页时保留其键盘态 class / CSS 变量，离开后再清
+    if (pathname === '/assistant' || pathname.startsWith('/assistant/')) return;
+    document.body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
+    document.documentElement.style.removeProperty('--assistant-vv-h');
+    document.documentElement.style.removeProperty('--assistant-kb-inset');
   }, [compact, pathname]);
 
   useEffect(() => {

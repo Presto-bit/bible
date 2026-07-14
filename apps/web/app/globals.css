@@ -5230,43 +5230,40 @@ body.pwa-standalone .profile-page .profile-soft-row.card {
   position: relative;
 }
 
+/* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高） */
 body.assistant-active {
-  overflow: hidden !important;
+  overflow: hidden;
   overscroll-behavior: none;
-  /* 锁住 body，避免键盘聚焦时整页被顶起/可滑出第二屏 */
-  height: 100%;
-  max-height: 100dvh;
-  max-height: 100svh;
-  touch-action: none;
-}
-
-html:has(body.assistant-active) {
-  overflow: hidden !important;
-  overscroll-behavior: none;
-  height: 100%;
 }
 
 body.assistant-active .app-body {
-  overflow: hidden !important;
+  overflow: hidden;
   overscroll-behavior: none;
   padding-top: 0;
   padding-bottom: 0;
-  min-height: 0;
-  height: 100dvh;
-  height: 100svh;
-  max-height: 100dvh;
-  max-height: 100svh;
   touch-action: none;
 }
 
-/* 键盘：保持单屏高度，只加一点上抬；勿改成 100dvh 造成可滚双页 */
-body.assistant-keyboard.assistant-active .assistant-page {
-  padding-bottom: var(--assistant-kb-inset, 20px);
+/* 键盘：只在聚焦时加强锁滚动/高度，平时底栏与其他 Tab 同位 */
+body.assistant-keyboard.assistant-active {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+html:has(body.assistant-keyboard.assistant-active) {
+  overflow: hidden !important;
+  overscroll-behavior: none;
 }
 
 body.assistant-keyboard.assistant-active .app-body {
-  height: 100%;
-  max-height: 100%;
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+body.assistant-keyboard.assistant-active .assistant-page {
+  padding-bottom: var(--assistant-kb-inset, 20px);
 }
 
 /* layout 未随键盘收缩时，用 visualViewport 高度兜底（已含 lift） */
