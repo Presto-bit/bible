@@ -14,6 +14,7 @@ import {
   matchAtQuery,
   type PendingAttach,
 } from '@/lib/im_composer';
+import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
 import {
   IconCheckin,
@@ -83,12 +84,14 @@ export function GroupComposerBar({
   const [uploadPct, setUploadPct] = useState(0);
   const [pending, setPending] = useState<PendingAttach | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
   const imageRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef<string | null>(null);
   const locked = Boolean(disabled || busy || sending || uploading || !online);
+  const kbInset = useImComposerKeyboard(composerFocused || panelOpen);
 
   useEffect(() => {
     const d = getImDraftRecord('group', gid);
@@ -355,7 +358,13 @@ export function GroupComposerBar({
   }, [showSend]);
 
   return (
-    <footer className="im-composer-bar group-wechat-composer im-composer-dock">
+    <footer
+      className="im-composer-bar group-wechat-composer im-composer-dock"
+      style={{
+        bottom: kbInset > 0 ? kbInset : undefined,
+        paddingBottom: kbInset > 0 ? 8 : undefined,
+      }}
+    >
       {replyTo ? (
         <div className="group-composer-reply" style={{ width: '100%' }}>
           <div>
@@ -459,11 +468,12 @@ export function GroupComposerBar({
                 }}
                 onFocus={() => {
                   setPanelOpen(false);
+                  setComposerFocused(true);
                 }}
                 onBlur={() => {
-                  // 延后关浮层，避免点选项时立刻消失
                   window.setTimeout(() => {
                     if (document.activeElement !== inputRef.current) {
+                      setComposerFocused(false);
                       setPickerOpen(false);
                       if (atQuery != null && !matchAtQuery(text, inputRef.current?.selectionStart ?? text.length)) {
                         setAtQuery(null);

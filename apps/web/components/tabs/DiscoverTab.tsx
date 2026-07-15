@@ -67,7 +67,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         const conv = await api.conversations();
         setItems(Array.isArray(conv.items) ? conv.items : []);
       } else {
-        // 申请表缺迁移时不应拖垮整页好友列表
         const [fRes, reqRes] = await Promise.allSettled([
           api.friends(),
           api.friendRequests(),
@@ -85,7 +84,8 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       }
       setErr(null);
     } catch (e) {
-      if (online) setErr(errorMessage(e, '加载失败，请检查网络'));
+      // 保留旧列表，避免整页空态 + 误报网络
+      if (online) setErr(errorMessage(e, '刷新失败，请稍后再试'));
       else setErr(null);
     } finally {
       setLoading(false);
@@ -121,11 +121,14 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     void reload();
   }, [uid, paneActive, reload]);
 
-  // 从建群/群页返回时 KeepAlive 可能不重挂载，按路由再刷一次
+  // KeepAlive 回发现：仅在路由变为 /discover 时轻刷，避免与上面重复抢态
+  const lastPathRef = useRef<string | null>(null);
   useEffect(() => {
     if (!uid || !paneActive || pathname !== '/discover') return;
+    if (lastPathRef.current === pathname) return;
+    lastPathRef.current = pathname;
     void reload();
-  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pathname, uid, paneActive, reload]);
 
   useEffect(() => {
     if (!uid || !paneActive || sub !== 'messages') return;

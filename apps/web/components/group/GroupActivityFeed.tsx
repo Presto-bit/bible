@@ -107,6 +107,8 @@ function ChatBubble({
   const [menuOpen, setMenuOpen] = useState(false);
   const [showRespond, setShowRespond] = useState(false);
   const [showCanned, setShowCanned] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
   const showRecall = canRecallOwnMessage(m.created_at, {
     mine: m.mine,
     recalled: m.recalled,
@@ -143,8 +145,12 @@ function ChatBubble({
   })();
 
   const shareMessageCard = async () => {
-    const title = refLabel ? `今日打卡 · ${refLabel}` : '今日打卡';
-    await shareCard({ title, body: m.body || '', footer: BRAND_NAME });
+    const title = refLabel
+      ? (m.kind === 'verse' ? `经文 · ${refLabel}` : `今日打卡 · ${refLabel}`)
+      : m.kind === 'verse'
+        ? '经文'
+        : '今日打卡';
+    await shareCard({ title, body: m.body || refLabel || '', footer: BRAND_NAME });
   };
 
   if (m.kind === 'system') {
@@ -154,6 +160,29 @@ function ChatBubble({
       </div>
     );
   }
+
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const openActions = () => {
+    if (m.recalled || m.pending) return;
+    longPressFired.current = true;
+    setMenuOpen(true);
+  };
+
+  const startLongPress = () => {
+    longPressFired.current = false;
+    clearLongPress();
+    longPressTimer.current = setTimeout(openActions, 420);
+  };
+
+  const endLongPress = () => {
+    clearLongPress();
+  };
 
   return (
     <div
@@ -169,19 +198,33 @@ function ChatBubble({
       ) : null}
 
       <div className="group-chat-col">
-        {showName && !m.mine ? (
-          <span className="group-chat-name muted">{m.author || '群友'}</span>
+        {!m.mine && showName ? (
+          <span className="group-chat-name">{m.author || '群友'}</span>
         ) : null}
 
         <div
           role="button"
           tabIndex={0}
           className={`group-chat-bubble ${bubbleTone(m)}${m.recalled ? ' is-recalled' : ''}`}
-          onClick={() => setMenuOpen((v) => !v)}
+          onPointerDown={startLongPress}
+          onPointerUp={endLongPress}
+          onPointerLeave={endLongPress}
+          onPointerCancel={endLongPress}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            openActions();
+          }}
+          onClick={() => {
+            if (longPressFired.current) {
+              longPressFired.current = false;
+              return;
+            }
+            setMenuOpen(false);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              setMenuOpen((v) => !v);
+              openActions();
             }
           }}
         >
@@ -291,60 +334,63 @@ function ChatBubble({
         ) : null}
 
         {menuOpen && !m.recalled ? (
-          <div className={`group-chat-actions${m.mine ? ' is-mine' : ''}`}>
-            {m.sendFailed && onResend && m.kind === 'chat' && m.body ? (
-              <button type="button" className="text-link" onClick={() => onResend(m)}>重发</button>
-            ) : null}
-            {m.sendFailed ? (
-              <button type="button" className="text-link danger" onClick={() => onDelete(m.id)}>删除</button>
-            ) : null}
-            {!m.pending && !m.sendFailed ? (
-              <button
-                type="button"
-                className="text-link"
-                onClick={() => {
-                  setShowRespond((v) => !v);
-                  setMenuOpen(true);
-                }}
-              >
-                回应{reactTotal > 0 ? ` (${reactTotal})` : ''}
+          <div className="im-msg-action-sheet" role="dialog" aria-label="消息操作">
+            <button
+              type="button"
+              className="im-msg-action-backdrop"
+              aria-label="关闭"
+              onClick={() => setMenuOpen(false)}
+            />
+            <div className="im-msg-action-panel">
+              <p className="im-msg-action-title muted">
+                {m.mine ? '我' : m.author || '群友'}
+              </p>
+              <div className="im-msg-action-grid">
+                {!m.pending && !m.sendFailed ? (
+                  <button type="button" onClick={() => { setShowRespond(true); setMenuOpen(false); }}>
+                    回应
+                  </button>
+                ) : null}
+                {onReply && !m.pending && !m.sendFailed && isChatLite ? (
+                  <button type="button" onClick={() => { onReply(m); setMenuOpen(false); }}>回复</button>
+                ) : null}
+                {!m.pending && !m.sendFailed && (m.body || m.ref) ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void copyMessageText([m.ref ? formatGroupRefLabel(m.ref) : null, m.body]);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    复制
+                  </button>
+                ) : null}
+                {!m.pending && !m.sendFailed && (m.kind === 'checkin' || m.kind === 'verse') && (m.body || m.ref) ? (
+                  <button type="button" onClick={() => { void shareMessageCard(); setMenuOpen(false); }}>
+                    分享
+                  </button>
+                ) : null}
+                {showRecall && onRecall && !m.pending ? (
+                  <button type="button" className="is-danger" onClick={() => { onRecall(m.id); setMenuOpen(false); }}>
+                    撤回
+                  </button>
+                ) : null}
+                {(m.mine || isOwner || m.sendFailed) && !m.pending ? (
+                  <button type="button" className="is-danger" onClick={() => { onDelete(m.id); setMenuOpen(false); }}>
+                    删除
+                  </button>
+                ) : null}
+                {!m.mine && !m.pending ? (
+                  <button type="button" onClick={() => { onReport(m.id); setMenuOpen(false); }}>举报</button>
+                ) : null}
+                {m.sendFailed && onResend && m.kind === 'chat' && m.body ? (
+                  <button type="button" onClick={() => { onResend(m); setMenuOpen(false); }}>重发</button>
+                ) : null}
+              </div>
+              <button type="button" className="im-msg-action-cancel" onClick={() => setMenuOpen(false)}>
+                取消
               </button>
-            ) : null}
-            {onReply && !m.pending && !m.sendFailed && isChatLite ? (
-              <button
-                type="button"
-                className="text-link"
-                onClick={() => {
-                  onReply(m);
-                  setMenuOpen(false);
-                }}
-              >
-                回复
-              </button>
-            ) : null}
-            {!m.pending && !m.sendFailed && (m.body || m.ref) ? (
-              <button
-                type="button"
-                className="text-link"
-                onClick={() => void copyMessageText([m.ref ? formatGroupRefLabel(m.ref) : null, m.body])}
-              >
-                复制
-              </button>
-            ) : null}
-            {m.kind === 'checkin' && m.ref ? (
-              <button type="button" className="text-link" onClick={() => void shareMessageCard()}>
-                分享
-              </button>
-            ) : null}
-            {showRecall && onRecall && !m.pending ? (
-              <button type="button" className="text-link danger" onClick={() => onRecall(m.id)}>撤回</button>
-            ) : null}
-            {(m.mine || isOwner) && !m.pending ? (
-              <button type="button" className="text-link danger" onClick={() => onDelete(m.id)}>删除</button>
-            ) : null}
-            {!m.mine && !m.pending ? (
-              <button type="button" className="text-link" onClick={() => onReport(m.id)}>举报</button>
-            ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -394,9 +440,11 @@ function ChatBubble({
           </div>
         ) : null}
 
-        <span className="group-chat-time muted">
-          {m.pending ? '发送中…' : m.sendFailed ? '发送失败' : formatMsgTime(m.created_at)}
-        </span>
+        {(m.pending || m.sendFailed) ? (
+          <span className="group-chat-time muted">
+            {m.pending ? '发送中…' : '发送失败'}
+          </span>
+        ) : null}
       </div>
     </div>
   );
@@ -496,7 +544,8 @@ export function GroupActivityFeed({
           && prev!.mine === m.mine
           && !showTimeSep;
         const showAvatar = !m.mine && !sameAuthor;
-        const showName = !m.mine && !sameAuthor;
+        // 对方始终显示昵称（规格）；自己不显示「我」
+        const showName = !m.mine;
 
         const dayKey = localDayKey(m.created_at);
         const prevDay = prev ? localDayKey(prev.created_at) : null;

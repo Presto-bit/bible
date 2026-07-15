@@ -47,6 +47,19 @@ export function formatMsgDayLabel(dayKey: string): string {
   return dayKey.replace(/-/g, '/');
 }
 
+/** 居中时间条：今天只显示 HH:mm，跨日带日标签 */
+export function formatChatTimeSep(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const day = localDayKeyFromIso(iso);
+  const time = formatMsgTime(iso);
+  if (!day || !time) return time || '';
+  const label = formatMsgDayLabel(day);
+  if (label === '今天') return time;
+  return `${label} ${time}`;
+}
+
+export const CHAT_TIME_GAP_MS = 5 * 60 * 1000;
+
 function localDayKeyNow(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

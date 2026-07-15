@@ -16,7 +16,7 @@ from ..config import get_settings
 from ..db import get_pool
 from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from . import access
-from .im_schema import ensure_social_im_v12
+from .im_schema import ensure_social_im_v12, ensure_social_im_v12_pool
 from .media import unlink_storage_keys
 from .moderation import ModerationError, moderate_text
 
@@ -149,8 +149,9 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     cutoff = _retention_cutoff()
     items: list[dict] = []
+    # 独立连接补 schema，避免失败污染本请求事务
+    ensure_social_im_v12_pool(pool)
     with pool.connection() as conn:
-        _ensure_im_tables(conn)
         # 好友申请 inbox（021 未迁移时降级）
         try:
             pending_fr = conn.execute(
@@ -197,7 +198,8 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 "badge": None,
             })
 
-        # 主查询需 f-string 嵌入北京日表达式；021 未迁移时降级
+        groups = []
+        # 主查询需 f-string 嵌入北京日表达式；缺列/缺表时多层降级
         try:
             groups = conn.execute(
                 f"""
@@ -259,65 +261,70 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
             ).fetchall()
         except Exception:
             conn.rollback()
-            groups = conn.execute(
-                f"""
-                SELECT g.id, g.name, m.role,
-                  (SELECT gm.id FROM group_message gm
-                   WHERE gm.group_id = g.id
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_id,
-                  (SELECT gm.kind FROM group_message gm
-                   WHERE gm.group_id = g.id
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_kind,
-                  (SELECT gm.body FROM group_message gm
-                   WHERE gm.group_id = g.id
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_body,
-                  (SELECT gm.created_at FROM group_message gm
-                   WHERE gm.group_id = g.id
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_at,
-                  '-infinity'::timestamptz AS last_read,
-                  NULL::timestamptz AS pinned_at, false AS muted,
-                  0 AS unread,
-                  0 AS open_tasks,
-                  EXISTS (
-                    SELECT 1 FROM group_message gm
-                    WHERE gm.group_id = g.id AND gm.user_id = %s
-                      AND gm.kind = 'checkin'
-                      AND {_CN_GM_DAY} = {_CN_TODAY}
-                    LIMIT 1
-                  ) AS my_checked_in_today,
-                  g.created_at AS group_created_at
-                FROM social_group g
-                JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
-                ORDER BY COALESCE(
-                  (SELECT gm.created_at FROM group_message gm
-                   WHERE gm.group_id = g.id ORDER BY gm.created_at DESC LIMIT 1),
-                  g.created_at
-                ) DESC
-                """,
-                (user_id, user_id),
-            ).fetchall()
+            try:
+                groups = conn.execute(
+                    """
+                    SELECT g.id, g.name, m.role,
+                      (SELECT gm.id FROM group_message gm
+                       WHERE gm.group_id = g.id
+                       ORDER BY gm.created_at DESC LIMIT 1) AS last_id,
+                      (SELECT gm.kind FROM group_message gm
+                       WHERE gm.group_id = g.id
+                       ORDER BY gm.created_at DESC LIMIT 1) AS last_kind,
+                      (SELECT gm.body FROM group_message gm
+                       WHERE gm.group_id = g.id
+                       ORDER BY gm.created_at DESC LIMIT 1) AS last_body,
+                      (SELECT gm.created_at FROM group_message gm
+                       WHERE gm.group_id = g.id
+                       ORDER BY gm.created_at DESC LIMIT 1) AS last_at,
+                      '-infinity'::timestamptz AS last_read,
+                      NULL::timestamptz AS pinned_at, false AS muted,
+                      0 AS unread,
+                      0 AS open_tasks,
+                      false AS my_checked_in_today,
+                      g.created_at AS group_created_at
+                    FROM social_group g
+                    JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
+                    ORDER BY COALESCE(
+                      (SELECT gm.created_at FROM group_message gm
+                       WHERE gm.group_id = g.id ORDER BY gm.created_at DESC LIMIT 1),
+                      g.created_at
+                    ) DESC
+                    """,
+                    (user_id,),
+                ).fetchall()
+            except Exception:
+                conn.rollback()
+                groups = []
 
         for r in groups:
-            (
-                gid, name, role, last_id, last_kind, last_body, last_at, _lr,
-                pinned_at, muted, unread, _open_tasks, _my_checked, group_created,
-            ) = r
-            fname = None
-            if last_kind in ("file", "image"):
-                fname = _last_attachment_name(conn, "group", last_id)
-            sort_at = last_at or group_created
-            items.append({
-                "scope": "group",
-                "ref_id": str(gid),
-                "title": name,
-                "subtitle": _summarize(last_kind, last_body, fname) if last_id else None,
-                "unread": int(unread or 0),
-                "updated_at": sort_at.isoformat() if sort_at else None,
-                "pinned": pinned_at is not None,
-                "muted": bool(muted),
-                "badge": None,
-                "role": role,
-            })
+            try:
+                (
+                    gid, name, role, last_id, last_kind, last_body, last_at, _lr,
+                    pinned_at, muted, unread, _open_tasks, _my_checked, group_created,
+                ) = r
+                fname = None
+                if last_kind in ("file", "image"):
+                    fname = _last_attachment_name(conn, "group", last_id)
+                sort_at = last_at or group_created
+                items.append({
+                    "scope": "group",
+                    "ref_id": str(gid),
+                    "title": name,
+                    "subtitle": _summarize(last_kind, last_body, fname) if last_id else None,
+                    "unread": int(unread or 0),
+                    "updated_at": sort_at.isoformat() if sort_at else None,
+                    "pinned": pinned_at is not None,
+                    "muted": bool(muted),
+                    "badge": None,
+                    "role": role,
+                })
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                continue
 
         # DM threads
         try:
@@ -355,44 +362,39 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 (cutoff, cutoff, cutoff, cutoff, cutoff, user_id, user_id, user_id, user_id),
             ).fetchall()
         except Exception:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             threads = []
 
         for r in threads:
-            tid, low, high, last_id, last_kind, last_body, last_at, _lr, pinned_at, muted, unread = r
-            peer = str(high) if str(low) == user_id else str(low)
-            fname = None
-            if last_kind in ("file", "image"):
-                fname = _last_attachment_name(conn, "dm", last_id)
-            items.append({
-                "scope": "dm",
-                "ref_id": str(tid),
-                "peer_user_id": peer,
-                "title": _display(conn, peer),
-                "subtitle": _summarize(last_kind, last_body, fname),
-                "unread": int(unread or 0),
-                "updated_at": last_at.isoformat() if last_at else None,
-                "pinned": pinned_at is not None,
-                "muted": bool(muted),
-                "badge": None,
-            })
+            try:
+                tid, low, high, last_id, last_kind, last_body, last_at, _lr, pinned_at, muted, unread = r
+                peer = str(high) if str(low) == user_id else str(low)
+                fname = None
+                if last_kind in ("file", "image"):
+                    fname = _last_attachment_name(conn, "dm", last_id)
+                items.append({
+                    "scope": "dm",
+                    "ref_id": str(tid),
+                    "peer_user_id": peer,
+                    "title": _display(conn, peer),
+                    "subtitle": _summarize(last_kind, last_body, fname) if last_id else None,
+                    "unread": int(unread or 0),
+                    "updated_at": last_at.isoformat() if last_at else None,
+                    "pinned": pinned_at is not None,
+                    "muted": bool(muted),
+                    "badge": None,
+                })
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+                continue
 
-    # inbox 置顶已在上；其余按 updated_at
-    def sort_key(it: dict):
-        pin = 0 if it.get("pinned") or it["scope"].startswith("inbox") else 1
-        return (pin, it.get("updated_at") or "")
-
-    items.sort(key=sort_key)
-    # 稳定：inbox 已 pinned True；再按时间倒序对非 inbox
-    items.sort(
-        key=lambda it: (
-            0 if it["scope"].startswith("inbox") else 1,
-            0 if it.get("pinned") else 1,
-            it.get("updated_at") or "",
-        ),
-        reverse=False,
-    )
-    # 上面 reverse 对时间不对，重排：
+    # inbox 置顶；其余置顶优先再按时间
     inbox = [i for i in items if i["scope"].startswith("inbox")]
     rest = [i for i in items if not i["scope"].startswith("inbox")]
     rest.sort(key=lambda it: (0 if it.get("pinned") else 1, it.get("updated_at") or ""), reverse=False)

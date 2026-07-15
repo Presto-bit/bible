@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
@@ -7,9 +8,16 @@ import { api, contentAssetUrl, effectiveId, ensureAccountReady, type DmMessage }
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet';
 import { ImMessageBody } from '@/components/social/ImMessageBody';
-import { ImActionMenu } from '@/components/social/ImActionMenu';
 import { ForwardPickerSheet, type ForwardPayload } from '@/components/social/ForwardPickerSheet';
-import { canRecallOwnMessage, copyMessageText, focusMessageById, formatMsgDayLabel, formatMsgTime, localDayKeyFromIso, replySnippet } from '@/lib/im_ui';
+import {
+  CHAT_TIME_GAP_MS,
+  canRecallOwnMessage,
+  copyMessageText,
+  focusMessageById,
+  formatChatTimeSep,
+  localDayKeyFromIso,
+  replySnippet,
+} from '@/lib/im_ui';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
 import {
   IconClose,
@@ -18,6 +26,7 @@ import {
   IconPlus,
 } from '@/components/social/ImComposerIcons';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
+import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import {
   dequeueFailedText,
@@ -55,8 +64,8 @@ function DmThreadPageInner() {
   const threadId = id;
   const [uid, setUid] = useState<string | null>(null);
   const [title, setTitle] = useState('私信');
+  const [peerUserId, setPeerUserId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<LocalDm[]>([]);
-  const [peerLastRead, setPeerLastRead] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
@@ -73,13 +82,18 @@ function DmThreadPageInner() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [forwardOpen, setForwardOpen] = useState(false);
   const [forwardItems, setForwardItems] = useState<ForwardPayload[]>([]);
+  const [actionMsgId, setActionMsgId] = useState<string | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const stickBottom = useRef(true);
   const wasOffline = useRef(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
+  const [composerFocused, setComposerFocused] = useState(false);
+  const kbInset = useImComposerKeyboard(composerFocused || plusOpen);
   const [plusAccept, setPlusAccept] = useState(
     'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
   );
@@ -143,6 +157,7 @@ function DmThreadPageInner() {
       const conv = await api.conversations();
       const hit = conv.items.find((it) => it.scope === 'dm' && it.ref_id === threadId);
       if (hit?.title) setTitle(hit.title);
+      if (hit?.peer_user_id) setPeerUserId(hit.peer_user_id);
     } catch {
       /* ignore */
     }
@@ -153,7 +168,6 @@ function DmThreadPageInner() {
     try {
       const r = await api.dmMessages(threadId);
       const incoming = (r.messages || []) as LocalDm[];
-      setPeerLastRead(r.peer_last_read_at ?? null);
       setMsgs((prev) => {
         const temps = prev.filter((m) => m.id.startsWith('temp-'));
         if (!temps.length) return incoming;
@@ -485,9 +499,27 @@ function DmThreadPageInner() {
     if (items.length) openForward(items);
   };
 
-  const isRead = (createdAt?: string | null) => {
-    if (!peerLastRead || !createdAt) return false;
-    return new Date(createdAt).getTime() <= new Date(peerLastRead).getTime();
+  const actionMsg = actionMsgId ? byId.get(actionMsgId) : undefined;
+
+  const clearLongPress = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const openMsgActions = (mid: string) => {
+    if (selectMode) return;
+    const m = byId.get(mid);
+    if (!m || m.recalled || m.pending) return;
+    longPressFired.current = true;
+    setActionMsgId(mid);
+  };
+
+  const startLongPress = (mid: string) => {
+    longPressFired.current = false;
+    clearLongPress();
+    longPressTimer.current = setTimeout(() => openMsgActions(mid), 420);
   };
 
   return (
@@ -495,16 +527,13 @@ function DmThreadPageInner() {
       <header className="dm-page-head">
         <PageBackBar href="/discover" label="消息" />
         <h1 className="dm-page-title">{title}</h1>
-        {!selectMode ? (
-          <button
-            type="button"
-            className="text-link"
-            style={{ fontSize: 13, marginLeft: 'auto' }}
-            onClick={() => setSelectMode(true)}
-          >
-            多选
-          </button>
-        ) : null}
+        {peerUserId && !selectMode ? (
+          <Link href={`/discover/friends/${peerUserId}`} className="dm-page-profile text-link">
+            资料
+          </Link>
+        ) : (
+          <span className="dm-page-profile-slot" aria-hidden />
+        )}
       </header>
 
       {selectMode ? (
@@ -536,70 +565,47 @@ function DmThreadPageInner() {
         >
           {msgs.length === 0 ? (
             <div className="dm-empty">
-              <strong>还没有消息</strong>
-              <p className="muted">打个招呼，开始这段对话吧。</p>
+              <strong>打个招呼吧</strong>
+              <p className="muted">发一句问候，开始这段对话。</p>
             </div>
           ) : null}
           {msgs.map((m, idx) => {
             const mine = m.mine ?? m.sender_id === uid;
             const parent = m.reply_to_id ? byId.get(m.reply_to_id) : undefined;
+            const prev = idx > 0 ? msgs[idx - 1]! : null;
+            const prevTs = prev?.created_at ? new Date(prev.created_at).getTime() : 0;
+            const curTs = m.created_at ? new Date(m.created_at).getTime() : 0;
             const dayKey = localDayKeyFromIso(m.created_at);
-            const prevDay = idx > 0 ? localDayKeyFromIso(msgs[idx - 1]!.created_at) : '';
-            const showDay = dayKey && dayKey !== prevDay;
-            const showRecall = canRecallOwnMessage(m.created_at, {
-              mine,
-              recalled: m.recalled,
-            });
+            const prevDay = prev ? localDayKeyFromIso(prev.created_at) : '';
+            const showDay = Boolean(dayKey && dayKey !== prevDay);
+            const showTimeSep =
+              !showDay
+              && Boolean(prev)
+              && curTs - prevTs >= CHAT_TIME_GAP_MS;
+            const sameSender =
+              Boolean(prev)
+              && !showDay
+              && !showTimeSep
+              && (prev!.mine ?? prev!.sender_id === uid) === mine
+              && prev!.sender_id === m.sender_id;
             const selected = selectedIds.has(m.id);
             const canSelect = selectMode && !m.recalled && !m.pending && !m.id.startsWith('temp-');
-            const actionItems = !m.pending && !m.sendFailed && !m.recalled
-              ? [
-                  ...(m.body || m.ref
-                    ? [{
-                        label: '复制',
-                        onClick: () => void copyMessageText([m.ref, m.body]),
-                      }]
-                    : []),
-                  {
-                    label: '回复',
-                    onClick: () => {
-                      setReplyTo({
-                        id: m.id,
-                        snippet: replySnippet(m.body, m.kind, m.attachments?.[0]?.file_name),
-                      });
-                    },
-                  },
-                  ...(showRecall
-                    ? [{
-                        label: '撤回',
-                        onClick: () => void recall(m.id),
-                      }]
-                    : []),
-                  ...(!mine
-                    ? [{
-                        label: '举报',
-                        onClick: () => setReportId(m.id),
-                      }]
-                    : []),
-                  {
-                    label: '转发',
-                    onClick: () =>
-                      openForward([{ body: m.body, kind: m.kind, ref: m.ref }]),
-                  },
-                ]
-              : [];
 
             return (
               <div key={m.id} className="dm-msg-block">
-                {showDay ? (
-                  <div className="dm-day-sep" role="separator">
-                    <span>{formatMsgDayLabel(dayKey)}</span>
+                {showDay || showTimeSep ? (
+                  <div className={`dm-day-sep${showTimeSep && !showDay ? ' is-time' : ''}`} role="separator">
+                    <span>{formatChatTimeSep(m.created_at)}</span>
                   </div>
                 ) : null}
                 <div
                   data-mid={m.id}
-                  className={`dm-msg-row${mine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}`}
+                  className={`dm-msg-row${mine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}${sameSender ? ' is-continue' : ''}`}
                   onClick={() => {
+                    if (longPressFired.current) {
+                      longPressFired.current = false;
+                      return;
+                    }
                     if (canSelect) toggleSelect(m.id);
                   }}
                 >
@@ -614,7 +620,25 @@ function DmThreadPageInner() {
                     }}
                   />
                 ) : null}
-                <div className="dm-bubble">
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="dm-bubble"
+                  onPointerDown={() => startLongPress(m.id)}
+                  onPointerUp={clearLongPress}
+                  onPointerLeave={clearLongPress}
+                  onPointerCancel={clearLongPress}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openMsgActions(m.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openMsgActions(m.id);
+                    }
+                  }}
+                >
                   {m.recalled ? (
                     <span className="muted">消息已撤回</span>
                   ) : (
@@ -683,47 +707,41 @@ function DmThreadPageInner() {
                           })}
                         </div>
                       ) : null}
-                      <div className="dm-bubble-foot">
-                        <span className="dm-bubble-time muted">
-                          {m.pending
-                            ? '发送中…'
-                            : m.sendFailed
-                              ? '发送失败'
-                              : formatMsgTime(m.created_at)}
-                        </span>
-                        {m.sendFailed ? (
-                          <button
-                            type="button"
-                            className="text-link"
-                            style={{ fontSize: 12 }}
-                            onClick={() => void resend(m)}
-                          >
-                            重发
-                          </button>
-                        ) : null}
-                        {m.sendFailed ? (
-                          <button
-                            type="button"
-                            className="text-link danger"
-                            style={{ fontSize: 12 }}
-                            onClick={() => {
-                              dequeueFailedText(m.id);
-                              takeMediaFile(m.id);
-                              setMsgs((prev) => prev.filter((x) => x.id !== m.id));
-                            }}
-                          >
-                            删除
-                          </button>
-                        ) : null}
-                        {mine && !m.pending && !m.sendFailed && !m.recalled ? (
-                          <span className="im-read-receipt">
-                            {isRead(m.created_at) ? '已读' : '已送达'}
+                      {(m.pending || m.sendFailed) ? (
+                        <div className="dm-bubble-foot">
+                          <span className="dm-bubble-time muted">
+                            {m.pending ? '发送中…' : '发送失败'}
                           </span>
-                        ) : null}
-                        {!selectMode && actionItems.length ? (
-                          <ImActionMenu items={actionItems} />
-                        ) : null}
-                      </div>
+                          {m.sendFailed ? (
+                            <button
+                              type="button"
+                              className="text-link"
+                              style={{ fontSize: 12 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void resend(m);
+                              }}
+                            >
+                              重发
+                            </button>
+                          ) : null}
+                          {m.sendFailed ? (
+                            <button
+                              type="button"
+                              className="text-link danger"
+                              style={{ fontSize: 12 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                dequeueFailedText(m.id);
+                                takeMediaFile(m.id);
+                                setMsgs((prev) => prev.filter((x) => x.id !== m.id));
+                              }}
+                            >
+                              删除
+                            </button>
+                          ) : null}
+                        </div>
+                      ) : null}
                     </>
                   )}
                 </div>
@@ -740,7 +758,13 @@ function DmThreadPageInner() {
         ) : null}
       </div>
 
-      <div className="im-composer-bar dm-composer-dock">
+      <div
+        className="im-composer-bar dm-composer-dock"
+        style={{
+          bottom: kbInset > 0 ? kbInset : undefined,
+          paddingBottom: kbInset > 0 ? 8 : undefined,
+        }}
+      >
         {replyTo ? (
           <div className="group-composer-reply" style={{ width: '100%' }}>
             <div>
@@ -771,7 +795,17 @@ function DmThreadPageInner() {
               placeholder={online ? (replyTo ? '回复…' : '发消息…') : '离线不可发，联网后继续'}
               disabled={!online || sending || uploading}
               onChange={(e) => setText(e.target.value)}
-              onFocus={() => setPlusOpen(false)}
+              onFocus={() => {
+                setPlusOpen(false);
+                setComposerFocused(true);
+              }}
+              onBlur={() => {
+                window.setTimeout(() => {
+                  if (document.activeElement !== inputRef.current) {
+                    setComposerFocused(false);
+                  }
+                }, 180);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -855,6 +889,130 @@ function DmThreadPageInner() {
           }}
         />
       </div>
+
+      {actionMsg && !actionMsg.recalled ? (
+        <div className="im-msg-action-sheet" role="dialog" aria-label="消息操作">
+          <button
+            type="button"
+            className="im-msg-action-backdrop"
+            aria-label="关闭"
+            onClick={() => setActionMsgId(null)}
+          />
+          <div className="im-msg-action-panel">
+            <p className="im-msg-action-title muted">消息操作</p>
+            <div className="im-msg-action-grid">
+              {actionMsg.sendFailed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void resend(actionMsg);
+                    setActionMsgId(null);
+                  }}
+                >
+                  重发
+                </button>
+              ) : null}
+              {!actionMsg.pending && !actionMsg.sendFailed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplyTo({
+                      id: actionMsg.id,
+                      snippet: replySnippet(
+                        actionMsg.body,
+                        actionMsg.kind,
+                        actionMsg.attachments?.[0]?.file_name,
+                      ),
+                    });
+                    setActionMsgId(null);
+                  }}
+                >
+                  回复
+                </button>
+              ) : null}
+              {!actionMsg.pending && !actionMsg.sendFailed && (actionMsg.body || actionMsg.ref) ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void copyMessageText([actionMsg.ref, actionMsg.body]);
+                    setActionMsgId(null);
+                  }}
+                >
+                  复制
+                </button>
+              ) : null}
+              {!actionMsg.pending && !actionMsg.sendFailed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    openForward([
+                      { body: actionMsg.body, kind: actionMsg.kind, ref: actionMsg.ref },
+                    ]);
+                    setActionMsgId(null);
+                  }}
+                >
+                  转发
+                </button>
+              ) : null}
+              {!actionMsg.pending && !actionMsg.sendFailed && !actionMsg.id.startsWith('temp-') ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectMode(true);
+                    setSelectedIds(new Set([actionMsg.id]));
+                    setActionMsgId(null);
+                  }}
+                >
+                  多选
+                </button>
+              ) : null}
+              {canRecallOwnMessage(actionMsg.created_at, {
+                mine: actionMsg.mine ?? actionMsg.sender_id === uid,
+                recalled: actionMsg.recalled,
+              }) ? (
+                <button
+                  type="button"
+                  className="is-danger"
+                  onClick={() => {
+                    void recall(actionMsg.id);
+                    setActionMsgId(null);
+                  }}
+                >
+                  撤回
+                </button>
+              ) : null}
+              {actionMsg.sendFailed ? (
+                <button
+                  type="button"
+                  className="is-danger"
+                  onClick={() => {
+                    dequeueFailedText(actionMsg.id);
+                    takeMediaFile(actionMsg.id);
+                    setMsgs((prev) => prev.filter((x) => x.id !== actionMsg.id));
+                    setActionMsgId(null);
+                  }}
+                >
+                  删除
+                </button>
+              ) : null}
+              {!(actionMsg.mine ?? actionMsg.sender_id === uid) && !actionMsg.pending ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReportId(actionMsg.id);
+                    setActionMsgId(null);
+                  }}
+                >
+                  举报
+                </button>
+              ) : null}
+            </div>
+            <button type="button" className="im-msg-action-cancel" onClick={() => setActionMsgId(null)}>
+              取消
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <ReportSheet
         open={Boolean(reportId)}
