@@ -166,10 +166,10 @@ async function refreshAccountStatus(code: string): Promise<void> {
     );
     if (!res.ok) return;
     const d = await res.json();
-    if (d.username) userLsSet(NAME_KEY, d.username);
+    if (d.username) userLsSet(NAME_KEY, d.username, code);
     applyAccountPhone(d.phone ?? null, code);
     if (d.has_password) setHasPasswordCached(true);
-    else if (!userLsGet(NAME_KEY)?.trim()) setHasPasswordCached(false);
+    else if (!userLsGet(NAME_KEY, code)?.trim()) setHasPasswordCached(false);
     // 服务端已有用户名+密码时，视为引导完成
     if (d.username && d.has_password) markOnboarded();
   } catch {
@@ -186,8 +186,25 @@ function deviceHeaders(): Record<string, string> {
   return h;
 }
 
+function hasSecuredLocalSession(): boolean {
+  return (
+    localStorage.getItem(HAS_PWD_KEY) === '1' &&
+    Boolean(currentUserId() || localStorage.getItem(GUEST_KEY))
+  );
+}
+
+/** 已设密登录态下，禁止用设备上的旧游客绑定覆盖当前账号 */
 function applyServerUserCode(code: string, opts?: { forceUser?: boolean }): void {
   if (!isUserCode(code)) return;
+  const securedUid = hasSecuredLocalSession() ? currentUserId() : null;
+  if (securedUid && code !== securedUid && !opts?.forceUser) {
+    // 保持 GUEST 与已登录 USER 对齐，避免后续 register 写错 profile 桶
+    if (localStorage.getItem(GUEST_KEY) !== securedUid) {
+      localStorage.setItem(GUEST_KEY, securedUid);
+      bindDeviceGuestId(securedUid);
+    }
+    return;
+  }
   localStorage.setItem(GUEST_KEY, code);
   bindDeviceGuestId(code);
   if (opts?.forceUser || !currentUserId()) localStorage.setItem(USER_KEY, code);
@@ -196,15 +213,23 @@ function applyServerUserCode(code: string, opts?: { forceUser?: boolean }): void
 /** 登录/设密成功后：GUEST 与 USER 必须与服务端 user_code 对齐 */
 function adoptAuthenticatedUserCode(code: string): void {
   if (!isUserCode(code)) return;
+  bumpIdentityEpoch();
   localStorage.setItem(GUEST_KEY, code);
   bindDeviceGuestId(code);
   localStorage.setItem(USER_KEY, code);
 }
 
 let ensureIdentityPromise: Promise<void> | null = null;
+/** 递增后丢弃 in-flight 的 identity/account ensure，避免登录后被旧游客回调覆盖 */
+let identityEpoch = 0;
+
+function bumpIdentityEpoch() {
+  identityEpoch += 1;
+}
 
 /** 登录/换号后清空，避免沿用游客建档期的 ensure 缓存 */
 export function resetAccountEnsureCaches() {
+  bumpIdentityEpoch();
   ensureAccountPromise = null;
   ensureIdentityPromise = null;
 }
@@ -225,20 +250,24 @@ function clearLocalAccountIdentity() {
 export async function ensureIdentityReady(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (ensureIdentityPromise) return ensureIdentityPromise;
+  const epochAtStart = identityEpoch;
   ensureIdentityPromise = (async () => {
     await resolveDeviceId();
+    if (epochAtStart !== identityEpoch) return;
     const deviceId = getDeviceId();
 
     // 在线：服务端绑定优先；未绑定则自动换新账号（清库/撞号后两台设备无需手动点）
     if (deviceId && !deviceId.startsWith('dev-')) {
       try {
         // 本机已是密码账号：不要被设备上的游客绑定覆盖（登录抢绑前的竞态窗口）
-        const securedLocal =
-          localStorage.getItem(HAS_PWD_KEY) === '1' &&
-          Boolean(currentUserId() || localStorage.getItem(GUEST_KEY));
-        if (securedLocal) {
+        if (hasSecuredLocalSession()) {
           const localCode = currentUserId() || localStorage.getItem(GUEST_KEY);
           if (localCode && isUserCode(localCode)) {
+            // 强制 GUEST≡USER，防止登录后仍残留旧游客码
+            const uid = currentUserId();
+            if (uid && localStorage.getItem(GUEST_KEY) !== uid) {
+              localStorage.setItem(GUEST_KEY, uid);
+            }
             bindDeviceGuestId(localCode);
             ensureFirstSeen();
             markIdentityBootstrapped();
@@ -247,6 +276,7 @@ export async function ensureIdentityReady(): Promise<void> {
         }
         const params = new URLSearchParams({ device_id: deviceId });
         const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
+        if (epochAtStart !== identityEpoch) return;
         if (res.ok) {
           const d = (await res.json()) as { user_code?: string | null };
           if (d.user_code && isUserCode(d.user_code)) {
@@ -257,7 +287,7 @@ export async function ensureIdentityReady(): Promise<void> {
           }
           // 服务端未绑定：若本地已设好用户名+密码，保留并稍后 register 重新绑定（避免反复清空又提示设置）
           const local = localStorage.getItem(GUEST_KEY);
-          if (local && isUserCode(local) && userLsGet(NAME_KEY)?.trim()
+          if (local && isUserCode(local) && userLsGet(NAME_KEY, local)?.trim()
             && localStorage.getItem(HAS_PWD_KEY) === '1') {
             bindDeviceGuestId(local);
             ensureFirstSeen();
@@ -265,6 +295,7 @@ export async function ensureIdentityReady(): Promise<void> {
             return;
           }
           // 本地也无完整账号 → 按 device_id 生成新 ID（清库/撞号后自动换号）
+          if (epochAtStart !== identityEpoch) return;
           clearLocalAccountIdentity();
           const fresh = deviceIdToUserCode(deviceId);
           localStorage.setItem(GUEST_KEY, fresh);
@@ -278,6 +309,8 @@ export async function ensureIdentityReady(): Promise<void> {
         /* 离线：沿用本地 */
       }
     }
+
+    if (epochAtStart !== identityEpoch) return;
 
     let g = localStorage.getItem(GUEST_KEY);
     if (g && isUserCode(g)) {
@@ -299,7 +332,12 @@ export async function ensureIdentityReady(): Promise<void> {
     bindDeviceGuestId(g);
     ensureFirstSeen();
     markIdentityBootstrapped();
-  })();
+  })().finally(() => {
+    // 仅清理本轮 promise，避免顶掉登录后重新拉起的 ensure
+    if (ensureIdentityPromise && epochAtStart === identityEpoch) {
+      /* keep resolved promise for dedupe until reset */
+    }
+  });
   return ensureIdentityPromise;
 }
 
@@ -311,12 +349,19 @@ if (typeof window !== 'undefined') {
 export async function ensureAccountReady(): Promise<void> {
   if (typeof window === 'undefined') return;
   if (ensureAccountPromise) return ensureAccountPromise;
+  const epochAtStart = identityEpoch;
   ensureAccountPromise = (async () => {
     await ensureIdentityReady();
-    const code = guestId();
+    if (epochAtStart !== identityEpoch) return;
+    // 已登录优先用 USER，避免 GUEST 残留旧游客码导致 register 写错 profile 桶
+    const code = currentUserId() || guestId();
     if (!code) return;
     const loggedIn = currentUserId();
     if (!loggedIn) localStorage.setItem(USER_KEY, code);
+    else if (localStorage.getItem(GUEST_KEY) !== loggedIn) {
+      localStorage.setItem(GUEST_KEY, loggedIn);
+      bindDeviceGuestId(loggedIn);
+    }
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
@@ -326,10 +371,15 @@ export async function ensureAccountReady(): Promise<void> {
         },
         body: JSON.stringify({ user_code: code }),
       });
+      if (epochAtStart !== identityEpoch) return;
       if (res.ok) {
         const d = await res.json();
-        if (d.user_code && isUserCode(d.user_code)) applyServerUserCode(d.user_code);
-        if (d.username) userLsSet(NAME_KEY, d.username);
+        // 已登录会话：勿被 register 回包里的其它 user_code 覆盖
+        if (d.user_code && isUserCode(d.user_code) && !currentUserId()) {
+          applyServerUserCode(d.user_code);
+        }
+        const nameOwner = currentUserId() || code;
+        if (d.username) userLsSet(NAME_KEY, d.username, nameOwner);
         // 勿用「无密码」覆盖本地已确认的设密状态（避免 register 回包异常导致反复引导）
         if (d.has_password) setHasPasswordCached(true);
         else if (localStorage.getItem(HAS_PWD_KEY) !== '1') setHasPasswordCached(false);
@@ -337,7 +387,8 @@ export async function ensureAccountReady(): Promise<void> {
     } catch {
       /* 离线：本地 ID 仍可用 */
     }
-    const finalCode = guestId() || code;
+    if (epochAtStart !== identityEpoch) return;
+    const finalCode = currentUserId() || guestId() || code;
     await refreshAccountStatus(finalCode);
     void import('./post_login').then((m) => m.mergeGuest()).catch(() => {});
   })();
@@ -602,6 +653,9 @@ export async function loginWithIdentifier(identifier: string, password: string):
     throw new Error('用户名登录需要密码');
   }
 
+  // 确保有 device_id，登录才能抢绑本机，刷新后不会回到旧游客
+  await resolveDeviceId();
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/auth/login`, {
@@ -624,13 +678,16 @@ export async function loginWithIdentifier(identifier: string, password: string):
   const d = await res.json();
   const code = d.user_code as string;
   adoptAuthenticatedUserCode(code);
-  if (d.username) userLsSet(NAME_KEY, d.username);
+  if (d.username) userLsSet(NAME_KEY, d.username, code);
   applyAccountPhone(d.phone ?? null, code);
-  setHasPasswordCached(Boolean(d.has_password));
+  // 用密码登录成功即视为已设密（避免回包缺字段导致刷新退回旧游客）
+  if (password || d.has_password) setHasPasswordCached(true);
+  else setHasPasswordCached(Boolean(d.has_password));
   markOnboarded();
   // 必须等全量拉取完成再返回，否则登录页会提前显示「已恢复」而读经仍为空
   resetAccountEnsureCaches();
   await import('./post_login').then((m) => m.afterLogin());
+  await refreshAccountStatus(code);
   return code;
 }
 

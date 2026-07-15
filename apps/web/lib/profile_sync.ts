@@ -54,7 +54,11 @@ export function applyRemoteProfile(data?: UserProfilePayload | null) {
   }
   if (typeof data.username === 'string' && data.username.trim()) {
     const next = data.username.trim();
-    if (userLsGet(NAME_KEY) !== next) {
+    // 已设密：勿被同步里的旧昵称覆盖当前账号用户名（刷新后「名字变回去」）
+    const localName = (userLsGet(NAME_KEY) || '').trim();
+    const secured = typeof window !== 'undefined' && localStorage.getItem('account_has_password') === '1';
+    const shouldApply = !secured || !localName || localName === next;
+    if (shouldApply && localName !== next) {
       userLsSet(NAME_KEY, next);
       changed = true;
     }
