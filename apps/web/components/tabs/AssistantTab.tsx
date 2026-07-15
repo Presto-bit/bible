@@ -24,6 +24,7 @@ import {
   loadAssistantDraft,
   saveAssistantDraft,
 } from '@/lib/assistant_session_draft';
+import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
   findResumableSession,
   formatSessionUpdatedLabel,
@@ -298,35 +299,46 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
   }, []);
 
+  const assistantWasActiveRef = useRef(false);
+
+  const clearAssistantChrome = () => {
+    document.body.classList.remove(
+      'assistant-active',
+      'assistant-immersive',
+      'assistant-tabbar-peek',
+      'assistant-keyboard',
+      'assistant-keyboard-vv',
+    );
+    document.documentElement.style.removeProperty('--assistant-vv-h');
+    document.documentElement.style.removeProperty('--assistant-kb-inset');
+  };
+
   /** 底栏常驻；仅输入聚焦时进入键盘态并略上抬输入区 */
   useEffect(() => {
     if (!paneActive) {
+      assistantWasActiveRef.current = false;
       setComposerFocused(false);
-      document.body.classList.remove(
-        'assistant-active',
-        'assistant-immersive',
-        'assistant-tabbar-peek',
-        'assistant-keyboard',
-        'assistant-keyboard-vv',
-      );
-      document.documentElement.style.removeProperty('--assistant-vv-h');
-      document.documentElement.style.removeProperty('--assistant-kb-inset');
+      clearAssistantChrome();
       return;
     }
-    document.body.classList.add('assistant-active');
-    document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
+    let cancelled = false;
+    const apply = () => {
+      if (cancelled) return;
+      document.body.classList.add('assistant-active');
+      document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
+    };
+    if (assistantWasActiveRef.current || document.body.classList.contains('assistant-active')) {
+      apply();
+    } else {
+      scheduleTabChrome(apply);
+    }
+    assistantWasActiveRef.current = true;
     return () => {
-      document.body.classList.remove(
-        'assistant-active',
-        'assistant-immersive',
-        'assistant-tabbar-peek',
-        'assistant-keyboard',
-        'assistant-keyboard-vv',
-      );
-      document.documentElement.style.removeProperty('--assistant-vv-h');
-      document.documentElement.style.removeProperty('--assistant-kb-inset');
+      cancelled = true;
     };
   }, [paneActive]);
+
+  useEffect(() => () => clearAssistantChrome(), []);
 
   useEffect(() => {
     if (!paneActive) return;

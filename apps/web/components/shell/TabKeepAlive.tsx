@@ -94,21 +94,16 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
 
   const suppressRoute = enabled && activeTab !== null;
 
-  useEffect(() => {
-    if (!enabled) return;
-    setMounted({
-      home: true,
-      reader: true,
-      assistant: true,
-      discover: true,
-      profile: true,
-    });
-  }, [enabled]);
-
+  // 按需挂载：仅在访问过的 Tab 上保持实例；不再首屏并行挂满五个。
   useEffect(() => {
     if (!enabled || !activeTab) return;
     setMounted((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
   }, [enabled, activeTab]);
+
+  useEffect(() => {
+    if (enabled) return;
+    setMounted(emptyMounted());
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;

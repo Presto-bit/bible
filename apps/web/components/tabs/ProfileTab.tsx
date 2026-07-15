@@ -51,7 +51,7 @@ import { userLsGet, userLsSet } from '@/lib/user_storage';
 const AVATAR_KEY = 'profile_avatar';
 const BIO_KEY = 'profile_bio';
 
-export default function ProfileTab() {
+export default function ProfileTab({ paneActive = true }: { paneActive?: boolean }) {
   const confirm = useConfirm();
   const toast = useToast();
   const [uid, setUid] = useState<string | null>(null);
@@ -80,6 +80,7 @@ export default function ProfileTab() {
 
   const pathname = usePathname();
   const { enabled, activeTab } = useTabKeepAlive();
+  const profileAwake = paneActive && (activeTab == null || activeTab === 'profile');
 
   const openSettingsRoute = () => {
     markRouteNavigation();
@@ -124,21 +125,22 @@ export default function ProfileTab() {
   }, [applyProfileDeepLinks]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !profileAwake) return;
     return subscribePwaTabNav(() => applyProfileDeepLinks());
-  }, [enabled, applyProfileDeepLinks]);
+  }, [enabled, profileAwake, applyProfileDeepLinks]);
 
   useEffect(() => {
-    if (!uid) {
-      setAdminEligible(false);
+    if (!uid || !profileAwake) {
+      if (!uid) setAdminEligible(false);
       return;
     }
     void fetchAdminEligible().then(setAdminEligible);
-  }, [uid, settingsOpen]);
+  }, [uid, settingsOpen, profileAwake]);
 
   useEffect(() => {
+    if (!profileAwake) return;
     setReviewCards(favoriteReviewCards(3));
-  }, []);
+  }, [profileAwake]);
 
   useEffect(() => {
     if (currentUserId()) {
@@ -187,6 +189,7 @@ export default function ProfileTab() {
   }, []);
 
   useEffect(() => {
+    if (!profileAwake) return;
     const refreshReading = () => {
       setMins(todayMinutes());
       setStreak(readingStreak());
@@ -204,6 +207,7 @@ export default function ProfileTab() {
       }
     };
     refreshStatus();
+    refreshReading();
     const unsubSync = subscribeSyncState(() => {
       refreshStatus();
       if (getSyncState() === 'synced') refreshReading();
@@ -213,7 +217,7 @@ export default function ProfileTab() {
       unsubSync();
       unsubData();
     };
-  }, []);
+  }, [profileAwake]);
 
   const refreshAccount = () => {
     setName(getDisplayName());

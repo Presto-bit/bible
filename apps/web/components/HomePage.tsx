@@ -60,7 +60,7 @@ function timeOfDayGreeting(date = new Date()): string {
   return '夜深了';
 }
 
-export default function HomePageClient() {
+export default function HomePageClient({ paneActive = true }: { paneActive?: boolean }) {
   const [dv, setDv] = useState<DailyVerse | null>(() => readCachedDailyVerse());
   const [err, setErr] = useState<string | null>(null);
   const [dvLoading, setDvLoading] = useState(true);
@@ -149,31 +149,6 @@ export default function HomePageClient() {
     loadHomeBootstrap();
   }, [loadHomeBootstrap]);
 
-  useEffect(() => {
-    reloadDailyContent();
-  }, [reloadDailyContent]);
-
-  useEffect(() => {
-    return watchChinaDayChange(reloadDailyContent);
-  }, [reloadDailyContent]);
-
-  useEffect(() => {
-    // 每日经文直接铺风景图（按 day 轮换）
-    setHeroIllustration(dailyVerseWallpaperUrl(dv?.day ?? 1));
-  }, [dv?.day]);
-
-  useEffect(() => {
-    const refresh = () => {
-      if (document.visibilityState === 'visible') reloadDailyContent();
-    };
-    document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('focus', refresh);
-    return () => {
-      document.removeEventListener('visibilitychange', refresh);
-      window.removeEventListener('focus', refresh);
-    };
-  }, [reloadDailyContent]);
-
   const plusBtnRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
 
@@ -187,13 +162,38 @@ export default function HomePageClient() {
   const [userName, setUserName] = useState('');
   const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
+  const homeAwake = paneActive && (activeTab == null || activeTab === 'home');
 
   useEffect(() => {
-    if (activeTab != null && activeTab !== 'home') return;
+    // 每日经文直接铺风景图（按 day 轮换）
+    setHeroIllustration(dailyVerseWallpaperUrl(dv?.day ?? 1));
+  }, [dv?.day]);
+
+  useEffect(() => {
+    if (!homeAwake) return;
+    return watchChinaDayChange(reloadDailyContent);
+  }, [homeAwake, reloadDailyContent]);
+
+  useEffect(() => {
+    if (!homeAwake) return;
+    const refresh = () => {
+      if (document.visibilityState === 'visible') reloadDailyContent();
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [homeAwake, reloadDailyContent]);
+
+  useEffect(() => {
+    if (!homeAwake) return;
     return initPcWheelPassthrough();
-  }, [activeTab]);
+  }, [homeAwake]);
 
   useEffect(() => {
+    if (!homeAwake) return;
     const refreshName = () => {
       setUserName(getDisplayName());
       const report = buildReport();
@@ -216,7 +216,7 @@ export default function HomePageClient() {
       unsubSync();
       unsubData();
     };
-  }, []);
+  }, [homeAwake]);
 
   const refreshRail = useCallback(async () => {
     const report = buildReport();
@@ -363,10 +363,7 @@ export default function HomePageClient() {
   }, []);
 
   useEffect(() => {
-    refreshRail();
-  }, [refreshRail]);
-
-  useEffect(() => {
+    if (!homeAwake) return;
     const onRefresh = () => {
       if (document.visibilityState !== 'visible') return;
       void refreshRail();
@@ -377,17 +374,16 @@ export default function HomePageClient() {
       document.removeEventListener('visibilitychange', onRefresh);
       window.removeEventListener('focus', onRefresh);
     };
-  }, [refreshRail]);
+  }, [homeAwake, refreshRail]);
 
   useEffect(() => {
-    if (activeTab === 'home') {
-      void refreshRail();
-      void reloadDailyContent();
-      if (consumeHeroReturnToVerse()) {
-        setHeroResetNonce((n) => n + 1);
-      }
+    if (!homeAwake) return;
+    void refreshRail();
+    void reloadDailyContent();
+    if (consumeHeroReturnToVerse()) {
+      setHeroResetNonce((n) => n + 1);
     }
-  }, [activeTab, refreshRail, reloadDailyContent]);
+  }, [homeAwake, refreshRail, reloadDailyContent]);
 
   const openVerseWallpaper = () => {
     if (!dv?.text) return;

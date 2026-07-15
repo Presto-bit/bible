@@ -33,7 +33,7 @@ function groupStatusBadge(g: Group) {
   return groupListStatusBadge(g);
 }
 
-export default function DiscoverTab() {
+export default function DiscoverTab({ paneActive = true }: { paneActive?: boolean }) {
   const confirm = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
@@ -71,18 +71,19 @@ export default function DiscoverTab() {
   }, [online]);
 
   useEffect(() => {
+    if (!paneActive) return;
     void ensureAccountReady().then(() => {
       const id = effectiveId();
       setUid(id || null);
     });
-  }, []);
+  }, [paneActive]);
 
   useEffect(() => {
-    if (!uid) return;
+    if (!uid || !paneActive) return;
     void reload();
-  }, [uid, pathname, reload]);
+  }, [uid, pathname, reload, paneActive]);
 
-  useGroupsListRefresh(reload, Boolean(uid));
+  useGroupsListRefresh(reload, Boolean(uid) && paneActive);
 
   const toggleReact = async (item: FriendActivity, emoji: string) => {
     const prev = reacted[item.id]?.[emoji];

@@ -133,6 +133,7 @@ import {
   readerBackHref,
 } from '@/lib/reader_return';
 import { clearReaderChrome } from '@/lib/reader_chrome';
+import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
   applyAppTheme,
   getEffectiveReaderTheme,
@@ -857,23 +858,44 @@ export default function ReaderView({
     return () => window.removeEventListener('app-theme-change', syncTheme);
   }, []);
 
+  const readerWasActiveRef = useRef(false);
+
   useEffect(() => {
     if (!paneActive) {
+      readerWasActiveRef.current = false;
       clearReaderChrome();
+      applyAppTheme();
       return;
     }
-    const bg = readerThemeBackground(theme);
-    document.body.classList.add('reader-active');
-    document.body.style.setProperty('--reader-surface-bg', bg);
-    document.body.style.background = bg;
-    document.documentElement.style.background = bg;
-    const meta = document.querySelector('meta[name="theme-color"]');
-    meta?.setAttribute('content', theme === 'night' ? '#12181c' : bg);
+    let cancelled = false;
+    const apply = () => {
+      if (cancelled) return;
+      const bg = readerThemeBackground(theme);
+      document.body.classList.add('reader-active');
+      document.body.style.setProperty('--reader-surface-bg', bg);
+      document.body.style.background = bg;
+      document.documentElement.style.background = bg;
+      const meta = document.querySelector('meta[name="theme-color"]');
+      meta?.setAttribute('content', theme === 'night' ? '#12181c' : bg);
+    };
+    // 切进阅读 Tab 时延后改 body；同 Tab 内改主题则立刻应用，避免闪一下。
+    if (readerWasActiveRef.current || document.body.classList.contains('reader-active')) {
+      apply();
+    } else {
+      scheduleTabChrome(apply);
+    }
+    readerWasActiveRef.current = true;
+    return () => {
+      cancelled = true;
+    };
+  }, [theme, paneActive]);
+
+  useEffect(() => {
     return () => {
       clearReaderChrome();
       applyAppTheme();
     };
-  }, [theme, paneActive]);
+  }, []);
 
   useEffect(() => {
     if (!paneActive) {
