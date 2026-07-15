@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v26';
+const CACHE = 'presto-bible-v27';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 

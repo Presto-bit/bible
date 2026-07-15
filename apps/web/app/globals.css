@@ -67,10 +67,11 @@ body {
   font-size: var(--app-font-size);
   -webkit-font-smoothing: antialiased;
   line-height: var(--app-line-height);
+  width: 100%;
+  max-width: 100%;
   /* clip 避免 overflow-x:hidden 把 overflow-y 算成 auto，造成嵌套滚动层吞 PC 滚轮 */
   overflow-x: clip;
   overflow-y: auto;
-  max-width: 100vw;
   touch-action: pan-y;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -79,6 +80,42 @@ body {
   overscroll-behavior: none;
   overscroll-behavior-x: none;
   -webkit-tap-highlight-color: transparent;
+  /* App 壳：默认不可划选；经文区与表单另行放开 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* 表单与显式可选区仍可输入/复制 */
+input,
+textarea,
+select,
+[contenteditable="true"],
+[contenteditable=""],
+.allow-text-select {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* 触控端：避免双击缩放；输入框 ≥16px 防止 iOS 聚焦强制放大 */
+@media (hover: none) and (pointer: coarse) {
+  a,
+  button,
+  [role="button"],
+  .tabbar,
+  .im-composer-bar,
+  .mode-chip,
+  .font-pill,
+  .btn {
+    touch-action: manipulation;
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 /* 字体工具类 */
@@ -130,16 +167,20 @@ a {
 .app-body {
   min-height: 100vh;
   min-height: 100dvh;
+  width: 100%;
+  max-width: 100%;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: calc(var(--tabbar-h) + 12px);
   overflow-x: clip;
   overflow-y: visible;
-  max-width: 100vw;
   scrollbar-width: none;
   -ms-overflow-style: none;
   overscroll-behavior-x: none;
+  touch-action: pan-y;
   background: var(--paper);
   color: var(--ink);
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 body.pwa-standalone .app-body {
@@ -209,7 +250,8 @@ html.pwa-standalone a[href] {
 }
 
 .container {
-  max-width: min(720px, 100vw);
+  max-width: min(720px, 100%);
+  width: 100%;
   margin: 0 auto;
   padding: 20px 18px 24px;
   overflow-x: clip;
@@ -219,14 +261,24 @@ html.pwa-standalone a[href] {
   background: var(--paper);
   color: var(--ink);
   font-size: var(--app-font-size);
+  box-sizing: border-box;
 }
 
-/* 全屏子页（群详情等无 container 包裹）统一晨光底 */
+/* 全屏子页（群详情等无 container 包裹）统一晨光底 + 防横向拖拽 */
 .group-page,
 .group-page-wechat,
+.group-page-checkin,
+.dm-page,
+.discover-page,
 .reader-catalog-page {
   background: var(--paper);
   color: var(--ink);
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+  box-sizing: border-box;
 }
 
 /* 底部 5-Tab 导航：浮动胶囊 */
@@ -10679,6 +10731,15 @@ a.license-row-name:hover {
   -webkit-touch-callout: none;
 }
 
+/* 壳层默认禁选时，经文区仍需可选（圣经 Tab） */
+.reader-page .verse-token,
+.reader-page .verse-inline,
+.reader-page .verse-text-body,
+.reader-page .verse-text-body * {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 /* 触控/PWA 原生划选：user-select 保留放大镜+蓝底；touch-callout:none 隐藏系统复制菜单 */
 @media (hover: none) and (pointer: coarse), (display-mode: standalone) {
   .reader-page .verse-token,
@@ -16220,13 +16281,16 @@ body:has(.group-page-checkin) .app-body {
 .group-checkin-scroll {
   flex: 1;
   min-height: 0;
+  overflow-x: clip;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  overscroll-behavior-x: none;
   padding: 10px 16px calc(76px + env(safe-area-inset-bottom, 0));
   display: flex;
   flex-direction: column;
   gap: 10px;
+  touch-action: pan-y;
 }
 
 .group-checkin-feed-inner {

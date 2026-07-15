@@ -50,6 +50,9 @@ export const viewport: Viewport = {
   themeColor: PWA_SHELL_BG_COLOR,
   width: 'device-width',
   initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: 'cover',
   // 键盘弹出时缩小 layout viewport，避免 iOS/PWA fixed 底栏收起后悬空留白
   interactiveWidget: 'resizes-content',
