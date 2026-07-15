@@ -16,6 +16,7 @@ from ..config import get_settings
 from ..db import get_pool
 from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from . import access
+from .im_schema import ensure_social_im_v12
 from .media import unlink_storage_keys
 from .moderation import ModerationError, moderate_text
 
@@ -100,10 +101,7 @@ def _last_attachment_name(conn, scope: str, message_id) -> str | None:
 
 
 def _ensure_im_tables(conn) -> None:
-    """开发环境兜底：若未跑迁移则跳过（正式靠 021）。"""
-    conn.execute(
-        "SELECT 1 FROM information_schema.tables WHERE table_name = 'direct_thread'"
-    )
+    ensure_social_im_v12(conn)
 
 
 # ── 模型 ──
@@ -152,6 +150,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
     cutoff = _retention_cutoff()
     items: list[dict] = []
     with pool.connection() as conn:
+        _ensure_im_tables(conn)
         # 好友申请 inbox（021 未迁移时降级）
         try:
             pending_fr = conn.execute(
@@ -642,6 +641,7 @@ def open_dm(peer_id: str, user_id: str = Depends(get_current_user)) -> dict:
         raise HTTPException(400, "不能与自己私信")
     pool = get_pool()
     with pool.connection() as conn:
+        _ensure_im_tables(conn)
         fr = conn.execute(
             "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
             (user_id, peer_id),
@@ -663,6 +663,7 @@ def list_dm_messages(
     cutoff = _retention_cutoff()
     pool = get_pool()
     with pool.connection() as conn:
+        _ensure_im_tables(conn)
         t = conn.execute(
             "SELECT user_low_id, user_high_id FROM direct_thread WHERE id = %s",
             (thread_id,),
@@ -700,6 +701,10 @@ def list_dm_messages(
                         "url": f"/content/social-media/assets/{fname}" if fname else None,
                     })
             except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
                 atts = []
             msgs.append({
                 "id": mid,
@@ -724,6 +729,10 @@ def list_dm_messages(
             if pr and pr[0]:
                 peer_read = pr[0].isoformat()
         except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
             peer_read = None
     return {"messages": msgs, "peer_last_read_at": peer_read}
 
@@ -745,6 +754,7 @@ def send_dm(
             raise HTTPException(400, e.reason) from e
     pool = get_pool()
     with pool.connection() as conn:
+        _ensure_im_tables(conn)
         t = conn.execute(
             "SELECT user_low_id, user_high_id FROM direct_thread WHERE id = %s",
             (thread_id,),
@@ -779,6 +789,7 @@ def send_group_chat(
         raise HTTPException(400, e.reason) from e
     pool = get_pool()
     with pool.connection() as conn:
+        _ensure_im_tables(conn)
         access.require_member(conn, gid, user_id)
         allow = conn.execute(
             "SELECT COALESCE(allow_chat, true) FROM social_group WHERE id = %s", (gid,),

@@ -21,8 +21,9 @@ from ..config import get_settings
 from ..content import loader
 from ..db import get_pool
 from ..time_cn import CN_TODAY_SQL, cn_day_sql
-from .moderation import ModerationError, moderate_text
 from . import task_ops
+from .im_schema import ensure_social_im_v12
+from .moderation import ModerationError, moderate_text
 
 logger = logging.getLogger(__name__)
 
@@ -839,6 +840,7 @@ def _require_member(conn, gid: str, user_id: str) -> str:
 def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
+        ensure_social_im_v12(conn)
         role = _require_member(conn, gid, user_id)
         try:
             g = conn.execute(
@@ -1144,6 +1146,7 @@ def group_feed(
     limit = max(1, min(limit, 100))
     pool = get_pool()
     with pool.connection() as conn:
+        ensure_social_im_v12(conn)
         _require_member(conn, gid, user_id)
         _ensure_report_table(conn)
         # 021 列（recalled_at / mentions / reply_to_id）未迁移时降级

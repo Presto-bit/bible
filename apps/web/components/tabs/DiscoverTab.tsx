@@ -444,22 +444,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 ))}
               </ul>
             </section>
-          ) : (
-            <button
-              type="button"
-              className="discover-conv-row discover-friends-entry"
-              onClick={() => go('/friend/add')}
-            >
-              <span className="discover-conv-avatar scope-inbox_friends" aria-hidden>
-                ＋
-              </span>
-              <div className="discover-conv-main">
-                <strong>新的朋友</strong>
-                <p className="muted discover-conv-sub">申请加好友，对方同意后即可私信</p>
-              </div>
-              <span className="muted" aria-hidden>›</span>
-            </button>
-          )}
+          ) : null}
 
           <p className="section-label">好友</p>
           {friends.length === 0 ? (
