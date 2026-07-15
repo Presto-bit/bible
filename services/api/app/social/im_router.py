@@ -92,6 +92,10 @@ def _last_attachment_name(conn, scope: str, message_id) -> str | None:
         ).fetchone()
         return (row[0] if row else None) or None
     except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
         return None
 
 
@@ -239,7 +243,8 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                       AND gm.kind = 'checkin'
                       AND {_CN_GM_DAY} = {_CN_TODAY}
                     LIMIT 1
-                  ) AS my_checked_in_today
+                  ) AS my_checked_in_today,
+                  g.created_at AS group_created_at
                 FROM social_group g
                 JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
                 LEFT JOIN conversation_state cs
@@ -280,7 +285,8 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                       AND gm.kind = 'checkin'
                       AND {_CN_GM_DAY} = {_CN_TODAY}
                     LIMIT 1
-                  ) AS my_checked_in_today
+                  ) AS my_checked_in_today,
+                  g.created_at AS group_created_at
                 FROM social_group g
                 JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
                 ORDER BY COALESCE(
@@ -295,18 +301,19 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
         for r in groups:
             (
                 gid, name, role, last_id, last_kind, last_body, last_at, _lr,
-                pinned_at, muted, unread, _open_tasks, _my_checked,
+                pinned_at, muted, unread, _open_tasks, _my_checked, group_created,
             ) = r
             fname = None
             if last_kind in ("file", "image"):
                 fname = _last_attachment_name(conn, "group", last_id)
+            sort_at = last_at or group_created
             items.append({
                 "scope": "group",
                 "ref_id": str(gid),
                 "title": name,
-                "subtitle": _summarize(last_kind, last_body, fname),
+                "subtitle": _summarize(last_kind, last_body, fname) if last_id else None,
                 "unread": int(unread or 0),
-                "updated_at": last_at.isoformat() if last_at else None,
+                "updated_at": sort_at.isoformat() if sort_at else None,
                 "pinned": pinned_at is not None,
                 "muted": bool(muted),
                 "badge": None,
@@ -530,27 +537,31 @@ def _accept_friend_request(conn, request_id: str, actor_id: str) -> tuple[str, s
 @router.get("/friend-requests")
 def list_friend_requests(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
-    with pool.connection() as conn:
-        incoming = conn.execute(
-            """
-            SELECT r.id, r.from_user_id, r.message, r.created_at, u.handle, u.display_name
-            FROM friend_request r
-            JOIN users u ON u.id = r.from_user_id
-            WHERE r.to_user_id = %s AND r.status = 'pending'
-            ORDER BY r.created_at DESC
-            """,
-            (user_id,),
-        ).fetchall()
-        outgoing = conn.execute(
-            """
-            SELECT r.id, r.to_user_id, r.message, r.created_at, r.status, u.handle, u.display_name
-            FROM friend_request r
-            JOIN users u ON u.id = r.to_user_id
-            WHERE r.from_user_id = %s AND r.status = 'pending'
-            ORDER BY r.created_at DESC
-            """,
-            (user_id,),
-        ).fetchall()
+    try:
+        with pool.connection() as conn:
+            incoming = conn.execute(
+                """
+                SELECT r.id, r.from_user_id, r.message, r.created_at, u.handle, u.display_name
+                FROM friend_request r
+                JOIN users u ON u.id = r.from_user_id
+                WHERE r.to_user_id = %s AND r.status = 'pending'
+                ORDER BY r.created_at DESC
+                """,
+                (user_id,),
+            ).fetchall()
+            outgoing = conn.execute(
+                """
+                SELECT r.id, r.to_user_id, r.message, r.created_at, r.status, u.handle, u.display_name
+                FROM friend_request r
+                JOIN users u ON u.id = r.to_user_id
+                WHERE r.from_user_id = %s AND r.status = 'pending'
+                ORDER BY r.created_at DESC
+                """,
+                (user_id,),
+            ).fetchall()
+    except Exception:
+        # 021 未迁移时表不存在：好友列表仍可用
+        return {"incoming": [], "outgoing": []}
     return {
         "incoming": [
             {

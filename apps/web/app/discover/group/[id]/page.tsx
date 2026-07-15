@@ -3,14 +3,12 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { GroupActivityFeed } from '@/components/group/GroupActivityFeed';
-import { GroupCheckinWall } from '@/components/group/GroupCheckinWall';
 import { GroupComposerBar, type ComposerActionMode } from '@/components/group/GroupComposerBar';
 import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
 import { GroupPageSkeleton } from '@/components/group/GroupPageSkeleton';
 import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
-import { GroupTodayFocus } from '@/components/group/GroupTodayFocus';
 import { GroupCoreadStickyBar } from '@/components/group/GroupCoreadStickyBar';
 import { GroupToast } from '@/components/group/GroupToast';
 import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet';
@@ -49,7 +47,6 @@ function GroupPageInner() {
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [composerMode, setComposerMode] = useState<ComposerActionMode | null>(null);
-  const [todayOpen, setTodayOpen] = useState(false);
   const [showJump, setShowJump] = useState(false);
   const stickBottom = useRef(true);
   const [replyTarget, setReplyTarget] = useState<{
@@ -71,7 +68,6 @@ function GroupPageInner() {
     ref?: string | null;
     completion_rule?: string;
   } | null>(null);
-  const [flyHighlight, setFlyHighlight] = useState(false);
   const feedWrapRef = useRef<HTMLDivElement>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -252,7 +248,6 @@ function GroupPageInner() {
   const allowChat = detail.allow_chat !== false;
   const members = detail.members ?? [];
   const tasks = detail.tasks ?? [];
-  const pinnedTask = tasks.find((t) => t.pinned || t.id === detail.pinned_task_id);
   const safeDetail = { ...detail, members, tasks };
 
   const react = async (mid: string, emoji: string) => {
@@ -348,8 +343,6 @@ function GroupPageInner() {
       recordGroupCheckin(gid);
       clearGroupCheckinDraft(gid);
       hapticSuccess();
-      setFlyHighlight(true);
-      setTimeout(() => setFlyHighlight(false), 2200);
       showToast('打卡已发送 ✓');
       setComposerMode(null);
       await reload();
@@ -358,8 +351,6 @@ function GroupPageInner() {
         queueCheckin(gid, payload);
         clearGroupCheckinDraft(gid);
         hapticSuccess();
-        setFlyHighlight(true);
-        setTimeout(() => setFlyHighlight(false), 2200);
         showToast('已离线保存，联网后自动发送');
         setComposerMode(null);
         return;
@@ -614,43 +605,12 @@ function GroupPageInner() {
           tasks={tasks}
           onCheckin={() => setComposerMode('checkin')}
         />
-        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 2px' }}>
-          <button
-            type="button"
-            className="text-link"
-            style={{ fontSize: 13 }}
-            onClick={() => setTodayOpen((v) => !v)}
-          >
-            {todayOpen ? '收起今日详情' : '展开今日详情'}
-          </button>
-        </div>
         {!online ? (
           <p className="muted offline-page-hint" style={{ padding: '0 16px' }}>
             当前离线：打卡可排队，闲聊需联网。
           </p>
         ) : null}
-        {todayOpen ? (
-          <>
-            <GroupTodayFocus
-              gid={gid}
-              detail={safeDetail}
-              isOwner={isOwner}
-              pinnedTask={pinnedTask}
-              tasks={tasks}
-              onCheckin={() => setComposerMode('checkin')}
-              onCompleteTask={completeTask}
-            />
-            <GroupCheckinWall
-              groupId={gid}
-              detail={safeDetail}
-              messages={feed}
-              isOwner={isOwner}
-              flyHighlight={flyHighlight}
-              onReact={react}
-            />
-          </>
-        ) : null}
-        <div className="group-feed-wrap group-checkin-feed-inner">
+        <div className="group-feed-wrap group-checkin-feed-inner group-chat-feed-wrap">
           <GroupActivityFeed
             gid={gid}
             messages={feed}

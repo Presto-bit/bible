@@ -350,6 +350,10 @@ export function GroupComposerBar({
   const showSend =
     allowChat && (text.trim().length > 0 || mentionAll || mentions.length > 0) && !pending;
 
+  useEffect(() => {
+    if (showSend) setPanelOpen(false);
+  }, [showSend]);
+
   return (
     <footer className="im-composer-bar group-wechat-composer im-composer-dock">
       {replyTo ? (
@@ -507,23 +511,46 @@ export function GroupComposerBar({
           >
             {sending || busy ? '…' : '发送'}
           </button>
-        ) : null}
-        <button
-          type="button"
-          className={`im-composer-plus${panelOpen ? ' is-open' : ''}`}
-          disabled={disabled || uploading || sending}
-          aria-expanded={panelOpen}
-          aria-label={panelOpen ? '收起更多' : '更多'}
-          onClick={togglePanel}
-        >
-          {panelOpen ? <IconClose /> : <IconPlus />}
-        </button>
+        ) : (
+          <button
+            type="button"
+            className={`im-composer-plus${panelOpen ? ' is-open' : ''}`}
+            disabled={disabled || uploading || sending}
+            aria-expanded={panelOpen}
+            aria-label={panelOpen ? '收起更多' : '更多'}
+            onClick={togglePanel}
+          >
+            {panelOpen ? <IconClose /> : <IconPlus />}
+          </button>
+        )}
       </div>
 
       {err ? <p className="group-composer-err">{err}</p> : null}
 
       {panelOpen ? (
         <div className="im-plus-panel" role="menu">
+          <button type="button" className="im-plus-item" onClick={() => openMode('checkin')}>
+            <span className="im-plus-icon" aria-hidden>
+              <IconCheckin />
+            </span>
+            <span>打卡</span>
+          </button>
+          {canPostTask ? (
+            <button type="button" className="im-plus-item" onClick={() => openMode('task')}>
+              <span className="im-plus-icon" aria-hidden>
+                <IconTask />
+              </span>
+              <span>任务</span>
+            </button>
+          ) : null}
+          {canPostTask ? (
+            <button type="button" className="im-plus-item" onClick={() => openMode('plan')}>
+              <span className="im-plus-icon" aria-hidden>
+                <IconPlan />
+              </span>
+              <span>群计划</span>
+            </button>
+          ) : null}
           {allowChat && online ? (
             <>
               <button
@@ -549,28 +576,6 @@ export function GroupComposerBar({
                 <span>文件</span>
               </button>
             </>
-          ) : null}
-          <button type="button" className="im-plus-item" onClick={() => openMode('checkin')}>
-            <span className="im-plus-icon" aria-hidden>
-              <IconCheckin />
-            </span>
-            <span>打卡</span>
-          </button>
-          {canPostTask ? (
-            <button type="button" className="im-plus-item" onClick={() => openMode('task')}>
-              <span className="im-plus-icon" aria-hidden>
-                <IconTask />
-              </span>
-              <span>任务</span>
-            </button>
-          ) : null}
-          {canPostTask ? (
-            <button type="button" className="im-plus-item" onClick={() => openMode('plan')}>
-              <span className="im-plus-icon" aria-hidden>
-                <IconPlan />
-              </span>
-              <span>群计划</span>
-            </button>
           ) : null}
         </div>
       ) : null}

@@ -67,9 +67,21 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         const conv = await api.conversations();
         setItems(Array.isArray(conv.items) ? conv.items : []);
       } else {
-        const [f, req] = await Promise.all([api.friends(), api.friendRequests()]);
-        setFriends(Array.isArray(f.friends) ? f.friends : []);
-        setIncoming(Array.isArray(req.incoming) ? req.incoming : []);
+        // 申请表缺迁移时不应拖垮整页好友列表
+        const [fRes, reqRes] = await Promise.allSettled([
+          api.friends(),
+          api.friendRequests(),
+        ]);
+        if (fRes.status === 'fulfilled') {
+          setFriends(Array.isArray(fRes.value.friends) ? fRes.value.friends : []);
+        } else {
+          throw fRes.reason;
+        }
+        if (reqRes.status === 'fulfilled') {
+          setIncoming(Array.isArray(reqRes.value.incoming) ? reqRes.value.incoming : []);
+        } else {
+          setIncoming([]);
+        }
       }
       setErr(null);
     } catch (e) {
@@ -108,6 +120,12 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     if (!uid || !paneActive) return;
     void reload();
   }, [uid, paneActive, reload]);
+
+  // 从建群/群页返回时 KeepAlive 可能不重挂载，按路由再刷一次
+  useEffect(() => {
+    if (!uid || !paneActive || pathname !== '/discover') return;
+    void reload();
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!uid || !paneActive || sub !== 'messages') return;

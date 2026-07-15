@@ -15,6 +15,7 @@ import {
   canRecallOwnMessage,
   copyMessageText,
   focusMessageById,
+  formatMsgDayLabel,
   formatMsgTime,
   replySnippet,
 } from '@/lib/im_ui';
@@ -25,15 +26,7 @@ import { ImMessageBody } from '@/components/social/ImMessageBody';
 import { MemberAvatar } from './MemberAvatar';
 
 const QUICK_EMOJIS = GROUP_EMOJIS.slice(0, 3);
-const TODAY_PREVIEW = 5;
-
-function dayLabel(dayKey: string): string {
-  const today = localDayKey(new Date());
-  const yesterday = localDayKey(new Date(Date.now() - 86400000));
-  if (dayKey === today) return '今天';
-  if (dayKey === yesterday) return '昨天';
-  return dayKey.replace(/-/g, '/');
-}
+const TIME_GAP_MS = 5 * 60 * 1000;
 
 function isTaskCompleteCheckin(m: GroupMessage): boolean {
   return m.kind === 'checkin' && Boolean(m.body?.startsWith('已完成任务·'));
@@ -61,31 +54,31 @@ function dedupeMilestones(items: GroupMessage[]): GroupMessage[] {
   });
 }
 
-export type FeedFilter = 'all' | 'checkin_task' | 'file';
-
-function matchesFeedFilter(m: GroupMessage, filter: FeedFilter): boolean {
-  if (filter === 'all') return true;
-  if (filter === 'checkin_task') {
-    return m.kind === 'checkin' || m.kind === 'task';
-  }
-  if (filter === 'file') {
-    if (m.kind === 'image' || m.kind === 'file') return true;
-    return Boolean(m.attachments && m.attachments.length > 0);
-  }
-  return true;
+function bubbleTone(m: GroupMessage): string {
+  if (m.kind === 'task') return 'is-task';
+  if (isTaskCompleteCheckin(m)) return 'is-task-done';
+  if (m.kind === 'checkin') return 'is-checkin';
+  if (m.kind === 'plan') return 'is-plan';
+  if (m.kind === 'verse') return 'is-verse';
+  return 'is-chat';
 }
 
-const FEED_FILTERS: { id: FeedFilter; label: string }[] = [
-  { id: 'all', label: '全部' },
-  { id: 'checkin_task', label: '打卡与任务' },
-  { id: 'file', label: '文件' },
-];
+function kindChip(m: GroupMessage): string | null {
+  if (m.recalled) return null;
+  if (m.kind === 'task') return '任务';
+  if (isTaskCompleteCheckin(m)) return '完成';
+  if (m.kind === 'checkin') return '打卡';
+  if (m.kind === 'plan') return '计划';
+  if (m.kind === 'verse') return '经文';
+  return null;
+}
 
-
-type CardProps = {
+type BubbleProps = {
   gid: string;
   m: GroupMessage;
   isOwner: boolean;
+  showAvatar: boolean;
+  showName: boolean;
   replyPreview?: { id?: string; author: string; snippet: string } | null;
   onReact: (mid: string, emoji: string) => void;
   onReport: (mid: string) => void;
@@ -96,10 +89,12 @@ type CardProps = {
   onResend?: (m: GroupMessage) => void;
 };
 
-function ActivityCard({
+function ChatBubble({
   gid,
   m,
   isOwner,
+  showAvatar,
+  showName,
   replyPreview,
   onReact,
   onReport,
@@ -108,7 +103,8 @@ function ActivityCard({
   onRecall,
   onCompleteTask,
   onResend,
-}: CardProps) {
+}: BubbleProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const [showRespond, setShowRespond] = useState(false);
   const [showCanned, setShowCanned] = useState(false);
   const showRecall = canRecallOwnMessage(m.created_at, {
@@ -120,45 +116,25 @@ function ActivityCard({
   const isTaskDone = isTaskCompleteCheckin(m);
   const isChatLite =
     m.kind === 'chat' || m.kind === 'image' || m.kind === 'file' || m.kind === 'verse';
-  const kindLabel = m.recalled
-    ? '已撤回'
-    : isTask
-      ? '任务'
-      : isTaskDone
-        ? '任务完成'
-        : m.kind === 'verse'
-          ? '经文'
-          : m.kind === 'image'
-            ? '图片'
-            : m.kind === 'file'
-              ? '文件'
-              : isChatLite
-                ? '闲聊'
-                : '打卡';
   const dueLabel = isTask ? formatDueCountdown(m.task_due_at) : null;
   const completeTitle = isTaskDone ? taskCompleteTitle(m.body) : null;
   const refLabel = m.ref ? formatGroupRefLabel(m.ref) : '';
-  const refHref = m.ref ? readerHrefFromRef(m.ref, { group: gid, task: m.task_id || undefined }) : null;
-  const member = { user_id: m.user_id, name: m.author || '群友', role: 'member', is_me: m.mine };
+  const refHref = m.ref
+    ? readerHrefFromRef(m.ref, { group: gid, task: m.task_id || undefined })
+    : null;
+  const member = {
+    user_id: m.user_id,
+    name: m.author || '群友',
+    role: 'member',
+    is_me: m.mine,
+  };
+  const chip = kindChip(m);
+  const reactTotal = reactionCount(m.reactions);
   const beforeReader = () => {
     if (typeof window !== 'undefined') {
       setReaderReturnHref(`${window.location.pathname}${window.location.search}`);
     }
   };
-  const tone = isTask
-    ? 'group-activity-task'
-    : isTaskDone
-      ? 'group-activity-task-done'
-      : isChatLite
-        ? 'group-activity-chat'
-        : 'group-activity-checkin';
-  const reactTotal = reactionCount(m.reactions);
-
-  const shareMessageCard = async () => {
-    const title = refLabel ? `今日打卡 · ${refLabel}` : '今日打卡';
-    await shareCard({ title, body: m.body || '', footer: BRAND_NAME });
-  };
-
   const bodyForRender = (() => {
     if (!m.body) return null;
     if (!isTaskDone) return m.body;
@@ -166,201 +142,238 @@ function ActivityCard({
     return extra || null;
   })();
 
-  if (m.recalled) {
+  const shareMessageCard = async () => {
+    const title = refLabel ? `今日打卡 · ${refLabel}` : '今日打卡';
+    await shareCard({ title, body: m.body || '', footer: BRAND_NAME });
+  };
+
+  if (m.kind === 'system') {
     return (
-      <article data-mid={m.id} className={`group-activity-card ${tone}`}>
-        <div className="group-activity-card-head">
-          <div className="group-activity-card-meta">
-            <MemberAvatar member={member} size={28} className="group-activity-avatar" />
-            <span className="group-activity-kind">{kindLabel}</span>
-            <span className="group-activity-author">{m.mine ? '我' : (m.author || '群友')}</span>
-            <span className="muted group-activity-time">{formatMsgTime(m.created_at)}</span>
-          </div>
-        </div>
-        <p className="muted group-activity-body">消息已撤回</p>
-      </article>
+      <div data-mid={m.id} className="group-chat-system">
+        <span>{m.body || '系统消息'}</span>
+      </div>
     );
   }
 
   return (
-    <article
+    <div
       data-mid={m.id}
-      className={`group-activity-card ${tone}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}`}
+      className={`group-chat-row${m.mine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}`}
     >
-      <div className="group-activity-card-head">
-        <div className="group-activity-card-meta">
-          <MemberAvatar member={member} size={28} className="group-activity-avatar" />
-          <span className="group-activity-kind">{kindLabel}</span>
-          <span className="group-activity-author">{m.mine ? '我' : (m.author || '群友')}</span>
-          <span className="muted group-activity-time">
-            {m.pending ? '发送中…' : m.sendFailed ? '发送失败' : formatMsgTime(m.created_at)}
-          </span>
+      {!m.mine ? (
+        <div className="group-chat-avatar-slot">
+          {showAvatar ? (
+            <MemberAvatar member={member} size={36} className="group-chat-avatar" />
+          ) : null}
         </div>
-        {dueLabel && <span className="group-task-due-badge">{dueLabel}</span>}
-      </div>
+      ) : null}
 
-      {replyPreview ? (
-        <button
-          type="button"
-          className="group-msg-reply-quote is-tappable"
-          disabled={!replyPreview.id}
-          onClick={() => {
-            if (replyPreview.id) focusMessageById(replyPreview.id);
+      <div className="group-chat-col">
+        {showName && !m.mine ? (
+          <span className="group-chat-name muted">{m.author || '群友'}</span>
+        ) : null}
+
+        <div
+          role="button"
+          tabIndex={0}
+          className={`group-chat-bubble ${bubbleTone(m)}${m.recalled ? ' is-recalled' : ''}`}
+          onClick={() => setMenuOpen((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setMenuOpen((v) => !v);
+            }
           }}
         >
-          <span className="muted">{replyPreview.author}</span>
-          <p>{replyPreview.snippet}</p>
-        </button>
-      ) : null}
-
-      {isTaskDone && completeTitle && (
-        <p className="group-activity-task-done">
-          已完成 · <strong>{completeTitle}</strong>
-        </p>
-      )}
-
-      <ImMessageBody body={bodyForRender} ref={m.ref} kind={m.kind} mentions={m.mentions} />
-
-      {m.attachments && m.attachments.length > 0 ? (
-        <div className="group-msg-attach">
-          {m.attachments.map((a) => {
-            const href = a.url ? contentAssetUrl(a.url) : null;
-            const isImg = (a.mime || '').startsWith('image/') || m.kind === 'image';
-            if (isImg && href) {
-              return (
-                <a key={a.id} href={href} target="_blank" rel="noreferrer">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={href} alt={a.file_name || '图片'} />
-                </a>
-              );
-            }
-            return href ? (
-              <a key={a.id} href={href} target="_blank" rel="noreferrer">
-                {a.file_name || '附件'}
-              </a>
-            ) : (
-              <span key={a.id}>{a.file_name || '附件'}</span>
-            );
-          })}
-        </div>
-      ) : null}
-
-      {isTask && m.task_id && onCompleteTask && !m.mine && (
-        <div className="group-task-actions">
-          {m.my_task_done ? (
-            <span className="group-task-done">已完成 ✓</span>
+          {m.recalled ? (
+            <span className="muted">消息已撤回</span>
           ) : (
             <>
-              {refHref && (
-                <Link href={`${refHref}&taskTitle=${encodeURIComponent(m.body || '任务')}`} className="font-pill" onClick={beforeReader}>
-                  去读
-                </Link>
+              {(chip || dueLabel) && (
+                <div className="group-chat-bubble-meta">
+                  {chip ? <span className="group-chat-kind-chip">{chip}</span> : null}
+                  {dueLabel ? <span className="group-task-due-badge">{dueLabel}</span> : null}
+                </div>
               )}
-              <button
-                type="button"
-                className="font-pill accent"
-                onClick={() => onCompleteTask(m.task_id!, m.body || '任务', m.ref)}
-              >
-                完成
-              </button>
+
+              {replyPreview ? (
+                <span
+                  className="group-msg-reply-quote is-tappable"
+                  role={replyPreview.id ? 'button' : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (replyPreview.id) focusMessageById(replyPreview.id);
+                  }}
+                >
+                  <span className="muted">{replyPreview.author}</span>
+                  <p>{replyPreview.snippet}</p>
+                </span>
+              ) : null}
+
+              {isTaskDone && completeTitle ? (
+                <p className="group-activity-task-done">
+                  已完成 · <strong>{completeTitle}</strong>
+                </p>
+              ) : null}
+
+              <ImMessageBody body={bodyForRender} ref={m.ref} kind={m.kind} mentions={m.mentions} />
+
+              {m.attachments && m.attachments.length > 0 ? (
+                <div className="group-msg-attach">
+                  {m.attachments.map((a) => {
+                    const href = a.url ? contentAssetUrl(a.url) : null;
+                    const isImg = (a.mime || '').startsWith('image/') || m.kind === 'image';
+                    if (isImg && href) {
+                      return (
+                        <a key={a.id} href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={href} alt={a.file_name || '图片'} />
+                        </a>
+                      );
+                    }
+                    return href ? (
+                      <a key={a.id} href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                        {a.file_name || '附件'}
+                      </a>
+                    ) : (
+                      <span key={a.id}>{a.file_name || '附件'}</span>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {isTask && m.task_id && onCompleteTask && !m.mine ? (
+                <div className="group-task-actions" onClick={(e) => e.stopPropagation()}>
+                  {m.my_task_done ? (
+                    <span className="group-task-done">已完成 ✓</span>
+                  ) : (
+                    <>
+                      {refHref && (
+                        <Link
+                          href={`${refHref}&taskTitle=${encodeURIComponent(m.body || '任务')}`}
+                          className="font-pill"
+                          onClick={beforeReader}
+                        >
+                          去读
+                        </Link>
+                      )}
+                      <button
+                        type="button"
+                        className="font-pill accent"
+                        onClick={() => onCompleteTask(m.task_id!, m.body || '任务', m.ref)}
+                      >
+                        完成
+                      </button>
+                    </>
+                  )}
+                </div>
+              ) : null}
             </>
           )}
         </div>
-      )}
 
-      {reactTotal > 0 && !showRespond ? (
-        <div className="group-emoji-bar group-emoji-bar-summary">
-          {Object.entries(m.reactions || {})
-            .filter(([, users]) => users.length > 0)
-            .slice(0, 6)
-            .map(([e, users]) => (
-              <button
-                key={e}
-                type="button"
-                className="group-emoji-btn active"
-                onClick={() => onReact(m.id, e)}
-              >
-                {e.startsWith('phrase:') ? cannedPhraseLabel(e) : e} {users.length}
-              </button>
-            ))}
-        </div>
-      ) : null}
-
-      <div className="group-activity-foot">
-        {m.sendFailed && onResend && m.kind === 'chat' && m.body ? (
-          <button type="button" className="text-link" onClick={() => onResend(m)}>重发</button>
-        ) : null}
-        {m.sendFailed ? (
-          <button type="button" className="text-link danger" onClick={() => onDelete(m.id)}>删除</button>
-        ) : null}
-        {!m.pending && !m.sendFailed ? (
-          <button type="button" className="text-link" onClick={() => setShowRespond((v) => !v)}>
-            回应{reactTotal > 0 ? ` (${reactTotal})` : ''}
-          </button>
-        ) : null}
-        {onReply && !m.pending && !m.sendFailed && isChatLite ? (
-          <button type="button" className="text-link" onClick={() => onReply(m)}>回复</button>
-        ) : null}
-        {!m.pending && !m.sendFailed && !m.recalled && (m.body || m.ref) ? (
-          <button
-            type="button"
-            className="text-link"
-            onClick={() => void copyMessageText([m.ref ? formatGroupRefLabel(m.ref) : null, m.body])}
-          >
-            复制
-          </button>
-        ) : null}
-        {m.kind === 'checkin' && m.ref && (
-          <button type="button" className="text-link" onClick={shareMessageCard}>分享</button>
-        )}
-        {showRecall && onRecall && !m.pending ? (
-          <button type="button" className="text-link danger" onClick={() => onRecall(m.id)}>撤回</button>
-        ) : null}
-        {(m.mine || isOwner) && !m.pending && (
-          <button type="button" className="text-link danger" onClick={() => onDelete(m.id)}>删除</button>
-        )}
-        {!m.mine && !m.pending && (
-          <button type="button" className="text-link" onClick={() => onReport(m.id)}>举报</button>
-        )}
-      </div>
-
-      {showRespond && (
-        <div className="group-activity-respond">
-          <div className="group-emoji-bar">
-            {QUICK_EMOJIS.map((e) => {
-              const count = m.reactions[e]?.length || 0;
-              return (
+        {reactTotal > 0 && !showRespond ? (
+          <div className="group-emoji-bar group-emoji-bar-summary">
+            {Object.entries(m.reactions || {})
+              .filter(([, users]) => users.length > 0)
+              .slice(0, 4)
+              .map(([e, users]) => (
                 <button
                   key={e}
                   type="button"
-                  className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
+                  className="group-emoji-btn active"
                   onClick={() => onReact(m.id, e)}
                 >
-                  {e}{count > 0 ? ` ${count}` : ''}
+                  {e.startsWith('phrase:') ? cannedPhraseLabel(e) : e} {users.length}
                 </button>
-              );
-            })}
-            <button type="button" className="group-emoji-btn muted-more" onClick={() => setShowCanned((v) => !v)}>
-              {showCanned ? '收起' : '更多'}
-            </button>
+              ))}
           </div>
-          {showCanned && (
-            <>
-              <div className="group-emoji-bar">
-                {GROUP_EMOJIS.slice(3).map((e) => {
-                  const count = m.reactions[e]?.length || 0;
-                  return (
-                    <button
-                      key={e}
-                      type="button"
-                      className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
-                      onClick={() => onReact(m.id, e)}
-                    >
-                      {e}{count > 0 ? ` ${count}` : ''}
-                    </button>
-                  );
-                })}
-              </div>
+        ) : null}
+
+        {menuOpen && !m.recalled ? (
+          <div className={`group-chat-actions${m.mine ? ' is-mine' : ''}`}>
+            {m.sendFailed && onResend && m.kind === 'chat' && m.body ? (
+              <button type="button" className="text-link" onClick={() => onResend(m)}>重发</button>
+            ) : null}
+            {m.sendFailed ? (
+              <button type="button" className="text-link danger" onClick={() => onDelete(m.id)}>删除</button>
+            ) : null}
+            {!m.pending && !m.sendFailed ? (
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => {
+                  setShowRespond((v) => !v);
+                  setMenuOpen(true);
+                }}
+              >
+                回应{reactTotal > 0 ? ` (${reactTotal})` : ''}
+              </button>
+            ) : null}
+            {onReply && !m.pending && !m.sendFailed && isChatLite ? (
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => {
+                  onReply(m);
+                  setMenuOpen(false);
+                }}
+              >
+                回复
+              </button>
+            ) : null}
+            {!m.pending && !m.sendFailed && (m.body || m.ref) ? (
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => void copyMessageText([m.ref ? formatGroupRefLabel(m.ref) : null, m.body])}
+              >
+                复制
+              </button>
+            ) : null}
+            {m.kind === 'checkin' && m.ref ? (
+              <button type="button" className="text-link" onClick={() => void shareMessageCard()}>
+                分享
+              </button>
+            ) : null}
+            {showRecall && onRecall && !m.pending ? (
+              <button type="button" className="text-link danger" onClick={() => onRecall(m.id)}>撤回</button>
+            ) : null}
+            {(m.mine || isOwner) && !m.pending ? (
+              <button type="button" className="text-link danger" onClick={() => onDelete(m.id)}>删除</button>
+            ) : null}
+            {!m.mine && !m.pending ? (
+              <button type="button" className="text-link" onClick={() => onReport(m.id)}>举报</button>
+            ) : null}
+          </div>
+        ) : null}
+
+        {showRespond ? (
+          <div className="group-activity-respond">
+            <div className="group-emoji-bar">
+              {QUICK_EMOJIS.map((e) => {
+                const count = m.reactions[e]?.length || 0;
+                return (
+                  <button
+                    key={e}
+                    type="button"
+                    className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
+                    onClick={() => onReact(m.id, e)}
+                  >
+                    {e}
+                    {count > 0 ? ` ${count}` : ''}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className="group-emoji-btn muted-more"
+                onClick={() => setShowCanned((v) => !v)}
+              >
+                {showCanned ? '收起' : '更多'}
+              </button>
+            </div>
+            {showCanned ? (
               <div className="group-canned-row">
                 {GROUP_CANNED_PHRASES.map((p) => {
                   const count = m.reactions[p.key]?.length || 0;
@@ -371,16 +384,21 @@ function ActivityCard({
                       className={`group-canned-btn${count > 0 ? ' active' : ''}`}
                       onClick={() => onReact(m.id, p.key)}
                     >
-                      {cannedPhraseLabel(p.key)}{count > 0 ? ` ${count}` : ''}
+                      {cannedPhraseLabel(p.key)}
+                      {count > 0 ? ` ${count}` : ''}
                     </button>
                   );
                 })}
               </div>
-            </>
-          )}
-        </div>
-      )}
-    </article>
+            ) : null}
+          </div>
+        ) : null}
+
+        <span className="group-chat-time muted">
+          {m.pending ? '发送中…' : m.sendFailed ? '发送失败' : formatMsgTime(m.created_at)}
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -417,16 +435,7 @@ export function GroupActivityFeed({
   onCompleteTask,
   onResend,
 }: Props) {
-  const todayKey = localDayKey(new Date());
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const [todayExpanded, setTodayExpanded] = useState(false);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [filter, setFilter] = useState<FeedFilter>('all');
-
-  const filteredMessages = useMemo(
-    () => messages.filter((m) => matchesFeedFilter(m, filter)),
-    [messages, filter],
-  );
 
   const byId = useMemo(() => {
     const map = new Map<string, GroupMessage>();
@@ -434,21 +443,10 @@ export function GroupActivityFeed({
     return map;
   }, [messages]);
 
-  const dayGroups = useMemo(() => {
-    const map = new Map<string, GroupMessage[]>();
-    for (const m of filteredMessages) {
-      const key = localDayKey(m.created_at);
-      const list = map.get(key) ?? [];
-      list.push(m);
-      map.set(key, list);
-    }
-    return Array.from(map.entries())
-      .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([dayKey, items]) => {
-        const sorted = [...items].sort((a, b) => b.created_at.localeCompare(a.created_at));
-        return [dayKey, dedupeMilestones(sorted)] as const;
-      });
-  }, [filteredMessages]);
+  const chrono = useMemo(() => {
+    const sorted = [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    return dedupeMilestones(sorted);
+  }, [messages]);
 
   useEffect(() => {
     if (!hasMore || !onLoadMore) return;
@@ -466,162 +464,86 @@ export function GroupActivityFeed({
 
   if (messages.length === 0) {
     return (
-      <div className="group-activity-empty">
-        <div className="group-empty-icon" aria-hidden>📖</div>
-        <strong>还没有动态</strong>
-        <p className="muted">完成今日阅读后，来发第一条打卡吧。</p>
-        {onOpenComposer && (
+      <div className="group-activity-empty group-chat-empty">
+        <strong>还没有消息</strong>
+        <p className="muted">打个招呼，或完成今日阅读后来打卡。</p>
+        {onOpenComposer ? (
           <button type="button" className="btn" onClick={onOpenComposer}>
             发第一条打卡
           </button>
-        )}
+        ) : null}
       </div>
     );
   }
 
   return (
-    <div className="group-activity-feed">
-      <div className="group-activity-feed-title">
-        <strong>动态</strong>
-        <span className="muted group-activity-feed-hint">时间线</span>
-      </div>
-      <div className="group-feed-filters im-feed-filters" role="tablist" aria-label="时间线筛选">
-        {FEED_FILTERS.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            role="tab"
-            aria-selected={filter === f.id}
-            className={`mode-chip ${filter === f.id ? 'mode-chip-active' : ''}`}
-            onClick={() => setFilter(f.id)}
-          >
-            {f.label}
-          </button>
-        ))}
+    <div className="group-chat-feed">
+      <div ref={loadMoreRef} className="group-feed-load-sentinel" aria-hidden>
+        {loadingMore ? <span className="muted">加载更早消息…</span> : null}
+        {!hasMore && chrono.length > 12 ? <span className="muted">没有更早消息了</span> : null}
       </div>
 
-      {filteredMessages.length === 0 ? (
-        <p className="muted" style={{ margin: '12px 0 8px', lineHeight: 1.5 }}>
-          {filter === 'file'
-            ? '暂无图片或文件。'
-            : filter === 'checkin_task'
-              ? '暂无打卡或任务。'
-              : '暂无消息。'}
-        </p>
-      ) : null}
+      {chrono.map((m, idx) => {
+        const prev = idx > 0 ? chrono[idx - 1] : null;
+        const prevTs = prev ? new Date(prev.created_at).getTime() : 0;
+        const curTs = new Date(m.created_at).getTime();
+        const showTimeSep = !prev || curTs - prevTs > TIME_GAP_MS;
+        const sameAuthor =
+          Boolean(prev)
+          && prev!.kind !== 'system'
+          && m.kind !== 'system'
+          && prev!.user_id === m.user_id
+          && prev!.mine === m.mine
+          && !showTimeSep;
+        const showAvatar = !m.mine && !sameAuthor;
+        const showName = !m.mine && !sameAuthor;
 
-      {dayGroups.map(([dayKey, items]) => {
-        const isToday = dayKey === todayKey;
-        const isCollapsed = isToday ? false : (collapsed[dayKey] ?? true);
-        const visibleItems =
-          isToday && !todayExpanded && items.length > TODAY_PREVIEW
-            ? items.slice(0, TODAY_PREVIEW)
-            : items;
+        const dayKey = localDayKey(m.created_at);
+        const prevDay = prev ? localDayKey(prev.created_at) : null;
+        const showDay = !prev || dayKey !== prevDay;
+
+        const parent = m.reply_to_id ? byId.get(m.reply_to_id) : undefined;
+        const replyPreview = parent
+          ? {
+              id: parent.id,
+              author: parent.mine ? '我' : parent.author || '群友',
+              snippet: parent.recalled
+                ? '消息已撤回'
+                : replySnippet(parent.body, parent.kind, parent.attachments?.[0]?.file_name),
+            }
+          : m.reply_to_id
+            ? { author: '原消息', snippet: '（暂未加载）' }
+            : null;
 
         return (
-          <section
-            key={dayKey}
-            className={`group-activity-day${isToday ? ' is-today' : ''}${isCollapsed ? ' is-collapsed' : ''}`}
-          >
-            {!isToday && (
-              <button
-                type="button"
-                className="group-activity-day-toggle"
-                onClick={() => setCollapsed((prev) => ({ ...prev, [dayKey]: !isCollapsed }))}
-              >
-                <span>{dayLabel(dayKey)}</span>
-                <span className="muted">{items.length} 条 · {isCollapsed ? '展开' : '收起'}</span>
-              </button>
-            )}
-
-            {isToday && (
-              <div className="group-activity-day-label">
-                <span>{dayLabel(dayKey)}</span>
-                <span className="muted">{items.length} 条</span>
+          <div key={m.id} className="group-chat-block">
+            {showDay ? (
+              <div className="dm-day-sep" role="separator">
+                <span>{formatMsgDayLabel(dayKey)}</span>
               </div>
-            )}
-
-            {!isCollapsed && (
-              <div className="group-timeline">
-                <div className="group-timeline-line" aria-hidden />
-                <div className="group-timeline-items">
-                  {visibleItems.map((m, idx) => {
-                    if (m.kind === 'system') {
-                      return (
-                        <div key={m.id} className="group-timeline-item center">
-                          <div className="group-timeline-dot system" />
-                          <div className="group-system-bubble">
-                            <span
-                              className={
-                                m.body?.includes('全员打卡') || m.body?.includes('里程碑')
-                                  ? 'milestone'
-                                  : undefined
-                              }
-                            >
-                              {m.body}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    }
-                    const side = idx % 2 === 0 ? 'left' : 'right';
-                    const parent = m.reply_to_id ? byId.get(m.reply_to_id) : undefined;
-                    const replyPreview = parent
-                      ? {
-                          id: parent.id,
-                          author: parent.mine ? '我' : parent.author || '群友',
-                          snippet: parent.recalled
-                            ? '消息已撤回'
-                            : replySnippet(
-                                parent.body,
-                                parent.kind,
-                                parent.attachments?.[0]?.file_name,
-                              ),
-                        }
-                      : m.reply_to_id
-                        ? { author: '原消息', snippet: '（暂未加载）' }
-                        : null;
-                    return (
-                      <div key={m.id} className={`group-timeline-item ${side}`}>
-                        <div className="group-timeline-dot" />
-                        <div className="group-timeline-card-wrap">
-                          <ActivityCard
-                            gid={gid}
-                            m={m}
-                            isOwner={isOwner}
-                            replyPreview={replyPreview}
-                            onReact={onReact}
-                            onReport={onReport}
-                            onDelete={onDelete}
-                            onReply={onReply}
-                            onRecall={onRecall}
-                            onCompleteTask={onCompleteTask}
-                            onResend={onResend}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {isToday && items.length > TODAY_PREVIEW && (
-                  <button
-                    type="button"
-                    className="text-link group-today-expand"
-                    onClick={() => setTodayExpanded((v) => !v)}
-                  >
-                    {todayExpanded ? '收起今天较早动态' : `展开今天全部 ${items.length} 条`}
-                  </button>
-                )}
+            ) : showTimeSep ? (
+              <div className="dm-day-sep is-time" role="separator">
+                <span>{formatMsgTime(m.created_at)}</span>
               </div>
-            )}
-          </section>
+            ) : null}
+            <ChatBubble
+              gid={gid}
+              m={m}
+              isOwner={isOwner}
+              showAvatar={showAvatar}
+              showName={showName}
+              replyPreview={replyPreview}
+              onReact={onReact}
+              onReport={onReport}
+              onDelete={onDelete}
+              onReply={onReply}
+              onRecall={onRecall}
+              onCompleteTask={onCompleteTask}
+              onResend={onResend}
+            />
+          </div>
         );
       })}
-
-      <div ref={loadMoreRef} className="group-feed-load-sentinel" aria-hidden>
-        {loadingMore && <span className="muted">加载更早动态…</span>}
-        {!hasMore && <span className="muted">没有更早动态了</span>}
-      </div>
     </div>
   );
 }

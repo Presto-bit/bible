@@ -1674,14 +1674,24 @@ def add_friend(body: AddFriend, user_id: str = Depends(get_current_user)) -> dic
 def list_friends(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
-        rows = conn.execute(
-            "SELECT u.id, u.handle, u.display_name, up.avatar_id FROM friendship f "
-            "JOIN users u ON u.id = f.friend_id "
-            "LEFT JOIN user_profile up ON up.user_id = u.id "
-            "WHERE f.user_id = %s "
-            "ORDER BY f.created_at DESC",
-            (user_id,),
-        ).fetchall()
+        try:
+            rows = conn.execute(
+                "SELECT u.id, u.handle, u.display_name, up.avatar_id FROM friendship f "
+                "JOIN users u ON u.id = f.friend_id "
+                "LEFT JOIN user_profile up ON up.user_id = u.id "
+                "WHERE f.user_id = %s "
+                "ORDER BY f.created_at DESC",
+                (user_id,),
+            ).fetchall()
+        except Exception:
+            conn.rollback()
+            rows = conn.execute(
+                "SELECT u.id, u.handle, u.display_name, NULL FROM friendship f "
+                "JOIN users u ON u.id = f.friend_id "
+                "WHERE f.user_id = %s "
+                "ORDER BY u.display_name NULLS LAST, u.handle NULLS LAST",
+                (user_id,),
+            ).fetchall()
     return {"friends": [
         {
             "user_id": str(r[0]),

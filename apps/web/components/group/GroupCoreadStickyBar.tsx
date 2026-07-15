@@ -9,13 +9,24 @@ type Props = {
   onCheckin: () => void;
 };
 
-/** 群会话内吸顶共读条：计划名 · 今日打卡 X/Y · 进行中任务。 */
+/** 群会话内细状态条：仅有待办时显示；已完成则一行静默摘要。 */
 export function GroupCoreadStickyBar({ detail, tasks, onCheckin }: Props) {
   const memberTotal = groupMemberCount(detail);
   const checkedIn = detail.checked_in_today ?? 0;
   const openTasks = tasks.filter((t) => !t.completed);
   const planLabel = detail.plan_title?.trim() || '共读群';
   const needCheckin = !detail.my_checked_in_today;
+  const hasTodo = needCheckin || openTasks.length > 0;
+
+  if (!hasTodo) {
+    return (
+      <div className="group-coread-sticky group-coread-sticky-quiet group-sticky-zone" role="status">
+        <span className="muted group-coread-sticky-meta">
+          {planLabel} · 今日 {checkedIn}/{memberTotal} 已打卡
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className="group-coread-sticky group-sticky-zone" role="status">
