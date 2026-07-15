@@ -5,6 +5,10 @@ import { BRAND_NAME, BRAND_PWA_SUBTITLE } from '@/lib/brand';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { isFinePointerDesktop, isStandalonePwa } from '@/lib/platform';
 import { ONBOARDING_DONE_EVENT, ONBOARDING_SEEN_KEY } from '@/lib/onboarding';
+import {
+  ACCOUNT_GATE_DONE_EVENT,
+  shouldPromptAccountGate,
+} from '@/lib/account_guide';
 
 export default function WebOnboardingSheet() {
   const [open, setOpen] = useState(false);
@@ -14,9 +18,20 @@ export default function WebOnboardingSheet() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (localStorage.getItem(ONBOARDING_SEEN_KEY)) return;
-    setCanInstall(!isStandalonePwa() && !isFinePointerDesktop());
-    const t = window.setTimeout(() => setOpen(true), 900);
-    return () => window.clearTimeout(t);
+
+    const tryOpen = () => {
+      // 账号门闸优先，避免叠弹
+      if (shouldPromptAccountGate()) return;
+      setCanInstall(!isStandalonePwa() && !isFinePointerDesktop());
+      setOpen(true);
+    };
+
+    const t = window.setTimeout(tryOpen, 900);
+    window.addEventListener(ACCOUNT_GATE_DONE_EVENT, tryOpen);
+    return () => {
+      window.clearTimeout(t);
+      window.removeEventListener(ACCOUNT_GATE_DONE_EVENT, tryOpen);
+    };
   }, []);
 
   const finish = () => {
@@ -25,9 +40,23 @@ export default function WebOnboardingSheet() {
     setOpen(false);
   };
 
-  const maxStep = canInstall ? 2 : 1;
-
   if (!open) return null;
+
+  // 欢迎 →（可选）安装；账号保护已由 AccountGate 承接
+  if (!canInstall) {
+    return (
+      <div className="sheet-backdrop" style={{ zIndex: 140 }}>
+        <div className="sheet card onboarding-sheet" onClick={(e) => e.stopPropagation()}>
+          <h2 style={{ marginTop: 0 }}>{BRAND_NAME}</h2>
+          <p className="muted" style={{ lineHeight: 1.65 }}>{BRAND_PWA_SUBTITLE}，在话语中相遇</p>
+          <p style={{ fontSize: 14, lineHeight: 1.65 }}>
+            打开即可读经、记笔记、做每日问答。设置账号后，换机也能找回进度。
+          </p>
+          <button type="button" className="btn" onClick={finish}>开始使用</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sheet-backdrop" style={{ zIndex: 140 }}>
@@ -37,25 +66,11 @@ export default function WebOnboardingSheet() {
             <h2 style={{ marginTop: 0 }}>{BRAND_NAME}</h2>
             <p className="muted" style={{ lineHeight: 1.65 }}>{BRAND_PWA_SUBTITLE}，在话语中相遇</p>
             <p style={{ fontSize: 14, lineHeight: 1.65 }}>
-              打开即可读经、记笔记、做每日问答。笔记与进度会自动备份到云端。
+              打开即可读经、记笔记、做每日问答。设置账号后，换机也能找回进度。
             </p>
             <button type="button" className="btn" onClick={() => setStep(1)}>下一步</button>
             <button type="button" className="text-link" style={{ display: 'block', margin: '12px auto 0' }} onClick={finish}>
               跳过
-            </button>
-          </>
-        ) : step === 1 ? (
-          <>
-            <h3 style={{ marginTop: 0 }}>换机也能找回</h3>
-            <p className="muted" style={{ fontSize: 14, lineHeight: 1.65 }}>
-              在「我的」设置用户名和密码，换设备时凭账号恢复，无需记住数字 ID。
-            </p>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => (canInstall ? setStep(2) : finish())}
-            >
-              {canInstall ? '下一步' : '开始使用'}
             </button>
           </>
         ) : (
@@ -80,7 +95,7 @@ export default function WebOnboardingSheet() {
           </>
         )}
         <span className="muted" style={{ display: 'block', textAlign: 'center', fontSize: 11, marginTop: 8 }}>
-          {step + 1} / {maxStep + 1}
+          {step + 1} / 2
         </span>
       </div>
     </div>

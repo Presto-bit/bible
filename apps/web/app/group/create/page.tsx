@@ -11,7 +11,7 @@ import { recordGroupCreated } from '@/lib/badge_events';
 import { GROUP_INACTIVE_NOTICE } from '@/lib/group_policy';
 
 export default function CreateGroupPage() {
-  useEdgeSwipeBack({ href: '/' });
+  useEdgeSwipeBack({ href: '/discover' });
   const router = useRouter();
   const [name, setName] = useState('');
   const [intro, setIntro] = useState('');
@@ -57,7 +57,7 @@ export default function CreateGroupPage() {
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/" label="首页" />
+        <PageBackBar href="/discover" label="发现" />
         <h2 className="page-head-title">建群</h2>
       </header>
       <input className="search-input" placeholder="群名称" value={name} onChange={(e) => setName(e.target.value)} />
@@ -70,6 +70,9 @@ export default function CreateGroupPage() {
       />
       <p className="muted" style={{ marginTop: 12, fontSize: 13, lineHeight: 1.55 }}>
         {GROUP_INACTIVE_NOTICE}
+      </p>
+      <p className="muted" style={{ marginTop: 8, fontSize: 13, lineHeight: 1.55 }}>
+        群内讨论以圣经正典为信仰依据；请勿组织化传教异端或发布违法内容。消息与附件仅保留近 30 天。
       </p>
       <button
         type="button"

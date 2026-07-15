@@ -28,6 +28,7 @@ class ReminderPrefs(BaseModel):
     minute: int = 0
     streak_recall: bool = False
     group_digest: bool = False
+    reading_dnd: bool = True
 
 
 class SubscribeBody(BaseModel):
@@ -88,49 +89,85 @@ def subscribe(body: SubscribeBody, user_id: str = Depends(get_current_user)) -> 
             "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
             (user_id,),
         )
-        conn.execute(
-            "INSERT INTO push_subscription "
-            "(user_id, endpoint, p256dh, auth, reminder_enabled, reminder_hour, "
-            " reminder_minute, streak_recall, group_digest) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
-            "ON CONFLICT (user_id, endpoint) DO UPDATE SET "
-            "p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, "
-            "reminder_enabled = EXCLUDED.reminder_enabled, "
-            "reminder_hour = EXCLUDED.reminder_hour, "
-            "reminder_minute = EXCLUDED.reminder_minute, "
-            "streak_recall = EXCLUDED.streak_recall, "
-            "group_digest = EXCLUDED.group_digest",
-            (
-                user_id,
-                body.endpoint.strip(),
-                body.keys.p256dh,
-                body.keys.auth,
-                rem.enabled,
-                rem.hour if rem.enabled else None,
-                rem.minute,
-                rem.streak_recall,
-                rem.group_digest,
-            ),
-        )
+        try:
+            conn.execute(
+                "INSERT INTO push_subscription "
+                "(user_id, endpoint, p256dh, auth, reminder_enabled, reminder_hour, "
+                " reminder_minute, streak_recall, group_digest, reading_dnd) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                "ON CONFLICT (user_id, endpoint) DO UPDATE SET "
+                "p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, "
+                "reminder_enabled = EXCLUDED.reminder_enabled, "
+                "reminder_hour = EXCLUDED.reminder_hour, "
+                "reminder_minute = EXCLUDED.reminder_minute, "
+                "streak_recall = EXCLUDED.streak_recall, "
+                "group_digest = EXCLUDED.group_digest, "
+                "reading_dnd = EXCLUDED.reading_dnd",
+                (
+                    user_id,
+                    body.endpoint.strip(),
+                    body.keys.p256dh,
+                    body.keys.auth,
+                    rem.enabled,
+                    rem.hour if rem.enabled else None,
+                    rem.minute,
+                    rem.streak_recall,
+                    rem.group_digest,
+                    rem.reading_dnd,
+                ),
+            )
+        except Exception:
+            # 未跑 022 迁移时回退
+            conn.execute(
+                "INSERT INTO push_subscription "
+                "(user_id, endpoint, p256dh, auth, reminder_enabled, reminder_hour, "
+                " reminder_minute, streak_recall, group_digest) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                "ON CONFLICT (user_id, endpoint) DO UPDATE SET "
+                "p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, "
+                "reminder_enabled = EXCLUDED.reminder_enabled, "
+                "reminder_hour = EXCLUDED.reminder_hour, "
+                "reminder_minute = EXCLUDED.reminder_minute, "
+                "streak_recall = EXCLUDED.streak_recall, "
+                "group_digest = EXCLUDED.group_digest",
+                (
+                    user_id,
+                    body.endpoint.strip(),
+                    body.keys.p256dh,
+                    body.keys.auth,
+                    rem.enabled,
+                    rem.hour if rem.enabled else None,
+                    rem.minute,
+                    rem.streak_recall,
+                    rem.group_digest,
+                ),
+            )
         conn.commit()
     return {"ok": True}
 
 
 @router.post("/deliver-digest")
 def deliver_digest(user_id: str = Depends(get_current_user)) -> dict:
-    """向当前用户已登记设备投递 F1 聚合摘要（Web Push）。"""
+    """向当前用户已登记设备投递 F1 聚合摘要（Web Push）；仅 group_digest=true 的订阅。"""
     digest = push_digest(user_id)
     payload = {
-        "title": digest.get("title", "今日共读"),
+        "title": digest.get("title", "消息摘要"),
         "body": digest.get("body", ""),
         "href": digest.get("href", "/discover"),
     }
     pool = get_pool()
     with pool.connection() as conn:
-        rows = conn.execute(
-            "SELECT endpoint, p256dh, auth FROM push_subscription WHERE user_id = %s",
-            (user_id,),
-        ).fetchall()
+        try:
+            rows = conn.execute(
+                "SELECT endpoint, p256dh, auth FROM push_subscription "
+                "WHERE user_id = %s AND COALESCE(group_digest, false) = true",
+                (user_id,),
+            ).fetchall()
+        except Exception:
+            rows = conn.execute(
+                "SELECT endpoint, p256dh, auth FROM push_subscription WHERE user_id = %s",
+                (user_id,),
+            ).fetchall()
     sent = 0
     for r in rows:
         if _send_webpush({"endpoint": r[0], "p256dh": r[1], "auth": r[2]}, payload):
@@ -160,11 +197,11 @@ def cron_tick(
         ).fetchall()
     sent = 0
     for user_id, endpoint, p256dh, auth in rows:
-        digest = push_digest(str(user_id))
+        # 读经时段提醒 ≠ 社交摘要（社交走 deliver-digest / 前台 poller）
         payload = {
-            "title": digest.get("title", "彼爱"),
-            "body": digest.get("body", "愿话语成为你脚前的灯"),
-            "href": digest.get("href", "/"),
+            "title": "彼爱",
+            "body": "愿话语成为你脚前的灯 · 今日也可打开圣经读一章",
+            "href": "/reader",
         }
         if _send_webpush(
             {"endpoint": endpoint, "p256dh": p256dh, "auth": auth},

@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v16';
+const CACHE = 'presto-bible-v25';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -75,6 +75,7 @@ const APP_SHELL_PATHS = [
   '/assistant',
   '/profile',
   '/discover',
+  '/discover/invites',
 ].map(bp);
 
 /** Tab 页 RSC 数据：离线时需回退缓存，否则点底栏 Tab 会报错 */
@@ -312,28 +313,49 @@ self.addEventListener('push', (event) => {
   } catch {
     /* ignore */
   }
+  const hrefRaw = data.href || '/';
+  const href = hrefRaw.startsWith('http')
+    ? hrefRaw
+    : bp(hrefRaw.startsWith('/') ? hrefRaw : `/${hrefRaw}`);
+  const tag =
+    data.tag ||
+    (href.includes('/discover/dm/')
+      ? `presto-dm-${href.split('/discover/dm/')[1]?.split(/[?#]/)[0] || 'x'}`
+      : href.includes('/discover/group/')
+        ? `presto-group-${href.split('/discover/group/')[1]?.split(/[?#]/)[0] || 'x'}`
+        : href.includes('/discover')
+          ? 'presto-digest'
+          : 'presto-push');
   event.waitUntil(
     self.registration.showNotification(data.title || '彼爱', {
       body: data.body || '',
-      tag: 'presto-push',
-      data: { href: data.href || '/' },
+      tag,
+      renotify: true,
+      data: { href },
       icon: bp('/icon-192.png'),
+      badge: bp('/icon-192.png'),
     }),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const href = event.notification.data?.href || '/';
+  let href = event.notification.data?.href || bp('/');
+  if (href && !href.startsWith('http') && !href.startsWith(BASE_PATH || '/')) {
+    href = bp(href.startsWith('/') ? href : `/${href}`);
+  }
+  const target = new URL(href, self.location.origin).href;
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      for (const c of clients) {
-        if ('focus' in c) {
-          c.navigate(href);
-          return c.focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          if ('navigate' in client) {
+            return client.navigate(target).then((c) => (c && 'focus' in c ? c.focus() : client.focus()));
+          }
+          return client.focus();
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(href);
+      if (self.clients.openWindow) return self.clients.openWindow(target);
     }),
   );
 });

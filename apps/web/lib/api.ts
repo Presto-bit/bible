@@ -993,6 +993,7 @@ export interface GroupDetail {
   muted?: boolean;
   weekly_checkins?: number;
   weekly_active_days?: number;
+  allow_chat?: boolean;
 }
 export interface GroupMessage {
   id: string;
@@ -1007,6 +1008,19 @@ export interface GroupMessage {
   task_id?: string | null;
   task_due_at?: string | null;
   my_task_done?: boolean;
+  recalled?: boolean;
+  mentions?: string[];
+  reply_to_id?: string | null;
+  attachments?: Array<{
+    id: string;
+    file_name?: string | null;
+    mime?: string | null;
+    size_bytes?: number | null;
+    url?: string | null;
+  }>;
+  /** 客户端乐观发送 */
+  pending?: boolean;
+  sendFailed?: boolean;
 }
 export interface DiscoverSummary {
   groups_pending_checkin: number;
@@ -1014,25 +1028,32 @@ export interface DiscoverSummary {
   friends_checked_in_today: number;
   first_pending_group_id?: string | null;
 }
-export interface FriendActivity {
-  id: string;
-  author_id?: string;
-  author: string;
-  author_avatar_id?: string | null;
-  ref?: string | null;
-  body?: string | null;
-  reactions: Record<string, string[]>;
-  created_at: string;
-  source: 'group' | 'share';
-  kind?: string;
-  group_id?: string | null;
-  group_name?: string | null;
-}
 export interface Friend {
   user_id: string;
   handle?: string | null;
   display_name?: string | null;
   avatar_id?: string | null;
+}
+export interface ConversationItem {
+  scope: 'group' | 'dm' | 'inbox_friends' | 'inbox_groups';
+  ref_id: string;
+  title: string;
+  subtitle?: string | null;
+  unread?: number;
+  updated_at?: string | null;
+  pinned?: boolean;
+  muted?: boolean;
+  badge?: string | null;
+  role?: string;
+  peer_user_id?: string;
+}
+export interface FriendRequestItem {
+  id: string;
+  from_user_id: string;
+  message?: string | null;
+  created_at?: string | null;
+  handle?: string | null;
+  display_name?: string | null;
 }
 export interface GroupInviteInboxItem {
   id: string;
@@ -1442,7 +1463,6 @@ export const api = {
   discoverSummary: () => authed<DiscoverSummary>('/social/discover/summary'),
   pushDigest: () => authed<{ title: string; body: string; href: string }>('/social/push/digest'),
   deliverPushDigest: () => authed<{ ok: boolean; sent: number }>('/push/deliver-digest', { method: 'POST' }),
-  friendsActivity: () => authed<{ items: FriendActivity[] }>('/social/friends/activity'),
   createGroup: (name: string, intro?: string, plan_id?: string) =>
     authed<Group>('/social/groups', { method: 'POST', body: { name, intro, plan_id } }),
   createGroupFromPlan: (plan_id: string, name?: string) =>
@@ -1581,6 +1601,15 @@ export const api = {
       `/social/messages/${mid}/report`,
       { method: 'POST', body: { reason } },
     ),
+  reportContent: (
+    targetType: 'group_message' | 'dm' | 'group' | 'user',
+    targetId: string,
+    reason: 'spam' | 'abuse' | 'heresy' | 'illegal' | 'other',
+  ) =>
+    authed<{ id: string; status: string }>('/social/reports', {
+      method: 'POST',
+      body: { target_type: targetType, target_id: targetId, reason },
+    }),
   deleteMessage: (mid: string) =>
     authed<{ ok: boolean }>(`/social/messages/${mid}`, { method: 'DELETE' }),
   reactMessage: (mid: string, emoji: string) =>
@@ -1598,17 +1627,195 @@ export const api = {
   declineGroupInvite: (id: string) =>
     authed<{ ok: boolean }>(`/social/invites/${id}/decline`, { method: 'POST' }),
   friends: () => authed<{ friends: Friend[] }>('/social/friends'),
-  addFriend: (handle: string) =>
-    authed<Friend>('/social/friends', { method: 'POST', body: { handle } }),
+  conversations: () => authed<{ items: ConversationItem[] }>('/social/conversations'),
+  friendRequests: () =>
+    authed<{ incoming: FriendRequestItem[]; outgoing: FriendRequestItem[] }>(
+      '/social/friend-requests',
+    ),
+  acceptFriendRequest: (id: string) =>
+    authed<{ ok: boolean; friend_id?: string }>(`/social/friend-requests/${id}/accept`, {
+      method: 'POST',
+    }),
+  declineFriendRequest: (id: string) =>
+    authed<{ ok: boolean }>(`/social/friend-requests/${id}/decline`, { method: 'POST' }),
+  openDm: (peerId: string) =>
+    authed<{ thread_id: string; peer_user_id: string }>(`/social/dm/with/${peerId}`, {
+      method: 'POST',
+    }),
+  dmMessages: (threadId: string, limit = 50) =>
+    authed<{ messages: DmMessage[]; peer_last_read_at?: string | null }>(
+      `/social/dm/${threadId}/messages?limit=${limit}`,
+    ),
+  sendDm: (
+    threadId: string,
+    body: { body?: string; kind?: string; ref?: string; reply_to_id?: string },
+  ) =>
+    authed<{ id: string; created_at?: string }>(`/social/dm/${threadId}/messages`, {
+      method: 'POST',
+      body,
+    }),
+  sendGroupChat: (
+    gid: string,
+    body: string,
+    opts?: { replyToId?: string; mentions?: string[] },
+  ) =>
+    authed<{ id: string }>(`/social/groups/${gid}/chat`, {
+      method: 'POST',
+      body: {
+        body,
+        reply_to_id: opts?.replyToId,
+        mentions: opts?.mentions,
+      },
+    }),
+  patchConversationState: (
+    scope: string,
+    refId: string,
+    body: { last_read_at?: string; pinned?: boolean; muted?: boolean },
+  ) =>
+    authed<{ ok: boolean }>(`/social/conversations/${scope}/${refId}/state`, {
+      method: 'PATCH',
+      body,
+    }),
+  recallMessage: (mid: string) =>
+    authed<{ ok: boolean }>(`/social/messages/${mid}/recall`, { method: 'POST' }),
+  realtimeCursor: () =>
+    authed<{ group_max?: string | null; dm_max?: string | null; server_time: string }>(
+      '/social/realtime/cursor',
+    ),
+  searchMessages: (q: string) =>
+    authed<{
+      items: Array<{
+        scope: string;
+        message_id: string;
+        ref_id: string;
+        title: string;
+        kind: string;
+        snippet: string;
+        created_at?: string | null;
+      }>;
+    }>(`/social/search/messages?q=${encodeURIComponent(q)}`),
+  uploadSocialMedia: (
+    file: File,
+    opts?: { onProgress?: (pct: number) => void },
+  ) =>
+    new Promise<{
+      ok: boolean;
+      kind: string;
+      file_name: string;
+      mime_type: string;
+      size_bytes: number;
+      storage_key: string;
+      url: string;
+    }>((resolve, reject) => {
+      const form = new FormData();
+      form.append('file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/social/uploads`);
+      const headers = authHeaders();
+      for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+      xhr.upload.onprogress = (ev) => {
+        if (!ev.lengthComputable || !opts?.onProgress) return;
+        opts.onProgress(Math.min(99, Math.round((ev.loaded / ev.total) * 100)));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          opts?.onProgress?.(100);
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            reject(new Error('上传响应异常'));
+          }
+          return;
+        }
+        let detail = `${xhr.status}`;
+        try {
+          detail = JSON.parse(xhr.responseText).detail || detail;
+        } catch {
+          /* ignore */
+        }
+        reject(new Error(typeof detail === 'string' ? detail : '上传失败'));
+      };
+      xhr.onerror = () => reject(new Error('网络异常，上传失败'));
+      xhr.send(form);
+    }),
+  sendGroupMedia: (
+    gid: string,
+    body: {
+      storage_key: string;
+      file_name?: string;
+      mime?: string;
+      size_bytes?: number;
+      url?: string;
+      body?: string;
+      mentions?: string[];
+      reply_to_id?: string;
+    },
+  ) =>
+    authed<{ id: string; kind: string }>(`/social/groups/${gid}/media`, {
+      method: 'POST',
+      body,
+    }),
+  sendDmMedia: (
+    threadId: string,
+    body: {
+      storage_key: string;
+      file_name?: string;
+      mime?: string;
+      size_bytes?: number;
+      url?: string;
+      body?: string;
+      reply_to_id?: string;
+    },
+  ) =>
+    authed<{ id: string; kind: string }>(`/social/dm/${threadId}/media`, {
+      method: 'POST',
+      body,
+    }),
+  setAllowChat: (gid: string, allow_chat: boolean) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/allow-chat`, {
+      method: 'PATCH',
+      body: { allow_chat },
+    }),
+  setGroupAdmins: (gid: string, user_ids: string[]) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/admins`, {
+      method: 'POST',
+      body: { user_ids },
+    }),
+  addFriend: (handle: string, message?: string) =>
+    authed<{
+      id?: string;
+      status?: string;
+      to_user_id?: string;
+      friend_id?: string;
+      pending?: boolean;
+      message?: string;
+    }>('/social/friends', {
+      method: 'POST',
+      body: { handle, ...(message?.trim() ? { message: message.trim() } : {}) },
+    }),
   removeFriend: (friendId: string) =>
     authed<{ ok: boolean }>(`/social/friends/${friendId}`, { method: 'DELETE' }),
   groupPendingInvites: (gid: string) =>
     authed<{ friend_ids: string[] }>(`/social/groups/${gid}/invites/pending`),
   cancelGroupInvite: (gid: string, friendId: string) =>
     authed<{ ok: boolean }>(`/social/groups/${gid}/invites/${friendId}`, { method: 'DELETE' }),
-  publishShare: (body: { ref?: string; body: string; kind?: string }) =>
-    authed<{ id: string; created_at: string }>('/social/shares', {
-      method: 'POST',
-      body,
-    }),
 };
+
+export interface DmMessage {
+  id: string;
+  sender_id: string;
+  kind: string;
+  body?: string | null;
+  ref?: string | null;
+  reply_to_id?: string | null;
+  recalled?: boolean;
+  created_at?: string | null;
+  mine?: boolean;
+  attachments?: Array<{
+    id: string;
+    file_name?: string | null;
+    mime?: string | null;
+    size_bytes?: number | null;
+    url?: string | null;
+  }>;
+}

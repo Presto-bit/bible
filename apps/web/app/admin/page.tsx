@@ -10,16 +10,18 @@ import { AdminLoginForm } from '@/components/AdminRagPanel';
 import AdminRagWorkspace from '@/components/admin/AdminRagWorkspace';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
 import AdminOpsHeroPanel from '@/components/admin/AdminOpsHeroPanel';
+import AdminModerationPanel from '@/components/admin/AdminModerationPanel';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
 
 function parseTab(value: string | null): AdminTab {
-  if (value === 'ops' || value === 'rag' || value === 'stats') return value;
+  if (value === 'ops' || value === 'rag' || value === 'stats' || value === 'moderation') return value;
   return 'stats';
 }
 
 const NAV: { id: AdminTab; label: string; desc: string }[] = [
   { id: 'stats', label: '数据预览', desc: '健康与趋势' },
   { id: 'ops', label: '运营', desc: 'Hero B 活动' },
+  { id: 'moderation', label: '内容审核', desc: '举报与异端工单' },
   { id: 'rag', label: 'RAG 注释库', desc: 'Notion 式资料' },
 ];
 
@@ -84,6 +86,7 @@ function AdminPageInner() {
       {tab === 'rag' ? <AdminRagWorkspace /> : null}
       {tab === 'stats' ? <AdminStatsPanel /> : null}
       {tab === 'ops' ? <AdminOpsHeroPanel /> : null}
+      {tab === 'moderation' ? <AdminModerationPanel /> : null}
     </>
   );
 

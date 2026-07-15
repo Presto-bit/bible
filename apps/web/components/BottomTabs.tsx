@@ -75,7 +75,7 @@ const SECONDARY_PREFIXES = [
   '/group/create',
 ];
 
-const GROUP_COMPACT_RE = /^\/discover\/(group\/|join)/;
+const GROUP_COMPACT_RE = /^\/discover\/(group\/|join|dm\/|invites|friends)/;
 
 /** 底部 Tab：用 button 导航，避免 PWA/Safari 长按链接弹出预览与共享 */
 export default function BottomTabs() {

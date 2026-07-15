@@ -729,3 +729,108 @@ def admin_resolve_hero_b_link(
         raise HTTPException(status_code=400, detail=str(e)) from e
     return {"href": href}
 
+
+class ModerationResolveBody(BaseModel):
+    status: str
+    note: str | None = None
+
+
+@router.get("/moderation/cases")
+def admin_list_moderation_cases(
+    status: str = Query("open"),
+    limit: int = Query(50, ge=1, le=200),
+    _phone: str = Depends(require_admin),
+) -> dict:
+    """审核工单列表（含证据快照）。"""
+    st = status if status in ("open", "actioned", "dismissed", "all") else "open"
+    pool = get_pool()
+    with pool.connection() as conn:
+        if st == "all":
+            rows = conn.execute(
+                """
+                SELECT c.id, c.reporter_id, c.target_type, c.target_id, c.reason,
+                       c.status, c.created_at, c.resolved_at, c.resolution_note,
+                       s.payload
+                FROM moderation_case c
+                LEFT JOIN LATERAL (
+                  SELECT payload FROM moderation_snapshot
+                  WHERE case_id = c.id ORDER BY created_at DESC LIMIT 1
+                ) s ON true
+                ORDER BY c.created_at DESC
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """
+                SELECT c.id, c.reporter_id, c.target_type, c.target_id, c.reason,
+                       c.status, c.created_at, c.resolved_at, c.resolution_note,
+                       s.payload
+                FROM moderation_case c
+                LEFT JOIN LATERAL (
+                  SELECT payload FROM moderation_snapshot
+                  WHERE case_id = c.id ORDER BY created_at DESC LIMIT 1
+                ) s ON true
+                WHERE c.status = %s
+                ORDER BY c.created_at DESC
+                LIMIT %s
+                """,
+                (st, limit),
+            ).fetchall()
+    items = []
+    for r in rows:
+        payload = r[9] if len(r) > 9 else {}
+        if isinstance(payload, str):
+            try:
+                import json as _json
+                payload = _json.loads(payload)
+            except Exception:
+                payload = {"raw": payload}
+        items.append({
+            "id": str(r[0]),
+            "reporter_id": str(r[1]) if r[1] else None,
+            "target_type": r[2],
+            "target_id": r[3],
+            "reason": r[4],
+            "status": r[5],
+            "created_at": r[6].isoformat() if r[6] else None,
+            "resolved_at": r[7].isoformat() if r[7] else None,
+            "resolution_note": r[8],
+            "snapshot": payload or {},
+        })
+    return {"items": items}
+
+
+@router.patch("/moderation/cases/{case_id}")
+def admin_resolve_moderation_case(
+    case_id: str,
+    body: ModerationResolveBody,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    if body.status not in ("actioned", "dismissed", "open"):
+        raise HTTPException(400, "无效 status")
+    note = (body.note or "").strip()[:2000] or None
+    pool = get_pool()
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT id FROM moderation_case WHERE id = %s",
+            (case_id,),
+        ).fetchone()
+        if not row:
+            raise HTTPException(404, "工单不存在")
+        if body.status == "open":
+            conn.execute(
+                "UPDATE moderation_case SET status = 'open', resolved_at = NULL, "
+                "resolution_note = %s WHERE id = %s",
+                (note, case_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE moderation_case SET status = %s, resolved_at = now(), "
+                "resolution_note = %s WHERE id = %s",
+                (body.status, note, case_id),
+            )
+        conn.commit()
+    return {"ok": True, "id": case_id, "status": body.status}
+

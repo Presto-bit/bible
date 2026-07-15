@@ -65,3 +65,25 @@ def test_keyvals_composite_entity():
     spec = get_spec("plan_progress")
     kv = _keyvals(spec, {"entity": "plan_progress", "keys": {"plan_id": "p1"}, "data": {"day": 3}})
     assert kv == {"plan_id": "p1"}
+
+
+def test_pull_skips_missing_table():
+    """缺表时跳过该实体，不抛 500。"""
+    from unittest.mock import MagicMock, patch
+
+    from app.sync import engine as eng
+
+    bad = MagicMock()
+    bad.execute.side_effect = Exception('relation "read_event" does not exist')
+    bad.rollback = MagicMock()
+    ctx = MagicMock()
+    ctx.__enter__.return_value = bad
+    ctx.__exit__.return_value = False
+    pool = MagicMock()
+    pool.connection.return_value = ctx
+
+    with patch.object(eng, "get_pool", return_value=pool):
+        out = eng.pull("00000000-0000-0000-0000-000000000001", 0, ["read_event", "note"])
+    assert out["changes"] == []
+    assert out["has_more"] is False
+    assert out["cursor"] == 0

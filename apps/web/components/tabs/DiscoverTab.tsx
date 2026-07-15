@@ -1,352 +1,515 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnline } from '@/lib/use_online';
 import {
   api,
   effectiveId,
   ensureAccountReady,
-  type DiscoverSummary,
+  type ConversationItem,
   type Friend,
-  type FriendActivity,
-  type Group,
+  type FriendRequestItem,
 } from '@/lib/api';
-import { groupListStatusBadge, groupListSubline } from '@/lib/group_status';
-import { clearGroupsListDirty, dismissPendingGroup, getPendingOnlyIds, mergePendingGroups, useGroupsListRefresh } from '@/lib/groups_refresh';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
-import { DiscoverGroupActions } from '@/components/discover/DiscoverGroupActions';
-import { DiscoverTodayBar } from '@/components/discover/DiscoverTodayBar';
-import { FriendActivityCard } from '@/components/discover/FriendActivityCard';
-import { GroupInviteInbox } from '@/components/group/GroupInviteInbox';
-import { sortGroupsByActionPriority } from '@/lib/group_sort';
-import {
-  FEED_FRESH_HOURS,
-  FEED_LIKE_EMOJI,
-  splitFriendActivityByFreshness,
-} from '@/lib/feed_activity';
+import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { subscribeSocialRealtime } from '@/lib/social_realtime';
+import { friendDisplayName } from '@/lib/friend_label';
+import { friendRemarkOrName } from '@/lib/friend_remarks';
+import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 
-function groupStatusBadge(g: Group) {
-  return groupListStatusBadge(g);
-}
+type SubTab = 'messages' | 'friends';
+
+type SearchHit = {
+  scope: string;
+  message_id: string;
+  ref_id: string;
+  title: string;
+  kind: string;
+  snippet: string;
+  created_at?: string | null;
+};
 
 export default function DiscoverTab({ paneActive = true }: { paneActive?: boolean }) {
-  const confirm = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
   const online = useOnline();
   const [uid, setUid] = useState<string | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
-  const [pendingOnlyIds, setPendingOnlyIds] = useState<Set<string>>(() => new Set());
+  const [sub, setSub] = useState<SubTab>('messages');
+  const [items, setItems] = useState<ConversationItem[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [summary, setSummary] = useState<DiscoverSummary | null>(null);
-  const [shares, setShares] = useState<FriendActivity[]>([]);
-  const [reacted, setReacted] = useState<Record<string, Record<string, boolean>>>({});
+  const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQ, setSearchQ] = useState('');
+  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [friendQ, setFriendQ] = useState('');
+  const [plusOpen, setPlusOpen] = useState(false);
+  const plusRef = useRef<HTMLDivElement | null>(null);
+  const filteredFriends = useMemo(() => {
+    const q = friendQ.trim().toLowerCase();
+    if (!q) return friends;
+    return friends.filter((f) => {
+      const name = friendRemarkOrName(f.user_id, friendDisplayName(f)).toLowerCase();
+      const handle = (f.handle || '').toLowerCase();
+      const raw = (f.display_name || '').toLowerCase();
+      return name.includes(q) || handle.includes(q) || raw.includes(q);
+    });
+  }, [friends, friendQ]);
 
   const reload = useCallback(async () => {
     try {
-      const [g, f, s, activity] = await Promise.all([
-        api.myGroups(),
-        api.friends(),
-        api.discoverSummary(),
-        api.friendsActivity(),
-      ]);
-      const serverGroups = Array.isArray(g.groups) ? g.groups : [];
-      const pending = new Set(getPendingOnlyIds(serverGroups.map((item) => item.id)));
-      setPendingOnlyIds(pending);
-      setGroups(sortGroupsByActionPriority(mergePendingGroups(serverGroups), pending));
-      setFriends(Array.isArray(f.friends) ? f.friends : []);
-      setSummary(s);
-      setShares(Array.isArray(activity.items) ? activity.items : []);
-      clearGroupsListDirty();
+      setLoading(true);
+      if (sub === 'messages') {
+        const conv = await api.conversations();
+        setItems(Array.isArray(conv.items) ? conv.items : []);
+      } else {
+        const [f, req] = await Promise.all([api.friends(), api.friendRequests()]);
+        setFriends(Array.isArray(f.friends) ? f.friends : []);
+        setIncoming(Array.isArray(req.incoming) ? req.incoming : []);
+      }
       setErr(null);
     } catch (e) {
       if (online) setErr(errorMessage(e, '加载失败，请检查网络'));
       else setErr(null);
+    } finally {
+      setLoading(false);
     }
-  }, [online]);
+  }, [online, sub]);
 
   useEffect(() => {
     if (!paneActive) return;
-    void ensureAccountReady().then(() => {
-      const id = effectiveId();
-      setUid(id || null);
-    });
+    void ensureAccountReady().then(() => setUid(effectiveId() || null));
   }, [paneActive]);
+
+  useEffect(() => {
+    if (!paneActive || typeof window === 'undefined') return;
+    if (pathname !== '/discover') return;
+    const t = new URLSearchParams(window.location.search).get('tab');
+    if (t === 'friends') setSub('friends');
+    else if (t === 'messages') setSub('messages');
+  }, [paneActive, pathname]);
+
+  useEffect(() => {
+    if (!plusOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (plusRef.current && !plusRef.current.contains(e.target as Node)) {
+        setPlusOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [plusOpen]);
 
   useEffect(() => {
     if (!uid || !paneActive) return;
     void reload();
-  }, [uid, pathname, reload, paneActive]);
+  }, [uid, paneActive, reload]);
 
-  useGroupsListRefresh(reload, Boolean(uid) && paneActive);
+  useEffect(() => {
+    if (!uid || !paneActive || sub !== 'messages') return;
+    return subscribeSocialRealtime((_c, changed) => {
+      if (changed) void reload();
+    });
+  }, [uid, paneActive, sub, reload]);
 
-  const toggleReact = async (item: FriendActivity, emoji: string) => {
-    const prev = reacted[item.id]?.[emoji];
-    setReacted((r) => ({
-      ...r,
-      [item.id]: { ...r[item.id], [emoji]: !prev },
-    }));
-    try {
-      await api.react(item.id, emoji);
-      reload();
-    } catch {
-      setReacted((r) => ({
-        ...r,
-        [item.id]: { ...r[item.id], [emoji]: prev },
-      }));
+  useEffect(() => {
+    if (!searchOpen || searchQ.trim().length < 1) {
+      setSearchHits([]);
+      return;
     }
-  };
+    const q = searchQ.trim();
+    const t = window.setTimeout(() => {
+      setSearchBusy(true);
+      void api
+        .searchMessages(q)
+        .then((r) => setSearchHits(r.items || []))
+        .catch(() => setSearchHits([]))
+        .finally(() => setSearchBusy(false));
+    }, 320);
+    return () => window.clearTimeout(t);
+  }, [searchOpen, searchQ]);
 
-  const goDiscover = (href: string) => {
+  const go = (href: string) => {
     markRouteNavigation();
     router.push(href);
   };
 
-  const isReacted = (item: FriendActivity, emoji: string) => {
-    const optimistic = reacted[item.id]?.[emoji];
-    if (optimistic !== undefined) return optimistic;
-    return uid ? Boolean(item.reactions[emoji]?.includes(uid)) : false;
+  const openItem = (it: ConversationItem) => {
+    if (it.scope === 'group') {
+      void api.patchConversationState('group', it.ref_id, {});
+      go(`/discover/group/${it.ref_id}`);
+      return;
+    }
+    if (it.scope === 'dm') {
+      void api.patchConversationState('dm', it.ref_id, {});
+      go(`/discover/dm/${it.ref_id}`);
+      return;
+    }
+    if (it.scope === 'inbox_friends') {
+      setSub('friends');
+      return;
+    }
+    if (it.scope === 'inbox_groups') {
+      go('/discover/invites');
+    }
   };
 
-  const { recent: freshShares, older: olderShares } = useMemo(
-    () => splitFriendActivityByFreshness(shares, FEED_FRESH_HOURS),
-    [shares],
-  );
-  const [olderOpen, setOlderOpen] = useState(false);
+  const patchState = async (
+    it: ConversationItem,
+    patch: { pinned?: boolean; muted?: boolean },
+  ) => {
+    if (it.scope !== 'group' && it.scope !== 'dm') return;
+    setErr(null);
+    try {
+      await api.patchConversationState(it.scope, it.ref_id, patch);
+      await reload();
+    } catch (e) {
+      setErr(errorMessage(e, '设置失败'));
+    }
+  };
+
+  const openSearchHit = (h: SearchHit) => {
+    setSearchOpen(false);
+    setSearchQ('');
+    const q = h.message_id.startsWith('title:') ? '' : `?focusMsg=${encodeURIComponent(h.message_id)}`;
+    if (h.scope === 'group') go(`/discover/group/${h.ref_id}${q}`);
+    else if (h.scope === 'dm') go(`/discover/dm/${h.ref_id}${q}`);
+  };
 
   if (!uid) {
     return (
       <main className="container">
         <div className="card card-2">
-          <p>正在准备本机账号，稍候即可加入共读群、添加好友。</p>
-          <Link className="btn" href="/profile">
-            前往我的
-          </Link>
+          <p>正在准备本机账号…</p>
+          <Link className="btn" href="/profile">前往我的</Link>
         </div>
       </main>
     );
   }
 
-  const coldStart = groups.length === 0 && friends.length === 0;
+  const msgUnreadHint = items.some((i) => (i.unread || 0) > 0);
 
   return (
-    <main className="container discover-page">
+    <main className="container discover-page discover-im">
       {!online ? (
-        <p className="muted offline-page-hint">当前离线，共读群与好友动态需联网后刷新。</p>
+        <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
       ) : null}
       {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
-      <DiscoverTodayBar
-        summary={summary}
-        groups={groups}
-        pendingOnlyIds={pendingOnlyIds}
-        coldStart={coldStart}
-        shares={shares}
-      />
-
-      <GroupInviteInbox onChanged={() => void reload()} />
-
-      {groups.length === 0 ? (
-        <div className="card card-tint card-2 card-accent discover-hero">
-          <strong>共读群 · 一起读</strong>
-          <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
-            受好友邀请，或自己创建一个群，和大家按计划一起读、彼此打卡。
-          </p>
-          <DiscoverGroupActions />
+      <div className="discover-im-top">
+        <div className="discover-im-tabs" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            className={sub === 'messages' ? 'is-active' : ''}
+            aria-selected={sub === 'messages'}
+            onClick={() => {
+              setSub('messages');
+              setPlusOpen(false);
+              if (pathname === '/discover') router.replace('/discover', { scroll: false });
+            }}
+          >
+            消息{msgUnreadHint && sub !== 'messages' ? <span className="discover-im-dot" /> : null}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={sub === 'friends' ? 'is-active' : ''}
+            aria-selected={sub === 'friends'}
+            onClick={() => {
+              setSub('friends');
+              setPlusOpen(false);
+              if (pathname === '/discover') router.replace('/discover?tab=friends', { scroll: false });
+            }}
+          >
+            好友
+          </button>
         </div>
-      ) : (
-        <>
-          <div className="tab-section-head">
-            <p className="section-label tab-section-label">我的共读</p>
-            <Link href="/discover/groups" className="tab-section-link muted">
-              查看全部 ›
-            </Link>
-          </div>
-          <div className="rail discover-group-rail">
-            {groups.map((g) => {
-              const badge = groupStatusBadge(g);
-              const isPendingOnly = pendingOnlyIds.has(g.id);
-              const members = g.members || 1;
-              const checked = g.checked_in_today ?? 0;
-              const barPct = members > 0 ? Math.round((checked / members) * 100) : 0;
-              const planSub = groupListSubline(g);
-              const openTasks = g.open_tasks ?? 0;
-              const cardClass = [
-                'rail-card',
-                'card',
-                'card-2',
-                'group-card',
-                'group-card-clickable',
-                badge.tone === 'pending' ? 'group-card-pending' : '',
-                g.my_checked_in_today ? 'group-card-done' : '',
-                openTasks > 0 ? 'group-card-has-tasks' : '',
-              ]
-                .filter(Boolean)
-                .join(' ');
-              return (
-                <div
-                  key={g.id}
-                  className={cardClass}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => goDiscover(`/discover/group/${g.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      goDiscover(`/discover/group/${g.id}`);
-                    }
-                  }}
-                >
-                  {openTasks > 0 && !g.my_checked_in_today && (
-                    <span className="group-card-task-badge" aria-label={`${openTasks} 个任务`}>
-                      {openTasks}
-                    </span>
-                  )}
-                  <div className="group-card-head">
-                    <strong>{g.name}</strong>
-                    {g.role === 'owner' && <span className="rail-cta">群主</span>}
-                  </div>
-                  <p className="muted" style={{ fontSize: 12, margin: '4px 0' }}>
-                    {g.plan_title || planSub}
-                  </p>
-                  <div className="progress-bar">
-                    <div
-                      className={`progress-fill${g.plan_id ? ' plan-fill' : ''}`}
-                      style={{ width: `${barPct}%` }}
-                    />
-                  </div>
-                  <div className="group-card-foot">
-                    <span className="muted">
-                      {isPendingOnly ? '同步中…' : `今日 ${checked}/${members}`}
-                    </span>
-                    {isPendingOnly ? (
-                      <button
-                        type="button"
-                        className="text-link group-card-cta"
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          const ok = await confirm({
-                            title: '移除群',
-                            message: `从列表移除「${g.name}」？`,
-                            confirmLabel: '移除',
-                          });
-                          if (!ok) return;
-                          dismissPendingGroup(g.id);
-                          setGroups((prev) => prev.filter((item) => item.id !== g.id));
-                          setPendingOnlyIds((prev) => {
-                            const next = new Set(prev);
-                            next.delete(g.id);
-                            return next;
-                          });
-                        }}
-                      >
-                        移除
-                      </button>
-                    ) : badge.tone === 'pending' ? (
-                      <button
-                        type="button"
-                        className="font-pill accent group-card-cta"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          goDiscover(`/discover/group/${g.id}?focus=checkin`);
-                        }}
-                      >
-                        去打卡
-                      </button>
-                    ) : (
-                      <span className={`group-badge group-badge-${badge.tone}`}>
-                        {badge.label}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            <Link href="/discover/join" className="rail-card card card-2 group-card group-card-add">
-              <span className="group-add-plus">+</span>
-              <span>加入群</span>
-            </Link>
-            <Link href="/group/create" className="rail-card card card-2 group-card group-card-add">
-              <span className="group-add-plus">👥</span>
-              <span>创建群</span>
-            </Link>
-          </div>
-        </>
-      )}
-
-      <div id="discover-feed" className="tab-section-head">
-        <p className="section-label tab-section-label">好友动态</p>
-        <Link href="/discover/friends" className="tab-section-link muted">
-          我的好友 ›
-        </Link>
-      </div>
-
-      {friends.length === 0 ? (
-        <div className="card discover-empty-card">
-          <strong>添加好友后可见动态</strong>
-          <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
-            好友的群内打卡与主动分享会出现在下方动态，不会上传默默阅读进度。
-          </p>
-          <Link className="font-pill" href="/friend/add">
-            加好友
-          </Link>
-        </div>
-      ) : shares.length === 0 ? (
-        <p className="muted discover-feed-empty">
-          暂无好友动态，去群里打卡或等好友分享吧
-        </p>
-      ) : (
-        <div className="discover-feed">
-          {freshShares.length === 0 ? (
-            <p className="muted discover-feed-empty">
-              好友最近还没有新动态
-              {olderShares.length > 0 ? '，可查看更早的内容' : '，去群里打个卡吧'}
-            </p>
-          ) : (
-            freshShares.map((s) => (
-              <FriendActivityCard
-                key={`${s.source}-${s.id}`}
-                item={s}
-                liked={isReacted(s, FEED_LIKE_EMOJI)}
-                onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
-                authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
-              />
-            ))
-          )}
-
-          {olderShares.length > 0 ? (
-            <div className="discover-feed-older">
+        <div className="discover-im-actions" ref={plusRef}>
+          {sub === 'messages' ? (
+            <button
+              type="button"
+              className="discover-im-search-btn"
+              aria-label="搜索消息"
+              aria-pressed={searchOpen}
+              onClick={() => {
+                setPlusOpen(false);
+                setSearchOpen((v) => !v);
+              }}
+            >
+              ⌕
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={`discover-im-plus${plusOpen ? ' is-open' : ''}`}
+            aria-label={sub === 'messages' ? '更多' : '加好友'}
+            aria-expanded={sub === 'messages' ? plusOpen : undefined}
+            onClick={() => {
+              if (sub === 'friends') {
+                go('/friend/add');
+                return;
+              }
+              setPlusOpen((v) => !v);
+            }}
+          >
+            ＋
+          </button>
+          {sub === 'messages' && plusOpen ? (
+            <div className="discover-im-plus-menu" role="menu">
               <button
                 type="button"
-                className="discover-feed-older-toggle"
-                aria-expanded={olderOpen}
-                onClick={() => setOlderOpen((v) => !v)}
+                role="menuitem"
+                onClick={() => {
+                  setPlusOpen(false);
+                  go('/group/create');
+                }}
               >
-                <span>{olderOpen ? '收起更早的动态' : `查看更早的动态 · ${olderShares.length}`}</span>
-                <span className="muted" aria-hidden>{olderOpen ? '▴' : '▾'}</span>
+                新建群
               </button>
-              {olderOpen ? (
-                <div className="discover-feed discover-feed-older-list">
-                  {olderShares.map((s) => (
-                    <FriendActivityCard
-                      key={`older-${s.source}-${s.id}`}
-                      item={s}
-                      liked={isReacted(s, FEED_LIKE_EMOJI)}
-                      onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
-                      authorHref={s.author_id ? `/discover/friends/${s.author_id}` : undefined}
-                    />
-                  ))}
-                </div>
-              ) : null}
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setPlusOpen(false);
+                  go('/discover/join');
+                }}
+              >
+                加入群
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setPlusOpen(false);
+                  go('/friend/add');
+                }}
+              >
+                加好友
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="is-muted"
+                onClick={() => {
+                  setPlusOpen(false);
+                  go('/discover/groups');
+                }}
+              >
+                管理共读群
+              </button>
             </div>
           ) : null}
         </div>
-      )}
+      </div>
+      {sub === 'messages' && searchOpen ? (
+        <div className="discover-im-search">
+          <input
+            className="search-input"
+            value={searchQ}
+            placeholder="搜索会话名或近 30 天消息…"
+            autoFocus
+            onChange={(e) => setSearchQ(e.target.value)}
+          />
+          {searchBusy ? <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>搜索中…</p> : null}
+          {!searchBusy && searchQ.trim() && searchHits.length === 0 ? (
+            <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>无匹配结果</p>
+          ) : null}
+          {searchHits.length > 0 ? (
+            <ul className="discover-search-list">
+              {searchHits.map((h) => (
+                <li key={`${h.scope}:${h.message_id}`}>
+                  <button type="button" className="discover-search-hit" onClick={() => openSearchHit(h)}>
+                    <strong>{h.title}</strong>
+                    <span className="muted">{h.snippet || h.kind}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      {loading ? <p className="muted" style={{ padding: '12px 0' }}>加载中…</p> : null}
+
+      {sub === 'messages' && !loading && !searchOpen ? (
+        items.length === 0 ? (
+          <div className="discover-empty">
+            <strong>还没有消息</strong>
+            <p className="muted">
+              加好友后可私信，建群后可打卡与闲聊。消息与附件仅保留近 30 天。
+            </p>
+            <div className="discover-empty-actions">
+              <button type="button" className="btn" onClick={() => go('/friend/add')}>加好友</button>
+              <button type="button" className="btn btn-ghost" onClick={() => go('/group/create')}>新建群</button>
+            </div>
+          </div>
+        ) : (
+          <ul className="discover-conv-list">
+            {items.map((it) => {
+              const key = `${it.scope}:${it.ref_id}`;
+              const canState = it.scope === 'group' || it.scope === 'dm';
+              const row = (
+                <button type="button" className="discover-conv-row">
+                  <span className={`discover-conv-avatar scope-${it.scope}`} aria-hidden>
+                    {it.scope === 'dm' ? '信' : it.scope === 'group' ? '群' : '通'}
+                  </span>
+                  <div className="discover-conv-main">
+                    <div className="discover-conv-title-row">
+                      {it.pinned ? <span className="discover-conv-pin">置顶</span> : null}
+                      <strong>{it.title}</strong>
+                      {it.badge ? <span className="discover-conv-badge">{it.badge}</span> : null}
+                      {it.muted ? <span className="discover-conv-mute">静音</span> : null}
+                    </div>
+                    <p className="muted discover-conv-sub">{it.subtitle || '暂无消息'}</p>
+                  </div>
+                  {(it.unread || 0) > 0 ? (
+                    <span className="discover-conv-unread">{(it.unread || 0) > 99 ? '99+' : it.unread}</span>
+                  ) : null}
+                </button>
+              );
+              return (
+                <li key={key} className="discover-conv-li">
+                  {canState ? (
+                    <SwipeRevealRow
+                      onContentClick={() => openItem(it)}
+                      actions={[
+                        {
+                          label: it.pinned ? '取消置顶' : '置顶',
+                          tone: 'accent',
+                          onClick: () => void patchState(it, { pinned: !it.pinned }),
+                        },
+                        {
+                          label: it.muted ? '取消免打扰' : '免打扰',
+                          tone: 'muted',
+                          onClick: () => void patchState(it, { muted: !it.muted }),
+                        },
+                      ]}
+                    >
+                      {row}
+                    </SwipeRevealRow>
+                  ) : (
+                    <div onClick={() => openItem(it)}>{row}</div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )
+      ) : null}
+
+      {sub === 'friends' && !loading ? (
+        <div className="discover-friends-pane">
+          <div className="discover-im-search" style={{ marginBottom: 12 }}>
+            <input
+              className="search-input"
+              value={friendQ}
+              placeholder="搜索好友备注、昵称或用户名…"
+              onChange={(e) => setFriendQ(e.target.value)}
+            />
+          </div>
+
+          {incoming.length > 0 ? (
+            <section style={{ marginBottom: 16 }}>
+              <p className="section-label">新的朋友</p>
+              <ul className="discover-conv-list">
+                {incoming.map((r) => (
+                  <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                      <div>
+                        <strong>{r.display_name || r.handle || r.from_user_id.slice(0, 8)}</strong>
+                        {r.message ? <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{r.message}</p> : null}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ padding: '6px 10px', fontSize: 13 }}
+                          onClick={() =>
+                            void api.acceptFriendRequest(r.id).then(() => {
+                              setErr(null);
+                              void reload();
+                            })
+                          }
+                        >
+                          同意
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ padding: '6px 10px', fontSize: 13 }}
+                          onClick={() => void api.declineFriendRequest(r.id).then(reload)}
+                        >
+                          拒绝
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : (
+            <button
+              type="button"
+              className="discover-conv-row discover-friends-entry"
+              onClick={() => go('/friend/add')}
+            >
+              <span className="discover-conv-avatar scope-inbox_friends" aria-hidden>
+                ＋
+              </span>
+              <div className="discover-conv-main">
+                <strong>新的朋友</strong>
+                <p className="muted discover-conv-sub">申请加好友，对方同意后即可私信</p>
+              </div>
+              <span className="muted" aria-hidden>›</span>
+            </button>
+          )}
+
+          <p className="section-label">好友</p>
+          {friends.length === 0 ? (
+            <div className="discover-empty is-compact">
+              <strong>还没有好友</strong>
+              <p className="muted">申请通过后可私信与邀群。</p>
+              <div className="discover-empty-actions">
+                <button type="button" className="btn" onClick={() => go('/friend/add')}>
+                  加好友
+                </button>
+              </div>
+            </div>
+          ) : filteredFriends.length === 0 ? (
+            <p className="muted discover-empty-inline">无匹配好友</p>
+          ) : (
+            <ul className="discover-conv-list">
+              {filteredFriends.map((f) => {
+                const name = friendRemarkOrName(f.user_id, friendDisplayName(f));
+                return (
+                  <li key={f.user_id}>
+                    <button
+                      type="button"
+                      className="discover-conv-row"
+                      onClick={() => go(`/discover/friends/${f.user_id}`)}
+                    >
+                      <FriendAvatar friend={f} size={40} />
+                      <div className="discover-conv-main">
+                        <strong>{name}</strong>
+                        <p className="muted discover-conv-sub">
+                          {f.handle ? `@${f.handle}` : '查看资料 · 发私信'}
+                        </p>
+                      </div>
+                      <span className="muted" aria-hidden>›</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      ) : null}
     </main>
   );
 }

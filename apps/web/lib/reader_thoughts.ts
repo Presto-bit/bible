@@ -1,6 +1,6 @@
-// 经文想法（本地 JSON + 可选同步好友动态）。
+// 经文想法（本地 JSON；不再同步「好友动态」，v1.2 已下线）。
 
-import { api, effectiveId, getDisplayName, getUserName } from './api';
+import { effectiveId, getDisplayName, getUserName } from './api';
 import { listNotes } from './notes';
 import { userLsGet, userLsSet, userLsRemove, userPrefixedGet, userPrefixedSet, userPrefixedRemove } from './user_storage';
 
@@ -317,9 +317,6 @@ export function addThought(
   writeAll(all);
   rememberVisibility(visibility);
   clearThoughtDraft(ref);
-  if (!opts?.skipPublish && visibility !== 'private' && typeof window !== 'undefined') {
-    void api.publishShare({ ref, body: row.body, kind: 'thought' }).catch(() => {});
-  }
   return row;
 }
 
@@ -363,9 +360,6 @@ export function updateThought(
   all[i] = { ...all[i], body: trimmed, visibility: nextVisibility };
   writeAll(all);
   rememberVisibility(nextVisibility);
-  if (nextVisibility !== 'private' && typeof window !== 'undefined') {
-    void api.publishShare({ ref: all[i].ref, body: trimmed, kind: 'thought' }).catch(() => {});
-  }
   return true;
 }
 

@@ -33,12 +33,12 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
       _msg = null;
     });
     try {
-      final res =
-          await ref.read(dioProvider).post('/social/friends', data: {'handle': h});
-      final d = res.data as Map<String, dynamic>;
-      setState(() => _msg = '已添加好友：${d['display_name'] ?? d['handle'] ?? d['user_id']}');
+      await ref.read(dioProvider).post('/social/friend-requests', data: {
+        'handle': h,
+      });
+      setState(() => _msg = '已发送好友申请，等待对方同意');
     } catch (_) {
-      setState(() => _msg = '添加失败：未找到该用户或服务暂不可用');
+      setState(() => _msg = '发送失败：未找到该用户、已是好友，或服务暂不可用');
     } finally {
       setState(() => _busy = false);
     }
@@ -68,7 +68,7 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
             const SizedBox(height: 16),
             FilledButton(
               onPressed: _busy ? null : _submit,
-              child: Text(_busy ? '查找中…' : '查找并添加'),
+              child: Text(_busy ? '发送中…' : '发送申请'),
             ),
             if (_msg != null) ...[
               const SizedBox(height: 16),
@@ -78,6 +78,11 @@ class _AddFriendScreenState extends ConsumerState<AddFriendScreen> {
                           ? AppColors.accentDeep
                           : Colors.red.shade700)),
             ],
+            const SizedBox(height: 12),
+            const Text(
+              '好友需对方同意后才能私信。消息仅保留近 30 天。',
+              style: TextStyle(fontSize: 12, color: AppColors.inkSoft, height: 1.5),
+            ),
           ],
         ),
       ),

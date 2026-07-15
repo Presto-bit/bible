@@ -1,7 +1,7 @@
 /** 注册 Web Push 订阅（VAPID）并同步提醒偏好到服务端 */
 import { API_BASE, authHeaders } from './api';
 import { getReminder } from './reminder';
-import { isGroupDigestEnabled, isStreakRecallEnabled } from './push_digest';
+import { getNotifPrefs } from './notif_prefs';
 
 function urlBase64ToUint8Array(base64: string): Uint8Array {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4);
@@ -39,6 +39,7 @@ export async function subscribeWebPush(): Promise<boolean> {
   const json = sub.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return false;
   const rem = getReminder();
+  const prefs = getNotifPrefs();
   const res = await fetch(`${API_BASE}/push/subscribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...authHeaders() },
@@ -49,8 +50,9 @@ export async function subscribeWebPush(): Promise<boolean> {
         enabled: rem.enabled,
         hour: rem.hour,
         minute: rem.minute,
-        streak_recall: isStreakRecallEnabled(),
-        group_digest: isGroupDigestEnabled(),
+        streak_recall: prefs.streakRecall,
+        group_digest: prefs.socialDigest,
+        reading_dnd: prefs.readingDnd,
       },
     }),
   });

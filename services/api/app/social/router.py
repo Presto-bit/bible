@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import logging
 import secrets
+from pathlib import Path
 
 from datetime import datetime, timezone
 
@@ -102,6 +103,7 @@ class Report(BaseModel):
 
 class AddFriend(BaseModel):
     handle: str
+    message: str | None = None
 
 
 class UpdateGroup(BaseModel):
@@ -560,23 +562,132 @@ def discover_summary(user_id: str = Depends(get_current_user)) -> dict:
 
 @router.get("/push/digest")
 def push_digest(user_id: str = Depends(get_current_user)) -> dict:
-    """F1：个性化聚合摘要（供前台 Notification / 后续 Web Push）。"""
+    """F1：个性化聚合摘要（共读待办 + 未读私信/群聊；尊重 mute）。"""
+    from datetime import datetime, timedelta, timezone
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
     summary = discover_summary(user_id)
     parts: list[str] = []
+    unread_total = 0
+    href = "/discover"
+    mention_parts: list[str] = []
+
+    pool = get_pool()
+    with pool.connection() as conn:
+        # 群未读（跳过 mute；但 @我/@所有人 可冲破免打扰）
+        grows = conn.execute(
+            """
+            SELECT g.id,
+              (
+                SELECT count(*)::int FROM group_message gm
+                WHERE gm.group_id = g.id AND gm.created_at >= %s
+                  AND gm.recalled_at IS NULL
+                  AND gm.created_at > COALESCE(
+                    (SELECT cs.last_read_at FROM conversation_state cs
+                     WHERE cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text),
+                    '-infinity'::timestamptz
+                  )
+              ) AS unread,
+              (
+                SELECT count(*)::int FROM group_message gm
+                WHERE gm.group_id = g.id AND gm.created_at >= %s
+                  AND gm.recalled_at IS NULL AND gm.user_id <> %s
+                  AND gm.created_at > COALESCE(
+                    (SELECT cs.last_read_at FROM conversation_state cs
+                     WHERE cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text),
+                    '-infinity'::timestamptz
+                  )
+                  AND (
+                    COALESCE(gm.mentions::text, '') ILIKE '%%"all"%%'
+                    OR COALESCE(gm.mentions::text, '') ILIKE '%%' || %s || '%%'
+                    OR COALESCE(gm.body, '') LIKE '%%@所有人%%'
+                  )
+              ) AS mention_unread,
+              EXISTS (
+                SELECT 1 FROM conversation_state cs
+                WHERE cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text
+                  AND COALESCE(cs.muted, false) = true
+              ) OR COALESCE(m.muted, false) AS is_muted
+            FROM social_group g
+            JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
+            """,
+            (cutoff, user_id, cutoff, user_id, user_id, user_id, user_id, user_id),
+        ).fetchall()
+        for gid, unread, mention_unread, is_muted in grows:
+            unread = int(unread or 0)
+            mention_unread = int(mention_unread or 0)
+            muted = bool(is_muted)
+            if muted:
+                if mention_unread <= 0:
+                    continue
+                unread_total += mention_unread
+                mention_parts.append("有人@你")
+                if href == "/discover":
+                    href = f"/discover/group/{gid}"
+                continue
+            if unread > 0:
+                unread_total += unread
+                if href == "/discover":
+                    href = f"/discover/group/{gid}"
+
+        drows = conn.execute(
+            """
+            SELECT t.id,
+              (
+                SELECT count(*)::int FROM direct_message dm
+                WHERE dm.thread_id = t.id AND dm.created_at >= %s
+                  AND dm.recalled_at IS NULL AND dm.sender_id <> %s
+                  AND dm.created_at > COALESCE(
+                    (SELECT cs.last_read_at FROM conversation_state cs
+                     WHERE cs.user_id = %s AND cs.scope = 'dm' AND cs.ref_id = t.id::text),
+                    '-infinity'::timestamptz
+                  )
+              ) AS unread
+            FROM direct_thread t
+            WHERE (t.user_low_id = %s OR t.user_high_id = %s)
+              AND NOT EXISTS (
+                SELECT 1 FROM conversation_state cs
+                WHERE cs.user_id = %s AND cs.scope = 'dm' AND cs.ref_id = t.id::text
+                  AND COALESCE(cs.muted, false) = true
+              )
+            """,
+            (cutoff, user_id, user_id, user_id, user_id, user_id),
+        ).fetchall()
+        for tid, unread in drows:
+            unread = int(unread or 0)
+            if unread > 0:
+                unread_total += unread
+                if href == "/discover" or href.startswith("/discover/group/"):
+                    href = f"/discover/dm/{tid}"
+
+    if unread_total > 0:
+        parts.append(f"{unread_total} 条未读消息")
+    if mention_parts:
+        parts.insert(0, "有人@你")
     if summary["groups_pending_checkin"] > 0:
         parts.append(f'{summary["groups_pending_checkin"]} 个群待打卡')
     if summary["groups_pending_tasks"] > 0:
         parts.append(f'{summary["groups_pending_tasks"]} 个群任务待完成')
-    if summary["friends_checked_in_today"] > 0:
-        parts.append(f'今天 {summary["friends_checked_in_today"]} 位好友已打卡')
+
     if not parts:
-        body = "今日已全部打卡，继续保持 ✓"
+        body = "近期没有需要处理的消息"
         href = "/discover"
     else:
         body = " · ".join(parts)
-        gid = summary.get("first_pending_group_id")
-        href = f"/discover/group/{gid}" if gid else "/discover"
-    return {"title": "今日共读", "body": body, "href": href}
+        if unread_total == 0:
+            gid = summary.get("first_pending_group_id")
+            href = f"/discover/group/{gid}" if gid else "/discover"
+
+    if unread_total > 0:
+        title = f"消息 · {unread_total} 条未读"
+    elif summary["groups_pending_checkin"] > 0:
+        title = f"共读 · {summary['groups_pending_checkin']} 个群待打卡"
+    elif summary["groups_pending_tasks"] > 0:
+        title = f"任务 · {summary['groups_pending_tasks']} 项待完成"
+    else:
+        title = "消息摘要"
+
+    return {"title": title, "body": body, "href": href}
 
 
 @router.post("/shares")
@@ -731,12 +842,16 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         role = _require_member(conn, gid, user_id)
         g = conn.execute(
             "SELECT name, intro, join_code, plan_id, announcement, icebreaker_done, "
-            "pinned_task_id, owner_id FROM social_group WHERE id = %s", (gid,)
+            "pinned_task_id, owner_id, COALESCE(allow_chat, true) "
+            "FROM social_group WHERE id = %s", (gid,)
         ).fetchone()
         if not g:
             raise HTTPException(404, "群不存在")
         plan_id = g[3]
         g_owner = g[7]
+        allow_chat = bool(g[8]) if len(g) > 8 else True
+        is_owner = role == "owner"
+        is_staff = role in ("owner", "admin")
         if plan_id:
             members = conn.execute(
                 f"SELECT u.id, {_member_display_sql()}, m.role, "
@@ -808,12 +923,11 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         ).fetchone()
         muted = bool(muted_row[0]) if muted_row else False
         pinned_task_id = str(g[6]) if g[6] else None
-        is_owner = role == "owner"
         task_rows = []
         for t in tasks:
             tid = str(t[0])
             if not task_ops.user_can_see_task(
-                conn, task_id=tid, user_id=user_id, is_owner=is_owner,
+                conn, task_id=tid, user_id=user_id, is_owner=is_staff,
             ):
                 continue
             done = conn.execute(
@@ -847,6 +961,7 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         "id": gid, "name": g[0], "intro": g[1], "join_code": g[2], "role": role,
         "plan_id": g[3], "plan_title": _plan_label(g[3]), "announcement": g[4],
         "icebreaker_done": bool(g[5]),
+        "allow_chat": allow_chat,
         "pinned_task_id": pinned_task_id,
         "muted": muted,
         **weekly,
@@ -873,8 +988,17 @@ def update_group(
 ) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
-        role = _require_member(conn, gid, user_id)
-        if role != "owner":
+        from . import access as group_access
+
+        role = group_access.require_member(conn, gid, user_id)
+        staff = role in ("owner", "admin")
+        if body.name is not None and role != "owner":
+            raise HTTPException(403, "仅群主可修改群名称")
+        if (body.clear_plan or body.plan_id is not None or body.announcement is not None) and not staff:
+            raise HTTPException(403, "需要群主或管理员")
+        if body.name is None and body.plan_id is None and not body.clear_plan and body.announcement is None:
+            raise HTTPException(400, "无更新字段")
+        if not staff and role != "owner":
             raise HTTPException(403, "仅群主可修改群设置")
         sets: list[str] = []
         params: list = []
@@ -1016,7 +1140,8 @@ def group_feed(
         _ensure_report_table(conn)
         base_sql = (
             "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
-            "  m.reactions, m.created_at, m.task_id, gt.due_at "
+            "  m.reactions, m.created_at, m.task_id, gt.due_at, "
+            "  m.recalled_at, m.mentions, m.reply_to_id "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
             "LEFT JOIN group_task gt ON gt.id = m.task_id "
             "WHERE m.group_id = %s "
@@ -1055,14 +1180,43 @@ def group_feed(
                     (gid, user_id, task_id),
                 ).fetchone() is not None
             author = "系统" if r[3] == "system" else ((r[1] or "").strip() or f"用户{str(r[2])[-4:]}")
+            mid = str(r[0])
+            recalled = r[10] is not None if len(r) > 10 else False
+            mentions = r[11] if len(r) > 11 and r[11] else []
+            reply_to = str(r[12]) if len(r) > 12 and r[12] else None
+            atts = []
+            try:
+                att_rows = conn.execute(
+                    "SELECT id, file_name, mime, size_bytes, storage_key FROM message_attachment "
+                    "WHERE scope = 'group' AND message_id = %s",
+                    (mid,),
+                ).fetchall()
+                for a in att_rows:
+                    key = a[4] or ""
+                    fname = Path(key).name if key else (a[1] or "")
+                    atts.append({
+                        "id": str(a[0]),
+                        "file_name": a[1],
+                        "mime": a[2],
+                        "size_bytes": a[3],
+                        "url": f"/content/social-media/assets/{fname}" if fname else None,
+                    })
+            except Exception:
+                atts = []
             messages.append({
-                "id": str(r[0]), "author": author, "mine": str(r[2]) == user_id,
+                "id": mid, "author": author, "mine": str(r[2]) == user_id,
                 "user_id": str(r[2]),
-                "kind": r[3], "ref": r[4], "body": r[5],
+                "kind": r[3],
+                "ref": None if recalled else r[4],
+                "body": None if recalled else r[5],
                 "reactions": r[6] or {}, "created_at": r[7].isoformat(),
                 "task_id": task_id,
                 "task_due_at": r[9].isoformat() if r[9] else None,
                 "my_task_done": my_task_done,
+                "recalled": recalled,
+                "mentions": mentions if isinstance(mentions, list) else [],
+                "reply_to_id": reply_to,
+                "attachments": atts,
             })
     return {"messages": messages, "has_more": has_more}
 
@@ -1125,8 +1279,8 @@ def create_task(gid: str, body: CreateTask, user_id: str = Depends(get_current_u
     pool = get_pool()
     with pool.connection() as conn:
         role = _require_member(conn, gid, user_id)
-        if role != "owner":
-            raise HTTPException(403, "仅群主可发布任务")
+        if role not in ("owner", "admin"):
+            raise HTTPException(403, "仅群主或管理员可发布任务")
         try:
             moderate_text(body.title)
             if body.body:
@@ -1228,8 +1382,8 @@ def create_task_series(
     pool = get_pool()
     with pool.connection() as conn:
         role = _require_member(conn, gid, user_id)
-        if role != "owner":
-            raise HTTPException(403, "仅群主可发布任务")
+        if role not in ("owner", "admin"):
+            raise HTTPException(403, "仅群主或管理员可发布任务")
         try:
             moderate_text(body.title)
             if body.body:
@@ -1320,7 +1474,7 @@ def report_message(mid: str, body: Report, user_id: str = Depends(get_current_us
 
 @router.delete("/messages/{mid}")
 def delete_message(mid: str, user_id: str = Depends(get_current_user)) -> dict:
-    """删除消息：作者本人或群主可删。"""
+    """删除消息：作者本人或群主/管理员可删。"""
     pool = get_pool()
     with pool.connection() as conn:
         row = conn.execute(
@@ -1330,8 +1484,8 @@ def delete_message(mid: str, user_id: str = Depends(get_current_user)) -> dict:
             raise HTTPException(404, "消息不存在")
         gid, author_id = str(row[0]), str(row[1])
         role = _require_member(conn, gid, user_id)
-        if author_id != user_id and role != "owner":
-            raise HTTPException(403, "仅作者或群主可删除")
+        if author_id != user_id and role not in ("owner", "admin"):
+            raise HTTPException(403, "仅作者、群主或管理员可删除")
         conn.execute("DELETE FROM group_message WHERE id = %s", (mid,))
         conn.commit()
     return {"ok": True}
@@ -1462,34 +1616,18 @@ def me(user_id: str = Depends(get_current_user)) -> dict:
 
 @router.post("/friends")
 def add_friend(body: AddFriend, user_id: str = Depends(get_current_user)) -> dict:
-    pool = get_pool()
-    key = body.handle.strip()
-    with pool.connection() as conn:
-        row = conn.execute(
-            "SELECT id, display_name, handle FROM users WHERE handle = %s", (key,)
-        ).fetchone()
-        if not row and pick_user_code(key):
-            uid = uuid_for_code(key)
-            row = conn.execute(
-                "SELECT id, display_name, handle FROM users WHERE id = %s", (uid,)
-            ).fetchone()
-        if not row:
-            raise HTTPException(404, "用户不存在")
-        fid = str(row[0])
-        if fid == user_id:
-            raise HTTPException(400, "不能添加自己")
-        for a, b in ((user_id, fid), (fid, user_id)):
-            conn.execute(
-                "INSERT INTO friendship (user_id, friend_id) VALUES (%s, %s) "
-                "ON CONFLICT DO NOTHING",
-                (a, b),
-            )
-        conn.commit()
+    """兼容旧客户端：改为发起好友申请（申请制，见 PRODUCT §23）。"""
+    from .im_router import FriendRequestIn, create_friend_request
+
+    result = create_friend_request(
+        FriendRequestIn(handle=body.handle, message=body.message),
+        user_id=user_id,
+    )
     return {
-        "user_id": fid,
-        "friend_id": fid,
-        "handle": row[2],
-        "display_name": (row[1] or row[2] or "").strip() or f"用户{fid[:4]}",
+        **result,
+        "friend_id": result.get("to_user_id"),
+        "pending": result.get("status") == "pending",
+        "message": "已发送好友申请" if result.get("status") == "pending" else "已成为好友",
     }
 
 

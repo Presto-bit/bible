@@ -4,7 +4,6 @@ import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import PageBackBar from '@/components/PageBackBar';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
-import { FriendActivityCard } from '@/components/discover/FriendActivityCard';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { GroupInviteSheet } from '@/components/group/GroupInviteSheet';
 import {
@@ -12,12 +11,10 @@ import {
   effectiveId,
   ensureAccountReady,
   type Friend,
-  type FriendActivity,
   type Group,
 } from '@/lib/api';
 import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName, getFriendRemark, setFriendRemark } from '@/lib/friend_remarks';
-import { FEED_LIKE_EMOJI } from '@/lib/feed_activity';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 
@@ -26,28 +23,23 @@ export default function FriendProfilePage() {
   const router = useRouter();
   const confirm = useConfirm();
   const friendId = String(params.id ?? '');
-  useEdgeSwipeBack({ href: '/discover/friends' });
+  useEdgeSwipeBack({ href: '/discover?tab=friends' });
 
   const [uid, setUid] = useState<string | null>(null);
   const [friend, setFriend] = useState<Friend | null>(null);
-  const [activity, setActivity] = useState<FriendActivity[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [remark, setRemark] = useState('');
+  const [editingRemark, setEditingRemark] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
-  const [reacted, setReacted] = useState<Record<string, Record<string, boolean>>>({});
+  const [dmBusy, setDmBusy] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const [fRes, actRes, gRes] = await Promise.all([
-        api.friends(),
-        api.friendsActivity(),
-        api.myGroups(),
-      ]);
+      const [fRes, gRes] = await Promise.all([api.friends(), api.myGroups()]);
       const found = fRes.friends.find((f) => f.user_id === friendId) ?? null;
       setFriend(found);
-      setActivity(actRes.items.filter((item) => item.author_id === friendId));
       setGroups(gRes.groups);
       if (found) setRemark(getFriendRemark(friendId));
       setErr(found ? null : '未找到该好友');
@@ -83,7 +75,7 @@ export default function FriendProfilePage() {
     if (!ok) return;
     try {
       await api.removeFriend(friendId);
-      router.push('/discover/friends');
+      router.push('/discover');
     } catch (e) {
       setErr(errorMessage(e, '删除失败'));
     }
@@ -99,27 +91,17 @@ export default function FriendProfilePage() {
     setInviteOpen(true);
   };
 
-  const toggleReact = async (item: FriendActivity, emoji: string) => {
-    const prev = reacted[item.id]?.[emoji];
-    setReacted((r) => ({
-      ...r,
-      [item.id]: { ...r[item.id], [emoji]: !prev },
-    }));
+  const openDm = async () => {
+    setDmBusy(true);
+    setErr(null);
     try {
-      await api.react(item.id, emoji);
-      void reload();
-    } catch {
-      setReacted((r) => ({
-        ...r,
-        [item.id]: { ...r[item.id], [emoji]: prev },
-      }));
+      const dm = await api.openDm(friendId);
+      router.push(`/discover/dm/${dm.thread_id}`);
+    } catch (e) {
+      setErr(errorMessage(e, '打开私信失败'));
+    } finally {
+      setDmBusy(false);
     }
-  };
-
-  const isReacted = (item: FriendActivity, emoji: string) => {
-    const optimistic = reacted[item.id]?.[emoji];
-    if (optimistic !== undefined) return optimistic;
-    return uid ? Boolean(item.reactions[emoji]?.includes(uid)) : false;
   };
 
   if (!uid) {
@@ -133,69 +115,71 @@ export default function FriendProfilePage() {
   return (
     <main className="container friend-profile-page">
       <header className="page-head">
-        <PageBackBar href="/discover/friends" label="好友" />
+        <PageBackBar href="/discover?tab=friends" label="好友" />
         <h2 className="page-head-title">{displayName}</h2>
       </header>
 
       {err && <ErrorBanner message={err} />}
 
       {friend && (
-        <>
-          <div className="card friend-profile-card">
-            <div className="friend-profile-card-main">
-              <FriendAvatar friend={friend} size={52} />
-              <div className="friend-profile-card-text">
-                <strong>{displayName}</strong>
-                {friend.handle && (
-                  <p className="muted friend-profile-handle">@{friend.handle}</p>
-                )}
-              </div>
+        <div className="card friend-profile-card">
+          <div className="friend-profile-card-main">
+            <FriendAvatar friend={friend} size={52} />
+            <div className="friend-profile-card-text">
+              <strong>{displayName}</strong>
+              {friend.handle && (
+                <p className="muted friend-profile-handle">@{friend.handle}</p>
+              )}
             </div>
-            <div className="friend-profile-card-actions">
-              <button type="button" className="friend-action-btn" onClick={() => void onDelete()}>
-                删除
-              </button>
-              <button type="button" className="friend-action-btn" onClick={openInvite}>
-                邀请到群
-              </button>
+          </div>
+          <div className="friend-profile-card-actions">
+            <button
+              type="button"
+              className="friend-action-btn friend-action-accent"
+              disabled={dmBusy}
+              onClick={() => void openDm()}
+            >
+              {dmBusy ? '打开中…' : '发私信'}
+            </button>
+            <button type="button" className="friend-action-btn" onClick={openInvite}>
+              邀请到群
+            </button>
+            <button
+              type="button"
+              className="friend-action-btn"
+              onClick={() => setEditingRemark((v) => !v)}
+            >
+              {editingRemark ? '收起备注' : '修改备注'}
+            </button>
+            <button type="button" className="friend-action-btn" onClick={() => void onDelete()}>
+              删除
+            </button>
+          </div>
+          {editingRemark ? (
+            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+              <input
+                className="search-input"
+                style={{ flex: 1 }}
+                value={remark}
+                placeholder="备注名"
+                onChange={(e) => setRemark(e.target.value)}
+              />
               <button
                 type="button"
-                className="friend-action-btn friend-action-accent"
+                className="btn"
                 onClick={() => {
-                  const next = window.prompt('修改备注名', remark || friendDisplayName(friend));
-                  if (next == null) return;
-                  setRemark(next);
-                  setFriendRemark(friendId, next);
+                  setFriendRemark(friendId, remark);
+                  setEditingRemark(false);
                 }}
               >
-                修改备注
+                保存
               </button>
             </div>
-          </div>
-
-          <div className="section-row" style={{ marginTop: 18 }}>
-            <span>动态</span>
-            <span className="muted" style={{ fontSize: 12 }}>打卡 · 分享</span>
-          </div>
-
-          {activity.length === 0 ? (
-            <p className="muted" style={{ marginTop: 8, lineHeight: 1.5 }}>
-              暂无打卡或分享。
-            </p>
-          ) : (
-            <div className="discover-feed">
-              {activity.map((s) => (
-                <FriendActivityCard
-                  key={`${s.source}-${s.id}`}
-                  item={s}
-                  showAuthor={false}
-                  liked={isReacted(s, FEED_LIKE_EMOJI)}
-                  onLike={() => void toggleReact(s, FEED_LIKE_EMOJI)}
-                />
-              ))}
-            </div>
-          )}
-        </>
+          ) : null}
+          <p className="muted" style={{ marginTop: 14, fontSize: 12, lineHeight: 1.5 }}>
+            好友关系用于私信与邀请入群。
+          </p>
+        </div>
       )}
 
       {inviteOpen && inviteGroup && friend && (

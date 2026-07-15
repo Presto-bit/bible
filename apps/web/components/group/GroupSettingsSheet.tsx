@@ -1,7 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import type { GeneratedPlan, GroupDetail, PlanSummary } from '@/lib/api';
+import { useState } from 'react';
+import { api, type GeneratedPlan, type GroupDetail, type PlanSummary } from '@/lib/api';
 import { groupDetailTodayLine } from '@/lib/group_status';
 import { GroupMembersPanel } from './GroupMembersPanel';
 import { GroupMemberNickname } from './GroupMemberNickname';
@@ -12,6 +13,7 @@ type Props = {
   gid: string;
   detail: GroupDetail;
   isOwner: boolean;
+  isStaff?: boolean;
   members: GroupDetail['members'];
   tasks: GroupDetail['tasks'];
   plans: PlanSummary[];
@@ -30,6 +32,7 @@ type Props = {
   onToggleMute: () => void;
   onDissolve: () => void;
   onMembersChanged: () => void;
+  onDetailChanged?: () => void;
 };
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
@@ -47,6 +50,7 @@ export function GroupSettingsSheet({
   gid,
   detail,
   isOwner,
+  isStaff,
   members = [],
   tasks = [],
   plans,
@@ -65,8 +69,29 @@ export function GroupSettingsSheet({
   onToggleMute,
   onDissolve,
   onMembersChanged,
+  onDetailChanged,
 }: Props) {
+  const [chatBusy, setChatBusy] = useState(false);
+  const [chatErr, setChatErr] = useState<string | null>(null);
+
   if (!open) return null;
+
+  const allowChat = detail.allow_chat !== false;
+  const canManagePlan = Boolean(isStaff || isOwner);
+
+  const toggleAllowChat = async () => {
+    setChatBusy(true);
+    setChatErr(null);
+    try {
+      await api.setAllowChat(gid, !allowChat);
+      onDetailChanged?.();
+      onMembersChanged();
+    } catch (e) {
+      setChatErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChatBusy(false);
+    }
+  };
 
   const memberCount = members.length;
   const allPlanOptions = [
@@ -144,22 +169,40 @@ export function GroupSettingsSheet({
           </div>
         </section>
 
-        {isOwner && (
+        {canManagePlan && (
           <section className="group-settings-section">
             <h3 className="group-settings-section-title">群管理</h3>
             <div className="group-settings-admin-card card card-2">
-              <label className="group-composer-label" htmlFor="gs-name">
-                群名称
-              </label>
-              <input
-                id="gs-name"
-                className="search-input"
-                value={nameDraft}
-                onChange={(e) => onNameChange(e.target.value)}
-                placeholder="修改群名称"
-              />
+              {isOwner ? (
+                <>
+                  <button
+                    type="button"
+                    className="group-settings-row-btn"
+                    disabled={busy || chatBusy}
+                    onClick={() => void toggleAllowChat()}
+                  >
+                    <span>{allowChat ? '群闲聊已开启' : '群闲聊已关闭'}</span>
+                    <span className="muted">{chatBusy ? '…' : allowChat ? '关闭' : '开启'}</span>
+                  </button>
+                  {chatErr ? <p className="group-composer-err">{chatErr}</p> : null}
+                  <p className="muted" style={{ fontSize: 12, margin: '4px 0 12px', lineHeight: 1.45 }}>
+                    关闭后成员仍可打卡、发任务与图片文件，不可发闲聊文字。
+                  </p>
 
-              <label className="group-composer-label" htmlFor="gs-announce" style={{ marginTop: 12 }}>
+                  <label className="group-composer-label" htmlFor="gs-name">
+                    群名称
+                  </label>
+                  <input
+                    id="gs-name"
+                    className="search-input"
+                    value={nameDraft}
+                    onChange={(e) => onNameChange(e.target.value)}
+                    placeholder="修改群名称"
+                  />
+                </>
+              ) : null}
+
+              <label className="group-composer-label" htmlFor="gs-announce" style={{ marginTop: isOwner ? 12 : 0 }}>
                 群公告
               </label>
               <textarea
@@ -225,19 +268,21 @@ export function GroupSettingsSheet({
               </button>
             </div>
 
-            <div className="group-settings-danger-block">
-              <button
-                type="button"
-                className="font-pill danger-pill btn-block"
-                disabled={busy}
-                onClick={onDissolve}
-              >
-                解散共读群
-              </button>
-              <p className="muted group-settings-hint" style={{ marginTop: 8, textAlign: 'center' }}>
-                解散后所有成员将无法继续打卡，此操作不可恢复
-              </p>
-            </div>
+            {isOwner ? (
+              <div className="group-settings-danger-block">
+                <button
+                  type="button"
+                  className="font-pill danger-pill btn-block"
+                  disabled={busy}
+                  onClick={onDissolve}
+                >
+                  解散共读群
+                </button>
+                <p className="muted group-settings-hint" style={{ marginTop: 8, textAlign: 'center' }}>
+                  解散后所有成员将无法继续打卡，此操作不可恢复
+                </p>
+              </div>
+            ) : null}
           </section>
         )}
       </div>

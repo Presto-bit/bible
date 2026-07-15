@@ -23,6 +23,8 @@ import {
   setGroupEveningReminder,
   type GroupEveningReminder,
 } from '@/lib/group_reminder';
+import { getNotifPrefs, setNotifPrefs, type NotifPrefs } from '@/lib/notif_prefs';
+import { subscribeWebPush } from '@/lib/web_push';
 
 const SLOTS = [
   { key: 'morning', label: '晨读', hour: 7, minute: 0 },
@@ -47,6 +49,11 @@ export default function RemindersPage() {
   const [customMinute, setCustomMinute] = useState(0);
   const [groupHour, setGroupHour] = useState(20);
   const [groupMinute, setGroupMinute] = useState(30);
+  const [notif, setNotif] = useState<NotifPrefs>({
+    readingDnd: true,
+    socialDigest: false,
+    streakRecall: false,
+  });
   const [msg, setMsg] = useState('');
 
   useEffect(() => {
@@ -54,6 +61,7 @@ export default function RemindersPage() {
     const g = getGroupEveningReminder();
     setPref(p);
     setGroupPref(g);
+    setNotif(getNotifPrefs());
     setCustomHour(p.hour);
     setCustomMinute(p.minute);
     setGroupHour(g.hour);
@@ -61,6 +69,25 @@ export default function RemindersPage() {
     reschedule();
     rescheduleGroupEveningReminder();
   }, []);
+
+  const patchNotif = async (patch: Partial<NotifPrefs>) => {
+    const next = setNotifPrefs(patch);
+    setNotif(next);
+    if (next.socialDigest || next.streakRecall) {
+      const ok = await ensurePermission();
+      if (!ok) {
+        setMsg('请在浏览器或系统设置中允许通知');
+      }
+      void subscribeWebPush();
+    } else {
+      void subscribeWebPush();
+    }
+    if (patch.readingDnd !== undefined) {
+      setMsg(patch.readingDnd ? '已开启读经勿扰（圣经页不弹社交提示）' : '已关闭读经勿扰');
+    } else if (patch.socialDigest !== undefined) {
+      setMsg(patch.socialDigest ? '已开启消息聚合推送' : '已关闭消息聚合推送');
+    }
+  };
 
   const applyTime = async (hour: number, minute: number, enabled = true) => {
     const h = Math.min(23, Math.max(0, hour));
@@ -227,6 +254,38 @@ export default function RemindersPage() {
             当前：每天 {String(pref.hour).padStart(2, '0')}:{String(pref.minute).padStart(2, '0')}
           </p>
         )}
+      </div>
+
+      <div className="card card-2" style={{ marginTop: 18 }}>
+        <div className="section-row">
+          <span>读经勿扰</span>
+          <button
+            type="button"
+            className={`toggle ${notif.readingDnd ? 'on' : ''}`}
+            onClick={() => void patchNotif({ readingDnd: !notif.readingDnd })}
+          >
+            {notif.readingDnd ? '开' : '关'}
+          </button>
+        </div>
+        <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.55 }}>
+          默认开启。在圣经阅读页时不弹出群消息/私信前台通知；底栏发现亦不显示未读角标。
+        </p>
+      </div>
+
+      <div className="card card-2" style={{ marginTop: 12 }}>
+        <div className="section-row">
+          <span>消息聚合推送</span>
+          <button
+            type="button"
+            className={`toggle ${notif.socialDigest ? 'on' : ''}`}
+            onClick={() => void patchNotif({ socialDigest: !notif.socialDigest })}
+          >
+            {notif.socialDigest ? '开' : '关'}
+          </button>
+        </div>
+        <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.55 }}>
+          默认关闭。开启后，将未读私信与群消息（已免打扰的会话除外）汇总为短摘要推送，不会逐条打扰。
+        </p>
       </div>
 
       <div className="card card-2" style={{ marginTop: 18 }}>

@@ -2,10 +2,12 @@
 
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useCallback, useEffect, useState } from 'react';
-import { api, effectiveId, ensureAccountReady } from '@/lib/api';
+import { api, effectiveId } from '@/lib/api';
 import { GROUP_CHECKIN_DEFAULT_BODY } from '@/lib/group_checkin';
+import { friendDisplayName } from '@/lib/friend_label';
+import { friendRemarkOrName } from '@/lib/friend_remarks';
 
-type Tab = 'group' | 'friends';
+type Tab = 'group' | 'dm';
 
 type Props = {
   ref: string;
@@ -20,7 +22,7 @@ export function ShareToSocialSheet({
   ref: verseRef,
   refLabel,
   body,
-  kind = 'verse',
+  kind: _kind = 'verse',
   onClose,
   onDone,
 }: Props) {
@@ -65,16 +67,17 @@ export function ShareToSocialSheet({
     }
   };
 
-  const shareToFriends = async () => {
-    setBusy('friends');
+  const shareToDm = async (peerId: string, label: string) => {
+    setBusy(peerId);
     setErr(null);
     try {
-      await api.publishShare({
+      const dm = await api.openDm(peerId);
+      await api.sendDm(dm.thread_id, {
+        kind: 'verse',
         ref: verseRef,
         body: message.trim() || refLabel,
-        kind: kind === 'thought' ? 'thought' : 'note',
       });
-      onDone?.('好友动态');
+      onDone?.(label);
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -87,7 +90,7 @@ export function ShareToSocialSheet({
     return (
       <div className="sheet-backdrop" onClick={onClose}>
         <div className="sheet card" onClick={(e) => e.stopPropagation()}>
-          <p>本机账号就绪后即可分享到共读群或好友动态。</p>
+          <p>本机账号就绪后即可分享到共读群或私信好友。</p>
           <a className="btn" href="/profile">前往我的</a>
         </div>
       </div>
@@ -119,10 +122,10 @@ export function ShareToSocialSheet({
           </button>
           <button
             type="button"
-            className={`mode-chip ${tab === 'friends' ? 'mode-chip-active' : ''}`}
-            onClick={() => setTab('friends')}
+            className={`mode-chip ${tab === 'dm' ? 'mode-chip-active' : ''}`}
+            onClick={() => setTab('dm')}
           >
-            好友动态
+            私信好友
           </button>
         </div>
         {err && <p className="group-composer-err">{err}</p>}
@@ -147,18 +150,29 @@ export function ShareToSocialSheet({
           )
         ) : friends.length === 0 ? (
           <div>
-            <p className="muted">加好友后，分享会出现在好友动态。</p>
+            <p className="muted">加好友后，可将经文卡发到私信。</p>
             <a className="font-pill" href="/friend/add">加好友</a>
           </div>
         ) : (
-          <button
-            type="button"
-            className="btn"
-            disabled={busy !== null}
-            onClick={() => void shareToFriends()}
-          >
-            {busy === 'friends' ? '发布中…' : '发布到好友动态'}
-          </button>
+          <div className="share-target-list">
+            {friends.map((f) => {
+              const label = friendRemarkOrName(f.user_id, friendDisplayName(f));
+              return (
+                <button
+                  key={f.user_id}
+                  type="button"
+                  className="share-target-row"
+                  disabled={busy !== null}
+                  onClick={() => void shareToDm(f.user_id, label)}
+                >
+                  <span>{label}</span>
+                  <span className="muted">
+                    {busy === f.user_id ? '发送中…' : '发私信 ›'}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

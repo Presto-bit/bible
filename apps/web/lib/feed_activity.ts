@@ -1,11 +1,7 @@
-import type { FriendActivity } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 
 export const FEED_LIKE_EMOJI = '❤️';
 export const FEED_READING_EMOJI = '📖';
-
-/** 发现页主 Feed 新鲜度窗口（小时） */
-export const FEED_FRESH_HOURS = 48;
 
 export type FeedActivityKind = 'checkin' | 'thought' | 'note';
 
@@ -16,11 +12,6 @@ export type FeedActivityHint = {
   body?: string | null;
 };
 
-export function feedActivityKind(item: FriendActivity): FeedActivityKind {
-  if (item.source !== 'share') return 'checkin';
-  return item.kind === 'thought' ? 'thought' : 'note';
-}
-
 export function reactionEmojiCount(
   reactions: Record<string, string[]> | null | undefined,
   emoji: string,
@@ -29,58 +20,39 @@ export function reactionEmojiCount(
   return reactions[emoji]?.length ?? 0;
 }
 
-/** 按新鲜度拆分：近 N 小时置顶，更早默认折叠。 */
-export function splitFriendActivityByFreshness(
-  items: FriendActivity[],
-  hours = FEED_FRESH_HOURS,
-  nowMs = Date.now(),
-): { recent: FriendActivity[]; older: FriendActivity[] } {
-  const cutoff = nowMs - hours * 3600_000;
-  const recent: FriendActivity[] = [];
-  const older: FriendActivity[] = [];
-  for (const item of items) {
-    const t = Date.parse(item.created_at);
-    if (Number.isFinite(t) && t >= cutoff) recent.push(item);
-    else older.push(item);
-  }
-  return { recent, older };
-}
-
-export function feedHintMessage(h: FeedActivityHint): string {
-  if (h.kind === 'checkin') {
-    return h.groupName
-      ? `${h.author} 在「${h.groupName}」打卡了本节`
-      : `${h.author} 打卡了本节`;
-  }
-  if (h.kind === 'thought') return `${h.author} 分享了想法`;
-  return `${h.author} 分享了笔记`;
-}
-
-/** 好友动态 → 阅读器：定位经节 + 动态提示参数。 */
-export function readerHrefFromFeedActivity(item: FriendActivity): string | null {
-  if (!item.ref) return null;
-  const base = readerHrefFromRef(item.ref);
-  if (!base) return null;
-  const params = new URLSearchParams(base.split('?')[1] ?? '');
-  params.set('flash', item.ref);
-  params.set('feedAuthor', item.author);
-  params.set('feedKind', feedActivityKind(item));
-  if (item.group_name) params.set('feedGroup', item.group_name);
-  if (item.body?.trim()) params.set('feedBody', item.body.trim().slice(0, 120));
-  return `/reader?${params.toString()}`;
-}
-
+/** URL query 残留的动态提示（群打卡分享回跳），不是好友动态流。 */
 export function parseFeedHintFromSearchParams(
-  params: URLSearchParams,
+  sp: URLSearchParams | { get(name: string): string | null },
 ): FeedActivityHint | null {
-  const author = params.get('feedAuthor');
-  if (!author) return null;
-  const kind = params.get('feedKind');
-  if (kind !== 'checkin' && kind !== 'thought' && kind !== 'note') return null;
+  const author = sp.get('feedAuthor');
+  const kindRaw = sp.get('feedKind');
+  if (!author || !kindRaw) return null;
+  const kind: FeedActivityKind =
+    kindRaw === 'thought' || kindRaw === 'note' ? kindRaw : 'checkin';
   return {
     author,
     kind,
-    groupName: params.get('feedGroup'),
-    body: params.get('feedBody'),
+    groupName: sp.get('feedGroup'),
+    body: sp.get('feedBody'),
   };
+}
+
+export function feedHintMessage(hint: FeedActivityHint): string {
+  const who = hint.author || '同伴';
+  if (hint.kind === 'thought') return `${who} 分享了一则想法`;
+  if (hint.kind === 'note') return `${who} 分享了一则笔记`;
+  if (hint.groupName) return `${who} 在「${hint.groupName}」打卡`;
+  return `${who} 完成了打卡`;
+}
+
+/** @deprecated 保留以免旧深链断裂；新入口请用 readerHrefFromRef */
+export function readerHrefFromLegacyFeed(ref: string, hint?: FeedActivityHint): string {
+  const base = readerHrefFromRef(ref);
+  if (!hint || !base) return base || `/reader?flash=${encodeURIComponent(ref)}`;
+  const u = new URL(base, 'https://local.invalid');
+  u.searchParams.set('feedAuthor', hint.author);
+  u.searchParams.set('feedKind', hint.kind);
+  if (hint.groupName) u.searchParams.set('feedGroup', hint.groupName);
+  if (hint.body) u.searchParams.set('feedBody', hint.body.slice(0, 80));
+  return `${u.pathname}${u.search}`;
 }

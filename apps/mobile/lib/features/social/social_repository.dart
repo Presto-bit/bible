@@ -423,6 +423,157 @@ class SocialRepository {
     final res = await _dio.get('/social/discover/summary');
     return (res.data as Map).cast<String, dynamic>();
   }
+
+  Future<List<ConversationItem>> conversations() async {
+    final res = await _dio.get('/social/conversations');
+    return ((res.data['items'] ?? []) as List)
+        .map((e) => ConversationItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<FriendRequestsBundle> friendRequests() async {
+    final res = await _dio.get('/social/friend-requests');
+    return FriendRequestsBundle.fromJson(res.data as Map<String, dynamic>);
+  }
+
+  Future<void> acceptFriendRequest(String id) =>
+      _dio.post('/social/friend-requests/$id/accept');
+
+  Future<void> declineFriendRequest(String id) =>
+      _dio.post('/social/friend-requests/$id/decline');
+
+  Future<String> openDm(String peerId) async {
+    final res = await _dio.post('/social/dm/with/$peerId');
+    return res.data['thread_id'] as String;
+  }
+
+  Future<List<DmMessage>> dmMessages(String threadId) async {
+    final res = await _dio.get('/social/dm/$threadId/messages');
+    return ((res.data['messages'] ?? []) as List)
+        .map((e) => DmMessage.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<void> sendDm(String threadId, String body) =>
+      _dio.post('/social/dm/$threadId/messages', data: {
+        'body': body,
+        'kind': 'chat',
+      });
+
+  Future<void> sendFriendRequest(String handle, {String? message}) =>
+      _dio.post('/social/friend-requests', data: {
+        'handle': handle,
+        if (message != null && message.isNotEmpty) 'message': message,
+      });
+
+  Future<void> patchConversationState(
+    String scope,
+    String refId, {
+    bool? pinned,
+    bool? muted,
+  }) =>
+      _dio.patch('/social/conversations/$scope/$refId/state', data: {
+        if (pinned != null) 'pinned': pinned,
+        if (muted != null) 'muted': muted,
+      });
+}
+
+class ConversationItem {
+  ConversationItem({
+    required this.scope,
+    required this.refId,
+    required this.title,
+    this.subtitle,
+    this.unread = 0,
+    this.pinned = false,
+    this.muted = false,
+    this.badge,
+    this.peerUserId,
+  });
+  final String scope;
+  final String refId;
+  final String title;
+  final String? subtitle;
+  final int unread;
+  final bool pinned;
+  final bool muted;
+  final String? badge;
+  final String? peerUserId;
+
+  factory ConversationItem.fromJson(Map<String, dynamic> j) => ConversationItem(
+        scope: (j['scope'] ?? '') as String,
+        refId: '${j['ref_id'] ?? ''}',
+        title: (j['title'] ?? '') as String,
+        subtitle: j['subtitle'] as String?,
+        unread: (j['unread'] ?? 0) as int,
+        pinned: (j['pinned'] ?? false) as bool,
+        muted: (j['muted'] ?? false) as bool,
+        badge: j['badge'] as String?,
+        peerUserId: j['peer_user_id'] as String?,
+      );
+}
+
+class FriendRequestItem {
+  FriendRequestItem({
+    required this.id,
+    required this.fromUserId,
+    this.message,
+    this.displayName,
+    this.handle,
+  });
+  final String id;
+  final String fromUserId;
+  final String? message;
+  final String? displayName;
+  final String? handle;
+
+  factory FriendRequestItem.fromJson(Map<String, dynamic> j) => FriendRequestItem(
+        id: j['id'] as String,
+        fromUserId: (j['from_user_id'] ?? '') as String,
+        message: j['message'] as String?,
+        displayName: j['display_name'] as String?,
+        handle: j['handle'] as String?,
+      );
+}
+
+class FriendRequestsBundle {
+  FriendRequestsBundle({required this.incoming, required this.outgoing});
+  final List<FriendRequestItem> incoming;
+  final List<FriendRequestItem> outgoing;
+  factory FriendRequestsBundle.fromJson(Map<String, dynamic> j) =>
+      FriendRequestsBundle(
+        incoming: ((j['incoming'] ?? []) as List)
+            .map((e) => FriendRequestItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+        outgoing: ((j['outgoing'] ?? []) as List)
+            .map((e) => FriendRequestItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+}
+
+class DmMessage {
+  DmMessage({
+    required this.id,
+    required this.senderId,
+    required this.kind,
+    this.body,
+    this.recalled = false,
+    this.mine = false,
+  });
+  final String id;
+  final String senderId;
+  final String kind;
+  final String? body;
+  final bool recalled;
+  final bool mine;
+  factory DmMessage.fromJson(Map<String, dynamic> j) => DmMessage(
+        id: j['id'] as String,
+        senderId: (j['sender_id'] ?? '') as String,
+        kind: (j['kind'] ?? 'chat') as String,
+        body: j['body'] as String?,
+        recalled: (j['recalled'] ?? false) as bool,
+        mine: (j['mine'] ?? false) as bool,
+      );
 }
 
 final socialRepoProvider =
@@ -433,6 +584,12 @@ final myGroupsProvider = FutureProvider<List<Group>>(
 
 final friendsProvider =
     FutureProvider<List<Friend>>((ref) => ref.read(socialRepoProvider).friends());
+
+final conversationsProvider = FutureProvider<List<ConversationItem>>(
+    (ref) => ref.read(socialRepoProvider).conversations());
+
+final friendRequestsProvider = FutureProvider<FriendRequestsBundle>(
+    (ref) => ref.read(socialRepoProvider).friendRequests());
 
 final groupFeedProvider = FutureProvider.family<List<GroupMessage>, String>(
     (ref, gid) => ref.read(socialRepoProvider).feed(gid));

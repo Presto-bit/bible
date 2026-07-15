@@ -19,6 +19,7 @@ import '../features/plans/plans_screen.dart';
 import '../features/social/add_friend_screen.dart';
 import '../features/social/create_group_screen.dart';
 import '../features/social/discover_screen.dart';
+import '../features/social/dm_thread_screen.dart';
 import '../features/social/group_screen.dart';
 import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
@@ -74,6 +75,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/discover',
           builder: (context, state) => const DiscoverScreen()),
+      GoRoute(
+        path: '/discover/dm/:id',
+        builder: (context, state) =>
+            DmThreadScreen(threadId: state.pathParameters['id']!),
+      ),
       GoRoute(
           path: '/report',
           builder: (context, state) => const ReadingReportScreen()),

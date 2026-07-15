@@ -4,14 +4,16 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { GroupActivityFeed } from '@/components/group/GroupActivityFeed';
 import { GroupCheckinWall } from '@/components/group/GroupCheckinWall';
-import { GroupComposerBar } from '@/components/group/GroupComposerBar';
+import { GroupComposerBar, type ComposerActionMode } from '@/components/group/GroupComposerBar';
 import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
 import { GroupPageSkeleton } from '@/components/group/GroupPageSkeleton';
 import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupTodayFocus } from '@/components/group/GroupTodayFocus';
+import { GroupCoreadStickyBar } from '@/components/group/GroupCoreadStickyBar';
 import { GroupToast } from '@/components/group/GroupToast';
+import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet';
 import ErrorBanner from '@/components/ErrorBanner';
 import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
@@ -19,16 +21,23 @@ import { loadGeneratedPlans } from '@/lib/generated_plans';
 import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 import { formatGroupRefLabel } from '@/lib/ref_label';
+import { replySnippet } from '@/lib/im_ui';
+import { useFocusMessage } from '@/lib/use_focus_message';
+import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { errorMessage } from '@/lib/friendly_error';
 import { hapticSuccess } from '@/lib/haptic';
 import { queueCheckin } from '@/lib/checkin_queue';
 import { clearGroupCheckinDraft, readGroupCheckinDraft } from '@/lib/group_checkin_draft';
+import { useOnline } from '@/lib/use_online';
 
 function GroupPageInner() {
   const confirm = useConfirm();
   const router = useRouter();
+  const online = useOnline();
   const searchParams = useSearchParams();
+  const focusMsg = searchParams.get('focusMsg');
+  useFocusMessage(focusMsg);
   const params = useParams<{ id: string }>();
   const rawId = params.id;
   const gid = Array.isArray(rawId) ? rawId[0] : rawId ?? '';
@@ -39,7 +48,17 @@ function GroupPageInner() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [composerOpen, setComposerOpen] = useState(false);
+  const [composerMode, setComposerMode] = useState<ComposerActionMode | null>(null);
+  const [todayOpen, setTodayOpen] = useState(false);
+  const [showJump, setShowJump] = useState(false);
+  const stickBottom = useRef(true);
+  const [replyTarget, setReplyTarget] = useState<{
+    id: string;
+    author: string;
+    snippet: string;
+  } | null>(null);
+  const [reportMid, setReportMid] = useState<string | null>(null);
+  const [reportBusy, setReportBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [plans, setPlans] = useState<PlanSummary[]>([]);
   const [generatedPlans, setGeneratedPlans] = useState<GeneratedPlan[]>([]);
@@ -97,7 +116,7 @@ function GroupPageInner() {
       if (detail.includes('404')) {
         dismissPendingGroup(gid);
         markGroupsListDirty();
-        router.replace('/discover/groups');
+        router.replace('/discover');
         return;
       }
       setErr(detail);
@@ -109,16 +128,36 @@ function GroupPageInner() {
   }, [reload]);
 
   useEffect(() => {
+    if (!gid) return;
+    return subscribeSocialRealtime((_c, changed) => {
+      if (changed) void reload();
+    });
+  }, [gid, reload]);
+
+  useEffect(() => {
+    if (!stickBottom.current) return;
     feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [feed.length]);
 
   useEffect(() => {
+    const wrap = feedWrapRef.current;
+    if (!wrap) return;
+    const onScroll = () => {
+      const dist = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
+      stickBottom.current = dist < 100;
+      setShowJump(dist > 140);
+    };
+    wrap.addEventListener('scroll', onScroll, { passive: true });
+    return () => wrap.removeEventListener('scroll', onScroll);
+  }, [detail]);
+
+  useEffect(() => {
     if (searchParams.get('focus') === 'checkin') {
-      setComposerOpen(true);
+      setComposerMode('checkin');
     }
     const draft = readGroupCheckinDraft(gid);
     if (draft?.ref || searchParams.get('focus') === 'checkin') {
-      setComposerOpen(true);
+      setComposerMode('checkin');
     }
   }, [searchParams, gid]);
 
@@ -209,6 +248,8 @@ function GroupPageInner() {
   }
 
   const isOwner = detail.role === 'owner';
+  const isStaff = detail.role === 'owner' || detail.role === 'admin';
+  const allowChat = detail.allow_chat !== false;
   const members = detail.members ?? [];
   const tasks = detail.tasks ?? [];
   const pinnedTask = tasks.find((t) => t.pinned || t.id === detail.pinned_task_id);
@@ -224,13 +265,21 @@ function GroupPageInner() {
     }
   };
 
-  const reportMsg = async (mid: string) => {
+  const reportMsg = (mid: string) => {
+    setReportMid(mid);
+  };
+
+  const submitReport = async (reason: ReportReason) => {
+    if (!reportMid) return;
+    setReportBusy(true);
     try {
-      const r = await api.reportMessage(mid, '');
-      showToast(r.hidden ? '已举报，该内容已被隐藏待复核' : '已举报，感谢反馈');
-      reload();
+      await api.reportContent('group_message', reportMid, reason);
+      setReportMid(null);
+      showToast(reason === 'heresy' ? '已提交异端举报，将优先复核' : '已举报，感谢反馈');
     } catch (e) {
       showToast(errorMessage(e, '举报失败，请稍后再试'));
+    } finally {
+      setReportBusy(false);
     }
   };
 
@@ -302,7 +351,7 @@ function GroupPageInner() {
       setFlyHighlight(true);
       setTimeout(() => setFlyHighlight(false), 2200);
       showToast('打卡已发送 ✓');
-      setComposerOpen(false);
+      setComposerMode(null);
       await reload();
     } catch (e) {
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -312,7 +361,7 @@ function GroupPageInner() {
         setFlyHighlight(true);
         setTimeout(() => setFlyHighlight(false), 2200);
         showToast('已离线保存，联网后自动发送');
-        setComposerOpen(false);
+        setComposerMode(null);
         return;
       }
       await reload();
@@ -363,18 +412,137 @@ function GroupPageInner() {
       } else {
         showToast('任务已发布 ✓');
       }
-      setComposerOpen(false);
+      setComposerMode(null);
       await reload();
     } finally {
       setBusy(false);
     }
   };
 
+  const appendOptimisticChat = (payload: {
+    body?: string;
+    kind?: string;
+    reply_to_id?: string;
+  }) => {
+    const temp: GroupMessage = {
+      id: `temp-${Date.now()}`,
+      author: myDisplayName(),
+      mine: true,
+      kind: payload.kind || 'chat',
+      body: payload.body,
+      reactions: {},
+      created_at: new Date().toISOString(),
+      reply_to_id: payload.reply_to_id || null,
+      pending: true,
+    };
+    setFeed((prev) => [...prev, temp]);
+    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    return temp.id;
+  };
+
+  const markOptimisticFailed = (tempId: string) => {
+    setFeed((prev) =>
+      prev.map((m) => (m.id === tempId ? { ...m, pending: false, sendFailed: true } : m)),
+    );
+  };
+
+  const handleChat = async (
+    body: string,
+    opts?: { mentions?: string[]; replyToId?: string },
+  ) => {
+    if (!online) {
+      showToast('闲聊需联网发送');
+      throw new Error('离线');
+    }
+    setBusy(true);
+    const tempId = appendOptimisticChat({
+      body,
+      reply_to_id: opts?.replyToId,
+    });
+    try {
+      await api.sendGroupChat(gid, body, {
+        mentions: opts?.mentions,
+        replyToId: opts?.replyToId,
+      });
+      setReplyTarget(null);
+      setComposerMode(null);
+      await reload();
+    } catch (e) {
+      markOptimisticFailed(tempId);
+      showToast(errorMessage(e, '发送失败'));
+      throw e;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleChatMedia = async (payload: {
+    storage_key: string;
+    file_name: string;
+    mime_type: string;
+    size_bytes: number;
+    url: string;
+    body?: string;
+    mentions?: string[];
+    reply_to_id?: string;
+  }) => {
+    if (!online) {
+      showToast('闲聊需联网发送');
+      throw new Error('离线');
+    }
+    setBusy(true);
+    const kind = (payload.mime_type || '').startsWith('image/') ? 'image' : 'file';
+    const tempId = appendOptimisticChat({
+      body: payload.body,
+      kind,
+      reply_to_id: payload.reply_to_id,
+    });
+    try {
+      await api.sendGroupMedia(gid, {
+        storage_key: payload.storage_key,
+        file_name: payload.file_name,
+        mime: payload.mime_type,
+        size_bytes: payload.size_bytes,
+        url: payload.url,
+        body: payload.body,
+        mentions: payload.mentions,
+        reply_to_id: payload.reply_to_id,
+      });
+      setReplyTarget(null);
+      setComposerMode(null);
+      await reload();
+    } catch (e) {
+      markOptimisticFailed(tempId);
+      showToast(errorMessage(e, '发送失败'));
+      throw e;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const recallMsg = async (mid: string) => {
+    try {
+      await api.recallMessage(mid);
+      showToast('已撤回');
+      await reload();
+    } catch (e) {
+      showToast(errorMessage(e, '撤回失败'));
+    }
+  };
+
+  const startReply = (m: GroupMessage) => {
+    setReplyTarget({
+      id: m.id,
+      author: m.mine ? '我' : m.author || '群友',
+      snippet: replySnippet(m.body, m.kind, m.attachments?.[0]?.file_name),
+    });
+  };
+
   const saveSettings = async () => {
     setBusy(true);
     try {
       await api.updateGroup(gid, {
-        name: nameDraft.trim(),
+        ...(isOwner ? { name: nameDraft.trim() } : {}),
         announcement: announceDraft,
         ...(planDraft ? { plan_id: planDraft } : { clear_plan: true }),
       });
@@ -426,7 +594,7 @@ function GroupPageInner() {
       await api.dissolveGroup(gid);
       dismissPendingGroup(gid);
       markGroupsListDirty();
-      router.push('/discover/groups');
+      router.push('/discover');
     } catch (e) {
       showToast(errorMessage(e, '解散失败，请稍后再试'));
     } finally {
@@ -440,55 +608,126 @@ function GroupPageInner() {
         <GroupNavBar detail={safeDetail} onOpenSettings={() => setSettingsOpen(true)} />
       </div>
 
-      <div className="group-checkin-scroll">
-        <GroupTodayFocus
-          gid={gid}
+      <div className="group-checkin-scroll" ref={feedWrapRef}>
+        <GroupCoreadStickyBar
           detail={safeDetail}
-          isOwner={isOwner}
-          pinnedTask={pinnedTask}
           tasks={tasks}
-          onCheckin={() => setComposerOpen(true)}
-          onCompleteTask={completeTask}
+          onCheckin={() => setComposerMode('checkin')}
         />
-        <GroupCheckinWall
-          groupId={gid}
-          detail={safeDetail}
-          messages={feed}
-          isOwner={isOwner}
-          flyHighlight={flyHighlight}
-          onReact={react}
-        />
-        <div className="group-feed-wrap group-checkin-feed-inner" ref={feedWrapRef}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 2px' }}>
+          <button
+            type="button"
+            className="text-link"
+            style={{ fontSize: 13 }}
+            onClick={() => setTodayOpen((v) => !v)}
+          >
+            {todayOpen ? '收起今日详情' : '展开今日详情'}
+          </button>
+        </div>
+        {!online ? (
+          <p className="muted offline-page-hint" style={{ padding: '0 16px' }}>
+            当前离线：打卡可排队，闲聊需联网。
+          </p>
+        ) : null}
+        {todayOpen ? (
+          <>
+            <GroupTodayFocus
+              gid={gid}
+              detail={safeDetail}
+              isOwner={isOwner}
+              pinnedTask={pinnedTask}
+              tasks={tasks}
+              onCheckin={() => setComposerMode('checkin')}
+              onCompleteTask={completeTask}
+            />
+            <GroupCheckinWall
+              groupId={gid}
+              detail={safeDetail}
+              messages={feed}
+              isOwner={isOwner}
+              flyHighlight={flyHighlight}
+              onReact={react}
+            />
+          </>
+        ) : null}
+        <div className="group-feed-wrap group-checkin-feed-inner">
           <GroupActivityFeed
             gid={gid}
             messages={feed}
-            isOwner={isOwner}
+            isOwner={isStaff}
             hasMore={hasMore}
             loadingMore={loadingMore}
             onLoadMore={loadMore}
-            onOpenComposer={() => setComposerOpen(true)}
+            onOpenComposer={() => setComposerMode('checkin')}
             onReact={react}
             onReport={reportMsg}
             onDelete={deleteMsg}
+            onReply={allowChat ? startReply : undefined}
+            onRecall={recallMsg}
             onCompleteTask={completeTask}
+            onResend={(m) => {
+              if (!m.body || m.kind !== 'chat') return;
+              setFeed((prev) => prev.filter((x) => x.id !== m.id));
+              void handleChat(m.body, {
+                replyToId: m.reply_to_id || undefined,
+                mentions: m.mentions,
+              });
+            }}
           />
           <div ref={feedEndRef} />
         </div>
       </div>
 
-      <GroupComposerBar disabled={busy} onOpen={() => setComposerOpen(true)} />
+      {showJump ? (
+        <button
+          type="button"
+          className="im-jump-bottom"
+          onClick={() => {
+            stickBottom.current = true;
+            setShowJump(false);
+            feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }}
+        >
+          回到底部
+        </button>
+      ) : null}
+
+      <GroupComposerBar
+        gid={gid}
+        disabled={busy}
+        busy={busy}
+        online={online}
+        allowChat={allowChat}
+        canPostTask={isStaff}
+        members={members}
+        replyTo={replyTarget}
+        onClearReply={() => setReplyTarget(null)}
+        onRestoreReply={(r) => setReplyTarget(r)}
+        onOpenMode={(mode) => setComposerMode(mode)}
+        onChat={handleChat}
+        onChatMedia={handleChatMedia}
+      />
 
       <GroupComposerSheet
-        open={composerOpen}
-        onOpenChange={setComposerOpen}
+        open={composerMode != null}
+        mode={composerMode || 'checkin'}
+        onOpenChange={(open) => {
+          if (!open) setComposerMode(null);
+        }}
         gid={gid}
         isOwner={isOwner}
+        canPostTask={isStaff}
+        allowChat={false}
         tasks={tasks}
         members={members}
         busy={busy}
         groupName={detail.name}
         onCheckin={handleCheckin}
         onCreateTask={handleCreateTask}
+        onOpenSettings={() => {
+          setComposerMode(null);
+          setSettingsOpen(true);
+        }}
       />
 
       <GroupSettingsSheet
@@ -496,6 +735,7 @@ function GroupPageInner() {
         gid={gid}
         detail={safeDetail}
         isOwner={isOwner}
+        isStaff={isStaff}
         members={members}
         tasks={tasks}
         plans={plans}
@@ -514,6 +754,7 @@ function GroupPageInner() {
         onToggleMute={toggleMute}
         onDissolve={dissolve}
         onMembersChanged={reload}
+        onDetailChanged={reload}
       />
 
       {taskComplete && (
@@ -525,6 +766,13 @@ function GroupPageInner() {
           onClose={() => setTaskComplete(null)}
         />
       )}
+
+      <ReportSheet
+        open={Boolean(reportMid)}
+        busy={reportBusy}
+        onClose={() => setReportMid(null)}
+        onSubmit={submitReport}
+      />
 
       <GroupToast message={toast} />
     </main>

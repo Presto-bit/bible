@@ -82,6 +82,26 @@ export function GroupMembersPanel({
     });
   };
 
+  const toggleAdmin = async (m: GroupMember) => {
+    if (!m.user_id) return;
+    const making = m.role !== 'admin';
+    const ok = await confirm({
+      title: making ? '设为管理员' : '取消管理员',
+      message: making
+        ? `将「${displayMemberName(m)}」设为管理员？管理员可发任务与群计划。`
+        : `取消「${displayMemberName(m)}」的管理员身份？`,
+      confirmLabel: making ? '设为管理' : '取消管理',
+    });
+    if (!ok) return;
+    void run(`admin-${m.user_id}`, async () => {
+      const nextIds = members
+        .filter((x) => x.role === 'admin' && x.user_id && x.user_id !== m.user_id)
+        .map((x) => x.user_id!) as string[];
+      if (making) nextIds.push(m.user_id!);
+      await api.setGroupAdmins(gid, nextIds);
+    });
+  };
+
   const leave = async () => {
     const ok = await confirm({
       title: '退出共读群',
@@ -120,6 +140,7 @@ export function GroupMembersPanel({
               >
                 <MemberAvatar member={m} size={44} />
                 {m.role === 'owner' && <em className="group-member-grid-crown" aria-hidden>主</em>}
+                {m.role === 'admin' && <em className="group-member-grid-crown" aria-hidden>管</em>}
               </div>
               <span className="group-member-grid-name">{displayMemberName(m)}</span>
             </div>
@@ -181,12 +202,25 @@ export function GroupMembersPanel({
                   <div className="group-member-info">
                     <span className="group-member-name">{displayMemberName(m)}</span>
                     <span className="muted group-member-sub">
+                      {m.role === 'admin' ? '管理员 · ' : ''}
                       {m.checked_in_today ? '今日已打卡 ✓' : '今日未打卡'}
                     </span>
                   </div>
                   <div className="group-member-actions">
                     {m.user_id && (
                       <>
+                        <button
+                          type="button"
+                          className="text-link"
+                          disabled={busy !== null}
+                          onClick={() => void toggleAdmin(m)}
+                        >
+                          {busy === `admin-${m.user_id}`
+                            ? '…'
+                            : m.role === 'admin'
+                              ? '取消管理'
+                              : '设为管理'}
+                        </button>
                         <button
                           type="button"
                           className="text-link"
@@ -267,8 +301,21 @@ export function GroupMembersPanel({
           </div>
           <div className="group-member-actions">
             {m.role === 'owner' && <span className="rail-cta">群主</span>}
+            {m.role === 'admin' && <span className="rail-cta">管理</span>}
             {isOwner && m.role !== 'owner' && m.user_id && (
               <>
+                <button
+                  type="button"
+                  className="text-link"
+                  disabled={busy !== null}
+                  onClick={() => void toggleAdmin(m)}
+                >
+                  {busy === `admin-${m.user_id}`
+                    ? '…'
+                    : m.role === 'admin'
+                      ? '取消管理'
+                      : '设为管理'}
+                </button>
                 <button
                   type="button"
                   className="text-link"

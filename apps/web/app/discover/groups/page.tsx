@@ -113,27 +113,30 @@ export default function DiscoverGroupsPage() {
   return (
     <main className="container discover-page">
       <header className="page-head">
-        <PageBackBar href="/discover" label="发现" />
+        <PageBackBar href="/discover" label="消息" />
         <h2 className="page-head-title">我的共读群</h2>
         <div className="page-head-actions">
-          <Link className="btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: 13 }} href="/discover/join">
+          <Link className="btn btn-ghost" style={{ marginTop: 0, padding: '6px 12px', fontSize: 13 }} href="/discover/join">
             加入
           </Link>
-          <Link className="text-link" style={{ fontSize: 13 }} href="/group/create">
+          <Link className="btn" style={{ marginTop: 0, padding: '6px 12px', fontSize: 13 }} href="/group/create">
             创建
           </Link>
         </div>
       </header>
 
+      <p className="muted" style={{ margin: '8px 0 0', fontSize: 13, lineHeight: 1.45 }}>
+        群聊请从「消息」会话进入；本页便于管理多个共读群。
+      </p>
       {err && <p className="muted" style={{ marginTop: 8 }}>{err}</p>}
 
       {groups.length === 0 ? (
-        <div className="card card-tint card-2 card-accent" style={{ marginTop: 12 }}>
+        <div className="discover-empty" style={{ marginTop: 12 }}>
           <strong>还没有共读群</strong>
-          <p className="muted" style={{ marginTop: 6, lineHeight: 1.5 }}>
-            创建群或凭邀请码加入，和大家一起读经打卡。
-          </p>
-          <DiscoverGroupActions />
+          <p className="muted">创建群或凭邀请码加入，和大家一起读经打卡。</p>
+          <div className="discover-empty-actions">
+            <DiscoverGroupActions />
+          </div>
         </div>
       ) : (
         <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>

@@ -17,12 +17,14 @@ export const PROFILE_SECONDARY_PATHS = [
   '/profile/licenses',
 ] as const;
 
-/** 发现 Tab 下的二级页（群详情、好友等），须走 Next 路由。 */
+/** 发现 Tab 下的二级页（群详情、私信、邀请、好友等），须走 Next 路由。 */
 export const DISCOVER_SECONDARY_PREFIXES = [
   '/discover/groups',
   '/discover/join',
   '/discover/friends',
   '/discover/group/',
+  '/discover/dm/',
+  '/discover/invites',
 ] as const;
 
 function isProfileSecondaryPath(pathname: string): boolean {

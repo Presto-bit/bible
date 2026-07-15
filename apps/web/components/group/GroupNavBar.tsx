@@ -11,12 +11,12 @@ type Props = {
 };
 
 export function GroupNavBar({ detail, onOpenSettings }: Props) {
-  useEdgeSwipeBack({ href: '/discover/groups' });
+  useEdgeSwipeBack({ href: '/discover' });
   const count = groupMemberCount(detail);
 
   return (
     <header className="group-wechat-nav">
-      <PageBackBar href="/discover/groups" label="群列表" />
+      <PageBackBar href="/discover" label="消息" />
       <button type="button" className="group-wechat-nav-center" onClick={onOpenSettings}>
         <span className="group-wechat-name">{detail.name}</span>
         <span className="group-wechat-count">（{count}人）</span>

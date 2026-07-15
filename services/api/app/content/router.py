@@ -596,6 +596,31 @@ def group_task_asset(filename: str):
     return FileResponse(path, media_type=media)
 
 
+@router.get("/social-media/assets/{filename}")
+def social_media_asset(filename: str):
+    from ..social.media import media_dir
+
+    safe = Path(filename).name
+    if safe != filename or ".." in filename:
+        raise HTTPException(status_code=400, detail="无效文件名")
+    path = media_dir() / safe
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+    media = "application/octet-stream"
+    lower = safe.lower()
+    if lower.endswith((".jpg", ".jpeg")):
+        media = "image/jpeg"
+    elif lower.endswith(".png"):
+        media = "image/png"
+    elif lower.endswith((".webp",)):
+        media = "image/webp"
+    elif lower.endswith(".gif"):
+        media = "image/gif"
+    elif lower.endswith(".pdf"):
+        media = "application/pdf"
+    return FileResponse(path, media_type=media, filename=safe)
+
+
 @router.get("/home/bootstrap")
 def home_bootstrap(
     response: Response,

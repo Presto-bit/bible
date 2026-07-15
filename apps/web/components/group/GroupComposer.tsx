@@ -17,9 +17,11 @@ import {
 import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
 import { asGroupTasks, groupFootprintsBySource } from '@/lib/group_ui';
 import { readGroupCheckinDraft } from '@/lib/group_checkin_draft';
+import { clearImDraft, getImDraft, setImDraft } from '@/lib/im_drafts';
 import { getLastRead } from '@/lib/reading';
 
-type Mode = 'checkin' | 'task';
+export type ComposerMode = 'chat' | 'checkin' | 'task' | 'plan';
+type Mode = ComposerMode;
 
 export type CreateTaskPayload = {
   title: string;
@@ -45,12 +47,32 @@ export type CreateTaskPayload = {
 type Props = {
   gid?: string;
   isOwner: boolean;
+  /** 群主或管理员可发任务 */
+  canPostTask?: boolean;
+  allowChat?: boolean;
   tasks: GroupTask[];
   members?: GroupMember[];
   busy?: boolean;
   groupName?: string;
   onCheckin: (payload: { ref?: string; task_id?: string; body?: string }) => Promise<void>;
   onCreateTask: (payload: CreateTaskPayload) => Promise<void>;
+  replyTo?: { id: string; author: string; snippet: string } | null;
+  onClearReply?: () => void;
+  onChat?: (body: string, opts?: { mentions?: string[]; replyToId?: string }) => Promise<void>;
+  onChatMedia?: (payload: {
+    storage_key: string;
+    file_name: string;
+    mime_type: string;
+    size_bytes: number;
+    url: string;
+    body?: string;
+    mentions?: string[];
+    reply_to_id?: string;
+  }) => Promise<void>;
+  /** 打开群设置（绑定共读计划） */
+  onOpenSettings?: () => void;
+  /** 从加号入口进入时锁定模式，隐藏 Tab */
+  forcedMode?: Mode;
 };
 
 type PendingAttach = {
@@ -64,14 +86,34 @@ type PendingAttach = {
 export function GroupComposer({
   gid,
   isOwner,
+  canPostTask,
+  allowChat = true,
   tasks = [],
   members = [],
   busy = false,
   groupName,
   onCheckin,
   onCreateTask,
+  onChat,
+  onChatMedia,
+  replyTo = null,
+  onClearReply,
+  onOpenSettings,
+  forcedMode,
 }: Props) {
-  const [mode, setMode] = useState<Mode>('checkin');
+  const canTask = canPostTask ?? isOwner;
+  const [mode, setMode] = useState<Mode>(
+    forcedMode || (allowChat ? 'chat' : 'checkin'),
+  );
+
+  useEffect(() => {
+    if (forcedMode) setMode(forcedMode);
+  }, [forcedMode]);
+  const [chatBody, setChatBody] = useState('');
+  const [mentionIds, setMentionIds] = useState<string[]>([]);
+  const [mentionAll, setMentionAll] = useState(false);
+  const [chatUploading, setChatUploading] = useState(false);
+  const [chatUploadPct, setChatUploadPct] = useState(0);
   const [footprints, setFootprints] = useState<FootprintRef[]>([]);
   const [selectedRef, setSelectedRef] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -91,6 +133,15 @@ export function GroupComposer({
   const [publishLocal, setPublishLocal] = useState('');
   const [uploading, setUploading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (replyTo && allowChat) setMode('chat');
+  }, [replyTo, allowChat]);
+
+  useEffect(() => {
+    if (!gid) return;
+    setChatBody(getImDraft('group', gid));
+  }, [gid]);
 
   useEffect(() => {
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
@@ -249,26 +300,224 @@ export function GroupComposer({
     }
   };
 
+  const toggleMention = (uid: string) => {
+    setMentionIds((prev) =>
+      prev.includes(uid) ? prev.filter((x) => x !== uid) : [...prev, uid].slice(0, 20),
+    );
+  };
+
+  const mentionPrefix = () => {
+    const labels: string[] = [];
+    if (mentionAll) labels.push('@所有人');
+    for (const id of mentionIds) {
+      const n = members.find((m) => m.user_id === id)?.name || id.slice(0, 4);
+      labels.push(`@${n}`);
+    }
+    return labels.length ? `${labels.join(' ')} ` : '';
+  };
+
+  const sendChat = async () => {
+    const body = `${mentionPrefix()}${chatBody.trim()}`.trim();
+    if (!body || !onChat) return;
+    setErr(null);
+    try {
+      const mentions = mentionAll
+        ? ['all', ...mentionIds]
+        : mentionIds.length
+          ? mentionIds
+          : undefined;
+      await onChat(body, {
+        mentions,
+        replyToId: replyTo?.id,
+      });
+      setChatBody('');
+      if (gid) clearImDraft('group', gid);
+      setMentionIds([]);
+      setMentionAll(false);
+      onClearReply?.();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const sendChatFile = async (files: FileList | null) => {
+    if (!files?.length || !onChatMedia || chatUploading) return;
+    setChatUploading(true);
+    setChatUploadPct(0);
+    setErr(null);
+    try {
+      for (const file of Array.from(files).slice(0, 1)) {
+        const meta = await api.uploadSocialMedia(file, {
+          onProgress: (pct) => setChatUploadPct(pct),
+        });
+        const caption = `${mentionPrefix()}${chatBody.trim()}`.trim() || undefined;
+        const mentions = mentionAll
+          ? ['all', ...mentionIds]
+          : mentionIds.length
+            ? mentionIds
+            : undefined;
+        await onChatMedia({
+          storage_key: meta.storage_key,
+          file_name: meta.file_name,
+          mime_type: meta.mime_type,
+          size_bytes: meta.size_bytes,
+          url: meta.url,
+          body: caption,
+          mentions,
+          reply_to_id: replyTo?.id,
+        });
+      }
+      setChatBody('');
+      if (gid) clearImDraft('group', gid);
+      setMentionIds([]);
+      setMentionAll(false);
+      onClearReply?.();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChatUploading(false);
+      setChatUploadPct(0);
+    }
+  };
+
+  const hideTabs = Boolean(forcedMode);
+
   return (
     <div className="group-composer">
-      <div className="group-composer-tabs">
-        <button
-          type="button"
-          className={mode === 'checkin' ? 'active' : ''}
-          onClick={() => setMode('checkin')}
-        >
-          打卡
-        </button>
-        {isOwner && (
+      {!hideTabs ? (
+        <div className="group-composer-tabs">
+          {allowChat && (
+            <button
+              type="button"
+              className={mode === 'chat' ? 'active' : ''}
+              onClick={() => setMode('chat')}
+            >
+              闲聊
+            </button>
+          )}
           <button
             type="button"
-            className={mode === 'task' ? 'active' : ''}
-            onClick={() => setMode('task')}
+            className={mode === 'checkin' ? 'active' : ''}
+            onClick={() => setMode('checkin')}
           >
-            发布任务
+            打卡
           </button>
-        )}
-      </div>
+          {canTask && (
+            <button
+              type="button"
+              className={mode === 'task' ? 'active' : ''}
+              onClick={() => setMode('task')}
+            >
+              发布任务
+            </button>
+          )}
+          {canTask && (
+            <button
+              type="button"
+              className={mode === 'plan' ? 'active' : ''}
+              onClick={() => setMode('plan')}
+            >
+              群计划
+            </button>
+          )}
+        </div>
+      ) : null}
+
+      {mode === 'plan' ? (
+        <div className="group-composer-section">
+          <p className="muted" style={{ marginTop: 0, lineHeight: 1.5 }}>
+            主/管可在群设置中绑定共读计划；绑定后全员可见今日进度。
+          </p>
+          <button
+            type="button"
+            className="btn btn-block"
+            onClick={() => onOpenSettings?.()}
+          >
+            打开群设置绑定计划
+          </button>
+        </div>
+      ) : null}
+
+      {mode === 'chat' ? (
+        <>
+          {replyTo ? (
+            <div className="group-composer-reply">
+              <div>
+                <span className="muted">回复 {replyTo.author}</span>
+                <p>{replyTo.snippet}</p>
+              </div>
+              <button type="button" className="text-link" onClick={() => onClearReply?.()}>
+                取消
+              </button>
+            </div>
+          ) : null}
+          {members.length > 0 ? (
+            <div className="group-composer-section">
+              <div className="group-composer-label">@ 成员</div>
+              <div className="group-composer-mention">
+                {canTask ? (
+                  <button
+                    type="button"
+                    className={`group-chip chip-swipe-item${mentionAll ? ' selected' : ''}`}
+                    onClick={() => setMentionAll((v) => !v)}
+                  >
+                    @所有人
+                  </button>
+                ) : null}
+                {members
+                  .filter((m) => m.user_id)
+                  .map((m) => (
+                    <button
+                      key={m.user_id}
+                      type="button"
+                      className={`group-chip chip-swipe-item${mentionIds.includes(m.user_id!) ? ' selected' : ''}`}
+                      onClick={() => toggleMention(m.user_id!)}
+                    >
+                      @{m.name}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          ) : null}
+          <textarea
+            className="group-composer-text search-input compose-textarea"
+            rows={3}
+            value={chatBody}
+            maxLength={2000}
+            placeholder="说点什么…"
+            onChange={(e) => {
+              const v = e.target.value;
+              setChatBody(v);
+              if (gid) setImDraft('group', gid, v);
+            }}
+          />
+          <div className="dm-attach-bar">
+            <label className="font-pill" style={{ cursor: chatUploading ? 'wait' : 'pointer' }}>
+              {chatUploading ? `上传 ${chatUploadPct}%` : '图片/文件'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+                hidden
+                disabled={chatUploading || busy || !onChatMedia}
+                onChange={(e) => {
+                  void sendChatFile(e.target.files);
+                  e.target.value = '';
+                }}
+              />
+            </label>
+            {chatUploading ? <span className="im-upload-pct">{chatUploadPct}%</span> : null}
+            <button
+              type="button"
+              className="btn"
+              disabled={busy || chatUploading || !chatBody.trim() || !onChat}
+              onClick={() => void sendChat()}
+            >
+              {busy || chatUploading ? '发送中…' : '发送'}
+            </button>
+          </div>
+          {err ? <p className="error-text">{err}</p> : null}
+        </>
+      ) : null}
 
       {mode === 'checkin' ? (
         <>
@@ -577,8 +826,12 @@ export function GroupComposer({
         </>
       )}
 
-      {err && <p className="group-composer-err" role="alert">{err}</p>}
-      <p className="group-composer-hint muted">群内仅支持发送「打卡 / 任务」，不支持自由聊天</p>
+      {err && mode !== 'chat' ? <p className="group-composer-err" role="alert">{err}</p> : null}
+      <p className="group-composer-hint muted">
+        {allowChat
+          ? '可发闲聊、图片与 PDF/Office；打卡请挂经文或任务'
+          : '本群已关闭闲聊，可发打卡与任务'}
+      </p>
     </div>
   );
 }

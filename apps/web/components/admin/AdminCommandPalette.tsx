@@ -7,7 +7,7 @@ import {
 import { fetchRagWorkspaceTree, type RagWorkspaceTree } from '@/lib/admin_rag';
 import type { HeroBCampaignAdmin } from '@/lib/hero_b_campaign';
 
-export type AdminTab = 'stats' | 'ops' | 'rag';
+export type AdminTab = 'stats' | 'ops' | 'rag' | 'moderation';
 
 type CommandItem = {
   id: string;
@@ -65,6 +65,13 @@ export default function AdminCommandPalette({
         label: 'RAG 注释库',
         hint: '资料工作台',
         run: () => onTab('rag'),
+      },
+      {
+        id: 'nav-moderation',
+        group: '导航',
+        label: '内容审核',
+        hint: '举报工单',
+        run: () => onTab('moderation'),
       },
     ];
 
