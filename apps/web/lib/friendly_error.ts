@@ -15,7 +15,7 @@ export function friendlyError(err: unknown, fallback = '出了点问题，请稍
   }
   if (lower.includes('409') || lower.includes('占用')) return '该用户名已被占用';
   if (lower.includes('timeout')) return '请求超时，请稍后重试';
-  if (/^\d{3}\s/.test(s) || lower.includes('sql') || lower.includes('migration') || lower.includes('postgres')) {
+  if (/^\d{3}(\s|$)/.test(s) || lower.includes('sql') || lower.includes('migration') || lower.includes('postgres')) {
     return fallback;
   }
   if (s.length > 80) return fallback;

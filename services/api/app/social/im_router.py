@@ -148,12 +148,16 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
     cutoff = _retention_cutoff()
     items: list[dict] = []
     with pool.connection() as conn:
-        # 好友申请 inbox
-        pending_fr = conn.execute(
-            "SELECT count(*)::int FROM friend_request "
-            "WHERE to_user_id = %s AND status = 'pending'",
-            (user_id,),
-        ).fetchone()[0]
+        # 好友申请 inbox（021 未迁移时降级）
+        try:
+            pending_fr = conn.execute(
+                "SELECT count(*)::int FROM friend_request "
+                "WHERE to_user_id = %s AND status = 'pending'",
+                (user_id,),
+            ).fetchone()[0]
+        except Exception:
+            conn.rollback()
+            pending_fr = 0
         if pending_fr:
             items.append({
                 "scope": "inbox_friends",
@@ -175,6 +179,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 (user_id,),
             ).fetchone()[0]
         except Exception:
+            conn.rollback()
             pending_gi = 0
         if pending_gi:
             items.append({
@@ -189,75 +194,109 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 "badge": None,
             })
 
-        groups = conn.execute(
-            """
-            SELECT g.id, g.name, m.role,
-              (SELECT gm.id FROM group_message gm
-               WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                 AND gm.created_at >= %s
-               ORDER BY gm.created_at DESC LIMIT 1) AS last_id,
-              (SELECT gm.kind FROM group_message gm
-               WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                 AND gm.created_at >= %s
-               ORDER BY gm.created_at DESC LIMIT 1) AS last_kind,
-              (SELECT gm.body FROM group_message gm
-               WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                 AND gm.created_at >= %s
-               ORDER BY gm.created_at DESC LIMIT 1) AS last_body,
-              (SELECT gm.created_at FROM group_message gm
-               WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                 AND gm.created_at >= %s
-               ORDER BY gm.created_at DESC LIMIT 1) AS last_at,
-              COALESCE(cs.last_read_at, '-infinity'::timestamptz) AS last_read,
-              cs.pinned_at, COALESCE(cs.muted, false) AS muted,
-              (SELECT count(*)::int FROM group_message gm
-               WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                 AND gm.created_at >= %s
-                 AND gm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
-                 AND gm.user_id <> %s) AS unread,
-              COALESCE((
-                SELECT count(*)::int FROM group_task t
-                WHERE t.group_id = g.id
-                  AND COALESCE(t.status, 'published') = 'published'
-                  AND (t.due_at IS NULL OR t.due_at > now())
-                  AND NOT EXISTS (
-                    SELECT 1 FROM group_message m
-                    WHERE m.group_id = g.id AND m.user_id = %s
-                      AND m.kind = 'checkin' AND m.task_id = t.id
-                  )
-              ), 0) AS open_tasks,
-              EXISTS (
-                SELECT 1 FROM group_message gm
-                WHERE gm.group_id = g.id AND gm.user_id = %s
-                  AND gm.kind = 'checkin'
-                  AND {_CN_GM_DAY} = {_CN_TODAY}
-                LIMIT 1
-              ) AS my_checked_in_today
-            FROM social_group g
-            JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
-            LEFT JOIN conversation_state cs
-              ON cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text
-            ORDER BY cs.pinned_at DESC NULLS LAST,
-                     COALESCE(
-                       (SELECT gm.created_at FROM group_message gm
-                        WHERE gm.group_id = g.id ORDER BY gm.created_at DESC LIMIT 1),
-                       g.created_at
-                     ) DESC
-            """,
-            (cutoff, cutoff, cutoff, cutoff, cutoff, user_id, user_id, user_id, user_id, user_id),
-        ).fetchall()
+        # 主查询需 f-string 嵌入北京日表达式；021 未迁移时降级
+        try:
+            groups = conn.execute(
+                f"""
+                SELECT g.id, g.name, m.role,
+                  (SELECT gm.id FROM group_message gm
+                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
+                     AND gm.created_at >= %s
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_id,
+                  (SELECT gm.kind FROM group_message gm
+                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
+                     AND gm.created_at >= %s
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_kind,
+                  (SELECT gm.body FROM group_message gm
+                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
+                     AND gm.created_at >= %s
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_body,
+                  (SELECT gm.created_at FROM group_message gm
+                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
+                     AND gm.created_at >= %s
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_at,
+                  COALESCE(cs.last_read_at, '-infinity'::timestamptz) AS last_read,
+                  cs.pinned_at, COALESCE(cs.muted, false) AS muted,
+                  (SELECT count(*)::int FROM group_message gm
+                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
+                     AND gm.created_at >= %s
+                     AND gm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
+                     AND gm.user_id <> %s) AS unread,
+                  COALESCE((
+                    SELECT count(*)::int FROM group_task t
+                    WHERE t.group_id = g.id
+                      AND COALESCE(t.status, 'published') = 'published'
+                      AND (t.due_at IS NULL OR t.due_at > now())
+                      AND NOT EXISTS (
+                        SELECT 1 FROM group_message m
+                        WHERE m.group_id = g.id AND m.user_id = %s
+                          AND m.kind = 'checkin' AND m.task_id = t.id
+                      )
+                  ), 0) AS open_tasks,
+                  EXISTS (
+                    SELECT 1 FROM group_message gm
+                    WHERE gm.group_id = g.id AND gm.user_id = %s
+                      AND gm.kind = 'checkin'
+                      AND {_CN_GM_DAY} = {_CN_TODAY}
+                    LIMIT 1
+                  ) AS my_checked_in_today
+                FROM social_group g
+                JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
+                LEFT JOIN conversation_state cs
+                  ON cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text
+                ORDER BY cs.pinned_at DESC NULLS LAST,
+                         COALESCE(
+                           (SELECT gm.created_at FROM group_message gm
+                            WHERE gm.group_id = g.id ORDER BY gm.created_at DESC LIMIT 1),
+                           g.created_at
+                         ) DESC
+                """,
+                (cutoff, cutoff, cutoff, cutoff, cutoff, user_id, user_id, user_id, user_id, user_id),
+            ).fetchall()
+        except Exception:
+            conn.rollback()
+            groups = conn.execute(
+                f"""
+                SELECT g.id, g.name, m.role,
+                  (SELECT gm.id FROM group_message gm
+                   WHERE gm.group_id = g.id
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_id,
+                  (SELECT gm.kind FROM group_message gm
+                   WHERE gm.group_id = g.id
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_kind,
+                  (SELECT gm.body FROM group_message gm
+                   WHERE gm.group_id = g.id
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_body,
+                  (SELECT gm.created_at FROM group_message gm
+                   WHERE gm.group_id = g.id
+                   ORDER BY gm.created_at DESC LIMIT 1) AS last_at,
+                  '-infinity'::timestamptz AS last_read,
+                  NULL::timestamptz AS pinned_at, false AS muted,
+                  0 AS unread,
+                  0 AS open_tasks,
+                  EXISTS (
+                    SELECT 1 FROM group_message gm
+                    WHERE gm.group_id = g.id AND gm.user_id = %s
+                      AND gm.kind = 'checkin'
+                      AND {_CN_GM_DAY} = {_CN_TODAY}
+                    LIMIT 1
+                  ) AS my_checked_in_today
+                FROM social_group g
+                JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
+                ORDER BY COALESCE(
+                  (SELECT gm.created_at FROM group_message gm
+                   WHERE gm.group_id = g.id ORDER BY gm.created_at DESC LIMIT 1),
+                  g.created_at
+                ) DESC
+                """,
+                (user_id, user_id),
+            ).fetchall()
 
         for r in groups:
             (
                 gid, name, role, last_id, last_kind, last_body, last_at, _lr,
-                pinned_at, muted, unread, open_tasks, my_checked,
+                pinned_at, muted, unread, _open_tasks, _my_checked,
             ) = r
-            parts: list[str] = []
-            if not my_checked:
-                parts.append("待打卡")
-            if open_tasks and open_tasks > 0:
-                parts.append(f"任务{open_tasks}")
-            badge = " · ".join(parts) if parts else None
             fname = None
             if last_kind in ("file", "image"):
                 fname = _last_attachment_name(conn, "group", last_id)
@@ -270,7 +309,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 "updated_at": last_at.isoformat() if last_at else None,
                 "pinned": pinned_at is not None,
                 "muted": bool(muted),
-                "badge": badge,
+                "badge": None,
                 "role": role,
             })
 
@@ -310,6 +349,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 (cutoff, cutoff, cutoff, cutoff, cutoff, user_id, user_id, user_id, user_id),
             ).fetchall()
         except Exception:
+            conn.rollback()
             threads = []
 
         for r in threads:

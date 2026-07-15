@@ -840,11 +840,19 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     with pool.connection() as conn:
         role = _require_member(conn, gid, user_id)
-        g = conn.execute(
-            "SELECT name, intro, join_code, plan_id, announcement, icebreaker_done, "
-            "pinned_task_id, owner_id, COALESCE(allow_chat, true) "
-            "FROM social_group WHERE id = %s", (gid,)
-        ).fetchone()
+        try:
+            g = conn.execute(
+                "SELECT name, intro, join_code, plan_id, announcement, icebreaker_done, "
+                "pinned_task_id, owner_id, COALESCE(allow_chat, true) "
+                "FROM social_group WHERE id = %s", (gid,)
+            ).fetchone()
+        except Exception:
+            conn.rollback()
+            g = conn.execute(
+                "SELECT name, intro, join_code, plan_id, announcement, icebreaker_done, "
+                "pinned_task_id, owner_id "
+                "FROM social_group WHERE id = %s", (gid,)
+            ).fetchone()
         if not g:
             raise HTTPException(404, "群不存在")
         plan_id = g[3]
@@ -1138,6 +1146,8 @@ def group_feed(
     with pool.connection() as conn:
         _require_member(conn, gid, user_id)
         _ensure_report_table(conn)
+        # 021 列（recalled_at / mentions / reply_to_id）未迁移时降级
+        use_v12 = True
         base_sql = (
             "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
             "  m.reactions, m.created_at, m.task_id, gt.due_at, "
@@ -1148,17 +1158,41 @@ def group_feed(
             "  AND (SELECT count(DISTINCT r.reporter_id) FROM message_report r "
             "       WHERE r.message_id = m.id) < %s "
         )
-        if before:
-            rows = conn.execute(
-                base_sql + "AND m.created_at < %s::timestamptz "
-                "ORDER BY m.created_at DESC LIMIT %s",
-                (gid, REPORT_HIDE_THRESHOLD, before, limit),
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                base_sql + "ORDER BY m.created_at DESC LIMIT %s",
-                (gid, REPORT_HIDE_THRESHOLD, limit),
-            ).fetchall()
+        legacy_sql = (
+            "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
+            "  m.reactions, m.created_at, m.task_id, gt.due_at "
+            "FROM group_message m JOIN users u ON u.id = m.user_id "
+            "LEFT JOIN group_task gt ON gt.id = m.task_id "
+            "WHERE m.group_id = %s "
+            "  AND (SELECT count(DISTINCT r.reporter_id) FROM message_report r "
+            "       WHERE r.message_id = m.id) < %s "
+        )
+        try:
+            if before:
+                rows = conn.execute(
+                    base_sql + "AND m.created_at < %s::timestamptz "
+                    "ORDER BY m.created_at DESC LIMIT %s",
+                    (gid, REPORT_HIDE_THRESHOLD, before, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    base_sql + "ORDER BY m.created_at DESC LIMIT %s",
+                    (gid, REPORT_HIDE_THRESHOLD, limit),
+                ).fetchall()
+        except Exception:
+            conn.rollback()
+            use_v12 = False
+            if before:
+                rows = conn.execute(
+                    legacy_sql + "AND m.created_at < %s::timestamptz "
+                    "ORDER BY m.created_at DESC LIMIT %s",
+                    (gid, REPORT_HIDE_THRESHOLD, before, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    legacy_sql + "ORDER BY m.created_at DESC LIMIT %s",
+                    (gid, REPORT_HIDE_THRESHOLD, limit),
+                ).fetchall()
         has_more = False
         if rows:
             oldest_ts = rows[-1][7]
@@ -1181,9 +1215,13 @@ def group_feed(
                 ).fetchone() is not None
             author = "系统" if r[3] == "system" else ((r[1] or "").strip() or f"用户{str(r[2])[-4:]}")
             mid = str(r[0])
-            recalled = r[10] is not None if len(r) > 10 else False
-            mentions = r[11] if len(r) > 11 and r[11] else []
-            reply_to = str(r[12]) if len(r) > 12 and r[12] else None
+            recalled = False
+            mentions: list = []
+            reply_to = None
+            if use_v12 and len(r) > 12:
+                recalled = r[10] is not None
+                mentions = r[11] if r[11] else []
+                reply_to = str(r[12]) if r[12] else None
             atts = []
             try:
                 att_rows = conn.execute(
@@ -1202,6 +1240,7 @@ def group_feed(
                         "url": f"/content/social-media/assets/{fname}" if fname else None,
                     })
             except Exception:
+                conn.rollback()
                 atts = []
             messages.append({
                 "id": mid, "author": author, "mine": str(r[2]) == user_id,

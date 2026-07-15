@@ -43,7 +43,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchOpen, setSearchOpen] = useState(false);
   const [searchQ, setSearchQ] = useState('');
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
@@ -118,7 +117,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [uid, paneActive, sub, reload]);
 
   useEffect(() => {
-    if (!searchOpen || searchQ.trim().length < 1) {
+    if (sub !== 'messages' || searchQ.trim().length < 1) {
       setSearchHits([]);
       return;
     }
@@ -132,7 +131,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         .finally(() => setSearchBusy(false));
     }, 320);
     return () => window.clearTimeout(t);
-  }, [searchOpen, searchQ]);
+  }, [sub, searchQ]);
 
   const go = (href: string) => {
     markRouteNavigation();
@@ -174,12 +173,13 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   };
 
   const openSearchHit = (h: SearchHit) => {
-    setSearchOpen(false);
     setSearchQ('');
     const q = h.message_id.startsWith('title:') ? '' : `?focusMsg=${encodeURIComponent(h.message_id)}`;
     if (h.scope === 'group') go(`/discover/group/${h.ref_id}${q}`);
     else if (h.scope === 'dm') go(`/discover/dm/${h.ref_id}${q}`);
   };
+
+  const searching = sub === 'messages' && searchQ.trim().length > 0;
 
   if (!uid) {
     return (
@@ -231,20 +231,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
           </button>
         </div>
         <div className="discover-im-actions" ref={plusRef}>
-          {sub === 'messages' ? (
-            <button
-              type="button"
-              className="discover-im-search-btn"
-              aria-label="搜索消息"
-              aria-pressed={searchOpen}
-              onClick={() => {
-                setPlusOpen(false);
-                setSearchOpen((v) => !v);
-              }}
-            >
-              ⌕
-            </button>
-          ) : null}
           <button
             type="button"
             className={`discover-im-plus${plusOpen ? ' is-open' : ''}`}
@@ -292,32 +278,20 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
               >
                 加好友
               </button>
-              <button
-                type="button"
-                role="menuitem"
-                className="is-muted"
-                onClick={() => {
-                  setPlusOpen(false);
-                  go('/discover/groups');
-                }}
-              >
-                管理共读群
-              </button>
             </div>
           ) : null}
         </div>
       </div>
-      {sub === 'messages' && searchOpen ? (
+      {sub === 'messages' ? (
         <div className="discover-im-search">
           <input
             className="search-input"
             value={searchQ}
             placeholder="搜索会话名或近 30 天消息…"
-            autoFocus
             onChange={(e) => setSearchQ(e.target.value)}
           />
           {searchBusy ? <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>搜索中…</p> : null}
-          {!searchBusy && searchQ.trim() && searchHits.length === 0 ? (
+          {!searchBusy && searching && searchHits.length === 0 ? (
             <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>无匹配结果</p>
           ) : null}
           {searchHits.length > 0 ? (
@@ -337,7 +311,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
       {loading ? <p className="muted" style={{ padding: '12px 0' }}>加载中…</p> : null}
 
-      {sub === 'messages' && !loading && !searchOpen ? (
+      {sub === 'messages' && !loading && !searching ? (
         items.length === 0 ? (
           <div className="discover-empty">
             <strong>还没有消息</strong>
@@ -363,7 +337,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                     <div className="discover-conv-title-row">
                       {it.pinned ? <span className="discover-conv-pin">置顶</span> : null}
                       <strong>{it.title}</strong>
-                      {it.badge ? <span className="discover-conv-badge">{it.badge}</span> : null}
                       {it.muted ? <span className="discover-conv-mute">静音</span> : null}
                     </div>
                     <p className="muted discover-conv-sub">{it.subtitle || '暂无消息'}</p>
