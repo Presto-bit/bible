@@ -14,10 +14,11 @@
 #   COMPOSE_BUILD_PULL=0|1
 #   ALLOW_DIRTY=1          允许脏工作区发版（默认 0：拒绝）
 #   WEB_BUILD_NO_CACHE=0   web 不用 --no-cache（默认 1：强制无缓存重建，防脏镜像）
-#   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测 cron（默认 0）
+#   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测+自愈 cron（默认 0）
 #
 # 适合放进本脚本：干净 git、web 无缓存重建、启动命令/容器内扫描、外域跳转拦截、可选 cron。
 # 不适合：改宝塔/SSH 密码、安全组、同机其它项目排查——仍需人工。
+# 说明：rebirthstress 跳转是生产机污染 web 容器，不是登录业务逻辑；release 只是换干净镜像。
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/bible}"
@@ -390,11 +391,11 @@ if [[ "$INSTALL_HIJACK_CRON" == "1" ]]; then
   cron_src="$APP_DIR/scripts/check_web_hijack.sh"
   [[ -f "$cron_src" ]] || die "缺少 $cron_src"
   chmod +x "$cron_src" || true
-  cron_line="* * * * * root APP_DIR=$APP_DIR $cron_src >/dev/null 2>&1"
+  cron_line="* * * * * root APP_DIR=$APP_DIR AUTO_HEAL=1 $cron_src >/dev/null 2>&1"
   if [[ "$(id -u)" -eq 0 ]]; then
     echo "$cron_line" > /etc/cron.d/bible-web-hijack-check
     chmod 644 /etc/cron.d/bible-web-hijack-check
-    log "  ✓ 已安装 /etc/cron.d/bible-web-hijack-check"
+    log "  ✓ 已安装 /etc/cron.d/bible-web-hijack-check（含 AUTO_HEAL）"
   else
     log "⚠️  INSTALL_HIJACK_CRON=1 需要 root 写 /etc/cron.d；请手动："
     log "   echo '$cron_line' | sudo tee /etc/cron.d/bible-web-hijack-check"

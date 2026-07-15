@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # 定时/手工：探测本机与公网 Web 是否被外域劫持跳转。
-# cron 示例：* * * * * root APP_DIR=/opt/bible /opt/bible/scripts/check_web_hijack.sh
+# 发现劫持时可自动重建 web（AUTO_HEAL=1），避免等人手工 release。
+#
+# cron 示例（推荐带自愈）：
+#   * * * * * root APP_DIR=/opt/bible AUTO_HEAL=1 /opt/bible/scripts/check_web_hijack.sh
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/bible}"
 ENV_FILE="${ENV_FILE:-$APP_DIR/.env.production}"
+COMPOSE_FILE="${COMPOSE_FILE:-$APP_DIR/docker-compose.prod.yml}"
 WEB_HOST_PORT="${WEB_HOST_PORT:-3002}"
+AUTO_HEAL="${AUTO_HEAL:-0}"
 DENY_RE='rebirthstress|stresser|booter|register\?ref='
 
 if [[ -f "$ENV_FILE" ]] && grep -qE '^WEB_HOST_PORT=' "$ENV_FILE"; then
@@ -35,7 +40,6 @@ check_one() {
     case "$host" in
       localhost|127.0.0.1|2sc.prestoai.cn|www.2sc.prestoai.cn) ;;
       *)
-        # 与 PUBLIC_WEB_URL 主域一致则放行
         local allow
         allow="$(printf '%s' "${pub_url}" | sed -E 's#^[a-zA-Z][a-zA-Z0-9+.-]*://([^/]+).*#\1#' | tr '[:upper:]' '[:lower:]')"
         if [[ "$host" != "$allow" && "$host" != "www.$allow" ]]; then
@@ -49,8 +53,54 @@ check_one() {
   return 0
 }
 
-failed=0
-check_one "http://127.0.0.1:${WEB_HOST_PORT}/login" || failed=1
-check_one "http://127.0.0.1:${WEB_HOST_PORT}/" || failed=1
-check_one "${pub_url%/}/login" || failed=1
-exit "$failed"
+run_checks() {
+  local failed=0
+  check_one "http://127.0.0.1:${WEB_HOST_PORT}/login" || failed=1
+  check_one "http://127.0.0.1:${WEB_HOST_PORT}/" || failed=1
+  check_one "${pub_url%/}/login" || failed=1
+  return "$failed"
+}
+
+compose() {
+  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" "$@"
+}
+
+heal_web() {
+  logger -t web-hijack "AUTO_HEAL: force-recreate web"
+  echo "AUTO_HEAL: force-recreate web" >&2
+  (
+    cd "$APP_DIR"
+    compose up -d --force-recreate --no-deps web
+  )
+  sleep 12
+  if run_checks; then
+    logger -t web-hijack "AUTO_HEAL: recreate OK"
+    return 0
+  fi
+  logger -t web-hijack "AUTO_HEAL: rebuild --no-cache web"
+  echo "AUTO_HEAL: rebuild --no-cache web" >&2
+  (
+    cd "$APP_DIR"
+    compose build --no-cache web
+    compose up -d --force-recreate --no-deps web
+  )
+  sleep 20
+  if run_checks; then
+    logger -t web-hijack "AUTO_HEAL: rebuild OK"
+    return 0
+  fi
+  logger -t web-hijack "AUTO_HEAL: FAILED — host may still be compromised"
+  echo "AUTO_HEAL FAILED" >&2
+  return 1
+}
+
+if run_checks; then
+  exit 0
+fi
+
+if [[ "$AUTO_HEAL" == "1" ]]; then
+  heal_web || exit 1
+  exit 0
+fi
+
+exit 1
