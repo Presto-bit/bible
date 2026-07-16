@@ -392,10 +392,12 @@ function ChatBubble({
                           key={a.id}
                           type="button"
                           className="im-attach-image-btn"
-                          onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
-                            e.preventDefault();
+                            if (longPressFired.current) {
+                              longPressFired.current = false;
+                              return;
+                            }
                             onOpenImages(msgImages, idx >= 0 ? idx : 0);
                           }}
                         >

@@ -1023,6 +1023,10 @@ function DmThreadPageInner() {
                                   className="im-attach-image-btn"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    if (longPressFired.current) {
+                                      longPressFired.current = false;
+                                      return;
+                                    }
                                     openImages(imgs, idx >= 0 ? idx : 0);
                                   }}
                                 >
