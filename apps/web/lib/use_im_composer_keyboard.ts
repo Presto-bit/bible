@@ -12,7 +12,22 @@ function pinScrollTop() {
 
 function scrollChatToBottom(el: HTMLElement | null | undefined) {
   if (!el) return;
-  el.scrollTop = el.scrollHeight;
+  // 双 rAF：等 padding / composer 高度先落地再滚
+  requestAnimationFrame(() => {
+    el.scrollTop = el.scrollHeight;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  });
+}
+
+function measureComposerHeight(): number {
+  const bar =
+    document.querySelector('.im-composer-bar.im-composer-dock')
+    || document.querySelector('.dm-composer-dock')
+    || document.querySelector('.group-wechat-composer');
+  if (!(bar instanceof HTMLElement)) return 64;
+  return Math.max(48, Math.round(bar.getBoundingClientRect().height));
 }
 
 export type ImComposerKeyboardOpts = {
@@ -21,11 +36,9 @@ export type ImComposerKeyboardOpts = {
 };
 
 /**
- * IM 键盘贴合（对齐微信）：
- * - layout 使用 interactive-widget: resizes-content 时，fixed bottom:0 已在键盘上方，
- *   仅在 visualViewport 仍有额外 gap（如 accessory / 未完全 resize）时再抬一次。
- * - 失焦后继续跟 VV，直到 inset 归零，避免「取消激活后输入框上移」。
- * - 键盘升起时把聊天区滚到底，避免最新消息被挡。
+ * IM 键盘贴合：
+ * - 标记 body.im-keyboard，写入 --im-kb-inset / --im-composer-h
+ * - 键盘动画期间多次把聊天区滚到底，保证最后一条在输入框上方可见
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -47,6 +60,7 @@ export function useImComposerKeyboard(
       setInset(0);
       body.classList.remove('im-keyboard');
       root.style.removeProperty('--im-kb-inset');
+      root.style.removeProperty('--im-composer-h');
     };
 
     const measureGap = () => {
@@ -56,8 +70,13 @@ export function useImComposerKeyboard(
       return Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
     };
 
+    const applyComposerH = () => {
+      root.style.setProperty('--im-composer-h', `${measureComposerHeight()}px`);
+    };
+
     const pinChat = () => {
       pinScrollTop();
+      applyComposerH();
       scrollChatToBottom(getScrollElRef.current?.() ?? null);
     };
 
@@ -105,7 +124,7 @@ export function useImComposerKeyboard(
       vv?.addEventListener('scroll', sync);
       window.addEventListener('resize', sync);
       sync();
-      for (const ms of [80, 220, 400]) {
+      for (const ms of [50, 120, 220, 380, 560, 800]) {
         followTimers.push(window.setTimeout(sync, ms));
       }
     }

@@ -2,8 +2,8 @@ import type { Friend, FriendRequestItem } from '@/lib/api';
 import { isPlaceholderDisplayName } from '@/lib/group_ui';
 
 /**
- * 好友展示名：真实昵称 > 用户名(handle) > 用户 ID。
- * 「读经伙伴/群友」等占位不当作昵称。
+ * 好友展示名：真实昵称 > 用户名(handle)。
+ * 用户 ID 不当作昵称（副文案再展示 ID）。
  */
 export function friendDisplayName(
   f: Pick<Friend, 'display_name' | 'handle' | 'user_id' | 'user_code'>,
@@ -12,8 +12,6 @@ export function friendDisplayName(
   const name = (f.display_name || '').trim();
   if (name && !isPlaceholderDisplayName(name)) return name;
   if (f.handle?.trim()) return f.handle.trim();
-  if (f.user_code?.trim()) return f.user_code.trim();
-  if (f.user_id && /^\d{8,10}$/.test(f.user_id)) return f.user_id;
   return fallback;
 }
 

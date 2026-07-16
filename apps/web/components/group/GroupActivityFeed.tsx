@@ -478,22 +478,26 @@ function ChatBubble({
           )}
         </div>
 
-        {!m.recalled && !m.pending && !m.sendFailed ? (
+        {!m.recalled && !m.pending && !m.sendFailed ? (() => {
+          const entries = reactionBarEntries(m.reactions);
+          if (!entries.length) return null;
+          return (
           <div className="group-emoji-bar group-emoji-bar-summary">
-            {reactionBarEntries(m.reactions).map(({ key, count }) => (
+            {entries.map(({ key, count }) => (
               <button
                 key={key}
                 type="button"
-                className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
+                className="group-emoji-btn active"
                 aria-label={key.startsWith('phrase:') ? cannedPhraseLabel(key) : `回应 ${key}`}
                 onClick={() => onReact(m.id, key)}
               >
                 {key.startsWith('phrase:') ? cannedPhraseLabel(key) : key}
-                {count > 0 ? ` ${count}` : ''}
+                {` ${count}`}
               </button>
             ))}
           </div>
-        ) : null}
+          );
+        })() : null}
 
         {menuOpen && !m.recalled && actionItems.length > 0 ? (
           <ImMsgActionPopover

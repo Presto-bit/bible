@@ -809,26 +809,34 @@ def _group_today_stats(conn, gid: str, user_id: str) -> dict:
     }
 
 
-def _member_display_sql(member_alias: str = "m", user_alias: str = "u") -> str:
-    """群昵称 > 用户资料名（排除游客/默认占位）> handle。"""
+def _member_display_sql(
+    member_alias: str = "m",
+    user_alias: str = "u",
+    profile_alias: str = "up",
+) -> str:
+    """群昵称 > 资料 username > 用户资料名（排除占位）> handle。"""
     return (
         "COALESCE("
         f"NULLIF(TRIM({member_alias}.display_name), ''), "
+        f"NULLIF(TRIM({profile_alias}.username), ''), "
         f"CASE WHEN COALESCE(TRIM({user_alias}.display_name), '') "
-        f"~ '^(用户[0-9A-Fa-f]{{4,}}|读经伙伴|群友|书友)$' THEN NULL "
+        f"~ '^(用户[0-9A-Fa-f]{{4,}}|读经伙伴|群友|书友|[0-9]{{8,10}})$' THEN NULL "
         f"ELSE NULLIF(TRIM({user_alias}.display_name), '') END, "
         f"NULLIF(TRIM({user_alias}.handle), '')"
         ")"
     )
 
 
-def _public_label(raw: str | None, fallback: str = "群友") -> str:
+def _public_label(raw: str | None, fallback: str = "") -> str:
+    """空串交给前端兜底，避免人人都叫「群友」。"""
     n = (raw or "").strip()
     if not n:
         return fallback
     if re.match(r"^用户[0-9a-fA-F]{4,}$", n):
         return fallback
     if n in ("读经伙伴", "群友", "书友", "好友"):
+        return fallback
+    if re.match(r"^\d{8,10}$", n):
         return fallback
     if re.match(r"^[0-9a-f]{8}-[0-9a-f-]{27}$", n, re.I):
         return fallback
@@ -1045,7 +1053,7 @@ def group_detail(
         "members": [
             {
                 "user_id": str(m[0]),
-                "name": _public_label(m[1], "群友"),
+                "name": _public_label(m[1], ""),
                 "role": m[2],
                 "checked_in_today": bool(m[3]),
                 "plan_day": int(m[4] or 0),
@@ -1219,12 +1227,13 @@ def group_feed(
         # 举报数用 LEFT JOIN 聚合，避免每行相关子查询
         base_sql = (
             "SELECT m.id, "
-            f"  {_member_display_sql('mb', 'u')}, "
+            f"  {_member_display_sql('mb', 'u', 'up')}, "
             "  m.user_id, m.kind, m.ref, m.body, "
             "  m.reactions, m.created_at, m.task_id, gt.due_at, "
             "  m.recalled_at, m.mentions, m.reply_to_id "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
             "LEFT JOIN group_member mb ON mb.group_id = m.group_id AND mb.user_id = m.user_id "
+            "LEFT JOIN user_profile up ON up.user_id = m.user_id "
             "LEFT JOIN group_task gt ON gt.id = m.task_id "
             "LEFT JOIN ("
             "  SELECT message_id, count(DISTINCT reporter_id) AS rc "
@@ -1235,11 +1244,12 @@ def group_feed(
         )
         legacy_sql = (
             "SELECT m.id, "
-            f"  {_member_display_sql('mb', 'u')}, "
+            f"  {_member_display_sql('mb', 'u', 'up')}, "
             "  m.user_id, m.kind, m.ref, m.body, "
             "  m.reactions, m.created_at, m.task_id, gt.due_at "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
             "LEFT JOIN group_member mb ON mb.group_id = m.group_id AND mb.user_id = m.user_id "
+            "LEFT JOIN user_profile up ON up.user_id = m.user_id "
             "LEFT JOIN group_task gt ON gt.id = m.task_id "
             "LEFT JOIN ("
             "  SELECT message_id, count(DISTINCT reporter_id) AS rc "
@@ -1333,9 +1343,9 @@ def group_feed(
                 recalled = r[10] is not None
                 mentions = r[11] if r[11] else []
                 reply_to = str(r[12]) if r[12] else None
-            author = "系统" if r[3] == "system" else _public_label(r[1], "群友")
+            author = "系统" if r[3] == "system" else _public_label(r[1], "")
             messages.append({
-                "id": mid, "author": author, "mine": str(r[2]) == user_id,
+                "id": mid, "author": author or None, "mine": str(r[2]) == user_id,
                 "user_id": str(r[2]),
                 "kind": r[3],
                 "ref": None if recalled else r[4],
@@ -1830,7 +1840,15 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
     with pool.connection() as conn:
         try:
             rows = conn.execute(
-                "SELECT u.id, u.handle, u.display_name, up.avatar_id, "
+                "SELECT u.id, u.handle, "
+                "COALESCE("
+                "  NULLIF(TRIM(up.username), ''), "
+                "  CASE WHEN COALESCE(TRIM(u.display_name), '') "
+                "    ~ '^(用户[0-9A-Fa-f]{4,}|读经伙伴|群友|书友|[0-9]{8,10})$' THEN NULL "
+                "  ELSE NULLIF(TRIM(u.display_name), '') END, "
+                "  NULLIF(TRIM(ac.username), '')"
+                ") AS display_name, "
+                "up.avatar_id, "
                 "COALESCE(ac.user_code, up.user_code) AS peer_code "
                 "FROM friendship f "
                 "JOIN users u ON u.id = f.friend_id "

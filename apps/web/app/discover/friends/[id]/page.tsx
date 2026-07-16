@@ -21,7 +21,7 @@ export default function FriendProfilePage() {
   const router = useRouter();
   const confirm = useConfirm();
   const friendId = String(params.id ?? '');
-  useEdgeSwipeBack({ href: '/discover?tab=friends' });
+  useEdgeSwipeBack({ href: '/discover/contacts' });
 
   const [uid, setUid] = useState<string | null>(null);
   const [friend, setFriend] = useState<Friend | null>(null);
@@ -101,7 +101,7 @@ export default function FriendProfilePage() {
   return (
     <main className="container friend-profile-page">
       <header className="page-head">
-        <PageBackBar href="/discover?tab=friends" label="好友" />
+        <PageBackBar href="/discover/contacts" label="通讯录" />
         <h2 className="page-head-title">{displayName}</h2>
       </header>
 

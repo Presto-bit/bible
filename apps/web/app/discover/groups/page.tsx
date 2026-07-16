@@ -7,11 +7,11 @@ import { useRouter } from 'next/navigation';
 export default function GroupsListRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/discover');
+    router.replace('/discover/contacts');
   }, [router]);
   return (
     <main className="container">
-      <p className="muted">正在打开消息…</p>
+      <p className="muted">正在打开通讯录…</p>
     </main>
   );
 }

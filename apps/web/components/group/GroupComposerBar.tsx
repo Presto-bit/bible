@@ -14,6 +14,7 @@ import {
   matchAtQuery,
   type PendingAttach,
 } from '@/lib/im_composer';
+import { displayMemberName } from '@/lib/group_ui';
 import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
@@ -159,13 +160,6 @@ export function GroupComposerBar({
     return ids.length ? ids : undefined;
   };
 
-  const mentionPrefix = () => {
-    const labels: string[] = [];
-    if (mentionAll) labels.push('@所有人');
-    for (const m of mentions) labels.push(`@${m.label}`);
-    return labels.length ? `${labels.join(' ')} ` : '';
-  };
-
   const clearMentions = () => {
     setMentions([]);
     setMentionAll(false);
@@ -187,18 +181,30 @@ export function GroupComposerBar({
   const suggestMembers = useMemo(() => {
     if (atQuery == null && !pickerOpen) return [];
     const q = (atQuery ?? '').trim().toLowerCase();
-    const list: Array<{ id: string; label: string; all?: boolean }> = [];
+    const list: Array<{ id: string; label: string; all?: boolean; sub?: string }> = [];
     if (!q || '所有人'.includes(q) || 'all'.includes(q)) {
-      if (!mentionAll) list.push({ id: 'all', label: '所有人', all: true });
+      if (!mentionAll) list.push({ id: 'all', label: '所有人', all: true, sub: '通知全员' });
     }
     for (const m of members) {
       const uid = m.user_id;
       if (!uid || m.is_me) continue;
       if (mentions.some((x) => x.id === uid)) continue;
-      const name = m.name || uid.slice(0, 4);
-      if (q && !name.toLowerCase().includes(q) && !uid.toLowerCase().includes(q)) continue;
-      list.push({ id: uid, label: name });
-      if (list.length >= 10) break;
+      const name = displayMemberName(m);
+      const rawName = (m.name || '').trim();
+      const label =
+        name && name !== '书友'
+          ? name
+          : rawName && rawName !== '群友'
+            ? rawName
+            : `成员${uid.slice(0, 4)}`;
+      const hay = `${label} ${rawName} ${uid}`.toLowerCase();
+      if (q && !hay.includes(q)) continue;
+      list.push({
+        id: uid,
+        label,
+        sub: uid.length >= 8 && /^\d/.test(uid) ? undefined : undefined,
+      });
+      if (list.length >= 12) break;
     }
     return list;
   }, [atQuery, pickerOpen, members, mentions, mentionAll]);
@@ -210,13 +216,22 @@ export function GroupComposerBar({
     let next = text;
     let pos = el?.selectionStart ?? text.length;
 
-    // 从手打 @query 选中时，去掉 "@query"
+    // 从手打 @query 选中时，去掉 "@query"，插入可见 @昵称
     if (atQuery != null && text[atStart] === '@') {
       const cursor = el?.selectionStart ?? text.length;
       const before = text.slice(0, atStart);
       const after = text.slice(cursor);
-      next = `${before}${after}`;
-      pos = before.length;
+      const insert = `@${item.label} `;
+      next = `${before}${insert}${after}`;
+      pos = before.length + insert.length;
+      setText(next);
+    } else {
+      // 从 @ 按钮打开：在光标处插入 @昵称
+      const insert = `@${item.label} `;
+      const before = text.slice(0, pos);
+      const after = text.slice(pos);
+      next = `${before}${insert}${after}`;
+      pos = before.length + insert.length;
       setText(next);
     }
 
@@ -265,7 +280,7 @@ export function GroupComposerBar({
       setErr('当前离线，联网后再发送');
       return;
     }
-    const body = `${mentionPrefix()}${text.trim()}`.trim();
+    const body = text.trim();
     if (!body) return;
     setErr(null);
     setSending(true);
@@ -294,7 +309,7 @@ export function GroupComposerBar({
       setErr('当前离线，联网后再发送');
       return;
     }
-    const body = `${mentionPrefix()}${spoken.trim()}`.trim();
+    const body = spoken.trim();
     if (!body) return;
     setErr(null);
     setSending(true);
@@ -352,7 +367,7 @@ export function GroupComposerBar({
       const meta = await api.uploadSocialMedia(pending.file, {
         onProgress: (pct) => setUploadPct(pct),
       });
-      const caption = `${mentionPrefix()}${text.trim()}`.trim() || undefined;
+      const caption = text.trim() || undefined;
       await onChatMedia({
         storage_key: meta.storage_key,
         file_name: meta.file_name,

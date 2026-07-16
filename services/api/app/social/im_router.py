@@ -50,12 +50,39 @@ def _pair(a: str, b: str) -> tuple[str, str]:
 
 
 def _display(conn, uid: str) -> str:
-    row = conn.execute(
-        "SELECT COALESCE(NULLIF(TRIM(display_name), ''), NULLIF(TRIM(handle), ''), %s) "
-        "FROM users WHERE id = %s",
-        (f"用户{uid[:4]}", uid),
-    ).fetchone()
-    return (row[0] if row else f"用户{uid[:4]}") or f"用户{uid[:4]}"
+    try:
+        row = conn.execute(
+            """
+            SELECT COALESCE(
+              NULLIF(TRIM(up.username), ''),
+              CASE WHEN COALESCE(TRIM(u.display_name), '')
+                ~ '^(用户[0-9A-Fa-f]{4,}|读经伙伴|群友|书友|[0-9]{8,10})$' THEN NULL
+              ELSE NULLIF(TRIM(u.display_name), '') END,
+              NULLIF(TRIM(u.handle), ''),
+              NULLIF(TRIM(ac.username), '')
+            )
+            FROM users u
+            LEFT JOIN user_profile up ON up.user_id = u.id
+            LEFT JOIN accounts ac ON ac.user_id = u.id
+            WHERE u.id = %s
+            """,
+            (uid,),
+        ).fetchone()
+        name = (row[0] if row else None) or ""
+        if name.strip():
+            return name.strip()
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        row = conn.execute(
+            "SELECT COALESCE(NULLIF(TRIM(display_name), ''), NULLIF(TRIM(handle), ''), %s) "
+            "FROM users WHERE id = %s",
+            (f"用户{uid[:4]}", uid),
+        ).fetchone()
+        return (row[0] if row else f"用户{uid[:4]}") or f"用户{uid[:4]}"
+    return f"用户{uid[:4]}"
 
 
 def _displays(conn, uids: list[str]) -> dict[str, str]:
@@ -67,9 +94,19 @@ def _displays(conn, uids: list[str]) -> dict[str, str]:
     try:
         rows = conn.execute(
             """
-            SELECT id::text,
-              COALESCE(NULLIF(TRIM(display_name), ''), NULLIF(TRIM(handle), ''), '')
-            FROM users WHERE id = ANY(%s::uuid[])
+            SELECT u.id::text,
+              COALESCE(
+                NULLIF(TRIM(up.username), ''),
+                CASE WHEN COALESCE(TRIM(u.display_name), '')
+                  ~ '^(用户[0-9A-Fa-f]{4,}|读经伙伴|群友|书友|[0-9]{8,10})$' THEN NULL
+                ELSE NULLIF(TRIM(u.display_name), '') END,
+                NULLIF(TRIM(u.handle), ''),
+                NULLIF(TRIM(ac.username), '')
+              )
+            FROM users u
+            LEFT JOIN user_profile up ON up.user_id = u.id
+            LEFT JOIN accounts ac ON ac.user_id = u.id
+            WHERE u.id = ANY(%s::uuid[])
             """,
             (uniq,),
         ).fetchall()
@@ -80,8 +117,46 @@ def _displays(conn, uids: list[str]) -> dict[str, str]:
             conn.rollback()
         except Exception:
             pass
+        try:
+            rows = conn.execute(
+                """
+                SELECT id::text,
+                  COALESCE(NULLIF(TRIM(display_name), ''), NULLIF(TRIM(handle), ''), '')
+                FROM users WHERE id = ANY(%s::uuid[])
+                """,
+                (uniq,),
+            ).fetchall()
+            for rid, name in rows:
+                out[str(rid)] = (name or "").strip() or f"用户{str(rid)[:4]}"
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
     for u in uniq:
         out.setdefault(u, f"用户{u[:4]}")
+    return out
+
+
+def _peer_avatars(conn, uids: list[str]) -> dict[str, str | None]:
+    out: dict[str, str | None] = {}
+    uniq = [u for u in dict.fromkeys(uids) if u]
+    if not uniq:
+        return out
+    try:
+        rows = conn.execute(
+            "SELECT user_id::text, avatar_id FROM user_profile WHERE user_id = ANY(%s::uuid[])",
+            (uniq,),
+        ).fetchall()
+        for rid, aid in rows:
+            out[str(rid)] = aid
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    for u in uniq:
+        out.setdefault(u, None)
     return out
 
 
@@ -447,6 +522,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 continue
 
         peer_names = _displays(conn, peers)
+        peer_avatars = _peer_avatars(conn, peers)
         dm_fnames = _attachment_names(conn, "dm", dm_attach_ids)
 
         for tid, peer, last_id, last_kind, last_body, last_at, pinned_at, muted, unread in parsed_threads:
@@ -456,6 +532,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                     "scope": "dm",
                     "ref_id": str(tid),
                     "peer_user_id": peer,
+                    "peer_avatar_id": peer_avatars.get(peer),
                     "title": peer_names.get(peer) or f"用户{peer[:4]}",
                     "subtitle": _conv_preview(
                         kind=last_kind,

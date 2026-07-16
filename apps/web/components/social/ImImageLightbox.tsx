@@ -213,9 +213,9 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
           {broken ? (
             <div className="im-lightbox-broken">
               <p>图片暂时无法加载</p>
-              <a href={current.src} target="_blank" rel="noreferrer" className="im-lightbox-open-tab">
-                在新标签打开
-              </a>
+              <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+                可能已过期或网络异常，消息与附件仅保留近 30 天
+              </p>
             </div>
           ) : (
             // eslint-disable-next-line @next/next/no-img-element

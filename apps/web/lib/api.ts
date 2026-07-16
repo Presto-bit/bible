@@ -1047,6 +1047,7 @@ export interface ConversationItem {
   badge?: string | null;
   role?: string;
   peer_user_id?: string;
+  peer_avatar_id?: string | null;
 }
 export interface FriendRequestItem {
   id: string;

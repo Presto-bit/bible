@@ -18838,6 +18838,7 @@ html.app-theme-dark body {
 
 /* discover IM v1.2 */
 .discover-im-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 12px;}
+.discover-im-title{margin:0;font-size:20px;font-weight:700;line-height:1.2;}
 .discover-im-tabs{display:flex;gap:4px;}
 .discover-im-tabs button{appearance:none;border:0;background:transparent;padding:8px 14px;font-size:15px;color:var(--muted,#6b6b6b);border-radius:999px;position:relative;}
 .discover-im-tabs button.is-active{color:var(--ink,#1a1a1a);font-weight:600;background:var(--card,#f3f1ec);}
@@ -18845,6 +18846,15 @@ html.app-theme-dark body {
 .discover-im-plus{appearance:none;border:0;background:var(--card,#f3f1ec);width:36px;height:36px;border-radius:50%;font-size:20px;line-height:1;cursor:pointer;}
 .discover-im-plus.is-open{background:var(--accent-wash,#e8efe9);color:var(--accent-deep,#2f4a3a);}
 .discover-im-actions{display:flex;align-items:center;gap:8px;position:relative;}
+.discover-im-contacts{
+  appearance:none;border:0;background:var(--card,#f3f1ec);width:36px;height:36px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink,#1a1a1a);
+  position:relative;
+}
+.discover-im-contacts-badge{
+  position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;
+  background:var(--danger,#c85050);color:#fff;font-size:10px;font-weight:700;line-height:16px;text-align:center;
+}
 .discover-im-plus-menu{
   position:absolute;right:0;top:calc(100% + 6px);z-index:30;
   min-width:148px;padding:6px;border-radius:12px;
@@ -18972,6 +18982,15 @@ html.app-theme-dark body {
 }
 .discover-conv-avatar.scope-dm{background:color-mix(in srgb,#dce8f5 80%, var(--surface));color:#3a5878;}
 .discover-conv-avatar.scope-inbox_friends,
+.discover-contacts-section-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin:0 0 8px;
+}
+.discover-contacts-section-actions{display:flex;gap:12px;}
+.discover-contacts-entry{
+  width:100%;appearance:none;border:0;background:var(--card,#f3f1ec);
+  border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;
+}
 .discover-conv-avatar.scope-inbox_groups{background:var(--card,#f3f1ec);color:var(--ink-soft,#555);}
 .discover-friends-entry{margin-bottom:8px;border:1px solid var(--line);border-radius:12px;padding-left:10px;padding-right:10px;}
 .discover-conv-main{flex:1;min-width:0;}
@@ -19192,16 +19211,16 @@ body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50
 body.im-keyboard .im-jump-bottom{
   bottom:calc(56px + var(--im-kb-inset, 0px));
 }
-/* 键盘升起时加大聊天区底留白，并把最新消息顶出输入栏 */
+/* 键盘升起时按真实输入栏高度留白，并把最新消息顶出输入栏 */
 body.im-keyboard .group-checkin-scroll {
-  padding-bottom: calc(48px + var(--im-kb-inset, 0px));
+  padding-bottom: calc(var(--im-composer-h, 64px) + var(--im-kb-inset, 0px) + 12px);
 }
 body.im-keyboard .dm-msg-list {
-  padding-bottom: calc(56px + var(--im-kb-inset, 0px));
+  padding-bottom: calc(var(--im-composer-h, 64px) + var(--im-kb-inset, 0px) + 16px);
 }
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + var(--im-kb-inset, 0px));
+  padding-bottom: calc(var(--im-composer-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--im-kb-inset, 0px));
 }
 .im-jump-bottom{
   bottom:calc(56px + env(safe-area-inset-bottom, 0px));

@@ -15,7 +15,7 @@ import {
   type GroupTaskType,
 } from '@/lib/group_task_templates';
 import { loadFootprintRefs, type FootprintRef } from '@/lib/group_footprint';
-import { asGroupTasks, groupFootprintsBySource } from '@/lib/group_ui';
+import { asGroupTasks, displayMemberName, groupFootprintsBySource } from '@/lib/group_ui';
 import { readGroupCheckinDraft } from '@/lib/group_checkin_draft';
 import { clearImDraft, getImDraft, setImDraft } from '@/lib/im_drafts';
 import { getLastRead } from '@/lib/reading';
@@ -310,8 +310,9 @@ export function GroupComposer({
     const labels: string[] = [];
     if (mentionAll) labels.push('@所有人');
     for (const id of mentionIds) {
-      const n = members.find((m) => m.user_id === id)?.name || id.slice(0, 4);
-      labels.push(`@${n}`);
+      const mem = members.find((m) => m.user_id === id);
+      const n = mem ? displayMemberName(mem) : id.slice(0, 4);
+      labels.push(`@${n === '书友' ? `成员${id.slice(0, 4)}` : n}`);
     }
     return labels.length ? `${labels.join(' ')} ` : '';
   };
@@ -465,17 +466,21 @@ export function GroupComposer({
                   </button>
                 ) : null}
                 {members
-                  .filter((m) => m.user_id)
-                  .map((m) => (
+                  .filter((m) => m.user_id && !m.is_me)
+                  .map((m) => {
+                    const label = displayMemberName(m);
+                    const shown = label === '书友' ? `成员${(m.user_id || '').slice(0, 4)}` : label;
+                    return (
                     <button
                       key={m.user_id}
                       type="button"
                       className={`group-chip chip-swipe-item${mentionIds.includes(m.user_id!) ? ' selected' : ''}`}
                       onClick={() => toggleMention(m.user_id!)}
                     >
-                      @{m.name}
+                      @{shown}
                     </button>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           ) : null}

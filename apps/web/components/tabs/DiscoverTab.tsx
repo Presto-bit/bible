@@ -10,19 +10,49 @@ import {
   ensureAccountReady,
   type ConversationItem,
   type Friend,
-  type FriendRequestItem,
 } from '@/lib/api';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
+import Avatar, { defaultAvatarId } from '@/components/Avatar';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
-import { friendDisplayName, friendRequestLabel } from '@/lib/friend_label';
-import { FRIEND_REMARKS_EVENT, dmTitleWithRemark, friendRemarkOrName } from '@/lib/friend_remarks';
+import { friendDisplayName } from '@/lib/friend_label';
+import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
 import { formatConvListTime } from '@/lib/im_ui';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 import { timedPerf } from '@/lib/perf_rum';
 
-type SubTab = 'messages' | 'friends';
+function ConversationAvatar({
+  it,
+  friend,
+}: {
+  it: ConversationItem;
+  friend?: Friend | null;
+}) {
+  if (it.scope === 'dm') {
+    return (
+      <FriendAvatar
+        friend={{
+          user_id: it.peer_user_id || it.ref_id,
+          avatar_id: friend?.avatar_id || it.peer_avatar_id,
+        }}
+        size={40}
+      />
+    );
+  }
+  if (it.scope === 'group') {
+    return (
+      <span className="friend-avatar" style={{ width: 40, height: 40, flexShrink: 0 }} aria-hidden>
+        <Avatar id={defaultAvatarId(it.ref_id)} size={40} />
+      </span>
+    );
+  }
+  return (
+    <span className={`discover-conv-avatar scope-${it.scope}`} aria-hidden>
+      {it.scope === 'inbox_friends' ? '友' : '通'}
+    </span>
+  );
+}
 
 type SearchHit = {
   scope: string;
@@ -39,77 +69,59 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const pathname = usePathname();
   const online = useOnline();
   const [uid, setUid] = useState<string | null>(null);
-  const [sub, setSub] = useState<SubTab>('messages');
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
-  const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
-  const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQ, setSearchQ] = useState('');
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
-  const [friendQ, setFriendQ] = useState('');
   const [plusOpen, setPlusOpen] = useState(false);
   const [remarkTick, setRemarkTick] = useState(0);
   const plusRef = useRef<HTMLDivElement | null>(null);
   const messagesLoadedRef = useRef(false);
-  const friendsLoadedRef = useRef(false);
   const reloadGenRef = useRef(0);
-  const filteredFriends = useMemo(() => {
-    const q = friendQ.trim().toLowerCase();
-    if (!q) return friends;
-    return friends.filter((f) => {
-      const name = friendRemarkOrName(f.user_id, friendDisplayName(f)).toLowerCase();
-      const handle = (f.handle || '').toLowerCase();
-      const raw = (f.display_name || '').toLowerCase();
-      return name.includes(q) || handle.includes(q) || raw.includes(q);
-    });
-  }, [friends, friendQ, remarkTick]);
+
+  const friendsById = useMemo(() => {
+    const map = new Map<string, Friend>();
+    for (const f of friends) map.set(f.user_id, f);
+    return map;
+  }, [friends]);
+
+  const contactsBadge = useMemo(() => {
+    let n = 0;
+    for (const i of items) {
+      if (i.scope === 'inbox_friends' || i.scope === 'inbox_groups') {
+        n += i.unread || 0;
+      }
+    }
+    return n;
+  }, [items]);
 
   const reload = useCallback(async () => {
     const gen = ++reloadGenRef.current;
-    const soft =
-      sub === 'messages' ? messagesLoadedRef.current : friendsLoadedRef.current;
+    const soft = messagesLoadedRef.current;
     try {
       if (!soft) setLoading(true);
-      await timedPerf(`discover.reload.${sub}`, async () => {
-        if (sub === 'messages') {
-          const conv = await api.conversations();
-          if (gen !== reloadGenRef.current) return;
-          setItems(Array.isArray(conv.items) ? conv.items : []);
-          messagesLoadedRef.current = true;
-        } else {
-          const [fRes, reqRes] = await Promise.allSettled([
-            api.friends(),
-            api.friendRequests(),
-          ]);
-          if (gen !== reloadGenRef.current) return;
-          if (fRes.status === 'fulfilled') {
-            setFriends(Array.isArray(fRes.value.friends) ? fRes.value.friends : []);
-          } else {
-            throw fRes.reason;
-          }
-          if (reqRes.status === 'fulfilled') {
-            setIncoming(Array.isArray(reqRes.value.incoming) ? reqRes.value.incoming : []);
-            setOutgoing(Array.isArray(reqRes.value.outgoing) ? reqRes.value.outgoing : []);
-          } else {
-            setIncoming([]);
-            setOutgoing([]);
-          }
-          friendsLoadedRef.current = true;
-        }
+      await timedPerf('discover.reload.messages', async () => {
+        const [conv, fRes] = await Promise.all([
+          api.conversations(),
+          api.friends().catch(() => null),
+        ]);
+        if (gen !== reloadGenRef.current) return;
+        setItems(Array.isArray(conv.items) ? conv.items : []);
+        if (fRes) setFriends(Array.isArray(fRes.friends) ? fRes.friends : []);
+        messagesLoadedRef.current = true;
       });
       setErr(null);
     } catch (e) {
       if (gen !== reloadGenRef.current) return;
-      // 保留旧列表，避免整页空态 + 误报网络
       if (online) setErr(errorMessage(e, '刷新失败，请稍后再试'));
       else setErr(null);
     } finally {
       if (gen === reloadGenRef.current) setLoading(false);
     }
-  }, [online, sub]);
+  }, [online]);
 
   useEffect(() => {
     if (!paneActive) return;
@@ -126,9 +138,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     if (!paneActive || typeof window === 'undefined') return;
     if (pathname !== '/discover') return;
     const t = new URLSearchParams(window.location.search).get('tab');
-    if (t === 'friends') setSub('friends');
-    else if (t === 'messages') setSub('messages');
-  }, [paneActive, pathname]);
+    if (t === 'friends') {
+      router.replace('/discover/contacts');
+    }
+  }, [paneActive, pathname, router]);
 
   useEffect(() => {
     if (!plusOpen) return;
@@ -147,17 +160,17 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [uid, paneActive, pathname, reload]);
 
   useEffect(() => {
-    if (!uid || !paneActive || sub !== 'messages') return;
+    if (!uid || !paneActive) return;
     return subscribeSocialRealtime(
       (_c, changed) => {
         if (changed) void reload();
       },
       { watch: 'all', debounceMs: 900 },
     );
-  }, [uid, paneActive, sub, reload]);
+  }, [uid, paneActive, reload]);
 
   useEffect(() => {
-    if (sub !== 'messages' || searchQ.trim().length < 1) {
+    if (searchQ.trim().length < 1) {
       setSearchHits([]);
       return;
     }
@@ -171,7 +184,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         .finally(() => setSearchBusy(false));
     }, 320);
     return () => window.clearTimeout(t);
-  }, [sub, searchQ]);
+  }, [searchQ]);
 
   const go = (href: string) => {
     markRouteNavigation();
@@ -180,7 +193,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const openItem = (it: ConversationItem) => {
     if (it.scope === 'group' || it.scope === 'dm') {
-      // 先跳转，避免清未读重渲染挡住路由
       go(it.scope === 'group' ? `/discover/group/${it.ref_id}` : `/discover/dm/${it.ref_id}`);
       if ((it.unread || 0) > 0) {
         setItems((prev) =>
@@ -195,11 +207,12 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       return;
     }
     if (it.scope === 'inbox_friends') {
-      setSub('friends');
+      go('/discover/contacts');
       return;
     }
     if (it.scope === 'inbox_groups') {
       go('/discover/invites');
+      return;
     }
   };
 
@@ -246,7 +259,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     else if (h.scope === 'dm') go(`/discover/dm/${h.ref_id}${q}`);
   };
 
-  const searching = sub === 'messages' && searchQ.trim().length > 0;
+  const searching = searchQ.trim().length > 0;
 
   if (!uid) {
     return (
@@ -259,8 +272,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     );
   }
 
-  const msgUnreadHint = items.some((i) => (i.unread || 0) > 0);
-
   return (
     <main className="container discover-page discover-im">
       {!online ? (
@@ -269,51 +280,46 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
       <div className="discover-im-top">
-        <div className="discover-im-tabs" role="tablist">
-          <button
-            type="button"
-            role="tab"
-            className={sub === 'messages' ? 'is-active' : ''}
-            aria-selected={sub === 'messages'}
-            onClick={() => {
-              setSub('messages');
-              setPlusOpen(false);
-              if (pathname === '/discover') router.replace('/discover', { scroll: false });
-            }}
-          >
-            消息{msgUnreadHint && sub !== 'messages' ? <span className="discover-im-dot" /> : null}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            className={sub === 'friends' ? 'is-active' : ''}
-            aria-selected={sub === 'friends'}
-            onClick={() => {
-              setSub('friends');
-              setPlusOpen(false);
-              if (pathname === '/discover') router.replace('/discover?tab=friends', { scroll: false });
-            }}
-          >
-            好友
-          </button>
-        </div>
+        <h1 className="discover-im-title">消息</h1>
         <div className="discover-im-actions" ref={plusRef}>
           <button
             type="button"
+            className="discover-im-contacts"
+            aria-label="通讯录"
+            onClick={() => go('/discover/contacts')}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="17" cy="10" r="2.5" stroke="currentColor" strokeWidth="1.8" />
+              <path
+                d="M3.5 19.5c0-3 2.5-5.5 5.5-5.5s5.5 2.5 5.5 5.5"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              <path
+                d="M14.5 17.5c.4-1.8 1.8-3 3.5-3s3.1 1.2 3.5 3"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+            </svg>
+            {contactsBadge > 0 ? (
+              <span className="discover-im-contacts-badge">
+                {contactsBadge > 99 ? '99+' : contactsBadge}
+              </span>
+            ) : null}
+          </button>
+          <button
+            type="button"
             className={`discover-im-plus${plusOpen ? ' is-open' : ''}`}
-            aria-label={sub === 'messages' ? '更多' : '加好友'}
-            aria-expanded={sub === 'messages' ? plusOpen : undefined}
-            onClick={() => {
-              if (sub === 'friends') {
-                go('/friend/add');
-                return;
-              }
-              setPlusOpen((v) => !v);
-            }}
+            aria-label="更多"
+            aria-expanded={plusOpen}
+            onClick={() => setPlusOpen((v) => !v)}
           >
             ＋
           </button>
-          {sub === 'messages' && plusOpen ? (
+          {plusOpen ? (
             <div className="discover-im-plus-menu" role="menu">
               <button
                 type="button"
@@ -349,38 +355,37 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
           ) : null}
         </div>
       </div>
-      {sub === 'messages' ? (
-        <div className="discover-im-search">
-          <input
-            className="search-input"
-            value={searchQ}
-            placeholder="搜索会话名或近 30 天消息…"
-            onChange={(e) => setSearchQ(e.target.value)}
-          />
-          {searchBusy ? <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>搜索中…</p> : null}
-          {!searchBusy && searching && searchHits.length === 0 ? (
-            <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>无匹配结果</p>
-          ) : null}
-          {searchHits.length > 0 ? (
-            <ul className="discover-search-list">
-              {searchHits.map((h) => (
-                <li key={`${h.scope}:${h.message_id}`}>
-                  <button type="button" className="discover-search-hit" onClick={() => openSearchHit(h)}>
-                    <strong>{h.title}</strong>
-                    <span className="muted">{h.snippet || h.kind}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      ) : null}
 
-      {loading && ((sub === 'messages' && items.length === 0) || (sub === 'friends' && friends.length === 0 && incoming.length === 0 && outgoing.length === 0)) ? (
+      <div className="discover-im-search">
+        <input
+          className="search-input"
+          value={searchQ}
+          placeholder="搜索会话名或近 30 天消息…"
+          onChange={(e) => setSearchQ(e.target.value)}
+        />
+        {searchBusy ? <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>搜索中…</p> : null}
+        {!searchBusy && searching && searchHits.length === 0 ? (
+          <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>无匹配结果</p>
+        ) : null}
+        {searchHits.length > 0 ? (
+          <ul className="discover-search-list">
+            {searchHits.map((h) => (
+              <li key={`${h.scope}:${h.message_id}`}>
+                <button type="button" className="discover-search-hit" onClick={() => openSearchHit(h)}>
+                  <strong>{h.title}</strong>
+                  <span className="muted">{h.snippet || h.kind}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+
+      {loading && items.length === 0 ? (
         <p className="muted" style={{ padding: '12px 0' }}>加载中…</p>
       ) : null}
 
-      {sub === 'messages' && !searching && (!loading || items.length > 0) ? (
+      {!searching && (!loading || items.length > 0) ? (
         items.length === 0 ? (
           <div className="discover-empty">
             <strong>还没有消息</strong>
@@ -389,6 +394,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
             </p>
             <div className="discover-empty-actions">
               <button type="button" className="btn" onClick={() => go('/friend/add')}>加好友</button>
+              <button type="button" className="btn btn-ghost" onClick={() => go('/discover/contacts')}>
+                通讯录
+              </button>
               <button type="button" className="btn btn-ghost" onClick={() => go('/group/create')}>新建群</button>
             </div>
           </div>
@@ -397,16 +405,23 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
             {items.map((it) => {
               const key = `${it.scope}:${it.ref_id}`;
               const canState = it.scope === 'group' || it.scope === 'dm';
+              const peerFriend =
+                it.scope === 'dm' && it.peer_user_id
+                  ? friendsById.get(it.peer_user_id)
+                  : null;
               const title =
                 it.scope === 'dm'
-                  ? dmTitleWithRemark(it.peer_user_id, it.title)
+                  ? dmTitleWithRemark(
+                      it.peer_user_id,
+                      peerFriend
+                        ? friendDisplayName(peerFriend)
+                        : it.title,
+                    )
                   : it.title;
               void remarkTick;
               const row = (
                 <div className="discover-conv-row">
-                  <span className={`discover-conv-avatar scope-${it.scope}`} aria-hidden>
-                    {it.scope === 'dm' ? '信' : it.scope === 'group' ? '群' : '通'}
-                  </span>
+                  <ConversationAvatar it={it} friend={peerFriend} />
                   <div className="discover-conv-main">
                     <div className="discover-conv-title-row">
                       <div className="discover-conv-title-left">
@@ -466,147 +481,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
             })}
           </ul>
         )
-      ) : null}
-
-      {sub === 'friends' && (!loading || friends.length > 0 || incoming.length > 0 || outgoing.length > 0) ? (
-        <div className="discover-friends-pane">
-          <div className="discover-im-search" style={{ marginBottom: 12 }}>
-            <input
-              className="search-input"
-              value={friendQ}
-              placeholder="搜索好友备注、昵称或用户名…"
-              onChange={(e) => setFriendQ(e.target.value)}
-            />
-          </div>
-
-          {incoming.length > 0 ? (
-            <section style={{ marginBottom: 16 }}>
-              <p className="section-label">新的朋友</p>
-              <ul className="discover-conv-list">
-                {incoming.map((r) => (
-                  <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <strong>{friendRequestLabel(r)}</strong>
-                        {r.user_code && friendRequestLabel(r) !== `ID ${r.user_code}` ? (
-                          <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
-                            ID {r.user_code}
-                          </p>
-                        ) : r.handle && friendRequestLabel(r) !== `@${r.handle}` ? (
-                          <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
-                            @{r.handle}
-                          </p>
-                        ) : null}
-                        {r.message ? (
-                          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                            附言：{r.message}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button
-                          type="button"
-                          className="btn"
-                          style={{ padding: '6px 10px', fontSize: 13 }}
-                          onClick={() =>
-                            void api.acceptFriendRequest(r.id).then(() => {
-                              setErr(null);
-                              void reload();
-                            })
-                          }
-                        >
-                          同意
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          style={{ padding: '6px 10px', fontSize: 13 }}
-                          onClick={() => void api.declineFriendRequest(r.id).then(reload)}
-                        >
-                          拒绝
-                        </button>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {outgoing.length > 0 ? (
-            <section style={{ marginBottom: 16 }}>
-              <p className="section-label">等待验证</p>
-              <ul className="discover-conv-list">
-                {outgoing.map((r) => (
-                  <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <strong>{friendRequestLabel(r)}</strong>
-                        {r.user_code && friendRequestLabel(r) !== `ID ${r.user_code}` ? (
-                          <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
-                            ID {r.user_code}
-                          </p>
-                        ) : null}
-                        {r.message ? (
-                          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                            附言：{r.message}
-                          </p>
-                        ) : (
-                          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
-                            已发送申请，等待对方同意
-                          </p>
-                        )}
-                      </div>
-                      <span className="muted" style={{ fontSize: 13, flexShrink: 0 }}>待同意</span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          <p className="section-label">好友</p>
-          {friends.length === 0 ? (
-            <div className="discover-empty is-compact">
-              <strong>还没有好友</strong>
-              <p className="muted">申请通过后可私信与邀群。</p>
-              <div className="discover-empty-actions">
-                <button type="button" className="btn" onClick={() => go('/friend/add')}>
-                  加好友
-                </button>
-              </div>
-            </div>
-          ) : filteredFriends.length === 0 ? (
-            <p className="muted discover-empty-inline">无匹配好友</p>
-          ) : (
-            <ul className="discover-conv-list">
-              {filteredFriends.map((f) => {
-                const name = friendRemarkOrName(f.user_id, friendDisplayName(f));
-                const sub = f.handle
-                  ? `@${f.handle}`
-                  : f.user_code
-                    ? `ID ${f.user_code}`
-                    : '查看资料 · 发私信';
-                return (
-                  <li key={f.user_id}>
-                    <button
-                      type="button"
-                      className="discover-conv-row"
-                      onClick={() => go(`/discover/friends/${f.user_id}`)}
-                    >
-                      <FriendAvatar friend={f} size={40} />
-                      <div className="discover-conv-main">
-                        <strong>{name}</strong>
-                        <p className="muted discover-conv-sub">{sub}</p>
-                      </div>
-                      <span className="muted" aria-hidden>›</span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
       ) : null}
     </main>
   );

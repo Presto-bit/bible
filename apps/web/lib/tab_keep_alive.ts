@@ -21,6 +21,7 @@ export const PROFILE_SECONDARY_PATHS = [
 export const DISCOVER_SECONDARY_PREFIXES = [
   '/discover/groups',
   '/discover/join',
+  '/discover/contacts',
   '/discover/friends',
   '/discover/group/',
   '/discover/dm/',

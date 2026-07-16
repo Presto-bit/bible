@@ -36,13 +36,14 @@ export function normalizeGroupDetail(detail: GroupDetail): GroupDetail {
   };
 }
 
-/** 游客占位 / UUID / 系统默认名等不可展示为昵称 */
+/** 游客占位 / UUID / 系统默认名 / 纯数字用户码等不可展示为昵称 */
 export function isPlaceholderDisplayName(s: string | null | undefined): boolean {
   const t = (s ?? '').trim();
   if (!t) return true;
   if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(t)) return true;
   if (/^用户[0-9a-f]{4,}$/i.test(t)) return true;
   if (t === '群友' || t === '书友' || t === '读经伙伴' || t === '好友') return true;
+  if (/^\d{8,10}$/.test(t)) return true;
   return false;
 }
 

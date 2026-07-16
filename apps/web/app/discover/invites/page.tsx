@@ -9,7 +9,7 @@ import { recordInviteAccepted } from '@/lib/badge_events';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 export default function DiscoverInvitesPage() {
-  useEdgeSwipeBack({ href: '/discover' });
+  useEdgeSwipeBack({ href: '/discover/contacts' });
   const router = useRouter();
   const [items, setItems] = useState<GroupInviteInboxItem[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export default function DiscoverInvitesPage() {
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/discover" label="消息" />
+        <PageBackBar href="/discover/contacts" label="通讯录" />
         <h2 className="page-head-title">群通知</h2>
       </header>
 

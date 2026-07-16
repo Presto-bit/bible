@@ -13,10 +13,6 @@ export const GROUP_CANNED_PHRASES = [
   { key: 'phrase:bless', label: '愿神祝福' },
 ] as const;
 
-/** 消息下方常驻、可点击累加的快捷表情 */
-export const QUICK_REACTION_EMOJIS = ['🙏', '❤️', '👍', '🔥', '🙌', '😊'] as const;
-
-/** @deprecated 用 QUICK_REACTION_EMOJIS；保留兼容 */
 export const LIKE_REACTION = '👍';
 
 export function isCannedPhrase(key: string): boolean {
@@ -27,19 +23,16 @@ export function cannedPhraseLabel(key: string): string {
   return GROUP_CANNED_PHRASES.find((p) => p.key === key)?.label ?? key;
 }
 
-/** 汇总条展示顺序：常驻快捷表情 + 其它已有反应（含短语） */
+/** 仅展示已有反应；点击可 +1。新反应走长按工具栏。 */
 export function reactionBarEntries(
   reactions: Record<string, string[]> | null | undefined,
-): Array<{ key: string; count: number; pinned: boolean }> {
+): Array<{ key: string; count: number }> {
   const map = reactions || {};
-  const pinned = new Set<string>(QUICK_REACTION_EMOJIS);
-  const out: Array<{ key: string; count: number; pinned: boolean }> = [];
-  for (const key of QUICK_REACTION_EMOJIS) {
-    out.push({ key, count: (map[key] || []).length, pinned: true });
-  }
+  const out: Array<{ key: string; count: number }> = [];
   for (const [key, users] of Object.entries(map)) {
-    if (pinned.has(key) || !users.length) continue;
-    out.push({ key, count: users.length, pinned: false });
+    if (!users?.length) continue;
+    out.push({ key, count: users.length });
   }
+  out.sort((a, b) => b.count - a.count);
   return out;
 }
