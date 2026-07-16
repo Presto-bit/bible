@@ -7,6 +7,12 @@ import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName } from '@/lib/friend_remarks';
 import { groupFriendsByLetter } from '@/lib/friend_sort';
+import {
+  buildGroupInviteShareText,
+  groupInviteCheckinLine,
+  groupInviteIntro,
+  groupInviteReadingLine,
+} from '@/lib/group_invite_card';
 
 type Props = {
   gid: string;
@@ -14,6 +20,11 @@ type Props = {
   joinCode: string;
   memberUserIds?: string[];
   preselectIds?: string[];
+  intro?: string | null;
+  planTitle?: string | null;
+  planDayLine?: string | null;
+  checkedInToday?: number;
+  memberTotal?: number;
   onClose: () => void;
   onInvited?: (count: number) => void;
 };
@@ -29,6 +40,11 @@ export function GroupInviteSheet({
   joinCode,
   memberUserIds = [],
   preselectIds = [],
+  intro,
+  planTitle,
+  planDayLine,
+  checkedInToday,
+  memberTotal,
   onClose,
   onInvited,
 }: Props) {
@@ -41,7 +57,15 @@ export function GroupInviteSheet({
   const [hint, setHint] = useState('');
   const [query, setQuery] = useState('');
   const code = (joinCode || '').trim().toUpperCase();
-  const shareText = `邀请你加入共读群「${groupName}」\n邀请码：${code}\n打开圣经 App → 发现 → 加入群，输入邀请码即可。`;
+  const shareText = buildGroupInviteShareText({
+    groupName,
+    intro,
+    planTitle,
+    planDayLine,
+    checkedInToday,
+    memberTotal,
+    joinCode: code,
+  });
   const memberSet = useMemo(() => new Set(memberUserIds), [memberUserIds]);
   const preselectRef = useRef(preselectIds);
 
@@ -162,12 +186,30 @@ export function GroupInviteSheet({
         </div>
 
         <div className="group-invite-sheet-scroll">
-          <div className="group-invite-code-card">
-            <div className="group-invite-code-meta">
-              <span className="muted">群邀请码</span>
-              <strong className="group-invite-code">{code}</strong>
+          <div className="group-invite-preview-card">
+            <strong className="group-invite-preview-name">{groupName}</strong>
+            <p className="group-invite-preview-intro">{groupInviteIntro(intro)}</p>
+            <p className="group-invite-preview-line">
+              <span className="muted">本周在读</span>
+              {groupInviteReadingLine({ groupName, joinCode: code, planTitle, planDayLine })}
+            </p>
+            <p className="group-invite-preview-line">
+              <span className="muted">今日打卡</span>
+              {groupInviteCheckinLine({
+                groupName,
+                joinCode: code,
+                checkedInToday,
+                memberTotal,
+              })}
+            </p>
+            <div className="group-invite-preview-code">
+              <span className="muted">邀请码</span>
+              <strong>{code}</strong>
             </div>
-            <div className="group-invite-code-actions">
+          </div>
+
+          <div className="group-invite-code-card">
+            <div className="group-invite-code-actions" style={{ marginTop: 0 }}>
               <button
                 type="button"
                 className="font-pill"
@@ -177,10 +219,10 @@ export function GroupInviteSheet({
               </button>
               <button
                 type="button"
-                className="font-pill"
+                className="font-pill accent"
                 onClick={() => void copyText(shareText, '邀请文案已复制')}
               >
-                复制文案
+                复制邀请卡
               </button>
             </div>
           </div>

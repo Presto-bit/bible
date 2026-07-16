@@ -19,6 +19,10 @@ type Props = {
   joinCode?: string;
   groupName?: string;
   planDaysTotal?: number;
+  inviteIntro?: string | null;
+  invitePlanTitle?: string | null;
+  invitePlanDayLine?: string | null;
+  inviteCheckedInToday?: number;
   variant?: 'list' | 'grid';
   onChanged: () => void;
 };
@@ -30,6 +34,10 @@ export function GroupMembersPanel({
   joinCode,
   groupName,
   planDaysTotal,
+  inviteIntro,
+  invitePlanTitle,
+  invitePlanDayLine,
+  inviteCheckedInToday,
   variant = 'list',
   onChanged,
 }: Props) {
@@ -165,6 +173,11 @@ export function GroupMembersPanel({
             gid={gid}
             groupName={groupName || '共读群'}
             joinCode={joinCode}
+            intro={inviteIntro}
+            planTitle={invitePlanTitle}
+            planDayLine={invitePlanDayLine}
+            checkedInToday={inviteCheckedInToday}
+            memberTotal={members.length}
             memberUserIds={members.map((m) => m.user_id).filter(Boolean) as string[]}
             onClose={() => setInviteOpen(false)}
           />
@@ -278,6 +291,11 @@ export function GroupMembersPanel({
           gid={gid}
           groupName={groupName || '共读群'}
           joinCode={joinCode}
+          intro={inviteIntro}
+          planTitle={invitePlanTitle}
+          planDayLine={invitePlanDayLine}
+          checkedInToday={inviteCheckedInToday}
+          memberTotal={members.length}
           memberUserIds={members.map((m) => m.user_id).filter(Boolean) as string[]}
           onClose={() => setInviteOpen(false)}
         />

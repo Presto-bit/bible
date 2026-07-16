@@ -7,9 +7,13 @@ import { GroupComposerBar, type ComposerActionMode } from '@/components/group/Gr
 import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
 import { GroupPageSkeleton } from '@/components/group/GroupPageSkeleton';
-import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
+import { GroupSettingsSheet, type GroupSettingsPane } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupCoreadStickyBar } from '@/components/group/GroupCoreadStickyBar';
+import { GroupMyTaskPin } from '@/components/group/GroupMyTaskPin';
+import { GroupProfileCard } from '@/components/group/GroupProfileCard';
+import { GroupCheckinWallSheet } from '@/components/group/GroupCheckinWallSheet';
+import { GroupInviteSheet } from '@/components/group/GroupInviteSheet';
 import { GroupAnnounceBar } from '@/components/group/GroupAnnounceBar';
 import { GroupPinnedTaskBar } from '@/components/group/GroupPinnedTaskBar';
 import { GroupToast } from '@/components/group/GroupToast';
@@ -56,6 +60,10 @@ function GroupPageInner() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsPane, setSettingsPane] = useState<GroupSettingsPane>('home');
+  const [cardOpen, setCardOpen] = useState(false);
+  const [wallOpen, setWallOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [composerMode, setComposerMode] = useState<ComposerActionMode | null>(null);
   const [showJump, setShowJump] = useState(false);
   const stickBottom = useRef(true);
@@ -237,6 +245,29 @@ function GroupPageInner() {
       setComposerMode('checkin');
     }
   }, [searchParams, gid]);
+
+  useEffect(() => {
+    if (searchParams.get('focus') !== 'taskComplete' || !detail) return;
+    const taskId = searchParams.get('taskId');
+    const tasksList = Array.isArray(detail.tasks) ? detail.tasks : [];
+    const task = taskId
+      ? tasksList.find((t) => t.id === taskId)
+      : tasksList.find((t) => !t.completed && (t.id === detail.pinned_task_id || t.pinned))
+        || tasksList.find((t) => !t.completed);
+    if (!task || task.completed) return;
+    setTaskComplete({
+      taskId: task.id,
+      title: task.title,
+      ref: task.ref,
+      completion_rule: task.completion_rule,
+    });
+    if (typeof window !== 'undefined') {
+      const u = new URL(window.location.href);
+      u.searchParams.delete('focus');
+      u.searchParams.delete('taskId');
+      window.history.replaceState({}, '', `${u.pathname}${u.search}`);
+    }
+  }, [searchParams, detail]);
 
   useEffect(() => {
     if (detail) {
@@ -695,10 +726,30 @@ function GroupPageInner() {
     }
   };
 
+  const openSettings = (pane: GroupSettingsPane = 'home') => {
+    setSettingsPane(pane);
+    setSettingsOpen(true);
+  };
+
+  const myOpenTask =
+    tasks.find((t) => t.id === safeDetail.pinned_task_id && !t.completed)
+    || tasks.find((t) => t.pinned && !t.completed)
+    || tasks.find((t) => !t.completed);
+
+  const invitePlanDayLine = safeDetail.plan_title
+    ? safeDetail.plan_days_total
+      ? `${safeDetail.plan_title} · 我第 ${safeDetail.my_plan_day ?? 0}/${safeDetail.plan_days_total} 天`
+      : safeDetail.plan_title
+    : null;
+
   return (
     <main className="group-page group-page-checkin">
       <div className="group-checkin-nav-fixed">
-        <GroupNavBar detail={safeDetail} onOpenSettings={() => setSettingsOpen(true)} />
+        <GroupNavBar
+          detail={safeDetail}
+          onOpenCard={() => setCardOpen(true)}
+          onOpenSettings={() => openSettings('home')}
+        />
         <div className="group-nav-tools">
           <button type="button" className="font-pill" onClick={() => setSearchOpen(true)}>
             搜索
@@ -706,7 +757,7 @@ function GroupPageInner() {
         </div>
         <GroupAnnounceBar
           text={safeDetail.announcement || ''}
-          onOpen={() => setSettingsOpen(true)}
+          onOpen={() => openSettings('profile')}
         />
       </div>
 
@@ -734,6 +785,17 @@ function GroupPageInner() {
           detail={safeDetail}
           tasks={tasks}
           onCheckin={() => setComposerMode('checkin')}
+          onOpenWall={() => setWallOpen(true)}
+          onOpenCard={() => setCardOpen(true)}
+          onGoTask={() => {
+            if (!myOpenTask) return;
+            setTaskComplete({
+              taskId: myOpenTask.id,
+              title: myOpenTask.title,
+              ref: myOpenTask.ref,
+              completion_rule: myOpenTask.completion_rule,
+            });
+          }}
         />
         {!online ? (
           <p className="muted offline-page-hint" style={{ padding: '0 16px' }}>
@@ -785,6 +847,21 @@ function GroupPageInner() {
         </button>
       ) : null}
 
+      {myOpenTask ? (
+        <GroupMyTaskPin
+          gid={gid}
+          task={myOpenTask}
+          onComplete={(taskId, title, ref) => {
+            setTaskComplete({
+              taskId,
+              title,
+              ref,
+              completion_rule: myOpenTask.completion_rule,
+            });
+          }}
+        />
+      ) : null}
+
       <GroupComposerBar
         gid={gid}
         disabled={busy}
@@ -819,9 +896,75 @@ function GroupPageInner() {
         onCreateTask={handleCreateTask}
         onOpenSettings={() => {
           setComposerMode(null);
-          setSettingsOpen(true);
+          openSettings('home');
         }}
       />
+
+      <GroupProfileCard
+        open={cardOpen}
+        detail={safeDetail}
+        tasks={tasks}
+        messages={feed}
+        isOwner={isOwner}
+        isStaff={isStaff}
+        onClose={() => setCardOpen(false)}
+        onOpenWall={() => {
+          setCardOpen(false);
+          setWallOpen(true);
+        }}
+        onCheckin={() => {
+          setCardOpen(false);
+          setComposerMode('checkin');
+        }}
+        onInvite={() => {
+          setCardOpen(false);
+          setInviteOpen(true);
+        }}
+        onOpenSettings={() => {
+          setCardOpen(false);
+          openSettings('home');
+        }}
+        onOpenMembers={() => {
+          setCardOpen(false);
+          openSettings('members');
+        }}
+        onCompleteTask={(taskId, title, ref) => {
+          setCardOpen(false);
+          const t = tasks.find((x) => x.id === taskId);
+          setTaskComplete({
+            taskId,
+            title,
+            ref,
+            completion_rule: t?.completion_rule,
+          });
+        }}
+      />
+
+      <GroupCheckinWallSheet
+        open={wallOpen}
+        groupId={gid}
+        detail={safeDetail}
+        messages={feed}
+        isOwner={isStaff}
+        onClose={() => setWallOpen(false)}
+        onReact={react}
+        onCheckin={() => setComposerMode('checkin')}
+      />
+
+      {inviteOpen && safeDetail.join_code ? (
+        <GroupInviteSheet
+          gid={gid}
+          groupName={safeDetail.name}
+          joinCode={safeDetail.join_code}
+          intro={safeDetail.intro}
+          planTitle={safeDetail.plan_title}
+          planDayLine={invitePlanDayLine}
+          checkedInToday={safeDetail.checked_in_today}
+          memberTotal={members.length}
+          memberUserIds={members.map((m) => m.user_id).filter(Boolean) as string[]}
+          onClose={() => setInviteOpen(false)}
+        />
+      ) : null}
 
       <GroupSettingsSheet
         open={settingsOpen}
@@ -838,6 +981,7 @@ function GroupPageInner() {
         nameDraft={nameDraft}
         planDraft={planDraft}
         announceDraft={announceDraft}
+        initialPane={settingsPane}
         onClose={() => setSettingsOpen(false)}
         onNameChange={setNameDraft}
         onPlanChange={setPlanDraft}

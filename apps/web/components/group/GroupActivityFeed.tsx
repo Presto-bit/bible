@@ -124,6 +124,7 @@ function ChatBubble({
   });
   const isTask = m.kind === 'task';
   const isTaskDone = isTaskCompleteCheckin(m);
+  const isCheckin = m.kind === 'checkin' && !m.recalled && !m.pending;
   const isChatLite =
     m.kind === 'chat' || m.kind === 'image' || m.kind === 'file' || m.kind === 'verse';
   const dueLabel = isTask ? formatDueCountdown(m.task_due_at) : null;
@@ -429,6 +430,33 @@ function ChatBubble({
                       </button>
                     </>
                   )}
+                </div>
+              ) : null}
+
+              {isCheckin ? (
+                <div className="group-checkin-card-foot" onClick={(e) => e.stopPropagation()}>
+                  <div className="group-checkin-canned">
+                    {(['🙏', '❤️', '👍'] as const).map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className="group-checkin-canned-btn"
+                        aria-label={`回应 ${emoji}`}
+                        onClick={() => onReact(m.id, emoji)}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                  {refHref ? (
+                    <Link
+                      href={refHref}
+                      className="text-link group-checkin-read-link"
+                      onClick={beforeReader}
+                    >
+                      去读
+                    </Link>
+                  ) : null}
                 </div>
               ) : null}
             </>

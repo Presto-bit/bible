@@ -8,16 +8,27 @@ type Props = {
   detail: GroupDetail;
   tasks: GroupTask[];
   onCheckin: () => void;
+  onOpenWall?: () => void;
+  onOpenCard?: () => void;
+  onGoTask?: () => void;
 };
 
-/** 群会话内细状态条：仅有待打卡/未完成任务时显示；可折叠；完成后自动消失。 */
-export function GroupCoreadStickyBar({ detail, tasks, onCheckin }: Props) {
+/** 今日共读条：常态展示；可折叠；完成后仍可见。 */
+export function GroupCoreadStickyBar({
+  detail,
+  tasks,
+  onCheckin,
+  onOpenWall,
+  onOpenCard,
+  onGoTask,
+}: Props) {
   const memberTotal = groupMemberCount(detail);
   const checkedIn = detail.checked_in_today ?? 0;
   const openTasks = tasks.filter((t) => !t.completed);
-  const planLabel = detail.plan_title?.trim() || '共读群';
+  const pendingMine = openTasks.length;
+  const planLabel = detail.plan_title?.trim() || '今日共读';
   const needCheckin = !detail.my_checked_in_today;
-  const hasTodo = needCheckin || openTasks.length > 0;
+  const allDone = !needCheckin && pendingMine === 0;
   const storageKey = `group-sticky-collapsed:${detail.id || ''}`;
   const [collapsed, setCollapsed] = useState(false);
 
@@ -29,16 +40,6 @@ export function GroupCoreadStickyBar({ detail, tasks, onCheckin }: Props) {
       setCollapsed(false);
     }
   }, [detail.id, storageKey]);
-
-  // 有新待办时展开一次
-  useEffect(() => {
-    if (!hasTodo) return;
-    if (needCheckin || openTasks.length > 0) {
-      // keep user collapse preference
-    }
-  }, [hasTodo, needCheckin, openTasks.length]);
-
-  if (!hasTodo) return null;
 
   const toggle = () => {
     setCollapsed((v) => {
@@ -52,49 +53,73 @@ export function GroupCoreadStickyBar({ detail, tasks, onCheckin }: Props) {
     });
   };
 
+  const meta = (() => {
+    if (allDone) return `今日已完成 ✓ · ${checkedIn}/${memberTotal} 已打卡`;
+    const parts = [`${checkedIn}/${memberTotal} 已打卡`];
+    if (pendingMine > 0) parts.push(`任务 ${pendingMine}`);
+    if (needCheckin) parts.unshift('待打卡');
+    return parts.join(' · ');
+  })();
+
   if (collapsed) {
     return (
-      <button
-        type="button"
-        className="group-coread-sticky group-coread-sticky-collapsed group-sticky-zone"
-        onClick={toggle}
-        aria-expanded={false}
-      >
-        <span className="group-coread-sticky-meta">
-          {needCheckin ? '待打卡' : ''}
-          {needCheckin && openTasks.length ? ' · ' : ''}
-          {openTasks.length > 0 ? `任务 ${openTasks.length}` : ''}
-          {' · 展开'}
-        </span>
-      </button>
+      <div className="group-coread-sticky group-coread-sticky-collapsed group-sticky-zone">
+        <button type="button" className="group-coread-sticky-main" onClick={toggle} aria-expanded={false}>
+          <span className="group-coread-sticky-meta">
+            {planLabel} · {checkedIn}/{memberTotal}
+            {pendingMine > 0 ? ` · 任务 ${pendingMine}` : ''}
+            {' · 展开'}
+          </span>
+        </button>
+      </div>
     );
   }
 
-  return (
-    <div className="group-coread-sticky group-sticky-zone" role="status">
-      <button
-        type="button"
-        className="group-coread-sticky-main"
-        onClick={toggle}
-        aria-expanded
-        aria-label="折叠共读状态"
-      >
-        <strong className="group-coread-sticky-plan">{planLabel}</strong>
-        <span className="muted group-coread-sticky-meta">
-          今日 {checkedIn}/{memberTotal}
-          {openTasks.length > 0 ? ` · 任务 ${openTasks.length}` : ''}
-          {' · 收起'}
-        </span>
-      </button>
-      {needCheckin ? (
+  const cta = (() => {
+    if (allDone) {
+      return (
+        <button type="button" className="group-coread-sticky-cta is-soft" onClick={onOpenWall}>
+          打卡墙
+        </button>
+      );
+    }
+    if (needCheckin) {
+      return (
         <button type="button" className="group-coread-sticky-cta" onClick={onCheckin}>
           打卡
         </button>
-      ) : (
-        <span className="group-coread-sticky-done" aria-hidden>
-          ✓
-        </span>
-      )}
+      );
+    }
+    if (pendingMine > 0 && onGoTask) {
+      return (
+        <button type="button" className="group-coread-sticky-cta" onClick={onGoTask}>
+          去完成
+        </button>
+      );
+    }
+    return (
+      <button type="button" className="group-coread-sticky-cta is-soft" onClick={onOpenWall}>
+        打卡墙
+      </button>
+    );
+  })();
+
+  return (
+    <div className={`group-coread-sticky group-sticky-zone${allDone ? ' is-done' : ''}`} role="status">
+      <button
+        type="button"
+        className="group-coread-sticky-main"
+        onClick={onOpenCard || toggle}
+        aria-expanded
+        aria-label="今日共读"
+      >
+        <strong className="group-coread-sticky-plan">{planLabel}</strong>
+        <span className="muted group-coread-sticky-meta">{meta}</span>
+      </button>
+      <button type="button" className="group-coread-sticky-fold" onClick={toggle} aria-label="收起">
+        收起
+      </button>
+      {cta}
     </div>
   );
 }

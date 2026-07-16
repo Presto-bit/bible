@@ -7,17 +7,18 @@ import { groupMemberCount } from '@/lib/group_ui';
 
 type Props = {
   detail: GroupDetail;
+  onOpenCard: () => void;
   onOpenSettings: () => void;
 };
 
-export function GroupNavBar({ detail, onOpenSettings }: Props) {
+export function GroupNavBar({ detail, onOpenCard, onOpenSettings }: Props) {
   useEdgeSwipeBack({ href: '/discover' });
   const count = groupMemberCount(detail);
 
   return (
     <header className="group-wechat-nav">
       <PageBackBar href="/discover" label="消息" />
-      <button type="button" className="group-wechat-nav-center" onClick={onOpenSettings}>
+      <button type="button" className="group-wechat-nav-center" onClick={onOpenCard} aria-label="打开群名片">
         <span className="group-wechat-name">{detail.name}</span>
         <span className="group-wechat-count">（{count}人）</span>
       </button>

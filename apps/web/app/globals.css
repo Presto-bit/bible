@@ -19933,3 +19933,273 @@ html.perf-lite .im-msg-popover{
 .im-rich-kind-chip{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--accent,#5b7c6a) 14%,transparent);color:var(--accent-deep,#2f4a3a);}
 .im-msg-popover-phrase{appearance:none;border:0;background:rgba(255,255,255,.1);color:#fff;padding:6px 10px;border-radius:10px;font-size:12px;cursor:pointer;white-space:nowrap;}
 .im-msg-popover-emojis.is-extra{flex-wrap:wrap;padding-top:4px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:6px;margin-bottom:2px;}
+
+/* —— 共读群 ABCD：名片 / 打卡墙 / 任务钉 / 邀请卡 / 设置目录 —— */
+.group-coread-sticky-cta.is-soft {
+  background: color-mix(in srgb, var(--accent, #3d5c4a) 14%, var(--surface));
+  color: var(--accent-deep, #2f4a3a);
+}
+.group-coread-sticky.is-done {
+  background: color-mix(in srgb, var(--accent-wash, #e8efe9) 70%, var(--bg));
+}
+.group-coread-sticky-fold {
+  flex-shrink: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+.group-my-task-pin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 12px 8px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  background: color-mix(in srgb, var(--accent-wash, #e8efe9) 65%, var(--surface));
+}
+.group-my-task-pin-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group-my-task-pin-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-deep, #2f4a3a);
+}
+.group-my-task-pin-title {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-my-task-pin-due { font-size: 12px; }
+.group-my-task-pin-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.group-profile-card {
+  max-height: min(88dvh, 720px);
+  overflow-y: auto;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+}
+.group-profile-head { align-items: flex-start; }
+.group-profile-head-text { min-width: 0; flex: 1; }
+.group-profile-name { display: block; font-size: 18px; }
+.group-profile-intro {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+.group-profile-block { margin-top: 16px; }
+.group-profile-today {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.group-profile-wall-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+.group-profile-wall-entry-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group-profile-wall-avatars {
+  display: flex;
+  margin-right: 2px;
+}
+.group-profile-wall-av {
+  margin-left: -8px;
+  opacity: 0.45;
+  border-radius: 999px;
+  outline: 2px solid var(--surface);
+}
+.group-profile-wall-av:first-child { margin-left: 0; }
+.group-profile-wall-av.is-on { opacity: 1; }
+.group-profile-task {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+.group-profile-announce {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+.group-profile-members {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px 6px;
+}
+.group-profile-member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  text-align: center;
+}
+.group-profile-member span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-profile-foot {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.group-wall-sheet {
+  max-height: min(78dvh, 640px);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+}
+.group-wall-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 8px;
+}
+.group-wall-sheet-foot {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.group-settings-nav {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+.group-settings-nav-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 2px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+.group-settings-nav-row:last-child { border-bottom: 0; }
+.group-settings-nav-row.is-danger { color: var(--danger, #b42318); }
+
+.group-invite-preview-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--line));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--accent-wash, #e8efe9) 80%, #fff),
+    var(--surface)
+  );
+  margin-bottom: 10px;
+}
+.group-invite-preview-name {
+  display: block;
+  font-size: 17px;
+  margin-bottom: 6px;
+}
+.group-invite-preview-intro {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-faint);
+}
+.group-invite-preview-line {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.group-invite-preview-line .muted {
+  flex-shrink: 0;
+  min-width: 4.5em;
+}
+.group-invite-preview-code {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+.group-invite-preview-code strong {
+  letter-spacing: 0.14em;
+  font-size: 18px;
+  color: var(--accent-deep);
+}
+
+.group-chat-bubble.is-checkin {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 8%, transparent);
+}
+.group-checkin-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.group-checkin-canned {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+.group-checkin-canned-btn {
+  appearance: none;
+  border: 0;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border-radius: 999px;
+  width: 32px;
+  height: 28px;
+  font-size: 15px;
+  cursor: pointer;
+  line-height: 1;
+}
+.group-checkin-canned-btn:active {
+  transform: scale(0.94);
+}
+.group-checkin-read-link {
+  flex-shrink: 0;
+  font-size: 13px;
+}
