@@ -20,19 +20,29 @@ cd "$APP_DIR"
 compose=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
 log "等待 API /health"
-api_ok=0
-for i in $(seq 1 30); do
-  if curl -fsS --connect-timeout 3 --max-time 8 http://127.0.0.1:8011/health >/dev/null 2>&1; then
-    api_ok=1
-    break
+if [[ "${SKIP_API_WAIT:-0}" == "1" ]]; then
+  if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:8011/health >/dev/null 2>&1; then
+    log "API 已就绪（跳过等待）"
+  else
+    log "⚠️  SKIP_API_WAIT=1 但 /health 未通，改为短轮询"
+    SKIP_API_WAIT=0
   fi
-  log "API 未就绪 (${i}/30)…"
-  sleep 2
-done
-if [[ "$api_ok" -ne 1 ]]; then
-  log "❌ API 健康检查失败"
-  "${compose[@]}" logs --tail 80 api >&2 || true
-  exit 1
+fi
+if [[ "${SKIP_API_WAIT:-0}" != "1" ]]; then
+  api_ok=0
+  for i in $(seq 1 45); do
+    if curl -fsS --connect-timeout 2 --max-time 5 http://127.0.0.1:8011/health >/dev/null 2>&1; then
+      api_ok=1
+      break
+    fi
+    [[ $((i % 5)) -eq 0 ]] && log "API 未就绪 (${i}/45)…"
+    sleep 1
+  done
+  if [[ "$api_ok" -ne 1 ]]; then
+    log "❌ API 健康检查失败"
+    "${compose[@]}" logs --tail 80 api >&2 || true
+    exit 1
+  fi
 fi
 
 if [[ -f "$APP_DIR/scripts/ensure_pg_schema.sh" ]]; then

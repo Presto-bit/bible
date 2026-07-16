@@ -27,6 +27,9 @@ apps/web/.env.local
 deploy/deploy.env
 deploy/publish.env
 
+# 服务器发版增量标记（勿提交，避免脏工作区阻断 release）
+.release-sha
+
 # Large / generated data
 data/bible/**/*.sqlite
 data/.cache/

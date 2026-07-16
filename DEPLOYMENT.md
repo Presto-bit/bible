@@ -139,6 +139,15 @@ ssh presto@8.152.6.105
 cd /opt/bible && bash release.sh
 ```
 
+发版已按「相对上次成功 SHA」增量构建：只改前端则只重建 `web`，只改 API 则只重建 `api`；默认**开启 Docker 缓存**、**不每次 pull 基础镜像**。耗时日志带 `(+Ns)`。
+
+| 场景 | 命令 |
+|------|------|
+| 常规发版 | `bash release.sh` |
+| 怀疑 web 镜像被污染 | `WEB_BUILD_NO_CACHE=1 FORCE_FULL=1 bash release.sh` |
+| 强制拉最新基础镜像 | `COMPOSE_BUILD_PULL=1 bash release.sh` |
+| 只重建某一侧 | `BUILD_WEB=1 BUILD_API=0 bash release.sh` |
+
 **本地一键（已配置 `deploy/publish.env`）：**
 
 ```bash
