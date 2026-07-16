@@ -54,6 +54,7 @@ MIGRATIONS=(
   infra/postgres/init/020_group_task_v2.sql
   infra/postgres/init/021_social_im_v12.sql
   infra/postgres/init/023_rag_index_jobs.sql
+  infra/postgres/init/024_dm_reactions.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do

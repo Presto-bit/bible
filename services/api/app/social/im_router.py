@@ -158,6 +158,8 @@ def _conv_preview(
         if str(sender_id) == viewer_id:
             return f"我: {preview}"
         name = (author_name or "").strip() or "群友"
+        if re.match(r"^用户[0-9a-fA-F]{4,}$", name):
+            name = "群友"
         return f"{name}: {preview}"
     return preview
 
@@ -291,7 +293,8 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                   SELECT gm.id, gm.kind, gm.body, gm.created_at, gm.user_id,
                     COALESCE(
                       NULLIF(TRIM(mb.display_name), ''),
-                      NULLIF(TRIM(u.display_name), ''),
+                      CASE WHEN COALESCE(TRIM(u.display_name), '') ~ '^用户[0-9A-Fa-f]{4,}$' THEN NULL
+                           ELSE NULLIF(TRIM(u.display_name), '') END,
                       NULLIF(TRIM(u.handle), ''),
                       ''
                     ) AS author_name
@@ -751,6 +754,7 @@ def list_dm_messages(
     thread_id: str,
     user_id: str = Depends(get_current_user),
     limit: int = 50,
+    before: str | None = None,
 ) -> dict:
     limit = max(1, min(limit, 100))
     cutoff = _retention_cutoff()
@@ -763,16 +767,66 @@ def list_dm_messages(
         ).fetchone()
         if not t or user_id not in (str(t[0]), str(t[1])):
             raise HTTPException(404, "会话不存在")
-        rows = conn.execute(
-            """
-            SELECT id, sender_id, kind, body, ref, reply_to_id, recalled_at, created_at
-            FROM direct_message
-            WHERE thread_id = %s AND created_at >= %s
-            ORDER BY created_at DESC
-            LIMIT %s
-            """,
-            (thread_id, cutoff, limit),
-        ).fetchall()
+        try:
+            if before:
+                rows = conn.execute(
+                    """
+                    SELECT id, sender_id, kind, body, ref, reply_to_id, recalled_at,
+                           created_at, reactions
+                    FROM direct_message
+                    WHERE thread_id = %s AND created_at >= %s
+                      AND created_at < %s::timestamptz
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,
+                    (thread_id, cutoff, before, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT id, sender_id, kind, body, ref, reply_to_id, recalled_at,
+                           created_at, reactions
+                    FROM direct_message
+                    WHERE thread_id = %s AND created_at >= %s
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,
+                    (thread_id, cutoff, limit),
+                ).fetchall()
+        except Exception:
+            conn.rollback()
+            if before:
+                rows = conn.execute(
+                    """
+                    SELECT id, sender_id, kind, body, ref, reply_to_id, recalled_at, created_at
+                    FROM direct_message
+                    WHERE thread_id = %s AND created_at >= %s
+                      AND created_at < %s::timestamptz
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,
+                    (thread_id, cutoff, before, limit),
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT id, sender_id, kind, body, ref, reply_to_id, recalled_at, created_at
+                    FROM direct_message
+                    WHERE thread_id = %s AND created_at >= %s
+                    ORDER BY created_at DESC
+                    LIMIT %s
+                    """,
+                    (thread_id, cutoff, limit),
+                ).fetchall()
+            rows = [(*r, {}) for r in rows]
+        has_more = False
+        if rows:
+            oldest_ts = rows[-1][7]
+            has_more = conn.execute(
+                "SELECT 1 FROM direct_message WHERE thread_id = %s "
+                "AND created_at >= %s AND created_at < %s LIMIT 1",
+                (thread_id, cutoff, oldest_ts),
+            ).fetchone() is not None
         rows = list(reversed(rows))
         mids = [str(r[0]) for r in rows]
         att_map: dict[str, list] = {mid: [] for mid in mids}
@@ -803,6 +857,7 @@ def list_dm_messages(
         for r in rows:
             recalled = r[6] is not None
             mid = str(r[0])
+            reactions = r[8] if len(r) > 8 and isinstance(r[8], dict) else {}
             msgs.append({
                 "id": mid,
                 "sender_id": str(r[1]),
@@ -814,6 +869,7 @@ def list_dm_messages(
                 "created_at": r[7].isoformat() if r[7] else None,
                 "attachments": att_map.get(mid) or [],
                 "mine": str(r[1]) == user_id,
+                "reactions": reactions or {},
             })
         peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
         peer_title = _display(conn, peer)
@@ -834,6 +890,7 @@ def list_dm_messages(
             peer_read = None
     return {
         "messages": msgs,
+        "has_more": has_more,
         "peer_last_read_at": peer_read,
         "peer_user_id": peer,
         "peer_title": peer_title,
@@ -1285,6 +1342,8 @@ def search_messages(
     q: str,
     user_id: str = Depends(get_current_user),
     limit: int = 30,
+    scope: str | None = None,
+    ref_id: str | None = None,
 ) -> dict:
     query = (q or "").strip()
     if len(query) < 1:
@@ -1294,112 +1353,152 @@ def search_messages(
     limit = max(1, min(limit, 50))
     cutoff = _retention_cutoff()
     like = f"%{query}%"
+    scope_n = (scope or "").strip().lower() or None
+    ref = (ref_id or "").strip() or None
+    in_thread = scope_n in ("group", "dm") and bool(ref)
     pool = get_pool()
     items: list[dict] = []
     with pool.connection() as conn:
-        # 会话名/好友昵称匹配（优先）
-        grows_title = conn.execute(
-            """
-            SELECT g.id, g.name
-            FROM social_group g
-            JOIN group_member mb ON mb.group_id = g.id AND mb.user_id = %s
-            WHERE g.name ILIKE %s
-            ORDER BY g.name
-            LIMIT %s
-            """,
-            (user_id, like, min(10, limit)),
-        ).fetchall()
-        for r in grows_title:
-            items.append({
-                "scope": "group",
-                "message_id": f"title:{r[0]}",
-                "ref_id": str(r[0]),
-                "title": r[1],
-                "kind": "conversation",
-                "snippet": "共读群",
-                "created_at": None,
-            })
-        drows_title = conn.execute(
-            """
-            SELECT t.id, t.user_low_id, t.user_high_id
-            FROM direct_thread t
-            WHERE (t.user_low_id = %s OR t.user_high_id = %s)
-            LIMIT 80
-            """,
-            (user_id, user_id),
-        ).fetchall()
-        title_peers = [
-            str(r[2]) if str(r[1]) == user_id else str(r[1])
-            for r in drows_title
-        ]
-        title_names = _displays(conn, title_peers)
-        for r in drows_title:
-            peer = str(r[2]) if str(r[1]) == user_id else str(r[1])
-            name = title_names.get(peer) or f"用户{peer[:4]}"
-            if query.lower() in name.lower():
+        # 会话内搜索：跳过标题匹配，只搜该会话正文
+        if not in_thread:
+            grows_title = conn.execute(
+                """
+                SELECT g.id, g.name
+                FROM social_group g
+                JOIN group_member mb ON mb.group_id = g.id AND mb.user_id = %s
+                WHERE g.name ILIKE %s
+                ORDER BY g.name
+                LIMIT %s
+                """,
+                (user_id, like, min(10, limit)),
+            ).fetchall()
+            for r in grows_title:
                 items.append({
-                    "scope": "dm",
+                    "scope": "group",
                     "message_id": f"title:{r[0]}",
                     "ref_id": str(r[0]),
-                    "title": name,
+                    "title": r[1],
                     "kind": "conversation",
-                    "snippet": "私信",
+                    "snippet": "共读群",
                     "created_at": None,
                 })
+            drows_title = conn.execute(
+                """
+                SELECT t.id, t.user_low_id, t.user_high_id
+                FROM direct_thread t
+                WHERE (t.user_low_id = %s OR t.user_high_id = %s)
+                LIMIT 80
+                """,
+                (user_id, user_id),
+            ).fetchall()
+            title_peers = [
+                str(r[2]) if str(r[1]) == user_id else str(r[1])
+                for r in drows_title
+            ]
+            title_names = _displays(conn, title_peers)
+            for r in drows_title:
+                peer = str(r[2]) if str(r[1]) == user_id else str(r[1])
+                name = title_names.get(peer) or f"用户{peer[:4]}"
+                if query.lower() in name.lower():
+                    items.append({
+                        "scope": "dm",
+                        "message_id": f"title:{r[0]}",
+                        "ref_id": str(r[0]),
+                        "title": name,
+                        "kind": "conversation",
+                        "snippet": "私信",
+                        "created_at": None,
+                    })
 
-        grows = conn.execute(
-            """
-            SELECT m.id, m.group_id, g.name, m.kind, m.body, m.created_at, m.user_id
-            FROM group_message m
-            JOIN group_member mb ON mb.group_id = m.group_id AND mb.user_id = %s
-            JOIN social_group g ON g.id = m.group_id
-            WHERE m.recalled_at IS NULL AND m.created_at >= %s
-              AND m.body ILIKE %s
-            ORDER BY m.created_at DESC
-            LIMIT %s
-            """,
-            (user_id, cutoff, like, limit),
-        ).fetchall()
-        for r in grows:
-            items.append({
-                "scope": "group",
-                "message_id": str(r[0]),
-                "ref_id": str(r[1]),
-                "title": r[2],
-                "kind": r[3],
-                "snippet": (r[4] or "")[:120],
-                "created_at": r[5].isoformat() if r[5] else None,
-            })
-        drows = conn.execute(
-            """
-            SELECT dm.id, dm.thread_id, dm.kind, dm.body, dm.created_at,
-                   t.user_low_id, t.user_high_id
-            FROM direct_message dm
-            JOIN direct_thread t ON t.id = dm.thread_id
-            WHERE (t.user_low_id = %s OR t.user_high_id = %s)
-              AND dm.recalled_at IS NULL AND dm.created_at >= %s
-              AND dm.body ILIKE %s
-            ORDER BY dm.created_at DESC
-            LIMIT %s
-            """,
-            (user_id, user_id, cutoff, like, limit),
-        ).fetchall()
-        msg_peers = [
-            str(r[6]) if str(r[5]) == user_id else str(r[5])
-            for r in drows
-        ]
-        msg_names = _displays(conn, msg_peers)
-        for r in drows:
-            peer = str(r[6]) if str(r[5]) == user_id else str(r[5])
-            items.append({
-                "scope": "dm",
-                "message_id": str(r[0]),
-                "ref_id": str(r[1]),
-                "title": msg_names.get(peer) or f"用户{peer[:4]}",
-                "kind": r[2],
-                "snippet": (r[3] or "")[:120],
-                "created_at": r[4].isoformat() if r[4] else None,
-            })
+        if not in_thread or scope_n == "group":
+            if in_thread:
+                grows = conn.execute(
+                    """
+                    SELECT m.id, m.group_id, g.name, m.kind, m.body, m.created_at, m.user_id
+                    FROM group_message m
+                    JOIN group_member mb ON mb.group_id = m.group_id AND mb.user_id = %s
+                    JOIN social_group g ON g.id = m.group_id
+                    WHERE m.group_id = %s
+                      AND m.recalled_at IS NULL AND m.created_at >= %s
+                      AND m.body ILIKE %s
+                    ORDER BY m.created_at DESC
+                    LIMIT %s
+                    """,
+                    (user_id, ref, cutoff, like, limit),
+                ).fetchall()
+            else:
+                grows = conn.execute(
+                    """
+                    SELECT m.id, m.group_id, g.name, m.kind, m.body, m.created_at, m.user_id
+                    FROM group_message m
+                    JOIN group_member mb ON mb.group_id = m.group_id AND mb.user_id = %s
+                    JOIN social_group g ON g.id = m.group_id
+                    WHERE m.recalled_at IS NULL AND m.created_at >= %s
+                      AND m.body ILIKE %s
+                    ORDER BY m.created_at DESC
+                    LIMIT %s
+                    """,
+                    (user_id, cutoff, like, limit),
+                ).fetchall()
+            for r in grows:
+                items.append({
+                    "scope": "group",
+                    "message_id": str(r[0]),
+                    "ref_id": str(r[1]),
+                    "title": r[2],
+                    "kind": r[3],
+                    "snippet": (r[4] or "")[:120],
+                    "created_at": r[5].isoformat() if r[5] else None,
+                })
+
+        if not in_thread or scope_n == "dm":
+            if in_thread:
+                drows = conn.execute(
+                    """
+                    SELECT dm.id, dm.thread_id, dm.kind, dm.body, dm.created_at,
+                           t.user_low_id, t.user_high_id
+                    FROM direct_message dm
+                    JOIN direct_thread t ON t.id = dm.thread_id
+                    WHERE dm.thread_id = %s
+                      AND (t.user_low_id = %s OR t.user_high_id = %s)
+                      AND dm.recalled_at IS NULL AND dm.created_at >= %s
+                      AND dm.body ILIKE %s
+                    ORDER BY dm.created_at DESC
+                    LIMIT %s
+                    """,
+                    (ref, user_id, user_id, cutoff, like, limit),
+                ).fetchall()
+            else:
+                drows = conn.execute(
+                    """
+                    SELECT dm.id, dm.thread_id, dm.kind, dm.body, dm.created_at,
+                           t.user_low_id, t.user_high_id
+                    FROM direct_message dm
+                    JOIN direct_thread t ON t.id = dm.thread_id
+                    WHERE (t.user_low_id = %s OR t.user_high_id = %s)
+                      AND dm.recalled_at IS NULL AND dm.created_at >= %s
+                      AND dm.body ILIKE %s
+                    ORDER BY dm.created_at DESC
+                    LIMIT %s
+                    """,
+                    (user_id, user_id, cutoff, like, limit),
+                ).fetchall()
+            msg_peers = [
+                str(r[6]) if str(r[5]) == user_id else str(r[5])
+                for r in drows
+            ]
+            msg_names = _displays(conn, msg_peers)
+            for r in drows:
+                peer = str(r[6]) if str(r[5]) == user_id else str(r[5])
+                items.append({
+                    "scope": "dm",
+                    "message_id": str(r[0]),
+                    "ref_id": str(r[1]),
+                    "title": msg_names.get(peer) or f"用户{peer[:4]}",
+                    "kind": r[2],
+                    "snippet": (r[3] or "")[:120],
+                    "created_at": r[4].isoformat() if r[4] else None,
+                })
     titles = [x for x in items if x.get("kind") == "conversation"]
     msgs = [x for x in items if x.get("kind") != "conversation"]
     msgs.sort(key=lambda x: x.get("created_at") or "", reverse=True)

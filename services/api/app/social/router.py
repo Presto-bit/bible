@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import secrets
 from pathlib import Path
 
@@ -368,9 +369,8 @@ def _user_display_name(conn, uid: str) -> str:
         "SELECT display_name, handle FROM users WHERE id = %s", (uid,),
     ).fetchone()
     if not row:
-        return f"用户{uid[:4]}"
-    name = (row[0] or row[1] or "").strip()
-    return name or f"用户{uid[:4]}"
+        return "群友"
+    return _public_label((row[0] or row[1] or "").strip(), "群友")
 
 
 @router.post("/groups/{gid}/invites")
@@ -809,10 +809,28 @@ def _group_today_stats(conn, gid: str, user_id: str) -> dict:
     }
 
 
-def _member_display_sql() -> str:
+def _member_display_sql(member_alias: str = "m", user_alias: str = "u") -> str:
+    """群昵称 > 用户资料名（排除游客「用户xxxx」占位）> handle。"""
     return (
-        "COALESCE(NULLIF(TRIM(m.display_name), ''), NULLIF(TRIM(u.display_name), ''))"
+        "COALESCE("
+        f"NULLIF(TRIM({member_alias}.display_name), ''), "
+        f"CASE WHEN COALESCE(TRIM({user_alias}.display_name), '') "
+        f"~ '^用户[0-9A-Fa-f]{{4,}}$' THEN NULL "
+        f"ELSE NULLIF(TRIM({user_alias}.display_name), '') END, "
+        f"NULLIF(TRIM({user_alias}.handle), '')"
+        ")"
     )
+
+
+def _public_label(raw: str | None, fallback: str = "群友") -> str:
+    n = (raw or "").strip()
+    if not n:
+        return fallback
+    if re.match(r"^用户[0-9a-fA-F]{4,}$", n):
+        return fallback
+    if re.match(r"^[0-9a-f]{8}-[0-9a-f-]{27}$", n, re.I):
+        return fallback
+    return n
 
 
 def _require_member(conn, gid: str, user_id: str) -> str:
@@ -1025,7 +1043,7 @@ def group_detail(
         "members": [
             {
                 "user_id": str(m[0]),
-                "name": (m[1] or "").strip() or f"用户{str(m[0])[:4]}",
+                "name": _public_label(m[1], "群友"),
                 "role": m[2],
                 "checked_in_today": bool(m[3]),
                 "plan_day": int(m[4] or 0),
@@ -1198,10 +1216,13 @@ def group_feed(
         use_v12 = True
         # 举报数用 LEFT JOIN 聚合，避免每行相关子查询
         base_sql = (
-            "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
+            "SELECT m.id, "
+            f"  {_member_display_sql('mb', 'u')}, "
+            "  m.user_id, m.kind, m.ref, m.body, "
             "  m.reactions, m.created_at, m.task_id, gt.due_at, "
             "  m.recalled_at, m.mentions, m.reply_to_id "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
+            "LEFT JOIN group_member mb ON mb.group_id = m.group_id AND mb.user_id = m.user_id "
             "LEFT JOIN group_task gt ON gt.id = m.task_id "
             "LEFT JOIN ("
             "  SELECT message_id, count(DISTINCT reporter_id) AS rc "
@@ -1211,9 +1232,12 @@ def group_feed(
             "  AND COALESCE(rp.rc, 0) < %s "
         )
         legacy_sql = (
-            "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
+            "SELECT m.id, "
+            f"  {_member_display_sql('mb', 'u')}, "
+            "  m.user_id, m.kind, m.ref, m.body, "
             "  m.reactions, m.created_at, m.task_id, gt.due_at "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
+            "LEFT JOIN group_member mb ON mb.group_id = m.group_id AND mb.user_id = m.user_id "
             "LEFT JOIN group_task gt ON gt.id = m.task_id "
             "LEFT JOIN ("
             "  SELECT message_id, count(DISTINCT reporter_id) AS rc "
@@ -1307,7 +1331,7 @@ def group_feed(
                 recalled = r[10] is not None
                 mentions = r[11] if r[11] else []
                 reply_to = str(r[12]) if r[12] else None
-            author = "系统" if r[3] == "system" else ((r[1] or "").strip() or f"用户{str(r[2])[-4:]}")
+            author = "系统" if r[3] == "system" else _public_label(r[1], "群友")
             messages.append({
                 "id": mid, "author": author, "mine": str(r[2]) == user_id,
                 "user_id": str(r[2]),
@@ -1599,33 +1623,9 @@ def delete_message(mid: str, user_id: str = Depends(get_current_user)) -> dict:
 @router.post("/messages/{mid}/react")
 def react(mid: str, body: React, user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
-    with pool.connection() as conn:
-        row = conn.execute(
-            "SELECT reactions FROM group_message WHERE id = %s", (mid,)
-        ).fetchone()
-        if row:
-            reactions = row[0] or {}
-            users = set(reactions.get(body.emoji, []))
-            if user_id in users:
-                users.discard(user_id)
-            else:
-                users.add(user_id)
-            if users:
-                reactions[body.emoji] = sorted(users)
-            else:
-                reactions.pop(body.emoji, None)
-            conn.execute(
-                "UPDATE group_message SET reactions = %s::jsonb WHERE id = %s",
-                (json.dumps(reactions), mid),
-            )
-            conn.commit()
-            return {"reactions": reactions}
-        srow = conn.execute(
-            "SELECT reactions FROM user_share WHERE id = %s", (mid,)
-        ).fetchone()
-        if not srow:
-            raise HTTPException(404, "消息不存在")
-        reactions = srow[0] or {}
+    ensure_social_im_v12_pool(pool)
+
+    def _toggle(reactions: dict) -> dict:
         users = set(reactions.get(body.emoji, []))
         if user_id in users:
             users.discard(user_id)
@@ -1635,6 +1635,52 @@ def react(mid: str, body: React, user_id: str = Depends(get_current_user)) -> di
             reactions[body.emoji] = sorted(users)
         else:
             reactions.pop(body.emoji, None)
+        return reactions
+
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT reactions FROM group_message WHERE id = %s", (mid,)
+        ).fetchone()
+        if row:
+            reactions = _toggle(dict(row[0] or {}))
+            conn.execute(
+                "UPDATE group_message SET reactions = %s::jsonb WHERE id = %s",
+                (json.dumps(reactions), mid),
+            )
+            conn.commit()
+            return {"reactions": reactions}
+        try:
+            drow = conn.execute(
+                "SELECT reactions FROM direct_message WHERE id = %s", (mid,)
+            ).fetchone()
+        except Exception:
+            conn.rollback()
+            drow = None
+        if drow is not None:
+            # 校验会话成员
+            own = conn.execute(
+                """
+                SELECT 1 FROM direct_message dm
+                JOIN direct_thread t ON t.id = dm.thread_id
+                WHERE dm.id = %s AND (t.user_low_id = %s OR t.user_high_id = %s)
+                """,
+                (mid, user_id, user_id),
+            ).fetchone()
+            if not own:
+                raise HTTPException(403, "无权操作")
+            reactions = _toggle(dict(drow[0] or {}))
+            conn.execute(
+                "UPDATE direct_message SET reactions = %s::jsonb WHERE id = %s",
+                (json.dumps(reactions), mid),
+            )
+            conn.commit()
+            return {"reactions": reactions}
+        srow = conn.execute(
+            "SELECT reactions FROM user_share WHERE id = %s", (mid,)
+        ).fetchone()
+        if not srow:
+            raise HTTPException(404, "消息不存在")
+        reactions = _toggle(dict(srow[0] or {}))
         conn.execute(
             "UPDATE user_share SET reactions = %s::jsonb WHERE id = %s",
             (json.dumps(reactions), mid),
@@ -1699,10 +1745,20 @@ def update_my_group_profile(
     pool = get_pool()
     with pool.connection() as conn:
         _require_member(conn, gid, user_id)
-        conn.execute(
-            "UPDATE group_member SET display_name = %s WHERE group_id = %s AND user_id = %s",
-            (name, gid, user_id),
-        )
+        try:
+            conn.execute(
+                "UPDATE group_member SET display_name = %s WHERE group_id = %s AND user_id = %s",
+                (name, gid, user_id),
+            )
+        except Exception:
+            conn.rollback()
+            conn.execute(
+                "ALTER TABLE group_member ADD COLUMN IF NOT EXISTS display_name TEXT"
+            )
+            conn.execute(
+                "UPDATE group_member SET display_name = %s WHERE group_id = %s AND user_id = %s",
+                (name, gid, user_id),
+            )
         conn.commit()
     return {"ok": True, "display_name": name}
 

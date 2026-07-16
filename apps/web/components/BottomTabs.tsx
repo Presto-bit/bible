@@ -12,6 +12,7 @@ import {
   subscribePwaTabNav,
 } from '@/lib/pwa_tab_nav';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
+import { useDiscoverUnread } from '@/lib/use_discover_unread';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
 // outline 为未选中态，filled 为选中态（与 App 的 NavigationDestination 行为一致）。
@@ -81,6 +82,7 @@ const GROUP_COMPACT_RE = /^\/discover\/(group\/|join|dm\/|invites|friends)/;
 export default function BottomTabs() {
   const pathname = normalizeAppPath(useRouterPathname());
   const router = useRouter();
+  const discoverUnread = useDiscoverUnread(true);
   const compact =
     SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
     || GROUP_COMPACT_RE.test(pathname);
@@ -133,19 +135,26 @@ export default function BottomTabs() {
       {TABS.map((t) => {
         const active =
           t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);
+        const badge =
+          t.href === '/discover' && discoverUnread > 0
+            ? (discoverUnread > 99 ? '99+' : String(discoverUnread))
+            : null;
         return (
           <button
             key={t.href}
             type="button"
             className={`tab ${active ? 'tab-active' : ''}`}
             aria-current={active ? 'page' : undefined}
-            aria-label={t.label}
+            aria-label={badge ? `${t.label}，${badge}条未读` : t.label}
             onClick={() => go(t.href)}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d={active ? t.filled : t.outline} />
-            </svg>
+            <span className="tab-icon-wrap">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                <path d={active ? t.filled : t.outline} />
+              </svg>
+              {badge ? <span className="tab-unread-badge">{badge}</span> : null}
+            </span>
             <span>{t.label}</span>
           </button>
         );

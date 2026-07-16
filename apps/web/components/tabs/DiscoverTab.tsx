@@ -45,6 +45,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [incoming, setIncoming] = useState<FriendRequestItem[]>([]);
+  const [outgoing, setOutgoing] = useState<FriendRequestItem[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQ, setSearchQ] = useState('');
@@ -92,8 +93,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
           }
           if (reqRes.status === 'fulfilled') {
             setIncoming(Array.isArray(reqRes.value.incoming) ? reqRes.value.incoming : []);
+            setOutgoing(Array.isArray(reqRes.value.outgoing) ? reqRes.value.outgoing : []);
           } else {
             setIncoming([]);
+            setOutgoing([]);
           }
           friendsLoadedRef.current = true;
         }
@@ -375,7 +378,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         </div>
       ) : null}
 
-      {loading && ((sub === 'messages' && items.length === 0) || (sub === 'friends' && friends.length === 0 && incoming.length === 0)) ? (
+      {loading && ((sub === 'messages' && items.length === 0) || (sub === 'friends' && friends.length === 0 && incoming.length === 0 && outgoing.length === 0)) ? (
         <p className="muted" style={{ padding: '12px 0' }}>加载中…</p>
       ) : null}
 
@@ -462,7 +465,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         )
       ) : null}
 
-      {sub === 'friends' && (!loading || friends.length > 0 || incoming.length > 0) ? (
+      {sub === 'friends' && (!loading || friends.length > 0 || incoming.length > 0 || outgoing.length > 0) ? (
         <div className="discover-friends-pane">
           <div className="discover-im-search" style={{ marginBottom: 12 }}>
             <input
@@ -481,7 +484,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                   <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
                       <div>
-                        <strong>{r.display_name || r.handle || r.from_user_id.slice(0, 8)}</strong>
+                        <strong>{r.display_name || r.handle || r.from_user_id?.slice(0, 8) || '好友'}</strong>
                         {r.message ? <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{r.message}</p> : null}
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
@@ -507,6 +510,25 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                           拒绝
                         </button>
                       </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {outgoing.length > 0 ? (
+            <section style={{ marginBottom: 16 }}>
+              <p className="section-label">等待验证</p>
+              <ul className="discover-conv-list">
+                {outgoing.map((r) => (
+                  <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
+                      <div>
+                        <strong>{r.display_name || r.handle || r.to_user_id?.slice(0, 8) || '好友'}</strong>
+                        {r.message ? <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{r.message}</p> : null}
+                      </div>
+                      <span className="muted" style={{ fontSize: 13, flexShrink: 0 }}>待同意</span>
                     </div>
                   </li>
                 ))}

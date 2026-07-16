@@ -85,10 +85,15 @@ _STATEMENTS: tuple[str, ...] = (
       ref TEXT,
       reply_to_id UUID REFERENCES direct_message(id) ON DELETE SET NULL,
       recalled_at TIMESTAMPTZ,
+      reactions JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       CONSTRAINT direct_message_kind_chk
         CHECK (kind IN ('chat', 'verse', 'image', 'file', 'system'))
     )
+    """,
+    """
+    ALTER TABLE direct_message
+      ADD COLUMN IF NOT EXISTS reactions JSONB NOT NULL DEFAULT '{}'::jsonb
     """,
     """
     CREATE INDEX IF NOT EXISTS direct_message_thread_idx

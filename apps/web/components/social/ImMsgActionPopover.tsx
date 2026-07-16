@@ -19,6 +19,8 @@ type Props = {
   onClose: () => void;
   /** 气泡旁一行快捷表情（可选） */
   quickEmojis?: string[];
+  /** 短语回应（如「为你加油」） */
+  phraseKeys?: Array<{ key: string; label: string }>;
   onEmoji?: (emoji: string) => void;
 };
 
@@ -36,12 +38,14 @@ export function ImMsgActionPopover({
   actions,
   onClose,
   quickEmojis,
+  phraseKeys,
   onEmoji,
 }: Props) {
   const barRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ top: number; left: number; place: 'above' | 'below' } | null>(
     null,
   );
+  const [moreEmoji, setMoreEmoji] = useState(false);
 
   useLayoutEffect(() => {
     if (!open) {
@@ -79,10 +83,13 @@ export function ImMsgActionPopover({
       window.removeEventListener('resize', onRe);
       window.removeEventListener('scroll', onRe, true);
     };
-  }, [open, anchorEl, align, actions.length, quickEmojis?.length]);
+  }, [open, anchorEl, align, actions.length, quickEmojis?.length, phraseKeys?.length, moreEmoji]);
 
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open) {
+      setMoreEmoji(false);
+      return;
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
@@ -91,6 +98,10 @@ export function ImMsgActionPopover({
   }, [open, onClose]);
 
   if (!open || !actions.length) return null;
+
+  const primary = (quickEmojis || []).slice(0, 6);
+  const extra = (quickEmojis || []).slice(6);
+  const showExpand = extra.length > 0 || (phraseKeys && phraseKeys.length > 0);
 
   return (
     <AppBodyPortal>
@@ -111,9 +122,9 @@ export function ImMsgActionPopover({
           }
           onClick={(e) => e.stopPropagation()}
         >
-          {quickEmojis && quickEmojis.length && onEmoji ? (
+          {primary.length && onEmoji ? (
             <div className="im-msg-popover-emojis">
-              {quickEmojis.map((e) => (
+              {primary.map((e) => (
                 <button
                   key={e}
                   type="button"
@@ -124,6 +135,46 @@ export function ImMsgActionPopover({
                   }}
                 >
                   {e}
+                </button>
+              ))}
+              {showExpand ? (
+                <button
+                  type="button"
+                  className="im-msg-popover-emoji is-more"
+                  aria-label={moreEmoji ? '收起' : '更多表情'}
+                  onClick={() => setMoreEmoji((v) => !v)}
+                >
+                  {moreEmoji ? '▴' : '···'}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {moreEmoji && onEmoji ? (
+            <div className="im-msg-popover-emojis is-extra">
+              {extra.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  className="im-msg-popover-emoji"
+                  onClick={() => {
+                    onEmoji(e);
+                    onClose();
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+              {(phraseKeys || []).map((p) => (
+                <button
+                  key={p.key}
+                  type="button"
+                  className="im-msg-popover-phrase"
+                  onClick={() => {
+                    onEmoji(p.key);
+                    onClose();
+                  }}
+                >
+                  {p.label}
                 </button>
               ))}
             </div>

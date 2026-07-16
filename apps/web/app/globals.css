@@ -549,6 +549,31 @@ body.reader-immersive .tabbar {
   display: block;
 }
 
+.tab-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab-unread-badge {
+  position: absolute;
+  top: -5px;
+  right: -10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e54d42;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
 .tab span {
   display: block;
   max-width: 100%;
@@ -19892,3 +19917,19 @@ html.perf-lite .im-msg-popover{
   width: 100%;
 }
 
+.group-announce-bar{
+  display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent-wash,#e8efe9) 50%,var(--bg));font:inherit;text-align:left;cursor:pointer;
+}
+.group-announce-label{flex-shrink:0;font-size:11px;font-weight:600;color:var(--accent,#5b7c6a);}
+.group-announce-text{flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink);}
+.group-nav-tools{display:flex;align-items:center;gap:8px;justify-content:flex-end;padding:4px 12px 6px;background:var(--bg);border-bottom:1px solid var(--line);}
+.group-feed-load-sentinel{display:flex;justify-content:center;padding:8px 0 4px;min-height:28px;font-size:12px;}
+.dm-bubble-wrap{flex:1;min-width:0;display:flex;flex-direction:column;}
+.im-chat-search-sheet{max-height:min(72vh,520px);display:flex;flex-direction:column;}
+.im-chat-search-list{list-style:none;margin:8px 0 0;padding:0;overflow-y:auto;flex:1;min-height:0;}
+.im-chat-search-hit{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:10px 8px;border:0;border-radius:8px;background:transparent;text-align:left;cursor:pointer;font:inherit;}
+.im-chat-search-hit:hover,.im-chat-search-hit:active{background:var(--card,#f3f1ec);}
+.im-chat-search-snip{font-size:14px;line-height:1.4;}
+.im-rich-kind-chip{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--accent,#5b7c6a) 14%,transparent);color:var(--accent-deep,#2f4a3a);}
+.im-msg-popover-phrase{appearance:none;border:0;background:rgba(255,255,255,.1);color:#fff;padding:6px 10px;border-radius:10px;font-size:12px;cursor:pointer;white-space:nowrap;}
+.im-msg-popover-emojis.is-extra{flex-wrap:wrap;padding-top:4px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:6px;margin-bottom:2px;}

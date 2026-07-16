@@ -42,6 +42,12 @@ import {
   rememberMediaFile,
   takeMediaFile,
 } from '@/lib/im_send_queue';
+import { ImChatSearch } from '@/components/social/ImChatSearch';
+import {
+  GROUP_CANNED_PHRASES,
+  GROUP_EMOJIS,
+  cannedPhraseLabel,
+} from '@/lib/group_reactions';
 import { useFocusMessage } from '@/lib/use_focus_message';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { useOnline } from '@/lib/use_online';
@@ -51,7 +57,16 @@ type LocalDm = DmMessage & {
   pending?: boolean;
   sendFailed?: boolean;
   retryText?: string;
+  reactions?: Record<string, string[]>;
 };
+
+const QUICK_EMOJIS = [...GROUP_EMOJIS];
+const QUICK_PHRASES = GROUP_CANNED_PHRASES.map((p) => ({ key: p.key, label: p.label }));
+
+function reactionCount(reactions: Record<string, string[]> | null | undefined): number {
+  if (!reactions) return 0;
+  return Object.values(reactions).reduce((n, users) => n + users.length, 0);
+}
 
 function formatSize(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return '';
@@ -64,7 +79,13 @@ function DmThreadPageInner() {
   const { id } = useParams<{ id: string }>();
   const searchParams = useSearchParams();
   const focusMsg = searchParams.get('focusMsg');
-  useFocusMessage(focusMsg);
+  const [focusOverride, setFocusOverride] = useState<string | null>(null);
+  const activeFocus = focusOverride || focusMsg;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const hasMoreRef = useRef(false);
+  const loadingMoreRef = useRef(false);
   useEdgeSwipeBack({ href: '/discover' });
   const online = useOnline();
   const threadId = id;
@@ -94,6 +115,7 @@ function DmThreadPageInner() {
     null,
   );
   const listRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const stickBottom = useRef(true);
   const wasOffline = useRef(false);
@@ -112,6 +134,10 @@ function DmThreadPageInner() {
   const [pending, setPending] = useState<PendingAttach | null>(null);
   const msgsRef = useRef(msgs);
   msgsRef.current = msgs;
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
   const sendBodyRef = useRef<
     (body: string, replyId?: string, replaceTempId?: string) => Promise<boolean>
   >(async () => false);
@@ -168,7 +194,7 @@ function DmThreadPageInner() {
   const reload = useCallback(async () => {
     if (!threadId) return;
     try {
-      const r = await api.dmMessages(threadId);
+      const r = await api.dmMessages(threadId, { limit: 50 });
       const incoming = (r.messages || []) as LocalDm[];
       if (r.peer_title) setTitle(r.peer_title);
       if (r.peer_user_id) setPeerUserId(r.peer_user_id);
@@ -190,6 +216,8 @@ function DmThreadPageInner() {
         }
         return merged;
       });
+      hasMoreRef.current = Boolean(r.has_more);
+      setHasMore(Boolean(r.has_more));
       // 已读只在首进/回前台写一次，避免 realtime 刷消息时写放大
       if (!markedReadRef.current) {
         markedReadRef.current = true;
@@ -200,6 +228,36 @@ function DmThreadPageInner() {
       setErr(errorMessage(e, '加载失败'));
     }
   }, [threadId]);
+
+  const loadMore = useCallback(async (): Promise<boolean> => {
+    if (loadingMoreRef.current) return hasMoreRef.current;
+    const cur = msgsRef.current;
+    if (!cur.length || !hasMoreRef.current || !threadId) return false;
+    const oldest = cur[0]?.created_at;
+    if (!oldest) return false;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const r = await api.dmMessages(threadId, { limit: 50, before: oldest });
+      const older = (r.messages || []) as LocalDm[];
+      setMsgs((prev) => {
+        const next = [...older, ...prev];
+        msgsRef.current = next;
+        return next;
+      });
+      hasMoreRef.current = Boolean(r.has_more);
+      setHasMore(Boolean(r.has_more));
+      return Boolean(r.has_more);
+    } catch (e) {
+      setErr(errorMessage(e, '加载更多失败'));
+      return hasMoreRef.current;
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [threadId]);
+
+  useFocusMessage(activeFocus, { loadOlder: loadMore });
 
   useEffect(() => {
     void ensureAccountReady().then(() => setUid(effectiveId() || null));
@@ -244,7 +302,7 @@ function DmThreadPageInner() {
   }, [threadId]);
 
   useEffect(() => {
-    if (!msgs.length || focusMsg) return;
+    if (!msgs.length || activeFocus) return;
     const el = listRef.current;
     const pin = (smooth: boolean) => {
       if (el) {
@@ -263,7 +321,21 @@ function DmThreadPageInner() {
     }
     if (!stickBottom.current) return;
     pin(false);
-  }, [msgs.length, focusMsg]);
+  }, [msgs.length, activeFocus]);
+
+  useEffect(() => {
+    if (!hasMore) return;
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !loadingMoreRef.current) void loadMore();
+      },
+      { root: listRef.current, rootMargin: '120px' },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loadMore]);
 
   useEffect(() => {
     if (!online) {
@@ -529,6 +601,31 @@ function DmThreadPageInner() {
     }
   };
 
+  const react = async (mid: string, emoji: string) => {
+    if (!uid) return;
+    try {
+      await api.reactMessage(mid, emoji);
+      setMsgs((prev) =>
+        prev.map((m) => {
+          if (m.id !== mid) return m;
+          const reactions = { ...(m.reactions || {}) };
+          const users = [...(reactions[emoji] || [])];
+          const i = users.indexOf(uid);
+          if (i >= 0) {
+            users.splice(i, 1);
+            if (users.length) reactions[emoji] = users;
+            else delete reactions[emoji];
+          } else {
+            reactions[emoji] = [...users, uid];
+          }
+          return { ...m, reactions };
+        }),
+      );
+    } catch (e) {
+      setErr(errorMessage(e, '反应发送失败'));
+    }
+  };
+
   const submitReport = async (reason: ReportReason) => {
     if (!reportId) return;
     setReportBusy(true);
@@ -721,10 +818,17 @@ function DmThreadPageInner() {
       <header className="dm-page-head">
         <PageBackBar href="/discover" label="消息" />
         <h1 className="dm-page-title">{title}</h1>
-        {peerUserId && !selectMode ? (
-          <Link href={`/discover/friends/${peerUserId}`} className="dm-page-profile text-link">
-            资料
-          </Link>
+        {!selectMode ? (
+          <div className="group-nav-tools" style={{ borderBottom: 0, padding: 0, justifySelf: 'end' }}>
+            <button type="button" className="font-pill" onClick={() => setSearchOpen(true)}>
+              搜索
+            </button>
+            {peerUserId ? (
+              <Link href={`/discover/friends/${peerUserId}`} className="dm-page-profile text-link">
+                资料
+              </Link>
+            ) : null}
+          </div>
         ) : (
           <span className="dm-page-profile-slot" aria-hidden />
         )}
@@ -757,6 +861,10 @@ function DmThreadPageInner() {
           className="dm-msg-list"
           onScroll={onListScroll}
         >
+          <div ref={loadMoreRef} className="group-feed-load-sentinel" aria-hidden>
+            {loadingMore ? <span className="muted">加载更早消息…</span> : null}
+            {!hasMore && msgs.length > 12 ? <span className="muted">没有更早消息了</span> : null}
+          </div>
           {msgs.length === 0 ? (
             <div className="dm-empty">
               <strong>打个招呼吧</strong>
@@ -784,6 +892,7 @@ function DmThreadPageInner() {
               && prev!.sender_id === m.sender_id;
             const selected = selectedIds.has(m.id);
             const canSelect = selectMode && !m.recalled && !m.pending && !m.id.startsWith('temp-');
+            const reactTotal = reactionCount(m.reactions);
 
             return (
               <div key={m.id} className="dm-msg-block">
@@ -814,6 +923,7 @@ function DmThreadPageInner() {
                     }}
                   />
                 ) : null}
+                <div className="dm-bubble-wrap">
                 <div
                   role="button"
                   tabIndex={0}
@@ -958,6 +1068,27 @@ function DmThreadPageInner() {
                       ) : null}
                     </>
                   )}
+                </div>
+                {reactTotal > 0 && !m.recalled ? (
+                  <div className="group-emoji-bar group-emoji-bar-summary">
+                    {Object.entries(m.reactions || {})
+                      .filter(([, users]) => users.length > 0)
+                      .slice(0, 4)
+                      .map(([e, users]) => (
+                        <button
+                          key={e}
+                          type="button"
+                          className="group-emoji-btn active"
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            void react(m.id, e);
+                          }}
+                        >
+                          {e.startsWith('phrase:') ? cannedPhraseLabel(e) : e} {users.length}
+                        </button>
+                      ))}
+                  </div>
+                ) : null}
                 </div>
                 </div>
               </div>
@@ -1153,6 +1284,13 @@ function DmThreadPageInner() {
           align={actionMine ? 'end' : 'start'}
           actions={actionItems}
           onClose={closeMsgActions}
+          quickEmojis={!actionMsg.pending && !actionMsg.sendFailed ? QUICK_EMOJIS : undefined}
+          phraseKeys={!actionMsg.pending && !actionMsg.sendFailed ? QUICK_PHRASES : undefined}
+          onEmoji={
+            !actionMsg.pending && !actionMsg.sendFailed
+              ? (e) => void react(actionMsg.id, e)
+              : undefined
+          }
         />
       ) : null}
 
@@ -1180,6 +1318,14 @@ function DmThreadPageInner() {
           exitSelectMode();
         }}
         onDone={() => setErr(null)}
+      />
+
+      <ImChatSearch
+        open={searchOpen}
+        scope="dm"
+        refId={threadId}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(mid) => setFocusOverride(mid)}
       />
     </main>
   );

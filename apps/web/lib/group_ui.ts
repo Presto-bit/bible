@@ -35,21 +35,33 @@ export function normalizeGroupDetail(detail: GroupDetail): GroupDetail {
   };
 }
 
+/** 游客占位 / UUID 等不可展示为昵称 */
+export function isPlaceholderDisplayName(s: string | null | undefined): boolean {
+  const t = (s ?? '').trim();
+  if (!t) return true;
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(t)) return true;
+  if (/^用户[0-9a-f]{4,}$/i.test(t)) return true;
+  return false;
+}
+
+/**
+ * 群内展示名：本群昵称优先，其次资料真名；不展示「用户xxxx」占位。
+ */
 export function displayMemberName(m: GroupMember): string {
-  if (m.is_me) {
-    if (typeof window !== 'undefined') {
-      const profile = getDisplayName();
-      if (profile && profile !== '读经伙伴') return profile;
-      const raw = userLsGet('profile_name')?.trim();
-      if (raw) return raw;
+  const groupNick = (m.name ?? '').trim();
+  if (groupNick && !isPlaceholderDisplayName(groupNick)) return groupNick;
+
+  if (m.is_me && typeof window !== 'undefined') {
+    const profile = getDisplayName();
+    if (profile && profile !== '读经伙伴' && !isPlaceholderDisplayName(profile)) {
+      return profile;
     }
+    const raw = userLsGet('profile_name')?.trim();
+    if (raw && !isPlaceholderDisplayName(raw)) return raw;
     return '我';
   }
-  const raw = (m.name ?? '').trim();
-  if (!raw) return '书友';
-  if (/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(raw)) return '书友';
-  if (/^用户[0-9a-f]{4,}$/i.test(raw)) return '书友';
-  return raw;
+
+  return '书友';
 }
 
 export function memberAvatarInitial(m: GroupMember | string | null | undefined): string {
@@ -58,7 +70,7 @@ export function memberAvatarInitial(m: GroupMember | string | null | undefined):
     : m
       ? displayMemberName(m)
       : '';
-  if (!label || label === '书友') return '书';
+  if (!label || label === '书友' || label === '我') return '书';
   return label.slice(0, 1);
 }
 
@@ -106,9 +118,16 @@ export function groupFootprintsBySource(footprints: FootprintRef[]): {
   })).filter((g) => g.items.length > 0);
 }
 
-export function myDisplayName(): string {
+export function myDisplayName(members?: GroupMember[]): string {
+  if (members?.length) {
+    const me = members.find((m) => m.is_me || m.user_id === effectiveId());
+    if (me) {
+      const n = displayMemberName(me);
+      if (n && n !== '书友') return n;
+    }
+  }
   if (typeof window === 'undefined') return '我';
   const name = getDisplayName();
-  if (name && name !== '读经伙伴') return name;
+  if (name && name !== '读经伙伴' && !isPlaceholderDisplayName(name)) return name;
   return '我';
 }

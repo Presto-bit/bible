@@ -89,7 +89,13 @@ export function ImMessageBody({
   };
 
   return (
-    <div className="im-msg-body">
+    <div className={`im-msg-body${kind === 'checkin' || kind === 'task' ? ` is-rich-${kind}` : ''}`}>
+      {kind === 'checkin' ? (
+        <span className="im-rich-kind-chip is-checkin">打卡</span>
+      ) : null}
+      {kind === 'task' ? (
+        <span className="im-rich-kind-chip is-task">任务</span>
+      ) : null}
       {showVerse && verseRef ? (
         href ? (
           <Link href={href} className="im-verse-card" onClick={markReturn}>

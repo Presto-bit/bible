@@ -1049,11 +1049,13 @@ export interface ConversationItem {
 }
 export interface FriendRequestItem {
   id: string;
-  from_user_id: string;
+  from_user_id?: string;
+  to_user_id?: string;
   message?: string | null;
   created_at?: string | null;
   handle?: string | null;
   display_name?: string | null;
+  status?: string | null;
 }
 export interface GroupInviteInboxItem {
   id: string;
@@ -1645,13 +1647,21 @@ export const api = {
     authed<{ thread_id: string; peer_user_id: string }>(`/social/dm/with/${peerId}`, {
       method: 'POST',
     }),
-  dmMessages: (threadId: string, limit = 50) =>
-    authed<{
+  dmMessages: (
+    threadId: string,
+    opts?: { limit?: number; before?: string },
+  ) => {
+    const limit = opts?.limit ?? 50;
+    const q = new URLSearchParams({ limit: String(limit) });
+    if (opts?.before) q.set('before', opts.before);
+    return authed<{
       messages: DmMessage[];
+      has_more?: boolean;
       peer_last_read_at?: string | null;
       peer_user_id?: string;
       peer_title?: string | null;
-    }>(`/social/dm/${threadId}/messages?limit=${limit}`),
+    }>(`/social/dm/${threadId}/messages?${q}`);
+  },
   sendDm: (
     threadId: string,
     body: { body?: string; kind?: string; ref?: string; reply_to_id?: string },
@@ -1688,8 +1698,15 @@ export const api = {
     authed<{ group_max?: string | null; dm_max?: string | null; server_time: string }>(
       '/social/realtime/cursor',
     ),
-  searchMessages: (q: string) =>
-    authed<{
+  searchMessages: (
+    q: string,
+    opts?: { scope?: 'group' | 'dm'; refId?: string; limit?: number },
+  ) => {
+    const params = new URLSearchParams({ q });
+    if (opts?.scope) params.set('scope', opts.scope);
+    if (opts?.refId) params.set('ref_id', opts.refId);
+    if (opts?.limit) params.set('limit', String(opts.limit));
+    return authed<{
       items: Array<{
         scope: string;
         message_id: string;
@@ -1699,7 +1716,8 @@ export const api = {
         snippet: string;
         created_at?: string | null;
       }>;
-    }>(`/social/search/messages?q=${encodeURIComponent(q)}`),
+    }>(`/social/search/messages?${params}`);
+  },
   uploadSocialMedia: (
     file: File,
     opts?: { onProgress?: (pct: number) => void },
@@ -1817,6 +1835,7 @@ export interface DmMessage {
   recalled?: boolean;
   created_at?: string | null;
   mine?: boolean;
+  reactions?: Record<string, string[]>;
   attachments?: Array<{
     id: string;
     file_name?: string | null;

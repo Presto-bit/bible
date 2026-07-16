@@ -7,9 +7,10 @@ import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
   GROUP_EMOJIS,
+  GROUP_CANNED_PHRASES,
   cannedPhraseLabel,
 } from '@/lib/group_reactions';
-import { formatDueCountdown, localDayKey } from '@/lib/group_ui';
+import { formatDueCountdown, isPlaceholderDisplayName, localDayKey } from '@/lib/group_ui';
 import {
   canRecallOwnMessage,
   copyMessageText,
@@ -27,7 +28,8 @@ import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/Im
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { MemberAvatar } from './MemberAvatar';
 
-const QUICK_EMOJIS = GROUP_EMOJIS.slice(0, 6);
+const QUICK_EMOJIS = [...GROUP_EMOJIS];
+const QUICK_PHRASES = GROUP_CANNED_PHRASES.map((p) => ({ key: p.key, label: p.label }));
 const TIME_GAP_MS = 5 * 60 * 1000;
 
 function isTaskCompleteCheckin(m: GroupMessage): boolean {
@@ -89,6 +91,7 @@ type BubbleProps = {
   onRecall?: (mid: string) => void;
   onCompleteTask?: (taskId: string, title: string, ref?: string | null) => void;
   onResend?: (m: GroupMessage) => void;
+  onForward?: (m: GroupMessage) => void;
   onOpenImages: (images: ImLightboxImage[], index: number) => void;
 };
 
@@ -106,6 +109,7 @@ function ChatBubble({
   onRecall,
   onCompleteTask,
   onResend,
+  onForward,
   onOpenImages,
 }: BubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -238,6 +242,13 @@ function ChatBubble({
           },
         });
       }
+      if (onForward && (m.body || m.ref) && !m.recalled) {
+        items.push({
+          id: 'forward',
+          label: '转发',
+          onClick: () => onForward(m),
+        });
+      }
       if (showRecall && onRecall) {
         items.push({
           id: 'recall',
@@ -281,7 +292,9 @@ function ChatBubble({
         {showName ? (
           <div className="group-chat-meta-line">
             <span className="group-chat-name">
-              {m.mine ? m.author || '我' : m.author || '群友'}
+              {m.mine
+                ? (isPlaceholderDisplayName(m.author) ? '我' : m.author || '我')
+                : (isPlaceholderDisplayName(m.author) ? '书友' : m.author || '书友')}
             </span>
             {m.created_at ? (
               <time className="group-chat-time" dateTime={m.created_at}>
@@ -448,6 +461,7 @@ function ChatBubble({
             actions={actionItems}
             onClose={closeActions}
             quickEmojis={!m.pending && !m.sendFailed ? QUICK_EMOJIS : undefined}
+            phraseKeys={!m.pending && !m.sendFailed ? QUICK_PHRASES : undefined}
             onEmoji={!m.pending && !m.sendFailed ? (e) => onReact(m.id, e) : undefined}
           />
         ) : null}
@@ -477,6 +491,7 @@ type Props = {
   onRecall?: (mid: string) => void;
   onCompleteTask?: (taskId: string, title: string, ref?: string | null) => void;
   onResend?: (m: GroupMessage) => void;
+  onForward?: (m: GroupMessage) => void;
 };
 
 export function GroupActivityFeed({
@@ -494,6 +509,7 @@ export function GroupActivityFeed({
   onRecall,
   onCompleteTask,
   onResend,
+  onForward,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [lightbox, setLightbox] = useState<{ images: ImLightboxImage[]; index: number } | null>(
@@ -602,6 +618,7 @@ export function GroupActivityFeed({
               onRecall={onRecall}
               onCompleteTask={onCompleteTask}
               onResend={onResend}
+              onForward={onForward}
               onOpenImages={openImages}
             />
           </div>

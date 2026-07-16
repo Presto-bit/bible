@@ -10,8 +10,12 @@ import { GroupPageSkeleton } from '@/components/group/GroupPageSkeleton';
 import { GroupSettingsSheet } from '@/components/group/GroupSettingsSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupCoreadStickyBar } from '@/components/group/GroupCoreadStickyBar';
+import { GroupAnnounceBar } from '@/components/group/GroupAnnounceBar';
+import { GroupPinnedTaskBar } from '@/components/group/GroupPinnedTaskBar';
 import { GroupToast } from '@/components/group/GroupToast';
 import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet';
+import { ForwardPickerSheet, type ForwardPayload } from '@/components/social/ForwardPickerSheet';
+import { ImChatSearch } from '@/components/social/ImChatSearch';
 import ErrorBanner from '@/components/ErrorBanner';
 import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
@@ -35,14 +39,20 @@ function GroupPageInner() {
   const online = useOnline();
   const searchParams = useSearchParams();
   const focusMsg = searchParams.get('focusMsg');
-  useFocusMessage(focusMsg);
+  const [focusOverride, setFocusOverride] = useState<string | null>(null);
+  const activeFocus = focusOverride || focusMsg;
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [forwardItems, setForwardItems] = useState<ForwardPayload[] | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const hasMoreRef = useRef(false);
+  const feedRef = useRef<GroupMessage[]>([]);
+  const loadingMoreRef = useRef(false);
   const params = useParams<{ id: string }>();
   const rawId = params.id;
   const gid = Array.isArray(rawId) ? rawId[0] : rawId ?? '';
   const [detail, setDetail] = useState<GroupDetail | null>(null);
   const [feed, setFeed] = useState<GroupMessage[]>([]);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -106,6 +116,7 @@ function GroupPageInner() {
         return merged;
       });
       setHasMore(Boolean(f.has_more));
+      hasMoreRef.current = Boolean(f.has_more);
       setErr(null);
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
@@ -248,20 +259,41 @@ function GroupPageInner() {
     }
   }, [settingsOpen]);
 
-  const loadMore = async () => {
-    if (!feed.length || loadingMore) return;
+  const loadMore = useCallback(async (): Promise<boolean> => {
+    if (loadingMoreRef.current) return hasMoreRef.current;
+    const cur = feedRef.current;
+    if (!cur.length || !hasMoreRef.current) return false;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
-      const f = await api.groupFeed(gid, { before: feed[0].created_at });
+      const f = await api.groupFeed(gid, { before: cur[0]!.created_at });
       const older = Array.isArray(f.messages) ? f.messages : [];
-      setFeed((prev) => [...older, ...prev]);
-      setHasMore(f.has_more);
+      setFeed((prev) => {
+        const next = [...older, ...prev];
+        feedRef.current = next;
+        return next;
+      });
+      hasMoreRef.current = Boolean(f.has_more);
+      setHasMore(Boolean(f.has_more));
+      return Boolean(f.has_more);
     } catch {
       showToast(errorMessage(null, '加载更多失败，请稍后再试'));
+      return hasMoreRef.current;
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  };
+  }, [gid, showToast]);
+
+  useFocusMessage(activeFocus, { loadOlder: loadMore });
+
+  useEffect(() => {
+    feedRef.current = feed;
+  }, [feed]);
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
 
   const appendOptimisticCheckin = (payload: {
     ref?: string;
@@ -285,7 +317,7 @@ function GroupPageInner() {
     markGroupsListDirty();
     const temp: GroupMessage = {
       id: `temp-${Date.now()}`,
-      author: myDisplayName(),
+      author: myDisplayName(detail?.members),
       mine: true,
       kind: 'checkin',
       ref: payload.ref,
@@ -487,7 +519,7 @@ function GroupPageInner() {
   }) => {
     const temp: GroupMessage = {
       id: `temp-${Date.now()}`,
-      author: myDisplayName(),
+      author: myDisplayName(detail?.members),
       mine: true,
       kind: payload.kind || 'chat',
       body: payload.body,
@@ -667,9 +699,37 @@ function GroupPageInner() {
     <main className="group-page group-page-checkin">
       <div className="group-checkin-nav-fixed">
         <GroupNavBar detail={safeDetail} onOpenSettings={() => setSettingsOpen(true)} />
+        <div className="group-nav-tools">
+          <button type="button" className="font-pill" onClick={() => setSearchOpen(true)}>
+            搜索
+          </button>
+        </div>
+        <GroupAnnounceBar
+          text={safeDetail.announcement || ''}
+          onOpen={() => setSettingsOpen(true)}
+        />
       </div>
 
       <div className="group-checkin-scroll" ref={feedWrapRef}>
+        {(() => {
+          const pinned =
+            tasks.find((t) => t.id === safeDetail.pinned_task_id)
+            || tasks.find((t) => t.pinned);
+          return pinned ? (
+            <GroupPinnedTaskBar
+              gid={gid}
+              task={pinned}
+              onComplete={(taskId, title, ref) => {
+                setTaskComplete({
+                  taskId,
+                  title,
+                  ref,
+                  completion_rule: pinned.completion_rule,
+                });
+              }}
+            />
+          ) : null;
+        })()}
         <GroupCoreadStickyBar
           detail={safeDetail}
           tasks={tasks}
@@ -702,6 +762,9 @@ function GroupPageInner() {
                 replyToId: m.reply_to_id || undefined,
                 mentions: m.mentions,
               });
+            }}
+            onForward={(m) => {
+              setForwardItems([{ body: m.body, kind: m.kind, ref: m.ref }]);
             }}
           />
           <div ref={feedEndRef} />
@@ -802,6 +865,21 @@ function GroupPageInner() {
         busy={reportBusy}
         onClose={() => setReportMid(null)}
         onSubmit={submitReport}
+      />
+
+      <ImChatSearch
+        open={searchOpen}
+        scope="group"
+        refId={gid}
+        onClose={() => setSearchOpen(false)}
+        onSelect={(mid) => setFocusOverride(mid)}
+      />
+
+      <ForwardPickerSheet
+        open={Boolean(forwardItems?.length)}
+        items={forwardItems || []}
+        onClose={() => setForwardItems(null)}
+        onDone={(label) => showToast(`已转发到 ${label}`)}
       />
 
       <GroupToast message={toast} />
