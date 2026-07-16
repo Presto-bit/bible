@@ -8,6 +8,7 @@ import {
   api,
   effectiveId,
   ensureAccountReady,
+  getDisplayName,
   type ConversationItem,
   type Friend,
   type FriendRequestItem,
@@ -17,7 +18,7 @@ import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { friendDisplayName } from '@/lib/friend_label';
-import { friendRemarkOrName } from '@/lib/friend_remarks';
+import { FRIEND_REMARKS_EVENT, dmTitleWithRemark, friendRemarkOrName } from '@/lib/friend_remarks';
 import { formatConvListTime } from '@/lib/im_ui';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -53,6 +54,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [searchBusy, setSearchBusy] = useState(false);
   const [friendQ, setFriendQ] = useState('');
   const [plusOpen, setPlusOpen] = useState(false);
+  const [remarkTick, setRemarkTick] = useState(0);
+  const [myPlusId, setMyPlusId] = useState('');
+  const [myPlusName, setMyPlusName] = useState('');
+  const [plusCopyHint, setPlusCopyHint] = useState('');
   const plusRef = useRef<HTMLDivElement | null>(null);
   const messagesLoadedRef = useRef(false);
   const friendsLoadedRef = useRef(false);
@@ -66,7 +71,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       const raw = (f.display_name || '').toLowerCase();
       return name.includes(q) || handle.includes(q) || raw.includes(q);
     });
-  }, [friends, friendQ]);
+  }, [friends, friendQ, remarkTick]);
 
   const reload = useCallback(async () => {
     const gen = ++reloadGenRef.current;
@@ -116,6 +121,26 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     if (!paneActive) return;
     void ensureAccountReady().then(() => setUid(effectiveId() || null));
   }, [paneActive]);
+
+  useEffect(() => {
+    const onRemark = () => setRemarkTick((n) => n + 1);
+    window.addEventListener(FRIEND_REMARKS_EVENT, onRemark);
+    return () => window.removeEventListener(FRIEND_REMARKS_EVENT, onRemark);
+  }, []);
+
+  useEffect(() => {
+    if (!plusOpen) return;
+    setMyPlusId(effectiveId() || '');
+    setMyPlusName(getDisplayName() || '');
+    void api.socialMe()
+      .then((me) => {
+        if (me.user_id) setMyPlusId(me.user_id);
+        if (me.display_name?.trim()) setMyPlusName(me.display_name.trim());
+      })
+      .catch(() => {
+        /* ignore */
+      });
+  }, [plusOpen]);
 
   useEffect(() => {
     if (!paneActive || typeof window === 'undefined') return;
@@ -233,7 +258,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const hideConversation = async (it: ConversationItem) => {
     const ok = await confirm({
       title: '删除会话',
-      message: `将「${it.title}」从消息列表移除？有新消息时会再次出现，聊天记录不会删除。`,
+      message: `将「${
+        it.scope === 'dm' ? dmTitleWithRemark(it.peer_user_id, it.title) : it.title
+      }」从消息列表移除？有新消息时会再次出现，聊天记录不会删除。`,
       confirmLabel: '删除',
       danger: true,
     });
@@ -347,6 +374,25 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
               >
                 加好友
               </button>
+              <div className="discover-im-plus-me" aria-label="我的信息">
+                <span className="muted">我的信息</span>
+                <strong>{myPlusName || '读经伙伴'}</strong>
+                <button
+                  type="button"
+                  className="discover-im-plus-me-id"
+                  onClick={() => {
+                    if (!myPlusId) return;
+                    void navigator.clipboard?.writeText(myPlusId).then(
+                      () => setPlusCopyHint('已复制用户 ID'),
+                      () => setPlusCopyHint('复制失败'),
+                    );
+                    window.setTimeout(() => setPlusCopyHint(''), 1800);
+                  }}
+                >
+                  ID {myPlusId || '…'}
+                </button>
+                {plusCopyHint ? <span className="muted">{plusCopyHint}</span> : null}
+              </div>
             </div>
           ) : null}
         </div>
@@ -399,6 +445,11 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
             {items.map((it) => {
               const key = `${it.scope}:${it.ref_id}`;
               const canState = it.scope === 'group' || it.scope === 'dm';
+              const title =
+                it.scope === 'dm'
+                  ? dmTitleWithRemark(it.peer_user_id, it.title)
+                  : it.title;
+              void remarkTick;
               const row = (
                 <div className="discover-conv-row">
                   <span className={`discover-conv-avatar scope-${it.scope}`} aria-hidden>
@@ -408,7 +459,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                     <div className="discover-conv-title-row">
                       <div className="discover-conv-title-left">
                         {it.pinned ? <span className="discover-conv-pin">置顶</span> : null}
-                        <strong>{it.title}</strong>
+                        <strong>{title}</strong>
                         {it.muted ? <span className="discover-conv-mute">静音</span> : null}
                       </div>
                       {it.updated_at && (it.scope === 'group' || it.scope === 'dm') ? (

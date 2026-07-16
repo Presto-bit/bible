@@ -1,5 +1,6 @@
 import { effectiveId, getDisplayName, type GroupDetail, type GroupMember, type GroupTask } from './api';
 import type { FootprintRef } from './group_footprint';
+import { getFriendRemark } from './friend_remarks';
 import { userLsGet } from './user_storage';
 
 export function asGroupMembers(v: unknown): GroupMember[] {
@@ -45,9 +46,14 @@ export function isPlaceholderDisplayName(s: string | null | undefined): boolean 
 }
 
 /**
- * 群内展示名：本群昵称优先，其次资料真名；不展示「用户xxxx」占位。
+ * 群内展示名：好友备注 > 本群昵称 > 资料真名；不展示「用户xxxx」占位。
  */
 export function displayMemberName(m: GroupMember): string {
+  if (!m.is_me && m.user_id) {
+    const remark = getFriendRemark(m.user_id);
+    if (remark) return remark;
+  }
+
   const groupNick = (m.name ?? '').trim();
   if (groupNick && !isPlaceholderDisplayName(groupNick)) return groupNick;
 

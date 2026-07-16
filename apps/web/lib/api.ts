@@ -1632,6 +1632,8 @@ export const api = {
   declineGroupInvite: (id: string) =>
     authed<{ ok: boolean }>(`/social/invites/${id}/decline`, { method: 'POST' }),
   friends: () => authed<{ friends: Friend[] }>('/social/friends'),
+  socialMe: () =>
+    authed<{ user_id: string; handle?: string | null; display_name?: string | null }>('/social/me'),
   conversations: () => authed<{ items: ConversationItem[] }>('/social/conversations'),
   friendRequests: () =>
     authed<{ incoming: FriendRequestItem[]; outgoing: FriendRequestItem[] }>(

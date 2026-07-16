@@ -34,6 +34,7 @@ import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
+import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
 import {
   dequeueFailedText,
   enqueueFailedText,
@@ -91,6 +92,7 @@ function DmThreadPageInner() {
   const threadId = id;
   const [uid, setUid] = useState<string | null>(null);
   const [title, setTitle] = useState('私信');
+  const [peerTitleRaw, setPeerTitleRaw] = useState('私信');
   const [peerUserId, setPeerUserId] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<LocalDm[]>([]);
   const [text, setText] = useState('');
@@ -138,6 +140,15 @@ function DmThreadPageInner() {
   useEffect(() => {
     hasMoreRef.current = hasMore;
   }, [hasMore]);
+
+  useEffect(() => {
+    if (!peerUserId) return;
+    const sync = () => setTitle(dmTitleWithRemark(peerUserId, peerTitleRaw));
+    sync();
+    window.addEventListener(FRIEND_REMARKS_EVENT, sync);
+    return () => window.removeEventListener(FRIEND_REMARKS_EVENT, sync);
+  }, [peerUserId, peerTitleRaw]);
+
   const sendBodyRef = useRef<
     (body: string, replyId?: string, replaceTempId?: string) => Promise<boolean>
   >(async () => false);
@@ -196,8 +207,12 @@ function DmThreadPageInner() {
     try {
       const r = await api.dmMessages(threadId, { limit: 50 });
       const incoming = (r.messages || []) as LocalDm[];
-      if (r.peer_title) setTitle(r.peer_title);
       if (r.peer_user_id) setPeerUserId(r.peer_user_id);
+      if (r.peer_title || r.peer_user_id) {
+        const raw = r.peer_title || '私信';
+        setPeerTitleRaw(raw);
+        setTitle(dmTitleWithRemark(r.peer_user_id, raw));
+      }
       setMsgs((prev) => {
         const temps = prev.filter((m) => m.id.startsWith('temp-'));
         if (!temps.length) return incoming;
@@ -819,15 +834,25 @@ function DmThreadPageInner() {
         <PageBackBar href="/discover" label="消息" />
         <h1 className="dm-page-title">{title}</h1>
         {!selectMode ? (
-          <div className="group-nav-tools" style={{ borderBottom: 0, padding: 0, justifySelf: 'end' }}>
-            <button type="button" className="font-pill" onClick={() => setSearchOpen(true)}>
-              搜索
+          <div className="dm-page-actions">
+            <button
+              type="button"
+              className="icon-btn dm-page-search"
+              aria-label="搜索聊天记录"
+              onClick={() => setSearchOpen(true)}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="11" cy="11" r="6.5" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M16.2 16.2L20 20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
             </button>
             {peerUserId ? (
               <Link href={`/discover/friends/${peerUserId}`} className="dm-page-profile text-link">
                 资料
               </Link>
-            ) : null}
+            ) : (
+              <span className="dm-page-profile-slot" aria-hidden />
+            )}
           </div>
         ) : (
           <span className="dm-page-profile-slot" aria-hidden />

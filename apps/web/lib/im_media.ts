@@ -12,7 +12,12 @@ export function collectMessageImages(
   const out: { src: string; alt?: string }[] = [];
   for (const a of attachments) {
     if (!a.url) continue;
-    const isImg = (a.mime || '').startsWith('image/') || kind === 'image';
+    const name = (a.file_name || a.url || '').toLowerCase();
+    const byExt = /\.(png|jpe?g|gif|webp|heic|bmp)(\?|$)/i.test(name);
+    const isImg =
+      (a.mime || '').startsWith('image/')
+      || kind === 'image'
+      || byExt;
     if (!isImg) continue;
     out.push({ src: contentAssetUrl(a.url), alt: a.file_name || '图片' });
   }

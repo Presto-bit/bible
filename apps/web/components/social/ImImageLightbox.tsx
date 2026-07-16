@@ -17,6 +17,8 @@ type Props = {
 
 const MIN_SCALE = 1;
 const MAX_SCALE = 4;
+/** 打开后短暂忽略关闭手势，避免点缩略图的同一次触摸打穿关闭层。 */
+const OPEN_GUARD_MS = 420;
 
 /** 轻量图片预览：双指缩放、双击放大、滑动切图、下滑关闭。 */
 export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props) {
@@ -24,6 +26,7 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
   const [scale, setScale] = useState(1);
   const [tx, setTx] = useState(0);
   const [ty, setTy] = useState(0);
+  const [broken, setBroken] = useState(false);
   const scaleRef = useRef(1);
   const txRef = useRef(0);
   const tyRef = useRef(0);
@@ -33,6 +36,14 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
   const swipeStart = useRef<{ x: number; y: number; t: number } | null>(null);
   const lastTap = useRef(0);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const openedAt = useRef(Date.now());
+
+  const canClose = () => Date.now() - openedAt.current >= OPEN_GUARD_MS;
+
+  const requestClose = useCallback(() => {
+    if (!canClose()) return;
+    onClose();
+  }, [onClose]);
 
   const setTransform = (s: number, x: number, y: number) => {
     scaleRef.current = s;
@@ -46,14 +57,19 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
   const resetTransform = useCallback(() => setTransform(1, 0, 0), []);
 
   useEffect(() => {
+    openedAt.current = Date.now();
+  }, []);
+
+  useEffect(() => {
     resetTransform();
+    setBroken(false);
   }, [safeIndex, resetTransform]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') requestClose();
       if (e.key === 'ArrowLeft' && safeIndex > 0) onIndexChange?.(safeIndex - 1);
       if (e.key === 'ArrowRight' && safeIndex < images.length - 1) onIndexChange?.(safeIndex + 1);
     };
@@ -62,13 +78,13 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
       document.body.style.overflow = prev;
       window.removeEventListener('keydown', onKey);
     };
-  }, [onClose, onIndexChange, safeIndex, images.length]);
+  }, [requestClose, onIndexChange, safeIndex, images.length]);
 
   const pointerDist = () => {
     const pts = [...pointers.current.values()];
     if (pts.length < 2) return 0;
     const [a, b] = pts;
-    return Math.hypot(a.x - b.x, a.y - b.y);
+    return Math.hypot(a!.x - b!.x, a!.y - b!.y);
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -121,12 +137,12 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
       const swipe = swipeStart.current;
       panStart.current = null;
       swipeStart.current = null;
-      if (swipe && scaleRef.current <= 1.01) {
+      if (swipe && scaleRef.current <= 1.01 && canClose()) {
         const dx = e.clientX - swipe.x;
         const dy = e.clientY - swipe.y;
         const dt = Date.now() - swipe.t;
         if (dt < 500 && Math.abs(dy) > 80 && Math.abs(dy) > Math.abs(dx) * 1.2) {
-          onClose();
+          requestClose();
           return;
         }
         if (dt < 450 && Math.abs(dx) > 56 && Math.abs(dx) > Math.abs(dy) * 1.2) {
@@ -166,12 +182,17 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
   return (
     <AppBodyPortal>
       <div className="im-lightbox" role="dialog" aria-modal="true" aria-label="图片预览">
-        <button type="button" className="im-lightbox-backdrop" aria-label="关闭" onClick={onClose} />
+        <button
+          type="button"
+          className="im-lightbox-backdrop"
+          aria-label="关闭"
+          onClick={requestClose}
+        />
         <div className="im-lightbox-chrome">
           <span className="im-lightbox-count">
             {images.length > 1 ? `${safeIndex + 1} / ${images.length}` : '预览'}
           </span>
-          <button type="button" className="im-lightbox-close" onClick={onClose}>
+          <button type="button" className="im-lightbox-close" onClick={requestClose}>
             关闭
           </button>
         </div>
@@ -186,25 +207,34 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
               e.preventDefault();
               return;
             }
-            // 单击空白关闭（点在图片上不关，靠双击缩放）
-            if (e.target === e.currentTarget) onClose();
+            if (e.target === e.currentTarget) requestClose();
           }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            ref={imgRef}
-            src={current.src}
-            alt={current.alt || '图片'}
-            className="im-lightbox-img"
-            draggable={false}
-            style={{
-              transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              onDoubleTap(e);
-            }}
-          />
+          {broken ? (
+            <div className="im-lightbox-broken">
+              <p>图片暂时无法加载</p>
+              <a href={current.src} target="_blank" rel="noreferrer" className="im-lightbox-open-tab">
+                在新标签打开
+              </a>
+            </div>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              ref={imgRef}
+              src={current.src}
+              alt={current.alt || '图片'}
+              className="im-lightbox-img"
+              draggable={false}
+              style={{
+                transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
+              }}
+              onError={() => setBroken(true)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDoubleTap(e);
+              }}
+            />
+          )}
         </div>
         {images.length > 1 ? (
           <div className="im-lightbox-nav">

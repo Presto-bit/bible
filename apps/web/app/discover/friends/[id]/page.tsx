@@ -31,6 +31,7 @@ export default function FriendProfilePage() {
   const [err, setErr] = useState<string | null>(null);
   const [remark, setRemark] = useState('');
   const [editingRemark, setEditingRemark] = useState(false);
+  const [remarkTick, setRemarkTick] = useState(0);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
   const [dmBusy, setDmBusy] = useState(false);
@@ -62,9 +63,10 @@ export default function FriendProfilePage() {
     [groups],
   );
 
-  const displayName = friend
-    ? friendRemarkOrName(friend.user_id, friendDisplayName(friend))
-    : '好友';
+  const displayName = useMemo(() => {
+    if (!friend) return '好友';
+    return friendRemarkOrName(friend.user_id, friendDisplayName(friend));
+  }, [friend, remarkTick]);
 
   const onDelete = async () => {
     const ok = await confirm({
@@ -127,9 +129,13 @@ export default function FriendProfilePage() {
             <FriendAvatar friend={friend} size={52} />
             <div className="friend-profile-card-text">
               <strong>{displayName}</strong>
-              {friend.handle && (
+              {getFriendRemark(friend.user_id) ? (
+                <p className="muted friend-profile-handle">
+                  昵称 {friendDisplayName(friend)}
+                </p>
+              ) : friend.handle ? (
                 <p className="muted friend-profile-handle">@{friend.handle}</p>
-              )}
+              ) : null}
             </div>
           </div>
           <div className="friend-profile-card-actions">
@@ -155,7 +161,7 @@ export default function FriendProfilePage() {
               删除
             </button>
           </div>
-          {editingRemark ? (
+              {editingRemark ? (
             <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <input
                 className="search-input"
@@ -169,6 +175,8 @@ export default function FriendProfilePage() {
                 className="btn"
                 onClick={() => {
                   setFriendRemark(friendId, remark);
+                  setRemark(getFriendRemark(friendId));
+                  setRemarkTick((n) => n + 1);
                   setEditingRemark(false);
                 }}
               >

@@ -1,10 +1,15 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
-import { api } from '@/lib/api';
+import {
+  api,
+  effectiveId,
+  ensureAccountReady,
+  getDisplayName,
+} from '@/lib/api';
 
 export default function AddFriendPage() {
   useEdgeSwipeBack({ href: '/discover' });
@@ -17,6 +22,41 @@ export default function AddFriendPage() {
   const [busy, setBusy] = useState(false);
   const [donePeer, setDonePeer] = useState<string | null>(null);
   const [doneDm, setDoneDm] = useState<string | null>(null);
+  const [myId, setMyId] = useState('');
+  const [myHandle, setMyHandle] = useState<string | null>(null);
+  const [myName, setMyName] = useState('');
+  const [copyHint, setCopyHint] = useState('');
+
+  useEffect(() => {
+    void ensureAccountReady()
+      .then(async () => {
+        setMyId(effectiveId() || '');
+        setMyName(getDisplayName() || '');
+        try {
+          const me = await api.socialMe();
+          if (me.user_id) setMyId(me.user_id);
+          if (me.handle) setMyHandle(me.handle);
+          if (me.display_name?.trim()) setMyName(me.display_name.trim());
+        } catch {
+          /* 本地身份兜底即可 */
+        }
+      })
+      .catch(() => {
+        setMyId(effectiveId() || '');
+        setMyName(getDisplayName() || '');
+      });
+  }, []);
+
+  const copyText = async (text: string, label: string) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyHint(`已复制${label}`);
+    } catch {
+      setCopyHint('复制失败，请长按手动复制');
+    }
+    window.setTimeout(() => setCopyHint(''), 2000);
+  };
 
   const submit = async () => {
     const h = handle.trim();
@@ -68,7 +108,7 @@ export default function AddFriendPage() {
   };
 
   return (
-    <main className="container">
+    <main className="container add-friend-page">
       <header className="page-head">
         <PageBackBar href="/discover" label="发现" />
         <h2 className="page-head-title">加好友</h2>
@@ -127,6 +167,48 @@ export default function AddFriendPage() {
           ) : null}
         </div>
       ) : null}
+
+      <section className="add-friend-my-card" aria-label="我的信息">
+        <div className="add-friend-my-head">
+          <strong>我的信息</strong>
+          <span className="muted">把下面信息发给对方，方便加你</span>
+        </div>
+        <div className="add-friend-my-row">
+          <span className="muted">昵称</span>
+          <strong>{myName || '读经伙伴'}</strong>
+        </div>
+        <div className="add-friend-my-row">
+          <span className="muted">用户 ID</span>
+          <div className="add-friend-my-value">
+            <strong className="add-friend-my-code">{myId || '…'}</strong>
+            {myId ? (
+              <button
+                type="button"
+                className="font-pill"
+                onClick={() => void copyText(myId, '用户 ID')}
+              >
+                复制
+              </button>
+            ) : null}
+          </div>
+        </div>
+        {myHandle ? (
+          <div className="add-friend-my-row">
+            <span className="muted">用户名</span>
+            <div className="add-friend-my-value">
+              <strong>@{myHandle}</strong>
+              <button
+                type="button"
+                className="font-pill"
+                onClick={() => void copyText(myHandle, '用户名')}
+              >
+                复制
+              </button>
+            </div>
+          </div>
+        ) : null}
+        {copyHint ? <p className="muted add-friend-copy-hint">{copyHint}</p> : null}
+      </section>
     </main>
   );
 }

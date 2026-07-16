@@ -748,13 +748,9 @@ function GroupPageInner() {
         <GroupNavBar
           detail={safeDetail}
           onOpenCard={() => setCardOpen(true)}
+          onOpenSearch={() => setSearchOpen(true)}
           onOpenSettings={() => openSettings('home')}
         />
-        <div className="group-nav-tools">
-          <button type="button" className="font-pill" onClick={() => setSearchOpen(true)}>
-            搜索
-          </button>
-        </div>
         <GroupAnnounceBar
           text={safeDetail.announcement || ''}
           onOpen={() => openSettings('profile')}
@@ -902,16 +898,13 @@ function GroupPageInner() {
 
       <GroupProfileCard
         open={cardOpen}
+        groupId={gid}
         detail={safeDetail}
         tasks={tasks}
         messages={feed}
         isOwner={isOwner}
         isStaff={isStaff}
         onClose={() => setCardOpen(false)}
-        onOpenWall={() => {
-          setCardOpen(false);
-          setWallOpen(true);
-        }}
         onCheckin={() => {
           setCardOpen(false);
           setComposerMode('checkin');
@@ -938,6 +931,7 @@ function GroupPageInner() {
             completion_rule: t?.completion_rule,
           });
         }}
+        onReact={react}
       />
 
       <GroupCheckinWallSheet

@@ -10,6 +10,7 @@ import {
   GROUP_CANNED_PHRASES,
   cannedPhraseLabel,
 } from '@/lib/group_reactions';
+import { friendRemarkOrName } from '@/lib/friend_remarks';
 import { formatDueCountdown, isPlaceholderDisplayName, localDayKey } from '@/lib/group_ui';
 import {
   canRecallOwnMessage,
@@ -295,7 +296,10 @@ function ChatBubble({
             <span className="group-chat-name">
               {m.mine
                 ? (isPlaceholderDisplayName(m.author) ? '我' : m.author || '我')
-                : (isPlaceholderDisplayName(m.author) ? '书友' : m.author || '书友')}
+                : friendRemarkOrName(
+                    m.user_id,
+                    isPlaceholderDisplayName(m.author) ? '书友' : m.author || '书友',
+                  )}
             </span>
             {m.created_at ? (
               <time className="group-chat-time" dateTime={m.created_at}>
@@ -377,7 +381,10 @@ function ChatBubble({
                 <div className="group-msg-attach">
                   {m.attachments.map((a) => {
                     const href = a.url ? contentAssetUrl(a.url) : null;
-                    const isImg = (a.mime || '').startsWith('image/') || m.kind === 'image';
+                    const name = (a.file_name || a.url || '').toLowerCase();
+                    const byExt = /\.(png|jpe?g|gif|webp|heic|bmp)(\?|$)/i.test(name);
+                    const isImg =
+                      (a.mime || '').startsWith('image/') || m.kind === 'image' || byExt;
                     if (isImg && href) {
                       const idx = msgImages.findIndex((img) => img.src === href);
                       return (
@@ -385,8 +392,10 @@ function ChatBubble({
                           key={a.id}
                           type="button"
                           className="im-attach-image-btn"
+                          onPointerDown={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
+                            e.preventDefault();
                             onOpenImages(msgImages, idx >= 0 ? idx : 0);
                           }}
                         >

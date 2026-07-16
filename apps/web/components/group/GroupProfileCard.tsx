@@ -2,38 +2,42 @@
 
 import type { GroupDetail, GroupMessage, GroupTask } from '@/lib/api';
 import { displayMemberName, groupMemberCount } from '@/lib/group_ui';
+import { GroupCheckinWall } from './GroupCheckinWall';
 import { MemberAvatar } from './MemberAvatar';
 
 type Props = {
   open: boolean;
+  groupId: string;
   detail: GroupDetail;
   tasks: GroupTask[];
   messages: GroupMessage[];
   isOwner?: boolean;
   isStaff?: boolean;
   onClose: () => void;
-  onOpenWall: () => void;
   onCheckin: () => void;
   onInvite: () => void;
   onOpenSettings: () => void;
   onOpenMembers?: () => void;
   onCompleteTask?: (taskId: string, title: string, ref?: string | null) => void;
+  onReact?: (mid: string, emoji: string) => void;
 };
 
-/** 群名片：主场感入口（非设置）。 */
+/** 群名片：主场感入口（非设置）；打卡墙直接展示。 */
 export function GroupProfileCard({
   open,
+  groupId,
   detail,
   tasks,
   messages,
   isOwner,
+  isStaff,
   onClose,
-  onOpenWall,
   onCheckin,
   onInvite,
   onOpenSettings,
   onOpenMembers,
   onCompleteTask,
+  onReact,
 }: Props) {
   if (!open) return null;
 
@@ -51,19 +55,6 @@ export function GroupProfileCard({
     || tasks.find((t) => t.pinned && !t.completed)
     || tasks.find((t) => !t.completed);
   const members = Array.isArray(detail.members) ? detail.members : [];
-  const todayCheckins = messages.filter(
-    (m) => m.kind === 'checkin' && !m.recalled && !m.id.startsWith('temp-'),
-  );
-  // rough today filter via local date
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-  const todayMs = dayStart.getTime();
-  const todayIds = new Set(
-    todayCheckins
-      .filter((m) => new Date(m.created_at).getTime() >= todayMs)
-      .map((m) => m.user_id)
-      .filter(Boolean) as string[],
-  );
 
   return (
     <div className="sheet-backdrop group-profile-backdrop" onClick={onClose}>
@@ -101,31 +92,19 @@ export function GroupProfileCard({
               <button type="button" className="btn" onClick={() => { onClose(); onCheckin(); }}>
                 我要打卡
               </button>
-            ) : (
-              <button type="button" className="btn btn-ghost" onClick={onOpenWall}>
-                打卡墙
-              </button>
-            )}
+            ) : null}
           </div>
         </section>
 
-        <button type="button" className="group-profile-wall-entry" onClick={onOpenWall}>
-          <div className="group-profile-wall-entry-text">
-            <strong>今日打卡墙</strong>
-            <span className="muted">已打 {checked} 人 · 点开看感想</span>
-          </div>
-          <div className="group-profile-wall-avatars" aria-hidden>
-            {members.slice(0, 5).map((m) => (
-              <span
-                key={m.user_id || displayMemberName(m)}
-                className={`group-profile-wall-av${todayIds.has(m.user_id || '') || m.checked_in_today ? ' is-on' : ''}`}
-              >
-                <MemberAvatar member={m} size={28} />
-              </span>
-            ))}
-          </div>
-          <span className="muted">›</span>
-        </button>
+        <section className="group-profile-block group-profile-wall-block">
+          <GroupCheckinWall
+            groupId={groupId}
+            detail={detail}
+            messages={messages}
+            isOwner={isStaff || isOwner}
+            onReact={onReact}
+          />
+        </section>
 
         {pinned ? (
           <section className="group-profile-block">
@@ -178,15 +157,9 @@ export function GroupProfileCard({
           <button type="button" className="btn" style={{ flex: 1 }} onClick={onInvite}>
             邀请好友
           </button>
-          {isOwner ? (
-            <button type="button" className="btn btn-ghost" onClick={() => { onClose(); onOpenSettings(); }}>
-              群设置
-            </button>
-          ) : (
-            <button type="button" className="btn btn-ghost" onClick={() => { onClose(); onOpenSettings(); }}>
-              设置
-            </button>
-          )}
+          <button type="button" className="btn btn-ghost" onClick={() => { onClose(); onOpenSettings(); }}>
+            {isOwner ? '群设置' : '设置'}
+          </button>
         </div>
       </div>
     </div>
