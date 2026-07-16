@@ -8,7 +8,6 @@ import {
   api,
   effectiveId,
   ensureAccountReady,
-  getDisplayName,
   type ConversationItem,
   type Friend,
   type FriendRequestItem,
@@ -17,11 +16,10 @@ import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
-import { friendDisplayName } from '@/lib/friend_label';
+import { friendDisplayName, friendRequestLabel } from '@/lib/friend_label';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark, friendRemarkOrName } from '@/lib/friend_remarks';
 import { formatConvListTime } from '@/lib/im_ui';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
-import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { timedPerf } from '@/lib/perf_rum';
 
 type SubTab = 'messages' | 'friends';
@@ -37,7 +35,6 @@ type SearchHit = {
 };
 
 export default function DiscoverTab({ paneActive = true }: { paneActive?: boolean }) {
-  const confirm = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
   const online = useOnline();
@@ -55,9 +52,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [friendQ, setFriendQ] = useState('');
   const [plusOpen, setPlusOpen] = useState(false);
   const [remarkTick, setRemarkTick] = useState(0);
-  const [myPlusId, setMyPlusId] = useState('');
-  const [myPlusName, setMyPlusName] = useState('');
-  const [plusCopyHint, setPlusCopyHint] = useState('');
   const plusRef = useRef<HTMLDivElement | null>(null);
   const messagesLoadedRef = useRef(false);
   const friendsLoadedRef = useRef(false);
@@ -127,20 +121,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     window.addEventListener(FRIEND_REMARKS_EVENT, onRemark);
     return () => window.removeEventListener(FRIEND_REMARKS_EVENT, onRemark);
   }, []);
-
-  useEffect(() => {
-    if (!plusOpen) return;
-    setMyPlusId(effectiveId() || '');
-    setMyPlusName(getDisplayName() || '');
-    void api.socialMe()
-      .then((me) => {
-        if (me.user_id) setMyPlusId(me.user_id);
-        if (me.display_name?.trim()) setMyPlusName(me.display_name.trim());
-      })
-      .catch(() => {
-        /* ignore */
-      });
-  }, [plusOpen]);
 
   useEffect(() => {
     if (!paneActive || typeof window === 'undefined') return;
@@ -256,15 +236,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   };
 
   const hideConversation = async (it: ConversationItem) => {
-    const ok = await confirm({
-      title: '删除会话',
-      message: `将「${
-        it.scope === 'dm' ? dmTitleWithRemark(it.peer_user_id, it.title) : it.title
-      }」从消息列表移除？有新消息时会再次出现，聊天记录不会删除。`,
-      confirmLabel: '删除',
-      danger: true,
-    });
-    if (!ok) return;
     await patchState(it, { hidden: true });
   };
 
@@ -374,25 +345,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
               >
                 加好友
               </button>
-              <div className="discover-im-plus-me" aria-label="我的信息">
-                <span className="muted">我的信息</span>
-                <strong>{myPlusName || '读经伙伴'}</strong>
-                <button
-                  type="button"
-                  className="discover-im-plus-me-id"
-                  onClick={() => {
-                    if (!myPlusId) return;
-                    void navigator.clipboard?.writeText(myPlusId).then(
-                      () => setPlusCopyHint('已复制用户 ID'),
-                      () => setPlusCopyHint('复制失败'),
-                    );
-                    window.setTimeout(() => setPlusCopyHint(''), 1800);
-                  }}
-                >
-                  ID {myPlusId || '…'}
-                </button>
-                {plusCopyHint ? <span className="muted">{plusCopyHint}</span> : null}
-              </div>
             </div>
           ) : null}
         </div>
@@ -534,9 +486,22 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 {incoming.map((r) => (
                   <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                      <div>
-                        <strong>{r.display_name || r.handle || r.from_user_id?.slice(0, 8) || '好友'}</strong>
-                        {r.message ? <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{r.message}</p> : null}
+                      <div style={{ minWidth: 0 }}>
+                        <strong>{friendRequestLabel(r)}</strong>
+                        {r.user_code && friendRequestLabel(r) !== `ID ${r.user_code}` ? (
+                          <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
+                            ID {r.user_code}
+                          </p>
+                        ) : r.handle && friendRequestLabel(r) !== `@${r.handle}` ? (
+                          <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
+                            @{r.handle}
+                          </p>
+                        ) : null}
+                        {r.message ? (
+                          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                            附言：{r.message}
+                          </p>
+                        ) : null}
                       </div>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button
@@ -575,9 +540,22 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 {outgoing.map((r) => (
                   <li key={r.id} className="card card-2" style={{ padding: 12, marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center' }}>
-                      <div>
-                        <strong>{r.display_name || r.handle || r.to_user_id?.slice(0, 8) || '好友'}</strong>
-                        {r.message ? <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>{r.message}</p> : null}
+                      <div style={{ minWidth: 0 }}>
+                        <strong>{friendRequestLabel(r)}</strong>
+                        {r.user_code && friendRequestLabel(r) !== `ID ${r.user_code}` ? (
+                          <p className="muted" style={{ margin: '2px 0 0', fontSize: 12 }}>
+                            ID {r.user_code}
+                          </p>
+                        ) : null}
+                        {r.message ? (
+                          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                            附言：{r.message}
+                          </p>
+                        ) : (
+                          <p className="muted" style={{ margin: '4px 0 0', fontSize: 13 }}>
+                            已发送申请，等待对方同意
+                          </p>
+                        )}
                       </div>
                       <span className="muted" style={{ fontSize: 13, flexShrink: 0 }}>待同意</span>
                     </div>
@@ -604,6 +582,11 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
             <ul className="discover-conv-list">
               {filteredFriends.map((f) => {
                 const name = friendRemarkOrName(f.user_id, friendDisplayName(f));
+                const sub = f.handle
+                  ? `@${f.handle}`
+                  : f.user_code
+                    ? `ID ${f.user_code}`
+                    : '查看资料 · 发私信';
                 return (
                   <li key={f.user_id}>
                     <button
@@ -614,9 +597,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                       <FriendAvatar friend={f} size={40} />
                       <div className="discover-conv-main">
                         <strong>{name}</strong>
-                        <p className="muted discover-conv-sub">
-                          {f.handle ? `@${f.handle}` : '查看资料 · 发私信'}
-                        </p>
+                        <p className="muted discover-conv-sub">{sub}</p>
                       </div>
                       <span className="muted" aria-hidden>›</span>
                     </button>

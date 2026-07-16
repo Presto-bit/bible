@@ -810,12 +810,12 @@ def _group_today_stats(conn, gid: str, user_id: str) -> dict:
 
 
 def _member_display_sql(member_alias: str = "m", user_alias: str = "u") -> str:
-    """群昵称 > 用户资料名（排除游客「用户xxxx」占位）> handle。"""
+    """群昵称 > 用户资料名（排除游客/默认占位）> handle。"""
     return (
         "COALESCE("
         f"NULLIF(TRIM({member_alias}.display_name), ''), "
         f"CASE WHEN COALESCE(TRIM({user_alias}.display_name), '') "
-        f"~ '^用户[0-9A-Fa-f]{{4,}}$' THEN NULL "
+        f"~ '^(用户[0-9A-Fa-f]{{4,}}|读经伙伴|群友|书友)$' THEN NULL "
         f"ELSE NULLIF(TRIM({user_alias}.display_name), '') END, "
         f"NULLIF(TRIM({user_alias}.handle), '')"
         ")"
@@ -827,6 +827,8 @@ def _public_label(raw: str | None, fallback: str = "群友") -> str:
     if not n:
         return fallback
     if re.match(r"^用户[0-9a-fA-F]{4,}$", n):
+        return fallback
+    if n in ("读经伙伴", "群友", "书友", "好友"):
         return fallback
     if re.match(r"^[0-9a-f]{8}-[0-9a-f-]{27}$", n, re.I):
         return fallback
@@ -1771,8 +1773,38 @@ def me(user_id: str = Depends(get_current_user)) -> dict:
         row = conn.execute(
             "SELECT handle, display_name FROM users WHERE id = %s", (user_id,)
         ).fetchone()
-    return {"user_id": user_id, "handle": row[0] if row else None,
-            "display_name": row[1] if row else None}
+        code = None
+        try:
+            c = conn.execute(
+                "SELECT user_code FROM accounts WHERE user_id = %s LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if c and c[0]:
+                code = str(c[0])
+        except Exception:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+        if not code:
+            try:
+                c = conn.execute(
+                    "SELECT user_code FROM user_profile WHERE user_id = %s LIMIT 1",
+                    (user_id,),
+                ).fetchone()
+                if c and c[0]:
+                    code = str(c[0])
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+    return {
+        "user_id": user_id,
+        "user_code": code,
+        "handle": row[0] if row else None,
+        "display_name": row[1] if row else None,
+    }
 
 
 @router.post("/friends")
@@ -1798,9 +1830,12 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
     with pool.connection() as conn:
         try:
             rows = conn.execute(
-                "SELECT u.id, u.handle, u.display_name, up.avatar_id FROM friendship f "
+                "SELECT u.id, u.handle, u.display_name, up.avatar_id, "
+                "COALESCE(ac.user_code, up.user_code) AS peer_code "
+                "FROM friendship f "
                 "JOIN users u ON u.id = f.friend_id "
                 "LEFT JOIN user_profile up ON up.user_id = u.id "
+                "LEFT JOIN accounts ac ON ac.user_id = u.id "
                 "WHERE f.user_id = %s "
                 "ORDER BY f.created_at DESC",
                 (user_id,),
@@ -1808,7 +1843,7 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
         except Exception:
             conn.rollback()
             rows = conn.execute(
-                "SELECT u.id, u.handle, u.display_name, NULL FROM friendship f "
+                "SELECT u.id, u.handle, u.display_name, NULL, NULL FROM friendship f "
                 "JOIN users u ON u.id = f.friend_id "
                 "WHERE f.user_id = %s "
                 "ORDER BY u.display_name NULLS LAST, u.handle NULLS LAST",
@@ -1820,6 +1855,7 @@ def list_friends(user_id: str = Depends(get_current_user)) -> dict:
             "handle": r[1],
             "display_name": r[2],
             "avatar_id": r[3],
+            "user_code": str(r[4]) if len(r) > 4 and r[4] else None,
         } for r in rows
     ]}
 

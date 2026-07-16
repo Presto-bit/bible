@@ -6,8 +6,8 @@ export function canRecallOwnMessage(
   opts?: { recalled?: boolean; mine?: boolean; isStaff?: boolean },
 ): boolean {
   if (opts?.recalled) return false;
-  if (!opts?.mine && !opts?.isStaff) return false;
-  if (opts?.isStaff && !opts?.mine) return true;
+  // 仅本人可撤回（群主/管理员也不能撤回他人消息）
+  if (!opts?.mine) return false;
   if (!createdAt) return false;
   const t = new Date(createdAt).getTime();
   if (Number.isNaN(t)) return false;

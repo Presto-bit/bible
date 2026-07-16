@@ -5,13 +5,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import PageBackBar from '@/components/PageBackBar';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
-import { GroupInviteSheet } from '@/components/group/GroupInviteSheet';
 import {
   api,
   effectiveId,
   ensureAccountReady,
   type Friend,
-  type Group,
 } from '@/lib/api';
 import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName, getFriendRemark, setFriendRemark } from '@/lib/friend_remarks';
@@ -27,21 +25,17 @@ export default function FriendProfilePage() {
 
   const [uid, setUid] = useState<string | null>(null);
   const [friend, setFriend] = useState<Friend | null>(null);
-  const [groups, setGroups] = useState<Group[]>([]);
   const [err, setErr] = useState<string | null>(null);
   const [remark, setRemark] = useState('');
   const [editingRemark, setEditingRemark] = useState(false);
   const [remarkTick, setRemarkTick] = useState(0);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteGroup, setInviteGroup] = useState<Group | null>(null);
   const [dmBusy, setDmBusy] = useState(false);
 
   const reload = useCallback(async () => {
     try {
-      const [fRes, gRes] = await Promise.all([api.friends(), api.myGroups()]);
+      const fRes = await api.friends();
       const found = fRes.friends.find((f) => f.user_id === friendId) ?? null;
       setFriend(found);
-      setGroups(gRes.groups);
       if (found) setRemark(getFriendRemark(friendId));
       setErr(found ? null : '未找到该好友');
     } catch (e) {
@@ -58,15 +52,15 @@ export default function FriendProfilePage() {
     void reload();
   }, [uid, friendId, reload]);
 
-  const ownedGroups = useMemo(
-    () => groups.filter((g) => g.role === 'owner' || g.role === 'admin'),
-    [groups],
-  );
+  const originalName = useMemo(() => {
+    if (!friend) return '';
+    return friendDisplayName(friend);
+  }, [friend, remarkTick]);
 
   const displayName = useMemo(() => {
     if (!friend) return '好友';
-    return friendRemarkOrName(friend.user_id, friendDisplayName(friend));
-  }, [friend, remarkTick]);
+    return friendRemarkOrName(friend.user_id, originalName);
+  }, [friend, originalName, remarkTick]);
 
   const onDelete = async () => {
     const ok = await confirm({
@@ -81,16 +75,6 @@ export default function FriendProfilePage() {
     } catch (e) {
       setErr(errorMessage(e, '删除失败'));
     }
-  };
-
-  const openInvite = () => {
-    const g = ownedGroups[0];
-    if (!g) {
-      router.push('/group/create');
-      return;
-    }
-    setInviteGroup(g);
-    setInviteOpen(true);
   };
 
   const openDm = async () => {
@@ -129,12 +113,14 @@ export default function FriendProfilePage() {
             <FriendAvatar friend={friend} size={52} />
             <div className="friend-profile-card-text">
               <strong>{displayName}</strong>
-              {getFriendRemark(friend.user_id) ? (
-                <p className="muted friend-profile-handle">
-                  昵称 {friendDisplayName(friend)}
-                </p>
-              ) : friend.handle ? (
+              {getFriendRemark(friend.user_id) && originalName !== displayName ? (
+                <p className="muted friend-profile-handle">昵称 {originalName}</p>
+              ) : null}
+              {friend.handle ? (
                 <p className="muted friend-profile-handle">@{friend.handle}</p>
+              ) : null}
+              {friend.user_code ? (
+                <p className="muted friend-profile-handle">ID {friend.user_code}</p>
               ) : null}
             </div>
           </div>
@@ -147,9 +133,6 @@ export default function FriendProfilePage() {
             >
               {dmBusy ? '打开中…' : '发私信'}
             </button>
-            <button type="button" className="friend-action-btn" onClick={openInvite}>
-              邀请到群
-            </button>
             <button
               type="button"
               className="friend-action-btn"
@@ -161,7 +144,7 @@ export default function FriendProfilePage() {
               删除
             </button>
           </div>
-              {editingRemark ? (
+          {editingRemark ? (
             <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <input
                 className="search-input"
@@ -184,25 +167,7 @@ export default function FriendProfilePage() {
               </button>
             </div>
           ) : null}
-          <p className="muted" style={{ marginTop: 14, fontSize: 12, lineHeight: 1.5 }}>
-            好友关系用于私信与邀请入群。
-          </p>
         </div>
-      )}
-
-      {inviteOpen && inviteGroup && friend && (
-        <GroupInviteSheet
-          gid={inviteGroup.id}
-          groupName={inviteGroup.name}
-          joinCode={inviteGroup.join_code}
-          memberUserIds={[]}
-          preselectIds={[friend.user_id]}
-          onClose={() => setInviteOpen(false)}
-          onInvited={() => {
-            setInviteOpen(false);
-            void reload();
-          }}
-        />
       )}
     </main>
   );

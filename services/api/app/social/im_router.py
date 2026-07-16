@@ -636,9 +636,12 @@ def list_friend_requests(user_id: str = Depends(get_current_user)) -> dict:
         with pool.connection() as conn:
             incoming = conn.execute(
                 """
-                SELECT r.id, r.from_user_id, r.message, r.created_at, u.handle, u.display_name
+                SELECT r.id, r.from_user_id, r.message, r.created_at, u.handle, u.display_name,
+                       COALESCE(ac.user_code, up.user_code) AS peer_code
                 FROM friend_request r
                 JOIN users u ON u.id = r.from_user_id
+                LEFT JOIN accounts ac ON ac.user_id = r.from_user_id
+                LEFT JOIN user_profile up ON up.user_id = r.from_user_id
                 WHERE r.to_user_id = %s AND r.status = 'pending'
                 ORDER BY r.created_at DESC
                 """,
@@ -646,9 +649,13 @@ def list_friend_requests(user_id: str = Depends(get_current_user)) -> dict:
             ).fetchall()
             outgoing = conn.execute(
                 """
-                SELECT r.id, r.to_user_id, r.message, r.created_at, r.status, u.handle, u.display_name
+                SELECT r.id, r.to_user_id, r.message, r.created_at, r.status,
+                       u.handle, u.display_name,
+                       COALESCE(ac.user_code, up.user_code) AS peer_code
                 FROM friend_request r
                 JOIN users u ON u.id = r.to_user_id
+                LEFT JOIN accounts ac ON ac.user_id = r.to_user_id
+                LEFT JOIN user_profile up ON up.user_id = r.to_user_id
                 WHERE r.from_user_id = %s AND r.status = 'pending'
                 ORDER BY r.created_at DESC
                 """,
@@ -666,6 +673,7 @@ def list_friend_requests(user_id: str = Depends(get_current_user)) -> dict:
                 "created_at": r[3].isoformat() if r[3] else None,
                 "handle": r[4],
                 "display_name": r[5],
+                "user_code": str(r[6]) if r[6] else None,
             }
             for r in incoming
         ],
@@ -678,6 +686,7 @@ def list_friend_requests(user_id: str = Depends(get_current_user)) -> dict:
                 "status": r[4],
                 "handle": r[5],
                 "display_name": r[6],
+                "user_code": str(r[7]) if r[7] else None,
             }
             for r in outgoing
         ],

@@ -24,7 +24,7 @@ import ErrorBanner from '@/components/ErrorBanner';
 import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
-import { myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
+import { asGroupMembers, myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { replySnippet } from '@/lib/im_ui';
@@ -412,13 +412,6 @@ function GroupPageInner() {
   };
 
   const deleteMsg = async (mid: string) => {
-    const ok = await confirm({
-      title: '删除内容',
-      message: '确定删除这条内容？',
-      confirmLabel: '删除',
-      danger: true,
-    });
-    if (!ok) return;
     try {
       await api.deleteMessage(mid);
       reload();
@@ -803,6 +796,7 @@ function GroupPageInner() {
             gid={gid}
             messages={feed}
             isOwner={isStaff}
+            members={asGroupMembers(detail.members)}
             hasMore={hasMore}
             loadingMore={loadingMore}
             onLoadMore={loadMore}
@@ -872,6 +866,7 @@ function GroupPageInner() {
         onOpenMode={(mode) => setComposerMode(mode)}
         onChat={handleChat}
         onChatMedia={handleChatMedia}
+        getScrollEl={() => feedWrapRef.current}
       />
 
       <GroupComposerSheet

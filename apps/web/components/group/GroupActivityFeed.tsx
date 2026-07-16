@@ -2,16 +2,22 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { contentAssetUrl, type GroupMessage } from '@/lib/api';
+import { contentAssetUrl, effectiveId, type GroupMember, type GroupMessage } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
   GROUP_EMOJIS,
   GROUP_CANNED_PHRASES,
   cannedPhraseLabel,
+  reactionBarEntries,
 } from '@/lib/group_reactions';
 import { friendRemarkOrName } from '@/lib/friend_remarks';
-import { formatDueCountdown, isPlaceholderDisplayName, localDayKey } from '@/lib/group_ui';
+import {
+  displayMemberName,
+  formatDueCountdown,
+  isPlaceholderDisplayName,
+  localDayKey,
+} from '@/lib/group_ui';
 import {
   canRecallOwnMessage,
   copyMessageText,
@@ -42,11 +48,6 @@ function taskCompleteTitle(body: string | null | undefined): string | null {
   const rest = body.slice('已完成任务·'.length);
   const idx = rest.indexOf(' · ');
   return idx >= 0 ? rest.slice(0, idx) : rest;
-}
-
-function reactionCount(reactions: Record<string, string[]> | null | undefined): number {
-  if (!reactions) return 0;
-  return Object.values(reactions).reduce((n, users) => n + users.length, 0);
 }
 
 function dedupeMilestones(items: GroupMessage[]): GroupMessage[] {
@@ -84,6 +85,7 @@ type BubbleProps = {
   isOwner: boolean;
   showAvatar: boolean;
   showName: boolean;
+  membersById: Map<string, GroupMember>;
   replyPreview?: { id?: string; author: string; snippet: string } | null;
   onReact: (mid: string, emoji: string) => void;
   onReport: (mid: string) => void;
@@ -99,9 +101,10 @@ type BubbleProps = {
 function ChatBubble({
   gid,
   m,
-  isOwner,
+  isOwner: _isOwner,
   showAvatar,
   showName,
+  membersById,
   replyPreview,
   onReact,
   onReport,
@@ -118,10 +121,11 @@ function ChatBubble({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const longPressFired = useRef(false);
+  const uid = effectiveId();
+  const actionMine = Boolean(m.mine || (m.user_id && uid && m.user_id === uid));
   const showRecall = canRecallOwnMessage(m.created_at, {
-    mine: m.mine,
+    mine: actionMine,
     recalled: m.recalled,
-    isStaff: isOwner,
   });
   const isTask = m.kind === 'task';
   const isTaskDone = isTaskCompleteCheckin(m);
@@ -134,14 +138,21 @@ function ChatBubble({
   const refHref = m.ref
     ? readerHrefFromRef(m.ref, { group: gid, task: m.task_id || undefined })
     : null;
-  const member = {
+  const memberFromDetail = m.user_id ? membersById.get(m.user_id) : undefined;
+  const member: GroupMember = memberFromDetail || {
     user_id: m.user_id,
-    name: m.author || '群友',
+    name: m.author || '',
     role: 'member',
-    is_me: m.mine,
+    is_me: actionMine,
   };
+  const displayName = actionMine
+    ? '我'
+    : displayMemberName({
+        ...member,
+        name: isPlaceholderDisplayName(member.name) ? (m.author || '') : member.name,
+        is_me: false,
+      });
   const chip = kindChip(m);
-  const reactTotal = reactionCount(m.reactions);
   const msgImages = collectMessageImages(m.attachments, m.kind);
   const beforeReader = () => {
     if (typeof window !== 'undefined') {
@@ -259,7 +270,7 @@ function ChatBubble({
           onClick: () => onRecall(m.id),
         });
       }
-      if (m.mine || isOwner) {
+      if (actionMine) {
         items.push({
           id: 'delete',
           label: '删除',
@@ -267,7 +278,7 @@ function ChatBubble({
           onClick: () => onDelete(m.id),
         });
       }
-      if (!m.mine) {
+      if (!actionMine) {
         items.push({
           id: 'report',
           label: '举报',
@@ -282,7 +293,7 @@ function ChatBubble({
   return (
     <div
       data-mid={m.id}
-      className={`group-chat-row${m.mine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}`}
+      className={`group-chat-row${actionMine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}`}
     >
       <div className="group-chat-avatar-slot">
         {showAvatar ? (
@@ -293,14 +304,7 @@ function ChatBubble({
       <div className="group-chat-col">
         {showName ? (
           <div className="group-chat-meta-line">
-            <span className="group-chat-name">
-              {m.mine
-                ? (isPlaceholderDisplayName(m.author) ? '我' : m.author || '我')
-                : friendRemarkOrName(
-                    m.user_id,
-                    isPlaceholderDisplayName(m.author) ? '书友' : m.author || '书友',
-                  )}
-            </span>
+            <span className="group-chat-name">{displayName}</span>
             {m.created_at ? (
               <time className="group-chat-time" dateTime={m.created_at}>
                 {formatMsgTime(m.created_at)}
@@ -474,21 +478,20 @@ function ChatBubble({
           )}
         </div>
 
-        {reactTotal > 0 ? (
+        {!m.recalled && !m.pending && !m.sendFailed ? (
           <div className="group-emoji-bar group-emoji-bar-summary">
-            {Object.entries(m.reactions || {})
-              .filter(([, users]) => users.length > 0)
-              .slice(0, 4)
-              .map(([e, users]) => (
-                <button
-                  key={e}
-                  type="button"
-                  className="group-emoji-btn active"
-                  onClick={() => onReact(m.id, e)}
-                >
-                  {e.startsWith('phrase:') ? cannedPhraseLabel(e) : e} {users.length}
-                </button>
-              ))}
+            {reactionBarEntries(m.reactions).map(({ key, count }) => (
+              <button
+                key={key}
+                type="button"
+                className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
+                aria-label={key.startsWith('phrase:') ? cannedPhraseLabel(key) : `回应 ${key}`}
+                onClick={() => onReact(m.id, key)}
+              >
+                {key.startsWith('phrase:') ? cannedPhraseLabel(key) : key}
+                {count > 0 ? ` ${count}` : ''}
+              </button>
+            ))}
           </div>
         ) : null}
 
@@ -496,7 +499,7 @@ function ChatBubble({
           <ImMsgActionPopover
             open
             anchorEl={anchorEl}
-            align={m.mine ? 'end' : 'start'}
+            align={actionMine ? 'end' : 'start'}
             actions={actionItems}
             onClose={closeActions}
             quickEmojis={!m.pending && !m.sendFailed ? QUICK_EMOJIS : undefined}
@@ -519,6 +522,7 @@ type Props = {
   gid: string;
   messages: GroupMessage[];
   isOwner: boolean;
+  members?: GroupMember[];
   hasMore?: boolean;
   loadingMore?: boolean;
   onLoadMore?: () => void;
@@ -537,6 +541,7 @@ export function GroupActivityFeed({
   gid,
   messages,
   isOwner,
+  members = [],
   hasMore,
   loadingMore,
   onLoadMore,
@@ -554,6 +559,14 @@ export function GroupActivityFeed({
   const [lightbox, setLightbox] = useState<{ images: ImLightboxImage[]; index: number } | null>(
     null,
   );
+
+  const membersById = useMemo(() => {
+    const map = new Map<string, GroupMember>();
+    for (const mem of members) {
+      if (mem.user_id) map.set(mem.user_id, mem);
+    }
+    return map;
+  }, [members]);
 
   const openImages = (images: ImLightboxImage[], index: number) => {
     if (!images.length) return;
@@ -620,10 +633,18 @@ export function GroupActivityFeed({
         const showDay = !prev || dayKey !== prevDay;
 
         const parent = m.reply_to_id ? byId.get(m.reply_to_id) : undefined;
+        const replyAuthor = (() => {
+          if (!parent) return '原消息';
+          if (parent.mine) return '我';
+          const mem = parent.user_id ? membersById.get(parent.user_id) : undefined;
+          if (mem) return displayMemberName(mem);
+          if (parent.author && !isPlaceholderDisplayName(parent.author)) return parent.author;
+          return friendRemarkOrName(parent.user_id, '书友');
+        })();
         const replyPreview = parent
           ? {
               id: parent.id,
-              author: parent.mine ? '我' : parent.author || '群友',
+              author: replyAuthor,
               snippet: parent.recalled
                 ? '消息已撤回'
                 : replySnippet(parent.body, parent.kind, parent.attachments?.[0]?.file_name),
@@ -649,6 +670,7 @@ export function GroupActivityFeed({
               isOwner={isOwner}
               showAvatar={showAvatar}
               showName={showName}
+              membersById={membersById}
               replyPreview={replyPreview}
               onReact={onReact}
               onReport={onReport}

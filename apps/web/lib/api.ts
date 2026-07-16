@@ -1033,6 +1033,7 @@ export interface Friend {
   handle?: string | null;
   display_name?: string | null;
   avatar_id?: string | null;
+  user_code?: string | null;
 }
 export interface ConversationItem {
   scope: 'group' | 'dm' | 'inbox_friends' | 'inbox_groups';
@@ -1055,6 +1056,7 @@ export interface FriendRequestItem {
   created_at?: string | null;
   handle?: string | null;
   display_name?: string | null;
+  user_code?: string | null;
   status?: string | null;
 }
 export interface GroupInviteInboxItem {
@@ -1633,7 +1635,12 @@ export const api = {
     authed<{ ok: boolean }>(`/social/invites/${id}/decline`, { method: 'POST' }),
   friends: () => authed<{ friends: Friend[] }>('/social/friends'),
   socialMe: () =>
-    authed<{ user_id: string; handle?: string | null; display_name?: string | null }>('/social/me'),
+    authed<{
+      user_id: string;
+      user_code?: string | null;
+      handle?: string | null;
+      display_name?: string | null;
+    }>('/social/me'),
   conversations: () => authed<{ items: ConversationItem[] }>('/social/conversations'),
   friendRequests: () =>
     authed<{ incoming: FriendRequestItem[]; outgoing: FriendRequestItem[] }>(

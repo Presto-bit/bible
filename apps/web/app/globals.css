@@ -15425,7 +15425,7 @@ html.perf-lite .tabbar {
 
 /* ─── 群页 P2 增强 ─── */
 .group-page {
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0));
 }
 
 .group-sticky-zone {
@@ -16325,8 +16325,8 @@ body:has(.group-page-checkin) .app-body {
   max-height: none;
   overflow: hidden;
   padding: 0;
-  /* 给固定底栏（输入区）留空，避免末条图片被挡住且无法滚出 */
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  /* 给固定底栏（输入区）留空，避免末条图片被挡住约 1/8 */
+  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
   z-index: 2;
 }
@@ -16349,7 +16349,7 @@ body:has(.group-page-checkin) .app-body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   overscroll-behavior-x: none;
-  padding: 10px 16px 20px;
+  padding: 10px 16px 48px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -19100,7 +19100,7 @@ body:has(.dm-page) .app-body {
   min-height:0;
   overflow:hidden;
   padding:0;
-  padding-bottom:calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-bottom:calc(140px + env(safe-area-inset-bottom, 0px));
   box-sizing:border-box;
   z-index:2;
 }
@@ -19167,7 +19167,7 @@ body:has(.dm-page) .app-body {
   display:flex;
   flex-direction:column;
   gap:2px;
-  padding:4px 0 24px;
+  padding:4px 0 48px;
 }
 /* 输入栏：贴底 / 贴键盘（微信式） */
 .dm-composer-dock.im-composer-bar,
@@ -19191,6 +19191,17 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
 body.im-keyboard .im-jump-bottom{
   bottom:calc(56px + var(--im-kb-inset, 0px));
+}
+/* 键盘升起时加大聊天区底留白，并把最新消息顶出输入栏 */
+body.im-keyboard .group-checkin-scroll {
+  padding-bottom: calc(48px + var(--im-kb-inset, 0px));
+}
+body.im-keyboard .dm-msg-list {
+  padding-bottom: calc(56px + var(--im-kb-inset, 0px));
+}
+body.im-keyboard .group-page-checkin,
+body.im-keyboard .dm-page {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px) + var(--im-kb-inset, 0px));
 }
 .im-jump-bottom{
   bottom:calc(56px + env(safe-area-inset-bottom, 0px));

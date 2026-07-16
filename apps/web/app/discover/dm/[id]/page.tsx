@@ -48,6 +48,7 @@ import {
   GROUP_CANNED_PHRASES,
   GROUP_EMOJIS,
   cannedPhraseLabel,
+  reactionBarEntries,
 } from '@/lib/group_reactions';
 import { useFocusMessage } from '@/lib/use_focus_message';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
@@ -63,11 +64,6 @@ type LocalDm = DmMessage & {
 
 const QUICK_EMOJIS = [...GROUP_EMOJIS];
 const QUICK_PHRASES = GROUP_CANNED_PHRASES.map((p) => ({ key: p.key, label: p.label }));
-
-function reactionCount(reactions: Record<string, string[]> | null | undefined): number {
-  if (!reactions) return 0;
-  return Object.values(reactions).reduce((n, users) => n + users.length, 0);
-}
 
 function formatSize(bytes?: number | null): string {
   if (!bytes || bytes <= 0) return '';
@@ -129,7 +125,9 @@ function DmThreadPageInner() {
   const [plusOpen, setPlusOpen] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
-  useImComposerKeyboard(composerFocused || plusOpen);
+  useImComposerKeyboard(composerFocused || plusOpen, {
+    getScrollEl: () => listRef.current,
+  });
   const [plusAccept, setPlusAccept] = useState(
     'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
   );
@@ -917,7 +915,6 @@ function DmThreadPageInner() {
               && prev!.sender_id === m.sender_id;
             const selected = selectedIds.has(m.id);
             const canSelect = selectMode && !m.recalled && !m.pending && !m.id.startsWith('temp-');
-            const reactTotal = reactionCount(m.reactions);
 
             return (
               <div key={m.id} className="dm-msg-block">
@@ -1098,24 +1095,23 @@ function DmThreadPageInner() {
                     </>
                   )}
                 </div>
-                {reactTotal > 0 && !m.recalled ? (
+                {!m.recalled && !m.pending && !m.sendFailed ? (
                   <div className="group-emoji-bar group-emoji-bar-summary">
-                    {Object.entries(m.reactions || {})
-                      .filter(([, users]) => users.length > 0)
-                      .slice(0, 4)
-                      .map(([e, users]) => (
-                        <button
-                          key={e}
-                          type="button"
-                          className="group-emoji-btn active"
-                          onClick={(ev) => {
-                            ev.stopPropagation();
-                            void react(m.id, e);
-                          }}
-                        >
-                          {e.startsWith('phrase:') ? cannedPhraseLabel(e) : e} {users.length}
-                        </button>
-                      ))}
+                    {reactionBarEntries(m.reactions).map(({ key, count }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
+                        aria-label={key.startsWith('phrase:') ? cannedPhraseLabel(key) : `回应 ${key}`}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          void react(m.id, key);
+                        }}
+                      >
+                        {key.startsWith('phrase:') ? cannedPhraseLabel(key) : key}
+                        {count > 0 ? ` ${count}` : ''}
+                      </button>
+                    ))}
                   </div>
                 ) : null}
                 </div>
@@ -1188,13 +1184,13 @@ function DmThreadPageInner() {
                 onFocus={() => {
                   setPlusOpen(false);
                   setComposerFocused(true);
-                  window.scrollTo(0, 0);
+                  const el = listRef.current;
+                  if (el) el.scrollTop = el.scrollHeight;
                 }}
                 onBlur={() => {
                   window.setTimeout(() => {
                     if (document.activeElement !== inputRef.current) {
                       setComposerFocused(false);
-                      window.scrollTo(0, 0);
                     }
                   }, 180);
                 }}

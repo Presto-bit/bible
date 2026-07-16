@@ -9,6 +9,7 @@ import {
   effectiveId,
   ensureAccountReady,
   getDisplayName,
+  isUserCode,
 } from '@/lib/api';
 
 export default function AddFriendPage() {
@@ -30,11 +31,14 @@ export default function AddFriendPage() {
   useEffect(() => {
     void ensureAccountReady()
       .then(async () => {
-        setMyId(effectiveId() || '');
+        const localCode = effectiveId() || '';
+        setMyId(localCode);
         setMyName(getDisplayName() || '');
         try {
           const me = await api.socialMe();
-          if (me.user_id) setMyId(me.user_id);
+          // 展示给对方添加用的是 8/10 位 user_code，不是内部 UUID
+          if (me.user_code && isUserCode(me.user_code)) setMyId(me.user_code);
+          else if (localCode) setMyId(localCode);
           if (me.handle) setMyHandle(me.handle);
           if (me.display_name?.trim()) setMyName(me.display_name.trim());
         } catch {

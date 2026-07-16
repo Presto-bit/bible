@@ -58,6 +58,8 @@ type Props = {
     mentions?: string[];
     reply_to_id?: string;
   }) => Promise<void>;
+  /** 键盘升起时滚到底的聊天容器 */
+  getScrollEl?: () => HTMLElement | null;
 };
 
 export function GroupComposerBar({
@@ -74,6 +76,7 @@ export function GroupComposerBar({
   onOpenMode,
   onChat,
   onChatMedia,
+  getScrollEl,
 }: Props) {
   const [text, setText] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
@@ -95,7 +98,7 @@ export function GroupComposerBar({
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef<string | null>(null);
   const locked = Boolean(disabled || busy || sending || uploading || !online);
-  useImComposerKeyboard(composerFocused || panelOpen);
+  useImComposerKeyboard(composerFocused || panelOpen, { getScrollEl });
 
   useEffect(() => {
     const d = getImDraftRecord('group', gid);
@@ -525,14 +528,14 @@ export function GroupComposerBar({
                   onFocus={() => {
                     setPanelOpen(false);
                     setComposerFocused(true);
-                    window.scrollTo(0, 0);
+                    const el = getScrollEl?.();
+                    if (el) el.scrollTop = el.scrollHeight;
                   }}
                   onBlur={() => {
                     window.setTimeout(() => {
                       if (document.activeElement !== inputRef.current) {
                         setComposerFocused(false);
                         setPickerOpen(false);
-                        window.scrollTo(0, 0);
                         if (atQuery != null && !matchAtQuery(text, inputRef.current?.selectionStart ?? text.length)) {
                           setAtQuery(null);
                         }

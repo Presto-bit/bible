@@ -5,7 +5,7 @@ const KEY = 'presto_notif_prefs_v1';
 export type NotifPrefs = {
   /** 读经勿扰：默认开；圣经 Tab 不显示社交提示 */
   readingDnd: boolean;
-  /** 社交聚合推送（群/私信摘要） */
+  /** 社交聚合推送（群/私信摘要）；默认开，可在设置关闭 */
   socialDigest: boolean;
   /** 断签召回（历史字段，兼容旧 EXTRA_KEY） */
   streakRecall: boolean;
@@ -13,37 +13,46 @@ export type NotifPrefs = {
 
 const DEFAULTS: NotifPrefs = {
   readingDnd: true,
-  socialDigest: false,
+  socialDigest: true,
   streakRecall: false,
 };
 
-function readRaw(): Partial<NotifPrefs> {
+function readStored(): Partial<NotifPrefs> {
   if (typeof window === 'undefined') return {};
   try {
     const modern = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (modern && typeof modern === 'object') return modern as Partial<NotifPrefs>;
+    if (modern && typeof modern === 'object') {
+      const out: Partial<NotifPrefs> = {};
+      if ('readingDnd' in modern) out.readingDnd = Boolean(modern.readingDnd);
+      if ('socialDigest' in modern) out.socialDigest = Boolean(modern.socialDigest);
+      if ('streakRecall' in modern) out.streakRecall = Boolean(modern.streakRecall);
+      return out;
+    }
   } catch {
     /* ignore */
   }
-  // 兼容旧 push_digest EXTRA_KEY
+  // 兼容旧 push_digest EXTRA_KEY（仅当显式写过 group 才覆盖默认）
   try {
-    const legacy = JSON.parse(localStorage.getItem('presto_reminder_extra') || '{}');
-    return {
-      socialDigest: Boolean(legacy.group),
-      streakRecall: Boolean(legacy.streak),
-      readingDnd: legacy.reading_dnd !== false,
-    };
+    const legacy = JSON.parse(localStorage.getItem('presto_reminder_extra') || 'null');
+    if (legacy && typeof legacy === 'object') {
+      const out: Partial<NotifPrefs> = {};
+      if ('group' in legacy) out.socialDigest = Boolean(legacy.group);
+      if ('streak' in legacy) out.streakRecall = Boolean(legacy.streak);
+      if ('reading_dnd' in legacy) out.readingDnd = legacy.reading_dnd !== false;
+      return out;
+    }
   } catch {
-    return {};
+    /* ignore */
   }
+  return {};
 }
 
 export function getNotifPrefs(): NotifPrefs {
-  const raw = readRaw();
+  const raw = readStored();
   return {
-    readingDnd: raw.readingDnd !== false,
-    socialDigest: Boolean(raw.socialDigest),
-    streakRecall: Boolean(raw.streakRecall),
+    readingDnd: raw.readingDnd !== undefined ? raw.readingDnd : DEFAULTS.readingDnd,
+    socialDigest: raw.socialDigest !== undefined ? raw.socialDigest : DEFAULTS.socialDigest,
+    streakRecall: raw.streakRecall !== undefined ? raw.streakRecall : DEFAULTS.streakRecall,
   };
 }
 
