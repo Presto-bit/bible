@@ -25,7 +25,10 @@ import {
   IconImage,
   IconPlus,
 } from '@/components/social/ImComposerIcons';
+import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
+import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
+import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import {
@@ -83,6 +86,10 @@ function DmThreadPageInner() {
   const [forwardOpen, setForwardOpen] = useState(false);
   const [forwardItems, setForwardItems] = useState<ForwardPayload[]>([]);
   const [actionMsgId, setActionMsgId] = useState<string | null>(null);
+  const [actionAnchor, setActionAnchor] = useState<HTMLElement | null>(null);
+  const [lightbox, setLightbox] = useState<{ images: ImLightboxImage[]; index: number } | null>(
+    null,
+  );
   const listRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const stickBottom = useRef(true);
@@ -514,8 +521,6 @@ function DmThreadPageInner() {
     if (items.length) openForward(items);
   };
 
-  const actionMsg = actionMsgId ? byId.get(actionMsgId) : undefined;
-
   const clearLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
@@ -523,19 +528,146 @@ function DmThreadPageInner() {
     }
   };
 
-  const openMsgActions = (mid: string) => {
+  const openMsgActions = (mid: string, el?: HTMLElement | null) => {
     if (selectMode) return;
     const m = byId.get(mid);
     if (!m || m.recalled || m.pending) return;
     longPressFired.current = true;
+    try {
+      navigator.vibrate?.(12);
+    } catch {
+      /* ignore */
+    }
+    setActionAnchor(el ?? null);
     setActionMsgId(mid);
   };
 
-  const startLongPress = (mid: string) => {
+  const closeMsgActions = () => {
+    setActionMsgId(null);
+    setActionAnchor(null);
+  };
+
+  const startLongPress = (mid: string, el: HTMLElement) => {
     longPressFired.current = false;
     clearLongPress();
-    longPressTimer.current = setTimeout(() => openMsgActions(mid), 420);
+    longPressTimer.current = setTimeout(() => openMsgActions(mid, el), 420);
   };
+
+  const openImages = (images: ImLightboxImage[], index: number) => {
+    if (!images.length) return;
+    setLightbox({ images, index });
+  };
+
+  const actionMsg = actionMsgId ? byId.get(actionMsgId) : undefined;
+  const actionMine = actionMsg
+    ? (actionMsg.mine ?? actionMsg.sender_id === uid)
+    : false;
+  const actionImages = actionMsg
+    ? collectMessageImages(actionMsg.attachments, actionMsg.kind)
+    : [];
+
+  const actionItems: ImPopoverAction[] = (() => {
+    if (!actionMsg || actionMsg.recalled) return [];
+    const items: ImPopoverAction[] = [];
+    if (actionMsg.sendFailed) {
+      items.push({
+        id: 'resend',
+        label: '重发',
+        onClick: () => void resend(actionMsg),
+      });
+      items.push({
+        id: 'discard',
+        label: '删除',
+        danger: true,
+        onClick: () => {
+          dequeueFailedText(actionMsg.id);
+          takeMediaFile(actionMsg.id);
+          setMsgs((prev) => prev.filter((x) => x.id !== actionMsg.id));
+        },
+      });
+      return items;
+    }
+    if (!actionMsg.pending) {
+      items.push({
+        id: 'reply',
+        label: '回复',
+        onClick: () => {
+          setReplyTo({
+            id: actionMsg.id,
+            snippet: replySnippet(
+              actionMsg.body,
+              actionMsg.kind,
+              actionMsg.attachments?.[0]?.file_name,
+            ),
+          });
+        },
+      });
+      if (actionMsg.body || actionMsg.ref) {
+        items.push({
+          id: 'copy',
+          label: '复制',
+          onClick: () => {
+            void copyMessageText([actionMsg.ref, actionMsg.body]);
+          },
+        });
+      }
+      if (actionImages.length) {
+        items.push({
+          id: 'preview',
+          label: '查看',
+          onClick: () => openImages(actionImages, 0),
+        });
+        items.push({
+          id: 'save',
+          label: '保存',
+          onClick: () => {
+            void downloadImAsset(actionImages[0]!.src, actionImages[0]!.alt);
+          },
+        });
+      }
+      items.push({
+        id: 'forward',
+        label: '转发',
+        onClick: () => {
+          openForward([
+            { body: actionMsg.body, kind: actionMsg.kind, ref: actionMsg.ref },
+          ]);
+        },
+      });
+      if (!actionMsg.id.startsWith('temp-')) {
+        items.push({
+          id: 'multi',
+          label: '多选',
+          onClick: () => {
+            setSelectMode(true);
+            setSelectedIds(new Set([actionMsg.id]));
+          },
+        });
+      }
+      if (
+        canRecallOwnMessage(actionMsg.created_at, {
+          mine: actionMine,
+          recalled: actionMsg.recalled,
+        })
+      ) {
+        items.push({
+          id: 'recall',
+          label: '撤回',
+          danger: true,
+          onClick: () => void recall(actionMsg.id),
+        });
+      }
+      if (!actionMine) {
+        items.push({
+          id: 'report',
+          label: '举报',
+          danger: true,
+          onClick: () => setReportId(actionMsg.id),
+        });
+      }
+    }
+    return items;
+  })();
 
   return (
     <main className="dm-page">
@@ -639,18 +771,18 @@ function DmThreadPageInner() {
                   role="button"
                   tabIndex={0}
                   className="dm-bubble"
-                  onPointerDown={() => startLongPress(m.id)}
+                  onPointerDown={(e) => startLongPress(m.id, e.currentTarget)}
                   onPointerUp={clearLongPress}
                   onPointerLeave={clearLongPress}
                   onPointerCancel={clearLongPress}
                   onContextMenu={(e) => {
                     e.preventDefault();
-                    openMsgActions(m.id);
+                    openMsgActions(m.id, e.currentTarget);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      openMsgActions(m.id);
+                      openMsgActions(m.id, e.currentTarget);
                     }
                   }}
                 >
@@ -691,11 +823,21 @@ function DmThreadPageInner() {
                             const href = a.url ? contentAssetUrl(a.url) : null;
                             const isImg = (a.mime || '').startsWith('image/') || m.kind === 'image';
                             if (isImg && href) {
+                              const imgs = collectMessageImages(m.attachments, m.kind);
+                              const idx = imgs.findIndex((img) => img.src === href);
                               return (
-                                <a key={a.id} href={href} target="_blank" rel="noreferrer">
+                                <button
+                                  key={a.id}
+                                  type="button"
+                                  className="im-attach-image-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openImages(imgs, idx >= 0 ? idx : 0);
+                                  }}
+                                >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
                                   <img src={href} alt={a.file_name || '图片'} />
-                                </a>
+                                </button>
                               );
                             }
                             return href ? (
@@ -705,6 +847,7 @@ function DmThreadPageInner() {
                                 download={a.file_name || undefined}
                                 target="_blank"
                                 rel="noreferrer"
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {a.file_name || '附件'}
                                 {a.size_bytes ? (
@@ -901,128 +1044,23 @@ function DmThreadPageInner() {
         />
       </div>
 
-      {actionMsg && !actionMsg.recalled ? (
-        <div className="im-msg-action-sheet" role="dialog" aria-label="消息操作">
-          <button
-            type="button"
-            className="im-msg-action-backdrop"
-            aria-label="关闭"
-            onClick={() => setActionMsgId(null)}
-          />
-          <div className="im-msg-action-panel">
-            <p className="im-msg-action-title muted">消息操作</p>
-            <div className="im-msg-action-grid">
-              {actionMsg.sendFailed ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void resend(actionMsg);
-                    setActionMsgId(null);
-                  }}
-                >
-                  重发
-                </button>
-              ) : null}
-              {!actionMsg.pending && !actionMsg.sendFailed ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReplyTo({
-                      id: actionMsg.id,
-                      snippet: replySnippet(
-                        actionMsg.body,
-                        actionMsg.kind,
-                        actionMsg.attachments?.[0]?.file_name,
-                      ),
-                    });
-                    setActionMsgId(null);
-                  }}
-                >
-                  回复
-                </button>
-              ) : null}
-              {!actionMsg.pending && !actionMsg.sendFailed && (actionMsg.body || actionMsg.ref) ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void copyMessageText([actionMsg.ref, actionMsg.body]);
-                    setActionMsgId(null);
-                  }}
-                >
-                  复制
-                </button>
-              ) : null}
-              {!actionMsg.pending && !actionMsg.sendFailed ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    openForward([
-                      { body: actionMsg.body, kind: actionMsg.kind, ref: actionMsg.ref },
-                    ]);
-                    setActionMsgId(null);
-                  }}
-                >
-                  转发
-                </button>
-              ) : null}
-              {!actionMsg.pending && !actionMsg.sendFailed && !actionMsg.id.startsWith('temp-') ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectMode(true);
-                    setSelectedIds(new Set([actionMsg.id]));
-                    setActionMsgId(null);
-                  }}
-                >
-                  多选
-                </button>
-              ) : null}
-              {canRecallOwnMessage(actionMsg.created_at, {
-                mine: actionMsg.mine ?? actionMsg.sender_id === uid,
-                recalled: actionMsg.recalled,
-              }) ? (
-                <button
-                  type="button"
-                  className="is-danger"
-                  onClick={() => {
-                    void recall(actionMsg.id);
-                    setActionMsgId(null);
-                  }}
-                >
-                  撤回
-                </button>
-              ) : null}
-              {actionMsg.sendFailed ? (
-                <button
-                  type="button"
-                  className="is-danger"
-                  onClick={() => {
-                    dequeueFailedText(actionMsg.id);
-                    takeMediaFile(actionMsg.id);
-                    setMsgs((prev) => prev.filter((x) => x.id !== actionMsg.id));
-                    setActionMsgId(null);
-                  }}
-                >
-                  删除
-                </button>
-              ) : null}
-              {!(actionMsg.mine ?? actionMsg.sender_id === uid) && !actionMsg.pending ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setReportId(actionMsg.id);
-                    setActionMsgId(null);
-                  }}
-                >
-                  举报
-                </button>
-              ) : null}
-            </div>
-            <button type="button" className="im-msg-action-cancel" onClick={() => setActionMsgId(null)}>
-              取消
-            </button>
-          </div>
-        </div>
+      {actionMsg && !actionMsg.recalled && actionItems.length > 0 ? (
+        <ImMsgActionPopover
+          open
+          anchorEl={actionAnchor}
+          align={actionMine ? 'end' : 'start'}
+          actions={actionItems}
+          onClose={closeMsgActions}
+        />
+      ) : null}
+
+      {lightbox ? (
+        <ImImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+        />
       ) : null}
 
       <ReportSheet

@@ -23,9 +23,12 @@ import { setReaderReturnHref } from '@/lib/reader_return';
 import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
 import { ImMessageBody } from '@/components/social/ImMessageBody';
+import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
+import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
+import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { MemberAvatar } from './MemberAvatar';
 
-const QUICK_EMOJIS = GROUP_EMOJIS.slice(0, 3);
+const QUICK_EMOJIS = GROUP_EMOJIS.slice(0, 6);
 const TIME_GAP_MS = 5 * 60 * 1000;
 
 function isTaskCompleteCheckin(m: GroupMessage): boolean {
@@ -87,6 +90,7 @@ type BubbleProps = {
   onRecall?: (mid: string) => void;
   onCompleteTask?: (taskId: string, title: string, ref?: string | null) => void;
   onResend?: (m: GroupMessage) => void;
+  onOpenImages: (images: ImLightboxImage[], index: number) => void;
 };
 
 function ChatBubble({
@@ -103,8 +107,10 @@ function ChatBubble({
   onRecall,
   onCompleteTask,
   onResend,
+  onOpenImages,
 }: BubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [showRespond, setShowRespond] = useState(false);
   const [showCanned, setShowCanned] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -132,6 +138,7 @@ function ChatBubble({
   };
   const chip = kindChip(m);
   const reactTotal = reactionCount(m.reactions);
+  const msgImages = collectMessageImages(m.attachments, m.kind);
   const beforeReader = () => {
     if (typeof window !== 'undefined') {
       setReaderReturnHref(`${window.location.pathname}${window.location.search}`);
@@ -168,21 +175,110 @@ function ChatBubble({
     }
   };
 
-  const openActions = () => {
+  const openActions = (el?: HTMLElement | null) => {
     if (m.recalled || m.pending) return;
     longPressFired.current = true;
+    try {
+      navigator.vibrate?.(12);
+    } catch {
+      /* ignore */
+    }
+    setAnchorEl(el ?? null);
     setMenuOpen(true);
   };
 
-  const startLongPress = () => {
+  const closeActions = () => {
+    setMenuOpen(false);
+    setAnchorEl(null);
+  };
+
+  const startLongPress = (el: HTMLElement) => {
     longPressFired.current = false;
     clearLongPress();
-    longPressTimer.current = setTimeout(openActions, 420);
+    longPressTimer.current = setTimeout(() => openActions(el), 420);
   };
 
   const endLongPress = () => {
     clearLongPress();
   };
+
+  const actionItems: ImPopoverAction[] = (() => {
+    const items: ImPopoverAction[] = [];
+    if (m.sendFailed) {
+      if (onResend && m.kind === 'chat' && m.body) {
+        items.push({ id: 'resend', label: '重发', onClick: () => onResend(m) });
+      }
+      items.push({ id: 'delete', label: '删除', danger: true, onClick: () => onDelete(m.id) });
+      return items;
+    }
+    if (!m.pending) {
+      items.push({
+        id: 'react',
+        label: '回应',
+        onClick: () => setShowRespond(true),
+      });
+      if (onReply && isChatLite) {
+        items.push({ id: 'reply', label: '回复', onClick: () => onReply(m) });
+      }
+      if (m.body || m.ref) {
+        items.push({
+          id: 'copy',
+          label: '复制',
+          onClick: () => {
+            void copyMessageText([m.ref ? formatGroupRefLabel(m.ref) : null, m.body]);
+          },
+        });
+      }
+      if (msgImages.length) {
+        items.push({
+          id: 'preview',
+          label: '查看',
+          onClick: () => onOpenImages(msgImages, 0),
+        });
+        items.push({
+          id: 'save',
+          label: '保存',
+          onClick: () => {
+            void downloadImAsset(msgImages[0]!.src, msgImages[0]!.alt);
+          },
+        });
+      }
+      if ((m.kind === 'checkin' || m.kind === 'verse') && (m.body || m.ref)) {
+        items.push({
+          id: 'share',
+          label: '分享',
+          onClick: () => {
+            void shareMessageCard();
+          },
+        });
+      }
+      if (showRecall && onRecall) {
+        items.push({
+          id: 'recall',
+          label: '撤回',
+          danger: true,
+          onClick: () => onRecall(m.id),
+        });
+      }
+      if (m.mine || isOwner) {
+        items.push({
+          id: 'delete',
+          label: '删除',
+          danger: true,
+          onClick: () => onDelete(m.id),
+        });
+      }
+      if (!m.mine) {
+        items.push({
+          id: 'report',
+          label: '举报',
+          danger: true,
+          onClick: () => onReport(m.id),
+        });
+      }
+    }
+    return items;
+  })();
 
   return (
     <div
@@ -206,25 +302,25 @@ function ChatBubble({
           role="button"
           tabIndex={0}
           className={`group-chat-bubble ${bubbleTone(m)}${m.recalled ? ' is-recalled' : ''}`}
-          onPointerDown={startLongPress}
+          onPointerDown={(e) => startLongPress(e.currentTarget)}
           onPointerUp={endLongPress}
           onPointerLeave={endLongPress}
           onPointerCancel={endLongPress}
           onContextMenu={(e) => {
             e.preventDefault();
-            openActions();
+            openActions(e.currentTarget);
           }}
           onClick={() => {
             if (longPressFired.current) {
               longPressFired.current = false;
               return;
             }
-            setMenuOpen(false);
+            closeActions();
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              openActions();
+              openActions(e.currentTarget);
             }
           }}
         >
@@ -267,11 +363,20 @@ function ChatBubble({
                     const href = a.url ? contentAssetUrl(a.url) : null;
                     const isImg = (a.mime || '').startsWith('image/') || m.kind === 'image';
                     if (isImg && href) {
+                      const idx = msgImages.findIndex((img) => img.src === href);
                       return (
-                        <a key={a.id} href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          key={a.id}
+                          type="button"
+                          className="im-attach-image-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenImages(msgImages, idx >= 0 ? idx : 0);
+                          }}
+                        >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={href} alt={a.file_name || '图片'} />
-                        </a>
+                        </button>
                       );
                     }
                     return href ? (
@@ -333,65 +438,16 @@ function ChatBubble({
           </div>
         ) : null}
 
-        {menuOpen && !m.recalled ? (
-          <div className="im-msg-action-sheet" role="dialog" aria-label="消息操作">
-            <button
-              type="button"
-              className="im-msg-action-backdrop"
-              aria-label="关闭"
-              onClick={() => setMenuOpen(false)}
-            />
-            <div className="im-msg-action-panel">
-              <p className="im-msg-action-title muted">
-                {m.mine ? '我' : m.author || '群友'}
-              </p>
-              <div className="im-msg-action-grid">
-                {!m.pending && !m.sendFailed ? (
-                  <button type="button" onClick={() => { setShowRespond(true); setMenuOpen(false); }}>
-                    回应
-                  </button>
-                ) : null}
-                {onReply && !m.pending && !m.sendFailed && isChatLite ? (
-                  <button type="button" onClick={() => { onReply(m); setMenuOpen(false); }}>回复</button>
-                ) : null}
-                {!m.pending && !m.sendFailed && (m.body || m.ref) ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void copyMessageText([m.ref ? formatGroupRefLabel(m.ref) : null, m.body]);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    复制
-                  </button>
-                ) : null}
-                {!m.pending && !m.sendFailed && (m.kind === 'checkin' || m.kind === 'verse') && (m.body || m.ref) ? (
-                  <button type="button" onClick={() => { void shareMessageCard(); setMenuOpen(false); }}>
-                    分享
-                  </button>
-                ) : null}
-                {showRecall && onRecall && !m.pending ? (
-                  <button type="button" className="is-danger" onClick={() => { onRecall(m.id); setMenuOpen(false); }}>
-                    撤回
-                  </button>
-                ) : null}
-                {(m.mine || isOwner || m.sendFailed) && !m.pending ? (
-                  <button type="button" className="is-danger" onClick={() => { onDelete(m.id); setMenuOpen(false); }}>
-                    删除
-                  </button>
-                ) : null}
-                {!m.mine && !m.pending ? (
-                  <button type="button" onClick={() => { onReport(m.id); setMenuOpen(false); }}>举报</button>
-                ) : null}
-                {m.sendFailed && onResend && m.kind === 'chat' && m.body ? (
-                  <button type="button" onClick={() => { onResend(m); setMenuOpen(false); }}>重发</button>
-                ) : null}
-              </div>
-              <button type="button" className="im-msg-action-cancel" onClick={() => setMenuOpen(false)}>
-                取消
-              </button>
-            </div>
-          </div>
+        {menuOpen && !m.recalled && actionItems.length > 0 ? (
+          <ImMsgActionPopover
+            open
+            anchorEl={anchorEl}
+            align={m.mine ? 'end' : 'start'}
+            actions={actionItems}
+            onClose={closeActions}
+            quickEmojis={!m.pending && !m.sendFailed ? QUICK_EMOJIS : undefined}
+            onEmoji={!m.pending && !m.sendFailed ? (e) => onReact(m.id, e) : undefined}
+          />
         ) : null}
 
         {showRespond ? (
@@ -484,6 +540,14 @@ export function GroupActivityFeed({
   onResend,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [lightbox, setLightbox] = useState<{ images: ImLightboxImage[]; index: number } | null>(
+    null,
+  );
+
+  const openImages = (images: ImLightboxImage[], index: number) => {
+    if (!images.length) return;
+    setLightbox({ images, index });
+  };
 
   const byId = useMemo(() => {
     const map = new Map<string, GroupMessage>();
@@ -589,10 +653,20 @@ export function GroupActivityFeed({
               onRecall={onRecall}
               onCompleteTask={onCompleteTask}
               onResend={onResend}
+              onOpenImages={openImages}
             />
           </div>
         );
       })}
+
+      {lightbox ? (
+        <ImImageLightbox
+          images={lightbox.images}
+          index={lightbox.index}
+          onClose={() => setLightbox(null)}
+          onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+        />
+      ) : null}
     </div>
   );
 }
