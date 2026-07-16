@@ -12,6 +12,7 @@ import {
   subscribePwaTabNav,
 } from '@/lib/pwa_tab_nav';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
+import { useOnline } from '@/lib/use_online';
 import { useDiscoverUnread } from '@/lib/use_discover_unread';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
@@ -83,6 +84,7 @@ export default function BottomTabs() {
   const pathname = normalizeAppPath(useRouterPathname());
   const router = useRouter();
   const discoverUnread = useDiscoverUnread(true);
+  const online = useOnline();
   const compact =
     SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
     || GROUP_COMPACT_RE.test(pathname);
@@ -135,6 +137,7 @@ export default function BottomTabs() {
       {TABS.map((t) => {
         const active =
           t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);
+        const needsNet = (t.href === '/discover' || t.href === '/assistant') && !online;
         const badge =
           t.href === '/discover' && discoverUnread > 0
             ? (discoverUnread > 99 ? '99+' : String(discoverUnread))
@@ -143,9 +146,16 @@ export default function BottomTabs() {
           <button
             key={t.href}
             type="button"
-            className={`tab ${active ? 'tab-active' : ''}`}
+            className={`tab ${active ? 'tab-active' : ''}${needsNet ? ' tab-offline-hint' : ''}`}
             aria-current={active ? 'page' : undefined}
-            aria-label={badge ? `${t.label}，${badge}条未读` : t.label}
+            aria-label={
+              needsNet
+                ? `${t.label}，当前离线需联网`
+                : badge
+                  ? `${t.label}，${badge}条未读`
+                  : t.label
+            }
+            title={needsNet ? '当前离线，此功能需联网' : undefined}
             onClick={() => go(t.href)}
             onContextMenu={(e) => e.preventDefault()}
           >

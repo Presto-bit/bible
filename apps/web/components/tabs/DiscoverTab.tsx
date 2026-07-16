@@ -6,11 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOnline } from '@/lib/use_online';
 import {
   api,
-  effectiveId,
-  ensureAccountReady,
   type ConversationItem,
   type Friend,
 } from '@/lib/api';
+import { useAccountReady } from '@/lib/use_account_ready';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import Avatar, { defaultAvatarId } from '@/components/Avatar';
 import { FriendAvatar } from '@/components/discover/FriendAvatar';
@@ -68,7 +67,8 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const router = useRouter();
   const pathname = usePathname();
   const online = useOnline();
-  const [uid, setUid] = useState<string | null>(null);
+  const account = useAccountReady();
+  const uid = account.status === 'ready' ? account.uid : null;
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [err, setErr] = useState<string | null>(null);
@@ -76,6 +76,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [searchQ, setSearchQ] = useState('');
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searchBusy, setSearchBusy] = useState(false);
+  const [searchErr, setSearchErr] = useState<string | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const [remarkTick, setRemarkTick] = useState(0);
   const plusRef = useRef<HTMLDivElement | null>(null);
@@ -124,11 +125,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [online]);
 
   useEffect(() => {
-    if (!paneActive) return;
-    void ensureAccountReady().then(() => setUid(effectiveId() || null));
-  }, [paneActive]);
-
-  useEffect(() => {
     const onRemark = () => setRemarkTick((n) => n + 1);
     window.addEventListener(FRIEND_REMARKS_EVENT, onRemark);
     return () => window.removeEventListener(FRIEND_REMARKS_EVENT, onRemark);
@@ -172,15 +168,23 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   useEffect(() => {
     if (searchQ.trim().length < 1) {
       setSearchHits([]);
+      setSearchErr(null);
       return;
     }
     const q = searchQ.trim();
     const t = window.setTimeout(() => {
       setSearchBusy(true);
+      setSearchErr(null);
       void api
         .searchMessages(q)
-        .then((r) => setSearchHits(r.items || []))
-        .catch(() => setSearchHits([]))
+        .then((r) => {
+          setSearchHits(r.items || []);
+          setSearchErr(null);
+        })
+        .catch((e) => {
+          setSearchHits([]);
+          setSearchErr(errorMessage(e, '搜索失败，请稍后再试'));
+        })
         .finally(() => setSearchBusy(false));
     }, 320);
     return () => window.clearTimeout(t);
@@ -193,8 +197,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const openItem = (it: ConversationItem) => {
     if (it.scope === 'group' || it.scope === 'dm') {
+      const prevUnread = it.unread || 0;
       go(it.scope === 'group' ? `/discover/group/${it.ref_id}` : `/discover/dm/${it.ref_id}`);
-      if ((it.unread || 0) > 0) {
+      if (prevUnread > 0) {
         setItems((prev) =>
           prev.map((row) =>
             row.scope === it.scope && row.ref_id === it.ref_id
@@ -202,8 +207,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
               : row,
           ),
         );
+        void api.patchConversationState(it.scope, it.ref_id, {}).catch(() => {
+          setItems((prev) =>
+            prev.map((row) =>
+              row.scope === it.scope && row.ref_id === it.ref_id
+                ? { ...row, unread: prevUnread }
+                : row,
+            ),
+          );
+        });
+      } else {
+        void api.patchConversationState(it.scope, it.ref_id, {});
       }
-      void api.patchConversationState(it.scope, it.ref_id, {});
       return;
     }
     if (it.scope === 'inbox_friends') {
@@ -261,12 +276,27 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const searching = searchQ.trim().length > 0;
 
-  if (!uid) {
+  if (account.status === 'loading') {
     return (
       <main className="container">
         <div className="card card-2">
           <p>正在准备本机账号…</p>
-          <Link className="btn" href="/profile">前往我的</Link>
+        </div>
+      </main>
+    );
+  }
+
+  if (account.status === 'timeout') {
+    return (
+      <main className="container">
+        <div className="card card-2">
+          <p>账号准备超时，请检查网络后重试。</p>
+          <button type="button" className="btn" style={{ marginTop: 10 }} onClick={account.retry}>
+            重试
+          </button>
+          <Link className="btn btn-ghost" href="/profile" style={{ display: 'block', marginTop: 8 }}>
+            前往我的 · 登录
+          </Link>
         </div>
       </main>
     );
@@ -364,7 +394,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
           onChange={(e) => setSearchQ(e.target.value)}
         />
         {searchBusy ? <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>搜索中…</p> : null}
-        {!searchBusy && searching && searchHits.length === 0 ? (
+        {searchErr ? (
+          <ErrorBanner message={searchErr} onRetry={() => setSearchQ((q) => q)} />
+        ) : null}
+        {!searchBusy && !searchErr && searching && searchHits.length === 0 ? (
           <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>无匹配结果</p>
         ) : null}
         {searchHits.length > 0 ? (
@@ -385,8 +418,16 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         <p className="muted" style={{ padding: '12px 0' }}>加载中…</p>
       ) : null}
 
+      {!searching && !loading && err && items.length === 0 ? (
+        <div className="discover-empty">
+          <strong>消息加载失败</strong>
+          <p className="muted">{err}</p>
+          <button type="button" className="btn" onClick={() => void reload()}>重试</button>
+        </div>
+      ) : null}
+
       {!searching && (!loading || items.length > 0) ? (
-        items.length === 0 ? (
+        items.length === 0 && !err ? (
           <div className="discover-empty">
             <strong>还没有消息</strong>
             <p className="muted">

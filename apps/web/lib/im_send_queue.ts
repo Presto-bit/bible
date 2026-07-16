@@ -1,4 +1,4 @@
-/** 失败消息内存队列：联网后可批量重试文本；媒体保留 File 句柄。 */
+/** 失败消息队列：localStorage 持久化文本；媒体仍用内存 File。 */
 
 export type QueuedTextSend = {
   id: string;
@@ -11,21 +11,39 @@ export type QueuedTextSend = {
   ref?: string;
 };
 
-const textQueue: QueuedTextSend[] = [];
+const STORAGE_KEY = 'presto_im_failed_text_v1';
 const mediaFiles = new Map<string, File>();
 
+function readAll(): QueuedTextSend[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    return Array.isArray(raw) ? (raw as QueuedTextSend[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAll(items: QueuedTextSend[]) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+}
+
 export function enqueueFailedText(item: QueuedTextSend) {
-  const exists = textQueue.some((x) => x.id === item.id);
-  if (!exists) textQueue.push(item);
+  const all = readAll();
+  if (!all.some((x) => x.id === item.id)) {
+    all.push(item);
+    writeAll(all);
+  }
 }
 
 export function dequeueFailedText(id: string) {
-  const i = textQueue.findIndex((x) => x.id === id);
-  if (i >= 0) textQueue.splice(i, 1);
+  const all = readAll().filter((x) => x.id !== id);
+  writeAll(all);
 }
 
 export function listFailedText(scope: 'group' | 'dm', refId: string): QueuedTextSend[] {
-  return textQueue.filter((x) => x.scope === scope && x.refId === refId);
+  return readAll().filter((x) => x.scope === scope && x.refId === refId);
 }
 
 export function rememberMediaFile(tempId: string, file: File) {
@@ -40,4 +58,9 @@ export function takeMediaFile(tempId: string): File | undefined {
 
 export function peekMediaFile(tempId: string): File | undefined {
   return mediaFiles.get(tempId);
+}
+
+/** 启动时恢复内存视图（供调试/统计） */
+export function allFailedTextCount(): number {
+  return readAll().length;
 }

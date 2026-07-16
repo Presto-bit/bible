@@ -1,4 +1,5 @@
-// H5 每日读经提醒 + F1 聚合摘要（前台 Notification，每日 ≤2 条）。
+// H5 每日读经提醒：主路径为服务端 Web Push（/push/cron/tick + 订阅时段）；
+// 下方 setTimeout 仅作「页面仍打开」时的前台兜底。
 
 import { fetchPushDigest, isStreakRecallEnabled, markDigestSent } from './push_digest';
 import { readingStreak } from './gamification';
@@ -27,7 +28,7 @@ export function getReminder(): ReminderPref {
 export function setReminder(p: ReminderPref) {
   localStorage.setItem(KEY, JSON.stringify(p));
   reschedule();
-  void import('./web_push').then((m) => m.subscribeWebPush().catch(() => {}));
+  void import('./notifications').then((m) => m.syncPushSubscription().catch(() => {}));
 }
 
 export async function ensurePermission(): Promise<boolean> {

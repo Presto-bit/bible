@@ -6,7 +6,7 @@ import PageBackBar from '@/components/PageBackBar';
 import AdminPcNav from '@/components/admin/AdminPcNav';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import AdminStatsDetailPanel from '@/components/admin/AdminStatsDetailPanel';
-import { AdminLoginForm } from '@/components/AdminRagPanel';
+import { AdminLoginForm } from '@/components/admin/AdminLoginForm';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
 import type { AdminStatsSeriesKey } from '@/lib/admin_rag';
 import { useEffect, useState } from 'react';

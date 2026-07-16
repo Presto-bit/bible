@@ -8,13 +8,13 @@ from fastapi import APIRouter, Header
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from ..auth.session import try_get_current_user
+from ..auth.session import resolve_user_id, try_get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
 from .llm import stream_chat
 from .parse_output import extract_sections, split_body_and_followups
-from .usage import consume_quota, record_ai_request
+from .usage import consume_quota, peek_quota, record_ai_request
 from .request_log import log_ai_request
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,22 @@ def rag_status():
         and out["llm_configured"]
     )
     return out
+
+
+@router.get("/quota")
+def ai_quota(
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+):
+    """当日 AI 额度（游客限流；登录用户 limit=0 表示不限）。"""
+    settings = get_settings()
+    user = resolve_user_id(x_user_id=x_user_id, x_user_code=x_user_code)
+    if user:
+        return {"used": 0, "limit": 0, "unlimited": True}
+    limit = settings.ai_guest_daily_limit
+    used, lim = peek_quota(x_guest_id, limit)
+    return {"used": used, "limit": lim, "unlimited": False}
 
 
 class Turn(BaseModel):

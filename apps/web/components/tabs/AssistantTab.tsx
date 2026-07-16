@@ -2,7 +2,10 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { chatStream, type Citation } from '@/lib/api';
+import { chatStream, currentUserId, type Citation } from '@/lib/api';
+import { fetchAiQuota, type AiQuota } from '@/lib/api/ai';
+import Link from 'next/link';
+import { useOnline } from '@/lib/use_online';
 import AnswerText from '@/components/AnswerText';
 import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
@@ -103,6 +106,7 @@ function isNearBottom(el: HTMLElement, threshold = SCROLL_NEAR_BOTTOM_PX): boole
 
 function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const flashToast = useToast();
+  const online = useOnline();
   const [mode, setMode] = useState('understand');
   const [ref, setRef] = useState('');
   const [input, setInput] = useState('');
@@ -127,6 +131,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const abortRef = useRef<AbortController | null>(null);
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [streamCiteCount, setStreamCiteCount] = useState(0);
+  const [aiQuota, setAiQuota] = useState<AiQuota | null>(null);
+
+  useEffect(() => {
+    if (!paneActive || currentUserId()) return;
+    void fetchAiQuota().then(setAiQuota);
+  }, [paneActive, busy]);
   const [slowHint, setSlowHint] = useState(false);
   const [pendingQuestion, setPendingQuestion] = useState('');
   const [composerFocused, setComposerFocused] = useState(false);
@@ -690,6 +700,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       },
       {
         onMeta: (meta) => {
+          if (meta.quota && meta.quota.limit > 0) {
+            setAiQuota({
+              used: meta.quota.used,
+              limit: meta.quota.limit,
+              unlimited: false,
+            });
+          } else if (meta.quota) {
+            setAiQuota({ used: 0, limit: 0, unlimited: true });
+          }
           const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
           cites = localizeCitations(meta.citations || [], book || undefined);
           if (meta.scene_label) sceneLabel = meta.scene_label;
@@ -1019,6 +1038,36 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           )}
         </div>
       </header>
+
+      {!online ? (
+        <p className="muted offline-page-hint" style={{ marginBottom: 8 }}>
+          当前离线，小爱问答需联网后使用。
+        </p>
+      ) : null}
+
+      {aiQuota && !aiQuota.unlimited && aiQuota.limit > 0 ? (
+        <div
+          className="assistant-quota-bar"
+          style={{
+            fontSize: 12,
+            padding: '6px 12px',
+            marginBottom: 8,
+            borderRadius: 8,
+            background: aiQuota.used >= aiQuota.limit ? 'var(--danger-soft, #fde8e8)' : 'var(--card-2)',
+          }}
+        >
+          {aiQuota.used >= aiQuota.limit ? (
+            <>
+              今日免费次数已用完。
+              <Link href="/profile" className="text-link" style={{ marginLeft: 6 }}>
+                登录解锁更多
+              </Link>
+            </>
+          ) : (
+            <>今日 AI 剩余 {Math.max(0, aiQuota.limit - aiQuota.used)} / {aiQuota.limit} 次</>
+          )}
+        </div>
+      ) : null}
 
       <div className={`assistant-body${msgs.length === 0 ? ' is-empty' : ''}`}>
         <div className="assistant-thread-wrap">

@@ -20,14 +20,14 @@ from .guide.router import router as guide_router
 from .push.router import router as push_router
 from .social.router import router as social_router
 from .social.im_router import router as social_im_router
-from .social.im_schema import ensure_social_im_v12_pool
+from .schema_bootstrap import bootstrap_schemas
 from .sync.router import router as sync_router
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        ensure_social_im_v12_pool(get_pool())
+        bootstrap_schemas(get_pool())
     except Exception:
         pass
     try:

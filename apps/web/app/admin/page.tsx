@@ -6,7 +6,7 @@ import AdminPcNav from '@/components/admin/AdminPcNav';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AdminLoginForm } from '@/components/AdminRagPanel';
+import { AdminLoginForm } from '@/components/admin/AdminLoginForm';
 import AdminRagWorkspace from '@/components/admin/AdminRagWorkspace';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
 import AdminOpsHeroPanel from '@/components/admin/AdminOpsHeroPanel';

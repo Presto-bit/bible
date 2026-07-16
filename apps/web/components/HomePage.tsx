@@ -49,6 +49,8 @@ import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
+import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
+import OfflinePackBanner from '@/components/OfflinePackBanner';
 
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
@@ -80,6 +82,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const [heroBCampaign, setHeroBCampaign] = useState<HeroBCampaign | null>(() => readCachedHeroBCampaign());
   const [heroBCampaignReady, setHeroBCampaignReady] = useState(false);
   const [bootstrapReady, setBootstrapReady] = useState(false);
+  const [groupErr, setGroupErr] = useState<string | null>(null);
   const [heroResetNonce, setHeroResetNonce] = useState(0);
 
   const applyHeroBCampaign = useCallback(async (campaign: HeroBCampaign | null) => {
@@ -286,14 +289,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       };
     }
     let groupCard = buildHomeGroupRailInput([], null);
+    setGroupErr(null);
     try {
       const [groupsRes, summaryRes] = await Promise.all([
         api.myGroups(),
         api.discoverSummary(),
       ]);
       groupCard = buildHomeGroupRailInput(groupsRes.groups, summaryRes);
-    } catch {
-      /* 离线时保留默认邀请卡 */
+    } catch (e) {
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        setGroupErr(errorMessage(e, '小组动态加载失败'));
+      }
     }
     const suggest = nextReadingSuggestion();
     let assistantCard: { title: string; sub: string; href: string } | undefined;
@@ -417,6 +423,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   return (
     <main className="container home-page">
+      <OfflinePackBanner />
+      <HomeOnboardingBanner />
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
         <div className="greet-actions">
@@ -555,6 +563,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
       <p className="section-label home-rail-section-label">今日推荐</p>
       <div className="home-stack home-stack-rail">
+        {groupErr ? (
+          <ErrorBanner message={groupErr} onRetry={() => void refreshRail()} />
+        ) : null}
         <HomeRail cards={railMain} />
       </div>
 

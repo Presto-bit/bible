@@ -24,7 +24,8 @@ import {
   type GroupEveningReminder,
 } from '@/lib/group_reminder';
 import { getNotifPrefs, setNotifPrefs, type NotifPrefs } from '@/lib/notif_prefs';
-import { subscribeWebPush } from '@/lib/web_push';
+import { checkPushReadiness, pushReadinessHint } from '@/lib/push_status';
+import { syncPushSubscription, rescheduleAllNotifications } from '@/lib/notifications';
 
 const SLOTS = [
   { key: 'morning', label: '晨读', hour: 7, minute: 0 },
@@ -55,6 +56,13 @@ export default function RemindersPage() {
     streakRecall: false,
   });
   const [msg, setMsg] = useState('');
+  const [pushHint, setPushHint] = useState('');
+
+  useEffect(() => {
+    void checkPushReadiness().then((r) => {
+      if (!r.ok) setPushHint(pushReadinessHint(r));
+    });
+  }, []);
 
   useEffect(() => {
     const p = getReminder();
@@ -68,6 +76,7 @@ export default function RemindersPage() {
     setGroupMinute(g.minute);
     reschedule();
     rescheduleGroupEveningReminder();
+    rescheduleAllNotifications();
   }, []);
 
   const patchNotif = async (patch: Partial<NotifPrefs>) => {
@@ -78,9 +87,9 @@ export default function RemindersPage() {
       if (!ok) {
         setMsg('请在浏览器或系统设置中允许通知');
       }
-      void subscribeWebPush();
+      void syncPushSubscription();
     } else {
-      void subscribeWebPush();
+      void syncPushSubscription();
     }
     if (patch.readingDnd !== undefined) {
       setMsg(patch.readingDnd ? '已开启读经勿扰（圣经页不弹社交提示）' : '已关闭读经勿扰');
@@ -168,6 +177,11 @@ export default function RemindersPage() {
         <h2 className="page-head-title">推送提醒</h2>
       </header>
       {msg && <p className="muted" style={{ marginTop: 8 }}>{msg}</p>}
+      {pushHint ? (
+        <p className="muted" style={{ marginTop: 8, fontSize: 12, lineHeight: 1.55, color: 'var(--warn)' }}>
+          {pushHint}
+        </p>
+      ) : null}
 
       <p className="muted reminder-policy-summary" style={{ fontSize: 12, marginTop: 10, lineHeight: 1.55 }}>
         {reminderPolicySummary()}

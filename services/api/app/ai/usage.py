@@ -62,6 +62,29 @@ def record_ai_request(device_id: str | None, user_id: str | None = None) -> None
         logger.warning("AI 用量统计失败，已忽略：%s", exc)
 
 
+def peek_quota(device_id: str | None, limit: int) -> tuple[int, int]:
+    """查询当日已用次数，不扣减。返回 (used, limit)。"""
+    if limit <= 0:
+        return 0, 0
+    if not device_id:
+        return 0, limit
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            guest_id = _ensure_guest(conn, device_id)
+            used = conn.execute(
+                f"SELECT request_count FROM ai_usage_daily "
+                f"WHERE guest_id = %s AND usage_date = {CN_TODAY_SQL}",
+                (guest_id,),
+            ).fetchone()
+            used = used[0] if used else 0
+            conn.commit()
+            return used, limit
+    except Exception as exc:
+        logger.warning("额度查询失败：%s", exc)
+        return 0, limit
+
+
 def consume_quota(device_id: str | None, limit: int) -> tuple[bool, int, int]:
     """预扣一次额度。返回 (allowed, used_after, limit)。
 

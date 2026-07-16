@@ -16,6 +16,7 @@ import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 
 export { getDeviceId, stableDeviceFingerprint } from './device_id';
 export { deviceIdToUserCode, isUserCode, USER_CODE_LEN, USER_CODE_RE } from './user_code';
+export { fetchAiQuota, type AiQuota } from './api/ai';
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn';
