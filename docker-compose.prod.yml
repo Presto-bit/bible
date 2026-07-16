@@ -27,7 +27,8 @@ services:
       context: .
       dockerfile: services/api/Dockerfile
       args:
-        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://mirrors.aliyun.com/pypi/simple/}
+        PIP_TRUSTED_HOST: ${PIP_TRUSTED_HOST:-mirrors.aliyun.com}
     container_name: bible-api
     restart: unless-stopped
     env_file:

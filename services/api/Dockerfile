@@ -3,16 +3,19 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# 国内 VPS 构建可设 PyPI 镜像，避免 files.pythonhosted.org 超时
+# 国内 VPS 构建可设 PyPI 镜像；compose 默认阿里云（清华源偶有 403）
 ARG PIP_INDEX_URL=
+ARG PIP_TRUSTED_HOST=
 
 RUN apt-get update \
   && apt-get install -y --no-install-recommends curl \
   && rm -rf /var/lib/apt/lists/*
 
 COPY services/api/requirements.txt /app/services/api/requirements.txt
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --upgrade pip \
+  && pip install --no-cache-dir \
        --index-url "${PIP_INDEX_URL:-https://pypi.org/simple}" \
+       ${PIP_TRUSTED_HOST:+--trusted-host "$PIP_TRUSTED_HOST"} \
        -r /app/services/api/requirements.txt
 
 COPY services/api /app/services/api
