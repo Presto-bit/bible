@@ -19952,6 +19952,33 @@ html.perf-lite .im-msg-popover{
   padding: 4px 2px;
   cursor: pointer;
 }
+.group-coread-sticky-close {
+  flex-shrink: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.group-coread-sticky-close:hover,
+.group-coread-sticky-close:active {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+.group-coread-sticky-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.group-coread-sticky-collapsed .group-coread-sticky-main {
+  flex: 1;
+}
 
 .group-my-task-pin {
   display: flex;
