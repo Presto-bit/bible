@@ -1327,7 +1327,7 @@ def fetch_admin_stats_detail(
                     LEFT JOIN accounts ac ON ac.user_id = l.user_id
                     LEFT JOIN user_profile up ON up.user_id = l.user_id
                     LEFT JOIN users u ON u.id = l.user_id
-                    WHERE l.(timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+                    WHERE (timezone('Asia/Shanghai', l.created_at))::date BETWEEN %s AND %s
                     GROUP BY l.user_id
                     ORDER BY cnt DESC
                     LIMIT 10
