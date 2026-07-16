@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
 import { offlinePackStatus, type OfflinePackStatus } from '@/lib/offline_bootstrap';
+
 const OFFLINE_PACK_READY = 'presto-offline-pack-ready';
 
 const LABEL: Record<Exclude<OfflinePackStatus, 'ready'>, string> = {
@@ -11,8 +11,13 @@ const LABEL: Record<Exclude<OfflinePackStatus, 'ready'>, string> = {
   loading: '正在后台下载经包…',
 };
 
-/** U11：经包未就绪可见提示 */
-export default function OfflinePackBanner() {
+/** 经包未就绪提示（放在设置等非首页入口） */
+export default function OfflinePackBanner({
+  onDownload,
+}: {
+  /** 点击「去下载」时回调；未传则不显示按钮 */
+  onDownload?: () => void;
+}) {
   const [status, setStatus] = useState<OfflinePackStatus>('missing');
 
   useEffect(() => {
@@ -37,10 +42,15 @@ export default function OfflinePackBanner() {
   return (
     <div className="offline-pack-banner card card-2" style={{ marginBottom: 10 }}>
       <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>{LABEL[status]}</p>
-      {status !== 'loading' ? (
-        <Link href="/profile" className="text-link" style={{ fontSize: 13, marginTop: 6, display: 'inline-block' }}>
-          前往我的 · 离线经包
-        </Link>
+      {status !== 'loading' && onDownload ? (
+        <button
+          type="button"
+          className="text-link"
+          style={{ fontSize: 13, marginTop: 6, padding: 0, border: 0, background: 'none', cursor: 'pointer' }}
+          onClick={onDownload}
+        >
+          去下载离线经包
+        </button>
       ) : null}
     </div>
   );

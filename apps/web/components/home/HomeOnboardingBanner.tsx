@@ -17,7 +17,8 @@ export default function HomeOnboardingBanner() {
     let cancelled = false;
     const refresh = () => {
       void resolveHomeOnboarding().then((s) => {
-        if (!cancelled) setStage(s.stage === 'S3' ? null : s.stage);
+        // S0 经包下载改在「我的 → 设置」提示，首页不打扰
+        if (!cancelled) setStage(s.stage === 'S3' || s.stage === 'S0' ? null : s.stage);
       });
     };
     refresh();

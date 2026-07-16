@@ -50,7 +50,6 @@ import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
-import OfflinePackBanner from '@/components/OfflinePackBanner';
 
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
@@ -423,7 +422,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   return (
     <main className="container home-page">
-      <OfflinePackBanner />
       <HomeOnboardingBanner />
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />

@@ -17,6 +17,7 @@ import AccountSecurityCard from '@/components/AccountSecurityCard';
 import AccountSettingsSection from '@/components/AccountSettingsSection';
 import SyncStatusBadge from '@/components/SyncStatusBadge';
 import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
+import OfflinePackBanner from '@/components/OfflinePackBanner';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
 import AppBodyPortal from '@/components/AppBodyPortal';
@@ -469,6 +470,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
               <div className="settings-card">
                 <p className="settings-title">工具</p>
+                <OfflinePackBanner
+                  onDownload={() => {
+                    setSettingsOpen(false);
+                    setDownloadOpen(true);
+                  }}
+                />
                 <button
                   type="button"
                   className="card row-card"
