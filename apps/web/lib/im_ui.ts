@@ -39,6 +39,30 @@ export function formatMsgTime(iso: string | null | undefined): string {
   }
 }
 
+/** 会话列表右侧时间（微信式：今天 HH:mm / 昨天 / 周几 / 日期） */
+export function formatConvListTime(iso: string | null | undefined): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startMsg = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayDiff = Math.round((startToday - startMsg) / 86400000);
+    if (dayDiff === 0) return formatMsgTime(iso);
+    if (dayDiff === 1) return '昨天';
+    if (dayDiff > 1 && dayDiff < 7) {
+      return ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()] || '';
+    }
+    if (d.getFullYear() === now.getFullYear()) {
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    }
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
+  } catch {
+    return '';
+  }
+}
+
 export function formatMsgDayLabel(dayKey: string): string {
   const today = localDayKeyNow();
   const yesterday = localDayKeyOffset(-1);

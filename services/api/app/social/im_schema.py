@@ -37,6 +37,11 @@ _STATEMENTS: tuple[str, ...] = (
     """,
     "CREATE INDEX IF NOT EXISTS group_message_created_idx ON group_message (created_at)",
     """
+    CREATE INDEX IF NOT EXISTS group_message_group_active_idx
+      ON group_message (group_id, created_at DESC)
+      WHERE recalled_at IS NULL
+    """,
+    """
     CREATE TABLE IF NOT EXISTS friend_request (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       from_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -90,6 +95,11 @@ _STATEMENTS: tuple[str, ...] = (
       ON direct_message (thread_id, created_at DESC)
     """,
     "CREATE INDEX IF NOT EXISTS direct_message_created_idx ON direct_message (created_at)",
+    """
+    CREATE INDEX IF NOT EXISTS direct_message_thread_active_idx
+      ON direct_message (thread_id, created_at DESC)
+      WHERE recalled_at IS NULL
+    """,
     """
     CREATE TABLE IF NOT EXISTS conversation_state (
       user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -182,6 +192,9 @@ def ensure_social_im_v12(conn) -> bool:
 
 
 def ensure_social_im_v12_pool(pool) -> bool:
+    # 已就绪则不再占连接（会话列表高频路径）
+    if _ready:
+        return True
     try:
         with pool.connection() as conn:
             return ensure_social_im_v12(conn)

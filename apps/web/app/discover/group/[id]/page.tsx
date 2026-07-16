@@ -117,18 +117,65 @@ function GroupPageInner() {
       }
       setErr(detail);
     }
+  }, [gid, router]);
+
+  /** realtime 热路径：只刷消息流，避免反复打重型 group_detail */
+  const reloadFeed = useCallback(async () => {
+    if (!gid) return;
+    try {
+      const f = await api.groupFeed(gid);
+      const incoming = Array.isArray(f.messages) ? f.messages : [];
+      setFeed((prev) => {
+        const temps = prev.filter((m) => m.id.startsWith('temp-'));
+        if (!temps.length) return incoming;
+        const merged = [...incoming];
+        for (const t of temps) {
+          const dup = merged.some(
+            (m) =>
+              m.mine
+              && m.kind === t.kind
+              && (m.body || '') === (t.body || '')
+              && (m.ref || '') === (t.ref || '')
+              && Math.abs(new Date(m.created_at).getTime() - new Date(t.created_at).getTime()) < 120000,
+          );
+          if (!dup) merged.push(t);
+        }
+        merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
+        return merged;
+      });
+      setHasMore(Boolean(f.has_more));
+      setErr(null);
+    } catch {
+      /* 静默：下次可见时再全量 */
+    }
   }, [gid]);
 
   useEffect(() => {
-    reload();
+    void reload();
   }, [reload]);
 
   useEffect(() => {
     if (!gid) return;
-    return subscribeSocialRealtime((_c, changed) => {
-      if (changed) void reload();
-    });
-  }, [gid, reload]);
+    return subscribeSocialRealtime(
+      (_c, changed) => {
+        if (changed) void reloadFeed();
+      },
+      { watch: 'group', debounceMs: 900 },
+    );
+  }, [gid, reloadFeed]);
+
+  // 回到前台时轻量补一次 detail（任务/成员），不跟每条消息绑死
+  useEffect(() => {
+    if (!gid) return;
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      void api.groupDetail(gid, { light: true }).then((d) => {
+        setDetail(normalizeGroupDetail(d));
+      }).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [gid]);
 
   useEffect(() => {
     if (!stickBottom.current) return;

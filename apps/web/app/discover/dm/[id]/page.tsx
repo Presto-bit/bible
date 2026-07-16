@@ -151,23 +151,15 @@ function DmThreadPageInner() {
     };
   }, [pending]);
 
-  const loadTitle = useCallback(async () => {
-    if (!threadId) return;
-    try {
-      const conv = await api.conversations();
-      const hit = conv.items.find((it) => it.scope === 'dm' && it.ref_id === threadId);
-      if (hit?.title) setTitle(hit.title);
-      if (hit?.peer_user_id) setPeerUserId(hit.peer_user_id);
-    } catch {
-      /* ignore */
-    }
-  }, [threadId]);
+  const markedReadRef = useRef(false);
 
   const reload = useCallback(async () => {
     if (!threadId) return;
     try {
       const r = await api.dmMessages(threadId);
       const incoming = (r.messages || []) as LocalDm[];
+      if (r.peer_title) setTitle(r.peer_title);
+      if (r.peer_user_id) setPeerUserId(r.peer_user_id);
       setMsgs((prev) => {
         const temps = prev.filter((m) => m.id.startsWith('temp-'));
         if (!temps.length) return incoming;
@@ -186,7 +178,11 @@ function DmThreadPageInner() {
         }
         return merged;
       });
-      void api.patchConversationState('dm', threadId, {});
+      // 已读只在首进/回前台写一次，避免 realtime 刷消息时写放大
+      if (!markedReadRef.current) {
+        markedReadRef.current = true;
+        void api.patchConversationState('dm', threadId, {});
+      }
       setErr(null);
     } catch (e) {
       setErr(errorMessage(e, '加载失败'));
@@ -198,17 +194,36 @@ function DmThreadPageInner() {
   }, []);
 
   useEffect(() => {
-    if (!uid || !threadId) return;
-    void reload();
-    void loadTitle();
-  }, [uid, threadId, reload, loadTitle]);
+    markedReadRef.current = false;
+  }, [threadId]);
 
   useEffect(() => {
     if (!uid || !threadId) return;
-    return subscribeSocialRealtime((_c, changed) => {
-      if (changed) void reload();
-    });
+    void reload();
   }, [uid, threadId, reload]);
+
+  useEffect(() => {
+    if (!uid || !threadId) return;
+    return subscribeSocialRealtime(
+      (_c, changed) => {
+        if (changed) void reload();
+      },
+      { watch: 'dm', debounceMs: 900 },
+    );
+  }, [uid, threadId, reload]);
+
+  useEffect(() => {
+    if (!threadId) return;
+    const onVis = () => {
+      if (document.visibilityState !== 'visible') return;
+      markedReadRef.current = false;
+      void api.patchConversationState('dm', threadId, {}).then(() => {
+        markedReadRef.current = true;
+      }).catch(() => {});
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [threadId]);
 
   useEffect(() => {
     if (!stickBottom.current) return;

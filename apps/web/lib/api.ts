@@ -1475,7 +1475,10 @@ export const api = {
       method: 'POST',
       body: { join_code },
     }),
-  groupDetail: (gid: string) => authed<GroupDetail>(`/social/groups/${gid}`),
+  groupDetail: (gid: string, opts?: { light?: boolean }) =>
+    authed<GroupDetail>(
+      `/social/groups/${gid}${opts?.light ? '?light=1' : ''}`,
+    ),
   updateGroup: (
     gid: string,
     body: {
@@ -1643,9 +1646,12 @@ export const api = {
       method: 'POST',
     }),
   dmMessages: (threadId: string, limit = 50) =>
-    authed<{ messages: DmMessage[]; peer_last_read_at?: string | null }>(
-      `/social/dm/${threadId}/messages?limit=${limit}`,
-    ),
+    authed<{
+      messages: DmMessage[];
+      peer_last_read_at?: string | null;
+      peer_user_id?: string;
+      peer_title?: string | null;
+    }>(`/social/dm/${threadId}/messages?limit=${limit}`),
   sendDm: (
     threadId: string,
     body: { body?: string; kind?: string; ref?: string; reply_to_id?: string },

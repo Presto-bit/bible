@@ -14,7 +14,6 @@ from ..auth.session import get_current_user
 from ..auth.user_code import pick_user_code, uuid_for_code
 from ..config import get_settings
 from ..db import get_pool
-from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from . import access
 from .im_schema import ensure_social_im_v12, ensure_social_im_v12_pool
 from .media import unlink_storage_keys
@@ -22,14 +21,18 @@ from .moderation import ModerationError, moderate_text
 
 import asyncio
 import json as _json_mod
+import threading
+import time
 
 router = APIRouter(prefix="/social", tags=["social-im"])
 
 _MSG_RETENTION = timedelta(days=30)
 _RECALL_WINDOW = timedelta(minutes=2)
-_CN_TODAY = CN_TODAY_SQL
-_CN_MSG_DAY = cn_day_sql("created_at")
-_CN_GM_DAY = cn_day_sql("gm.created_at")
+
+# realtime_cursor 短缓存：多 SSE / 多页同时订阅时合并探测
+_cursor_cache: dict[str, tuple[float, dict]] = {}
+_CURSOR_TTL_SEC = 2.5
+_cursor_lock = threading.Lock()
 
 _FILE_EXT = frozenset({
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
@@ -53,6 +56,60 @@ def _display(conn, uid: str) -> str:
         (f"用户{uid[:4]}", uid),
     ).fetchone()
     return (row[0] if row else f"用户{uid[:4]}") or f"用户{uid[:4]}"
+
+
+def _displays(conn, uids: list[str]) -> dict[str, str]:
+    """批量取展示名，避免会话列表 N+1。"""
+    out: dict[str, str] = {}
+    uniq = [u for u in dict.fromkeys(uids) if u]
+    if not uniq:
+        return out
+    try:
+        rows = conn.execute(
+            """
+            SELECT id::text,
+              COALESCE(NULLIF(TRIM(display_name), ''), NULLIF(TRIM(handle), ''), '')
+            FROM users WHERE id = ANY(%s::uuid[])
+            """,
+            (uniq,),
+        ).fetchall()
+        for rid, name in rows:
+            out[str(rid)] = (name or "").strip() or f"用户{str(rid)[:4]}"
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    for u in uniq:
+        out.setdefault(u, f"用户{u[:4]}")
+    return out
+
+
+def _attachment_names(conn, scope: str, message_ids: list) -> dict[str, str]:
+    """批量取附件名。"""
+    out: dict[str, str] = {}
+    ids = [str(m) for m in message_ids if m]
+    if not ids:
+        return out
+    try:
+        rows = conn.execute(
+            """
+            SELECT DISTINCT ON (message_id) message_id::text, file_name
+            FROM message_attachment
+            WHERE scope = %s AND message_id = ANY(%s::uuid[])
+            ORDER BY message_id, created_at ASC
+            """,
+            (scope, ids),
+        ).fetchall()
+        for mid, fname in rows:
+            if fname:
+                out[str(mid)] = str(fname)
+    except Exception:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    return out
 
 
 def _summarize(kind: str | None, body: str | None, file_name: str | None = None) -> str:
@@ -82,22 +139,27 @@ def _summarize(kind: str | None, body: str | None, file_name: str | None = None)
     return b[:80] if b else "[消息]"
 
 
-def _last_attachment_name(conn, scope: str, message_id) -> str | None:
-    if not message_id:
+def _conv_preview(
+    *,
+    kind: str | None,
+    body: str | None,
+    file_name: str | None,
+    scope: str,
+    viewer_id: str,
+    sender_id: str | None = None,
+    author_name: str | None = None,
+) -> str | None:
+    """会话列表末条预览（微信式：群聊带发送人）。"""
+    preview = _summarize(kind, body, file_name)
+    if not preview:
         return None
-    try:
-        row = conn.execute(
-            "SELECT file_name FROM message_attachment "
-            "WHERE scope = %s AND message_id = %s ORDER BY created_at ASC LIMIT 1",
-            (scope, str(message_id)),
-        ).fetchone()
-        return (row[0] if row else None) or None
-    except Exception:
-        try:
-            conn.rollback()
-        except Exception:
-            pass
-        return None
+    k = (kind or "chat").lower()
+    if scope == "group" and k != "system" and sender_id:
+        if str(sender_id) == viewer_id:
+            return f"我: {preview}"
+        name = (author_name or "").strip() or "群友"
+        return f"{name}: {preview}"
+    return preview
 
 
 def _ensure_im_tables(conn) -> None:
@@ -149,7 +211,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()
     cutoff = _retention_cutoff()
     items: list[dict] = []
-    # 独立连接补 schema，避免失败污染本请求事务
+    # 独立连接补 schema，避免失败污染本请求事务（已就绪时零开销）
     ensure_social_im_v12_pool(pool)
     with pool.connection() as conn:
         # 好友申请 inbox（021 未迁移时降级）
@@ -199,65 +261,51 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
             })
 
         groups = []
-        # 主查询需 f-string 嵌入北京日表达式；缺列/缺表时多层降级
+        # 末条预览不按 retention 截断（清理任务负责删旧消息）；unread 仍用 cutoff
         try:
             groups = conn.execute(
-                f"""
+                """
                 SELECT g.id, g.name, m.role,
-                  (SELECT gm.id FROM group_message gm
-                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                     AND gm.created_at >= %s
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_id,
-                  (SELECT gm.kind FROM group_message gm
-                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                     AND gm.created_at >= %s
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_kind,
-                  (SELECT gm.body FROM group_message gm
-                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                     AND gm.created_at >= %s
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_body,
-                  (SELECT gm.created_at FROM group_message gm
-                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                     AND gm.created_at >= %s
-                   ORDER BY gm.created_at DESC LIMIT 1) AS last_at,
-                  COALESCE(cs.last_read_at, '-infinity'::timestamptz) AS last_read,
+                  lm.id AS last_id, lm.kind AS last_kind, lm.body AS last_body,
+                  lm.created_at AS last_at, lm.user_id AS last_uid, lm.author_name,
                   cs.pinned_at, COALESCE(cs.muted, false) AS muted,
-                  (SELECT count(*)::int FROM group_message gm
-                   WHERE gm.group_id = g.id AND gm.recalled_at IS NULL
-                     AND gm.created_at >= %s
-                     AND gm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
-                     AND gm.user_id <> %s) AS unread,
-                  COALESCE((
-                    SELECT count(*)::int FROM group_task t
-                    WHERE t.group_id = g.id
-                      AND COALESCE(t.status, 'published') = 'published'
-                      AND (t.due_at IS NULL OR t.due_at > now())
-                      AND NOT EXISTS (
-                        SELECT 1 FROM group_message m
-                        WHERE m.group_id = g.id AND m.user_id = %s
-                          AND m.kind = 'checkin' AND m.task_id = t.id
-                      )
-                  ), 0) AS open_tasks,
-                  EXISTS (
-                    SELECT 1 FROM group_message gm
-                    WHERE gm.group_id = g.id AND gm.user_id = %s
-                      AND gm.kind = 'checkin'
-                      AND {_CN_GM_DAY} = {_CN_TODAY}
-                    LIMIT 1
-                  ) AS my_checked_in_today,
+                  (
+                    SELECT count(*)::int FROM (
+                      SELECT 1 FROM group_message gm
+                      WHERE gm.group_id = g.id
+                        AND gm.recalled_at IS NULL
+                        AND gm.created_at >= %s
+                        AND gm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
+                        AND gm.user_id <> %s
+                      LIMIT 100
+                    ) u
+                  ) AS unread,
                   g.created_at AS group_created_at
                 FROM social_group g
                 JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
                 LEFT JOIN conversation_state cs
                   ON cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text
+                LEFT JOIN LATERAL (
+                  SELECT gm.id, gm.kind, gm.body, gm.created_at, gm.user_id,
+                    COALESCE(
+                      NULLIF(TRIM(mb.display_name), ''),
+                      NULLIF(TRIM(u.display_name), ''),
+                      NULLIF(TRIM(u.handle), ''),
+                      ''
+                    ) AS author_name
+                  FROM group_message gm
+                  LEFT JOIN group_member mb
+                    ON mb.group_id = gm.group_id AND mb.user_id = gm.user_id
+                  LEFT JOIN users u ON u.id = gm.user_id
+                  WHERE gm.group_id = g.id
+                    AND gm.recalled_at IS NULL
+                  ORDER BY gm.created_at DESC
+                  LIMIT 1
+                ) lm ON true
                 ORDER BY cs.pinned_at DESC NULLS LAST,
-                         COALESCE(
-                           (SELECT gm.created_at FROM group_message gm
-                            WHERE gm.group_id = g.id ORDER BY gm.created_at DESC LIMIT 1),
-                           g.created_at
-                         ) DESC
+                         COALESCE(lm.created_at, g.created_at) DESC
                 """,
-                (cutoff, cutoff, cutoff, cutoff, cutoff, user_id, user_id, user_id, user_id, user_id),
+                (cutoff, user_id, user_id, user_id),
             ).fetchall()
         except Exception:
             conn.rollback()
@@ -265,31 +313,24 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 groups = conn.execute(
                     """
                     SELECT g.id, g.name, m.role,
-                      (SELECT gm.id FROM group_message gm
-                       WHERE gm.group_id = g.id
-                       ORDER BY gm.created_at DESC LIMIT 1) AS last_id,
-                      (SELECT gm.kind FROM group_message gm
-                       WHERE gm.group_id = g.id
-                       ORDER BY gm.created_at DESC LIMIT 1) AS last_kind,
-                      (SELECT gm.body FROM group_message gm
-                       WHERE gm.group_id = g.id
-                       ORDER BY gm.created_at DESC LIMIT 1) AS last_body,
-                      (SELECT gm.created_at FROM group_message gm
-                       WHERE gm.group_id = g.id
-                       ORDER BY gm.created_at DESC LIMIT 1) AS last_at,
-                      '-infinity'::timestamptz AS last_read,
-                      NULL::timestamptz AS pinned_at, false AS muted,
-                      0 AS unread,
-                      0 AS open_tasks,
-                      false AS my_checked_in_today,
-                      g.created_at AS group_created_at
+                      lm.id, lm.kind, lm.body, lm.created_at, lm.user_id, lm.author_name,
+                      NULL::timestamptz, false, 0, g.created_at
                     FROM social_group g
                     JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
-                    ORDER BY COALESCE(
-                      (SELECT gm.created_at FROM group_message gm
-                       WHERE gm.group_id = g.id ORDER BY gm.created_at DESC LIMIT 1),
-                      g.created_at
-                    ) DESC
+                    LEFT JOIN LATERAL (
+                      SELECT gm.id, gm.kind, gm.body, gm.created_at, gm.user_id,
+                        COALESCE(
+                          NULLIF(TRIM(u.display_name), ''),
+                          NULLIF(TRIM(u.handle), ''),
+                          ''
+                        ) AS author_name
+                      FROM group_message gm
+                      LEFT JOIN users u ON u.id = gm.user_id
+                      WHERE gm.group_id = g.id
+                      ORDER BY gm.created_at DESC
+                      LIMIT 1
+                    ) lm ON true
+                    ORDER BY COALESCE(lm.created_at, g.created_at) DESC
                     """,
                     (user_id,),
                 ).fetchall()
@@ -297,21 +338,33 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 conn.rollback()
                 groups = []
 
+        group_attach_ids = [
+            r[3] for r in groups
+            if r[3] and (r[4] or "") in ("file", "image")
+        ]
+        group_fnames = _attachment_names(conn, "group", group_attach_ids)
+
         for r in groups:
             try:
                 (
-                    gid, name, role, last_id, last_kind, last_body, last_at, _lr,
-                    pinned_at, muted, unread, _open_tasks, _my_checked, group_created,
+                    gid, name, role, last_id, last_kind, last_body, last_at,
+                    last_uid, author_name, pinned_at, muted, unread, group_created,
                 ) = r
-                fname = None
-                if last_kind in ("file", "image"):
-                    fname = _last_attachment_name(conn, "group", last_id)
+                fname = group_fnames.get(str(last_id)) if last_id else None
                 sort_at = last_at or group_created
                 items.append({
                     "scope": "group",
                     "ref_id": str(gid),
                     "title": name,
-                    "subtitle": _summarize(last_kind, last_body, fname) if last_id else None,
+                    "subtitle": _conv_preview(
+                        kind=last_kind,
+                        body=last_body,
+                        file_name=fname,
+                        scope="group",
+                        viewer_id=user_id,
+                        sender_id=str(last_uid) if last_uid else None,
+                        author_name=author_name,
+                    ) if last_id else None,
                     "unread": int(unread or 0),
                     "updated_at": sort_at.isoformat() if sort_at else None,
                     "pinned": pinned_at is not None,
@@ -331,35 +384,33 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
             threads = conn.execute(
                 """
                 SELECT t.id, t.user_low_id, t.user_high_id,
-                  (SELECT dm.id FROM direct_message dm
-                   WHERE dm.thread_id = t.id AND dm.recalled_at IS NULL
-                     AND dm.created_at >= %s
-                   ORDER BY dm.created_at DESC LIMIT 1),
-                  (SELECT dm.kind FROM direct_message dm
-                   WHERE dm.thread_id = t.id AND dm.recalled_at IS NULL
-                     AND dm.created_at >= %s
-                   ORDER BY dm.created_at DESC LIMIT 1),
-                  (SELECT dm.body FROM direct_message dm
-                   WHERE dm.thread_id = t.id AND dm.recalled_at IS NULL
-                     AND dm.created_at >= %s
-                   ORDER BY dm.created_at DESC LIMIT 1),
-                  (SELECT dm.created_at FROM direct_message dm
-                   WHERE dm.thread_id = t.id AND dm.recalled_at IS NULL
-                     AND dm.created_at >= %s
-                   ORDER BY dm.created_at DESC LIMIT 1),
-                  COALESCE(cs.last_read_at, '-infinity'::timestamptz),
+                  lm.id, lm.kind, lm.body, lm.created_at,
                   cs.pinned_at, COALESCE(cs.muted, false),
-                  (SELECT count(*)::int FROM direct_message dm
-                   WHERE dm.thread_id = t.id AND dm.recalled_at IS NULL
-                     AND dm.created_at >= %s
-                     AND dm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
-                     AND dm.sender_id <> %s)
+                  (
+                    SELECT count(*)::int FROM (
+                      SELECT 1 FROM direct_message dm
+                      WHERE dm.thread_id = t.id
+                        AND dm.recalled_at IS NULL
+                        AND dm.created_at >= %s
+                        AND dm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
+                        AND dm.sender_id <> %s
+                      LIMIT 100
+                    ) u
+                  ) AS unread
                 FROM direct_thread t
                 LEFT JOIN conversation_state cs
                   ON cs.user_id = %s AND cs.scope = 'dm' AND cs.ref_id = t.id::text
+                LEFT JOIN LATERAL (
+                  SELECT dm.id, dm.kind, dm.body, dm.created_at
+                  FROM direct_message dm
+                  WHERE dm.thread_id = t.id
+                    AND dm.recalled_at IS NULL
+                  ORDER BY dm.created_at DESC
+                  LIMIT 1
+                ) lm ON true
                 WHERE t.user_low_id = %s OR t.user_high_id = %s
                 """,
-                (cutoff, cutoff, cutoff, cutoff, cutoff, user_id, user_id, user_id, user_id),
+                (cutoff, user_id, user_id, user_id, user_id),
             ).fetchall()
         except Exception:
             try:
@@ -368,19 +419,40 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 pass
             threads = []
 
+        peers: list[str] = []
+        dm_attach_ids = []
+        parsed_threads: list[tuple] = []
         for r in threads:
             try:
-                tid, low, high, last_id, last_kind, last_body, last_at, _lr, pinned_at, muted, unread = r
+                tid, low, high, last_id, last_kind, last_body, last_at, pinned_at, muted, unread = r
                 peer = str(high) if str(low) == user_id else str(low)
-                fname = None
-                if last_kind in ("file", "image"):
-                    fname = _last_attachment_name(conn, "dm", last_id)
+                peers.append(peer)
+                if last_id and (last_kind or "") in ("file", "image"):
+                    dm_attach_ids.append(last_id)
+                parsed_threads.append(
+                    (tid, peer, last_id, last_kind, last_body, last_at, pinned_at, muted, unread)
+                )
+            except Exception:
+                continue
+
+        peer_names = _displays(conn, peers)
+        dm_fnames = _attachment_names(conn, "dm", dm_attach_ids)
+
+        for tid, peer, last_id, last_kind, last_body, last_at, pinned_at, muted, unread in parsed_threads:
+            try:
+                fname = dm_fnames.get(str(last_id)) if last_id else None
                 items.append({
                     "scope": "dm",
                     "ref_id": str(tid),
                     "peer_user_id": peer,
-                    "title": _display(conn, peer),
-                    "subtitle": _summarize(last_kind, last_body, fname) if last_id else None,
+                    "title": peer_names.get(peer) or f"用户{peer[:4]}",
+                    "subtitle": _conv_preview(
+                        kind=last_kind,
+                        body=last_body,
+                        file_name=fname,
+                        scope="dm",
+                        viewer_id=user_id,
+                    ) if last_id else None,
                     "unread": int(unread or 0),
                     "updated_at": last_at.isoformat() if last_at else None,
                     "pinned": pinned_at is not None,
@@ -388,19 +460,15 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                     "badge": None,
                 })
             except Exception:
-                try:
-                    conn.rollback()
-                except Exception:
-                    pass
                 continue
 
     # inbox 置顶；其余置顶优先再按时间
     inbox = [i for i in items if i["scope"].startswith("inbox")]
     rest = [i for i in items if not i["scope"].startswith("inbox")]
-    rest.sort(key=lambda it: (0 if it.get("pinned") else 1, it.get("updated_at") or ""), reverse=False)
-    rest.sort(key=lambda it: it.get("updated_at") or "", reverse=True)
     pinned = [i for i in rest if i.get("pinned")]
     unpinned = [i for i in rest if not i.get("pinned")]
+    pinned.sort(key=lambda it: it.get("updated_at") or "", reverse=True)
+    unpinned.sort(key=lambda it: it.get("updated_at") or "", reverse=True)
     return {"items": inbox + pinned + unpinned}
 
 
@@ -664,8 +732,8 @@ def list_dm_messages(
     limit = max(1, min(limit, 100))
     cutoff = _retention_cutoff()
     pool = get_pool()
+    ensure_social_im_v12_pool(pool)
     with pool.connection() as conn:
-        _ensure_im_tables(conn)
         t = conn.execute(
             "SELECT user_low_id, user_high_id FROM direct_thread WHERE id = %s",
             (thread_id,),
@@ -682,24 +750,25 @@ def list_dm_messages(
             """,
             (thread_id, cutoff, limit),
         ).fetchall()
-        msgs = []
-        for r in reversed(rows):
-            recalled = r[6] is not None
-            mid = str(r[0])
-            atts = []
+        rows = list(reversed(rows))
+        mids = [str(r[0]) for r in rows]
+        att_map: dict[str, list] = {mid: [] for mid in mids}
+        if mids:
             try:
                 for a in conn.execute(
-                    "SELECT id, file_name, mime, size_bytes, storage_key "
-                    "FROM message_attachment WHERE scope = 'dm' AND message_id = %s",
-                    (mid,),
+                    "SELECT message_id::text, id, file_name, mime, size_bytes, storage_key "
+                    "FROM message_attachment "
+                    "WHERE scope = 'dm' AND message_id = ANY(%s::uuid[]) "
+                    "ORDER BY created_at ASC",
+                    (mids,),
                 ).fetchall():
-                    key = a[4] or ""
-                    fname = Path(key).name if key else (a[1] or "")
-                    atts.append({
-                        "id": str(a[0]),
-                        "file_name": a[1],
-                        "mime": a[2],
-                        "size_bytes": a[3],
+                    key = a[5] or ""
+                    fname = Path(key).name if key else (a[2] or "")
+                    att_map.setdefault(a[0], []).append({
+                        "id": str(a[1]),
+                        "file_name": a[2],
+                        "mime": a[3],
+                        "size_bytes": a[4],
                         "url": f"/content/social-media/assets/{fname}" if fname else None,
                     })
             except Exception:
@@ -707,7 +776,10 @@ def list_dm_messages(
                     conn.rollback()
                 except Exception:
                     pass
-                atts = []
+        msgs = []
+        for r in rows:
+            recalled = r[6] is not None
+            mid = str(r[0])
             msgs.append({
                 "id": mid,
                 "sender_id": str(r[1]),
@@ -717,10 +789,11 @@ def list_dm_messages(
                 "reply_to_id": str(r[5]) if r[5] else None,
                 "recalled": recalled,
                 "created_at": r[7].isoformat() if r[7] else None,
-                "attachments": atts,
+                "attachments": att_map.get(mid) or [],
                 "mine": str(r[1]) == user_id,
             })
         peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
+        peer_title = _display(conn, peer)
         peer_read = None
         try:
             pr = conn.execute(
@@ -736,7 +809,12 @@ def list_dm_messages(
             except Exception:
                 pass
             peer_read = None
-    return {"messages": msgs, "peer_last_read_at": peer_read}
+    return {
+        "messages": msgs,
+        "peer_last_read_at": peer_read,
+        "peer_user_id": peer,
+        "peer_title": peer_title,
+    }
 
 
 @router.post("/dm/{thread_id}/messages")
@@ -1227,9 +1305,14 @@ def search_messages(
             """,
             (user_id, user_id),
         ).fetchall()
+        title_peers = [
+            str(r[2]) if str(r[1]) == user_id else str(r[1])
+            for r in drows_title
+        ]
+        title_names = _displays(conn, title_peers)
         for r in drows_title:
             peer = str(r[2]) if str(r[1]) == user_id else str(r[1])
-            name = _display(conn, peer)
+            name = title_names.get(peer) or f"用户{peer[:4]}"
             if query.lower() in name.lower():
                 items.append({
                     "scope": "dm",
@@ -1278,13 +1361,18 @@ def search_messages(
             """,
             (user_id, user_id, cutoff, like, limit),
         ).fetchall()
+        msg_peers = [
+            str(r[6]) if str(r[5]) == user_id else str(r[5])
+            for r in drows
+        ]
+        msg_names = _displays(conn, msg_peers)
         for r in drows:
             peer = str(r[6]) if str(r[5]) == user_id else str(r[5])
             items.append({
                 "scope": "dm",
                 "message_id": str(r[0]),
                 "ref_id": str(r[1]),
-                "title": _display(conn, peer),
+                "title": msg_names.get(peer) or f"用户{peer[:4]}",
                 "kind": r[2],
                 "snippet": (r[3] or "")[:120],
                 "created_at": r[4].isoformat() if r[4] else None,
@@ -1298,6 +1386,12 @@ def search_messages(
 @router.get("/realtime/cursor")
 def realtime_cursor(user_id: str = Depends(get_current_user)) -> dict:
     """轻量补拉：返回用户相关会话的最近消息时间，客户端对比后刷新。"""
+    now = time.monotonic()
+    with _cursor_lock:
+        hit = _cursor_cache.get(user_id)
+        if hit and now - hit[0] < _CURSOR_TTL_SEC:
+            return hit[1]
+
     pool = get_pool()
     cutoff = _retention_cutoff()
     with pool.connection() as conn:
@@ -1320,26 +1414,37 @@ def realtime_cursor(user_id: str = Depends(get_current_user)) -> dict:
             """,
             (user_id, user_id, cutoff),
         ).fetchone()[0]
+
     def iso(v):
         if v is None or str(v).startswith("-"):
             return None
         return v.isoformat() if hasattr(v, "isoformat") else str(v)
-    return {
+
+    result = {
         "group_max": iso(gmax),
         "dm_max": iso(dmax),
         "server_time": datetime.now(timezone.utc).isoformat(),
     }
+    with _cursor_lock:
+        _cursor_cache[user_id] = (time.monotonic(), result)
+        # 防止缓存无限增长
+        if len(_cursor_cache) > 2000:
+            cutoff_t = time.monotonic() - 60
+            stale = [k for k, (ts, _) in _cursor_cache.items() if ts < cutoff_t]
+            for k in stale:
+                _cursor_cache.pop(k, None)
+    return result
 
 
 @router.get("/realtime/sse")
 async def realtime_sse(user_id: str = Depends(get_current_user)):
-    """PWA 实时：SSE 推送 cursor 变化（约 3s 探测）；连接最长约 25 分钟后客户端重连。"""
+    """PWA 实时：SSE 推送 cursor 变化（约 5s 探测）；连接最长约 25 分钟后客户端重连。"""
 
     async def gen():
         last: tuple[str | None, str | None] | None = None
         ticks = 0
         yield f"event: hello\ndata: {_json_mod.dumps({'ok': True})}\n\n"
-        while ticks < 500:
+        while ticks < 300:
             try:
                 cur = realtime_cursor(user_id)
                 key = (cur.get("group_max"), cur.get("dm_max"))
@@ -1352,7 +1457,7 @@ async def realtime_sse(user_id: str = Depends(get_current_user)):
                 yield f"event: error\ndata: {_json_mod.dumps({'message': 'cursor failed'})}\n\n"
                 break
             ticks += 1
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
     return StreamingResponse(
         gen(),

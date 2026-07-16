@@ -8,24 +8,32 @@ export type SocialCursor = {
   server_time?: string;
 };
 
-type Listener = (cursor: SocialCursor, changed: boolean) => void;
+export type SocialChangeFlags = {
+  group: boolean;
+  dm: boolean;
+  any: boolean;
+};
 
-let lastKey = '';
+type Listener = (cursor: SocialCursor, changed: boolean, flags: SocialChangeFlags) => void;
+
+let lastGroup = '';
+let lastDm = '';
 const listeners = new Set<Listener>();
 let stopFn: (() => void) | null = null;
 let started = false;
 
-function cursorKey(c: SocialCursor): string {
-  return `${c.group_max || ''}|${c.dm_max || ''}`;
-}
-
 function emit(c: SocialCursor) {
-  const key = cursorKey(c);
-  const changed = Boolean(lastKey) && key !== lastKey;
-  if (key) lastKey = key;
+  const g = c.group_max || '';
+  const d = c.dm_max || '';
+  const group = Boolean(lastGroup) && g !== lastGroup;
+  const dm = Boolean(lastDm) && d !== lastDm;
+  if (g) lastGroup = g;
+  if (d) lastDm = d;
+  const flags: SocialChangeFlags = { group, dm, any: group || dm };
+  const changed = flags.any;
   for (const fn of listeners) {
     try {
-      fn(c, changed);
+      fn(c, changed, flags);
     } catch {
       /* ignore */
     }
@@ -79,14 +87,13 @@ function startSseLoop(signal: AbortSignal): void {
         await readSseStream(signal);
       } catch {
         if (signal.aborted) return;
-        // 回落：单次 cursor 拉取
         try {
           const c = await api.realtimeCursor();
           emit(c);
         } catch {
           /* ignore */
         }
-        await new Promise((r) => setTimeout(r, 4000));
+        await new Promise((r) => setTimeout(r, 5000));
       }
     }
   })();
@@ -111,21 +118,59 @@ function ensureStarted() {
   };
 }
 
+export type SubscribeRealtimeOpts = {
+  /** 只关心群 / 私信 / 全部变更 */
+  watch?: 'group' | 'dm' | 'all';
+  /** 合并短时多次变更，默认 0（立即） */
+  debounceMs?: number;
+};
+
 /**
- * 订阅社交 cursor。仅在 group_max/dm_max 变化时 changed=true。
- * 返回取消订阅函数。
+ * 订阅社交 cursor。
+ * changed=true 表示 group_max 或 dm_max 有变化；可用 flags / watch 过滤。
  */
-export function subscribeSocialRealtime(onCursor: Listener): () => void {
-  listeners.add(onCursor);
+export function subscribeSocialRealtime(
+  onCursor: Listener,
+  opts?: SubscribeRealtimeOpts,
+): () => void {
+  const watch = opts?.watch ?? 'all';
+  const debounceMs = opts?.debounceMs ?? 0;
+  let timer: number | null = null;
+
+  const handler: Listener = (c, changed, flags) => {
+    if (!changed) {
+      onCursor(c, false, flags);
+      return;
+    }
+    const relevant =
+      watch === 'all' ? flags.any
+        : watch === 'group' ? flags.group
+          : flags.dm;
+    if (!relevant) return;
+    if (debounceMs <= 0) {
+      onCursor(c, true, flags);
+      return;
+    }
+    if (timer) window.clearTimeout(timer);
+    timer = window.setTimeout(() => {
+      timer = null;
+      onCursor(c, true, flags);
+    }, debounceMs);
+  };
+
+  listeners.add(handler);
   ensureStarted();
-  // 立即拉一次，避免首屏空白等待
-  void api.realtimeCursor().then(emit).catch(() => {});
+  // 仅首个订阅者拉一次，避免群/DM/发现同时订阅时打三次
+  if (listeners.size === 1) {
+    void api.realtimeCursor().then(emit).catch(() => {});
+  }
   return () => {
-    listeners.delete(onCursor);
+    if (timer) window.clearTimeout(timer);
+    listeners.delete(handler);
     if (listeners.size === 0 && stopFn) stopFn();
   };
 }
 
 export function peekSocialCursorKey(): string {
-  return lastKey;
+  return `${lastGroup}|${lastDm}`;
 }

@@ -18,6 +18,7 @@ import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName } from '@/lib/friend_remarks';
+import { formatConvListTime } from '@/lib/im_ui';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 
 type SubTab = 'messages' | 'friends';
@@ -49,6 +50,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [friendQ, setFriendQ] = useState('');
   const [plusOpen, setPlusOpen] = useState(false);
   const plusRef = useRef<HTMLDivElement | null>(null);
+  const messagesLoadedRef = useRef(false);
+  const friendsLoadedRef = useRef(false);
+  const reloadGenRef = useRef(0);
   const filteredFriends = useMemo(() => {
     const q = friendQ.trim().toLowerCase();
     if (!q) return friends;
@@ -61,16 +65,22 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [friends, friendQ]);
 
   const reload = useCallback(async () => {
+    const gen = ++reloadGenRef.current;
+    const soft =
+      sub === 'messages' ? messagesLoadedRef.current : friendsLoadedRef.current;
     try {
-      setLoading(true);
+      if (!soft) setLoading(true);
       if (sub === 'messages') {
         const conv = await api.conversations();
+        if (gen !== reloadGenRef.current) return;
         setItems(Array.isArray(conv.items) ? conv.items : []);
+        messagesLoadedRef.current = true;
       } else {
         const [fRes, reqRes] = await Promise.allSettled([
           api.friends(),
           api.friendRequests(),
         ]);
+        if (gen !== reloadGenRef.current) return;
         if (fRes.status === 'fulfilled') {
           setFriends(Array.isArray(fRes.value.friends) ? fRes.value.friends : []);
         } else {
@@ -81,14 +91,16 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         } else {
           setIncoming([]);
         }
+        friendsLoadedRef.current = true;
       }
       setErr(null);
     } catch (e) {
+      if (gen !== reloadGenRef.current) return;
       // 保留旧列表，避免整页空态 + 误报网络
       if (online) setErr(errorMessage(e, '刷新失败，请稍后再试'));
       else setErr(null);
     } finally {
-      setLoading(false);
+      if (gen === reloadGenRef.current) setLoading(false);
     }
   }, [online, sub]);
 
@@ -117,24 +129,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [plusOpen]);
 
   useEffect(() => {
-    if (!uid || !paneActive) return;
-    void reload();
-  }, [uid, paneActive, reload]);
-
-  // KeepAlive 回发现：仅在路由变为 /discover 时轻刷，避免与上面重复抢态
-  const lastPathRef = useRef<string | null>(null);
-  useEffect(() => {
     if (!uid || !paneActive || pathname !== '/discover') return;
-    if (lastPathRef.current === pathname) return;
-    lastPathRef.current = pathname;
     void reload();
-  }, [pathname, uid, paneActive, reload]);
+  }, [uid, paneActive, pathname, reload]);
 
   useEffect(() => {
     if (!uid || !paneActive || sub !== 'messages') return;
-    return subscribeSocialRealtime((_c, changed) => {
-      if (changed) void reload();
-    });
+    return subscribeSocialRealtime(
+      (_c, changed) => {
+        if (changed) void reload();
+      },
+      { watch: 'all', debounceMs: 900 },
+    );
   }, [uid, paneActive, sub, reload]);
 
   useEffect(() => {
@@ -160,14 +166,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   };
 
   const openItem = (it: ConversationItem) => {
-    if (it.scope === 'group') {
-      void api.patchConversationState('group', it.ref_id, {});
-      go(`/discover/group/${it.ref_id}`);
-      return;
-    }
-    if (it.scope === 'dm') {
-      void api.patchConversationState('dm', it.ref_id, {});
-      go(`/discover/dm/${it.ref_id}`);
+    if (it.scope === 'group' || it.scope === 'dm') {
+      if ((it.unread || 0) > 0) {
+        setItems((prev) =>
+          prev.map((row) =>
+            row.scope === it.scope && row.ref_id === it.ref_id
+              ? { ...row, unread: 0 }
+              : row,
+          ),
+        );
+      }
+      void api.patchConversationState(it.scope, it.ref_id, {});
+      go(it.scope === 'group' ? `/discover/group/${it.ref_id}` : `/discover/dm/${it.ref_id}`);
       return;
     }
     if (it.scope === 'inbox_friends') {
@@ -185,11 +195,22 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   ) => {
     if (it.scope !== 'group' && it.scope !== 'dm') return;
     setErr(null);
+    setItems((prev) =>
+      prev.map((row) =>
+        row.scope === it.scope && row.ref_id === it.ref_id
+          ? {
+              ...row,
+              pinned: patch.pinned ?? row.pinned,
+              muted: patch.muted ?? row.muted,
+            }
+          : row,
+      ),
+    );
     try {
       await api.patchConversationState(it.scope, it.ref_id, patch);
-      await reload();
     } catch (e) {
       setErr(errorMessage(e, '设置失败'));
+      void reload();
     }
   };
 
@@ -330,9 +351,11 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         </div>
       ) : null}
 
-      {loading ? <p className="muted" style={{ padding: '12px 0' }}>加载中…</p> : null}
+      {loading && ((sub === 'messages' && items.length === 0) || (sub === 'friends' && friends.length === 0 && incoming.length === 0)) ? (
+        <p className="muted" style={{ padding: '12px 0' }}>加载中…</p>
+      ) : null}
 
-      {sub === 'messages' && !loading && !searching ? (
+      {sub === 'messages' && !searching && (!loading || items.length > 0) ? (
         items.length === 0 ? (
           <div className="discover-empty">
             <strong>还没有消息</strong>
@@ -356,15 +379,28 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                   </span>
                   <div className="discover-conv-main">
                     <div className="discover-conv-title-row">
-                      {it.pinned ? <span className="discover-conv-pin">置顶</span> : null}
-                      <strong>{it.title}</strong>
-                      {it.muted ? <span className="discover-conv-mute">静音</span> : null}
+                      <div className="discover-conv-title-left">
+                        {it.pinned ? <span className="discover-conv-pin">置顶</span> : null}
+                        <strong>{it.title}</strong>
+                        {it.muted ? <span className="discover-conv-mute">静音</span> : null}
+                      </div>
+                      {it.updated_at && (it.scope === 'group' || it.scope === 'dm') ? (
+                        <time className="discover-conv-time" dateTime={it.updated_at}>
+                          {formatConvListTime(it.updated_at)}
+                        </time>
+                      ) : null}
                     </div>
-                    <p className="muted discover-conv-sub">{it.subtitle || '暂无消息'}</p>
+                    <div className="discover-conv-sub-row">
+                      <p className="muted discover-conv-sub">
+                        {it.subtitle || (it.scope === 'group' || it.scope === 'dm' ? '暂无消息' : '')}
+                      </p>
+                      {(it.unread || 0) > 0 ? (
+                        <span className="discover-conv-unread">
+                          {(it.unread || 0) > 99 ? '99+' : it.unread}
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
-                  {(it.unread || 0) > 0 ? (
-                    <span className="discover-conv-unread">{(it.unread || 0) > 99 ? '99+' : it.unread}</span>
-                  ) : null}
                 </button>
               );
               return (
@@ -397,7 +433,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         )
       ) : null}
 
-      {sub === 'friends' && !loading ? (
+      {sub === 'friends' && (!loading || friends.length > 0 || incoming.length > 0) ? (
         <div className="discover-friends-pane">
           <div className="discover-im-search" style={{ marginBottom: 12 }}>
             <input

@@ -11,7 +11,7 @@ from pathlib import Path
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
 from psycopg import errors as pg_errors
 from pydantic import BaseModel, Field
 
@@ -22,7 +22,7 @@ from ..content import loader
 from ..db import get_pool
 from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from . import task_ops
-from .im_schema import ensure_social_im_v12
+from .im_schema import ensure_social_im_v12_pool
 from .moderation import ModerationError, moderate_text
 
 logger = logging.getLogger(__name__)
@@ -837,10 +837,16 @@ def _require_member(conn, gid: str, user_id: str) -> str:
 
 
 @router.get("/groups/{gid}")
-def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
+def group_detail(
+    gid: str,
+    user_id: str = Depends(get_current_user),
+    light: int = Query(0, ge=0, le=1),
+) -> dict:
+    """群详情。light=1 跳过任务副作用与重统计，供前台补刷。"""
     pool = get_pool()
+    light_mode = bool(light)
+    ensure_social_im_v12_pool(pool)
     with pool.connection() as conn:
-        ensure_social_im_v12(conn)
         role = _require_member(conn, gid, user_id)
         try:
             g = conn.execute(
@@ -860,43 +866,45 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
         plan_id = g[3]
         g_owner = g[7]
         allow_chat = bool(g[8]) if len(g) > 8 else True
-        is_owner = role == "owner"
         is_staff = role in ("owner", "admin")
+
+        # 今日打卡用一次 LEFT JOIN，避免成员数 × EXISTS
         if plan_id:
             members = conn.execute(
                 f"SELECT u.id, {_member_display_sql()}, m.role, "
-                "  EXISTS ("
-                "    SELECT 1 FROM group_message gm "
-                "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
-                f"    AND {_CN_GM_DAY} = {_CN_TODAY}"
-                "  ) AS checked_today, "
+                "  (ct.user_id IS NOT NULL) AS checked_today, "
                 "  COALESCE(pp.day, 0) AS plan_day, "
                 "  up.avatar_id "
                 "FROM group_member m "
                 "JOIN users u ON u.id = m.user_id "
                 "LEFT JOIN plan_progress pp ON pp.user_id = u.id AND pp.plan_id = %s "
                 "LEFT JOIN user_profile up ON up.user_id = u.id "
+                "LEFT JOIN ("
+                "  SELECT DISTINCT gm.user_id FROM group_message gm "
+                f"  WHERE gm.group_id = %s AND gm.kind = 'checkin' AND {_CN_GM_DAY} = {_CN_TODAY}"
+                ") ct ON ct.user_id = u.id "
                 "WHERE m.group_id = %s "
                 "ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END, m.joined_at ASC",
-                (gid, plan_id, gid),
+                (plan_id, gid, gid),
             ).fetchall()
         else:
             members = conn.execute(
                 f"SELECT u.id, {_member_display_sql()}, m.role, "
-                "  EXISTS ("
-                "    SELECT 1 FROM group_message gm "
-                "    WHERE gm.group_id = %s AND gm.user_id = u.id AND gm.kind = 'checkin' "
-                f"    AND {_CN_GM_DAY} = {_CN_TODAY}"
-                "  ) AS checked_today, "
+                "  (ct.user_id IS NOT NULL) AS checked_today, "
                 "  0 AS plan_day, "
                 "  up.avatar_id "
                 "FROM group_member m "
                 "JOIN users u ON u.id = m.user_id "
                 "LEFT JOIN user_profile up ON up.user_id = u.id "
+                "LEFT JOIN ("
+                "  SELECT DISTINCT gm.user_id FROM group_message gm "
+                f"  WHERE gm.group_id = %s AND gm.kind = 'checkin' AND {_CN_GM_DAY} = {_CN_TODAY}"
+                ") ct ON ct.user_id = u.id "
                 "WHERE m.group_id = %s "
                 "ORDER BY CASE WHEN m.role = 'owner' THEN 0 ELSE 1 END, m.joined_at ASC",
                 (gid, gid),
             ).fetchall()
+
         tasks = conn.execute(
             "SELECT id, title, ref, due_at, task_type, completion_rule, body, status, "
             "publish_at, series_id, series_day, template_id, source, plan_id, plan_day "
@@ -905,47 +913,85 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
             "ORDER BY created_at DESC",
             (gid, user_id),
         ).fetchall()
-        # 发布到期定时任务 + 到期提醒 + 计划日自动任务
-        try:
-            task_ops.publish_due_scheduled_tasks(conn, gid=gid)
-            task_ops.send_due_reminders(conn, gid=gid)
-            if g[3]:
-                task_ops.ensure_plan_day_task(conn, gid=gid, plan_id=str(g[3]), owner_id=str(g_owner))
-            conn.commit()
-            # 刷新任务列表（含刚发布/自动生成）
-            tasks = conn.execute(
-                "SELECT id, title, ref, due_at, task_type, completion_rule, body, status, "
-                "publish_at, series_id, series_day, template_id, source, plan_id, plan_day "
-                "FROM group_task WHERE group_id = %s "
-                "AND (status = 'published' OR (status = 'scheduled' AND created_by = %s::uuid)) "
-                "ORDER BY created_at DESC",
-                (gid, user_id),
-            ).fetchall()
-        except Exception:
-            logger.exception("group task publish/remind/plan_day failed gid=%s", gid)
-            conn.rollback()
+
+        # light：跳过任务副作用（发布/提醒/计划日），其余仍返回完整详情
+        if not light_mode:
+            try:
+                task_ops.publish_due_scheduled_tasks(conn, gid=gid)
+                task_ops.send_due_reminders(conn, gid=gid)
+                if g[3]:
+                    task_ops.ensure_plan_day_task(
+                        conn, gid=gid, plan_id=str(g[3]), owner_id=str(g_owner),
+                    )
+                conn.commit()
+                tasks = conn.execute(
+                    "SELECT id, title, ref, due_at, task_type, completion_rule, body, status, "
+                    "publish_at, series_id, series_day, template_id, source, plan_id, plan_day "
+                    "FROM group_task WHERE group_id = %s "
+                    "AND (status = 'published' OR (status = 'scheduled' AND created_by = %s::uuid)) "
+                    "ORDER BY created_at DESC",
+                    (gid, user_id),
+                ).fetchall()
+            except Exception:
+                logger.exception("group task publish/remind/plan_day failed gid=%s", gid)
+                conn.rollback()
+
         stats = _group_today_stats(conn, gid, user_id)
         plan_stats = _group_plan_progress(conn, gid, g[3], user_id)
         weekly = _weekly_group_stats(conn, gid)
+
         muted_row = conn.execute(
             "SELECT muted FROM group_member WHERE group_id = %s AND user_id = %s",
             (gid, user_id),
         ).fetchone()
         muted = bool(muted_row[0]) if muted_row else False
         pinned_task_id = str(g[6]) if g[6] else None
+
+        # 批量：可见性、完成态、指派、附件
+        all_tids = [str(t[0]) for t in tasks]
+        assignee_map: dict[str, list[str]] = {tid: [] for tid in all_tids}
+        if all_tids:
+            for row in conn.execute(
+                "SELECT task_id::text, user_id::text FROM group_task_assignee "
+                "WHERE task_id = ANY(%s::uuid[])",
+                (all_tids,),
+            ).fetchall():
+                assignee_map.setdefault(row[0], []).append(row[1])
+
+        done_set: set[str] = set()
+        if all_tids:
+            for row in conn.execute(
+                "SELECT DISTINCT task_id::text FROM group_message "
+                "WHERE group_id = %s AND user_id = %s AND kind = 'checkin' "
+                "AND task_id = ANY(%s::uuid[])",
+                (gid, user_id, all_tids),
+            ).fetchall():
+                if row[0]:
+                    done_set.add(row[0])
+
+        attach_map: dict[str, list[dict]] = {tid: [] for tid in all_tids}
+        if all_tids:
+            for row in conn.execute(
+                "SELECT task_id::text, id, file_name, mime_type, size_bytes, url, created_at "
+                "FROM group_task_attachment WHERE task_id = ANY(%s::uuid[]) "
+                "ORDER BY created_at ASC",
+                (all_tids,),
+            ).fetchall():
+                attach_map.setdefault(row[0], []).append({
+                    "id": str(row[1]),
+                    "file_name": row[2],
+                    "mime_type": row[3],
+                    "size_bytes": int(row[4] or 0),
+                    "url": row[5],
+                    "created_at": row[6].isoformat() if row[6] else None,
+                })
+
         task_rows = []
         for t in tasks:
             tid = str(t[0])
-            if not task_ops.user_can_see_task(
-                conn, task_id=tid, user_id=user_id, is_owner=is_staff,
-            ):
+            assignees = assignee_map.get(tid) or []
+            if not is_staff and assignees and user_id not in assignees:
                 continue
-            done = conn.execute(
-                "SELECT 1 FROM group_message "
-                "WHERE group_id = %s AND user_id = %s AND kind = 'checkin' "
-                "AND task_id = %s LIMIT 1",
-                (gid, user_id, tid),
-            ).fetchone() is not None
             task_rows.append({
                 "id": tid,
                 "title": t[1],
@@ -962,10 +1008,10 @@ def group_detail(gid: str, user_id: str = Depends(get_current_user)) -> dict:
                 "source": t[12] or "manual",
                 "plan_id": t[13],
                 "plan_day": t[14],
-                "completed": done,
+                "completed": tid in done_set,
                 "pinned": tid == pinned_task_id,
-                "assignee_ids": task_ops.list_assignee_ids(conn, tid),
-                "attachments": task_ops.list_attachments(conn, tid),
+                "assignee_ids": assignees,
+                "attachments": attach_map.get(tid) or [],
             })
     return {
         "id": gid, "name": g[0], "intro": g[1], "join_code": g[2], "role": role,
@@ -1145,30 +1191,36 @@ def group_feed(
     """群动态 Feed；默认返回最新 limit 条，before 加载更早消息。"""
     limit = max(1, min(limit, 100))
     pool = get_pool()
+    ensure_social_im_v12_pool(pool)
     with pool.connection() as conn:
-        ensure_social_im_v12(conn)
         _require_member(conn, gid, user_id)
         _ensure_report_table(conn)
-        # 021 列（recalled_at / mentions / reply_to_id）未迁移时降级
         use_v12 = True
+        # 举报数用 LEFT JOIN 聚合，避免每行相关子查询
         base_sql = (
             "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
             "  m.reactions, m.created_at, m.task_id, gt.due_at, "
             "  m.recalled_at, m.mentions, m.reply_to_id "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
             "LEFT JOIN group_task gt ON gt.id = m.task_id "
+            "LEFT JOIN ("
+            "  SELECT message_id, count(DISTINCT reporter_id) AS rc "
+            "  FROM message_report GROUP BY message_id"
+            ") rp ON rp.message_id = m.id "
             "WHERE m.group_id = %s "
-            "  AND (SELECT count(DISTINCT r.reporter_id) FROM message_report r "
-            "       WHERE r.message_id = m.id) < %s "
+            "  AND COALESCE(rp.rc, 0) < %s "
         )
         legacy_sql = (
             "SELECT m.id, u.display_name, m.user_id, m.kind, m.ref, m.body, "
             "  m.reactions, m.created_at, m.task_id, gt.due_at "
             "FROM group_message m JOIN users u ON u.id = m.user_id "
             "LEFT JOIN group_task gt ON gt.id = m.task_id "
+            "LEFT JOIN ("
+            "  SELECT message_id, count(DISTINCT reporter_id) AS rc "
+            "  FROM message_report GROUP BY message_id"
+            ") rp ON rp.message_id = m.id "
             "WHERE m.group_id = %s "
-            "  AND (SELECT count(DISTINCT r.reporter_id) FROM message_report r "
-            "       WHERE r.message_id = m.id) < %s "
+            "  AND COALESCE(rp.rc, 0) < %s "
         )
         try:
             if before:
@@ -1205,18 +1257,48 @@ def group_feed(
                 (gid, oldest_ts),
             ).fetchone() is not None
         rows = list(reversed(rows))
+
+        mids = [str(r[0]) for r in rows]
+        task_ids = [str(r[8]) for r in rows if r[3] == "task" and r[8]]
+        att_map: dict[str, list] = {mid: [] for mid in mids}
+        if mids:
+            try:
+                for a in conn.execute(
+                    "SELECT message_id::text, id, file_name, mime, size_bytes, storage_key "
+                    "FROM message_attachment "
+                    "WHERE scope = 'group' AND message_id = ANY(%s::uuid[]) "
+                    "ORDER BY created_at ASC",
+                    (mids,),
+                ).fetchall():
+                    key = a[5] or ""
+                    fname = Path(key).name if key else (a[2] or "")
+                    att_map.setdefault(a[0], []).append({
+                        "id": str(a[1]),
+                        "file_name": a[2],
+                        "mime": a[3],
+                        "size_bytes": a[4],
+                        "url": f"/content/social-media/assets/{fname}" if fname else None,
+                    })
+            except Exception:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+
+        done_tasks: set[str] = set()
+        if task_ids:
+            for row in conn.execute(
+                "SELECT DISTINCT task_id::text FROM group_message "
+                "WHERE group_id = %s AND user_id = %s AND kind = 'checkin' "
+                "AND task_id = ANY(%s::uuid[])",
+                (gid, user_id, task_ids),
+            ).fetchall():
+                if row[0]:
+                    done_tasks.add(row[0])
+
         messages = []
         for r in rows:
             task_id = str(r[8]) if r[8] else None
-            my_task_done = False
-            if r[3] == "task" and task_id:
-                my_task_done = conn.execute(
-                    "SELECT 1 FROM group_message "
-                    "WHERE group_id = %s AND user_id = %s AND kind = 'checkin' "
-                    "AND task_id = %s LIMIT 1",
-                    (gid, user_id, task_id),
-                ).fetchone() is not None
-            author = "系统" if r[3] == "system" else ((r[1] or "").strip() or f"用户{str(r[2])[-4:]}")
             mid = str(r[0])
             recalled = False
             mentions: list = []
@@ -1225,26 +1307,7 @@ def group_feed(
                 recalled = r[10] is not None
                 mentions = r[11] if r[11] else []
                 reply_to = str(r[12]) if r[12] else None
-            atts = []
-            try:
-                att_rows = conn.execute(
-                    "SELECT id, file_name, mime, size_bytes, storage_key FROM message_attachment "
-                    "WHERE scope = 'group' AND message_id = %s",
-                    (mid,),
-                ).fetchall()
-                for a in att_rows:
-                    key = a[4] or ""
-                    fname = Path(key).name if key else (a[1] or "")
-                    atts.append({
-                        "id": str(a[0]),
-                        "file_name": a[1],
-                        "mime": a[2],
-                        "size_bytes": a[3],
-                        "url": f"/content/social-media/assets/{fname}" if fname else None,
-                    })
-            except Exception:
-                conn.rollback()
-                atts = []
+            author = "系统" if r[3] == "system" else ((r[1] or "").strip() or f"用户{str(r[2])[-4:]}")
             messages.append({
                 "id": mid, "author": author, "mine": str(r[2]) == user_id,
                 "user_id": str(r[2]),
@@ -1254,11 +1317,11 @@ def group_feed(
                 "reactions": r[6] or {}, "created_at": r[7].isoformat(),
                 "task_id": task_id,
                 "task_due_at": r[9].isoformat() if r[9] else None,
-                "my_task_done": my_task_done,
+                "my_task_done": bool(task_id and task_id in done_tasks),
                 "recalled": recalled,
                 "mentions": mentions if isinstance(mentions, list) else [],
                 "reply_to_id": reply_to,
-                "attachments": atts,
+                "attachments": att_map.get(mid) or [],
             })
     return {"messages": messages, "has_more": has_more}
 

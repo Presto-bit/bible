@@ -18719,11 +18719,15 @@ html.app-theme-dark body {
 .discover-conv-avatar.scope-inbox_groups{background:var(--card,#f3f1ec);color:var(--ink-soft,#555);}
 .discover-friends-entry{margin-bottom:8px;border:1px solid var(--line);border-radius:12px;padding-left:10px;padding-right:10px;}
 .discover-conv-main{flex:1;min-width:0;}
-.discover-conv-title-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
-.discover-conv-sub{margin:4px 0 0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.discover-conv-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;}
+.discover-conv-title-left{display:flex;align-items:center;gap:6px;min-width:0;flex:1;overflow:hidden;}
+.discover-conv-title-left strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:15px;font-weight:600;}
+.discover-conv-time{flex-shrink:0;font-size:12px;color:var(--muted,#6b6b6b);line-height:1.2;}
+.discover-conv-sub-row{display:flex;align-items:center;gap:8px;margin-top:4px;min-width:0;}
+.discover-conv-sub{margin:0;flex:1;min-width:0;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .discover-conv-badge{font-size:11px;padding:2px 6px;border-radius:6px;background:var(--accent-soft,#e4efe8);color:var(--accent,#3d5c4a);max-width:7.5em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:1;}
-.discover-conv-pin,.discover-conv-mute{font-size:11px;color:var(--muted,#6b6b6b);}
-.discover-conv-unread{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--accent,#5b7c6a);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;}
+.discover-conv-pin,.discover-conv-mute{font-size:11px;color:var(--muted,#6b6b6b);flex-shrink:0;}
+.discover-conv-unread{flex-shrink:0;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--accent,#5b7c6a);color:#fff;font-size:11px;display:inline-flex;align-items:center;justify-content:center;}
 .discover-conv-more-wrap{position:relative;display:flex;align-items:center;padding-right:4px;}
 .discover-conv-more{appearance:none;border:0;background:transparent;width:36px;height:100%;min-height:44px;color:var(--muted,#6b6b6b);font-size:16px;letter-spacing:1px;cursor:pointer;}
 .discover-conv-menu{position:absolute;right:4px;top:100%;z-index:20;min-width:120px;padding:6px;border-radius:10px;background:var(--surface,#fff);box-shadow:0 8px 24px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:2px;}
