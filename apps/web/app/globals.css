@@ -18991,6 +18991,7 @@ html.app-theme-dark body {
   width:100%;appearance:none;border:0;background:var(--card,#f3f1ec);
   border-radius:12px;padding:10px 12px;text-align:left;cursor:pointer;
 }
+.discover-conv-avatar.scope-group{background:var(--accent-wash,#e8efe9);color:var(--accent-deep,#2f4a3a);}
 .discover-conv-avatar.scope-inbox_groups{background:var(--card,#f3f1ec);color:var(--ink-soft,#555);}
 .discover-friends-entry{margin-bottom:8px;border:1px solid var(--line);border-radius:12px;padding-left:10px;padding-right:10px;}
 .discover-conv-main{flex:1;min-width:0;}

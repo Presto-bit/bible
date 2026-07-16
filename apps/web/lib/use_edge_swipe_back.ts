@@ -98,6 +98,7 @@ export const BACK_PATH_LABELS: Record<string, string> = {
   '/reader': '圣经',
   '/discover': '消息',
   '/discover/contacts': '通讯录',
+  '/discover/contacts/groups': '我的群',
   '/discover?tab=friends': '通讯录',
   '/discover/friends': '通讯录',
   '/discover/groups': '通讯录',

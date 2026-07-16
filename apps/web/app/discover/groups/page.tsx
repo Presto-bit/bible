@@ -3,11 +3,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-/** 共读群已并入消息列表；旧「管理共读群」路由重定向。 */
+/** 共读群已并入通讯录二级页；旧路由重定向。 */
 export default function GroupsListRedirectPage() {
   const router = useRouter();
   useEffect(() => {
-    router.replace('/discover/contacts');
+    router.replace('/discover/contacts/groups');
   }, [router]);
   return (
     <main className="container">
