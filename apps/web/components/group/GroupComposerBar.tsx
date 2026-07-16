@@ -447,6 +447,9 @@ export function GroupComposerBar({
                 className="im-composer-field input im-composer-textarea"
                 value={text}
                 rows={1}
+                enterKeyHint="send"
+                autoComplete="off"
+                autoCorrect="off"
                 placeholder={placeholder}
                 disabled={!canType || sending || uploading}
                 onChange={(e) => {
@@ -465,12 +468,14 @@ export function GroupComposerBar({
                 onFocus={() => {
                   setPanelOpen(false);
                   setComposerFocused(true);
+                  window.scrollTo(0, 0);
                 }}
                 onBlur={() => {
                   window.setTimeout(() => {
                     if (document.activeElement !== inputRef.current) {
                       setComposerFocused(false);
                       setPickerOpen(false);
+                      window.scrollTo(0, 0);
                       if (atQuery != null && !matchAtQuery(text, inputRef.current?.selectionStart ?? text.length)) {
                         setAtQuery(null);
                       }
@@ -591,6 +596,7 @@ export function GroupComposerBar({
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif"
         hidden
+        tabIndex={-1}
         onChange={(e) => {
           queueFiles(e.target.files);
           e.target.value = '';
@@ -601,6 +607,7 @@ export function GroupComposerBar({
         type="file"
         accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
         hidden
+        tabIndex={-1}
         onChange={(e) => {
           queueFiles(e.target.files);
           e.target.value = '';

@@ -95,6 +95,7 @@ function DmThreadPageInner() {
   const stickBottom = useRef(true);
   const wasOffline = useRef(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const longPressFired = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -526,6 +527,7 @@ function DmThreadPageInner() {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+    longPressStart.current = null;
   };
 
   const openMsgActions = (mid: string, el?: HTMLElement | null) => {
@@ -547,10 +549,11 @@ function DmThreadPageInner() {
     setActionAnchor(null);
   };
 
-  const startLongPress = (mid: string, el: HTMLElement) => {
+  const startLongPress = (mid: string, el: HTMLElement, x: number, y: number) => {
     longPressFired.current = false;
     clearLongPress();
-    longPressTimer.current = setTimeout(() => openMsgActions(mid, el), 420);
+    longPressStart.current = { x, y };
+    longPressTimer.current = setTimeout(() => openMsgActions(mid, el), 450);
   };
 
   const openImages = (images: ImLightboxImage[], index: number) => {
@@ -771,9 +774,18 @@ function DmThreadPageInner() {
                   role="button"
                   tabIndex={0}
                   className="dm-bubble"
-                  onPointerDown={(e) => startLongPress(m.id, e.currentTarget)}
+                  onPointerDown={(e) => {
+                    if (e.pointerType === 'mouse' && e.button !== 0) return;
+                    startLongPress(m.id, e.currentTarget, e.clientX, e.clientY);
+                  }}
+                  onPointerMove={(e) => {
+                    const s = longPressStart.current;
+                    if (!s || !longPressTimer.current) return;
+                    if (Math.abs(e.clientX - s.x) > 12 || Math.abs(e.clientY - s.y) > 12) {
+                      clearLongPress();
+                    }
+                  }}
                   onPointerUp={clearLongPress}
-                  onPointerLeave={clearLongPress}
                   onPointerCancel={clearLongPress}
                   onContextMenu={(e) => {
                     e.preventDefault();
@@ -946,17 +958,22 @@ function DmThreadPageInner() {
               className="im-composer-field input im-composer-textarea"
               value={text}
               rows={1}
+              enterKeyHint="send"
+              autoComplete="off"
+              autoCorrect="off"
               placeholder={online ? (replyTo ? '回复…' : '发消息…') : '离线不可发，联网后继续'}
               disabled={!online || sending || uploading}
               onChange={(e) => setText(e.target.value)}
               onFocus={() => {
                 setPlusOpen(false);
                 setComposerFocused(true);
+                window.scrollTo(0, 0);
               }}
               onBlur={() => {
                 window.setTimeout(() => {
                   if (document.activeElement !== inputRef.current) {
                     setComposerFocused(false);
+                    window.scrollTo(0, 0);
                   }
                 }, 180);
               }}
@@ -966,8 +983,7 @@ function DmThreadPageInner() {
                   void send();
                 }
               }}
-            />
-          </div>
+            />          </div>
           {text.trim() && !pending ? (
             <button
               type="button"
@@ -1036,6 +1052,7 @@ function DmThreadPageInner() {
           type="file"
           accept={plusAccept}
           hidden
+          tabIndex={-1}
           disabled={uploading || sending || !online}
           onChange={(e) => {
             void sendFile(e.target.files);

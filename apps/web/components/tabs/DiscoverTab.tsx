@@ -172,6 +172,8 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const openItem = (it: ConversationItem) => {
     if (it.scope === 'group' || it.scope === 'dm') {
+      // 先跳转，避免清未读重渲染挡住路由
+      go(it.scope === 'group' ? `/discover/group/${it.ref_id}` : `/discover/dm/${it.ref_id}`);
       if ((it.unread || 0) > 0) {
         setItems((prev) =>
           prev.map((row) =>
@@ -182,7 +184,6 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         );
       }
       void api.patchConversationState(it.scope, it.ref_id, {});
-      go(it.scope === 'group' ? `/discover/group/${it.ref_id}` : `/discover/dm/${it.ref_id}`);
       return;
     }
     if (it.scope === 'inbox_friends') {
@@ -396,7 +397,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
               const key = `${it.scope}:${it.ref_id}`;
               const canState = it.scope === 'group' || it.scope === 'dm';
               const row = (
-                <button type="button" className="discover-conv-row">
+                <div className="discover-conv-row">
                   <span className={`discover-conv-avatar scope-${it.scope}`} aria-hidden>
                     {it.scope === 'dm' ? '信' : it.scope === 'group' ? '群' : '通'}
                   </span>
@@ -424,7 +425,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                       ) : null}
                     </div>
                   </div>
-                </button>
+                </div>
               );
               return (
                 <li key={key} className="discover-conv-li">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useLayoutEffect, useRef, useState } from 'react';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 export type ImPopoverAction = {
   id: string;
@@ -26,6 +27,7 @@ const BAR_H = 52;
 
 /**
  * 飞书式消息操作条：锚定气泡附近，上方不够则翻到下方。
+ * 经 AppBodyPortal 挂到 body，避免被 chat 页 overflow:hidden 裁切。
  */
 export function ImMsgActionPopover({
   open,
@@ -68,6 +70,8 @@ export function ImMsgActionPopover({
       setPos({ top, left, place: placeAbove ? 'above' : 'below' });
     };
     place();
+    // 再测一次：首次 hidden 测量宽度不准
+    requestAnimationFrame(place);
     const onRe = () => place();
     window.addEventListener('resize', onRe);
     window.addEventListener('scroll', onRe, true);
@@ -89,56 +93,58 @@ export function ImMsgActionPopover({
   if (!open || !actions.length) return null;
 
   return (
-    <div className="im-msg-popover-root" role="dialog" aria-label="消息操作">
-      <button
-        type="button"
-        className="im-msg-popover-backdrop"
-        aria-label="关闭"
-        onClick={onClose}
-      />
-      <div
-        ref={barRef}
-        className={`im-msg-popover${pos?.place === 'below' ? ' is-below' : ' is-above'}${align === 'end' ? ' is-end' : ' is-start'}`}
-        style={
-          pos
-            ? { top: pos.top, left: pos.left, visibility: 'visible' }
-            : { top: 0, left: 0, visibility: 'hidden' }
-        }
-        onClick={(e) => e.stopPropagation()}
-      >
-        {quickEmojis && quickEmojis.length && onEmoji ? (
-          <div className="im-msg-popover-emojis">
-            {quickEmojis.map((e) => (
+    <AppBodyPortal>
+      <div className="im-msg-popover-root" role="dialog" aria-label="消息操作">
+        <button
+          type="button"
+          className="im-msg-popover-backdrop"
+          aria-label="关闭"
+          onClick={onClose}
+        />
+        <div
+          ref={barRef}
+          className={`im-msg-popover${pos?.place === 'below' ? ' is-below' : ' is-above'}${align === 'end' ? ' is-end' : ' is-start'}`}
+          style={
+            pos
+              ? { top: pos.top, left: pos.left, visibility: 'visible' }
+              : { top: 0, left: 0, visibility: 'hidden' }
+          }
+          onClick={(e) => e.stopPropagation()}
+        >
+          {quickEmojis && quickEmojis.length && onEmoji ? (
+            <div className="im-msg-popover-emojis">
+              {quickEmojis.map((e) => (
+                <button
+                  key={e}
+                  type="button"
+                  className="im-msg-popover-emoji"
+                  onClick={() => {
+                    onEmoji(e);
+                    onClose();
+                  }}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          <div className="im-msg-popover-actions">
+            {actions.map((a) => (
               <button
-                key={e}
+                key={a.id}
                 type="button"
-                className="im-msg-popover-emoji"
+                className={`im-msg-popover-item${a.danger ? ' is-danger' : ''}`}
                 onClick={() => {
-                  onEmoji(e);
+                  a.onClick();
                   onClose();
                 }}
               >
-                {e}
+                <span className="im-msg-popover-label">{a.label}</span>
               </button>
             ))}
           </div>
-        ) : null}
-        <div className="im-msg-popover-actions">
-          {actions.map((a) => (
-            <button
-              key={a.id}
-              type="button"
-              className={`im-msg-popover-item${a.danger ? ' is-danger' : ''}`}
-              onClick={() => {
-                a.onClick();
-                onClose();
-              }}
-            >
-              <span className="im-msg-popover-label">{a.label}</span>
-            </button>
-          ))}
         </div>
       </div>
-    </div>
+    </AppBodyPortal>
   );
 }

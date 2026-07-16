@@ -12166,6 +12166,7 @@ a.license-row-name:hover {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius, 12px);
+  touch-action: pan-x pan-y;
 }
 
 .swipe-reveal-actions {
@@ -12276,7 +12277,8 @@ a.license-row-name:hover {
   box-sizing: border-box;
   transition: transform 0.18s ease-out;
   background: var(--surface);
-  touch-action: pan-y;
+  /* 允许横滑交给 JS（父级 pan-y 时仍需显式放开） */
+  touch-action: pan-x pan-y;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -18909,6 +18911,7 @@ html.app-theme-dark body {
   user-select:none;
   -webkit-user-select:none;
   -webkit-touch-callout:none;
+  touch-action:manipulation;
   cursor:pointer;
 }
 .dm-msg-row.is-mine .dm-bubble{
@@ -19030,7 +19033,6 @@ body:has(.dm-page) .app-body {
   background:var(--bg,#fffcfa);
   border-top:1px solid var(--line);
   box-shadow:none;
-  transition:bottom .1s ease-out;
 }
 body.im-keyboard .dm-composer-dock.im-composer-bar,
 body.im-keyboard .group-wechat-composer.im-composer-dock{
@@ -19107,7 +19109,7 @@ body.im-keyboard .im-jump-bottom{
 .im-msg-popover-root{
   position:fixed;
   inset:0;
-  z-index:130;
+  z-index:240;
   pointer-events:none;
 }
 .im-msg-popover-backdrop{
@@ -19120,7 +19122,7 @@ body.im-keyboard .im-jump-bottom{
 }
 .im-msg-popover{
   position:fixed;
-  z-index:131;
+  z-index:241;
   pointer-events:auto;
   display:flex;
   flex-direction:column;
@@ -19375,14 +19377,18 @@ html.perf-lite .im-msg-popover{
   display:flex;
   flex-direction:column;
   gap:6px;
-  border:1px solid var(--line);
-  border-radius:12px;
-  background:var(--surface);
-  padding:6px 10px;
+  border:0;
+  border-radius:18px;
+  background:var(--surface-sunken, #f7f7f7);
+  padding:8px 12px;
 }
 .im-composer-field-wrap.is-offline{
   opacity:.85;
-  background:color-mix(in srgb, var(--surface) 88%, var(--line));
+  background:color-mix(in srgb, var(--surface-sunken, #f7f7f7) 88%, var(--line));
+}
+.im-composer-field-wrap:focus-within{
+  outline:none;
+  box-shadow:none;
 }
 .im-composer-dock .im-composer-field.input,
 .im-composer-dock input.im-composer-field,
@@ -19403,6 +19409,17 @@ html.perf-lite .im-msg-popover{
   resize:none;
   overflow-y:hidden;
   box-shadow:none;
+  outline:none;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.im-composer-dock .im-composer-field.input:focus,
+.im-composer-dock textarea.im-composer-textarea:focus,
+.dm-composer-dock .im-composer-field.input:focus,
+.dm-composer-dock textarea.im-composer-textarea:focus{
+  outline:none;
+  box-shadow:none;
+  border:0;
 }
 .im-composer-row > .im-composer-field.group-wechat-input{
   flex:1;
@@ -19685,7 +19702,29 @@ html.perf-lite .im-msg-popover{
 .group-chat-row.is-mine .group-chat-col{ align-items: flex-end; }
 .group-chat-name{
   font-size: 12px;
+  padding: 0;
+  font-weight: 600;
+  color: var(--ink-soft, #555);
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-chat-meta-line{
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   padding: 0 4px;
+  max-width: 100%;
+}
+.group-chat-row.is-mine .group-chat-meta-line{
+  flex-direction: row-reverse;
+}
+.group-chat-time{
+  font-size: 11px;
+  padding: 0;
+  color: var(--ink-faint, #8e8e93);
+  flex-shrink: 0;
 }
 .group-chat-bubble{
   appearance: none;
@@ -19699,6 +19738,10 @@ html.perf-lite .im-msg-popover{
   border-radius: 12px;
   background: var(--card, #f4f4f2);
   box-shadow: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
 }
 .group-chat-row.is-mine .group-chat-bubble{
   background: #95ec69;
@@ -19749,10 +19792,6 @@ html.perf-lite .im-msg-popover{
 .group-chat-bubble.is-task .group-chat-kind-chip{
   background: color-mix(in srgb, #b86b00 16%, transparent);
   color: #8a5200;
-}
-.group-chat-time{
-  font-size: 11px;
-  padding: 0 4px;
 }
 .group-chat-actions{
   display: flex;

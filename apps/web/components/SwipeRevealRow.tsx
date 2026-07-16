@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { isFinePointerUI } from '@/lib/touch_ui';
 
 export type SwipeAction = {
@@ -40,45 +40,100 @@ export function SwipeRevealRow({
 
   const [offset, setOffset] = useState(0);
   const offsetRef = useRef(0);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const startX = useRef(0);
+  const startY = useRef(0);
+  const baseOffset = useRef(0);
   const dragging = useRef(false);
+  const axisLock = useRef<'x' | 'y' | null>(null);
+  const suppressClick = useRef(false);
+  const onClickRef = useRef(onContentClick);
+  onClickRef.current = onContentClick;
   const finePointer = isFinePointerUI();
 
   const setOffsetSafe = (next: number) => {
+    if (offsetRef.current === next) return;
     offsetRef.current = next;
     setOffset(next);
   };
 
-  const onTouchStart = (e: React.TouchEvent) => {
-    if (disabled || finePointer || !resolved.length) return;
-    startX.current = e.touches[0].clientX;
-    dragging.current = true;
-  };
+  // 非 passive touchmove，才能 preventDefault 挡住列表抢手势
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el || disabled || !resolved.length) return;
 
-  const onTouchMove = (e: React.TouchEvent) => {
-    if (!dragging.current || disabled || finePointer) return;
-    const dx = e.touches[0].clientX - startX.current;
-    if (dx < 0) setOffsetSafe(Math.max(dx, -revealPx));
-    else setOffsetSafe(0);
-  };
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0];
+      if (!t) return;
+      startX.current = t.clientX;
+      startY.current = t.clientY;
+      baseOffset.current = offsetRef.current;
+      dragging.current = true;
+      axisLock.current = null;
+      suppressClick.current = offsetRef.current < -10;
+    };
 
-  const onTouchEnd = () => {
-    dragging.current = false;
-    const cur = offsetRef.current;
-    setOffsetSafe(cur < -openThreshold ? -revealPx : 0);
-  };
+    const onMove = (e: TouchEvent) => {
+      if (!dragging.current) return;
+      const t = e.touches[0];
+      if (!t) return;
+      const dx = t.clientX - startX.current;
+      const dy = t.clientY - startY.current;
+      if (!axisLock.current) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        axisLock.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
+      }
+      if (axisLock.current === 'y') {
+        if (offsetRef.current < 0) setOffsetSafe(0);
+        return;
+      }
+      suppressClick.current = true;
+      e.preventDefault();
+      const next = Math.max(-revealPx, Math.min(0, baseOffset.current + dx));
+      setOffsetSafe(next);
+    };
+
+    const onEnd = () => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      const wasX = axisLock.current === 'x';
+      axisLock.current = null;
+      const cur = offsetRef.current;
+      const next = cur < -openThreshold ? -revealPx : 0;
+      if (wasX || Math.abs(cur - next) > 0.5) {
+        suppressClick.current = true;
+      }
+      setOffsetSafe(next);
+    };
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd);
+    el.addEventListener('touchcancel', onEnd);
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+      el.removeEventListener('touchcancel', onEnd);
+    };
+  }, [disabled, resolved.length, revealPx, openThreshold]);
 
   const handleContentClick = () => {
+    if (suppressClick.current) {
+      suppressClick.current = false;
+      if (offsetRef.current < -10) setOffsetSafe(0);
+      return;
+    }
     if (offsetRef.current < -10) {
       setOffsetSafe(0);
       return;
     }
-    onContentClick?.();
+    onClickRef.current?.();
   };
 
   if (!resolved.length) {
     return (
-      <div className="swipe-reveal-row" onClick={onContentClick}>
+      <div className="swipe-reveal-row" onClick={() => onClickRef.current?.()}>
         {children}
       </div>
     );
@@ -126,12 +181,9 @@ export function SwipeRevealRow({
         </div>
       ) : null}
       <div
+        ref={contentRef}
         className="swipe-reveal-content"
-        style={finePointer ? undefined : { transform: `translateX(${offset}px)` }}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-        onTouchCancel={onTouchEnd}
+        style={{ transform: `translateX(${offset}px)` }}
         onClick={handleContentClick}
       >
         {children}

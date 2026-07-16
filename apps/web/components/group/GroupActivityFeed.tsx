@@ -114,6 +114,7 @@ function ChatBubble({
   const [showRespond, setShowRespond] = useState(false);
   const [showCanned, setShowCanned] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const longPressFired = useRef(false);
   const showRecall = canRecallOwnMessage(m.created_at, {
     mine: m.mine,
@@ -173,6 +174,7 @@ function ChatBubble({
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
+    longPressStart.current = null;
   };
 
   const openActions = (el?: HTMLElement | null) => {
@@ -192,14 +194,11 @@ function ChatBubble({
     setAnchorEl(null);
   };
 
-  const startLongPress = (el: HTMLElement) => {
+  const startLongPress = (el: HTMLElement, x: number, y: number) => {
     longPressFired.current = false;
     clearLongPress();
-    longPressTimer.current = setTimeout(() => openActions(el), 420);
-  };
-
-  const endLongPress = () => {
-    clearLongPress();
+    longPressStart.current = { x, y };
+    longPressTimer.current = setTimeout(() => openActions(el), 450);
   };
 
   const actionItems: ImPopoverAction[] = (() => {
@@ -285,27 +284,43 @@ function ChatBubble({
       data-mid={m.id}
       className={`group-chat-row${m.mine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}`}
     >
-      {!m.mine ? (
-        <div className="group-chat-avatar-slot">
-          {showAvatar ? (
-            <MemberAvatar member={member} size={36} className="group-chat-avatar" />
-          ) : null}
-        </div>
-      ) : null}
+      <div className="group-chat-avatar-slot">
+        {showAvatar ? (
+          <MemberAvatar member={member} size={36} className="group-chat-avatar" />
+        ) : null}
+      </div>
 
       <div className="group-chat-col">
-        {!m.mine && showName ? (
-          <span className="group-chat-name">{m.author || '群友'}</span>
+        {showName ? (
+          <div className="group-chat-meta-line">
+            <span className="group-chat-name">
+              {m.mine ? m.author || '我' : m.author || '群友'}
+            </span>
+            {m.created_at ? (
+              <time className="group-chat-time" dateTime={m.created_at}>
+                {formatMsgTime(m.created_at)}
+              </time>
+            ) : null}
+          </div>
         ) : null}
 
         <div
           role="button"
           tabIndex={0}
           className={`group-chat-bubble ${bubbleTone(m)}${m.recalled ? ' is-recalled' : ''}`}
-          onPointerDown={(e) => startLongPress(e.currentTarget)}
-          onPointerUp={endLongPress}
-          onPointerLeave={endLongPress}
-          onPointerCancel={endLongPress}
+          onPointerDown={(e) => {
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
+            startLongPress(e.currentTarget, e.clientX, e.clientY);
+          }}
+          onPointerMove={(e) => {
+            const s = longPressStart.current;
+            if (!s || !longPressTimer.current) return;
+            if (Math.abs(e.clientX - s.x) > 12 || Math.abs(e.clientY - s.y) > 12) {
+              clearLongPress();
+            }
+          }}
+          onPointerUp={clearLongPress}
+          onPointerCancel={clearLongPress}
           onContextMenu={(e) => {
             e.preventDefault();
             openActions(e.currentTarget);
@@ -600,16 +615,9 @@ export function GroupActivityFeed({
         const prevTs = prev ? new Date(prev.created_at).getTime() : 0;
         const curTs = new Date(m.created_at).getTime();
         const showTimeSep = !prev || curTs - prevTs > TIME_GAP_MS;
-        const sameAuthor =
-          Boolean(prev)
-          && prev!.kind !== 'system'
-          && m.kind !== 'system'
-          && prev!.user_id === m.user_id
-          && prev!.mine === m.mine
-          && !showTimeSep;
-        const showAvatar = !m.mine && !sameAuthor;
-        // 对方始终显示昵称（规格）；自己不显示「我」
-        const showName = !m.mine;
+        // 双方每条消息都显示头像 / 昵称 / 时间
+        const showAvatar = true;
+        const showName = true;
 
         const dayKey = localDayKey(m.created_at);
         const prevDay = prev ? localDayKey(prev.created_at) : null;

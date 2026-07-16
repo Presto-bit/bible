@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 export type ImLightboxImage = {
   src: string;
@@ -163,67 +164,69 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
   if (!current) return null;
 
   return (
-    <div className="im-lightbox" role="dialog" aria-modal="true" aria-label="图片预览">
-      <button type="button" className="im-lightbox-backdrop" aria-label="关闭" onClick={onClose} />
-      <div className="im-lightbox-chrome">
-        <span className="im-lightbox-count">
-          {images.length > 1 ? `${safeIndex + 1} / ${images.length}` : '预览'}
-        </span>
-        <button type="button" className="im-lightbox-close" onClick={onClose}>
-          关闭
-        </button>
-      </div>
-      <div
-        className="im-lightbox-stage"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={finishGesture}
-        onPointerCancel={finishGesture}
-        onClick={(e) => {
-          if (onDoubleTap(e)) {
-            e.preventDefault();
-            return;
-          }
-          // 单击空白关闭（点在图片上不关，靠双击缩放）
-          if (e.target === e.currentTarget) onClose();
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={imgRef}
-          src={current.src}
-          alt={current.alt || '图片'}
-          className="im-lightbox-img"
-          draggable={false}
-          style={{
-            transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onDoubleTap(e);
-          }}
-        />
-      </div>
-      {images.length > 1 ? (
-        <div className="im-lightbox-nav">
-          <button
-            type="button"
-            className="im-lightbox-nav-btn"
-            disabled={safeIndex <= 0}
-            onClick={() => onIndexChange?.(safeIndex - 1)}
-          >
-            上一张
-          </button>
-          <button
-            type="button"
-            className="im-lightbox-nav-btn"
-            disabled={safeIndex >= images.length - 1}
-            onClick={() => onIndexChange?.(safeIndex + 1)}
-          >
-            下一张
+    <AppBodyPortal>
+      <div className="im-lightbox" role="dialog" aria-modal="true" aria-label="图片预览">
+        <button type="button" className="im-lightbox-backdrop" aria-label="关闭" onClick={onClose} />
+        <div className="im-lightbox-chrome">
+          <span className="im-lightbox-count">
+            {images.length > 1 ? `${safeIndex + 1} / ${images.length}` : '预览'}
+          </span>
+          <button type="button" className="im-lightbox-close" onClick={onClose}>
+            关闭
           </button>
         </div>
-      ) : null}
-    </div>
+        <div
+          className="im-lightbox-stage"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={finishGesture}
+          onPointerCancel={finishGesture}
+          onClick={(e) => {
+            if (onDoubleTap(e)) {
+              e.preventDefault();
+              return;
+            }
+            // 单击空白关闭（点在图片上不关，靠双击缩放）
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            ref={imgRef}
+            src={current.src}
+            alt={current.alt || '图片'}
+            className="im-lightbox-img"
+            draggable={false}
+            style={{
+              transform: `translate3d(${tx}px, ${ty}px, 0) scale(${scale})`,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDoubleTap(e);
+            }}
+          />
+        </div>
+        {images.length > 1 ? (
+          <div className="im-lightbox-nav">
+            <button
+              type="button"
+              className="im-lightbox-nav-btn"
+              disabled={safeIndex <= 0}
+              onClick={() => onIndexChange?.(safeIndex - 1)}
+            >
+              上一张
+            </button>
+            <button
+              type="button"
+              className="im-lightbox-nav-btn"
+              disabled={safeIndex >= images.length - 1}
+              onClick={() => onIndexChange?.(safeIndex + 1)}
+            >
+              下一张
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </AppBodyPortal>
   );
 }
