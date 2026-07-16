@@ -23,6 +23,8 @@ import {
   IconClose,
   IconFile,
   IconImage,
+  IconKeyboard,
+  IconMic,
   IconPlus,
 } from '@/components/social/ImComposerIcons';
 import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
@@ -30,6 +32,7 @@ import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/Im
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
+import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import {
   dequeueFailedText,
@@ -101,6 +104,7 @@ function DmThreadPageInner() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   useImComposerKeyboard(composerFocused || plusOpen);
   const [plusAccept, setPlusAccept] = useState(
     'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
@@ -233,10 +237,33 @@ function DmThreadPageInner() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [threadId]);
 
+  const initialPinned = useRef(false);
+
   useEffect(() => {
+    initialPinned.current = false;
+  }, [threadId]);
+
+  useEffect(() => {
+    if (!msgs.length || focusMsg) return;
+    const el = listRef.current;
+    const pin = (smooth: boolean) => {
+      if (el) {
+        if (smooth) el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+        else el.scrollTop = el.scrollHeight;
+        return;
+      }
+      endRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+    };
+    if (!initialPinned.current) {
+      initialPinned.current = true;
+      stickBottom.current = true;
+      pin(false);
+      requestAnimationFrame(() => pin(false));
+      return;
+    }
     if (!stickBottom.current) return;
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [msgs.length]);
+    pin(false);
+  }, [msgs.length, focusMsg]);
 
   useEffect(() => {
     if (!online) {
@@ -342,6 +369,28 @@ function DmThreadPageInner() {
       requestAnimationFrame(() => autosizeTextarea(inputRef.current, 4));
     }
   };
+
+  const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = useHoldToTalk({
+    onResult: (spoken) => {
+      void (async () => {
+        if (!online) {
+          setErr('当前离线，联网后再发送');
+          return;
+        }
+        const body = spoken.trim();
+        if (!body || sending || uploading) return;
+        const ok = await sendBody(body, replyTo?.id);
+        if (ok) {
+          clearImDraft('dm', threadId);
+          setReplyTo(null);
+        }
+      })();
+    },
+    onUnsupported: () => {
+      setErr('当前浏览器不支持语音输入，请用键盘');
+      setVoiceMode(false);
+    },
+  });
 
   const resend = async (m: LocalDm) => {
     if (m.sendFailed && m.retryText) {
@@ -615,11 +664,6 @@ function DmThreadPageInner() {
         });
       }
       if (actionImages.length) {
-        items.push({
-          id: 'preview',
-          label: '查看',
-          onClick: () => openImages(actionImages, 0),
-        });
         items.push({
           id: 'save',
           label: '保存',
@@ -953,38 +997,76 @@ function DmThreadPageInner() {
         ) : null}
         <div className="im-composer-row">
           <div className={`im-composer-field-wrap${!online ? ' is-offline' : ''}`}>
-            <textarea
-              ref={inputRef}
-              className="im-composer-field input im-composer-textarea"
-              value={text}
-              rows={1}
-              enterKeyHint="send"
-              autoComplete="off"
-              autoCorrect="off"
-              placeholder={online ? (replyTo ? '回复…' : '发消息…') : '离线不可发，联网后继续'}
-              disabled={!online || sending || uploading}
-              onChange={(e) => setText(e.target.value)}
-              onFocus={() => {
-                setPlusOpen(false);
-                setComposerFocused(true);
-                window.scrollTo(0, 0);
-              }}
-              onBlur={() => {
-                window.setTimeout(() => {
-                  if (document.activeElement !== inputRef.current) {
-                    setComposerFocused(false);
-                    window.scrollTo(0, 0);
+            {voiceMode ? (
+              <button
+                type="button"
+                className={`im-voice-hold${recording ? (cancelArmed ? ' is-cancel' : ' is-active') : ''}`}
+                disabled={!online || sending || uploading}
+                onPointerDown={startVoice}
+                onPointerMove={onVoiceMove}
+                onPointerUp={endVoice}
+                onPointerCancel={endVoice}
+              >
+                {recording
+                  ? cancelArmed
+                    ? '松开取消'
+                    : '松开发送 · 上滑取消'
+                  : '按住 说话'}
+              </button>
+            ) : (
+              <textarea
+                ref={inputRef}
+                className="im-composer-field input im-composer-textarea"
+                value={text}
+                rows={1}
+                enterKeyHint="send"
+                autoComplete="off"
+                autoCorrect="off"
+                placeholder={online ? (replyTo ? '回复…' : '发消息…') : '离线不可发，联网后继续'}
+                disabled={!online || sending || uploading}
+                onChange={(e) => setText(e.target.value)}
+                onFocus={() => {
+                  setPlusOpen(false);
+                  setComposerFocused(true);
+                  window.scrollTo(0, 0);
+                }}
+                onBlur={() => {
+                  window.setTimeout(() => {
+                    if (document.activeElement !== inputRef.current) {
+                      setComposerFocused(false);
+                      window.scrollTo(0, 0);
+                    }
+                  }, 180);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void send();
                   }
-                }, 180);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
+                }}
+              />
+            )}
+          </div>
+          <button
+            type="button"
+            className="im-composer-voice-toggle"
+            disabled={!online || sending || uploading}
+            aria-label={voiceMode ? '切换键盘' : '切换语音'}
+            onClick={() => {
+              setVoiceMode((v) => {
+                const next = !v;
+                if (next) {
+                  inputRef.current?.blur();
+                  setComposerFocused(false);
+                  setPlusOpen(false);
                 }
-              }}
-            />          </div>
-          {text.trim() && !pending ? (
+                return next;
+              });
+            }}
+          >
+            {voiceMode ? <IconKeyboard /> : <IconMic />}
+          </button>
+          {text.trim() && !pending && !voiceMode ? (
             <button
               type="button"
               className="im-composer-send"
@@ -1003,7 +1085,10 @@ function DmThreadPageInner() {
             onClick={() => {
               setPlusOpen((v) => {
                 const next = !v;
-                if (next) inputRef.current?.blur();
+                if (next) {
+                  inputRef.current?.blur();
+                  setVoiceMode(false);
+                }
                 return next;
               });
             }}

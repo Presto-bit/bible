@@ -83,3 +83,21 @@ export function IconClose({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconMic({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+      <rect x="9" y="3" width="6" height="11" rx="3" {...stroke} />
+      <path d="M5 11a7 7 0 0 0 14 0M12 18v3" {...stroke} />
+    </svg>
+  );
+}
+
+export function IconKeyboard({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="20" height="20" aria-hidden>
+      <rect x="3" y="8" width="18" height="11" rx="2" {...stroke} />
+      <path d="M7 11h0M11 11h0M15 11h0M7 15h10" {...stroke} />
+    </svg>
+  );
+}

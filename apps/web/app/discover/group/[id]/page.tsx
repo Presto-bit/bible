@@ -177,10 +177,33 @@ function GroupPageInner() {
     return () => document.removeEventListener('visibilitychange', onVis);
   }, [gid]);
 
+  const groupInitialPinned = useRef(false);
   useEffect(() => {
+    groupInitialPinned.current = false;
+  }, [gid]);
+
+  useEffect(() => {
+    if (!feed.length) return;
+    if (searchParams.get('focusMsg')) return;
+    const wrap = feedWrapRef.current;
+    const pin = (smooth = false) => {
+      if (wrap) {
+        if (smooth) wrap.scrollTo({ top: wrap.scrollHeight, behavior: 'smooth' });
+        else wrap.scrollTop = wrap.scrollHeight;
+        return;
+      }
+      feedEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
+    };
+    if (!groupInitialPinned.current) {
+      groupInitialPinned.current = true;
+      stickBottom.current = true;
+      pin(false);
+      requestAnimationFrame(() => pin(false));
+      return;
+    }
     if (!stickBottom.current) return;
-    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [feed.length]);
+    pin(false);
+  }, [feed.length, searchParams]);
 
   useEffect(() => {
     const wrap = feedWrapRef.current;

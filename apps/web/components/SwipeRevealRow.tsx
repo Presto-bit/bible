@@ -2,6 +2,11 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { isFinePointerUI } from '@/lib/touch_ui';
+import {
+  swipeRevealActivate,
+  swipeRevealCloseActive,
+  swipeRevealDeactivate,
+} from '@/lib/swipe_reveal_bus';
 
 export type SwipeAction = {
   label: string;
@@ -41,6 +46,7 @@ export function SwipeRevealRow({
   const [offset, setOffset] = useState(0);
   const offsetRef = useRef(0);
   const contentRef = useRef<HTMLDivElement | null>(null);
+  const rowRef = useRef<HTMLDivElement | null>(null);
   const startX = useRef(0);
   const startY = useRef(0);
   const baseOffset = useRef(0);
@@ -51,11 +57,38 @@ export function SwipeRevealRow({
   onClickRef.current = onContentClick;
   const finePointer = isFinePointerUI();
 
+  const closeSelf = () => {
+    if (offsetRef.current === 0) return;
+    offsetRef.current = 0;
+    setOffset(0);
+    swipeRevealDeactivate(closeSelf);
+  };
+
   const setOffsetSafe = (next: number) => {
     if (offsetRef.current === next) return;
     offsetRef.current = next;
     setOffset(next);
+    if (next < -4) swipeRevealActivate(closeSelf);
+    else swipeRevealDeactivate(closeSelf);
   };
+
+  // 点空白 / 其它行：收起当前展开行
+  useEffect(() => {
+    if (offset >= -4) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const row = rowRef.current;
+      if (!row) return;
+      if (row.contains(e.target as Node)) return;
+      closeSelf();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [offset]);
+
+  useEffect(() => {
+    return () => swipeRevealDeactivate(closeSelf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 非 passive touchmove，才能 preventDefault 挡住列表抢手势
   useEffect(() => {
@@ -65,6 +98,8 @@ export function SwipeRevealRow({
     const onStart = (e: TouchEvent) => {
       const t = e.touches[0];
       if (!t) return;
+      // 其它行已展开时，先收起
+      if (offsetRef.current >= -4) swipeRevealCloseActive();
       startX.current = t.clientX;
       startY.current = t.clientY;
       baseOffset.current = offsetRef.current;
@@ -140,7 +175,7 @@ export function SwipeRevealRow({
   }
 
   return (
-    <div className="swipe-reveal-row">
+    <div className="swipe-reveal-row" ref={rowRef}>
       <div
         className={`swipe-reveal-actions${offset < -4 ? ' is-revealed' : ''}`}
         style={{ width: revealPx }}

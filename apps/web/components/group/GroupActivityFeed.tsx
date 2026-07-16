@@ -6,7 +6,6 @@ import { contentAssetUrl, type GroupMessage } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
-  GROUP_CANNED_PHRASES,
   GROUP_EMOJIS,
   cannedPhraseLabel,
 } from '@/lib/group_reactions';
@@ -111,8 +110,6 @@ function ChatBubble({
 }: BubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const [showRespond, setShowRespond] = useState(false);
-  const [showCanned, setShowCanned] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const longPressFired = useRef(false);
@@ -211,11 +208,6 @@ function ChatBubble({
       return items;
     }
     if (!m.pending) {
-      items.push({
-        id: 'react',
-        label: '回应',
-        onClick: () => setShowRespond(true),
-      });
       if (onReply && isChatLite) {
         items.push({ id: 'reply', label: '回复', onClick: () => onReply(m) });
       }
@@ -229,11 +221,6 @@ function ChatBubble({
         });
       }
       if (msgImages.length) {
-        items.push({
-          id: 'preview',
-          label: '查看',
-          onClick: () => onOpenImages(msgImages, 0),
-        });
         items.push({
           id: 'save',
           label: '保存',
@@ -435,7 +422,7 @@ function ChatBubble({
           )}
         </div>
 
-        {reactTotal > 0 && !showRespond ? (
+        {reactTotal > 0 ? (
           <div className="group-emoji-bar group-emoji-bar-summary">
             {Object.entries(m.reactions || {})
               .filter(([, users]) => users.length > 0)
@@ -463,52 +450,6 @@ function ChatBubble({
             quickEmojis={!m.pending && !m.sendFailed ? QUICK_EMOJIS : undefined}
             onEmoji={!m.pending && !m.sendFailed ? (e) => onReact(m.id, e) : undefined}
           />
-        ) : null}
-
-        {showRespond ? (
-          <div className="group-activity-respond">
-            <div className="group-emoji-bar">
-              {QUICK_EMOJIS.map((e) => {
-                const count = m.reactions[e]?.length || 0;
-                return (
-                  <button
-                    key={e}
-                    type="button"
-                    className={`group-emoji-btn${count > 0 ? ' active' : ''}`}
-                    onClick={() => onReact(m.id, e)}
-                  >
-                    {e}
-                    {count > 0 ? ` ${count}` : ''}
-                  </button>
-                );
-              })}
-              <button
-                type="button"
-                className="group-emoji-btn muted-more"
-                onClick={() => setShowCanned((v) => !v)}
-              >
-                {showCanned ? '收起' : '更多'}
-              </button>
-            </div>
-            {showCanned ? (
-              <div className="group-canned-row">
-                {GROUP_CANNED_PHRASES.map((p) => {
-                  const count = m.reactions[p.key]?.length || 0;
-                  return (
-                    <button
-                      key={p.key}
-                      type="button"
-                      className={`group-canned-btn${count > 0 ? ' active' : ''}`}
-                      onClick={() => onReact(m.id, p.key)}
-                    >
-                      {cannedPhraseLabel(p.key)}
-                      {count > 0 ? ` ${count}` : ''}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
         ) : null}
 
         {(m.pending || m.sendFailed) ? (

@@ -15,13 +15,16 @@ import {
   type PendingAttach,
 } from '@/lib/im_composer';
 import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
+import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
 import {
   IconCheckin,
   IconClose,
   IconFile,
   IconImage,
+  IconKeyboard,
   IconMention,
+  IconMic,
   IconPlan,
   IconPlus,
   IconTask,
@@ -85,6 +88,7 @@ export function GroupComposerBar({
   const [pending, setPending] = useState<PendingAttach | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [composerFocused, setComposerFocused] = useState(false);
+  const [voiceMode, setVoiceMode] = useState(false);
   const imageRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -281,6 +285,42 @@ export function GroupComposerBar({
     }
   };
 
+  const sendVoice = async (spoken: string) => {
+    if (!allowChat || !onChat || locked || !spoken.trim()) return;
+    if (!online) {
+      setErr('当前离线，联网后再发送');
+      return;
+    }
+    const body = `${mentionPrefix()}${spoken.trim()}`.trim();
+    if (!body) return;
+    setErr(null);
+    setSending(true);
+    setPanelOpen(false);
+    try {
+      await onChat(body, {
+        mentions: mentionPayload(),
+        replyToId: replyTo?.id,
+      });
+      clearImDraft('group', gid);
+      clearMentions();
+      onClearReply?.();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = useHoldToTalk({
+    onResult: (t) => {
+      void sendVoice(t);
+    },
+    onUnsupported: () => {
+      setErr('当前浏览器不支持语音输入，请用键盘');
+      setVoiceMode(false);
+    },
+  });
+
   const clearPending = () => {
     setPending((prev) => {
       if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
@@ -442,64 +482,101 @@ export function GroupComposerBar({
                   ))}
                 </div>
               )}
-              <textarea
-                ref={inputRef}
-                className="im-composer-field input im-composer-textarea"
-                value={text}
-                rows={1}
-                enterKeyHint="send"
-                autoComplete="off"
-                autoCorrect="off"
-                placeholder={placeholder}
-                disabled={!canType || sending || uploading}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  setText(value);
-                  refreshAtQuery(value, e.target.selectionStart ?? value.length);
-                }}
-                onClick={(e) => {
-                  const t = e.currentTarget;
-                  refreshAtQuery(t.value, t.selectionStart ?? t.value.length);
-                }}
-                onKeyUp={(e) => {
-                  const t = e.currentTarget;
-                  refreshAtQuery(t.value, t.selectionStart ?? t.value.length);
-                }}
-                onFocus={() => {
-                  setPanelOpen(false);
-                  setComposerFocused(true);
-                  window.scrollTo(0, 0);
-                }}
-                onBlur={() => {
-                  window.setTimeout(() => {
-                    if (document.activeElement !== inputRef.current) {
-                      setComposerFocused(false);
-                      setPickerOpen(false);
-                      window.scrollTo(0, 0);
-                      if (atQuery != null && !matchAtQuery(text, inputRef.current?.selectionStart ?? text.length)) {
-                        setAtQuery(null);
+              {voiceMode ? (
+                <button
+                  type="button"
+                  className={`im-voice-hold${recording ? (cancelArmed ? ' is-cancel' : ' is-active') : ''}`}
+                  disabled={!canType || sending || uploading}
+                  onPointerDown={startVoice}
+                  onPointerMove={onVoiceMove}
+                  onPointerUp={endVoice}
+                  onPointerCancel={endVoice}
+                >
+                  {recording
+                    ? cancelArmed
+                      ? '松开取消'
+                      : '松开发送 · 上滑取消'
+                    : '按住 说话'}
+                </button>
+              ) : (
+                <textarea
+                  ref={inputRef}
+                  className="im-composer-field input im-composer-textarea"
+                  value={text}
+                  rows={1}
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  placeholder={placeholder}
+                  disabled={!canType || sending || uploading}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setText(value);
+                    refreshAtQuery(value, e.target.selectionStart ?? value.length);
+                  }}
+                  onClick={(e) => {
+                    const t = e.currentTarget;
+                    refreshAtQuery(t.value, t.selectionStart ?? t.value.length);
+                  }}
+                  onKeyUp={(e) => {
+                    const t = e.currentTarget;
+                    refreshAtQuery(t.value, t.selectionStart ?? t.value.length);
+                  }}
+                  onFocus={() => {
+                    setPanelOpen(false);
+                    setComposerFocused(true);
+                    window.scrollTo(0, 0);
+                  }}
+                  onBlur={() => {
+                    window.setTimeout(() => {
+                      if (document.activeElement !== inputRef.current) {
+                        setComposerFocused(false);
+                        setPickerOpen(false);
+                        window.scrollTo(0, 0);
+                        if (atQuery != null && !matchAtQuery(text, inputRef.current?.selectionStart ?? text.length)) {
+                          setAtQuery(null);
+                        }
                       }
-                    }
-                  }, 180);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Escape' && (atQuery != null || pickerOpen)) {
-                    e.preventDefault();
-                    setAtQuery(null);
-                    setPickerOpen(false);
-                    return;
-                  }
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    if (showSuggest && suggestMembers[0]) {
-                      pickMention(suggestMembers[0]);
+                    }, 180);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' && (atQuery != null || pickerOpen)) {
+                      e.preventDefault();
+                      setAtQuery(null);
+                      setPickerOpen(false);
                       return;
                     }
-                    void send();
-                  }
-                }}
-              />
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (showSuggest && suggestMembers[0]) {
+                        pickMention(suggestMembers[0]);
+                        return;
+                      }
+                      void send();
+                    }
+                  }}
+                />
+              )}
             </div>
+            <button
+              type="button"
+              className="im-composer-voice-toggle"
+              disabled={!canType || sending || uploading}
+              aria-label={voiceMode ? '切换键盘' : '切换语音'}
+              onClick={() => {
+                setVoiceMode((v) => {
+                  const next = !v;
+                  if (next) {
+                    inputRef.current?.blur();
+                    setComposerFocused(false);
+                    setPanelOpen(false);
+                  }
+                  return next;
+                });
+              }}
+            >
+              {voiceMode ? <IconKeyboard /> : <IconMic />}
+            </button>
           </>
         ) : (
           <button
