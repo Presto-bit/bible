@@ -31,13 +31,13 @@ import { shareCard } from '@/lib/share_card';
 import { BRAND_NAME } from '@/lib/brand';
 import { ImMessageBody } from '@/components/social/ImMessageBody';
 import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
+import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { MemberAvatar } from './MemberAvatar';
 
 const QUICK_EMOJIS = [...GROUP_EMOJIS];
 const QUICK_PHRASES = GROUP_CANNED_PHRASES.map((p) => ({ key: p.key, label: p.label }));
-const TIME_GAP_MS = 5 * 60 * 1000;
 
 function isTaskCompleteCheckin(m: GroupMessage): boolean {
   return m.kind === 'checkin' && Boolean(m.body?.startsWith('已完成任务·'));
@@ -96,6 +96,13 @@ type BubbleProps = {
   onResend?: (m: GroupMessage) => void;
   onForward?: (m: GroupMessage) => void;
   onOpenImages: (images: ImLightboxImage[], index: number) => void;
+  onMemberClick?: (member: GroupMember) => void;
+  onOpenFile: (payload: {
+    url: string;
+    fileName?: string | null;
+    mime?: string | null;
+    storageKey?: string | null;
+  }) => void;
 };
 
 function ChatBubble({
@@ -115,13 +122,20 @@ function ChatBubble({
   onResend,
   onForward,
   onOpenImages,
+  onMemberClick,
+  onOpenFile,
 }: BubbleProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const [imgBroken, setImgBroken] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const longPressFired = useRef(false);
   const uid = effectiveId();
+
+  useEffect(() => {
+    setImgBroken(false);
+  }, [m.id, m.attachments?.map((a) => a.url).join('|')]);
   const actionMine = Boolean(m.mine || (m.user_id && uid && m.user_id === uid));
   const showRecall = canRecallOwnMessage(m.created_at, {
     mine: actionMine,
@@ -297,7 +311,18 @@ function ChatBubble({
     >
       <div className="group-chat-avatar-slot">
         {showAvatar ? (
-          <MemberAvatar member={member} size={36} className="group-chat-avatar" />
+          <button
+            type="button"
+            className="group-chat-avatar-btn"
+            disabled={!member.user_id || actionMine}
+            aria-label={actionMine ? undefined : `查看 ${displayName}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (member.user_id && !actionMine) onMemberClick?.(member);
+            }}
+          >
+            <MemberAvatar member={member} size={36} className="group-chat-avatar" />
+          </button>
         ) : null}
       </div>
 
@@ -402,18 +427,39 @@ function ChatBubble({
                               longPressFired.current = false;
                               return;
                             }
-                            onOpenImages(msgImages, idx >= 0 ? idx : 0);
+                            if (!imgBroken) onOpenImages(msgImages, idx >= 0 ? idx : 0);
                           }}
                         >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={href} alt={a.file_name || '图片'} />
+                          {imgBroken ? (
+                            <span className="im-attach-broken muted">图片无法加载</span>
+                          ) : (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={href}
+                              alt={a.file_name || '图片'}
+                              onError={() => setImgBroken(true)}
+                            />
+                          )}
                         </button>
                       );
                     }
                     return href ? (
-                      <a key={a.id} href={href} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        key={a.id}
+                        type="button"
+                        className="im-attach-file-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenFile({
+                            url: href,
+                            fileName: a.file_name,
+                            mime: a.mime,
+                            storageKey: a.storage_key,
+                          });
+                        }}
+                      >
                         {a.file_name || '附件'}
-                      </a>
+                      </button>
                     ) : (
                       <span key={a.id}>{a.file_name || '附件'}</span>
                     );
@@ -539,6 +585,7 @@ type Props = {
   onCompleteTask?: (taskId: string, title: string, ref?: string | null) => void;
   onResend?: (m: GroupMessage) => void;
   onForward?: (m: GroupMessage) => void;
+  onMemberClick?: (member: GroupMember) => void;
 };
 
 export function GroupActivityFeed({
@@ -558,11 +605,18 @@ export function GroupActivityFeed({
   onCompleteTask,
   onResend,
   onForward,
+  onMemberClick,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [lightbox, setLightbox] = useState<{ images: ImLightboxImage[]; index: number } | null>(
     null,
   );
+  const [filePreview, setFilePreview] = useState<{
+    url: string;
+    fileName?: string | null;
+    mime?: string | null;
+    storageKey?: string | null;
+  } | null>(null);
 
   const membersById = useMemo(() => {
     const map = new Map<string, GroupMember>();
@@ -625,10 +679,6 @@ export function GroupActivityFeed({
 
       {chrono.map((m, idx) => {
         const prev = idx > 0 ? chrono[idx - 1] : null;
-        const prevTs = prev ? new Date(prev.created_at).getTime() : 0;
-        const curTs = new Date(m.created_at).getTime();
-        const showTimeSep = !prev || curTs - prevTs > TIME_GAP_MS;
-        // 双方每条消息都显示头像 / 昵称 / 时间
         const showAvatar = true;
         const showName = true;
 
@@ -663,10 +713,6 @@ export function GroupActivityFeed({
               <div className="dm-day-sep" role="separator">
                 <span>{formatMsgDayLabel(dayKey)}</span>
               </div>
-            ) : showTimeSep ? (
-              <div className="dm-day-sep is-time" role="separator">
-                <span>{formatMsgTime(m.created_at)}</span>
-              </div>
             ) : null}
             <ChatBubble
               gid={gid}
@@ -685,6 +731,8 @@ export function GroupActivityFeed({
               onResend={onResend}
               onForward={onForward}
               onOpenImages={openImages}
+              onMemberClick={onMemberClick}
+              onOpenFile={(payload) => setFilePreview(payload)}
             />
           </div>
         );
@@ -696,6 +744,16 @@ export function GroupActivityFeed({
           index={lightbox.index}
           onClose={() => setLightbox(null)}
           onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+        />
+      ) : null}
+
+      {filePreview ? (
+        <ImFilePreviewSheet
+          url={filePreview.url}
+          fileName={filePreview.fileName}
+          mime={filePreview.mime}
+          storageKey={filePreview.storageKey}
+          onClose={() => setFilePreview(null)}
         />
       ) : null}
     </div>

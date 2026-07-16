@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { GroupActivityFeed } from '@/components/group/GroupActivityFeed';
+import { GroupMemberProfileSheet } from '@/components/group/GroupMemberProfileSheet';
 import { GroupComposerBar, type ComposerActionMode } from '@/components/group/GroupComposerBar';
 import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
@@ -21,7 +22,7 @@ import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet'
 import { ForwardPickerSheet, type ForwardPayload } from '@/components/social/ForwardPickerSheet';
 import { ImChatSearch } from '@/components/social/ImChatSearch';
 import ErrorBanner from '@/components/ErrorBanner';
-import { api, type GeneratedPlan, type GroupDetail, type GroupMessage, type PlanSummary } from '@/lib/api';
+import { api, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
 import { asGroupMembers, myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
@@ -47,6 +48,7 @@ function GroupPageInner() {
   const activeFocus = focusOverride || focusMsg;
   const [searchOpen, setSearchOpen] = useState(false);
   const [forwardItems, setForwardItems] = useState<ForwardPayload[] | null>(null);
+  const [profileMember, setProfileMember] = useState<GroupMember | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMoreRef = useRef(false);
@@ -818,6 +820,7 @@ function GroupPageInner() {
             onForward={(m) => {
               setForwardItems([{ body: m.body, kind: m.kind, ref: m.ref }]);
             }}
+            onMemberClick={(member) => setProfileMember(member)}
           />
           <div ref={feedEndRef} />
         </div>
@@ -1013,6 +1016,11 @@ function GroupPageInner() {
         items={forwardItems || []}
         onClose={() => setForwardItems(null)}
         onDone={(label) => showToast(`已转发到 ${label}`)}
+      />
+
+      <GroupMemberProfileSheet
+        member={profileMember}
+        onClose={() => setProfileMember(null)}
       />
 
       <GroupToast message={toast} />

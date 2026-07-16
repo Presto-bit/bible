@@ -6,8 +6,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from ..auth.session import get_current_user
@@ -16,7 +16,9 @@ from ..config import get_settings
 from ..db import get_pool
 from . import access
 from .im_schema import ensure_social_im_v12, ensure_social_im_v12_pool
-from .media import unlink_storage_keys
+from .blob_store import get_blob_store, normalize_object_key
+from .media import build_attachment_row, unlink_storage_keys
+from .preview import convert_office_to_pdf, needs_server_pdf_preview
 from .moderation import ModerationError, moderate_text
 
 import asyncio
@@ -925,15 +927,15 @@ def list_dm_messages(
                     "ORDER BY created_at ASC",
                     (mids,),
                 ).fetchall():
-                    key = a[5] or ""
-                    fname = Path(key).name if key else (a[2] or "")
-                    att_map.setdefault(a[0], []).append({
-                        "id": str(a[1]),
-                        "file_name": a[2],
-                        "mime": a[3],
-                        "size_bytes": a[4],
-                        "url": f"/content/social-media/assets/{fname}" if fname else None,
-                    })
+                    att_map.setdefault(a[0], []).append(
+                        build_attachment_row(
+                            storage_key=a[5],
+                            file_name=a[2],
+                            mime=a[3],
+                            size_bytes=a[4],
+                            att_id=str(a[1]),
+                        ),
+                    )
             except Exception:
                 try:
                     conn.rollback()
@@ -1326,6 +1328,91 @@ async def upload_social_media(
 
     meta = await save_social_upload(file=file, prefix=user_id[:8])
     return {"ok": True, **meta}
+
+
+def _user_can_read_attachment(conn, user_id: str, storage_key: str) -> tuple[bytes, str] | None:
+    """校验用户有权读取附件，返回 (bytes, file_name)。"""
+    norm = normalize_object_key(storage_key)
+    if not norm:
+        return None
+    row = conn.execute(
+        """
+        SELECT a.file_name, a.storage_key, a.scope
+        FROM message_attachment a
+        WHERE a.storage_key = %s
+           OR a.storage_key LIKE %s
+           OR a.storage_key LIKE %s
+        LIMIT 1
+        """,
+        (storage_key, f"%/{norm}", f"%{norm}"),
+    ).fetchone()
+    if not row:
+        return None
+    file_name, db_key, scope = row[0], row[1], row[2]
+    mid_row = conn.execute(
+        """
+        SELECT message_id::text FROM message_attachment
+        WHERE storage_key = %s OR storage_key = %s
+        LIMIT 1
+        """,
+        (storage_key, db_key),
+    ).fetchone()
+    if not mid_row:
+        return None
+    message_id = mid_row[0]
+    if scope == "group":
+        ok = conn.execute(
+            """
+            SELECT 1 FROM group_message m
+            JOIN group_member gm ON gm.group_id = m.group_id AND gm.user_id = %s
+            WHERE m.id = %s::uuid
+            LIMIT 1
+            """,
+            (user_id, message_id),
+        ).fetchone()
+    else:
+        ok = conn.execute(
+            """
+            SELECT 1 FROM direct_message dm
+            JOIN direct_thread dt ON dt.id = dm.thread_id
+            WHERE dm.id = %s::uuid
+              AND (%s::uuid IN (dt.user_low_id, dt.user_high_id))
+            LIMIT 1
+            """,
+            (message_id, user_id),
+        ).fetchone()
+    if not ok:
+        return None
+    store = get_blob_store()
+    try:
+        data = store.read_bytes(db_key or storage_key)
+    except Exception:
+        return None
+    return data, (file_name or norm)
+
+
+@router.get("/media/preview")
+def preview_social_media(
+    storage_key: str = Query(..., min_length=4),
+    user_id: str = Depends(get_current_user),
+) -> Response:
+    """doc/ppt 等需服务端转 PDF 的预览（需安装 LibreOffice）。"""
+    pool = get_pool()
+    with pool.connection() as conn:
+        hit = _user_can_read_attachment(conn, user_id, storage_key)
+    if not hit:
+        raise HTTPException(404, "附件不存在或无权访问")
+    data, file_name = hit
+    if not needs_server_pdf_preview(file_name):
+        raise HTTPException(400, "此类型请使用客户端预览")
+    pdf = convert_office_to_pdf(data, file_name)
+    if not pdf:
+        raise HTTPException(503, "服务端未安装 LibreOffice，无法预览此文件")
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Cache-Control": "private, max-age=300"},
+    )
 
 
 @router.post("/groups/{gid}/media")

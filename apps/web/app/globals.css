@@ -20021,6 +20021,64 @@ html.perf-lite .im-msg-popover{
   gap: 12px;
   align-items: center;
 }
+.im-file-preview-body{
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.im-file-preview-foot{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--line);
+}
+.im-file-preview-text{
+  margin: 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.im-file-preview-md{
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.im-file-preview-html{
+  padding: 12px 14px;
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-x: auto;
+}
+.im-file-preview-html table{
+  border-collapse: collapse;
+  width: 100%;
+}
+.im-file-preview-html td,
+.im-file-preview-html th{
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  font-size: 13px;
+}
+.im-file-preview-table-wrap{
+  padding: 8px 10px;
+  overflow: auto;
+}
+.im-file-preview-table{
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.im-file-preview-table td{
+  border: 1px solid var(--line);
+  padding: 4px 8px;
+  vertical-align: top;
+}
 .group-member-profile-backdrop{ z-index: 55; }
 .group-member-profile-sheet{
   padding: 16px;

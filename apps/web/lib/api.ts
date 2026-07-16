@@ -1017,6 +1017,7 @@ export interface GroupMessage {
     file_name?: string | null;
     mime?: string | null;
     size_bytes?: number | null;
+    storage_key?: string | null;
     url?: string | null;
   }>;
   /** 客户端乐观发送 */
@@ -1806,6 +1807,23 @@ export const api = {
       method: 'POST',
       body,
     }),
+  previewSocialMedia: async (storageKey: string) => {
+    const res = await fetch(
+      `${API_BASE}/social/media/preview?storage_key=${encodeURIComponent(storageKey)}`,
+      { headers: authHeaders() },
+    );
+    if (!res.ok) {
+      let detail = `${res.status}`;
+      try {
+        const j = await res.json();
+        detail = j.detail || detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(typeof detail === 'string' ? detail : '预览失败');
+    }
+    return res.blob();
+  },
   setAllowChat: (gid: string, allow_chat: boolean) =>
     authed<{ ok: boolean }>(`/social/groups/${gid}/allow-chat`, {
       method: 'PATCH',
@@ -1852,6 +1870,7 @@ export interface DmMessage {
     file_name?: string | null;
     mime?: string | null;
     size_bytes?: number | null;
+    storage_key?: string | null;
     url?: string | null;
   }>;
 }

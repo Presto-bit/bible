@@ -25,6 +25,7 @@ from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from . import task_ops
 from .im_schema import ensure_social_im_v12_pool
 from .moderation import ModerationError, moderate_text
+from .media import build_attachment_row
 
 logger = logging.getLogger(__name__)
 
@@ -1306,15 +1307,15 @@ def group_feed(
                     "ORDER BY created_at ASC",
                     (mids,),
                 ).fetchall():
-                    key = a[5] or ""
-                    fname = Path(key).name if key else (a[2] or "")
-                    att_map.setdefault(a[0], []).append({
-                        "id": str(a[1]),
-                        "file_name": a[2],
-                        "mime": a[3],
-                        "size_bytes": a[4],
-                        "url": f"/content/social-media/assets/{fname}" if fname else None,
-                    })
+                    att_map.setdefault(a[0], []).append(
+                        build_attachment_row(
+                            storage_key=a[5],
+                            file_name=a[2],
+                            mime=a[3],
+                            size_bytes=a[4],
+                            att_id=str(a[1]),
+                        ),
+                    )
             except Exception:
                 try:
                     conn.rollback()

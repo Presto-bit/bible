@@ -83,6 +83,16 @@ class Settings(BaseSettings):
     admin_token_secret: str = ""
     rag_upload_dir: str = str(REPO_ROOT / "data" / "rag" / "uploads")
 
+    # ── 社交 IM 附件（local | s3 兼容 OSS/COS/MinIO）──
+    social_media_backend: str = "local"
+    social_media_upload_dir: str = str(REPO_ROOT / "data" / "social_message_uploads")
+    social_media_bucket: str = ""
+    social_media_region: str = "cn-hangzhou"
+    social_media_access_key_id: str = ""
+    social_media_secret_access_key: str = ""
+    social_media_endpoint: str = ""  # 例 https://oss-cn-hangzhou.aliyuncs.com
+    social_media_public_base: str = ""  # 可选 CDN 公开前缀，配置后不走签名 URL
+
 
 @lru_cache
 def get_settings() -> Settings:

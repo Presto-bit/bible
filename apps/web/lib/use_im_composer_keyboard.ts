@@ -10,13 +10,22 @@ function pinScrollTop() {
   if (app instanceof HTMLElement) app.scrollTop = 0;
 }
 
-function scrollChatToBottom(el: HTMLElement | null | undefined) {
+export function scrollImChatToBottom(el: HTMLElement | null | undefined) {
   if (!el) return;
-  // 双 rAF：等 padding / composer 高度先落地再滚
-  requestAnimationFrame(() => {
+  const pin = () => {
     el.scrollTop = el.scrollHeight;
+    const last = el.querySelector('[data-mid]:last-of-type');
+    if (last instanceof HTMLElement) {
+      last.scrollIntoView({ block: 'end', behavior: 'auto' });
+    }
+  };
+  // 多帧 + 短延迟：等键盘 inset / composer 高度写入后再滚
+  requestAnimationFrame(() => {
+    pin();
     requestAnimationFrame(() => {
-      el.scrollTop = el.scrollHeight;
+      pin();
+      window.setTimeout(pin, 60);
+      window.setTimeout(pin, 180);
     });
   });
 }
@@ -77,7 +86,7 @@ export function useImComposerKeyboard(
     const pinChat = () => {
       pinScrollTop();
       applyComposerH();
-      scrollChatToBottom(getScrollElRef.current?.() ?? null);
+      scrollImChatToBottom(getScrollElRef.current?.() ?? null);
     };
 
     const apply = (gap: number) => {
@@ -124,7 +133,7 @@ export function useImComposerKeyboard(
       vv?.addEventListener('scroll', sync);
       window.addEventListener('resize', sync);
       sync();
-      for (const ms of [50, 120, 220, 380, 560, 800]) {
+      for (const ms of [50, 120, 220, 380, 560, 800, 1100, 1500]) {
         followTimers.push(window.setTimeout(sync, ms));
       }
     }

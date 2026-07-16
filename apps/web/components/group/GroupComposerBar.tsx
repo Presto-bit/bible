@@ -15,7 +15,7 @@ import {
   type PendingAttach,
 } from '@/lib/im_composer';
 import { displayMemberName } from '@/lib/group_ui';
-import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
+import { useImComposerKeyboard, scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
 import {
@@ -544,7 +544,7 @@ export function GroupComposerBar({
                     setPanelOpen(false);
                     setComposerFocused(true);
                     const el = getScrollEl?.();
-                    if (el) el.scrollTop = el.scrollHeight;
+                    scrollImChatToBottom(el);
                   }}
                   onBlur={() => {
                     window.setTimeout(() => {
@@ -700,7 +700,7 @@ export function GroupComposerBar({
       <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
+        accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv"
         hidden
         tabIndex={-1}
         onChange={(e) => {
