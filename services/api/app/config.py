@@ -51,7 +51,8 @@ class Settings(BaseSettings):
     rag_hybrid_keyword_weight: float = 0.45
     rag_candidate_limit_book: int = 200
     rag_candidate_limit_chapter: int = 120
-    rag_candidate_limit_fallback: int = 800
+    # 无书卷过滤时的兜底上限（过高会拖垮助手首包）
+    rag_candidate_limit_fallback: int = 280
     rag_query_embed_cache_ttl: int = 300
     note_rag_per_chapter_min_chunks: int = 2
     note_rag_max_chunks_abs: int = 512

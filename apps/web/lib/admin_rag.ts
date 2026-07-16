@@ -455,25 +455,112 @@ export async function importRagSources(
   return (await res.json()) as { ok: boolean; steps: RagEnsureStep[] };
 }
 
-export async function indexRagCollections(
-  force = false,
-): Promise<{ ok: boolean; indexed_groups: number; steps: RagEnsureStep[] }> {
-  const res = await fetch(`${API_BASE}/admin/rag/index-collections`, {
+export type RagIndexJobStatus = 'queued' | 'running' | 'done' | 'failed' | 'cancelled';
+
+export type RagIndexJob = {
+  id: string;
+  kind: string;
+  status: RagIndexJobStatus;
+  payload?: Record<string, unknown>;
+  progress: Record<string, unknown>;
+  error?: string | null;
+  created_by?: string | null;
+  created_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+};
+
+export async function fetchRagJob(jobId: string): Promise<RagIndexJob> {
+  const res = await fetch(`${API_BASE}/admin/rag/jobs/${encodeURIComponent(jobId)}`, {
+    headers: adminHeaders(),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '查询索引任务失败'));
+  return (await res.json()) as RagIndexJob;
+}
+
+export async function listRagJobs(limit = 20): Promise<RagIndexJob[]> {
+  const res = await fetch(`${API_BASE}/admin/rag/jobs?limit=${limit}`, {
+    headers: adminHeaders(),
+  });
+  if (!res.ok) throw new Error(await readApiError(res, '任务列表失败'));
+  const data = (await res.json()) as { items?: RagIndexJob[] };
+  return data.items ?? [];
+}
+
+export async function waitForRagJob(
+  jobId: string,
+  opts?: {
+    onUpdate?: (job: RagIndexJob) => void;
+    intervalMs?: number;
+    timeoutMs?: number;
+  },
+): Promise<RagIndexJob> {
+  const intervalMs = opts?.intervalMs ?? 1200;
+  const timeoutMs = opts?.timeoutMs ?? 45 * 60 * 1000;
+  const t0 = Date.now();
+  for (;;) {
+    const job = await fetchRagJob(jobId);
+    opts?.onUpdate?.(job);
+    if (job.status === 'done') return job;
+    if (job.status === 'failed' || job.status === 'cancelled') {
+      throw new Error(job.error || `索引任务${job.status === 'cancelled' ? '已取消' : '失败'}`);
+    }
+    if (Date.now() - t0 > timeoutMs) {
+      throw new Error('索引任务超时，请稍后刷新资料清单查看');
+    }
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+}
+
+async function enqueueIndexJob(
+  path: string,
+  body: Record<string, unknown>,
+  errLabel: string,
+  onUpdate?: (job: RagIndexJob) => void,
+): Promise<RagIndexJob> {
+  const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force }),
+    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(await readApiError(res, '批量索引失败'));
-  return (await res.json()) as {
-    ok: boolean;
-    indexed_groups: number;
-    steps: RagEnsureStep[];
+  if (!res.ok) throw new Error(await readApiError(res, errLabel));
+  const data = (await res.json()) as { ok?: boolean; queued?: boolean; job?: RagIndexJob } & Record<
+    string,
+    unknown
+  >;
+  if (data.queued && data.job?.id) {
+    return waitForRagJob(data.job.id, { onUpdate });
+  }
+  return {
+    id: '',
+    kind: 'legacy',
+    status: 'done',
+    progress: data,
+  };
+}
+
+export async function indexRagCollections(
+  force = false,
+  onUpdate?: (job: RagIndexJob) => void,
+): Promise<{ ok: boolean; indexed_groups: number; steps: RagEnsureStep[] }> {
+  const job = await enqueueIndexJob(
+    '/admin/rag/index-collections',
+    { force },
+    '批量索引失败',
+    onUpdate,
+  );
+  const p = job.progress || {};
+  return {
+    ok: p.ok !== false,
+    indexed_groups: Number(p.indexed_groups ?? 0),
+    steps: Array.isArray(p.steps) ? (p.steps as RagEnsureStep[]) : [],
   };
 }
 
 export async function indexPendingDisk(
   collectionId?: string,
   limit = 8,
+  onUpdate?: (job: RagIndexJob) => void,
 ): Promise<{
   pending: number;
   processed: number;
@@ -484,79 +571,63 @@ export async function indexPendingDisk(
   skipped: number;
   failed: number;
 }> {
-  const res = await fetch(`${API_BASE}/admin/rag/index-pending-disk`, {
-    method: 'POST',
-    headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+  const job = await enqueueIndexJob(
+    '/admin/rag/index-pending-disk',
+    {
       force: true,
       collection_id: collectionId ?? null,
       limit,
-    }),
-  });
-  if (!res.ok) throw new Error(await readApiError(res, '批量向量化失败'));
-  const data = (await res.json()) as {
-    pending?: number;
-    processed?: number;
-    has_more?: boolean;
-    remaining?: number;
-    stale_reset?: number;
-    indexed?: number;
-    skipped?: number;
-    failed?: number;
-  };
+    },
+    '批量向量化失败',
+    onUpdate,
+  );
+  const p = job.progress || {};
   return {
-    pending: data.pending ?? 0,
-    processed: data.processed ?? 0,
-    has_more: data.has_more === true,
-    remaining: data.remaining ?? 0,
-    stale_reset: data.stale_reset ?? 0,
-    indexed: data.indexed ?? 0,
-    skipped: data.skipped ?? 0,
-    failed: data.failed ?? 0,
+    pending: Number(p.pending ?? 0),
+    processed: Number(p.processed ?? 0),
+    has_more: p.has_more === true,
+    remaining: Number(p.remaining ?? 0),
+    stale_reset: Number(p.stale_reset ?? 0),
+    indexed: Number(p.indexed ?? 0),
+    skipped: Number(p.skipped ?? 0),
+    failed: Number(p.failed ?? 0),
   };
 }
 
 export async function indexPendingUploads(
   sourceType = 'commentary',
+  onUpdate?: (job: RagIndexJob) => void,
 ): Promise<{ pending: number; indexed: number; skipped: number; failed: number }> {
-  const res = await fetch(`${API_BASE}/admin/rag/uploads/index-pending`, {
-    method: 'POST',
-    headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
-    body: JSON.stringify({ source_type: sourceType, force: true }),
-  });
-  if (!res.ok) throw new Error(await readApiError(res, '批量向量化失败'));
-  const data = (await res.json()) as {
-    pending?: number;
-    indexed?: number;
-    skipped?: number;
-    failed?: number;
-  };
+  const job = await enqueueIndexJob(
+    '/admin/rag/uploads/index-pending',
+    { source_type: sourceType, force: true },
+    '批量向量化失败',
+    onUpdate,
+  );
+  const p = job.progress || {};
   return {
-    pending: data.pending ?? 0,
-    indexed: data.indexed ?? 0,
-    skipped: data.skipped ?? 0,
-    failed: data.failed ?? 0,
+    pending: Number(p.pending ?? 0),
+    indexed: Number(p.indexed ?? 0),
+    skipped: Number(p.skipped ?? 0),
+    failed: Number(p.failed ?? 0),
   };
 }
 
 export async function indexUploadFile(
   filename: string,
-  opts?: { title?: string; sourceType?: string },
-): Promise<RagUploadResult> {
-  const res = await fetch(
-    `${API_BASE}/admin/rag/uploads/${encodeURIComponent(filename)}/index`,
+  opts?: { title?: string; sourceType?: string; onUpdate?: (job: RagIndexJob) => void },
+): Promise<{ ok: boolean; queued?: boolean; message?: string }> {
+  await enqueueIndexJob(
+    `/admin/rag/uploads/${encodeURIComponent(filename)}/index`,
     {
-      method: 'POST',
-      headers: { ...adminHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: opts?.title,
-        source_type: opts?.sourceType ?? 'commentary',
-        force: true,
-      }),
+      title: opts?.title,
+      source_type: opts?.sourceType ?? 'commentary',
+      force: true,
     },
+    '向量化失败',
+    opts?.onUpdate,
   );
-  if (!res.ok) throw new Error(await readApiError(res, '向量化失败'));
-  return (await res.json()) as RagUploadResult;
+  return { ok: true, queued: true, message: '向量化完成' };
 }
 
 export async function deleteRagDocument(id: string): Promise<void> {
@@ -737,15 +808,20 @@ export function deleteRagWorkspace(
   });
 }
 
-export function indexRagWorkspaceFile(
+export async function indexRagWorkspaceFile(
   collectionId: string,
   path: string,
   force = true,
+  onUpdate?: (job: RagIndexJob) => void,
 ): Promise<{ ok: boolean; file: RagWorkspaceFile; index?: RagIndexResult }> {
-  return workspaceJson('/admin/rag/workspace/index', {
-    method: 'POST',
-    body: JSON.stringify({ collection_id: collectionId, path, force }),
-  });
+  await enqueueIndexJob(
+    '/admin/rag/workspace/index',
+    { collection_id: collectionId, path, force },
+    '索引失败',
+    onUpdate,
+  );
+  const file = await fetchRagWorkspaceFile(collectionId, path);
+  return { ok: true, file };
 }
 
 export function fetchRagWorkspaceChunks(

@@ -17,12 +17,9 @@ from ..db import get_pool
 from ..rag.index import index_file
 from .auth import make_admin_token, phone_is_admin, require_admin, verify_admin_credentials
 from .rag_inventory import build_rag_inventory, purge_rag_orphans
+from .rag_jobs import enqueue_rag_job, get_rag_job, list_rag_jobs
 from .rag_ops import (
     import_rag_sources,
-    index_pending_disk,
-    index_pending_uploads,
-    index_rag_collections,
-    index_upload_path,
     list_pending_uploads,
     upload_dir,
 )
@@ -30,7 +27,6 @@ from .rag_workspace import (
     build_workspace_tree,
     create_workspace_file,
     delete_workspace_path,
-    index_workspace_file,
     list_document_chunks,
     mkdir_workspace,
     read_workspace_file,
@@ -236,18 +232,19 @@ def admin_list_pending_uploads(_phone: str = Depends(require_admin)) -> dict:
 @router.post("/rag/uploads/index-pending")
 def admin_index_pending_uploads(
     body: IndexPendingBody | None = None,
-    _phone: str = Depends(require_admin),
+    phone: str = Depends(require_admin),
 ) -> dict:
+    """入队批量向量化上传目录（异步，不阻塞在线 API）。"""
     opts = body or IndexPendingBody()
-    try:
-        result = index_pending_uploads(
-            source_type=(opts.source_type or "commentary").strip(),
-            force=opts.force,
-        )
-    except Exception as exc:
-        logger.exception("admin index pending uploads failed")
-        raise HTTPException(status_code=500, detail=f"批量向量化失败：{exc}") from exc
-    return {"ok": True, **result}
+    job = enqueue_rag_job(
+        kind="pending_uploads",
+        payload={
+            "source_type": (opts.source_type or "commentary").strip(),
+            "force": opts.force,
+        },
+        created_by=phone,
+    )
+    return {"ok": True, "queued": True, "job": job}
 
 
 @router.post("/rag/import-sources")
@@ -268,42 +265,61 @@ def admin_rag_import_sources(
 @router.post("/rag/index-collections")
 def admin_rag_index_collections(
     body: RagIndexCollectionsBody | None = None,
-    _phone: str = Depends(require_admin),
+    phone: str = Depends(require_admin),
 ) -> dict:
-    """对 commentary 目录批量向量化（等同 ensure_rag 索引段）。"""
+    """对 commentary 目录批量向量化（异步入队）。"""
     opts = body or RagIndexCollectionsBody()
-    try:
-        result = index_rag_collections(force=opts.force)
-    except Exception as exc:
-        logger.exception("admin rag index collections failed")
-        raise HTTPException(status_code=500, detail=f"索引失败：{exc}") from exc
-    return {"ok": bool(result.get("ok")), **result}
+    job = enqueue_rag_job(
+        kind="collections",
+        payload={"force": opts.force},
+        created_by=phone,
+    )
+    return {"ok": True, "queued": True, "job": job}
 
 
 @router.post("/rag/index-pending-disk")
 def admin_index_pending_disk(
     body: IndexPendingBody | None = None,
+    phone: str = Depends(require_admin),
+) -> dict:
+    """磁盘待索引批量向量化（异步入队）。"""
+    opts = body or IndexPendingBody()
+    job = enqueue_rag_job(
+        kind="pending_disk",
+        payload={
+            "collection_id": opts.collection_id,
+            "force": opts.force,
+            "limit": opts.limit or 8,
+        },
+        created_by=phone,
+    )
+    return {"ok": True, "queued": True, "job": job}
+
+
+@router.get("/rag/jobs")
+def admin_list_rag_jobs(
+    limit: int = Query(20, ge=1, le=50),
     _phone: str = Depends(require_admin),
 ) -> dict:
-    """对资料清单中所有待索引/失败的磁盘文件批量向量化（含公版注释等）。"""
-    opts = body or IndexPendingBody()
-    try:
-        result = index_pending_disk(
-            collection_id=opts.collection_id,
-            force=opts.force,
-            limit=opts.limit,
-        )
-    except Exception as exc:
-        logger.exception("admin index pending disk failed")
-        raise HTTPException(status_code=500, detail=f"批量向量化失败：{exc}") from exc
-    return {"ok": True, **result}
+    return {"items": list_rag_jobs(limit=limit)}
+
+
+@router.get("/rag/jobs/{job_id}")
+def admin_get_rag_job(
+    job_id: str,
+    _phone: str = Depends(require_admin),
+) -> dict:
+    job = get_rag_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return job
 
 
 @router.post("/rag/uploads/{filename}/index")
 def admin_index_upload_file(
     filename: str,
     body: IndexUploadBody | None = None,
-    _phone: str = Depends(require_admin),
+    phone: str = Depends(require_admin),
 ) -> dict:
     safe = Path(filename).name
     if safe != filename or ".." in filename:
@@ -312,22 +328,17 @@ def admin_index_upload_file(
     dest = upload_dir() / safe
     if not dest.is_file():
         raise HTTPException(status_code=404, detail="上传文件不存在")
-    try:
-        index_result = index_upload_path(
-            dest,
-            title=(opts.title or "").strip() or None,
-            source_type=(opts.source_type or "commentary").strip(),
-            force=opts.force,
-        )
-    except Exception as exc:
-        logger.exception("admin index upload file failed")
-        raise HTTPException(status_code=500, detail=f"向量化失败：{exc}") from exc
-    docs = _list_documents()
-    matched = next(
-        (d for d in docs if d.get("source_path") and Path(d["source_path"]).name == safe),
-        None,
+    job = enqueue_rag_job(
+        kind="upload_file",
+        payload={
+            "filename": safe,
+            "title": (opts.title or "").strip() or None,
+            "source_type": (opts.source_type or "commentary").strip(),
+            "force": opts.force,
+        },
+        created_by=phone,
     )
-    return {"ok": True, "index": index_result, "document": matched}
+    return {"ok": True, "queued": True, "job": job}
 
 
 @router.post("/rag/documents")
@@ -343,7 +354,7 @@ async def admin_upload_document(
         raise HTTPException(status_code=400, detail="请填写资料标题")
     filename = (file.filename or "upload.md").strip()
     suffix = Path(filename).suffix.lower()
-    if suffix not in _ALLOW_SUFFIX:
+    if suffix not in _ALLOWED_SUFFIX:
         raise HTTPException(status_code=400, detail="仅支持 .md / .txt 文件")
 
     raw = await file.read()
@@ -586,13 +597,18 @@ def admin_rag_workspace_delete(
 @router.post("/rag/workspace/index")
 def admin_rag_workspace_index(
     body: WorkspaceIndexBody,
-    _phone: str = Depends(require_admin),
+    phone: str = Depends(require_admin),
 ) -> dict:
-    return index_workspace_file(
-        collection_id=body.collection_id,
-        path=body.path,
-        force=body.force,
+    job = enqueue_rag_job(
+        kind="workspace_file",
+        payload={
+            "collection_id": body.collection_id,
+            "path": body.path,
+            "force": body.force,
+        },
+        created_by=phone,
     )
+    return {"ok": True, "queued": True, "job": job}
 
 
 @router.get("/rag/workspace/chunks")

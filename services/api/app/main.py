@@ -30,6 +30,12 @@ async def lifespan(app: FastAPI):
         ensure_social_im_v12_pool(get_pool())
     except Exception:
         pass
+    try:
+        from .admin.rag_jobs import start_rag_index_worker
+
+        start_rag_index_worker()
+    except Exception:
+        pass
     yield
     close_pool()
 

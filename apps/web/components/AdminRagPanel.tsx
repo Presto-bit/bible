@@ -419,8 +419,13 @@ export default function AdminRagPanel({
       let hasMore = true;
       while (hasMore) {
         rounds += 1;
-        setRepairProgress(`第 ${rounds} 批向量化中…（已完成 ${totalIndexed + totalSkipped + totalFailed} 个）`);
-        const res = await indexPendingDisk();
+        setRepairProgress(`第 ${rounds} 批已入队，后台向量化中…（已完成 ${totalIndexed + totalSkipped + totalFailed} 个）`);
+        const res = await indexPendingDisk(undefined, 8, (job) => {
+          const st = job.status === 'queued' ? '排队中' : job.status === 'running' ? '向量化中' : job.status;
+          setRepairProgress(
+            `第 ${rounds} 批${st}…（已完成 ${totalIndexed + totalSkipped + totalFailed} 个）`,
+          );
+        });
         totalIndexed += res.indexed;
         totalSkipped += res.skipped;
         totalFailed += res.failed;
@@ -685,9 +690,12 @@ export default function AdminRagPanel({
     setBusy(true);
     setErr(null);
     setUploadOk(null);
-    setOpsProgress('正在对各注释目录批量向量化（可能需十余分钟）…');
+    setOpsProgress('已入队：后台对各注释目录批量向量化（不阻塞在线 API）…');
     try {
-      const res = await indexRagCollections(false);
+      const res = await indexRagCollections(false, (job) => {
+        const st = job.status === 'queued' ? '排队中' : job.status === 'running' ? '索引中' : job.status;
+        setOpsProgress(`索引任务 ${st}…`);
+      });
       if (res.ok) {
         setUploadOk(`索引完成：${res.indexed_groups} 个目录已处理`);
       } else {

@@ -41,6 +41,9 @@ import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { buildHomeGrowthCards, type HomeGrowthCard } from '@/lib/home_growth_cards';
 import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
+import { loadBooksJson, seededBooks } from '@/lib/bible_local';
+import { bookIdToChineseName } from '@/lib/ref_label';
+import { timedPerf } from '@/lib/perf_rum';
 import { watchChinaDayChange } from '@/lib/daily_clock';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
@@ -219,6 +222,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   }, [homeAwake]);
 
   const refreshRail = useCallback(async () => {
+    await timedPerf('home.refreshRail', async () => {
     const report = buildReport();
     let planCard:
       | {
@@ -269,26 +273,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       | undefined;
     const last = getLastRead();
     if (last) {
-      try {
-        const { books } = await api.books();
-        const book = books.find((b) => b.id === last.bookId);
-        const name = book?.name ?? last.bookId;
-        resumeCard = {
-          title: `${name} ${last.chapter} 章`,
-          sub: '继续阅读',
-          href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
-          bookId: last.bookId,
-          chapter: last.chapter,
-        };
-      } catch {
-        resumeCard = {
-          title: `第 ${last.chapter} 章`,
-          sub: '继续阅读',
-          href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
-          bookId: last.bookId,
-          chapter: last.chapter,
-        };
-      }
+      // 用本地书卷名，避免首页串行打 api.books()
+      const books = (await loadBooksJson()) ?? seededBooks();
+      const book = books.find((b) => b.id === last.bookId);
+      const name = book?.name ?? (bookIdToChineseName(last.bookId) || last.bookId);
+      resumeCard = {
+        title: `${name} ${last.chapter} 章`,
+        sub: '继续阅读',
+        href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+        bookId: last.bookId,
+        chapter: last.chapter,
+      };
     }
     let groupCard = buildHomeGroupRailInput([], null);
     try {
@@ -302,22 +297,20 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     }
     const suggest = nextReadingSuggestion();
     let assistantCard: { title: string; sub: string; href: string } | undefined;
-    try {
-      const dv = await api.dailyVerse();
-      if (dv?.ref) {
-        const q = '这段经文里，神的应许对你意味着什么？';
-        assistantCard = {
-          title: dv.ref,
-          sub: '',
-          href: assistantHref(dv.ref, {
-            question: q,
-            autoSend: true,
-            surface: 'home_prefill',
-          }),
-        };
-      }
-    } catch {
-      /* ignore */
+    // 复用 bootstrap/缓存的每日经文，避免第二次 dailyVerse 请求
+    const cachedDv = readCachedDailyVerse();
+    const dvRef = cachedDv?.ref;
+    if (dvRef) {
+      const q = '这段经文里，神的应许对你意味着什么？';
+      assistantCard = {
+        title: dvRef,
+        sub: '',
+        href: assistantHref(dvRef, {
+          question: q,
+          autoSend: true,
+          surface: 'home_prefill',
+        }),
+      };
     }
     const memCount = listAllThoughts().length;
     const latestThought = listAllThoughts()[0];
@@ -360,6 +353,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         monthDays: report.monthDays,
       }),
     );
+    });
   }, []);
 
   useEffect(() => {

@@ -15,6 +15,7 @@ import {
   expectedItemBytes,
   fetchManifest,
   loadItemRecord,
+  releaseOfflineZipCache,
   type DownloadProgress,
   type OfflineItemStatus,
   type OfflinePackManifest,
@@ -58,6 +59,9 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
 
   useEffect(() => {
     void refresh().catch(() => setErr('无法读取下载清单'));
+    return () => {
+      releaseOfflineZipCache();
+    };
   }, [refresh]);
 
   const onDownload = async (item: OfflineCatalogItem) => {

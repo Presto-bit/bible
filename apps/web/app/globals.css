@@ -18817,7 +18817,11 @@ html.app-theme-dark body {
 .discover-empty-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
 .discover-empty-inline{margin:8px 0 0;font-size:13px;}
 .discover-conv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0;}
-.discover-conv-li{position:relative;display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--line);}
+.discover-conv-li{
+  position:relative;display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--line);
+  content-visibility:auto;
+  contain-intrinsic-size:auto 64px;
+}
 .discover-conv-li:last-child{border-bottom:0;}
 .discover-conv-row{
   display:flex;align-items:center;gap:12px;flex:1;min-width:0;width:100%;
@@ -18863,7 +18867,11 @@ html.app-theme-dark body {
   border-radius:4px;
   padding:0 2px;
 }
-.dm-msg-block{display:flex;flex-direction:column;gap:2px;width:100%;}
+.dm-msg-block{
+  display:flex;flex-direction:column;gap:2px;width:100%;
+  content-visibility:auto;
+  contain-intrinsic-size:auto 72px;
+}
 .dm-day-sep{
   display:flex;
   justify-content:center;
@@ -19093,6 +19101,192 @@ body.im-keyboard .im-jump-bottom{
   font-size:15px;
   font-weight:600;
   cursor:pointer;
+}
+
+/* 飞书式贴气泡操作条 */
+.im-msg-popover-root{
+  position:fixed;
+  inset:0;
+  z-index:130;
+  pointer-events:none;
+}
+.im-msg-popover-backdrop{
+  position:absolute;
+  inset:0;
+  border:0;
+  background:rgba(0,0,0,.18);
+  cursor:pointer;
+  pointer-events:auto;
+}
+.im-msg-popover{
+  position:fixed;
+  z-index:131;
+  pointer-events:auto;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  max-width:min(340px, calc(100vw - 20px));
+  padding:6px;
+  border-radius:14px;
+  background:rgba(32,36,40,.94);
+  color:#fff;
+  box-shadow:0 10px 28px rgba(0,0,0,.28);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.im-msg-popover-emojis{
+  display:flex;
+  gap:2px;
+  padding:2px 2px 0;
+  border-bottom:1px solid rgba(255,255,255,.12);
+  padding-bottom:6px;
+  margin-bottom:2px;
+}
+.im-msg-popover-emoji{
+  appearance:none;
+  border:0;
+  background:transparent;
+  width:36px;
+  height:36px;
+  border-radius:10px;
+  font-size:20px;
+  cursor:pointer;
+  line-height:1;
+}
+.im-msg-popover-emoji:active,
+.im-msg-popover-emoji:hover{
+  background:rgba(255,255,255,.12);
+}
+.im-msg-popover-actions{
+  display:flex;
+  flex-wrap:wrap;
+  gap:2px;
+}
+.im-msg-popover-item{
+  appearance:none;
+  border:0;
+  background:transparent;
+  color:#fff;
+  min-width:52px;
+  padding:8px 10px;
+  border-radius:10px;
+  font-size:12px;
+  cursor:pointer;
+  line-height:1.2;
+}
+.im-msg-popover-item:hover,
+.im-msg-popover-item:active{
+  background:rgba(255,255,255,.12);
+}
+.im-msg-popover-item.is-danger{
+  color:#ff8f8f;
+}
+.im-msg-popover-label{
+  display:block;
+  text-align:center;
+  white-space:nowrap;
+}
+
+/* 图片缩略图 + Lightbox */
+.im-attach-image-btn{
+  appearance:none;
+  border:0;
+  padding:0;
+  margin:0;
+  background:transparent;
+  cursor:zoom-in;
+  display:block;
+  border-radius:8px;
+  overflow:hidden;
+  max-width:100%;
+}
+.im-attach-image-btn img{
+  display:block;
+  max-width:min(220px, 70vw);
+  max-height:220px;
+  object-fit:cover;
+}
+.im-lightbox{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  background:#000;
+  display:flex;
+  flex-direction:column;
+  touch-action:none;
+}
+.im-lightbox-backdrop{
+  position:absolute;
+  inset:0;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+}
+.im-lightbox-chrome{
+  position:relative;
+  z-index:2;
+  flex-shrink:0;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
+  color:#fff;
+}
+.im-lightbox-count{font-size:14px;opacity:.85;}
+.im-lightbox-close{
+  appearance:none;
+  border:0;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  border-radius:999px;
+  padding:6px 12px;
+  font-size:13px;
+  cursor:pointer;
+}
+.im-lightbox-stage{
+  position:relative;
+  z-index:1;
+  flex:1;
+  min-height:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  overflow:hidden;
+  touch-action:none;
+}
+.im-lightbox-img{
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  user-select:none;
+  -webkit-user-select:none;
+  transform-origin:center center;
+  transition:transform .05s linear;
+  pointer-events:auto;
+}
+.im-lightbox-nav{
+  position:relative;
+  z-index:2;
+  flex-shrink:0;
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  padding:8px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.im-lightbox-nav-btn{
+  appearance:none;
+  border:0;
+  background:rgba(255,255,255,.14);
+  color:#fff;
+  border-radius:999px;
+  padding:8px 14px;
+  font-size:13px;
+  cursor:pointer;
+}
+.im-lightbox-nav-btn:disabled{opacity:.35;cursor:default;}
+html.perf-lite .im-msg-popover{
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
 }
 .report-sheet-root{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-end;justify-content:center;}
 .report-sheet-backdrop{position:absolute;inset:0;border:0;background:rgba(0,0,0,.35);cursor:pointer;}
@@ -19463,6 +19657,8 @@ body.im-keyboard .im-jump-bottom{
   gap: 8px;
   max-width: 88%;
   padding: 4px 2px;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 80px;
 }
 .group-chat-row.is-peer{ align-self: flex-start; }
 .group-chat-row.is-mine{

@@ -1,5 +1,5 @@
 // 发版后须 bump CACHE，否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
-const CACHE = 'presto-bible-v32';
+const CACHE = 'presto-bible-v33';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -46,6 +46,7 @@ function todayDailyWallpaperPath() {
   return bp(`/daily-wallpapers/${file}`);
 }
 
+/** 安装期精简壳：大体积插画延后到 activate 空闲预热，加快 SW 就绪 */
 const SHELL = [
   bp('/offline.html'),
   bp('/manifest.webmanifest'),
@@ -64,8 +65,11 @@ const SHELL = [
   bp('/sql-wasm/sql-wasm.wasm'),
   bp('/sql-wasm/sql-wasm-browser.js'),
   bp('/sql-wasm/sql-wasm-browser.wasm'),
-  ...ILLUSTRATION_FILES.map((f) => bp(`/illustrations/${f}`)),
   todayDailyWallpaperPath(),
+];
+
+const SHELL_WARM = [
+  ...ILLUSTRATION_FILES.map((f) => bp(`/illustrations/${f}`)),
 ];
 
 const APP_SHELL_PATHS = [
@@ -211,7 +215,16 @@ self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE && k !== IDENTITY_CACHE).map((k) => caches.delete(k))),
-    ).then(() => self.clients.claim()),
+    ).then(async () => {
+      // 插画等次要资源：激活后再预热，不阻塞首屏 SW 就绪
+      try {
+        const c = await caches.open(CACHE);
+        await Promise.allSettled(SHELL_WARM.map((url) => c.add(url)));
+      } catch {
+        /* ignore warm failures */
+      }
+      return self.clients.claim();
+    }),
   );
 });
 

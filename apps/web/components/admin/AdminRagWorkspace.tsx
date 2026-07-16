@@ -229,7 +229,9 @@ export default function AdminRagWorkspace() {
   const onIndex = async () => {
     if (!selected || selected.kind !== 'file') return;
     await run('索引', async () => {
-      const r = await indexRagWorkspaceFile(selected.collectionId, selected.path, true);
+      const r = await indexRagWorkspaceFile(selected.collectionId, selected.path, true, () => {
+        setMsg('索引任务进行中…');
+      });
       setFile(r.file);
       setDraft(r.file.content);
       setDirty(false);
@@ -709,7 +711,9 @@ export default function AdminRagWorkspace() {
                     disabled={busy}
                     onClick={() =>
                       void run('索引集合', async () => {
-                        const r = await indexRagCollections();
+                        const r = await indexRagCollections(false, () => {
+                          setMsg('索引集合任务进行中…');
+                        });
                         return `已索引分组 ${r.indexed_groups ?? 0}`;
                       })
                     }
@@ -721,7 +725,9 @@ export default function AdminRagWorkspace() {
                     disabled={busy}
                     onClick={() =>
                       void run('索引待处理', async () => {
-                        const r = await indexPendingDisk();
+                        const r = await indexPendingDisk(undefined, 8, () => {
+                          setMsg('待处理索引任务进行中…');
+                        });
                         return `处理 ${r.processed ?? 0} · 成功 ${r.indexed ?? 0}`;
                       })
                     }

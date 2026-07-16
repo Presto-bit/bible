@@ -21,6 +21,7 @@ import { friendRemarkOrName } from '@/lib/friend_remarks';
 import { formatConvListTime } from '@/lib/im_ui';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { timedPerf } from '@/lib/perf_rum';
 
 type SubTab = 'messages' | 'friends';
 
@@ -72,29 +73,31 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       sub === 'messages' ? messagesLoadedRef.current : friendsLoadedRef.current;
     try {
       if (!soft) setLoading(true);
-      if (sub === 'messages') {
-        const conv = await api.conversations();
-        if (gen !== reloadGenRef.current) return;
-        setItems(Array.isArray(conv.items) ? conv.items : []);
-        messagesLoadedRef.current = true;
-      } else {
-        const [fRes, reqRes] = await Promise.allSettled([
-          api.friends(),
-          api.friendRequests(),
-        ]);
-        if (gen !== reloadGenRef.current) return;
-        if (fRes.status === 'fulfilled') {
-          setFriends(Array.isArray(fRes.value.friends) ? fRes.value.friends : []);
+      await timedPerf(`discover.reload.${sub}`, async () => {
+        if (sub === 'messages') {
+          const conv = await api.conversations();
+          if (gen !== reloadGenRef.current) return;
+          setItems(Array.isArray(conv.items) ? conv.items : []);
+          messagesLoadedRef.current = true;
         } else {
-          throw fRes.reason;
+          const [fRes, reqRes] = await Promise.allSettled([
+            api.friends(),
+            api.friendRequests(),
+          ]);
+          if (gen !== reloadGenRef.current) return;
+          if (fRes.status === 'fulfilled') {
+            setFriends(Array.isArray(fRes.value.friends) ? fRes.value.friends : []);
+          } else {
+            throw fRes.reason;
+          }
+          if (reqRes.status === 'fulfilled') {
+            setIncoming(Array.isArray(reqRes.value.incoming) ? reqRes.value.incoming : []);
+          } else {
+            setIncoming([]);
+          }
+          friendsLoadedRef.current = true;
         }
-        if (reqRes.status === 'fulfilled') {
-          setIncoming(Array.isArray(reqRes.value.incoming) ? reqRes.value.incoming : []);
-        } else {
-          setIncoming([]);
-        }
-        friendsLoadedRef.current = true;
-      }
+      });
       setErr(null);
     } catch (e) {
       if (gen !== reloadGenRef.current) return;

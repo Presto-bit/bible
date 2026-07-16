@@ -1,4 +1,4 @@
-/** 运行环境检测（PWA / 浏览器） */
+/** 低端/省流判定与 Tab 保活策略 */
 
 export function isStandalonePwa(): boolean {
   if (typeof window === 'undefined') return false;
@@ -14,7 +14,10 @@ type NavHints = Navigator & {
   connection?: { saveData?: boolean; effectiveType?: string };
 };
 
-/** 低端/省流机：少保活、降毛玻璃，避免五 Tab + blur 拖垮主线程/GPU */
+/**
+ * 低端/省流机：少特效、降毛玻璃。
+ * 阈值刻意比「关 KeepAlive」更宽：4GB/4 核仍可保活，但走 perf-lite。
+ */
 export function isLowEndDevice(): boolean {
   if (typeof window === 'undefined') return false;
   const nav = navigator as NavHints;
@@ -25,18 +28,36 @@ export function isLowEndDevice(): boolean {
     return true;
   }
   if (
-    typeof nav.hardwareConcurrency === 'number' &&
-    nav.hardwareConcurrency > 0 &&
-    nav.hardwareConcurrency <= 4
+    typeof nav.hardwareConcurrency === 'number'
+    && nav.hardwareConcurrency > 0
+    && nav.hardwareConcurrency <= 4
   ) {
     return true;
   }
   return false;
 }
 
-/** 五 Tab 保活：低端机关闭，走 Next 路由；其余端启用 */
+/**
+ * 仅在真正受限设备上关闭五 Tab 保活（≤2GB 或 ≤2 核 / 省流 / 2g）。
+ * 中端机保留 KeepAlive，由各 Tab 的 paneActive 停刷。
+ */
 export function isTabKeepAliveEnabled(): boolean {
-  return typeof window !== 'undefined' && !isLowEndDevice();
+  if (typeof window === 'undefined') return false;
+  const nav = navigator as NavHints;
+  if (nav.connection?.saveData) return false;
+  const et = nav.connection?.effectiveType;
+  if (et === 'slow-2g' || et === '2g') return false;
+  if (typeof nav.deviceMemory === 'number' && nav.deviceMemory > 0 && nav.deviceMemory <= 2) {
+    return false;
+  }
+  if (
+    typeof nav.hardwareConcurrency === 'number'
+    && nav.hardwareConcurrency > 0
+    && nav.hardwareConcurrency <= 2
+  ) {
+    return false;
+  }
+  return true;
 }
 
 export function isFinePointerDesktop(): boolean {
