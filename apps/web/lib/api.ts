@@ -1676,7 +1676,7 @@ export const api = {
   patchConversationState: (
     scope: string,
     refId: string,
-    body: { last_read_at?: string; pinned?: boolean; muted?: boolean },
+    body: { last_read_at?: string; pinned?: boolean; muted?: boolean; hidden?: boolean },
   ) =>
     authed<{ ok: boolean }>(`/social/conversations/${scope}/${refId}/state`, {
       method: 'PATCH',

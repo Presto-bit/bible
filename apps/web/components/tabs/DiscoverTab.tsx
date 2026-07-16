@@ -20,6 +20,7 @@ import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName } from '@/lib/friend_remarks';
 import { formatConvListTime } from '@/lib/im_ui';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 type SubTab = 'messages' | 'friends';
 
@@ -34,6 +35,7 @@ type SearchHit = {
 };
 
 export default function DiscoverTab({ paneActive = true }: { paneActive?: boolean }) {
+  const confirm = useConfirm();
   const router = useRouter();
   const pathname = usePathname();
   const online = useOnline();
@@ -191,27 +193,45 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const patchState = async (
     it: ConversationItem,
-    patch: { pinned?: boolean; muted?: boolean },
+    patch: { pinned?: boolean; muted?: boolean; hidden?: boolean },
   ) => {
     if (it.scope !== 'group' && it.scope !== 'dm') return;
     setErr(null);
-    setItems((prev) =>
-      prev.map((row) =>
-        row.scope === it.scope && row.ref_id === it.ref_id
-          ? {
-              ...row,
-              pinned: patch.pinned ?? row.pinned,
-              muted: patch.muted ?? row.muted,
-            }
-          : row,
-      ),
-    );
+    if (patch.hidden) {
+      setItems((prev) =>
+        prev.filter((row) => !(row.scope === it.scope && row.ref_id === it.ref_id)),
+      );
+    } else {
+      setItems((prev) =>
+        prev.map((row) =>
+          row.scope === it.scope && row.ref_id === it.ref_id
+            ? {
+                ...row,
+                pinned: patch.pinned ?? row.pinned,
+                muted: patch.muted ?? row.muted,
+              }
+            : row,
+        ),
+      );
+    }
     try {
       await api.patchConversationState(it.scope, it.ref_id, patch);
+      if (patch.pinned !== undefined && !patch.hidden) void reload();
     } catch (e) {
       setErr(errorMessage(e, '设置失败'));
       void reload();
     }
+  };
+
+  const hideConversation = async (it: ConversationItem) => {
+    const ok = await confirm({
+      title: '删除会话',
+      message: `将「${it.title}」从消息列表移除？有新消息时会再次出现，聊天记录不会删除。`,
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
+    await patchState(it, { hidden: true });
   };
 
   const openSearchHit = (h: SearchHit) => {
@@ -418,6 +438,11 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                           label: it.muted ? '取消免打扰' : '免打扰',
                           tone: 'muted',
                           onClick: () => void patchState(it, { muted: !it.muted }),
+                        },
+                        {
+                          label: '删除',
+                          tone: 'danger',
+                          onClick: () => void hideConversation(it),
                         },
                       ]}
                     >

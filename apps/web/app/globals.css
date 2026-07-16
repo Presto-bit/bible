@@ -14138,13 +14138,16 @@ a.feed-verse-hero:active {
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-faint);
-  margin: 14px 0 8px;
+  margin: 8px 0 6px;
 }
 
 .group-invite-selected-track {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
 }
 
 .group-invite-selected-chip {
@@ -14180,28 +14183,33 @@ a.feed-verse-hero:active {
 .group-invite-friend-list-full .group-invite-friend-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   text-align: left;
-  padding: 10px 4px;
+  padding: 10px 2px;
   border: none;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
   background: transparent;
   cursor: pointer;
+  font: inherit;
+  color: inherit;
 }
 
 .group-invite-friend-list-full .group-invite-friend-row.selected {
-  background: color-mix(in srgb, var(--accent-wash) 50%, transparent);
+  background: transparent;
 }
 
 .group-invite-friend-name {
   flex: 1;
   min-width: 0;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .group-invite-friend-state {
-  font-size: 12px;
-  flex-shrink: 0;
+  display: none;
 }
 
 .half-sheet-user-bubble {
@@ -14407,10 +14415,10 @@ a.feed-verse-hero:active {
   right: 0;
   bottom: 0;
   z-index: 40;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0));
+  padding: 6px 10px max(2px, env(safe-area-inset-bottom, 0));
   background: var(--bg);
   border-top: 1px solid var(--line);
-  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+  box-shadow: none;
 }
 
 .group-wechat-input {
@@ -16286,7 +16294,7 @@ body:has(.group-page-checkin) .app-body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   overscroll-behavior-x: none;
-  padding: 10px 16px calc(76px + env(safe-area-inset-bottom, 0));
+  padding: 10px 16px calc(58px + env(safe-area-inset-bottom, 0));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -17051,7 +17059,7 @@ html.app-theme-dark .muted {
   right: 0;
   bottom: 0;
   z-index: 45;
-  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0));
+  padding: 6px 10px max(2px, env(safe-area-inset-bottom, 0));
 }
 
 .group-poster-avatar {
@@ -17329,21 +17337,128 @@ html.app-theme-dark .muted {
   cursor: pointer;
 }
 
-.group-invite-sheet .group-invite-code-card {
+.group-invite-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  height: min(88dvh, 720px);
+  max-height: 88dvh;
+  padding: 8px 0 0;
+  overflow: hidden;
+}
+.group-invite-sheet-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px 10px;
+}
+.group-invite-sheet-head strong {
+  font-size: 17px;
+}
+.group-invite-sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 16px 12px;
+}
+.group-invite-sheet-foot {
+  flex-shrink: 0;
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface, #fff);
+}
+.group-invite-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  line-height: 1.45;
   text-align: center;
-  padding: 18px 12px;
+}
+.group-invite-sheet .group-invite-code-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  padding: 12px 14px;
   border-radius: 14px;
   background: var(--accent-wash);
-  margin-bottom: 14px;
+  margin: 0 0 12px;
 }
-
-.group-invite-friend-list {
+.group-invite-code-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.group-invite-code-meta .muted {
+  font-size: 12px;
+}
+.group-invite-sheet .group-invite-code {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.16em;
+  font-weight: 700;
+  color: var(--accent-deep);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.group-invite-code-actions {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 240px;
-  overflow-y: auto;
-  margin: 10px 0 12px;
+  flex-shrink: 0;
+}
+.group-invite-search {
+  margin: 4px 0 8px;
+}
+.group-invite-empty {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 8px 0 16px;
+}
+.group-invite-friend-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: none;
+  overflow: visible;
+  margin: 0;
+}
+.group-invite-letter-block + .group-invite-letter-block {
+  margin-top: 4px;
+}
+.group-invite-friend-check {
+  flex-shrink: 0;
+  min-width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.group-invite-friend-check.is-on {
+  border-color: var(--accent-deep);
+  background: var(--accent-deep);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.group-invite-friend-row.pending .group-invite-friend-check {
+  width: auto;
+  min-width: 40px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border-color: color-mix(in srgb, var(--accent-deep) 35%, var(--line));
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-size: 11px;
 }
 
 .group-invite-friend-row {
@@ -18748,14 +18863,6 @@ html.app-theme-dark body {
   border-radius:4px;
   padding:0 2px;
 }
-.dm-msg-list{
-  height:100%;
-  overflow-y:auto;
-  display:flex;
-  flex-direction:column;
-  gap:2px;
-  padding:4px 0 8px;
-}
 .dm-msg-block{display:flex;flex-direction:column;gap:2px;width:100%;}
 .dm-day-sep{
   display:flex;
@@ -18818,8 +18925,8 @@ html.app-theme-dark body {
 .dm-attach-bar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .dm-bubble-foot{display:flex;align-items:center;gap:8px;margin-top:6px;min-height:16px;}
 .im-retention-hint{font-size:12px;color:var(--muted,#6b6b6b);margin:0 0 10px;line-height:1.45;}
-.im-jump-bottom{position:fixed;right:16px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:30;appearance:none;border:0;padding:10px 14px;border-radius:999px;background:var(--surface,#fff);box-shadow:0 6px 20px rgba(0,0,0,.14);font-size:13px;cursor:pointer;color:var(--ink,#1a1a1a);}
-body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(72px + env(safe-area-inset-bottom));}
+.im-jump-bottom{position:fixed;right:16px;bottom:calc(56px + env(safe-area-inset-bottom));z-index:30;appearance:none;border:0;padding:10px 14px;border-radius:999px;background:var(--surface,#fff);box-shadow:0 6px 20px rgba(0,0,0,.14);font-size:13px;cursor:pointer;color:var(--ink,#1a1a1a);}
+body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(56px + env(safe-area-inset-bottom));}
 .group-feed-filters.im-feed-filters{gap:6px;}
 .group-feed-filters.im-feed-filters .mode-chip{font-size:12px;padding:5px 10px;border-radius:8px;}
 .im-msg-menu{position:relative;display:inline-flex;}
@@ -18829,13 +18936,38 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(72px + env(safe-area-i
 .im-upload-pct{font-size:12px;color:var(--muted);}
 .discover-conv-li .swipe-reveal-content{background:transparent;}
 .discover-conv-li .discover-conv-row{width:100%;}
-.dm-page{display:flex;flex-direction:column;min-height:100dvh;padding-bottom:calc(88px + env(safe-area-inset-bottom));}
+/* 私信：全屏固定壳，顶栏冻结，仅消息列表滚动（对齐微信） */
+body:has(.dm-page) .app-body {
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.dm-page{
+  position:fixed;
+  top:env(safe-area-inset-top, 0);
+  left:0;
+  right:0;
+  bottom:0;
+  display:flex;
+  flex-direction:column;
+  height:auto;
+  max-height:none;
+  min-height:0;
+  overflow:hidden;
+  padding:0;
+  box-sizing:border-box;
+  z-index:2;
+}
 .dm-page-head{
+  flex-shrink:0;
   display:grid;
   grid-template-columns:minmax(64px,auto) 1fr minmax(64px,auto);
   align-items:center;
   gap:4px;
-  margin-bottom:10px;
+  margin:0;
+  padding:4px 12px 8px;
+  background:var(--bg,#fffcfa);
+  border-bottom:1px solid var(--line);
+  z-index:10;
 }
 .dm-page-head .nav-back{margin:0;justify-self:start;}
 .dm-page-title{
@@ -18857,23 +18989,52 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(72px + env(safe-area-i
   width:2.5em;
   justify-self:end;
 }
-.dm-composer-dock.im-composer-bar{
+.dm-page-body{
+  position:relative;
+  flex:1;
+  min-height:0;
+  display:flex;
+  flex-direction:column;
+  padding:0 12px;
+}
+.dm-msg-list{
+  flex:1;
+  min-height:0;
+  height:auto;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  padding:4px 0 calc(56px + env(safe-area-inset-bottom, 0px));
+}
+/* 输入栏：贴底 / 贴键盘（微信式） */
+.dm-composer-dock.im-composer-bar,
+.group-wechat-composer.im-composer-dock{
   position:fixed;
   left:0;
   right:0;
   bottom:0;
   z-index:45;
   margin:0;
-  padding:10px 12px calc(8px + env(safe-area-inset-bottom));
+  padding:6px 10px max(2px, env(safe-area-inset-bottom, 0px));
   background:var(--bg,#fffcfa);
   border-top:1px solid var(--line);
-  box-shadow:0 -2px 12px rgba(0,0,0,.06);
-  transition:bottom .12s ease-out;
+  box-shadow:none;
+  transition:bottom .1s ease-out;
+}
+body.im-keyboard .dm-composer-dock.im-composer-bar,
+body.im-keyboard .group-wechat-composer.im-composer-dock{
+  bottom:var(--im-kb-inset, 0px);
+  padding-bottom:4px;
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
-body.im-keyboard .im-jump-bottom{bottom:calc(88px + var(--im-kb-inset, 0px));}
-.group-wechat-composer.im-composer-dock{
-  transition:bottom .12s ease-out;
+body.im-keyboard .im-jump-bottom{
+  bottom:calc(56px + var(--im-kb-inset, 0px));
+}
+.im-jump-bottom{
+  bottom:calc(56px + env(safe-area-inset-bottom, 0px));
 }
 .group-chat-name{
   font-size:12px;
@@ -19246,6 +19407,16 @@ body.im-keyboard .im-jump-bottom{bottom:calc(88px + var(--im-kb-inset, 0px));}
   position:sticky;top:0;z-index:8;
   display:flex;align-items:center;justify-content:space-between;gap:8px;
   padding:8px 0;background:var(--bg);border-bottom:1px solid var(--line);
+}
+.dm-page > .im-select-toolbar{
+  position:relative;
+  flex-shrink:0;
+  padding:8px 12px;
+}
+.dm-page > .offline-page-hint{
+  flex-shrink:0;
+  margin:0;
+  padding:6px 12px;
 }
 .im-msg-check{
   appearance:none;width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line);

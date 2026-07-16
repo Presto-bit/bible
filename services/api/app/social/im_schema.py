@@ -108,6 +108,7 @@ _STATEMENTS: tuple[str, ...] = (
       last_read_at TIMESTAMPTZ,
       pinned_at TIMESTAMPTZ,
       muted BOOLEAN NOT NULL DEFAULT false,
+      hidden_at TIMESTAMPTZ,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       PRIMARY KEY (user_id, scope, ref_id),
       CONSTRAINT conversation_state_scope_chk
@@ -115,6 +116,8 @@ _STATEMENTS: tuple[str, ...] = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS conversation_state_user_idx ON conversation_state (user_id)",
+    # 已有库补列：从消息列表「删除」= 隐藏至有新消息
+    "ALTER TABLE conversation_state ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ",
     """
     CREATE TABLE IF NOT EXISTS message_attachment (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

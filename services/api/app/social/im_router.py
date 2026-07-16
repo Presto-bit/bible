@@ -189,6 +189,8 @@ class ConversationStateIn(BaseModel):
     last_read_at: str | None = None
     pinned: bool | None = None
     muted: bool | None = None
+    # True=从消息列表移除（有新消息后自动再出现）；False=取消隐藏
+    hidden: bool | None = None
 
 
 class SetAdminsIn(BaseModel):
@@ -302,6 +304,8 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                   ORDER BY gm.created_at DESC
                   LIMIT 1
                 ) lm ON true
+                WHERE cs.hidden_at IS NULL
+                   OR (lm.created_at IS NOT NULL AND lm.created_at > cs.hidden_at)
                 ORDER BY cs.pinned_at DESC NULLS LAST,
                          COALESCE(lm.created_at, g.created_at) DESC
                 """,
@@ -408,7 +412,11 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                   ORDER BY dm.created_at DESC
                   LIMIT 1
                 ) lm ON true
-                WHERE t.user_low_id = %s OR t.user_high_id = %s
+                WHERE (t.user_low_id = %s OR t.user_high_id = %s)
+                  AND (
+                    cs.hidden_at IS NULL
+                    OR (lm.created_at IS NOT NULL AND lm.created_at > cs.hidden_at)
+                  )
                 """,
                 (cutoff, user_id, user_id, user_id, user_id),
             ).fetchall()
@@ -483,15 +491,17 @@ def patch_conversation_state(
     if scope not in ("group", "dm", "inbox_friends", "inbox_groups"):
         raise HTTPException(400, "无效 scope")
     pool = get_pool()
+    ensure_social_im_v12_pool(pool)
     with pool.connection() as conn:
         row = conn.execute(
-            "SELECT last_read_at, pinned_at, muted FROM conversation_state "
+            "SELECT last_read_at, pinned_at, muted, hidden_at FROM conversation_state "
             "WHERE user_id = %s AND scope = %s AND ref_id = %s",
             (user_id, scope, ref_id),
         ).fetchone()
         last_read = row[0] if row else None
         pinned_at = row[1] if row else None
         muted = bool(row[2]) if row else False
+        hidden_at = row[3] if row else None
         if body.last_read_at:
             last_read = datetime.fromisoformat(body.last_read_at.replace("Z", "+00:00"))
         elif body.last_read_at is None and row is None:
@@ -502,19 +512,32 @@ def patch_conversation_state(
             pinned_at = None
         if body.muted is not None:
             muted = body.muted
-        if body.last_read_at is None and body.pinned is None and body.muted is None:
+        if body.hidden is True:
+            hidden_at = datetime.now(timezone.utc)
+            pinned_at = None  # 从列表移除时取消置顶
+        elif body.hidden is False:
+            hidden_at = None
+        if (
+            body.last_read_at is None
+            and body.pinned is None
+            and body.muted is None
+            and body.hidden is None
+        ):
             last_read = datetime.now(timezone.utc)
         conn.execute(
             """
-            INSERT INTO conversation_state (user_id, scope, ref_id, last_read_at, pinned_at, muted, updated_at)
-            VALUES (%s, %s, %s, %s, %s, %s, now())
+            INSERT INTO conversation_state (
+              user_id, scope, ref_id, last_read_at, pinned_at, muted, hidden_at, updated_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, now())
             ON CONFLICT (user_id, scope, ref_id) DO UPDATE SET
               last_read_at = COALESCE(EXCLUDED.last_read_at, conversation_state.last_read_at),
               pinned_at = EXCLUDED.pinned_at,
               muted = EXCLUDED.muted,
+              hidden_at = EXCLUDED.hidden_at,
               updated_at = now()
             """,
-            (user_id, scope, ref_id, last_read, pinned_at, muted),
+            (user_id, scope, ref_id, last_read, pinned_at, muted, hidden_at),
         )
         conn.commit()
     return {"ok": True}

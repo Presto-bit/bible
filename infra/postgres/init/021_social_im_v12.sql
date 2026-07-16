@@ -77,7 +77,7 @@ CREATE INDEX IF NOT EXISTS direct_message_thread_idx
 CREATE INDEX IF NOT EXISTS direct_message_created_idx
   ON direct_message (created_at);
 
--- ── 会话状态（未读 / 置顶 / 免打扰）──
+-- ── 会话状态（未读 / 置顶 / 免打扰 / 列表隐藏）──
 CREATE TABLE IF NOT EXISTS conversation_state (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   scope TEXT NOT NULL,
@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS conversation_state (
   last_read_at TIMESTAMPTZ,
   pinned_at TIMESTAMPTZ,
   muted BOOLEAN NOT NULL DEFAULT false,
+  hidden_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, scope, ref_id),
   CONSTRAINT conversation_state_scope_chk
@@ -93,6 +94,8 @@ CREATE TABLE IF NOT EXISTS conversation_state (
 
 CREATE INDEX IF NOT EXISTS conversation_state_user_idx
   ON conversation_state (user_id);
+
+ALTER TABLE conversation_state ADD COLUMN IF NOT EXISTS hidden_at TIMESTAMPTZ;
 
 -- ── 附件（群消息 / 单聊）──
 CREATE TABLE IF NOT EXISTS message_attachment (

@@ -471,10 +471,12 @@ class SocialRepository {
     String refId, {
     bool? pinned,
     bool? muted,
+    bool? hidden,
   }) =>
       _dio.patch('/social/conversations/$scope/$refId/state', data: {
         if (pinned != null) 'pinned': pinned,
         if (muted != null) 'muted': muted,
+        if (hidden != null) 'hidden': hidden,
       });
 }
 

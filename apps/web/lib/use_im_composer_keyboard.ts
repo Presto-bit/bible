@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 /**
  * IM 会话键盘顶起：visualViewport 算 inset，写入 --im-kb-inset，
- * 供固定底栏 composer 贴在键盘上方（对齐助手 Tab / 微信）。
+ * 固定底栏贴在键盘上方（对齐微信，无额外抬升空隙）。
  */
 export function useImComposerKeyboard(active: boolean) {
   const [inset, setInset] = useState(0);
@@ -28,14 +28,16 @@ export function useImComposerKeyboard(active: boolean) {
         const layoutH = window.innerHeight || root.clientHeight || 0;
         const vvH = vv?.height ?? layoutH;
         const offsetTop = vv?.offsetTop ?? 0;
-        const gap = Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
-        const next = gap > 48 ? gap : 0;
+        // 键盘占位：布局高度 − 可视区域底边；略收 1px 避免亚像素缝
+        const gap = Math.max(0, Math.round(layoutH - (vvH + offsetTop) - 1));
+        const next = gap > 24 ? gap : 0;
         setInset(next);
         if (next > 0) {
           body.classList.add('im-keyboard');
           root.style.setProperty('--im-kb-inset', `${next}px`);
-          // 避免整页被顶飞
           window.scrollTo(0, 0);
+          root.scrollTop = 0;
+          body.scrollTop = 0;
         } else {
           body.classList.remove('im-keyboard');
           root.style.removeProperty('--im-kb-inset');

@@ -22,7 +22,7 @@ function friendLabel(f: Friend): string {
   return friendRemarkOrName(f.user_id, friendDisplayName(f));
 }
 
-/** 邀请好友：邀请码 + 选中名单 + 好友列表 */
+/** 邀请好友：邀请码 + 选中名单 + 好友列表（半屏滚动，底栏固定发送） */
 export function GroupInviteSheet({
   gid,
   groupName,
@@ -39,6 +39,7 @@ export function GroupInviteSheet({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [hint, setHint] = useState('');
+  const [query, setQuery] = useState('');
   const code = (joinCode || '').trim().toUpperCase();
   const shareText = `邀请你加入共读群「${groupName}」\n邀请码：${code}\n打开圣经 App → 发现 → 加入群，输入邀请码即可。`;
   const memberSet = useMemo(() => new Set(memberUserIds), [memberUserIds]);
@@ -61,9 +62,23 @@ export function GroupInviteSheet({
       .finally(() => setLoading(false));
   }, [gid]);
 
-  const inviteCandidates = friends.filter((f) => !memberSet.has(f.user_id));
+  const inviteCandidates = useMemo(
+    () => friends.filter((f) => !memberSet.has(f.user_id)),
+    [friends, memberSet],
+  );
+
+  const filteredCandidates = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return inviteCandidates;
+    return inviteCandidates.filter((f) => {
+      const name = friendLabel(f).toLowerCase();
+      const handle = (f.handle || '').toLowerCase();
+      return name.includes(q) || handle.includes(q);
+    });
+  }, [inviteCandidates, query]);
+
   const selectedFriends = inviteCandidates.filter((f) => picked.has(f.user_id));
-  const letterGroups = groupFriendsByLetter(inviteCandidates);
+  const letterGroups = groupFriendsByLetter(filteredCandidates);
 
   const togglePick = async (f: Friend) => {
     const id = f.user_id;
@@ -133,111 +148,131 @@ export function GroupInviteSheet({
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet card group-invite-sheet" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="sheet card group-invite-sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="邀请好友"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="half-sheet-grab" aria-hidden />
-        <div className="section-row" style={{ marginTop: 0 }}>
+        <div className="group-invite-sheet-head">
           <strong>邀请好友</strong>
           <SheetCloseButton onClick={onClose} />
         </div>
 
-        <div className="group-invite-code-card">
-          <span className="muted" style={{ fontSize: 12 }}>群邀请码</span>
-          <div className="group-invite-code-row">
-            <strong className="group-invite-code">{code}</strong>
-            <button
-              type="button"
-              className="font-pill"
-              onClick={() => void copyText(code, '邀请码已复制')}
-            >
-              复制
-            </button>
-          </div>
-          <button
-            type="button"
-            className="text-link group-invite-copy-text"
-            onClick={() => void copyText(shareText, '邀请文案已复制')}
-          >
-            复制邀请文案
-          </button>
-        </div>
-
-        {selectedFriends.length > 0 && (
-          <div className="group-invite-selected">
-            <div className="group-invite-section-label">已选（{selectedFriends.length}）</div>
-            <div className="group-invite-selected-track">
-              {selectedFriends.map((f) => {
-                const isPending = pendingIds.has(f.user_id);
-                return (
-                  <button
-                    key={f.user_id}
-                    type="button"
-                    className={`group-invite-selected-chip${isPending ? ' pending' : ''}`}
-                    disabled={busy}
-                    onClick={() => void togglePick(f)}
-                  >
-                    <FriendAvatar friend={f} size={36} />
-                    <span className="group-invite-selected-name">{friendLabel(f)}</span>
-                    <span className="group-invite-selected-x" aria-hidden>×</span>
-                  </button>
-                );
-              })}
+        <div className="group-invite-sheet-scroll">
+          <div className="group-invite-code-card">
+            <div className="group-invite-code-meta">
+              <span className="muted">群邀请码</span>
+              <strong className="group-invite-code">{code}</strong>
+            </div>
+            <div className="group-invite-code-actions">
+              <button
+                type="button"
+                className="font-pill"
+                onClick={() => void copyText(code, '邀请码已复制')}
+              >
+                复制码
+              </button>
+              <button
+                type="button"
+                className="font-pill"
+                onClick={() => void copyText(shareText, '邀请文案已复制')}
+              >
+                复制文案
+              </button>
             </div>
           </div>
-        )}
 
-        <div className="group-invite-section-label">好友列表</div>
-        {loading ? (
-          <p className="muted" style={{ fontSize: 13 }}>加载好友…</p>
-        ) : inviteCandidates.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13, lineHeight: 1.5 }}>
-            暂无可邀请的好友。先去加好友，或分享邀请码。
-          </p>
-        ) : (
-          <div className="group-invite-friend-list group-invite-friend-list-full">
-            {letterGroups.map((g) => (
-              <div key={g.letter}>
-                <div className="friends-letter-head">{g.letter}</div>
-                {g.items.map((f) => {
-                  const selected = picked.has(f.user_id);
+          {selectedFriends.length > 0 ? (
+            <div className="group-invite-selected">
+              <div className="group-invite-section-label">
+                已选 {selectedFriends.length} 人
+              </div>
+              <div className="group-invite-selected-track">
+                {selectedFriends.map((f) => {
                   const isPending = pendingIds.has(f.user_id);
-                  const inGroup = memberSet.has(f.user_id);
                   return (
                     <button
                       key={f.user_id}
                       type="button"
-                      className={`group-invite-friend-row${selected ? ' selected' : ''}${isPending ? ' pending' : ''}`}
-                      disabled={busy || inGroup}
+                      className={`group-invite-selected-chip${isPending ? ' pending' : ''}`}
+                      disabled={busy}
                       onClick={() => void togglePick(f)}
+                      aria-label={isPending ? `取消邀请 ${friendLabel(f)}` : `取消选择 ${friendLabel(f)}`}
                     >
-                      <FriendAvatar friend={f} size={38} />
-                      <span className="group-invite-friend-name">{friendLabel(f)}</span>
-                      <span className="group-invite-friend-state muted">
-                        {inGroup ? '已在群' : isPending ? '已邀请' : selected ? '已选' : ''}
-                      </span>
+                      <FriendAvatar friend={f} size={36} />
+                      <span className="group-invite-selected-name">{friendLabel(f)}</span>
+                      <span className="group-invite-selected-x" aria-hidden>×</span>
                     </button>
                   );
                 })}
               </div>
-            ))}
+            </div>
+          ) : null}
+
+          <div className="group-invite-search">
+            <input
+              className="search-input"
+              value={query}
+              placeholder="搜索好友"
+              onChange={(e) => setQuery(e.target.value)}
+              enterKeyHint="search"
+            />
           </div>
-        )}
 
-        <button
-          type="button"
-          className="btn btn-block"
-          disabled={busy || newPickCount === 0}
-          onClick={() => void sendInvites()}
-          style={{ marginTop: 12 }}
-        >
-          {busy ? '发送中…' : newPickCount > 0 ? `发送邀请（${newPickCount}）` : '发送邀请'}
-        </button>
+          <div className="group-invite-section-label">好友列表</div>
+          {loading ? (
+            <p className="muted group-invite-empty">加载好友…</p>
+          ) : inviteCandidates.length === 0 ? (
+            <p className="muted group-invite-empty">
+              暂无可邀请的好友。先去加好友，或分享上方邀请码。
+            </p>
+          ) : filteredCandidates.length === 0 ? (
+            <p className="muted group-invite-empty">无匹配好友</p>
+          ) : (
+            <div className="group-invite-friend-list group-invite-friend-list-full">
+              {letterGroups.map((g) => (
+                <div key={g.letter} className="group-invite-letter-block">
+                  <div className="friends-letter-head">{g.letter}</div>
+                  {g.items.map((f) => {
+                    const selected = picked.has(f.user_id);
+                    const isPending = pendingIds.has(f.user_id);
+                    return (
+                      <button
+                        key={f.user_id}
+                        type="button"
+                        className={`group-invite-friend-row${selected ? ' selected' : ''}${isPending ? ' pending' : ''}`}
+                        disabled={busy}
+                        onClick={() => void togglePick(f)}
+                      >
+                        <FriendAvatar friend={f} size={40} />
+                        <span className="group-invite-friend-name">{friendLabel(f)}</span>
+                        <span className={`group-invite-friend-check${selected ? ' is-on' : ''}`} aria-hidden>
+                          {isPending ? '已邀' : selected ? '✓' : ''}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
-        {hint && (
-          <p className="muted" style={{ fontSize: 12, margin: '10px 0 0', lineHeight: 1.45, textAlign: 'center' }}>
-            {hint}
-          </p>
-        )}
-        {err && <p className="group-composer-err" role="alert">{err}</p>}
+        <div className="group-invite-sheet-foot">
+          {hint ? <p className="group-invite-hint muted">{hint}</p> : null}
+          {err ? <p className="group-composer-err" role="alert">{err}</p> : null}
+          <button
+            type="button"
+            className="btn btn-block"
+            disabled={busy || newPickCount === 0}
+            onClick={() => void sendInvites()}
+          >
+            {busy ? '发送中…' : newPickCount > 0 ? `发送邀请（${newPickCount}）` : '选择好友后发送'}
+          </button>
+        </div>
       </div>
     </div>
   );

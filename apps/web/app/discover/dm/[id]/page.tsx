@@ -93,7 +93,7 @@ function DmThreadPageInner() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
-  const kbInset = useImComposerKeyboard(composerFocused || plusOpen);
+  useImComposerKeyboard(composerFocused || plusOpen);
   const [plusAccept, setPlusAccept] = useState(
     'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
   );
@@ -538,7 +538,7 @@ function DmThreadPageInner() {
   };
 
   return (
-    <main className="container dm-page">
+    <main className="dm-page">
       <header className="dm-page-head">
         <PageBackBar href="/discover" label="消息" />
         <h1 className="dm-page-title">{title}</h1>
@@ -572,7 +572,7 @@ function DmThreadPageInner() {
       {!online ? (
         <p className="muted offline-page-hint">当前离线，私信需联网后收发。</p>
       ) : null}
-      <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+      <div className="dm-page-body">
         <div
           ref={listRef}
           className="dm-msg-list"
@@ -775,10 +775,6 @@ function DmThreadPageInner() {
 
       <div
         className="im-composer-bar dm-composer-dock"
-        style={{
-          bottom: kbInset > 0 ? kbInset : undefined,
-          paddingBottom: kbInset > 0 ? 8 : undefined,
-        }}
       >
         {replyTo ? (
           <div className="group-composer-reply" style={{ width: '100%' }}>

@@ -91,7 +91,7 @@ export function GroupComposerBar({
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef<string | null>(null);
   const locked = Boolean(disabled || busy || sending || uploading || !online);
-  const kbInset = useImComposerKeyboard(composerFocused || panelOpen);
+  useImComposerKeyboard(composerFocused || panelOpen);
 
   useEffect(() => {
     const d = getImDraftRecord('group', gid);
@@ -360,10 +360,6 @@ export function GroupComposerBar({
   return (
     <footer
       className="im-composer-bar group-wechat-composer im-composer-dock"
-      style={{
-        bottom: kbInset > 0 ? kbInset : undefined,
-        paddingBottom: kbInset > 0 ? 8 : undefined,
-      }}
     >
       {replyTo ? (
         <div className="group-composer-reply" style={{ width: '100%' }}>

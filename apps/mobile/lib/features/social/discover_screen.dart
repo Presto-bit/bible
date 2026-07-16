@@ -143,7 +143,8 @@ class _MessagesPane extends ConsumerWidget {
             separatorBuilder: (_, __) => const Divider(height: 1),
             itemBuilder: (_, i) {
               final it = items[i];
-              return ListTile(
+              final canState = it.scope == 'group' || it.scope == 'dm';
+              final tile = ListTile(
                 title: Row(
                   children: [
                     if (it.pinned)
@@ -180,13 +181,66 @@ class _MessagesPane extends ConsumerWidget {
                       )
                     : null,
                 onTap: () => _open(context, ref, it),
-                onLongPress: () => _menu(context, ref, it),
+                onLongPress: canState ? () => _menu(context, ref, it) : null,
+              );
+              if (!canState) return tile;
+              return Dismissible(
+                key: ValueKey('${it.scope}:${it.refId}'),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: const Color(0xFFB1554A),
+                  child: const Text(
+                    '删除',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                confirmDismiss: (_) => _confirmHide(context, it),
+                onDismissed: (_) async {
+                  try {
+                    await ref
+                        .read(socialRepoProvider)
+                        .patchConversationState(it.scope, it.refId, hidden: true);
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('删除失败，请重试')),
+                      );
+                    }
+                  } finally {
+                    ref.invalidate(conversationsProvider);
+                  }
+                },
+                child: tile,
               );
             },
           ),
         );
       },
     );
+  }
+
+  Future<bool> _confirmHide(BuildContext context, ConversationItem it) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除会话'),
+        content: Text('将「${it.title}」从消息列表移除？有新消息时会再次出现，聊天记录不会删除。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('取消')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFB1554A)),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
   }
 
   Future<void> _open(
@@ -231,16 +285,31 @@ class _MessagesPane extends ConsumerWidget {
               title: Text(it.muted ? '取消免打扰' : '免打扰'),
               onTap: () => Navigator.pop(ctx, 'mute'),
             ),
+            ListTile(
+              title: const Text('删除', style: TextStyle(color: Color(0xFFB1554A))),
+              onTap: () => Navigator.pop(ctx, 'hide'),
+            ),
           ],
         ),
       ),
     );
     if (action == null) return;
     final repo = ref.read(socialRepoProvider);
-    if (action == 'pin') {
-      await repo.patchConversationState(it.scope, it.refId, pinned: !it.pinned);
-    } else if (action == 'mute') {
-      await repo.patchConversationState(it.scope, it.refId, muted: !it.muted);
+    try {
+      if (action == 'pin') {
+        await repo.patchConversationState(it.scope, it.refId, pinned: !it.pinned);
+      } else if (action == 'mute') {
+        await repo.patchConversationState(it.scope, it.refId, muted: !it.muted);
+      } else if (action == 'hide') {
+        final ok = await _confirmHide(context, it);
+        if (!ok) return;
+        await repo.patchConversationState(it.scope, it.refId, hidden: true);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('操作失败：$e')));
+      }
     }
     ref.invalidate(conversationsProvider);
   }
