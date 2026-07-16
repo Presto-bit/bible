@@ -12,6 +12,7 @@ import {
   readingLogStorageKey,
   verseEventsStorageKey,
 } from './reading_storage';
+import { collectGoldenVerseScores } from './golden_verses';
 import { userLsGet, userLsSet } from './user_storage';
 
 export interface DayLog {
@@ -309,11 +310,12 @@ function readVerseEvents(): VerseEvent[] {
   }
 }
 
-export function logVerseRead(ref: string) {
+export function logVerseRead(ref: string, opts?: { auto?: boolean }) {
   if (typeof window === 'undefined' || !ref) return;
   const events = readVerseEvents();
   const now = Date.now();
-  const recent = events.find((e) => e.ref === ref && now - e.ts < 10 * 1000);
+  const debounceMs = opts?.auto ? 45_000 : 10_000;
+  const recent = events.find((e) => e.ref === ref && now - e.ts < debounceMs);
   if (recent) return;
   events.push({ ts: now, ref });
   localStorage.setItem(verseEventsStorageKey(), JSON.stringify(events.slice(-3000)));
@@ -430,16 +432,21 @@ export function rangeStats(startMs: number, endMs: number): RangeStats {
       chapCount[ck] = (chapCount[ck] || 0) + 1;
     }
   }
-  const verseCount: Record<string, number> = {};
-  for (const e of readVerseEvents()) {
-    if (e.ts >= startMs && e.ts < endMs) {
-      verseCount[e.ref] = (verseCount[e.ref] || 0) + 1;
-    }
-  }
+  const verseCount: Record<string, number> = collectGoldenVerseScores(
+    startMs,
+    endMs,
+    readVerseEvents(),
+  );
   const rank = (m: Record<string, number>, n: number): RankItem[] =>
     Object.entries(m)
       .map(([key, count]) => ({ key, count }))
       .sort((a, b) => b.count - a.count)
+      .slice(0, n);
+  const rankVerses = (m: Record<string, number>, n: number): RankItem[] =>
+    Object.entries(m)
+      .map(([key, count]) => ({ key, count }))
+      .filter((x) => x.count > 0)
+      .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
       .slice(0, n);
   return {
     minutes,
@@ -448,7 +455,7 @@ export function rangeStats(startMs: number, endMs: number): RangeStats {
     prayers: prayersInRange(startMs, endMs),
     topBooks: rank(bookCount, 5),
     topChapters: rank(chapCount, 5),
-    topVerses: rank(verseCount, 3),
+    topVerses: rankVerses(verseCount, 5),
   };
 }
 

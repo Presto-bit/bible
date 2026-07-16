@@ -6002,6 +6002,10 @@ body.assistant-active .assistant-page {
 }
 
 /* 常读金句：直接展示经文内容 */
+.verse-rank-hint{
+  font-size: 12px;
+  margin: -4px 0 10px;
+}
 .verse-rank-row {
   width: 100%;
   display: block;

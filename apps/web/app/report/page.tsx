@@ -319,8 +319,9 @@ export default function ReportPage() {
       )}
 
       <h3 className="section-head verse-rank-title">常读的金句</h3>
+      <p className="muted verse-rank-hint">根据阅读停留、划线、收藏与想法自动识别</p>
       {stats.topVerses.length === 0 ? (
-        <p className="muted">阅读时点选经文即可记录金句</p>
+        <p className="muted">继续读经，系统会自动整理你最常看的经文</p>
       ) : (
         <div className="verse-rank-list">
           {stats.topVerses.map((v, i) => {

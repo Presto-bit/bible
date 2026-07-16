@@ -346,6 +346,8 @@ export default function ReaderView({
   const focusBarRef = useRef<HTMLDivElement>(null);
   const [focusBarStyle, setFocusBarStyle] = useState<React.CSSProperties>({});
   const lastScrollTop = useRef(0);
+  const autoVerseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAutoVerseRef = useRef<string | null>(null);
   const lastSelectAt = useRef(0);
   const [viewportCenterVerse, setViewportCenterVerse] = useState<number | null>(null);
   const [aiSheetContext, setAiSheetContext] = useState<null | {
@@ -1266,7 +1268,19 @@ export default function ReaderView({
       }
       const progressVerse = maxPassed || bestVerse;
       if (progressVerse != null) noteChapterVerseTouch(book.id, chapter, progressVerse);
-      if (bestVerse != null) setViewportCenterVerse(bestVerse);
+      if (bestVerse != null) {
+        setViewportCenterVerse(bestVerse);
+        const ref = `${book.id}.${chapter}.${bestVerse}`;
+        if (pendingAutoVerseRef.current !== ref) {
+          pendingAutoVerseRef.current = ref;
+          if (autoVerseTimerRef.current) clearTimeout(autoVerseTimerRef.current);
+          autoVerseTimerRef.current = setTimeout(() => {
+            if (pendingAutoVerseRef.current === ref) {
+              logVerseRead(ref, { auto: true });
+            }
+          }, 2200);
+        }
+      }
 
       const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
       if (nearBottom && verses.length > 0) {
@@ -1283,6 +1297,9 @@ export default function ReaderView({
     el.addEventListener('scroll', onScroll);
     return () => {
       el.removeEventListener('scroll', onScroll);
+      if (autoVerseTimerRef.current) clearTimeout(autoVerseTimerRef.current);
+      autoVerseTimerRef.current = null;
+      pendingAutoVerseRef.current = null;
     };
   }, [verses, bookDone, chapter, book.chapter_count, book.name, book.id]);
 
