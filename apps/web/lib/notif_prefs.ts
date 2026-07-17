@@ -5,7 +5,7 @@ const KEY = 'presto_notif_prefs_v1';
 export type NotifPrefs = {
   /** 读经勿扰：默认开；圣经 Tab 不显示社交提示 */
   readingDnd: boolean;
-  /** 社交聚合推送（群/私信摘要）；默认关，开启后发消息约 1 分钟合并推一条 */
+  /** 社交聚合推送（群/私信摘要）；默认开，发消息约 1 分钟合并推一条 */
   socialDigest: boolean;
   /** 断签召回（历史字段，兼容旧 EXTRA_KEY） */
   streakRecall: boolean;
@@ -13,7 +13,7 @@ export type NotifPrefs = {
 
 const DEFAULTS: NotifPrefs = {
   readingDnd: true,
-  socialDigest: false,
+  socialDigest: true,
   streakRecall: false,
 };
 

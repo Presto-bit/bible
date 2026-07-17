@@ -52,7 +52,7 @@ export default function RemindersPage() {
   const [groupMinute, setGroupMinute] = useState(30);
   const [notif, setNotif] = useState<NotifPrefs>({
     readingDnd: true,
-    socialDigest: false,
+    socialDigest: true,
     streakRecall: false,
   });
   const [msg, setMsg] = useState('');
@@ -298,7 +298,7 @@ export default function RemindersPage() {
           </button>
         </div>
         <p className="muted" style={{ fontSize: 12, marginTop: 6, lineHeight: 1.55 }}>
-          默认关闭。开启后，有人给你发私信或群消息时，约 1 分钟内合并为一条摘要推送（免打扰会话除外，@ 可穿透），不逐条打扰。
+          默认开启。有人给你发私信或群消息时，约 1 分钟内合并为一条摘要推送（免打扰会话除外，@ 可穿透），不逐条打扰。
         </p>
       </div>
 
