@@ -1,4 +1,4 @@
-/// 知识库：入口仅平台 → 主页文件夹 → 文件夹内文件。
+/// 知识库：入口仅平台 → 主页文件夹 →（英文注释二级）→ 文件预览。
 library;
 
 import 'package:flutter/material.dart';
@@ -112,8 +112,9 @@ class _KnowledgeBasesScreenState extends ConsumerState<KnowledgeBasesScreen> {
 }
 
 class KnowledgeBaseDetailScreen extends ConsumerStatefulWidget {
-  const KnowledgeBaseDetailScreen({super.key, required this.id});
+  const KnowledgeBaseDetailScreen({super.key, required this.id, this.group});
   final String id;
+  final String? group;
 
   @override
   ConsumerState<KnowledgeBaseDetailScreen> createState() =>
@@ -125,6 +126,7 @@ class _KnowledgeBaseDetailScreenState
   Map<String, dynamic>? _data;
   String? _err;
   String _q = '';
+  bool _searchOpen = false;
 
   @override
   void initState() {
@@ -132,10 +134,24 @@ class _KnowledgeBaseDetailScreenState
     _load();
   }
 
+  @override
+  void didUpdateWidget(covariant KnowledgeBaseDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id || oldWidget.group != widget.group) {
+      _load();
+    }
+  }
+
   Future<void> _load() async {
+    setState(() {
+      _err = null;
+      _data = null;
+    });
     try {
-      final d =
-          await ref.read(assistantRepoProvider).getKnowledgeBase(widget.id);
+      final d = await ref.read(assistantRepoProvider).getKnowledgeBase(
+            widget.id,
+            group: widget.group,
+          );
       if (!mounted) return;
       setState(() => _data = d);
     } catch (e) {
@@ -144,36 +160,64 @@ class _KnowledgeBaseDetailScreenState
     }
   }
 
+  Future<void> _preview(String docId) async {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => _DocPreviewSheet(documentId: docId),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isPlatform = _data?['kind'] == 'platform';
-    final folders = ((_data?['folders'] as List?) ?? const [])
+    final hasSub = _data?['has_subfolders'] == true;
+    final foldersRaw = ((_data?['folders'] as List?) ?? const [])
         .cast<Map>()
         .map((e) => Map<String, dynamic>.from(e))
-        .where((f) {
-          final needle = _q.trim().toLowerCase();
-          if (needle.isEmpty) return true;
-          return '${f['name']}'.toLowerCase().contains(needle) ||
-              '${f['description']}'.toLowerCase().contains(needle);
-        })
         .toList();
-    final files = ((_data?['documents'] as List?) ?? const [])
+    final docsRaw = ((_data?['documents'] as List?) ?? const [])
         .cast<Map>()
         .map((e) => Map<String, dynamic>.from(e))
-        .where((d) {
-          final needle = _q.trim().toLowerCase();
-          if (needle.isEmpty) return true;
-          return '${d['title']}'.toLowerCase().contains(needle);
-        })
         .toList();
+    final showFolders =
+        isPlatform || hasSub || (foldersRaw.isNotEmpty && docsRaw.isEmpty);
+
+    final folders = foldersRaw.where((f) {
+      final needle = _q.trim().toLowerCase();
+      if (needle.isEmpty) return true;
+      return '${f['name']}'.toLowerCase().contains(needle) ||
+          '${f['description']}'.toLowerCase().contains(needle);
+    }).toList();
+    final files = docsRaw.where((d) {
+      final needle = _q.trim().toLowerCase();
+      if (needle.isEmpty) return true;
+      return '${d['title']}'.toLowerCase().contains(needle);
+    }).toList();
 
     return Scaffold(
       appBar: AppBar(
         title: Text((_data?['name'] as String?) ?? '知识库'),
+        actions: [
+          IconButton(
+            tooltip: '搜索',
+            icon: Icon(
+              _searchOpen ? Icons.search_off : Icons.search,
+              color: _searchOpen ? AppColors.accentDeep : null,
+            ),
+            onPressed: () => setState(() {
+              _searchOpen = !_searchOpen;
+              if (!_searchOpen) _q = '';
+            }),
+          ),
+        ],
         leading: BackButton(
           onPressed: () {
             if (isPlatform) {
               context.go('/knowledge-bases');
+            } else if ((widget.group ?? '').isNotEmpty) {
+              context.go('/knowledge-bases/${widget.id}');
             } else {
               context.go('/knowledge-bases/platform');
             }
@@ -192,8 +236,8 @@ class _KnowledgeBaseDetailScreenState
                             color: AppColors.inkFaint, height: 1.5)),
                     const SizedBox(height: 8),
                     Text(
-                      isPlatform
-                          ? '${folders.length} 个文件夹 · ${_data?['document_count'] ?? 0} 份资料'
+                      showFolders
+                          ? '${foldersRaw.length} 个文件夹 · ${_data?['document_count'] ?? 0} 份资料'
                           : '${_data?['document_count'] ?? 0} 份资料'
                               '${_data?['updated_at'] != null ? ' · ${_formatUpdated(_data?['updated_at'] as String?)}' : ''}',
                       style: const TextStyle(
@@ -213,20 +257,23 @@ class _KnowledgeBaseDetailScreenState
                         child: const Text('用此库问小爱'),
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    TextField(
-                      decoration: InputDecoration(
-                        hintText: isPlatform ? '搜索文件夹…' : '搜索文件…',
-                        isDense: true,
+                    if (_searchOpen) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: showFolders ? '搜索文件夹…' : '搜索文件…',
+                          isDense: true,
+                        ),
+                        onChanged: (v) => setState(() => _q = v),
                       ),
-                      onChanged: (v) => setState(() => _q = v),
-                    ),
+                    ],
                     const SizedBox(height: 12),
-                    Text(isPlatform ? '文件夹' : '文件',
+                    Text(showFolders ? '文件夹' : '文件',
                         style: const TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 8),
-                    if (isPlatform)
+                    if (showFolders)
                       ...folders.map((f) => Card(
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
@@ -239,8 +286,15 @@ class _KnowledgeBaseDetailScreenState
                               ),
                               isThreeLine: true,
                               trailing: const Icon(Icons.chevron_right),
-                              onTap: () =>
-                                  context.push('/knowledge-bases/${f['id']}'),
+                              onTap: () {
+                                if (isPlatform) {
+                                  context.push('/knowledge-bases/${f['id']}');
+                                } else {
+                                  context.push(
+                                    '/knowledge-bases/${widget.id}?group=${f['id']}',
+                                  );
+                                }
+                              },
                             ),
                           ))
                     else
@@ -252,12 +306,14 @@ class _KnowledgeBaseDetailScreenState
                               title: Text((d['title'] as String?) ?? '未命名资料'),
                               subtitle: Text(
                                 '${d['source_type'] ?? ''}'
-                                '${d['created_at'] != null ? ' · ${_formatUpdated(d['created_at'] as String?)}' : ''}',
+                                '${d['created_at'] != null ? ' · ${_formatUpdated(d['created_at'] as String?)}' : ''}'
+                                ' · 预览',
                               ),
+                              onTap: () => _preview('${d['id']}'),
                             ),
                           )),
-                    if ((isPlatform && folders.isEmpty) ||
-                        (!isPlatform && files.isEmpty))
+                    if ((showFolders && folders.isEmpty) ||
+                        (!showFolders && files.isEmpty))
                       const Padding(
                         padding: EdgeInsets.all(12),
                         child: Text('暂无内容',
@@ -265,6 +321,122 @@ class _KnowledgeBaseDetailScreenState
                       ),
                   ],
                 ),
+    );
+  }
+}
+
+class _DocPreviewSheet extends ConsumerStatefulWidget {
+  const _DocPreviewSheet({required this.documentId});
+  final String documentId;
+
+  @override
+  ConsumerState<_DocPreviewSheet> createState() => _DocPreviewSheetState();
+}
+
+class _DocPreviewSheetState extends ConsumerState<_DocPreviewSheet> {
+  Map<String, dynamic>? _data;
+  String? _err;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final d = await ref
+          .read(assistantRepoProvider)
+          .previewKnowledgeDocument(widget.documentId);
+      if (!mounted) return;
+      setState(() {
+        _data = d;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _err = '$e';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final chunks = ((_data?['chunks'] as List?) ?? const [])
+        .cast<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    return SafeArea(
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.8,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                (_data?['title'] as String?) ??
+                    (_loading ? '加载中…' : '资料预览'),
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, fontSize: 16),
+              ),
+              if (_data != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  child: Text(
+                    '${_data?['source_type'] ?? ''} · ${_data?['total_chunks'] ?? 0} 块',
+                    style: const TextStyle(
+                        fontSize: 12, color: AppColors.inkFaint),
+                  ),
+                ),
+              if (_loading)
+                const Expanded(
+                    child: Center(child: CircularProgressIndicator()))
+              else if (_err != null)
+                Expanded(child: Text(_err!))
+              else if (chunks.isEmpty)
+                const Expanded(
+                  child: Text('暂无索引片段（可能尚未入库向量）。',
+                      style: TextStyle(color: AppColors.inkFaint)),
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    itemCount: chunks.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: AppColors.line),
+                    itemBuilder: (_, i) {
+                      final c = chunks[i];
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '#${c['index']}'
+                              '${c['length'] != null ? ' · ${c['length']} 字' : ''}',
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.inkFaint),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${c['preview'] ?? ''}',
+                              style: const TextStyle(
+                                  fontSize: 14, height: 1.55),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

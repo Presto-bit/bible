@@ -160,9 +160,20 @@ class AssistantRepository {
     return res.data ?? const {};
   }
 
-  Future<Map<String, dynamic>> getKnowledgeBase(String id) async {
+  Future<Map<String, dynamic>> getKnowledgeBase(
+    String id, {
+    String? group,
+  }) async {
+    final q = group != null && group.isNotEmpty ? '?group=$group' : '';
     final res = await _dio.get<Map<String, dynamic>>(
-      '/ai/knowledge-bases/$id',
+      '/ai/knowledge-bases/$id$q',
+    );
+    return res.data ?? const {};
+  }
+
+  Future<Map<String, dynamic>> previewKnowledgeDocument(String documentId) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/ai/knowledge-bases/documents/$documentId',
     );
     return res.data ?? const {};
   }

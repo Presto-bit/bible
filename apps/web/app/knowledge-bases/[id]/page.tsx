@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
+import { KnowledgeDocPreviewSheet } from '@/components/knowledge/KnowledgeDocPreviewSheet';
 import { getKnowledgeBase, type KnowledgeBaseDetail } from '@/lib/api';
 
 function formatUpdated(iso?: string | null): string {
@@ -16,18 +17,24 @@ function formatUpdated(iso?: string | null): string {
   }
 }
 
-export default function KnowledgeBaseDetailPage() {
+function KnowledgeBaseDetailInner() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = String(params?.id || '');
+  const group = searchParams.get('group');
   const [data, setData] = useState<KnowledgeBaseDetail | null>(null);
   const [err, setErr] = useState('');
   const [q, setQ] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     let cancelled = false;
-    void getKnowledgeBase(id)
+    setData(null);
+    setErr('');
+    void getKnowledgeBase(id, { group })
       .then((d) => {
         if (!cancelled) setData(d);
       })
@@ -37,12 +44,15 @@ export default function KnowledgeBaseDetailPage() {
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, group]);
 
   const isPlatform = data?.kind === 'platform';
+  const showFolders = Boolean(
+    isPlatform || data?.has_subfolders || ((data?.folders?.length ?? 0) > 0 && !(data?.documents?.length)),
+  );
 
   const folders = useMemo(() => {
-    if (!isPlatform) return [];
+    if (!showFolders) return [];
     const list = data?.folders ?? [];
     const needle = q.trim().toLowerCase();
     if (!needle) return list;
@@ -51,10 +61,10 @@ export default function KnowledgeBaseDetailPage() {
         (f.name || '').toLowerCase().includes(needle) ||
         (f.description || '').toLowerCase().includes(needle),
     );
-  }, [data, q, isPlatform]);
+  }, [data, q, showFolders]);
 
   const files = useMemo(() => {
-    if (isPlatform) return [];
+    if (showFolders) return [];
     const list = data?.documents ?? [];
     const needle = q.trim().toLowerCase();
     if (!needle) return list;
@@ -63,10 +73,26 @@ export default function KnowledgeBaseDetailPage() {
         (d.title || '').toLowerCase().includes(needle) ||
         (d.source_type || '').toLowerCase().includes(needle),
     );
-  }, [data, q, isPlatform]);
+  }, [data, q, showFolders]);
 
-  const backHref = isPlatform ? '/knowledge-bases' : '/knowledge-bases/platform';
-  const backLabel = isPlatform ? '知识库' : '平台知识库';
+  const backHref = (() => {
+    if (isPlatform) return '/knowledge-bases';
+    if (group) return `/knowledge-bases/${id}`;
+    return '/knowledge-bases/platform';
+  })();
+  const backLabel = (() => {
+    if (isPlatform) return '知识库';
+    if (group) return '公版英文注释';
+    return '平台知识库';
+  })();
+
+  const onFolderClick = (folderId: string) => {
+    if (isPlatform) {
+      router.push(`/knowledge-bases/${folderId}`);
+      return;
+    }
+    router.push(`/knowledge-bases/${id}?group=${encodeURIComponent(folderId)}`);
+  };
 
   return (
     <main className="container" style={{ paddingBottom: 40 }}>
@@ -75,12 +101,42 @@ export default function KnowledgeBaseDetailPage() {
       {data && (
         <>
           <section style={{ marginTop: 12 }}>
-            <h1 style={{ fontSize: 22, margin: '0 0 8px' }}>{data.name}</h1>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <h1 style={{ fontSize: 22, margin: '0 0 8px', flex: 1 }}>{data.name}</h1>
+              <button
+                type="button"
+                aria-label={searchOpen ? '关闭搜索' : '搜索'}
+                title="搜索"
+                onClick={() => {
+                  setSearchOpen((v) => !v);
+                  if (searchOpen) setQ('');
+                }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  border: 'none',
+                  background: searchOpen ? 'var(--accent-wash, #f3ead2)' : 'transparent',
+                  color: searchOpen ? 'var(--accent-deep)' : 'var(--ink-soft)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <circle cx="11" cy="11" r="6.5" />
+                  <path d="M16.5 16.5L21 21" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
             <p className="muted" style={{ marginTop: 0, fontSize: 13, lineHeight: 1.55 }}>
               {data.description}
             </p>
             <p className="muted" style={{ fontSize: 12 }}>
-              {isPlatform
+              {showFolders
                 ? `${data.folders?.length ?? 0} 个文件夹 · ${data.document_count} 份资料`
                 : `${data.document_count} 份资料`}
               {data.updated_at ? ` · 更新于 ${formatUpdated(data.updated_at)}` : ''}
@@ -97,18 +153,21 @@ export default function KnowledgeBaseDetailPage() {
             )}
           </section>
 
-          <div style={{ marginTop: 16 }}>
-            <input
-              type="search"
-              className="input"
-              placeholder={isPlatform ? '搜索文件夹…' : '搜索文件…'}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              style={{ width: '100%' }}
-            />
-          </div>
+          {searchOpen && (
+            <div style={{ marginTop: 12 }}>
+              <input
+                type="search"
+                className="input"
+                autoFocus
+                placeholder={showFolders ? '搜索文件夹…' : '搜索文件…'}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                style={{ width: '100%' }}
+              />
+            </div>
+          )}
 
-          {isPlatform ? (
+          {showFolders ? (
             <>
               <h2 style={{ fontSize: 15, margin: '18px 0 10px' }}>文件夹</h2>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
@@ -128,7 +187,7 @@ export default function KnowledgeBaseDetailPage() {
                         gap: 12,
                         alignItems: 'flex-start',
                       }}
-                      onClick={() => router.push(`/knowledge-bases/${f.id}`)}
+                      onClick={() => onFolderClick(f.id)}
                     >
                       <span
                         aria-hidden
@@ -175,17 +234,28 @@ export default function KnowledgeBaseDetailPage() {
               <h2 style={{ fontSize: 15, margin: '18px 0 10px' }}>文件</h2>
               <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
                 {files.map((d) => (
-                  <li
-                    key={d.id}
-                    className="card"
-                    style={{ padding: '10px 12px', marginBottom: 8 }}
-                  >
-                    <strong style={{ fontSize: 14 }}>{d.title || '未命名资料'}</strong>
-                    <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 4 }}>
-                      {d.source_type}
-                      {d.status && d.status !== 'ready' ? ` · ${d.status}` : ''}
-                      {d.created_at ? ` · ${formatUpdated(d.created_at)}` : ''}
-                    </span>
+                  <li key={d.id} style={{ marginBottom: 8 }}>
+                    <button
+                      type="button"
+                      className="card"
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '10px 12px',
+                        border: 'none',
+                        background: 'var(--surface)',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => setPreviewId(d.id)}
+                    >
+                      <strong style={{ fontSize: 14 }}>{d.title || '未命名资料'}</strong>
+                      <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 4 }}>
+                        {d.source_type}
+                        {d.status && d.status !== 'ready' ? ` · ${d.status}` : ''}
+                        {d.created_at ? ` · ${formatUpdated(d.created_at)}` : ''}
+                        {' · 预览'}
+                      </span>
+                    </button>
                   </li>
                 ))}
                 {!files.length && (
@@ -199,6 +269,20 @@ export default function KnowledgeBaseDetailPage() {
         </>
       )}
       {!data && !err && <p className="muted">加载中…</p>}
+      {previewId && (
+        <KnowledgeDocPreviewSheet
+          documentId={previewId}
+          onClose={() => setPreviewId(null)}
+        />
+      )}
     </main>
+  );
+}
+
+export default function KnowledgeBaseDetailPage() {
+  return (
+    <Suspense fallback={<main className="container"><p className="muted">加载中…</p></main>}>
+      <KnowledgeBaseDetailInner />
+    </Suspense>
   );
 }

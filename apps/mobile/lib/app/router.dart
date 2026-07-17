@@ -137,6 +137,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/knowledge-bases/:id',
         builder: (context, state) => KnowledgeBaseDetailScreen(
           id: state.pathParameters['id']!,
+          group: state.uri.queryParameters['group'],
         ),
       ),
       GoRoute(

@@ -110,18 +110,21 @@ class CitationExplainRequest(BaseModel):
 @router.get("/knowledge-bases")
 def knowledge_bases_list():
     """选库列表 + 浏览用平台文件夹摘要。"""
-    from .knowledge_bases import list_knowledge_bases, list_topic_folders, PLATFORM_KB
+    from .knowledge_bases import (
+        PLATFORM_KB,
+        build_platform_description,
+        list_knowledge_bases,
+        list_topic_folders,
+        source_types_for_kb,
+    )
 
     items = list_knowledge_bases()
     folders = list_topic_folders()
-    # 附上各文件夹份数与最近更新
     try:
         pool = get_pool()
         with pool.connection() as conn:
             enriched = []
             for f in folders:
-                from .knowledge_bases import source_types_for_kb
-
                 types = source_types_for_kb(f["id"])
                 row = conn.execute(
                     "SELECT count(*), max(COALESCE(rag_index_at, created_at)) "
@@ -140,22 +143,79 @@ def knowledge_bases_list():
         logger.warning("knowledge base folder stats unavailable: %s", exc)
         folders = [{**f, "document_count": 0, "updated_at": None} for f in folders]
 
+    total = sum(int(f.get("document_count") or 0) for f in folders)
+    description = build_platform_description(total_docs=total, folder_stats=folders)
     return {
         "items": items,
         "platform": {
             "id": PLATFORM_KB["id"],
             "name": PLATFORM_KB["name"],
-            "description": PLATFORM_KB["description"],
+            "description": description,
             "folders": folders,
-            "document_count": sum(int(f.get("document_count") or 0) for f in folders),
+            "document_count": total,
         },
     }
 
 
+@router.get("/knowledge-bases/documents/{document_id}")
+def knowledge_base_document_preview(
+    document_id: str,
+    limit: int = 80,
+):
+    """公开浏览：资料预览（标题 + chunk 摘录，对齐管理端 RAG 预览信息密度）。"""
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT id::text, title, source_type, source_path, status "
+                "FROM bible_documents WHERE id = %s::uuid",
+                (document_id,),
+            ).fetchone()
+            if not row:
+                return JSONResponse(status_code=404, content={"error": "资料不存在"})
+            lim = max(1, min(int(limit), 200))
+            chunks = conn.execute(
+                "SELECT chunk_index, left(chunk_text, 600), length(chunk_text) "
+                "FROM bible_rag_chunks WHERE document_id = %s::uuid "
+                "ORDER BY chunk_index LIMIT %s",
+                (document_id, lim),
+            ).fetchall()
+            total = conn.execute(
+                "SELECT count(*) FROM bible_rag_chunks WHERE document_id = %s::uuid",
+                (document_id,),
+            ).fetchone()[0]
+        return {
+            "id": row[0],
+            "title": row[1] or "未命名资料",
+            "source_type": row[2],
+            "source_path": row[3],
+            "status": row[4],
+            "total_chunks": int(total or 0),
+            "chunks": [
+                {
+                    "index": int(c[0]),
+                    "preview": c[1] or "",
+                    "length": int(c[2] or 0),
+                }
+                for c in chunks
+            ],
+        }
+    except Exception as exc:
+        logger.warning("document preview failed: %s", exc)
+        return JSONResponse(status_code=500, content={"error": "预览暂不可用"})
+
+
 @router.get("/knowledge-bases/{kb_id}")
-def knowledge_base_detail(kb_id: str):
-    """知识库详情：介绍 + 文件夹（平台）或资料列表（专题）。"""
+def knowledge_base_detail(
+    kb_id: str,
+    group: str | None = None,
+):
+    """知识库详情：平台文件夹 / 专题文件；公版英文注释可按 group 二级分类。"""
     from .knowledge_bases import (
+        build_platform_description,
+        commentary_group_id,
+        commentary_group_label,
+        commentary_group_sort_key,
         get_knowledge_base,
         list_topic_folders,
         source_types_for_kb,
@@ -168,6 +228,8 @@ def knowledge_base_detail(kb_id: str):
     docs: list[dict] = []
     folders: list[dict] = []
     updated_at = None
+    group_id = (group or "").strip() or None
+    group_label = None
     try:
         pool = get_pool()
         with pool.connection() as conn:
@@ -189,29 +251,73 @@ def knowledge_base_detail(kb_id: str):
                         }
                     )
                 if folders:
-                    # 取各文件夹最新时间
                     stamps = [f["updated_at"] for f in folders if f.get("updated_at")]
                     updated_at = max(stamps) if stamps else None
-            else:
-                # 专题文件夹：直接列出文件
+            elif kb_id == "en-commentary" and not group_id:
+                # 二级分类：按注释系列分子文件夹
                 rows = conn.execute(
-                    "SELECT id::text, title, source_type, status, "
+                    "SELECT id::text, title, source_type, status, source_path, "
+                    "COALESCE(rag_index_at, created_at) AS touched_at "
+                    "FROM bible_documents WHERE source_type = ANY(%s) "
+                    "ORDER BY title NULLS LAST LIMIT 2000",
+                    (types,),
+                ).fetchall()
+                buckets: dict[str, list] = {}
+                for r in rows:
+                    gid = commentary_group_id(r[4], r[1])
+                    buckets.setdefault(gid, []).append(
+                        {
+                            "id": r[0],
+                            "title": (r[1] or "未命名资料").strip() or "未命名资料",
+                            "source_type": r[2],
+                            "status": r[3],
+                            "source_path": r[4],
+                            "created_at": r[5].isoformat() if r[5] else None,
+                        }
+                    )
+                for gid, items in sorted(
+                    buckets.items(), key=lambda x: commentary_group_sort_key(x[0])
+                ):
+                    stamps = [i["created_at"] for i in items if i.get("created_at")]
+                    folders.append(
+                        {
+                            "id": gid,
+                            "name": commentary_group_label(gid),
+                            "description": f"公版英文注释 · {commentary_group_label(gid)}",
+                            "kind": "commentary-group",
+                            "document_count": len(items),
+                            "updated_at": max(stamps) if stamps else None,
+                        }
+                    )
+                docs = []
+                stamps = [
+                    f["updated_at"] for f in folders if f.get("updated_at")
+                ]
+                updated_at = max(stamps) if stamps else None
+            else:
+                rows = conn.execute(
+                    "SELECT id::text, title, source_type, status, source_path, "
                     "COALESCE(rag_index_at, created_at) AS touched_at "
                     "FROM bible_documents WHERE source_type = ANY(%s) "
                     "ORDER BY title NULLS LAST, touched_at DESC NULLS LAST "
-                    "LIMIT 500",
+                    "LIMIT 2000",
                     (types,),
                 ).fetchall()
-                docs = [
-                    {
+                for r in rows:
+                    item = {
                         "id": r[0],
                         "title": (r[1] or "未命名资料").strip() or "未命名资料",
                         "source_type": r[2],
                         "status": r[3],
-                        "created_at": r[4].isoformat() if r[4] else None,
+                        "source_path": r[4],
+                        "created_at": r[5].isoformat() if r[5] else None,
                     }
-                    for r in rows
-                ]
+                    if kb_id == "en-commentary" and group_id:
+                        if commentary_group_id(r[4], r[1]) != group_id:
+                            continue
+                    docs.append(item)
+                if kb_id == "en-commentary" and group_id:
+                    group_label = commentary_group_label(group_id)
                 stamps = [d["created_at"] for d in docs if d.get("created_at")]
                 updated_at = max(stamps) if stamps else None
     except Exception as exc:
@@ -219,15 +325,26 @@ def knowledge_base_detail(kb_id: str):
 
     doc_count = (
         sum(int(f.get("document_count") or 0) for f in folders)
-        if folders
+        if folders and not docs
         else len(docs)
     )
+    description = kb["description"]
+    if kb["kind"] == "platform":
+        description = build_platform_description(
+            total_docs=doc_count, folder_stats=folders
+        )
+    elif group_label:
+        description = f"{kb['description']} 当前查看：{group_label}。"
+
     return {
         "id": kb["id"],
-        "name": kb["name"],
-        "description": kb["description"],
+        "name": group_label or kb["name"],
+        "description": description,
         "kind": kb["kind"],
         "is_default": kb["is_default"],
+        "has_subfolders": bool(kb.get("has_subfolders")) and not group_id,
+        "group": group_id,
+        "group_label": group_label,
         "folders": folders,
         "documents": docs,
         "document_count": doc_count,

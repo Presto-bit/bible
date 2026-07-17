@@ -798,9 +798,23 @@ export interface KnowledgeBaseDetail extends KnowledgeBaseSummary {
     source_type: string;
     status: string;
     created_at?: string | null;
+    source_path?: string | null;
   }[];
   document_count: number;
   updated_at?: string | null;
+  has_subfolders?: boolean;
+  group?: string | null;
+  group_label?: string | null;
+}
+
+export interface KnowledgeDocumentPreview {
+  id: string;
+  title: string;
+  source_type?: string;
+  source_path?: string | null;
+  status?: string;
+  total_chunks: number;
+  chunks: { index: number; preview: string; length: number }[];
 }
 
 export interface CitationExplainResult {
@@ -827,8 +841,24 @@ export async function browseKnowledgeBases(): Promise<{
   return getJson('/ai/knowledge-bases');
 }
 
-export async function getKnowledgeBase(id: string): Promise<KnowledgeBaseDetail> {
-  return getJson<KnowledgeBaseDetail>(`/ai/knowledge-bases/${encodeURIComponent(id)}`);
+export async function getKnowledgeBase(
+  id: string,
+  opts?: { group?: string | null },
+): Promise<KnowledgeBaseDetail> {
+  const q = new URLSearchParams();
+  if (opts?.group) q.set('group', opts.group);
+  const suffix = q.toString() ? `?${q}` : '';
+  return getJson<KnowledgeBaseDetail>(
+    `/ai/knowledge-bases/${encodeURIComponent(id)}${suffix}`,
+  );
+}
+
+export async function previewKnowledgeDocument(
+  documentId: string,
+): Promise<KnowledgeDocumentPreview> {
+  return getJson<KnowledgeDocumentPreview>(
+    `/ai/knowledge-bases/documents/${encodeURIComponent(documentId)}`,
+  );
 }
 
 export async function explainCitation(body: {
