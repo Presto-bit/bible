@@ -8728,18 +8728,62 @@ body.reader-active .proper-noun--artifact {
 }
 
 .version-row {
-  display: block;
+  display: flex;
   width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   text-align: left;
   border: none;
   background: transparent;
   cursor: pointer;
   font-size: 14px;
-  padding: 9px 0;
+  padding: 10px 4px;
+  border-radius: 10px;
 }
 
-.version-row:disabled {
+.version-row:disabled,
+.version-row-disabled {
   cursor: default;
+  opacity: 0.55;
+}
+
+.version-row-busy {
+  cursor: default;
+}
+
+.version-row-label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.version-row-check {
+  font-size: 11px;
+}
+
+.version-row-action {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--accent-deep);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 2px;
+  cursor: pointer;
+}
+
+.version-row-action-muted {
+  color: var(--ink-faint, #8a8580);
+  font-weight: 400;
+  cursor: default;
+}
+
+.version-row-action-busy {
+  color: var(--accent-deep);
+  font-weight: 500;
 }
 
 /* 小爱半屏弹窗：覆盖 80% */

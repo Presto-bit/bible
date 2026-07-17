@@ -7,6 +7,11 @@ export type ReaderUiCopy = {
   settings: string;
   pickVersion: string;
   versionHint: string;
+  versionDownloaded: string;
+  versionDownload: string;
+  versionDownloading: string;
+  versionRetry: string;
+  versionUnavailable: string;
   mainText: string;
   compareText: string;
   singleLayout: string;
@@ -27,6 +32,11 @@ const ZH: ReaderUiCopy = {
   settings: '阅读设置',
   pickVersion: '选择版本',
   versionHint: '最多勾选 2 本译本；选 2 本时为对照阅读',
+  versionDownloaded: '已下载',
+  versionDownload: '下载',
+  versionDownloading: '下载中…',
+  versionRetry: '重试',
+  versionUnavailable: '暂不可用',
   mainText: '正文',
   compareText: '对照',
   singleLayout: '单栏',
@@ -47,6 +57,11 @@ const EN: ReaderUiCopy = {
   settings: 'Reading settings',
   pickVersion: 'Select version',
   versionHint: 'Select up to 2 versions for side-by-side reading',
+  versionDownloaded: 'Downloaded',
+  versionDownload: 'Download',
+  versionDownloading: 'Downloading…',
+  versionRetry: 'Retry',
+  versionUnavailable: 'Unavailable',
   mainText: 'Primary',
   compareText: 'Compare',
   singleLayout: 'Single column',

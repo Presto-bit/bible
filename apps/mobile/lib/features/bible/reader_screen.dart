@@ -24,6 +24,7 @@ import '../plans/plan_reading.dart';
 import '../plans/plan_session.dart';
 import '../plans/plan_steps.dart';
 import 'offline_notice.dart';
+import 'offline_bible.dart';
 import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_experience.dart';
@@ -399,126 +400,28 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           ),
           child: Material(
             color: Colors.transparent,
-            child: SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-              const Text('选择版本',
-                  style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 16,
-                      color: AppColors.ink)),
-              const SizedBox(height: 4),
-              Text(
-                  _mainVersionId == 'kjv'
-                      ? 'Select up to 2 versions for parallel reading'
-                      : '最多勾选 2 本译本；选 2 本时为对照阅读',
-                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
-              const SizedBox(height: 8),
-              Consumer(builder: (ctx, ref, _) {
-                final async = ref.watch(bibleVersionsProvider);
-                return async.when(
-                  loading: () => const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Center(child: CircularProgressIndicator())),
-                  error: (e, _) => Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text('加载失败：$e',
-                          style: const TextStyle(color: AppColors.inkFaint))),
-                  data: (versions) {
-                    final primary =
-                        versions.where((v) => v.primary).firstOrNull;
-                    final primaryLabel = primary?.label ?? '和合本';
-                    final isParallel = _compareVersionId != null &&
-                        _mainVersionId == null;
-                    return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: versions.map((v) {
-                      final isMainDisplay = v.primary
-                          ? _mainVersionId == null && !isParallel
-                          : _mainVersionId == v.id;
-                      final isCompare =
-                          isParallel && _compareVersionId == v.id;
-                      return ListTile(
-                        leading: Icon(
-                          isMainDisplay || isCompare
-                              ? Icons.check_circle
-                              : (v.available
-                                  ? Icons.translate
-                                  : Icons.download_outlined),
-                          color: isMainDisplay || isCompare
-                              ? AppColors.accentDeep
-                              : (v.available
-                                  ? AppColors.accent
-                                  : AppColors.inkFaint),
-                        ),
-                        title: Text(v.label),
-                        subtitle: Text(isMainDisplay
-                            ? '正文 ✓'
-                            : isCompare
-                                ? '对照 ✓'
-                                : (v.primary
-                                    ? '主译本'
-                                    : (v.available ? '点选' : '尚未下载'))),
-                        enabled: v.available,
-                        onTap: () {
-                          final prefs = ref.read(prefsProvider);
-                          if (v.primary) {
-                            setState(() {
-                              _mainVersionId = null;
-                              prefs.remove('reader_main_version');
-                              if (isCompare) {
-                                _versionLabel =
-                                    '$primaryLabel · ${versions.where((x) => x.id == _compareVersionId).map((x) => x.label).firstOrNull ?? _compareVersionId}';
-                              } else {
-                                _compareVersionId = null;
-                                prefs.remove('reader_parallel_version');
-                                _versionLabel = v.label;
-                              }
-                            });
-                          } else if (isMainDisplay) {
-                            setState(() {
-                              _mainVersionId = null;
-                              _versionLabel = primaryLabel;
-                            });
-                            prefs.remove('reader_main_version');
-                          } else if (isCompare) {
-                            setState(() {
-                              _compareVersionId = null;
-                              _versionLabel = primaryLabel;
-                            });
-                            prefs.remove('reader_parallel_version');
-                          } else if (_mainVersionId == null && !isParallel) {
-                            setState(() {
-                              _mainVersionId = v.id;
-                              _compareVersionId = null;
-                              _versionLabel = v.label;
-                            });
-                            prefs.setString('reader_main_version', v.id);
-                            prefs.remove('reader_parallel_version');
-                          } else {
-                            setState(() {
-                              _mainVersionId = null;
-                              _compareVersionId = v.id;
-                              _versionLabel = '$primaryLabel · ${v.label}';
-                            });
-                            prefs.remove('reader_main_version');
-                            prefs.setString('reader_parallel_version', v.id);
-                          }
-                          Navigator.pop(ctx);
-                        },
-                      );
-                    }).toList(),
-                  );
-                  },
-                );
-              }),
-                  ],
-                ),
-              ),
+            child: _VersionPickerBody(
+              mainVersionId: _mainVersionId,
+              compareVersionId: _compareVersionId,
+              onApplied: (mainId, compareId, label) {
+                final prefs = ref.read(prefsProvider);
+                setState(() {
+                  _mainVersionId = mainId;
+                  _compareVersionId = compareId;
+                  _versionLabel = label;
+                });
+                if (mainId == null) {
+                  prefs.remove('reader_main_version');
+                } else {
+                  prefs.setString('reader_main_version', mainId);
+                }
+                if (compareId == null) {
+                  prefs.remove('reader_parallel_version');
+                } else {
+                  prefs.setString('reader_parallel_version', compareId);
+                }
+              },
+              onClose: () => Navigator.pop(ctx),
             ),
           ),
         ),
@@ -1384,6 +1287,237 @@ class _HalfSheetCitationDetailState
                       fontSize: 11, height: 1.45, color: AppColors.inkFaint)),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 选择版本弹层：已下载可勾选；CNV 未下载可下；下载中显示进度；失败可重试。
+class _VersionPickerBody extends ConsumerStatefulWidget {
+  const _VersionPickerBody({
+    required this.mainVersionId,
+    required this.compareVersionId,
+    required this.onApplied,
+    required this.onClose,
+  });
+
+  final String? mainVersionId;
+  final String? compareVersionId;
+  final void Function(String? mainId, String? compareId, String label) onApplied;
+  final VoidCallback onClose;
+
+  @override
+  ConsumerState<_VersionPickerBody> createState() => _VersionPickerBodyState();
+}
+
+class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
+  bool _cnvInstalled = false;
+  bool _cnvFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final svc = ref.read(offlineBibleProvider);
+    svc.addDownloadListener(_onTick);
+    unawaited(_refreshInstalled());
+  }
+
+  @override
+  void dispose() {
+    ref.read(offlineBibleProvider).removeDownloadListener(_onTick);
+    super.dispose();
+  }
+
+  void _onTick() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _refreshInstalled() async {
+    final ok = await ref.read(offlineBibleProvider).checkInstalled();
+    if (mounted) setState(() => _cnvInstalled = ok);
+  }
+
+  bool _selectable(BibleVersion v) {
+    // CNV 在选择器内以本地离线包为准；其它译本仍看服务端可用性
+    if (v.id == 'cnv') return _cnvInstalled;
+    return v.available;
+  }
+
+  bool _needsCnvDownload(BibleVersion v) => v.id == 'cnv' && !_cnvInstalled;
+
+  String _trailing(BibleVersion v, OfflineBibleService svc) {
+    if (v.id == 'cnv') {
+      if (svc.isDownloading) {
+        final p = svc.downloadProgress;
+        if (p != null && p > 0) {
+          return '下载中… ${(p * 100).clamp(0, 100).toStringAsFixed(0)}%';
+        }
+        return '下载中…';
+      }
+      if (_cnvFailed) return '重试';
+      if (_cnvInstalled) return '已下载';
+      return '下载';
+    }
+    return v.available ? '已下载' : '暂不可用';
+  }
+
+  Future<void> _downloadCnv(List<BibleVersion> versions) async {
+    setState(() => _cnvFailed = false);
+    final svc = ref.read(offlineBibleProvider);
+    try {
+      await svc.downloadPack();
+      await _refreshInstalled();
+      final primary = versions.where((x) => x.primary).firstOrNull;
+      final label = primary?.label ?? '圣经新译本';
+      widget.onApplied(null, null, label);
+      ref.invalidate(offlineInstalledProvider);
+    } catch (_) {
+      if (mounted) setState(() => _cnvFailed = true);
+    }
+  }
+
+  void _applyTap(BibleVersion v, List<BibleVersion> versions) {
+    final primary = versions.where((x) => x.primary).firstOrNull;
+    final primaryLabel = primary?.label ?? '和合本';
+    final isParallel =
+        widget.compareVersionId != null && widget.mainVersionId == null;
+    final isMainDisplay = v.primary
+        ? widget.mainVersionId == null && !isParallel
+        : widget.mainVersionId == v.id;
+    final isCompare = isParallel && widget.compareVersionId == v.id;
+
+    if (v.primary) {
+      if (isCompare) {
+        final other = versions
+            .where((x) => x.id == widget.compareVersionId)
+            .map((x) => x.label)
+            .firstOrNull;
+        widget.onApplied(
+          null,
+          widget.compareVersionId,
+          '$primaryLabel · ${other ?? widget.compareVersionId}',
+        );
+      } else {
+        widget.onApplied(null, null, v.label);
+      }
+    } else if (isMainDisplay) {
+      widget.onApplied(null, null, primaryLabel);
+    } else if (isCompare) {
+      widget.onApplied(null, null, primaryLabel);
+    } else if (widget.mainVersionId == null && !isParallel) {
+      widget.onApplied(v.id, null, v.label);
+    } else {
+      widget.onApplied(null, v.id, '$primaryLabel · ${v.label}');
+    }
+    widget.onClose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final async = ref.watch(bibleVersionsProvider);
+    final svc = ref.watch(offlineBibleProvider);
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('选择版本',
+                style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: AppColors.ink)),
+            const SizedBox(height: 4),
+            const Text('最多勾选 2 本译本；选 2 本时为对照阅读',
+                style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+            const SizedBox(height: 8),
+            async.when(
+              loading: () => const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: Center(child: CircularProgressIndicator())),
+              error: (e, _) => Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text('加载失败：$e',
+                      style: const TextStyle(color: AppColors.inkFaint))),
+              data: (versions) {
+                final isParallel = widget.compareVersionId != null &&
+                    widget.mainVersionId == null;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: versions.map((v) {
+                    final selectable = _selectable(v);
+                    final downloading =
+                        v.id == 'cnv' && svc.isDownloading;
+                    final needsDl = _needsCnvDownload(v) ||
+                        (v.id == 'cnv' && _cnvFailed);
+                    final isMainDisplay = v.primary
+                        ? widget.mainVersionId == null && !isParallel
+                        : widget.mainVersionId == v.id;
+                    final isCompare =
+                        isParallel && widget.compareVersionId == v.id;
+                    final checked =
+                        selectable && (isMainDisplay || isCompare);
+                    final trailing = _trailing(v, svc);
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        checked
+                            ? Icons.check_circle
+                            : (downloading
+                                ? Icons.downloading
+                                : (selectable
+                                    ? Icons.translate
+                                    : Icons.download_outlined)),
+                        color: checked
+                            ? AppColors.accentDeep
+                            : (selectable
+                                ? AppColors.accent
+                                : AppColors.inkFaint),
+                      ),
+                      title: Text(v.label),
+                      trailing: TextButton(
+                        onPressed: downloading
+                            ? null
+                            : () {
+                                if (v.id == 'cnv' &&
+                                    (_cnvFailed || !_cnvInstalled)) {
+                                  unawaited(_downloadCnv(versions));
+                                  return;
+                                }
+                                if (selectable) _applyTap(v, versions);
+                              },
+                        child: Text(
+                          trailing,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: needsDl || _cnvFailed
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                            color: needsDl || downloading || _cnvFailed
+                                ? AppColors.accentDeep
+                                : AppColors.inkFaint,
+                          ),
+                        ),
+                      ),
+                      onTap: downloading
+                          ? null
+                          : () {
+                              if (v.id == 'cnv' &&
+                                  (_cnvFailed || !_cnvInstalled)) {
+                                unawaited(_downloadCnv(versions));
+                                return;
+                              }
+                              if (selectable) _applyTap(v, versions);
+                            },
+                    );
+                  }).toList(),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
