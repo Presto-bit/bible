@@ -340,22 +340,58 @@ else
   log "⚠️  无法读取 /bible/versions"
 fi
 
-like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "http://127.0.0.1:8011/content/daily-verse/like" \
-  -H "Content-Type: application/json" -H "X-User-Code: 1234567890" 2>/dev/null || echo "000")"
+# 鉴权冒烟：裸 User-Code 必须 401；持会话令牌应 200（兼容旧脚本误把 401 当失败）
+api_base_local="http://127.0.0.1:8011"
+like_anon="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${api_base_local}/content/daily-verse/like" \
+  -H "Content-Type: application/json" -H "X-User-Code: 12345678" 2>/dev/null || echo "000")"
+social_anon="$(curl -s -o /dev/null -w '%{http_code}' "${api_base_local}/social/groups" \
+  -H "X-User-Code: 12345678" 2>/dev/null || echo "000")"
+if [[ "$like_anon" != "401" && "$like_anon" != "000" ]]; then
+  log "⚠️  未授权点赞返回 HTTP $like_anon（期望 401；若为 200 说明 AUTH_DEV_ALLOW_USER_HEADER 仍开启）"
+fi
+if [[ "$social_anon" != "401" && "$social_anon" != "000" ]]; then
+  log "⚠️  未授权社交返回 HTTP $social_anon（期望 401）"
+fi
+
+smoke_device="release-smoke-$(hostname 2>/dev/null || echo host)-$$"
+smoke_code="$(printf '%08d' "$((RANDOM % 90000000 + 10000000))")"
+reg_body="$(curl -sS -X POST "${api_base_local}/auth/register" \
+  -H "Content-Type: application/json" \
+  -H "X-Device-Id: ${smoke_device}" \
+  -d "{\"user_code\":\"${smoke_code}\"}" 2>/dev/null || true)"
+smoke_token=""
+if command -v python3 >/dev/null 2>&1; then
+  smoke_token="$(printf '%s' "$reg_body" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("session_token") or "")' 2>/dev/null || true)"
+elif command -v jq >/dev/null 2>&1; then
+  smoke_token="$(printf '%s' "$reg_body" | jq -r '.session_token // empty' 2>/dev/null || true)"
+fi
+
+like_code="000"
+social_code="000"
+if [[ -n "$smoke_token" ]]; then
+  like_code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "${api_base_local}/content/daily-verse/like" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer ${smoke_token}" \
+    -H "X-Device-Id: ${smoke_device}" 2>/dev/null || echo "000")"
+  social_code="$(curl -s -o /dev/null -w '%{http_code}' "${api_base_local}/social/groups" \
+    -H "Authorization: Bearer ${smoke_token}" \
+    -H "X-Device-Id: ${smoke_device}" 2>/dev/null || echo "000")"
+else
+  log "⚠️  无法签发冒烟会话（register 未返回 session_token）。检查 SESSION_TOKEN_SECRET 与 AUTH_DEV_ALLOW_USER_HEADER=0"
+  log "    register 响应片段: $(printf '%s' "$reg_body" | head -c 200)"
+fi
+
 if [[ "$like_code" == "503" ]]; then
   die "点赞 API 仍 503，请检查 PG 是否已应用 005_daily_verse_engagement.sql"
 fi
-if [[ "$like_code" != "200" && "$like_code" != "000" ]]; then
-  log "⚠️  点赞 API 返回 HTTP $like_code（期望 200）"
+if [[ -n "$smoke_token" && "$like_code" != "200" && "$like_code" != "000" ]]; then
+  log "⚠️  点赞 API（带会话）返回 HTTP $like_code（期望 200）"
 fi
-
-social_code="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8011/social/groups" \
-  -H "X-User-Code: 1234567890" 2>/dev/null || echo "000")"
-if [[ "$social_code" == "401" ]]; then
-  die "社交 API 仍 401（建群会失败），请确认 API 镜像已更新"
+if [[ -n "$smoke_token" && "$social_code" == "401" ]]; then
+  die "社交 API 带会话仍 401（建群会失败），请确认 API 镜像与 SESSION_TOKEN_SECRET"
 fi
-if [[ "$social_code" != "200" && "$social_code" != "000" ]]; then
-  log "⚠️  社交 API 返回 HTTP $social_code（期望 200）"
+if [[ -n "$smoke_token" && "$social_code" != "200" && "$social_code" != "000" ]]; then
+  log "⚠️  社交 API（带会话）返回 HTTP $social_code（期望 200）"
 fi
 
 pub_url=""
