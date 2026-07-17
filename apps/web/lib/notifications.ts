@@ -1,7 +1,7 @@
 /**
- * 统一通知编排（E6）：前台 setTimeout 兜底 + 服务端 Web Push 主路径。
+ * 统一通知编排：前台 setTimeout 兜底 + 服务端 Web Push。
  * - 每日读经：subscribe 同步时段 → cron/tick 投递
- * - 社交摘要：deliver-digest + 前台 poller
+ * - 社交摘要：发消息后服务端 1 分钟 debounce 合并推送
  * - 群打卡晚间：前台兜底（未打卡检测）
  */
 

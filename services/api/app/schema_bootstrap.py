@@ -23,5 +23,11 @@ def bootstrap_schemas(pool) -> None:
         ensure_rag_job_schema()
     except Exception:
         logger.exception("bootstrap: rag job schema failed")
+    try:
+        from .push.digest_scheduler import ensure_digest_due_schema
+
+        ensure_digest_due_schema()
+    except Exception:
+        logger.exception("bootstrap: push digest due schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

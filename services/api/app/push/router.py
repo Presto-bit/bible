@@ -1,7 +1,6 @@
-"""Web Push：VAPID 公钥、订阅登记、摘要投递。"""
+"""Web Push：VAPID 公钥、订阅登记、摘要投递、读经 cron。"""
 from __future__ import annotations
 
-import json
 import logging
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -10,8 +9,9 @@ from pydantic import BaseModel
 from ..auth.session import get_current_user
 from ..config import get_settings
 from ..db import get_pool
-from ..social.router import push_digest
 from ..time_cn import china_now
+from .digest_delivery import deliver_group_digest
+from .webpush_send import send_webpush
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/push", tags=["push"])
@@ -35,39 +35,6 @@ class SubscribeBody(BaseModel):
     endpoint: str
     keys: PushKeys
     reminder: ReminderPrefs | None = None
-
-
-def _send_webpush(sub: dict, payload: dict) -> bool:
-    s = get_settings()
-    if not s.vapid_private_key or not s.vapid_public_key:
-        return False
-    try:
-        from pywebpush import WebPushException, webpush
-    except ImportError:
-        logger.warning("pywebpush 未安装，跳过 Web Push 投递")
-        return False
-    try:
-        webpush(
-            subscription_info={
-                "endpoint": sub["endpoint"],
-                "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
-            },
-            data=json.dumps(payload, ensure_ascii=False),
-            vapid_private_key=s.vapid_private_key,
-            vapid_claims={"sub": s.vapid_subject},
-        )
-        return True
-    except WebPushException as e:
-        logger.warning("webpush failed endpoint=%s status=%s", sub["endpoint"][:48], e.response.status_code if e.response else "?")
-        if e.response and e.response.status_code in (404, 410):
-            pool = get_pool()
-            with pool.connection() as conn:
-                conn.execute(
-                    "DELETE FROM push_subscription WHERE endpoint = %s",
-                    (sub["endpoint"],),
-                )
-                conn.commit()
-        return False
 
 
 @router.get("/vapid-public-key")
@@ -148,31 +115,9 @@ def subscribe(body: SubscribeBody, user_id: str = Depends(get_current_user)) -> 
 
 @router.post("/deliver-digest")
 def deliver_digest(user_id: str = Depends(get_current_user)) -> dict:
-    """向当前用户已登记设备投递 F1 聚合摘要（Web Push）；仅 group_digest=true 的订阅。"""
-    digest = push_digest(user_id)
-    payload = {
-        "title": digest.get("title", "消息摘要"),
-        "body": digest.get("body", ""),
-        "href": digest.get("href", "/discover"),
-    }
-    pool = get_pool()
-    with pool.connection() as conn:
-        try:
-            rows = conn.execute(
-                "SELECT endpoint, p256dh, auth FROM push_subscription "
-                "WHERE user_id = %s AND COALESCE(group_digest, false) = true",
-                (user_id,),
-            ).fetchall()
-        except Exception:
-            rows = conn.execute(
-                "SELECT endpoint, p256dh, auth FROM push_subscription WHERE user_id = %s",
-                (user_id,),
-            ).fetchall()
-    sent = 0
-    for r in rows:
-        if _send_webpush({"endpoint": r[0], "p256dh": r[1], "auth": r[2]}, payload):
-            sent += 1
-    return {"ok": True, "sent": sent, "devices": len(rows)}
+    """向当前用户已登记设备投递聚合摘要（Web Push）；仅 group_digest=true 的订阅。"""
+    sent = deliver_group_digest(user_id, require_unread=False)
+    return {"ok": True, "sent": sent}
 
 
 @router.post("/cron/tick")
@@ -196,14 +141,14 @@ def cron_tick(
             (local_h, max(0, local_m - 7), min(59, local_m + 7)),
         ).fetchall()
     sent = 0
-    for user_id, endpoint, p256dh, auth in rows:
-        # 读经时段提醒 ≠ 社交摘要（社交走 deliver-digest / 前台 poller）
+    for uid, endpoint, p256dh, auth in rows:
+        # 读经时段提醒 ≠ 社交摘要（社交走发消息 debounce / deliver-digest）
         payload = {
             "title": "彼爱",
             "body": "愿话语成为你脚前的灯 · 今日也可打开圣经读一章",
             "href": "/reader",
         }
-        if _send_webpush(
+        if send_webpush(
             {"endpoint": endpoint, "p256dh": p256dh, "auth": auth},
             payload,
         ):

@@ -1468,7 +1468,7 @@ export const api = {
   // 社交
   myGroups: () => authed<{ groups: Group[] }>('/social/groups'),
   discoverSummary: () => authed<DiscoverSummary>('/social/discover/summary'),
-  pushDigest: () => authed<{ title: string; body: string; href: string }>('/social/push/digest'),
+  pushDigest: () => authed<{ title: string; body: string; href: string; unread?: number }>('/social/push/digest'),
   deliverPushDigest: () => authed<{ ok: boolean; sent: number }>('/push/deliver-digest', { method: 'POST' }),
   createGroup: (name: string, intro?: string, plan_id?: string) =>
     authed<Group>('/social/groups', { method: 'POST', body: { name, intro, plan_id } }),

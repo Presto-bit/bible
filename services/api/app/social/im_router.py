@@ -1022,6 +1022,12 @@ def send_dm(
             (thread_id, user_id, kind, text or None, body.ref, body.reply_to_id),
         ).fetchone()
         conn.commit()
+    try:
+        from ..push.digest_scheduler import schedule_dm_peer
+
+        schedule_dm_peer(peer)
+    except Exception:
+        pass
     return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1057,6 +1063,12 @@ def send_group_chat(
             ),
         ).fetchone()
         conn.commit()
+    try:
+        from ..push.digest_scheduler import schedule_group_members
+
+        schedule_group_members(gid, exclude_user_id=user_id)
+    except Exception:
+        pass
     return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1466,6 +1478,12 @@ def send_group_media(
             ),
         )
         conn.commit()
+    try:
+        from ..push.digest_scheduler import schedule_group_members
+
+        schedule_group_members(gid, exclude_user_id=user_id)
+    except Exception:
+        pass
     return {"id": str(mid), "kind": kind, "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1507,6 +1525,12 @@ def send_dm_media(
             (row[0], body.storage_key, body.file_name, body.mime, body.size_bytes),
         )
         conn.commit()
+    try:
+        from ..push.digest_scheduler import schedule_dm_peer
+
+        schedule_dm_peer(peer)
+    except Exception:
+        pass
     return {"id": str(row[0]), "kind": kind}
 
 

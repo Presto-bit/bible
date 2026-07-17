@@ -1,7 +1,7 @@
 // H5 每日读经提醒：主路径为服务端 Web Push（/push/cron/tick + 订阅时段）；
 // 下方 setTimeout 仅作「页面仍打开」时的前台兜底。
 
-import { fetchPushDigest, isStreakRecallEnabled, markDigestSent } from './push_digest';
+import { fetchPushDigest, isStreakRecallEnabled } from './push_digest';
 import { readingStreak } from './gamification';
 
 export interface ReminderPref {
@@ -52,7 +52,6 @@ async function fireReminder() {
   const digest = await fetchPushDigest();
   if (digest?.body) {
     new Notification(digest.title, { body: digest.body, tag: 'presto-digest' });
-    markDigestSent();
     void import('./web_push').then((m) => m.deliverPushDigest());
     return;
   }

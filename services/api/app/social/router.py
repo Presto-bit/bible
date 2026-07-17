@@ -689,7 +689,7 @@ def push_digest(user_id: str = Depends(get_current_user)) -> dict:
     else:
         title = "消息摘要"
 
-    return {"title": title, "body": body, "href": href}
+    return {"title": title, "body": body, "href": href, "unread": unread_total}
 
 
 @router.post("/shares")

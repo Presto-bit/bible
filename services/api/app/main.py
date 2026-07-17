@@ -36,6 +36,12 @@ async def lifespan(app: FastAPI):
         start_rag_index_worker()
     except Exception:
         pass
+    try:
+        from .push.digest_scheduler import start_digest_worker
+
+        start_digest_worker()
+    except Exception:
+        pass
     yield
     close_pool()
 
