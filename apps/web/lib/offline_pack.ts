@@ -55,7 +55,7 @@ const ZIP_URL = withBasePath('/offline/bible_offline.zip');
 
 let zipCache: { version: string; buf: ArrayBuffer } | null = null;
 
-/** 释放内存中的离线 zip（多译本连续安装期间可保留；离开下载页时调用） */
+/** 释放内存中的离线 zip（全部下载任务结束后由下载队列调用；进行中勿清） */
 export function releaseOfflineZipCache(): void {
   zipCache = null;
 }

@@ -41,6 +41,28 @@ class OfflineBibleService {
   final SharedPreferences _prefs;
   Database? _db;
 
+  Future<void>? _activeDownload;
+  double? _downloadProgress;
+  String? _downloadError;
+  final List<void Function()> _downloadListeners = [];
+
+  /// 是否有进行中的经包下载（Sheet 关闭后仍继续）。
+  bool get isDownloading => _activeDownload != null;
+  double? get downloadProgress => _downloadProgress;
+  String? get downloadError => _downloadError;
+
+  void addDownloadListener(void Function() fn) => _downloadListeners.add(fn);
+  void removeDownloadListener(void Function() fn) =>
+      _downloadListeners.remove(fn);
+
+  void _notifyDownload() {
+    for (final fn in List<void Function()>.from(_downloadListeners)) {
+      try {
+        fn();
+      } catch (_) {}
+    }
+  }
+
   String get _base =>
       AppConfig.baseUrl.replaceAll(RegExp(r'/+$'), '');
 
@@ -111,49 +133,77 @@ class OfflineBibleService {
     await _prefs.remove(_metaKey);
   }
 
-  Future<void> downloadPack({void Function(double progress)? onProgress}) async {
-    final manifestRes = await _dio.get(
-      '$_base/offline/manifest.json',
-      options: Options(responseType: ResponseType.json),
-    );
-    final manifest = manifestRes.data as Map<String, dynamic>;
-    final version = (manifest['version'] ?? '') as String;
-    final zipName = (manifest['zip'] ?? 'bible_offline.zip') as String;
-
-    final zipRes = await _dio.get<List<int>>(
-      '$_base/offline/$zipName',
-      options: Options(responseType: ResponseType.bytes),
-      onReceiveProgress: (got, total) {
-        if (total > 0) onProgress?.call(got / total);
-      },
-    );
-    final bytes = zipRes.data;
-    if (bytes == null || bytes.isEmpty) {
-      throw StateError('离线包下载失败');
+  Future<void> downloadPack({void Function(double progress)? onProgress}) {
+    if (_activeDownload != null) {
+      return _activeDownload!;
     }
+    _downloadError = null;
+    _downloadProgress = 0;
+    _notifyDownload();
+    _activeDownload = _runDownload(onProgress: onProgress).whenComplete(() {
+      _activeDownload = null;
+      _notifyDownload();
+    });
+    return _activeDownload!;
+  }
 
-    final archive = ZipDecoder().decodeBytes(bytes);
-    ArchiveFile? entry;
-    for (final f in archive) {
-      if (f.name == _sqliteRel || f.name.endsWith('bible_cnv.sqlite')) {
-        entry = f;
-        break;
+  Future<void> _runDownload({void Function(double progress)? onProgress}) async {
+    try {
+      final manifestRes = await _dio.get(
+        '$_base/offline/manifest.json',
+        options: Options(responseType: ResponseType.json),
+      );
+      final manifest = manifestRes.data as Map<String, dynamic>;
+      final version = (manifest['version'] ?? '') as String;
+      final zipName = (manifest['zip'] ?? 'bible_offline.zip') as String;
+
+      final zipRes = await _dio.get<List<int>>(
+        '$_base/offline/$zipName',
+        options: Options(responseType: ResponseType.bytes),
+        onReceiveProgress: (got, total) {
+          if (total > 0) {
+            final p = got / total;
+            _downloadProgress = p;
+            onProgress?.call(p);
+            _notifyDownload();
+          }
+        },
+      );
+      final bytes = zipRes.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw StateError('离线包下载失败');
       }
-    }
-    if (entry == null) {
-      throw StateError('离线包中未找到 CNV 数据库');
-    }
 
-    final out = await _sqliteFile();
-    await out.writeAsBytes(entry.content as List<int>, flush: true);
-    await _prefs.setString(
-      _metaKey,
-      jsonEncode(OfflinePackMeta(
-        version: version,
-        installedAt: DateTime.now().millisecondsSinceEpoch,
-      ).toJson()),
-    );
-    close();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      ArchiveFile? entry;
+      for (final f in archive) {
+        if (f.name == _sqliteRel || f.name.endsWith('bible_cnv.sqlite')) {
+          entry = f;
+          break;
+        }
+      }
+      if (entry == null) {
+        throw StateError('离线包中未找到 CNV 数据库');
+      }
+
+      final out = await _sqliteFile();
+      await out.writeAsBytes(entry.content as List<int>, flush: true);
+      await _prefs.setString(
+        _metaKey,
+        jsonEncode(OfflinePackMeta(
+          version: version,
+          installedAt: DateTime.now().millisecondsSinceEpoch,
+        ).toJson()),
+      );
+      close();
+      _downloadProgress = 1;
+      _downloadError = null;
+    } catch (e) {
+      _downloadError = '$e';
+      rethrow;
+    } finally {
+      _notifyDownload();
+    }
   }
 
   Future<List<BibleBook>> listBooks() async {

@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { offlinePackStatus, type OfflinePackStatus } from '@/lib/offline_bootstrap';
+import {
+  getOfflineDownloadSnapshot,
+  isOfflineDownloadActive,
+  offlineDownloadLabel,
+  subscribeOfflineDownload,
+} from '@/lib/offline_download_job';
 
 const OFFLINE_PACK_READY = 'presto-offline-pack-ready';
 
@@ -19,6 +25,7 @@ export default function OfflinePackBanner({
   onDownload?: () => void;
 }) {
   const [status, setStatus] = useState<OfflinePackStatus>('missing');
+  const [jobLabel, setJobLabel] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,23 +33,36 @@ export default function OfflinePackBanner({
       void offlinePackStatus().then((s) => {
         if (!cancelled) setStatus(s);
       });
+      const snap = getOfflineDownloadSnapshot();
+      if (!cancelled) {
+        setJobLabel(
+          isOfflineDownloadActive() ? offlineDownloadLabel(snap) : null,
+        );
+      }
     };
     refresh();
     window.addEventListener(OFFLINE_PACK_READY, refresh);
+    const unsub = subscribeOfflineDownload(refresh);
     const t = window.setInterval(refresh, 8000);
     return () => {
       cancelled = true;
       window.clearInterval(t);
       window.removeEventListener(OFFLINE_PACK_READY, refresh);
+      unsub();
     };
   }, []);
 
-  if (status === 'ready') return null;
+  if (status === 'ready' && !jobLabel) return null;
+
+  const text =
+    jobLabel ??
+    (status === 'ready' ? null : LABEL[status as Exclude<OfflinePackStatus, 'ready'>]);
+  if (!text) return null;
 
   return (
     <div className="offline-pack-banner card card-2" style={{ marginBottom: 10 }}>
-      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>{LABEL[status]}</p>
-      {status !== 'loading' && onDownload ? (
+      <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5 }}>{text}</p>
+      {!jobLabel && status !== 'loading' && onDownload ? (
         <button
           type="button"
           className="text-link"

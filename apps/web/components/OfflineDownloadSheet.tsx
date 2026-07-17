@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import { useToast } from '@/components/ui/ToastProvider';
 import {
   catalogItemsForTab,
   formatOfflineBytes,
@@ -10,13 +11,17 @@ import {
   type OfflineCatalogTab,
 } from '@/lib/offline_catalog';
 import {
+  enqueueOfflineItemDownload,
+  getOfflineDownloadSnapshot,
+  isOfflineDownloadActive,
+  offlineDownloadLabel,
+  subscribeOfflineDownload,
+} from '@/lib/offline_download_job';
+import {
   deleteOfflineItemFiles,
-  downloadOfflineItem,
   expectedItemBytes,
   fetchManifest,
   loadItemRecord,
-  releaseOfflineZipCache,
-  type DownloadProgress,
   type OfflineItemStatus,
   type OfflinePackManifest,
 } from '@/lib/offline_pack';
@@ -29,12 +34,15 @@ type Props = {
 
 export default function OfflineDownloadSheet({ onClose }: Props) {
   const confirm = useConfirm();
+  const toast = useToast();
   const [tab, setTab] = useState<OfflineCatalogTab>('bible');
   const [manifest, setManifest] = useState<OfflinePackManifest | null>(null);
   const [statuses, setStatuses] = useState<Record<string, OfflineItemStatus>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [progress, setProgress] = useState<DownloadProgress | null>(null);
+  const [queuedIds, setQueuedIds] = useState<string[]>([]);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const m = await fetchManifest();
@@ -57,26 +65,40 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
     setStatuses(next);
   }, []);
 
+  const syncJob = useCallback(() => {
+    const snap = getOfflineDownloadSnapshot();
+    setBusyId(snap.busyId);
+    setQueuedIds(snap.queuedIds);
+    setProgressLabel(offlineDownloadLabel(snap));
+    if (snap.error) setErr(snap.error);
+  }, []);
+
   useEffect(() => {
     void refresh().catch(() => setErr('无法读取下载清单'));
-    return () => {
-      releaseOfflineZipCache();
-    };
-  }, [refresh]);
+    syncJob();
+    return subscribeOfflineDownload(() => {
+      syncJob();
+      void refresh().catch(() => {});
+    });
+  }, [refresh, syncJob]);
 
-  const onDownload = async (item: OfflineCatalogItem) => {
-    setBusyId(item.id);
-    setErr(null);
-    try {
-      await downloadOfflineItem(item.id, setProgress);
-      resetLocalBibleDb();
-      await refresh();
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusyId(null);
-      setProgress(null);
+  const handleClose = () => {
+    if (isOfflineDownloadActive()) {
+      toast('下载将在后台继续');
     }
+    onClose();
+  };
+
+  const onDownload = (item: OfflineCatalogItem) => {
+    setErr(null);
+    void enqueueOfflineItemDownload(item.id)
+      .then(() => {
+        resetLocalBibleDb();
+        void refresh();
+      })
+      .catch((e) => {
+        setErr(e instanceof Error ? e.message : String(e));
+      });
   };
 
   const onDelete = async (item: OfflineCatalogItem) => {
@@ -87,7 +109,7 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
       danger: true,
     });
     if (!ok) return;
-    setBusyId(item.id);
+    setDeletingId(item.id);
     setErr(null);
     try {
       await deleteOfflineItemFiles(item.id);
@@ -95,15 +117,16 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
-      setBusyId(null);
+      setDeletingId(null);
     }
   };
 
   const items = catalogItemsForTab(tab);
+  const anyBusy = Boolean(busyId) || queuedIds.length > 0 || Boolean(deletingId);
 
   return (
     <AppBodyPortal>
-      <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet-backdrop" onClick={handleClose}>
         <div
           className="sheet card offline-download-sheet"
           onClick={(e) => e.stopPropagation()}
@@ -111,10 +134,10 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
         <div className="offline-download-sheet-head">
         <div className="section-row" style={{ marginTop: 0 }}>
           <h3 style={{ margin: 0 }}>下载</h3>
-          <SheetCloseButton onClick={onClose} />
+          <SheetCloseButton onClick={handleClose} />
         </div>
         <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-          按需下载圣经译本与资料，离线可用。删除仅清除本机文件，不删除记录。
+          按需下载圣经译本与资料，离线可用。关闭本页不会中断下载。
         </p>
 
         <div className="seg-tabs offline-download-tabs" style={{ marginTop: 12 }}>
@@ -134,28 +157,29 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
           </button>
         </div>
 
-        {progress && busyId ? (
-          <p className="muted offline-download-progress">
-            {progress.message}
-            {progress.percent > 0 ? ` ${progress.percent}%` : ''}
-          </p>
+        {progressLabel ? (
+          <p className="muted offline-download-progress">{progressLabel}</p>
         ) : null}
         {err ? <p className="offline-download-error">{err}</p> : null}
         </div>
 
         <div className="offline-download-list">
-          {items.map((item) => (
+          {items.map((item) => {
+            const itemBusy = busyId === item.id || queuedIds.includes(item.id);
+            return (
             <OfflineDownloadRow
               key={item.id}
               item={item}
               manifest={manifest}
               status={statuses[item.id] ?? 'download'}
-              busy={busyId === item.id}
-              disabled={Boolean(busyId && busyId !== item.id)}
-              onDownload={() => void onDownload(item)}
+              busy={itemBusy || deletingId === item.id}
+              queued={queuedIds.includes(item.id) && busyId !== item.id}
+              disabled={anyBusy && !itemBusy && deletingId !== item.id}
+              onDownload={() => onDownload(item)}
               onDelete={() => void onDelete(item)}
             />
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -168,6 +192,7 @@ function OfflineDownloadRow({
   manifest,
   status,
   busy,
+  queued,
   disabled,
   onDownload,
   onDelete,
@@ -176,6 +201,7 @@ function OfflineDownloadRow({
   manifest: OfflinePackManifest | null;
   status: OfflineItemStatus;
   busy: boolean;
+  queued: boolean;
   disabled: boolean;
   onDownload: () => void;
   onDelete: () => void;
@@ -209,7 +235,7 @@ function OfflineDownloadRow({
             disabled={disabled || busy}
             onClick={onDownload}
           >
-            {busy ? '处理中…' : actionLabel}
+            {queued ? '排队中…' : busy ? '处理中…' : actionLabel}
           </button>
         ) : null}
         {showDelete ? (

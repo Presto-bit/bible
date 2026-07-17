@@ -1,5 +1,6 @@
 /** 首次启动后台静默下载离线经包 */
 
+import { isOfflineDownloadActive } from './offline_download_job';
 import { downloadOfflinePack, isAutoBiblePackReady, isOfflinePackReady } from './offline_pack';
 const AUTO_KEY = 'presto_offline_auto_done';
 const FAIL_KEY = 'presto_offline_auto_fail';
@@ -11,8 +12,8 @@ export type OfflinePackStatus = 'ready' | 'missing' | 'failed' | 'loading';
 
 export async function offlinePackStatus(): Promise<OfflinePackStatus> {
   if (await isOfflinePackReady()) return 'ready';
+  if (isOfflineDownloadActive() || running) return 'loading';
   if (localStorage.getItem(FAIL_KEY)) return 'failed';
-  if (running) return 'loading';
   return 'missing';
 }
 

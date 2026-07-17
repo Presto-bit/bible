@@ -1,4 +1,5 @@
 /// 离线经包下载管理（圣经 + 资料分包 Tab）。
+/// 关闭 BottomSheet 不中断已开始的下载。
 library;
 
 import 'package:flutter/material.dart';
@@ -36,18 +37,36 @@ class _OfflineDownloadBody extends ConsumerStatefulWidget {
 
 class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
   int _tab = 0;
-  double? _progress;
-  bool _busy = false;
-  String? _error;
-  String? _busyItem;
+  late final OfflineBibleService _svc;
+
+  @override
+  void initState() {
+    super.initState();
+    _svc = ref.read(offlineBibleProvider);
+    _svc.addDownloadListener(_onDownloadTick);
+  }
+
+  @override
+  void dispose() {
+    _svc.removeDownloadListener(_onDownloadTick);
+    super.dispose();
+  }
+
+  void _onDownloadTick() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
+    final svc = ref.watch(offlineBibleProvider);
     final installed = ref.watch(offlineInstalledProvider);
-    final meta = ref.read(offlineBibleProvider).loadMeta();
+    final meta = svc.loadMeta();
     final items = offlineCatalog
         .where((e) => e.tab == (_tab == 0 ? 'bible' : 'materials'))
         .toList();
+    final busy = svc.isDownloading;
+    final progress = svc.downloadProgress;
+    final error = svc.downloadError;
 
     return SafeArea(
       child: ListView(
@@ -59,6 +78,9 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
                   fontWeight: FontWeight.w700,
                   fontSize: 17,
                   color: AppColors.ink)),
+          const SizedBox(height: 8),
+          const Text('关闭本页不会中断下载',
+              style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -82,14 +104,17 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
             Text('经库版本 ${meta.version}',
                 style: const TextStyle(fontSize: 12, color: AppColors.accentDeep)),
           ],
-          if (_progress != null) ...[
+          if (busy && progress != null) ...[
             const SizedBox(height: 12),
-            LinearProgressIndicator(value: _progress),
+            LinearProgressIndicator(value: progress),
+            const SizedBox(height: 6),
+            Text('正在后台下载… ${(progress * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
           ],
-          if (_error != null)
+          if (error != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              child: Text(error, style: const TextStyle(color: Colors.red)),
             ),
           const SizedBox(height: 12),
           ...items.map((item) {
@@ -101,7 +126,7 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
               contentPadding: EdgeInsets.zero,
               title: Text(item.name),
               subtitle: item.description != null ? Text(item.description!) : null,
-              trailing: _busyItem == item.id
+              trailing: busy && item.id == 'cnv'
                   ? const SizedBox(
                       width: 20,
                       height: 20,
@@ -118,7 +143,7 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
                               ? AppColors.accentDeep
                               : AppColors.inkFaint),
                     ),
-              onTap: item.id == 'cnv' && !ready && !_busy
+              onTap: item.id == 'cnv' && !ready && !busy
                   ? () => _downloadCnv()
                   : null,
             );
@@ -127,7 +152,7 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
             Padding(
               padding: const EdgeInsets.only(top: 12),
               child: OutlinedButton(
-                onPressed: _busy ? null : () => _delete(),
+                onPressed: busy ? null : () => _delete(),
                 child: const Text('删除 CNV 离线包'),
               ),
             ),
@@ -137,36 +162,32 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
   }
 
   Future<void> _downloadCnv() async {
-    setState(() {
-      _busy = true;
-      _busyItem = 'cnv';
-      _error = null;
-      _progress = 0;
-    });
+    final svc = ref.read(offlineBibleProvider);
+    // 不 await 到结束再 pop：关闭 Sheet 后 Service 仍继续下载
+    final future = svc.downloadPack();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('已开始下载，关闭页面后仍会继续')),
+      );
+    }
     try {
-      await ref.read(offlineBibleProvider).downloadPack(
-            onProgress: (p) => setState(() => _progress = p),
-          );
+      await future;
       ref.invalidate(offlineInstalledProvider);
-      if (mounted) Navigator.pop(context);
-    } catch (e) {
-      setState(() => _error = '$e');
-    } finally {
       if (mounted) {
-        setState(() {
-          _busy = false;
-          _busyItem = null;
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('离线经包已就绪')),
+        );
       }
+    } catch (_) {
+      // 错误由 svc.downloadError + listener 展示
     }
   }
 
   Future<void> _delete() async {
-    setState(() => _busy = true);
     await ref.read(offlineBibleProvider).deletePack();
     ref.invalidate(offlineInstalledProvider);
     if (mounted) {
-      setState(() => _busy = false);
+      setState(() {});
       Navigator.pop(context);
     }
   }
