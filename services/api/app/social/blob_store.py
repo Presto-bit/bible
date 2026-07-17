@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from abc import ABC, abstractmethod
 from functools import lru_cache
 from pathlib import Path
@@ -73,9 +74,17 @@ class LocalBlobStore(BlobStore):
         return False
 
     def url(self, key: str, *, expires: int = PRESIGN_EXPIRES) -> str:
-        _ = expires
-        name = Path(normalize_object_key(key)).name
-        return f"/content/social-media/assets/{quote(name, safe='')}"
+        from ..auth.local_session import make_media_asset_sig
+
+        object_key = normalize_object_key(key)
+        name = Path(object_key).name
+        exp = int(time.time()) + max(60, int(expires))
+        # 签名绑定完整 object key，URL 带 k= 防同名碰撞
+        sig = make_media_asset_sig(object_key, exp)
+        return (
+            f"/social/media/assets/{quote(name, safe='')}"
+            f"?exp={exp}&sig={sig}&k={quote(object_key, safe='')}"
+        )
 
     def read_bytes(self, key: str) -> bytes:
         path = self._path(key)
@@ -132,8 +141,7 @@ class S3BlobStore(BlobStore):
 
     def url(self, key: str, *, expires: int = PRESIGN_EXPIRES) -> str:
         safe = normalize_object_key(key)
-        if self.public_base:
-            return f"{self.public_base}/{quote(safe, safe='/')}"
+        # 一律预签名；忽略 public_base 裸链（防未授权直链枚举）
         return self._client.generate_presigned_url(
             "get_object",
             Params={"Bucket": self.bucket, "Key": safe},

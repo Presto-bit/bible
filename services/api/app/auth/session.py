@@ -1,11 +1,11 @@
-"""解析当前用户（复用 orchestrator opaque session）。
+"""解析当前用户（orchestrator opaque session 或本机会话令牌）。
 
 优先级：
   1. Authorization: Bearer / Cookie fym_session → orchestrator /auth/me
-  2. 未配 orchestrator 时：X-User-Code / X-User-Id（10 位数字）→ 稳定 UUID
-  3. 开发期任意 X-User-Id（auth_dev_allow_user_header=True 且未配 orchestrator）
+  2. Authorization: Bearer bs1.* → 本机 HMAC 会话令牌
+  3. 仅当 auth_dev_allow_user_header=True：X-User-Code / X-User-Id 开发兜底
 
-校验失败抛 401。
+生产默认不信任裸用户码头，避免枚举/冒充。
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from fastapi import Header, HTTPException
 
 from ..config import get_settings
 from ..db import get_pool
+from .local_session import verify_session_token
 from .user_code import pick_user_code, uuid_for_code
 
 logger = logging.getLogger(__name__)
@@ -82,19 +83,27 @@ def resolve_user_id(
     if authorization and authorization.lower().startswith("bearer "):
         token = authorization[7:].strip()
 
+    # 1) orchestrator 会话
     uid = _verify_with_orchestrator(token, _parse_session_cookie(cookie))
     if uid:
         return uid
 
-    # Bible 独立账号：10 位用户 ID → 稳定 UUID（与 orchestrator 并存时作兜底）
-    code = pick_user_code(x_user_code, x_user_id)
-    if code:
-        user_uuid = uuid_for_code(code)
+    # 2) 本机会话令牌（生产主路径）
+    local = verify_session_token(token)
+    if local:
+        user_uuid = local["user_id"]
         _ensure_user_row(user_uuid)
         return user_uuid
 
-    if s.auth_dev_allow_user_header and not s.orchestrator_base_url and x_user_id:
-        return x_user_id.strip()
+    # 3) 仅开发：允许裸用户码头（默认关闭）
+    if s.auth_dev_allow_user_header:
+        code = pick_user_code(x_user_code, x_user_id)
+        if code:
+            user_uuid = uuid_for_code(code)
+            _ensure_user_row(user_uuid)
+            return user_uuid
+        if not s.orchestrator_base_url and x_user_id:
+            return x_user_id.strip()
 
     return None
 

@@ -64,12 +64,16 @@ class Settings(BaseSettings):
     # ── 认证（复用 minimax orchestrator opaque session）──
     orchestrator_base_url: str = ""  # 例 https://orchestrator.internal
     auth_me_path: str = "/api/v1/auth/me"
-    # 开发期允许用 X-User-Id 头直连（无 orchestrator 时调试同步）
-    auth_dev_allow_user_header: bool = True
+    # 开发期允许用 X-User-Code / X-User-Id 头直连（生产务必 false）
+    auth_dev_allow_user_header: bool = False
+    # 本机会话令牌 HMAC 密钥（生产必填；空则派生自 database_url，仅适合本地）
+    session_token_secret: str = ""
 
     # ── 部署域名 ──
     api_base_url: str = "https://www.prestoai.cn"
     public_web_url: str = "https://www.prestoai.cn/2sc"
+    # CORS：逗号分隔白名单。勿用 * 且 credentials（浏览器也不允许）
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
     # ── Web Push（VAPID）──
     vapid_public_key: str = ""
@@ -77,9 +81,9 @@ class Settings(BaseSettings):
     vapid_subject: str = "mailto:support@prestoai.cn"
     push_cron_secret: str = ""
 
-    # ── 管理员（RAG 资料后台）──
-    admin_phone: str = "18101383358"
-    admin_password: str = "123456"
+    # ── 管理员（RAG 资料后台；口令必须通过环境变量配置，无弱默认）──
+    admin_phone: str = ""
+    admin_password: str = ""
     admin_token_secret: str = ""
     rag_upload_dir: str = str(REPO_ROOT / "data" / "rag" / "uploads")
 
@@ -91,7 +95,7 @@ class Settings(BaseSettings):
     social_media_access_key_id: str = ""
     social_media_secret_access_key: str = ""
     social_media_endpoint: str = ""  # 例 https://oss-cn-hangzhou.aliyuncs.com
-    social_media_public_base: str = ""  # 可选 CDN 公开前缀，配置后不走签名 URL
+    social_media_public_base: str = ""  # 保留配置兼容；媒体 URL 一律走预签名，不再发裸公开链
 
 
 @lru_cache

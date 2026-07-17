@@ -296,6 +296,12 @@ def create_group(body: CreateGroup, user_id: str = Depends(get_current_user)) ->
     name = body.name.strip()
     if not name:
         raise HTTPException(400, "群名不能为空")
+    try:
+        moderate_text(name)
+        if body.intro:
+            moderate_text(body.intro)
+    except ModerationError as e:
+        raise HTTPException(400, e.reason) from e
     pool = get_pool()
     with pool.connection() as conn:
         gid = None

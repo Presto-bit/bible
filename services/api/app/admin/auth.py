@@ -11,11 +11,16 @@ from fastapi import Header, HTTPException
 from ..config import get_settings
 
 _TOKEN_TTL_SEC = 7 * 24 * 3600
+_WEAK_PASSWORDS = frozenset({"", "123456", "admin", "password", "passw0rd", "bible-admin"})
 
 
 def _secret() -> str:
     s = get_settings()
-    return s.admin_token_secret or s.push_cron_secret or s.admin_password or "bible-admin"
+    # 不与 push_cron / session 耦合
+    secret = (s.admin_token_secret or "").strip()
+    if not secret:
+        raise HTTPException(status_code=503, detail="管理员令牌密钥未配置（ADMIN_TOKEN_SECRET）")
+    return secret
 
 
 def _normalize_phone(raw: str) -> str:
@@ -43,6 +48,8 @@ def verify_admin_token(token: str | None) -> str | None:
         if int(exp_str) < int(time.time()):
             return None
         return phone
+    except HTTPException:
+        raise
     except Exception:
         return None
 
@@ -51,12 +58,20 @@ def phone_is_admin(phone: str | None) -> bool:
     if not phone:
         return False
     s = get_settings()
-    return _normalize_phone(phone) == _normalize_phone(s.admin_phone)
+    admin = _normalize_phone(s.admin_phone)
+    if not admin:
+        return False
+    return _normalize_phone(phone) == admin
 
 
 def verify_admin_credentials(phone: str, password: str) -> bool:
     s = get_settings()
-    return phone_is_admin(phone) and (password or "") == s.admin_password
+    pwd = (s.admin_password or "").strip()
+    if not pwd or pwd.lower() in _WEAK_PASSWORDS:
+        return False
+    if not phone_is_admin(phone):
+        return False
+    return hmac.compare_digest(password or "", pwd)
 
 
 def require_admin(

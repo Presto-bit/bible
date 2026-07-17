@@ -118,6 +118,7 @@ function userCodeHeader(): Record<string, string> {
 // ── 身份（本地优先：免注册 8 位数字 ID 即唯一标识；兼容历史 10 位） ──
 const GUEST_KEY = 'presto_guest_id';
 const USER_KEY = 'presto_user_id';
+const SESSION_KEY = 'presto_session_token';
 const NAME_KEY = 'profile_name';
 const HAS_PWD_KEY = 'account_has_password';
 const ONBOARDED_KEY = 'account_onboarded';
@@ -159,16 +160,17 @@ function applyAccountPhone(phone: string | null | undefined, ownerCode: string) 
   else localStorage.removeItem(PHONE_KEY);
 }
 
-async function refreshAccountStatus(code: string): Promise<void> {
+async function refreshAccountStatus(_code?: string): Promise<void> {
   try {
-    const res = await fetch(
-      `${API_BASE}/auth/account-status?user_code=${encodeURIComponent(code)}`,
-      { cache: 'no-store' },
-    );
+    const res = await fetch(`${API_BASE}/auth/account-status`, {
+      cache: 'no-store',
+      headers: authHeaders(),
+    });
     if (!res.ok) return;
     const d = await res.json();
-    if (d.username) userLsSet(NAME_KEY, d.username, code);
-    applyAccountPhone(d.phone ?? null, code);
+    const code = (d.user_code as string) || effectiveId() || '';
+    if (d.username && code) userLsSet(NAME_KEY, d.username, code);
+    applyAccountPhone(d.phone ?? null, code || undefined);
     if (d.has_password) setHasPasswordCached(true);
     else if (!userLsGet(NAME_KEY, code)?.trim()) setHasPasswordCached(false);
     // 服务端已有用户名+密码时，视为引导完成
@@ -176,6 +178,22 @@ async function refreshAccountStatus(code: string): Promise<void> {
   } catch {
     /* 离线跳过 */
   }
+}
+
+export function getSessionToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(SESSION_KEY);
+}
+
+export function setSessionToken(token: string | null | undefined): void {
+  if (typeof window === 'undefined') return;
+  const t = (token || '').trim();
+  if (t) localStorage.setItem(SESSION_KEY, t);
+}
+
+function clearSessionToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(SESSION_KEY);
 }
 
 function deviceHeaders(): Record<string, string> {
@@ -240,6 +258,7 @@ function clearLocalAccountIdentity() {
   userLsRemove(NAME_KEY);
   localStorage.removeItem(HAS_PWD_KEY);
   localStorage.removeItem(ONBOARDED_KEY);
+  clearSessionToken();
   clearDeviceGuestBinding();
 }
 
@@ -257,7 +276,7 @@ export async function ensureIdentityReady(): Promise<void> {
     if (deviceId && !deviceId.startsWith('dev-')) {
       try {
         // 本机已是密码账号：不要被设备上的游客绑定覆盖（登录抢绑前的竞态窗口）
-        if (hasSecuredLocalSession()) {
+        if (hasSecuredLocalSession() && getSessionToken()) {
           const localCode = currentUserId() || localStorage.getItem(GUEST_KEY);
           if (localCode && isUserCode(localCode)) {
             // 强制 GUEST≡USER，防止登录后仍残留旧游客码
@@ -278,7 +297,11 @@ export async function ensureIdentityReady(): Promise<void> {
         });
         if (epochAtStart !== identityEpoch) return;
         if (res.ok) {
-          const d = (await res.json()) as { user_code?: string | null };
+          const d = (await res.json()) as {
+            user_code?: string | null;
+            session_token?: string | null;
+          };
+          if (d.session_token) setSessionToken(d.session_token);
           if (d.user_code && isUserCode(d.user_code)) {
             applyServerUserCode(d.user_code);
             ensureFirstSeen();
@@ -374,6 +397,7 @@ export async function ensureAccountReady(): Promise<void> {
       if (epochAtStart !== identityEpoch) return;
       if (res.ok) {
         const d = await res.json();
+        if (d.session_token) setSessionToken(d.session_token);
         // 已登录会话：勿被 register 回包里的其它 user_code 覆盖
         if (d.user_code && isUserCode(d.user_code) && !currentUserId()) {
           applyServerUserCode(d.user_code);
@@ -591,6 +615,7 @@ export async function setCredentials(username: string, password: string): Promis
     });
     if (res.ok) {
       const d = await res.json();
+      if (d.session_token) setSessionToken(d.session_token);
       const serverCode = d.user_code && isUserCode(d.user_code) ? (d.user_code as string) : id;
       adoptAuthenticatedUserCode(serverCode);
       if (u) {
@@ -641,6 +666,12 @@ export async function changePassword(oldPassword: string | null, newPassword: st
     }
     throw new Error(detail);
   }
+  try {
+    const d = (await res.json()) as { session_token?: string };
+    if (d.session_token) setSessionToken(d.session_token);
+  } catch {
+    /* ignore */
+  }
   setHasPasswordCached(true);
 }
 
@@ -677,6 +708,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
 
   const d = await res.json();
   const code = d.user_code as string;
+  if (d.session_token) setSessionToken(d.session_token);
   adoptAuthenticatedUserCode(code);
   if (d.username) userLsSet(NAME_KEY, d.username, code);
   applyAccountPhone(d.phone ?? null, code);
@@ -693,9 +725,16 @@ export async function loginWithIdentifier(identifier: string, password: string):
 
 export function logout() {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem(USER_KEY);
-  localStorage.removeItem(PHONE_KEY);
-  localStorage.removeItem(PHONE_OWNER_KEY);
+  const tok = getSessionToken();
+  if (tok) {
+    void fetch(`${API_BASE}/auth/logout`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${tok}` },
+    }).catch(() => {});
+  }
+  clearLocalAccountIdentity();
+  resetAccountEnsureCaches();
+  void ensureIdentityReady().then(() => ensureAccountReady());
 }
 
 /**
@@ -776,14 +815,8 @@ export async function chatStream(
 ): Promise<void> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    'X-Guest-Id': getDeviceId(),
-    'X-Device-Id': getDeviceId(),
+    ...authHeaders(),
   };
-  const code = effectiveId();
-  if (code) {
-    headers['X-User-Code'] = code;
-    headers['X-User-Id'] = code;
-  }
 
   let res: Response;
   try {
@@ -866,7 +899,7 @@ export async function chatStream(
   cb.onDone?.();
 }
 
-// ── 带认证头的请求（X-User-Id / X-Guest-Id；登录用户服务端为准） ──
+// ── 带认证头的请求（会话令牌 + 设备头；用户码头仅作兼容展示） ──
 export function authHeaders(): Record<string, string> {
   const h: Record<string, string> = {};
   const device = getDeviceId();
@@ -876,6 +909,8 @@ export function authHeaders(): Record<string, string> {
   }
   const fp = stableDeviceFingerprint();
   if (fp) h['X-Device-Fingerprint'] = fp;
+  const tok = getSessionToken();
+  if (tok) h.Authorization = `Bearer ${tok}`;
   // 身份尚未写完 guest 时，用设备派生码兜底，避免 UV/限流只看到裸设备头
   let code = effectiveId();
   if (!code && device && !device.startsWith('dev-') && !device.startsWith('ip:')) {

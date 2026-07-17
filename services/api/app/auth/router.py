@@ -2,19 +2,27 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import logging
 import secrets
 import uuid
 
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
 
 from ..config import get_settings
 from ..content.engagement_migrate import migrate_daily_verse_engagement
 from ..db import get_pool
 from .account_profile import resolve_register_username, upsert_user_profile
-from .session import get_current_user
+from .local_session import (
+    issue_bootstrap_token,
+    issue_session_token,
+    revoke_session_token,
+)
+from .rate_limit import enforce_rate_limit
+from .session import get_current_user, resolve_user_id
 from .user_code import is_user_code, pick_user_code, uuid_for_code as _uuid_for_code
+from ..social.im_router import OFFICIAL_SUPPORT_USER_CODE
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -23,7 +31,21 @@ _DEV_NS = uuid.UUID("6f1a0c2e-9b3d-4e7a-8c1f-b1b1e0000000")
 
 
 def _hash_pwd(password: str, salt: str) -> str:
-    return hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    """PBKDF2-HMAC-SHA256；前缀 pbkdf2$ 区分旧版单次 SHA256。"""
+    dk = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt.encode("utf-8"), 210_000
+    )
+    return "pbkdf2$" + dk.hex()
+
+
+def _verify_pwd(password: str, salt: str, stored: str | None) -> bool:
+    if not stored:
+        return False
+    if stored.startswith("pbkdf2$"):
+        return hmac.compare_digest(_hash_pwd(password, salt or ""), stored)
+    # 兼容历史：sha256(salt+password)
+    legacy = hashlib.sha256((salt + password).encode("utf-8")).hexdigest()
+    return hmac.compare_digest(legacy, stored)
 
 
 class DevLoginBody(BaseModel):
@@ -142,30 +164,75 @@ def _account_row(conn, user_code: str):
     ).fetchone()
 
 
-def _account_payload(code: str, username: str | None, pwd_hash: str | None, phone: str | None = None) -> dict:
-    return {
+def _account_payload(
+    code: str,
+    username: str | None,
+    pwd_hash: str | None,
+    phone: str | None = None,
+    *,
+    include_phone: bool = True,
+    session_token: str | None = None,
+    device_id: str | None = None,
+) -> dict:
+    out = {
         "user_code": code,
         "user_id": _uuid_for_code(code),
         "username": username,
         "has_password": bool(pwd_hash),
-        "phone": phone,
     }
+    if include_phone:
+        out["phone"] = phone
+    if session_token:
+        out["session_token"] = session_token
+    elif device_id is not None:
+        # 调用方显式要求签发
+        out["session_token"] = issue_session_token(
+            user_id=_uuid_for_code(code),
+            user_code=code,
+            device_id=device_id,
+        )
+    return out
+
+
+def _issue_payload(
+    code: str,
+    username: str | None,
+    pwd_hash: str | None,
+    phone: str | None,
+    device_id: str | None,
+    *,
+    include_phone: bool = True,
+) -> dict:
+    token = issue_session_token(
+        user_id=_uuid_for_code(code),
+        user_code=code,
+        device_id=device_id,
+    )
+    return _account_payload(
+        code,
+        username,
+        pwd_hash,
+        phone,
+        include_phone=include_phone,
+        session_token=token,
+    )
 
 
 @router.get("/account-status")
-def account_status(user_code: str) -> dict:
-    """查询账号建档状态（用户名、是否已设密码）。"""
-    code = (user_code or "").strip()
-    if not is_user_code(code):
-        raise HTTPException(status_code=400, detail="用户ID 必须为 8 位数字")
+def account_status(user_id: str = Depends(get_current_user)) -> dict:
+    """查询当前登录账号建档状态（需会话令牌；仅返回本人）。"""
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            row = _account_row(conn, code)
-        if row is None:
-            return _account_payload(code, None, None, None)
-        c, username, pwd_hash, _, phone = row
-        return _account_payload(c, username, pwd_hash, phone)
+            row = conn.execute(
+                "SELECT user_code, username, pwd_hash, pwd_salt, phone FROM accounts WHERE user_id = %s LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if row is None:
+                # 兼容仅有 user_code 映射、尚未写 user_id 的旧行：用 UUID5 反查不可行，按 code 头禁止
+                raise HTTPException(status_code=404, detail="账号不存在")
+            c, username, pwd_hash, _, phone = row
+        return _account_payload(c, username, pwd_hash, phone, include_phone=True)
     except HTTPException:
         raise
     except Exception as exc:
@@ -175,7 +242,10 @@ def account_status(user_code: str) -> dict:
 
 @router.post("/change-password")
 def change_password(
-    body: ChangePasswordBody, user_id: str = Depends(get_current_user),
+    body: ChangePasswordBody,
+    user_id: str = Depends(get_current_user),
+    authorization: str | None = Header(default=None),
+    x_device_id: str | None = Header(default=None),
 ) -> dict:
     code = body.user_code.strip()
     if not is_user_code(code):
@@ -193,7 +263,9 @@ def change_password(
             if row:
                 _, _, pwd_hash, pwd_salt, _ = row
             if pwd_hash:
-                if not body.old_password or _hash_pwd(body.old_password, pwd_salt or "") != pwd_hash:
+                if not body.old_password or not _verify_pwd(
+                    body.old_password, pwd_salt or "", pwd_hash
+                ):
                     raise HTTPException(status_code=401, detail="当前密码不正确")
             pwd_salt = secrets.token_hex(8)
             pwd_hash = _hash_pwd(new_pwd, pwd_salt)
@@ -217,7 +289,12 @@ def change_password(
             )
             upsert_user_profile(conn, user_id=uid, user_code=code, username=uname)
             conn.commit()
-        return {"ok": True, "has_password": True}
+        # 吊销本次改密所用令牌，签发新会话（其他设备旧令牌仍有效至过期，见续审 P1）
+        revoke_session_token(authorization)
+        new_token = issue_session_token(
+            user_id=uid, user_code=code, device_id=x_device_id,
+        )
+        return {"ok": True, "has_password": True, "session_token": new_token}
     except HTTPException:
         raise
     except Exception as exc:
@@ -273,13 +350,24 @@ def device_user(device_id: str, fingerprint: str | None = None) -> dict:
                     (code,),
                 ).fetchone()
                 if acc:
-                    return {"user_code": code}
+                    # 设备找回仅发短时 bootstrap，需客户端立刻换正式会话
+                    token = issue_bootstrap_token(
+                        user_id=_uuid_for_code(code),
+                        user_code=code,
+                        device_id=fp,
+                    )
+                    return {
+                        "user_code": code,
+                        "session_token": token,
+                        "user_id": _uuid_for_code(code),
+                        "token_kind": "bootstrap",
+                    }
                 conn.execute(
                     "DELETE FROM device_user_bindings WHERE device_fingerprint = %s",
                     (fp,),
                 )
                 conn.commit()
-        return {"user_code": None}
+        return {"user_code": None, "session_token": None}
     except Exception as exc:
         logger.warning("device-user 查询失败：%s", exc)
         raise HTTPException(status_code=503, detail="云端暂不可用") from exc
@@ -343,11 +431,19 @@ def _maybe_migrate_engagement(conn, from_code: str | None, to_code: str) -> None
 @router.post("/register")
 def register(
     body: RegisterBody,
+    request: Request,
     x_device_id: str | None = Header(default=None),
     x_device_fingerprint: str | None = Header(default=None),  # noqa: ARG001 — 兼容旧客户端，忽略
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    authorization: str | None = Header(default=None),
 ) -> dict:
-    """按 10 位用户ID 建档（免注册即用），可同时设置用户名 + 密码。"""
+    """按用户ID 建档（免注册即用），可同时设置用户名 + 密码。
+
+    设密/改资料必须对本账号有所有权（设备已绑定或持有效会话）；
+    已设密账号不可经本接口覆盖密码（走 /change-password）。
+    """
+    del x_device_fingerprint
+    enforce_rate_limit(request, bucket="auth_register", limit=40, window_sec=60)
     requested = body.user_code.strip()
     code = requested
     if not is_user_code(code):
@@ -355,48 +451,84 @@ def register(
     user_id = _uuid_for_code(code)
     pwd_hash = pwd_salt = None
     if body.password:
+        if len((body.password or "").strip()) < 6:
+            raise HTTPException(status_code=400, detail="密码至少 6 位")
         pwd_salt = secrets.token_hex(8)
         pwd_hash = _hash_pwd(body.password, pwd_salt)
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            # 静默建档：按 device 恢复已有绑定；设密/改资料：用请求的 user_code 并抢绑
             securing = bool(body.password) or bool((body.username or "").strip())
             if not securing:
                 bound = _lookup_bound_user_code(conn, x_device_id)
                 if bound:
                     code = bound
                     user_id = _uuid_for_code(code)
-            name = resolve_register_username(
-                conn, user_code=code, requested=(body.username or "").strip() or None
-            )
-            conn.execute(
-                "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
-                (user_id,),
-            )
-            conn.execute(
-                """
-                INSERT INTO accounts (user_code, user_id, username, pwd_hash, pwd_salt, updated_at)
-                VALUES (%s, %s, %s, %s, %s, now())
-                ON CONFLICT (user_code) DO UPDATE SET
-                  username = EXCLUDED.username,
-                  pwd_hash = COALESCE(EXCLUDED.pwd_hash, accounts.pwd_hash),
-                  pwd_salt = COALESCE(EXCLUDED.pwd_salt, accounts.pwd_salt),
-                  updated_at = now()
-                """,
-                (code, user_id, name, pwd_hash, pwd_salt),
-            )
-            upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
-            # 设密时抢绑；纯静默建档不抢绑
-            _bind_device_user(conn, x_device_id, code, reclaim=securing)
+
+            existing = _account_row(conn, code)
+            caller = resolve_user_id(authorization=authorization)
+            bound_now = _lookup_bound_user_code(conn, x_device_id)
+            owns = (caller == user_id) or (bound_now == code)
+
+            if securing:
+                if existing and existing[2]:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="账号已设密，请登录后使用改密",
+                    )
+                if existing and not owns:
+                    raise HTTPException(status_code=403, detail="无权为此账号设置资料")
+                name = resolve_register_username(
+                    conn, user_code=code, requested=(body.username or "").strip() or None
+                )
+                conn.execute(
+                    "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
+                    (user_id,),
+                )
+                conn.execute(
+                    """
+                    INSERT INTO accounts (user_code, user_id, username, pwd_hash, pwd_salt, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, now())
+                    ON CONFLICT (user_code) DO UPDATE SET
+                      username = EXCLUDED.username,
+                      pwd_hash = COALESCE(EXCLUDED.pwd_hash, accounts.pwd_hash),
+                      pwd_salt = COALESCE(EXCLUDED.pwd_salt, accounts.pwd_salt),
+                      updated_at = now()
+                    """,
+                    (code, user_id, name, pwd_hash, pwd_salt),
+                )
+                upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
+                _bind_device_user(conn, x_device_id, code, reclaim=True)
+            else:
+                # 静默建档：已存在则不覆盖用户名/密码
+                if not existing:
+                    name = resolve_register_username(conn, user_code=code, requested=None)
+                    conn.execute(
+                        "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
+                        (user_id,),
+                    )
+                    conn.execute(
+                        """
+                        INSERT INTO accounts (user_code, user_id, username, pwd_hash, pwd_salt, updated_at)
+                        VALUES (%s, %s, %s, NULL, NULL, now())
+                        ON CONFLICT (user_code) DO NOTHING
+                        """,
+                        (code, user_id, name),
+                    )
+                    upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
+                _bind_device_user(conn, x_device_id, code, reclaim=False)
+
             former = pick_user_code(requested, x_user_code)
             _maybe_migrate_engagement(conn, former, code)
             conn.commit()
             row = _account_row(conn, code)
             phone = row[4] if row else None
-            uname = (row[1] if row else None) or name
+            uname = (row[1] if row else None)
             phash = row[2] if row else pwd_hash
-        return {"ok": True, **_account_payload(code, uname, phash, phone)}
+        return {
+            "ok": True,
+            **_issue_payload(code, uname, phash, phone, x_device_id),
+        }
     except HTTPException:
         raise
     except Exception as exc:
@@ -407,11 +539,17 @@ def register(
 @router.post("/login")
 def login(
     body: LoginBody,
+    request: Request,
     x_device_id: str | None = Header(default=None),
     x_device_fingerprint: str | None = Header(default=None),
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
 ) -> dict:
-    """登录/恢复：用户ID、用户名、或手机号 + 密码。"""
+    """登录/恢复：用户ID、用户名、或手机号 + 密码。
+
+    纯用户 ID 且未设密：仅当本机 device 已绑定该账号时允许（防止枚举冒充）。
+    """
+    del x_device_fingerprint
+    enforce_rate_limit(request, bucket="auth_login", limit=15, window_sec=60)
     idf = body.identifier.strip()
     if not idf:
         raise HTTPException(status_code=400, detail="请输入用户名、手机号或用户ID")
@@ -425,11 +563,7 @@ def login(
                     (idf,),
                 ).fetchone()
                 if row is None:
-                    _bind_device_user(conn, x_device_id, idf, reclaim=True)
-                    former = pick_user_code(x_user_code)
-                    _maybe_migrate_engagement(conn, former, idf)
-                    conn.commit()
-                    return _account_payload(idf, None, None, None)
+                    raise HTTPException(status_code=401, detail="账号或密码错误")
             else:
                 phone = _normalize_phone(idf)
                 if _PHONE_RE.match(phone):
@@ -446,16 +580,25 @@ def login(
                     raise HTTPException(status_code=401, detail="账号或密码错误")
             code, username, pwd_hash, pwd_salt, phone = row
             if pwd_hash:
-                if not body.password or _hash_pwd(body.password, pwd_salt or "") != pwd_hash:
+                if not body.password or not _verify_pwd(
+                    body.password, pwd_salt or "", pwd_hash
+                ):
                     raise HTTPException(status_code=401, detail="密码不正确")
-            elif not is_user_code(idf):
-                raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID登录")
+            elif is_user_code(idf):
+                bound = _lookup_bound_user_code(conn, x_device_id)
+                if bound != code:
+                    raise HTTPException(
+                        status_code=401,
+                        detail="该账号未设置密码，请在原设备打开或先设密",
+                    )
+            else:
+                raise HTTPException(status_code=401, detail="该账号未设置密码，请用用户ID在原设备登录")
             # 登录成功：抢绑安装级 device_id，覆盖重装后的游客绑定
             _bind_device_user(conn, x_device_id, code, reclaim=True)
             former = pick_user_code(x_user_code, idf if is_user_code(idf) else None)
             _maybe_migrate_engagement(conn, former, code)
             conn.commit()
-            return _account_payload(code, username, pwd_hash, phone)
+            return _issue_payload(code, username, pwd_hash, phone, x_device_id)
     except HTTPException:
         raise
     except Exception as exc:
@@ -463,14 +606,33 @@ def login(
         raise HTTPException(status_code=503, detail="云端暂不可用") from exc
 
 
+@router.post("/logout")
+def logout(
+    authorization: str | None = Header(default=None),
+) -> dict:
+    """吊销当前 Bearer 会话令牌。"""
+    revoked = revoke_session_token(authorization)
+    return {"ok": True, "revoked": revoked}
+
 def _require_user_code(
-    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str = Depends(get_current_user),
 ) -> str:
-    code = pick_user_code(x_user_code, x_user_id)
-    if not code:
-        raise HTTPException(status_code=401, detail="未认证")
-    return code
+    """从已校验会话解析 user_code（不再信任裸头）。"""
+    pool = get_pool()
+    with pool.connection() as conn:
+        row = conn.execute(
+            "SELECT user_code FROM accounts WHERE user_id = %s LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        if row and row[0]:
+            return str(row[0])
+        row = conn.execute(
+            "SELECT user_code FROM user_profile WHERE user_id = %s LIMIT 1",
+            (user_id,),
+        ).fetchone()
+        if row and row[0]:
+            return str(row[0])
+    raise HTTPException(status_code=401, detail="未认证")
 
 
 @router.post("/bind-phone")
@@ -492,7 +654,9 @@ def bind_phone(
                 raise HTTPException(status_code=404, detail="账号不存在")
             code, username, pwd_hash, pwd_salt, _ = row
             if pwd_hash:
-                if not body.password or _hash_pwd(body.password, pwd_salt or "") != pwd_hash:
+                if not body.password or not _verify_pwd(
+                    body.password, pwd_salt or "", pwd_hash
+                ):
                     raise HTTPException(status_code=401, detail="密码不正确")
             taken = conn.execute(
                 "SELECT user_code FROM accounts WHERE phone = %s AND user_code <> %s",

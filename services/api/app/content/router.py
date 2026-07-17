@@ -4,11 +4,13 @@ from __future__ import annotations
 import logging
 import re
 
-from fastapi import APIRouter, Header, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from ..auth.session import get_current_user
 from ..auth.user_code import is_user_code
+from ..auth.local_session import make_media_asset_sig, verify_media_asset_sig
 from ..db import get_pool
 from . import loader
 from .daily_clock import china_today, verse_day_for_date
@@ -17,6 +19,27 @@ from .planner import SCOPE_LABELS, generate_plan
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/content", tags=["content"])
+
+
+def _user_code_from_session(user_id: str) -> str | None:
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            row = conn.execute(
+                "SELECT user_code FROM accounts WHERE user_id = %s LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if row and row[0]:
+                return str(row[0])
+            row = conn.execute(
+                "SELECT user_code FROM user_profile WHERE user_id = %s LIMIT 1",
+                (user_id,),
+            ).fetchone()
+            if row and row[0]:
+                return str(row[0])
+    except Exception:
+        pass
+    return None
 
 
 class GeneratePlanBody(BaseModel):
@@ -173,13 +196,12 @@ def daily_verse(
 def toggle_daily_verse_like(
     response: Response,
     day: int | None = Query(None, ge=1),
-    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_id: str = Depends(get_current_user),
 ) -> dict:
     _no_store_headers(response)
-    user_code = _pick_user_code(x_user_code, x_user_id)
+    user_code = _user_code_from_session(user_id)
     if not user_code:
-        raise HTTPException(status_code=400, detail="需要 8 位用户标识（X-User-Code）")
+        raise HTTPException(status_code=400, detail="账号未建档")
     verse_day, _ = _resolve_verse_day(day)
     try:
         pool = get_pool()
@@ -574,12 +596,20 @@ def hero_b_asset(filename: str):
 
 
 @router.get("/group-task/assets/{filename}")
-def group_task_asset(filename: str):
+def group_task_asset(
+    filename: str,
+    exp: int = Query(...),
+    sig: str = Query(...),
+):
+    from pathlib import Path
+
     from ..social.task_ops import task_attachments_dir
 
     safe = Path(filename).name
     if safe != filename or ".." in filename:
         raise HTTPException(status_code=400, detail="无效文件名")
+    if not verify_media_asset_sig(f"group-task/{safe}", exp, sig):
+        raise HTTPException(status_code=401, detail="链接无效或已过期")
     path = task_attachments_dir() / safe
     if not path.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
@@ -593,36 +623,16 @@ def group_task_asset(filename: str):
         media = "image/webp"
     elif lower.endswith(".pdf"):
         media = "application/pdf"
-    return FileResponse(path, media_type=media)
+    return FileResponse(path, media_type=media, headers={"Cache-Control": "private, max-age=300"})
 
 
 @router.get("/social-media/assets/{filename}")
 def social_media_asset(filename: str):
-    from ..social.blob_store import get_blob_store
-
-    safe = Path(filename).name
-    if safe != filename or ".." in filename:
-        raise HTTPException(status_code=400, detail="无效文件名")
-    store = get_blob_store()
-    try:
-        data = store.read_bytes(safe)
-    except Exception:
-        raise HTTPException(status_code=404, detail="文件不存在") from None
-    media = "application/octet-stream"
-    lower = safe.lower()
-    if lower.endswith((".jpg", ".jpeg")):
-        media = "image/jpeg"
-    elif lower.endswith(".png"):
-        media = "image/png"
-    elif lower.endswith((".webp",)):
-        media = "image/webp"
-    elif lower.endswith(".gif"):
-        media = "image/gif"
-    elif lower.endswith(".pdf"):
-        media = "application/pdf"
-    elif lower.endswith((".txt", ".md", ".csv")):
-        media = "text/plain; charset=utf-8"
-    return Response(content=data, media_type=media, headers={"Cache-Control": "private, max-age=3600"})
+    """已废弃：请使用带签名的 /social/media/assets/...。"""
+    raise HTTPException(
+        status_code=401,
+        detail="附件需鉴权访问，请使用消息中的签名链接",
+    )
 
 
 @router.get("/home/bootstrap")
@@ -641,10 +651,15 @@ def home_bootstrap(
     # 首页必经路径内联记 UV，避免仅依赖中间件 / 未反代的 /analytics
     try:
         from ..analytics.uv import record_daily_visit
-        from ..auth.user_code import pick_user_code, uuid_for_code
+        from ..auth.local_session import verify_session_token
+        from ..auth.session import resolve_user_id
+        from ..auth.user_code import is_user_code
 
-        code = pick_user_code(x_user_code, x_user_id)
-        uid = uuid_for_code(code) if code else None
+        uid = resolve_user_id(authorization=authorization, cookie=request.headers.get("cookie"))
+        code = None
+        local = verify_session_token(authorization)
+        if local and is_user_code(local.get("user_code") or ""):
+            code = local["user_code"]
         device = (x_device_id or x_guest_id or "").strip() or None
         if not device and not uid:
             forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
@@ -672,18 +687,25 @@ def home_bootstrap(
 @router.post("/uv-visit")
 def content_uv_visit(
     request: Request,
-    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
-    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    authorization: str | None = Header(default=None, alias="Authorization"),
     x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
 ) -> dict:
     """UV 心跳（走已反代的 /content，兼容未加 analytics 的 Nginx）。"""
     from ..analytics.uv import record_daily_visit, uv_last_error
-    from ..auth.user_code import pick_user_code, uuid_for_code
+    from ..auth.local_session import verify_session_token
+    from ..auth.session import resolve_user_id
+    from ..auth.user_code import is_user_code
     from ..time_cn import china_today
 
-    code = pick_user_code(x_user_code, x_user_id)
-    uid = uuid_for_code(code) if code else None
+    uid = resolve_user_id(
+        authorization=authorization,
+        cookie=request.headers.get("cookie"),
+    )
+    code = None
+    local = verify_session_token(authorization)
+    if local and is_user_code(local.get("user_code") or ""):
+        code = local["user_code"]
     device = (x_device_id or x_guest_id or "").strip() or None
     if not device and not uid:
         forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()

@@ -82,9 +82,23 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> logout() async {
-    await ref.read(sessionProvider).signOut();
+    final session = ref.read(sessionProvider);
+    final tok = await session.token();
+    if (tok != null && tok.isNotEmpty) {
+      try {
+        await ref.read(dioProvider).post(
+              '/auth/logout',
+              options: Options(headers: {'Authorization': 'Bearer $tok'}),
+            );
+      } catch (_) {}
+    }
+    await session.signOut();
     ref.read(activeUserCodeProvider.notifier).syncFromSession();
     ref.invalidate(dbProvider);
+    try {
+      await ref.read(authApiProvider).ensureAccountReady();
+    } catch (_) {}
+    ref.read(activeUserCodeProvider.notifier).syncFromSession();
     state = AuthState(
       signedIn: false,
       displayName: userPrefGetString(ref.read(prefsProvider), _kName),

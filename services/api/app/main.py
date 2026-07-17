@@ -52,9 +52,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+def _cors_origins() -> list[str]:
+    raw = (get_settings().cors_origins or "").strip()
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    # 拒绝 "*"+credentials；未配置时仅放行本地开发
+    if not origins or origins == ["*"]:
+        return ["http://localhost:3000", "http://127.0.0.1:3000"]
+    return origins
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

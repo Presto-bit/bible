@@ -34,22 +34,26 @@ type LoadState =
 
 async function loadDocxHtml(url: string): Promise<string> {
   const mammoth = await import('mammoth');
+  const { sanitizePreviewHtml } = await import('@/lib/sanitize_html');
   const res = await fetch(url);
   if (!res.ok) throw new Error('文件加载失败');
   const buf = await res.arrayBuffer();
   const out = await mammoth.convertToHtml({ arrayBuffer: buf });
-  return out.value || '<p class="muted">（空文档）</p>';
+  return sanitizePreviewHtml(out.value || '<p class="muted">（空文档）</p>');
 }
 
 async function loadSheetHtml(url: string): Promise<string> {
   const XLSX = await import('xlsx');
+  const { sanitizePreviewHtml } = await import('@/lib/sanitize_html');
   const res = await fetch(url);
   if (!res.ok) throw new Error('文件加载失败');
   const buf = await res.arrayBuffer();
   const wb = XLSX.read(buf, { type: 'array' });
   const name = wb.SheetNames[0];
   if (!name) return '<p class="muted">（空表格）</p>';
-  return XLSX.utils.sheet_to_html(wb.Sheets[name]!, { id: 'im-sheet-preview' });
+  return sanitizePreviewHtml(
+    XLSX.utils.sheet_to_html(wb.Sheets[name]!, { id: 'im-sheet-preview' }),
+  );
 }
 
 /** 群聊/私信附件预览：PDF / 文本 / Office / 下载。 */

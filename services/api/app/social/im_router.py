@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -139,16 +139,14 @@ def _resolve_peer_user_id(conn, peer_key: str) -> str:
 
 
 def _require_dm_allowed(conn, user_id: str, peer_id: str) -> None:
-    """好友可私信；与官方客服任一方会话时免好友限制。"""
+    """好友可私信；用户联系官方客服时可免好友（仅 peer 为官方，防止冒充客服主动私信）。"""
     fr = conn.execute(
         "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
         (user_id, peer_id),
     ).fetchone()
     if fr:
         return
-    if _is_official_support_user_id(conn, peer_id) or _is_official_support_user_id(
-        conn, user_id
-    ):
+    if _is_official_support_user_id(conn, peer_id):
         return
     raise HTTPException(403, "仅好友可私信")
 
@@ -1282,9 +1280,16 @@ def recall_message(mid: str, user_id: str = Depends(get_current_user)) -> dict:
 
 
 @router.post("/reports")
-def create_report(body: ReportIn, user_id: str = Depends(get_current_user)) -> dict:
+def create_report(
+    body: ReportIn,
+    request: Request,
+    user_id: str = Depends(get_current_user),
+) -> dict:
     import json as _json
 
+    from ..auth.rate_limit import enforce_rate_limit
+
+    enforce_rate_limit(request, bucket="im_report", limit=20, window_sec=600)
     reason = body.reason if body.reason in (
         "spam", "abuse", "heresy", "illegal", "other",
     ) else "other"
@@ -1298,39 +1303,61 @@ def create_report(body: ReportIn, user_id: str = Depends(get_current_user)) -> d
                 "SELECT group_id, user_id, kind, body, created_at FROM group_message WHERE id = %s",
                 (body.target_id,),
             ).fetchone()
-            if m:
-                snap["group_id"] = str(m[0])
-                snap["author_id"] = str(m[1])
-                snap["kind"] = m[2]
-                snap["body"] = m[3]
-                snap["created_at"] = m[4].isoformat() if m[4] else None
-                atts = conn.execute(
-                    "SELECT file_name, mime, storage_key FROM message_attachment "
-                    "WHERE scope = 'group' AND message_id = %s",
-                    (body.target_id,),
-                ).fetchall()
-                snap["attachments"] = [
-                    {"file_name": a[0], "mime": a[1], "storage_key": a[2]} for a in atts
-                ]
+            if not m:
+                raise HTTPException(404, "消息不存在")
+            mem = conn.execute(
+                "SELECT 1 FROM group_member WHERE group_id = %s AND user_id = %s",
+                (m[0], user_id),
+            ).fetchone()
+            if not mem:
+                raise HTTPException(403, "非群成员无法举报该消息")
+            snap["group_id"] = str(m[0])
+            snap["author_id"] = str(m[1])
+            snap["kind"] = m[2]
+            snap["body"] = m[3]
+            snap["created_at"] = m[4].isoformat() if m[4] else None
+            atts = conn.execute(
+                "SELECT file_name, mime, storage_key FROM message_attachment "
+                "WHERE scope = 'group' AND message_id = %s",
+                (body.target_id,),
+            ).fetchall()
+            snap["attachments"] = [
+                {"file_name": a[0], "mime": a[1], "storage_key": a[2]} for a in atts
+            ]
         elif body.target_type == "dm":
             m = conn.execute(
                 "SELECT thread_id, sender_id, kind, body, created_at FROM direct_message WHERE id = %s",
                 (body.target_id,),
             ).fetchone()
-            if m:
-                snap["thread_id"] = str(m[0])
-                snap["author_id"] = str(m[1])
-                snap["kind"] = m[2]
-                snap["body"] = m[3]
-                snap["created_at"] = m[4].isoformat() if m[4] else None
-                atts = conn.execute(
-                    "SELECT file_name, mime, storage_key FROM message_attachment "
-                    "WHERE scope = 'dm' AND message_id = %s",
-                    (body.target_id,),
-                ).fetchall()
-                snap["attachments"] = [
-                    {"file_name": a[0], "mime": a[1], "storage_key": a[2]} for a in atts
-                ]
+            if not m:
+                raise HTTPException(404, "消息不存在")
+            parties = conn.execute(
+                "SELECT user_low_id, user_high_id FROM direct_thread WHERE id = %s",
+                (m[0],),
+            ).fetchone()
+            if not parties or user_id not in (str(parties[0]), str(parties[1])):
+                raise HTTPException(403, "非会话参与者无法举报")
+            snap["thread_id"] = str(m[0])
+            snap["author_id"] = str(m[1])
+            snap["kind"] = m[2]
+            snap["body"] = m[3]
+            snap["created_at"] = m[4].isoformat() if m[4] else None
+            atts = conn.execute(
+                "SELECT file_name, mime, storage_key FROM message_attachment "
+                "WHERE scope = 'dm' AND message_id = %s",
+                (body.target_id,),
+            ).fetchall()
+            snap["attachments"] = [
+                {"file_name": a[0], "mime": a[1], "storage_key": a[2]} for a in atts
+            ]
+        elif body.target_type == "group":
+            mem = conn.execute(
+                "SELECT 1 FROM group_member WHERE group_id = %s AND user_id = %s",
+                (body.target_id, user_id),
+            ).fetchone()
+            if not mem:
+                raise HTTPException(403, "非群成员无法举报该群")
+        # target_type == "user"：任意登录用户可举报（已限流）
         case = conn.execute(
             "INSERT INTO moderation_case (reporter_id, target_type, target_id, reason) "
             "VALUES (%s, %s, %s, %s) RETURNING id",
@@ -1435,6 +1462,17 @@ async def upload_social_media(
     return {"ok": True, **meta}
 
 
+def _assert_owns_upload(user_id: str, storage_key: str) -> str:
+    """发送媒体前校验 storage_key 属于当前用户刚上传的对象。"""
+    norm = normalize_object_key(storage_key)
+    if not norm:
+        raise HTTPException(400, "无效附件")
+    marker = f"social-im/{user_id[:8]}/"
+    if not norm.startswith(marker):
+        raise HTTPException(403, "附件不属于当前用户")
+    return norm
+
+
 def _user_can_read_attachment(conn, user_id: str, storage_key: str) -> tuple[bytes, str] | None:
     """校验用户有权读取附件，返回 (bytes, file_name)。"""
     norm = normalize_object_key(storage_key)
@@ -1520,12 +1558,57 @@ def preview_social_media(
     )
 
 
+@router.get("/media/assets/{filename}")
+def social_media_asset_signed(
+    filename: str,
+    exp: int = Query(...),
+    sig: str = Query(...),
+    k: str | None = Query(None, description="完整 object key"),
+) -> Response:
+    """短时签名直链（供 <img> 使用，不依赖 Authorization 头）。"""
+    from ..auth.local_session import verify_media_asset_sig
+
+    safe = Path(filename).name
+    if safe != filename or ".." in filename:
+        raise HTTPException(400, "无效文件名")
+    object_key = normalize_object_key(k or safe)
+    if Path(object_key).name != safe:
+        raise HTTPException(400, "无效文件名")
+    if not verify_media_asset_sig(object_key, exp, sig):
+        raise HTTPException(401, "链接无效或已过期")
+    store = get_blob_store()
+    try:
+        data = store.read_bytes(object_key)
+    except Exception:
+        raise HTTPException(404, "文件不存在") from None
+    media = "application/octet-stream"
+    lower = safe.lower()
+    if lower.endswith((".jpg", ".jpeg")):
+        media = "image/jpeg"
+    elif lower.endswith(".png"):
+        media = "image/png"
+    elif lower.endswith(".webp"):
+        media = "image/webp"
+    elif lower.endswith(".gif"):
+        media = "image/gif"
+    elif lower.endswith(".pdf"):
+        media = "application/pdf"
+    elif lower.endswith((".txt", ".md", ".csv")):
+        media = "text/plain; charset=utf-8"
+    return Response(
+        content=data,
+        media_type=media,
+        headers={"Cache-Control": "private, max-age=300"},
+    )
+
+
 @router.post("/groups/{gid}/media")
 def send_group_media(
     gid: str, body: MediaSendIn, user_id: str = Depends(get_current_user),
 ) -> dict:
     import json as _json
 
+    owned_key = _assert_owns_upload(user_id, body.storage_key)
     pool = get_pool()
     with pool.connection() as conn:
         access.require_member(conn, gid, user_id)
@@ -1564,7 +1647,7 @@ def send_group_media(
             "VALUES ('group', %s, %s, %s, %s, %s)",
             (
                 mid,
-                body.storage_key,
+                owned_key,
                 body.file_name,
                 body.mime,
                 body.size_bytes,
@@ -1584,6 +1667,7 @@ def send_group_media(
 def send_dm_media(
     thread_id: str, body: MediaSendIn, user_id: str = Depends(get_current_user),
 ) -> dict:
+    owned_key = _assert_owns_upload(user_id, body.storage_key)
     pool = get_pool()
     with pool.connection() as conn:
         t = conn.execute(
@@ -1610,7 +1694,7 @@ def send_dm_media(
             "INSERT INTO message_attachment "
             "(scope, message_id, storage_key, file_name, mime, size_bytes) "
             "VALUES ('dm', %s, %s, %s, %s, %s)",
-            (row[0], body.storage_key, body.file_name, body.mime, body.size_bytes),
+            (row[0], owned_key, body.file_name, body.mime, body.size_bytes),
         )
         conn.commit()
     try:

@@ -328,7 +328,13 @@ async def save_task_upload(
     filename = f"{safe_gid[:8]}-{digest}{suffix}"
     dest = task_attachments_dir() / filename
     dest.write_bytes(raw)
-    url = f"/content/group-task/assets/{filename}"
+    from ..auth.local_session import make_media_asset_sig
+    import time as _time
+
+    exp = int(_time.time()) + 86_400
+    object_key = f"group-task/{filename}"
+    sig = make_media_asset_sig(object_key, exp)
+    url = f"/content/group-task/assets/{filename}?exp={exp}&sig={sig}"
     return {
         "file_name": Path(file.filename or filename).name[:180],
         "mime_type": content_type,

@@ -45,8 +45,14 @@ class AuthApi {
         queryParameters: {'device_id': deviceId, 'fingerprint': deviceId},
       );
       final bound = res.data['user_code'] as String?;
+      final token = res.data['session_token'] as String?;
       if (bound != null && bound.isNotEmpty) {
         await _device.bindGuestId(bound);
+        if (token != null && token.isNotEmpty) {
+          await _session.signIn(userId: bound, token: token);
+        } else {
+          await _session.devSignIn(bound);
+        }
       }
     } on DioException {
       /* 离线 */
@@ -62,6 +68,12 @@ class AuthApi {
         options: Options(headers: _deviceHeaders()),
       );
       final d = res.data as Map<String, dynamic>;
+      final serverCode = (d['user_code'] as String?) ?? code;
+      final token = d['session_token'] as String?;
+      if (token != null && token.isNotEmpty) {
+        await _session.signIn(userId: serverCode, token: token);
+        await _device.bindGuestId(serverCode);
+      }
       final username = d['username'] as String?;
       if (username != null && username.isNotEmpty) {
         await userPrefSetString(_session.prefs, _kName, username);
@@ -98,7 +110,6 @@ class AuthApi {
       await userPrefSetString(_session.prefs, _kName, u);
     }
     await userPrefSetBool(_session.prefs, _kOnboarded, true);
-    await _session.devSignIn(code);
     final res = await _dio.post(
       '/auth/register',
       data: {
@@ -109,6 +120,14 @@ class AuthApi {
       options: Options(headers: _deviceHeaders()),
     );
     final d = res.data as Map<String, dynamic>;
+    final serverCode = (d['user_code'] as String?) ?? code;
+    final token = d['session_token'] as String?;
+    if (token != null && token.isNotEmpty) {
+      await _session.signIn(userId: serverCode, token: token);
+      await _device.bindGuestId(serverCode);
+    } else {
+      await _session.devSignIn(serverCode);
+    }
     await userPrefSetBool(_session.prefs, _kHasPwd, d['has_password'] == true);
     try {
       await _dio.post('/auth/merge-guest', options: Options(headers: _deviceHeaders()));
@@ -130,8 +149,13 @@ class AuthApi {
     );
     final d = res.data as Map<String, dynamic>;
     final code = d['user_code'] as String;
+    final token = d['session_token'] as String?;
     await _device.bindGuestId(code);
-    await _session.devSignIn(code);
+    if (token != null && token.isNotEmpty) {
+      await _session.signIn(userId: code, token: token);
+    } else {
+      await _session.devSignIn(code);
+    }
     final username = d['username'] as String?;
     if (username != null && username.isNotEmpty) {
       await userPrefSetString(_session.prefs, _kName, username);
@@ -151,7 +175,7 @@ class AuthApi {
     required String newPassword,
   }) async {
     if (newPassword.length < 6) throw Exception('密码至少 6 位');
-    await _dio.post(
+    final res = await _dio.post(
       '/auth/change-password',
       data: {
         'user_code': _session.effectiveUserCode,
@@ -160,6 +184,11 @@ class AuthApi {
       },
       options: Options(headers: _deviceHeaders()),
     );
+    final d = res.data as Map<String, dynamic>;
+    final token = d['session_token'] as String?;
+    if (token != null && token.isNotEmpty) {
+      await _session.signIn(userId: _session.effectiveUserCode, token: token);
+    }
     await userPrefSetBool(_session.prefs, _kHasPwd, true);
   }
 

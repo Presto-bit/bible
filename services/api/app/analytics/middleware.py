@@ -6,7 +6,9 @@ import asyncio
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
-from ..auth.user_code import pick_user_code, uuid_for_code
+from ..auth.local_session import verify_session_token
+from ..auth.session import resolve_user_id
+from ..auth.user_code import is_user_code
 from .uv import record_daily_visit, should_record_uv
 
 
@@ -20,19 +22,21 @@ def _client_ip(request: Request) -> str | None:
 
 
 def _visitor_ids_from_request(request: Request) -> tuple[str | None, str | None, str | None]:
-    code = pick_user_code(
-        request.headers.get("x-user-code"),
-        request.headers.get("x-user-id"),
+    # 仅信任已校验会话；裸 X-User-Code 不可伪造 UV 归属
+    uid = resolve_user_id(
+        authorization=request.headers.get("authorization"),
+        cookie=request.headers.get("cookie"),
     )
-    user_id = uuid_for_code(code) if code else None
+    code = None
+    local = verify_session_token(request.headers.get("authorization"))
+    if local and is_user_code(local.get("user_code") or ""):
+        code = local["user_code"]
     device_id = request.headers.get("x-device-id") or request.headers.get("x-guest-id")
-    # 无设备头时用 IP 兜底，避免裸请求完全漏计（前缀区分真实设备 ID）
-    if not device_id and not user_id:
+    if not device_id and not uid:
         ip = _client_ip(request)
         if ip:
             device_id = f"ip:{ip}"
-    # user_code 缺失时由 record_daily_visit 按设备绑定回填
-    return user_id, device_id, code
+    return uid, device_id, code
 
 
 class DailyUvMiddleware(BaseHTTPMiddleware):

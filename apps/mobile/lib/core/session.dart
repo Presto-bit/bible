@@ -51,6 +51,7 @@ class Session {
 
   Future<void> signOut() async {
     await _prefs.remove(_kUserId);
+    await _prefs.remove(_kGuestId);
     await _secure.delete(key: _kToken);
   }
 }

@@ -140,9 +140,9 @@ def test_build_messages_unknown_mode_falls_back():
     assert "主动" in msgs[1]["content"]
 
 
-def test_consume_quota_no_device_unlimited():
+def test_consume_quota_no_device_denied():
     allowed, used, limit = consume_quota(None, 10)
-    assert allowed is True and limit == 10
+    assert allowed is False and limit == 10 and used == 10
 
 
 def test_record_ai_request_no_device_is_noop():

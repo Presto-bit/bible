@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
@@ -172,6 +173,20 @@ class OfflineBibleService {
       final bytes = zipRes.data;
       if (bytes == null || bytes.isEmpty) {
         throw StateError('离线包下载失败');
+      }
+
+      final expectedSha = (manifest['zip_sha256'] ?? manifest['zipSha256']) as String?;
+      if (expectedSha != null && expectedSha.isNotEmpty) {
+        final digest = sha256.convert(bytes);
+        final got = digest.toString();
+        if (got.toLowerCase() != expectedSha.toLowerCase()) {
+          throw StateError('离线包校验失败，请重试');
+        }
+      }
+
+      final zipNameSafe = p.basename(zipName);
+      if (zipNameSafe != zipName || zipName.contains('..')) {
+        throw StateError('无效离线包路径');
       }
 
       final archive = ZipDecoder().decodeBytes(bytes);

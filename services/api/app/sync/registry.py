@@ -53,12 +53,14 @@ REGISTRY: dict[str, EntitySpec] = {
     ),
     "user_profile": EntitySpec(
         "user_profile", "user_profile", ("user_id",), (),
-        ("avatar_id", "bio", "username", "user_code"), False,
+        # username / user_code 仅由 /auth 写入，禁止 sync 冒充改码
+        ("avatar_id", "bio"), False,
     ),
     "read_event": EntitySpec(
         "read_event", "read_event", ("id",), ("id",),
         ("ts", "book", "chapter"), True,
     ),
+    # badge_unlock 改为仅服务端权威：客户端 push 忽略（见 engine）
     "badge_unlock": EntitySpec(
         "badge_unlock", "badge_unlock", ("id",), ("id",),
         ("badge_id", "unlocked_at"), True,

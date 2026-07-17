@@ -399,7 +399,9 @@ def push(user_id: str, changes: list[dict], device_id: str | None) -> dict:
                         skipped += 1
                         continue
                 elif spec.entity == "badge_unlock":
-                    change = _merge_badge_unlock_change(conn, user_id, change)
+                    # 徽章仅服务端/受信逻辑写入，忽略客户端自授
+                    skipped += 1
+                    continue
                 ex_ts, ex_ver = _existing(conn, spec, user_id, keyvals)
                 inc_ts = _parse_ts(change.get("client_ts"))
                 inc_ver = int(change.get("version") or 1)

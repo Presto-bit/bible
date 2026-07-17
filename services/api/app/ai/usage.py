@@ -1,7 +1,7 @@
 """游客 AI 日额度（X-Guest-Id → guest_devices + ai_usage_daily）。
 
 device_id 为客户端持久化的设备指纹字符串；映射到 guest_devices.guest_id(UUID)，
-再按 (guest_id, 当日) 计数。无 device_id 时不限流（开发/内部调用）。
+再按 (guest_id, 当日) 计数。limit>0 时无 device_id 或库异常一律拒绝（fail-closed）。
 """
 from __future__ import annotations
 
@@ -67,7 +67,7 @@ def peek_quota(device_id: str | None, limit: int) -> tuple[int, int]:
     if limit <= 0:
         return 0, 0
     if not device_id:
-        return 0, limit
+        return limit, limit
     try:
         pool = get_pool()
         with pool.connection() as conn:
@@ -82,19 +82,19 @@ def peek_quota(device_id: str | None, limit: int) -> tuple[int, int]:
             return used, limit
     except Exception as exc:
         logger.warning("额度查询失败：%s", exc)
-        return 0, limit
+        return limit, limit
 
 
 def consume_quota(device_id: str | None, limit: int) -> tuple[bool, int, int]:
     """预扣一次额度。返回 (allowed, used_after, limit)。
 
-    allowed=False 时表示已达上限、未计数。
+    allowed=False 时表示已达上限、未计数，或缺少 device_id / 库不可用。
     limit <= 0 表示不限流。
     """
     if limit <= 0:
         return True, 0, 0
     if not device_id:
-        return True, 0, limit
+        return False, limit, limit
     try:
         pool = get_pool()
         with pool.connection() as conn:
@@ -112,6 +112,5 @@ def consume_quota(device_id: str | None, limit: int) -> tuple[bool, int, int]:
             conn.commit()
             return True, used + 1, limit
     except Exception as exc:
-        # 额度库不可用时 fail-open：不阻断用户，仅记录告警
-        logger.warning("额度库不可用，放行本次请求：%s", exc)
-        return True, 0, limit
+        logger.warning("额度库不可用，拒绝本次请求：%s", exc)
+        return False, limit, limit
