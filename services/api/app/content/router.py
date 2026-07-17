@@ -652,7 +652,7 @@ def home_bootstrap(
                 device = f"ip:{forwarded[:64]}"
             elif request.client and request.client.host:
                 device = f"ip:{request.client.host[:64]}"
-        record_daily_visit(user_id=uid, device_id=device)
+        record_daily_visit(user_id=uid, device_id=device, user_code=code)
     except Exception:
         pass
     payload = _daily_verse_payload(None)
@@ -691,7 +691,7 @@ def content_uv_visit(
             device = f"ip:{forwarded[:64]}"
         elif request.client and request.client.host:
             device = f"ip:{request.client.host[:64]}"
-    ok = record_daily_visit(user_id=uid, device_id=device)
+    ok = record_daily_visit(user_id=uid, device_id=device, user_code=code)
     return {
         "ok": ok,
         "day": china_today().isoformat(),

@@ -19,7 +19,7 @@ def _client_ip(request: Request) -> str | None:
     return None
 
 
-def _visitor_ids_from_request(request: Request) -> tuple[str | None, str | None]:
+def _visitor_ids_from_request(request: Request) -> tuple[str | None, str | None, str | None]:
     code = pick_user_code(
         request.headers.get("x-user-code"),
         request.headers.get("x-user-id"),
@@ -31,7 +31,7 @@ def _visitor_ids_from_request(request: Request) -> tuple[str | None, str | None]
         ip = _client_ip(request)
         if ip:
             device_id = f"ip:{ip}"
-    return user_id, device_id
+    return user_id, device_id, code
 
 
 class DailyUvMiddleware(BaseHTTPMiddleware):
@@ -39,11 +39,13 @@ class DailyUvMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         if not should_record_uv(request.url.path, request.method):
             return response
-        user_id, device_id = _visitor_ids_from_request(request)
+        user_id, device_id, user_code = _visitor_ids_from_request(request)
         try:
             # UV 写入放线程池，避免卡死事件循环
             await asyncio.to_thread(
-                lambda: record_daily_visit(user_id=user_id, device_id=device_id)
+                lambda: record_daily_visit(
+                    user_id=user_id, device_id=device_id, user_code=user_code,
+                )
             )
         except Exception:
             pass

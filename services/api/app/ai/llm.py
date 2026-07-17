@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 import logging
+from dataclasses import dataclass, field
 from typing import Any, Iterator
 
 import httpx
@@ -13,6 +14,14 @@ import httpx
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class StreamMeta:
+    """流式结束后由 stream_chat 回填。"""
+
+    finish_reason: str | None = None
+    usage: dict[str, Any] = field(default_factory=dict)
 
 
 def _content_piece(delta: dict[str, Any]) -> str:
@@ -37,6 +46,7 @@ def stream_chat(
     temperature: float = 0.6,
     max_tokens: int = 900,
     timeout_sec: float = 120.0,
+    meta: StreamMeta | None = None,
 ) -> Iterator[str]:
     """逐段产出 DeepSeek 正文 delta。异常向上抛出由路由处理。"""
     s = get_settings()
@@ -73,10 +83,16 @@ def stream_chat(
                 err = data.get("error")
                 if isinstance(err, dict) and err.get("message"):
                     raise RuntimeError(str(err["message"]))
+                if meta is not None and isinstance(data.get("usage"), dict):
+                    meta.usage = data["usage"]
                 choices = data.get("choices") or []
                 if not choices or not isinstance(choices[0], dict):
                     continue
-                delta = choices[0].get("delta") or {}
+                choice0 = choices[0]
+                fr = choice0.get("finish_reason")
+                if meta is not None and fr:
+                    meta.finish_reason = str(fr)
+                delta = choice0.get("delta") or {}
                 piece = _content_piece(delta) if isinstance(delta, dict) else ""
                 if piece:
                     yield piece

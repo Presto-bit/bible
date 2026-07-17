@@ -51,6 +51,7 @@ MIGRATIONS=(
   infra/postgres/init/016_hero_b_campaign.sql
   infra/postgres/init/017_ai_request_log.sql
   infra/postgres/init/018_daily_uv_v2.sql
+  infra/postgres/init/024_daily_uv_user_code.sql
   infra/postgres/init/020_group_task_v2.sql
   infra/postgres/init/021_social_im_v12.sql
   infra/postgres/init/022_push_reading_dnd.sql

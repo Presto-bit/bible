@@ -223,7 +223,7 @@ def _legacy_vk_nickname_sql() -> str:
 
 def _v2_uv_user_code_sql() -> str:
     return _coalesce_label_sql(
-        "a.user_code", "a_bind.user_code", "up.user_code", "up_bind.user_code",
+        "d.user_code", "a.user_code", "a_bind.user_code", "up.user_code", "up_bind.user_code",
     )
 
 
@@ -1110,7 +1110,7 @@ def fetch_admin_stats_detail(
                 )
                 rows = conn.execute(
                     f"""
-                    SELECT user_code, nickname, visit_date, created_at, bound_at, is_login, identity
+                    SELECT user_code, nickname, visit_date, created_at, bound_at, is_login, identity, device_fp
                     FROM (
                       SELECT {_v2_uv_user_code_sql()} AS user_code,
                              {_v2_uv_nickname_sql()} AS nickname,
@@ -1118,7 +1118,8 @@ def fetch_admin_stats_detail(
                              {_ts_sql("d.created_at")} AS created_at,
                              {_ts_sql("d.user_bound_at")} AS bound_at,
                              (d.user_id IS NOT NULL OR a_bind.user_code IS NOT NULL) AS is_login,
-                             {uv_identity_sql("d")} AS identity
+                             {uv_identity_sql("d")} AS identity,
+                             d.device_fingerprint AS device_fp
                       FROM daily_active_visitors d
                       LEFT JOIN users u ON u.id = d.user_id
                       {_USER_JOINS}
@@ -1135,7 +1136,7 @@ def fetch_admin_stats_detail(
                 items = []
                 seen_day_identity: set[tuple[str, str]] = set()
                 for r in rows:
-                    user_code, nickname, vdate, created, bound, is_login, identity = r
+                    user_code, nickname, vdate, created, bound, is_login, identity, device_fp = r
                     key = (vdate, str(identity or user_code or created))
                     if key in seen_day_identity:
                         continue
@@ -1143,9 +1144,27 @@ def fetch_admin_stats_detail(
                     converted_today = bool(
                         is_login and bound and bound != "—" and bound[:10] == vdate
                     )
+                    display_code = user_code if user_code and user_code != "—" else None
+                    if not display_code:
+                        fp = (device_fp or "").strip()
+                        if fp.startswith("ip:"):
+                            display_code = "设备(IP)"
+                        elif fp.startswith("inst-") or fp.startswith("dev-"):
+                            display_code = f"设备 …{fp[-6:]}" if len(fp) > 6 else f"设备 {fp}"
+                        elif fp:
+                            display_code = f"设备 …{fp[-8:]}" if len(fp) > 8 else f"设备 {fp}"
+                        else:
+                            display_code = "—"
+                    # 有 8 位码但未归并为「设密登录」时标「游客账号」，纯设备标「游客设备」
+                    if is_login:
+                        row_type = "账号"
+                    elif display_code and display_code.isdigit() and len(display_code) in (8, 10):
+                        row_type = "游客账号"
+                    else:
+                        row_type = "游客设备"
                     items.append({
-                        "type": "登录" if is_login else "游客",
-                        "user_code": user_code,
+                        "type": row_type,
+                        "user_code": display_code,
                         "nickname": nickname,
                         "converted": "是" if converted_today else "—",
                         "visit_date": vdate,

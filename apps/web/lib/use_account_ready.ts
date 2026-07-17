@@ -10,9 +10,12 @@ export type AccountReadyState =
   | { status: 'ready'; uid: string }
   | { status: 'timeout' };
 
-/** U6：账号就绪带超时与重试 */
+/** U6：账号就绪带超时与重试；离线优先用本地 ID，避免整页卡死。 */
 export function useAccountReady(timeoutMs = DEFAULT_TIMEOUT_MS): AccountReadyState & { retry: () => void } {
-  const [state, setState] = useState<AccountReadyState>({ status: 'loading' });
+  const [state, setState] = useState<AccountReadyState>(() => {
+    const uid = typeof window !== 'undefined' ? effectiveId() : '';
+    return uid ? { status: 'ready', uid } : { status: 'loading' };
+  });
   const [tick, setTick] = useState(0);
 
   const retry = useCallback(() => {
@@ -22,19 +25,36 @@ export function useAccountReady(timeoutMs = DEFAULT_TIMEOUT_MS): AccountReadySta
 
   useEffect(() => {
     let cancelled = false;
-    setState({ status: 'loading' });
+    const localUid = effectiveId();
+    const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    // 离线且本地已有 ID：立刻可用，不阻塞发现/消息页
+    if (offline && localUid) {
+      setState({ status: 'ready', uid: localUid });
+      return;
+    }
+
+    if (!localUid) setState({ status: 'loading' });
+
+    const finish = (uid: string | null) => {
+      if (cancelled) return;
+      if (uid) setState({ status: 'ready', uid });
+      else setState({ status: 'timeout' });
+    };
+
     const timer = window.setTimeout(() => {
-      if (!cancelled && !effectiveId()) setState({ status: 'timeout' });
+      finish(effectiveId() || null);
     }, timeoutMs);
 
-    void ensureAccountReady().then(() => {
-      if (cancelled) return;
-      const uid = effectiveId();
-      if (uid) {
+    void ensureAccountReady()
+      .then(() => {
         window.clearTimeout(timer);
-        setState({ status: 'ready', uid });
-      }
-    });
+        finish(effectiveId() || null);
+      })
+      .catch(() => {
+        window.clearTimeout(timer);
+        finish(effectiveId() || null);
+      });
 
     return () => {
       cancelled = true;

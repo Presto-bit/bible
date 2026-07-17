@@ -26,7 +26,7 @@ def record_visit(
         ip = _client_ip(request)
         if ip:
             device_id = f"ip:{ip}"
-    ok = record_daily_visit(user_id=user_id, device_id=device_id)
+    ok = record_daily_visit(user_id=user_id, device_id=device_id, user_code=code)
     return {
         "ok": ok,
         "day": china_today().isoformat(),

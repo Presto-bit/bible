@@ -12,7 +12,7 @@ from ..auth.session import resolve_user_id, try_get_current_user
 from ..config import get_settings
 from ..db import get_pool
 from .chat import prepare
-from .llm import stream_chat
+from .llm import StreamMeta, stream_chat
 from .parse_output import extract_sections, split_body_and_followups
 from .usage import consume_quota, peek_quota, record_ai_request
 from .request_log import log_ai_request
@@ -145,10 +145,34 @@ def chat(
         yield _sse("meta", {**prep["meta"], "quota": {"used": used, "limit": limit}})
         full = []
         scene = prep["meta"].get("scene")
+        messages = list(prep["messages"])
+        max_tokens = int(prep["max_tokens"])
         try:
-            for piece in stream_chat(prep["messages"], max_tokens=prep["max_tokens"]):
+            meta = StreamMeta()
+            for piece in stream_chat(messages, max_tokens=max_tokens, meta=meta):
                 full.append(piece)
                 yield _sse("delta", {"text": piece})
+            # 动态续写：max_tokens 触顶时再请求一次，避免概要等场景半截结束
+            if meta.finish_reason == "length" and full:
+                cont_budget = min(max(max_tokens // 2, 256), 800)
+                cont_msgs = messages + [
+                    {"role": "assistant", "content": "".join(full)},
+                    {
+                        "role": "user",
+                        "content": (
+                            "请从上文中断处继续写完剩余内容，不要重复已写部分，"
+                            "保持相同 Markdown 结构，自然收束。"
+                        ),
+                    },
+                ]
+                cont_meta = StreamMeta()
+                for piece in stream_chat(
+                    cont_msgs, max_tokens=cont_budget, meta=cont_meta,
+                ):
+                    full.append(piece)
+                    yield _sse("delta", {"text": piece})
+                if cont_meta.finish_reason:
+                    meta.finish_reason = cont_meta.finish_reason
         except Exception as exc:  # 上游/网络异常 → 友好错误事件
             logger.exception("ai chat stream failed")
             log_ai_request(

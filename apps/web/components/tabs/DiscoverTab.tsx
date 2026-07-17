@@ -132,7 +132,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   useEffect(() => {
     if (!paneActive || typeof window === 'undefined') return;
-    if (pathname !== '/discover') return;
+    // PWA keep-alive 用 pushState，Next pathname 可能仍是旧路由；以 paneActive 为准
+    const path = window.location.pathname.replace(/\/$/, '') || '/';
+    if (!path.endsWith('/discover')) return;
     const t = new URLSearchParams(window.location.search).get('tab');
     if (t === 'friends') {
       router.replace('/discover/contacts');
@@ -151,9 +153,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [plusOpen]);
 
   useEffect(() => {
-    if (!uid || !paneActive || pathname !== '/discover') return;
+    if (!uid || !paneActive || !online) return;
     void reload();
-  }, [uid, paneActive, pathname, reload]);
+  }, [uid, paneActive, online, reload]);
 
   useEffect(() => {
     if (!uid || !paneActive) return;
@@ -276,6 +278,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const searching = searchQ.trim().length > 0;
 
+  // 离线时与其它 Tab 一致：先出壳 + 离线提示，不因账号 ensure 挂起而整页打不开
+  if (!online && account.status === 'loading') {
+    return (
+      <main className="container discover-page discover-im">
+        <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
+        <div className="card card-2" style={{ marginTop: 12 }}>
+          <p className="muted" style={{ fontSize: 14 }}>消息列表需联网后加载。</p>
+        </div>
+      </main>
+    );
+  }
+
   if (account.status === 'loading') {
     return (
       <main className="container">
@@ -288,7 +302,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   if (account.status === 'timeout') {
     return (
-      <main className="container">
+      <main className="container discover-page discover-im">
+        {!online ? (
+          <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
+        ) : null}
         <div className="card card-2">
           <p>账号准备超时，请检查网络后重试。</p>
           <button type="button" className="btn" style={{ marginTop: 10 }} onClick={account.retry}>
