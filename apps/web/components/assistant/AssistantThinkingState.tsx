@@ -10,7 +10,7 @@ type Props = {
 
 const PHASE_LABEL: Record<ThinkingPhase, string> = {
   understanding: '正在理解你的问题…',
-  refs: '已找到经文参考，正在组织回答…',
+  refs: '已找到释经资料，正在组织回答…',
   writing: '正在组织回答…',
 };
 
@@ -18,7 +18,7 @@ const PHASE_LABEL: Record<ThinkingPhase, string> = {
 export function AssistantThinkingState({ phase, citeCount = 0, slow = false }: Props) {
   const label =
     phase === 'refs' && citeCount > 0
-      ? `已找到 ${citeCount} 处经文参考，正在组织回答…`
+      ? `已找到 ${citeCount} 条释经资料，正在组织回答…`
       : PHASE_LABEL[phase];
 
   return (

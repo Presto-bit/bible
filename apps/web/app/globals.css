@@ -5516,6 +5516,13 @@ body.assistant-keyboard.assistant-active .tabbar {
   max-width: 28em;
 }
 
+.assistant-rag-status {
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0 0 8px;
+  color: var(--muted, #64748b);
+}
+
 .assistant-empty-primary {
   margin-bottom: 12px;
   min-width: 180px;

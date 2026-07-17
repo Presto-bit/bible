@@ -438,45 +438,67 @@ class _EmptyHint extends StatelessWidget {
   final String anchor;
   final void Function(String text, {AssistantMode? mode, AssistantScene? scene})? onChip;
 
+  static const _demos = <(String label, String q, AssistantMode mode)>[
+    (
+      '约翰福音 3:16，传统注释怎么讲？',
+      '约翰福音 3:16 在传统释经资料里通常怎么解释？请尽量引用注释要点。',
+      AssistantMode.explain,
+    ),
+    (
+      '「爱」在原文是什么意思？',
+      '新约里「爱」常用的原文词（如 agape、phileo）有什么区别？请结合释经资料说明。',
+      AssistantMode.original,
+    ),
+    (
+      '这段经文的历史背景？',
+      '请介绍一段常见经文（如约翰福音 3 章）的历史与写作背景，并参考释经资料。',
+      AssistantMode.explain,
+    ),
+    (
+      '怎样用在今天的生活？',
+      '若今天读到「不要忧虑」（马太福音 6:25–34），释经与应用上可以怎么落到日常生活？',
+      AssistantMode.apply,
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
+    final hasAnchor = anchor.isNotEmpty && anchor != '未锚定经文';
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('带着经节锚点，继续深问',
+            const Text('一起把经文聊明白',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.inkSoft, fontSize: 13)),
+                style: TextStyle(
+                    color: AppColors.ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
-            Text('已预读 $anchor，点下面即秒回',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: AppColors.accentDeep, fontSize: 13)),
+            Text(
+              hasAnchor
+                  ? '已锚定 $anchor · 可结合释经资料回答，点下面试试'
+                  : '可结合释经资料回答；点下面试试，需要联网',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.inkSoft, fontSize: 13),
+            ),
             const SizedBox(height: 14),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               alignment: WrapAlignment.center,
-              children: [
-                _QuickPill(
-                  label: '问今天这段经文的背景',
-                  onTap: onChip == null
-                      ? null
-                      : () => onChip!(
-                          '请介绍今天这段经文的背景',
-                          mode: AssistantMode.explain),
-                ),
-                _QuickPill(
-                  label: '永生是什么意思？',
-                  onTap: onChip == null
-                      ? null
-                      : () => onChip!(
-                          '这节里的「永生」是什么意思？',
-                          mode: AssistantMode.explain),
-                ),
-              ],
+              children: _demos
+                  .map(
+                    (d) => _QuickPill(
+                      label: d.$1,
+                      onTap: onChip == null
+                          ? null
+                          : () => onChip!(d.$2, mode: d.$3),
+                    ),
+                  )
+                  .toList(),
             ),
           ],
         ),
@@ -671,7 +693,18 @@ class _Bubble extends StatelessWidget {
                     ? Text(displayText,
                         style: const TextStyle(
                             height: 1.7, fontSize: 15, color: AppColors.ink))
-                    : AnswerText(text: displayText)),
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!displayText.startsWith('⚠️'))
+                            _RagSourceStatus(
+                              count: turn.meta?.citations.length ?? 0,
+                              useRag: turn.meta?.useRag ??
+                                  !(turn.scene?.startsWith('summary_') ?? false),
+                            ),
+                          AnswerText(text: displayText),
+                        ],
+                      )),
           ),
           if (!isUser && (turn.meta?.citations.isNotEmpty ?? false))
             _Citations(citations: turn.meta!.citations),
@@ -734,6 +767,27 @@ class _ActionText extends StatelessWidget {
       onTap: onTap,
       child: Text(label,
           style: const TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+    );
+  }
+}
+
+class _RagSourceStatus extends StatelessWidget {
+  const _RagSourceStatus({required this.count, required this.useRag});
+  final int count;
+  final bool useRag;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!useRag) return const SizedBox.shrink();
+    final text = count > 0
+        ? '已参考 $count 条释经资料'
+        : '本次以圣经与通识作答 · 资料库暂无直接对应注释';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: const TextStyle(fontSize: 12, height: 1.4, color: AppColors.inkFaint),
+      ),
     );
   }
 }

@@ -51,6 +51,8 @@ import {
   AssistantThinkingState,
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
+import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
+import { ASSISTANT_EMPTY_DEMOS } from '@/lib/assistant_empty_demos';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -59,6 +61,8 @@ interface Msg {
   followups?: string[];
   scene?: string;
   sceneLabel?: string;
+  /** 本次是否走过 RAG；undefined 表示未知（旧会话） */
+  useRag?: boolean;
 }
 
 interface Session {
@@ -168,8 +172,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       return true;
     });
   }, [personalized, ref]);
-
-  const emptyPills = useMemo(() => composerChips.slice(0, 8), [composerChips]);
 
   const readerHref = useMemo(() => (ref ? readerHrefFromRef(ref) : null), [ref]);
 
@@ -665,6 +667,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     });
     let acc = '';
     let cites: Citation[] = [];
+    let useRag: boolean | undefined;
     let serverFollowups: string[] = [];
     let sceneLabel = SCENES[scene].label;
     let gotDelta = false;
@@ -679,6 +682,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           followups: serverFollowups,
           scene,
           sceneLabel,
+          useRag,
         };
         return copy;
       });
@@ -711,6 +715,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           }
           const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
           cites = localizeCitations(meta.citations || [], book || undefined);
+          if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
           if (meta.scene_label) sceneLabel = meta.scene_label;
           setStreamCiteCount(cites.length);
           setStreamPhase('refs');
@@ -1084,10 +1089,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   <p className="assistant-empty-scene-title">一起把经文聊明白</p>
                 </div>
                 <p className="muted assistant-empty-desc">
-                  查经文，解经义，基于资料的回答，需要联网
+                  可结合释经资料回答；点下面试试，需要联网
                 </p>
                 <div className="empty-pills">
-                  {emptyPills.map((c) => (
+                  {ASSISTANT_EMPTY_DEMOS.map((c) => (
                     <button
                       key={c.label}
                       type="button"
@@ -1095,9 +1100,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       disabled={busy}
                       onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
                     >
-                      {c.label === '今日默想' || c.label === '经文背景'
-                        ? '聊聊今日经文'
-                        : c.label}
+                      {c.label}
                     </button>
                   ))}
                 </div>
@@ -1141,6 +1144,19 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 {m.role === 'assistant' ? (
                   m.text ? (
                     <div className="assistant-answer">
+                      {!m.text.startsWith('⚠️') && (
+                        <RagSourceStatus
+                          count={
+                            usedCitations.length > 0
+                              ? usedCitations.length
+                              : (m.citations?.length ?? 0)
+                          }
+                          useRag={
+                            m.useRag
+                            ?? (m.scene?.startsWith('summary_') ? false : undefined)
+                          }
+                        />
+                      )}
                       <AnswerText
                         text={m.text}
                         streaming={isStreaming}

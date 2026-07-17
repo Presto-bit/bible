@@ -69,7 +69,7 @@ export function CitationBar({
         className={['citation-action-btn', className ?? 'msg-action'].filter(Boolean).join(' ')}
         onClick={openSheet}
       >
-        {compact ? `参考·${citations.length}` : `参考资料（${citations.length}）`}
+        {compact ? `释经·${citations.length}` : `释经资料（${citations.length}）`}
       </button>
     ) : (
       <button
@@ -77,7 +77,7 @@ export function CitationBar({
         className={['assistant-citations-toggle', 'citation-action-btn', className].filter(Boolean).join(' ')}
         onClick={openSheet}
       >
-        {compact ? `参考·${citations.length}` : `参考资料（${citations.length}）`}
+        {compact ? `释经·${citations.length}` : `释经资料（${citations.length}）`}
       </button>
     );
 
@@ -94,7 +94,7 @@ export function CitationBar({
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"
-              aria-label="参考资料"
+              aria-label="释经资料"
             >
               {detail ? (
                 <>
@@ -115,7 +115,7 @@ export function CitationBar({
               ) : (
                 <>
                   <div className="section-row" style={{ marginTop: 0 }}>
-                    <strong>参考资料（{citations.length}）</strong>
+                    <strong>释经资料（{citations.length}）</strong>
                     <button type="button" className="text-link" onClick={closeSheet}>
                       关闭
                     </button>

@@ -54,6 +54,7 @@ class ChatMeta {
     required this.quotaLimit,
     this.scene,
     this.sceneLabel,
+    this.useRag,
   });
 
   final String mode;
@@ -64,6 +65,7 @@ class ChatMeta {
   final int quotaLimit;
   final String? scene;
   final String? sceneLabel;
+  final bool? useRag;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -73,6 +75,7 @@ class ChatMeta {
       display: (j['display'] ?? '') as String,
       scene: j['scene'] as String?,
       sceneLabel: j['scene_label'] as String?,
+      useRag: j['use_rag'] is bool ? j['use_rag'] as bool : null,
       citations: ((j['citations'] ?? []) as List)
           .map((e) => Citation.fromJson(e as Map<String, dynamic>))
           .toList(),

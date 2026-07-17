@@ -24,6 +24,7 @@ import {
   AssistantThinkingState,
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
+import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
 
 function stripAnswer(raw: string): string {
   return bodyText(raw);
@@ -61,6 +62,7 @@ export default function XiaoAiSheet({
   const [expanded, setExpanded] = useState(true);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
   const [citations, setCitations] = useState<import('@/lib/api').Citation[]>([]);
+  const [useRag, setUseRag] = useState<boolean | undefined>(undefined);
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [streamCiteCount, setStreamCiteCount] = useState(0);
   const [slowHint, setSlowHint] = useState(false);
@@ -86,6 +88,7 @@ export default function XiaoAiSheet({
     setDone(false);
     setCopied(false);
     setCitations([]);
+    setUseRag(undefined);
     setStreamPhase('understanding');
     setStreamCiteCount(0);
     setSlowHint(false);
@@ -119,6 +122,7 @@ export default function XiaoAiSheet({
           const book = refLabel.replace(/\s*\d+.*$/, '').trim();
           cites = localizeCitations(meta.citations || [], book || undefined);
           setCitations(cites);
+          if (typeof meta.use_rag === 'boolean') setUseRag(meta.use_rag);
           setStreamCiteCount(cites.length);
           setStreamPhase('refs');
         },
@@ -251,6 +255,16 @@ export default function XiaoAiSheet({
             <div className="half-sheet-answer-body reader-ai-answer assistant-answer">
               {clean ? (
                 <>
+                  {!clean.startsWith('⚠️') && (
+                    <RagSourceStatus
+                      count={
+                        usedCitations.length > 0
+                          ? usedCitations.length
+                          : citations.length
+                      }
+                      useRag={useRag}
+                    />
+                  )}
                   {showCollapsed ? (
                     <>
                       <p className="xiaoai-summary-lead">{summary}</p>
