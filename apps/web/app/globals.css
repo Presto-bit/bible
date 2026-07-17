@@ -16471,6 +16471,45 @@ html.perf-lite .tabbar {
   color: var(--ink);
 }
 
+.thought-inline-composer {
+  margin-bottom: 12px;
+  padding: 14px;
+}
+
+.thought-inline-composer-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.thought-inline-input {
+  width: 100%;
+  min-height: 96px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.6;
+  resize: vertical;
+  background: var(--surface-sunken, var(--surface));
+  color: var(--ink);
+}
+
+.thought-inline-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.thought-inline-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 10px;
+}
+
 .settings-version-line {
   margin: 12px 0 0;
   font-size: 12px;

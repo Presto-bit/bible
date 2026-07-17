@@ -35,11 +35,21 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
   String _colorFilter = 'all';
   String? _thoughtGroup;
   VerseThoughtData? _thoughtDetail;
+  bool _creating = false;
+  final _draftCtl = TextEditingController();
+  final _draftFocus = FocusNode();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _autoSync());
+  }
+
+  @override
+  void dispose() {
+    _draftCtl.dispose();
+    _draftFocus.dispose();
+    super.dispose();
   }
 
   Future<void> _autoSync() async {
@@ -49,6 +59,39 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     try {
       await ref.read(syncControllerProvider.notifier).runSync();
     } catch (_) {}
+  }
+
+  void _openCreate() {
+    setState(() {
+      _tab = 0;
+      _thoughtGroup = null;
+      _thoughtDetail = null;
+      _creating = true;
+      _draftCtl.clear();
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _draftFocus.requestFocus();
+    });
+  }
+
+  Future<void> _saveCreate() async {
+    final body = _draftCtl.text.trim();
+    if (body.isEmpty) return;
+    await ref
+        .read(thoughtsRepoProvider)
+        .addThought(freeThoughtRef, body, shared: false);
+    if (!mounted) return;
+    setState(() {
+      _creating = false;
+      _draftCtl.clear();
+    });
+  }
+
+  void _cancelCreate() {
+    setState(() {
+      _creating = false;
+      _draftCtl.clear();
+    });
   }
 
   @override
@@ -74,16 +117,14 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                 },
               )
             : null,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: '新建想法',
+            onPressed: _openCreate,
+          ),
+        ],
       ),
-      floatingActionButton: _tab == 0 &&
-              _thoughtDetail == null &&
-              _thoughtGroup == null
-          ? FloatingActionButton(
-              backgroundColor: AppColors.accentDeep,
-              onPressed: () => _createThoughtSheet(context),
-              child: const Icon(Icons.add, color: Colors.white),
-            )
-          : null,
       body: Column(
         children: [
           Padding(
@@ -178,6 +219,67 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     );
   }
 
+  Widget _inlineComposer() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Row(
+            children: [
+              Text('私有',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.accentDeep)),
+              SizedBox(width: 8),
+              Text('随想',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _draftCtl,
+            focusNode: _draftFocus,
+            minLines: 3,
+            maxLines: 6,
+            decoration: InputDecoration(
+              hintText: '写下你的领受、疑问或祷告…',
+              filled: true,
+              fillColor: AppColors.surfaceSunken,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(onPressed: _cancelCreate, child: const Text('取消')),
+              const SizedBox(width: 4),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accentDeep),
+                onPressed:
+                    _draftCtl.text.trim().isEmpty ? null : _saveCreate,
+                child: const Text('保存'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildThoughts(List<VerseThoughtData> thoughts, String q) {
     final filtered = q.isEmpty
         ? thoughts
@@ -245,71 +347,73 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     if (_thoughtGroup != null) {
       final items =
           filtered.where((t) => _bookId(t.ref) == _thoughtGroup).toList();
-      if (items.isEmpty) {
-        return const _Empty(text: '该分组暂无想法。');
-      }
-      return ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
-        itemBuilder: (_, i) {
-          final t = items[i];
-          final preview = t.body.trim();
-          final isFree = t.ref == freeThoughtRef || t.ref.isEmpty;
-          return InkWell(
-            onTap: () => setState(() => _thoughtDetail = t),
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.line),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(isFree ? '随想' : formatGroupRefLabel(t.ref),
-                      style: const TextStyle(
-                          fontSize: 12, color: AppColors.inkFaint)),
-                  const SizedBox(height: 4),
-                  Text(
-                    preview.isEmpty
-                        ? '（空）'
-                        : (preview.length > 40
-                            ? '${preview.substring(0, 40)}…'
-                            : preview.split('\n').first),
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 14),
+      return Column(
+        children: [
+          if (_creating) _inlineComposer(),
+          Expanded(
+            child: items.isEmpty
+                ? const _Empty(text: '该分组暂无想法。')
+                : ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (_, i) {
+                      final t = items[i];
+                      final preview = t.body.trim();
+                      final isFree =
+                          t.ref == freeThoughtRef || t.ref.isEmpty;
+                      return InkWell(
+                        onTap: () => setState(() => _thoughtDetail = t),
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: AppColors.line),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(isFree ? '随想' : formatGroupRefLabel(t.ref),
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.inkFaint)),
+                              const SizedBox(height: 4),
+                              Text(
+                                preview.isEmpty
+                                    ? '（空）'
+                                    : (preview.length > 40
+                                        ? '${preview.substring(0, 40)}…'
+                                        : preview.split('\n').first),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  if (preview.length > 40) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      preview.length > 80
-                          ? '${preview.substring(0, 80)}…'
-                          : preview,
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.inkFaint,
-                          height: 1.4),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          );
-        },
+          ),
+        ],
       );
     }
 
-    if (filtered.isEmpty) {
+    if (filtered.isEmpty && !_creating) {
       return _Empty(
           text: q.isEmpty
-              ? '还没有想法。可点右下角 + 新建，或在小爱回答里存想法。'
+              ? '还没有想法。点右上角 + 新建，或在小爱回答里存想法。'
               : '没有匹配的想法。');
+    }
+
+    if (filtered.isEmpty && _creating) {
+      return ListView(
+        padding: const EdgeInsets.only(top: 0),
+        children: [_inlineComposer()],
+      );
     }
 
     final groups = <String, List<VerseThoughtData>>{};
@@ -325,51 +429,56 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
       });
 
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: keys.length,
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 16),
+      itemCount: keys.length + (_creating ? 1 : 0),
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, i) {
-        final bid = keys[i];
+        if (_creating && i == 0) return _inlineComposer();
+        final idx = _creating ? i - 1 : i;
+        final bid = keys[idx];
         final items = groups[bid]!;
         final preview = items.first.body.trim();
-        return InkWell(
-          onTap: () => setState(() => _thoughtGroup = bid),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.line),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(_bookLabel(bid),
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: InkWell(
+            onTap: () => setState(() => _thoughtGroup = bid),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(_bookLabel(bid),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 15)),
+                        const SizedBox(height: 4),
+                        Text(
+                          preview.isEmpty
+                              ? '查看想法'
+                              : (preview.length > 28
+                                  ? '${preview.substring(0, 28)}…'
+                                  : preview),
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 15)),
-                      const SizedBox(height: 4),
-                      Text(
-                        preview.isEmpty
-                            ? '查看想法'
-                            : (preview.length > 28
-                                ? '${preview.substring(0, 28)}…'
-                                : preview),
-                        style: const TextStyle(
-                            fontSize: 12, color: AppColors.inkFaint),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                              fontSize: 12, color: AppColors.inkFaint),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                Text('${items.length} ›',
-                    style: const TextStyle(
-                        color: AppColors.inkFaint, fontSize: 13)),
-              ],
+                  Text('${items.length} ›',
+                      style: const TextStyle(
+                          color: AppColors.inkFaint, fontSize: 13)),
+                ],
+              ),
             ),
           ),
         );
@@ -394,59 +503,6 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     ref.read(readerJumpProvider.notifier).jump(parsed.bookId, parsed.chapter);
     ref.read(navIndexProvider.notifier).set(1);
     Navigator.of(context).pop();
-  }
-
-  Future<void> _createThoughtSheet(BuildContext context) async {
-    final ctl = TextEditingController();
-    final ok = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('新建想法',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: ctl,
-              minLines: 4,
-              maxLines: 8,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: '写下你的领受、疑问或祷告…',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accentDeep),
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('保存'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (ok != true) return;
-    final body = ctl.text.trim();
-    if (body.isEmpty) return;
-    await ref
-        .read(thoughtsRepoProvider)
-        .addThought(freeThoughtRef, body, shared: false);
   }
 }
 

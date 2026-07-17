@@ -58,6 +58,7 @@ export default function NotesPage() {
   const [colorFilter, setColorFilter] = useState<string>(COLOR_FILTER_ALL);
   const [editingThought, setEditingThought] = useState<ThoughtRow | null>(null);
   const [creatingThought, setCreatingThought] = useState(false);
+  const [draftBody, setDraftBody] = useState('');
   const [highlightWrite, setHighlightWrite] = useState<null | { ref: string; body: string }>(null);
   const [thoughtGroup, setThoughtGroup] = useState<string | null>(null);
   const [thoughtDetail, setThoughtDetail] = useState<ThoughtRow | null>(null);
@@ -187,13 +188,46 @@ export default function NotesPage() {
     orange: '#e09a4a',
   };
 
-  const showCreateBtn = tab === 'thoughts' && !thoughtDetail && !thoughtGroup;
+  const openCreate = () => {
+    setTab('thoughts');
+    setThoughtGroup(null);
+    setThoughtDetail(null);
+    setCreatingThought(true);
+    setDraftBody('');
+  };
+
+  const cancelCreate = () => {
+    setCreatingThought(false);
+    setDraftBody('');
+  };
+
+  const saveCreate = () => {
+    const body = draftBody.trim();
+    if (!body) return;
+    addThought(FREE_THOUGHT_REF, body, 'private', { skipPublish: true });
+    setCreatingThought(false);
+    setDraftBody('');
+    refresh();
+  };
 
   return (
     <main className="container">
       <header className="page-head">
         <PageBackBar href="/profile" label="我的" />
         <h2 className="page-head-title">我的想法</h2>
+        <div className="page-head-actions">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="新建想法"
+            title="新建想法"
+            onClick={openCreate}
+          >
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <div className="search-bar" style={{ marginBottom: 12 }}>
@@ -251,15 +285,43 @@ export default function NotesPage() {
 
       {tab === 'thoughts' && (
         <>
-          {showCreateBtn && (
-            <button
-              type="button"
-              className="btn"
-              style={{ width: '100%', marginBottom: 12 }}
-              onClick={() => setCreatingThought(true)}
-            >
-              + 新建想法
-            </button>
+          {creatingThought && (
+            <div className="card card-2 thought-inline-composer">
+              <div className="thought-inline-composer-meta">
+                <span className="pill">私有</span>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  随想
+                </span>
+              </div>
+              <textarea
+                className="thought-inline-input"
+                placeholder="写下你的领受、疑问或祷告…"
+                value={draftBody}
+                rows={4}
+                autoFocus
+                onChange={(e) => setDraftBody(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    saveCreate();
+                  }
+                }}
+              />
+              <div className="thought-inline-actions">
+                <button type="button" className="text-link" onClick={cancelCreate}>
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ padding: '8px 16px', minHeight: 36 }}
+                  disabled={!draftBody.trim()}
+                  onClick={saveCreate}
+                >
+                  保存
+                </button>
+              </div>
+            </div>
           )}
           {thoughtDetail ? (
             <div className="card card-2" style={{ padding: 14 }}>
@@ -363,7 +425,7 @@ export default function NotesPage() {
             <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
               {query
                 ? '没有匹配的想法。'
-                : '还没有想法。可点上方新建，或在小爱回答里存想法。'}
+                : '还没有想法。点右上角 + 新建，或在小爱回答里存想法。'}
             </p>
           ) : (
             thoughtGroups.map((g) => (
@@ -449,21 +511,6 @@ export default function NotesPage() {
           body={shareTarget.body}
           kind="thought"
           onClose={() => setShareTarget(null)}
-        />
-      )}
-
-      {creatingThought && (
-        <ThoughtWriteSheet
-          refStr={FREE_THOUGHT_REF}
-          refLabel="随想"
-          mode="new"
-          initialVisibility="private"
-          onSave={(body, visibility) => {
-            addThought(FREE_THOUGHT_REF, body, visibility, { skipPublish: true });
-            setCreatingThought(false);
-            refresh();
-          }}
-          onClose={() => setCreatingThought(false)}
         />
       )}
 
