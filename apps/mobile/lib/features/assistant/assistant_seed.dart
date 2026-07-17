@@ -4,17 +4,22 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class AssistantSeed {
-  const AssistantSeed({this.ref, this.question});
+  const AssistantSeed({this.ref, this.question, this.knowledgeBaseId});
   final String? ref;
   final String? question;
+  final String? knowledgeBaseId;
 }
 
 class AssistantSeedNotifier extends Notifier<AssistantSeed?> {
   @override
   AssistantSeed? build() => null;
 
-  void open({String? ref, String? question}) {
-    state = AssistantSeed(ref: ref, question: question);
+  void open({String? ref, String? question, String? knowledgeBaseId}) {
+    state = AssistantSeed(
+      ref: ref,
+      question: question,
+      knowledgeBaseId: knowledgeBaseId,
+    );
   }
 
   void consume() => state = null;

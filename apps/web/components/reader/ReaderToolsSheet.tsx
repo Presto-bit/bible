@@ -8,6 +8,7 @@ import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import PageBackBar, { SheetCloseButton } from '@/components/PageBackBar';
 import { recordCrossrefOpen } from '@/lib/badge_events';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import { getSessionKnowledgeBaseId } from '@/lib/assistant_knowledge_base';
 
 type Tab = 'crossrefs' | 'guide';
 
@@ -49,7 +50,7 @@ export function ReaderToolsSheet({
             recordCrossrefOpen();
           }
         } else if (tab === 'guide') {
-          const d = await api.guide(refParam);
+          const d = await api.guide(refParam, getSessionKnowledgeBaseId());
           if (!cancelled) setGuide(d);
         }
       } catch (e) {
@@ -135,7 +136,10 @@ export function ReaderToolsSheet({
             )}
             {!loading && tab === 'guide' && guide && (
               <div className="reader-tools-list">
-                <p className="muted" style={{ fontSize: 12 }}>{guide.display}</p>
+                <p className="muted" style={{ fontSize: 12 }}>
+                  {guide.display}
+                  {guide.knowledge_base_name ? ` · ${guide.knowledge_base_name}` : ''}
+                </p>
                 {guide.passage && (
                   <p style={{ lineHeight: 1.6, marginBottom: 10 }}>{guide.passage}</p>
                 )}
@@ -145,6 +149,9 @@ export function ReaderToolsSheet({
                     <span className="muted">{c.snippet}</span>
                   </div>
                 ))}
+                {guide.cards.length === 0 && (
+                  <p className="muted">当前知识库暂无对应资料</p>
+                )}
               </div>
             )}
           </div>

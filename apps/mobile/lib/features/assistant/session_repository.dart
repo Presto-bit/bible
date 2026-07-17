@@ -77,8 +77,13 @@ class SessionRepository {
           sessionId: sid,
           role: role,
           content: content,
-          citationsJson:
-              jsonEncode(citations.map((c) => {'n': c.n, 'title': c.title}).toList()),
+          citationsJson: jsonEncode(citations
+              .map((c) => {
+                    'n': c.n,
+                    'title': c.title,
+                    if (c.snippet != null) 'snippet': c.snippet,
+                  })
+              .toList()),
           createdAtMs: now,
         ));
     // 触达会话使其排序靠前
@@ -99,7 +104,9 @@ final sessionsStreamProvider = StreamProvider<List<AiSession>>(
 List<Citation> citationsFromJson(String json) =>
     (jsonDecode(json) as List)
         .map((e) => Citation(
-            n: (e['n'] ?? 0) as int,
-            title: (e['title'] ?? '') as String,
-            score: 0))
+              n: (e['n'] ?? 0) as int,
+              title: (e['title'] ?? '') as String,
+              score: 0,
+              snippet: e['snippet'] as String?,
+            ))
         .toList();

@@ -1166,6 +1166,13 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                   else
                     AnswerText(
                         text: _cleanAnswer.isEmpty ? '暂无内容' : _cleanAnswer),
+                  if (!_busy &&
+                      _citations.isNotEmpty &&
+                      !_cleanAnswer.startsWith('⚠️'))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _HalfSheetCitations(citations: _citations),
+                    ),
           if (!_busy && _cleanAnswer.isNotEmpty && !_cleanAnswer.startsWith('⚠️'))
             const Padding(
               padding: EdgeInsets.only(top: 10),
@@ -1216,6 +1223,168 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HalfSheetCitations extends ConsumerWidget {
+  const _HalfSheetCitations({required this.citations});
+  final List<am.Citation> citations;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '已参考 ${citations.length} 条释经资料',
+          style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: citations
+              .map((c) => InkWell(
+                    onTap: () {
+                      ref.read(badgeStatsRecorderProvider).recordCitationClick();
+                      showModalBottomSheet<void>(
+                        context: context,
+                        isScrollControlled: true,
+                        showDragHandle: true,
+                        builder: (_) => _HalfSheetCitationDetail(citation: c),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.goldWash,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('[${c.n}] ${c.title}',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.gold)),
+                    ),
+                  ))
+              .toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _HalfSheetCitationDetail extends ConsumerStatefulWidget {
+  const _HalfSheetCitationDetail({required this.citation});
+  final am.Citation citation;
+
+  @override
+  ConsumerState<_HalfSheetCitationDetail> createState() =>
+      _HalfSheetCitationDetailState();
+}
+
+class _HalfSheetCitationDetailState
+    extends ConsumerState<_HalfSheetCitationDetail> {
+  String? _explain;
+  String? _err;
+  bool _loading = true;
+  bool _snipExpanded = false;
+  String _disclaimer =
+      '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final snip = widget.citation.snippet?.trim() ?? '';
+    if (snip.isEmpty) {
+      setState(() {
+        _loading = false;
+        _err = '暂无摘录内容';
+      });
+      return;
+    }
+    try {
+      final res = await ref.read(assistantRepoProvider).explainCitation(
+            snippet: snip,
+            title: widget.citation.title,
+          );
+      if (!mounted) return;
+      setState(() {
+        _explain = res.explainZh;
+        _disclaimer = res.disclaimer;
+        _err = res.error;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _err = '暂无法生成中文释义';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final snip = widget.citation.snippet?.trim() ?? '';
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('[${widget.citation.n}] ${widget.citation.title}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16)),
+              const SizedBox(height: 14),
+              const Text('中文释义',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+              const SizedBox(height: 6),
+              if (_loading)
+                const Text('正在生成释义…',
+                    style: TextStyle(color: AppColors.inkFaint))
+              else if ((_explain ?? '').isNotEmpty)
+                Text(_explain!, style: const TextStyle(height: 1.6, fontSize: 15))
+              else
+                Text(_err ?? '暂无法生成中文释义',
+                    style: const TextStyle(color: AppColors.inkFaint)),
+              const SizedBox(height: 14),
+              const Text('原文摘录',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+              const SizedBox(height: 6),
+              if (snip.isEmpty)
+                const Text('暂无摘录内容',
+                    style: TextStyle(color: AppColors.inkFaint))
+              else ...[
+                Text(
+                  snip,
+                  maxLines: _snipExpanded ? null : 5,
+                  overflow: _snipExpanded
+                      ? TextOverflow.visible
+                      : TextOverflow.ellipsis,
+                  style: const TextStyle(height: 1.55, fontSize: 14),
+                ),
+                if (snip.length > 180)
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _snipExpanded = !_snipExpanded),
+                    child: Text(_snipExpanded ? '收起' : '展开更多'),
+                  ),
+              ],
+              const SizedBox(height: 14),
+              Text(_disclaimer,
+                  style: const TextStyle(
+                      fontSize: 11, height: 1.45, color: AppColors.inkFaint)),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -753,6 +753,65 @@ export interface Citation {
   title: string;
   score: number;
   snippet?: string;
+  document_id?: string | null;
+}
+
+export interface KnowledgeBaseSummary {
+  id: string;
+  name: string;
+  description: string;
+  is_default: boolean;
+  kind: string;
+}
+
+export interface KnowledgeBaseDetail extends KnowledgeBaseSummary {
+  documents: {
+    id: string;
+    title: string;
+    source_type: string;
+    status: string;
+    created_at?: string | null;
+  }[];
+  document_count: number;
+}
+
+export interface CitationExplainResult {
+  title: string;
+  explain_zh: string;
+  snippet: string;
+  disclaimer: string;
+  cached?: boolean;
+  error?: string;
+  skipped?: boolean;
+  source_lang?: string;
+  snippet_hash?: string;
+}
+
+export async function listKnowledgeBases(): Promise<KnowledgeBaseSummary[]> {
+  const data = await getJson<{ items: KnowledgeBaseSummary[] }>('/ai/knowledge-bases');
+  return data.items ?? [];
+}
+
+export async function getKnowledgeBase(id: string): Promise<KnowledgeBaseDetail> {
+  return getJson<KnowledgeBaseDetail>(`/ai/knowledge-bases/${encodeURIComponent(id)}`);
+}
+
+export async function explainCitation(body: {
+  title?: string;
+  snippet: string;
+  force?: boolean;
+}): Promise<CitationExplainResult> {
+  const res = await fetch(`${API_BASE}/ai/citations/explain`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(body),
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`请求失败 ${res.status}`);
+  return res.json() as Promise<CitationExplainResult>;
 }
 
 export interface ChatHistoryTurn {
@@ -777,6 +836,7 @@ export interface ChatStreamBody {
   history?: ChatHistoryTurn[];
   surface?: string;
   reader_context?: ChatReaderContext;
+  knowledge_base_id?: string | null;
 }
 
 export interface ChatMetaPayload {
@@ -789,6 +849,8 @@ export interface ChatMetaPayload {
   wants_followups?: boolean;
   use_rag?: boolean;
   has_commentary?: boolean;
+  knowledge_base_id?: string;
+  knowledge_base_name?: string;
   quota?: { used: number; limit: number };
 }
 
@@ -1351,6 +1413,8 @@ export interface GuideResult {
   display: string;
   passage: string;
   cards: GuideCard[];
+  knowledge_base_id?: string;
+  knowledge_base_name?: string;
 }
 
 export const api = {
@@ -1413,8 +1477,11 @@ export const api = {
     getJson<{ ref: string; display: string; verses: Verse[] }>(
       `/bible/ref?ref=${encodeURIComponent(ref)}`,
     ),
-  guide: (ref: string) =>
-    getJson<GuideResult>(`/guide/passage?ref=${encodeURIComponent(ref)}`),
+  guide: (ref: string, knowledgeBaseId?: string | null) => {
+    const q = new URLSearchParams({ ref });
+    if (knowledgeBaseId) q.set('knowledge_base_id', knowledgeBaseId);
+    return getJson<GuideResult>(`/guide/passage?${q}`);
+  },
   // 内容
   plans: () => getJson<{ plans: PlanSummary[] }>('/content/plans'),
   planDetail: (planId: string) =>

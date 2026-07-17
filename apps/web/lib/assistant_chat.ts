@@ -12,6 +12,7 @@ export type AssistantStreamOpts = {
   history?: ChatHistoryTurn[];
   surface?: string;
   reader_context?: ChatReaderContext;
+  knowledge_base_id?: string | null;
   signal?: AbortSignal;
   onMeta?: (meta: {
     citations?: Citation[];
@@ -45,6 +46,7 @@ export async function runAssistantStream(opts: AssistantStreamOpts): Promise<Ass
       history: opts.history,
       surface: opts.surface,
       reader_context: opts.reader_context,
+      knowledge_base_id: opts.knowledge_base_id,
     },
     {
       onMeta: (meta) => {

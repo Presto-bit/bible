@@ -24,6 +24,7 @@ class AssistantRepository {
     List<ChatTurn> history = const [],
     String? conversationId,
     AssistantScene? scene,
+    String? knowledgeBaseId,
   }) async* {
     final resolved = scene ?? resolveScene(mode: mode.id);
     final body = <String, dynamic>{
@@ -34,6 +35,11 @@ class AssistantRepository {
     if (ref != null && ref.isNotEmpty) body['ref'] = ref;
     if (question != null && question.isNotEmpty) body['question'] = question;
     if (conversationId != null) body['conversation_id'] = conversationId;
+    if (knowledgeBaseId != null &&
+        knowledgeBaseId.isNotEmpty &&
+        knowledgeBaseId != 'platform') {
+      body['knowledge_base_id'] = knowledgeBaseId;
+    }
     if (history.isNotEmpty) {
       body['history'] = history
           .map((t) => {
@@ -140,6 +146,84 @@ class AssistantRepository {
         return null;
     }
   }
+
+  Future<List<KnowledgeBaseSummary>> listKnowledgeBases() async {
+    final res = await _dio.get<Map<String, dynamic>>('/ai/knowledge-bases');
+    final items = (res.data?['items'] as List?) ?? const [];
+    return items
+        .map((e) => KnowledgeBaseSummary.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> getKnowledgeBase(String id) async {
+    final res = await _dio.get<Map<String, dynamic>>(
+      '/ai/knowledge-bases/$id',
+    );
+    return res.data ?? const {};
+  }
+
+  Future<CitationExplain> explainCitation({
+    required String snippet,
+    String? title,
+  }) async {
+    final res = await _dio.post<Map<String, dynamic>>(
+      '/ai/citations/explain',
+      data: {
+        'snippet': snippet,
+        if (title != null && title.isNotEmpty) 'title': title,
+      },
+    );
+    return CitationExplain.fromJson(res.data ?? const {});
+  }
+}
+
+class KnowledgeBaseSummary {
+  KnowledgeBaseSummary({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.isDefault,
+    required this.kind,
+  });
+  final String id;
+  final String name;
+  final String description;
+  final bool isDefault;
+  final String kind;
+
+  factory KnowledgeBaseSummary.fromJson(Map<String, dynamic> j) =>
+      KnowledgeBaseSummary(
+        id: (j['id'] ?? '') as String,
+        name: (j['name'] ?? '') as String,
+        description: (j['description'] ?? '') as String,
+        isDefault: j['is_default'] == true,
+        kind: (j['kind'] ?? '') as String,
+      );
+}
+
+class CitationExplain {
+  CitationExplain({
+    required this.title,
+    required this.explainZh,
+    required this.snippet,
+    required this.disclaimer,
+    this.error,
+  });
+  final String title;
+  final String explainZh;
+  final String snippet;
+  final String disclaimer;
+  final String? error;
+
+  factory CitationExplain.fromJson(Map<String, dynamic> j) => CitationExplain(
+        title: (j['title'] ?? '') as String,
+        explainZh: (j['explain_zh'] ?? '') as String,
+        snippet: (j['snippet'] ?? '') as String,
+        disclaimer: (j['disclaimer'] ??
+                '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。')
+            as String,
+        error: j['error'] as String?,
+      );
 }
 
 final assistantRepoProvider = Provider<AssistantRepository>(

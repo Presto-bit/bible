@@ -14,8 +14,7 @@ from .scenes import NO_RAG_SURFACES, resolve_scene
 logger = logging.getLogger(__name__)
 
 SNIPPET_CHARS = 260
-MAX_CITATIONS = 4
-RAG_SOURCE_TYPES = ["commentary", "reference-en", "study-bible-zh", "commentary-zh"]
+MAX_CITATIONS = 3  # 正文脚标少而精（产品 P0）
 
 
 def _passage_text(ref) -> str:
@@ -62,9 +61,13 @@ def _retrieve_hits(
     book_name: str | None,
     book_id: str | None = None,
     chapter: int | None = None,
+    source_types: list[str] | None = None,
 ) -> list[dict]:
     if not query:
         return []
+    from .knowledge_bases import PLATFORM_SOURCE_TYPES
+
+    types = source_types or PLATFORM_SOURCE_TYPES
     try:
         return retrieve_for_passage(
             query,
@@ -72,7 +75,7 @@ def _retrieve_hits(
             book_id=book_id,
             chapter=chapter,
             top_k=MAX_CITATIONS,
-            source_types=RAG_SOURCE_TYPES,
+            source_types=types,
         )
     except Exception as exc:
         logger.warning("注释检索不可用，降级无脚注：%s", exc)
@@ -88,14 +91,19 @@ def prepare(
     history: list[dict] | None = None,
     surface: str | None = None,
     reader_context: dict | None = None,
+    knowledge_base_id: str | None = None,
 ) -> dict:
     """返回 {meta, messages, max_tokens}。"""
+    from .knowledge_bases import resolve_knowledge_base, source_types_for_kb
+
     ref = parse_ref(ref_raw) if ref_raw else None
     spec = resolve_scene(scene, mode, has_ref=ref is not None)
 
     passage_display = ref.display if ref else "（未指定经文）"
     passage_text = _passage_text(ref) if ref else ""
     effective_mode = spec.mode if spec.mode in MODES else DEFAULT_MODE
+    kb = resolve_knowledge_base(knowledge_base_id)
+    source_types = source_types_for_kb(kb["id"])
 
     use_rag = spec.use_rag and (surface or "") not in NO_RAG_SURFACES
 
@@ -107,6 +115,7 @@ def prepare(
             ref.book_name if ref else None,
             ref.book_id if ref else None,
             ref.chapter if ref else None,
+            source_types=source_types,
         )
     else:
         hits = []
@@ -117,6 +126,7 @@ def prepare(
                 "title": display_citation_title(h.get("title"), ref.book_name if ref else None),
                 "snippet": h["chunk_text"][:SNIPPET_CHARS].strip(),
                 "score": round(float(h["score"]), 4),
+                "document_id": h.get("document_id"),
             }
         )
 
@@ -143,12 +153,15 @@ def prepare(
         "surface": surface,
         "ref": ref.osis if ref else None,
         "display": passage_display,
+        "knowledge_base_id": kb["id"],
+        "knowledge_base_name": kb["name"],
         "citations": [
             {
                 "n": c["n"],
                 "title": c["title"],
                 "score": c["score"],
                 "snippet": c["snippet"],
+                "document_id": c.get("document_id"),
             }
             for c in citations
         ],

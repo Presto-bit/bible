@@ -25,6 +25,7 @@ import {
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
+import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowledge_base';
 
 function stripAnswer(raw: string): string {
   return bodyText(raw);
@@ -66,6 +67,8 @@ export default function XiaoAiSheet({
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [streamCiteCount, setStreamCiteCount] = useState(0);
   const [slowHint, setSlowHint] = useState(false);
+  const [kbId, setKbId] = useState(DEFAULT_KB_ID);
+  const [kbName, setKbName] = useState<string | undefined>();
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
   const fetchStartedRef = useRef(false);
@@ -92,6 +95,9 @@ export default function XiaoAiSheet({
     setStreamPhase('understanding');
     setStreamCiteCount(0);
     setSlowHint(false);
+    setKbName(undefined);
+    const sessionKb = getSessionKnowledgeBaseId();
+    setKbId(sessionKb);
     const { scene: s, refParam: ref, selectionText: sel, userQuestion: q } = lockedRef.current;
     // 经文正文已由 ref 在后端展开，避免重复粘贴长经文挤占输出 token
     const question = sel && sel.length <= 300 ? `${q}\n\n选中文本：${sel}` : q;
@@ -116,6 +122,7 @@ export default function XiaoAiSheet({
         mode: 'explain',
         scene: s,
         reader_context: buildAssistantReaderContext(),
+        knowledge_base_id: sessionKb !== DEFAULT_KB_ID ? sessionKb : undefined,
       },
       {
         onMeta: (meta) => {
@@ -123,6 +130,8 @@ export default function XiaoAiSheet({
           cites = localizeCitations(meta.citations || [], book || undefined);
           setCitations(cites);
           if (typeof meta.use_rag === 'boolean') setUseRag(meta.use_rag);
+          if (meta.knowledge_base_id) setKbId(meta.knowledge_base_id);
+          if (meta.knowledge_base_name) setKbName(meta.knowledge_base_name);
           setStreamCiteCount(cites.length);
           setStreamPhase('refs');
         },
@@ -263,6 +272,8 @@ export default function XiaoAiSheet({
                           : citations.length
                       }
                       useRag={useRag}
+                      knowledgeBaseId={kbId}
+                      knowledgeBaseName={kbName}
                     />
                   )}
                   {showCollapsed ? (

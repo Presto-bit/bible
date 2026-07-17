@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../app/app_shell.dart';
@@ -40,6 +41,9 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   ChatMeta? _lastMeta;
   String? _anchorRef;
   String? _sessionId;
+  String _knowledgeBaseId = 'platform';
+  String _knowledgeBaseName = '平台知识库';
+  List<KnowledgeBaseSummary> _kbs = const [];
 
   @override
   void initState() {
@@ -48,7 +52,24 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _bootstrap());
   }
 
+  Future<void> _loadKnowledgeBases() async {
+    try {
+      final list = await ref.read(assistantRepoProvider).listKnowledgeBases();
+      if (!mounted || list.isEmpty) return;
+      setState(() {
+        _kbs = list;
+        final match = list.where((k) => k.id == _knowledgeBaseId);
+        final cur = match.isNotEmpty
+            ? match.first
+            : list.firstWhere((k) => k.isDefault, orElse: () => list.first);
+        _knowledgeBaseId = cur.id;
+        _knowledgeBaseName = cur.name;
+      });
+    } catch (_) {/* ignore */}
+  }
+
   Future<void> _bootstrap() async {
+    await _loadKnowledgeBases();
     final repo = ref.read(sessionRepoProvider);
     final hasSeed = (widget.seedRef ?? '').isNotEmpty ||
         (widget.seedQuestion ?? '').isNotEmpty;
@@ -100,6 +121,53 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
       _anchorRef = null;
       _turns.clear();
       _lastMeta = null;
+      _knowledgeBaseId = 'platform';
+      _knowledgeBaseName = '平台知识库';
+    });
+  }
+
+  Future<void> _pickKnowledgeBase() async {
+    if (_kbs.isEmpty) await _loadKnowledgeBases();
+    if (!mounted) return;
+    final picked = await showModalBottomSheet<KnowledgeBaseSummary>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text('选择知识库',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              ),
+            ),
+            ..._kbs.map((kb) => ListTile(
+                  title: Text(kb.name),
+                  subtitle: Text(kb.description, maxLines: 2),
+                  trailing: kb.id == _knowledgeBaseId
+                      ? const Icon(Icons.check, color: AppColors.accentDeep)
+                      : null,
+                  onTap: () => Navigator.pop(ctx, kb),
+                )),
+            ListTile(
+              title: const Text('浏览知识库'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(ctx);
+                context.push('/knowledge-bases');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _knowledgeBaseId = picked.id;
+      _knowledgeBaseName = picked.name;
     });
   }
 
@@ -211,6 +279,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           mode: modeFromScene,
           scene: activeScene,
           history: history,
+          knowledgeBaseId: _knowledgeBaseId,
         );
 
     await for (final evt in stream) {
@@ -271,6 +340,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         _anchorRef = next.ref;
         _turns.clear();
         _lastMeta = null;
+        if ((next.knowledgeBaseId ?? '').isNotEmpty) {
+          _knowledgeBaseId = next.knowledgeBaseId!;
+          final match = _kbs.where((k) => k.id == _knowledgeBaseId);
+          if (match.isNotEmpty) {
+            _knowledgeBaseName = match.first.name;
+          }
+        }
       });
       if (next.question != null && next.question!.isNotEmpty) {
         await _send(seedQuestion: next.question);
@@ -397,6 +473,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                       chips: intentChips,
                       onChip: _quotaExhausted ? null : _sendChip,
                       onSend: () => _send(),
+                      knowledgeBaseLabel: _knowledgeBaseName,
+                      onPickKnowledgeBase: _quotaExhausted ? null : _pickKnowledgeBase,
                     ),
                   ],
                 ),
@@ -413,6 +491,10 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                     onFollowup: _quotaExhausted
                         ? null
                         : (q) => _sendChip(q, scene: AssistantScene.chatExplain),
+                    onSwitchToPlatform: () => setState(() {
+                      _knowledgeBaseId = 'platform';
+                      _knowledgeBaseName = '平台知识库';
+                    }),
                   ),
                 ),
               ),
@@ -424,6 +506,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                 chips: intentChips,
                 onChip: _quotaExhausted ? null : _sendChip,
                 onSend: () => _send(),
+                knowledgeBaseLabel: _knowledgeBaseName,
+                onPickKnowledgeBase: _quotaExhausted ? null : _pickKnowledgeBase,
               ),
             ],
           ],
@@ -654,10 +738,16 @@ class _SessionListSheet extends ConsumerWidget {
 
 
 class _Bubble extends StatelessWidget {
-  const _Bubble({required this.turn, this.streaming = false, this.onFollowup});
+  const _Bubble({
+    required this.turn,
+    this.streaming = false,
+    this.onFollowup,
+    this.onSwitchToPlatform,
+  });
   final ChatTurn turn;
   final bool streaming;
   final void Function(String question)? onFollowup;
+  final VoidCallback? onSwitchToPlatform;
 
   @override
   Widget build(BuildContext context) {
@@ -701,6 +791,9 @@ class _Bubble extends StatelessWidget {
                               count: turn.meta?.citations.length ?? 0,
                               useRag: turn.meta?.useRag ??
                                   !(turn.scene?.startsWith('summary_') ?? false),
+                              knowledgeBaseId: turn.meta?.knowledgeBaseId,
+                              knowledgeBaseName: turn.meta?.knowledgeBaseName,
+                              onSwitchToPlatform: onSwitchToPlatform,
                             ),
                           AnswerText(text: displayText),
                         ],
@@ -772,50 +865,208 @@ class _ActionText extends StatelessWidget {
 }
 
 class _RagSourceStatus extends StatelessWidget {
-  const _RagSourceStatus({required this.count, required this.useRag});
+  const _RagSourceStatus({
+    required this.count,
+    required this.useRag,
+    this.knowledgeBaseId,
+    this.knowledgeBaseName,
+    this.onSwitchToPlatform,
+  });
   final int count;
   final bool useRag;
+  final String? knowledgeBaseId;
+  final String? knowledgeBaseName;
+  final VoidCallback? onSwitchToPlatform;
 
   @override
   Widget build(BuildContext context) {
     if (!useRag) return const SizedBox.shrink();
+    final isTopic =
+        knowledgeBaseId != null && knowledgeBaseId != 'platform';
+    final kbSuffix =
+        isTopic && (knowledgeBaseName?.isNotEmpty ?? false)
+            ? ' · $knowledgeBaseName'
+            : '';
     final text = count > 0
-        ? '已参考 $count 条释经资料'
-        : '本次以圣经与通识作答 · 资料库暂无直接对应注释';
+        ? '已参考 $count 条释经资料$kbSuffix'
+        : '本次以圣经与通识作答 · 资料库暂无直接对应注释$kbSuffix';
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 12, height: 1.4, color: AppColors.inkFaint),
+      child: Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(
+            text,
+            style: const TextStyle(
+                fontSize: 12, height: 1.4, color: AppColors.inkFaint),
+          ),
+          if (count == 0 && isTopic && onSwitchToPlatform != null)
+            TextButton(
+              onPressed: onSwitchToPlatform,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('换回平台库', style: TextStyle(fontSize: 12)),
+            ),
+        ],
       ),
     );
   }
 }
 
-class _Citations extends StatelessWidget {
+class _Citations extends ConsumerWidget {
   const _Citations({required this.citations});
   final List<Citation> citations;
 
+  Future<void> _openDetail(BuildContext context, WidgetRef ref, Citation c) async {
+    ref.read(badgeStatsRecorderProvider).recordCitationClick();
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (ctx) => _CitationBilingualSheet(citation: c),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Padding(
       padding: const EdgeInsets.only(top: 6, left: 2),
       child: Wrap(
         spacing: 6,
         runSpacing: 6,
         children: citations
-            .map((c) => Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.goldWash,
-                    borderRadius: BorderRadius.circular(8),
+            .map((c) => InkWell(
+                  onTap: () => _openDetail(context, ref, c),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.goldWash,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('[${c.n}] ${c.title}',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.gold)),
                   ),
-                  child: Text('[${c.n}] ${c.title}',
-                      style: const TextStyle(
-                          fontSize: 11, color: AppColors.gold)),
                 ))
             .toList(),
+      ),
+    );
+  }
+}
+
+class _CitationBilingualSheet extends ConsumerStatefulWidget {
+  const _CitationBilingualSheet({required this.citation});
+  final Citation citation;
+
+  @override
+  ConsumerState<_CitationBilingualSheet> createState() =>
+      _CitationBilingualSheetState();
+}
+
+class _CitationBilingualSheetState
+    extends ConsumerState<_CitationBilingualSheet> {
+  String? _explain;
+  String? _err;
+  bool _loading = true;
+  bool _snipExpanded = false;
+  String _disclaimer =
+      '以下中文为便于阅读的释义，非官方译本；请以圣经与原文摘录为准。';
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final snip = widget.citation.snippet?.trim() ?? '';
+    if (snip.isEmpty) {
+      setState(() {
+        _loading = false;
+        _err = '暂无摘录内容';
+      });
+      return;
+    }
+    try {
+      final res = await ref.read(assistantRepoProvider).explainCitation(
+            snippet: snip,
+            title: widget.citation.title,
+          );
+      if (!mounted) return;
+      setState(() {
+        _explain = res.explainZh;
+        _disclaimer = res.disclaimer;
+        _err = res.error;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _err = '暂无法生成中文释义';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final snip = widget.citation.snippet?.trim() ?? '';
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('[${widget.citation.n}] ${widget.citation.title}',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 16)),
+              const SizedBox(height: 14),
+              const Text('中文释义',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+              const SizedBox(height: 6),
+              if (_loading)
+                const Text('正在生成释义…',
+                    style: TextStyle(color: AppColors.inkFaint))
+              else if ((_explain ?? '').isNotEmpty)
+                Text(_explain!, style: const TextStyle(height: 1.6, fontSize: 15))
+              else
+                Text(_err ?? '暂无法生成中文释义',
+                    style: const TextStyle(color: AppColors.inkFaint)),
+              const SizedBox(height: 14),
+              const Text('原文摘录',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+              const SizedBox(height: 6),
+              if (snip.isEmpty)
+                const Text('暂无摘录内容',
+                    style: TextStyle(color: AppColors.inkFaint))
+              else ...[
+                Text(
+                  snip,
+                  maxLines: _snipExpanded ? null : 5,
+                  overflow:
+                      _snipExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+                  style: const TextStyle(height: 1.55, fontSize: 14),
+                ),
+                if (snip.length > 180)
+                  TextButton(
+                    onPressed: () =>
+                        setState(() => _snipExpanded = !_snipExpanded),
+                    child: Text(_snipExpanded ? '收起' : '展开更多'),
+                  ),
+              ],
+              const SizedBox(height: 14),
+              Text(_disclaimer,
+                  style: const TextStyle(
+                      fontSize: 11, height: 1.45, color: AppColors.inkFaint)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -830,6 +1081,8 @@ class _Composer extends StatefulWidget {
     this.docked = true,
     this.chips = const [],
     this.onChip,
+    this.knowledgeBaseLabel,
+    this.onPickKnowledgeBase,
   });
   final TextEditingController controller;
   final bool streaming;
@@ -838,6 +1091,8 @@ class _Composer extends StatefulWidget {
   final VoidCallback onSend;
   final List<(String, AssistantMode, String)> chips;
   final void Function(String text, {AssistantMode? mode, AssistantScene? scene})? onChip;
+  final String? knowledgeBaseLabel;
+  final VoidCallback? onPickKnowledgeBase;
 
   @override
   State<_Composer> createState() => _ComposerState();
@@ -930,6 +1185,25 @@ class _ComposerState extends State<_Composer> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (widget.knowledgeBaseLabel != null)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  onPressed: widget.disabled || widget.onPickKnowledgeBase == null
+                      ? null
+                      : widget.onPickKnowledgeBase,
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    '📚 ${widget.knowledgeBaseLabel} ▾',
+                    style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                  ),
+                ),
+              ),
+            if (widget.knowledgeBaseLabel != null) const SizedBox(height: 6),
             if (chips.isNotEmpty)
               SizedBox(
                 height: 34,

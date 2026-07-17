@@ -52,6 +52,15 @@ import {
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
+import {
+  KnowledgeBasePicker,
+  DEFAULT_KB_ID,
+} from '@/components/assistant/KnowledgeBasePicker';
+import {
+  getSessionKnowledgeBaseId,
+  resetSessionKnowledgeBaseId,
+  setSessionKnowledgeBaseId,
+} from '@/lib/assistant_knowledge_base';
 import { ASSISTANT_EMPTY_DEMOS } from '@/lib/assistant_empty_demos';
 
 interface Msg {
@@ -63,6 +72,8 @@ interface Msg {
   sceneLabel?: string;
   /** 本次是否走过 RAG；undefined 表示未知（旧会话） */
   useRag?: boolean;
+  knowledgeBaseId?: string;
+  knowledgeBaseName?: string;
 }
 
 interface Session {
@@ -136,6 +147,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [streamCiteCount, setStreamCiteCount] = useState(0);
   const [aiQuota, setAiQuota] = useState<AiQuota | null>(null);
+  const [knowledgeBaseId, setKnowledgeBaseIdState] = useState(DEFAULT_KB_ID);
+  const setKnowledgeBaseId = (id: string) => {
+    setKnowledgeBaseIdState(id);
+    setSessionKnowledgeBaseId(id);
+  };
 
   useEffect(() => {
     if (!paneActive || currentUserId()) return;
@@ -668,6 +684,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let acc = '';
     let cites: Citation[] = [];
     let useRag: boolean | undefined;
+    let kbId = knowledgeBaseId;
+    let kbName: string | undefined;
     let serverFollowups: string[] = [];
     let sceneLabel = SCENES[scene].label;
     let gotDelta = false;
@@ -683,6 +701,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           scene,
           sceneLabel,
           useRag,
+          knowledgeBaseId: kbId,
+          knowledgeBaseName: kbName,
         };
         return copy;
       });
@@ -701,6 +721,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         history,
         surface,
         reader_context: buildAssistantReaderContext(),
+        knowledge_base_id: knowledgeBaseId !== DEFAULT_KB_ID ? knowledgeBaseId : undefined,
       },
       {
         onMeta: (meta) => {
@@ -717,6 +738,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           cites = localizeCitations(meta.citations || [], book || undefined);
           if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
           if (meta.scene_label) sceneLabel = meta.scene_label;
+          if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
+          if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
           setStreamCiteCount(cites.length);
           setStreamPhase('refs');
         },
@@ -772,7 +795,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     const legacyQ = searchParams.get('q');
     const autoSendParam = searchParams.get('auto_send') === '1';
     const refParam = searchParams.get('ref') || '';
+    const kbParam = searchParams.get('kb');
     const storedSessions = loadAssistantSessions() as Session[];
+
+    if (kbParam) {
+      setKnowledgeBaseId(kbParam);
+    } else {
+      setKnowledgeBaseIdState(getSessionKnowledgeBaseId());
+    }
 
     let refVal = refParam;
     let question: string | null = null;
@@ -878,7 +908,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       );
     }
 
-    if (sid || legacyQ || autoSendParam) {
+    if (sid || legacyQ || autoSendParam || kbParam) {
       router.replace('/assistant', { scroll: false });
     }
 
@@ -892,6 +922,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setMsgs([]);
     replaceComposerValue('');
     setRef('');
+    setKnowledgeBaseId(DEFAULT_KB_ID);
+    resetSessionKnowledgeBaseId();
     setHistoryOpen(false);
     clearAssistantDraft();
   };
@@ -949,6 +981,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             {c.label}
           </button>
         ))}
+      </div>
+      <div style={{ padding: '0 12px 4px' }}>
+        <KnowledgeBasePicker
+          value={knowledgeBaseId}
+          onChange={setKnowledgeBaseId}
+          disabled={busy}
+        />
       </div>
       <div className="assistant-compose">
         <div className="compose-input-wrap">
@@ -1155,6 +1194,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             m.useRag
                             ?? (m.scene?.startsWith('summary_') ? false : undefined)
                           }
+                          knowledgeBaseId={m.knowledgeBaseId}
+                          knowledgeBaseName={m.knowledgeBaseName}
+                          onSwitchToPlatform={() => setKnowledgeBaseId(DEFAULT_KB_ID)}
                         />
                       )}
                       <AnswerText

@@ -547,6 +547,15 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   </span>
                 </button>
                 <Link
+                  href="/knowledge-bases"
+                  className="card row-card"
+                  style={{ display: 'flex', marginTop: 8 }}
+                  onClick={openSettingsRoute}
+                >
+                  <span style={{ flex: 1 }}>知识库</span>
+                  <span className="muted">平台与专题 ›</span>
+                </Link>
+                <Link
                   href="/dictionary"
                   className="card row-card"
                   style={{ display: 'flex', marginTop: 8 }}

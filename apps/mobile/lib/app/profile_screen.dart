@@ -853,6 +853,10 @@ class _SettingsSheet extends ConsumerWidget {
                 Navigator.pop(context);
                 context.push('/profile/appearance');
               }),
+              _row('知识库', '平台与专题资料', onTap: () {
+                Navigator.pop(context);
+                context.push('/knowledge-bases');
+              }),
               _row('离线圣经', '下载 CNV 经包', onTap: () {
                 Navigator.pop(context);
                 showOfflineDownloadSheet(context, ref);

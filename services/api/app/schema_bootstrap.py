@@ -29,5 +29,11 @@ def bootstrap_schemas(pool) -> None:
         ensure_digest_due_schema()
     except Exception:
         logger.exception("bootstrap: push digest due schema failed")
+    try:
+        from .ai.citation_explain import ensure_explain_schema
+
+        ensure_explain_schema()
+    except Exception:
+        logger.exception("bootstrap: citation explain schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

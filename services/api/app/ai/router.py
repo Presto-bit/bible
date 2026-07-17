@@ -98,6 +98,73 @@ class ChatRequest(BaseModel):
     scope: str | None = None
     surface: str | None = None
     conversation_id: str | None = None
+    knowledge_base_id: str | None = None
+
+
+class CitationExplainRequest(BaseModel):
+    title: str | None = None
+    snippet: str
+    force: bool = False
+
+
+@router.get("/knowledge-bases")
+def knowledge_bases_list():
+    from .knowledge_bases import list_knowledge_bases
+
+    return {"items": list_knowledge_bases()}
+
+
+@router.get("/knowledge-bases/{kb_id}")
+def knowledge_base_detail(kb_id: str):
+    """知识库详情：元信息 + 已入库文档列表（浏览用）。"""
+    from .knowledge_bases import get_knowledge_base, source_types_for_kb
+
+    kb = get_knowledge_base(kb_id)
+    if not kb:
+        return JSONResponse(status_code=404, content={"error": "知识库不存在"})
+    types = source_types_for_kb(kb_id)
+    docs: list[dict] = []
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT id::text, title, source_type, status, created_at "
+                "FROM bible_documents WHERE source_type = ANY(%s) "
+                "ORDER BY title NULLS LAST, created_at DESC LIMIT 200",
+                (types,),
+            ).fetchall()
+            docs = [
+                {
+                    "id": r[0],
+                    "title": r[1],
+                    "source_type": r[2],
+                    "status": r[3],
+                    "created_at": r[4].isoformat() if r[4] else None,
+                }
+                for r in rows
+            ]
+    except Exception as exc:
+        logger.warning("knowledge base docs unavailable: %s", exc)
+    return {
+        "id": kb["id"],
+        "name": kb["name"],
+        "description": kb["description"],
+        "kind": kb["kind"],
+        "is_default": kb["is_default"],
+        "documents": docs,
+        "document_count": len(docs),
+    }
+
+
+@router.post("/citations/explain")
+def citations_explain(body: CitationExplainRequest):
+    from .citation_explain import explain_citation_snippet
+
+    return explain_citation_snippet(
+        title=body.title or "",
+        snippet=body.snippet,
+        force=body.force,
+    )
 
 
 def _sse(event: str, data: dict) -> str:
@@ -139,6 +206,7 @@ def chat(
         history=history,
         surface=body.surface,
         reader_context=body.reader_context,
+        knowledge_base_id=body.knowledge_base_id,
     )
 
     def gen():

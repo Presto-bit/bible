@@ -250,7 +250,7 @@ CREATE INDEX IF NOT EXISTS idx_bible_rag_chunks_meta ON bible_rag_chunks USING g
 
 ### Phase 3
 - pgvector 迁移
-- 用户上传私有资料库（登录后）
+- 用户上传私有资料库（登录后）——**产品暂缓**（`PRODUCT.md` §6.7.2：当前只做平台+专题库选库；我的库另议重启）
 
 ---
 

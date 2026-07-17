@@ -29,17 +29,20 @@ class Citation {
     required this.title,
     required this.score,
     this.snippet,
+    this.documentId,
   });
   final int n;
   final String title;
   final double score;
   final String? snippet;
+  final String? documentId;
 
   factory Citation.fromJson(Map<String, dynamic> j) => Citation(
         n: (j['n'] ?? 0) as int,
         title: (j['title'] ?? '') as String,
         score: ((j['score'] ?? 0) as num).toDouble(),
         snippet: j['snippet'] as String?,
+        documentId: j['document_id'] as String?,
       );
 }
 
@@ -55,6 +58,8 @@ class ChatMeta {
     this.scene,
     this.sceneLabel,
     this.useRag,
+    this.knowledgeBaseId,
+    this.knowledgeBaseName,
   });
 
   final String mode;
@@ -66,6 +71,8 @@ class ChatMeta {
   final String? scene;
   final String? sceneLabel;
   final bool? useRag;
+  final String? knowledgeBaseId;
+  final String? knowledgeBaseName;
 
   factory ChatMeta.fromJson(Map<String, dynamic> j) {
     final q = (j['quota'] ?? const {}) as Map<String, dynamic>;
@@ -76,6 +83,8 @@ class ChatMeta {
       scene: j['scene'] as String?,
       sceneLabel: j['scene_label'] as String?,
       useRag: j['use_rag'] is bool ? j['use_rag'] as bool : null,
+      knowledgeBaseId: j['knowledge_base_id'] as String?,
+      knowledgeBaseName: j['knowledge_base_name'] as String?,
       citations: ((j['citations'] ?? []) as List)
           .map((e) => Citation.fromJson(e as Map<String, dynamic>))
           .toList(),

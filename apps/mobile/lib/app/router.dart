@@ -26,6 +26,7 @@ import '../features/search/search_screen.dart';
 import '../features/bible/wrapped_screen.dart';
 import '../features/settings/appearance_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
+import '../features/assistant/knowledge_bases_screen.dart';
 import 'app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -129,6 +130,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/profile/appearance',
           builder: (context, state) => const AppearanceScreen()),
+      GoRoute(
+          path: '/knowledge-bases',
+          builder: (context, state) => const KnowledgeBasesScreen()),
+      GoRoute(
+        path: '/knowledge-bases/:id',
+        builder: (context, state) => KnowledgeBaseDetailScreen(
+          id: state.pathParameters['id']!,
+        ),
+      ),
       GoRoute(
         path: '/group/:id',
         builder: (context, state) =>

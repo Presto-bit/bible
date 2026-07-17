@@ -96,3 +96,40 @@ def stream_chat(
                 piece = _content_piece(delta) if isinstance(delta, dict) else ""
                 if piece:
                     yield piece
+
+
+def complete_chat(
+    messages: list[dict[str, str]],
+    *,
+    temperature: float = 0.3,
+    max_tokens: int = 300,
+    timeout_sec: float = 60.0,
+) -> str:
+    """非流式补全，返回完整正文。"""
+    s = get_settings()
+    if not s.deepseek_api_key:
+        raise RuntimeError("未配置 DEEPSEEK_API_KEY")
+    url = f"{s.deepseek_base_url.rstrip('/')}/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {s.deepseek_api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": s.deepseek_text_model,
+        "messages": messages,
+        "temperature": float(temperature),
+        "max_tokens": int(max_tokens),
+        "stream": False,
+    }
+    with httpx.Client(timeout=httpx.Timeout(timeout_sec, connect=10.0)) as client:
+        resp = client.post(url, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+    choices = data.get("choices") or []
+    if not choices:
+        return ""
+    msg = choices[0].get("message") or {}
+    content = msg.get("content")
+    if isinstance(content, str):
+        return content
+    return _content_piece({"content": content}) if content else ""

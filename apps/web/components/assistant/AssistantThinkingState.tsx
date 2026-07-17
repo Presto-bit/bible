@@ -10,16 +10,19 @@ type Props = {
 
 const PHASE_LABEL: Record<ThinkingPhase, string> = {
   understanding: '正在理解你的问题…',
-  refs: '已找到释经资料，正在组织回答…',
+  refs: '正在检索释经资料…',
   writing: '正在组织回答…',
 };
 
 /** 小爱等待首包输出时的占位（骨架 + 分阶段文案） */
 export function AssistantThinkingState({ phase, citeCount = 0, slow = false }: Props) {
-  const label =
-    phase === 'refs' && citeCount > 0
-      ? `已找到 ${citeCount} 条释经资料，正在组织回答…`
-      : PHASE_LABEL[phase];
+  let label = PHASE_LABEL[phase];
+  if (phase === 'refs') {
+    label =
+      citeCount > 0
+        ? `已找到 ${citeCount} 条释经资料，正在组织回答…`
+        : '资料库暂无直接对应注释，正在组织回答…';
+  }
 
   return (
     <div className="assistant-thinking" role="status" aria-live="polite">

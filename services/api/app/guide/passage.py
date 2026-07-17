@@ -13,7 +13,6 @@ from ..bible.refs import parse_ref
 from ..rag.retrieve import retrieve_for_passage
 
 SNIPPET_CHARS = 220
-RAG_SOURCE_TYPES = ["commentary", "reference-en", "study-bible-zh", "commentary-zh"]
 
 
 def _passage_text(ref) -> str:
@@ -28,11 +27,20 @@ def _passage_text(ref) -> str:
     return " ".join(v["text"] for v in verses).strip()
 
 
-def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
+def guide_for_passage(
+    raw_ref: str,
+    *,
+    top_k: int = 5,
+    knowledge_base_id: str | None = None,
+) -> dict:
+    from ..ai.knowledge_bases import resolve_knowledge_base, source_types_for_kb
+
     ref = parse_ref(raw_ref)
     if ref is None:
         return {"ok": False, "error": "无法解析经文引用", "ref": raw_ref}
 
+    kb = resolve_knowledge_base(knowledge_base_id)
+    source_types = source_types_for_kb(kb["id"])
     passage = _passage_text(ref)
     query = f"{ref.display} {passage}".strip()
 
@@ -43,7 +51,7 @@ def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
             book_id=ref.book_id,
             chapter=ref.chapter,
             top_k=top_k,
-            source_types=RAG_SOURCE_TYPES,
+            source_types=source_types,
         )
     except Exception:
         hits = []
@@ -52,6 +60,7 @@ def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
             "title": h.get("title"),
             "snippet": (h["chunk_text"][:SNIPPET_CHARS]).strip(),
             "score": round(float(h["score"]), 4),
+            "document_id": h.get("document_id"),
         }
         for h in hits
     ]
@@ -60,5 +69,7 @@ def guide_for_passage(raw_ref: str, *, top_k: int = 5) -> dict:
         "ref": ref.osis,
         "display": ref.display,
         "passage": passage,
+        "knowledge_base_id": kb["id"],
+        "knowledge_base_name": kb["name"],
         "cards": cards,
     }
