@@ -911,6 +911,8 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   @override
   void didUpdateWidget(covariant _VerseCard oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // 点赞请求进行中时，勿用父级可能过期的 initialLiked 盖掉本地态
+    if (_likeBusy) return;
     if (oldWidget.initialLiked != widget.initialLiked ||
         oldWidget.initialLikeCount != widget.initialLikeCount) {
       _liked = widget.initialLiked;
@@ -922,18 +924,27 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     if (_likeBusy || widget.day < 1) return;
     final prevLiked = _liked;
     final prevCount = _likeCount;
-    setState(() => _likeBusy = true);
+    final nextLiked = !prevLiked;
+    final nextCount = (prevCount + (nextLiked ? 1 : -1)).clamp(0, 1 << 30);
+    setState(() {
+      _likeBusy = true;
+      _liked = nextLiked;
+      _likeCount = nextCount;
+    });
     try {
       final dio = ref.read(dioProvider);
       final session = ref.read(sessionProvider);
       final prefs = ref.read(prefsProvider);
       final day = widget.day;
       final path = '/content/daily-verse/like?day=$day';
-      await dio.post(path);
-      final fresh = await dio.get('/content/daily-verse?day=$day');
-      final data = fresh.data as Map<String, dynamic>;
-      final liked = (data['liked'] ?? false) as bool;
-      final count = (data['likes_count'] ?? 0) as int;
+      final res = await dio.post(path);
+      final data = res.data is Map
+          ? Map<String, dynamic>.from(res.data as Map)
+          : <String, dynamic>{};
+      final liked = (data['liked'] is bool) ? data['liked'] as bool : nextLiked;
+      final count = (data['likes_count'] is num)
+          ? (data['likes_count'] as num).toInt()
+          : nextCount;
       await writeLocalDailyVerseLike(prefs, session, day, liked);
       if (!mounted) return;
       setState(() {

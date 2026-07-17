@@ -69,10 +69,19 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const [err, setErr] = useState<string | null>(null);
   const [dvLoading, setDvLoading] = useState(true);
 
-  const [liked, setLiked] = useState(false);
-  const [likeCount, setLikeCount] = useState(0);
+  const [liked, setLiked] = useState(() => {
+    const cached = readCachedDailyVerse();
+    if (typeof cached?.liked === 'boolean') return cached.liked;
+    if (cached?.day) return readLocalDailyVerseLike(cached.day) ?? false;
+    return false;
+  });
+  const [likeCount, setLikeCount] = useState(() => readCachedDailyVerse()?.likes_count ?? 0);
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
+  const likeBusyRef = useRef(false);
+  const bootstrapGenRef = useRef(0);
+  /** 点赞成功/失败后递增；bootstrap 若在点赞完成前发出则不得覆盖 liked */
+  const engagementGenRef = useRef(0);
   const [verseFull, setVerseFull] = useState(false);
   const [heroIllustration, setHeroIllustration] = useState<string | null>(() => {
     const cached = readCachedDailyVerse();
@@ -103,21 +112,27 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   }, []);
 
   const loadHomeBootstrap = useCallback(() => {
+    const gen = ++bootstrapGenRef.current;
+    const engagementAtStart = engagementGenRef.current;
     setDvLoading(true);
     setErr(null);
     setBootstrapReady(false);
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       const cached = readCachedDailyVerse();
       if (cached) {
+        if (gen !== bootstrapGenRef.current) return;
         setDv(cached);
         setDvLoading(false);
-        void applyHeroBCampaign(readCachedHeroBCampaign()).then(() => setBootstrapReady(true));
+        void applyHeroBCampaign(readCachedHeroBCampaign()).then(() => {
+          if (gen === bootstrapGenRef.current) setBootstrapReady(true);
+        });
         return;
       }
     }
     void ensureAccountReady()
       .then(() => api.homeBootstrap())
       .then(async (boot) => {
+        if (gen !== bootstrapGenRef.current) return;
         const v = boot.dailyVerse;
         const day = v.day ?? 0;
         const likedVal =
@@ -127,12 +142,19 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         const countVal = v.likes_count ?? 0;
         setDv(v);
         writeCachedDailyVerse(v);
-        setLiked(likedVal);
-        setLikeCount(countVal);
-        if (day) writeLocalDailyVerseLike(day, likedVal);
+        // 点赞进行中，或期间已有更新的点赞结果：勿用过期 engagement 覆盖
+        if (
+          !likeBusyRef.current
+          && engagementAtStart === engagementGenRef.current
+        ) {
+          setLiked(likedVal);
+          setLikeCount(countVal);
+          if (day) writeLocalDailyVerseLike(day, likedVal);
+        }
         await applyHeroBCampaign(boot.heroBCampaign);
       })
       .catch(async (e) => {
+        if (gen !== bootstrapGenRef.current) return;
         const cached = readCachedDailyVerse();
         if (cached) {
           setDv(cached);
@@ -145,6 +167,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         }
       })
       .finally(() => {
+        if (gen !== bootstrapGenRef.current) return;
         setDvLoading(false);
         setBootstrapReady(true);
       });
@@ -396,6 +419,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     const prevCount = likeCount;
     const nextLiked = !prevLiked;
     const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
+    likeBusyRef.current = true;
     setLikeBusy(true);
     setLikeErr(null);
     setLiked(nextLiked);
@@ -407,15 +431,26 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const syncedLiked = typeof r.liked === 'boolean' ? r.liked : nextLiked;
       const syncedCount =
         typeof r.likes_count === 'number' ? r.likes_count : nextCount;
+      engagementGenRef.current += 1;
       setLiked(syncedLiked);
       setLikeCount(syncedCount);
       writeLocalDailyVerseLike(verseDay, syncedLiked);
+      const snap = readCachedDailyVerse();
+      if (snap && snap.day === verseDay) {
+        writeCachedDailyVerse({
+          ...snap,
+          liked: syncedLiked,
+          likes_count: syncedCount,
+        });
+      }
     } catch (e) {
+      engagementGenRef.current += 1;
       setLiked(prevLiked);
       setLikeCount(prevCount);
       writeLocalDailyVerseLike(verseDay, prevLiked);
       setLikeErr(errorMessage(e, '暂时无法点赞，请稍后再试'));
     } finally {
+      likeBusyRef.current = false;
       setLikeBusy(false);
     }
   }, [likeBusy, dv, liked, likeCount]);
