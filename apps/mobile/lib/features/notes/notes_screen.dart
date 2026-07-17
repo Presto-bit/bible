@@ -21,6 +21,14 @@ import '../social/share_to_social_sheet.dart';
 /// 无经文关联的自定义想法。
 const freeThoughtRef = 'FREE';
 
+/// yyyy-MM-dd HH:mm:ss
+String formatDateTimeMs(int ms) {
+  if (ms <= 0) return '';
+  final d = DateTime.fromMillisecondsSinceEpoch(ms);
+  String p(int n) => n.toString().padLeft(2, '0');
+  return '${d.year}-${p(d.month)}-${p(d.day)} ${p(d.hour)}:${p(d.minute)}:${p(d.second)}';
+}
+
 class NotesScreen extends ConsumerStatefulWidget {
   const NotesScreen({super.key});
 
@@ -96,7 +104,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final highlights = ref.watch(highlightMapProvider);
+    final highlights = ref.watch(highlightListProvider);
     final thoughts = ref.watch(myThoughtsProvider);
     final q = _query.trim().toLowerCase();
 
@@ -150,7 +158,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
               index: _tab,
               labels: [
                 '想法${thoughts.isNotEmpty ? ' · ${thoughts.length}' : ''}',
-                '划线${highlights.maybeWhen(data: (m) => m.isNotEmpty ? ' · ${m.length}' : '', orElse: () => '')}',
+                '划线${highlights.maybeWhen(data: (l) => l.isNotEmpty ? ' · ${l.length}' : '', orElse: () => '')}',
               ],
               onChanged: (i) => setState(() {
                 _tab = i;
@@ -171,20 +179,20 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(child: Text('读取失败：$e')),
-                    data: (map) {
-                      var entries = map.entries.toList()
-                        ..sort((a, b) => a.key.compareTo(b.key));
+                    data: (list) {
+                      var rows = [...list]
+                        ..sort((a, b) => b.updatedAtMs.compareTo(a.updatedAtMs));
                       if (_colorFilter != 'all') {
-                        entries = entries
-                            .where((e) => e.value.color == _colorFilter)
+                        rows = rows
+                            .where((e) => e.color == _colorFilter)
                             .toList();
                       }
                       if (q.isNotEmpty) {
-                        entries = entries
-                            .where((e) => e.key.toLowerCase().contains(q))
+                        rows = rows
+                            .where((e) => e.ref.toLowerCase().contains(q))
                             .toList();
                       }
-                      if (entries.isEmpty) {
+                      if (rows.isEmpty) {
                         return _Empty(
                             text: q.isEmpty && _colorFilter == 'all'
                                 ? '还没有划线。阅读时选中经文选色即可标记。'
@@ -192,20 +200,21 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                       }
                       return ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: entries.length,
+                        itemCount: rows.length,
                         separatorBuilder: (_, __) =>
                             const SizedBox(height: 10),
                         itemBuilder: (_, i) {
-                          final e = entries[i];
+                          final e = rows[i];
                           return _HighlightCard(
-                            refStr: e.key,
-                            color: e.value.color,
-                            onOpen: () => _openRef(e.key),
+                            refStr: e.ref,
+                            color: e.color,
+                            timeLabel: formatDateTimeMs(e.updatedAtMs),
+                            onOpen: () => _openRef(e.ref),
                             onShare: () => showShareToSocialSheet(
                               context,
                               ref,
-                              refText: e.key,
-                              refLabel: formatGroupRefLabel(e.key),
+                              refText: e.ref,
+                              refLabel: formatGroupRefLabel(e.ref),
                               kind: 'verse',
                             ),
                           );
@@ -302,6 +311,12 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                     color: AppColors.gold,
                     fontWeight: FontWeight.w600,
                     fontSize: 13)),
+            if (formatDateTimeMs(t.createdAtMs).isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(formatDateTimeMs(t.createdAtMs),
+                  style: const TextStyle(
+                      fontSize: 11, color: AppColors.inkFaint)),
+            ],
             const SizedBox(height: 12),
             Expanded(
               child: SingleChildScrollView(
@@ -330,7 +345,20 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                 ),
                 TextButton(
                   onPressed: () async {
-                    await ref.read(thoughtsRepoProvider).deleteThought(t.id);
+                    final thought = t;
+                    await ref.read(thoughtsRepoProvider).deleteThought(thought.id);
+                    final remaining = ref
+                        .read(thoughtsRepoProvider)
+                        .listMine()
+                        .where((x) => x.ref == thought.ref)
+                        .length;
+                    if (remaining == 0 &&
+                        thought.ref.isNotEmpty &&
+                        thought.ref != freeThoughtRef) {
+                      await ref
+                          .read(markingsRepoProvider)
+                          .removeHighlight(thought.ref);
+                    }
                     setState(() => _thoughtDetail = null);
                   },
                   style: TextButton.styleFrom(
@@ -376,10 +404,25 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(isFree ? '随想' : formatGroupRefLabel(t.ref),
-                                  style: const TextStyle(
-                                      fontSize: 12,
-                                      color: AppColors.inkFaint)),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                        isFree
+                                            ? '随想'
+                                            : formatGroupRefLabel(t.ref),
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: AppColors.inkFaint)),
+                                  ),
+                                  if (formatDateTimeMs(t.createdAtMs)
+                                      .isNotEmpty)
+                                    Text(formatDateTimeMs(t.createdAtMs),
+                                        style: const TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.inkFaint)),
+                                ],
+                              ),
                               const SizedBox(height: 4),
                               Text(
                                 preview.isEmpty
@@ -471,6 +514,13 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        if (formatDateTimeMs(items.first.createdAtMs)
+                            .isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(formatDateTimeMs(items.first.createdAtMs),
+                              style: const TextStyle(
+                                  fontSize: 11, color: AppColors.inkFaint)),
+                        ],
                       ],
                     ),
                   ),
@@ -670,10 +720,12 @@ class _HighlightCard extends StatelessWidget {
     required this.refStr,
     required this.color,
     required this.onOpen,
+    this.timeLabel = '',
     this.onShare,
   });
   final String refStr;
   final String color;
+  final String timeLabel;
   final VoidCallback onOpen;
   final VoidCallback? onShare;
 
@@ -701,9 +753,19 @@ class _HighlightCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(markColorSemantics[color] ?? '划线',
-                    style: const TextStyle(
-                        fontSize: 11, color: AppColors.inkFaint)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(markColorSemantics[color] ?? '划线',
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.inkFaint)),
+                    ),
+                    if (timeLabel.isNotEmpty)
+                      Text(timeLabel,
+                          style: const TextStyle(
+                              fontSize: 11, color: AppColors.inkFaint)),
+                  ],
+                ),
                 Text(formatGroupRefLabel(refStr),
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: AppColors.ink)),

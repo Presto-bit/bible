@@ -1,8 +1,8 @@
 'use client';
 
+import { SheetCloseButton } from '@/components/PageBackBar';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { SheetCloseButton } from '@/components/PageBackBar';
 import { effectiveId } from '@/lib/api';
 import {
   isThoughtLiked,
@@ -13,6 +13,8 @@ import {
   visibilityLabel,
   type ThoughtRow,
 } from '@/lib/reader_thoughts';
+import { deleteThoughtAndClearMark } from '@/lib/thought_mark_cleanup';
+import { useConfirm } from '@/components/ui/ConfirmProvider';
 
 function timeLabel(ms: number) {
   const d = new Date(ms);
@@ -43,6 +45,7 @@ export default function ThoughtHubSheet({
   onWriteNew: () => void;
   onEdit: (thought: ThoughtRow) => void;
 }) {
+  const confirm = useConfirm();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -64,6 +67,18 @@ export default function ThoughtHubSheet({
     setThoughts(loadThoughts());
     onChanged?.();
   }, [loadThoughts, onChanged]);
+
+  const handleDelete = async (id: string) => {
+    const ok = await confirm({
+      title: '删除想法',
+      message: '确定删除这条想法？同节划线也会一并去掉。',
+      confirmLabel: '删除',
+      danger: true,
+    });
+    if (!ok) return;
+    deleteThoughtAndClearMark(id);
+    refresh();
+  };
 
   const sheet = (
     <div className="sheet-backdrop thought-hub-backdrop" onClick={onClose} onTouchMove={(e) => e.stopPropagation()}>
@@ -114,9 +129,19 @@ export default function ThoughtHubSheet({
                         {liked ? '♥' : '♡'} {t.likesCount}
                       </button>
                       {mine && (
-                        <button type="button" className="text-link" onClick={() => onEdit(t)}>
-                          编辑
-                        </button>
+                        <>
+                          <button type="button" className="text-link" onClick={() => onEdit(t)}>
+                            编辑
+                          </button>
+                          <button
+                            type="button"
+                            className="text-link"
+                            style={{ color: '#b1554a' }}
+                            onClick={() => void handleDelete(t.id)}
+                          >
+                            删除
+                          </button>
+                        </>
                       )}
                     </div>
                     <span className={`thought-vis-badge thought-vis-${t.visibility}`}>

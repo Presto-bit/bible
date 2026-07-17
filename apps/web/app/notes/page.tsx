@@ -13,11 +13,11 @@ import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import {
   addThought,
   listAllThoughts,
-  deleteThought,
   updateThought,
   visibilityLabel,
   type ThoughtRow,
 } from '@/lib/reader_thoughts';
+import { deleteThoughtAndClearMark } from '@/lib/thought_mark_cleanup';
 import { api, currentUserId, type BibleBook } from '@/lib/api';
 import { syncNow } from '@/lib/sync';
 import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
@@ -36,6 +36,15 @@ const FREE_THOUGHT_REF = 'FREE';
 type Tab = 'thoughts' | 'highlights';
 
 const COLOR_FILTER_ALL = 'all';
+
+/** yyyy-MM-dd HH:mm:ss */
+function formatDateTimeMs(ms: number): string {
+  if (!ms || ms <= 0) return '';
+  const d = new Date(ms);
+  if (Number.isNaN(d.getTime())) return '';
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
 
 function bookIdFromRef(ref: string): string {
   return (ref || '').split('.')[0] || 'FREE';
@@ -109,7 +118,7 @@ export default function NotesPage() {
       danger: true,
     });
     if (!ok) return;
-    deleteThought(id);
+    deleteThoughtAndClearMark(id);
     setThoughtDetail(null);
     refresh();
   };
@@ -333,7 +342,7 @@ export default function NotesPage() {
               >
                 ← 返回列表
               </button>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
                 <span className={`thought-vis-badge thought-vis-${thoughtDetail.visibility}`}>
                   {visibilityLabel(thoughtDetail.visibility)}
                 </span>
@@ -346,6 +355,11 @@ export default function NotesPage() {
                     {refLabel(thoughtDetail.ref)}
                   </span>
                 )}
+                {formatDateTimeMs(thoughtDetail.createdAtMs) ? (
+                  <span className="muted notes-item-time">
+                    {formatDateTimeMs(thoughtDetail.createdAtMs)}
+                  </span>
+                ) : null}
               </div>
               <p style={{ lineHeight: 1.65, marginBottom: 14 }}>{thoughtDetail.body}</p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
@@ -408,8 +422,15 @@ export default function NotesPage() {
                     className="card card-2 notes-drill-row"
                     onClick={() => setThoughtDetail(t)}
                   >
-                    <span className="muted" style={{ fontSize: 12 }}>
-                      {refLabel(t.ref)}
+                    <span className="notes-item-meta">
+                      <span className="muted" style={{ fontSize: 12 }}>
+                        {refLabel(t.ref)}
+                      </span>
+                      {formatDateTimeMs(t.createdAtMs) ? (
+                        <span className="muted notes-item-time">
+                          {formatDateTimeMs(t.createdAtMs)}
+                        </span>
+                      ) : null}
                     </span>
                     <strong className="notes-drill-title">
                       {t.body.trim().split(/\n/)[0].slice(0, 40) || '（空）'}
@@ -441,6 +462,11 @@ export default function NotesPage() {
                     {g.items[0]?.body.trim().slice(0, 28) || '查看想法'}
                     {(g.items[0]?.body.length || 0) > 28 ? '…' : ''}
                   </span>
+                  {formatDateTimeMs(g.items[0]?.createdAtMs || 0) ? (
+                    <span className="muted notes-item-time">
+                      {formatDateTimeMs(g.items[0]!.createdAtMs)}
+                    </span>
+                  ) : null}
                 </span>
                 <span className="muted">{g.items.length} ›</span>
               </button>
@@ -463,7 +489,7 @@ export default function NotesPage() {
               const note = noteForMarkRef(h.ref);
               return (
                 <div key={h.ref} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
                     <span
                       className="mark-color-dot-inline"
                       style={{ background: DOT_COLORS[h.color] }}
@@ -475,6 +501,11 @@ export default function NotesPage() {
                     <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
                       {formatMarkRefLabel(h.ref, bookNames)}
                     </span>
+                    {formatDateTimeMs(h.createdAt) ? (
+                      <span className="muted notes-item-time">
+                        {formatDateTimeMs(h.createdAt)}
+                      </span>
+                    ) : null}
                   </div>
                   {(h.notePreview || note?.body) && (
                     <p className="muted" style={{ margin: '0 0 8px', fontSize: 13, lineHeight: 1.5 }}>

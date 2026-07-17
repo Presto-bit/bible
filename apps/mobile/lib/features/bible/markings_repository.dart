@@ -31,6 +31,11 @@ final highlightMapProvider = StreamProvider<Map<String, HighlightMark>>((ref) {
   });
 });
 
+/// 划线列表（含时间），供「我的想法」划线 Tab。
+final highlightListProvider = StreamProvider<List<Highlight>>((ref) {
+  return ref.watch(dbProvider).watchHighlights();
+});
+
 final bookmarksProvider = StreamProvider<List<Bookmark>>(
   (ref) => ref.watch(dbProvider).watchBookmarks(),
 );
@@ -95,6 +100,21 @@ class MarkingsRepository {
     await _db.into(_db.bookmarks).insertOnConflictUpdate(b);
     await _sync.enqueueBookmark(b, isDelete: false);
     return true;
+  }
+
+  /// 删除指定经文划线（不切换，直接移除）。
+  Future<void> removeHighlight(String ref) async {
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final existing = await _db.highlightByRef(syncRef(ref));
+    if (existing == null || existing.deleted) return;
+    final tomb = existing.copyWith(
+      deleted: true,
+      version: existing.version + 1,
+      updatedAtMs: now,
+    );
+    await _db.into(_db.highlights).insertOnConflictUpdate(tomb);
+    await _sync.enqueueHighlight(tomb, isDelete: true);
+    await unbindMarkRef(_prefs, ref);
   }
 }
 

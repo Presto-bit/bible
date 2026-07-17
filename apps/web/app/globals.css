@@ -16510,6 +16510,21 @@ html.perf-lite .tabbar {
   margin-top: 10px;
 }
 
+.notes-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+}
+
+.notes-item-time {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .settings-version-line {
   margin: 12px 0 0;
   font-size: 12px;

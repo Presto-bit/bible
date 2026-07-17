@@ -45,6 +45,7 @@ import {
   prefetchChapterReaderBundle,
   prefetchReaderVicinityBundles,
 } from '@/lib/chapter_reader_bundle';
+import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import {
   addThought,
   getDefaultVisibility,
@@ -394,6 +395,13 @@ export default function ReaderView({
     setUnderlinesOn(getUnderlinesOn());
     setThoughtsOn(getThoughtsOn());
   }, [book.id, chapter]);
+
+  useEffect(() => {
+    return subscribeLocalDataChanged(() => {
+      setHighlightMap(getHighlightMap());
+      setThoughtRevision((n) => n + 1);
+    });
+  }, []);
 
   useEffect(() => {
     const onVis = () => {

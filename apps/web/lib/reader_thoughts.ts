@@ -2,6 +2,7 @@
 
 import { effectiveId, getDisplayName, getUserName } from './api';
 import { listNotes } from './notes';
+import { notifyLocalDataChanged } from './local_data_events';
 import { userLsGet, userLsSet, userLsRemove, userPrefixedGet, userPrefixedSet, userPrefixedRemove } from './user_storage';
 
 export type ThoughtVisibility = 'public' | 'friends' | 'private';
@@ -68,6 +69,7 @@ function readAll(): ThoughtRow[] {
 
 function writeAll(rows: ThoughtRow[]) {
   userLsSet(KEY, JSON.stringify(rows));
+  notifyLocalDataChanged('thoughts');
 }
 
 function migrateLegacyThoughts() {
