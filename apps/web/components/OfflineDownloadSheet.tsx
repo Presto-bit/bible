@@ -17,7 +17,6 @@ import {
   offlineDownloadLabel,
   subscribeOfflineDownload,
 } from '@/lib/offline_download_job';
-import { offlinePackStatus } from '@/lib/offline_bootstrap';
 import {
   deleteOfflineItemFiles,
   expectedItemBytes,
@@ -77,9 +76,7 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
     }
     setBusyId(null);
     setQueuedIds([]);
-    void offlinePackStatus().then((s) => {
-      setProgressLabel(s === 'loading' ? '正在后台下载经包…' : null);
-    });
+    setProgressLabel(null);
   }, []);
 
   useEffect(() => {

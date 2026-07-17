@@ -12,6 +12,7 @@ export type OfflinePackStatus = 'ready' | 'missing' | 'failed' | 'loading';
 
 export async function offlinePackStatus(): Promise<OfflinePackStatus> {
   if (await isOfflinePackReady()) return 'ready';
+  // 仅在「队列有任务」或「自动下载仍在进行」时视为 loading；已结束的 Promise 不得占坑
   if (isOfflineDownloadActive() || running) return 'loading';
   if (localStorage.getItem(FAIL_KEY)) return 'failed';
   return 'missing';
@@ -20,7 +21,7 @@ export async function offlinePackStatus(): Promise<OfflinePackStatus> {
 /** 后台下载；已安装或省流/弱网时跳过 */
 export function ensureOfflinePackAutoDownload(): Promise<void> {
   if (running) return running;
-  running = (async () => {
+  const job = (async () => {
     if (await isAutoBiblePackReady()) {
       localStorage.setItem(AUTO_KEY, '1');
       return;
@@ -38,6 +39,9 @@ export function ensureOfflinePackAutoDownload(): Promise<void> {
       localStorage.setItem(FAIL_KEY, String(Date.now()));
     }
   })();
+  running = job.finally(() => {
+    if (running === job) running = null;
+  });
   return running;
 }
 

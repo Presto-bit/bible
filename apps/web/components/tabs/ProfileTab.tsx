@@ -20,7 +20,6 @@ import {
   offlineDownloadLabel,
   subscribeOfflineDownload,
 } from '@/lib/offline_download_job';
-import { offlinePackStatus } from '@/lib/offline_bootstrap';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
 import AccountSettingsSection from '@/components/AccountSettingsSection';
@@ -140,25 +139,17 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setDownloadHint(null);
       return;
     }
-    let cancelled = false;
     const refreshHint = () => {
-      if (isOfflineDownloadActive()) {
-        const label = offlineDownloadLabel(getOfflineDownloadSnapshot());
-        if (!cancelled) setDownloadHint(label);
+      if (!isOfflineDownloadActive()) {
+        setDownloadHint(null);
         return;
       }
-      void offlinePackStatus().then((s) => {
-        if (cancelled) return;
-        setDownloadHint(s === 'loading' ? '正在后台下载…' : null);
-      });
+      setDownloadHint(offlineDownloadLabel(getOfflineDownloadSnapshot()));
     };
     refreshHint();
     const unsub = subscribeOfflineDownload(refreshHint);
-    const t = window.setInterval(refreshHint, 4000);
     return () => {
-      cancelled = true;
       unsub();
-      window.clearInterval(t);
     };
   }, [settingsOpen]);
 
