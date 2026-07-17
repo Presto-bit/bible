@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import {
+  api,
   currentUserId,
   effectiveId,
   ensureAccountReady,
@@ -12,6 +13,7 @@ import {
   hasPassword,
   logout,
 } from '@/lib/api';
+import { OFFICIAL_SUPPORT_USER_CODE } from '@/lib/official_support';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
 import AccountSettingsSection from '@/components/AccountSettingsSection';
@@ -55,7 +57,9 @@ const BIO_KEY = 'profile_bio';
 export default function ProfileTab({ paneActive = true }: { paneActive?: boolean }) {
   const confirm = useConfirm();
   const toast = useToast();
+  const router = useRouter();
   const [uid, setUid] = useState<string | null>(null);
+  const [helpBusy, setHelpBusy] = useState(false);
   const [gid, setGid] = useState<string>('');
   const [mins, setMins] = useState(0);
   const [idCopied, setIdCopied] = useState(false);
@@ -85,6 +89,23 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
   const openSettingsRoute = () => {
     markRouteNavigation();
+  };
+
+  const openHelpFeedback = async () => {
+    if (helpBusy) return;
+    setHelpBusy(true);
+    try {
+      await ensureAccountReady();
+      const dm = await api.openDm(OFFICIAL_SUPPORT_USER_CODE);
+      setSettingsOpen(false);
+      markRouteNavigation();
+      router.push(`/discover/dm/${dm.thread_id}`);
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      toast(detail.includes('自己') ? '不能联系自己' : detail || '暂时无法联系官方，请稍后重试');
+    } finally {
+      setHelpBusy(false);
+    }
   };
 
   const consumeProfileQueryFlag = (flag: string): boolean => {
@@ -521,6 +542,16 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   <span style={{ flex: 1 }}>数据来源与许可</span>
                   <span className="muted">›</span>
                 </Link>
+                <button
+                  type="button"
+                  className="card row-card"
+                  style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
+                  disabled={helpBusy}
+                  onClick={() => void openHelpFeedback()}
+                >
+                  <span style={{ flex: 1 }}>帮助与反馈</span>
+                  <span className="muted">{helpBusy ? '打开中…' : '官方客服 ›'}</span>
+                </button>
                 {!installedPwa ? (
                   <button
                     type="button"

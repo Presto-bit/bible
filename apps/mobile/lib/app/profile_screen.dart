@@ -29,6 +29,10 @@ import '../features/bible/markings_repository.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
 import '../core/user_storage.dart';
+import '../features/social/social_repository.dart';
+
+/// 官方客服账号（用户 ID），设置「帮助与反馈」直达私信。
+const kOfficialSupportUserCode = '70625146';
 
 final healthProvider = FutureProvider<bool>((ref) async {
   final Dio dio = ref.watch(dioProvider);
@@ -925,6 +929,22 @@ class _SettingsSheet extends ConsumerWidget {
               _InfoTile(label: '版本', value: '1.0.0 (P1)'),
               const SizedBox(height: 8),
               _InfoTile(label: '后端地址', value: AppConfig.baseUrl),
+              const SizedBox(height: 8),
+              _row('帮助与反馈', '官方客服', onTap: () async {
+                Navigator.pop(context);
+                try {
+                  final tid = await ref
+                      .read(socialRepositoryProvider)
+                      .openDm(kOfficialSupportUserCode);
+                  if (!context.mounted) return;
+                  context.push('/discover/dm/$tid');
+                } catch (_) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('暂时无法联系官方，请稍后重试')),
+                  );
+                }
+              }),
               const SizedBox(height: 8),
               OutlinedButton(
                 onPressed: () => ref.refresh(healthProvider),

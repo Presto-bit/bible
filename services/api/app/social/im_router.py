@@ -47,8 +47,108 @@ def _retention_cutoff() -> datetime:
     return datetime.now(timezone.utc) - _MSG_RETENTION
 
 
+# 官方客服账号（用户 ID / user_code），帮助与反馈可免好友私信
+OFFICIAL_SUPPORT_USER_CODE = "70625146"
+
+
 def _pair(a: str, b: str) -> tuple[str, str]:
     return (a, b) if a < b else (b, a)
+
+
+def _official_support_uuid() -> str:
+    return uuid_for_code(OFFICIAL_SUPPORT_USER_CODE)
+
+
+def _is_official_support_user_id(conn, user_id: str) -> bool:
+    """判断是否为官方客服账号（按稳定 UUID 或 accounts/user_profile 上的 user_code）。"""
+    uid = (user_id or "").strip()
+    if not uid:
+        return False
+    if uid == _official_support_uuid():
+        return True
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM accounts WHERE user_id = %s AND user_code = %s LIMIT 1",
+            (uid, OFFICIAL_SUPPORT_USER_CODE),
+        ).fetchone()
+        if row:
+            return True
+    except Exception:
+        pass
+    try:
+        row = conn.execute(
+            "SELECT 1 FROM user_profile WHERE user_id = %s AND user_code = %s LIMIT 1",
+            (uid, OFFICIAL_SUPPORT_USER_CODE),
+        ).fetchone()
+        if row:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _resolve_peer_user_id(conn, peer_key: str) -> str:
+    """将 peer 解析为 users.id：支持 UUID、8/10 位 user_code、handle。"""
+    key = (peer_key or "").strip()
+    if not key:
+        raise HTTPException(400, "无效的对方账号")
+    try:
+        uuid.UUID(key)
+        row = conn.execute("SELECT id FROM users WHERE id = %s", (key,)).fetchone()
+        if row:
+            return str(row[0])
+    except ValueError:
+        pass
+    code = pick_user_code(key)
+    if code:
+        for sql, args in (
+            ("SELECT user_id FROM accounts WHERE user_code = %s LIMIT 1", (code,)),
+            ("SELECT user_id FROM user_profile WHERE user_code = %s LIMIT 1", (code,)),
+        ):
+            try:
+                row = conn.execute(sql, args).fetchone()
+            except Exception:
+                row = None
+            if row and row[0]:
+                uid = str(row[0])
+                conn.execute(
+                    "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
+                    (uid,),
+                )
+                return uid
+        uid = uuid_for_code(code)
+        row = conn.execute("SELECT id FROM users WHERE id = %s", (uid,)).fetchone()
+        if row:
+            return str(row[0])
+        if code == OFFICIAL_SUPPORT_USER_CODE:
+            conn.execute(
+                "INSERT INTO users (id, display_name, handle) VALUES (%s, %s, %s) "
+                "ON CONFLICT (id) DO NOTHING",
+                (uid, "官方客服", "official"),
+            )
+            return uid
+        raise HTTPException(404, "用户不存在")
+    row = conn.execute(
+        "SELECT id FROM users WHERE handle = %s", (key,),
+    ).fetchone()
+    if row:
+        return str(row[0])
+    raise HTTPException(404, "用户不存在")
+
+
+def _require_dm_allowed(conn, user_id: str, peer_id: str) -> None:
+    """好友可私信；与官方客服任一方会话时免好友限制。"""
+    fr = conn.execute(
+        "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
+        (user_id, peer_id),
+    ).fetchone()
+    if fr:
+        return
+    if _is_official_support_user_id(conn, peer_id) or _is_official_support_user_id(
+        conn, user_id
+    ):
+        return
+    raise HTTPException(403, "仅好友可私信")
 
 
 def _display(conn, uid: str) -> str:
@@ -820,18 +920,14 @@ def _get_or_create_thread(conn, user_id: str, peer_id: str) -> str:
 
 @router.post("/dm/with/{peer_id}")
 def open_dm(peer_id: str, user_id: str = Depends(get_current_user)) -> dict:
-    peer_id = peer_id.strip()
-    if peer_id == user_id:
-        raise HTTPException(400, "不能与自己私信")
+    peer_key = peer_id.strip()
     pool = get_pool()
     with pool.connection() as conn:
         _ensure_im_tables(conn)
-        fr = conn.execute(
-            "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
-            (user_id, peer_id),
-        ).fetchone()
-        if not fr:
-            raise HTTPException(403, "仅好友可私信")
+        peer_id = _resolve_peer_user_id(conn, peer_key)
+        if peer_id == user_id:
+            raise HTTPException(400, "不能与自己私信")
+        _require_dm_allowed(conn, user_id, peer_id)
         tid = _get_or_create_thread(conn, user_id, peer_id)
         conn.commit()
     return {"thread_id": tid, "peer_user_id": peer_id}
@@ -1010,12 +1106,7 @@ def send_dm(
         if not t or user_id not in (str(t[0]), str(t[1])):
             raise HTTPException(404, "会话不存在")
         peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
-        fr = conn.execute(
-            "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
-            (user_id, peer),
-        ).fetchone()
-        if not fr:
-            raise HTTPException(403, "仅好友可私信")
+        _require_dm_allowed(conn, user_id, peer)
         row = conn.execute(
             "INSERT INTO direct_message (thread_id, sender_id, kind, body, ref, reply_to_id) "
             "VALUES (%s, %s, %s, %s, %s, %s) RETURNING id, created_at",
@@ -1500,12 +1591,7 @@ def send_dm_media(
         if not t or user_id not in (str(t[0]), str(t[1])):
             raise HTTPException(404, "会话不存在")
         peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
-        fr = conn.execute(
-            "SELECT 1 FROM friendship WHERE user_id = %s AND friend_id = %s",
-            (user_id, peer),
-        ).fetchone()
-        if not fr:
-            raise HTTPException(403, "仅好友可私信")
+        _require_dm_allowed(conn, user_id, peer)
         kind = "image" if (body.mime or "").startswith("image/") else "file"
         text = (body.body or "").strip() or None
         if text:
