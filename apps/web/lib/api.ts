@@ -170,7 +170,7 @@ async function refreshAccountStatus(_code?: string): Promise<void> {
     const d = await res.json();
     const code = (d.user_code as string) || effectiveId() || '';
     if (d.username && code) userLsSet(NAME_KEY, d.username, code);
-    applyAccountPhone(d.phone ?? null, code || undefined);
+    if (code) applyAccountPhone(d.phone ?? null, code);
     if (d.has_password) setHasPasswordCached(true);
     else if (!userLsGet(NAME_KEY, code)?.trim()) setHasPasswordCached(false);
     // 服务端已有用户名+密码时，视为引导完成
