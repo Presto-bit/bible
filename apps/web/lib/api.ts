@@ -756,15 +756,42 @@ export interface Citation {
   document_id?: string | null;
 }
 
+export interface KnowledgeBaseFolder {
+  id: string;
+  name: string;
+  description: string;
+  kind?: string;
+  document_count: number;
+  updated_at?: string | null;
+  documents?: {
+    id: string;
+    title: string;
+    source_type: string;
+    status: string;
+    created_at?: string | null;
+  }[];
+}
+
 export interface KnowledgeBaseSummary {
   id: string;
   name: string;
   description: string;
   is_default: boolean;
   kind: string;
+  document_count?: number;
+  updated_at?: string | null;
+}
+
+export interface KnowledgeBaseBrowsePlatform {
+  id: string;
+  name: string;
+  description: string;
+  folders: KnowledgeBaseFolder[];
+  document_count: number;
 }
 
 export interface KnowledgeBaseDetail extends KnowledgeBaseSummary {
+  folders?: KnowledgeBaseFolder[];
   documents: {
     id: string;
     title: string;
@@ -773,6 +800,7 @@ export interface KnowledgeBaseDetail extends KnowledgeBaseSummary {
     created_at?: string | null;
   }[];
   document_count: number;
+  updated_at?: string | null;
 }
 
 export interface CitationExplainResult {
@@ -790,6 +818,13 @@ export interface CitationExplainResult {
 export async function listKnowledgeBases(): Promise<KnowledgeBaseSummary[]> {
   const data = await getJson<{ items: KnowledgeBaseSummary[] }>('/ai/knowledge-bases');
   return data.items ?? [];
+}
+
+export async function browseKnowledgeBases(): Promise<{
+  items: KnowledgeBaseSummary[];
+  platform: KnowledgeBaseBrowsePlatform;
+}> {
+  return getJson('/ai/knowledge-bases');
 }
 
 export async function getKnowledgeBase(id: string): Promise<KnowledgeBaseDetail> {

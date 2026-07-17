@@ -1185,25 +1185,6 @@ class _ComposerState extends State<_Composer> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (widget.knowledgeBaseLabel != null)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  onPressed: widget.disabled || widget.onPickKnowledgeBase == null
-                      ? null
-                      : widget.onPickKnowledgeBase,
-                  style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  ),
-                  child: Text(
-                    '📚 ${widget.knowledgeBaseLabel} ▾',
-                    style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
-                  ),
-                ),
-              ),
-            if (widget.knowledgeBaseLabel != null) const SizedBox(height: 6),
             if (chips.isNotEmpty)
               SizedBox(
                 height: 34,
@@ -1238,7 +1219,7 @@ class _ComposerState extends State<_Composer> {
                     child: Container(
                       height: 44,
                       alignment: Alignment.center,
-                      padding: const EdgeInsets.only(right: 40),
+                      padding: const EdgeInsets.only(left: 40, right: 40),
                       decoration: BoxDecoration(
                         color: _recording
                             ? (_cancelArmed
@@ -1268,6 +1249,24 @@ class _ComposerState extends State<_Composer> {
                                         : AppColors.accentDeep)
                                     : AppColors.inkSoft),
                           ),
+                          if (widget.onPickKnowledgeBase != null)
+                            Positioned(
+                              left: -32,
+                              child: IconButton(
+                                tooltip: widget.knowledgeBaseLabel ?? '知识库',
+                                iconSize: 20,
+                                icon: Icon(
+                                  Icons.layers_outlined,
+                                  color: (widget.knowledgeBaseLabel != null &&
+                                          widget.knowledgeBaseLabel != '平台知识库')
+                                      ? AppColors.accentDeep
+                                      : AppColors.inkSoft,
+                                ),
+                                onPressed: widget.disabled
+                                    ? null
+                                    : widget.onPickKnowledgeBase,
+                              ),
+                            ),
                           Positioned(right: -32, child: _modeToggle()),
                         ],
                       ),
@@ -1286,7 +1285,7 @@ class _ComposerState extends State<_Composer> {
                       filled: true,
                       fillColor: AppColors.surface,
                       contentPadding:
-                          const EdgeInsets.fromLTRB(14, 10, 4, 10),
+                          const EdgeInsets.fromLTRB(4, 10, 4, 10),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(22),
                         borderSide: const BorderSide(color: AppColors.line),
@@ -1295,6 +1294,21 @@ class _ComposerState extends State<_Composer> {
                         borderRadius: BorderRadius.circular(22),
                         borderSide: const BorderSide(color: AppColors.line),
                       ),
+                      prefixIcon: widget.onPickKnowledgeBase == null
+                          ? null
+                          : IconButton(
+                              tooltip: widget.knowledgeBaseLabel ?? '知识库',
+                              icon: Icon(
+                                Icons.layers_outlined,
+                                color: (widget.knowledgeBaseLabel != null &&
+                                        widget.knowledgeBaseLabel != '平台知识库')
+                                    ? AppColors.accentDeep
+                                    : AppColors.inkSoft,
+                              ),
+                              onPressed: widget.disabled
+                                  ? null
+                                  : widget.onPickKnowledgeBase,
+                            ),
                       suffixIcon: _modeToggle(),
                       suffixIconConstraints:
                           const BoxConstraints(minWidth: 44, minHeight: 44),

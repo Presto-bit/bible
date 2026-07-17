@@ -109,50 +109,145 @@ class CitationExplainRequest(BaseModel):
 
 @router.get("/knowledge-bases")
 def knowledge_bases_list():
-    from .knowledge_bases import list_knowledge_bases
+    """选库列表 + 浏览用平台文件夹摘要。"""
+    from .knowledge_bases import list_knowledge_bases, list_topic_folders, PLATFORM_KB
 
-    return {"items": list_knowledge_bases()}
+    items = list_knowledge_bases()
+    folders = list_topic_folders()
+    # 附上各文件夹份数与最近更新
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            enriched = []
+            for f in folders:
+                from .knowledge_bases import source_types_for_kb
+
+                types = source_types_for_kb(f["id"])
+                row = conn.execute(
+                    "SELECT count(*), max(COALESCE(rag_index_at, created_at)) "
+                    "FROM bible_documents WHERE source_type = ANY(%s)",
+                    (types,),
+                ).fetchone()
+                enriched.append(
+                    {
+                        **f,
+                        "document_count": int(row[0] or 0) if row else 0,
+                        "updated_at": row[1].isoformat() if row and row[1] else None,
+                    }
+                )
+            folders = enriched
+    except Exception as exc:
+        logger.warning("knowledge base folder stats unavailable: %s", exc)
+        folders = [{**f, "document_count": 0, "updated_at": None} for f in folders]
+
+    return {
+        "items": items,
+        "platform": {
+            "id": PLATFORM_KB["id"],
+            "name": PLATFORM_KB["name"],
+            "description": PLATFORM_KB["description"],
+            "folders": folders,
+            "document_count": sum(int(f.get("document_count") or 0) for f in folders),
+        },
+    }
 
 
 @router.get("/knowledge-bases/{kb_id}")
 def knowledge_base_detail(kb_id: str):
-    """知识库详情：元信息 + 已入库文档列表（浏览用）。"""
-    from .knowledge_bases import get_knowledge_base, source_types_for_kb
+    """知识库详情：介绍 + 文件夹（平台）或资料列表（专题）。"""
+    from .knowledge_bases import (
+        get_knowledge_base,
+        list_topic_folders,
+        source_types_for_kb,
+    )
 
     kb = get_knowledge_base(kb_id)
     if not kb:
         return JSONResponse(status_code=404, content={"error": "知识库不存在"})
     types = source_types_for_kb(kb_id)
     docs: list[dict] = []
+    folders: list[dict] = []
+    updated_at = None
     try:
         pool = get_pool()
         with pool.connection() as conn:
-            rows = conn.execute(
-                "SELECT id::text, title, source_type, status, created_at "
-                "FROM bible_documents WHERE source_type = ANY(%s) "
-                "ORDER BY title NULLS LAST, created_at DESC LIMIT 200",
-                (types,),
-            ).fetchall()
-            docs = [
-                {
-                    "id": r[0],
-                    "title": r[1],
-                    "source_type": r[2],
-                    "status": r[3],
-                    "created_at": r[4].isoformat() if r[4] else None,
-                }
-                for r in rows
-            ]
+            if kb["kind"] == "platform":
+                for f in list_topic_folders():
+                    ftypes = source_types_for_kb(f["id"])
+                    row = conn.execute(
+                        "SELECT count(*), max(COALESCE(rag_index_at, created_at)) "
+                        "FROM bible_documents WHERE source_type = ANY(%s)",
+                        (ftypes,),
+                    ).fetchone()
+                    folders.append(
+                        {
+                            **f,
+                            "document_count": int(row[0] or 0) if row else 0,
+                            "updated_at": (
+                                row[1].isoformat() if row and row[1] else None
+                            ),
+                        }
+                    )
+                if folders:
+                    # 取各文件夹最新时间
+                    stamps = [f["updated_at"] for f in folders if f.get("updated_at")]
+                    updated_at = max(stamps) if stamps else None
+            else:
+                # 专题：按标题归入同一文件夹（同名资料合并）
+                rows = conn.execute(
+                    "SELECT id::text, title, source_type, status, "
+                    "COALESCE(rag_index_at, created_at) AS touched_at "
+                    "FROM bible_documents WHERE source_type = ANY(%s) "
+                    "ORDER BY title NULLS LAST, touched_at DESC NULLS LAST "
+                    "LIMIT 500",
+                    (types,),
+                ).fetchall()
+                by_title: dict[str, list] = {}
+                for r in rows:
+                    title = (r[1] or "未命名资料").strip() or "未命名资料"
+                    by_title.setdefault(title, []).append(
+                        {
+                            "id": r[0],
+                            "title": title,
+                            "source_type": r[2],
+                            "status": r[3],
+                            "created_at": r[4].isoformat() if r[4] else None,
+                        }
+                    )
+                for title, items in by_title.items():
+                    stamps = [i["created_at"] for i in items if i.get("created_at")]
+                    folders.append(
+                        {
+                            "id": items[0]["id"],
+                            "name": title,
+                            "description": "",
+                            "kind": "doc-folder",
+                            "document_count": len(items),
+                            "updated_at": max(stamps) if stamps else None,
+                            "documents": items,
+                        }
+                    )
+                docs = [d for items in by_title.values() for d in items]
+                stamps = [d["created_at"] for d in docs if d.get("created_at")]
+                updated_at = max(stamps) if stamps else None
     except Exception as exc:
         logger.warning("knowledge base docs unavailable: %s", exc)
+
+    doc_count = (
+        sum(int(f.get("document_count") or 0) for f in folders)
+        if folders
+        else len(docs)
+    )
     return {
         "id": kb["id"],
         "name": kb["name"],
         "description": kb["description"],
         "kind": kb["kind"],
         "is_default": kb["is_default"],
+        "folders": folders,
         "documents": docs,
-        "document_count": len(docs),
+        "document_count": doc_count,
+        "updated_at": updated_at,
     }
 
 

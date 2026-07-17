@@ -155,6 +155,11 @@ class AssistantRepository {
         .toList();
   }
 
+  Future<Map<String, dynamic>> browseKnowledgeBases() async {
+    final res = await _dio.get<Map<String, dynamic>>('/ai/knowledge-bases');
+    return res.data ?? const {};
+  }
+
   Future<Map<String, dynamic>> getKnowledgeBase(String id) async {
     final res = await _dio.get<Map<String, dynamic>>(
       '/ai/knowledge-bases/$id',

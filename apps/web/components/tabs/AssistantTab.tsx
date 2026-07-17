@@ -982,15 +982,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           </button>
         ))}
       </div>
-      <div style={{ padding: '0 12px 4px' }}>
-        <KnowledgeBasePicker
-          value={knowledgeBaseId}
-          onChange={setKnowledgeBaseId}
-          disabled={busy}
-        />
-      </div>
       <div className="assistant-compose">
         <div className="compose-input-wrap">
+          <KnowledgeBasePicker
+            value={knowledgeBaseId}
+            onChange={setKnowledgeBaseId}
+            disabled={busy}
+            variant="embed"
+          />
           {voiceMode ? (
             <button
               type="button"

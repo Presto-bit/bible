@@ -6976,7 +6976,7 @@ body.verse-full-open .tabbar {
   box-sizing: border-box;
   border: 1px solid var(--line);
   border-radius: 20px;
-  padding: 10px 76px 10px 16px;
+  padding: 10px 76px 10px 44px;
   background: var(--surface);
   font-size: var(--assistant-answer-font-size);
   color: var(--ink);
@@ -6989,6 +6989,44 @@ body.verse-full-open .tabbar {
   max-height: 128px;
   line-height: 1.45;
   font-family: inherit;
+}
+
+/* 输入框内左侧：知识库选源图标 */
+.kb-picker-embed {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
+.compose-kb-inner {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft, #8a8a8a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.compose-kb-inner.is-active {
+  color: var(--accent-deep);
+  background: var(--accent-wash, rgba(180, 140, 80, 0.12));
+}
+
+.compose-kb-inner:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.kb-picker-embed .kb-picker-menu {
+  left: 0;
+  right: auto;
 }
 
 /* 输入框内右侧的「键盘/语音」切换按钮 */
@@ -7043,6 +7081,7 @@ body.verse-full-open .tabbar {
   background: var(--surface);
   color: var(--ink);
   font-size: 14px;
+  padding-left: 44px;
   padding-right: 40px;
   user-select: none;
   touch-action: none;
