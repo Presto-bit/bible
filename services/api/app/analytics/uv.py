@@ -211,6 +211,30 @@ def ensure_uv_schema(conn) -> None:
         _schema_ready = True
 
 
+def _lookup_bound_user_code(conn, device_fingerprint: str) -> str | None:
+    """仅有设备指纹时，从 device_user_bindings 回填 user_code。"""
+    try:
+        row = conn.execute(
+            """
+            SELECT user_code FROM device_user_bindings
+            WHERE device_fingerprint = %s
+            LIMIT 1
+            """,
+            (device_fingerprint,),
+        ).fetchone()
+        code = (row[0] if row else None) or None
+        if code and str(code).strip():
+            return str(code).strip()
+        return None
+    except Exception as exc:
+        logger.warning("UV 设备绑定 user_code 查询失败（已忽略）：%s", exc)
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+        return None
+
+
 def _lookup_bound_user_id(conn, device_fingerprint: str) -> str | None:
     try:
         row = conn.execute(
@@ -223,7 +247,16 @@ def _lookup_bound_user_id(conn, device_fingerprint: str) -> str | None:
             """,
             (device_fingerprint,),
         ).fetchone()
-        return row[0] if row else None
+        if row and row[0]:
+            return row[0]
+        # 有绑定码但尚无 accounts 行时，用确定性 UUID（与 auth 一致）
+        code = _lookup_bound_user_code(conn, device_fingerprint)
+        if code:
+            from ..auth.user_code import is_user_code, uuid_for_code
+
+            if is_user_code(code):
+                return uuid_for_code(code)
+        return None
     except Exception as exc:
         logger.warning("UV 设备绑定查询失败（已忽略）：%s", exc)
         try:
@@ -402,7 +435,18 @@ def record_daily_visit(
                         pass
 
             if _has_uv_v2(conn):
+                # 请求只带设备头、未带用户码时：从设备绑定回填，避免计成「游客设备」
+                if not code:
+                    code = _lookup_bound_user_code(conn, fingerprint)
                 effective_user_id = user_id
+                if not effective_user_id and code:
+                    try:
+                        from ..auth.user_code import is_user_code, uuid_for_code
+
+                        if is_user_code(code):
+                            effective_user_id = uuid_for_code(code)
+                    except Exception:
+                        effective_user_id = None
                 if not effective_user_id:
                     effective_user_id = _lookup_bound_user_id(conn, fingerprint)
                 if effective_user_id:

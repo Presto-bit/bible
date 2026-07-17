@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 
 import '../../core/device_id.dart';
 import '../../core/session.dart';
+import '../../core/user_code.dart';
 import '../../core/user_storage.dart';
 
 class AuthApi {
@@ -19,8 +20,15 @@ class AuthApi {
   static const _kOnboarded = 'account_onboarded';
 
   Map<String, String> _deviceHeaders() {
-    final code = _session.effectiveUserCode;
     final device = _session.deviceFingerprint;
+    var code = _session.effectiveUserCode;
+    if (code.isEmpty &&
+        device.isNotEmpty &&
+        !device.startsWith('dev-') &&
+        !device.startsWith('ip:')) {
+      final derived = UserCode.deviceIdToUserCode(device);
+      if (UserCode.isUserCode(derived)) code = derived;
+    }
     return {
       if (device.isNotEmpty) 'X-Guest-Id': device,
       if (device.isNotEmpty) 'X-Device-Id': device,

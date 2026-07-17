@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'config.dart';
 import 'device_id.dart';
 import 'session.dart';
+import 'user_code.dart';
 import '../features/auth/auth_api.dart';
 
 final deviceIdentityProvider = Provider<DeviceIdentity>((ref) {
@@ -57,8 +58,16 @@ final dioProvider = Provider<Dio>((ref) {
     InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await session.token();
-        final code = session.effectiveUserCode;
         final device = session.deviceFingerprint;
+        var code = session.effectiveUserCode;
+        // 游客码尚未写入时，用设备派生码兜底，避免只带设备头
+        if (code.isEmpty &&
+            device.isNotEmpty &&
+            !device.startsWith('dev-') &&
+            !device.startsWith('ip:')) {
+          final derived = UserCode.deviceIdToUserCode(device);
+          if (UserCode.isUserCode(derived)) code = derived;
+        }
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }

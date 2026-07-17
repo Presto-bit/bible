@@ -1,12 +1,21 @@
 /** AI 相关 API（E7 拆分） */
 import { getDeviceId } from '../device_id';
+import { deviceIdToUserCode, isUserCode } from '../user_code';
 
 export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE || 'https://2sc.prestoai.cn';
 
 function quotaUserCode(): string {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('presto_user_id') || localStorage.getItem('presto_guest_id') || '';
+  const stored =
+    localStorage.getItem('presto_user_id') || localStorage.getItem('presto_guest_id') || '';
+  if (stored && isUserCode(stored)) return stored;
+  const device = getDeviceId();
+  if (device && !device.startsWith('dev-')) {
+    const derived = deviceIdToUserCode(device);
+    if (isUserCode(derived)) return derived;
+  }
+  return '';
 }
 
 export interface AiQuota {

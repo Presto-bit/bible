@@ -1,6 +1,6 @@
 /** 主题插画：优先同源 /illustrations（构建时从 data 拷贝），回退 API。 */
 
-import { API_BASE } from './api';
+import { API_BASE, authHeaders } from './api';
 
 export interface IllustrationItem {
   theme: string;
@@ -21,7 +21,10 @@ async function fetchIndex(): Promise<IllustrationItem[]> {
   } catch {
     /* fallback API */
   }
-  const res = await fetch(`${API_BASE}/content/illustrations`, { cache: 'no-store' });
+  const res = await fetch(`${API_BASE}/content/illustrations`, {
+    cache: 'no-store',
+    headers: authHeaders(),
+  });
   if (!res.ok) return [];
   const data = (await res.json()) as { items?: IllustrationItem[] };
   return data.items ?? [];

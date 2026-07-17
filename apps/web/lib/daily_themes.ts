@@ -1,4 +1,4 @@
-import { API_BASE } from './api';
+import { API_BASE, authHeaders } from './api';
 
 export interface DailyThemesIndex {
   count: number;
@@ -10,7 +10,10 @@ let themesCache: DailyThemesIndex | null = null;
 export async function loadDailyThemes(): Promise<DailyThemesIndex> {
   if (themesCache) return themesCache;
   try {
-    const res = await fetch(`${API_BASE}/content/themes`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/content/themes`, {
+      cache: 'no-store',
+      headers: authHeaders(),
+    });
     if (res.ok) {
       const data = (await res.json()) as { count?: number; themes?: string[] };
       themesCache = {

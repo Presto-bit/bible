@@ -31,6 +31,7 @@ def _visitor_ids_from_request(request: Request) -> tuple[str | None, str | None,
         ip = _client_ip(request)
         if ip:
             device_id = f"ip:{ip}"
+    # user_code 缺失时由 record_daily_visit 按设备绑定回填
     return user_id, device_id, code
 
 

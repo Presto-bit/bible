@@ -179,12 +179,8 @@ async function refreshAccountStatus(code: string): Promise<void> {
 }
 
 function deviceHeaders(): Record<string, string> {
-  const h: Record<string, string> = {};
-  const deviceId = getDeviceId();
-  const fingerprint = stableDeviceFingerprint() || deviceId;
-  if (deviceId) h['X-Device-Id'] = deviceId;
-  if (fingerprint) h['X-Device-Fingerprint'] = fingerprint;
-  return h;
+  // 与 authHeaders 对齐：凡带设备头的请求一并带上用户码，避免 UV 记成「游客设备」
+  return authHeaders();
 }
 
 function hasSecuredLocalSession(): boolean {
@@ -276,7 +272,10 @@ export async function ensureIdentityReady(): Promise<void> {
           }
         }
         const params = new URLSearchParams({ device_id: deviceId });
-        const res = await fetch(`${API_BASE}/auth/device-user?${params}`, { cache: 'no-store' });
+        const res = await fetch(`${API_BASE}/auth/device-user?${params}`, {
+          cache: 'no-store',
+          headers: authHeaders(),
+        });
         if (epochAtStart !== identityEpoch) return;
         if (res.ok) {
           const d = (await res.json()) as { user_code?: string | null };
@@ -877,7 +876,12 @@ export function authHeaders(): Record<string, string> {
   }
   const fp = stableDeviceFingerprint();
   if (fp) h['X-Device-Fingerprint'] = fp;
-  const code = effectiveId();
+  // 身份尚未写完 guest 时，用设备派生码兜底，避免 UV/限流只看到裸设备头
+  let code = effectiveId();
+  if (!code && device && !device.startsWith('dev-') && !device.startsWith('ip:')) {
+    const derived = deviceIdToUserCode(device);
+    if (isUserCode(derived)) code = derived;
+  }
   if (code) {
     h['X-User-Code'] = code;
     h['X-User-Id'] = code;
