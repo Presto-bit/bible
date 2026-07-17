@@ -441,6 +441,7 @@ def register(
 
     设密/改资料必须对本账号有所有权（设备已绑定或持有效会话）；
     已设密账号不可经本接口覆盖密码（走 /change-password）。
+    静默建档：仅新建码或已证明所有权时可签发会话，禁止枚举接管。
     """
     del x_device_fingerprint
     enforce_rate_limit(request, bucket="auth_register", limit=40, window_sec=60)
@@ -500,22 +501,40 @@ def register(
                 upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
                 _bind_device_user(conn, x_device_id, code, reclaim=True)
             else:
-                # 静默建档：已存在则不覆盖用户名/密码
+                # 静默建档：已存在账号必须证明所有权，禁止对任意 user_code 签发会话
+                if existing and not owns:
+                    raise HTTPException(
+                        status_code=403,
+                        detail="无权恢复此账号，请在原设备打开或登录",
+                    )
                 if not existing:
                     name = resolve_register_username(conn, user_code=code, requested=None)
                     conn.execute(
                         "INSERT INTO users (id) VALUES (%s) ON CONFLICT (id) DO NOTHING",
                         (user_id,),
                     )
-                    conn.execute(
+                    inserted = conn.execute(
                         """
                         INSERT INTO accounts (user_code, user_id, username, pwd_hash, pwd_salt, updated_at)
                         VALUES (%s, %s, %s, NULL, NULL, now())
                         ON CONFLICT (user_code) DO NOTHING
+                        RETURNING user_code
                         """,
                         (code, user_id, name),
-                    )
-                    upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
+                    ).fetchone()
+                    if inserted:
+                        upsert_user_profile(
+                            conn, user_id=user_id, user_code=code, username=name
+                        )
+                    else:
+                        # 并发建档已抢走该码：无所有权则拒绝签发
+                        bound_now = _lookup_bound_user_code(conn, x_device_id)
+                        owns = (caller == user_id) or (bound_now == code)
+                        if not owns:
+                            raise HTTPException(
+                                status_code=403,
+                                detail="无权恢复此账号，请在原设备打开或登录",
+                            )
                 _bind_device_user(conn, x_device_id, code, reclaim=False)
 
             former = pick_user_code(requested, x_user_code)
