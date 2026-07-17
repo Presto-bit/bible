@@ -813,8 +813,10 @@ export interface KnowledgeDocumentPreview {
   source_type?: string;
   source_path?: string | null;
   status?: string;
-  total_chunks: number;
-  chunks: { index: number; preview: string; length: number }[];
+  /** 源文件原文（Markdown / 纯文本） */
+  content: string;
+  truncated?: boolean;
+  size_bytes?: number | null;
 }
 
 export interface CitationExplainResult {

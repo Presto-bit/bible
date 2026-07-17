@@ -153,3 +153,76 @@ def build_platform_description(*, total_docs: int, folder_stats: list[dict[str, 
         f"{refs}"
         "小爱回答时检索这些文件的片段作为出处；点开脚标可查看双语依据。"
     )
+
+
+_PREVIEW_SUFFIX = {".md", ".txt", ".markdown"}
+_PREVIEW_MAX_CHARS = 500_000
+
+
+def resolve_document_source_file(source_path: str | None) -> Path | None:
+    """将 DB source_path 解析为仓库内可读文本文件；拒绝越界路径。"""
+    from ..config import REPO_ROOT
+    from ..rag.paths import commentary_root, normalize_source_path
+
+    if not (source_path or "").strip():
+        return None
+    raw = normalize_source_path(source_path.strip())
+    try:
+        resolved = Path(raw).resolve()
+    except OSError:
+        return None
+    if not resolved.is_file():
+        return None
+    if resolved.suffix.lower() not in _PREVIEW_SUFFIX:
+        return None
+    roots = []
+    for root in (REPO_ROOT, commentary_root()):
+        try:
+            roots.append(root.resolve())
+        except OSError:
+            continue
+    for root in roots:
+        try:
+            resolved.relative_to(root)
+            return resolved
+        except ValueError:
+            continue
+    return None
+
+
+def read_document_source_text(source_path: str | None) -> dict[str, Any]:
+    """读取资料原文（非 RAG chunk）。返回 content / truncated / error / size_bytes。"""
+    path = resolve_document_source_file(source_path)
+    if not path:
+        return {
+            "content": None,
+            "truncated": False,
+            "size_bytes": None,
+            "error": "源文件不存在或不可预览",
+        }
+    try:
+        size = path.stat().st_size
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return {
+            "content": None,
+            "truncated": False,
+            "size_bytes": None,
+            "error": "文件须为 UTF-8 文本",
+        }
+    except OSError:
+        return {
+            "content": None,
+            "truncated": False,
+            "size_bytes": None,
+            "error": "无法读取源文件",
+        }
+    truncated = len(text) > _PREVIEW_MAX_CHARS
+    if truncated:
+        text = text[:_PREVIEW_MAX_CHARS]
+    return {
+        "content": text,
+        "truncated": truncated,
+        "size_bytes": size,
+        "error": None,
+    }

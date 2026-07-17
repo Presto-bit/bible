@@ -365,10 +365,21 @@ class _DocPreviewSheetState extends ConsumerState<_DocPreviewSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final chunks = ((_data?['chunks'] as List?) ?? const [])
-        .cast<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+    final content = (_data?['content'] as String?) ?? '';
+    final sizeBytes = _data?['size_bytes'];
+    final truncated = _data?['truncated'] == true;
+    String? meta;
+    if (_data != null) {
+      final parts = <String>[];
+      final st = (_data?['source_type'] as String?) ?? '';
+      if (st.isNotEmpty) parts.add(st);
+      if (sizeBytes is num) {
+        final kb = (sizeBytes / 1024).round().clamp(1, 1 << 30);
+        parts.add('$kb KB');
+      }
+      if (truncated) parts.add('已截断');
+      meta = parts.isEmpty ? null : parts.join(' · ');
+    }
     return SafeArea(
       child: SizedBox(
         height: MediaQuery.of(context).size.height * 0.8,
@@ -383,11 +394,11 @@ class _DocPreviewSheetState extends ConsumerState<_DocPreviewSheet> {
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, fontSize: 16),
               ),
-              if (_data != null)
+              if (meta != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 4, bottom: 8),
                   child: Text(
-                    '${_data?['source_type'] ?? ''} · ${_data?['total_chunks'] ?? 0} 块',
+                    meta,
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.inkFaint),
                   ),
@@ -397,40 +408,18 @@ class _DocPreviewSheetState extends ConsumerState<_DocPreviewSheet> {
                     child: Center(child: CircularProgressIndicator()))
               else if (_err != null)
                 Expanded(child: Text(_err!))
-              else if (chunks.isEmpty)
+              else if (content.trim().isEmpty)
                 const Expanded(
-                  child: Text('暂无索引片段（可能尚未入库向量）。',
+                  child: Text('文件为空或源文件不可读。',
                       style: TextStyle(color: AppColors.inkFaint)),
                 )
               else
                 Expanded(
-                  child: ListView.separated(
-                    itemCount: chunks.length,
-                    separatorBuilder: (_, __) =>
-                        const Divider(height: 1, color: AppColors.line),
-                    itemBuilder: (_, i) {
-                      final c = chunks[i];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '#${c['index']}'
-                              '${c['length'] != null ? ' · ${c['length']} 字' : ''}',
-                              style: const TextStyle(
-                                  fontSize: 11, color: AppColors.inkFaint),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '${c['preview'] ?? ''}',
-                              style: const TextStyle(
-                                  fontSize: 14, height: 1.55),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                  child: SingleChildScrollView(
+                    child: SelectableText(
+                      content,
+                      style: const TextStyle(fontSize: 14, height: 1.6),
+                    ),
                   ),
                 ),
             ],

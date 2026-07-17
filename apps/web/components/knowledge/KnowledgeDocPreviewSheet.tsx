@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   previewKnowledgeDocument,
   type KnowledgeDocumentPreview,
@@ -12,7 +14,9 @@ type Props = {
   onClose: () => void;
 };
 
-/** 知识库文件预览（对齐管理端 RAG chunk 预览） */
+const RENDER_MAX = 80_000;
+
+/** 知识库文件预览：展示源文件原文（Markdown） */
 export function KnowledgeDocPreviewSheet({ documentId, onClose }: Props) {
   const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<KnowledgeDocumentPreview | null>(null);
@@ -41,7 +45,24 @@ export function KnowledgeDocPreviewSheet({ documentId, onClose }: Props) {
     };
   }, [documentId]);
 
+  const markdown = useMemo(() => {
+    const raw = data?.content || '';
+    if (raw.length <= RENDER_MAX) return raw;
+    return raw.slice(0, RENDER_MAX);
+  }, [data?.content]);
+
+  const renderTruncated = Boolean(
+    data?.content && data.content.length > RENDER_MAX,
+  );
+
   if (!mounted) return null;
+
+  const metaParts: string[] = [];
+  if (data?.source_type) metaParts.push(data.source_type);
+  if (data?.size_bytes != null) {
+    const kb = Math.max(1, Math.round(data.size_bytes / 1024));
+    metaParts.push(`${kb} KB`);
+  }
 
   return createPortal(
     <div className="sheet-backdrop" onClick={onClose} role="presentation">
@@ -61,35 +82,31 @@ export function KnowledgeDocPreviewSheet({ documentId, onClose }: Props) {
             关闭
           </button>
         </div>
-        {data && (
+        {data && metaParts.length > 0 && (
           <p className="muted" style={{ margin: '0 0 10px', fontSize: 12 }}>
-            {data.source_type}
-            {data.total_chunks != null ? ` · ${data.total_chunks} 块` : ''}
+            {metaParts.join(' · ')}
+            {data.truncated ? ' · 文件过长，已截断传输' : ''}
           </p>
         )}
-        <div style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}>
-          {loading && <p className="muted">正在加载预览…</p>}
+        <div
+          style={{ overflowY: 'auto', flex: 1, minHeight: 0 }}
+          className="kb-doc-preview-body"
+        >
+          {loading && <p className="muted">正在加载原文…</p>}
           {err && <p className="muted">{err}</p>}
-          {data && !data.chunks.length && (
-            <p className="muted">暂无索引片段（可能尚未入库向量）。</p>
+          {!loading && !err && data && !data.content.trim() && (
+            <p className="muted">文件为空。</p>
           )}
-          {data?.chunks.map((c) => (
-            <div
-              key={c.index}
-              style={{
-                padding: '10px 0',
-                borderTop: '1px solid var(--line)',
-              }}
-            >
-              <span className="muted" style={{ fontSize: 11 }}>
-                #{c.index}
-                {c.length ? ` · ${c.length} 字` : ''}
-              </span>
-              <p style={{ margin: '6px 0 0', fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                {c.preview}
-              </p>
+          {!loading && !err && markdown.trim() && (
+            <div style={{ fontSize: 15, lineHeight: 1.65 }}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
+              {(data?.truncated || renderTruncated) && (
+                <p className="muted" style={{ marginTop: 16, fontSize: 12 }}>
+                  正文过长，此处仅展示部分原文。
+                </p>
+              )}
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>,

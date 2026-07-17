@@ -158,11 +158,10 @@ def knowledge_bases_list():
 
 
 @router.get("/knowledge-bases/documents/{document_id}")
-def knowledge_base_document_preview(
-    document_id: str,
-    limit: int = 80,
-):
-    """公开浏览：资料预览（标题 + chunk 摘录，对齐管理端 RAG 预览信息密度）。"""
+def knowledge_base_document_preview(document_id: str):
+    """公开浏览：资料原文预览（读源 Markdown/文本，非 RAG chunk）。"""
+    from .knowledge_bases import read_document_source_text
+
     try:
         pool = get_pool()
         with pool.connection() as conn:
@@ -173,32 +172,21 @@ def knowledge_base_document_preview(
             ).fetchone()
             if not row:
                 return JSONResponse(status_code=404, content={"error": "资料不存在"})
-            lim = max(1, min(int(limit), 200))
-            chunks = conn.execute(
-                "SELECT chunk_index, left(chunk_text, 600), length(chunk_text) "
-                "FROM bible_rag_chunks WHERE document_id = %s::uuid "
-                "ORDER BY chunk_index LIMIT %s",
-                (document_id, lim),
-            ).fetchall()
-            total = conn.execute(
-                "SELECT count(*) FROM bible_rag_chunks WHERE document_id = %s::uuid",
-                (document_id,),
-            ).fetchone()[0]
+        source = read_document_source_text(row[3])
+        if source.get("error") and not source.get("content"):
+            return JSONResponse(
+                status_code=404,
+                content={"error": source["error"]},
+            )
         return {
             "id": row[0],
             "title": row[1] or "未命名资料",
             "source_type": row[2],
             "source_path": row[3],
             "status": row[4],
-            "total_chunks": int(total or 0),
-            "chunks": [
-                {
-                    "index": int(c[0]),
-                    "preview": c[1] or "",
-                    "length": int(c[2] or 0),
-                }
-                for c in chunks
-            ],
+            "content": source.get("content") or "",
+            "truncated": bool(source.get("truncated")),
+            "size_bytes": source.get("size_bytes"),
         }
     except Exception as exc:
         logger.warning("document preview failed: %s", exc)
