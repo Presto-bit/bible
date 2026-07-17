@@ -79,9 +79,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
   const likeBusyRef = useRef(false);
+  const likedRef = useRef(false);
+  const likeCountRef = useRef(0);
   const bootstrapGenRef = useRef(0);
   /** 点赞成功/失败后递增；bootstrap 若在点赞完成前发出则不得覆盖 liked */
   const engagementGenRef = useRef(0);
+  likedRef.current = liked;
+  likeCountRef.current = likeCount;
   const [verseFull, setVerseFull] = useState(false);
   const [heroIllustration, setHeroIllustration] = useState<string | null>(() => {
     const cached = readCachedDailyVerse();
@@ -140,13 +144,18 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             ? v.liked
             : (day > 0 ? readLocalDailyVerseLike(day) : null) ?? false;
         const countVal = v.likes_count ?? 0;
-        setDv(v);
-        writeCachedDailyVerse(v);
-        // 点赞进行中，或期间已有更新的点赞结果：勿用过期 engagement 覆盖
-        if (
+        const applyEngagement =
           !likeBusyRef.current
-          && engagementAtStart === engagementGenRef.current
-        ) {
+          && engagementAtStart === engagementGenRef.current;
+        const cacheLiked = applyEngagement ? likedVal : likedRef.current;
+        const cacheCount = applyEngagement ? countVal : likeCountRef.current;
+        setDv(v);
+        writeCachedDailyVerse({
+          ...v,
+          liked: cacheLiked,
+          likes_count: cacheCount,
+        });
+        if (applyEngagement) {
           setLiked(likedVal);
           setLikeCount(countVal);
           if (day) writeLocalDailyVerseLike(day, likedVal);
@@ -420,10 +429,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     const nextLiked = !prevLiked;
     const nextCount = Math.max(0, prevCount + (nextLiked ? 1 : -1));
     likeBusyRef.current = true;
+    engagementGenRef.current += 1;
     setLikeBusy(true);
     setLikeErr(null);
     setLiked(nextLiked);
     setLikeCount(nextCount);
+    likedRef.current = nextLiked;
+    likeCountRef.current = nextCount;
     writeLocalDailyVerseLike(verseDay, nextLiked);
     try {
       const r = await api.toggleDailyVerseLike(verseDay);
@@ -434,6 +446,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       engagementGenRef.current += 1;
       setLiked(syncedLiked);
       setLikeCount(syncedCount);
+      likedRef.current = syncedLiked;
+      likeCountRef.current = syncedCount;
       writeLocalDailyVerseLike(verseDay, syncedLiked);
       const snap = readCachedDailyVerse();
       if (snap && snap.day === verseDay) {
@@ -447,6 +461,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       engagementGenRef.current += 1;
       setLiked(prevLiked);
       setLikeCount(prevCount);
+      likedRef.current = prevLiked;
+      likeCountRef.current = prevCount;
       writeLocalDailyVerseLike(verseDay, prevLiked);
       setLikeErr(errorMessage(e, '暂时无法点赞，请稍后再试'));
     } finally {

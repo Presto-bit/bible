@@ -900,6 +900,8 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   late bool _liked;
   late int _likeCount;
   bool _likeBusy = false;
+  /// 本地点赞后暂不接受父级 engagement，直到父级与本地一致或换日
+  bool _holdLocalEngagement = false;
 
   @override
   void initState() {
@@ -911,8 +913,23 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   @override
   void didUpdateWidget(covariant _VerseCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 点赞请求进行中时，勿用父级可能过期的 initialLiked 盖掉本地态
-    if (_likeBusy) return;
+    if (oldWidget.day != widget.day) {
+      _liked = widget.initialLiked;
+      _likeCount = widget.initialLikeCount;
+      _holdLocalEngagement = false;
+      return;
+    }
+    // 点赞请求进行中，或本地刚改过赞：勿用父级可能过期的 initialLiked 盖掉
+    if (_likeBusy || _holdLocalEngagement) {
+      if (_holdLocalEngagement &&
+          !_likeBusy &&
+          widget.initialLiked == _liked) {
+        // 服务端已追上本地，接受人数并解除 hold
+        _likeCount = widget.initialLikeCount;
+        _holdLocalEngagement = false;
+      }
+      return;
+    }
     if (oldWidget.initialLiked != widget.initialLiked ||
         oldWidget.initialLikeCount != widget.initialLikeCount) {
       _liked = widget.initialLiked;
@@ -928,6 +945,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     final nextCount = (prevCount + (nextLiked ? 1 : -1)).clamp(0, 1 << 30);
     setState(() {
       _likeBusy = true;
+      _holdLocalEngagement = true;
       _liked = nextLiked;
       _likeCount = nextCount;
     });
@@ -950,12 +968,14 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       setState(() {
         _liked = liked;
         _likeCount = count;
+        _holdLocalEngagement = true;
       });
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _liked = prevLiked;
         _likeCount = prevCount;
+        _holdLocalEngagement = false;
       });
     } finally {
       if (mounted) setState(() => _likeBusy = false);

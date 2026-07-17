@@ -1,6 +1,7 @@
 """社交 IM v1.2：会话列表、好友申请、单聊、群闲聊、会话状态、撤回、清理入口。"""
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -26,6 +27,7 @@ import json as _json_mod
 import threading
 import time
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/social", tags=["social-im"])
 
 _MSG_RETENTION = timedelta(days=30)
@@ -1118,7 +1120,7 @@ def send_dm(
 
         schedule_dm_peer(peer)
     except Exception:
-        pass
+        logger.exception("schedule dm digest failed peer=%s", peer[:8] if peer else "?")
     return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1159,7 +1161,7 @@ def send_group_chat(
 
         schedule_group_members(gid, exclude_user_id=user_id)
     except Exception:
-        pass
+        logger.exception("schedule group digest failed gid=%s", gid[:8] if gid else "?")
     return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1574,7 +1576,7 @@ def send_group_media(
 
         schedule_group_members(gid, exclude_user_id=user_id)
     except Exception:
-        pass
+        logger.exception("schedule group media digest failed gid=%s", gid[:8] if gid else "?")
     return {"id": str(mid), "kind": kind, "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1616,7 +1618,7 @@ def send_dm_media(
 
         schedule_dm_peer(peer)
     except Exception:
-        pass
+        logger.exception("schedule dm media digest failed peer=%s", peer[:8] if peer else "?")
     return {"id": str(row[0]), "kind": kind}
 
 

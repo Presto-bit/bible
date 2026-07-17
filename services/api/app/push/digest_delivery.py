@@ -33,10 +33,12 @@ def deliver_group_digest(user_id: str, *, require_unread: bool = False) -> int:
                 (user_id,),
             ).fetchall()
         except Exception:
-            rows = conn.execute(
-                "SELECT endpoint, p256dh, auth FROM push_subscription WHERE user_id = %s",
-                (user_id,),
-            ).fetchall()
+            # 缺 group_digest 列时不扩大投递面（避免推给未开聚合的订阅）
+            logger.warning(
+                "digest push query failed user=%s (skip; check push_subscription schema)",
+                user_id[:8],
+            )
+            return 0
     sent = 0
     for r in rows:
         if send_webpush({"endpoint": r[0], "p256dh": r[1], "auth": r[2]}, payload):
