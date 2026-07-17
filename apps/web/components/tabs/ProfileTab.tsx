@@ -14,12 +14,18 @@ import {
   logout,
 } from '@/lib/api';
 import { OFFICIAL_SUPPORT_USER_CODE } from '@/lib/official_support';
+import {
+  getOfflineDownloadSnapshot,
+  isOfflineDownloadActive,
+  offlineDownloadLabel,
+  subscribeOfflineDownload,
+} from '@/lib/offline_download_job';
+import { offlinePackStatus } from '@/lib/offline_bootstrap';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
 import AccountSettingsSection from '@/components/AccountSettingsSection';
 import SyncStatusBadge from '@/components/SyncStatusBadge';
 import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
-import OfflinePackBanner from '@/components/OfflinePackBanner';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
 import AppBodyPortal from '@/components/AppBodyPortal';
@@ -67,6 +73,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [pickerOpen, setPickerOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
+  const [downloadHint, setDownloadHint] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
   const [dataStatus, setDataStatus] = useState<string | null>(null);
@@ -127,6 +134,33 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     if (consumeProfileQueryFlag('settings')) setSettingsOpen(true);
     if (consumeProfileQueryFlag('badges')) setBadgeOpen(true);
   }, [enabled, activeTab, pathname]);
+
+  useEffect(() => {
+    if (!settingsOpen) {
+      setDownloadHint(null);
+      return;
+    }
+    let cancelled = false;
+    const refreshHint = () => {
+      if (isOfflineDownloadActive()) {
+        const label = offlineDownloadLabel(getOfflineDownloadSnapshot());
+        if (!cancelled) setDownloadHint(label);
+        return;
+      }
+      void offlinePackStatus().then((s) => {
+        if (cancelled) return;
+        setDownloadHint(s === 'loading' ? '正在后台下载…' : null);
+      });
+    };
+    refreshHint();
+    const unsub = subscribeOfflineDownload(refreshHint);
+    const t = window.setInterval(refreshHint, 4000);
+    return () => {
+      cancelled = true;
+      unsub();
+      window.clearInterval(t);
+    };
+  }, [settingsOpen]);
 
   useEffect(() => {
     if (enabled) {
@@ -491,20 +525,26 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
               <div className="settings-card">
                 <p className="settings-title">工具</p>
-                <OfflinePackBanner
-                  onDownload={() => {
-                    setSettingsOpen(false);
-                    setDownloadOpen(true);
-                  }}
-                />
                 <button
                   type="button"
                   className="card row-card"
-                  style={{ display: 'flex', width: '100%', textAlign: 'left' }}
+                  style={{ display: 'flex', width: '100%', textAlign: 'left', alignItems: 'center' }}
                   onClick={() => setDownloadOpen(true)}
                 >
-                  <span style={{ flex: 1 }}>下载</span>
-                  <span className="muted">离线圣经与资料 ›</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block' }}>下载</span>
+                    {downloadHint ? (
+                      <span
+                        className="muted"
+                        style={{ display: 'block', fontSize: 12, marginTop: 2, fontWeight: 400 }}
+                      >
+                        {downloadHint}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="muted" style={{ flexShrink: 0 }}>
+                    {downloadHint ? '进行中 ›' : '离线圣经与资料 ›'}
+                  </span>
                 </button>
                 <Link
                   href="/dictionary"

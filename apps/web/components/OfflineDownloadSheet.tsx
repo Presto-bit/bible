@@ -17,6 +17,7 @@ import {
   offlineDownloadLabel,
   subscribeOfflineDownload,
 } from '@/lib/offline_download_job';
+import { offlinePackStatus } from '@/lib/offline_bootstrap';
 import {
   deleteOfflineItemFiles,
   expectedItemBytes,
@@ -66,11 +67,19 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
   }, []);
 
   const syncJob = useCallback(() => {
-    const snap = getOfflineDownloadSnapshot();
-    setBusyId(snap.busyId);
-    setQueuedIds(snap.queuedIds);
-    setProgressLabel(offlineDownloadLabel(snap));
-    if (snap.error) setErr(snap.error);
+    if (isOfflineDownloadActive()) {
+      const snap = getOfflineDownloadSnapshot();
+      setBusyId(snap.busyId);
+      setQueuedIds(snap.queuedIds);
+      setProgressLabel(offlineDownloadLabel(snap));
+      if (snap.error) setErr(snap.error);
+      return;
+    }
+    setBusyId(null);
+    setQueuedIds([]);
+    void offlinePackStatus().then((s) => {
+      setProgressLabel(s === 'loading' ? '正在后台下载经包…' : null);
+    });
   }, []);
 
   useEffect(() => {
@@ -136,9 +145,15 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
           <h3 style={{ margin: 0 }}>下载</h3>
           <SheetCloseButton onClick={handleClose} />
         </div>
-        <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
-          按需下载圣经译本与资料，离线可用。关闭本页不会中断下载。
-        </p>
+        {progressLabel ? (
+          <p className="muted offline-download-progress" role="status">
+            {progressLabel}
+          </p>
+        ) : (
+          <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+            按需下载圣经译本与资料，离线可用。关闭本页不会中断下载。
+          </p>
+        )}
 
         <div className="seg-tabs offline-download-tabs" style={{ marginTop: 12 }}>
           <button
@@ -157,9 +172,6 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
           </button>
         </div>
 
-        {progressLabel ? (
-          <p className="muted offline-download-progress">{progressLabel}</p>
-        ) : null}
         {err ? <p className="offline-download-error">{err}</p> : null}
         </div>
 
