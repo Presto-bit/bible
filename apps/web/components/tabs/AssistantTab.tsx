@@ -1244,12 +1244,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                         type="button"
                         className="msg-action"
                         onClick={() => {
-                          if (ref) addThought(ref, stripFollowups(m.text), 'private', { skipPublish: true });
+                          addThought(ref || 'FREE', stripFollowups(m.text), 'private', {
+                            skipPublish: true,
+                          });
                           recordSaveAnswerNote();
-                          flashToast('已存笔记');
+                          flashToast('已存想法');
                         }}
                       >
-                        存笔记
+                        存想法
                       </button>
                       <button type="button" className="msg-action" onClick={() => shareText(m.text)}>
                         分享

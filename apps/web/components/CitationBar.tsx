@@ -8,7 +8,7 @@ import { formatCitationTitle } from '@/lib/citation_display';
 type Props = {
   citations: Citation[];
   className?: string;
-  /** action：与复制/存笔记/分享并列的紧凑按钮 */
+  /** action：与复制/存想法/分享并列的紧凑按钮 */
   variant?: 'inline' | 'action';
   /** 底栏窄屏时用更短文案 */
   compact?: boolean;

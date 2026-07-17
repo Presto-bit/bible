@@ -24,8 +24,6 @@ import '../features/bible/reading_repository.dart';
 import '../features/notes/notes_repository.dart' show profileSyncProvider;
 import '../features/notes/notes_screen.dart';
 import '../features/bible/offline_download_sheet.dart';
-import '../features/notes/favorite_review.dart';
-import '../features/bible/markings_repository.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
 import '../core/user_storage.dart';
@@ -531,39 +529,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            ref.watch(bookmarksProvider).maybeWhen(
-                  data: (bookmarks) {
-                    final cards = favoriteReviewCards(bookmarks);
-                    if (cards.isEmpty) return const SizedBox.shrink();
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('收藏复习',
-                            style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14)),
-                        const SizedBox(height: 8),
-                        ...cards.map((c) => Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: PaperCard(
-                                onTap: () {
-                                  final m = RegExp(r'^([A-Za-z0-9]+)\.(\d+)')
-                                      .firstMatch(c.ref);
-                                  if (m != null) {
-                                    context.push(
-                                        '/reader?book=${m.group(1)}&chapter=${m.group(2)}');
-                                  }
-                                },
-                                child: Text(c.label,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600)),
-                              ),
-                            )),
-                        const SizedBox(height: 6),
-                      ],
-                    );
-                  },
-                  orElse: () => const SizedBox.shrink(),
-                ),
             ref.watch(reviewDataProvider).maybeWhen(
                   data: (data) {
                     final streak = readingStreak(data);
@@ -717,8 +682,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             const SizedBox(height: 16),
             _LinkCard(
               icon: Icons.edit_note_outlined,
-              label: '我的笔记',
-              subtitle: auth.signedIn ? '云端同步 · 多设备' : '本地保存 · 登录后云同步',
+              label: '我的想法',
+              subtitle: '想法 · 划线',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const NotesScreen()),
               ),

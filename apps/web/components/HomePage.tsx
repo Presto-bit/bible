@@ -353,7 +353,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     const latestThought = listAllThoughts()[0];
     const notesCard = {
       title: memCount > 0 ? `${memCount} 条想法` : '我的想法',
-      sub: memCount > 0 ? '查看全部' : '收藏与划线',
+      sub: memCount > 0 ? '想法 · 划线' : '想法 · 划线',
       href: '/notes',
       count: memCount,
       excerpt: latestThought?.body?.trim().slice(0, 48),

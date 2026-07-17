@@ -32,8 +32,6 @@ import { todayMinutes } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
 import type { BadgeDef } from '@/lib/badges';
 import { computeBadgesWithUnlock, profilePreviewBadges } from '@/lib/badge_unlock';
-import { favoriteReviewCards } from '@/lib/favorite_review';
-import { recordMemoryReview } from '@/lib/badge_events';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -80,7 +78,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [accountComplete, setAccountComplete] = useState(false);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
   const [hasPwd, setHasPwd] = useState(false);
-  const [reviewCards, setReviewCards] = useState<{ ref: string; label: string }[]>([]);
   const [streak, setStreak] = useState(0);
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
@@ -183,11 +180,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     }
     void fetchAdminEligible().then(setAdminEligible);
   }, [uid, settingsOpen, profileAwake]);
-
-  useEffect(() => {
-    if (!profileAwake) return;
-    setReviewCards(favoriteReviewCards(3));
-  }, [profileAwake]);
 
   useEffect(() => {
     if (currentUserId()) {
@@ -467,7 +459,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <span className="pill">想法</span>
           <span className="home-list-main">
             <strong>我的想法</strong>
-            <span className="muted home-list-sub">想法 · 收藏 · 划线</span>
+            <span className="muted home-list-sub">想法 · 划线</span>
           </span>
           <span className="muted home-list-chevron">›</span>
         </Link>
@@ -476,25 +468,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <ReadingProgress />
         </div>
       </div>
-
-      {reviewCards.length > 0 && (
-        <div className="card profile-review-card">
-          <div className="tab-section-head" style={{ marginTop: 0, marginBottom: 8 }}>
-            <p className="section-label tab-section-label">收藏复习</p>
-            <Link href="/notes" className="tab-section-link muted">全部 ›</Link>
-          </div>
-          {reviewCards.map((c) => (
-            <Link
-              key={c.ref}
-              href={`/reader?ref=${encodeURIComponent(c.ref)}`}
-              className="muted profile-review-link"
-              onClick={() => recordMemoryReview()}
-            >
-              {c.label}
-            </Link>
-          ))}
-        </div>
-      )}
 
       {badgeOpen && (
         <BadgeGallery badges={badges} onClose={() => setBadgeOpen(false)} />

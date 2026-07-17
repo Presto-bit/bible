@@ -11,6 +11,7 @@ import '../../app/app_shell.dart';
 import '../../core/database/app_database.dart';
 import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
+import '../bible/thoughts_repository.dart';
 import 'answer_text.dart';
 import 'assistant_format.dart';
 import 'assistant_scenes.dart';
@@ -480,6 +481,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
                   itemBuilder: (_, i) => _Bubble(
                     turn: _turns[i],
                     streaming: _streaming,
+                    anchorRef: _anchorRef,
                     onFollowup: _quotaExhausted
                         ? null
                         : (q) => _sendChip(q, scene: AssistantScene.chatExplain),
@@ -738,20 +740,22 @@ class _SessionListSheet extends ConsumerWidget {
 }
 
 
-class _Bubble extends StatelessWidget {
+class _Bubble extends ConsumerWidget {
   const _Bubble({
     required this.turn,
     this.streaming = false,
+    this.anchorRef,
     this.onFollowup,
     this.onSwitchToPlatform,
   });
   final ChatTurn turn;
   final bool streaming;
+  final String? anchorRef;
   final void Function(String question)? onFollowup;
   final VoidCallback? onSwitchToPlatform;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final isUser = turn.role == 'user';
     final followups = isUser
         ? const <String>[]
@@ -830,6 +834,11 @@ class _Bubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   _ActionText(
+                    label: '存想法',
+                    onTap: () => _saveThought(context, ref),
+                  ),
+                  const SizedBox(width: 16),
+                  _ActionText(
                     label: '分享',
                     onTap: () => _copy(context, stripFollowups(turn.content),
                         share: true),
@@ -840,6 +849,24 @@ class _Bubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _saveThought(BuildContext context, WidgetRef ref) async {
+    final body = stripFollowups(turn.content).trim();
+    if (body.isEmpty) return;
+    final thoughtRef =
+        (anchorRef ?? '').isEmpty ? 'FREE' : anchorRef!;
+    await ref.read(thoughtsRepoProvider).addThought(
+          thoughtRef,
+          body,
+          shared: false,
+        );
+    ref.read(badgeStatsRecorderProvider).recordSaveAnswerNote();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text('已存想法'),
+      duration: Duration(milliseconds: 1500),
+    ));
   }
 
   void _copy(BuildContext context, String text, {bool share = false}) {

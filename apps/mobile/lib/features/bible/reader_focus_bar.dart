@@ -12,7 +12,6 @@ class ReaderFocusBar extends StatelessWidget {
     required this.currentMark,
     required this.onLightAi,
     required this.onTools,
-    required this.onBookmark,
     required this.onCopy,
     required this.onThought,
     required this.onWriteNote,
@@ -26,7 +25,6 @@ class ReaderFocusBar extends StatelessWidget {
   final HighlightMark? currentMark;
   final VoidCallback onLightAi;
   final VoidCallback onTools;
-  final VoidCallback onBookmark;
   final VoidCallback onCopy;
   final VoidCallback onThought;
   final VoidCallback onWriteNote;
@@ -91,7 +89,6 @@ class ReaderFocusBar extends StatelessWidget {
               ],
               _btn('写笔记', onWriteNote),
               _btn('写想法', onThought),
-              _btn('书签', onBookmark),
               _btn('复制', onCopy),
               IconButton(
                 onPressed: onClose,

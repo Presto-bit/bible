@@ -645,24 +645,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     );
   }
 
-  Future<void> _toggleBookmark() async {
-    final sel = _sortedSel;
-    if (sel.isEmpty) return;
-    final refStr = sel.first == sel.last
-        ? '${widget.book.id}.${widget.chapter}.${sel.first}'
-        : '${widget.book.id}.${widget.chapter}.${sel.first}-${sel.last}';
-    final added =
-        await ref.read(markingsRepoProvider).toggleBookmark(refStr);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(added ? '已收藏' : '已取消收藏'),
-        duration: const Duration(milliseconds: 1200),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   void _showSummarySheet(String title, Future<String> Function() load) {
     showModalBottomSheet<void>(
       context: context,
@@ -1011,7 +993,6 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                   refLabel: _refLabel,
                   sourceText: _selectionText(async.value),
                 ),
-                onBookmark: _toggleBookmark,
                 onCopy: () {
                   final t = _selectionText(async.value);
                   Clipboard.setData(

@@ -224,9 +224,9 @@ export default function XiaoAiSheet({
     onClose();
   };
 
-  const saveNote = () => {
+  const saveThought = () => {
     if (!clean || hasError) return;
-    if (refParam) addThought(refParam, clean, 'private', { skipPublish: true });
+    addThought(refParam || 'FREE', clean, 'private', { skipPublish: true });
     recordSaveAnswerNote();
     setSaved(true);
     setTimeout(() => setSaved(false), 1800);
@@ -333,8 +333,8 @@ export default function XiaoAiSheet({
               <button type="button" className="half-sheet-action-btn" onClick={() => void copyAnswer()}>
                 {copied ? '已复制' : '复制'}
               </button>
-              <button type="button" className="half-sheet-action-btn" onClick={saveNote}>
-                {saved ? '已存笔记' : '存笔记'}
+              <button type="button" className="half-sheet-action-btn" onClick={saveThought}>
+                {saved ? '已存想法' : '存想法'}
               </button>
               {citations.length > 0 ? (
                 <CitationBar

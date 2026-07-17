@@ -1,23 +1,25 @@
-/// 「我的笔记」：本地优先列表 + 增删改；登录后自动云同步。
+/// 「我的想法」：想法 / 划线（无书签、无笔记）。
+/// 想法：书卷分组下钻 + 新建自定义；划线：色点筛选。
 library;
-
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
-import '../../core/database/app_database.dart';
+import '../../core/mark_ref.dart' show parseMarkRef;
+import '../../core/ref_label.dart' show bookIdToChineseName, formatGroupRefLabel;
 import '../../core/sync/sync_controller.dart';
 import '../../core/theme.dart';
-import '../bible/markings_repository.dart';
-import '../bible/reader_marking_models.dart' show chipColor, markColorSemantics;
-import '../../core/ref_label.dart' show formatGroupRefLabel;
-import '../../core/mark_ref.dart' show parseMarkRef;
-import '../bible/reader_screen.dart' show readerJumpProvider;
 import '../../app/app_shell.dart' show navIndexProvider;
+import '../bible/markings_repository.dart';
+import '../bible/reader_marking_models.dart'
+    show chipColor, highlightColorKeys, markColorSemantics;
+import '../bible/reader_screen.dart' show readerJumpProvider;
+import '../bible/thoughts_repository.dart';
 import '../social/share_to_social_sheet.dart';
-import 'notes_repository.dart';
+
+/// 无经文关联的自定义想法。
+const freeThoughtRef = 'FREE';
 
 class NotesScreen extends ConsumerStatefulWidget {
   const NotesScreen({super.key});
@@ -28,8 +30,11 @@ class NotesScreen extends ConsumerStatefulWidget {
 
 class _NotesScreenState extends ConsumerState<NotesScreen> {
   bool _autoSynced = false;
-  int _tab = 0; // 0=笔记 1=划线 2=书签
+  int _tab = 0; // 0=想法 1=划线
   String _query = '';
+  String _colorFilter = 'all';
+  String? _thoughtGroup;
+  VerseThoughtData? _thoughtDetail;
 
   @override
   void initState() {
@@ -48,19 +53,34 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final notes = ref.watch(notesStreamProvider);
     final highlights = ref.watch(highlightMapProvider);
-    final bookmarks = ref.watch(bookmarksProvider);
+    final thoughts = ref.watch(myThoughtsProvider);
     final q = _query.trim().toLowerCase();
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('经文记忆'),
+        title: const Text('我的想法'),
+        leading: _thoughtDetail != null || _thoughtGroup != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  setState(() {
+                    if (_thoughtDetail != null) {
+                      _thoughtDetail = null;
+                    } else {
+                      _thoughtGroup = null;
+                    }
+                  });
+                },
+              )
+            : null,
       ),
-      floatingActionButton: _tab == 0
+      floatingActionButton: _tab == 0 &&
+              _thoughtDetail == null &&
+              _thoughtGroup == null
           ? FloatingActionButton(
               backgroundColor: AppColors.accentDeep,
-              onPressed: () => _editSheet(context, null),
+              onPressed: () => _createThoughtSheet(context),
               child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
@@ -70,7 +90,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: TextField(
               decoration: InputDecoration(
-                hintText: '搜索笔记、划线或书签…',
+                hintText: '搜索想法或划线…',
                 prefixIcon: const Icon(Icons.search, size: 20),
                 isDense: true,
                 filled: true,
@@ -88,131 +108,67 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
             child: _SegTabs(
               index: _tab,
               labels: [
-                '笔记${notes.maybeWhen(data: (l) => l.isNotEmpty ? ' · ${l.length}' : '', orElse: () => '')}',
+                '想法${thoughts.isNotEmpty ? ' · ${thoughts.length}' : ''}',
                 '划线${highlights.maybeWhen(data: (m) => m.isNotEmpty ? ' · ${m.length}' : '', orElse: () => '')}',
-                '书签${bookmarks.maybeWhen(data: (l) => l.isNotEmpty ? ' · ${l.length}' : '', orElse: () => '')}',
               ],
-              onChanged: (i) => setState(() => _tab = i),
+              onChanged: (i) => setState(() {
+                _tab = i;
+                _thoughtGroup = null;
+                _thoughtDetail = null;
+              }),
             ),
           ),
+          if (_tab == 1)
+            _ColorFilterBar(
+              selected: _colorFilter,
+              onChanged: (c) => setState(() => _colorFilter = c),
+            ),
           Expanded(
             child: _tab == 0
-                ? notes.when(
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Center(child: Text('本地读取失败：$e')),
-                    data: (list) {
-                      final filtered = q.isEmpty
-                          ? list
-                          : list
-                              .where((n) =>
-                                  n.body.toLowerCase().contains(q) ||
-                                  (n.ref ?? '').toLowerCase().contains(q))
-                              .toList();
-                      if (filtered.isEmpty) {
-                        return _Empty(
-                            text: q.isEmpty
-                                ? '还没有笔记。点右下角 + 记录一段感动。'
-                                : '没有匹配的笔记。');
-                      }
-                      return ListView.separated(
-                        padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, i) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _NoteCard(
-                          note: filtered[i],
-                          onEdit: () => _editSheet(context, filtered[i]),
-                          onOpenRef: (filtered[i].ref ?? '').isNotEmpty
-                              ? () => _openRef(filtered[i].ref!)
-                              : null,
-                          onDelete: () =>
-                              ref.read(notesRepoProvider).remove(filtered[i]),
-                          onShare: (filtered[i].ref ?? '').isNotEmpty
-                              ? () => showShareToSocialSheet(
-                                    context,
-                                    ref,
-                                    refText: filtered[i].ref!,
-                                    refLabel: formatGroupRefLabel(
-                                        filtered[i].ref),
-                                    body: filtered[i].body,
-                                    kind: 'note',
-                                  )
-                              : null,
-                        ),
-                      );
-                    },
-                  )
-                : _tab == 1
-                    ? highlights.when(
-                        loading: () => const Center(
-                            child: CircularProgressIndicator()),
-                        error: (e, _) =>
-                            Center(child: Text('读取失败：$e')),
-                        data: (map) {
-                          var entries = map.entries.toList()
-                            ..sort((a, b) => a.key.compareTo(b.key));
-                          if (q.isNotEmpty) {
-                            entries = entries
-                                .where((e) =>
-                                    e.key.toLowerCase().contains(q))
-                                .toList();
-                          }
-                          if (entries.isEmpty) {
-                            return _Empty(
-                                text: q.isEmpty
-                                    ? '还没有划线。阅读时长按经文选色即可标记。'
-                                    : '没有匹配的划线。');
-                          }
-                          return ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: entries.length,
-                            separatorBuilder: (_, i) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (_, i) {
-                              final e = entries[i];
-                              return _HighlightCard(
-                                refStr: e.key,
-                                color: e.value.color,
-                                onOpen: () => _openRef(e.key),
-                                onShare: () => showShareToSocialSheet(
-                                  context,
-                                  ref,
-                                  refText: e.key,
-                                  refLabel: formatGroupRefLabel(e.key),
-                                  kind: 'verse',
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      )
-                    : bookmarks.when(
+                ? _buildThoughts(thoughts, q)
+                : highlights.when(
                     loading: () =>
                         const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(child: Text('读取失败：$e')),
-                    data: (list) {
-                      final filtered = q.isEmpty
-                          ? list
-                          : list
-                              .where((b) => b.ref.toLowerCase().contains(q))
-                              .toList();
-                      if (filtered.isEmpty) {
+                    data: (map) {
+                      var entries = map.entries.toList()
+                        ..sort((a, b) => a.key.compareTo(b.key));
+                      if (_colorFilter != 'all') {
+                        entries = entries
+                            .where((e) => e.value.color == _colorFilter)
+                            .toList();
+                      }
+                      if (q.isNotEmpty) {
+                        entries = entries
+                            .where((e) => e.key.toLowerCase().contains(q))
+                            .toList();
+                      }
+                      if (entries.isEmpty) {
                         return _Empty(
-                            text: q.isEmpty
-                                ? '还没有书签。阅读时点「书签」即可加入。'
-                                : '没有匹配的书签。');
+                            text: q.isEmpty && _colorFilter == 'all'
+                                ? '还没有划线。阅读时选中经文选色即可标记。'
+                                : '没有匹配的划线。');
                       }
                       return ListView.separated(
                         padding: const EdgeInsets.all(16),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, i) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) => _BookmarkCard(
-                          refStr: filtered[i].ref,
-                          onOpen: () => _openRef(filtered[i].ref),
-                          onRemove: () => ref
-                              .read(markingsRepoProvider)
-                              .toggleBookmark(filtered[i].ref),
-                        ),
+                        itemCount: entries.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 10),
+                        itemBuilder: (_, i) {
+                          final e = entries[i];
+                          return _HighlightCard(
+                            refStr: e.key,
+                            color: e.value.color,
+                            onOpen: () => _openRef(e.key),
+                            onShare: () => showShareToSocialSheet(
+                              context,
+                              ref,
+                              refText: e.key,
+                              refLabel: formatGroupRefLabel(e.key),
+                              kind: 'verse',
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -222,16 +178,226 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     );
   }
 
+  Widget _buildThoughts(List<VerseThoughtData> thoughts, String q) {
+    final filtered = q.isEmpty
+        ? thoughts
+        : thoughts
+            .where((t) =>
+                t.body.toLowerCase().contains(q) ||
+                t.ref.toLowerCase().contains(q))
+            .toList();
+
+    if (_thoughtDetail != null) {
+      final t = _thoughtDetail!;
+      final isFree = t.ref == freeThoughtRef || t.ref.isEmpty;
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(isFree ? '随想' : formatGroupRefLabel(t.ref),
+                style: const TextStyle(
+                    color: AppColors.gold,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13)),
+            const SizedBox(height: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Text(t.body,
+                    style: const TextStyle(
+                        fontSize: 15, height: 1.7, color: AppColors.ink)),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                if (!isFree)
+                  TextButton(
+                      onPressed: () => _openRef(t.ref),
+                      child: const Text('跳转经文')),
+                TextButton(
+                  onPressed: () => showShareToSocialSheet(
+                    context,
+                    ref,
+                    refText: t.ref,
+                    refLabel: isFree ? '随想' : formatGroupRefLabel(t.ref),
+                    body: t.body,
+                    kind: 'thought',
+                  ),
+                  child: const Text('分享'),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    await ref.read(thoughtsRepoProvider).deleteThought(t.id);
+                    setState(() => _thoughtDetail = null);
+                  },
+                  style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFB1554A)),
+                  child: const Text('删除'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_thoughtGroup != null) {
+      final items =
+          filtered.where((t) => _bookId(t.ref) == _thoughtGroup).toList();
+      if (items.isEmpty) {
+        return const _Empty(text: '该分组暂无想法。');
+      }
+      return ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) {
+          final t = items[i];
+          final preview = t.body.trim();
+          final isFree = t.ref == freeThoughtRef || t.ref.isEmpty;
+          return InkWell(
+            onTap: () => setState(() => _thoughtDetail = t),
+            borderRadius: BorderRadius.circular(16),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.line),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(isFree ? '随想' : formatGroupRefLabel(t.ref),
+                      style: const TextStyle(
+                          fontSize: 12, color: AppColors.inkFaint)),
+                  const SizedBox(height: 4),
+                  Text(
+                    preview.isEmpty
+                        ? '（空）'
+                        : (preview.length > 40
+                            ? '${preview.substring(0, 40)}…'
+                            : preview.split('\n').first),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 14),
+                  ),
+                  if (preview.length > 40) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      preview.length > 80
+                          ? '${preview.substring(0, 80)}…'
+                          : preview,
+                      style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.inkFaint,
+                          height: 1.4),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    if (filtered.isEmpty) {
+      return _Empty(
+          text: q.isEmpty
+              ? '还没有想法。可点右下角 + 新建，或在小爱回答里存想法。'
+              : '没有匹配的想法。');
+    }
+
+    final groups = <String, List<VerseThoughtData>>{};
+    for (final t in filtered) {
+      final bid = _bookId(t.ref);
+      (groups[bid] ??= []).add(t);
+    }
+    final keys = groups.keys.toList()
+      ..sort((a, b) {
+        if (a == 'FREE') return -1;
+        if (b == 'FREE') return 1;
+        return _bookLabel(a).compareTo(_bookLabel(b));
+      });
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: keys.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemBuilder: (_, i) {
+        final bid = keys[i];
+        final items = groups[bid]!;
+        final preview = items.first.body.trim();
+        return InkWell(
+          onTap: () => setState(() => _thoughtGroup = bid),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.line),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(_bookLabel(bid),
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700, fontSize: 15)),
+                      const SizedBox(height: 4),
+                      Text(
+                        preview.isEmpty
+                            ? '查看想法'
+                            : (preview.length > 28
+                                ? '${preview.substring(0, 28)}…'
+                                : preview),
+                        style: const TextStyle(
+                            fontSize: 12, color: AppColors.inkFaint),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Text('${items.length} ›',
+                    style: const TextStyle(
+                        color: AppColors.inkFaint, fontSize: 13)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _bookId(String ref) {
+    if (ref.isEmpty || ref == freeThoughtRef) return 'FREE';
+    final p = ref.split('.');
+    return p.isEmpty ? 'FREE' : p.first.toUpperCase();
+  }
+
+  String _bookLabel(String bookId) {
+    if (bookId == 'FREE' || bookId == 'OTHER') return '随想';
+    return bookIdToChineseName(bookId);
+  }
+
   void _openRef(String refStr) {
     final parsed = parseMarkRef(refStr);
     if (parsed == null) return;
     ref.read(readerJumpProvider.notifier).jump(parsed.bookId, parsed.chapter);
     ref.read(navIndexProvider.notifier).set(1);
+    Navigator.of(context).pop();
   }
 
-  Future<void> _editSheet(BuildContext context, Note? note) async {
-    final ctl = TextEditingController(text: note?.body ?? '');
-    final refCtl = TextEditingController(text: note?.ref ?? '');
+  Future<void> _createThoughtSheet(BuildContext context) async {
+    final ctl = TextEditingController();
     final ok = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -250,25 +416,16 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(note == null ? '新建笔记' : '编辑笔记',
-                style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.w600)),
+            const Text('新建想法',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 14),
             TextField(
-              controller: refCtl,
-              decoration: const InputDecoration(
-                labelText: '关联经文（可选，如 JHN.3.16）',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
               controller: ctl,
-              minLines: 3,
-              maxLines: 6,
+              minLines: 4,
+              maxLines: 8,
               autofocus: true,
               decoration: const InputDecoration(
-                labelText: '笔记内容',
+                labelText: '写下你的领受、疑问或祷告…',
                 border: OutlineInputBorder(),
                 alignLabelWithHint: true,
               ),
@@ -287,122 +444,101 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
     if (ok != true) return;
     final body = ctl.text.trim();
     if (body.isEmpty) return;
-    final repo = ref.read(notesRepoProvider);
-    final refText = refCtl.text.trim();
-    if (note == null) {
-      await repo.create(body: body, ref: refText.isEmpty ? null : refText);
-    } else {
-      await repo.edit(note, body: body);
-    }
+    await ref
+        .read(thoughtsRepoProvider)
+        .addThought(freeThoughtRef, body, shared: false);
   }
 }
 
-class _NoteCard extends StatelessWidget {
-  const _NoteCard({
-    required this.note,
-    required this.onEdit,
-    required this.onDelete,
-    this.onOpenRef,
-    this.onShare,
-  });
-  final Note note;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
-  final VoidCallback? onOpenRef;
-  final VoidCallback? onShare;
+class _ColorFilterBar extends StatelessWidget {
+  const _ColorFilterBar({required this.selected, required this.onChanged});
+  final String selected;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    final tags = (jsonDecode(note.tagsJson) as List).cast<String>();
-    return Dismissible(
-      key: ValueKey(note.id),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFFE9D6D2),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Icon(Icons.delete_outline, color: Color(0xFFB1554A)),
-      ),
-      onDismissed: (_) => onDelete(),
-      child: InkWell(
-        onTap: onEdit,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.line),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Row(
+        children: [
+          _chip(
+            label: '全部',
+            active: selected == 'all',
+            onTap: () => onChanged('all'),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if ((note.ref ?? '').isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Text(note.ref!,
-                      style: const TextStyle(
-                          color: AppColors.gold,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600)),
-                ),
-              Text(note.body,
-                  style: const TextStyle(
-                      fontSize: 15, height: 1.6, color: AppColors.ink)),
-              if (tags.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Wrap(
-                    spacing: 6,
-                    children: tags
-                        .map((t) => Text('#$t',
-                            style: const TextStyle(
-                                color: AppColors.inkFaint, fontSize: 12)))
-                        .toList(),
+          const SizedBox(width: 8),
+          ...highlightColorKeys.map((c) {
+            final active = selected == c;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: GestureDetector(
+                onTap: () => onChanged(active ? 'all' : c),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.accentWash : Colors.transparent,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: active ? AppColors.accent : AppColors.line,
+                    ),
                   ),
-                ),
-              if (onOpenRef != null || onShare != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (onOpenRef != null)
-                        TextButton(
-                          onPressed: onOpenRef,
-                          child: const Text('跳转经文'),
+                      Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: chipColor(c),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.line),
                         ),
-                      if (onShare != null)
-                        TextButton(
-                          onPressed: onShare,
-                          child: const Text('分享'),
-                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(markColorSemantics[c] ?? c,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight:
+                                active ? FontWeight.w700 : FontWeight.w500,
+                            color: active
+                                ? AppColors.accentDeep
+                                : AppColors.inkSoft,
+                          )),
                     ],
                   ),
                 ),
-            ],
-          ),
-        ),
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
-}
 
-class _Empty extends StatelessWidget {
-  const _Empty({this.text});
-  final String? text;
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Text(
-          text ?? '还没有笔记。\n点右下角 + 记录一段感动，离线也能写，联网一键同步。',
-          textAlign: TextAlign.center,
-          style: const TextStyle(color: AppColors.inkFaint, height: 1.7),
+  Widget _chip({
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? AppColors.accentWash : AppColors.surface,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: active ? AppColors.accent : AppColors.line,
+          ),
         ),
+        child: Text(label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              color: active ? AppColors.accentDeep : AppColors.inkSoft,
+            )),
       ),
     );
   }
@@ -421,7 +557,7 @@ class _SegTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: AppColors.surfaceSunken,
         borderRadius: BorderRadius.circular(12),
@@ -442,7 +578,7 @@ class _SegTabs extends StatelessWidget {
                 child: Text(
                   labels[i],
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                     color: active ? AppColors.accentDeep : AppColors.inkSoft,
                   ),
@@ -451,6 +587,23 @@ class _SegTabs extends StatelessWidget {
             ),
           );
         }),
+      ),
+    );
+  }
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Text(text,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: AppColors.inkFaint, height: 1.5)),
       ),
     );
   }
@@ -495,7 +648,7 @@ class _HighlightCard extends StatelessWidget {
                 Text(markColorSemantics[color] ?? '划线',
                     style: const TextStyle(
                         fontSize: 11, color: AppColors.inkFaint)),
-                Text(refStr,
+                Text(formatGroupRefLabel(refStr),
                     style: const TextStyle(
                         fontWeight: FontWeight.w600, color: AppColors.ink)),
               ],
@@ -504,47 +657,6 @@ class _HighlightCard extends StatelessWidget {
           TextButton(onPressed: onOpen, child: const Text('跳转')),
           if (onShare != null)
             TextButton(onPressed: onShare, child: const Text('分享')),
-        ],
-      ),
-    );
-  }
-}
-
-class _BookmarkCard extends StatelessWidget {
-  const _BookmarkCard({
-    required this.refStr,
-    required this.onOpen,
-    required this.onRemove,
-  });
-  final String refStr;
-  final VoidCallback onOpen;
-  final VoidCallback onRemove;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = refStr.replaceAll('.', ' ');
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.star, color: AppColors.gold, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(label,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600, color: AppColors.ink)),
-          ),
-          TextButton(onPressed: onOpen, child: const Text('阅读')),
-          IconButton(
-            tooltip: '移除',
-            icon: const Icon(Icons.close, size: 18, color: AppColors.inkFaint),
-            onPressed: onRemove,
-          ),
         ],
       ),
     );

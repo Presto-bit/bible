@@ -132,6 +132,12 @@ final thoughtsByChapterProvider =
   return map;
 });
 
+/// 当前用户全部想法（随 revision 刷新）。
+final myThoughtsProvider = Provider<List<VerseThoughtData>>((ref) {
+  ref.watch(thoughtsRevisionProvider);
+  return ref.watch(thoughtsRepoProvider).listMine();
+});
+
 final thoughtsRepoProvider = Provider<ThoughtsRepository>(
   (ref) => ThoughtsRepository(ref.watch(prefsProvider), ref),
 );
@@ -162,6 +168,38 @@ class ThoughtsRepository {
         return b.createdAtMs.compareTo(a.createdAtMs);
       });
     return [...mine, ...others];
+  }
+
+  /// 当前用户全部想法（新→旧），供「我的想法」页。
+  List<VerseThoughtData> listMine() {
+    return _readAll(_prefs).where((t) => t.authorId == _userId).toList()
+      ..sort((a, b) => b.createdAtMs.compareTo(a.createdAtMs));
+  }
+
+  Future<void> deleteThought(String id) async {
+    final rows = _readAll(_prefs)..removeWhere((t) => t.id == id);
+    await _writeAll(_prefs, rows);
+    _notify();
+  }
+
+  Future<void> updateThought(String id, String body) async {
+    final rows = _readAll(_prefs);
+    final i = rows.indexWhere((t) => t.id == id);
+    if (i < 0) return;
+    final t = rows[i];
+    rows[i] = VerseThoughtData(
+      id: t.id,
+      ref: t.ref,
+      body: body.trim(),
+      authorId: t.authorId,
+      authorName: t.authorName,
+      likesCount: t.likesCount,
+      likedBy: t.likedBy,
+      isShared: t.isShared,
+      createdAtMs: t.createdAtMs,
+    );
+    await _writeAll(_prefs, rows);
+    _notify();
   }
 
   Future<VerseThoughtData> addThought(String ref, String body,

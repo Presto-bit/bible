@@ -1,16 +1,23 @@
 'use client';
 
+/**
+ * 我的想法：想法 / 划线（无书签、无笔记）。
+ * 想法：分组列表 + 下钻；可新建自定义想法；划线：色点筛选。
+ * 小爱回答可「存想法」。
+ */
+
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import {
+  addThought,
   listAllThoughts,
   deleteThought,
   updateThought,
   visibilityLabel,
   type ThoughtRow,
 } from '@/lib/reader_thoughts';
-import { loadFavoriteRefs, toggleFavorite } from '@/lib/favorites';
 import { api, currentUserId, type BibleBook } from '@/lib/api';
 import { syncNow } from '@/lib/sync';
 import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
@@ -20,53 +27,49 @@ import { formatMarkRefLabel, readerMarkHref } from '@/lib/mark_ref';
 import { MARK_COLOR_SEMANTICS, MARK_COLORS } from '@/lib/mark_semantics';
 import { noteForMarkRef, upsertMarkNote } from '@/lib/mark_notes';
 import { listMarksDetailed } from '@/lib/mark_stats';
-import Link from 'next/link';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import type { HighlightColor } from '@/lib/reader_highlights';
 
-interface Favorite {
-  ref: string;
-  bookId: string;
-  chapter: number;
-  verse?: number;
-}
+/** 无经文关联的自定义想法 */
+const FREE_THOUGHT_REF = 'FREE';
 
-function loadFavorites(): Favorite[] {
-  return loadFavoriteRefs().map((r) => {
-    const [bookId, ch, v] = r.split('.');
-    return { ref: r, bookId, chapter: Number(ch) || 1, verse: v ? Number(v) : undefined };
-  });
-}
-
-type Tab = 'all' | 'thoughts' | 'bookmarks' | 'highlights';
-
-type FeedItem =
-  | { kind: 'thought'; id: string; ref: string; body: string; ts: number; thought: ThoughtRow }
-  | { kind: 'bookmark'; id: string; ref: string; label: string }
-  | { kind: 'highlight'; id: string; ref: string; mark: HighlightMark; notePreview?: string; ts: number };
+type Tab = 'thoughts' | 'highlights';
 
 const COLOR_FILTER_ALL = 'all';
+
+function bookIdFromRef(ref: string): string {
+  return (ref || '').split('.')[0] || 'FREE';
+}
+
+function bookLabel(bookId: string, bookNames: Record<string, string>): string {
+  if (bookId === 'FREE' || bookId === 'OTHER') return '随想';
+  return bookNames[bookId] || bookId;
+}
 
 export default function NotesPage() {
   useEdgeSwipeBack({ href: '/profile' });
 
   const confirm = useConfirm();
-  const [tab, setTab] = useState<Tab>('all');
+  const [tab, setTab] = useState<Tab>('thoughts');
   const [query, setQuery] = useState('');
   const [thoughts, setThoughts] = useState<ThoughtRow[]>([]);
   const [highlights, setHighlights] = useState<{ ref: string; mark: HighlightMark }[]>([]);
-  const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [bookNames, setBookNames] = useState<Record<string, string>>({});
-  const [editingThought, setEditingThought] = useState<ThoughtRow | null>(null);
-  const [highlightWrite, setHighlightWrite] = useState<null | { ref: string; body: string }>(null);
   const [colorFilter, setColorFilter] = useState<string>(COLOR_FILTER_ALL);
-  const [shareTarget, setShareTarget] = useState<null | { ref: string; label: string; body: string }>(null);
+  const [editingThought, setEditingThought] = useState<ThoughtRow | null>(null);
+  const [creatingThought, setCreatingThought] = useState(false);
+  const [highlightWrite, setHighlightWrite] = useState<null | { ref: string; body: string }>(null);
+  const [thoughtGroup, setThoughtGroup] = useState<string | null>(null);
+  const [thoughtDetail, setThoughtDetail] = useState<ThoughtRow | null>(null);
+  const [shareTarget, setShareTarget] = useState<null | { ref: string; label: string; body: string }>(
+    null,
+  );
 
   const markDetails = useMemo(() => listMarksDetailed(), [highlights]);
 
   const refresh = () => {
     setThoughts(listAllThoughts());
     setHighlights(listHighlightRefs());
-    setFavorites(loadFavorites());
   };
 
   useEffect(() => {
@@ -82,18 +85,19 @@ export default function NotesPage() {
       })
       .catch(() => {});
     if (currentUserId()) {
-      syncNow().then(() => refresh()).catch(() => {});
+      syncNow()
+        .then(() => refresh())
+        .catch(() => {});
     }
   }, []);
 
-  const removeFavorite = (ref: string) => {
-    if (loadFavoriteRefs().includes(ref)) toggleFavorite(ref);
-    refresh();
-  };
-
-  const removeHighlightItem = (ref: string) => {
-    removeHighlight(ref);
-    refresh();
+  const refLabel = (ref: string) => {
+    if (!ref || ref === FREE_THOUGHT_REF) return '随想';
+    const [bookId, ch, tail] = ref.split('.');
+    const name = bookNames[bookId] || bookId;
+    if (!ch) return name;
+    if (!tail) return `${name} ${ch}`;
+    return `${name} ${ch}:${tail.replace('-', '–')}`;
   };
 
   const removeThought = async (id: string) => {
@@ -105,6 +109,12 @@ export default function NotesPage() {
     });
     if (!ok) return;
     deleteThought(id);
+    setThoughtDetail(null);
+    refresh();
+  };
+
+  const removeHighlightItem = (ref: string) => {
+    removeHighlight(ref);
     refresh();
   };
 
@@ -118,89 +128,66 @@ export default function NotesPage() {
     setHighlightWrite({ ref, body: note?.body || '' });
   };
 
-  const favLabel = (f: Favorite) => {
-    const name = bookNames[f.bookId] || f.bookId;
-    return `${name} ${f.chapter}${f.verse ? `:${f.verse}` : ''}`;
-  };
+  const q = query.trim().toLowerCase();
 
-  const refLabel = (ref: string) => {
-    const [bookId, ch, tail] = ref.split('.');
-    const name = bookNames[bookId] || bookId;
-    if (!tail) return `${name} ${ch}`;
-    return `${name} ${ch}:${tail.replace('-', '–')}`;
-  };
-
-  const feed = useMemo((): FeedItem[] => {
-    const items: FeedItem[] = [
-      ...thoughts.map((t) => ({
-        kind: 'thought' as const,
-        id: t.id,
-        ref: t.ref,
-        body: t.body,
-        ts: t.createdAtMs,
-        thought: t,
-      })),
-      ...favorites.map((f) => ({
-        kind: 'bookmark' as const,
-        id: f.ref,
-        ref: f.ref,
-        label: favLabel(f),
-      })),
-      ...markDetails.map((h) => ({
-        kind: 'highlight' as const,
-        id: h.ref,
-        ref: h.ref,
-        mark: { color: h.color },
-        notePreview: h.notePreview,
-        ts: h.createdAt,
-      })),
-    ];
-    items.sort((a, b) => {
-      const ta = 'ts' in a ? a.ts : 0;
-      const tb = 'ts' in b ? b.ts : 0;
-      return tb - ta;
-    });
-    return items;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [thoughts, favorites, markDetails, bookNames]);
-
-  const filteredFeed = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return feed.filter((item) => {
-      if (tab === 'thoughts' && item.kind !== 'thought') return false;
-      if (tab === 'bookmarks' && item.kind !== 'bookmark') return false;
-      if (tab === 'highlights' && item.kind !== 'highlight') return false;
-      if (
-        tab === 'highlights' &&
-        colorFilter !== COLOR_FILTER_ALL &&
-        item.kind === 'highlight' &&
-        item.mark.color !== colorFilter
-      ) {
-        return false;
-      }
+  const filteredThoughts = useMemo(() => {
+    return thoughts.filter((t) => {
       if (!q) return true;
-      if (item.kind === 'thought') {
-        return item.body.toLowerCase().includes(q) || item.ref.toLowerCase().includes(q);
-      }
-      if (item.kind === 'bookmark') {
-        return item.ref.toLowerCase().includes(q) || item.label.toLowerCase().includes(q);
-      }
-      if (item.kind === 'highlight') {
-        return (
-          item.ref.toLowerCase().includes(q) ||
-          (item.notePreview || '').toLowerCase().includes(q)
-        );
-      }
-      return false;
+      return t.body.toLowerCase().includes(q) || t.ref.toLowerCase().includes(q);
     });
-  }, [feed, tab, query, colorFilter]);
+  }, [thoughts, q]);
+
+  const thoughtGroups = useMemo(() => {
+    const map = new Map<string, ThoughtRow[]>();
+    for (const t of filteredThoughts) {
+      const bid = bookIdFromRef(t.ref);
+      const list = map.get(bid) ?? [];
+      list.push(t);
+      map.set(bid, list);
+    }
+    return [...map.entries()]
+      .map(([bookId, items]) => ({
+        bookId,
+        label: bookLabel(bookId, bookNames),
+        items: items.sort((a, b) => b.createdAtMs - a.createdAtMs),
+      }))
+      .sort((a, b) => {
+        if (a.bookId === 'FREE') return -1;
+        if (b.bookId === 'FREE') return 1;
+        return a.label.localeCompare(b.label, 'zh');
+      });
+  }, [filteredThoughts, bookNames]);
+
+  const groupThoughts = useMemo(() => {
+    if (!thoughtGroup) return [];
+    return thoughtGroups.find((g) => g.bookId === thoughtGroup)?.items ?? [];
+  }, [thoughtGroup, thoughtGroups]);
+
+  const filteredHighlights = useMemo(() => {
+    return markDetails.filter((h) => {
+      if (colorFilter !== COLOR_FILTER_ALL && h.color !== colorFilter) return false;
+      if (!q) return true;
+      return (
+        h.ref.toLowerCase().includes(q) ||
+        (h.notePreview || '').toLowerCase().includes(q)
+      );
+    });
+  }, [markDetails, colorFilter, q]);
 
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: 'all', label: '全部', count: feed.length },
     { id: 'thoughts', label: '想法', count: thoughts.length },
-    { id: 'bookmarks', label: '书签', count: favorites.length },
     { id: 'highlights', label: '划线', count: highlights.length },
   ];
+
+  const DOT_COLORS: Record<HighlightColor, string> = {
+    yellow: '#e6c84a',
+    green: '#6aaf5e',
+    blue: '#5b8fd9',
+    pink: '#d9789a',
+    orange: '#e09a4a',
+  };
+
+  const showCreateBtn = tab === 'thoughts' && !thoughtDetail && !thoughtGroup;
 
   return (
     <main className="container">
@@ -212,17 +199,35 @@ export default function NotesPage() {
       <div className="search-bar" style={{ marginBottom: 12 }}>
         <input
           className="search-input"
-          placeholder="搜索想法、划线或书签…"
+          placeholder="搜索想法或划线…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
 
+      <div className="seg-tabs notes-seg-tabs" style={{ marginBottom: 12 }}>
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`seg-tab ${tab === t.id ? 'seg-tab-active' : ''}`}
+            onClick={() => {
+              setTab(t.id);
+              setThoughtGroup(null);
+              setThoughtDetail(null);
+            }}
+          >
+            {t.label}
+            {t.count > 0 ? ` · ${t.count}` : ''}
+          </button>
+        ))}
+      </div>
+
       {tab === 'highlights' && (
-        <div className="tag-filter-row" style={{ marginBottom: 12 }}>
+        <div className="mark-color-filter" role="toolbar" aria-label="按颜色筛选划线">
           <button
             type="button"
-            className={`pill ${colorFilter === COLOR_FILTER_ALL ? 'pill-active' : ''}`}
+            className={`mark-color-filter-all ${colorFilter === COLOR_FILTER_ALL ? 'is-active' : ''}`}
             onClick={() => setColorFilter(COLOR_FILTER_ALL)}
           >
             全部
@@ -231,125 +236,210 @@ export default function NotesPage() {
             <button
               key={c}
               type="button"
-              className={`pill ${colorFilter === c ? 'pill-active' : ''}`}
+              className={`mark-color-dot ${colorFilter === c ? 'is-active' : ''}`}
+              style={{ ['--mark-dot' as string]: DOT_COLORS[c] }}
+              title={MARK_COLOR_SEMANTICS[c].label}
+              aria-label={MARK_COLOR_SEMANTICS[c].label}
               onClick={() => setColorFilter(colorFilter === c ? COLOR_FILTER_ALL : c)}
             >
-              {MARK_COLOR_SEMANTICS[c].label}
+              <span className="mark-color-dot-core" />
+              <span className="mark-color-dot-label">{MARK_COLOR_SEMANTICS[c].label}</span>
             </button>
           ))}
         </div>
       )}
 
-      <div className="seg-tabs notes-seg-tabs" style={{ marginBottom: 12 }}>
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`seg-tab ${tab === t.id ? 'seg-tab-active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}{t.count > 0 ? ` · ${t.count}` : ''}
-          </button>
-        ))}
-      </div>
-
-      {filteredFeed.length === 0 ? (
-        <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
-          {query ? '没有匹配的内容。' : '还没有内容。阅读时可写想法、收藏经文或划线。'}
-        </p>
-      ) : (
-        filteredFeed.map((item) => {
-          if (item.kind === 'thought') {
-            return (
-              <div key={`thought-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
-                  <span className="pill pill-active" style={{ fontSize: 10 }}>想法</span>
-                  <span className={`thought-vis-badge thought-vis-${item.thought.visibility}`}>
-                    {visibilityLabel(item.thought.visibility)}
-                  </span>
-                  <Link
-                    href={readerMarkHref(item.ref)}
-                    style={{ fontWeight: 700, fontSize: 12, color: 'var(--accent-deep)' }}
-                  >
-                    {refLabel(item.ref)}
-                  </Link>
-                </div>
-                <p style={{ margin: '6px 0 10px', lineHeight: 1.6 }}>{item.body}</p>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <Link href={readerMarkHref(item.ref)} className="text-link">
-                    跳转经文
-                  </Link>
-                  <button type="button" className="text-link" onClick={() => setEditingThought(item.thought)}>
-                    编辑
-                  </button>
-                  {item.thought.visibility !== 'private' && (
-                    <button
-                      type="button"
-                      className="text-link"
-                      onClick={() => setShareTarget({ ref: item.ref, label: refLabel(item.ref), body: item.body })}
-                    >
-                      分享
-                    </button>
-                  )}
-                  <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => void removeThought(item.id)}>
-                    删除
-                  </button>
-                </div>
-              </div>
-            );
-          }
-          if (item.kind === 'bookmark') {
-            return (
-              <div key={`fav-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span className="pill" style={{ fontSize: 10 }}>书签</span>
-                  <span style={{ fontWeight: 700, color: 'var(--accent-deep)' }}>
-                    ★ {item.label}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <Link className="text-link" href={readerMarkHref(item.ref)}>
-                    跳转经文
-                  </Link>
-                  <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeFavorite(item.ref)}>
-                    删除
-                  </button>
-                </div>
-              </div>
-            );
-          }
-          const sem = MARK_COLOR_SEMANTICS[item.mark.color];
-          const note = noteForMarkRef(item.ref);
-          return (
-            <div key={`hl-${item.id}`} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <span className="pill" style={{ fontSize: 10 }}>划线</span>
-                <span className={`verse-mark verse-mark-color verse-mark-${item.mark.color}`} style={{ fontSize: 12, padding: '2px 8px' }}>
-                  {sem.label}
+      {tab === 'thoughts' && (
+        <>
+          {showCreateBtn && (
+            <button
+              type="button"
+              className="btn"
+              style={{ width: '100%', marginBottom: 12 }}
+              onClick={() => setCreatingThought(true)}
+            >
+              + 新建想法
+            </button>
+          )}
+          {thoughtDetail ? (
+            <div className="card card-2" style={{ padding: 14 }}>
+              <button
+                type="button"
+                className="text-link"
+                style={{ marginBottom: 10 }}
+                onClick={() => setThoughtDetail(null)}
+              >
+                ← 返回列表
+              </button>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                <span className={`thought-vis-badge thought-vis-${thoughtDetail.visibility}`}>
+                  {visibilityLabel(thoughtDetail.visibility)}
                 </span>
-                <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
-                  {formatMarkRefLabel(item.ref, bookNames)}
-                </span>
+                {thoughtDetail.ref && thoughtDetail.ref !== FREE_THOUGHT_REF ? (
+                  <Link href={readerMarkHref(thoughtDetail.ref)} className="text-link">
+                    {refLabel(thoughtDetail.ref)}
+                  </Link>
+                ) : (
+                  <span className="muted" style={{ fontSize: 13 }}>
+                    {refLabel(thoughtDetail.ref)}
+                  </span>
+                )}
               </div>
-              {(item.notePreview || note?.body) && (
-                <p className="muted" style={{ margin: '0 0 8px', fontSize: 13, lineHeight: 1.5 }}>
-                  {item.notePreview || note?.body}
-                </p>
-              )}
+              <p style={{ lineHeight: 1.65, marginBottom: 14 }}>{thoughtDetail.body}</p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <Link className="text-link" href={readerMarkHref(item.ref)}>
-                  跳转经文
-                </Link>
-                <button type="button" className="text-link" onClick={() => openHighlightEdit(item.ref)}>
-                  {note?.body ? '编辑想法' : '加想法'}
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => setEditingThought(thoughtDetail)}
+                >
+                  编辑
                 </button>
-                <button type="button" className="text-link" style={{ color: '#b1554a' }} onClick={() => removeHighlightItem(item.ref)}>
+                {thoughtDetail.visibility !== 'private' && (
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() =>
+                      setShareTarget({
+                        ref: thoughtDetail.ref,
+                        label: refLabel(thoughtDetail.ref),
+                        body: thoughtDetail.body,
+                      })
+                    }
+                  >
+                    分享
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="text-link"
+                  style={{ color: '#b1554a' }}
+                  onClick={() => void removeThought(thoughtDetail.id)}
+                >
                   删除
                 </button>
               </div>
             </div>
-          );
-        })
+          ) : thoughtGroup ? (
+            <>
+              <button
+                type="button"
+                className="text-link"
+                style={{ marginBottom: 12 }}
+                onClick={() => setThoughtGroup(null)}
+              >
+                ← 全部分组
+              </button>
+              <h3 style={{ margin: '0 0 10px', fontSize: 16 }}>
+                {bookLabel(thoughtGroup, bookNames)}
+                <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
+                  {' '}
+                  · {groupThoughts.length}
+                </span>
+              </h3>
+              {groupThoughts.length === 0 ? (
+                <p className="muted">该分组暂无想法。</p>
+              ) : (
+                groupThoughts.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className="card card-2 notes-drill-row"
+                    onClick={() => setThoughtDetail(t)}
+                  >
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {refLabel(t.ref)}
+                    </span>
+                    <strong className="notes-drill-title">
+                      {t.body.trim().split(/\n/)[0].slice(0, 40) || '（空）'}
+                    </strong>
+                    <span className="muted notes-drill-preview">
+                      {t.body.length > 80 ? `${t.body.slice(0, 80)}…` : t.body}
+                    </span>
+                  </button>
+                ))
+              )}
+            </>
+          ) : filteredThoughts.length === 0 ? (
+            <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
+              {query
+                ? '没有匹配的想法。'
+                : '还没有想法。可点上方新建，或在小爱回答里存想法。'}
+            </p>
+          ) : (
+            thoughtGroups.map((g) => (
+              <button
+                key={g.bookId}
+                type="button"
+                className="card row-card notes-group-row"
+                onClick={() => setThoughtGroup(g.bookId)}
+              >
+                <span className="notes-group-main">
+                  <strong>{g.label}</strong>
+                  <span className="muted" style={{ fontSize: 12 }}>
+                    {g.items[0]?.body.trim().slice(0, 28) || '查看想法'}
+                    {(g.items[0]?.body.length || 0) > 28 ? '…' : ''}
+                  </span>
+                </span>
+                <span className="muted">{g.items.length} ›</span>
+              </button>
+            ))
+          )}
+        </>
+      )}
+
+      {tab === 'highlights' && (
+        <>
+          {filteredHighlights.length === 0 ? (
+            <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
+              {query || colorFilter !== COLOR_FILTER_ALL
+                ? '没有匹配的划线。'
+                : '还没有划线。阅读时选中经文可划线。'}
+            </p>
+          ) : (
+            filteredHighlights.map((h) => {
+              const sem = MARK_COLOR_SEMANTICS[h.color];
+              const note = noteForMarkRef(h.ref);
+              return (
+                <div key={h.ref} className="card card-2" style={{ marginBottom: 10, padding: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span
+                      className="mark-color-dot-inline"
+                      style={{ background: DOT_COLORS[h.color] }}
+                      title={sem.label}
+                    />
+                    <span className="muted" style={{ fontSize: 12 }}>
+                      {sem.label}
+                    </span>
+                    <span style={{ fontWeight: 700, color: 'var(--accent-deep)', flex: 1 }}>
+                      {formatMarkRefLabel(h.ref, bookNames)}
+                    </span>
+                  </div>
+                  {(h.notePreview || note?.body) && (
+                    <p className="muted" style={{ margin: '0 0 8px', fontSize: 13, lineHeight: 1.5 }}>
+                      {h.notePreview || note?.body}
+                    </p>
+                  )}
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    <Link className="text-link" href={readerMarkHref(h.ref)}>
+                      跳转经文
+                    </Link>
+                    <button type="button" className="text-link" onClick={() => openHighlightEdit(h.ref)}>
+                      {note?.body ? '编辑想法' : '加想法'}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-link"
+                      style={{ color: '#b1554a' }}
+                      onClick={() => removeHighlightItem(h.ref)}
+                    >
+                      删除
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </>
       )}
 
       {shareTarget && (
@@ -359,6 +449,21 @@ export default function NotesPage() {
           body={shareTarget.body}
           kind="thought"
           onClose={() => setShareTarget(null)}
+        />
+      )}
+
+      {creatingThought && (
+        <ThoughtWriteSheet
+          refStr={FREE_THOUGHT_REF}
+          refLabel="随想"
+          mode="new"
+          initialVisibility="private"
+          onSave={(body, visibility) => {
+            addThought(FREE_THOUGHT_REF, body, visibility, { skipPublish: true });
+            setCreatingThought(false);
+            refresh();
+          }}
+          onClose={() => setCreatingThought(false)}
         />
       )}
 
@@ -372,6 +477,9 @@ export default function NotesPage() {
           onSave={(body, visibility) => {
             updateThought(editingThought.id, body, visibility);
             setEditingThought(null);
+            setThoughtDetail((d) =>
+              d && d.id === editingThought.id ? { ...d, body, visibility } : d,
+            );
             refresh();
           }}
           onClose={() => setEditingThought(null)}
