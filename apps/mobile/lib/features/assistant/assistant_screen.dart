@@ -127,9 +127,8 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   }
 
   Future<void> _pickKnowledgeBase() async {
-    if (_kbs.isEmpty) await _loadKnowledgeBases();
     if (!mounted) return;
-    final picked = await showModalBottomSheet<KnowledgeBaseSummary>(
+    await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       builder: (ctx) => SafeArea(
@@ -140,18 +139,16 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
               padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text('选择知识库',
+                child: Text('知识库',
                     style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
               ),
             ),
-            ..._kbs.map((kb) => ListTile(
-                  title: Text(kb.name),
-                  subtitle: Text(kb.description, maxLines: 2),
-                  trailing: kb.id == _knowledgeBaseId
-                      ? const Icon(Icons.check, color: AppColors.accentDeep)
-                      : null,
-                  onTap: () => Navigator.pop(ctx, kb),
-                )),
+            ListTile(
+              title: const Text('平台知识库'),
+              subtitle: const Text('含中文研经、公版英文注释、原文与词典（默认）'),
+              trailing: const Icon(Icons.check, color: AppColors.accentDeep),
+              onTap: () => Navigator.pop(ctx),
+            ),
             ListTile(
               title: const Text('浏览知识库'),
               trailing: const Icon(Icons.chevron_right),
@@ -164,11 +161,6 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         ),
       ),
     );
-    if (picked == null || !mounted) return;
-    setState(() {
-      _knowledgeBaseId = picked.id;
-      _knowledgeBaseName = picked.name;
-    });
   }
 
   Future<void> _openHistory() async {
@@ -279,7 +271,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           mode: modeFromScene,
           scene: activeScene,
           history: history,
-          knowledgeBaseId: _knowledgeBaseId,
+          knowledgeBaseId: 'platform',
         );
 
     await for (final evt in stream) {
@@ -709,6 +701,15 @@ class _SessionListSheet extends ConsumerWidget {
                 },
               ),
             ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(4, 10, 4, 4),
+            child: Center(
+              child: Text(
+                '为你保留最近30天历史',
+                style: TextStyle(fontSize: 11, color: AppColors.inkFaint),
+              ),
+            ),
+          ),
           ],
         ),
       );
@@ -1253,14 +1254,11 @@ class _ComposerState extends State<_Composer> {
                             Positioned(
                               left: -32,
                               child: IconButton(
-                                tooltip: widget.knowledgeBaseLabel ?? '知识库',
+                                tooltip: '平台知识库',
                                 iconSize: 20,
-                                icon: Icon(
+                                icon: const Icon(
                                   Icons.layers_outlined,
-                                  color: (widget.knowledgeBaseLabel != null &&
-                                          widget.knowledgeBaseLabel != '平台知识库')
-                                      ? AppColors.accentDeep
-                                      : AppColors.inkSoft,
+                                  color: AppColors.inkSoft,
                                 ),
                                 onPressed: widget.disabled
                                     ? null
@@ -1297,13 +1295,10 @@ class _ComposerState extends State<_Composer> {
                       prefixIcon: widget.onPickKnowledgeBase == null
                           ? null
                           : IconButton(
-                              tooltip: widget.knowledgeBaseLabel ?? '知识库',
-                              icon: Icon(
+                              tooltip: '平台知识库',
+                              icon: const Icon(
                                 Icons.layers_outlined,
-                                color: (widget.knowledgeBaseLabel != null &&
-                                        widget.knowledgeBaseLabel != '平台知识库')
-                                    ? AppColors.accentDeep
-                                    : AppColors.inkSoft,
+                                color: AppColors.inkSoft,
                               ),
                               onPressed: widget.disabled
                                   ? null

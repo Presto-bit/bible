@@ -721,7 +721,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         history,
         surface,
         reader_context: buildAssistantReaderContext(),
-        knowledge_base_id: knowledgeBaseId !== DEFAULT_KB_ID ? knowledgeBaseId : undefined,
+        knowledge_base_id: undefined,
       },
       {
         onMeta: (meta) => {
@@ -984,12 +984,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       </div>
       <div className="assistant-compose">
         <div className="compose-input-wrap">
-          <KnowledgeBasePicker
-            value={knowledgeBaseId}
-            onChange={setKnowledgeBaseId}
-            disabled={busy}
-            variant="embed"
-          />
+          <KnowledgeBasePicker disabled={busy} variant="embed" />
           {voiceMode ? (
             <button
               type="button"
@@ -1295,66 +1290,69 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       {historyOpen && (
         <AppBodyPortal>
           <div className="drawer-backdrop" onClick={() => setHistoryOpen(false)}>
-            <div className="drawer-left" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-left assistant-history-drawer" onClick={(e) => e.stopPropagation()}>
               <div className="section-row" style={{ marginTop: 0 }}>
                 <strong>历史会话</strong>
                 <button type="button" className="btn" style={{ marginTop: 0 }} onClick={startNewSession}>
                   + 新会话
                 </button>
               </div>
-              {sessions.length === 0 ? (
-                <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
-              ) : (
-                <div className="history-group-list" style={{ marginTop: 8 }}>
-                  {sessionGroups.map((group) => {
-                    const collapsed = collapsedGroups[group.label] ?? group.label !== '今天';
-                    return (
-                      <div key={group.label} className="history-date-group">
-                        <button
-                          type="button"
-                          className="history-date-head"
-                          onClick={() =>
-                            setCollapsedGroups((prev) => ({
-                              ...prev,
-                              [group.label]: !collapsed,
-                            }))
-                          }
-                        >
-                          <span>{group.label}</span>
-                          <span className="muted" style={{ fontSize: 11 }}>
-                            {group.items.length} 条 · {collapsed ? '展开' : '收起'}
-                          </span>
-                        </button>
-                        {!collapsed && group.items.map((s) => (
-                          <HistorySessionSwipeRow
-                            key={s.id}
-                            onOpen={() => openSession(s as Session)}
-                            onRename={() => handleRenameSession(s as Session)}
-                            onDelete={() => handleDeleteSession(s as Session)}
+              <div className="assistant-history-body">
+                {sessions.length === 0 ? (
+                  <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
+                ) : (
+                  <div className="history-group-list" style={{ marginTop: 8 }}>
+                    {sessionGroups.map((group) => {
+                      const collapsed = collapsedGroups[group.label] ?? group.label !== '今天';
+                      return (
+                        <div key={group.label} className="history-date-group">
+                          <button
+                            type="button"
+                            className="history-date-head"
+                            onClick={() =>
+                              setCollapsedGroups((prev) => ({
+                                ...prev,
+                                [group.label]: !collapsed,
+                              }))
+                            }
                           >
-                            <div className="history-item">
-                              <div className="history-item-top">
-                                <span className="history-item-title">{s.title}</span>
-                                <span className="muted" style={{ fontSize: 11 }}>
-                                  {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
-                                </span>
+                            <span>{group.label}</span>
+                            <span className="muted" style={{ fontSize: 11 }}>
+                              {group.items.length} 条 · {collapsed ? '展开' : '收起'}
+                            </span>
+                          </button>
+                          {!collapsed && group.items.map((s) => (
+                            <HistorySessionSwipeRow
+                              key={s.id}
+                              onOpen={() => openSession(s as Session)}
+                              onRename={() => handleRenameSession(s as Session)}
+                              onDelete={() => handleDeleteSession(s as Session)}
+                            >
+                              <div className="history-item">
+                                <div className="history-item-top">
+                                  <span className="history-item-title">{s.title}</span>
+                                  <span className="muted" style={{ fontSize: 11 }}>
+                                    {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
+                                  </span>
+                                </div>
+                                {s.ref && (
+                                  <span className="history-item-ref">
+                                    {refToChineseLabel(s.ref) ?? s.ref}
+                                  </span>
+                                )}
+                                {s.preview && (
+                                  <span className="muted history-item-preview">{s.preview}</span>
+                                )}
                               </div>
-                              {s.ref && (
-                                <span className="history-item-ref">
-                                  {refToChineseLabel(s.ref) ?? s.ref}
-                                </span>
-                              )}
-                              {s.preview && (
-                                <span className="muted history-item-preview">{s.preview}</span>
-                              )}
-                            </div>
-                          </HistorySessionSwipeRow>
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                            </HistorySessionSwipeRow>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <p className="muted assistant-history-retention-hint">为你保留最近30天历史</p>
             </div>
           </div>
         </AppBodyPortal>

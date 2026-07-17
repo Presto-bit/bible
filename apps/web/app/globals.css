@@ -8167,6 +8167,27 @@ body.reader-active .proper-noun--artifact {
   animation: drawer-in 0.22s ease;
 }
 
+.assistant-history-drawer {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.assistant-history-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.assistant-history-retention-hint {
+  margin: 12px 0 0;
+  padding-top: 10px;
+  font-size: 11px;
+  text-align: center;
+  flex-shrink: 0;
+  border-top: 1px solid var(--line);
+}
+
 @keyframes drawer-in {
   from {
     transform: translateX(-100%);

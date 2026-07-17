@@ -193,7 +193,7 @@ def knowledge_base_detail(kb_id: str):
                     stamps = [f["updated_at"] for f in folders if f.get("updated_at")]
                     updated_at = max(stamps) if stamps else None
             else:
-                # 专题：按标题归入同一文件夹（同名资料合并）
+                # 专题文件夹：直接列出文件
                 rows = conn.execute(
                     "SELECT id::text, title, source_type, status, "
                     "COALESCE(rag_index_at, created_at) AS touched_at "
@@ -202,32 +202,16 @@ def knowledge_base_detail(kb_id: str):
                     "LIMIT 500",
                     (types,),
                 ).fetchall()
-                by_title: dict[str, list] = {}
-                for r in rows:
-                    title = (r[1] or "未命名资料").strip() or "未命名资料"
-                    by_title.setdefault(title, []).append(
-                        {
-                            "id": r[0],
-                            "title": title,
-                            "source_type": r[2],
-                            "status": r[3],
-                            "created_at": r[4].isoformat() if r[4] else None,
-                        }
-                    )
-                for title, items in by_title.items():
-                    stamps = [i["created_at"] for i in items if i.get("created_at")]
-                    folders.append(
-                        {
-                            "id": items[0]["id"],
-                            "name": title,
-                            "description": "",
-                            "kind": "doc-folder",
-                            "document_count": len(items),
-                            "updated_at": max(stamps) if stamps else None,
-                            "documents": items,
-                        }
-                    )
-                docs = [d for items in by_title.values() for d in items]
+                docs = [
+                    {
+                        "id": r[0],
+                        "title": (r[1] or "未命名资料").strip() or "未命名资料",
+                        "source_type": r[2],
+                        "status": r[3],
+                        "created_at": r[4].isoformat() if r[4] else None,
+                    }
+                    for r in rows
+                ]
                 stamps = [d["created_at"] for d in docs if d.get("created_at")]
                 updated_at = max(stamps) if stamps else None
     except Exception as exc:

@@ -1,4 +1,4 @@
-/// 知识库列表与详情（平台文件夹：中文研经 / 公版英文注释 / 原文与词典）。
+/// 知识库：入口仅平台 → 主页文件夹 → 文件夹内文件。
 library;
 
 import 'package:flutter/material.dart';
@@ -76,80 +76,35 @@ class _KnowledgeBasesScreenState extends ConsumerState<KnowledgeBasesScreen> {
               : ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
+                    const Text(
+                      '浏览平台资料；小爱默认使用平台知识库检索。',
+                      style: TextStyle(fontSize: 13, color: AppColors.inkFaint),
+                    ),
+                    const SizedBox(height: 12),
                     Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                      child: ListTile(
+                        title: Row(
                           children: [
-                            Row(
-                              children: [
-                                Text(
-                                  (_platform?['name'] as String?) ?? '平台知识库',
-                                  style: const TextStyle(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text('默认',
-                                    style: TextStyle(
-                                        fontSize: 11,
-                                        color: AppColors.inkFaint)),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
                             Text(
-                              (_platform?['description'] as String?) ?? '',
+                              (_platform?['name'] as String?) ?? '平台知识库',
                               style: const TextStyle(
-                                  fontSize: 13,
-                                  height: 1.5,
-                                  color: AppColors.inkFaint),
+                                  fontWeight: FontWeight.w700, fontSize: 16),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '共 ${_platform?['document_count'] ?? 0} 份 · ${folders.length} 个文件夹',
-                              style: const TextStyle(
-                                  fontSize: 12, color: AppColors.inkFaint),
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                              onPressed: () {
-                                ref
-                                    .read(assistantSeedProvider.notifier)
-                                    .open(
-                                      question: '请结合平台知识库帮我释经',
-                                      knowledgeBaseId: 'platform',
-                                    );
-                                ref.read(navIndexProvider.notifier).set(2);
-                                context.go('/');
-                              },
-                              child: const Text('用此库问小爱'),
-                            ),
+                            const SizedBox(width: 8),
+                            const Text('默认',
+                                style: TextStyle(
+                                    fontSize: 11, color: AppColors.inkFaint)),
                           ],
                         ),
+                        subtitle: Text(
+                          '${_platform?['description'] ?? ''}\n'
+                          '${folders.length} 个文件夹 · 共 ${_platform?['document_count'] ?? 0} 份资料',
+                        ),
+                        isThreeLine: true,
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => context.push('/knowledge-bases/platform'),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text('文件夹',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 10),
-                    ...folders.map((f) => Card(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: ListTile(
-                            leading: const Icon(Icons.folder_outlined,
-                                color: AppColors.accentDeep),
-                            title: Text((f['name'] as String?) ?? ''),
-                            subtitle: Text(
-                              '${f['description'] ?? ''}\n'
-                              '${f['document_count'] ?? 0} 份 · ${_formatUpdated(f['updated_at'] as String?)}',
-                            ),
-                            isThreeLine: true,
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => context
-                                .push('/knowledge-bases/${f['id']}'),
-                          ),
-                        )),
                   ],
                 ),
     );
@@ -170,7 +125,6 @@ class _KnowledgeBaseDetailScreenState
   Map<String, dynamic>? _data;
   String? _err;
   String _q = '';
-  String? _openFolderId;
 
   @override
   void initState() {
@@ -190,32 +144,42 @@ class _KnowledgeBaseDetailScreenState
     }
   }
 
-  void _askWithKb() {
-    ref.read(assistantSeedProvider.notifier).open(
-          question: '请结合所选知识库帮我释经',
-          knowledgeBaseId: widget.id,
-        );
-    ref.read(navIndexProvider.notifier).set(2);
-    context.go('/');
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isPlatform = _data?['kind'] == 'platform';
     final folders = ((_data?['folders'] as List?) ?? const [])
         .cast<Map>()
         .map((e) => Map<String, dynamic>.from(e))
         .where((f) {
           final needle = _q.trim().toLowerCase();
           if (needle.isEmpty) return true;
-          final name = '${f['name'] ?? ''}'.toLowerCase();
-          final desc = '${f['description'] ?? ''}'.toLowerCase();
-          return name.contains(needle) || desc.contains(needle);
+          return '${f['name']}'.toLowerCase().contains(needle) ||
+              '${f['description']}'.toLowerCase().contains(needle);
         })
         .toList();
-    final isPlatform = _data?['kind'] == 'platform';
+    final files = ((_data?['documents'] as List?) ?? const [])
+        .cast<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .where((d) {
+          final needle = _q.trim().toLowerCase();
+          if (needle.isEmpty) return true;
+          return '${d['title']}'.toLowerCase().contains(needle);
+        })
+        .toList();
 
     return Scaffold(
-      appBar: AppBar(title: Text((_data?['name'] as String?) ?? '知识库')),
+      appBar: AppBar(
+        title: Text((_data?['name'] as String?) ?? '知识库'),
+        leading: BackButton(
+          onPressed: () {
+            if (isPlatform) {
+              context.go('/knowledge-bases');
+            } else {
+              context.go('/knowledge-bases/platform');
+            }
+          },
+        ),
+      ),
       body: _err != null
           ? Center(child: Text(_err!))
           : _data == null
@@ -228,82 +192,75 @@ class _KnowledgeBaseDetailScreenState
                             color: AppColors.inkFaint, height: 1.5)),
                     const SizedBox(height: 8),
                     Text(
-                      '${_data?['document_count'] ?? 0} 份资料'
-                      '${_data?['updated_at'] != null ? ' · ${_formatUpdated(_data?['updated_at'] as String?)}' : ''}',
+                      isPlatform
+                          ? '${folders.length} 个文件夹 · ${_data?['document_count'] ?? 0} 份资料'
+                          : '${_data?['document_count'] ?? 0} 份资料'
+                              '${_data?['updated_at'] != null ? ' · ${_formatUpdated(_data?['updated_at'] as String?)}' : ''}',
                       style: const TextStyle(
                           fontSize: 12, color: AppColors.inkFaint),
                     ),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                      onPressed: _askWithKb,
-                      child: const Text('用此库问小爱'),
-                    ),
+                    if (isPlatform) ...[
+                      const SizedBox(height: 12),
+                      FilledButton(
+                        onPressed: () {
+                          ref.read(assistantSeedProvider.notifier).open(
+                                question: '请结合平台知识库帮我释经',
+                                knowledgeBaseId: 'platform',
+                              );
+                          ref.read(navIndexProvider.notifier).set(2);
+                          context.go('/');
+                        },
+                        child: const Text('用此库问小爱'),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextField(
                       decoration: InputDecoration(
-                        hintText: isPlatform ? '搜索文件夹…' : '搜索资料…',
+                        hintText: isPlatform ? '搜索文件夹…' : '搜索文件…',
                         isDense: true,
                       ),
                       onChanged: (v) => setState(() => _q = v),
                     ),
                     const SizedBox(height: 12),
-                    ...folders.map((f) {
-                      final docs = ((f['documents'] as List?) ?? const [])
-                          .cast<Map>()
-                          .map((e) => Map<String, dynamic>.from(e))
-                          .toList();
-                      final expanded = _openFolderId == f['id'];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        child: Column(
-                          children: [
-                            ListTile(
-                              leading: Icon(
-                                isPlatform
-                                    ? Icons.folder_outlined
-                                    : Icons.description_outlined,
-                                color: AppColors.accentDeep,
-                              ),
+                    Text(isPlatform ? '文件夹' : '文件',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    if (isPlatform)
+                      ...folders.map((f) => Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: const Icon(Icons.folder_outlined,
+                                  color: AppColors.accentDeep),
                               title: Text((f['name'] as String?) ?? ''),
                               subtitle: Text(
-                                '${f['document_count'] ?? docs.length} 份 · ${_formatUpdated(f['updated_at'] as String?)}',
+                                '${f['description'] ?? ''}\n'
+                                '${f['document_count'] ?? 0} 份 · ${_formatUpdated(f['updated_at'] as String?)}',
                               ),
-                              trailing: isPlatform
-                                  ? const Icon(Icons.chevron_right)
-                                  : (docs.length > 1
-                                      ? Icon(expanded
-                                          ? Icons.expand_less
-                                          : Icons.expand_more)
-                                      : null),
-                              onTap: () {
-                                if (isPlatform) {
-                                  context.push('/knowledge-bases/${f['id']}');
-                                  return;
-                                }
-                                if (docs.length > 1) {
-                                  setState(() {
-                                    _openFolderId =
-                                        expanded ? null : f['id'] as String?;
-                                  });
-                                }
-                              },
+                              isThreeLine: true,
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () =>
+                                  context.push('/knowledge-bases/${f['id']}'),
                             ),
-                            if (!isPlatform && expanded)
-                              ...docs.map((d) => ListTile(
-                                    dense: true,
-                                    title: Text(
-                                      (d['title'] as String?) ?? '',
-                                      style: const TextStyle(fontSize: 13),
-                                    ),
-                                  )),
-                          ],
-                        ),
-                      );
-                    }),
-                    if (folders.isEmpty)
+                          ))
+                    else
+                      ...files.map((d) => Card(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: const Icon(Icons.description_outlined,
+                                  color: AppColors.accentDeep),
+                              title: Text((d['title'] as String?) ?? '未命名资料'),
+                              subtitle: Text(
+                                '${d['source_type'] ?? ''}'
+                                '${d['created_at'] != null ? ' · ${_formatUpdated(d['created_at'] as String?)}' : ''}',
+                              ),
+                            ),
+                          )),
+                    if ((isPlatform && folders.isEmpty) ||
+                        (!isPlatform && files.isEmpty))
                       const Padding(
                         padding: EdgeInsets.all(12),
-                        child: Text('暂无已入库资料',
+                        child: Text('暂无内容',
                             style: TextStyle(color: AppColors.inkFaint)),
                       ),
                   ],

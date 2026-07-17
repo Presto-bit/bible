@@ -58,16 +58,15 @@ _BY_ID = {kb["id"]: kb for kb in KNOWLEDGE_BASES}
 
 
 def list_knowledge_bases() -> list[dict[str, Any]]:
-    """选库列表（平台 + 专题）。"""
+    """选库列表：当前仅平台知识库（专题只作浏览文件夹）。"""
     return [
         {
-            "id": kb["id"],
-            "name": kb["name"],
-            "description": kb["description"],
-            "is_default": kb["is_default"],
-            "kind": kb["kind"],
+            "id": PLATFORM_KB["id"],
+            "name": PLATFORM_KB["name"],
+            "description": PLATFORM_KB["description"],
+            "is_default": True,
+            "kind": "platform",
         }
-        for kb in KNOWLEDGE_BASES
     ]
 
 
