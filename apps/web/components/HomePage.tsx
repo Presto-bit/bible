@@ -617,10 +617,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         <HomeRail cards={railMain} />
       </div>
 
+      <HomeOnboardingBanner />
+
       <p className="section-label">成长与回忆</p>
       <HomeGrowthStack cards={growthCards} onGo={go} />
-
-      <HomeOnboardingBanner />
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
 
