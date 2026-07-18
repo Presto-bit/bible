@@ -1421,6 +1421,39 @@ html:not([data-app-theme]) .card {
   margin-top: 0;
 }
 
+.home-onboarding-banner {
+  margin-top: 16px;
+  margin-bottom: 8px;
+  padding: 14px;
+}
+
+.home-onboarding-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.home-onboarding-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.home-onboarding-close {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  margin: -6px -6px 0 0;
+  color: var(--ink-faint);
+}
+
+.home-onboarding-body {
+  font-size: 13px;
+  margin: 6px 0 12px;
+  line-height: 1.55;
+}
+
 .home-page .home-hero-carousel-dots {
   gap: 6px;
   margin-bottom: 10px;

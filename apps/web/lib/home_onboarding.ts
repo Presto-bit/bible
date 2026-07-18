@@ -1,6 +1,7 @@
 /**
  * 首页 Onboarding 状态机 S0–S3（U12 / PRODUCT §5.1）
  * S0 经包未就绪 → S1 未选计划 → S2 首日未完成 → S3 常规
+ * 用户关闭横幅后永久不再显示。
  */
 
 import { isOfflinePackReady } from './offline_pack';
@@ -20,6 +21,18 @@ export interface HomeOnboardingState {
   planTitle: string | null;
   planDay: number;
   day1Done: boolean;
+}
+
+const DISMISS_KEY = 'presto_home_onboarding_dismissed';
+
+export function isHomeOnboardingDismissed(): boolean {
+  if (typeof window === 'undefined') return false;
+  return localStorage.getItem(DISMISS_KEY) === '1';
+}
+
+export function dismissHomeOnboarding(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(DISMISS_KEY, '1');
 }
 
 export async function resolveHomeOnboarding(): Promise<HomeOnboardingState> {

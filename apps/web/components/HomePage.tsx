@@ -473,7 +473,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   return (
     <main className="container home-page">
-      <HomeOnboardingBanner />
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
         <div className="greet-actions">
@@ -620,6 +619,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
       <p className="section-label">成长与回忆</p>
       <HomeGrowthStack cards={growthCards} onGo={go} />
+
+      <HomeOnboardingBanner />
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
 
