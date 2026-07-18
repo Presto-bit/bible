@@ -424,6 +424,12 @@ class SocialRepository {
     return (res.data as Map).cast<String, dynamic>();
   }
 
+  /// 轻量 cursor：群/私信最近消息时间，客户端对比后刷新。
+  Future<Map<String, dynamic>> realtimeCursor() async {
+    final res = await _dio.get('/social/realtime/cursor');
+    return (res.data as Map).cast<String, dynamic>();
+  }
+
   Future<List<ConversationItem>> conversations() async {
     final res = await _dio.get('/social/conversations');
     return ((res.data['items'] ?? []) as List)

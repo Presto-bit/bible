@@ -181,7 +181,7 @@ function GroupPageInner() {
       (_c, changed) => {
         if (changed) void reloadFeed();
       },
-      { watch: 'group', debounceMs: 900 },
+      { watch: 'group', debounceMs: 250 },
     );
   }, [gid, reloadFeed]);
 

@@ -1,10 +1,13 @@
 /// 私信线程（对齐 Web /discover/dm/[id]）。
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
+import 'social_realtime.dart';
 import 'social_repository.dart';
 
 class DmThreadScreen extends ConsumerStatefulWidget {
@@ -68,6 +71,11 @@ class _DmThreadScreenState extends ConsumerState<DmThreadScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(socialRealtimeProvider, (prev, next) {
+      if (next.dm && next.seq != (prev?.seq ?? -1)) {
+        unawaited(_reload());
+      }
+    });
     return Scaffold(
       appBar: AppBar(title: const Text('私信')),
       body: Column(

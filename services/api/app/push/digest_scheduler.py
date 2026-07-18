@@ -1,4 +1,4 @@
-"""消息聚合近实时：发消息后 1 分钟 trailing debounce，合并推一条。"""
+"""消息近实时推送：发消息后短 debounce 合并投递。"""
 from __future__ import annotations
 
 import logging
@@ -11,9 +11,10 @@ from .digest_delivery import deliver_group_digest
 
 logger = logging.getLogger(__name__)
 
-DEBOUNCE_SECONDS = 60
-_POLL_INTERVAL = 5.0
-_RETRY_SECONDS = 30
+# 近实时：约 2s 合并连发，避免每条都推
+DEBOUNCE_SECONDS = 2
+_POLL_INTERVAL = 1.0
+_RETRY_SECONDS = 15
 
 _SCHEMA_READY = False
 _SCHEMA_LOCK = threading.Lock()
@@ -58,7 +59,7 @@ def start_digest_worker() -> None:
 
 
 def schedule_digest_users(user_ids: list[str] | set[str]) -> None:
-    """为接收方登记/重置 due_at = now + 1min（仅有 group_digest 订阅的用户）。"""
+    """为接收方登记/重置 due_at = now + debounce（仅有 group_digest 订阅的用户）。"""
     ids = [str(u).strip() for u in user_ids if u and str(u).strip()]
     if not ids:
         return

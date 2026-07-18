@@ -46,7 +46,7 @@ export function useDiscoverUnread(enabled = true): number {
       (_c, changed) => {
         if (changed) void refresh();
       },
-      { watch: 'all', debounceMs: 1200 },
+      { watch: 'all', debounceMs: 300 },
     );
     const onVis = () => {
       if (document.visibilityState === 'visible') void refresh();

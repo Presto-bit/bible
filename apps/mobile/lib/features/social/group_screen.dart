@@ -12,6 +12,7 @@ import '../plans/plan_reading.dart';
 import 'group_invite_sheet.dart';
 import 'group_settings_sheet.dart';
 import 'share_to_social_sheet.dart';
+import 'social_realtime.dart';
 import 'social_repository.dart';
 
 const _emojis = ['🙏', '❤️', '🔥'];
@@ -23,6 +24,11 @@ class GroupScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen(socialRealtimeProvider, (prev, next) {
+      if (next.group && next.seq != (prev?.seq ?? -1)) {
+        ref.invalidate(groupFeedProvider(groupId));
+      }
+    });
     final detail = ref.watch(groupDetailProvider(groupId));
     final feed = ref.watch(groupFeedProvider(groupId));
     return Scaffold(

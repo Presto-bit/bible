@@ -10,6 +10,7 @@ import '../features/assistant/assistant_screen.dart';
 import '../features/bible/reader_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/social/discover_screen.dart';
+import '../features/social/social_realtime.dart';
 import '../features/bible/offline_notice.dart';
 import 'profile_screen.dart';
 
@@ -52,6 +53,8 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    // 保持社交 cursor 轮询，会话列表与未读近实时刷新
+    ref.watch(socialRealtimeProvider);
     final index = ref.watch(navIndexProvider);
     final immersive = ref.watch(readerImmersiveProvider) && index == 1;
     return SyncLifecycle(

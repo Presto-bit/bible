@@ -35,8 +35,60 @@ _RECALL_WINDOW = timedelta(minutes=2)
 
 # realtime_cursor 短缓存：多 SSE / 多页同时订阅时合并探测
 _cursor_cache: dict[str, tuple[float, dict]] = {}
-_CURSOR_TTL_SEC = 2.5
+_CURSOR_TTL_SEC = 1.0
 _cursor_lock = threading.Lock()
+
+# 发消息后唤醒正在等待的 SSE（threading.Event，跨线程安全）
+_wake_events: dict[str, threading.Event] = {}
+_wake_lock = threading.Lock()
+_SSE_IDLE_WAIT_SEC = 1.5
+
+
+def _notify_group_realtime(gid: str, *, include_user_id: str | None = None) -> None:
+    """唤醒群内成员的 SSE（含发送者，便于多端同步）。"""
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT user_id::text FROM group_member WHERE group_id = %s",
+                (gid,),
+            ).fetchall()
+        ids = [r[0] for r in rows]
+        if include_user_id and include_user_id not in ids:
+            ids.append(include_user_id)
+        invalidate_realtime_cursors(ids)
+    except Exception:
+        logger.exception("notify group realtime failed gid=%s", gid[:8] if gid else "?")
+
+
+def invalidate_realtime_cursors(user_ids: list[str] | set[str] | tuple[str, ...]) -> None:
+    """清 cursor 缓存并为在线 SSE 连接发唤醒信号。"""
+    ids = [str(u).strip() for u in user_ids if u and str(u).strip()]
+    if not ids:
+        return
+    with _cursor_lock:
+        for uid in ids:
+            _cursor_cache.pop(uid, None)
+    with _wake_lock:
+        for uid in ids:
+            ev = _wake_events.get(uid)
+            if ev is not None:
+                ev.set()
+
+
+def _sse_wake_event(user_id: str) -> threading.Event:
+    with _wake_lock:
+        ev = _wake_events.get(user_id)
+        if ev is None:
+            ev = threading.Event()
+            _wake_events[user_id] = ev
+        return ev
+
+
+def _release_sse_wake(user_id: str, ev: threading.Event) -> None:
+    with _wake_lock:
+        if _wake_events.get(user_id) is ev:
+            _wake_events.pop(user_id, None)
 
 _FILE_EXT = frozenset({
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
@@ -1119,6 +1171,7 @@ def send_dm(
         schedule_dm_peer(peer)
     except Exception:
         logger.exception("schedule dm digest failed peer=%s", peer[:8] if peer else "?")
+    invalidate_realtime_cursors([user_id, peer])
     return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1160,6 +1213,7 @@ def send_group_chat(
         schedule_group_members(gid, exclude_user_id=user_id)
     except Exception:
         logger.exception("schedule group digest failed gid=%s", gid[:8] if gid else "?")
+    _notify_group_realtime(gid, include_user_id=user_id)
     return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1660,6 +1714,7 @@ def send_group_media(
         schedule_group_members(gid, exclude_user_id=user_id)
     except Exception:
         logger.exception("schedule group media digest failed gid=%s", gid[:8] if gid else "?")
+    _notify_group_realtime(gid, include_user_id=user_id)
     return {"id": str(mid), "kind": kind, "created_at": row[1].isoformat() if row[1] else None}
 
 
@@ -1703,6 +1758,7 @@ def send_dm_media(
         schedule_dm_peer(peer)
     except Exception:
         logger.exception("schedule dm media digest failed peer=%s", peer[:8] if peer else "?")
+    invalidate_realtime_cursors([user_id, peer])
     return {"id": str(row[0]), "kind": kind}
 
 
@@ -1929,26 +1985,31 @@ def realtime_cursor(user_id: str = Depends(get_current_user)) -> dict:
 
 @router.get("/realtime/sse")
 async def realtime_sse(user_id: str = Depends(get_current_user)):
-    """PWA 实时：SSE 推送 cursor 变化（约 5s 探测）；连接最长约 25 分钟后客户端重连。"""
+    """PWA 实时：SSE 推送 cursor；发消息立即唤醒，空闲最长约 1.5s 探测。"""
 
     async def gen():
         last: tuple[str | None, str | None] | None = None
         ticks = 0
+        wake = _sse_wake_event(user_id)
         yield f"event: hello\ndata: {_json_mod.dumps({'ok': True})}\n\n"
-        while ticks < 300:
-            try:
-                cur = realtime_cursor(user_id)
-                key = (cur.get("group_max"), cur.get("dm_max"))
-                if key != last:
-                    last = key
-                    yield f"event: cursor\ndata: {_json_mod.dumps(cur, ensure_ascii=False)}\n\n"
-                else:
-                    yield ": ping\n\n"
-            except Exception:
-                yield f"event: error\ndata: {_json_mod.dumps({'message': 'cursor failed'})}\n\n"
-                break
-            ticks += 1
-            await asyncio.sleep(5)
+        try:
+            while ticks < 900:
+                try:
+                    cur = realtime_cursor(user_id)
+                    key = (cur.get("group_max"), cur.get("dm_max"))
+                    if key != last:
+                        last = key
+                        yield f"event: cursor\ndata: {_json_mod.dumps(cur, ensure_ascii=False)}\n\n"
+                    else:
+                        yield ": ping\n\n"
+                except Exception:
+                    yield f"event: error\ndata: {_json_mod.dumps({'message': 'cursor failed'})}\n\n"
+                    break
+                ticks += 1
+                wake.clear()
+                await asyncio.to_thread(wake.wait, _SSE_IDLE_WAIT_SEC)
+        finally:
+            _release_sse_wake(user_id, wake)
 
     return StreamingResponse(
         gen(),

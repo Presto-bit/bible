@@ -96,7 +96,7 @@ export function useImThread<TMsg extends { id: string }>(config: ImThreadConfig<
       (_c, changed) => {
         if (changed) void reload();
       },
-      { watch: scope === 'dm' ? 'dm' : 'group', debounceMs: 900 },
+      { watch: scope === 'dm' ? 'dm' : 'group', debounceMs: 250 },
     );
   }, [uid, refId, reload, scope]);
 

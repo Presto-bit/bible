@@ -163,7 +163,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       (_c, changed) => {
         if (changed) void reload();
       },
-      { watch: 'all', debounceMs: 900 },
+      { watch: 'all', debounceMs: 300 },
     );
   }, [uid, paneActive, reload]);
 

@@ -291,7 +291,7 @@ function DmThreadPageInner() {
       (_c, changed) => {
         if (changed) void reload();
       },
-      { watch: 'dm', debounceMs: 900 },
+      { watch: 'dm', debounceMs: 250 },
     );
   }, [uid, threadId, reload]);
 
