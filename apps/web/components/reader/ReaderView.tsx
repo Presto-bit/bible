@@ -2317,61 +2317,56 @@ export default function ReaderView({
                   />
                 )}
                 <div
-                  className={`reader-parallel-row verse-paragraph verse-no-${verseNo}`}
+                  className={`verse-paragraph verse-no-${verseNo}`}
                   style={verseBlockStyle}
                 >
-                  <div className="reader-parallel-primary">
-                    {para.verses.map((v) => {
-                      const text = verseDisplayText(v.verse, v.text);
-                      const markInfo = underlinesOn
-                        ? markForVerse(highlightMap, book.id, chapter, v.verse)
-                        : null;
-                      const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-                      return (
-                        <Fragment key={v.verse}>
-                          {renderFeedHint(v.verse)}
+                  {para.verses.map((v, vi) => {
+                    const text = verseDisplayText(v.verse, v.text);
+                    const markInfo = underlinesOn
+                      ? markForVerse(highlightMap, book.id, chapter, v.verse)
+                      : null;
+                    const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+                    const p2 = parallelVerses.find((x) => x.verse === v.verse);
+                    return (
+                      <div key={v.verse} className="reader-parallel-verse">
+                        {renderFeedHint(v.verse)}
+                        <div className="reader-parallel-primary">
                           <span
                             id={`verse-anchor-${v.verse}`}
                             className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
                             onClick={(e) => handleVerseClick(e, v.verse, text)}
                             onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                           >
-                          {verseNo !== 'hidden' && (
-                            <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                          )}
-                          <span className="verse-text-body">
-                            {renderVerseBody(
-                              text,
-                              `p${v.verse}`,
-                              v.verse,
-                              resumeFlashVerse === v.verse,
-                              markInfo ?? undefined,
-                            )}
-                          </span>
-                        </span>
-                        </Fragment>
-                      );
-                    })}
-                  </div>
-                  <div className="reader-parallel-secondary">
-                    {parallelLoading ? (
-                      <span className="muted">对照译本加载中…</span>
-                    ) : parallelError ? (
-                      <span className="reader-parallel-error">{parallelError}</span>
-                    ) : (
-                      para.verses.map((v) => {
-                        const p2 = parallelVerses.find((x) => x.verse === v.verse);
-                        return (
-                          <span key={v.verse} className="verse-inline">
                             {verseNo !== 'hidden' && (
                               <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
                             )}
-                            {p2?.text ?? '—'}{' '}
+                            <span className="verse-text-body">
+                              {renderVerseBody(
+                                text,
+                                `p${v.verse}`,
+                                v.verse,
+                                resumeFlashVerse === v.verse,
+                                markInfo ?? undefined,
+                              )}
+                            </span>
                           </span>
-                        );
-                      })
-                    )}
-                  </div>
+                        </div>
+                        <div className="reader-parallel-secondary">
+                          {parallelLoading ? (
+                            vi === 0 ? (
+                              <span className="muted">对照译本加载中…</span>
+                            ) : null
+                          ) : parallelError ? (
+                            vi === 0 ? (
+                              <span className="reader-parallel-error">{parallelError}</span>
+                            ) : null
+                          ) : (
+                            <span className="verse-inline">{p2?.text ?? '—'}</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );

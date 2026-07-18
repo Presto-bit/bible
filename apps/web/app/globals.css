@@ -8313,7 +8313,8 @@ body.reader-active .proper-noun--artifact {
   background: transparent;
   cursor: pointer;
   font-weight: 600;
-  font-size: var(--reader-font-size, var(--app-font-size));
+  font-size: 15px;
+  line-height: 1.2;
   color: var(--ink);
   padding: 2px 0 2px 10px;
   display: inline-flex;
@@ -8443,9 +8444,10 @@ body.reader-active .proper-noun--artifact {
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: calc(var(--reader-font-size, var(--app-font-size)) * 0.88);
-  font-weight: 600;
-  color: var(--accent-deep);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--ink-soft);
   padding: 2px 0 2px 8px;
   white-space: nowrap;
 }
@@ -8458,7 +8460,9 @@ body.reader-active .proper-noun--artifact {
   border: none;
   background: transparent;
   cursor: pointer;
-  font-size: var(--reader-font-size, var(--app-font-size));
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
   color: var(--ink-soft);
   padding: 2px 10px 2px 0;
   border-right: 1px solid var(--line);
@@ -10705,6 +10709,7 @@ a.license-row-name:hover {
 
 .reader-theme-night .muted,
 .reader-theme-night .reader-version,
+.reader-theme-night .reader-summary-btn,
 .reader-theme-night .reader-aa {
   color: var(--reader-muted);
 }
@@ -12675,23 +12680,22 @@ a.license-row-name:hover {
   margin-bottom: 8px;
 }
 
-.reader-parallel-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  padding: 8px 4px;
+.reader-parallel-verse {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  padding: 6px 4px;
   border-radius: 8px;
 }
 
-.reader-parallel-primary {
-  border-right: 1px solid var(--line);
-  padding-right: 10px;
+.reader-parallel-verse + .reader-parallel-verse {
+  margin-top: 4px;
 }
 
 .reader-parallel-secondary {
   color: var(--ink-soft);
-  font-size: inherit;
-  line-height: inherit;
+  font-size: 0.92em;
+  line-height: 1.55;
 }
 
 .light-ai-inline {

@@ -182,11 +182,11 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                       ? '选择经卷'
                       : '${bibleBookAbbr(_book!.name)} $_chapter',
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w700),
+                      fontSize: 15, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
-            Container(width: 1, height: 16, color: AppColors.line),
+            Container(width: 1, height: 14, color: AppColors.line),
             // 版本 → 点击弹版本选择
             InkWell(
               onTap: () => _pickVersions(context),
@@ -195,7 +195,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 padding: const EdgeInsets.fromLTRB(8, 4, 0, 4),
                 child: Text(_versionLabel,
                     style: const TextStyle(
-                        fontSize: 14, color: AppColors.inkSoft)),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.inkSoft)),
               ),
             ),
           ],

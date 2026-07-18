@@ -115,44 +115,36 @@ export default function ReaderChapterPeek({
           <SectionTitle title={firstMark.title} onRefClick={() => {}} />
         )}
         <div
-          className={`reader-parallel-row verse-paragraph verse-no-${verseNo}`}
+          className={`verse-paragraph verse-no-${verseNo}`}
           style={verseBlockStyle}
         >
-          <div className="reader-parallel-primary">
-            {para.verses.map((v) => {
-              const displayText = textByVerse.get(v.verse) ?? v.text;
-              const markInfo = underlinesOn
-                ? markForVerse(highlightMap, bookId, chapter, v.verse)
-                : null;
-              const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
-              return (
-                <span
-                  key={v.verse}
-                  className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
-                >
-                  {verseNo !== 'hidden' && (
-                    <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                  )}
-                  <span className="verse-text-body">
-                    {renderVerseBody(displayText, `peek-p${v.verse}`, v.verse, markInfo ?? undefined)}
+          {para.verses.map((v) => {
+            const displayText = textByVerse.get(v.verse) ?? v.text;
+            const markInfo = underlinesOn
+              ? markForVerse(highlightMap, bookId, chapter, v.verse)
+              : null;
+            const wholeMark = markInfo && !markInfo.span ? markInfo.mark : null;
+            const p2 = parallel!.find((x) => x.verse === v.verse);
+            return (
+              <div key={v.verse} className="reader-parallel-verse">
+                <div className="reader-parallel-primary">
+                  <span
+                    className={`verse-inline verse-token ${highlightClass(wholeMark)}`}
+                  >
+                    {verseNo !== 'hidden' && (
+                      <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
+                    )}
+                    <span className="verse-text-body">
+                      {renderVerseBody(displayText, `peek-p${v.verse}`, v.verse, markInfo ?? undefined)}
+                    </span>
                   </span>
-                </span>
-              );
-            })}
-          </div>
-          <div className="reader-parallel-secondary">
-            {para.verses.map((v) => {
-              const p2 = parallel!.find((x) => x.verse === v.verse);
-              return (
-                <span key={v.verse} className="verse-inline">
-                  {verseNo !== 'hidden' && (
-                    <sup className={`verse-sup ${verseNo === 'margin' ? 'verse-sup-margin' : ''}`}>{v.verse}</sup>
-                  )}
-                  {p2?.text ?? '—'}
-                </span>
-              );
-            })}
-          </div>
+                </div>
+                <div className="reader-parallel-secondary">
+                  <span className="verse-inline">{p2?.text ?? '—'}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     );
