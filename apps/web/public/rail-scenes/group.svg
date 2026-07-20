@@ -2,20 +2,20 @@
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#f6faf7"/>
-      <stop offset="0.5" stop-color="#dceee2"/>
+      <stop offset="0.55" stop-color="#dceee2"/>
       <stop offset="1" stop-color="#96bea8"/>
     </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.48" r="0.38">
-      <stop offset="0" stop-color="#fff9ea" stop-opacity="0.9"/>
+    <radialGradient id="glow" cx="0.5" cy="0.46" r="0.42">
+      <stop offset="0" stop-color="#fff9ea" stop-opacity="0.92"/>
       <stop offset="1" stop-color="#fff9ea" stop-opacity="0"/>
-    </radialGradient>
-    <radialGradient id="wood" cx="0.5" cy="0.42" r="0.55">
-      <stop offset="0" stop-color="#d4b088"/>
-      <stop offset="1" stop-color="#9a7048"/>
     </radialGradient>
     <linearGradient id="pages" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#fffef9"/>
       <stop offset="1" stop-color="#efe2c6"/>
+    </linearGradient>
+    <linearGradient id="cover" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a6848"/>
+      <stop offset="1" stop-color="#6a4e34"/>
     </linearGradient>
     <filter id="blur" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="5"/>
@@ -23,50 +23,31 @@
   </defs>
 
   <rect width="400" height="320" fill="url(#bg)"/>
-  <ellipse cx="200" cy="168" rx="150" ry="110" fill="url(#glow)"/>
+  <ellipse cx="200" cy="168" rx="160" ry="118" fill="url(#glow)"/>
 
-  <!-- 圆桌 -->
-  <ellipse cx="200" cy="178" rx="92" ry="46" fill="#7a5840" opacity="0.25"/>
-  <ellipse cx="200" cy="172" rx="88" ry="42" fill="url(#wood)"/>
-  <ellipse cx="200" cy="166" rx="72" ry="30" fill="#c8a070" opacity="0.35"/>
+  <!-- 左：简化头像 + 肩线 -->
+  <g fill="#355a48" opacity="0.88">
+    <circle cx="96" cy="128" r="28"/>
+    <path d="M54 198c8-34 24-52 42-52s34 18 42 52c-12-10-28-16-42-16s-30 6-42 16z"/>
+  </g>
+  <path d="M68 168c10-8 20-12 28-12" fill="none" stroke="#5a8868" stroke-width="2" stroke-linecap="round" opacity="0.28"/>
 
-  <!-- 中心打开的圣经 -->
-  <g transform="translate(200 168)">
-    <ellipse cx="0" cy="4" rx="46" ry="18" fill="#fff6d8" opacity="0.45" filter="url(#blur)"/>
-    <path d="M-44 0 Q0 -10 44 0 L44 20 Q0 28 -44 20 Z" fill="#8a6848"/>
-    <path d="M-40 2 L0 -6 L40 2 L40 16 L0 22 L-40 16 Z" fill="url(#pages)"/>
-    <path d="M0 -6 L0 22" stroke="#b89868" stroke-width="1.4"/>
-    <path d="M-28 6 L-10 9 M10 9 L28 6 M-24 14 L-8 16 M8 16 L24 14" stroke="#c0a880" stroke-width="1.1" stroke-linecap="round" opacity="0.7"/>
+  <!-- 右：简化头像 + 肩线 -->
+  <g fill="#3d6450" opacity="0.88">
+    <circle cx="304" cy="128" r="28"/>
+    <path d="M262 198c8-34 24-52 42-52s34 18 42 52c-12-10-28-16-42-16s-30 6-42 16z"/>
   </g>
+  <path d="M332 168c-10-8-20-12-28-12" fill="none" stroke="#5a8868" stroke-width="2" stroke-linecap="round" opacity="0.28"/>
 
-  <!-- 四人围桌（上 / 右 / 下 / 左） -->
-  <g fill="#355a48" opacity="0.82">
-    <!-- 上 -->
-    <ellipse cx="200" cy="88" rx="18" ry="16"/>
-    <path d="M182 100 Q200 86 218 100 L214 128 Q200 122 186 128 Z"/>
-  </g>
-  <g fill="#3d6450" opacity="0.82">
-    <!-- 右 -->
-    <ellipse cx="296" cy="172" rx="16" ry="15"/>
-    <path d="M280 184 Q296 168 312 184 L306 218 Q296 212 286 218 Z"/>
-  </g>
-  <g fill="#355a48" opacity="0.82">
-    <!-- 下 -->
-    <ellipse cx="200" cy="258" rx="18" ry="16"/>
-    <path d="M182 246 Q200 262 218 246 L214 218 Q200 224 186 218 Z"/>
-  </g>
-  <g fill="#3d6450" opacity="0.82">
-    <!-- 左 -->
-    <ellipse cx="104" cy="172" rx="16" ry="15"/>
-    <path d="M88 184 Q104 168 120 184 L114 218 Q104 212 94 218 Z"/>
-  </g>
-
-  <!-- 人物朝向桌心的轻弧线 -->
-  <g fill="none" stroke="#5a8868" stroke-width="1.5" stroke-linecap="round" opacity="0.22">
-    <path d="M200 104 Q200 138 200 130"/>
-    <path d="M280 172 Q240 172 232 168"/>
-    <path d="M200 242 Q200 208 200 206"/>
-    <path d="M120 172 Q160 172 168 168"/>
+  <!-- 中心打开的书（共读主体） -->
+  <g transform="translate(200 178)">
+    <ellipse cx="0" cy="10" rx="78" ry="28" fill="#284838" opacity="0.12"/>
+    <ellipse cx="0" cy="-2" rx="70" ry="34" fill="#fff6d8" opacity="0.4" filter="url(#blur)"/>
+    <path d="M-72 0 Q0 -18 72 0 L72 34 Q0 48 -72 34 Z" fill="url(#cover)"/>
+    <path d="M-64 4 L0 -12 L64 4 L64 28 L0 40 L-64 28 Z" fill="url(#pages)"/>
+    <path d="M0 -12 L0 40" stroke="#b89868" stroke-width="2" stroke-linecap="round"/>
+    <path d="M-44 10 L-16 16 M16 16 L44 10 M-38 22 L-14 26 M14 26 L38 22"
+          fill="none" stroke="#c0a880" stroke-width="1.6" stroke-linecap="round" opacity="0.72"/>
   </g>
 
   <ellipse cx="200" cy="300" rx="170" ry="28" fill="#284838" opacity="0.1"/>
