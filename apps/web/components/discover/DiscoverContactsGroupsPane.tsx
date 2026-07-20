@@ -6,7 +6,7 @@ import { api, effectiveId, ensureAccountReady, type Group } from '@/lib/api';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import Avatar, { defaultAvatarId } from '@/components/Avatar';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
-import { useOnline } from '@/lib/use_online';
+import { useOnline, isBrowserOnline } from '@/lib/use_online';
 
 function groupRoleLabel(role: string): string {
   if (role === 'owner') return '群主';
@@ -37,18 +37,23 @@ export default function DiscoverContactsGroupsPane() {
   }, [groups, query]);
 
   const reload = useCallback(async () => {
+    if (!isBrowserOnline()) {
+      setErr(null);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const gRes = await api.myGroups();
       setGroups(Array.isArray(gRes.groups) ? gRes.groups : []);
       setErr(null);
     } catch (e) {
-      if (online) setErr(errorMessage(e, '加载失败，请稍后再试'));
+      if (isBrowserOnline()) setErr(errorMessage(e, '加载失败，请稍后再试'));
       else setErr(null);
     } finally {
       setLoading(false);
     }
-  }, [online]);
+  }, []);
 
   useEffect(() => {
     void ensureAccountReady().then(() => setUid(effectiveId() || null));
@@ -56,8 +61,13 @@ export default function DiscoverContactsGroupsPane() {
 
   useEffect(() => {
     if (!uid) return;
+    if (!online) {
+      setErr(null);
+      setLoading(false);
+      return;
+    }
     void reload();
-  }, [uid, reload]);
+  }, [uid, online, reload]);
 
   const go = (href: string) => {
     markRouteNavigation();
@@ -65,12 +75,23 @@ export default function DiscoverContactsGroupsPane() {
   };
 
   if (!uid) {
-    return <p className="muted" style={{ padding: '12px 0' }}>正在准备账号…</p>;
+    return (
+      <div className="discover-friends-pane">
+        {!online ? (
+          <p className="muted offline-page-hint">当前离线，群列表需联网后刷新。</p>
+        ) : (
+          <p className="muted" style={{ padding: '12px 0' }}>正在准备账号…</p>
+        )}
+      </div>
+    );
   }
 
   return (
     <div className="discover-friends-pane">
-      {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
+      {!online ? (
+        <p className="muted offline-page-hint">当前离线，群列表需联网后刷新。</p>
+      ) : null}
+      {online && err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
       <div className="discover-contacts-section-head" style={{ marginBottom: 12 }}>
         <div className="discover-im-search" style={{ flex: 1, margin: 0 }}>

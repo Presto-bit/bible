@@ -14,7 +14,7 @@ import { FriendAvatar } from '@/components/discover/FriendAvatar';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { friendDisplayName, friendRequestLabel } from '@/lib/friend_label';
 import { FRIEND_REMARKS_EVENT, friendRemarkOrName } from '@/lib/friend_remarks';
-import { useOnline } from '@/lib/use_online';
+import { useOnline, isBrowserOnline } from '@/lib/use_online';
 
 export default function DiscoverContactsPane() {
   const router = useRouter();
@@ -46,6 +46,11 @@ export default function DiscoverContactsPane() {
   const pendingCount = groupInviteCount + incoming.length + outgoing.length;
 
   const reload = useCallback(async () => {
+    if (!isBrowserOnline()) {
+      setErr(null);
+      setLoading(false);
+      return;
+    }
     try {
       setLoading(true);
       const [fRes, gRes, reqRes, invRes] = await Promise.allSettled([
@@ -78,12 +83,12 @@ export default function DiscoverContactsPane() {
       }
       setErr(null);
     } catch (e) {
-      if (online) setErr(errorMessage(e, '加载失败，请稍后再试'));
+      if (isBrowserOnline()) setErr(errorMessage(e, '加载失败，请稍后再试'));
       else setErr(null);
     } finally {
       setLoading(false);
     }
-  }, [online]);
+  }, []);
 
   useEffect(() => {
     void ensureAccountReady().then(() => setUid(effectiveId() || null));
@@ -97,8 +102,13 @@ export default function DiscoverContactsPane() {
 
   useEffect(() => {
     if (!uid) return;
+    if (!online) {
+      setErr(null);
+      setLoading(false);
+      return;
+    }
     void reload();
-  }, [uid, reload]);
+  }, [uid, online, reload]);
 
   const go = (href: string) => {
     markRouteNavigation();
@@ -106,14 +116,25 @@ export default function DiscoverContactsPane() {
   };
 
   if (!uid) {
-    return <p className="muted" style={{ padding: '12px 0' }}>正在准备账号…</p>;
+    return (
+      <div className="discover-friends-pane">
+        {!online ? (
+          <p className="muted offline-page-hint">当前离线，通讯录需联网后刷新。</p>
+        ) : (
+          <p className="muted" style={{ padding: '12px 0' }}>正在准备账号…</p>
+        )}
+      </div>
+    );
   }
 
   const showPending = !query && pendingCount > 0;
 
   return (
     <div className="discover-friends-pane">
-      {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
+      {!online ? (
+        <p className="muted offline-page-hint">当前离线，通讯录需联网后刷新。</p>
+      ) : null}
+      {online && err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
       <div className="discover-im-search" style={{ marginBottom: 12 }}>
         <input

@@ -18289,18 +18289,32 @@ html.app-theme-dark .muted {
 }
 
 .offline-bar {
-  position: sticky;
-  top: 0;
-  z-index: 90;
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--tabbar-h) + 8px);
+  transform: translateX(-50%);
+  z-index: 88;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 14px;
-  background: #fff8e6;
-  border-bottom: 1px solid #f0dfa8;
+  width: min(420px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--line);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
   font-size: 12px;
-  color: #6b5a2a;
+  color: var(--ink-soft);
+  pointer-events: auto;
 }
+
+body.reader-active .offline-bar,
+body.reader-immersive .offline-bar {
+  display: none;
+}
+
 .offline-bar-info {
   flex-direction: row;
   align-items: center;
@@ -18321,6 +18335,7 @@ html.app-theme-dark .muted {
 .offline-bar-detail {
   font-size: 11px;
   opacity: 0.85;
+  line-height: 1.45;
 }
 
 .offline-inline-notice {

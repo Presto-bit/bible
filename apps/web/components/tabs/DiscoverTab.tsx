@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useOnline } from '@/lib/use_online';
+import { useOnline, isBrowserOnline } from '@/lib/use_online';
 import {
   api,
   type ConversationItem,
@@ -101,6 +101,11 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
 
   const reload = useCallback(async () => {
     const gen = ++reloadGenRef.current;
+    if (!isBrowserOnline()) {
+      setErr(null);
+      setLoading(false);
+      return;
+    }
     const soft = messagesLoadedRef.current;
     try {
       if (!soft) setLoading(true);
@@ -117,12 +122,12 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       setErr(null);
     } catch (e) {
       if (gen !== reloadGenRef.current) return;
-      if (online) setErr(errorMessage(e, '刷新失败，请稍后再试'));
+      if (isBrowserOnline()) setErr(errorMessage(e, '刷新失败，请稍后再试'));
       else setErr(null);
     } finally {
       if (gen === reloadGenRef.current) setLoading(false);
     }
-  }, [online]);
+  }, []);
 
   useEffect(() => {
     const onRemark = () => setRemarkTick((n) => n + 1);
@@ -153,7 +158,12 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }, [plusOpen]);
 
   useEffect(() => {
-    if (!uid || !paneActive || !online) return;
+    if (!online) {
+      setErr(null);
+      setLoading(false);
+      return;
+    }
+    if (!uid || !paneActive) return;
     void reload();
   }, [uid, paneActive, online, reload]);
 
@@ -324,7 +334,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       {!online ? (
         <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
       ) : null}
-      {err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
+      {online && err ? <ErrorBanner message={err} onRetry={() => void reload()} /> : null}
 
       <div className="discover-im-top">
         <h1 className="discover-im-title">消息</h1>
@@ -435,7 +445,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
         <p className="muted" style={{ padding: '12px 0' }}>加载中…</p>
       ) : null}
 
-      {!searching && !loading && err && items.length === 0 ? (
+      {!searching && !loading && online && err && items.length === 0 ? (
         <div className="discover-empty">
           <strong>消息加载失败</strong>
           <p className="muted">{err}</p>
@@ -444,19 +454,23 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       ) : null}
 
       {!searching && (!loading || items.length > 0) ? (
-        items.length === 0 && !err ? (
+        items.length === 0 && !(online && err) ? (
           <div className="discover-empty">
-            <strong>还没有消息</strong>
+            <strong>{online ? '还没有消息' : '消息暂不可用'}</strong>
             <p className="muted">
-              加好友后可私信，建群后可打卡与闲聊。消息与附件仅保留近 30 天。
+              {online
+                ? '加好友后可私信，建群后可打卡与闲聊。消息与附件仅保留近 30 天。'
+                : '当前离线，联网后即可刷新消息列表。'}
             </p>
-            <div className="discover-empty-actions">
-              <button type="button" className="btn" onClick={() => go('/friend/add')}>加好友</button>
-              <button type="button" className="btn btn-ghost" onClick={() => go('/discover/contacts')}>
-                通讯录
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={() => go('/group/create')}>新建群</button>
-            </div>
+            {online ? (
+              <div className="discover-empty-actions">
+                <button type="button" className="btn" onClick={() => go('/friend/add')}>加好友</button>
+                <button type="button" className="btn btn-ghost" onClick={() => go('/discover/contacts')}>
+                  通讯录
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={() => go('/group/create')}>新建群</button>
+              </div>
+            ) : null}
           </div>
         ) : (
           <ul className="discover-conv-list">
