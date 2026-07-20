@@ -2,13 +2,13 @@
 
 import { useEffect } from 'react';
 import { ensureAccountReady } from '@/lib/api';
-import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
+import { scheduleOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 
-/** 应用启动：恢复身份 → 建档 → 后台下载离线经包 */
+/** 应用启动：恢复身份 → 建档；经包延后调度，不挡首屏 */
 export default function AccountBootstrap() {
   useEffect(() => {
     void ensureAccountReady().then(() => {
-      void ensureOfflinePackAutoDownload();
+      scheduleOfflinePackAutoDownload();
     });
   }, []);
   return null;

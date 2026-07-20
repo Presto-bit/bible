@@ -49,6 +49,7 @@ import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
+import { markHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
 
 /** 与 Mobile 首页一致的时段问候（更细分） */
@@ -67,7 +68,7 @@ function timeOfDayGreeting(date = new Date()): string {
 export default function HomePageClient({ paneActive = true }: { paneActive?: boolean }) {
   const [dv, setDv] = useState<DailyVerse | null>(() => readCachedDailyVerse());
   const [err, setErr] = useState<string | null>(null);
-  const [dvLoading, setDvLoading] = useState(true);
+  const [dvLoading, setDvLoading] = useState(() => !readCachedDailyVerse());
 
   const [liked, setLiked] = useState(() => {
     const cached = readCachedDailyVerse();
@@ -118,24 +119,34 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const loadHomeBootstrap = useCallback(() => {
     const gen = ++bootstrapGenRef.current;
     const engagementAtStart = engagementGenRef.current;
-    setDvLoading(true);
     setErr(null);
     setBootstrapReady(false);
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      const cached = readCachedDailyVerse();
-      if (cached) {
-        if (gen !== bootstrapGenRef.current) return;
-        setDv(cached);
-        setDvLoading(false);
-        void applyHeroBCampaign(readCachedHeroBCampaign()).then(() => {
-          if (gen === bootstrapGenRef.current) setBootstrapReady(true);
-        });
-        return;
-      }
+    const cached = readCachedDailyVerse();
+    // 有缓存立刻出字，不等账号/网络
+    if (cached) {
+      setDv(cached);
+      setDvLoading(false);
+      void applyHeroBCampaign(readCachedHeroBCampaign()).then(() => {
+        if (gen === bootstrapGenRef.current) setBootstrapReady(true);
+      });
+    } else {
+      setDvLoading(true);
     }
-    void ensureAccountReady()
-      .then(() => api.homeBootstrap())
-      .then(async (boot) => {
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      if (!cached) {
+        setDvLoading(false);
+        setBootstrapReady(true);
+      }
+      markHomeBootstrapReady();
+      return;
+    }
+
+    // 账号建档与 bootstrap 并行：每日经文不阻塞在 ensureAccountReady 上
+    void ensureAccountReady().catch(() => {});
+    void api
+      .homeBootstrap()
+      .then((boot) => {
         if (gen !== bootstrapGenRef.current) return;
         const v = boot.dailyVerse;
         const day = v.day ?? 0;
@@ -160,15 +171,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           setLikeCount(countVal);
           if (day) writeLocalDailyVerseLike(day, likedVal);
         }
-        await applyHeroBCampaign(boot.heroBCampaign);
+        // Hero 图预载不挡首屏与经包调度
+        void applyHeroBCampaign(boot.heroBCampaign);
       })
-      .catch(async (e) => {
+      .catch((e) => {
         if (gen !== bootstrapGenRef.current) return;
-        const cached = readCachedDailyVerse();
-        if (cached) {
-          setDv(cached);
+        const fallback = readCachedDailyVerse();
+        if (fallback) {
+          setDv(fallback);
           setErr(null);
-          await applyHeroBCampaign(readCachedHeroBCampaign());
+          void applyHeroBCampaign(readCachedHeroBCampaign());
         } else {
           setErr(errorMessage(e, '内容加载失败'));
           setHeroBCampaign(null);
@@ -179,6 +191,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         if (gen !== bootstrapGenRef.current) return;
         setDvLoading(false);
         setBootstrapReady(true);
+        markHomeBootstrapReady();
       });
   }, [applyHeroBCampaign]);
 
@@ -409,11 +422,15 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   useEffect(() => {
     if (!homeAwake) return;
-    void refreshRail();
+    // 社交轨道延后，先让每日经文占满带宽
+    const t = window.setTimeout(() => {
+      void refreshRail();
+    }, 600);
     void reloadDailyContent();
     if (consumeHeroReturnToVerse()) {
       setHeroResetNonce((n) => n + 1);
     }
+    return () => window.clearTimeout(t);
   }, [homeAwake, refreshRail, reloadDailyContent]);
 
   const openVerseWallpaper = () => {

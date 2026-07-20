@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { currentUserId, effectiveId, ensureAccountReady, hasPassword, api } from '@/lib/api';
-import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
+import { scheduleOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
 import {
@@ -114,16 +114,23 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         typeof window !== 'undefined' &&
         sessionStorage.getItem(RESTORE_PROMPT_DISMISS_KEY) === '1';
 
-      // 迁移 / 读经恢复放到后台，不阻塞圣经 Tab 拉目录与经文
-      void (async () => {
-        if (needsSyncMigration()) {
-          await autoSaveReadingToAccount();
-        }
-        if (uid) {
-          await restoreReadingForAccount(uid);
-        }
-        runBackgroundSync();
-      })();
+      // 迁移 / 读经恢复放到 idle，避免与首页 bootstrap 抢带宽
+      const runRestore = () => {
+        void (async () => {
+          if (needsSyncMigration()) {
+            await autoSaveReadingToAccount();
+          }
+          if (uid) {
+            await restoreReadingForAccount(uid);
+          }
+          runBackgroundSync();
+        })();
+      };
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => runRestore(), { timeout: 8000 });
+      } else {
+        window.setTimeout(runRestore, 3000);
+      }
 
       // 重装空数据时提示恢复；设密改「我的」软催，不再首访弹门闸
       const showRestore =
@@ -139,10 +146,8 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       void flushCheckinQueue().catch(() => {});
       rescheduleGroupEveningReminder();
       void import('@/lib/bible_warmup').then((m) => m.scheduleBibleWarmup());
-      // 延后离线经包，避免与圣经首屏 API 抢带宽（删 PWA 后经包常需重下）
-      window.setTimeout(() => {
-        void ensureOfflinePackAutoDownload();
-      }, 2500);
+      // 经包延后到首页就绪后，避免 ~26MB zip 拖慢冷启动
+      scheduleOfflinePackAutoDownload();
     });
     const onOnline = () => {
       void flushCheckinQueue().catch(() => {});

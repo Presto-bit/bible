@@ -217,14 +217,14 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE && k !== IDENTITY_CACHE).map((k) => caches.delete(k))),
     ).then(async () => {
-      // 插画等次要资源：激活后再预热，不阻塞首屏 SW 就绪
+      // 先接管客户端，插画预热放到 claim 之后，缩短 SW 就绪等待
+      await self.clients.claim();
       try {
         const c = await caches.open(CACHE);
         await Promise.allSettled(SHELL_WARM.map((url) => c.add(url)));
       } catch {
         /* ignore warm failures */
       }
-      return self.clients.claim();
     }),
   );
 });
