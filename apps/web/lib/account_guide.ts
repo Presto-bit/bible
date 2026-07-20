@@ -1,4 +1,4 @@
-/** 账号引导：首次门闸设密 / 游客风险确认；遗留用户名引导兼容 */
+/** 账号引导：设密改「我的」软催；遗留门闸/用户名引导兼容 */
 
 import { hasPassword } from './api';
 import { userLsGet } from './user_storage';
@@ -48,12 +48,12 @@ export function acceptGuestRisk() {
   markAccountGateSeen();
 }
 
-/** 首次门闸：未设密且未确认过游客风险 */
+/**
+ * 首次门闸：已改为不自动弹窗（「我的」AccountSecurityCard 软催）。
+ * 保留函数供兼容旧调用；恒为 false。
+ */
 export function shouldPromptAccountGate(): boolean {
-  if (typeof window === 'undefined') return false;
-  if (isAccountComplete()) return false;
-  if (hasSeenAccountGate()) return false;
-  return true;
+  return false;
 }
 
 /**

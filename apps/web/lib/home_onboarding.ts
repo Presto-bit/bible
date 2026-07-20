@@ -24,6 +24,7 @@ export interface HomeOnboardingState {
 }
 
 const DISMISS_KEY = 'presto_home_onboarding_dismissed';
+export const HOME_ONBOARDING_DISMISS_EVENT = 'presto-home-onboarding-dismissed';
 
 export function isHomeOnboardingDismissed(): boolean {
   if (typeof window === 'undefined') return false;
@@ -33,6 +34,7 @@ export function isHomeOnboardingDismissed(): boolean {
 export function dismissHomeOnboarding(): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(DISMISS_KEY, '1');
+  window.dispatchEvent(new Event(HOME_ONBOARDING_DISMISS_EVENT));
 }
 
 export async function resolveHomeOnboarding(): Promise<HomeOnboardingState> {

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { currentUserId, effectiveId, ensureAccountReady, hasPassword, api } from '@/lib/api';
-import { shouldPromptAccountGate } from '@/lib/account_guide';
 import { ensureOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
@@ -29,7 +28,6 @@ import {
 import { isStandalonePwa } from '@/lib/platform';
 import { notifyLocalDataChanged } from '@/lib/local_data_events';
 import BadgeUnlockToast from '@/components/BadgeUnlockToast';
-import AccountGateSheet from '@/components/AccountGateSheet';
 import RestoreAccountSheet from '@/components/RestoreAccountSheet';
 
 const RESTORE_PROMPT_DISMISS_KEY = 'presto_restore_prompt_dismissed';
@@ -94,7 +92,6 @@ async function restoreReadingForAccount(uid: string): Promise<void> {
 
 /** 应用启动：身份 → 建档 → 云同步（后台）→ 离线经包 */
 export default function IdentityShell({ children }: { children: React.ReactNode }) {
-  const [accountGate, setAccountGate] = useState(false);
   const [restoreSheet, setRestoreSheet] = useState(false);
 
   useEffect(() => {
@@ -128,17 +125,15 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         runBackgroundSync();
       })();
 
+      // 重装空数据时提示恢复；设密改「我的」软催，不再首访弹门闸
       const showRestore =
         standalone &&
         !loggedInWithPwd &&
         !hasLocalReadingData() &&
         !restoreDismissed;
 
-      // 同一会话只出一个账号类弹窗：重装恢复优先，否则首次门闸
       if (showRestore) {
         setRestoreSheet(true);
-      } else if (shouldPromptAccountGate()) {
-        setAccountGate(true);
       }
 
       void flushCheckinQueue().catch(() => {});
@@ -199,9 +194,6 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       {children}
       <BadgeUnlockToast />
       {restoreSheet ? <RestoreAccountSheet onDismiss={dismissRestore} /> : null}
-      {accountGate && !restoreSheet ? (
-        <AccountGateSheet onDone={() => setAccountGate(false)} />
-      ) : null}
     </>
   );
 }

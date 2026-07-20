@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useSyncExternalStore } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { PWA_HOME_NAME, PWA_HOME_SUBTITLE } from '@/lib/pwa_brand';
 import {
@@ -16,9 +16,21 @@ import {
   clearDeferredInstallPrompt,
 } from '@/lib/pwa_deferred_prompt';
 import { isOnboardingSeen, ONBOARDING_DONE_EVENT } from '@/lib/onboarding';
+import {
+  HOME_ONBOARDING_DISMISS_EVENT,
+  isHomeOnboardingDismissed,
+  resolveHomeOnboarding,
+} from '@/lib/home_onboarding';
 import { syncResyncAccount } from '@/lib/sync';
 import { hasPassword, currentUserId } from '@/lib/api';
 import { useToast } from '@/components/ui/ToastProvider';
+import { isTabKeepAliveEnabled } from '@/lib/platform';
+import {
+  getPwaTabPathname,
+  resolvePwaPathname,
+  subscribePwaTabNav,
+} from '@/lib/pwa_tab_nav';
+import { normalizeAppPath } from '@/lib/tab_keep_alive';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -98,6 +110,7 @@ export function InstallPwaSheet({
   };
 
   const goSetAccount = () => {
+    localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
     onClose();
     router.push('/profile?settings=1');
   };
@@ -130,11 +143,11 @@ export function InstallPwaSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop" onClick={dismiss}>
       <div className="sheet card install-pwa-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>{isDesktop ? '保存到桌面 App' : '添加到主屏幕'}</strong>
-          <SheetCloseButton onClick={onClose} />
+          <SheetCloseButton onClick={dismiss} />
         </div>
 
         <div className="install-pwa-brand">
@@ -239,12 +252,23 @@ export function InstallPwaSheet({
   );
 }
 
-/** 底部轻量 Banner：点击展开完整引导 */
+/** 底部轻量 Banner：点击展开完整引导；与首页任务横幅错开，关闭即永久隐藏 */
 export default function InstallBanner() {
+  const routerPath = usePathname();
+  const pwaPath = useSyncExternalStore(
+    subscribePwaTabNav,
+    getPwaTabPathname,
+    () => '/',
+  );
+  const pathname = isTabKeepAliveEnabled()
+    ? resolvePwaPathname(routerPath, pwaPath)
+    : normalizeAppPath(routerPath || '/');
+  const onHome = pathname === '/';
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [hidden, setHidden] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
+  const [homeClear, setHomeClear] = useState(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -256,27 +280,60 @@ export default function InstallBanner() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    let cancelled = false;
+    const refreshHome = () => {
+      if (isHomeOnboardingDismissed()) {
+        if (!cancelled) setHomeClear(true);
+        return;
+      }
+      void resolveHomeOnboarding().then((s) => {
+        if (!cancelled) setHomeClear(s.stage === 'S3');
+      });
+    };
+    refreshHome();
+    window.addEventListener(HOME_ONBOARDING_DISMISS_EVENT, refreshHome);
+    window.addEventListener('presto-offline-pack-ready', refreshHome);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(HOME_ONBOARDING_DISMISS_EVENT, refreshHome);
+      window.removeEventListener('presto-offline-pack-ready', refreshHome);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     const sync = () => setPlatform(detectInstallPlatform());
     sync();
     const onOpen = () => {
-      setHidden(false);
       setSheetOpen(true);
     };
     window.addEventListener(PWA_INSTALL_SHEET_EVENT, onOpen);
     return () => window.removeEventListener(PWA_INSTALL_SHEET_EVENT, onOpen);
   }, []);
 
+  // 首页有任务横幅时让路；其它 Tab 可出安装底栏
+  const slotFree = homeClear || !onHome;
+
   useEffect(() => {
     if (platform === null) return;
-    if (platform === 'standalone' || isDismissed() || !onboardingDone) {
+    if (platform === 'standalone' || isDismissed() || !onboardingDone || !slotFree) {
       setHidden(true);
-    } else {
-      setHidden(false);
+      return;
     }
-  }, [platform, onboardingDone]);
+    const t = window.setTimeout(() => setHidden(false), 1200);
+    return () => window.clearTimeout(t);
+  }, [platform, onboardingDone, slotFree]);
 
-  if (hidden || !platform || platform === 'standalone' || !onboardingDone) {
-    return <InstallPwaSheet open={sheetOpen} onClose={() => setSheetOpen(false)} platform={platform ?? undefined} />;
+  const closeSheet = () => {
+    setSheetOpen(false);
+    if (!isDismissed()) {
+      localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
+    }
+    setHidden(true);
+  };
+
+  if (hidden || !platform || platform === 'standalone' || !onboardingDone || !slotFree) {
+    return <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform ?? undefined} />;
   }
 
   const shortMsg =
@@ -307,7 +364,7 @@ export default function InstallBanner() {
           ✕
         </button>
       </div>
-      <InstallPwaSheet open={sheetOpen} onClose={() => setSheetOpen(false)} platform={platform} />
+      <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform} />
     </>
   );
 }
