@@ -1,30 +1,22 @@
-import { CANON_BOOK_IDS } from './ref_label';
-
 export interface ReadingProgressPoint {
   book: string;
   chapter: number;
   verse: number;
 }
 
-function bookIndex(book: string): number {
-  return CANON_BOOK_IDS.indexOf(book.toUpperCase() as (typeof CANON_BOOK_IDS)[number]);
-}
-
-/** 同卷：章/节更大为更远；不同卷：用经卷序比较（仅当两卷均在正典表内） */
+/**
+ * 同卷：章/节更大为更远。
+ * 跨卷：不可比（返回 0）——「当前读到哪」不能用正典卷序判定新旧。
+ */
 export function compareReadingProgress(
   a: ReadingProgressPoint,
   b: ReadingProgressPoint,
 ): number {
   const bookA = a.book.toUpperCase();
   const bookB = b.book.toUpperCase();
-  if (bookA === bookB) {
-    if (a.chapter !== b.chapter) return a.chapter - b.chapter;
-    return a.verse - b.verse;
-  }
-  const ia = bookIndex(bookA);
-  const ib = bookIndex(bookB);
-  if (ia >= 0 && ib >= 0) return ia - ib;
-  return 0;
+  if (bookA !== bookB) return 0;
+  if (a.chapter !== b.chapter) return a.chapter - b.chapter;
+  return a.verse - b.verse;
 }
 
 export function isReadingProgressAhead(
@@ -32,4 +24,13 @@ export function isReadingProgressAhead(
   baseline: ReadingProgressPoint,
 ): boolean {
   return compareReadingProgress(candidate, baseline) > 0;
+}
+
+/** 同卷且 candidate 在章/节上更靠后 */
+export function isSameBookAhead(
+  candidate: ReadingProgressPoint,
+  baseline: ReadingProgressPoint,
+): boolean {
+  if (candidate.book.toUpperCase() !== baseline.book.toUpperCase()) return false;
+  return isReadingProgressAhead(candidate, baseline);
 }

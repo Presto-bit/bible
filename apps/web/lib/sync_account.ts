@@ -26,6 +26,10 @@ export function readingProgressRemoteTsKey(userCode?: string): string {
   return `presto_reading_progress_remote_ts:${syncAccountId(userCode)}`;
 }
 
+export function readingProgressLocalTsKey(userCode?: string): string {
+  return `presto_reading_progress_local_ts:${syncAccountId(userCode)}`;
+}
+
 export function getReadingProgressRemoteTs(userCode?: string): number {
   if (typeof window === 'undefined') return 0;
   return Number(localStorage.getItem(readingProgressRemoteTsKey(userCode)) || '0');
@@ -34,6 +38,16 @@ export function getReadingProgressRemoteTs(userCode?: string): number {
 export function setReadingProgressRemoteTs(ms: number, userCode?: string) {
   if (typeof window === 'undefined') return;
   localStorage.setItem(readingProgressRemoteTsKey(userCode), String(ms));
+}
+
+export function getReadingProgressLocalTs(userCode?: string): number {
+  if (typeof window === 'undefined') return 0;
+  return Number(localStorage.getItem(readingProgressLocalTsKey(userCode)) || '0');
+}
+
+export function setReadingProgressLocalTs(ms: number, userCode?: string) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(readingProgressLocalTsKey(userCode), String(ms));
 }
 
 export function getSyncCursor(userCode?: string): number {

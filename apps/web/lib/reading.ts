@@ -178,10 +178,16 @@ export function getLastReadVerse(bookId: string, chapter: number): number | null
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 
-export function setLastRead(bookId: string, chapter: number, opts?: { skipSync?: boolean }) {
+export function setLastRead(
+  bookId: string,
+  chapter: number,
+  opts?: { skipSync?: boolean; updatedAtMs?: number },
+) {
   if (typeof window === 'undefined') return;
   migrateLegacyReadingStorageIfNeeded();
   localStorage.setItem(lastReadStorageKey(), JSON.stringify({ bookId, chapter }));
+  const ts = opts?.updatedAtMs ?? Date.now();
+  void import('./sync_account').then((m) => m.setReadingProgressLocalTs(ts));
   if (!opts?.skipSync) {
     void import('./reading_progress_sync').then((m) => m.pushReadingProgress({ bookId, chapter }));
   }

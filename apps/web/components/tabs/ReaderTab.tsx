@@ -6,7 +6,7 @@ import { api, type BibleBook, type DictEntity } from '@/lib/api';
 import { bibleBooks } from '@/lib/bible_client';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
-import { getLastRead } from '@/lib/reading';
+import { getLastRead, setLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
 import { clearReaderChrome } from '@/lib/reader_chrome';
 import { parseMarkRef } from '@/lib/mark_ref';
@@ -163,8 +163,10 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     (bookId: string, ch: number) => {
       const b = books.find((x) => x.id === bookId.toUpperCase());
       if (b) {
+        const nextCh = Math.min(Math.max(1, ch), b.chapter_count);
         setBook(b);
-        setChapter(Math.min(Math.max(1, ch), b.chapter_count));
+        setChapter(nextCh);
+        setLastRead(b.id, nextCh);
       }
     },
     [books],
@@ -212,6 +214,10 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     };
   }, [paneActive, loadBooks]);
 
+  const bookRef = useRef(book);
+  bookRef.current = book;
+  const appliedUrlNavKeyRef = useRef('');
+
   useEffect(() => {
     if (!books.length) return;
     let cancelled = false;
@@ -224,6 +230,20 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       null;
     const planId = searchParams.get('plan');
     const hasUrlNav = Boolean(bookId || planId || flashParam || refParam);
+
+    const clearReaderNavQuery = () => {
+      if (typeof window === 'undefined') return;
+      const url = new URL(window.location.href);
+      let changed = false;
+      for (const key of ['book', 'chapter', 'ref', 'flash', 'group']) {
+        if (url.searchParams.has(key)) {
+          url.searchParams.delete(key);
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    };
 
     const apply = async () => {
       if (flashParam) setFlashRef(flashParam);
@@ -248,8 +268,10 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
           );
           const b = books.find((x) => x.id === (bookId?.toUpperCase() ?? step.bookId));
           if (b) {
+            const nextCh = Math.min(Math.max(1, bookId ? ch : step.chapterStart), b.chapter_count);
             setBook(b);
-            setChapter(Math.min(Math.max(1, bookId ? ch : step.chapterStart), b.chapter_count));
+            setChapter(nextCh);
+            setLastRead(b.id, nextCh);
           }
           return;
         }
@@ -260,15 +282,21 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
           searchParams.get('chapter') ||
             (parsedRef ? String(parsedRef.chapter) : '1'),
         );
+        const navKey = `${bookId.toUpperCase()}:${ch}:${refParam || ''}:${flashParam || ''}`;
+        if (appliedUrlNavKeyRef.current === navKey) return;
         const b = books.find((x) => x.id === bookId.toUpperCase());
         if (b) {
+          const nextCh = Math.min(Math.max(1, ch), b.chapter_count);
           setBook(b);
-          setChapter(Math.min(Math.max(1, ch), b.chapter_count));
+          setChapter(nextCh);
+          setLastRead(b.id, nextCh);
+          appliedUrlNavKeyRef.current = navKey;
+          clearReaderNavQuery();
         }
         return;
       }
 
-      if (!hasUrlNav && !book) {
+      if (!hasUrlNav && !bookRef.current) {
         const last = getLastRead();
         if (last) {
           const b = books.find((x) => x.id === last.bookId.toUpperCase());
@@ -287,11 +315,13 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [books, searchParams, book]);
+  }, [books, searchParams]);
 
   const handleNavigate = useCallback((b: BibleBook, ch: number) => {
+    const nextCh = Math.min(Math.max(1, ch), b.chapter_count);
     setBook(b);
-    setChapter(Math.min(Math.max(1, ch), b.chapter_count));
+    setChapter(nextCh);
+    setLastRead(b.id, nextCh);
   }, []);
 
   const handlePlanExit = useCallback(() => {
