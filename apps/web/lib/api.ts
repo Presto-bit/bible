@@ -1251,6 +1251,7 @@ export interface DevotionalHomeCard {
   subtitle?: string;
   days_total: number;
   default_day: number;
+  scheduled_day?: number;
   day: number;
   day_title?: string;
   last_tab?: string;
@@ -1296,6 +1297,7 @@ export interface DevotionalDayDetail {
   series_subtitle?: string;
   days_total: number;
   default_day?: number;
+  scheduled_day?: number;
   day: number;
   title: string;
   book: string;

@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -18,6 +20,8 @@ router = APIRouter(prefix="/content/devotionals", tags=["devotionals"])
 
 SERIES_ID = "genesis_50_walk"
 DEFAULT_DAY = 7
+CAMPAIGN_START_DATE = date(2026, 7, 15)
+CHINA_TZ = ZoneInfo("Asia/Shanghai")
 ALLOWED_TABS = {"scripture", "letter", "workbook"}
 CHECKIN_EMOJIS = {"🙏", "❤️", "👍", "🙌", "💪", "🔥", "😊", "✝️"}
 
@@ -111,6 +115,12 @@ class ReportBody(BaseModel):
     target_type: str
     target_id: str
     reason: str | None = Field(default=None, max_length=200)
+
+
+def scheduled_day(today: date | None = None, days_total: int = 50) -> int:
+    """共同体日程：2026-07-21 为第 7 次，之后每天递增，最多 50 次。"""
+    current = today or datetime.now(CHINA_TZ).date()
+    return min(days_total, max(1, (current - CAMPAIGN_START_DATE).days + 1))
 
 
 def _display_name(conn, user_id: str) -> str:
@@ -213,7 +223,7 @@ def series_home_card(series_id: str = SERIES_ID, user_id: str | None = Depends(t
         raise HTTPException(status_code=404, detail="未知专题")
     with get_pool().connection() as conn:
         stats = _series_stats(conn, series_id, user_id)
-    day = stats["last_day"] if stats.get("has_opened") or stats["my_days"] > 0 else meta.get("default_day", DEFAULT_DAY)
+    day = scheduled_day(days_total=int(meta["days_total"]))
     sess = loader.get_devotional_session(series_id, day)
     return {
         "series_id": series_id,
@@ -221,6 +231,7 @@ def series_home_card(series_id: str = SERIES_ID, user_id: str | None = Depends(t
         "subtitle": meta.get("subtitle"),
         "days_total": meta["days_total"],
         "default_day": meta.get("default_day", DEFAULT_DAY),
+        "scheduled_day": day,
         "day": day,
         "day_title": (sess or {}).get("title"),
         "last_tab": stats.get("last_tab") or "scripture",
@@ -262,6 +273,7 @@ def session_detail(
         **sess,
         "scripture": scripture,
         **stats,
+        "scheduled_day": scheduled_day(days_total=50),
         "my_checkin": my_checkin,
         "sessions": loader.list_devotional_session_summaries(series_id),
     }

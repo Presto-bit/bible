@@ -25,6 +25,7 @@ import { errorMessage } from '@/lib/friendly_error';
 import PageBackBar from '@/components/PageBackBar';
 
 type Props = { seriesId: string };
+type DayFilter = 'all' | 'done' | 'todo';
 
 function isInteractiveTarget(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
@@ -51,7 +52,8 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [hintOpen, setHintOpen] = useState<Record<number, boolean>>({});
+  const [pickerFilter, setPickerFilter] = useState<DayFilter>('all');
+  const [pickerSelectedDay, setPickerSelectedDay] = useState(day);
   const [draft, setDraft] = useState<WorkbookDraft>(() => readWorkbookDraft(seriesId, day));
   const [draftSavedFlash, setDraftSavedFlash] = useState(false);
   const [checkinOpen, setCheckinOpen] = useState(false);
@@ -266,9 +268,18 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
 
   const checked = new Set(data.checked_days || []);
   const daysTotal = data.days_total || 50;
+  const scheduledDay = data.scheduled_day || day;
   const nextDay = day < daysTotal ? day + 1 : null;
   const visibleFeed = feedShowAll ? feed : feed.slice(0, 3);
-  const showBottomBar = !immersive && atContentEnd;
+  const filteredSessions = (data.sessions || []).filter((session) => {
+    if (pickerFilter === 'done') return checked.has(session.day);
+    if (pickerFilter === 'todo') return !checked.has(session.day);
+    return true;
+  });
+  const selectedSession = (data.sessions || []).find(
+    (session) => session.day === pickerSelectedDay,
+  );
+  const showBottomBar = atContentEnd;
   const bottomLabel =
     tab === 'scripture'
       ? '继续读灵修书信'
@@ -298,7 +309,15 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
         <div className="devotional-sticky-top">
           <div className="devotional-sticky-bar">
             <PageBackBar href="/" label="首页" />
-            <button type="button" className="devotional-day-picker" onClick={() => setPickerOpen(true)}>
+            <button
+              type="button"
+              className="devotional-day-picker"
+              onClick={() => {
+                setPickerSelectedDay(day);
+                setPickerFilter('all');
+                setPickerOpen(true);
+              }}
+            >
               第 {day} 次 / {daysTotal}
               <span aria-hidden> ▾</span>
             </button>
@@ -373,7 +392,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
 
         {tab === 'letter' && (
           <article className="devotional-letter">
-            <p className="muted" style={{ fontSize: 13, marginBottom: 12 }}>约 5 分钟阅读</p>
+            <p className="devotional-reading-meta">约 5 分钟阅读</p>
             {data.letter.body.split(/\n+/).filter(Boolean).map((para, i) => (
               <p key={i}>{para}</p>
             ))}
@@ -388,7 +407,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
           <article className="devotional-workbook">
             <div className="section-row" style={{ marginBottom: 4 }}>
               <span className="muted" style={{ fontSize: 12 }}>
-                {draftSavedFlash ? '已自动保存' : '答案会自动保存'}
+                {draftSavedFlash ? '已自动保存' : '实践选择会自动保存'}
               </span>
             </div>
             <section>
@@ -404,30 +423,14 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
               <h3>经文脉络</h3>
               <p>{data.workbook.passage_summary}</p>
             </section>
-            <section>
-              <h3>查考与默想</h3>
+            <section className="devotional-meditation-section">
+              <h3>查经与默想</h3>
               {(data.workbook.questions || []).map((q, i) => (
                 <div key={i} className="devotional-q">
-                  <p><strong>{i + 1}.</strong> {q.prompt}</p>
-                  <textarea
-                    className="devotional-input"
-                    rows={3}
-                    placeholder="用自己的话回答…"
-                    value={draft.answers[i] || ''}
-                    onChange={(e) => {
-                      const answers = [...draft.answers];
-                      answers[i] = e.target.value;
-                      setDraft({ ...draft, answers, updatedAt: Date.now() });
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => setHintOpen((m) => ({ ...m, [i]: !m[i] }))}
-                  >
-                    {hintOpen[i] ? '收起默想提示' : '查看默想提示'}
-                  </button>
-                  {hintOpen[i] ? <p className="muted devotional-hint">{q.hint}</p> : null}
+                  <p className="devotional-question">
+                    <strong>{i + 1}.</strong> {q.prompt}
+                  </p>
+                  <p className="devotional-meditation-hint">{q.hint}</p>
                 </div>
               ))}
             </section>
@@ -566,7 +569,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
       ) : null}
 
       {showBottomBar ? (
-        <div className="devotional-bottom-bar">
+        <div className={`devotional-bottom-bar${immersive ? ' is-immersive' : ''}`}>
           <button type="button" className="btn devotional-cta" onClick={onBottomPrimary}>
             {bottomLabel}
           </button>
@@ -583,37 +586,70 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
           <div className="sheet card" onClick={(e) => e.stopPropagation()}>
             <div className="half-sheet-grab" aria-hidden />
             <strong>选择第几次</strong>
-            <p className="muted" style={{ fontSize: 13 }}>可自由补读，不强制顺序</p>
-            {nextDay ? (
+            <p className="muted devotional-picker-summary">
+              已完成 {data.my_days}/{daysTotal} · 今天应完成第 {scheduledDay} 次
+            </p>
+            {day !== scheduledDay ? (
               <button
                 type="button"
-                className="btn"
-                style={{ width: '100%', marginTop: 10 }}
-                onClick={() => changeDay(nextDay)}
+                className="devotional-picker-today"
+                onClick={() => setPickerSelectedDay(scheduledDay)}
               >
-                继续第 {nextDay} 次
+                回到今天 · 第 {scheduledDay} 次
               </button>
             ) : null}
+            <div className="devotional-day-filters" role="group" aria-label="筛选次数">
+              {(
+                [
+                  ['all', '全部'],
+                  ['done', '已完成'],
+                  ['todo', '未完成'],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className={pickerFilter === id ? 'active' : ''}
+                  onClick={() => setPickerFilter(id)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
             <div className="devotional-day-grid">
-              {(data.sessions || []).map((s) => {
+              {filteredSessions.map((s) => {
                 const done = checked.has(s.day);
                 const current = s.day === day;
+                const selected = s.day === pickerSelectedDay;
                 return (
                   <button
                     key={s.day}
                     type="button"
-                    className={`devotional-day-cell${done ? ' done' : ''}${current ? ' current' : ''}`}
-                    onClick={() => changeDay(s.day)}
+                    className={`devotional-day-cell${done ? ' done' : ''}${current ? ' current' : ''}${selected ? ' selected' : ''}`}
+                    onClick={() => setPickerSelectedDay(s.day)}
+                    aria-label={`第 ${s.day} 次${done ? '，已完成' : ''}${current ? '，正在阅读' : ''}`}
                   >
-                    <span>
-                      {s.day}
-                      {done ? ' ✓' : ''}
-                    </span>
-                    <small>{s.title}</small>
+                    <span>{s.day}</span>
+                    {done ? <small aria-hidden>✓</small> : null}
                   </button>
                 );
               })}
             </div>
+            {selectedSession ? (
+              <div className="devotional-day-preview">
+                <div>
+                  <strong>第 {selectedSession.day} 次</strong>
+                  <p>{selectedSession.title}</p>
+                </div>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => changeDay(selectedSession.day)}
+                >
+                  进入
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       )}

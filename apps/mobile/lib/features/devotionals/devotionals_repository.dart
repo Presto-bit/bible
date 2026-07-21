@@ -21,6 +21,7 @@ class DevotionalHomeCard {
     required this.day,
     required this.daysTotal,
     required this.defaultDay,
+    required this.scheduledDay,
     required this.participantsCount,
     required this.myDays,
     required this.hasOpened,
@@ -35,6 +36,7 @@ class DevotionalHomeCard {
   final int day;
   final int daysTotal;
   final int defaultDay;
+  final int scheduledDay;
   final int participantsCount;
   final int myDays;
   final bool hasOpened;
@@ -49,6 +51,7 @@ class DevotionalHomeCard {
         day: (j['day'] ?? genesis50DefaultDay) as int,
         daysTotal: (j['days_total'] ?? 50) as int,
         defaultDay: (j['default_day'] ?? genesis50DefaultDay) as int,
+        scheduledDay: (j['scheduled_day'] ?? j['day'] ?? genesis50DefaultDay) as int,
         participantsCount: (j['participants_count'] ?? 0) as int,
         myDays: (j['my_days'] ?? 0) as int,
         hasOpened: (j['has_opened'] ?? false) as bool,

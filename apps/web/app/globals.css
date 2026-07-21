@@ -1709,10 +1709,10 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .home-rail .rail-card-scene-caption {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 10px;
+  position: static;
+  left: auto;
+  right: auto;
+  bottom: auto;
   margin: 0;
   z-index: 2;
   color: #fff;
@@ -1724,6 +1724,29 @@ html:not([data-app-theme]) .card {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-width: 0;
+  flex: 1;
+}
+
+.home-page .home-rail .rail-card-scene-caption-row {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-page .home-rail .rail-card-scene-caption-right {
+  flex: 0 0 auto;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.32);
 }
 
 .home-page .home-rail .rail-card-media-scene-caption.rail-card-media-green .rail-card-scene-veil {
@@ -21007,33 +21030,84 @@ body.im-search-keyboard .im-chat-search-sheet{
 }
 .devotional-panel {
   margin-top: 14px;
+  color: var(--ink);
 }
 .devotional-verses {
   display: flex;
   flex-direction: column;
-  gap: 0.65em;
-  line-height: 1.75;
-  font-size: 17px;
+  gap: 0.72em;
+  line-height: 2;
+  font-size: 19px;
 }
 .devotional-verse sup {
   color: var(--ink-soft);
-  margin-right: 4px;
-  font-size: 11px;
+  margin-right: 6px;
+  font-size: 12px;
 }
-.devotional-letter p,
-.devotional-workbook p {
-  line-height: 1.7;
-  margin: 0 0 0.85em;
+.devotional-letter > p {
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 2;
+  margin: 0 0 1.05em;
+  letter-spacing: 0.01em;
+}
+.devotional-letter > .devotional-reading-meta {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.devotional-workbook section > p {
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 1.85;
+  margin: 0 0 1em;
 }
 .devotional-workbook h3 {
-  font-size: 15px;
-  margin: 18px 0 8px;
+  color: var(--accent-deep);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 28px 0 10px;
+}
+.devotional-workbook section:first-of-type h3 {
+  margin-top: 12px;
+}
+.devotional-q {
+  margin: 0 0 24px;
+}
+.devotional-workbook .devotional-question {
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.75;
+  margin-bottom: 10px;
+}
+.devotional-workbook .devotional-meditation-hint {
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.8;
+  margin: 0;
+  padding-left: 13px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, var(--border));
 }
 .devotional-prayer-box {
-  margin-top: 16px;
-  padding: 14px;
+  margin-top: 24px;
+  padding: 18px;
   border-radius: 12px;
   background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.devotional-prayer-box > strong {
+  color: var(--accent-deep);
+  font-size: 16px;
+}
+.devotional-prayer-box > p,
+.devotional-letter .devotional-prayer-box > p,
+.devotional-workbook .devotional-prayer-box > p {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.85;
+  margin: 10px 0 0;
 }
 .devotional-input {
   width: 100%;
@@ -21041,6 +21115,8 @@ body.im-search-keyboard .im-chat-search-sheet{
   border-radius: 10px;
   padding: 10px 12px;
   font: inherit;
+  font-size: 17px;
+  line-height: 1.65;
   background: var(--surface);
   color: var(--ink);
   resize: vertical;
@@ -21060,6 +21136,9 @@ body.im-search-keyboard .im-chat-search-sheet{
   border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--surface);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.65;
 }
 .devotional-practice.active {
   border-color: var(--accent);
@@ -21096,6 +21175,9 @@ body.im-search-keyboard .im-chat-search-sheet{
 }
 .devotional-bottom-bar .devotional-cta.secondary {
   box-shadow: none;
+}
+.devotional-bottom-bar.is-immersive {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
 }
 body.devotional-immersive .tabbar {
   transform: translate3d(
@@ -21201,34 +21283,103 @@ body.devotional-immersive .app-body {
 }
 .devotional-day-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
-  max-height: 55vh;
+  max-height: 42vh;
   overflow: auto;
   margin-top: 12px;
 }
 .devotional-day-cell {
   appearance: none;
-  text-align: left;
+  position: relative;
   border: 1px solid var(--border);
   background: var(--surface);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 8px 4px;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
 }
 .devotional-day-cell span {
   font-weight: 700;
 }
 .devotional-day-cell small {
-  color: var(--ink-soft);
-  font-size: 11px;
-  line-height: 1.3;
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  color: var(--accent-deep);
+  font-size: 9px;
 }
 .devotional-day-cell.done {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
 }
 .devotional-day-cell.current {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.devotional-day-cell.selected {
+  color: var(--accent-deep);
   outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.devotional-picker-summary {
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+.devotional-picker-today {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent-deep);
+  padding: 10px 12px;
+  margin-top: 10px;
+  font: inherit;
+  font-weight: 600;
+}
+.devotional-day-filters {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.devotional-day-filters button {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.devotional-day-filters button.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent-deep);
+}
+.devotional-day-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.devotional-day-preview > div {
+  min-width: 0;
+}
+.devotional-day-preview p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.35;
+  margin: 3px 0 0;
+}
+.devotional-day-preview .btn {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 16px;
 }

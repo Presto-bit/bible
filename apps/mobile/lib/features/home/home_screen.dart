@@ -629,22 +629,19 @@ class _ForYouRailState extends State<_ForYouRail> {
   Widget build(BuildContext context) {
     final plan = widget.planRail;
     final dCard = widget.devotionalCard;
-    final dDay = dCard?.day ?? genesis50DefaultDay;
+    final dDay = dCard?.scheduledDay ?? dCard?.day ?? genesis50DefaultDay;
     String? dTitle;
     String? dSub;
     if (dCard != null) {
       if (dCard.isCompleted) {
-        dTitle = '你已完成创世记 50 次同行';
-        dSub = '回顾我的默想与祷告';
+        dTitle = '创世记50天';
+        dSub = '${dCard.myDays}/${dCard.daysTotal}';
       } else if (dCard.hasOpened || dCard.myDays > 0) {
-        dTitle = '继续第 ${dCard.day} 次';
-        dSub =
-            '上次停在${tabLabel(dCard.lastTab)} · 已完成 ${dCard.myDays}/${dCard.daysTotal}';
+        dTitle = '创世记50天';
+        dSub = '${dCard.myDays}/${dCard.daysTotal}';
       } else {
-        dTitle = '与神同行';
-        dSub = dCard.participantsCount > 0
-            ? '${dCard.participantsCount} 人正在同行'
-            : '经文、书信与默想 · 约18分钟';
+        dTitle = '创世记50天';
+        dSub = '0/${dCard.daysTotal}';
       }
     }
     final cards = <_RailCardData>[

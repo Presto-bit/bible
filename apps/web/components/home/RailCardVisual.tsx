@@ -9,7 +9,7 @@ type Props = {
   card: RailCard;
 };
 
-function ProgressRing({ pct }: { pct: number }) {
+function ProgressRing({ pct, label }: { pct: number; label?: string }) {
   const r = 16;
   const c = 2 * Math.PI * r;
   const offset = c * (1 - Math.min(100, Math.max(0, pct)) / 100);
@@ -41,11 +41,11 @@ function ProgressRing({ pct }: { pct: number }) {
         y="20"
         textAnchor="middle"
         dominantBaseline="central"
-        fontSize="9"
+        fontSize={label ? '7' : '9'}
         fontWeight="700"
         fill="var(--ink)"
       >
-        {Math.round(pct)}
+        {label || Math.round(pct)}
       </text>
     </svg>
   );
@@ -84,13 +84,15 @@ export function RailCardVisual({ card }: Props) {
         <div className="rail-card-cover-veil" aria-hidden />
         <p className="rail-card-cover-title">{bookCoverLabel(card.bookId)}</p>
         {isChallenge ? <span className="rail-card-cover-badge">问答</span> : null}
-        {showRing ? <ProgressRing pct={card.progressPct!} /> : null}
+        {showRing ? <ProgressRing pct={card.progressPct!} label={card.progressLabel} /> : null}
       </div>
     );
   }
 
   if (layout === 'scene-caption' && card.sceneId) {
-    const showRing = railShowsProgress(card) && (card.progressPct ?? 0) > 0;
+    const showRing =
+      (railShowsProgress(card) && (card.progressPct ?? 0) > 0) ||
+      Boolean(card.progressLabel);
     const isGroup = card.id === 'group';
     return (
       <div
@@ -112,10 +114,21 @@ export function RailCardVisual({ card }: Props) {
         ) : (
           <div className="rail-card-scene-veil" aria-hidden />
         )}
-        {card.mediaCaption ? (
-          <p className="rail-card-scene-caption">{card.mediaCaption}</p>
+        {card.mediaCaption || card.mediaCaptionRight ? (
+          <div className="rail-card-scene-caption-row">
+            {card.mediaCaption ? (
+              <p className="rail-card-scene-caption">{card.mediaCaption}</p>
+            ) : (
+              <span />
+            )}
+            {card.mediaCaptionRight ? (
+              <span className="rail-card-scene-caption-right">{card.mediaCaptionRight}</span>
+            ) : null}
+          </div>
         ) : null}
-        {showRing ? <ProgressRing pct={card.progressPct!} /> : null}
+        {showRing ? (
+          <ProgressRing pct={card.progressPct ?? 0} label={card.progressLabel} />
+        ) : null}
       </div>
     );
   }

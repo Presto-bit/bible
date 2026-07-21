@@ -52,12 +52,15 @@ export type RailCard = {
   statPct?: number;
   statLabel?: string;
   progressPct?: number;
+  progressLabel?: string;
   bookId?: string;
   chapter?: number;
   sceneId?: RailSceneId;
   noteExcerpt?: string;
   /** 场景卡顶部一行主文案（计划名 / 第 N 天等） */
   mediaCaption?: string;
+  /** 场景卡底部右侧进度文案，如 1/50 */
+  mediaCaptionRight?: string;
   coverVariant?: RailCoverVariant;
 };
 
@@ -81,6 +84,9 @@ export function trimRailSub(text: string, max = RAIL_SUB_MAX): string {
 function normalizeRailCard(card: RailCard): RailCard {
   const title = trimRailTitle(card.title);
   const mediaCaption = card.mediaCaption ? trimRailTitle(card.mediaCaption, 20) : undefined;
+  const mediaCaptionRight = card.mediaCaptionRight
+    ? trimRailTitle(card.mediaCaptionRight, 8)
+    : undefined;
   let sub = '';
 
   switch (card.id) {
@@ -122,6 +128,7 @@ function normalizeRailCard(card: RailCard): RailCard {
     sub,
     reason: '',
     mediaCaption,
+    mediaCaptionRight,
   };
 }
 
@@ -166,7 +173,9 @@ export type HomeRailInput = {
     sub: string;
     href: string;
     mediaCaption?: string;
+    mediaCaptionRight?: string;
     progressPct?: number;
+    progressLabel?: string;
   };
 };
 
@@ -216,7 +225,9 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         icon: RAIL_ICONS.devotional,
         sceneId: 'plan',
         mediaCaption: input.devotional.mediaCaption || input.devotional.title,
+        mediaCaptionRight: input.devotional.mediaCaptionRight,
         progressPct: input.devotional.progressPct,
+        progressLabel: input.devotional.progressLabel,
       };
     case 'plan':
       if (!input.plan) return null;

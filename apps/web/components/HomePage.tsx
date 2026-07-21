@@ -340,32 +340,37 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           sub: string;
           href: string;
           mediaCaption?: string;
+          mediaCaptionRight?: string;
           progressPct?: number;
+          progressLabel?: string;
         }
       | undefined;
     try {
       const adminOk = await fetchAdminEligible();
       if (adminOk) {
         const card = await api.devotionalHomeCard('genesis_50_walk');
-        const pct =
-          card.days_total > 0 && card.my_days > 0
-            ? Math.round((card.my_days / card.days_total) * 100)
-            : undefined;
+        const scheduled = card.scheduled_day || card.day || 7;
+        const doneLabel = `${card.my_days}/${card.days_total}`;
+        const schedulePct = Math.round((scheduled / card.days_total) * 100);
         if (card.my_days >= card.days_total && card.days_total > 0) {
           devotionalCard = {
             title: '你已完成创世记 50 次同行',
             sub: '回顾我的默想与祷告',
             href: card.href,
-            mediaCaption: `${card.my_days}/${card.days_total}`,
+            mediaCaption: '创世记50天',
+            mediaCaptionRight: doneLabel,
             progressPct: 100,
+            progressLabel: String(scheduled),
           };
         } else if (card.has_opened || card.my_days > 0) {
           devotionalCard = {
-            title: `继续第 ${card.day} 次`,
-            sub: `上次停在${tabLabel(card.last_tab)} · 已完成 ${card.my_days}/${card.days_total}`,
+            title: `今日第 ${scheduled} 次`,
+            sub: `上次停在${tabLabel(card.last_tab)} · 已完成 ${doneLabel}`,
             href: card.href,
-            mediaCaption: `${card.my_days}/${card.days_total}`,
-            progressPct: pct,
+            mediaCaption: '创世记50天',
+            mediaCaptionRight: doneLabel,
+            progressPct: schedulePct,
+            progressLabel: String(scheduled),
           };
         } else {
           const people =
@@ -376,7 +381,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             title: '与神同行',
             sub: people,
             href: card.href,
-            mediaCaption: `0/${card.days_total || 50}`,
+            mediaCaption: '创世记50天',
+            mediaCaptionRight: `0/${card.days_total || 50}`,
+            progressPct: schedulePct,
+            progressLabel: String(scheduled),
           };
         }
       }
