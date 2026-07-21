@@ -12,7 +12,8 @@ export type RailIconId =
   | 'assistant'
   | 'challenge'
   | 'plans'
-  | 'discover';
+  | 'discover'
+  | 'devotional';
 
 export type RailCardKind = 'action' | 'media' | 'stat' | 'ghost';
 export type RailTint = 'gold' | 'green' | 'rose' | 'slate';
@@ -32,6 +33,7 @@ export const RAIL_ICONS: Record<string, RailIconId> = {
   challenge: 'challenge',
   plans: 'plans',
   discover: 'discover',
+  devotional: 'devotional',
 };
 
 
@@ -85,6 +87,9 @@ function normalizeRailCard(card: RailCard): RailCard {
     case 'resume':
       sub = trimRailSub(card.sub || '继续阅读');
       break;
+    case 'devotional':
+      sub = trimRailSub(card.sub);
+      break;
     case 'plan':
       sub = trimRailSub(card.sub);
       break;
@@ -121,7 +126,7 @@ function normalizeRailCard(card: RailCard): RailCard {
 }
 
 export function railShowsProgress(card: RailCard): boolean {
-  return (card.id === 'resume' || card.id === 'plan') && (card.progressPct ?? 0) > 0;
+  return (card.id === 'resume' || card.id === 'plan' || card.id === 'devotional') && (card.progressPct ?? 0) > 0;
 }
 
 export type HomeMoreItem = {
@@ -156,10 +161,18 @@ export type HomeRailInput = {
   suggest?: { title: string; sub: string; href: string; bookId?: string };
   assistant?: { title: string; sub: string; href: string };
   challenge?: { title: string; sub: string; href: string; bookId: string };
+  devotional?: {
+    title: string;
+    sub: string;
+    href: string;
+    mediaCaption?: string;
+    progressPct?: number;
+  };
 };
 
 const PRIORITY: string[] = [
   'resume',
+  'devotional',
   'plan',
   'prayer',
   'group',
@@ -187,6 +200,23 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         progressPct: input.resume.progressPct,
         bookId: input.resume.bookId,
         chapter: input.resume.chapter,
+      };
+    case 'devotional':
+      if (!input.devotional) return null;
+      return {
+        id,
+        kind: 'media',
+        tint: 'rose',
+        layout: 'scene-caption',
+        tag: '50次同行',
+        reason: '创世记专题',
+        title: input.devotional.title,
+        sub: input.devotional.sub,
+        href: input.devotional.href,
+        icon: RAIL_ICONS.devotional,
+        sceneId: 'plan',
+        mediaCaption: input.devotional.mediaCaption || input.devotional.title,
+        progressPct: input.devotional.progressPct,
       };
     case 'plan':
       if (!input.plan) return null;

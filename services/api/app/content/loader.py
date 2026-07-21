@@ -15,6 +15,7 @@ from ..config import get_settings
 READING_PLANS = {
     "jhn_7": "约翰福音 · 7 天",
     "genesis_7": "创世记 · 7 天",
+    "genesis_50": "与神同行 · 创世记 50 次",
     "psalms_7": "诗篇入门 · 7 天",
     "gospels_7": "四福音精选 · 7 天",
     "gospels_30": "四福音 · 30 天",
@@ -25,6 +26,10 @@ READING_PLANS = {
     "pentateuch_40": "摩西五经 · 40 天",
     "bible_year_365": "圣经通读 · 365 天",
     "mcheyne_365": "M'Cheyne · 365 天",
+}
+
+DEVOTIONAL_SERIES = {
+    "genesis_50_walk": "devotionals/genesis_50_walk.json",
 }
 PRAYER_PLANS = {
     "prayer_morning_7": "prayer_morning_7.json",
@@ -133,6 +138,74 @@ def get_prayer_plan(plan_id: str) -> dict:
     if not fname:
         raise FileNotFoundError(plan_id)
     return _load_json(f"plans/{fname}")
+
+
+# ── 灵修专题（创世记 50 次同行等） ──
+@lru_cache(maxsize=4)
+def get_devotional_series(series_id: str) -> dict | None:
+    rel = DEVOTIONAL_SERIES.get(series_id)
+    if not rel:
+        return None
+    try:
+        return _load_json(rel)
+    except FileNotFoundError:
+        return None
+
+
+def list_devotional_series() -> list[dict]:
+    out: list[dict] = []
+    for sid in DEVOTIONAL_SERIES:
+        data = get_devotional_series(sid)
+        if not data:
+            continue
+        out.append({
+            "series_id": data.get("series_id", sid),
+            "title": data.get("title", sid),
+            "subtitle": data.get("subtitle"),
+            "theme": data.get("theme"),
+            "days_total": data.get("days_total") or len(data.get("sessions") or []),
+            "default_day": data.get("default_day") or 1,
+            "attribution": data.get("attribution"),
+            "copyright_note": data.get("copyright_note"),
+            "version": data.get("version"),
+        })
+    return out
+
+
+def get_devotional_session(series_id: str, day: int) -> dict | None:
+    data = get_devotional_series(series_id)
+    if not data:
+        return None
+    for s in data.get("sessions") or []:
+        if int(s.get("day") or 0) == int(day):
+            return {
+                "series_id": data.get("series_id", series_id),
+                "series_title": data.get("title"),
+                "series_subtitle": data.get("subtitle"),
+                "days_total": data.get("days_total") or len(data.get("sessions") or []),
+                "default_day": data.get("default_day") or 1,
+                "attribution": data.get("attribution"),
+                "copyright_note": data.get("copyright_note"),
+                **s,
+            }
+    return None
+
+
+def list_devotional_session_summaries(series_id: str) -> list[dict]:
+    data = get_devotional_series(series_id)
+    if not data:
+        return []
+    return [
+        {
+            "day": int(s.get("day") or 0),
+            "title": s.get("title"),
+            "chapter": s.get("chapter"),
+            "book": s.get("book"),
+            "book_name": s.get("book_name"),
+            "focus_verses": s.get("focus_verses"),
+        }
+        for s in (data.get("sessions") or [])
+    ]
 
 
 # ── 每日经文 ──

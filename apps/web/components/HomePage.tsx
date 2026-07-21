@@ -51,6 +51,8 @@ import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
 import { markHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
+import { fetchAdminEligible } from '@/lib/admin_rag';
+import { formatParticipants, tabLabel } from '@/lib/devotional_local';
 
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
@@ -322,15 +324,64 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     if (last) {
       // 用本地书卷名，避免首页串行打 api.books()
       const books = (await loadBooksJson()) ?? seededBooks();
-      const book = books.find((b) => b.id === last.bookId);
+        const book = books.find((b) => b.id === last.bookId);
       const name = book?.name ?? (bookIdToChineseName(last.bookId) || last.bookId);
-      resumeCard = {
+        resumeCard = {
         title: `${name} ${last.chapter} 章`,
         sub: '继续阅读',
-        href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+          href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
         bookId: last.bookId,
         chapter: last.chapter,
       };
+    }
+    let devotionalCard:
+      | {
+          title: string;
+          sub: string;
+          href: string;
+          mediaCaption?: string;
+          progressPct?: number;
+        }
+      | undefined;
+    try {
+      const adminOk = await fetchAdminEligible();
+      if (adminOk) {
+        const card = await api.devotionalHomeCard('genesis_50_walk');
+        const pct =
+          card.days_total > 0 && card.my_days > 0
+            ? Math.round((card.my_days / card.days_total) * 100)
+            : undefined;
+        if (card.my_days >= card.days_total && card.days_total > 0) {
+          devotionalCard = {
+            title: '你已完成创世记 50 次同行',
+            sub: '回顾我的默想与祷告',
+            href: card.href,
+            mediaCaption: '查看同行足迹',
+            progressPct: 100,
+          };
+        } else if (card.has_opened || card.my_days > 0) {
+          devotionalCard = {
+            title: `继续第 ${card.day} 次`,
+            sub: `上次停在${tabLabel(card.last_tab)} · 已完成 ${card.my_days}/${card.days_total}`,
+            href: card.href,
+            mediaCaption: card.day_title || card.title,
+            progressPct: pct,
+          };
+        } else {
+          const people =
+            card.participants_count > 0
+              ? formatParticipants(card.participants_count)
+              : '经文、书信与默想 · 约18分钟';
+          devotionalCard = {
+            title: '与神同行',
+            sub: people,
+            href: card.href,
+            mediaCaption: `从第${card.default_day || 7}次开始`,
+          };
+        }
+      }
+    } catch {
+      /* 非管理员或不具备权限时不展示入口 */
     }
     let groupCard = buildHomeGroupRailInput([], null);
     setGroupErr(null);
@@ -375,6 +426,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     const { main } = buildHomeRail({
       plan: planCard,
       resume: resumeCard,
+      devotional: devotionalCard,
       group: groupCard,
       prayer: prayerCard,
       suggest: suggest
@@ -555,26 +607,26 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         <div className="hero-inner hero-inner-split">
           <span className="hero-kicker hero-kicker-corner">每日经文</span>
           <div className="hero-main">
-            {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
-            <p className="verse-text">
-              {err
-                ? '内容加载失败'
-                : dv
-                  ? `「${dv.text}」`
-                  : dvLoading
-                    ? '加载中…'
-                    : '暂无经文'}
-            </p>
-            {err && (
-              <button
-                type="button"
-                className="text-link"
-                style={{ marginTop: 8, fontSize: 13 }}
+          {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
+          <p className="verse-text">
+            {err
+              ? '内容加载失败'
+              : dv
+                ? `「${dv.text}」`
+                : dvLoading
+                  ? '加载中…'
+                  : '暂无经文'}
+          </p>
+          {err && (
+            <button
+              type="button"
+              className="text-link"
+              style={{ marginTop: 8, fontSize: 13 }}
                 onClick={(e) => { e.stopPropagation(); loadHomeBootstrap(); }}
-              >
-                点击重试
-              </button>
-            )}
+            >
+              点击重试
+            </button>
+          )}
           </div>
           <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
@@ -609,7 +661,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                   strokeLinejoin="round"
                 >
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                </svg>
+              </svg>
               )}
               <span>{likeCount.toLocaleString()} 人点赞</span>
             </button>

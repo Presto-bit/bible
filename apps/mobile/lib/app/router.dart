@@ -27,6 +27,8 @@ import '../features/bible/wrapped_screen.dart';
 import '../features/settings/appearance_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
+import '../features/devotionals/devotional_series_screen.dart';
+import '../features/devotionals/devotionals_repository.dart';
 import 'app_shell.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -61,6 +63,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/plans/generate',
           builder: (context, state) => const GeneratePlanScreen()),
+      GoRoute(
+        path: '/devotionals/:seriesId',
+        builder: (context, state) {
+          final seriesId = state.pathParameters['seriesId'] ?? genesis50SeriesId;
+          final day = int.tryParse(state.uri.queryParameters['day'] ?? '');
+          return DevotionalSeriesScreen(
+            seriesId: seriesId,
+            initialDay: day,
+          );
+        },
+      ),
       GoRoute(
           path: '/friend/add',
           builder: (context, state) => const AddFriendScreen()),

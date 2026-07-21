@@ -23,6 +23,7 @@ function IconPaths({ id }: { id: RailIconId }) {
       );
     case 'plan':
     case 'plans':
+    case 'devotional':
       return (
         <>
           <rect x="5" y="6" width="14" height="13" rx="2" />
@@ -108,6 +109,6 @@ export function RailLineIcon({ id, size = 22, className }: Props) {
 export function isRailIconId(value: string): value is RailIconId {
   return [
     'resume', 'plan', 'prayer', 'group', 'notes', 'suggest',
-    'assistant', 'challenge', 'plans', 'discover',
+    'assistant', 'challenge', 'plans', 'discover', 'devotional',
   ].includes(value);
 }

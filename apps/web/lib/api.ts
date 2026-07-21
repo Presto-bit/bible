@@ -1244,6 +1244,114 @@ export interface PlanSummary {
   type: string;
   days: number;
 }
+
+export interface DevotionalHomeCard {
+  series_id: string;
+  title: string;
+  subtitle?: string;
+  days_total: number;
+  default_day: number;
+  day: number;
+  day_title?: string;
+  last_tab?: string;
+  participants_count: number;
+  my_days: number;
+  has_opened: boolean;
+  href: string;
+}
+
+export interface DevotionalSessionSummary {
+  day: number;
+  title: string;
+  chapter?: number;
+  book?: string;
+  book_name?: string;
+  focus_verses?: string;
+}
+
+export interface DevotionalComment {
+  id: string;
+  user_id: string;
+  body: string;
+  created_at?: string | null;
+  display_name: string;
+  mine?: boolean;
+}
+
+export interface DevotionalCheckin {
+  id: string;
+  user_id?: string;
+  emoji: string;
+  body?: string | null;
+  created_at?: string | null;
+  display_name?: string;
+  mine?: boolean;
+  reactions?: Record<string, string[]>;
+  comments?: DevotionalComment[];
+}
+
+export interface DevotionalDayDetail {
+  series_id: string;
+  series_title?: string;
+  series_subtitle?: string;
+  days_total: number;
+  default_day?: number;
+  day: number;
+  title: string;
+  book: string;
+  book_name: string;
+  chapter: number;
+  focus_verses?: string;
+  letter: { body: string; prayer: string; estimated_minutes?: number };
+  workbook: {
+    today_focus: string;
+    ancient_question: string;
+    ancient_hint: string;
+    passage_summary: string;
+    questions: { prompt: string; hint: string }[];
+    covenant_thread: string;
+    practices: string[];
+    prayer: string;
+    sc2_tags?: string | null;
+    estimated_minutes?: number;
+  };
+  scripture: {
+    book: string;
+    chapter: number;
+    version: string;
+    focus_verses?: string;
+    verses: Verse[];
+  };
+  participants_count: number;
+  my_days: number;
+  checked_days: number[];
+  last_day: number;
+  last_tab: string;
+  today_checkins: number;
+  day_checkins: number;
+  has_opened: boolean;
+  my_checkin?: DevotionalCheckin | null;
+  sessions: DevotionalSessionSummary[];
+  attribution?: string;
+  copyright_note?: string;
+}
+
+export interface DevotionalSeriesDetail {
+  series_id: string;
+  title: string;
+  subtitle?: string;
+  theme?: string;
+  days_total: number;
+  default_day: number;
+  sessions: DevotionalSessionSummary[];
+  participants_count: number;
+  my_days: number;
+  checked_days: number[];
+  last_day: number;
+  last_tab: string;
+  has_opened: boolean;
+}
+
 export interface GeneratedPlan {
   id: string;
   title: string;
@@ -1557,6 +1665,69 @@ export const api = {
     ),
   planScopes: () =>
     getJson<{ scopes: { id: string; label: string }[] }>('/content/plan-scopes'),
+  // 创世记 50 次同行
+  devotionalHomeCard: (seriesId = 'genesis_50_walk') =>
+    getJson<DevotionalHomeCard>(
+      `/content/devotionals/${encodeURIComponent(seriesId)}/home-card`,
+      authHeaders(),
+    ),
+  devotionalSeries: (seriesId: string) =>
+    getJson<DevotionalSeriesDetail>(
+      `/content/devotionals/${encodeURIComponent(seriesId)}`,
+      authHeaders(),
+    ),
+  devotionalDay: (seriesId: string, day: number) =>
+    getJson<DevotionalDayDetail>(
+      `/content/devotionals/${encodeURIComponent(seriesId)}/day/${day}`,
+      authHeaders(),
+    ),
+  saveDevotionalProgress: (seriesId: string, day: number, tab: string) =>
+    authed<{ ok: boolean; my_days: number; last_day: number; participants_count: number }>(
+      `/content/devotionals/${encodeURIComponent(seriesId)}/progress`,
+      { method: 'POST', body: { day, tab } },
+    ),
+  upsertDevotionalCheckin: (seriesId: string, day: number, emoji: string, body?: string) =>
+    authed<{
+      ok: boolean;
+      checkin: DevotionalCheckin;
+      my_days: number;
+      day_checkins: number;
+      participants_count: number;
+      checked_days: number[];
+    }>(`/content/devotionals/${encodeURIComponent(seriesId)}/day/${day}/checkin`, {
+      method: 'POST',
+      body: { emoji, body },
+    }),
+  deleteDevotionalCheckin: (seriesId: string, day: number) =>
+    authed<{ ok: boolean; my_days: number }>(
+      `/content/devotionals/${encodeURIComponent(seriesId)}/day/${day}/checkin`,
+      { method: 'DELETE' },
+    ),
+  devotionalFeed: (seriesId: string, day: number) =>
+    getJson<{ items: DevotionalCheckin[]; day_checkins: number; my_days: number }>(
+      `/content/devotionals/${encodeURIComponent(seriesId)}/day/${day}/feed`,
+      authHeaders(),
+    ),
+  reactDevotionalCheckin: (checkinId: string, emoji: string) =>
+    authed<{ reactions: Record<string, string[]> }>(
+      `/content/devotionals/checkins/${encodeURIComponent(checkinId)}/react`,
+      { method: 'POST', body: { emoji } },
+    ),
+  commentDevotionalCheckin: (checkinId: string, body: string) =>
+    authed<{ comment: DevotionalComment }>(
+      `/content/devotionals/checkins/${encodeURIComponent(checkinId)}/comments`,
+      { method: 'POST', body: { body } },
+    ),
+  deleteDevotionalComment: (commentId: string) =>
+    authed<{ ok: boolean }>(
+      `/content/devotionals/comments/${encodeURIComponent(commentId)}`,
+      { method: 'DELETE' },
+    ),
+  reportDevotional: (targetType: 'checkin' | 'comment', targetId: string, reason?: string) =>
+    authed<{ ok: boolean }>('/content/devotionals/report', {
+      method: 'POST',
+      body: { target_type: targetType, target_id: targetId, reason },
+    }),
   generatePlan: (scope: string | null, days: number, theme?: string, customRefs?: string) =>
     authed<GeneratedPlan>('/content/generate-plan', {
       method: 'POST',
