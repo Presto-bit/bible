@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   api,
@@ -16,7 +16,6 @@ import {
   readLocalProgress,
   readWorkbookDraft,
   resolveEntryDay,
-  tabLabel,
   writeLocalProgress,
   writeWorkbookDraft,
   type DevotionalTab,
@@ -27,29 +26,21 @@ import PageBackBar from '@/components/PageBackBar';
 
 type Props = { seriesId: string };
 
-function parseFocusRanges(focus?: string): Array<{ start: number; end: number }> {
-  if (!focus) return [];
-  const out: Array<{ start: number; end: number }> = [];
-  for (const part of focus.split(/[，,]/)) {
-    const m = part.trim().match(/(\d+)\s*:\s*(\d+)(?:\s*-\s*(\d+))?/);
-    if (!m) continue;
-    const start = Number(m[2]);
-    const end = Number(m[3] || m[2]);
-    out.push({ start, end });
-  }
-  return out;
-}
-
-function isFocusVerse(verse: number, ranges: Array<{ start: number; end: number }>) {
-  return ranges.some((r) => verse >= r.start && verse <= r.end);
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(
+    target.closest(
+      'a, button, input, textarea, select, label, [role="button"], .text-link',
+    ),
+  );
 }
 
 export default function DevotionalSeriesClient({ seriesId }: Props) {
   const router = useRouter();
   const search = useSearchParams();
   const queryDay = Number(search.get('day') || '') || null;
-  const panelRef = useRef<HTMLElement | null>(null);
   const scrollByTab = useRef<Partial<Record<DevotionalTab, number>>>({});
+  const endSentinelRef = useRef<HTMLDivElement | null>(null);
 
   const [day, setDay] = useState(() =>
     resolveEntryDay({ queryDay, seriesId, defaultDay: GENESIS_50_DEFAULT_DAY }),
@@ -72,12 +63,8 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
   const [commentingId, setCommentingId] = useState<string | null>(null);
   const [feedExpanded, setFeedExpanded] = useState(false);
   const [feedShowAll, setFeedShowAll] = useState(false);
-  const [focusOn, setFocusOn] = useState(true);
-
-  const focusRanges = useMemo(
-    () => parseFocusRanges(data?.focus_verses || data?.scripture?.focus_verses),
-    [data],
-  );
+  const [atContentEnd, setAtContentEnd] = useState(false);
+  const [immersive, setImmersive] = useState(false);
 
   const persistProgress = useCallback(
     async (nextDay: number, nextTab: DevotionalTab) => {
@@ -99,6 +86,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
       setFeedExpanded(false);
       setFeedShowAll(false);
       setSuccessOpen(false);
+      setAtContentEnd(false);
       try {
         const detail = await api.devotionalDay(seriesId, nextDay);
         setData(detail);
@@ -140,11 +128,35 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
     return () => window.clearTimeout(t);
   }, [draft, seriesId, day]);
 
+  useEffect(() => {
+    const el = endSentinelRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([entry]) => setAtContentEnd(Boolean(entry?.isIntersecting)),
+      { root: null, rootMargin: '0px 0px -12% 0px', threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [tab, day, data, immersive]);
+
+  useEffect(() => {
+    document.body.classList.toggle('devotional-immersive', immersive);
+    return () => document.body.classList.remove('devotional-immersive');
+  }, [immersive]);
+
+  useEffect(() => {
+    if (!immersive) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setImmersive(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [immersive]);
+
   const switchTab = (t: DevotionalTab) => {
-    if (panelRef.current) {
-      scrollByTab.current[tab] = window.scrollY;
-    }
+    scrollByTab.current[tab] = window.scrollY;
     setTab(t);
+    setAtContentEnd(false);
     void persistProgress(day, t);
     requestAnimationFrame(() => {
       const y = scrollByTab.current[t];
@@ -156,6 +168,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
     scrollByTab.current = {};
     setDay(d);
     setPickerOpen(false);
+    setImmersive(false);
     router.replace(`/devotionals/${seriesId}?day=${d}`);
   };
 
@@ -182,6 +195,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
       setCheckinOpen(false);
       setSuccessOpen(true);
       setFeedExpanded(true);
+      setImmersive(false);
     } catch (e) {
       setErr(errorMessage(e, '打卡失败'));
     } finally {
@@ -221,6 +235,14 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
     }
   };
 
+  const onContentClick = (e: MouseEvent) => {
+    if (isInteractiveTarget(e.target)) return;
+    // 选中文字时不切换沉浸
+    const sel = window.getSelection();
+    if (sel && sel.toString().trim()) return;
+    setImmersive((v) => !v);
+  };
+
   if (loading && !data) {
     return (
       <main className="container devotional-page">
@@ -246,6 +268,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
   const daysTotal = data.days_total || 50;
   const nextDay = day < daysTotal ? day + 1 : null;
   const visibleFeed = feedShowAll ? feed : feed.slice(0, 3);
+  const showBottomBar = !immersive && atContentEnd;
   const bottomLabel =
     tab === 'scripture'
       ? '继续读灵修书信'
@@ -270,78 +293,76 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
   };
 
   return (
-    <main className="container devotional-page">
-      <div className="devotional-sticky-top">
-        <div className="devotional-sticky-bar">
-          <PageBackBar href="/" label="首页" />
-          <button type="button" className="devotional-day-picker" onClick={() => setPickerOpen(true)}>
-            第 {day} 次 / {daysTotal}
-            <span aria-hidden> ▾</span>
-          </button>
-        </div>
-        <nav className="devotional-tabs" aria-label="内容标签">
-          {(
-            [
-              ['scripture', '经文'],
-              ['letter', '灵修书信'],
-              ['workbook', '默想教材'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              className={`devotional-tab${tab === id ? ' active' : ''}`}
-              onClick={() => switchTab(id)}
-            >
-              {label}
+    <main className={`container devotional-page${immersive ? ' is-immersive' : ''}`}>
+      {!immersive ? (
+        <div className="devotional-sticky-top">
+          <div className="devotional-sticky-bar">
+            <PageBackBar href="/" label="首页" />
+            <button type="button" className="devotional-day-picker" onClick={() => setPickerOpen(true)}>
+              第 {day} 次 / {daysTotal}
+              <span aria-hidden> ▾</span>
             </button>
-          ))}
-        </nav>
-      </div>
+          </div>
+          <nav className="devotional-tabs" aria-label="内容标签">
+            {(
+              [
+                ['scripture', '经文'],
+                ['letter', '灵修书信'],
+                ['workbook', '默想教材'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                className={`devotional-tab${tab === id ? ' active' : ''}`}
+                onClick={() => switchTab(id)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      ) : null}
 
-      <header className="devotional-header">
-        <h1>第{day}次｜{data.title}</h1>
-        <p className="muted">
-          {data.book_name}第{data.chapter}章
-          {data.focus_verses ? ` · 重点 ${data.focus_verses}` : ''}
-          {' · '}约 {data.workbook?.estimated_minutes || 18} 分钟
-        </p>
-        <p className="devotional-stats-line muted">
-          已完成 {data.my_days}/{daysTotal}
-          {' · '}
-          {formatParticipants(data.participants_count)}
-          {data.today_checkins > 0 ? ` · 今天 ${data.today_checkins} 人已完成` : ''}
-        </p>
-      </header>
+      {!immersive ? (
+        <header className="devotional-header">
+          <h1>第{day}次｜{data.title}</h1>
+          <p className="muted">
+            {data.book_name}第{data.chapter}章
+            {data.focus_verses ? ` · 重点 ${data.focus_verses}` : ''}
+            {' · '}约 {data.workbook?.estimated_minutes || 18} 分钟
+          </p>
+          <p className="devotional-stats-line muted">
+            已完成 {data.my_days}/{daysTotal}
+            {' · '}
+            {formatParticipants(data.participants_count)}
+            {data.today_checkins > 0 ? ` · 今天 ${data.today_checkins} 人已完成` : ''}
+          </p>
+        </header>
+      ) : null}
 
       {err ? <p className="muted" role="alert" style={{ marginTop: 8 }}>{err}</p> : null}
 
-      <section className="devotional-panel" ref={panelRef as never}>
+      <section
+        className="devotional-panel"
+        onClick={onContentClick}
+        role="presentation"
+      >
         {tab === 'scripture' && (
           <div className="devotional-scripture">
             <div className="section-row">
               <strong>{data.book_name} {data.chapter}</strong>
-              <div className="devotional-inline-actions">
-                {focusRanges.length > 0 ? (
-                  <button type="button" className="text-link" onClick={() => setFocusOn((v) => !v)}>
-                    {focusOn ? '关闭重点高亮' : '显示重点高亮'}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="text-link"
-                  onClick={() => router.push(`/reader?book=${data.book}&chapter=${data.chapter}`)}
-                >
-                  在圣经中打开 ›
-                </button>
-              </div>
+              <button
+                type="button"
+                className="text-link"
+                onClick={() => router.push(`/reader?book=${data.book}&chapter=${data.chapter}`)}
+              >
+                在圣经中打开 ›
+              </button>
             </div>
             <div className="devotional-verses">
               {(data.scripture?.verses || []).map((v) => (
-                <p
-                  key={v.verse}
-                  className={`devotional-verse${focusOn && isFocusVerse(v.verse, focusRanges) ? ' is-focus' : ''}`}
-                >
+                <p key={v.verse} className="devotional-verse">
                   <sup>{v.verse}</sup>
                   {v.text}
                 </p>
@@ -446,111 +467,116 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
             </div>
           </article>
         )}
+        <div ref={endSentinelRef} className="devotional-end-sentinel" aria-hidden />
       </section>
 
-      <section className="devotional-feed">
-        <button
-          type="button"
-          className="devotional-feed-toggle"
-          onClick={() => setFeedExpanded((v) => !v)}
-        >
-          <strong>同行动态</strong>
-          <span className="muted">
-            {data.day_checkins} 人已完成 · {feedExpanded ? '收起' : '查看'}
-          </span>
-        </button>
-        {feedExpanded ? (
-          feed.length === 0 ? (
-            <p className="muted" style={{ marginTop: 10 }}>成为今天第一位留下回应的人。</p>
-          ) : (
-            <>
-              {visibleFeed.map((item) => (
-                <article key={item.id} className="devotional-feed-item card card-2">
-                  <div className="devotional-feed-head">
-                    <strong>{item.mine ? '我' : item.display_name}</strong>
-                    <span className="devotional-feed-emoji">{item.emoji}</span>
-                  </div>
-                  {item.body ? <p>{item.body}</p> : null}
-                  <div className="devotional-react-row">
-                    {CHECKIN_EMOJI_OPTIONS.map((opt) => {
-                      const count = item.reactions?.[opt.emoji]?.length || 0;
-                      return (
-                        <button
-                          key={opt.emoji}
-                          type="button"
-                          className={`group-emoji-btn${count ? ' active' : ''}`}
-                          onClick={() => void toggleReact(item.id, opt.emoji)}
-                          title={opt.label}
-                        >
-                          {opt.emoji}{count ? ` ${count}` : ''}
-                        </button>
-                      );
-                    })}
-                    <button
-                      type="button"
-                      className="text-link"
-                      style={{ fontSize: 12 }}
-                      onClick={() => setCommentingId((id) => (id === item.id ? null : item.id))}
-                    >
-                      回应
-                    </button>
-                    <button
-                      type="button"
-                      className="text-link"
-                      style={{ fontSize: 12 }}
-                      onClick={() =>
-                        void api.reportDevotional('checkin', item.id, '不当内容').then(() => {
-                          setErr('已收到举报，我们会尽快处理');
-                        })
-                      }
-                    >
-                      举报
-                    </button>
-                  </div>
-                  {(item.comments || []).length > 0 ? (
-                    <div className="devotional-comments">
-                      {(item.comments || []).map((c) => (
-                        <p key={c.id} className="devotional-comment">
-                          <strong>{c.mine ? '我' : c.display_name}</strong> {c.body}
-                        </p>
-                      ))}
+      {!immersive ? (
+        <section className="devotional-feed">
+          <button
+            type="button"
+            className="devotional-feed-toggle"
+            onClick={() => setFeedExpanded((v) => !v)}
+          >
+            <strong>同行动态</strong>
+            <span className="muted">
+              {data.day_checkins} 人已完成 · {feedExpanded ? '收起' : '查看'}
+            </span>
+          </button>
+          {feedExpanded ? (
+            feed.length === 0 ? (
+              <p className="muted" style={{ marginTop: 10 }}>成为今天第一位留下回应的人。</p>
+            ) : (
+              <>
+                {visibleFeed.map((item) => (
+                  <article key={item.id} className="devotional-feed-item card card-2">
+                    <div className="devotional-feed-head">
+                      <strong>{item.mine ? '我' : item.display_name}</strong>
+                      <span className="devotional-feed-emoji">{item.emoji}</span>
                     </div>
-                  ) : null}
-                  {commentingId === item.id ? (
-                    <div className="devotional-comment-compose">
-                      <input
-                        value={commentDraft[item.id] || ''}
-                        onChange={(e) => setCommentDraft((m) => ({ ...m, [item.id]: e.target.value }))}
-                        placeholder="写一句鼓励…"
-                        maxLength={500}
-                      />
-                      <button type="button" className="text-link" onClick={() => void sendComment(item.id)}>
-                        发送
+                    {item.body ? <p>{item.body}</p> : null}
+                    <div className="devotional-react-row">
+                      {CHECKIN_EMOJI_OPTIONS.map((opt) => {
+                        const count = item.reactions?.[opt.emoji]?.length || 0;
+                        return (
+                          <button
+                            key={opt.emoji}
+                            type="button"
+                            className={`group-emoji-btn${count ? ' active' : ''}`}
+                            onClick={() => void toggleReact(item.id, opt.emoji)}
+                            title={opt.label}
+                          >
+                            {opt.emoji}{count ? ` ${count}` : ''}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        className="text-link"
+                        style={{ fontSize: 12 }}
+                        onClick={() => setCommentingId((id) => (id === item.id ? null : item.id))}
+                      >
+                        回应
+                      </button>
+                      <button
+                        type="button"
+                        className="text-link"
+                        style={{ fontSize: 12 }}
+                        onClick={() =>
+                          void api.reportDevotional('checkin', item.id, '不当内容').then(() => {
+                            setErr('已收到举报，我们会尽快处理');
+                          })
+                        }
+                      >
+                        举报
                       </button>
                     </div>
-                  ) : null}
-                </article>
-              ))}
-              {!feedShowAll && feed.length > 3 ? (
-                <button type="button" className="text-link" onClick={() => setFeedShowAll(true)}>
-                  查看全部 {feed.length} 条同行回应
-                </button>
-              ) : null}
-            </>
-          )
-        ) : null}
-      </section>
+                    {(item.comments || []).length > 0 ? (
+                      <div className="devotional-comments">
+                        {(item.comments || []).map((c) => (
+                          <p key={c.id} className="devotional-comment">
+                            <strong>{c.mine ? '我' : c.display_name}</strong> {c.body}
+                          </p>
+                        ))}
+                      </div>
+                    ) : null}
+                    {commentingId === item.id ? (
+                      <div className="devotional-comment-compose">
+                        <input
+                          value={commentDraft[item.id] || ''}
+                          onChange={(e) => setCommentDraft((m) => ({ ...m, [item.id]: e.target.value }))}
+                          placeholder="写一句鼓励…"
+                          maxLength={500}
+                        />
+                        <button type="button" className="text-link" onClick={() => void sendComment(item.id)}>
+                          发送
+                        </button>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+                {!feedShowAll && feed.length > 3 ? (
+                  <button type="button" className="text-link" onClick={() => setFeedShowAll(true)}>
+                    查看全部 {feed.length} 条同行回应
+                  </button>
+                ) : null}
+              </>
+            )
+          ) : null}
+        </section>
+      ) : null}
 
-      <div className="devotional-bottom-bar">
-        <button type="button" className="btn" onClick={onBottomPrimary}>
-          {bottomLabel}
-        </button>
-        {data.my_checkin && tab === 'workbook' && nextDay ? (
-          <button type="button" className="btn secondary" onClick={() => changeDay(nextDay)}>
-            继续第 {nextDay} 次
+      {showBottomBar ? (
+        <div className="devotional-bottom-bar">
+          <button type="button" className="btn devotional-cta" onClick={onBottomPrimary}>
+            {bottomLabel}
           </button>
-        ) : null}
-      </div>
+          {data.my_checkin && tab === 'workbook' && nextDay ? (
+            <button type="button" className="btn secondary devotional-cta" onClick={() => changeDay(nextDay)}>
+              继续第 {nextDay} 次
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {pickerOpen && (
         <div className="sheet-backdrop" onClick={() => setPickerOpen(false)}>
@@ -670,7 +696,7 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
         </div>
       )}
 
-      {data.copyright_note ? (
+      {data.copyright_note && !immersive ? (
         <p className="muted" style={{ fontSize: 11, marginTop: 24, marginBottom: 88 }}>
           {data.attribution} · {data.copyright_note}
         </p>
@@ -679,4 +705,4 @@ export default function DevotionalSeriesClient({ seriesId }: Props) {
   );
 }
 
-export { formatParticipants, GENESIS_50_SERIES_ID, tabLabel };
+export { formatParticipants, GENESIS_50_SERIES_ID };

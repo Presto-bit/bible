@@ -356,7 +356,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             title: '你已完成创世记 50 次同行',
             sub: '回顾我的默想与祷告',
             href: card.href,
-            mediaCaption: '查看同行足迹',
+            mediaCaption: `${card.my_days}/${card.days_total}`,
             progressPct: 100,
           };
         } else if (card.has_opened || card.my_days > 0) {
@@ -364,7 +364,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             title: `继续第 ${card.day} 次`,
             sub: `上次停在${tabLabel(card.last_tab)} · 已完成 ${card.my_days}/${card.days_total}`,
             href: card.href,
-            mediaCaption: card.day_title || card.title,
+            mediaCaption: `${card.my_days}/${card.days_total}`,
             progressPct: pct,
           };
         } else {
@@ -376,7 +376,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             title: '与神同行',
             sub: people,
             href: card.href,
-            mediaCaption: `从第${card.default_day || 7}次开始`,
+            mediaCaption: `0/${card.days_total || 50}`,
           };
         }
       }
