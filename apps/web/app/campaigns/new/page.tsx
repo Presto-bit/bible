@@ -131,6 +131,7 @@ function CampaignNewInner() {
   return (
     <OpsPcShell
       title="新建活动"
+      variant="new"
       backHref="/admin?tab=ops"
       backLabel="活动运营"
       sub="选起点，进编辑器用控件搭落地页"

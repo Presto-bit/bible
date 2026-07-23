@@ -27,6 +27,7 @@ export function OpsPcShell({
   backHref = '/admin?tab=ops',
   backLabel = '活动运营',
   actions,
+  variant = 'default',
 }: {
   children: ReactNode;
   title: string;
@@ -34,10 +35,18 @@ export function OpsPcShell({
   backHref?: string | null;
   backLabel?: string;
   actions?: ReactNode;
+  /** default | new（选型页适中宽）| edit（Canvas 满宽） */
+  variant?: 'default' | 'new' | 'edit';
 }) {
   useOpsPcScrollLock();
+  const shellClass =
+    variant === 'new'
+      ? 'ops-pc-shell ops-pc-shell--new'
+      : variant === 'edit'
+        ? 'ops-pc-shell ops-pc-shell--edit'
+        : 'ops-pc-shell';
   return (
-    <main className="ops-pc-shell">
+    <main className={shellClass}>
       <header className="ops-pc-head">
         <div className="ops-pc-head-main">
           {backHref ? (

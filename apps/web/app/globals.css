@@ -22192,9 +22192,10 @@ label.ops-select-row {
 
 /* PC 活动运营工作台 —— 壳内独立滚动，避免整页锁死无法下滑 */
 .ops-pc-shell {
-  width: min(1180px, calc(100% - 48px));
-  margin: 0 auto;
-  padding: 24px 0 48px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 16px 20px 32px;
   box-sizing: border-box;
   height: 100dvh;
   max-height: 100dvh;
@@ -22203,6 +22204,14 @@ label.ops-select-row {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+}
+/* 新建页：壳满宽，选型区由 .ops-pc-new 控制可读宽度 */
+.ops-pc-shell--new {
+  padding: 16px 24px 40px;
+}
+/* 编辑 Canvas：左右留白更小，画布吃满 */
+.ops-pc-shell--edit {
+  padding: 12px 12px 20px;
 }
 html.ops-pc-active,
 body.ops-pc-active {
@@ -22221,7 +22230,7 @@ body.ops-pc-active .app-body {
 }
 .ops-list-panel {
   width: 100%;
-  max-width: 920px;
+  max-width: none;
 }
 .ops-list-panel.is-embedded {
   max-width: none;
@@ -22352,14 +22361,15 @@ body.ops-pc-active .app-body {
 }
 .ops-canvas-grid {
   display: grid;
-  grid-template-columns: 52px minmax(220px, 300px) minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-columns: 52px minmax(240px, 320px) minmax(0, 1fr) minmax(280px, 380px);
   gap: 12px;
   align-items: start;
   margin-top: 10px;
-  min-height: calc(100dvh - 200px);
+  min-height: calc(100dvh - 160px);
+  width: 100%;
 }
 .ops-canvas-grid.is-left-collapsed {
-  grid-template-columns: 52px minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-columns: 52px minmax(0, 1fr) minmax(280px, 380px);
 }
 .ops-canvas-rail {
   grid-column: 1;
@@ -22472,8 +22482,16 @@ body.ops-pc-active .app-body {
   }
 }
 .ops-pc-new {
-  max-width: 640px;
+  width: 100%;
+  max-width: 960px;
   margin-top: 12px;
+}
+@media (min-width: 900px) {
+  .ops-pc-new .ops-select-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
 }
 .ops-new-blank {
   width: 100%;

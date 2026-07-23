@@ -83,7 +83,7 @@ function CampaignEditInner() {
   });
   const pinnedOpen = useRef<Partial<Record<CampaignConfigSectionId, boolean>>>({});
   /** 顶栏进度区折叠 */
-  const [topBarOpen, setTopBarOpen] = useState(true);
+  const [topBarOpen, setTopBarOpen] = useState(false);
   /** 左侧工具面板折叠（仅留 Tab 轨） */
   const [leftOpen, setLeftOpen] = useState(true);
   /** 左侧三 Tab：控件 | 配置 | 设置 */
@@ -416,6 +416,7 @@ function CampaignEditInner() {
   return (
     <OpsPcShell
       title={name.trim() || '编辑活动'}
+      variant="edit"
       sub={
         camp ? (
           <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
