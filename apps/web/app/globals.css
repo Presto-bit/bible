@@ -23087,49 +23087,38 @@ body.pray-session-open .app-body {
   color: #2f2924;
 }
 
-.pray-session-hint {
-  margin: 28px 0 0;
-  font-size: 13px;
-  color: color-mix(in srgb, #5a4f45 45%, transparent);
-}
-
-.pray-session-progress {
-  width: min(220px, 56vw);
-  height: 3px;
-  margin-top: 28px;
-  border-radius: 999px;
-  background: color-mix(in srgb, #5a4f45 12%, transparent);
-  overflow: hidden;
-}
-
-.pray-session-progress > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: color-mix(in srgb, var(--accent-deep, #5f7d66) 70%, #8aa58f);
-  transition: width 0.08s linear;
-}
-
-.pray-session-dots {
+.pray-session-step {
   display: flex;
-  gap: 6px;
-  margin-top: 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  width: 100%;
 }
 
-.pray-session-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, #5a4f45 18%, transparent);
+.pray-session-verse {
+  margin: 0;
+  padding: 0;
+  max-width: 20em;
+  border: none;
 }
 
-.pray-session-dot.is-on {
-  background: var(--accent-deep, #5f7d66);
-  transform: scale(1.15);
+.pray-session-verse-text {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, #2f2924 82%, transparent);
 }
 
-.pray-session.is-complete .pray-session-kicker {
-  letter-spacing: 0.22em;
+.pray-session-verse-ref {
+  display: block;
+  margin-top: 10px;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, #5a4f45 55%, transparent);
 }
 
 .pray-session-foot {
@@ -23164,16 +23153,12 @@ body.pray-session-open .app-body {
   transform: scale(0.985);
 }
 
-.pray-session-credit {
-  margin: 10px 0 0;
-  text-align: center;
-  font-size: 10px;
-  line-height: 1.4;
-  color: color-mix(in srgb, #5a4f45 40%, transparent);
-}
-
 @media (max-width: 360px) {
   .pray-session-text {
     font-size: 18px;
+  }
+
+  .pray-session-verse-text {
+    font-size: 15px;
   }
 }
