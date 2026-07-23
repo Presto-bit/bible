@@ -13,19 +13,45 @@ export type PublishChecklistInput = {
   railSlot?: number;
   audienceMode?: 'groups' | 'all' | 'admin_preview';
   isPlatformAdmin?: boolean;
+  startAt?: string;
+  endAt?: string;
 };
 
-export function buildPublishChecklist(input: PublishChecklistInput): string[] {
-  const errors: string[] = [];
+export type CampaignConfigSectionId = 'basic' | 'audience' | 'exposure' | 'content';
+
+export const CAMPAIGN_CONFIG_SECTIONS: Array<{
+  id: CampaignConfigSectionId;
+  anchor: string;
+  label: string;
+  hint: string;
+}> = [
+  { id: 'basic', anchor: 'ops-sec-basic', label: '基本', hint: '名称与说明' },
+  { id: 'audience', anchor: 'ops-sec-audience', label: '可见范围', hint: '谁能看见' },
+  { id: 'exposure', anchor: 'ops-sec-exposure', label: '首页曝光', hint: '推荐位与时段' },
+  { id: 'content', anchor: 'ops-sec-content', label: '落地页', hint: '模板内容' },
+];
+
+function audienceReady(input: PublishChecklistInput): boolean {
   const mode = input.audienceMode || 'groups';
   if (mode === 'all' || mode === 'admin_preview') {
-    if (!input.isPlatformAdmin) errors.push('仅平台超管可发布全站/预览受众');
-  } else if (!input.groupIds?.length) {
-    errors.push('请选择谁能看见（至少一个群）');
+    return Boolean(input.isPlatformAdmin);
   }
-  if (!input.name?.trim()) errors.push('请填写活动名称');
-  const title = (input.landing?.title || input.name || '').trim();
-  if (!title) errors.push('请填写页面标题');
+  return Boolean(input.groupIds?.length);
+}
+
+function exposureReady(input: PublishChecklistInput): boolean {
+  const start = (input.startAt || '').trim();
+  const end = (input.endAt || '').trim();
+  if (!start || !end) return false;
+  const s = new Date(start).getTime();
+  const e = new Date(end).getTime();
+  if (Number.isNaN(s) || Number.isNaN(e)) return false;
+  return e > s;
+}
+
+/** 落地页模板相关必填（不含名称/受众） */
+export function buildContentChecklist(input: PublishChecklistInput): string[] {
+  const errors: string[] = [];
   const days = input.landing?.days || [];
   if (input.templateId === 'multi_day' || input.templateId === 'memory') {
     const filled = days.filter(
@@ -49,6 +75,39 @@ export function buildPublishChecklist(input: PublishChecklistInput): string[] {
     const valid = entries.filter((e) => (e.title || '').trim() && (e.href || '').trim());
     if (valid.length < 2) errors.push('多入口请至少配置 2 个有效入口（标题+链接）');
   }
+  return errors;
+}
+
+export function campaignSectionDone(
+  section: CampaignConfigSectionId,
+  input: PublishChecklistInput,
+): boolean {
+  switch (section) {
+    case 'basic':
+      return Boolean(input.name?.trim());
+    case 'audience':
+      return audienceReady(input);
+    case 'exposure':
+      return exposureReady(input);
+    case 'content':
+      return buildContentChecklist(input).length === 0;
+    default:
+      return false;
+  }
+}
+
+export function buildPublishChecklist(input: PublishChecklistInput): string[] {
+  const errors: string[] = [];
+  const mode = input.audienceMode || 'groups';
+  if (mode === 'all' || mode === 'admin_preview') {
+    if (!input.isPlatformAdmin) errors.push('仅平台超管可发布全站/预览受众');
+  } else if (!input.groupIds?.length) {
+    errors.push('请选择谁能看见（至少一个群）');
+  }
+  if (!input.name?.trim()) errors.push('请填写活动名称');
+  const title = (input.landing?.title || input.name || '').trim();
+  if (!title) errors.push('请填写页面标题');
+  errors.push(...buildContentChecklist(input));
   return errors;
 }
 

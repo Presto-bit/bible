@@ -22007,6 +22007,146 @@ label.ops-select-row {
   background: color-mix(in srgb, var(--bg, var(--surface)) 92%, transparent);
   backdrop-filter: blur(8px);
 }
+
+.ops-progress-nav {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  margin-top: 10px;
+  padding: 10px 0 8px;
+  background: color-mix(in srgb, var(--bg, var(--surface)) 92%, transparent);
+  backdrop-filter: blur(10px);
+}
+.ops-progress-meter {
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-soft) 14%, transparent);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.ops-progress-meter-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--dawn-gold, #c4a35a) 75%, #fff),
+    var(--dawn-gold, #c4a35a)
+  );
+  transition: width 0.25s ease;
+}
+.ops-progress-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.ops-progress-step {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--line, var(--border));
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  min-height: 72px;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.ops-progress-step.is-done {
+  border-color: color-mix(in srgb, var(--accent, #2f6b4f) 40%, var(--line));
+}
+.ops-progress-step.is-current {
+  border-color: color-mix(in srgb, var(--dawn-gold, #c4a35a) 55%, var(--line));
+  background: color-mix(in srgb, var(--dawn-gold, #c4a35a) 10%, var(--surface));
+}
+.ops-progress-step-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--ink-soft) 12%, transparent);
+  color: var(--ink-soft);
+}
+.ops-progress-step.is-done .ops-progress-step-n {
+  background: color-mix(in srgb, var(--accent, #2f6b4f) 18%, transparent);
+  color: color-mix(in srgb, var(--accent, #2f6b4f) 85%, #000);
+}
+.ops-progress-step.is-current .ops-progress-step-n {
+  background: color-mix(in srgb, var(--dawn-gold, #c4a35a) 22%, transparent);
+  color: var(--ink);
+}
+.ops-progress-step-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+.ops-progress-step-text strong {
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops-progress-step-text span {
+  font-size: 11px;
+  color: var(--ink-soft);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ops-progress-caption {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.ops-sec {
+  scroll-margin-top: 132px;
+}
+.ops-page .settings-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ops-sec-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--ink-soft) 10%, transparent);
+}
+.ops-sec-badge.is-done {
+  color: color-mix(in srgb, var(--accent, #2f6b4f) 85%, #000);
+  background: color-mix(in srgb, var(--accent, #2f6b4f) 12%, transparent);
+}
+
+@media (max-width: 420px) {
+  .ops-progress-step {
+    min-height: 64px;
+    padding: 8px 6px;
+  }
+  .ops-progress-step-text strong {
+    font-size: 12px;
+  }
+  .ops-progress-step-text span {
+    display: none;
+  }
+}
 .ops-check-row {
   display: flex;
   gap: 8px;

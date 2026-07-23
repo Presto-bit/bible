@@ -11,9 +11,12 @@ import {
 } from '@/lib/campaign_draft';
 import {
   buildPublishChecklist,
+  CAMPAIGN_CONFIG_SECTIONS,
+  campaignSectionDone,
   campaignStatusLabel,
   campaignStatusTone,
   parseDaysFromBulkText,
+  type CampaignConfigSectionId,
 } from '@/lib/campaign_ops';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { QUICK_HREFS } from '@/lib/campaign_nav';
@@ -64,19 +67,21 @@ function CampaignEditInner() {
   const skipDraftOnce = useRef(true);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [audienceMode, setAudienceMode] = useState<'groups' | 'all' | 'admin_preview'>('groups');
+  const [activeSection, setActiveSection] = useState<CampaignConfigSectionId>('basic');
 
-  const checklist = useMemo(
-    () =>
-      buildPublishChecklist({
-        name,
-        templateId: camp?.templateId || '',
-        groupIds,
-        landing: { ...landing, title: name.trim() || landing.title },
-        railEnabled,
-        railSlot,
-        audienceMode,
-        isPlatformAdmin,
-      }),
+  const checklistInput = useMemo(
+    () => ({
+      name,
+      templateId: camp?.templateId || '',
+      groupIds,
+      landing: { ...landing, title: name.trim() || landing.title },
+      railEnabled,
+      railSlot,
+      audienceMode,
+      isPlatformAdmin,
+      startAt,
+      endAt,
+    }),
     [
       name,
       camp?.templateId,
@@ -86,7 +91,24 @@ function CampaignEditInner() {
       railSlot,
       audienceMode,
       isPlatformAdmin,
+      startAt,
+      endAt,
     ],
+  );
+
+  const checklist = useMemo(() => buildPublishChecklist(checklistInput), [checklistInput]);
+
+  const sectionDone = useMemo(() => {
+    const map = {} as Record<CampaignConfigSectionId, boolean>;
+    for (const s of CAMPAIGN_CONFIG_SECTIONS) {
+      map[s.id] = campaignSectionDone(s.id, checklistInput);
+    }
+    return map;
+  }, [checklistInput]);
+
+  const doneCount = useMemo(
+    () => CAMPAIGN_CONFIG_SECTIONS.filter((s) => sectionDone[s.id]).length,
+    [sectionDone],
   );
 
   const load = useCallback(async () => {
@@ -179,6 +201,35 @@ function CampaignEditInner() {
     endAt,
     landing,
   ]);
+
+  useEffect(() => {
+    const nodes = CAMPAIGN_CONFIG_SECTIONS.map((s) => document.getElementById(s.anchor)).filter(
+      Boolean,
+    ) as HTMLElement[];
+    if (!nodes.length) return;
+    const visibility = new Map<string, number>();
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          visibility.set(entry.target.id, entry.intersectionRatio);
+        }
+        let bestId = CAMPAIGN_CONFIG_SECTIONS[0].anchor;
+        let bestRatio = -1;
+        for (const s of CAMPAIGN_CONFIG_SECTIONS) {
+          const r = visibility.get(s.anchor) ?? 0;
+          if (r > bestRatio) {
+            bestRatio = r;
+            bestId = s.anchor;
+          }
+        }
+        const match = CAMPAIGN_CONFIG_SECTIONS.find((s) => s.anchor === bestId);
+        if (match) setActiveSection(match.id);
+      },
+      { rootMargin: '-20% 0px -55% 0px', threshold: [0, 0.15, 0.35, 0.55, 0.75] },
+    );
+    for (const el of nodes) io.observe(el);
+    return () => io.disconnect();
+  }, [camp?.id, draftReady]);
 
   const toggleGroup = (gid: string) => {
     setGroupIds((prev) => (prev.includes(gid) ? prev.filter((x) => x !== gid) : [...prev, gid]));
@@ -321,6 +372,11 @@ function CampaignEditInner() {
     document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  const jumpToSection = (id: CampaignConfigSectionId, anchor: string) => {
+    setActiveSection(id);
+    scrollTo(anchor);
+  };
+
   return (
     <main className="container ops-page">
       <div className="ops-page-head">
@@ -335,6 +391,9 @@ function CampaignEditInner() {
                 {campaignStatusLabel(status)}
               </span>
               <span>{camp.tag || '活动'}</span>
+              <span>
+                配置进度 {doneCount}/{CAMPAIGN_CONFIG_SECTIONS.length}
+              </span>
               {hint ? <span>· {hint}</span> : null}
             </p>
           ) : null}
@@ -376,23 +435,51 @@ function CampaignEditInner() {
         <p className="ops-banner ops-banner-ok">发布检查已通过，可以发布。</p>
       )}
 
-      <nav className="ops-chip-row ops-jump" aria-label="编辑分区">
-        {(
-          [
-            ['ops-sec-basic', '基本'],
-            ['ops-sec-audience', '可见范围'],
-            ['ops-sec-exposure', '首页曝光'],
-            ['ops-sec-content', '落地页内容'],
-          ] as const
-        ).map(([id, label]) => (
-          <button key={id} type="button" className="ops-chip" onClick={() => scrollTo(id)}>
-            {label}
-          </button>
-        ))}
+      <nav className="ops-progress-nav" aria-label="配置进度总览">
+        <div className="ops-progress-meter" aria-hidden="true">
+          <span
+            className="ops-progress-meter-fill"
+            style={{
+              width: `${(doneCount / CAMPAIGN_CONFIG_SECTIONS.length) * 100}%`,
+            }}
+          />
+        </div>
+        <ol className="ops-progress-steps">
+          {CAMPAIGN_CONFIG_SECTIONS.map((s, idx) => {
+            const done = sectionDone[s.id];
+            const current = activeSection === s.id;
+            return (
+              <li key={s.id}>
+                <button
+                  type="button"
+                  className={`ops-progress-step${done ? ' is-done' : ''}${current ? ' is-current' : ''}`}
+                  onClick={() => jumpToSection(s.id, s.anchor)}
+                  aria-current={current ? 'step' : undefined}
+                >
+                  <span className="ops-progress-step-n" aria-hidden="true">
+                    {done ? '✓' : idx + 1}
+                  </span>
+                  <span className="ops-progress-step-text">
+                    <strong>{s.label}</strong>
+                    <span>{done ? '已完成' : s.hint}</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+        <p className="ops-progress-caption muted">
+          点任一步骤可跳转查看或修改；未完成也可继续往下填，发布时再统一检查。
+        </p>
       </nav>
 
-      <div id="ops-sec-basic" className="settings-card">
-        <p className="settings-title">基本信息</p>
+      <div id="ops-sec-basic" className="settings-card ops-sec">
+        <p className="settings-title">
+          基本信息
+          {sectionDone.basic ? <span className="ops-sec-badge is-done">已完成</span> : (
+            <span className="ops-sec-badge">待完善</span>
+          )}
+        </p>
         <label className="ops-field">
           <span>活动名称</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
@@ -415,8 +502,15 @@ function CampaignEditInner() {
         </p>
       </div>
 
-      <div id="ops-sec-audience" className="settings-card">
-        <p className="settings-title">谁能看见</p>
+      <div id="ops-sec-audience" className="settings-card ops-sec">
+        <p className="settings-title">
+          谁能看见
+          {sectionDone.audience ? (
+            <span className="ops-sec-badge is-done">已完成</span>
+          ) : (
+            <span className="ops-sec-badge">待完善</span>
+          )}
+        </p>
         {isPlatformAdmin ? (
           <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
             {(
@@ -476,8 +570,15 @@ function CampaignEditInner() {
         )}
       </div>
 
-      <div id="ops-sec-exposure" className="settings-card">
-        <p className="settings-title">首页今日推荐</p>
+      <div id="ops-sec-exposure" className="settings-card ops-sec">
+        <p className="settings-title">
+          首页今日推荐
+          {sectionDone.exposure ? (
+            <span className="ops-sec-badge is-done">已完成</span>
+          ) : (
+            <span className="ops-sec-badge">待完善</span>
+          )}
+        </p>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
           出现在首页「今日推荐」最多三张卡中；第 1 位为主卡。不占用每日经文 Hero。
         </p>
@@ -520,8 +621,15 @@ function CampaignEditInner() {
         </div>
       </div>
 
-      <div id="ops-sec-content" className="settings-card">
-        <p className="settings-title">落地页内容</p>
+      <div id="ops-sec-content" className="settings-card ops-sec">
+        <p className="settings-title">
+          落地页内容
+          {sectionDone.content ? (
+            <span className="ops-sec-badge is-done">已完成</span>
+          ) : (
+            <span className="ops-sec-badge">待完善</span>
+          )}
+        </p>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
           按模板类型显示对应块；不需要的块不会出现。
         </p>
