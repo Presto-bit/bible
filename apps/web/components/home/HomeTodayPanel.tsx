@@ -28,7 +28,6 @@ export function HomeTodayPanel({ panel }: Props) {
   const router = useRouter();
   const { primary, group, prayer } = panel;
   const bookId = primary.bookId;
-  const primaryDone = Boolean(primary.done);
 
   return (
     <section className="home-today-shell" aria-label="今日推荐">
@@ -38,11 +37,7 @@ export function HomeTodayPanel({ panel }: Props) {
       <div className="home-today-panel">
         <button
           type="button"
-          className={[
-            'home-today-primary',
-            bookId ? 'has-cover' : '',
-            primaryDone ? 'is-done' : '',
-          ]
+          className={['home-today-primary', bookId ? 'has-cover' : '']
             .filter(Boolean)
             .join(' ')}
           onClick={() => navigate(primary.href, router)}

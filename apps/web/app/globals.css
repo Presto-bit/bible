@@ -1564,10 +1564,6 @@ html:not([data-app-theme]) .card {
   backdrop-filter: blur(4px);
 }
 
-.home-today-primary.is-done .home-today-primary-badge {
-  background: color-mix(in srgb, var(--accent-deep) 78%, transparent);
-}
-
 .home-today-primary-title {
   margin-top: 2px;
   font-size: 16px;
@@ -1603,11 +1599,6 @@ html:not([data-app-theme]) .card {
   color: #fff;
   background: var(--accent-deep);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 28%, transparent);
-}
-
-.home-today-primary.is-done .home-today-primary-cta {
-  background: color-mix(in srgb, var(--ink) 55%, var(--accent-deep));
-  box-shadow: none;
 }
 
 .home-today-sides {

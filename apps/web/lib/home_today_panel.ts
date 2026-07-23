@@ -14,8 +14,6 @@ export type HomeTodayPanelSlot = {
   bookId?: string;
   /** 主卡右下角 CTA */
   cta?: string;
-  /** 今日已完成（主卡完成态） */
-  done?: boolean;
 };
 
 export type HomeTodayPanelModel = {
@@ -57,8 +55,6 @@ export type HomeTodayPanelInput = {
     statLabel?: string;
   };
   suggest?: { title: string; sub: string; href: string; bookId?: string };
-  /** 今日是否已有读经时长（用于继续读完成态） */
-  readDone?: boolean;
   /** 群定向 / 全站活动，最多 3 张：依次占主卡 / 右上 / 右下 */
   campaigns?: HomeTodayCampaignInput[];
 };
@@ -88,32 +84,27 @@ function campaignSide(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
 
 function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   if (input.plan) {
-    const done = (input.plan.progressPct ?? 0) >= 100;
     return {
       id: 'plan',
-      tag: done ? '已读完' : '计划',
+      tag: '计划',
       title: trimRailTitle(input.plan.title),
-      // 仅计划进行中保留一行状态；完成态不再堆副文
-      sub: done ? '' : trimRailSub(input.plan.sub || ''),
+      sub: trimRailSub(input.plan.sub || ''),
       href: input.plan.href,
       icon: 'plan',
       bookId: input.plan.bookId,
-      cta: done ? '回顾' : '继续',
-      done,
+      cta: '继续',
     };
   }
   if (input.resume) {
-    const done = Boolean(input.readDone);
     return {
       id: 'resume',
-      tag: done ? '已读完' : '继续',
+      tag: '继续',
       title: trimRailTitle(input.resume.title),
       sub: '',
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
-      cta: done ? '回顾' : '继续',
-      done,
+      cta: '继续',
     };
   }
   const suggest = input.suggest;
