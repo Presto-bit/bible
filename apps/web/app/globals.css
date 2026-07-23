@@ -23369,6 +23369,45 @@ body.pray-session-open .app-body {
   padding: 0 16px 4px;
 }
 
+.pray-session-themes-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0;
+  padding: 6px 10px 6px 12px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 52%, transparent);
+  color: #5a4f45;
+  font: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pray-session-themes-toggle-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, #5a4f45 48%, transparent);
+}
+
+.pray-session-themes-toggle-value {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pray-session-themes-toggle-chevron {
+  font-size: 11px;
+  line-height: 1;
+  color: color-mix(in srgb, #5a4f45 55%, transparent);
+}
+
+.pray-session-themes-panel {
+  margin-top: 8px;
+}
+
 .pray-session-themes-reason {
   display: block;
   margin: 0 0 8px 2px;

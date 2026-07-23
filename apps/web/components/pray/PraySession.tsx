@@ -65,6 +65,7 @@ export default function PraySession() {
   const [muted, setMuted] = useState(false);
   const [needGesture, setNeedGesture] = useState(false);
   const [flowId, setFlowId] = useState(pick.recommended.id);
+  const [themesOpen, setThemesOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [completed, setCompleted] = useState(false);
 
@@ -191,10 +192,14 @@ export default function PraySession() {
   };
 
   const selectFlow = (id: string) => {
-    if (id === flowId) return;
+    if (id === flowId) {
+      setThemesOpen(false);
+      return;
+    }
     setFlowId(id);
     setStepIndex(0);
     setCompleted(false);
+    setThemesOpen(false);
     autoPausedRef.current = false;
   };
 
@@ -254,28 +259,54 @@ export default function PraySession() {
       </header>
 
       {!completed ? (
-        <div className="pray-session-themes" role="tablist" aria-label="祷告主题">
-          <span className="pray-session-themes-reason">{pick.reason}</span>
-          <div className="pray-session-themes-row">
-            {pick.ordered.map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                role="tab"
-                aria-selected={f.id === flowId}
-                className={[
-                  'pray-session-theme-chip',
-                  f.id === flowId ? 'is-on' : '',
-                  f.id === pick.recommended.id ? 'is-rec' : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => selectFlow(f.id)}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+        <div
+          className={['pray-session-themes', themesOpen ? 'is-open' : ''].filter(Boolean).join(' ')}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="pray-session-themes-toggle"
+            aria-expanded={themesOpen}
+            aria-controls="pray-session-themes-panel"
+            onClick={() => setThemesOpen((v) => !v)}
+          >
+            <span className="pray-session-themes-toggle-label">主题</span>
+            <span className="pray-session-themes-toggle-value">{flow.label}</span>
+            <span className="pray-session-themes-toggle-chevron" aria-hidden>
+              {themesOpen ? '▴' : '▾'}
+            </span>
+          </button>
+          {themesOpen ? (
+            <div
+              id="pray-session-themes-panel"
+              className="pray-session-themes-panel"
+              role="tablist"
+              aria-label="祷告主题"
+            >
+              <span className="pray-session-themes-reason">{pick.reason}</span>
+              <div className="pray-session-themes-row">
+                {pick.ordered.map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={f.id === flowId}
+                    className={[
+                      'pray-session-theme-chip',
+                      f.id === flowId ? 'is-on' : '',
+                      f.id === pick.recommended.id ? 'is-rec' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => selectFlow(f.id)}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
