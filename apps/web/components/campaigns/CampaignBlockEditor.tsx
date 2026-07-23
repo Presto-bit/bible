@@ -1099,14 +1099,27 @@ function CtaConfig({
   landing: OpsCampaignLanding;
 }) {
   const cta = resolvePrimaryCta(templateId, campaignId, landing.primaryCta);
+  const inPage =
+    templateId === 'multi_day' ||
+    templateId === 'memory' ||
+    (campaignId &&
+      (cta.href === `/campaigns/view/${campaignId}` ||
+        cta.href.startsWith(`/campaigns/view/${campaignId}?`)));
   return (
     <div>
       <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-        按模板自动设置，成员打开落地页即可行动。
+        {inPage
+          ? 'N 日阅读 / 背诵：主按钮留在本活动页，进入「今日阅读」日课布局（右侧预览可点主按钮查看）。'
+          : '按模板自动设置跳转目标；右侧预览可点主按钮查看说明。'}
       </p>
       <div className="ops-auto-cta">
         <strong>{cta.label}</strong>
         <span className="muted">{cta.href}</span>
+        {inPage ? (
+          <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+            → 本页日课阅读（非新开页面）
+          </span>
+        ) : null}
       </div>
     </div>
   );

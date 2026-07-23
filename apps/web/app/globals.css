@@ -22778,7 +22778,40 @@ body.ops-pc-active .app-body {
   margin-top: auto;
   width: 100%;
   opacity: 0.95;
-  pointer-events: none;
+}
+.ops-preview-cta.is-clickable {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: pointer;
+}
+.ops-preview-cta:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.ops-preview-reading {
+  display: grid;
+  gap: 8px;
+}
+.ops-preview-reading-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--dawn-gold, #c4a35a) 12%, transparent);
+}
+.ops-preview-href {
+  display: block;
+  font-size: 12px;
+  word-break: break-all;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--ink-soft) 8%, transparent);
+}
+.ops-preview-reader-link {
+  color: var(--accent, #2f6b4f);
+  font-weight: 600;
 }
 
 @media (max-width: 960px) {

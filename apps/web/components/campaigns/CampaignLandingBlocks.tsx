@@ -36,6 +36,8 @@ export function CampaignLandingBlocks({
   tag,
   /** 仅渲染这些类型；默认全部 */
   onlyTypes,
+  /** 预览态点击主按钮（如切到「今日阅读」预览） */
+  onCtaClick,
 }: {
   landing: OpsCampaignLanding;
   templateId?: string;
@@ -43,6 +45,7 @@ export function CampaignLandingBlocks({
   mode?: 'view' | 'preview';
   tag?: string;
   onlyTypes?: OpsLandingBlock['type'][];
+  onCtaClick?: () => void;
 }) {
   const blocks = normalizeBlocks(landing.blocks).filter((b) =>
     onlyTypes ? onlyTypes.includes(b.type) : true,
@@ -79,6 +82,7 @@ export function CampaignLandingBlocks({
           features={features}
           ctaLabel={cta.label}
           mode={mode}
+          onCtaClick={onCtaClick}
         />
       ))}
     </div>
@@ -94,6 +98,7 @@ function BlockView({
   features,
   ctaLabel,
   mode,
+  onCtaClick,
 }: {
   block: OpsLandingBlock;
   landing: OpsCampaignLanding;
@@ -104,6 +109,7 @@ function BlockView({
   features: NonNullable<OpsCampaignLanding['features']>;
   ctaLabel: string;
   mode: 'view' | 'preview';
+  onCtaClick?: () => void;
 }) {
   const d = block.data || {};
 
@@ -304,8 +310,14 @@ function BlockView({
   }
 
   if (block.type === 'cta') {
+    const clickable = mode === 'preview' && Boolean(onCtaClick);
     return (
-      <button type="button" className="btn btn-primary ops-preview-cta" disabled={mode === 'preview'}>
+      <button
+        type="button"
+        className={`btn btn-primary ops-preview-cta${clickable ? ' is-clickable' : ''}`}
+        disabled={mode === 'preview' && !onCtaClick}
+        onClick={clickable ? onCtaClick : undefined}
+      >
         {ctaLabel}
       </button>
     );
