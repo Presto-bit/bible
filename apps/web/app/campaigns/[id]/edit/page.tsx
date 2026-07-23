@@ -82,6 +82,12 @@ function CampaignEditInner() {
     exposure: true,
   });
   const pinnedOpen = useRef<Partial<Record<CampaignConfigSectionId, boolean>>>({});
+  /** 顶栏进度区折叠 */
+  const [topBarOpen, setTopBarOpen] = useState(true);
+  /** 左侧工具面板折叠（仅留 Tab 轨） */
+  const [leftOpen, setLeftOpen] = useState(true);
+  /** 左侧三 Tab：控件 | 配置 | 设置 */
+  const [leftTab, setLeftTab] = useState<'palette' | 'config' | 'settings'>('palette');
 
   const checklistInput = useMemo(
     () => ({
@@ -244,35 +250,6 @@ function CampaignEditInner() {
     landing,
   ]);
 
-  useEffect(() => {
-    const nodes = CAMPAIGN_CONFIG_SECTIONS.map((s) => document.getElementById(s.anchor)).filter(
-      Boolean,
-    ) as HTMLElement[];
-    if (!nodes.length) return;
-    const visibility = new Map<string, number>();
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          visibility.set(entry.target.id, entry.intersectionRatio);
-        }
-        let bestId = CAMPAIGN_CONFIG_SECTIONS[0].anchor;
-        let bestRatio = -1;
-        for (const s of CAMPAIGN_CONFIG_SECTIONS) {
-          const r = visibility.get(s.anchor) ?? 0;
-          if (r > bestRatio) {
-            bestRatio = r;
-            bestId = s.anchor;
-          }
-        }
-        const match = CAMPAIGN_CONFIG_SECTIONS.find((s) => s.anchor === bestId);
-        if (match) setActiveSection(match.id);
-      },
-      { rootMargin: '-20% 0px -55% 0px', threshold: [0, 0.15, 0.35, 0.55, 0.75] },
-    );
-    for (const el of nodes) io.observe(el);
-    return () => io.disconnect();
-  }, [camp?.id, draftReady]);
-
   const scrollTo = (anchor: string) => {
     document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -281,7 +258,24 @@ function CampaignEditInner() {
     pinnedOpen.current[sid] = true;
     setOpenSections((prev) => ({ ...prev, [sid]: true }));
     setActiveSection(sid);
-    scrollTo(anchor);
+    setLeftOpen(true);
+    if (sid === 'content') {
+      setLeftTab('palette');
+    } else {
+      setLeftTab('settings');
+      setTopBarOpen(true);
+      window.setTimeout(() => scrollTo(anchor), 60);
+    }
+  };
+
+  const openLeftTab = (tab: 'palette' | 'config' | 'settings') => {
+    setLeftTab(tab);
+    setLeftOpen(true);
+    if (tab === 'settings') {
+      setActiveSection((prev) => (prev === 'content' ? 'basic' : prev));
+    } else {
+      setActiveSection('content');
+    }
   };
 
   const toggleSection = (sid: CampaignConfigSectionId) => {
@@ -454,159 +448,358 @@ function CampaignEditInner() {
     >
       {err ? <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>{err}</p> : null}
 
-      {checklist.length > 0 ? (
-        <div className="ops-banner ops-banner-warn">
-          <strong style={{ display: 'block', marginBottom: 4 }}>
-            发布前检查 · 还差 {pendingBlocking.length} 项必填
-          </strong>
-          <ul className="ops-checklist-by-section">
-            {CAMPAIGN_CONFIG_SECTIONS.map((sec) => {
-              const items = requiredSlots.filter((s) => s.section === sec.id && s.blocking && !s.done);
-              if (!items.length) return null;
-              return (
-                <li key={sec.id}>
-                  <button
-                    type="button"
-                    className="text-link"
-                    onClick={() => jumpToSection(sec.id, sec.anchor)}
-                  >
-                    {sec.label}
-                  </button>
-                  <span className="muted"> — {items.map((i) => i.label).join('、')}</span>
-                </li>
-              );
-            })}
-          </ul>
-          {nextSection ? (
+      <div className={`ops-topbar${topBarOpen ? '' : ' is-collapsed'}`}>
+        <div className="ops-topbar-summary">
+          <button
+            type="button"
+            className="ops-topbar-toggle"
+            onClick={() => setTopBarOpen((v) => !v)}
+            aria-expanded={topBarOpen}
+          >
+            {topBarOpen ? '收起顶栏' : '展开顶栏'}
+          </button>
+          <span className="muted">
+            进度 {doneCount}/{CAMPAIGN_CONFIG_SECTIONS.length}
+            {pendingBlocking.length ? ` · 还差 ${pendingBlocking.length} 项必填` : ' · 可发布'}
+            {hint ? ` · ${hint}` : ''}
+          </span>
+          {!topBarOpen && nextSection ? (
             <button
               type="button"
               className="text-link"
-              style={{ marginTop: 8 }}
-              onClick={() => jumpToSection(nextSection.id, nextSection.anchor)}
+              onClick={() => {
+                setTopBarOpen(true);
+                jumpToSection(nextSection.id, nextSection.anchor);
+              }}
             >
               去完善「{nextSection.label}」→
             </button>
           ) : null}
         </div>
-      ) : (
-        <p className="ops-banner ops-banner-ok">发布检查已通过，可以发布。</p>
-      )}
 
-      <nav className="ops-progress-nav" aria-label="配置进度总览">
-        <div className="ops-progress-meter" aria-hidden="true">
-          <span
-            className="ops-progress-meter-fill"
-            style={{
-              width: `${(doneCount / CAMPAIGN_CONFIG_SECTIONS.length) * 100}%`,
-            }}
-          />
-        </div>
-        <ol className="ops-progress-steps">
-          {CAMPAIGN_CONFIG_SECTIONS.map((s, idx) => {
-            const done = sectionDone[s.id];
-            const current = activeSection === s.id;
-            const pending = requiredSlots.filter((x) => x.section === s.id && x.blocking && !x.done);
-            return (
-              <li key={s.id}>
-                <button
-                  type="button"
-                  className={`ops-progress-step${done ? ' is-done' : ''}${current ? ' is-current' : ''}`}
-                  onClick={() => jumpToSection(s.id, s.anchor)}
-                  aria-current={current ? 'step' : undefined}
-                >
-                  <span className="ops-progress-step-n" aria-hidden="true">
-                    {done ? '✓' : idx + 1}
-                  </span>
-                  <span className="ops-progress-step-text">
-                    <strong>{s.label}</strong>
-                    <span>
-                      {done
-                        ? '已完成'
-                        : pending.length
-                          ? `缺 ${pending.map((p) => p.label).join('、')}`
-                          : s.hint}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ol>
-        <div className="ops-slot-chips" aria-label="必填槽位">
-          {requiredSlots.map((slot) => (
-            <button
-              key={slot.id}
-              type="button"
-              className={`ops-slot-chip${slot.done ? ' is-done' : ''}${slot.blocking ? '' : ' is-soft'}`}
-              onClick={() =>
-                jumpToSection(slot.section, slot.anchor)
-              }
-              title={slot.blocking ? '必填' : '建议填写'}
-            >
-              {slot.done ? '✓ ' : slot.blocking ? '' : '○ '}
-              {slot.label}
-            </button>
-          ))}
-        </div>
-        <p className="ops-progress-caption muted">
-          {nextSection
-            ? `下一步建议：完善「${nextSection.label}」——点上方步骤或槽位可跳转。`
-            : '四步已齐，预览确认后即可发布。'}
-        </p>
-      </nav>
-
-            <div className="ops-pc-layout">
-        <div className="ops-pc-config">
-<div id="ops-sec-basic" className={`settings-card ops-sec${openSections.basic ? '' : ' is-collapsed'}`}>
-        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('basic')}>
-          <span className="settings-title" style={{ margin: 0 }}>
-            基本信息
-            {sectionDone.basic ? <span className="ops-sec-badge is-done">已完成</span> : (
-              <span className="ops-sec-badge">待完善</span>
+        {topBarOpen ? (
+          <>
+            {checklist.length > 0 ? (
+              <div className="ops-banner ops-banner-warn" style={{ marginTop: 8 }}>
+                <strong style={{ display: 'block', marginBottom: 4 }}>
+                  发布前检查 · 还差 {pendingBlocking.length} 项必填
+                </strong>
+                <ul className="ops-checklist-by-section">
+                  {CAMPAIGN_CONFIG_SECTIONS.map((sec) => {
+                    const items = requiredSlots.filter(
+                      (s) => s.section === sec.id && s.blocking && !s.done,
+                    );
+                    if (!items.length) return null;
+                    return (
+                      <li key={sec.id}>
+                        <button
+                          type="button"
+                          className="text-link"
+                          onClick={() => jumpToSection(sec.id, sec.anchor)}
+                        >
+                          {sec.label}
+                        </button>
+                        <span className="muted"> — {items.map((i) => i.label).join('、')}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <p className="ops-banner ops-banner-ok" style={{ marginTop: 8 }}>
+                发布检查已通过，可以发布。
+              </p>
             )}
-          </span>
-          <span className="muted">{openSections.basic ? '收起' : '展开'}</span>
-        </button>
-        <label className={`ops-field${!name.trim() ? ' is-required' : ''}`}>
-          <span>
-            活动名称
-            {!name.trim() ? <span className="ops-req-tag">必填</span> : null}
-          </span>
-          <input
-            className="input"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder={
-              hasReadingExample(camp?.templateId || '')
-                ? getReadingExample(camp!.templateId)?.suggestedName || '活动名称'
-                : '活动名称'
-            }
-          />
-        </label>
-        <label className="ops-field" style={{ marginTop: 10 }}>
-          <span>今日推荐副文案</span>
-          <input className="input" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
-        </label>
-        <p className="muted" style={{ fontSize: 12, margin: '10px 0 0' }}>
-          落地页正文、音频、Tab 等请在下方「落地页内容」用控件搭建。
-        </p>
+
+            <nav className="ops-progress-nav" aria-label="配置进度总览">
+              <div className="ops-progress-meter" aria-hidden="true">
+                <span
+                  className="ops-progress-meter-fill"
+                  style={{
+                    width: `${(doneCount / CAMPAIGN_CONFIG_SECTIONS.length) * 100}%`,
+                  }}
+                />
+              </div>
+              <ol className="ops-progress-steps">
+                {CAMPAIGN_CONFIG_SECTIONS.map((s, idx) => {
+                  const done = sectionDone[s.id];
+                  const current = activeSection === s.id;
+                  const pending = requiredSlots.filter(
+                    (x) => x.section === s.id && x.blocking && !x.done,
+                  );
+                  return (
+                    <li key={s.id}>
+                      <button
+                        type="button"
+                        className={`ops-progress-step${done ? ' is-done' : ''}${current ? ' is-current' : ''}`}
+                        onClick={() => jumpToSection(s.id, s.anchor)}
+                        aria-current={current ? 'step' : undefined}
+                      >
+                        <span className="ops-progress-step-n" aria-hidden="true">
+                          {done ? '✓' : idx + 1}
+                        </span>
+                        <span className="ops-progress-step-text">
+                          <strong>{s.label}</strong>
+                          <span>
+                            {done
+                              ? '已完成'
+                              : pending.length
+                                ? `缺 ${pending.map((p) => p.label).join('、')}`
+                                : s.hint}
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              <div className="ops-slot-chips" aria-label="必填槽位">
+                {requiredSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    className={`ops-slot-chip${slot.done ? ' is-done' : ''}${slot.blocking ? '' : ' is-soft'}`}
+                    onClick={() => jumpToSection(slot.section, slot.anchor)}
+                    title={slot.blocking ? '必填' : '建议填写'}
+                  >
+                    {slot.done ? '✓ ' : slot.blocking ? '' : '○ '}
+                    {slot.label}
+                  </button>
+                ))}
+              </div>
+            </nav>
+          </>
+        ) : null}
       </div>
 
-      <div id="ops-sec-content" className={`settings-card ops-sec${openSections.content ? '' : ' is-collapsed'}`}>
-        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('content')}>
-          <span className="settings-title" style={{ margin: 0 }}>
-            落地页内容
-            {sectionDone.content ? (
-              <span className="ops-sec-badge is-done">已完成</span>
-            ) : (
-              <span className="ops-sec-badge">待完善</span>
-            )}
-          </span>
-          <span className="muted">{openSections.content ? '收起' : '展开'}</span>
-        </button>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          按控件类型添加（文本 / 音频 / Tab / 日课等），拖动排序，点选后在右侧配置。
-        </p>
+      <div
+        className={`ops-canvas-grid${leftOpen ? '' : ' is-left-collapsed'}${
+          leftTab === 'settings' ? ' is-settings-tab' : ''
+        }`}
+      >
+        <aside className="ops-canvas-rail" aria-label="左侧工具">
+          <button
+            type="button"
+            className={`ops-canvas-rail-btn${leftTab === 'palette' && leftOpen ? ' is-on' : ''}`}
+            onClick={() => openLeftTab('palette')}
+            title="控件库"
+          >
+            控件
+          </button>
+          <button
+            type="button"
+            className={`ops-canvas-rail-btn${leftTab === 'config' && leftOpen ? ' is-on' : ''}`}
+            onClick={() => openLeftTab('config')}
+            title="选中控件配置"
+          >
+            配置
+          </button>
+          <button
+            type="button"
+            className={`ops-canvas-rail-btn${leftTab === 'settings' && leftOpen ? ' is-on' : ''}`}
+            onClick={() => openLeftTab('settings')}
+            title="基本 / 可见范围 / 首页曝光"
+          >
+            设置
+          </button>
+          <button
+            type="button"
+            className="ops-canvas-rail-btn ops-canvas-rail-fold"
+            onClick={() => setLeftOpen((v) => !v)}
+            aria-expanded={leftOpen}
+            title={leftOpen ? '收起左侧面板' : '展开左侧面板'}
+          >
+            {leftOpen ? '‹' : '›'}
+          </button>
+        </aside>
+
+        {leftOpen && leftTab === 'settings' ? (
+          <div className="ops-canvas-settings" aria-label="页面设置">
+            <div
+              id="ops-sec-basic"
+              className={`settings-card ops-sec${openSections.basic ? '' : ' is-collapsed'}`}
+            >
+              <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('basic')}>
+                <span className="settings-title" style={{ margin: 0 }}>
+                  基本信息
+                  {sectionDone.basic ? (
+                    <span className="ops-sec-badge is-done">已完成</span>
+                  ) : (
+                    <span className="ops-sec-badge">待完善</span>
+                  )}
+                </span>
+                <span className="muted">{openSections.basic ? '收起' : '展开'}</span>
+              </button>
+              <label className={`ops-field${!name.trim() ? ' is-required' : ''}`}>
+                <span>
+                  活动名称
+                  {!name.trim() ? <span className="ops-req-tag">必填</span> : null}
+                </span>
+                <input
+                  className="input"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={
+                    hasReadingExample(camp?.templateId || '')
+                      ? getReadingExample(camp!.templateId)?.suggestedName || '活动名称'
+                      : '活动名称'
+                  }
+                />
+              </label>
+              <label className="ops-field" style={{ marginTop: 10 }}>
+                <span>今日推荐副文案</span>
+                <input
+                  className="input"
+                  value={subtitle}
+                  onChange={(e) => setSubtitle(e.target.value)}
+                />
+              </label>
+            </div>
+
+            <div
+              id="ops-sec-audience"
+              className={`settings-card ops-sec${openSections.audience ? '' : ' is-collapsed'}`}
+            >
+              <button
+                type="button"
+                className="ops-sec-toggle"
+                onClick={() => toggleSection('audience')}
+              >
+                <span className="settings-title" style={{ margin: 0 }}>
+                  谁能看见
+                  {sectionDone.audience ? (
+                    <span className="ops-sec-badge is-done">已完成</span>
+                  ) : (
+                    <span className="ops-sec-badge">待完善</span>
+                  )}
+                </span>
+                <span className="muted">{openSections.audience ? '收起' : '展开'}</span>
+              </button>
+              {isPlatformAdmin ? (
+                <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
+                  {(
+                    [
+                      ['groups', '指定群'],
+                      ['all', '全站'],
+                      ['admin_preview', '仅超管预览'],
+                    ] as const
+                  ).map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`ops-chip${audienceMode === k ? ' is-on' : ''}`}
+                      onClick={() => setAudienceMode(k)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+              {audienceMode === 'groups' ? (
+                groups.length === 0 ? (
+                  <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+                    暂无可用群。仅展示你当前仍是群主/管理员的群。
+                  </p>
+                ) : (
+                  <div className="ops-select-list">
+                    {groups.map((g) => (
+                      <label
+                        key={g.id}
+                        className={`card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row${
+                          groupIds.includes(g.id) ? ' is-on' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={groupIds.includes(g.id)}
+                          onChange={() => toggleGroup(g.id)}
+                          style={{ marginRight: 4 }}
+                        />
+                        <span className="home-list-main">
+                          <strong>{g.name}</strong>
+                          <span className="muted home-list-sub">
+                            {g.role === 'owner' ? '群主' : '可选受众'}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                )
+              ) : (
+                <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+                  {audienceMode === 'all'
+                    ? '登录用户在活动时段内均可在今日推荐看到。'
+                    : '仅超管预览可见，不会推给普通成员。'}
+                </p>
+              )}
+            </div>
+
+            <div
+              id="ops-sec-exposure"
+              className={`settings-card ops-sec${openSections.exposure ? '' : ' is-collapsed'}`}
+            >
+              <button
+                type="button"
+                className="ops-sec-toggle"
+                onClick={() => toggleSection('exposure')}
+              >
+                <span className="settings-title" style={{ margin: 0 }}>
+                  首页今日推荐
+                  {sectionDone.exposure ? (
+                    <span className="ops-sec-badge is-done">已完成</span>
+                  ) : (
+                    <span className="ops-sec-badge">待完善</span>
+                  )}
+                </span>
+                <span className="muted">{openSections.exposure ? '收起' : '展开'}</span>
+              </button>
+              <label className="ops-check-row">
+                <input
+                  type="checkbox"
+                  checked={railEnabled}
+                  onChange={(e) => setRailEnabled(e.target.checked)}
+                />
+                出现在今日推荐
+              </label>
+              <div className="ops-chip-row" style={{ marginTop: 10 }}>
+                {[1, 2, 3].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className={`ops-chip${railSlot === n ? ' is-on' : ''}`}
+                    disabled={!railEnabled}
+                    onClick={() => setRailSlot(n)}
+                  >
+                    第 {n} 位{n === 1 ? ' · 主卡' : ''}
+                  </button>
+                ))}
+              </div>
+              <div
+                style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}
+              >
+                <label className="ops-field">
+                  <span>开始</span>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={startAt}
+                    onChange={(e) => setStartAt(e.target.value)}
+                  />
+                </label>
+                <label className="ops-field">
+                  <span>结束</span>
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={endAt}
+                    onChange={(e) => setEndAt(e.target.value)}
+                  />
+                </label>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         <CampaignBlockEditor
           landing={landing}
           setLanding={setLanding}
@@ -614,174 +807,52 @@ function CampaignEditInner() {
           campaignId={id}
           onHint={setHint}
           onError={setErr}
+          layout="canvas"
+          toolsTab={leftTab === 'config' ? 'config' : 'palette'}
+          onToolsTabChange={(tab) => openLeftTab(tab)}
+          hideTools={!leftOpen || leftTab === 'settings'}
         />
-      </div>
 
-      <div id="ops-sec-audience" className={`settings-card ops-sec${openSections.audience ? '' : ' is-collapsed'}`}>
-        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('audience')}>
-          <span className="settings-title" style={{ margin: 0 }}>
-            谁能看见
-            {sectionDone.audience ? (
-              <span className="ops-sec-badge is-done">已完成</span>
-            ) : (
-              <span className="ops-sec-badge">待完善</span>
-            )}
-          </span>
-          <span className="muted">{openSections.audience ? '收起' : '展开'}</span>
-        </button>
-        {isPlatformAdmin ? (
-          <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
-            {(
-              [
-                ['groups', '指定群'],
-                ['all', '全站'],
-                ['admin_preview', '仅超管预览'],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                className={`ops-chip${audienceMode === k ? ' is-on' : ''}`}
-                onClick={() => setAudienceMode(k)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        {audienceMode === 'groups' ? (
-          groups.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              暂无可用群。仅展示你当前仍是群主/管理员的群；已删除或已退出的群不会出现。可改用「全站」或「仅超管预览」，或先去发现页加入/创建群。
-            </p>
-          ) : (
-            <div className="ops-select-list">
-              {groups.map((g) => (
-                <label
-                  key={g.id}
-                  className={`card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row${
-                    groupIds.includes(g.id) ? ' is-on' : ''
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={groupIds.includes(g.id)}
-                    onChange={() => toggleGroup(g.id)}
-                    style={{ marginRight: 4 }}
-                  />
-                  <span className="home-list-main">
-                    <strong>{g.name}</strong>
-                    <span className="muted home-list-sub">
-                      {g.role === 'owner' ? '群主' : '可选受众'}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          )
-        ) : (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-            {audienceMode === 'all'
-              ? '登录用户在活动时段内均可在今日推荐看到。'
-              : '仅超管预览可见，不会推给普通成员。'}
-          </p>
-        )}
-      </div>
-
-      <div id="ops-sec-exposure" className={`settings-card ops-sec${openSections.exposure ? '' : ' is-collapsed'}`}>
-        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('exposure')}>
-          <span className="settings-title" style={{ margin: 0 }}>
-            首页今日推荐
-            {sectionDone.exposure ? (
-              <span className="ops-sec-badge is-done">已完成</span>
-            ) : (
-              <span className="ops-sec-badge">待完善</span>
-            )}
-          </span>
-          <span className="muted">{openSections.exposure ? '收起' : '展开'}</span>
-        </button>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          出现在首页「今日推荐」最多三张卡中；第 1 位为主卡。不占用每日经文 Hero。
-        </p>
-        <label className="ops-check-row">
-          <input type="checkbox" checked={railEnabled} onChange={(e) => setRailEnabled(e.target.checked)} />
-          出现在今日推荐
-        </label>
-        <div className="ops-chip-row" style={{ marginTop: 10 }}>
-          {[1, 2, 3].map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`ops-chip${railSlot === n ? ' is-on' : ''}`}
-              disabled={!railEnabled}
-              onClick={() => setRailSlot(n)}
-            >
-              第 {n} 位{n === 1 ? ' · 主卡' : ''}
+        <div className="ops-canvas-preview">
+          <CampaignLivePreview
+            name={name}
+            subtitle={subtitle}
+            tag={camp?.tag || undefined}
+            templateId={camp?.templateId || ''}
+            campaignId={id}
+            landing={{ ...landing, title: name.trim() || landing.title, primaryCta: resolvedCta }}
+            railEnabled={railEnabled}
+            railSlot={railSlot}
+            onHint={setHint}
+          />
+          <div className="ops-canvas-actions">
+            <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
+              全屏预览
+            </Link>
+            <button type="button" className="btn" disabled={busy} onClick={() => void copyPreview()}>
+              复制预览链
             </button>
-          ))}
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void saveAsTemplate()}
+            >
+              另存模板
+            </button>
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => void copyCampaign()}
+            >
+              复制活动
+            </button>
+            <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
+              延期 7 天
+            </button>
+          </div>
         </div>
-        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
-          <label className="ops-field">
-            <span>开始</span>
-            <input
-              className="input"
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-            />
-          </label>
-          <label className="ops-field">
-            <span>结束</span>
-            <input
-              className="input"
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-            />
-          </label>
-        </div>
-      </div>
-
-      <div className="ops-sticky-bar">
-        <button type="button" className="btn" disabled={busy} onClick={() => void save('draft')}>
-          存草稿
-        </button>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={busy || checklist.length > 0}
-          onClick={() => void save('published')}
-        >
-          发布
-        </button>
-        <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
-          全屏预览
-        </Link>
-        <button type="button" className="btn" disabled={busy} onClick={() => void copyPreview()}>
-          复制预览链
-        </button>
-        <button type="button" className="btn" disabled={busy} onClick={() => void saveAsTemplate()}>
-          另存模板
-        </button>
-        <button type="button" className="btn" disabled={busy} onClick={() => void copyCampaign()}>
-          复制活动
-        </button>
-        <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
-          延期 7 天
-        </button>
-      </div>
-        </div>
-        <CampaignLivePreview
-          name={name}
-          subtitle={subtitle}
-          tag={camp?.tag || undefined}
-          templateId={camp?.templateId || ''}
-          campaignId={id}
-          landing={{ ...landing, title: name.trim() || landing.title, primaryCta: resolvedCta }}
-          railEnabled={railEnabled}
-          railSlot={railSlot}
-          onHint={setHint}
-        />
       </div>
     </OpsPcShell>
   );

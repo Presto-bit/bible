@@ -47,6 +47,10 @@ export function CampaignBlockEditor({
   campaignId,
   onHint,
   onError,
+  layout = 'stacked',
+  toolsTab = 'palette',
+  onToolsTabChange,
+  hideTools = false,
 }: {
   landing: OpsCampaignLanding;
   setLanding: (next: OpsCampaignLanding) => void;
@@ -54,6 +58,12 @@ export function CampaignBlockEditor({
   campaignId: string;
   onHint?: (msg: string) => void;
   onError?: (msg: string) => void;
+  /** stacked=旧版内嵌；canvas=左工具+中结构（配合编辑页三栏） */
+  layout?: 'stacked' | 'canvas';
+  toolsTab?: 'palette' | 'config';
+  onToolsTabChange?: (tab: 'palette' | 'config') => void;
+  /** canvas 布局下隐藏左侧工具列（例如切到「设置」Tab） */
+  hideTools?: boolean;
 }) {
   const blocks = normalizeBlocks(landing.blocks);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -77,11 +87,19 @@ export function CampaignBlockEditor({
 
   const patch = (next: OpsCampaignLanding) => setLanding(next);
 
+  const selectBlock = (id: string) => {
+    setSelectedId(id);
+    onToolsTabChange?.('config');
+  };
+
   const onAdd = (type: OpsBlockType) => {
     const next = addLandingBlock(landing, type);
     patch(next);
     const added = normalizeBlocks(next.blocks).filter((b) => b.type === type).at(-1);
-    if (added) setSelectedId(added.id);
+    if (added) {
+      setSelectedId(added.id);
+      onToolsTabChange?.('config');
+    }
   };
 
   const updateDay = (
@@ -128,6 +146,216 @@ export function CampaignBlockEditor({
 
   const examplePack = hasReadingExample(templateId) ? getReadingExample(templateId) : null;
 
+  const palette = (
+    <div className="ops-block-palette">
+      <div className="ops-builder-palette-head">
+        <p className="ops-subblock-title" style={{ margin: 0 }}>
+          控件库
+        </p>
+        <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+          点击添加到中间「页面结构」
+        </p>
+      </div>
+      {examplePack ? (
+        <div className="ops-example-banner" style={{ marginBottom: 10 }}>
+          <div>
+            <strong>示例文案</strong>
+            <span className="muted">{examplePack.blurb}</span>
+          </div>
+          <button type="button" className="btn" onClick={fillExample}>
+            填入
+          </button>
+        </div>
+      ) : null}
+      <div className="ops-builder-cats" role="tablist" aria-label="控件分类">
+        <button
+          type="button"
+          className={`ops-chip${paletteCat === 'all' ? ' is-on' : ''}`}
+          onClick={() => setPaletteCat('all')}
+        >
+          全部
+        </button>
+        {groups.map((g) => (
+          <button
+            key={g.category}
+            type="button"
+            className={`ops-chip${paletteCat === g.category ? ' is-on' : ''}`}
+            onClick={() => setPaletteCat(g.category)}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+      {filteredGroups.length === 0 ? (
+        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+          该分类下暂无可添加控件（单例控件已在页面上）。
+        </p>
+      ) : (
+        filteredGroups.map((g) => (
+          <div key={g.category} className="ops-builder-cat-group">
+            {paletteCat === 'all' ? (
+              <p className="ops-builder-cat-label">{g.label}</p>
+            ) : null}
+            <div className="ops-block-palette-grid">
+              {g.types.map((type) => {
+                const meta = BLOCK_CATALOG[type];
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    className="ops-block-chip"
+                    onClick={() => onAdd(type)}
+                  >
+                    <span className="ops-block-chip-icon" aria-hidden>
+                      {meta.icon}
+                    </span>
+                    <span className="ops-block-chip-text">
+                      <strong>{meta.label}</strong>
+                      <span className="muted">{meta.blurb}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
+
+  const inspector = (
+    <div className="ops-builder-inspector ops-builder-inspector--panel">
+      <p className="ops-subblock-title" style={{ margin: '0 0 8px' }}>
+        {selected ? `配置 · ${BLOCK_CATALOG[selected.type].label}` : '配置面板'}
+      </p>
+      {!selected ? (
+        <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+          在中间页面结构中点选一个控件开始配置。
+        </p>
+      ) : (
+        <div className="ops-builder-inspector-body">
+          <BlockConfig
+            block={selected}
+            landing={landing}
+            templateId={templateId}
+            campaignId={campaignId}
+            bulkOpen={bulkOpen}
+            bulkText={bulkText}
+            setBulkOpen={setBulkOpen}
+            setBulkText={setBulkText}
+            onAddDay={addDay}
+            onApplyBulk={applyBulk}
+            onUpdateDay={updateDay}
+            onLanding={patch}
+            onBlockData={(data) => patch(updateBlockData(landing, selected.id, data))}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const structure = (
+    <div className="ops-builder-canvas ops-builder-structure" id="ops-sec-content">
+      <div className="ops-builder-structure-head">
+        <p className="ops-subblock-title" style={{ margin: 0 }}>
+          页面结构
+        </p>
+        <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+          主操作区 · 拖拽排序 · 点选配置
+        </p>
+      </div>
+      {blocks.length === 0 ? (
+        <p className="muted" style={{ fontSize: 13 }}>
+          从左侧控件库添加第一个控件开始搭建。
+        </p>
+      ) : (
+        <div className="ops-block-list">
+          {blocks.map((block, index) => {
+            const meta = BLOCK_CATALOG[block.type];
+            return (
+              <div
+                key={block.id}
+                className={`ops-block-card${selectedId === block.id ? ' is-selected' : ''}${
+                  dragId === block.id ? ' is-dragging' : ''
+                }${overId === block.id && dragId !== block.id ? ' is-over' : ''}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setOverId(block.id);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragId) patch(reorderLandingBlocks(landing, dragId, block.id));
+                  setDragId(null);
+                  setOverId(null);
+                }}
+              >
+                <div className="ops-block-card-head">
+                  <button
+                    type="button"
+                    className="ops-block-handle"
+                    draggable
+                    title="拖动排序"
+                    aria-label={`拖动排序：${meta.label}`}
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      e.dataTransfer.setData('text/plain', block.id);
+                      setDragId(block.id);
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setOverId(null);
+                    }}
+                  >
+                    ⋮⋮
+                  </button>
+                  <button
+                    type="button"
+                    className="ops-block-card-toggle"
+                    onClick={() => selectBlock(block.id)}
+                  >
+                    <span className="ops-block-chip-icon" aria-hidden>
+                      {meta.icon}
+                    </span>
+                    <span className="ops-block-card-titles">
+                      <strong>
+                        {index + 1}. {meta.label}
+                      </strong>
+                      <span className="muted">{blockSummary(block)}</span>
+                    </span>
+                    <span className="muted">{selectedId === block.id ? '配置中' : '配置'}</span>
+                  </button>
+                  {!(block.type === 'text' && block.data?.role === 'intro') ? (
+                    <button
+                      type="button"
+                      className="btn ops-block-remove"
+                      onClick={() => {
+                        patch(removeLandingBlock(landing, block.id));
+                        if (selectedId === block.id) setSelectedId(null);
+                      }}
+                    >
+                      移除
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  if (layout === 'canvas') {
+    return (
+      <div className="ops-builder ops-builder--canvas">
+        {!hideTools ? (
+          <div className="ops-builder-tools">{toolsTab === 'config' ? inspector : palette}</div>
+        ) : null}
+        {structure}
+      </div>
+    );
+  }
+
   return (
     <div className="ops-builder">
       {examplePack ? (
@@ -141,183 +369,10 @@ export function CampaignBlockEditor({
           </button>
         </div>
       ) : null}
-      <div className="ops-block-palette">
-        <div className="ops-builder-palette-head">
-          <p className="ops-subblock-title" style={{ margin: 0 }}>
-            控件库
-          </p>
-          <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-            按类型添加，点击画布中的控件进行配置
-          </p>
-        </div>
-        <div className="ops-builder-cats" role="tablist" aria-label="控件分类">
-          <button
-            type="button"
-            className={`ops-chip${paletteCat === 'all' ? ' is-on' : ''}`}
-            onClick={() => setPaletteCat('all')}
-          >
-            全部
-          </button>
-          {groups.map((g) => (
-            <button
-              key={g.category}
-              type="button"
-              className={`ops-chip${paletteCat === g.category ? ' is-on' : ''}`}
-              onClick={() => setPaletteCat(g.category)}
-            >
-              {g.label}
-            </button>
-          ))}
-        </div>
-        {filteredGroups.length === 0 ? (
-          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-            该分类下暂无可添加控件（单例控件已在页面上）。
-          </p>
-        ) : (
-          filteredGroups.map((g) => (
-            <div key={g.category} className="ops-builder-cat-group">
-              {paletteCat === 'all' ? (
-                <p className="ops-builder-cat-label">{g.label}</p>
-              ) : null}
-              <div className="ops-block-palette-grid">
-                {g.types.map((type) => {
-                  const meta = BLOCK_CATALOG[type];
-                  return (
-                    <button
-                      key={type}
-                      type="button"
-                      className="ops-block-chip"
-                      onClick={() => onAdd(type)}
-                    >
-                      <span className="ops-block-chip-icon" aria-hidden>
-                        {meta.icon}
-                      </span>
-                      <span className="ops-block-chip-text">
-                        <strong>{meta.label}</strong>
-                        <span className="muted">{meta.blurb}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-
+      {palette}
       <div className="ops-builder-main">
-        <div className="ops-builder-canvas">
-          <p className="ops-subblock-title" style={{ margin: '0 0 8px' }}>
-            页面结构
-          </p>
-          {blocks.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13 }}>
-              从上方控件库添加第一个控件开始搭建。
-            </p>
-          ) : (
-            <div className="ops-block-list">
-              {blocks.map((block, index) => {
-                const meta = BLOCK_CATALOG[block.type];
-                return (
-                  <div
-                    key={block.id}
-                    className={`ops-block-card${selectedId === block.id ? ' is-selected' : ''}${
-                      dragId === block.id ? ' is-dragging' : ''
-                    }${overId === block.id && dragId !== block.id ? ' is-over' : ''}`}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setOverId(block.id);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (dragId) patch(reorderLandingBlocks(landing, dragId, block.id));
-                      setDragId(null);
-                      setOverId(null);
-                    }}
-                  >
-                    <div className="ops-block-card-head">
-                      <button
-                        type="button"
-                        className="ops-block-handle"
-                        draggable
-                        title="拖动排序"
-                        aria-label={`拖动排序：${meta.label}`}
-                        onDragStart={(e) => {
-                          e.dataTransfer.effectAllowed = 'move';
-                          e.dataTransfer.setData('text/plain', block.id);
-                          setDragId(block.id);
-                        }}
-                        onDragEnd={() => {
-                          setDragId(null);
-                          setOverId(null);
-                        }}
-                      >
-                        ⋮⋮
-                      </button>
-                      <button
-                        type="button"
-                        className="ops-block-card-toggle"
-                        onClick={() => setSelectedId(block.id)}
-                      >
-                        <span className="ops-block-chip-icon" aria-hidden>
-                          {meta.icon}
-                        </span>
-                        <span className="ops-block-card-titles">
-                          <strong>
-                            {index + 1}. {meta.label}
-                          </strong>
-                          <span className="muted">{blockSummary(block)}</span>
-                        </span>
-                        <span className="muted">{selectedId === block.id ? '配置中' : '配置'}</span>
-                      </button>
-                      {!(block.type === 'text' && block.data?.role === 'intro') ? (
-                        <button
-                          type="button"
-                          className="btn ops-block-remove"
-                          onClick={() => {
-                            patch(removeLandingBlock(landing, block.id));
-                            if (selectedId === block.id) setSelectedId(null);
-                          }}
-                        >
-                          移除
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <div className="ops-builder-inspector">
-          <p className="ops-subblock-title" style={{ margin: '0 0 8px' }}>
-            {selected ? `配置 · ${BLOCK_CATALOG[selected.type].label}` : '配置面板'}
-          </p>
-          {!selected ? (
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              在左侧页面结构中点击一个控件开始配置。
-            </p>
-          ) : (
-            <div className="ops-builder-inspector-body">
-              <BlockConfig
-                block={selected}
-                landing={landing}
-                templateId={templateId}
-                campaignId={campaignId}
-                bulkOpen={bulkOpen}
-                bulkText={bulkText}
-                setBulkOpen={setBulkOpen}
-                setBulkText={setBulkText}
-                onAddDay={addDay}
-                onApplyBulk={applyBulk}
-                onUpdateDay={updateDay}
-                onLanding={patch}
-                onBlockData={(data) => patch(updateBlockData(landing, selected.id, data))}
-              />
-            </div>
-          )}
-        </div>
+        {structure}
+        {inspector}
       </div>
     </div>
   );

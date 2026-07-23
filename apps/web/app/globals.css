@@ -22323,6 +22323,154 @@ body.ops-pc-active .app-body {
 .ops-pc-config {
   min-width: 0;
 }
+.ops-topbar {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--line, var(--border));
+  background: color-mix(in srgb, var(--surface, #fff) 92%, var(--bg, #fafaf8));
+}
+.ops-topbar-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+}
+.ops-topbar-toggle {
+  border: 1px solid var(--line, var(--border));
+  background: var(--surface, #fff);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.ops-topbar.is-collapsed {
+  padding: 6px 10px;
+}
+.ops-canvas-grid {
+  display: grid;
+  grid-template-columns: 52px minmax(220px, 300px) minmax(0, 1fr) minmax(260px, 320px);
+  gap: 12px;
+  align-items: start;
+  margin-top: 10px;
+  min-height: calc(100dvh - 200px);
+}
+.ops-canvas-grid.is-left-collapsed {
+  grid-template-columns: 52px minmax(0, 1fr) minmax(260px, 320px);
+}
+.ops-canvas-rail {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: sticky;
+  top: 12px;
+}
+.ops-canvas-rail-btn {
+  width: 52px;
+  min-height: 44px;
+  padding: 6px 4px;
+  border: 1px solid var(--line, var(--border));
+  border-radius: 10px;
+  background: var(--surface, #fff);
+  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.2;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+.ops-canvas-rail-btn.is-on {
+  color: var(--ink);
+  border-color: color-mix(in srgb, var(--dawn-gold, #c4a35a) 50%, var(--line));
+  background: color-mix(in srgb, var(--dawn-gold, #c4a35a) 12%, #fff);
+}
+.ops-canvas-rail-fold {
+  margin-top: 4px;
+  font-size: 16px;
+  font-weight: 700;
+}
+.ops-canvas-settings {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  gap: 10px;
+  max-height: calc(100dvh - 180px);
+  overflow: auto;
+  padding-right: 2px;
+}
+.ops-builder--canvas {
+  display: contents;
+}
+.ops-builder-tools {
+  grid-column: 2;
+  grid-row: 1;
+  border: 1px solid var(--line, var(--border));
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--surface, #fff);
+  max-height: calc(100dvh - 180px);
+  overflow: auto;
+  min-width: 0;
+}
+.ops-builder-structure {
+  grid-column: 3;
+  grid-row: 1;
+  min-height: 420px;
+  max-height: calc(100dvh - 180px);
+  overflow: auto;
+}
+.ops-canvas-grid.is-left-collapsed .ops-builder-structure {
+  grid-column: 2;
+}
+.ops-canvas-grid.is-left-collapsed .ops-canvas-preview {
+  grid-column: 3;
+}
+.ops-builder-structure-head {
+  display: grid;
+  gap: 2px;
+  margin-bottom: 10px;
+}
+.ops-builder-inspector--panel {
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+.ops-canvas-preview .ops-preview-panel {
+  position: static;
+}
+.ops-canvas-grid.is-left-collapsed .ops-canvas-preview {
+  grid-column: 3;
+}
+.ops-canvas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+@media (max-width: 1100px) {
+  .ops-canvas-grid {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+  .ops-canvas-grid.is-left-collapsed {
+    grid-template-columns: 52px minmax(0, 1fr);
+  }
+  .ops-canvas-settings,
+  .ops-builder-tools,
+  .ops-builder-structure,
+  .ops-canvas-preview,
+  .ops-canvas-grid.is-left-collapsed .ops-builder-structure,
+  .ops-canvas-grid.is-left-collapsed .ops-canvas-preview {
+    grid-column: 2;
+  }
+  .ops-canvas-preview {
+    position: static;
+    max-height: none;
+  }
+}
 .ops-pc-new {
   max-width: 640px;
   margin-top: 12px;
