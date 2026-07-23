@@ -5,9 +5,13 @@ from app.content.campaigns import TEMPLATES, _publish_checklist
 
 
 def test_templates_cover_mature_mvp():
-    for tid in ("multi_day", "gathering", "prayer_drive", "promo", "verse_day"):
+    for tid in ("blank", "multi_day", "gathering", "prayer_drive", "promo", "verse_day", "memory"):
         assert tid in TEMPLATES
         assert TEMPLATES[tid]["landing"]
+    assert TEMPLATES["blank"]["landing"].get("blocks")
+    assert any(b.get("type") == "text" for b in TEMPLATES["blank"]["landing"]["blocks"])
+    assert TEMPLATES["multi_day"]["landing"].get("blocks")
+    assert any(b.get("type") == "days" for b in TEMPLATES["multi_day"]["landing"]["blocks"])
 
 
 def test_publish_checklist_requires_groups_and_name():

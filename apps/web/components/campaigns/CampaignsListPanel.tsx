@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api, getSessionToken, type OpsCampaign } from '@/lib/api';
 import {
+  campaignPreviewUrl,
   campaignShareUrl,
   campaignStatusLabel,
   campaignStatusTone,
@@ -260,6 +261,16 @@ export function CampaignsListPanel({ embedded = false }: { embedded?: boolean })
                     <div className="ops-more-menu" onClick={(e) => e.stopPropagation()}>
                       <button type="button" onClick={() => void onCopy(c.id)}>
                         复制活动
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const ok = await copyText(campaignPreviewUrl(c.id));
+                          flash(ok ? '预览链已复制' : '复制失败');
+                          setMenuId(null);
+                        }}
+                      >
+                        复制预览链
                       </button>
                       <button
                         type="button"

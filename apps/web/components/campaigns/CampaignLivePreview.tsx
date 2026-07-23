@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import type { OpsCampaignLanding } from '@/lib/api';
-import { resolvePrimaryCta } from '@/lib/campaign_nav';
-import { BLOCK_CATALOG, type OpsBlockType } from '@/lib/campaign_blocks';
 import { RAIL_ICONS, trimRailSub, trimRailTitle, type RailCard } from '@/lib/home_rail';
 import { RailCardVisual } from '@/components/home/RailCardVisual';
+import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlocks';
+import { campaignPreviewUrl, copyText } from '@/lib/campaign_ops';
 
 type PreviewTab = 'home' | 'landing';
+type PreviewDevice = 'phone' | 'desktop';
 
-/** 配置页右侧实时预览：首页卡 + 落地页 */
+/** 配置页右侧实时预览：首页卡 + 落地页（手机/桌面） */
 export function CampaignLivePreview({
   name,
   subtitle,
@@ -19,6 +20,7 @@ export function CampaignLivePreview({
   landing,
   railEnabled,
   railSlot,
+  onHint,
 }: {
   name: string;
   subtitle?: string;
@@ -28,19 +30,12 @@ export function CampaignLivePreview({
   landing: OpsCampaignLanding;
   railEnabled?: boolean;
   railSlot?: number;
+  onHint?: (msg: string) => void;
 }) {
   const [tab, setTab] = useState<PreviewTab>(railEnabled === false ? 'landing' : 'home');
+  const [device, setDevice] = useState<PreviewDevice>('phone');
   const title = (landing.title || name || '活动标题').trim() || '活动标题';
   const body = (landing.body || '').trim();
-  const days = landing.days || [];
-  const cta = resolvePrimaryCta(templateId, campaignId, landing.primaryCta);
-  const schedule = landing.schedule;
-  const slots = (landing.slots || []).filter((s) => (s.title || '').trim());
-  const entries = (landing.entries || []).filter(
-    (e) => (e.title || '').trim() && (e.href || '').trim(),
-  );
-  const features = landing.features || {};
-  const blocks = landing.blocks || [];
 
   const railCard: RailCard = {
     id: 'campaign-preview',
@@ -58,22 +53,26 @@ export function CampaignLivePreview({
     mediaCaptionRight: railSlot ? `${railSlot}` : undefined,
   };
 
-  const orderedTypes: OpsBlockType[] =
-    blocks.length > 0
-      ? (blocks.map((b) => b.type) as OpsBlockType[])
-      : ([
-          days.length ? 'days' : null,
-          schedule ? 'schedule' : null,
-          slots.length ? 'slots' : null,
-          entries.length ? 'entries' : null,
-          'cta',
-        ].filter(Boolean) as OpsBlockType[]);
+  const copyPreviewLink = async () => {
+    if (!campaignId) {
+      onHint?.('保存草稿后可复制预览链');
+      return;
+    }
+    const ok = await copyText(campaignPreviewUrl(campaignId));
+    onHint?.(ok ? '预览链已复制（带 preview=1）' : '复制失败');
+  };
 
   return (
     <aside className="ops-preview-panel" aria-label="实时预览">
       <div className="ops-preview-head">
         <strong>实时预览</strong>
-        <span className="muted">点卡片可看落地页</span>
+        <div className="ops-preview-head-actions">
+          {campaignId ? (
+            <button type="button" className="text-link" style={{ fontSize: 12 }} onClick={() => void copyPreviewLink()}>
+              复制预览链
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="ops-preview-tabs" role="tablist" aria-label="预览视图">
@@ -96,6 +95,25 @@ export function CampaignLivePreview({
           落地页
         </button>
       </div>
+
+      {tab === 'landing' ? (
+        <div className="ops-preview-device-row" role="group" aria-label="预览设备">
+          <button
+            type="button"
+            className={`ops-chip${device === 'phone' ? ' is-on' : ''}`}
+            onClick={() => setDevice('phone')}
+          >
+            手机
+          </button>
+          <button
+            type="button"
+            className={`ops-chip${device === 'desktop' ? ' is-on' : ''}`}
+            onClick={() => setDevice('desktop')}
+          >
+            桌面
+          </button>
+        </div>
+      ) : null}
 
       {tab === 'home' ? (
         <div className="ops-preview-home">
@@ -127,120 +145,17 @@ export function CampaignLivePreview({
           </p>
         </div>
       ) : (
-        <div className="ops-preview-phone">
-          <div className="ops-preview-phone-bar" aria-hidden />
-          <div className="ops-preview-phone-body">
-            <span className="pill">{tag || '活动'}</span>
+        <div className={device === 'phone' ? 'ops-preview-phone' : 'ops-preview-desktop'}>
+          {device === 'phone' ? <div className="ops-preview-phone-bar" aria-hidden /> : null}
+          <div className={device === 'phone' ? 'ops-preview-phone-body' : 'ops-preview-desktop-body'}>
             <h2 className="ops-preview-title">{title}</h2>
-            {body ? (
-              <p className="ops-preview-body">{body}</p>
-            ) : (
-              <p className="muted" style={{ fontSize: 13 }}>
-                说明文案将显示在这里
-              </p>
-            )}
-
-            {orderedTypes.map((type) => {
-              if (type === 'schedule' && schedule) {
-                const has =
-                  (schedule.location || '').trim() ||
-                  (schedule.startsAt || '').trim() ||
-                  (schedule.onlineNote || '').trim();
-                if (!has) return null;
-                return (
-                  <div key="schedule" className="ops-preview-block">
-                    <strong>{BLOCK_CATALOG.schedule.label}</strong>
-                    {(schedule.startsAt || '').trim() ? (
-                      <span className="muted">
-                        {new Date(schedule.startsAt!).toLocaleString('zh-CN')}
-                      </span>
-                    ) : null}
-                    {(schedule.location || '').trim() ? <span>{schedule.location}</span> : null}
-                    {(schedule.onlineNote || '').trim() ? (
-                      <span className="muted">{schedule.onlineNote}</span>
-                    ) : null}
-                  </div>
-                );
-              }
-              if (type === 'days' && days.length > 0) {
-                return (
-                  <div key="days" className="ops-preview-block">
-                    <strong>
-                      {BLOCK_CATALOG.days.label} · {days.length} 天
-                    </strong>
-                    <ol className="ops-preview-days">
-                      {days.slice(0, 5).map((d, i) => (
-                        <li key={d.day || i}>
-                          <span>第 {d.day || i + 1} 天</span>
-                          <span className="muted">
-                            {(d.title || '').trim() ||
-                              ((d.verseRef || '').trim() ? d.verseRef : '待填写')}
-                          </span>
-                        </li>
-                      ))}
-                      {days.length > 5 ? (
-                        <li className="muted">…还有 {days.length - 5} 天</li>
-                      ) : null}
-                    </ol>
-                  </div>
-                );
-              }
-              if (type === 'slots' && slots.length > 0) {
-                return (
-                  <div key="slots" className="ops-preview-block">
-                    <strong>{BLOCK_CATALOG.slots.label}</strong>
-                    {slots.map((s) => (
-                      <div key={s.id} className="ops-preview-row">
-                        <span>{s.title}</span>
-                        <span className="muted">名额 {s.limit}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              }
-              if (type === 'entries' && entries.length > 0) {
-                return (
-                  <div key="entries" className="ops-preview-block">
-                    <strong>{BLOCK_CATALOG.entries.label}</strong>
-                    {entries.map((e) => (
-                      <div key={e.id || e.href} className="ops-preview-row">
-                        <span>{e.title}</span>
-                        <span className="muted">{e.sub || e.href}</span>
-                      </div>
-                    ))}
-                  </div>
-                );
-              }
-              if (type === 'engage') {
-                const bits = [
-                  features.likes ? '点赞' : null,
-                  features.comments ? '评论' : null,
-                  features.rsvp ? 'RSVP' : null,
-                  features.prayer ? '代祷' : null,
-                  features.questions ? '提问' : null,
-                ].filter(Boolean);
-                if (!bits.length) return null;
-                return (
-                  <div key="engage" className="ops-preview-block">
-                    <strong>{BLOCK_CATALOG.engage.label}</strong>
-                    <span className="muted">{bits.join(' · ')}</span>
-                  </div>
-                );
-              }
-              if (type === 'cta') {
-                return (
-                  <button
-                    key="cta"
-                    type="button"
-                    className="btn btn-primary ops-preview-cta"
-                    disabled
-                  >
-                    {cta.label}
-                  </button>
-                );
-              }
-              return null;
-            })}
+            <CampaignLandingBlocks
+              landing={landing}
+              templateId={templateId}
+              campaignId={campaignId}
+              mode="preview"
+              tag={tag}
+            />
           </div>
         </div>
       )}

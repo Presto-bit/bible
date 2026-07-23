@@ -37,6 +37,8 @@ export function defaultPrimaryCta(
 ): { label: string; href: string } {
   const self = campaignId ? `/campaigns/view/${campaignId}` : '';
   switch (templateId) {
+    case 'blank':
+      return { label: '查看活动', href: self || '/' };
     case 'multi_day':
     case 'memory':
       return { label: '开始今日阅读', href: self || '/reader' };

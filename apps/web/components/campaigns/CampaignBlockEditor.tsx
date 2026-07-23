@@ -1,18 +1,30 @@
 'use client';
 
-import { useState, type DragEvent, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import type { OpsCampaignLanding } from '@/lib/api';
 import {
   BLOCK_CATALOG,
   addLandingBlock,
   availableBlockTypes,
+  blockSummary,
+  blocksByCategory,
+  nid,
+  normalizeBlocks,
   removeLandingBlock,
   reorderLandingBlocks,
+  updateBlockData,
   type OpsBlockType,
   type OpsLandingBlock,
 } from '@/lib/campaign_blocks';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
 import { parseDaysFromBulkText } from '@/lib/campaign_ops';
+import {
+  applyReadingExample,
+  getReadingExample,
+  getReadingPlaceholders,
+  hasReadingExample,
+  landingHasReadableContent,
+} from '@/lib/campaign_example_copy';
 
 function toLocalInput(iso: string): string {
   if (!iso) return '';
@@ -27,7 +39,7 @@ function fromLocalInput(value: string): string {
   return Number.isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
 }
 
-/** 落地页积木：从控件库添加，拖动排序，展开配置 */
+/** 落地页搭建：分类控件库 → 画布排序 → 点击配置 */
 export function CampaignBlockEditor({
   landing,
   setLanding,
@@ -43,16 +55,34 @@ export function CampaignBlockEditor({
   onHint?: (msg: string) => void;
   onError?: (msg: string) => void;
 }) {
+  const blocks = normalizeBlocks(landing.blocks);
   const [dragId, setDragId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
-  const [openId, setOpenId] = useState<string | null>(landing.blocks?.[0]?.id || null);
+  const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id || null);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkText, setBulkText] = useState('');
+  const [paletteCat, setPaletteCat] = useState<string>('all');
 
-  const blocks = (landing.blocks || []) as OpsLandingBlock[];
+  useEffect(() => {
+    if (selectedId && !blocks.some((b) => b.id === selectedId)) {
+      setSelectedId(blocks[0]?.id || null);
+    }
+  }, [blocks, selectedId]);
+
   const available = availableBlockTypes(landing);
+  const groups = blocksByCategory(available);
+  const filteredGroups =
+    paletteCat === 'all' ? groups : groups.filter((g) => g.category === paletteCat);
+  const selected = blocks.find((b) => b.id === selectedId) || null;
 
   const patch = (next: OpsCampaignLanding) => setLanding(next);
+
+  const onAdd = (type: OpsBlockType) => {
+    const next = addLandingBlock(landing, type);
+    patch(next);
+    const added = normalizeBlocks(next.blocks).filter((b) => b.type === type).at(-1);
+    if (added) setSelectedId(added.id);
+  };
 
   const updateDay = (
     idx: number,
@@ -81,87 +111,200 @@ export function CampaignBlockEditor({
     onHint?.(`已导入 ${days.length} 天`);
   };
 
-  const onAdd = (type: OpsBlockType) => {
-    const next = addLandingBlock(landing, type);
+  const fillExample = () => {
+    if (!hasReadingExample(templateId)) return;
+    const pack = getReadingExample(templateId);
+    if (
+      landingHasReadableContent(landing) &&
+      !window.confirm('将用示例覆盖当前主文案与日课内容，确定？')
+    ) {
+      return;
+    }
+    const next = applyReadingExample(landing, templateId);
+    if (!next) return;
     patch(next);
-    const added = (next.blocks || []).find((b) => b.type === type);
-    if (added) setOpenId(added.id);
+    onHint?.(pack ? `已填入示例：${pack.blurb}` : '已填入示例');
   };
 
+  const examplePack = hasReadingExample(templateId) ? getReadingExample(templateId) : null;
+
   return (
-    <div className="ops-blocks">
+    <div className="ops-builder">
+      {examplePack ? (
+        <div className="ops-example-banner">
+          <div>
+            <strong>示例文案</strong>
+            <span className="muted">{examplePack.blurb}，填入后可随意改</span>
+          </div>
+          <button type="button" className="btn" onClick={fillExample}>
+            一键填入示例
+          </button>
+        </div>
+      ) : null}
       <div className="ops-block-palette">
-        <p className="ops-subblock-title" style={{ margin: 0 }}>
-          控件库
-        </p>
-        <p className="muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
-          点击加入落地页，拖动手柄可调整顺序；展开卡片配置内容。
-        </p>
-        {available.length === 0 ? (
+        <div className="ops-builder-palette-head">
+          <p className="ops-subblock-title" style={{ margin: 0 }}>
+            控件库
+          </p>
           <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-            可用控件已全部加入页面。
+            按类型添加，点击画布中的控件进行配置
+          </p>
+        </div>
+        <div className="ops-builder-cats" role="tablist" aria-label="控件分类">
+          <button
+            type="button"
+            className={`ops-chip${paletteCat === 'all' ? ' is-on' : ''}`}
+            onClick={() => setPaletteCat('all')}
+          >
+            全部
+          </button>
+          {groups.map((g) => (
+            <button
+              key={g.category}
+              type="button"
+              className={`ops-chip${paletteCat === g.category ? ' is-on' : ''}`}
+              onClick={() => setPaletteCat(g.category)}
+            >
+              {g.label}
+            </button>
+          ))}
+        </div>
+        {filteredGroups.length === 0 ? (
+          <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+            该分类下暂无可添加控件（单例控件已在页面上）。
           </p>
         ) : (
-          <div className="ops-block-palette-grid">
-            {available.map((type) => {
-              const meta = BLOCK_CATALOG[type];
-              return (
-                <button
-                  key={type}
-                  type="button"
-                  className="ops-block-chip"
-                  onClick={() => onAdd(type)}
-                >
-                  <span className="ops-block-chip-icon" aria-hidden>
-                    {meta.icon}
-                  </span>
-                  <span className="ops-block-chip-text">
-                    <strong>{meta.label}</strong>
-                    <span className="muted">{meta.blurb}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          filteredGroups.map((g) => (
+            <div key={g.category} className="ops-builder-cat-group">
+              {paletteCat === 'all' ? (
+                <p className="ops-builder-cat-label">{g.label}</p>
+              ) : null}
+              <div className="ops-block-palette-grid">
+                {g.types.map((type) => {
+                  const meta = BLOCK_CATALOG[type];
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      className="ops-block-chip"
+                      onClick={() => onAdd(type)}
+                    >
+                      <span className="ops-block-chip-icon" aria-hidden>
+                        {meta.icon}
+                      </span>
+                      <span className="ops-block-chip-text">
+                        <strong>{meta.label}</strong>
+                        <span className="muted">{meta.blurb}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      <div className="ops-block-list">
-        {blocks.length === 0 ? (
-          <p className="muted" style={{ fontSize: 13 }}>
-            尚未添加控件。从上方控件库点选加入。
+      <div className="ops-builder-main">
+        <div className="ops-builder-canvas">
+          <p className="ops-subblock-title" style={{ margin: '0 0 8px' }}>
+            页面结构
           </p>
-        ) : null}
-        {blocks.map((block) => (
-          <BlockCard
-            key={block.id}
-            block={block}
-            open={openId === block.id}
-            dragging={dragId === block.id}
-            dragOver={overId === block.id && dragId !== block.id}
-            onToggle={() => setOpenId((id) => (id === block.id ? null : block.id))}
-            onRemove={() => {
-              patch(removeLandingBlock(landing, block.id));
-              if (openId === block.id) setOpenId(null);
-            }}
-            onDragStart={() => setDragId(block.id)}
-            onDragEnd={() => {
-              setDragId(null);
-              setOverId(null);
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setOverId(block.id);
-            }}
-            onDrop={() => {
-              if (dragId) patch(reorderLandingBlocks(landing, dragId, block.id));
-              setDragId(null);
-              setOverId(null);
-            }}
-          >
-            {block.type === 'days' ? (
-              <DaysConfig
+          {blocks.length === 0 ? (
+            <p className="muted" style={{ fontSize: 13 }}>
+              从上方控件库添加第一个控件开始搭建。
+            </p>
+          ) : (
+            <div className="ops-block-list">
+              {blocks.map((block, index) => {
+                const meta = BLOCK_CATALOG[block.type];
+                return (
+                  <div
+                    key={block.id}
+                    className={`ops-block-card${selectedId === block.id ? ' is-selected' : ''}${
+                      dragId === block.id ? ' is-dragging' : ''
+                    }${overId === block.id && dragId !== block.id ? ' is-over' : ''}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setOverId(block.id);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (dragId) patch(reorderLandingBlocks(landing, dragId, block.id));
+                      setDragId(null);
+                      setOverId(null);
+                    }}
+                  >
+                    <div className="ops-block-card-head">
+                      <button
+                        type="button"
+                        className="ops-block-handle"
+                        draggable
+                        title="拖动排序"
+                        aria-label={`拖动排序：${meta.label}`}
+                        onDragStart={(e) => {
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', block.id);
+                          setDragId(block.id);
+                        }}
+                        onDragEnd={() => {
+                          setDragId(null);
+                          setOverId(null);
+                        }}
+                      >
+                        ⋮⋮
+                      </button>
+                      <button
+                        type="button"
+                        className="ops-block-card-toggle"
+                        onClick={() => setSelectedId(block.id)}
+                      >
+                        <span className="ops-block-chip-icon" aria-hidden>
+                          {meta.icon}
+                        </span>
+                        <span className="ops-block-card-titles">
+                          <strong>
+                            {index + 1}. {meta.label}
+                          </strong>
+                          <span className="muted">{blockSummary(block)}</span>
+                        </span>
+                        <span className="muted">{selectedId === block.id ? '配置中' : '配置'}</span>
+                      </button>
+                      {!(block.type === 'text' && block.data?.role === 'intro') ? (
+                        <button
+                          type="button"
+                          className="btn ops-block-remove"
+                          onClick={() => {
+                            patch(removeLandingBlock(landing, block.id));
+                            if (selectedId === block.id) setSelectedId(null);
+                          }}
+                        >
+                          移除
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="ops-builder-inspector">
+          <p className="ops-subblock-title" style={{ margin: '0 0 8px' }}>
+            {selected ? `配置 · ${BLOCK_CATALOG[selected.type].label}` : '配置面板'}
+          </p>
+          {!selected ? (
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              在左侧页面结构中点击一个控件开始配置。
+            </p>
+          ) : (
+            <div className="ops-builder-inspector-body">
+              <BlockConfig
+                block={selected}
                 landing={landing}
+                templateId={templateId}
+                campaignId={campaignId}
                 bulkOpen={bulkOpen}
                 bulkText={bulkText}
                 setBulkOpen={setBulkOpen}
@@ -170,100 +313,302 @@ export function CampaignBlockEditor({
                 onApplyBulk={applyBulk}
                 onUpdateDay={updateDay}
                 onLanding={patch}
+                onBlockData={(data) => patch(updateBlockData(landing, selected.id, data))}
               />
-            ) : null}
-            {block.type === 'schedule' ? (
-              <ScheduleConfig landing={landing} onLanding={patch} />
-            ) : null}
-            {block.type === 'slots' ? <SlotsConfig landing={landing} onLanding={patch} /> : null}
-            {block.type === 'entries' ? <EntriesConfig landing={landing} onLanding={patch} /> : null}
-            {block.type === 'engage' ? <EngageConfig landing={landing} onLanding={patch} /> : null}
-            {block.type === 'cta' ? (
-              <CtaConfig templateId={templateId} campaignId={campaignId} landing={landing} />
-            ) : null}
-          </BlockCard>
-        ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function BlockCard({
+function BlockConfig({
   block,
-  open,
-  dragging,
-  dragOver,
-  onToggle,
-  onRemove,
-  onDragStart,
-  onDragEnd,
-  onDragOver,
-  onDrop,
-  children,
+  landing,
+  templateId,
+  campaignId,
+  bulkOpen,
+  bulkText,
+  setBulkOpen,
+  setBulkText,
+  onAddDay,
+  onApplyBulk,
+  onUpdateDay,
+  onLanding,
+  onBlockData,
 }: {
   block: OpsLandingBlock;
-  open: boolean;
-  dragging: boolean;
-  dragOver: boolean;
-  onToggle: () => void;
-  onRemove: () => void;
-  onDragStart: () => void;
-  onDragEnd: () => void;
-  onDragOver: (e: DragEvent) => void;
-  onDrop: () => void;
-  children: ReactNode;
+  landing: OpsCampaignLanding;
+  templateId: string;
+  campaignId: string;
+  bulkOpen: boolean;
+  bulkText: string;
+  setBulkOpen: (v: boolean) => void;
+  setBulkText: (v: string) => void;
+  onAddDay: () => void;
+  onApplyBulk: () => void;
+  onUpdateDay: (
+    idx: number,
+    patch: Partial<NonNullable<OpsCampaignLanding['days']>[number]>,
+  ) => void;
+  onLanding: (l: OpsCampaignLanding) => void;
+  onBlockData: (data: Record<string, unknown>) => void;
 }) {
-  const meta = BLOCK_CATALOG[block.type];
-  return (
-    <div
-      className={`ops-block-card${open ? ' is-open' : ''}${dragging ? ' is-dragging' : ''}${
-        dragOver ? ' is-over' : ''
-      }`}
-      onDragOver={onDragOver}
-      onDrop={(e) => {
-        e.preventDefault();
-        onDrop();
-      }}
-    >
-      <div className="ops-block-card-head">
-        <button
-          type="button"
-          className="ops-block-handle"
-          draggable
-          title="拖动排序"
-          aria-label={`拖动排序：${meta.label}`}
-          onDragStart={(e) => {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', block.id);
-            onDragStart();
-          }}
-          onDragEnd={onDragEnd}
-        >
-          ⋮⋮
-        </button>
-        <button type="button" className="ops-block-card-toggle" onClick={onToggle}>
-          <span className="ops-block-chip-icon" aria-hidden>
-            {meta.icon}
-          </span>
-          <span className="ops-block-card-titles">
-            <strong>{meta.label}</strong>
-            <span className="muted">{meta.blurb}</span>
-          </span>
-          <span className="muted">{open ? '收起' : '配置'}</span>
-        </button>
-        {block.type !== 'cta' ? (
-          <button type="button" className="btn ops-block-remove" onClick={onRemove}>
-            移除
-          </button>
+  const d = block.data || {};
+
+  if (block.type === 'text') {
+    const ph = getReadingPlaceholders(templateId);
+    const isIntro = d.role === 'intro';
+    const introEmpty = isIntro && !String(d.body || '').trim();
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        {isIntro ? (
+          <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+            页面主文案：同步到落地页说明，也会出现在首页卡摘要中。
+            {introEmpty ? (
+              <span className="ops-slot-hint"> · 建议填写</span>
+            ) : null}
+          </p>
         ) : null}
+        <label className="ops-field">
+          <span>标题</span>
+          <input
+            className="input"
+            value={String(d.heading || '')}
+            onChange={(e) => onBlockData({ heading: e.target.value })}
+            placeholder="可选小标题"
+          />
+        </label>
+        <label className={`ops-field${introEmpty ? ' is-suggested' : ''}`}>
+          <span>
+            正文
+            {introEmpty ? <span className="ops-req-tag is-soft">建议</span> : null}
+          </span>
+          <textarea
+            className="input"
+            rows={6}
+            value={String(d.body || '')}
+            onChange={(e) => onBlockData({ body: e.target.value })}
+            placeholder={isIntro && ph ? ph.introBody : '段落正文'}
+          />
+        </label>
       </div>
-      {open ? <div className="ops-block-card-body">{children}</div> : null}
-    </div>
-  );
+    );
+  }
+
+  if (block.type === 'audio') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>标题</span>
+          <input
+            className="input"
+            value={String(d.title || '')}
+            onChange={(e) => onBlockData({ title: e.target.value })}
+            placeholder="音频标题"
+          />
+        </label>
+        <label className="ops-field">
+          <span>音频地址</span>
+          <input
+            className="input"
+            value={String(d.src || '')}
+            onChange={(e) => onBlockData({ src: e.target.value })}
+            placeholder="https://…/audio.mp3"
+          />
+        </label>
+        <label className="ops-field">
+          <span>说明</span>
+          <input
+            className="input"
+            value={String(d.caption || '')}
+            onChange={(e) => onBlockData({ caption: e.target.value })}
+            placeholder="可选说明"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (block.type === 'image') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>图片 URL</span>
+          <input
+            className="input"
+            value={String(d.url || '')}
+            onChange={(e) => onBlockData({ url: e.target.value })}
+            placeholder="https://…/image.jpg"
+          />
+        </label>
+        <label className="ops-field">
+          <span>说明</span>
+          <input
+            className="input"
+            value={String(d.caption || '')}
+            onChange={(e) => onBlockData({ caption: e.target.value })}
+            placeholder="可选图注"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (block.type === 'divider') {
+    return (
+      <div className="ops-chip-row" style={{ marginTop: 0 }}>
+        {(
+          [
+            ['line', '线条'],
+            ['space', '空白间距'],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            className={`ops-chip${(d.style || 'line') === k ? ' is-on' : ''}`}
+            onClick={() => onBlockData({ style: k })}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  if (block.type === 'verse') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>经文引用</span>
+          <input
+            className="input"
+            value={String(d.ref || '')}
+            onChange={(e) => onBlockData({ ref: e.target.value })}
+            placeholder="如 诗篇 23:1"
+          />
+        </label>
+        <label className="ops-field">
+          <span>短注</span>
+          <textarea
+            className="input"
+            rows={3}
+            value={String(d.note || '')}
+            onChange={(e) => onBlockData({ note: e.target.value })}
+            placeholder="可选说明"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (block.type === 'tabs') {
+    const tabs = Array.isArray(d.tabs) ? [...(d.tabs as Array<Record<string, unknown>>)] : [];
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ops-subblock-head">
+          <p className="ops-subblock-title" style={{ margin: 0 }}>
+            标签页
+          </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() =>
+              onBlockData({
+                tabs: [
+                  ...tabs,
+                  { id: nid('tab'), label: `标签 ${tabs.length + 1}`, body: '' },
+                ],
+              })
+            }
+          >
+            加标签
+          </button>
+        </div>
+        {tabs.map((tab, idx) => (
+          <div key={String(tab.id || idx)} className="ops-nested-card">
+            <label className="ops-field">
+              <span>标签名</span>
+              <input
+                className="input"
+                value={String(tab.label || '')}
+                onChange={(e) => {
+                  const next = tabs.map((t, i) =>
+                    i === idx ? { ...t, label: e.target.value } : t,
+                  );
+                  onBlockData({ tabs: next });
+                }}
+              />
+            </label>
+            <label className="ops-field" style={{ marginTop: 8 }}>
+              <span>内容</span>
+              <textarea
+                className="input"
+                rows={4}
+                value={String(tab.body || '')}
+                onChange={(e) => {
+                  const next = tabs.map((t, i) =>
+                    i === idx ? { ...t, body: e.target.value } : t,
+                  );
+                  onBlockData({ tabs: next });
+                }}
+              />
+            </label>
+            {tabs.length > 1 ? (
+              <button
+                type="button"
+                className="btn"
+                style={{ marginTop: 8 }}
+                onClick={() => onBlockData({ tabs: tabs.filter((_, i) => i !== idx) })}
+              >
+                删除标签
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (block.type === 'days') {
+    return (
+      <DaysConfig
+        landing={landing}
+        templateId={templateId}
+        bulkOpen={bulkOpen}
+        bulkText={bulkText}
+        setBulkOpen={setBulkOpen}
+        setBulkText={setBulkText}
+        onAddDay={onAddDay}
+        onApplyBulk={onApplyBulk}
+        onUpdateDay={onUpdateDay}
+        onLanding={onLanding}
+      />
+    );
+  }
+  if (block.type === 'schedule') {
+    return <ScheduleConfig landing={landing} onLanding={onLanding} />;
+  }
+  if (block.type === 'slots') {
+    return <SlotsConfig landing={landing} onLanding={onLanding} />;
+  }
+  if (block.type === 'entries') {
+    return <EntriesConfig landing={landing} onLanding={onLanding} />;
+  }
+  if (block.type === 'engage') {
+    return <EngageConfig landing={landing} onLanding={onLanding} />;
+  }
+  if (block.type === 'cta') {
+    return <CtaConfig templateId={templateId} campaignId={campaignId} landing={landing} />;
+  }
+  return <p className="muted">未知控件</p>;
 }
 
 function DaysConfig({
   landing,
+  templateId,
   bulkOpen,
   bulkText,
   setBulkOpen,
@@ -274,6 +619,7 @@ function DaysConfig({
   onLanding,
 }: {
   landing: OpsCampaignLanding;
+  templateId: string;
   bulkOpen: boolean;
   bulkText: string;
   setBulkOpen: (v: boolean) => void;
@@ -287,9 +633,23 @@ function DaysConfig({
   onLanding: (l: OpsCampaignLanding) => void;
 }) {
   const dayUnlock = landing.features?.dayUnlock || 'all';
+  const ph = getReadingPlaceholders(templateId);
+  const anyFilled = (landing.days || []).some(
+    (d) => (d.body || '').trim() || (d.verseRef || '').trim(),
+  );
+  const isMemory = templateId === 'memory';
   return (
     <div className="ops-subblock" style={{ margin: 0, paddingTop: 0, borderTop: 0 }}>
-      <p className="ops-subblock-title">日课解锁</p>
+      <p className="ops-subblock-title">
+        {isMemory ? '清单解锁' : '日课解锁'}
+        {!anyFilled ? <span className="ops-req-tag">必填</span> : null}
+      </p>
+      {!anyFilled ? (
+        <p className="ops-slot-hint" style={{ marginTop: 0 }}>
+          发布前至少填写一天的正文或经文引用
+          {ph ? '；也可点上方「一键填入示例」' : ''}
+        </p>
+      ) : null}
       <label className="ops-check-row">
         <input
           type="radio"
@@ -316,17 +676,16 @@ function DaysConfig({
         />
         按开始日每天解锁一天
       </label>
-
       <div className="ops-subblock-head" style={{ marginTop: 12 }}>
         <p className="ops-subblock-title" style={{ margin: 0 }}>
-          日课内容
+          {isMemory ? '背诵清单' : '日课内容'}
         </p>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="btn" onClick={() => setBulkOpen(!bulkOpen)}>
             批量粘贴
           </button>
           <button type="button" className="btn" onClick={onAddDay}>
-            加一天
+            {isMemory ? '加一节' : '加一天'}
           </button>
         </div>
       </div>
@@ -347,39 +706,53 @@ function DaysConfig({
         </div>
       ) : null}
       <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
-        {(landing.days || []).map((d, idx) => (
-          <div key={d.day || idx} className="ops-nested-card">
-            <strong>第 {d.day || idx + 1} 天</strong>
-            <label className="ops-field" style={{ marginTop: 8 }}>
-              <span>标题</span>
-              <input
-                className="input"
-                value={d.title || ''}
-                onChange={(e) => onUpdateDay(idx, { title: e.target.value })}
-                placeholder="标题"
-              />
-            </label>
-            <label className="ops-field" style={{ marginTop: 8 }}>
-              <span>正文</span>
-              <textarea
-                className="input"
-                rows={4}
-                value={d.body || ''}
-                onChange={(e) => onUpdateDay(idx, { body: e.target.value })}
-                placeholder="正文"
-              />
-            </label>
-            <label className="ops-field" style={{ marginTop: 8 }}>
-              <span>经文引用</span>
-              <input
-                className="input"
-                value={d.verseRef || ''}
-                onChange={(e) => onUpdateDay(idx, { verseRef: e.target.value })}
-                placeholder="如 创 1:1-5"
-              />
-            </label>
-          </div>
-        ))}
+        {(landing.days || []).map((dayItem, idx) => {
+          const dayEmpty = !(dayItem.body || '').trim() && !(dayItem.verseRef || '').trim();
+          return (
+            <div
+              key={dayItem.day || idx}
+              className={`ops-nested-card${!anyFilled && dayEmpty ? ' is-slot-empty' : ''}`}
+            >
+              <strong>
+                {isMemory ? `经文 ${dayItem.day || idx + 1}` : `第 ${dayItem.day || idx + 1} 天`}
+              </strong>
+              <label className="ops-field" style={{ marginTop: 8 }}>
+                <span>标题</span>
+                <input
+                  className="input"
+                  value={dayItem.title || ''}
+                  onChange={(e) => onUpdateDay(idx, { title: e.target.value })}
+                  placeholder={ph?.dayTitle || undefined}
+                />
+              </label>
+              <label className={`ops-field${!anyFilled ? ' is-required' : ''}`} style={{ marginTop: 8 }}>
+                <span>
+                  正文
+                  {!anyFilled ? <span className="ops-req-tag">必填*</span> : null}
+                </span>
+                <textarea
+                  className="input"
+                  rows={4}
+                  value={dayItem.body || ''}
+                  onChange={(e) => onUpdateDay(idx, { body: e.target.value })}
+                  placeholder={ph?.dayBody || undefined}
+                />
+              </label>
+              <label className={`ops-field${!anyFilled ? ' is-required' : ''}`} style={{ marginTop: 8 }}>
+                <span>
+                  经文引用
+                  {!anyFilled ? <span className="ops-req-tag">或填此项</span> : null}
+                </span>
+                <input
+                  className="input"
+                  value={dayItem.verseRef || ''}
+                  onChange={(e) => onUpdateDay(idx, { verseRef: e.target.value })}
+                  placeholder={ph?.verseRef || '如 创 1:1-5'}
+                />
+              </label>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -416,7 +789,6 @@ function ScheduleConfig({
         <span>地点</span>
         <input
           className="input"
-          placeholder="线下地点"
           value={landing.schedule?.location || ''}
           onChange={(e) =>
             onLanding({
@@ -431,7 +803,6 @@ function ScheduleConfig({
         <span>线上说明</span>
         <input
           className="input"
-          placeholder="会议链接或线上说明"
           value={landing.schedule?.onlineNote || ''}
           onChange={(e) =>
             onLanding({
@@ -568,7 +939,6 @@ function EntriesConfig({
               <span>标题</span>
               <input
                 className="input"
-                placeholder="标题"
                 value={e.title}
                 onChange={(ev) => {
                   const entries = [...(landing.entries || [])];
@@ -581,7 +951,6 @@ function EntriesConfig({
               <span>副文案</span>
               <input
                 className="input"
-                placeholder="可选"
                 value={e.sub || ''}
                 onChange={(ev) => {
                   const entries = [...(landing.entries || [])];
@@ -594,7 +963,6 @@ function EntriesConfig({
               <span>链接</span>
               <input
                 className="input"
-                placeholder="/reader"
                 value={e.href}
                 onChange={(ev) => {
                   const entries = [...(landing.entries || [])];
@@ -630,10 +998,7 @@ function EngageConfig({
 }) {
   const f = landing.features || {};
   const toggle = (key: keyof NonNullable<OpsCampaignLanding['features']>, checked: boolean) => {
-    onLanding({
-      ...landing,
-      features: { ...f, [key]: checked },
-    });
+    onLanding({ ...landing, features: { ...f, [key]: checked } });
   };
   return (
     <div style={{ display: 'grid', gap: 8 }}>
@@ -682,7 +1047,7 @@ function CtaConfig({
   return (
     <div>
       <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-        按模板自动设置，成员打开落地页即可行动，无需再填链接。
+        按模板自动设置，成员打开落地页即可行动。
       </p>
       <div className="ops-auto-cta">
         <strong>{cta.label}</strong>

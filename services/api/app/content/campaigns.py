@@ -23,7 +23,33 @@ router = APIRouter(prefix="/content/campaigns", tags=["campaigns"])
 CHINA_TZ = ZoneInfo("Asia/Shanghai")
 _ID_RE = re.compile(r"^camp_[a-z0-9]{10,20}$")
 
+
+def _blk(type_: str, bid: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+    item: dict[str, Any] = {"id": bid, "type": type_}
+    if data is not None:
+        item["data"] = data
+    return item
+
+
 TEMPLATES: dict[str, dict[str, Any]] = {
+    "blank": {
+        "id": "blank",
+        "name": "空白页",
+        "domain": "H",
+        "tag": "空白",
+        "blurb": "从零用控件搭建落地页",
+        "landing": {
+            "title": "",
+            "body": "",
+            "features": {"likes": False, "comments": False, "rsvp": False, "prayer": False, "dayUnlock": "all"},
+            "days": [],
+            "primaryCta": {"label": "查看活动", "href": ""},
+            "blocks": [
+                _blk("text", "tpl_intro", {"heading": "", "body": "", "role": "intro"}),
+                _blk("cta", "tpl_cta"),
+            ],
+        },
+    },
     "multi_day": {
         "id": "multi_day",
         "name": "N 日阅读",
@@ -40,6 +66,16 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                 {"day": 3, "title": "第 3 天", "body": "", "verseRef": "", "discussionHint": ""},
             ],
             "primaryCta": {"label": "开始今日阅读", "href": ""},
+            "blocks": [
+                _blk(
+                    "text",
+                    "tpl_intro",
+                    {"heading": "", "body": "一起按天读完这份材料。", "role": "intro"},
+                ),
+                _blk("days", "tpl_days"),
+                _blk("engage", "tpl_engage"),
+                _blk("cta", "tpl_cta"),
+            ],
         },
     },
     "gathering": {
@@ -106,6 +142,12 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                 {"day": 1, "title": "今日经文", "body": "", "verseRef": "", "discussionHint": ""},
             ],
             "primaryCta": {"label": "打开圣经", "href": "/reader"},
+            "blocks": [
+                _blk("text", "tpl_intro", {"heading": "", "body": "", "role": "intro"}),
+                _blk("days", "tpl_days"),
+                _blk("engage", "tpl_engage"),
+                _blk("cta", "tpl_cta"),
+            ],
         },
     },
     "memory": {
@@ -124,6 +166,16 @@ TEMPLATES: dict[str, dict[str, Any]] = {
                 {"day": 3, "title": "经文 3", "body": "", "verseRef": "", "discussionHint": ""},
             ],
             "primaryCta": {"label": "开始背诵", "href": ""},
+            "blocks": [
+                _blk(
+                    "text",
+                    "tpl_intro",
+                    {"heading": "", "body": "逐节背诵，勾选已记住的经文。", "role": "intro"},
+                ),
+                _blk("days", "tpl_days"),
+                _blk("engage", "tpl_engage"),
+                _blk("cta", "tpl_cta"),
+            ],
         },
     },
     "welcome": {

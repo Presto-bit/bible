@@ -1,116 +1,334 @@
-/** 落地页积木控件：纵向排序，内容仍落在 landing 既有字段上 */
+/** 落地页积木：分类控件库 + 纵向搭建（内容可挂在 block.data） */
 
 import type { OpsCampaignLanding } from '@/lib/api';
 
+export type OpsBlockCategory =
+  | 'content'
+  | 'bible'
+  | 'action'
+  | 'gathering'
+  | 'engage'
+  | 'layout';
+
 export type OpsBlockType =
+  | 'text'
+  | 'audio'
+  | 'image'
+  | 'divider'
+  | 'verse'
   | 'days'
   | 'schedule'
   | 'slots'
   | 'entries'
   | 'engage'
-  | 'cta';
+  | 'cta'
+  | 'tabs';
 
 export type OpsLandingBlock = {
   id: string;
   type: OpsBlockType;
+  /** 多实例控件内容；单例业务控件仍同步到 landing 顶层字段 */
+  data?: Record<string, unknown>;
 };
 
-export const BLOCK_CATALOG: Record<
-  OpsBlockType,
-  { label: string; blurb: string; icon: string }
-> = {
-  days: { label: '日课列表', blurb: '按天阅读或背诵清单', icon: '日' },
-  schedule: { label: '聚会日程', blurb: '时间、地点或线上说明', icon: '历' },
-  slots: { label: '岗位报名', blurb: '岗位名称与名额', icon: '岗' },
-  entries: { label: '入口卡片', blurb: '多个行动入口', icon: '链' },
-  engage: { label: '互动', blurb: '点赞、评论、RSVP、代祷、提问', icon: '互' },
-  cta: { label: '主按钮', blurb: '落地页主行动（自动链接）', icon: '钮' },
+export type BlockMeta = {
+  label: string;
+  blurb: string;
+  icon: string;
+  category: OpsBlockCategory;
+  /** 同类型是否允许多个 */
+  multi: boolean;
+};
+
+export const BLOCK_CATEGORIES: { id: OpsBlockCategory; label: string }[] = [
+  { id: 'content', label: '内容' },
+  { id: 'bible', label: '圣经' },
+  { id: 'layout', label: '布局' },
+  { id: 'action', label: '行动' },
+  { id: 'gathering', label: '聚会报名' },
+  { id: 'engage', label: '互动' },
+];
+
+export const BLOCK_CATALOG: Record<OpsBlockType, BlockMeta> = {
+  text: {
+    label: '文本',
+    blurb: '标题与正文段落',
+    icon: '文',
+    category: 'content',
+    multi: true,
+  },
+  audio: {
+    label: '音频',
+    blurb: '嵌入音频播放',
+    icon: '音',
+    category: 'content',
+    multi: true,
+  },
+  image: {
+    label: '图片',
+    blurb: '图片与说明',
+    icon: '图',
+    category: 'content',
+    multi: true,
+  },
+  divider: {
+    label: '分割线',
+    blurb: '分隔内容区块',
+    icon: '线',
+    category: 'content',
+    multi: true,
+  },
+  verse: {
+    label: '经文引用',
+    blurb: '经文出处与短注',
+    icon: '经',
+    category: 'bible',
+    multi: true,
+  },
+  days: {
+    label: '日课列表',
+    blurb: '按天阅读或背诵',
+    icon: '日',
+    category: 'bible',
+    multi: false,
+  },
+  tabs: {
+    label: 'Tab 分组',
+    blurb: '多标签切换内容',
+    icon: 'Tab',
+    category: 'layout',
+    multi: true,
+  },
+  cta: {
+    label: '主按钮',
+    blurb: '落地页主行动',
+    icon: '钮',
+    category: 'action',
+    multi: false,
+  },
+  entries: {
+    label: '入口卡片',
+    blurb: '多个行动入口',
+    icon: '链',
+    category: 'action',
+    multi: false,
+  },
+  schedule: {
+    label: '聚会日程',
+    blurb: '时间地点或线上',
+    icon: '历',
+    category: 'gathering',
+    multi: false,
+  },
+  slots: {
+    label: '岗位报名',
+    blurb: '岗位与名额',
+    icon: '岗',
+    category: 'gathering',
+    multi: false,
+  },
+  engage: {
+    label: '互动',
+    blurb: '赞评 RSVP 代祷提问',
+    icon: '互',
+    category: 'engage',
+    multi: false,
+  },
 };
 
 const ALL_TYPES = Object.keys(BLOCK_CATALOG) as OpsBlockType[];
 
-function nid(prefix: string): string {
+export function nid(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export function defaultBlocksForTemplate(templateId: string): OpsLandingBlock[] {
-  const mk = (type: OpsBlockType): OpsLandingBlock => ({ id: nid(type), type });
-  switch (templateId) {
-    case 'multi_day':
-    case 'verse_day':
-    case 'memory':
-      return [mk('days'), mk('engage'), mk('cta')];
-    case 'gathering':
-    case 'season':
-      return [mk('schedule'), mk('engage'), mk('cta')];
-    case 'serve':
-      return [mk('slots'), mk('engage'), mk('cta')];
-    case 'hub':
-      return [mk('entries'), mk('cta')];
-    case 'prayer':
-      return [mk('engage'), mk('cta')];
+export function isOpsBlockType(v: unknown): v is OpsBlockType {
+  return typeof v === 'string' && ALL_TYPES.includes(v as OpsBlockType);
+}
+
+export function defaultDataForType(type: OpsBlockType): Record<string, unknown> {
+  switch (type) {
+    case 'text':
+      return { heading: '', body: '', role: 'section' };
+    case 'audio':
+      return { title: '音频', src: '', caption: '' };
+    case 'image':
+      return { url: '', caption: '' };
+    case 'divider':
+      return { style: 'line' };
+    case 'verse':
+      return { ref: '', note: '' };
+    case 'tabs':
+      return {
+        tabs: [
+          { id: nid('tab'), label: '标签 1', body: '' },
+          { id: nid('tab'), label: '标签 2', body: '' },
+        ],
+      };
     default:
-      return [mk('cta')];
+      return {};
   }
 }
 
-/** 从已有落地页数据推断应有的控件（兼容旧活动无 blocks） */
+function mk(
+  type: OpsBlockType,
+  data?: Record<string, unknown>,
+  stableId?: string,
+): OpsLandingBlock {
+  const base: OpsLandingBlock = { id: stableId || nid(type), type };
+  if (BLOCK_CATALOG[type].multi || data) {
+    base.data = { ...defaultDataForType(type), ...(data || {}) };
+  }
+  return base;
+}
+
+export function defaultBlocksForTemplate(templateId: string): OpsLandingBlock[] {
+  const intro = mk('text', {
+    heading: '',
+    body: '',
+    role: 'intro',
+  });
+  switch (templateId) {
+    case 'blank':
+      return [intro, mk('cta')];
+    case 'multi_day':
+    case 'verse_day':
+    case 'memory':
+      return [intro, mk('days'), mk('engage'), mk('cta')];
+    case 'gathering':
+    case 'season':
+      return [intro, mk('schedule'), mk('engage'), mk('cta')];
+    case 'serve':
+      return [intro, mk('slots'), mk('engage'), mk('cta')];
+    case 'hub':
+      return [intro, mk('entries'), mk('cta')];
+    case 'prayer':
+    case 'prayer_drive':
+      return [intro, mk('engage'), mk('cta')];
+    default:
+      return [intro, mk('cta')];
+  }
+}
+
+/** 旧活动：把顶层字段迁成控件顺序 */
 export function inferBlocksFromLanding(
   landing: OpsCampaignLanding,
   templateId: string,
 ): OpsLandingBlock[] {
-  const mk = (type: OpsBlockType): OpsLandingBlock => ({ id: nid(type), type });
   const out: OpsLandingBlock[] = [];
   const has = (t: OpsBlockType) => out.some((b) => b.type === t);
 
-  if ((landing.days || []).length > 0 && !has('days')) out.push(mk('days'));
+  const body = (landing.body || '').trim();
+  out.push(
+    mk(
+      'text',
+      {
+        heading: (landing.title || '').trim(),
+        body,
+        role: 'intro',
+      },
+      'legacy_intro',
+    ),
+  );
+
+  if ((landing.days || []).length > 0 && !has('days')) out.push(mk('days', undefined, 'legacy_days'));
   if (
     (landing.schedule?.startsAt || landing.schedule?.location || landing.schedule?.onlineNote) &&
     !has('schedule')
   ) {
-    out.push(mk('schedule'));
+    out.push(mk('schedule', undefined, 'legacy_schedule'));
   }
-  if ((landing.slots || []).length > 0 && !has('slots')) out.push(mk('slots'));
-  if ((landing.entries || []).length > 0 && !has('entries')) out.push(mk('entries'));
+  if ((landing.slots || []).length > 0 && !has('slots')) out.push(mk('slots', undefined, 'legacy_slots'));
+  if ((landing.entries || []).length > 0 && !has('entries')) {
+    out.push(mk('entries', undefined, 'legacy_entries'));
+  }
 
   const f = landing.features || {};
-  if (
-    (f.likes || f.comments || f.rsvp || f.prayer || f.questions) &&
-    !has('engage')
-  ) {
-    out.push(mk('engage'));
+  if ((f.likes || f.comments || f.rsvp || f.prayer || f.questions) && !has('engage')) {
+    out.push(mk('engage', undefined, 'legacy_engage'));
   }
 
-  if (!out.length) return defaultBlocksForTemplate(templateId);
-  if (!has('cta')) out.push(mk('cta'));
+  if (!has('cta')) out.push(mk('cta', undefined, 'legacy_cta'));
+
+  // 若完全空且无正文，回退模板默认
+  if (!body && out.length <= 2 && !(landing.days || []).length) {
+    return defaultBlocksForTemplate(templateId);
+  }
   return out;
+}
+
+export function normalizeBlocks(raw: unknown): OpsLandingBlock[] {
+  if (!Array.isArray(raw)) return [];
+  const out: OpsLandingBlock[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    if (typeof rec.id !== 'string' || !isOpsBlockType(rec.type)) continue;
+    const block: OpsLandingBlock = { id: rec.id, type: rec.type };
+    if (rec.data && typeof rec.data === 'object') {
+      block.data = rec.data as Record<string, unknown>;
+    } else if (BLOCK_CATALOG[rec.type].multi) {
+      block.data = defaultDataForType(rec.type);
+    }
+    out.push(block);
+  }
+  return out;
+}
+
+/** 同步 intro 文本控件 ↔ landing.body / title */
+export function syncIntroTextToLanding(landing: OpsCampaignLanding): OpsCampaignLanding {
+  const blocks = normalizeBlocks(landing.blocks);
+  const intro = blocks.find(
+    (b) => b.type === 'text' && (b.data?.role === 'intro' || b.data?.role === 'body'),
+  );
+  if (!intro?.data) return { ...landing, blocks };
+  const body = String(intro.data.body || '');
+  const heading = String(intro.data.heading || '').trim();
+  return {
+    ...landing,
+    blocks,
+    body,
+    title: heading || landing.title,
+  };
 }
 
 export function ensureLandingBlocks(
   landing: OpsCampaignLanding,
   templateId: string,
 ): OpsCampaignLanding {
-  const raw = Array.isArray(landing.blocks) ? landing.blocks : [];
-  const cleaned = raw.filter(
-    (b): b is OpsLandingBlock =>
-      Boolean(b?.id && b?.type && ALL_TYPES.includes(b.type as OpsBlockType)),
-  ) as OpsLandingBlock[];
+  const cleaned = normalizeBlocks(landing.blocks);
   if (cleaned.length) {
-    return { ...landing, blocks: cleaned };
+    // 旧版无 text 时补 intro
+    const hasText = cleaned.some((b) => b.type === 'text');
+    if (!hasText && (landing.body || '').trim()) {
+      cleaned.unshift(
+        mk('text', {
+          heading: (landing.title || '').trim(),
+          body: landing.body || '',
+          role: 'intro',
+        }),
+      );
+    }
+    return syncIntroTextToLanding({ ...landing, blocks: cleaned });
   }
-  return { ...landing, blocks: inferBlocksFromLanding(landing, templateId) };
+  return syncIntroTextToLanding({
+    ...landing,
+    blocks: inferBlocksFromLanding(landing, templateId),
+  });
 }
 
 export function addLandingBlock(
   landing: OpsCampaignLanding,
   type: OpsBlockType,
 ): OpsCampaignLanding {
-  const blocks = [...(landing.blocks || [])];
-  if (blocks.some((b) => b.type === type)) return landing;
+  const blocks = normalizeBlocks(landing.blocks);
+  const meta = BLOCK_CATALOG[type];
+  if (!meta.multi && blocks.some((b) => b.type === type)) return landing;
 
+  const block = mk(type);
   const next: OpsCampaignLanding = {
     ...landing,
-    blocks: [...blocks, { id: nid(type), type }],
+    blocks: [...blocks, block],
   };
 
   if (type === 'days' && !(next.days || []).length) {
@@ -132,11 +350,10 @@ export function addLandingBlock(
     ];
   }
   if (type === 'engage') {
-    next.features = {
-      likes: true,
-      comments: true,
-      ...(next.features || {}),
-    };
+    next.features = { likes: true, comments: true, ...(next.features || {}) };
+  }
+  if (type === 'text' && block.data?.role === 'intro') {
+    return syncIntroTextToLanding(next);
   }
   return next;
 }
@@ -145,10 +362,10 @@ export function removeLandingBlock(
   landing: OpsCampaignLanding,
   blockId: string,
 ): OpsCampaignLanding {
-  return {
+  return syncIntroTextToLanding({
     ...landing,
-    blocks: (landing.blocks || []).filter((b) => b.id !== blockId),
-  };
+    blocks: normalizeBlocks(landing.blocks).filter((b) => b.id !== blockId),
+  });
 }
 
 export function reorderLandingBlocks(
@@ -156,7 +373,7 @@ export function reorderLandingBlocks(
   fromId: string,
   toId: string,
 ): OpsCampaignLanding {
-  const blocks = [...(landing.blocks || [])];
+  const blocks = normalizeBlocks(landing.blocks);
   const from = blocks.findIndex((b) => b.id === fromId);
   const to = blocks.findIndex((b) => b.id === toId);
   if (from < 0 || to < 0 || from === to) return landing;
@@ -165,7 +382,51 @@ export function reorderLandingBlocks(
   return { ...landing, blocks };
 }
 
+export function updateBlockData(
+  landing: OpsCampaignLanding,
+  blockId: string,
+  data: Record<string, unknown>,
+): OpsCampaignLanding {
+  const blocks = normalizeBlocks(landing.blocks).map((b) =>
+    b.id === blockId ? { ...b, data: { ...(b.data || {}), ...data } } : b,
+  );
+  return syncIntroTextToLanding({ ...landing, blocks });
+}
+
 export function availableBlockTypes(landing: OpsCampaignLanding): OpsBlockType[] {
-  const used = new Set((landing.blocks || []).map((b) => b.type));
-  return ALL_TYPES.filter((t) => !used.has(t));
+  const blocks = normalizeBlocks(landing.blocks);
+  const used = new Set(blocks.map((b) => b.type));
+  return ALL_TYPES.filter((t) => BLOCK_CATALOG[t].multi || !used.has(t));
+}
+
+export function blocksByCategory(
+  types: OpsBlockType[],
+): { category: OpsBlockCategory; label: string; types: OpsBlockType[] }[] {
+  return BLOCK_CATEGORIES.map((c) => ({
+    category: c.id,
+    label: c.label,
+    types: types.filter((t) => BLOCK_CATALOG[t].category === c.id),
+  })).filter((g) => g.types.length > 0);
+}
+
+export function blockSummary(block: OpsLandingBlock): string {
+  const d = block.data || {};
+  switch (block.type) {
+    case 'text':
+      return String(d.heading || d.body || '空文本').slice(0, 28);
+    case 'audio':
+      return String(d.title || d.src || '未设置音频').slice(0, 28);
+    case 'image':
+      return String(d.caption || d.url || '未设置图片').slice(0, 28);
+    case 'verse':
+      return String(d.ref || '未填经文').slice(0, 28);
+    case 'tabs': {
+      const tabs = Array.isArray(d.tabs) ? d.tabs : [];
+      return `${tabs.length} 个标签`;
+    }
+    case 'divider':
+      return d.style === 'space' ? '空白间距' : '分割线';
+    default:
+      return BLOCK_CATALOG[block.type].blurb;
+  }
 }

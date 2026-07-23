@@ -26,8 +26,8 @@ export const CAMPAIGN_CONFIG_SECTIONS: Array<{
   label: string;
   hint: string;
 }> = [
-  { id: 'basic', anchor: 'ops-sec-basic', label: '基本', hint: '名称与说明' },
-  { id: 'content', anchor: 'ops-sec-content', label: '落地页', hint: '模板内容' },
+  { id: 'basic', anchor: 'ops-sec-basic', label: '基本', hint: '名称与推荐文案' },
+  { id: 'content', anchor: 'ops-sec-content', label: '落地页', hint: '控件搭建内容' },
   { id: 'audience', anchor: 'ops-sec-audience', label: '可见范围', hint: '谁能看见' },
   { id: 'exposure', anchor: 'ops-sec-exposure', label: '首页曝光', hint: '推荐位与时段' },
 ];
@@ -160,6 +160,169 @@ export function firstIncompleteSection(
   return null;
 }
 
+/** 字段级必填/建议槽位（与发布检查对齐；blocking=false 不挡发布） */
+export type RequiredSlot = {
+  id: string;
+  section: CampaignConfigSectionId;
+  label: string;
+  done: boolean;
+  blocking: boolean;
+  anchor: string;
+};
+
+export function buildRequiredSlots(input: PublishChecklistInput): RequiredSlot[] {
+  const landing = input.landing || {};
+  const templateId = input.templateId || '';
+  const slots: RequiredSlot[] = [];
+
+  slots.push({
+    id: 'name',
+    section: 'basic',
+    label: '活动名称',
+    done: Boolean(input.name?.trim()),
+    blocking: true,
+    anchor: 'ops-sec-basic',
+  });
+
+  if (templateId === 'multi_day' || templateId === 'memory' || templateId === 'verse_day') {
+    const days = landing.days || [];
+    const filled = days.some((d) => (d.body || '').trim() || (d.verseRef || '').trim());
+    slots.push({
+      id: 'days',
+      section: 'content',
+      label: templateId === 'memory' ? '至少一节背诵经文' : '至少一天日课内容',
+      done: filled,
+      blocking: true,
+      anchor: 'ops-sec-content',
+    });
+    slots.push({
+      id: 'intro',
+      section: 'content',
+      label: '活动说明（建议）',
+      done: Boolean((landing.body || '').trim()),
+      blocking: false,
+      anchor: 'ops-sec-content',
+    });
+  } else if (templateId === 'gathering') {
+    const schedule = landing.schedule;
+    slots.push({
+      id: 'sched_time',
+      section: 'content',
+      label: '聚会开始时间',
+      done: Boolean((schedule?.startsAt || '').trim()),
+      blocking: true,
+      anchor: 'ops-sec-content',
+    });
+    slots.push({
+      id: 'sched_place',
+      section: 'content',
+      label: '地点或线上说明',
+      done:
+        Boolean((schedule?.location || '').trim()) ||
+        Boolean((schedule?.onlineNote || '').trim()),
+      blocking: true,
+      anchor: 'ops-sec-content',
+    });
+  } else if (templateId === 'serve') {
+    const valid = (landing.slots || []).some((s) => (s.title || '').trim() && (s.limit || 0) > 0);
+    slots.push({
+      id: 'slots',
+      section: 'content',
+      label: '至少一个有名额岗位',
+      done: valid,
+      blocking: true,
+      anchor: 'ops-sec-content',
+    });
+  } else if (templateId === 'hub') {
+    const valid = (landing.entries || []).filter(
+      (e) => (e.title || '').trim() && (e.href || '').trim(),
+    );
+    slots.push({
+      id: 'entries',
+      section: 'content',
+      label: '至少 2 个入口',
+      done: valid.length >= 2,
+      blocking: true,
+      anchor: 'ops-sec-content',
+    });
+  } else if (
+    templateId === 'promo' ||
+    templateId === 'season' ||
+    templateId === 'prayer_drive' ||
+    templateId === 'welcome' ||
+    templateId === 'testify'
+  ) {
+    slots.push({
+      id: 'body',
+      section: 'content',
+      label: '活动说明',
+      done: Boolean((landing.body || '').trim()),
+      blocking: true,
+      anchor: 'ops-sec-content',
+    });
+  } else if (templateId === 'blank') {
+    slots.push({
+      id: 'intro',
+      section: 'content',
+      label: '主文案（建议）',
+      done: Boolean((landing.body || '').trim()),
+      blocking: false,
+      anchor: 'ops-sec-content',
+    });
+  }
+
+  const mode = input.audienceMode || 'groups';
+  if (mode === 'all' || mode === 'admin_preview') {
+    slots.push({
+      id: 'audience_admin',
+      section: 'audience',
+      label: '超管受众权限',
+      done: Boolean(input.isPlatformAdmin),
+      blocking: true,
+      anchor: 'ops-sec-audience',
+    });
+  } else {
+    slots.push({
+      id: 'audience_groups',
+      section: 'audience',
+      label: '至少一个可见群',
+      done: Boolean(input.groupIds?.length),
+      blocking: true,
+      anchor: 'ops-sec-audience',
+    });
+  }
+
+  const start = (input.startAt || '').trim();
+  const end = (input.endAt || '').trim();
+  const s = start ? parseLocalOrIso(start) : NaN;
+  const e = end ? parseLocalOrIso(end) : NaN;
+  slots.push({
+    id: 'schedule',
+    section: 'exposure',
+    label: '开始与结束时间',
+    done: Boolean(start && end && !Number.isNaN(s) && !Number.isNaN(e) && e > s),
+    blocking: true,
+    anchor: 'ops-sec-exposure',
+  });
+  if (input.railEnabled !== false) {
+    const slot = Number(input.railSlot || 0);
+    slots.push({
+      id: 'rail',
+      section: 'exposure',
+      label: '今日推荐位置',
+      done: slot >= 1 && slot <= 3,
+      blocking: true,
+      anchor: 'ops-sec-exposure',
+    });
+  }
+
+  return slots;
+}
+
+export function blockingSlotsPending(slots: RequiredSlot[]): RequiredSlot[] {
+  return slots.filter((s) => s.blocking && !s.done);
+}
+
 export function chinaYmd(d = new Date()): string {
   const fmt = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Shanghai',
@@ -191,6 +354,14 @@ export function campaignShareUrl(campaignId: string, day?: number): string {
   if (typeof window === 'undefined') return `/campaigns/view/${campaignId}`;
   const u = new URL(`/campaigns/view/${campaignId}`, window.location.origin);
   if (day) u.searchParams.set('day', String(day));
+  return u.toString();
+}
+
+/** 创建者预览链（草稿也可看） */
+export function campaignPreviewUrl(campaignId: string): string {
+  if (typeof window === 'undefined') return `/campaigns/view/${campaignId}?preview=1`;
+  const u = new URL(`/campaigns/view/${campaignId}`, window.location.origin);
+  u.searchParams.set('preview', '1');
   return u.toString();
 }
 

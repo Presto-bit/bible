@@ -10,14 +10,19 @@ import {
   saveCampaignDraft,
 } from '@/lib/campaign_draft';
 import {
+  blockingSlotsPending,
   buildPublishChecklist,
+  buildRequiredSlots,
   CAMPAIGN_CONFIG_SECTIONS,
+  campaignPreviewUrl,
   campaignSectionDone,
   campaignStatusLabel,
   campaignStatusTone,
+  copyText,
   firstIncompleteSection,
   type CampaignConfigSectionId,
 } from '@/lib/campaign_ops';
+import { getReadingExample, hasReadingExample } from '@/lib/campaign_example_copy';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
 import { ensureLandingBlocks } from '@/lib/campaign_blocks';
@@ -106,6 +111,9 @@ function CampaignEditInner() {
   );
 
   const checklist = useMemo(() => buildPublishChecklist(checklistInput), [checklistInput]);
+
+  const requiredSlots = useMemo(() => buildRequiredSlots(checklistInput), [checklistInput]);
+  const pendingBlocking = useMemo(() => blockingSlotsPending(requiredSlots), [requiredSlots]);
 
   const sectionDone = useMemo(() => {
     const map = {} as Record<CampaignConfigSectionId, boolean>;
@@ -371,6 +379,23 @@ function CampaignEditInner() {
     }
   };
 
+  const copyCampaign = async () => {
+    setBusy(true);
+    try {
+      const { campaign } = await api.copyCampaign(id);
+      setHint('已复制为新草稿');
+      router.push(`/campaigns/${campaign.id}/edit`);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '复制失败');
+      setBusy(false);
+    }
+  };
+
+  const copyPreview = async () => {
+    const ok = await copyText(campaignPreviewUrl(id));
+    setHint(ok ? '预览链已复制' : '复制失败');
+  };
+
   if (!camp && !err) {
     return (
       <main className="container">
@@ -431,11 +456,26 @@ function CampaignEditInner() {
 
       {checklist.length > 0 ? (
         <div className="ops-banner ops-banner-warn">
-          <strong style={{ display: 'block', marginBottom: 4 }}>发布前检查</strong>
-          <ul style={{ margin: 0, paddingLeft: 18 }}>
-            {checklist.map((e) => (
-              <li key={e}>{e}</li>
-            ))}
+          <strong style={{ display: 'block', marginBottom: 4 }}>
+            发布前检查 · 还差 {pendingBlocking.length} 项必填
+          </strong>
+          <ul className="ops-checklist-by-section">
+            {CAMPAIGN_CONFIG_SECTIONS.map((sec) => {
+              const items = requiredSlots.filter((s) => s.section === sec.id && s.blocking && !s.done);
+              if (!items.length) return null;
+              return (
+                <li key={sec.id}>
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => jumpToSection(sec.id, sec.anchor)}
+                  >
+                    {sec.label}
+                  </button>
+                  <span className="muted"> — {items.map((i) => i.label).join('、')}</span>
+                </li>
+              );
+            })}
           </ul>
           {nextSection ? (
             <button
@@ -465,6 +505,7 @@ function CampaignEditInner() {
           {CAMPAIGN_CONFIG_SECTIONS.map((s, idx) => {
             const done = sectionDone[s.id];
             const current = activeSection === s.id;
+            const pending = requiredSlots.filter((x) => x.section === s.id && x.blocking && !x.done);
             return (
               <li key={s.id}>
                 <button
@@ -478,16 +519,38 @@ function CampaignEditInner() {
                   </span>
                   <span className="ops-progress-step-text">
                     <strong>{s.label}</strong>
-                    <span>{done ? '已完成' : s.hint}</span>
+                    <span>
+                      {done
+                        ? '已完成'
+                        : pending.length
+                          ? `缺 ${pending.map((p) => p.label).join('、')}`
+                          : s.hint}
+                    </span>
                   </span>
                 </button>
               </li>
             );
           })}
         </ol>
+        <div className="ops-slot-chips" aria-label="必填槽位">
+          {requiredSlots.map((slot) => (
+            <button
+              key={slot.id}
+              type="button"
+              className={`ops-slot-chip${slot.done ? ' is-done' : ''}${slot.blocking ? '' : ' is-soft'}`}
+              onClick={() =>
+                jumpToSection(slot.section, slot.anchor)
+              }
+              title={slot.blocking ? '必填' : '建议填写'}
+            >
+              {slot.done ? '✓ ' : slot.blocking ? '' : '○ '}
+              {slot.label}
+            </button>
+          ))}
+        </div>
         <p className="ops-progress-caption muted">
           {nextSection
-            ? `下一步建议：完善「${nextSection.label}」——点上方步骤可随时跳转回看。`
+            ? `下一步建议：完善「${nextSection.label}」——点上方步骤或槽位可跳转。`
             : '四步已齐，预览确认后即可发布。'}
         </p>
       </nav>
@@ -504,25 +567,28 @@ function CampaignEditInner() {
           </span>
           <span className="muted">{openSections.basic ? '收起' : '展开'}</span>
         </button>
-        <label className="ops-field">
-          <span>活动名称</span>
-          <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+        <label className={`ops-field${!name.trim() ? ' is-required' : ''}`}>
+          <span>
+            活动名称
+            {!name.trim() ? <span className="ops-req-tag">必填</span> : null}
+          </span>
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={
+              hasReadingExample(camp?.templateId || '')
+                ? getReadingExample(camp!.templateId)?.suggestedName || '活动名称'
+                : '活动名称'
+            }
+          />
         </label>
         <label className="ops-field" style={{ marginTop: 10 }}>
           <span>今日推荐副文案</span>
           <input className="input" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
         </label>
-        <label className="ops-field" style={{ marginTop: 10 }}>
-          <span>落地页说明</span>
-          <textarea
-            className="input"
-            rows={3}
-            value={landing.body || ''}
-            onChange={(e) => setLanding({ ...landing, body: e.target.value })}
-          />
-        </label>
-        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-          粘贴教材内容前，请确认你有权在群体内使用。
+        <p className="muted" style={{ fontSize: 12, margin: '10px 0 0' }}>
+          落地页正文、音频、Tab 等请在下方「落地页内容」用控件搭建。
         </p>
       </div>
 
@@ -539,7 +605,7 @@ function CampaignEditInner() {
           <span className="muted">{openSections.content ? '收起' : '展开'}</span>
         </button>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          从控件库添加积木，拖动排序；展开卡片填写内容。右侧可预览首页卡与落地页。
+          按控件类型添加（文本 / 音频 / Tab / 日课等），拖动排序，点选后在右侧配置。
         </p>
         <CampaignBlockEditor
           landing={landing}
@@ -691,8 +757,14 @@ function CampaignEditInner() {
         <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
           全屏预览
         </Link>
+        <button type="button" className="btn" disabled={busy} onClick={() => void copyPreview()}>
+          复制预览链
+        </button>
         <button type="button" className="btn" disabled={busy} onClick={() => void saveAsTemplate()}>
           另存模板
+        </button>
+        <button type="button" className="btn" disabled={busy} onClick={() => void copyCampaign()}>
+          复制活动
         </button>
         <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
           延期 7 天
@@ -708,6 +780,7 @@ function CampaignEditInner() {
           landing={{ ...landing, title: name.trim() || landing.title, primaryCta: resolvedCta }}
           railEnabled={railEnabled}
           railSlot={railSlot}
+          onHint={setHint}
         />
       </div>
     </OpsPcShell>

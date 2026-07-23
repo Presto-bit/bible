@@ -10,7 +10,10 @@ import {
 } from '@/lib/api';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
-import { CAMPAIGN_SCENES } from '@/lib/campaign_scenes';
+import {
+  NEW_PLATFORM_TEMPLATE_IDS,
+  PLATFORM_TEMPLATE_BLOCK_LABELS,
+} from '@/lib/campaign_scenes';
 import { defaultPrimaryCta } from '@/lib/campaign_nav';
 
 function toLocalInput(d: Date): string {
@@ -41,8 +44,6 @@ function CampaignNewInner() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const readScene = CAMPAIGN_SCENES[0];
-
   useEffect(() => {
     void (async () => {
       try {
@@ -60,12 +61,15 @@ function CampaignNewInner() {
     })();
   }, []);
 
-  const sceneTemplates = useMemo(() => {
+  const platformTemplates = useMemo(() => {
     const byId = new Map(templates.map((t) => [t.id, t]));
-    return (readScene?.templateIds || [])
-      .map((id) => byId.get(id))
-      .filter(Boolean) as OpsCampaignTemplate[];
-  }, [templates, readScene]);
+    return NEW_PLATFORM_TEMPLATE_IDS.map((id) => byId.get(id)).filter(
+      Boolean,
+    ) as OpsCampaignTemplate[];
+  }, [templates]);
+
+  const blankTpl = platformTemplates.find((t) => t.id === 'blank');
+  const starterTemplates = platformTemplates.filter((t) => t.id !== 'blank');
 
   const startDraft = async (opts: {
     templateId: string;
@@ -129,7 +133,7 @@ function CampaignNewInner() {
       title="新建活动"
       backHref="/admin?tab=ops"
       backLabel="活动运营"
-      sub={readScene?.sub || '选择模板后进入完整配置'}
+      sub="选起点，进编辑器用控件搭落地页"
     >
       {err ? (
         <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>
@@ -139,10 +143,80 @@ function CampaignNewInner() {
       {busy ? <p className="muted">正在创建草稿…</p> : null}
 
       <div className="ops-pc-new">
+        <button
+          type="button"
+          className="ops-new-blank card"
+          disabled={busy || !blankTpl}
+          onClick={() =>
+            void startDraft({
+              templateId: 'blank',
+              name: '未命名活动',
+              landing: blankTpl?.landing || {},
+            })
+          }
+        >
+          <span className="ops-new-blank-icon" aria-hidden>
+            +
+          </span>
+          <span className="ops-new-blank-text">
+            <strong>从空白开始</strong>
+            <span className="muted">只有文本与主按钮，用控件库自由搭建</span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </button>
+
+        <p className="section-label" style={{ marginTop: 22 }}>
+          平台模板
+        </p>
+        <p className="muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
+          预置积木骨架，进编辑后仍可加减控件
+        </p>
+        <div className="ops-select-list" style={{ marginTop: 4 }}>
+          {starterTemplates.map((t) => {
+            const labels = PLATFORM_TEMPLATE_BLOCK_LABELS[t.id] || [];
+            return (
+              <button
+                key={t.id}
+                type="button"
+                className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
+                disabled={busy}
+                onClick={() =>
+                  void startDraft({
+                    templateId: t.id,
+                    name: t.name,
+                    landing: t.landing || {},
+                  })
+                }
+              >
+                <span className="pill">{t.tag}</span>
+                <span className="home-list-main">
+                  <strong>{t.name}</strong>
+                  <span className="muted home-list-sub">{t.blurb}</span>
+                  {labels.length ? (
+                    <span className="ops-tpl-tags">
+                      {labels.map((lb) => (
+                        <span key={lb} className="ops-tpl-tag">
+                          {lb}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="muted home-list-chevron">›</span>
+              </button>
+            );
+          })}
+        </div>
+
         {userTemplates.length > 0 ? (
           <>
-            <p className="section-label">我的模板</p>
-            <div className="ops-select-list" style={{ marginTop: 8 }}>
+            <p className="section-label" style={{ marginTop: 22 }}>
+              我的模板
+            </p>
+            <p className="muted" style={{ fontSize: 12, margin: '4px 0 8px' }}>
+              编辑页「另存模板」保存的结构与文案
+            </p>
+            <div className="ops-select-list" style={{ marginTop: 4 }}>
               {userTemplates.map((t) => (
                 <button
                   key={t.id}
@@ -151,7 +225,7 @@ function CampaignNewInner() {
                   disabled={busy}
                   onClick={() =>
                     void startDraft({
-                      templateId: t.baseTemplateId,
+                      templateId: t.baseTemplateId || 'blank',
                       name: t.name,
                       landing: t.landing || {},
                     })
@@ -160,7 +234,7 @@ function CampaignNewInner() {
                   <span className="pill">我的</span>
                   <span className="home-list-main">
                     <strong>{t.name}</strong>
-                    <span className="muted home-list-sub">基于平台模板复用</span>
+                    <span className="muted home-list-sub">复用上次另存的落地页</span>
                   </span>
                   <span className="muted home-list-chevron">›</span>
                 </button>
@@ -168,34 +242,6 @@ function CampaignNewInner() {
             </div>
           </>
         ) : null}
-
-        <p className="section-label" style={{ marginTop: userTemplates.length ? 20 : 0 }}>
-          {readScene?.title || '带大家读经'}
-        </p>
-        <div className="ops-select-list" style={{ marginTop: 8 }}>
-          {sceneTemplates.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
-              disabled={busy}
-              onClick={() =>
-                void startDraft({
-                  templateId: t.id,
-                  name: t.name,
-                  landing: t.landing || {},
-                })
-              }
-            >
-              <span className="pill">{t.tag}</span>
-              <span className="home-list-main">
-                <strong>{t.name}</strong>
-                <span className="muted home-list-sub">{t.blurb}</span>
-              </span>
-              <span className="muted home-list-chevron">›</span>
-            </button>
-          ))}
-        </div>
       </div>
     </OpsPcShell>
   );

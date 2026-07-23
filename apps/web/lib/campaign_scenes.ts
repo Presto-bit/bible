@@ -1,4 +1,4 @@
-/** 新建活动：先选意图，再展示该意图下的模板（避免一次铺开全部） */
+/** 新建活动：空白起点 + 平台模板（读经）+ 我的模板 */
 
 export type CampaignSceneId = 'mine' | 'read';
 
@@ -10,7 +10,20 @@ export type CampaignScene = {
   templateIds: string[];
 };
 
-/** 本期仅开放「带大家读经」场景；其它场景模板仍可编辑已有活动，但不出现在新建选型 */
+/** 新建页展示的平台模板（空白 + 读经）；其它 TEMPLATES 仍可用于旧活动 */
+export const NEW_PLATFORM_TEMPLATE_IDS = ['blank', 'multi_day', 'verse_day', 'memory'] as const;
+
+export type NewPlatformTemplateId = (typeof NEW_PLATFORM_TEMPLATE_IDS)[number];
+
+/** 平台模板预置控件标签（新建卡片展示用） */
+export const PLATFORM_TEMPLATE_BLOCK_LABELS: Record<string, string[]> = {
+  blank: ['文本', '主按钮'],
+  multi_day: ['文本', '日课', '互动', '主按钮'],
+  verse_day: ['文本', '日课', '互动', '主按钮'],
+  memory: ['文本', '日课', '互动', '主按钮'],
+};
+
+/** @deprecated 保留兼容；新建页已改为空白 + 平台模板列表 */
 export const CAMPAIGN_SCENES: CampaignScene[] = [
   {
     id: 'read',

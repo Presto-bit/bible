@@ -1302,8 +1302,8 @@ export interface OpsCampaignLanding {
   slots?: Array<{ id: string; title: string; limit: number }>;
   entries?: Array<{ id: string; title: string; sub?: string; href: string }>;
   primaryCta?: { label?: string; href?: string };
-  /** 落地页积木顺序（编辑器用；内容仍在上述字段） */
-  blocks?: Array<{ id: string; type: string }>;
+  /** 落地页积木顺序与内容（编辑器用） */
+  blocks?: Array<{ id: string; type: string; data?: Record<string, unknown> }>;
 }
 
 export interface OpsCampaign {

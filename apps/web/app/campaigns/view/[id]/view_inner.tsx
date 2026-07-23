@@ -6,6 +6,8 @@ import { useParams, useSearchParams } from 'next/navigation';
 import { api, type OpsCampaignDetail } from '@/lib/api';
 import { shareCampaignLink, formatCountdown } from '@/lib/campaign_ops';
 import { openCampaignHref } from '@/lib/campaign_nav';
+import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlocks';
+import { ensureLandingBlocks } from '@/lib/campaign_blocks';
 
 export default function CampaignViewInner() {
   const params = useParams();
@@ -338,7 +340,16 @@ export default function CampaignViewInner() {
         ) : null}
       </div>
 
-      {camp.landing?.body ? <p className="ops-view-body">{camp.landing.body}</p> : null}
+      {camp.landing?.body && !(camp.landing?.blocks || []).length ? (
+        <p className="ops-view-body">{camp.landing.body}</p>
+      ) : null}
+      <CampaignLandingBlocks
+        landing={ensureLandingBlocks(camp.landing || {}, camp.templateId || '')}
+        templateId={camp.templateId}
+        campaignId={id}
+        mode="view"
+        onlyTypes={['text', 'audio', 'image', 'divider', 'verse', 'tabs']}
+      />
 
       {camp.isCreator && camp.status !== 'draft' && camp.stats ? (
         <div className="ops-stats-grid" style={{ marginTop: 16 }}>
