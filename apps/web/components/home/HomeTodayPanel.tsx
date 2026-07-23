@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { bookCoverImageUrl, bookCoverLabel } from '@/lib/book_cover';
+import { bookCoverImageUrl } from '@/lib/book_cover';
 import type { HomeTodayPanelModel } from '@/lib/home_today_panel';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
@@ -23,87 +23,75 @@ function navigate(href: string, router: ReturnType<typeof useRouter>) {
   router.push(href);
 }
 
-/** 今日推荐：左大主行动 + 右双（共读 / 祷告）；纸感面板，区别于 Hero 沉浸卡 */
+/** 今日推荐：浅底轻容器 + 左大右双；与 Hero 沉浸卡区分 */
 export function HomeTodayPanel({ panel }: Props) {
   const router = useRouter();
   const { primary, group, prayer } = panel;
   const bookId = primary.bookId;
 
   return (
-    <div className="home-today-panel" role="region" aria-label="今日推荐">
-      <button
-        type="button"
-        className="home-today-primary"
-        onClick={() => navigate(primary.href, router)}
-        onContextMenu={(e) => e.preventDefault()}
-      >
-        <div className="home-today-primary-book" aria-hidden>
-          {bookId ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={bookCoverImageUrl(bookId)}
-              alt=""
-              className="home-today-primary-book-img"
-            />
-          ) : (
-            <div className="home-today-primary-book-fallback">
-              <RailLineIcon id={primary.icon} size={22} />
-            </div>
-          )}
-          {bookId ? (
-            <span className="home-today-primary-book-label">
-              {bookCoverLabel(bookId)}
-            </span>
-          ) : null}
-        </div>
-        <div className="home-today-primary-body">
-          <span className="pill pill-active">{primary.tag}</span>
-          <strong className="home-today-primary-title">{primary.title}</strong>
-          {primary.sub ? (
-            <span className="muted home-today-primary-sub">{primary.sub}</span>
-          ) : null}
-          {primary.cta ? (
-            <span className="home-today-primary-cta">{primary.cta}</span>
-          ) : null}
-        </div>
-      </button>
+    <section className="home-today-shell" aria-label="今日推荐">
+      <header className="home-today-shell-head">
+        <h2 className="home-today-shell-title">今日推荐</h2>
+      </header>
+      <div className="home-today-panel">
+        <button
+          type="button"
+          className="home-today-primary"
+          onClick={() => navigate(primary.href, router)}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <div className="home-today-primary-book" aria-hidden>
+            {bookId ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={bookCoverImageUrl(bookId)}
+                alt=""
+                className="home-today-primary-book-img"
+              />
+            ) : (
+              <div className="home-today-primary-book-fallback">
+                <RailLineIcon id={primary.icon} size={22} />
+              </div>
+            )}
+          </div>
+          <div className="home-today-primary-body">
+            <span className="home-today-primary-kicker">{primary.tag}</span>
+            <strong className="home-today-primary-title">{primary.title}</strong>
+            {primary.sub ? (
+              <span className="muted home-today-primary-sub">{primary.sub}</span>
+            ) : null}
+            {primary.cta ? (
+              <span className="home-today-primary-cta">{primary.cta}</span>
+            ) : null}
+          </div>
+        </button>
 
-      <div className="home-today-sides">
-        <button
-          type="button"
-          className="home-today-side home-today-side-group"
-          onClick={() => navigate(group.href, router)}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <span className="home-today-side-icon" aria-hidden>
-            <RailLineIcon id="group" size={20} />
-          </span>
-          <span className="home-today-side-text">
-            <span className="home-today-side-tag">{group.tag}</span>
+        <div className="home-today-sides" role="group" aria-label="快捷入口">
+          <button
+            type="button"
+            className="home-today-side"
+            onClick={() => navigate(group.href, router)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <span className="home-today-side-icon" aria-hidden>
+              <RailLineIcon id="group" size={18} />
+            </span>
             <strong className="home-today-side-title">{group.title}</strong>
-            {group.sub ? (
-              <span className="muted home-today-side-sub">{group.sub}</span>
-            ) : null}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="home-today-side home-today-side-prayer"
-          onClick={() => navigate(prayer.href, router)}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <span className="home-today-side-icon" aria-hidden>
-            <RailLineIcon id="prayer" size={20} />
-          </span>
-          <span className="home-today-side-text">
-            <span className="home-today-side-tag">{prayer.tag}</span>
+          </button>
+          <button
+            type="button"
+            className="home-today-side"
+            onClick={() => navigate(prayer.href, router)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <span className="home-today-side-icon" aria-hidden>
+              <RailLineIcon id="prayer" size={18} />
+            </span>
             <strong className="home-today-side-title">{prayer.title}</strong>
-            {prayer.sub ? (
-              <span className="muted home-today-side-sub">{prayer.sub}</span>
-            ) : null}
-          </span>
-        </button>
+          </button>
+        </div>
       </div>
-    </div>
+    </section>
   );
 }

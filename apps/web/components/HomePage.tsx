@@ -588,13 +588,12 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         resetToVerseNonce={heroResetNonce}
       />
 
-      <p className="section-label home-rail-section-label">今日推荐</p>
-      <div className="home-stack home-stack-rail">
-        {groupErr ? (
+      {todayPanel ? <HomeTodayPanel panel={todayPanel} /> : null}
+      {groupErr ? (
+        <div className="home-stack home-stack-rail" style={{ marginTop: 10 }}>
           <ErrorBanner message={groupErr} onRetry={() => void refreshRail()} />
-        ) : null}
-        {todayPanel ? <HomeTodayPanel panel={todayPanel} /> : null}
-      </div>
+        </div>
+      ) : null}
 
       <HomeOnboardingBanner />
 
