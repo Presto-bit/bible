@@ -1409,7 +1409,7 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .home-hero-carousel {
-  margin-bottom: 40px;
+  margin-bottom: 60px;
 }
 
 .home-page .home-rail-section-label {
@@ -1486,13 +1486,10 @@ html:not([data-app-theme]) .card {
   filter: brightness(0.98);
 }
 
-/* 书封融入右侧背景，避免「单独贴纸」感 */
+/* 书封全幅融入背景，整卡一体，无左右分界 */
 .home-today-primary-bg {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 58%;
+  inset: 0;
   pointer-events: none;
   z-index: 0;
 }
@@ -1502,22 +1499,22 @@ html:not([data-app-theme]) .card {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center 30%;
-  transform: scale(1.06);
-  filter: saturate(0.92);
+  object-position: center 28%;
+  transform: scale(1.04);
+  filter: saturate(0.88) brightness(1.02);
 }
 
 .home-today-primary-bg-veil {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    105deg,
-    color-mix(in srgb, var(--gold-wash, #f3ead2) 72%, #fff) 0%,
-    color-mix(in srgb, var(--gold-wash, #f3ead2) 55%, #fff) 28%,
-    color-mix(in srgb, #fff 35%, transparent) 52%,
-    color-mix(in srgb, #fff 12%, transparent) 72%,
-    transparent 100%
-  );
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--gold-wash, #f3ead2) 58%, #fff) 0%,
+      color-mix(in srgb, #fff 42%, transparent) 38%,
+      color-mix(in srgb, #fff 28%, transparent) 62%,
+      color-mix(in srgb, var(--gold-wash, #f3ead2) 48%, #fff) 100%
+    );
 }
 
 .home-today-primary-bg-fallback {
@@ -1538,15 +1535,10 @@ html:not([data-app-theme]) .card {
   z-index: 1;
   flex: 1;
   min-width: 0;
-  max-width: 72%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-}
-
-.home-today-primary.has-cover .home-today-primary-main {
-  max-width: 68%;
 }
 
 .home-today-primary-badge {
@@ -1559,7 +1551,8 @@ html:not([data-app-theme]) .card {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #fff;
-  background: color-mix(in srgb, var(--ink) 78%, transparent);
+  background: color-mix(in srgb, var(--ink) 72%, transparent);
+  backdrop-filter: blur(4px);
 }
 
 .home-today-primary-title {
@@ -1572,7 +1565,7 @@ html:not([data-app-theme]) .card {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-shadow: 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
+  text-shadow: 0 1px 8px color-mix(in srgb, #fff 70%, transparent);
 }
 
 .home-today-primary-sub {
@@ -1706,15 +1699,6 @@ html:not([data-app-theme]) .card {
   .home-today-primary {
     min-height: 152px;
     padding: 12px;
-  }
-
-  .home-today-primary-bg {
-    width: 52%;
-  }
-
-  .home-today-primary-main,
-  .home-today-primary.has-cover .home-today-primary-main {
-    max-width: 74%;
   }
 
   .home-today-primary-title {
