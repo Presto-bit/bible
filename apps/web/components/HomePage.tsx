@@ -335,6 +335,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           group: buildHomeGroupRailInput([], null),
           prayer: prayerCard,
           suggest: suggestInput,
+          readDone: todayMinutes() > 0,
         }),
       );
       setGrowthCards(
@@ -415,6 +416,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           prayer: prayerCard,
           campaigns,
           suggest: suggestInput,
+          readDone: todayMinutes() > 0,
         }),
       );
     });
