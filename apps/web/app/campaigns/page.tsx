@@ -105,7 +105,7 @@ function CampaignsListInner() {
       <div className="ops-page-head">
         <div>
           <h1 className="ops-page-title">活动运营</h1>
-          <p className="ops-page-sub">平台管理员向群成员发布活动（首页今日推荐）</p>
+          <p className="ops-page-sub">选场景与模板后，在完整配置页填写并发布到首页「今日推荐」</p>
         </div>
         <Link href="/campaigns/new" className="btn btn-primary">
           新建
@@ -152,11 +152,11 @@ function CampaignsListInner() {
           <p className="muted" style={{ fontSize: 13, margin: '0 0 14px' }}>
             {query
               ? '试试换个关键词，或切换上方状态筛选。'
-              : '选一个模板，选择谁能看见，填好内容后发布。成员会在首页「今日推荐」看到。'}
+              : '先选场景与模板，再在完整配置页填写可见范围、曝光与落地页内容。'}
           </p>
           {!query ? (
             <Link href="/campaigns/new" className="btn btn-primary">
-              三步创建活动
+              新建活动
             </Link>
           ) : (
             <button type="button" className="btn" onClick={() => setQuery('')}>

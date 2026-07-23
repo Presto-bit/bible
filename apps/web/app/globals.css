@@ -21948,6 +21948,102 @@ body.devotional-immersive .app-body {
   line-height: 1.4;
 }
 
+/* 与「我的 / 首页」列表行一致的选择行 */
+.ops-select-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ops-select-row {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--line, var(--border));
+  background: var(--surface);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+button.ops-select-row,
+label.ops-select-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  margin: 0;
+}
+.ops-select-row.is-on {
+  border-color: color-mix(in srgb, var(--dawn-gold, #c4a35a) 55%, var(--line));
+  background: color-mix(in srgb, var(--dawn-gold, #c4a35a) 10%, var(--surface));
+}
+.ops-select-row .home-list-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.ops-select-row .home-list-main strong {
+  font-size: 15px;
+  font-weight: 650;
+}
+.ops-select-row .home-list-sub {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ops-setup {
+  display: grid;
+  gap: 0;
+  margin-top: 4px;
+}
+.ops-jump {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  padding: 8px 0 4px;
+  margin-top: 8px;
+  background: color-mix(in srgb, var(--bg, var(--surface)) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+.ops-check-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+  margin-top: 6px;
+}
+.ops-subblock {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--line, var(--border)) 70%, transparent);
+}
+.ops-subblock:first-of-type {
+  margin-top: 4px;
+  padding-top: 0;
+  border-top: 0;
+}
+.ops-subblock-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 8px;
+}
+.ops-subblock-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ops-nested-card {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--line, var(--border)) 80%, transparent);
+  background: color-mix(in srgb, var(--ink-soft) 4%, transparent);
+  display: grid;
+  gap: 6px;
+}
+.ops-slot-row {
+  grid-template-columns: 1fr 88px;
+  align-items: center;
+}
+
 .ops-sticky-bar {
   position: sticky;
   bottom: 0;

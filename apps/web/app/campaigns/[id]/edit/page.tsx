@@ -304,14 +304,31 @@ function CampaignEditInner() {
     );
   }
 
+  if (!camp && err) {
+    return (
+      <main className="container ops-page">
+        <Link href="/campaigns" className="ops-back">
+          ← 活动运营
+        </Link>
+        <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>
+          {err}
+        </p>
+      </main>
+    );
+  }
+
+  const scrollTo = (anchor: string) => {
+    document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <main className="container ops-page">
-      <Link href="/campaigns" className="ops-back">
-        ← 活动运营
-      </Link>
       <div className="ops-page-head">
         <div>
-          <h1 className="ops-page-title">编辑活动</h1>
+          <Link href="/campaigns" className="ops-back">
+            ← 活动运营
+          </Link>
+          <h1 className="ops-page-title">{name.trim() || '编辑活动'}</h1>
           {camp ? (
             <p className="ops-page-sub" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
               <span className={`ops-status ops-status-${campaignStatusTone(status)}`}>
@@ -356,20 +373,36 @@ function CampaignEditInner() {
           </ul>
         </div>
       ) : (
-        <p className="ops-banner ops-banner-ok">发布检查已通过，可以发布给群成员。</p>
+        <p className="ops-banner ops-banner-ok">发布检查已通过，可以发布。</p>
       )}
 
-      <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+      <nav className="ops-chip-row ops-jump" aria-label="编辑分区">
+        {(
+          [
+            ['ops-sec-basic', '基本'],
+            ['ops-sec-audience', '可见范围'],
+            ['ops-sec-exposure', '首页曝光'],
+            ['ops-sec-content', '落地页内容'],
+          ] as const
+        ).map(([id, label]) => (
+          <button key={id} type="button" className="ops-chip" onClick={() => scrollTo(id)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      <div id="ops-sec-basic" className="settings-card">
+        <p className="settings-title">基本信息</p>
         <label className="ops-field">
-          <span>名称</span>
+          <span>活动名称</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
         </label>
-        <label className="ops-field">
-          <span>首页副文案</span>
+        <label className="ops-field" style={{ marginTop: 10 }}>
+          <span>今日推荐副文案</span>
           <input className="input" value={subtitle} onChange={(e) => setSubtitle(e.target.value)} />
         </label>
-        <label className="ops-field">
-          <span>说明</span>
+        <label className="ops-field" style={{ marginTop: 10 }}>
+          <span>落地页说明</span>
           <textarea
             className="input"
             rows={3}
@@ -377,89 +410,126 @@ function CampaignEditInner() {
             onChange={(e) => setLanding({ ...landing, body: e.target.value })}
           />
         </label>
-        <p className="muted" style={{ fontSize: 12, margin: 0 }}>
+        <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
           粘贴教材内容前，请确认你有权在群体内使用。
         </p>
+      </div>
 
-        <div>
-          <p className="section-label">谁能看见</p>
-          {isPlatformAdmin ? (
-            <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
-              {(
-                [
-                  ['groups', '指定群'],
-                  ['all', '全站'],
-                  ['admin_preview', '仅超管预览'],
-                ] as const
-              ).map(([k, label]) => (
-                <button
-                  key={k}
-                  type="button"
-                  className={`ops-chip${audienceMode === k ? ' is-on' : ''}`}
-                  onClick={() => setAudienceMode(k)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {audienceMode === 'groups' ? (
-            <div style={{ display: 'grid', gap: 8 }}>
-              {groups.map((g) => (
-                <label key={g.id} className="card" style={{ padding: 10, display: 'flex', gap: 8 }}>
-                  <input type="checkbox" checked={groupIds.includes(g.id)} onChange={() => toggleGroup(g.id)} />
-                  <span>{g.name}</span>
-                </label>
-              ))}
-            </div>
-          ) : (
-            <p className="muted" style={{ fontSize: 13 }}>
-              {audienceMode === 'all'
-                ? '全站用户可见（仅平台超管）'
-                : '仅带管理后台令牌的预览可见'}
-            </p>
-          )}
-        </div>
-
-        <div className="card" style={{ padding: 12 }}>
-          <p className="section-label" style={{ marginTop: 0 }}>首页今日推荐</p>
-          <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
-            活动出现在首页「今日推荐」的三张卡中（第 1 位为主卡）。不占用每日经文 Hero。
-          </p>
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <input type="checkbox" checked={railEnabled} onChange={(e) => setRailEnabled(e.target.checked)} />
-            出现在今日推荐
-          </label>
-          <div className="ops-chip-row" style={{ marginTop: 10 }}>
-            {[1, 2, 3].map((n) => (
+      <div id="ops-sec-audience" className="settings-card">
+        <p className="settings-title">谁能看见</p>
+        {isPlatformAdmin ? (
+          <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
+            {(
+              [
+                ['groups', '指定群'],
+                ['all', '全站'],
+                ['admin_preview', '仅超管预览'],
+              ] as const
+            ).map(([k, label]) => (
               <button
-                key={n}
+                key={k}
                 type="button"
-                className={`ops-chip${railSlot === n ? ' is-on' : ''}`}
-                disabled={!railEnabled}
-                onClick={() => setRailSlot(n)}
+                className={`ops-chip${audienceMode === k ? ' is-on' : ''}`}
+                onClick={() => setAudienceMode(k)}
               >
-                第 {n} 位{n === 1 ? ' · 主卡' : ''}
+                {label}
               </button>
             ))}
           </div>
-        </div>
+        ) : null}
+        {audienceMode === 'groups' ? (
+          groups.length === 0 ? (
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              暂无群可选。可改为全站，或先去发现创建群。
+            </p>
+          ) : (
+            <div className="ops-select-list">
+              {groups.map((g) => (
+                <label
+                  key={g.id}
+                  className={`card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row${
+                    groupIds.includes(g.id) ? ' is-on' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={groupIds.includes(g.id)}
+                    onChange={() => toggleGroup(g.id)}
+                    style={{ marginRight: 4 }}
+                  />
+                  <span className="home-list-main">
+                    <strong>{g.name}</strong>
+                    <span className="muted home-list-sub">
+                      {g.role === 'owner' ? '群主' : '可选受众'}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )
+        ) : (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            {audienceMode === 'all'
+              ? '登录用户在活动时段内均可在今日推荐看到。'
+              : '仅超管预览可见，不会推给普通成员。'}
+          </p>
+        )}
+      </div>
 
-        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr' }}>
-          <label>
-            <span className="muted" style={{ fontSize: 12 }}>开始</span>
-            <input className="input" type="datetime-local" value={startAt} onChange={(e) => setStartAt(e.target.value)} style={{ width: '100%', marginTop: 4 }} />
+      <div id="ops-sec-exposure" className="settings-card">
+        <p className="settings-title">首页今日推荐</p>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+          出现在首页「今日推荐」最多三张卡中；第 1 位为主卡。不占用每日经文 Hero。
+        </p>
+        <label className="ops-check-row">
+          <input type="checkbox" checked={railEnabled} onChange={(e) => setRailEnabled(e.target.checked)} />
+          出现在今日推荐
+        </label>
+        <div className="ops-chip-row" style={{ marginTop: 10 }}>
+          {[1, 2, 3].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className={`ops-chip${railSlot === n ? ' is-on' : ''}`}
+              disabled={!railEnabled}
+              onClick={() => setRailSlot(n)}
+            >
+              第 {n} 位{n === 1 ? ' · 主卡' : ''}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
+          <label className="ops-field">
+            <span>开始</span>
+            <input
+              className="input"
+              type="datetime-local"
+              value={startAt}
+              onChange={(e) => setStartAt(e.target.value)}
+            />
           </label>
-          <label>
-            <span className="muted" style={{ fontSize: 12 }}>结束</span>
-            <input className="input" type="datetime-local" value={endAt} onChange={(e) => setEndAt(e.target.value)} style={{ width: '100%', marginTop: 4 }} />
+          <label className="ops-field">
+            <span>结束</span>
+            <input
+              className="input"
+              type="datetime-local"
+              value={endAt}
+              onChange={(e) => setEndAt(e.target.value)}
+            />
           </label>
         </div>
+      </div>
+
+      <div id="ops-sec-content" className="settings-card">
+        <p className="settings-title">落地页内容</p>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+          按模板类型显示对应块；不需要的块不会出现。
+        </p>
 
         {(landing.days || []).length > 0 ? (
-          <div className="card" style={{ padding: 12 }}>
-            <p className="section-label" style={{ marginTop: 0 }}>日课解锁</p>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div className="ops-subblock">
+            <p className="ops-subblock-title">日课解锁</p>
+            <label className="ops-check-row">
               <input
                 type="radio"
                 checked={dayUnlock === 'all'}
@@ -472,7 +542,7 @@ function CampaignEditInner() {
               />
               全部可读
             </label>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 6 }}>
+            <label className="ops-check-row">
               <input
                 type="radio"
                 checked={dayUnlock === 'by_start'}
@@ -489,8 +559,8 @@ function CampaignEditInner() {
         ) : null}
 
         {camp?.templateId === 'gathering' || camp?.templateId === 'season' ? (
-          <div className="card" style={{ padding: 12, display: 'grid', gap: 8 }}>
-            <p className="section-label" style={{ marginTop: 0 }}>聚会 / 节期信息</p>
+          <div className="ops-subblock" style={{ display: 'grid', gap: 8 }}>
+            <p className="ops-subblock-title">聚会 / 节期信息</p>
             <input
               className="input"
               placeholder="地点"
@@ -498,7 +568,11 @@ function CampaignEditInner() {
               onChange={(e) =>
                 setLanding({
                   ...landing,
-                  schedule: { ...(landing.schedule || {}), location: e.target.value, startsAt: fromLocalInput(startAt) },
+                  schedule: {
+                    ...(landing.schedule || {}),
+                    location: e.target.value,
+                    startsAt: fromLocalInput(startAt),
+                  },
                   features: { ...(landing.features || {}), countdown: true },
                 })
               }
@@ -514,8 +588,8 @@ function CampaignEditInner() {
                 })
               }
             />
-            {(camp.templateId === 'season') ? (
-              <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {camp.templateId === 'season' ? (
+              <label className="ops-check-row">
                 <input
                   type="checkbox"
                   checked={Boolean(landing.features?.rsvp)}
@@ -532,8 +606,8 @@ function CampaignEditInner() {
           </div>
         ) : null}
 
-        <div className="card" style={{ padding: 12, display: 'grid', gap: 8 }}>
-          <p className="section-label" style={{ marginTop: 0 }}>主按钮（CTA）</p>
+        <div className="ops-subblock" style={{ display: 'grid', gap: 8 }}>
+          <p className="ops-subblock-title">主按钮（CTA）</p>
           <input
             className="input"
             placeholder="按钮文案"
@@ -556,13 +630,12 @@ function CampaignEditInner() {
               })
             }
           />
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <div className="ops-chip-row" style={{ marginTop: 0 }}>
             {QUICK_HREFS.map((q) => (
               <button
                 key={q.href}
                 type="button"
-                className="btn"
-                style={{ fontSize: 12, padding: '4px 8px' }}
+                className="ops-chip"
                 onClick={() =>
                   setLanding({
                     ...landing,
@@ -580,9 +653,11 @@ function CampaignEditInner() {
         </div>
 
         {camp?.templateId === 'hub' || (landing.entries || []).length > 0 ? (
-          <div>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <p className="section-label" style={{ margin: 0 }}>多入口</p>
+          <div className="ops-subblock">
+            <div className="ops-subblock-head">
+              <p className="ops-subblock-title" style={{ margin: 0 }}>
+                多入口
+              </p>
               <button
                 type="button"
                 className="btn"
@@ -601,12 +676,12 @@ function CampaignEditInner() {
                 加入口
               </button>
             </div>
-            <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            <p className="muted" style={{ fontSize: 12, margin: '6px 0 8px' }}>
               至少 2 个有效入口（标题 + 链接）才能发布
             </p>
-            <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+            <div style={{ display: 'grid', gap: 10 }}>
               {(landing.entries || []).map((e, idx) => (
-                <div key={e.id || idx} className="card" style={{ padding: 12, display: 'grid', gap: 6 }}>
+                <div key={e.id || idx} className="ops-nested-card">
                   <input
                     className="input"
                     placeholder="标题"
@@ -637,13 +712,12 @@ function CampaignEditInner() {
                       setLanding({ ...landing, entries });
                     }}
                   />
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <div className="ops-chip-row" style={{ marginTop: 0, alignItems: 'center' }}>
                     {QUICK_HREFS.map((q) => (
                       <button
                         key={q.href}
                         type="button"
-                        className="btn"
-                        style={{ fontSize: 12, padding: '4px 8px' }}
+                        className="ops-chip"
                         onClick={() => {
                           const entries = [...(landing.entries || [])];
                           entries[idx] = { ...entries[idx], href: q.href };
@@ -672,16 +746,22 @@ function CampaignEditInner() {
         ) : null}
 
         {camp?.templateId === 'serve' || landing.features?.signup || (landing.slots || []).length > 0 ? (
-          <div>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <p className="section-label" style={{ margin: 0 }}>岗位名额</p>
+          <div className="ops-subblock">
+            <div className="ops-subblock-head">
+              <p className="ops-subblock-title" style={{ margin: 0 }}>
+                岗位名额
+              </p>
               <button
                 type="button"
                 className="btn"
                 onClick={() => {
                   const slots = [...(landing.slots || [])];
                   const n = slots.length + 1;
-                  slots.push({ id: `slot_${n}_${Date.now().toString(36)}`, title: `岗位 ${n}`, limit: 5 });
+                  slots.push({
+                    id: `slot_${n}_${Date.now().toString(36)}`,
+                    title: `岗位 ${n}`,
+                    limit: 5,
+                  });
                   setLanding({
                     ...landing,
                     slots,
@@ -692,9 +772,9 @@ function CampaignEditInner() {
                 加岗位
               </button>
             </div>
-            <div style={{ display: 'grid', gap: 8 }}>
+            <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
               {(landing.slots || []).map((s, idx) => (
-                <div key={s.id} className="card" style={{ padding: 10, display: 'grid', gap: 6, gridTemplateColumns: '1fr 88px' }}>
+                <div key={s.id} className="ops-nested-card ops-slot-row">
                   <input
                     className="input"
                     value={s.title}
@@ -712,9 +792,13 @@ function CampaignEditInner() {
                     value={s.limit}
                     onChange={(e) => {
                       const slots = [...(landing.slots || [])];
-                      slots[idx] = { ...slots[idx], limit: Math.max(1, Number(e.target.value) || 1) };
+                      slots[idx] = {
+                        ...slots[idx],
+                        limit: Math.max(1, Number(e.target.value) || 1),
+                      };
                       setLanding({ ...landing, slots });
                     }}
+                    aria-label="名额"
                   />
                 </div>
               ))}
@@ -722,10 +806,13 @@ function CampaignEditInner() {
           </div>
         ) : null}
 
-        {(landing.days || []).length > 0 || ['multi_day', 'memory', 'verse_day'].includes(camp?.templateId || '') ? (
-          <div>
-            <div className="section-row" style={{ marginTop: 0 }}>
-              <p className="section-label" style={{ margin: 0 }}>日课 / 清单</p>
+        {(landing.days || []).length > 0 ||
+        ['multi_day', 'memory', 'verse_day'].includes(camp?.templateId || '') ? (
+          <div className="ops-subblock">
+            <div className="ops-subblock-head">
+              <p className="ops-subblock-title" style={{ margin: 0 }}>
+                日课 / 清单
+              </p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="button" className="btn" onClick={() => setBulkOpen((v) => !v)}>
                   批量粘贴
@@ -736,23 +823,28 @@ function CampaignEditInner() {
               </div>
             </div>
             {bulkOpen ? (
-              <div className="card" style={{ padding: 12, marginBottom: 10 }}>
+              <div className="ops-nested-card" style={{ marginTop: 8 }}>
                 <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
                   每天一段，空行分隔；首行可作标题
                 </p>
-                <textarea className="input" rows={8} value={bulkText} onChange={(e) => setBulkText(e.target.value)} style={{ width: '100%' }} />
+                <textarea
+                  className="input"
+                  rows={8}
+                  value={bulkText}
+                  onChange={(e) => setBulkText(e.target.value)}
+                />
                 <button type="button" className="btn btn-primary" style={{ marginTop: 8 }} onClick={applyBulk}>
                   导入并替换
                 </button>
               </div>
             ) : null}
-            <div style={{ display: 'grid', gap: 10 }}>
+            <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
               {(landing.days || []).map((d, idx) => (
-                <div key={d.day || idx} className="card" style={{ padding: 12 }}>
+                <div key={d.day || idx} className="ops-nested-card">
                   <strong>第 {d.day || idx + 1} 天</strong>
                   <input
                     className="input"
-                    style={{ width: '100%', marginTop: 6 }}
+                    style={{ marginTop: 6 }}
                     value={d.title || ''}
                     onChange={(e) => updateDay(idx, { title: e.target.value })}
                     placeholder="标题"
@@ -760,14 +852,14 @@ function CampaignEditInner() {
                   <textarea
                     className="input"
                     rows={4}
-                    style={{ width: '100%', marginTop: 6 }}
+                    style={{ marginTop: 6 }}
                     value={d.body || ''}
                     onChange={(e) => updateDay(idx, { body: e.target.value })}
                     placeholder="正文"
                   />
                   <input
                     className="input"
-                    style={{ width: '100%', marginTop: 6 }}
+                    style={{ marginTop: 6 }}
                     value={d.verseRef || ''}
                     onChange={(e) => updateDay(idx, { verseRef: e.target.value })}
                     placeholder="经文引用，如 创 1:1-5"
@@ -777,29 +869,29 @@ function CampaignEditInner() {
             </div>
           </div>
         ) : null}
+      </div>
 
-        <div className="ops-sticky-bar">
-          <button type="button" className="btn" disabled={busy} onClick={() => void save('draft')}>
-            存草稿
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || checklist.length > 0}
-            onClick={() => void save('published')}
-          >
-            发布
-          </button>
-          <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
-            预览
-          </Link>
-          <button type="button" className="btn" disabled={busy} onClick={() => void saveAsTemplate()}>
-            另存模板
-          </button>
-          <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
-            延期 7 天
-          </button>
-        </div>
+      <div className="ops-sticky-bar">
+        <button type="button" className="btn" disabled={busy} onClick={() => void save('draft')}>
+          存草稿
+        </button>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={busy || checklist.length > 0}
+          onClick={() => void save('published')}
+        >
+          发布
+        </button>
+        <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
+          预览
+        </Link>
+        <button type="button" className="btn" disabled={busy} onClick={() => void saveAsTemplate()}>
+          另存模板
+        </button>
+        <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
+          延期 7 天
+        </button>
       </div>
     </main>
   );
