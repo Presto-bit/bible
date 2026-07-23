@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { bookCoverImageUrl } from '@/lib/book_cover';
-import type { HomeTodayPanelModel } from '@/lib/home_today_panel';
+import type { HomeTodayPanelModel, HomeTodayPanelSlot } from '@/lib/home_today_panel';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
 import { isPwaMainTabHref, navigatePwaTab, navigateToReaderHref } from '@/lib/pwa_tab_nav';
@@ -21,6 +21,50 @@ function navigate(href: string, router: ReturnType<typeof useRouter>) {
     return;
   }
   router.push(href);
+}
+
+function SideCard({
+  slot,
+  toneClass,
+}: {
+  slot: HomeTodayPanelSlot;
+  toneClass: string;
+}) {
+  const router = useRouter();
+  const classes = [
+    'home-today-side',
+    toneClass,
+    slot.pending ? 'is-pending' : '',
+    slot.done ? 'is-done' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <button
+      type="button"
+      className={classes}
+      onClick={() => navigate(slot.href, router)}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <span className="home-today-side-text">
+        <span className="home-today-side-label">{slot.tag}</span>
+        <strong className="home-today-side-title">{slot.title}</strong>
+        {slot.cta ? (
+          <span className="home-today-side-cta">{slot.cta}</span>
+        ) : null}
+      </span>
+      {slot.badge ? (
+        <span className="home-today-side-badge" aria-label={slot.badge}>
+          {slot.badge}
+        </span>
+      ) : (
+        <span className="home-today-side-icon" aria-hidden>
+          <RailLineIcon id={slot.icon || 'group'} size={20} />
+        </span>
+      )}
+    </button>
+  );
 }
 
 /** 今日推荐：浅底容器 + 三张独立浅色卡（左大右双） */
@@ -71,36 +115,16 @@ export function HomeTodayPanel({ panel }: Props) {
         </button>
 
         <div className="home-today-sides" role="group" aria-label="快捷入口">
-          <button
-            type="button"
-            key={`group-${group.href}-${group.title}`}
-            className="home-today-side home-today-side-group"
-            onClick={() => navigate(group.href, router)}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            <span className="home-today-side-text">
-              <span className="home-today-side-label">{group.tag}</span>
-              <strong className="home-today-side-title">{group.title}</strong>
-            </span>
-            <span className="home-today-side-icon" aria-hidden>
-              <RailLineIcon id={group.icon || 'group'} size={20} />
-            </span>
-          </button>
-          <button
-            type="button"
+          <SideCard
+            key={`group-${group.href}-${group.title}-${group.badge || ''}`}
+            slot={group}
+            toneClass="home-today-side-group"
+          />
+          <SideCard
             key={`prayer-${prayer.href}-${prayer.title}`}
-            className="home-today-side home-today-side-prayer"
-            onClick={() => navigate(prayer.href, router)}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            <span className="home-today-side-text">
-              <span className="home-today-side-label">{prayer.tag}</span>
-              <strong className="home-today-side-title">{prayer.title}</strong>
-            </span>
-            <span className="home-today-side-icon" aria-hidden>
-              <RailLineIcon id={prayer.icon || 'prayer'} size={20} />
-            </span>
-          </button>
+            slot={prayer}
+            toneClass="home-today-side-prayer"
+          />
         </div>
       </div>
     </section>

@@ -20,7 +20,7 @@ export function buildHomeGroupRailInput(
 ): HomeGroupRailInput {
   if (!groups.length) {
     return {
-      title: '邀请好友共读',
+      title: '创建共读',
       sub: '创建或加入',
       href: '/discover',
     };

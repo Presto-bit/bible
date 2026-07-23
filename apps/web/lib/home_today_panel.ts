@@ -4,6 +4,9 @@ import type { RailIconId } from './home_rail';
 import { bookIdFromReaderHref } from './book_cover';
 import { trimRailSub, trimRailTitle } from './home_rail';
 
+/** 侧卡标题宜短，便于窄栏扫读 */
+const SIDE_TITLE_MAX = 10;
+
 export type HomeTodayPanelSlot = {
   id: string;
   tag: string;
@@ -12,8 +15,14 @@ export type HomeTodayPanelSlot = {
   href: string;
   icon: RailIconId;
   bookId?: string;
-  /** 主卡右下角 CTA */
+  /** 主卡 / 侧卡 CTA */
   cta?: string;
+  /** 侧卡角标（如打卡 2/5） */
+  badge?: string;
+  /** 侧卡完成态（弱化） */
+  done?: boolean;
+  /** 侧卡待办强调 */
+  pending?: boolean;
 };
 
 export type HomeTodayPanelModel = {
@@ -75,10 +84,11 @@ function campaignSide(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
   return {
     id: `campaign-${c.id}`,
     tag: c.tag || '活动',
-    title: trimRailTitle(c.title, 18),
+    title: trimRailTitle(c.title, SIDE_TITLE_MAX),
     sub: '',
     href: c.href,
     icon: 'devotional',
+    cta: '进入',
   };
 }
 
@@ -124,67 +134,157 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   };
 }
 
-/** 共读：一行状态句，避免「共读」标签与标题重复 */
+function isGroupEmpty(g: NonNullable<HomeTodayPanelInput['group']>): boolean {
+  const title = (g.title || '').trim();
+  const sub = (g.sub || '').trim();
+  return (
+    !title ||
+    title === '邀请好友共读' ||
+    title === '创建共读' ||
+    sub === '创建或加入'
+  );
+}
+
+/**
+ * 共读侧卡：标签固定；标题只写一件事；待办用角标；完成态弱化。
+ */
 function groupSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   const g = input.group;
-  if (!g?.title) {
+  if (!g || isGroupEmpty(g)) {
     return {
       id: 'group',
       tag: '共读',
-      title: '邀请好友共读',
+      title: '创建共读',
       sub: '',
       href: g?.href || '/discover',
       icon: 'group',
+      cta: '去创建',
     };
   }
-  const name = (g.sub || '').trim();
+
   const status = g.title.trim();
-  let title = status;
-  if (status === '今日待打卡' && name) title = `${name} · 待打卡`;
-  else if (/^\d+ 个任务$/.test(status) && name) title = `${name} · ${status}`;
-  else if (status === '今日共读已完成') title = '今日共读已完成';
-  else if (name === '今日已打卡') title = `${status} · 已打卡`;
-  else if (name === '看看动态') title = status;
-  else if (name === '创建或加入') title = '邀请好友共读';
-  else if (name && name !== status && !status.includes(name)) {
-    title = `${name} · ${status}`;
+  const hint = (g.sub || '').trim();
+  const badge = g.statLabel?.trim() || undefined;
+
+  if (status === '今日待打卡') {
+    return {
+      id: 'group',
+      tag: '共读',
+      title: '待打卡',
+      sub: '',
+      href: g.href || '/discover',
+      icon: 'group',
+      badge,
+      cta: '去打卡',
+      pending: true,
+    };
   }
+
+  const taskMatch = status.match(/^(\d+)\s*个任务$/);
+  if (taskMatch) {
+    return {
+      id: 'group',
+      tag: '共读',
+      title: `${taskMatch[1]} 个任务`,
+      sub: '',
+      href: g.href || '/discover',
+      icon: 'group',
+      badge,
+      cta: '去完成',
+      pending: true,
+    };
+  }
+
+  if (status === '今日共读已完成') {
+    return {
+      id: 'group',
+      tag: '共读',
+      title: '今日已完成',
+      sub: '',
+      href: g.href || '/discover',
+      icon: 'group',
+      cta: '看看',
+      done: true,
+    };
+  }
+
+  const friendsMatch = status.match(/^(\d+)\s*位好友/);
+  if (friendsMatch || hint === '看看动态') {
+    return {
+      id: 'group',
+      tag: '共读',
+      title: friendsMatch ? `${friendsMatch[1]} 位好友` : '看看动态',
+      sub: '',
+      href: g.href || '/discover',
+      icon: 'group',
+      cta: '看看',
+    };
+  }
+
+  if (hint === '今日已打卡') {
+    return {
+      id: 'group',
+      tag: '共读',
+      title: '今日已打卡',
+      sub: '',
+      href: g.href || '/discover',
+      icon: 'group',
+      badge,
+      cta: '进入',
+      done: true,
+    };
+  }
+
+  if (/^今日\s*\d+\s*人$/.test(hint)) {
+    return {
+      id: 'group',
+      tag: '共读',
+      title: trimRailTitle(hint, SIDE_TITLE_MAX),
+      sub: '',
+      href: g.href || '/discover',
+      icon: 'group',
+      badge,
+      cta: '进入',
+    };
+  }
+
   return {
     id: 'group',
     tag: '共读',
-    title: trimRailTitle(title, 18),
+    title: trimRailTitle(status, SIDE_TITLE_MAX),
     sub: '',
     href: g.href || '/discover',
     icon: 'group',
+    badge,
+    cta: '进入',
   };
 }
 
-/** 祷告：一行状态句 */
+/**
+ * 祷告侧卡：有计划只显示「第 N 天」；空态可行动并直达祷告 tab。
+ */
 function prayerSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   const p = input.prayer;
   if (!p) {
     return {
       id: 'prayer',
       tag: '祷告',
-      title: '安静片刻',
+      title: '开始祷告',
       sub: '',
-      href: '/plans',
+      href: '/plans?tab=prayer',
       icon: 'prayer',
+      cta: '去祷告',
     };
   }
   const day = (p.title || '').trim();
-  const planName = (p.sub || '').trim();
-  let title = '今日祷告';
-  if (planName && day) title = `${planName} · ${day}`;
-  else if (day) title = day;
-  else if (planName) title = planName;
   return {
     id: 'prayer',
     tag: '祷告',
-    title: trimRailTitle(title, 18),
+    title: trimRailTitle(day || '今日祷告', SIDE_TITLE_MAX),
     sub: '',
-    href: p.href || '/plans',
+    href: p.href || '/plans?tab=prayer',
     icon: 'prayer',
+    cta: '去祷告',
   };
 }
 
