@@ -33,7 +33,7 @@ const METRIC_LABELS: Record<string, string> = {
 
 const NAV = [
   { href: '/admin?tab=stats', label: '数据预览', desc: '健康与趋势', id: 'stats' },
-  { href: '/campaigns', label: '活动运营', desc: '今日推荐活动', id: 'ops' },
+  { href: '/admin?tab=ops', label: '活动运营', desc: '今日推荐活动', id: 'ops' },
   { href: '/admin?tab=rag', label: 'RAG 注释库', desc: 'Notion 式资料', id: 'rag' },
 ] as const;
 

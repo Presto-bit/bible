@@ -155,11 +155,14 @@ function CampaignEditInner() {
       }
       const campaign = res.campaign;
       setCamp(campaign);
-      setGroups(g.groups || []);
+      const available = g.groups || [];
+      setGroups(available);
+      const allowed = new Set(available.map((x) => x.id));
+      const savedIds = (campaign.groupIds || []).filter((id) => allowed.has(id));
       setName(campaign.name);
       setSubtitle(campaign.subtitle || '');
       setStatus(campaign.status);
-      setGroupIds(campaign.groupIds || []);
+      setGroupIds(savedIds);
       setRailSlot(campaign.railSlot || 1);
       setRailEnabled(campaign.railEnabled !== false);
       setStartAt(toLocalInput(campaign.startAt));
@@ -176,7 +179,7 @@ function CampaignEditInner() {
         setName(draft!.name);
         setSubtitle(draft!.subtitle);
         setStatus(draft!.status);
-        setGroupIds(draft!.groupIds);
+        setGroupIds((draft!.groupIds || []).filter((id) => allowed.has(id)));
         if (draft!.audienceMode) setAudienceMode(draft!.audienceMode);
         setRailSlot(draft!.railSlot);
         setRailEnabled(draft!.railEnabled);
@@ -405,7 +408,7 @@ function CampaignEditInner() {
   if (!camp && err) {
     return (
       <main className="container ops-page">
-        <Link href="/campaigns" className="ops-back">
+        <Link href="/admin?tab=ops" className="ops-back">
           ← 活动运营
         </Link>
         <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>
@@ -917,7 +920,7 @@ function CampaignEditInner() {
         {audienceMode === 'groups' ? (
           groups.length === 0 ? (
             <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              暂无群可选。发布前请改为「全站」或「仅超管预览」，或先去发现创建群。
+              暂无可用群。仅展示你当前仍是群主/管理员的群；已删除或已退出的群不会出现。可改用「全站」或「仅超管预览」，或先去发现页加入/创建群。
             </p>
           ) : (
             <div className="ops-select-list">

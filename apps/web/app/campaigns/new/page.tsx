@@ -123,7 +123,8 @@ function CampaignNewInner() {
   return (
     <OpsPcShell
       title="新建活动"
-      backHref="/campaigns"
+      backHref="/admin?tab=ops"
+      backLabel="活动运营"
       sub={readScene?.sub || '选择模板后进入完整配置'}
     >
       {err ? (

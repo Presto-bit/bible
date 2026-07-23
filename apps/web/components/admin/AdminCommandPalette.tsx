@@ -57,9 +57,7 @@ export default function AdminCommandPalette({
         group: '导航',
         label: '活动运营',
         hint: '今日推荐活动',
-        run: () => {
-          window.location.assign('/campaigns');
-        },
+        run: () => onTab('ops'),
       },
       {
         id: 'nav-rag',

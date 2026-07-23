@@ -10,8 +10,9 @@ import { AdminLoginForm } from '@/components/admin/AdminLoginForm';
 import AdminRagWorkspace from '@/components/admin/AdminRagWorkspace';
 import AdminStatsPanel from '@/components/AdminStatsPanel';
 import AdminModerationPanel from '@/components/admin/AdminModerationPanel';
+import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
+import { CampaignsListPanel } from '@/components/campaigns/CampaignsListPanel';
 import { adminCheck, clearAdminToken } from '@/lib/admin_rag';
-import Link from 'next/link';
 
 function parseTab(value: string | null): AdminTab {
   if (value === 'ops' || value === 'rag' || value === 'stats' || value === 'moderation') return value;
@@ -86,15 +87,9 @@ function AdminPageInner() {
       {tab === 'rag' ? <AdminRagWorkspace /> : null}
       {tab === 'stats' ? <AdminStatsPanel /> : null}
       {tab === 'ops' ? (
-        <div className="card ops-empty" style={{ maxWidth: 480 }}>
-          <p>活动运营工作台</p>
-          <p className="muted" style={{ fontSize: 13, margin: '0 0 14px' }}>
-            在电脑端配置读经活动，发布后出现在首页「今日推荐」。原 Hero B 活动配置已下线。
-          </p>
-          <Link href="/campaigns" className="btn btn-primary">
-            打开活动运营
-          </Link>
-        </div>
+        <CampaignAdminGate embedded>
+          <CampaignsListPanel embedded />
+        </CampaignAdminGate>
       ) : null}
       {tab === 'moderation' ? <AdminModerationPanel /> : null}
     </>

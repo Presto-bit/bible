@@ -302,7 +302,7 @@ export default function AdminStatsPanel() {
                 <Link href="/admin?tab=rag" className="font-pill">
                   打开 RAG
                 </Link>
-                <Link href="/campaigns" className="font-pill">
+                <Link href="/admin?tab=ops" className="font-pill">
                   活动运营
                 </Link>
               </div>

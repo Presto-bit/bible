@@ -3,8 +3,8 @@
 import { useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 
-/** 解锁 html/body 滚动（避免从其它页残留 height/overflow 导致运营页无法下滑） */
-function useOpsPcScrollUnlock() {
+/** 独立滚动层：配置页在壳内下滑，避免与 app 底栏/残留 height 冲突 */
+function useOpsPcScrollLock() {
   useEffect(() => {
     document.documentElement.classList.add('ops-pc-active');
     document.body.classList.add('ops-pc-active');
@@ -19,12 +19,12 @@ function useOpsPcScrollUnlock() {
   }, []);
 }
 
-/** 活动运营 PC 壳：宽版工作台布局 */
+/** 活动运营 PC 壳：宽版工作台布局（新建 / 编辑） */
 export function OpsPcShell({
   children,
   title,
   sub,
-  backHref = '/campaigns',
+  backHref = '/admin?tab=ops',
   backLabel = '活动运营',
   actions,
 }: {
@@ -35,7 +35,7 @@ export function OpsPcShell({
   backLabel?: string;
   actions?: ReactNode;
 }) {
-  useOpsPcScrollUnlock();
+  useOpsPcScrollLock();
   return (
     <main className="ops-pc-shell">
       <header className="ops-pc-head">

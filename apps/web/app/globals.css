@@ -21854,7 +21854,7 @@ body.devotional-immersive .app-body {
 .ops-list {
   display: grid;
   gap: 12px;
-  margin-top: 16px;
+  margin-top: 12px;
 }
 .ops-list-card {
   padding: 14px 14px 12px;
@@ -22190,32 +22190,112 @@ label.ops-select-row {
   background: color-mix(in srgb, var(--accent, #2f6b4f) 12%, transparent);
 }
 
-/* PC 活动运营工作台 */
+/* PC 活动运营工作台 —— 壳内独立滚动，避免整页锁死无法下滑 */
 .ops-pc-shell {
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 28px 0 96px;
-  min-height: 0;
-  overflow: visible;
+  padding: 24px 0 48px;
+  box-sizing: border-box;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow-x: clip;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 html.ops-pc-active,
-body.ops-pc-active,
-html:has(.ops-pc-shell),
-body:has(.ops-pc-shell) {
-  overflow-x: clip !important;
-  overflow-y: auto !important;
-  height: auto !important;
-  max-height: none !important;
-  min-height: 100%;
+body.ops-pc-active {
+  overflow: hidden !important;
+  height: 100% !important;
+  max-height: 100% !important;
   touch-action: pan-y;
 }
-.app-body:has(.ops-pc-shell),
 body.ops-pc-active .app-body {
-  overflow: visible !important;
-  height: auto !important;
-  max-height: none !important;
-  min-height: 100dvh;
+  overflow: hidden !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  min-height: 0 !important;
+  padding-bottom: 12px !important;
   touch-action: pan-y;
+}
+.ops-list-panel {
+  width: 100%;
+  max-width: 920px;
+}
+.ops-list-panel.is-embedded {
+  max-width: none;
+  padding-bottom: 24px;
+}
+.ops-list-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 4px;
+}
+.ops-search-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid var(--line, var(--border));
+  background: var(--surface, #fff);
+  box-sizing: border-box;
+}
+.ops-search-field:focus-within {
+  border-color: color-mix(in srgb, var(--dawn-gold, #c4a35a) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dawn-gold, #c4a35a) 16%, transparent);
+}
+.ops-search-icon {
+  display: inline-flex;
+  color: var(--ink-soft, var(--muted));
+  flex-shrink: 0;
+}
+.ops-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  height: 100%;
+  padding: 0;
+}
+.ops-search-input::placeholder {
+  color: var(--ink-faint, var(--muted));
+}
+.ops-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+.ops-search-clear {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-soft) 12%, transparent);
+  color: var(--ink-soft);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.ops-search-clear:hover {
+  background: color-mix(in srgb, var(--ink-soft) 20%, transparent);
+  color: var(--ink);
+}
+.ops-list-new {
+  flex-shrink: 0;
 }
 .ops-pc-head {
   display: flex;
@@ -22359,6 +22439,8 @@ body.ops-pc-active .app-body {
   .ops-pc-shell {
     width: calc(100% - 24px);
     padding-top: 16px;
+    height: 100dvh;
+    max-height: 100dvh;
   }
   .ops-pc-layout {
     grid-template-columns: 1fr;

@@ -659,24 +659,7 @@ def _resolve_audience_groups(
         if not is_platform_admin:
             raise HTTPException(403, "仅平台超管可设置全站或预览受众")
         return []
-    if is_platform_admin:
-        cleaned: list[str] = []
-        for gid in group_ids:
-            g = str(gid).strip()
-            if not g:
-                continue
-            exists = conn.execute(
-                "SELECT 1 FROM social_group WHERE id = %s::uuid LIMIT 1",
-                (g,),
-            ).fetchone()
-            if not exists:
-                raise HTTPException(400, f"群不存在：{g}")
-            cleaned.append(g)
-        if not cleaned:
-            if allow_empty:
-                return []
-            raise HTTPException(400, "请选择至少一个群（谁能看见）")
-        return cleaned
+    # 指定群：仅当前在籍且具备 staff 权的群（已删除/已退出不出现）
     return _validate_staff_groups(conn, user_id, group_ids, allow_empty=allow_empty)
 
 
@@ -834,11 +817,13 @@ def staff_groups(user_id: str = Depends(get_current_user)) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
         _require_platform_admin(conn, user_id)
+        # 仅当前在籍且具备群主/管理员身份的群；已删除群不在表中
         rows = conn.execute(
             """
-            SELECT g.id::text, g.name, COALESCE(m.role, 'admin')
+            SELECT g.id::text, g.name, m.role
             FROM social_group g
-            LEFT JOIN group_member m ON m.group_id = g.id AND m.user_id = %s::uuid
+            INNER JOIN group_member m ON m.group_id = g.id AND m.user_id = %s::uuid
+            WHERE m.role IN ('owner', 'admin')
             ORDER BY g.name ASC
             LIMIT 200
             """,
