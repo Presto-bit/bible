@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ensureLandingBlocks } from '@/lib/campaign_blocks';
 import {
   api,
   type OpsCampaignLanding,
@@ -77,11 +78,14 @@ function CampaignNewInner() {
       const starts = new Date();
       const ends = new Date();
       ends.setDate(ends.getDate() + 14);
-      const landing: OpsCampaignLanding = {
-        ...opts.landing,
-        title: opts.name,
-        primaryCta: defaultPrimaryCta(opts.templateId),
-      };
+      const landing: OpsCampaignLanding = ensureLandingBlocks(
+        {
+          ...opts.landing,
+          title: opts.name,
+          primaryCta: defaultPrimaryCta(opts.templateId),
+        },
+        opts.templateId,
+      );
       const { campaign } = await api.createCampaign({
         name: opts.name,
         templateId: opts.templateId,

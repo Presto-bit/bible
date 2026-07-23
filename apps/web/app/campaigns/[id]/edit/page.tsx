@@ -16,12 +16,13 @@ import {
   campaignStatusLabel,
   campaignStatusTone,
   firstIncompleteSection,
-  parseDaysFromBulkText,
   type CampaignConfigSectionId,
 } from '@/lib/campaign_ops';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
+import { ensureLandingBlocks } from '@/lib/campaign_blocks';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
+import { CampaignBlockEditor } from '@/components/campaigns/CampaignBlockEditor';
 import { CampaignLivePreview } from '@/components/campaigns/CampaignLivePreview';
 import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
 
@@ -61,8 +62,6 @@ function CampaignEditInner() {
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
   const [landing, setLanding] = useState<OpsCampaignLanding>({});
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -185,10 +184,10 @@ function CampaignEditInner() {
         setRailEnabled(draft!.railEnabled);
         setStartAt(draft!.startAt);
         setEndAt(draft!.endAt);
-        setLanding(draft!.landing || {});
+        setLanding(ensureLandingBlocks(draft!.landing || {}, campaign.templateId));
         setHint('已恢复本地草稿');
       } else {
-        setLanding(campaign.landing || {});
+        setLanding(ensureLandingBlocks(campaign.landing || {}, campaign.templateId));
       }
       skipDraftOnce.current = true;
       setDraftReady(true);
@@ -325,6 +324,7 @@ function CampaignEditInner() {
       setCamp(campaign);
       setStatus(campaign.status);
       setAudienceMode((campaign.audienceMode as typeof audienceMode) || 'groups');
+      setLanding(ensureLandingBlocks(campaign.landing || landing, campaign.templateId));
       clearCampaignDraft(id);
       skipDraftOnce.current = true;
       setHint('已保存');
@@ -336,30 +336,6 @@ function CampaignEditInner() {
     } finally {
       setBusy(false);
     }
-  };
-
-  const updateDay = (idx: number, patch: Partial<NonNullable<OpsCampaignLanding['days']>[number]>) => {
-    const days = [...(landing.days || [])];
-    days[idx] = { ...days[idx], ...patch, day: days[idx]?.day || idx + 1 };
-    setLanding({ ...landing, days });
-  };
-
-  const addDay = () => {
-    const days = [...(landing.days || [])];
-    const next = (days[days.length - 1]?.day || days.length) + 1;
-    days.push({ day: next, title: `第 ${next} 天`, body: '', verseRef: '', discussionHint: '' });
-    setLanding({ ...landing, days });
-  };
-
-  const applyBulk = () => {
-    const days = parseDaysFromBulkText(bulkText);
-    if (!days.length) {
-      setErr('没有解析到日课内容');
-      return;
-    }
-    setLanding({ ...landing, days });
-    setBulkOpen(false);
-    setHint(`已导入 ${days.length} 天`);
   };
 
   const saveAsTemplate = async () => {
@@ -394,8 +370,6 @@ function CampaignEditInner() {
       setBusy(false);
     }
   };
-
-  const dayUnlock = landing.features?.dayUnlock || 'all';
 
   if (!camp && !err) {
     return (
@@ -565,324 +539,16 @@ function CampaignEditInner() {
           <span className="muted">{openSections.content ? '收起' : '展开'}</span>
         </button>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          按模板类型显示对应块；不需要的块不会出现。
+          从控件库添加积木，拖动排序；展开卡片填写内容。右侧可预览首页卡与落地页。
         </p>
-
-        {(landing.days || []).length > 0 ? (
-          <div className="ops-subblock">
-            <p className="ops-subblock-title">日课解锁</p>
-            <label className="ops-check-row">
-              <input
-                type="radio"
-                checked={dayUnlock === 'all'}
-                onChange={() =>
-                  setLanding({
-                    ...landing,
-                    features: { ...(landing.features || {}), dayUnlock: 'all' },
-                  })
-                }
-              />
-              全部可读
-            </label>
-            <label className="ops-check-row">
-              <input
-                type="radio"
-                checked={dayUnlock === 'by_start'}
-                onChange={() =>
-                  setLanding({
-                    ...landing,
-                    features: { ...(landing.features || {}), dayUnlock: 'by_start' },
-                  })
-                }
-              />
-              按开始日每天解锁一天
-            </label>
-          </div>
-        ) : null}
-
-        {camp?.templateId === 'gathering' || camp?.templateId === 'season' ? (
-          <div className="ops-subblock" style={{ display: 'grid', gap: 8 }}>
-            <p className="ops-subblock-title">聚会 / 节期信息</p>
-            <label className="ops-field">
-              <span>聚会开始时间</span>
-              <input
-                className="input"
-                type="datetime-local"
-                value={toLocalInput(landing.schedule?.startsAt || '')}
-                onChange={(e) =>
-                  setLanding({
-                    ...landing,
-                    schedule: {
-                      ...(landing.schedule || {}),
-                      startsAt: e.target.value
-                        ? fromLocalInput(e.target.value)
-                        : '',
-                    },
-                    features: { ...(landing.features || {}), countdown: true },
-                  })
-                }
-              />
-            </label>
-            <input
-              className="input"
-              placeholder="地点"
-              value={landing.schedule?.location || ''}
-              onChange={(e) =>
-                setLanding({
-                  ...landing,
-                  schedule: {
-                    ...(landing.schedule || {}),
-                    location: e.target.value,
-                  },
-                  features: { ...(landing.features || {}), countdown: true },
-                })
-              }
-            />
-            <input
-              className="input"
-              placeholder="线上说明"
-              value={landing.schedule?.onlineNote || ''}
-              onChange={(e) =>
-                setLanding({
-                  ...landing,
-                  schedule: { ...(landing.schedule || {}), onlineNote: e.target.value },
-                })
-              }
-            />
-            {camp.templateId === 'season' ? (
-              <label className="ops-check-row">
-                <input
-                  type="checkbox"
-                  checked={Boolean(landing.features?.rsvp)}
-                  onChange={(e) =>
-                    setLanding({
-                      ...landing,
-                      features: { ...(landing.features || {}), rsvp: e.target.checked },
-                    })
-                  }
-                />
-                同时收集出席（RSVP）
-              </label>
-            ) : null}
-          </div>
-        ) : null}
-
-        <div className="ops-subblock">
-          <p className="ops-subblock-title">主按钮</p>
-          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-            按模板自动设置，成员打开落地页即可行动，无需再填链接。
-          </p>
-          {(() => {
-            const cta = resolvePrimaryCta(camp?.templateId || '', id, landing.primaryCta);
-            return (
-              <div className="ops-auto-cta">
-                <strong>{cta.label}</strong>
-                <span className="muted">{cta.href}</span>
-              </div>
-            );
-          })()}
-        </div>
-
-        {camp?.templateId === 'hub' || (landing.entries || []).length > 0 ? (
-          <div className="ops-subblock">
-            <div className="ops-subblock-head">
-              <p className="ops-subblock-title" style={{ margin: 0 }}>
-                多入口
-              </p>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  const entries = [...(landing.entries || [])];
-                  const n = entries.length + 1;
-                  entries.push({
-                    id: `e${n}_${Date.now().toString(36)}`,
-                    title: `入口 ${n}`,
-                    sub: '',
-                    href: '/reader',
-                  });
-                  setLanding({ ...landing, entries });
-                }}
-              >
-                加入口
-              </button>
-            </div>
-            <p className="muted" style={{ fontSize: 12, margin: '6px 0 8px' }}>
-              至少 2 个有效入口（标题 + 链接）才能发布
-            </p>
-            <div style={{ display: 'grid', gap: 10 }}>
-              {(landing.entries || []).map((e, idx) => (
-                <div key={e.id || idx} className="ops-nested-card">
-                  <input
-                    className="input"
-                    placeholder="标题"
-                    value={e.title}
-                    onChange={(ev) => {
-                      const entries = [...(landing.entries || [])];
-                      entries[idx] = { ...entries[idx], title: ev.target.value };
-                      setLanding({ ...landing, entries });
-                    }}
-                  />
-                  <input
-                    className="input"
-                    placeholder="副文案（可选）"
-                    value={e.sub || ''}
-                    onChange={(ev) => {
-                      const entries = [...(landing.entries || [])];
-                      entries[idx] = { ...entries[idx], sub: ev.target.value };
-                      setLanding({ ...landing, entries });
-                    }}
-                  />
-                  <input
-                    className="input"
-                    placeholder="链接"
-                    value={e.href}
-                    onChange={(ev) => {
-                      const entries = [...(landing.entries || [])];
-                      entries[idx] = { ...entries[idx], href: ev.target.value };
-                      setLanding({ ...landing, entries });
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => {
-                      const entries = (landing.entries || []).filter((_, i) => i !== idx);
-                      setLanding({ ...landing, entries });
-                    }}
-                  >
-                    删除
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {camp?.templateId === 'serve' || landing.features?.signup || (landing.slots || []).length > 0 ? (
-          <div className="ops-subblock">
-            <div className="ops-subblock-head">
-              <p className="ops-subblock-title" style={{ margin: 0 }}>
-                岗位名额
-              </p>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  const slots = [...(landing.slots || [])];
-                  const n = slots.length + 1;
-                  slots.push({
-                    id: `slot_${n}_${Date.now().toString(36)}`,
-                    title: `岗位 ${n}`,
-                    limit: 5,
-                  });
-                  setLanding({
-                    ...landing,
-                    slots,
-                    features: { ...(landing.features || {}), signup: true, questions: true },
-                  });
-                }}
-              >
-                加岗位
-              </button>
-            </div>
-            <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
-              {(landing.slots || []).map((s, idx) => (
-                <div key={s.id} className="ops-nested-card ops-slot-row">
-                  <input
-                    className="input"
-                    value={s.title}
-                    onChange={(e) => {
-                      const slots = [...(landing.slots || [])];
-                      slots[idx] = { ...slots[idx], title: e.target.value };
-                      setLanding({ ...landing, slots });
-                    }}
-                    placeholder="岗位名称"
-                  />
-                  <input
-                    className="input"
-                    type="number"
-                    min={1}
-                    value={s.limit}
-                    onChange={(e) => {
-                      const slots = [...(landing.slots || [])];
-                      slots[idx] = {
-                        ...slots[idx],
-                        limit: Math.max(1, Number(e.target.value) || 1),
-                      };
-                      setLanding({ ...landing, slots });
-                    }}
-                    aria-label="名额"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {(landing.days || []).length > 0 ||
-        ['multi_day', 'memory', 'verse_day'].includes(camp?.templateId || '') ? (
-          <div className="ops-subblock">
-            <div className="ops-subblock-head">
-              <p className="ops-subblock-title" style={{ margin: 0 }}>
-                日课 / 清单
-              </p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" className="btn" onClick={() => setBulkOpen((v) => !v)}>
-                  批量粘贴
-                </button>
-                <button type="button" className="btn" onClick={addDay}>
-                  加一天
-                </button>
-              </div>
-            </div>
-            {bulkOpen ? (
-              <div className="ops-nested-card" style={{ marginTop: 8 }}>
-                <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
-                  每天一段，空行分隔；首行可作标题
-                </p>
-                <textarea
-                  className="input"
-                  rows={8}
-                  value={bulkText}
-                  onChange={(e) => setBulkText(e.target.value)}
-                />
-                <button type="button" className="btn btn-primary" style={{ marginTop: 8 }} onClick={applyBulk}>
-                  导入并替换
-                </button>
-              </div>
-            ) : null}
-            <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
-              {(landing.days || []).map((d, idx) => (
-                <div key={d.day || idx} className="ops-nested-card">
-                  <strong>第 {d.day || idx + 1} 天</strong>
-                  <input
-                    className="input"
-                    style={{ marginTop: 6 }}
-                    value={d.title || ''}
-                    onChange={(e) => updateDay(idx, { title: e.target.value })}
-                    placeholder="标题"
-                  />
-                  <textarea
-                    className="input"
-                    rows={4}
-                    style={{ marginTop: 6 }}
-                    value={d.body || ''}
-                    onChange={(e) => updateDay(idx, { body: e.target.value })}
-                    placeholder="正文"
-                  />
-                  <input
-                    className="input"
-                    style={{ marginTop: 6 }}
-                    value={d.verseRef || ''}
-                    onChange={(e) => updateDay(idx, { verseRef: e.target.value })}
-                    placeholder="经文引用，如 创 1:1-5"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : null}
+        <CampaignBlockEditor
+          landing={landing}
+          setLanding={setLanding}
+          templateId={camp?.templateId || ''}
+          campaignId={id}
+          onHint={setHint}
+          onError={setErr}
+        />
       </div>
 
       <div id="ops-sec-audience" className={`settings-card ops-sec${openSections.audience ? '' : ' is-collapsed'}`}>
@@ -1036,6 +702,7 @@ function CampaignEditInner() {
         <CampaignLivePreview
           name={name}
           subtitle={subtitle}
+          tag={camp?.tag || undefined}
           templateId={camp?.templateId || ''}
           campaignId={id}
           landing={{ ...landing, title: name.trim() || landing.title, primaryCta: resolvedCta }}
