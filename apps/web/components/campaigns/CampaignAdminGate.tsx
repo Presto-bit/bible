@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { fetchAdminEligible } from '@/lib/admin_rag';
-import { getSessionToken } from '@/lib/session';
+import { getSessionToken } from '@/lib/api';
 
 /** 活动运营配置页：本期仅平台超管可进入。落地页消费不走此门禁。 */
 export function CampaignAdminGate({ children }: { children: ReactNode }) {
