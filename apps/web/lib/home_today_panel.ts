@@ -67,7 +67,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       id: 'resume',
       tag: '继续',
       title: trimRailTitle(input.resume.title),
-      sub: trimRailSub(input.resume.sub || '继续阅读'),
+      sub: '',
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
