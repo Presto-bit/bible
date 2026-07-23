@@ -23522,7 +23522,11 @@ body.pray-session-open .app-body {
 .pray-session-foot {
   position: relative;
   z-index: 2;
-  padding: 12px 24px calc(16px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
 }
 
 .pray-session-amen {
@@ -23549,6 +23553,26 @@ body.pray-session-open .app-body {
 
 .pray-session-amen:active {
   transform: scale(0.985);
+}
+
+.pray-session-dots {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  min-height: 12px;
+}
+
+.pray-session-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #5a4f45 18%, transparent);
+}
+
+.pray-session-dot.is-on {
+  background: var(--accent-deep, #5f7d66);
+  transform: scale(1.15);
 }
 
 @media (max-width: 360px) {

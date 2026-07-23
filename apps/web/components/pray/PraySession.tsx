@@ -346,6 +346,23 @@ export default function PraySession() {
             {isLastStep ? '完成' : '下一步'}
           </button>
         )}
+        {!completed ? (
+          <div
+            className="pray-session-dots"
+            role="progressbar"
+            aria-valuemin={1}
+            aria-valuemax={steps.length}
+            aria-valuenow={stepIndex + 1}
+            aria-label={`第 ${stepIndex + 1} 步，共 ${steps.length} 步`}
+          >
+            {steps.map((s, i) => (
+              <span
+                key={s.id}
+                className={['pray-session-dot', i === stepIndex ? 'is-on' : ''].filter(Boolean).join(' ')}
+              />
+            ))}
+          </div>
+        ) : null}
       </footer>
     </div>,
     document.body,
