@@ -59,7 +59,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       href: input.plan.href,
       icon: 'plan',
       bookId: input.plan.bookId,
-      cta: '继续 ›',
+      cta: '继续',
     };
   }
   if (input.resume) {
@@ -71,7 +71,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
-      cta: '继续 ›',
+      cta: '继续',
     };
   }
   const suggest = input.suggest;
@@ -87,7 +87,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
     href: suggest?.href || '/reader?book=JHN&chapter=1',
     icon: 'suggest',
     bookId,
-    cta: '去读 ›',
+    cta: '去读',
   };
 }
 

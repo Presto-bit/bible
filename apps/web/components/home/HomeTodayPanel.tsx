@@ -23,7 +23,7 @@ function navigate(href: string, router: ReturnType<typeof useRouter>) {
   router.push(href);
 }
 
-/** 今日推荐：浅底轻容器 + 左大右双；与 Hero 沉浸卡区分 */
+/** 今日推荐：浅底容器 + 三张独立浅色卡（左大右双） */
 export function HomeTodayPanel({ panel }: Props) {
   const router = useRouter();
   const { primary, group, prayer } = panel;
@@ -41,7 +41,17 @@ export function HomeTodayPanel({ panel }: Props) {
           onClick={() => navigate(primary.href, router)}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <div className="home-today-primary-book" aria-hidden>
+          <div className="home-today-primary-main">
+            <span className="home-today-primary-badge">{primary.tag}</span>
+            <strong className="home-today-primary-title">{primary.title}</strong>
+            {primary.sub ? (
+              <span className="home-today-primary-sub">{primary.sub}</span>
+            ) : null}
+            {primary.cta ? (
+              <span className="home-today-primary-cta">{primary.cta}</span>
+            ) : null}
+          </div>
+          <div className="home-today-primary-visual" aria-hidden>
             {bookId ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -51,44 +61,40 @@ export function HomeTodayPanel({ panel }: Props) {
               />
             ) : (
               <div className="home-today-primary-book-fallback">
-                <RailLineIcon id={primary.icon} size={22} />
+                <RailLineIcon id={primary.icon} size={24} />
               </div>
             )}
-          </div>
-          <div className="home-today-primary-body">
-            <span className="home-today-primary-kicker">{primary.tag}</span>
-            <strong className="home-today-primary-title">{primary.title}</strong>
-            {primary.sub ? (
-              <span className="muted home-today-primary-sub">{primary.sub}</span>
-            ) : null}
-            {primary.cta ? (
-              <span className="home-today-primary-cta">{primary.cta}</span>
-            ) : null}
           </div>
         </button>
 
         <div className="home-today-sides" role="group" aria-label="快捷入口">
           <button
             type="button"
-            className="home-today-side"
+            className="home-today-side home-today-side-group"
             onClick={() => navigate(group.href, router)}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <span className="home-today-side-icon" aria-hidden>
-              <RailLineIcon id="group" size={18} />
+            <span className="home-today-side-text">
+              <span className="home-today-side-label">{group.tag}</span>
+              <strong className="home-today-side-title">{group.title}</strong>
             </span>
-            <strong className="home-today-side-title">{group.title}</strong>
+            <span className="home-today-side-icon" aria-hidden>
+              <RailLineIcon id="group" size={22} />
+            </span>
           </button>
           <button
             type="button"
-            className="home-today-side"
+            className="home-today-side home-today-side-prayer"
             onClick={() => navigate(prayer.href, router)}
             onContextMenu={(e) => e.preventDefault()}
           >
-            <span className="home-today-side-icon" aria-hidden>
-              <RailLineIcon id="prayer" size={18} />
+            <span className="home-today-side-text">
+              <span className="home-today-side-label">{prayer.tag}</span>
+              <strong className="home-today-side-title">{prayer.title}</strong>
             </span>
-            <strong className="home-today-side-title">{prayer.title}</strong>
+            <span className="home-today-side-icon" aria-hidden>
+              <RailLineIcon id="prayer" size={22} />
+            </span>
           </button>
         </div>
       </div>
