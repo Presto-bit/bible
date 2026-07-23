@@ -9,7 +9,7 @@ import {
   writePrayAmbientMuted,
   type PrayAmbientTrack,
 } from '@/lib/pray_ambient';
-import { prayFlowForToday } from '@/lib/pray_flow';
+import { pickPrayFlow, prayFlowById } from '@/lib/pray_flow';
 import { logPrayer } from '@/lib/reading';
 import { useToast } from '@/components/ui/ToastProvider';
 import { applyAppTheme } from '@/lib/app_theme';
@@ -49,13 +49,12 @@ function MuteIcon({ muted }: { muted: boolean }) {
 }
 
 /**
- * 全屏沉浸祷告：对话式流程 + 短经文 + 背景音乐。
- * 左右滑切换；按时自动推进；结束后完成态，音乐继续，点关闭退出。
+ * 全屏沉浸祷告：主题可切换 + 时段/计划/阅读推荐 + 短经文 + 背景音乐。
  */
 export default function PraySession() {
   const router = useRouter();
   const toast = useToast();
-  const flow = useMemo(() => prayFlowForToday(), []);
+  const pick = useMemo(() => pickPrayFlow(), []);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const touchStartX = useRef<number | null>(null);
   const loggedRef = useRef(false);
@@ -65,9 +64,11 @@ export default function PraySession() {
   const [track] = useState<PrayAmbientTrack>(() => pickRandomPrayAmbientTrack());
   const [muted, setMuted] = useState(false);
   const [needGesture, setNeedGesture] = useState(false);
+  const [flowId, setFlowId] = useState(pick.recommended.id);
   const [stepIndex, setStepIndex] = useState(0);
   const [completed, setCompleted] = useState(false);
 
+  const flow = useMemo(() => prayFlowById(flowId), [flowId]);
   const steps = flow.steps;
   const step = steps[stepIndex];
   const isLastStep = stepIndex >= steps.length - 1;
@@ -189,6 +190,14 @@ export default function PraySession() {
     }
   };
 
+  const selectFlow = (id: string) => {
+    if (id === flowId) return;
+    setFlowId(id);
+    setStepIndex(0);
+    setCompleted(false);
+    autoPausedRef.current = false;
+  };
+
   const leave = useCallback(() => {
     audioRef.current?.pause();
     router.push('/');
@@ -244,6 +253,32 @@ export default function PraySession() {
         </button>
       </header>
 
+      {!completed ? (
+        <div className="pray-session-themes" role="tablist" aria-label="祷告主题">
+          <span className="pray-session-themes-reason">{pick.reason}</span>
+          <div className="pray-session-themes-row">
+            {pick.ordered.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                role="tab"
+                aria-selected={f.id === flowId}
+                className={[
+                  'pray-session-theme-chip',
+                  f.id === flowId ? 'is-on' : '',
+                  f.id === pick.recommended.id ? 'is-rec' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => selectFlow(f.id)}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {needGesture && !muted ? (
         <button type="button" className="pray-session-gesture" onClick={() => void tryPlay()}>
           轻触开启背景音乐
@@ -254,7 +289,7 @@ export default function PraySession() {
         {completed ? (
           <p className="pray-session-text">今日祷告已完成。你可以继续安静一会儿，或关闭离开。</p>
         ) : (
-          <div className="pray-session-step" key={step?.id}>
+          <div className="pray-session-step" key={`${flow.id}-${step?.id}`}>
             <p className="pray-session-text">{step?.text}</p>
             {step?.verse ? (
               <blockquote className="pray-session-verse">
