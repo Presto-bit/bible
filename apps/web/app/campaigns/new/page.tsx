@@ -9,11 +9,7 @@ import {
 } from '@/lib/api';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
-import {
-  CAMPAIGN_SCENES,
-  type CampaignSceneId,
-  sceneById,
-} from '@/lib/campaign_scenes';
+import { CAMPAIGN_SCENES } from '@/lib/campaign_scenes';
 import { defaultPrimaryCta } from '@/lib/campaign_nav';
 
 function toLocalInput(d: Date): string {
@@ -36,7 +32,6 @@ export default function CampaignNewPage() {
 
 function CampaignNewInner() {
   const router = useRouter();
-  const [sceneId, setSceneId] = useState<CampaignSceneId | ''>('read');
   const [templates, setTemplates] = useState<OpsCampaignTemplate[]>([]);
   const [userTemplates, setUserTemplates] = useState<
     Array<{ id: string; name: string; baseTemplateId: string; landing: OpsCampaignLanding }>
@@ -44,6 +39,8 @@ function CampaignNewInner() {
   const [defaultGroupIds, setDefaultGroupIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  const readScene = CAMPAIGN_SCENES[0];
 
   useEffect(() => {
     void (async () => {
@@ -63,11 +60,11 @@ function CampaignNewInner() {
   }, []);
 
   const sceneTemplates = useMemo(() => {
-    const scene = sceneById(sceneId || null);
-    if (!scene) return [];
     const byId = new Map(templates.map((t) => [t.id, t]));
-    return scene.templateIds.map((id) => byId.get(id)).filter(Boolean) as OpsCampaignTemplate[];
-  }, [sceneId, templates]);
+    return (readScene?.templateIds || [])
+      .map((id) => byId.get(id))
+      .filter(Boolean) as OpsCampaignTemplate[];
+  }, [templates, readScene]);
 
   const startDraft = async (opts: {
     templateId: string;
@@ -124,7 +121,11 @@ function CampaignNewInner() {
   };
 
   return (
-    <OpsPcShell title="新建活动" sub="选择读经模板后进入完整配置（电脑端工作台）">
+    <OpsPcShell
+      title="新建活动"
+      backHref="/campaigns"
+      sub={readScene?.sub || '选择模板后进入完整配置'}
+    >
       {err ? (
         <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>
           {err}
@@ -133,59 +134,11 @@ function CampaignNewInner() {
       {busy ? <p className="muted">正在创建草稿…</p> : null}
 
       <div className="ops-pc-new">
-        <label className="ops-field">
-          <span>场景</span>
-          <select
-            className="input ops-scene-select"
-            value={sceneId}
-            disabled={busy}
-            onChange={(e) => {
-              setSceneId((e.target.value || 'read') as CampaignSceneId);
-              setErr(null);
-            }}
-            aria-label="选择活动场景"
-          >
-            {userTemplates.length > 0 ? (
-              <option value="mine">我的模板（{userTemplates.length}）</option>
-            ) : null}
-            {CAMPAIGN_SCENES.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <div className="ops-select-list">
-          {sceneId === 'mine' ? (
-            userTemplates.map((t) => (
-              <button
-                key={t.id}
-                type="button"
-                className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
-                disabled={busy}
-                onClick={() =>
-                  void startDraft({
-                    templateId: t.baseTemplateId,
-                    name: t.name,
-                    landing: t.landing || {},
-                  })
-                }
-              >
-                <span className="pill">我的</span>
-                <span className="home-list-main">
-                  <strong>{t.name}</strong>
-                  <span className="muted home-list-sub">基于平台模板复用</span>
-                </span>
-                <span className="muted home-list-chevron">›</span>
-              </button>
-            ))
-          ) : (
-            <>
-              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
-                {sceneById(sceneId as CampaignSceneId)?.sub}
-              </p>
-              {sceneTemplates.map((t) => (
+        {userTemplates.length > 0 ? (
+          <>
+            <p className="section-label">我的模板</p>
+            <div className="ops-select-list" style={{ marginTop: 8 }}>
+              {userTemplates.map((t) => (
                 <button
                   key={t.id}
                   type="button"
@@ -193,22 +146,50 @@ function CampaignNewInner() {
                   disabled={busy}
                   onClick={() =>
                     void startDraft({
-                      templateId: t.id,
+                      templateId: t.baseTemplateId,
                       name: t.name,
                       landing: t.landing || {},
                     })
                   }
                 >
-                  <span className="pill">{t.tag}</span>
+                  <span className="pill">我的</span>
                   <span className="home-list-main">
                     <strong>{t.name}</strong>
-                    <span className="muted home-list-sub">{t.blurb}</span>
+                    <span className="muted home-list-sub">基于平台模板复用</span>
                   </span>
                   <span className="muted home-list-chevron">›</span>
                 </button>
               ))}
-            </>
-          )}
+            </div>
+          </>
+        ) : null}
+
+        <p className="section-label" style={{ marginTop: userTemplates.length ? 20 : 0 }}>
+          {readScene?.title || '带大家读经'}
+        </p>
+        <div className="ops-select-list" style={{ marginTop: 8 }}>
+          {sceneTemplates.map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
+              disabled={busy}
+              onClick={() =>
+                void startDraft({
+                  templateId: t.id,
+                  name: t.name,
+                  landing: t.landing || {},
+                })
+              }
+            >
+              <span className="pill">{t.tag}</span>
+              <span className="home-list-main">
+                <strong>{t.name}</strong>
+                <span className="muted home-list-sub">{t.blurb}</span>
+              </span>
+              <span className="muted home-list-chevron">›</span>
+            </button>
+          ))}
         </div>
       </div>
     </OpsPcShell>

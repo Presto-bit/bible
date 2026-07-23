@@ -22194,8 +22194,28 @@ label.ops-select-row {
 .ops-pc-shell {
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
-  padding: 28px 0 64px;
+  padding: 28px 0 96px;
+  min-height: 0;
+  overflow: visible;
+}
+html.ops-pc-active,
+body.ops-pc-active,
+html:has(.ops-pc-shell),
+body:has(.ops-pc-shell) {
+  overflow-x: clip !important;
+  overflow-y: auto !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: 100%;
+  touch-action: pan-y;
+}
+.app-body:has(.ops-pc-shell),
+body.ops-pc-active .app-body {
+  overflow: visible !important;
+  height: auto !important;
+  max-height: none !important;
   min-height: 100dvh;
+  touch-action: pan-y;
 }
 .ops-pc-head {
   display: flex;

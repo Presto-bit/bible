@@ -73,6 +73,7 @@ const SECONDARY_PREFIXES = [
   '/profile/reminders',
   '/profile/appearance',
   '/admin',
+  '/campaigns',
   '/discover/groups',
   '/group/create',
 ];
@@ -92,10 +93,11 @@ export default function BottomTabs() {
   useEffect(() => {
     const bar = document.querySelector<HTMLElement>('.tabbar');
     if (!bar) return;
-    if (compact) return;
-    // 先清残留 inline，保证各 Tab 底栏同位（含刚进入小爱）
+    // 二级页（含 /campaigns）也清 height，避免从其它页残留导致无法下滑
     document.documentElement.style.removeProperty('height');
     document.body.style.removeProperty('height');
+    if (compact) return;
+    // 先清残留 inline，保证各 Tab 底栏同位（含刚进入小爱）
     bar.style.removeProperty('transform');
     bar.style.removeProperty('bottom');
     bar.style.removeProperty('top');

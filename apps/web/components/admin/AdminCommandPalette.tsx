@@ -1,11 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  fetchAdminHeroCampaigns,
-} from '@/lib/admin_hero_b';
 import { fetchRagWorkspaceTree, type RagWorkspaceTree } from '@/lib/admin_rag';
-import type { HeroBCampaignAdmin } from '@/lib/hero_b_campaign';
+import { api, type OpsCampaign } from '@/lib/api';
 
 export type AdminTab = 'stats' | 'ops' | 'rag' | 'moderation';
 
@@ -31,7 +28,7 @@ export default function AdminCommandPalette({
   onOpenRagFile?: (collectionId: string, path: string) => void;
 }) {
   const [q, setQ] = useState('');
-  const [campaigns, setCampaigns] = useState<HeroBCampaignAdmin[]>([]);
+  const [campaigns, setCampaigns] = useState<OpsCampaign[]>([]);
   const [tree, setTree] = useState<RagWorkspaceTree | null>(null);
   const [active, setActive] = useState(0);
 
@@ -39,7 +36,10 @@ export default function AdminCommandPalette({
     if (!open) return;
     setQ('');
     setActive(0);
-    void fetchAdminHeroCampaigns().then(setCampaigns).catch(() => setCampaigns([]));
+    void api
+      .myCampaigns('all')
+      .then((r) => setCampaigns(r.campaigns || []))
+      .catch(() => setCampaigns([]));
     void fetchRagWorkspaceTree().then(setTree).catch(() => setTree(null));
   }, [open]);
 
@@ -55,9 +55,11 @@ export default function AdminCommandPalette({
       {
         id: 'nav-ops',
         group: '导航',
-        label: '运营 · Hero B',
-        hint: '活动配置',
-        run: () => onTab('ops'),
+        label: '活动运营',
+        hint: '今日推荐活动',
+        run: () => {
+          window.location.assign('/campaigns');
+        },
       },
       {
         id: 'nav-rag',
@@ -78,12 +80,11 @@ export default function AdminCommandPalette({
     for (const c of campaigns) {
       out.push({
         id: `ops-${c.id}`,
-        group: '运营活动',
+        group: '活动运营',
         label: c.name,
         hint: c.status,
         run: () => {
-          onTab('ops');
-          window.dispatchEvent(new CustomEvent('admin-ops-open', { detail: { id: c.id } }));
+          window.location.assign(`/campaigns/${c.id}/edit`);
         },
       });
     }
@@ -183,7 +184,7 @@ export default function AdminCommandPalette({
                   {showGroup ? <p className="admin-cmd-group">{item.group}</p> : null}
                   <button
                     type="button"
-                    className={`admin-cmd-item ${idx === active ? 'is-active' : ''}`}
+                    className={`admin-cmd-item${idx === active ? ' is-active' : ''}`}
                     onMouseEnter={() => setActive(idx)}
                     onClick={() => {
                       item.run();
@@ -198,7 +199,6 @@ export default function AdminCommandPalette({
             })
           )}
         </div>
-        <p className="admin-cmd-foot muted">↑↓ 选择 · Enter 打开 · Esc 关闭</p>
       </div>
     </div>
   );

@@ -464,17 +464,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <span className="muted home-list-chevron">›</span>
         </Link>
 
-        {adminEligible && !installedPwa ? (
-          <Link href="/campaigns" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
-            <span className="pill pill-active">活动</span>
-            <span className="home-list-main">
-              <strong>活动运营</strong>
-          <span className="muted home-list-sub">电脑配置 · 今日推荐</span>
-            </span>
-            <span className="muted home-list-chevron">›</span>
-          </Link>
-        ) : null}
-
         <div className="profile-progress-wrap">
           <ReadingProgress />
         </div>
@@ -596,7 +585,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 <div className="settings-card">
                   <p className="settings-title">管理</p>
                   <Link
-                    href="/admin"
+                    href="/admin?tab=ops"
                     className="card row-card"
                     style={{ display: 'flex', marginTop: 8 }}
                     onClick={() => {
@@ -604,7 +593,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                     }}
                   >
                     <span style={{ flex: 1 }}>管理后台</span>
-                    <span className="muted">›</span>
+                    <span className="muted">活动运营 ›</span>
                   </Link>
                 </div>
               ) : null}

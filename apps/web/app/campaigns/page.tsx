@@ -104,7 +104,8 @@ function CampaignsListInner() {
   return (
     <OpsPcShell
       title="活动运营"
-      backHref={null}
+      backHref="/admin?tab=ops"
+      backLabel="管理后台"
       sub="电脑端工作台 · 读经活动配置后出现在首页「今日推荐」"
       actions={
         <Link

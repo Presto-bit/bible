@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { getSessionToken } from '@/lib/api';
 import { isStandalonePwa } from '@/lib/platform';
+import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
 
 /** 活动运营配置页：仅平台超管；PWA 内不提供配置（请用电脑浏览器）。 */
 export function CampaignAdminGate({ children }: { children: ReactNode }) {
@@ -27,15 +28,14 @@ export function CampaignAdminGate({ children }: { children: ReactNode }) {
 
   if (state === 'loading') {
     return (
-      <main className="ops-pc-shell">
+      <OpsPcShell title="活动运营" backHref={null}>
         <p className="muted">加载中…</p>
-      </main>
+      </OpsPcShell>
     );
   }
   if (state === 'pwa') {
     return (
-      <main className="ops-pc-shell">
-        <h1 className="ops-page-title">活动运营</h1>
+      <OpsPcShell title="活动运营" backHref="/admin?tab=ops" backLabel="管理后台">
         <div className="card ops-empty">
           <p>请在电脑浏览器中配置</p>
           <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
@@ -45,13 +45,12 @@ export function CampaignAdminGate({ children }: { children: ReactNode }) {
             回首页
           </Link>
         </div>
-      </main>
+      </OpsPcShell>
     );
   }
   if (state === 'login') {
     return (
-      <main className="ops-pc-shell">
-        <h1 className="ops-page-title">活动运营</h1>
+      <OpsPcShell title="活动运营" backHref="/admin?tab=ops" backLabel="管理后台">
         <div className="card ops-empty">
           <p>请先登录</p>
           <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
@@ -61,13 +60,12 @@ export function CampaignAdminGate({ children }: { children: ReactNode }) {
             去登录
           </Link>
         </div>
-      </main>
+      </OpsPcShell>
     );
   }
   if (state === 'denied') {
     return (
-      <main className="ops-pc-shell">
-        <h1 className="ops-page-title">活动运营</h1>
+      <OpsPcShell title="活动运营" backHref="/admin?tab=ops" backLabel="管理后台">
         <div className="card ops-empty">
           <p>暂无权限</p>
           <p className="muted" style={{ fontSize: 13, margin: '0 0 12px' }}>
@@ -77,7 +75,7 @@ export function CampaignAdminGate({ children }: { children: ReactNode }) {
             回首页
           </Link>
         </div>
-      </main>
+      </OpsPcShell>
     );
   }
   return <>{children}</>;
