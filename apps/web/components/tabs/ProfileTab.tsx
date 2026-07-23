@@ -42,6 +42,7 @@ import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
 import { hasSecuredAccount, isAccountComplete } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
+import { isStandalonePwa } from '@/lib/platform';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import {
   PROFILE_SETTINGS_BACK_LABEL,
@@ -51,7 +52,6 @@ import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
-import { isStandalonePwa } from '@/lib/platform';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
 
 const AVATAR_KEY = 'profile_avatar';
@@ -464,12 +464,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <span className="muted home-list-chevron">›</span>
         </Link>
 
-        {adminEligible ? (
+        {adminEligible && !installedPwa ? (
           <Link href="/campaigns" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
             <span className="pill pill-active">活动</span>
             <span className="home-list-main">
               <strong>活动运营</strong>
-          <span className="muted home-list-sub">平台活动 · 今日推荐</span>
+          <span className="muted home-list-sub">电脑配置 · 今日推荐</span>
             </span>
             <span className="muted home-list-chevron">›</span>
           </Link>

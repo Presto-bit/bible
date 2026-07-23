@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   api,
@@ -9,11 +8,13 @@ import {
   type OpsCampaignTemplate,
 } from '@/lib/api';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
+import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
 import {
   CAMPAIGN_SCENES,
   type CampaignSceneId,
   sceneById,
 } from '@/lib/campaign_scenes';
+import { defaultPrimaryCta } from '@/lib/campaign_nav';
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -35,7 +36,7 @@ export default function CampaignNewPage() {
 
 function CampaignNewInner() {
   const router = useRouter();
-  const [sceneId, setSceneId] = useState<CampaignSceneId | ''>('');
+  const [sceneId, setSceneId] = useState<CampaignSceneId | ''>('read');
   const [templates, setTemplates] = useState<OpsCampaignTemplate[]>([]);
   const [userTemplates, setUserTemplates] = useState<
     Array<{ id: string; name: string; baseTemplateId: string; landing: OpsCampaignLanding }>
@@ -68,11 +69,6 @@ function CampaignNewInner() {
     return scene.templateIds.map((id) => byId.get(id)).filter(Boolean) as OpsCampaignTemplate[];
   }, [sceneId, templates]);
 
-  const onSceneChange = (value: string) => {
-    setSceneId((value || '') as CampaignSceneId | '');
-    setErr(null);
-  };
-
   const startDraft = async (opts: {
     templateId: string;
     name: string;
@@ -87,14 +83,8 @@ function CampaignNewInner() {
       const landing: OpsCampaignLanding = {
         ...opts.landing,
         title: opts.name,
+        primaryCta: defaultPrimaryCta(opts.templateId),
       };
-      if (opts.templateId === 'gathering') {
-        landing.schedule = {
-          ...(opts.landing.schedule || {}),
-          startsAt: fromLocalInput(toLocalInput(starts)),
-          location: opts.landing.schedule?.location || '',
-        };
-      }
       const { campaign } = await api.createCampaign({
         name: opts.name,
         templateId: opts.templateId,
@@ -109,6 +99,23 @@ function CampaignNewInner() {
         landing,
         heroEnabled: false,
       });
+      const cta = defaultPrimaryCta(opts.templateId, campaign.id);
+      await api
+        .updateCampaign(campaign.id, {
+          name: campaign.name,
+          templateId: campaign.templateId,
+          status: 'draft',
+          startAt: campaign.startAt,
+          endAt: campaign.endAt,
+          subtitle: campaign.subtitle || '',
+          railSlot: campaign.railSlot,
+          railEnabled: campaign.railEnabled !== false,
+          groupIds: campaign.groupIds || defaultGroupIds,
+          audienceMode: (campaign.audienceMode as 'groups' | 'all' | 'admin_preview') || 'groups',
+          landing: { ...landing, primaryCta: cta },
+          heroEnabled: false,
+        })
+        .catch(() => null);
       router.replace(`/campaigns/${campaign.id}/edit`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : '创建失败');
@@ -116,110 +123,67 @@ function CampaignNewInner() {
     }
   };
 
-  const pickPlatformTemplate = (t: OpsCampaignTemplate) => {
-    if (busy) return;
-    void startDraft({
-      templateId: t.id,
-      name: t.name,
-      landing: t.landing || {},
-    });
-  };
-
-  const pickUserTemplate = (t: {
-    id: string;
-    name: string;
-    baseTemplateId: string;
-    landing: OpsCampaignLanding;
-  }) => {
-    if (busy) return;
-    void startDraft({
-      templateId: t.baseTemplateId,
-      name: t.name,
-      landing: t.landing || {},
-    });
-  };
-
   return (
-    <main className="container ops-page">
-      <div className="ops-page-head">
-        <div>
-          <Link href="/campaigns" className="ops-back">
-            ← 活动运营
-          </Link>
-          <h1 className="ops-page-title">新建活动</h1>
-          <p className="ops-page-sub">下拉选择场景，再点模板进入完整配置</p>
-        </div>
-      </div>
-
+    <OpsPcShell title="新建活动" sub="选择读经模板后进入完整配置（电脑端工作台）">
       {err ? (
         <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>
           {err}
         </p>
       ) : null}
+      {busy ? <p className="muted">正在创建草稿…</p> : null}
 
-      {busy ? (
-        <p className="muted" style={{ marginTop: 16 }}>
-          正在创建草稿…
-        </p>
-      ) : null}
+      <div className="ops-pc-new">
+        <label className="ops-field">
+          <span>场景</span>
+          <select
+            className="input ops-scene-select"
+            value={sceneId}
+            disabled={busy}
+            onChange={(e) => {
+              setSceneId((e.target.value || 'read') as CampaignSceneId);
+              setErr(null);
+            }}
+            aria-label="选择活动场景"
+          >
+            {userTemplates.length > 0 ? (
+              <option value="mine">我的模板（{userTemplates.length}）</option>
+            ) : null}
+            {CAMPAIGN_SCENES.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+              </option>
+            ))}
+          </select>
+        </label>
 
-      <label className="ops-field" style={{ marginTop: 14 }}>
-        <span>活动场景</span>
-        <select
-          className="input ops-scene-select"
-          value={sceneId}
-          disabled={busy}
-          onChange={(e) => onSceneChange(e.target.value)}
-          aria-label="选择活动场景"
-        >
-          <option value="">请选择场景</option>
-          {userTemplates.length > 0 ? (
-            <option value="mine">我的模板（{userTemplates.length}）</option>
-          ) : null}
-          {CAMPAIGN_SCENES.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.title}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {!sceneId ? (
-        <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>
-          选好场景后，下方会列出该场景可用的模板。
-        </p>
-      ) : (
         <div className="ops-select-list">
           {sceneId === 'mine' ? (
-            userTemplates.length === 0 ? (
-              <div className="card ops-empty">
-                <p>还没有我的模板</p>
-                <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-                  可先从场景模板创建，再在编辑页「另存模板」。
-                </p>
-              </div>
-            ) : (
-              userTemplates.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
-                  disabled={busy}
-                  onClick={() => pickUserTemplate(t)}
-                >
-                  <span className="pill">我的</span>
-                  <span className="home-list-main">
-                    <strong>{t.name}</strong>
-                    <span className="muted home-list-sub">基于平台模板复用</span>
-                  </span>
-                  <span className="muted home-list-chevron">›</span>
-                </button>
-              ))
-            )
+            userTemplates.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
+                disabled={busy}
+                onClick={() =>
+                  void startDraft({
+                    templateId: t.baseTemplateId,
+                    name: t.name,
+                    landing: t.landing || {},
+                  })
+                }
+              >
+                <span className="pill">我的</span>
+                <span className="home-list-main">
+                  <strong>{t.name}</strong>
+                  <span className="muted home-list-sub">基于平台模板复用</span>
+                </span>
+                <span className="muted home-list-chevron">›</span>
+              </button>
+            ))
           ) : (
             <>
               <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
-                {sceneById(sceneId)?.sub}
+                {sceneById(sceneId as CampaignSceneId)?.sub}
               </p>
               {sceneTemplates.map((t) => (
                 <button
@@ -227,7 +191,13 @@ function CampaignNewInner() {
                   type="button"
                   className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
                   disabled={busy}
-                  onClick={() => pickPlatformTemplate(t)}
+                  onClick={() =>
+                    void startDraft({
+                      templateId: t.id,
+                      name: t.name,
+                      landing: t.landing || {},
+                    })
+                  }
                 >
                   <span className="pill">{t.tag}</span>
                   <span className="home-list-main">
@@ -240,7 +210,7 @@ function CampaignNewInner() {
             </>
           )}
         </div>
-      )}
-    </main>
+      </div>
+    </OpsPcShell>
   );
 }

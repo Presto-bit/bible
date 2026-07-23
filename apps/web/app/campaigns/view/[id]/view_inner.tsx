@@ -340,6 +340,26 @@ export default function CampaignViewInner() {
 
       {camp.landing?.body ? <p className="ops-view-body">{camp.landing.body}</p> : null}
 
+      {camp.isCreator && camp.status !== 'draft' && camp.stats ? (
+        <div className="ops-stats-grid" style={{ marginTop: 16 }}>
+          {(
+            [
+              ['打开', camp.stats.opens],
+              ['已读', camp.stats.readers],
+              ['赞', camp.stats.likes],
+              ['RSVP', camp.stats.rsvps],
+              ['报名', camp.stats.signups ?? 0],
+              ['提问', camp.stats.questions ?? 0],
+            ] as const
+          ).map(([label, n]) => (
+            <div key={label} className="ops-stat">
+              <strong>{n ?? 0}</strong>
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       {(camp.landing?.entries || []).filter((e) => (e.title || '').trim() && (e.href || '').trim()).length > 0 ? (
         <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
           <p className="section-label" style={{ margin: 0 }}>入口</p>

@@ -686,6 +686,10 @@ def _publish_checklist(
     *,
     audience_mode: str = "groups",
     is_platform_admin: bool = False,
+    start_at: datetime | None = None,
+    end_at: datetime | None = None,
+    rail_enabled: bool = True,
+    rail_slot: int = 1,
 ) -> list[str]:
     errors: list[str] = []
     mode = _normalize_audience_mode(audience_mode)
@@ -700,9 +704,14 @@ def _publish_checklist(
     title = str(landing.get("title") or body.get("name") or "").strip()
     if not title:
         errors.append("请填写页面标题")
+    if start_at is not None and end_at is not None and end_at <= start_at:
+        errors.append("结束时间须晚于开始时间")
+    if rail_enabled and not (1 <= int(rail_slot or 0) <= 3):
+        errors.append("请选择今日推荐位置（第 1～3 位）")
     template_id = str(body.get("templateId") or "")
     days = landing.get("days") if isinstance(landing.get("days"), list) else []
-    if template_id in {"multi_day", "memory"}:
+    body_text = str(landing.get("body") or "").strip()
+    if template_id in {"multi_day", "memory", "verse_day"}:
         filled = [
             d
             for d in days
@@ -713,8 +722,12 @@ def _publish_checklist(
             errors.append("日课/经文清单至少填写一天内容")
     if template_id == "gathering":
         schedule = landing.get("schedule") if isinstance(landing.get("schedule"), dict) else {}
-        if not str(schedule.get("startsAt") or "").strip() and not str(schedule.get("location") or "").strip():
-            errors.append("聚会请填写时间或地点")
+        if not str(schedule.get("startsAt") or "").strip():
+            errors.append("聚会请填写开始时间")
+        if not str(schedule.get("location") or "").strip() and not str(schedule.get("onlineNote") or "").strip():
+            errors.append("聚会请填写地点或线上说明")
+    if template_id == "season" and not body_text:
+        errors.append("请填写节期说明")
     if template_id == "serve":
         slots = landing.get("slots") if isinstance(landing.get("slots"), list) else []
         valid = [
@@ -733,9 +746,11 @@ def _publish_checklist(
         ]
         if len(valid_e) < 2:
             errors.append("多入口请至少配置 2 个有效入口（标题+链接）")
-    features = landing.get("features") if isinstance(landing.get("features"), dict) else {}
-    if features.get("rsvp") and template_id == "gathering":
-        pass
+    if template_id == "promo":
+        if not body_text:
+            errors.append("请填写动员说明")
+    if template_id in {"prayer_drive", "welcome", "testify"} and not body_text:
+        errors.append("请填写活动说明")
     return errors
 
 
@@ -1038,6 +1053,10 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
                 group_ids,
                 audience_mode=hero["audience_mode"],
                 is_platform_admin=is_admin,
+                start_at=start_at,
+                end_at=end_at,
+                rail_enabled=bool(body.railEnabled),
+                rail_slot=rail_slot,
             )
             if errs:
                 raise HTTPException(400, "；".join(errs))
@@ -1475,6 +1494,10 @@ def update_campaign(
                 group_ids,
                 audience_mode=hero["audience_mode"],
                 is_platform_admin=is_admin,
+                start_at=start_at,
+                end_at=end_at,
+                rail_enabled=bool(body.railEnabled),
+                rail_slot=rail_slot,
             )
             if errs:
                 raise HTTPException(400, "；".join(errs))

@@ -15,12 +15,15 @@ import {
   campaignSectionDone,
   campaignStatusLabel,
   campaignStatusTone,
+  firstIncompleteSection,
   parseDaysFromBulkText,
   type CampaignConfigSectionId,
 } from '@/lib/campaign_ops';
 import { fetchAdminEligible } from '@/lib/admin_rag';
-import { QUICK_HREFS } from '@/lib/campaign_nav';
+import { resolvePrimaryCta } from '@/lib/campaign_nav';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
+import { CampaignLivePreview } from '@/components/campaigns/CampaignLivePreview';
+import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
 
 function toLocalInput(iso: string): string {
   if (!iso) return '';
@@ -68,6 +71,13 @@ function CampaignEditInner() {
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [audienceMode, setAudienceMode] = useState<'groups' | 'all' | 'admin_preview'>('groups');
   const [activeSection, setActiveSection] = useState<CampaignConfigSectionId>('basic');
+  const [openSections, setOpenSections] = useState<Record<CampaignConfigSectionId, boolean>>({
+    basic: true,
+    content: true,
+    audience: true,
+    exposure: true,
+  });
+  const pinnedOpen = useRef<Partial<Record<CampaignConfigSectionId, boolean>>>({});
 
   const checklistInput = useMemo(
     () => ({
@@ -111,6 +121,25 @@ function CampaignEditInner() {
     [sectionDone],
   );
 
+  const nextSection = useMemo(
+    () => firstIncompleteSection(checklistInput),
+    [checklistInput],
+  );
+
+  useEffect(() => {
+    setOpenSections((prev) => {
+      const next = { ...prev };
+      for (const s of CAMPAIGN_CONFIG_SECTIONS) {
+        if (sectionDone[s.id]) {
+          if (!pinnedOpen.current[s.id]) next[s.id] = false;
+        } else {
+          next[s.id] = true;
+        }
+      }
+      return next;
+    });
+  }, [sectionDone]);
+
   const load = useCallback(async () => {
     setErr(null);
     try {
@@ -148,6 +177,7 @@ function CampaignEditInner() {
         setSubtitle(draft!.subtitle);
         setStatus(draft!.status);
         setGroupIds(draft!.groupIds);
+        if (draft!.audienceMode) setAudienceMode(draft!.audienceMode);
         setRailSlot(draft!.railSlot);
         setRailEnabled(draft!.railEnabled);
         setStartAt(draft!.startAt);
@@ -180,6 +210,7 @@ function CampaignEditInner() {
         subtitle,
         status,
         groupIds,
+        audienceMode,
         railSlot,
         railEnabled,
         startAt,
@@ -195,6 +226,7 @@ function CampaignEditInner() {
     subtitle,
     status,
     groupIds,
+    audienceMode,
     railSlot,
     railEnabled,
     startAt,
@@ -231,6 +263,25 @@ function CampaignEditInner() {
     return () => io.disconnect();
   }, [camp?.id, draftReady]);
 
+  const scrollTo = (anchor: string) => {
+    document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const jumpToSection = (sid: CampaignConfigSectionId, anchor: string) => {
+    pinnedOpen.current[sid] = true;
+    setOpenSections((prev) => ({ ...prev, [sid]: true }));
+    setActiveSection(sid);
+    scrollTo(anchor);
+  };
+
+  const toggleSection = (sid: CampaignConfigSectionId) => {
+    setOpenSections((prev) => {
+      const nextOpen = !prev[sid];
+      pinnedOpen.current[sid] = nextOpen;
+      return { ...prev, [sid]: nextOpen };
+    });
+  };
+
   const toggleGroup = (gid: string) => {
     setGroupIds((prev) => (prev.includes(gid) ? prev.filter((x) => x !== gid) : [...prev, gid]));
   };
@@ -239,16 +290,11 @@ function CampaignEditInner() {
     if (!camp) return;
     const target = nextStatus || status;
     if (target === 'published') {
-      const errs = buildPublishChecklist({
-        name,
-        templateId: camp.templateId,
-        groupIds,
-        landing: { ...landing, title: name.trim() || landing.title },
-        audienceMode,
-        isPlatformAdmin,
-      });
+      const errs = buildPublishChecklist(checklistInput);
       if (errs.length) {
         setErr(errs.join('；'));
+        const incomplete = firstIncompleteSection(checklistInput);
+        if (incomplete) jumpToSection(incomplete.id, incomplete.anchor);
         return;
       }
     }
@@ -268,6 +314,7 @@ function CampaignEditInner() {
         landing: {
           ...landing,
           title: name.trim() || landing.title,
+          primaryCta: resolvePrimaryCta(camp.templateId, id, landing.primaryCta),
         },
         audienceMode: isPlatformAdmin ? audienceMode : 'groups',
         heroEnabled: false,
@@ -368,58 +415,41 @@ function CampaignEditInner() {
     );
   }
 
-  const scrollTo = (anchor: string) => {
-    document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const jumpToSection = (id: CampaignConfigSectionId, anchor: string) => {
-    setActiveSection(id);
-    scrollTo(anchor);
-  };
+  const resolvedCta = resolvePrimaryCta(camp?.templateId || '', id, landing.primaryCta);
 
   return (
-    <main className="container ops-page">
-      <div className="ops-page-head">
-        <div>
-          <Link href="/campaigns" className="ops-back">
-            ← 活动运营
-          </Link>
-          <h1 className="ops-page-title">{name.trim() || '编辑活动'}</h1>
-          {camp ? (
-            <p className="ops-page-sub" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span className={`ops-status ops-status-${campaignStatusTone(status)}`}>
-                {campaignStatusLabel(status)}
-              </span>
-              <span>{camp.tag || '活动'}</span>
-              <span>
-                配置进度 {doneCount}/{CAMPAIGN_CONFIG_SECTIONS.length}
-              </span>
-              {hint ? <span>· {hint}</span> : null}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
-      {camp?.stats ? (
-        <div className="ops-stats-grid">
-          {(
-            [
-              ['打开', camp.stats.opens],
-              ['已读', camp.stats.readers],
-              ['赞', camp.stats.likes],
-              ['RSVP', camp.stats.rsvps],
-              ['报名', camp.stats.signups ?? 0],
-              ['提问', camp.stats.questions ?? 0],
-            ] as const
-          ).map(([label, n]) => (
-            <div key={label} className="ops-stat">
-              <strong>{n ?? 0}</strong>
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
+    <OpsPcShell
+      title={name.trim() || '编辑活动'}
+      sub={
+        camp ? (
+          <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className={`ops-status ops-status-${campaignStatusTone(status)}`}>
+              {campaignStatusLabel(status)}
+            </span>
+            <span>{camp.tag || '活动'}</span>
+            <span>
+              配置进度 {doneCount}/{CAMPAIGN_CONFIG_SECTIONS.length}
+            </span>
+            {hint ? <span>· {hint}</span> : null}
+          </span>
+        ) : null
+      }
+      actions={
+        <>
+          <button type="button" className="btn" disabled={busy} onClick={() => void save('draft')}>
+            存草稿
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy || checklist.length > 0}
+            onClick={() => void save('published')}
+          >
+            发布
+          </button>
+        </>
+      }
+    >
       {err ? <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>{err}</p> : null}
 
       {checklist.length > 0 ? (
@@ -430,6 +460,16 @@ function CampaignEditInner() {
               <li key={e}>{e}</li>
             ))}
           </ul>
+          {nextSection ? (
+            <button
+              type="button"
+              className="text-link"
+              style={{ marginTop: 8 }}
+              onClick={() => jumpToSection(nextSection.id, nextSection.anchor)}
+            >
+              去完善「{nextSection.label}」→
+            </button>
+          ) : null}
         </div>
       ) : (
         <p className="ops-banner ops-banner-ok">发布检查已通过，可以发布。</p>
@@ -469,17 +509,24 @@ function CampaignEditInner() {
           })}
         </ol>
         <p className="ops-progress-caption muted">
-          点任一步骤可跳转查看或修改；未完成也可继续往下填，发布时再统一检查。
+          {nextSection
+            ? `下一步建议：完善「${nextSection.label}」——点上方步骤可随时跳转回看。`
+            : '四步已齐，预览确认后即可发布。'}
         </p>
       </nav>
 
-      <div id="ops-sec-basic" className="settings-card ops-sec">
-        <p className="settings-title">
-          基本信息
-          {sectionDone.basic ? <span className="ops-sec-badge is-done">已完成</span> : (
-            <span className="ops-sec-badge">待完善</span>
-          )}
-        </p>
+            <div className="ops-pc-layout">
+        <div className="ops-pc-config">
+<div id="ops-sec-basic" className={`settings-card ops-sec${openSections.basic ? '' : ' is-collapsed'}`}>
+        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('basic')}>
+          <span className="settings-title" style={{ margin: 0 }}>
+            基本信息
+            {sectionDone.basic ? <span className="ops-sec-badge is-done">已完成</span> : (
+              <span className="ops-sec-badge">待完善</span>
+            )}
+          </span>
+          <span className="muted">{openSections.basic ? '收起' : '展开'}</span>
+        </button>
         <label className="ops-field">
           <span>活动名称</span>
           <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
@@ -502,134 +549,18 @@ function CampaignEditInner() {
         </p>
       </div>
 
-      <div id="ops-sec-audience" className="settings-card ops-sec">
-        <p className="settings-title">
-          谁能看见
-          {sectionDone.audience ? (
-            <span className="ops-sec-badge is-done">已完成</span>
-          ) : (
-            <span className="ops-sec-badge">待完善</span>
-          )}
-        </p>
-        {isPlatformAdmin ? (
-          <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
-            {(
-              [
-                ['groups', '指定群'],
-                ['all', '全站'],
-                ['admin_preview', '仅超管预览'],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                className={`ops-chip${audienceMode === k ? ' is-on' : ''}`}
-                onClick={() => setAudienceMode(k)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        ) : null}
-        {audienceMode === 'groups' ? (
-          groups.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-              暂无群可选。可改为全站，或先去发现创建群。
-            </p>
-          ) : (
-            <div className="ops-select-list">
-              {groups.map((g) => (
-                <label
-                  key={g.id}
-                  className={`card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row${
-                    groupIds.includes(g.id) ? ' is-on' : ''
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={groupIds.includes(g.id)}
-                    onChange={() => toggleGroup(g.id)}
-                    style={{ marginRight: 4 }}
-                  />
-                  <span className="home-list-main">
-                    <strong>{g.name}</strong>
-                    <span className="muted home-list-sub">
-                      {g.role === 'owner' ? '群主' : '可选受众'}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          )
-        ) : (
-          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-            {audienceMode === 'all'
-              ? '登录用户在活动时段内均可在今日推荐看到。'
-              : '仅超管预览可见，不会推给普通成员。'}
-          </p>
-        )}
-      </div>
-
-      <div id="ops-sec-exposure" className="settings-card ops-sec">
-        <p className="settings-title">
-          首页今日推荐
-          {sectionDone.exposure ? (
-            <span className="ops-sec-badge is-done">已完成</span>
-          ) : (
-            <span className="ops-sec-badge">待完善</span>
-          )}
-        </p>
-        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
-          出现在首页「今日推荐」最多三张卡中；第 1 位为主卡。不占用每日经文 Hero。
-        </p>
-        <label className="ops-check-row">
-          <input type="checkbox" checked={railEnabled} onChange={(e) => setRailEnabled(e.target.checked)} />
-          出现在今日推荐
-        </label>
-        <div className="ops-chip-row" style={{ marginTop: 10 }}>
-          {[1, 2, 3].map((n) => (
-            <button
-              key={n}
-              type="button"
-              className={`ops-chip${railSlot === n ? ' is-on' : ''}`}
-              disabled={!railEnabled}
-              onClick={() => setRailSlot(n)}
-            >
-              第 {n} 位{n === 1 ? ' · 主卡' : ''}
-            </button>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
-          <label className="ops-field">
-            <span>开始</span>
-            <input
-              className="input"
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-            />
-          </label>
-          <label className="ops-field">
-            <span>结束</span>
-            <input
-              className="input"
-              type="datetime-local"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-            />
-          </label>
-        </div>
-      </div>
-
-      <div id="ops-sec-content" className="settings-card ops-sec">
-        <p className="settings-title">
-          落地页内容
-          {sectionDone.content ? (
-            <span className="ops-sec-badge is-done">已完成</span>
-          ) : (
-            <span className="ops-sec-badge">待完善</span>
-          )}
-        </p>
+      <div id="ops-sec-content" className={`settings-card ops-sec${openSections.content ? '' : ' is-collapsed'}`}>
+        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('content')}>
+          <span className="settings-title" style={{ margin: 0 }}>
+            落地页内容
+            {sectionDone.content ? (
+              <span className="ops-sec-badge is-done">已完成</span>
+            ) : (
+              <span className="ops-sec-badge">待完善</span>
+            )}
+          </span>
+          <span className="muted">{openSections.content ? '收起' : '展开'}</span>
+        </button>
         <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
           按模板类型显示对应块；不需要的块不会出现。
         </p>
@@ -669,6 +600,26 @@ function CampaignEditInner() {
         {camp?.templateId === 'gathering' || camp?.templateId === 'season' ? (
           <div className="ops-subblock" style={{ display: 'grid', gap: 8 }}>
             <p className="ops-subblock-title">聚会 / 节期信息</p>
+            <label className="ops-field">
+              <span>聚会开始时间</span>
+              <input
+                className="input"
+                type="datetime-local"
+                value={toLocalInput(landing.schedule?.startsAt || '')}
+                onChange={(e) =>
+                  setLanding({
+                    ...landing,
+                    schedule: {
+                      ...(landing.schedule || {}),
+                      startsAt: e.target.value
+                        ? fromLocalInput(e.target.value)
+                        : '',
+                    },
+                    features: { ...(landing.features || {}), countdown: true },
+                  })
+                }
+              />
+            </label>
             <input
               className="input"
               placeholder="地点"
@@ -679,7 +630,6 @@ function CampaignEditInner() {
                   schedule: {
                     ...(landing.schedule || {}),
                     location: e.target.value,
-                    startsAt: fromLocalInput(startAt),
                   },
                   features: { ...(landing.features || {}), countdown: true },
                 })
@@ -714,50 +664,20 @@ function CampaignEditInner() {
           </div>
         ) : null}
 
-        <div className="ops-subblock" style={{ display: 'grid', gap: 8 }}>
-          <p className="ops-subblock-title">主按钮（CTA）</p>
-          <input
-            className="input"
-            placeholder="按钮文案"
-            value={landing.primaryCta?.label || ''}
-            onChange={(e) =>
-              setLanding({
-                ...landing,
-                primaryCta: { ...(landing.primaryCta || {}), label: e.target.value },
-              })
-            }
-          />
-          <input
-            className="input"
-            placeholder="链接（站内 /reader 或 https://…）"
-            value={landing.primaryCta?.href || ''}
-            onChange={(e) =>
-              setLanding({
-                ...landing,
-                primaryCta: { ...(landing.primaryCta || {}), href: e.target.value },
-              })
-            }
-          />
-          <div className="ops-chip-row" style={{ marginTop: 0 }}>
-            {QUICK_HREFS.map((q) => (
-              <button
-                key={q.href}
-                type="button"
-                className="ops-chip"
-                onClick={() =>
-                  setLanding({
-                    ...landing,
-                    primaryCta: {
-                      label: landing.primaryCta?.label || q.label,
-                      href: q.href,
-                    },
-                  })
-                }
-              >
-                {q.label}
-              </button>
-            ))}
-          </div>
+        <div className="ops-subblock">
+          <p className="ops-subblock-title">主按钮</p>
+          <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+            按模板自动设置，成员打开落地页即可行动，无需再填链接。
+          </p>
+          {(() => {
+            const cta = resolvePrimaryCta(camp?.templateId || '', id, landing.primaryCta);
+            return (
+              <div className="ops-auto-cta">
+                <strong>{cta.label}</strong>
+                <span className="muted">{cta.href}</span>
+              </div>
+            );
+          })()}
         </div>
 
         {camp?.templateId === 'hub' || (landing.entries || []).length > 0 ? (
@@ -820,33 +740,16 @@ function CampaignEditInner() {
                       setLanding({ ...landing, entries });
                     }}
                   />
-                  <div className="ops-chip-row" style={{ marginTop: 0, alignItems: 'center' }}>
-                    {QUICK_HREFS.map((q) => (
-                      <button
-                        key={q.href}
-                        type="button"
-                        className="ops-chip"
-                        onClick={() => {
-                          const entries = [...(landing.entries || [])];
-                          entries[idx] = { ...entries[idx], href: q.href };
-                          setLanding({ ...landing, entries });
-                        }}
-                      >
-                        {q.label}
-                      </button>
-                    ))}
-                    <button
-                      type="button"
-                      className="btn"
-                      style={{ marginLeft: 'auto' }}
-                      onClick={() => {
-                        const entries = (landing.entries || []).filter((_, i) => i !== idx);
-                        setLanding({ ...landing, entries });
-                      }}
-                    >
-                      删除
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      const entries = (landing.entries || []).filter((_, i) => i !== idx);
+                      setLanding({ ...landing, entries });
+                    }}
+                  >
+                    删除
+                  </button>
                 </div>
               ))}
             </div>
@@ -979,6 +882,131 @@ function CampaignEditInner() {
         ) : null}
       </div>
 
+      <div id="ops-sec-audience" className={`settings-card ops-sec${openSections.audience ? '' : ' is-collapsed'}`}>
+        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('audience')}>
+          <span className="settings-title" style={{ margin: 0 }}>
+            谁能看见
+            {sectionDone.audience ? (
+              <span className="ops-sec-badge is-done">已完成</span>
+            ) : (
+              <span className="ops-sec-badge">待完善</span>
+            )}
+          </span>
+          <span className="muted">{openSections.audience ? '收起' : '展开'}</span>
+        </button>
+        {isPlatformAdmin ? (
+          <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
+            {(
+              [
+                ['groups', '指定群'],
+                ['all', '全站'],
+                ['admin_preview', '仅超管预览'],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                type="button"
+                className={`ops-chip${audienceMode === k ? ' is-on' : ''}`}
+                onClick={() => setAudienceMode(k)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {audienceMode === 'groups' ? (
+          groups.length === 0 ? (
+            <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+              暂无群可选。发布前请改为「全站」或「仅超管预览」，或先去发现创建群。
+            </p>
+          ) : (
+            <div className="ops-select-list">
+              {groups.map((g) => (
+                <label
+                  key={g.id}
+                  className={`card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row${
+                    groupIds.includes(g.id) ? ' is-on' : ''
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={groupIds.includes(g.id)}
+                    onChange={() => toggleGroup(g.id)}
+                    style={{ marginRight: 4 }}
+                  />
+                  <span className="home-list-main">
+                    <strong>{g.name}</strong>
+                    <span className="muted home-list-sub">
+                      {g.role === 'owner' ? '群主' : '可选受众'}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          )
+        ) : (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            {audienceMode === 'all'
+              ? '登录用户在活动时段内均可在今日推荐看到。'
+              : '仅超管预览可见，不会推给普通成员。'}
+          </p>
+        )}
+      </div>
+
+      <div id="ops-sec-exposure" className={`settings-card ops-sec${openSections.exposure ? '' : ' is-collapsed'}`}>
+        <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('exposure')}>
+          <span className="settings-title" style={{ margin: 0 }}>
+            首页今日推荐
+            {sectionDone.exposure ? (
+              <span className="ops-sec-badge is-done">已完成</span>
+            ) : (
+              <span className="ops-sec-badge">待完善</span>
+            )}
+          </span>
+          <span className="muted">{openSections.exposure ? '收起' : '展开'}</span>
+        </button>
+        <p className="muted" style={{ fontSize: 13, marginTop: 0 }}>
+          出现在首页「今日推荐」最多三张卡中；第 1 位为主卡。不占用每日经文 Hero。
+        </p>
+        <label className="ops-check-row">
+          <input type="checkbox" checked={railEnabled} onChange={(e) => setRailEnabled(e.target.checked)} />
+          出现在今日推荐
+        </label>
+        <div className="ops-chip-row" style={{ marginTop: 10 }}>
+          {[1, 2, 3].map((n) => (
+            <button
+              key={n}
+              type="button"
+              className={`ops-chip${railSlot === n ? ' is-on' : ''}`}
+              disabled={!railEnabled}
+              onClick={() => setRailSlot(n)}
+            >
+              第 {n} 位{n === 1 ? ' · 主卡' : ''}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
+          <label className="ops-field">
+            <span>开始</span>
+            <input
+              className="input"
+              type="datetime-local"
+              value={startAt}
+              onChange={(e) => setStartAt(e.target.value)}
+            />
+          </label>
+          <label className="ops-field">
+            <span>结束</span>
+            <input
+              className="input"
+              type="datetime-local"
+              value={endAt}
+              onChange={(e) => setEndAt(e.target.value)}
+            />
+          </label>
+        </div>
+      </div>
+
       <div className="ops-sticky-bar">
         <button type="button" className="btn" disabled={busy} onClick={() => void save('draft')}>
           存草稿
@@ -992,7 +1020,7 @@ function CampaignEditInner() {
           发布
         </button>
         <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
-          预览
+          全屏预览
         </Link>
         <button type="button" className="btn" disabled={busy} onClick={() => void saveAsTemplate()}>
           另存模板
@@ -1001,6 +1029,17 @@ function CampaignEditInner() {
           延期 7 天
         </button>
       </div>
-    </main>
+        </div>
+        <CampaignLivePreview
+          name={name}
+          subtitle={subtitle}
+          templateId={camp?.templateId || ''}
+          campaignId={id}
+          landing={{ ...landing, title: name.trim() || landing.title, primaryCta: resolvedCta }}
+          railEnabled={railEnabled}
+          railSlot={railSlot}
+        />
+      </div>
+    </OpsPcShell>
   );
 }

@@ -1,4 +1,4 @@
-/** 活动运营前端辅助：发布检查清单、日课解锁文案等 */
+/** 活动运营前端辅助：发布检查清单、日课解锁文案等（进度与发布共用同一套规则） */
 
 import type { OpsCampaignLanding } from '@/lib/api';
 import { BRAND_NAME } from '@/lib/brand';
@@ -17,8 +17,9 @@ export type PublishChecklistInput = {
   endAt?: string;
 };
 
-export type CampaignConfigSectionId = 'basic' | 'audience' | 'exposure' | 'content';
+export type CampaignConfigSectionId = 'basic' | 'content' | 'audience' | 'exposure';
 
+/** 配置顺序：先写清活动，再定谁看、怎么曝光 */
 export const CAMPAIGN_CONFIG_SECTIONS: Array<{
   id: CampaignConfigSectionId;
   anchor: string;
@@ -26,89 +27,137 @@ export const CAMPAIGN_CONFIG_SECTIONS: Array<{
   hint: string;
 }> = [
   { id: 'basic', anchor: 'ops-sec-basic', label: '基本', hint: '名称与说明' },
+  { id: 'content', anchor: 'ops-sec-content', label: '落地页', hint: '模板内容' },
   { id: 'audience', anchor: 'ops-sec-audience', label: '可见范围', hint: '谁能看见' },
   { id: 'exposure', anchor: 'ops-sec-exposure', label: '首页曝光', hint: '推荐位与时段' },
-  { id: 'content', anchor: 'ops-sec-content', label: '落地页', hint: '模板内容' },
 ];
 
-function audienceReady(input: PublishChecklistInput): boolean {
-  const mode = input.audienceMode || 'groups';
-  if (mode === 'all' || mode === 'admin_preview') {
-    return Boolean(input.isPlatformAdmin);
-  }
-  return Boolean(input.groupIds?.length);
+function parseLocalOrIso(value: string): number {
+  const t = new Date(value).getTime();
+  return Number.isNaN(t) ? NaN : t;
 }
 
-function exposureReady(input: PublishChecklistInput): boolean {
-  const start = (input.startAt || '').trim();
-  const end = (input.endAt || '').trim();
-  if (!start || !end) return false;
-  const s = new Date(start).getTime();
-  const e = new Date(end).getTime();
-  if (Number.isNaN(s) || Number.isNaN(e)) return false;
-  return e > s;
-}
-
-/** 落地页模板相关必填（不含名称/受众） */
-export function buildContentChecklist(input: PublishChecklistInput): string[] {
+/** 某一配置分区的缺失项（空数组 = 该区完成） */
+export function buildSectionChecklist(
+  section: CampaignConfigSectionId,
+  input: PublishChecklistInput,
+): string[] {
   const errors: string[] = [];
-  const days = input.landing?.days || [];
-  if (input.templateId === 'multi_day' || input.templateId === 'memory') {
-    const filled = days.filter(
-      (d) => (d.body || '').trim() || (d.verseRef || '').trim(),
-    );
-    if (!filled.length) errors.push('日课/经文清单至少填写一天内容');
-  }
-  if (input.templateId === 'gathering') {
-    const schedule = input.landing?.schedule;
-    if (!(schedule?.startsAt || '').trim() && !(schedule?.location || '').trim()) {
-      errors.push('聚会请填写时间或地点');
+  const landing = input.landing || {};
+  const templateId = input.templateId || '';
+
+  switch (section) {
+    case 'basic': {
+      if (!input.name?.trim()) errors.push('请填写活动名称');
+      break;
     }
-  }
-  if (input.templateId === 'serve') {
-    const slots = input.landing?.slots || [];
-    const valid = slots.filter((s) => (s.title || '').trim() && (s.limit || 0) > 0);
-    if (!valid.length) errors.push('服事招募请至少配置一个有名额的岗位');
-  }
-  if (input.templateId === 'hub') {
-    const entries = input.landing?.entries || [];
-    const valid = entries.filter((e) => (e.title || '').trim() && (e.href || '').trim());
-    if (valid.length < 2) errors.push('多入口请至少配置 2 个有效入口（标题+链接）');
+    case 'audience': {
+      const mode = input.audienceMode || 'groups';
+      if (mode === 'all' || mode === 'admin_preview') {
+        if (!input.isPlatformAdmin) errors.push('仅平台超管可发布全站/预览受众');
+      } else if (!input.groupIds?.length) {
+        errors.push('请选择谁能看见（至少一个群）');
+      }
+      break;
+    }
+    case 'exposure': {
+      const start = (input.startAt || '').trim();
+      const end = (input.endAt || '').trim();
+      if (!start || !end) {
+        errors.push('请设置活动开始与结束时间');
+        break;
+      }
+      const s = parseLocalOrIso(start);
+      const e = parseLocalOrIso(end);
+      if (Number.isNaN(s) || Number.isNaN(e) || e <= s) {
+        errors.push('结束时间须晚于开始时间');
+      }
+      if (input.railEnabled !== false) {
+        const slot = Number(input.railSlot || 0);
+        if (slot < 1 || slot > 3) errors.push('请选择今日推荐位置（第 1～3 位）');
+      }
+      break;
+    }
+    case 'content': {
+      const days = landing.days || [];
+      const body = (landing.body || '').trim();
+
+      if (templateId === 'multi_day' || templateId === 'memory' || templateId === 'verse_day') {
+        const filled = days.filter(
+          (d) => (d.body || '').trim() || (d.verseRef || '').trim(),
+        );
+        if (!filled.length) errors.push('日课/经文清单至少填写一天内容');
+      }
+
+      if (templateId === 'gathering') {
+        const schedule = landing.schedule;
+        const hasTime = Boolean((schedule?.startsAt || '').trim());
+        const hasPlace =
+          Boolean((schedule?.location || '').trim()) ||
+          Boolean((schedule?.onlineNote || '').trim());
+        if (!hasTime) errors.push('聚会请填写开始时间');
+        if (!hasPlace) errors.push('聚会请填写地点或线上说明');
+      }
+
+      if (templateId === 'season') {
+        if (!body) errors.push('请填写节期说明');
+      }
+
+      if (templateId === 'serve') {
+        const slots = landing.slots || [];
+        const valid = slots.filter((s) => (s.title || '').trim() && (s.limit || 0) > 0);
+        if (!valid.length) errors.push('服事招募请至少配置一个有名额的岗位');
+      }
+
+      if (templateId === 'hub') {
+        const entries = landing.entries || [];
+        const valid = entries.filter((e) => (e.title || '').trim() && (e.href || '').trim());
+        if (valid.length < 2) errors.push('多入口请至少配置 2 个有效入口（标题+链接）');
+      }
+
+      if (templateId === 'promo') {
+        if (!body) errors.push('请填写动员说明');
+      }
+
+      if (templateId === 'prayer_drive' || templateId === 'welcome' || templateId === 'testify') {
+        if (!body) errors.push('请填写活动说明');
+      }
+
+      break;
+    }
+    default:
+      break;
   }
   return errors;
+}
+
+export function buildContentChecklist(input: PublishChecklistInput): string[] {
+  return buildSectionChecklist('content', input);
 }
 
 export function campaignSectionDone(
   section: CampaignConfigSectionId,
   input: PublishChecklistInput,
 ): boolean {
-  switch (section) {
-    case 'basic':
-      return Boolean(input.name?.trim());
-    case 'audience':
-      return audienceReady(input);
-    case 'exposure':
-      return exposureReady(input);
-    case 'content':
-      return buildContentChecklist(input).length === 0;
-    default:
-      return false;
-  }
+  return buildSectionChecklist(section, input).length === 0;
 }
 
+/** 发布前全量检查 = 各分区检查之和（进度与发布同一真相源） */
 export function buildPublishChecklist(input: PublishChecklistInput): string[] {
   const errors: string[] = [];
-  const mode = input.audienceMode || 'groups';
-  if (mode === 'all' || mode === 'admin_preview') {
-    if (!input.isPlatformAdmin) errors.push('仅平台超管可发布全站/预览受众');
-  } else if (!input.groupIds?.length) {
-    errors.push('请选择谁能看见（至少一个群）');
+  for (const s of CAMPAIGN_CONFIG_SECTIONS) {
+    errors.push(...buildSectionChecklist(s.id, input));
   }
-  if (!input.name?.trim()) errors.push('请填写活动名称');
-  const title = (input.landing?.title || input.name || '').trim();
-  if (!title) errors.push('请填写页面标题');
-  errors.push(...buildContentChecklist(input));
   return errors;
+}
+
+export function firstIncompleteSection(
+  input: PublishChecklistInput,
+): (typeof CAMPAIGN_CONFIG_SECTIONS)[number] | null {
+  for (const s of CAMPAIGN_CONFIG_SECTIONS) {
+    if (!campaignSectionDone(s.id, input)) return s;
+  }
+  return null;
 }
 
 export function chinaYmd(d = new Date()): string {
@@ -255,4 +304,3 @@ export async function copyText(text: string): Promise<boolean> {
     return false;
   }
 }
-

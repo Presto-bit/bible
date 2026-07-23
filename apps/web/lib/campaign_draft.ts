@@ -9,6 +9,7 @@ export type CampaignDraftPayload = {
   subtitle: string;
   status: string;
   groupIds: string[];
+  audienceMode?: 'groups' | 'all' | 'admin_preview';
   railSlot: number;
   railEnabled: boolean;
   startAt: string;
