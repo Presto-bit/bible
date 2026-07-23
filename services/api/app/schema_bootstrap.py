@@ -41,5 +41,11 @@ def bootstrap_schemas(pool) -> None:
         ensure_devotional_schema(pool)
     except Exception:
         logger.exception("bootstrap: devotionals schema failed")
+    try:
+        from .content.campaigns import ensure_campaign_schema
+
+        ensure_campaign_schema(pool)
+    except Exception:
+        logger.exception("bootstrap: campaigns schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

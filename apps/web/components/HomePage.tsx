@@ -7,6 +7,7 @@ import {
   type DailyVerse,
   ensureAccountReady,
   getDisplayName,
+  getSessionToken,
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
@@ -305,7 +306,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         };
       } else if (active) {
         const day = getPlanDay(active.planId) || 1;
-        // 先用同步入口立刻上屏，详情回来后再精修
+        // 先用同步入口立刻上屏，网络/详情回来后再精修
         planCard = {
           title: active.title,
           sub: `第 ${day} 天`,
@@ -326,7 +327,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         };
       }
 
-      // 本地数据先画「今日推荐」+「成长」，不堵在群请求上
+      // 本地数据先画「今日推荐」+「成长」，不堵在群/活动请求上
       setTodayPanel(
         buildHomeTodayPanel({
           plan: planCard,
@@ -344,8 +345,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       );
 
       setGroupErr(null);
-      const planDay =
-        active && active.kind !== 'prayer' ? getPlanDay(active.planId) || 1 : 1;
+      const planDay = active && active.kind !== 'prayer'
+        ? getPlanDay(active.planId) || 1
+        : 1;
 
       const planMetaPromise =
         active && active.kind !== 'prayer'
@@ -363,7 +365,30 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           return buildHomeGroupRailInput([], null);
         });
 
-      const [meta, groupCard] = await Promise.all([planMetaPromise, socialPromise]);
+      const campaignsPromise = getSessionToken()
+        ? api
+            .homeCampaigns()
+            .then((campRes) =>
+              (campRes.campaigns || []).slice(0, 3).map((c) => ({
+                id: c.id,
+                tag: c.tag || '活动',
+                title: c.name,
+                sub:
+                  c.subtitle ||
+                  (c.daysTotal > 0
+                    ? `${c.daysRead}/${c.daysTotal} 天`
+                    : '群活动'),
+                href: c.href || `/campaigns/view/${c.id}`,
+              })),
+            )
+            .catch(() => undefined)
+        : Promise.resolve(undefined);
+
+      const [meta, groupCard, campaigns] = await Promise.all([
+        planMetaPromise,
+        socialPromise,
+        campaignsPromise,
+      ]);
 
       if (meta && active && active.kind !== 'prayer') {
         const sess = getPlanSession(active.planId, planDay) ?? meta.session;
@@ -388,6 +413,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           resume: resumeCard,
           group: groupCard,
           prayer: prayerCard,
+          campaigns,
           suggest: suggestInput,
         }),
       );
@@ -417,7 +443,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       setHeroResetNonce((n) => n + 1);
     }
   }, [homeAwake, refreshRail, reloadDailyContent]);
-
   const openVerseWallpaper = () => {
     if (!dv?.text) return;
     setVerseFull(true);

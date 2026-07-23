@@ -323,7 +323,9 @@ export default function AdminOpsHeroPanel() {
 
       <div className="admin-ops-studio-head">
         <p className="muted" style={{ margin: 0, fontSize: 13 }}>
-          列表 · 手机预览 · 属性面板。无活动时首页只展示每日经文。
+          Hero B 仅用于每日经文旁的全站主视觉。群/运营活动请在「活动运营」配置，成员会在首页「今日推荐」三张卡中看到。
+          {' '}
+          <a href="/campaigns" className="text-link">打开活动运营</a>
         </p>
         <button type="button" className="text-link" onClick={() => void load()}>
           刷新

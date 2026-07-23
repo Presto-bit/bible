@@ -464,6 +464,15 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <span className="muted home-list-chevron">›</span>
         </Link>
 
+        <Link href="/campaigns" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
+          <span className="pill pill-active">活动</span>
+          <span className="home-list-main">
+            <strong>活动运营</strong>
+            <span className="muted home-list-sub">向群成员发布阅读 · 聚会 · 代祷</span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </Link>
+
         <div className="profile-progress-wrap">
           <ReadingProgress />
         </div>

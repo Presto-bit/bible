@@ -1261,6 +1261,163 @@ export interface DevotionalHomeCard {
   href: string;
 }
 
+export interface OpsCampaignTemplate {
+  id: string;
+  name: string;
+  domain: string;
+  domainLabel?: string;
+  tag: string;
+  blurb: string;
+  landing?: OpsCampaignLanding;
+}
+
+export interface OpsCampaignLanding {
+  title?: string;
+  body?: string;
+  features?: {
+    likes?: boolean;
+    comments?: boolean;
+    rsvp?: boolean;
+    prayer?: boolean;
+    prayerPrivate?: boolean;
+    dayUnlock?: string;
+    signup?: boolean;
+    questions?: boolean;
+    countdown?: boolean;
+  };
+  schedule?: {
+    startsAt?: string;
+    endsAt?: string;
+    location?: string;
+    onlineNote?: string;
+  };
+  days?: Array<{
+    day: number;
+    title?: string;
+    body?: string;
+    verseRef?: string;
+    discussionHint?: string;
+    locked?: boolean;
+  }>;
+  slots?: Array<{ id: string; title: string; limit: number }>;
+  entries?: Array<{ id: string; title: string; sub?: string; href: string }>;
+  primaryCta?: { label?: string; href?: string };
+}
+
+export interface OpsCampaign {
+  id: string;
+  creatorId: string;
+  name: string;
+  templateId: string;
+  status: string;
+  startAt: string;
+  endAt: string;
+  coverUrl?: string | null;
+  subtitle: string;
+  railSlot: number;
+  railEnabled: boolean;
+  priority: number;
+  landing: OpsCampaignLanding;
+  groupIds: string[];
+  tag?: string;
+  stats?: OpsCampaignStats;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  audienceMode?: 'groups' | 'all' | 'admin_preview';
+  heroEnabled?: boolean;
+  heroImageUrl?: string | null;
+  heroImageUrlDark?: string | null;
+  heroImageVersion?: number;
+  heroAlt?: string;
+  heroBadge?: string;
+  heroHref?: string;
+}
+
+export interface OpsCampaignComment {
+  id: string;
+  day?: number | null;
+  userId: string;
+  body: string;
+  createdAt?: string | null;
+}
+
+export interface OpsCampaignDetail extends OpsCampaign {
+  isCreator?: boolean;
+  liked?: boolean;
+  likesCount?: number;
+  myRsvp?: string | null;
+  readDays?: number[];
+  rsvpStats?: Record<string, number>;
+  comments?: OpsCampaignComment[];
+  prayers?: Array<{ id: string; userId: string; body: string; createdAt?: string | null }>;
+  unlockedDayCap?: number;
+  interactionClosed?: boolean;
+  slots?: Array<{
+    id: string;
+    title: string;
+    limit: number;
+    taken: number;
+    remaining?: number | null;
+  }>;
+  mySlots?: string[];
+  questions?: Array<{
+    id: string;
+    userId: string;
+    body: string;
+    answer?: string | null;
+    createdAt?: string | null;
+    answeredAt?: string | null;
+  }>;
+}
+
+export interface OpsCampaignStats {
+  opens: number;
+  readers: number;
+  rsvps: number;
+  likes: number;
+  comments?: number;
+  prayers?: number;
+  signups?: number;
+  questions?: number;
+}
+
+export interface OpsHomeCampaign {
+  id: string;
+  name: string;
+  templateId: string;
+  tag: string;
+  subtitle: string;
+  coverUrl?: string | null;
+  railSlot: number;
+  href: string;
+  daysTotal: number;
+  daysRead: number;
+}
+
+export interface OpsCampaignUpsert {
+  id?: string;
+  name: string;
+  templateId: string;
+  status: string;
+  startAt: string;
+  endAt: string;
+  coverUrl?: string | null;
+  subtitle?: string;
+  railSlot?: number;
+  railEnabled?: boolean;
+  priority?: number;
+  groupIds: string[];
+  landing: OpsCampaignLanding;
+  audienceMode?: 'groups' | 'all' | 'admin_preview';
+  heroEnabled?: boolean;
+  heroImageUrl?: string | null;
+  heroImageUrlDark?: string | null;
+  heroImageVersion?: number;
+  heroAlt?: string;
+  heroBadge?: string;
+  heroHref?: string;
+}
+
 export interface DevotionalSessionSummary {
   day: number;
   title: string;
@@ -1730,6 +1887,128 @@ export const api = {
       method: 'POST',
       body: { target_type: targetType, target_id: targetId, reason },
     }),
+
+  campaignTemplates: () =>
+    getJson<{
+      templates: OpsCampaignTemplate[];
+      domains?: Array<{ id: string; label: string }>;
+    }>('/content/campaigns/templates', authHeaders()),
+  campaignStaffGroups: () =>
+    authed<{ groups: { id: string; name: string; role: string }[] }>('/content/campaigns/staff-groups'),
+  myCampaigns: (status?: string) =>
+    authed<{ campaigns: OpsCampaign[] }>(
+      `/content/campaigns${status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : ''}`,
+    ),
+  homeCampaigns: () =>
+    getJson<{ campaigns: OpsHomeCampaign[] }>('/content/campaigns/home', authHeaders()),
+  getCampaign: (id: string, preview?: boolean) =>
+    getJson<{
+      ok?: boolean;
+      denied?: boolean;
+      message?: string;
+      teaser?: { id: string; name: string; tag: string; status: string };
+      campaign?: OpsCampaignDetail;
+    }>(
+      `/content/campaigns/${encodeURIComponent(id)}${preview ? '?preview=1' : ''}`,
+      authHeaders(),
+    ),
+  createCampaign: (body: OpsCampaignUpsert) =>
+    authed<{ campaign: OpsCampaign }>('/content/campaigns', { method: 'POST', body }),
+  updateCampaign: (id: string, body: OpsCampaignUpsert) =>
+    authed<{ campaign: OpsCampaign }>(`/content/campaigns/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body,
+    }),
+  copyCampaign: (id: string) =>
+    authed<{ campaign: OpsCampaign }>(`/content/campaigns/${encodeURIComponent(id)}/copy`, {
+      method: 'POST',
+      body: {},
+    }),
+  extendCampaign: (id: string, days = 7) =>
+    authed<{ campaign: OpsCampaign }>(
+      `/content/campaigns/${encodeURIComponent(id)}/extend`,
+      { method: 'POST', body: { days } },
+    ),
+  deleteCampaign: (id: string) =>
+    authed<{ ok: boolean }>(`/content/campaigns/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  toggleCampaignLike: (id: string) =>
+    authed<{ liked: boolean; likesCount: number }>(
+      `/content/campaigns/${encodeURIComponent(id)}/like`,
+      { method: 'POST', body: {} },
+    ),
+  addCampaignComment: (id: string, body: string, day?: number) =>
+    authed<{ comment: OpsCampaignComment }>(
+      `/content/campaigns/${encodeURIComponent(id)}/comments`,
+      { method: 'POST', body: { body, day } },
+    ),
+  upsertCampaignRsvp: (id: string, status: 'yes' | 'no' | 'maybe') =>
+    authed<{ myRsvp: string; rsvpStats: Record<string, number> }>(
+      `/content/campaigns/${encodeURIComponent(id)}/rsvp`,
+      { method: 'POST', body: { status } },
+    ),
+  addCampaignPrayer: (id: string, body: string) =>
+    authed<{ ok: boolean; id: string }>(
+      `/content/campaigns/${encodeURIComponent(id)}/prayer`,
+      { method: 'POST', body: { body } },
+    ),
+  markCampaignDayRead: (id: string, day: number) =>
+    authed<{ readDays: number[] }>(
+      `/content/campaigns/${encodeURIComponent(id)}/day-read`,
+      { method: 'POST', body: { day } },
+    ),
+  toggleCampaignSignup: (id: string, slotId: string) =>
+    authed<{
+      joined: boolean;
+      slotId: string;
+      taken: number;
+      remaining: number | null;
+      mySlots: string[];
+    }>(`/content/campaigns/${encodeURIComponent(id)}/signup`, {
+      method: 'POST',
+      body: { slotId },
+    }),
+  askCampaignQuestion: (id: string, body: string) =>
+    authed<{
+      question: {
+        id: string;
+        userId: string;
+        body: string;
+        answer: string | null;
+        createdAt?: string | null;
+      };
+    }>(`/content/campaigns/${encodeURIComponent(id)}/questions`, {
+      method: 'POST',
+      body: { body },
+    }),
+  answerCampaignQuestion: (id: string, questionId: string, answer: string) =>
+    authed<{ ok: boolean; answer: string }>(
+      `/content/campaigns/${encodeURIComponent(id)}/questions/${encodeURIComponent(questionId)}/answer`,
+      { method: 'POST', body: { answer } },
+    ),
+  listUserCampaignTemplates: () =>
+    authed<{
+      templates: Array<{
+        id: string;
+        name: string;
+        baseTemplateId: string;
+        landing: OpsCampaignLanding;
+      }>;
+    }>('/content/campaigns/user-templates'),
+  saveUserCampaignTemplate: (body: {
+    name: string;
+    baseTemplateId: string;
+    landing: OpsCampaignLanding;
+  }) =>
+    authed<{ ok: boolean; id: string }>('/content/campaigns/user-templates', {
+      method: 'POST',
+      body,
+    }),
+  deleteUserCampaignTemplate: (id: string) =>
+    authed<{ ok: boolean }>(
+      `/content/campaigns/user-templates/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    ),
+
   generatePlan: (scope: string | null, days: number, theme?: string, customRefs?: string) =>
     authed<GeneratedPlan>('/content/generate-plan', {
       method: 'POST',

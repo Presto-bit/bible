@@ -28,6 +28,7 @@ export function HomeTodayPanel({ panel }: Props) {
   const router = useRouter();
   const { primary, group, prayer } = panel;
   const bookId = primary.bookId;
+  const primaryDone = Boolean(primary.done);
 
   return (
     <section className="home-today-shell" aria-label="今日推荐">
@@ -37,7 +38,13 @@ export function HomeTodayPanel({ panel }: Props) {
       <div className="home-today-panel">
         <button
           type="button"
-          className={`home-today-primary${bookId ? ' has-cover' : ''}`}
+          className={[
+            'home-today-primary',
+            bookId ? 'has-cover' : '',
+            primaryDone ? 'is-done' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
           onClick={() => navigate(primary.href, router)}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -71,6 +78,7 @@ export function HomeTodayPanel({ panel }: Props) {
         <div className="home-today-sides" role="group" aria-label="快捷入口">
           <button
             type="button"
+            key={`group-${group.href}-${group.title}`}
             className="home-today-side home-today-side-group"
             onClick={() => navigate(group.href, router)}
             onContextMenu={(e) => e.preventDefault()}
@@ -80,11 +88,12 @@ export function HomeTodayPanel({ panel }: Props) {
               <strong className="home-today-side-title">{group.title}</strong>
             </span>
             <span className="home-today-side-icon" aria-hidden>
-              <RailLineIcon id="group" size={22} />
+              <RailLineIcon id={group.icon || 'group'} size={20} />
             </span>
           </button>
           <button
             type="button"
+            key={`prayer-${prayer.href}-${prayer.title}`}
             className="home-today-side home-today-side-prayer"
             onClick={() => navigate(prayer.href, router)}
             onContextMenu={(e) => e.preventDefault()}
@@ -94,7 +103,7 @@ export function HomeTodayPanel({ panel }: Props) {
               <strong className="home-today-side-title">{prayer.title}</strong>
             </span>
             <span className="home-today-side-icon" aria-hidden>
-              <RailLineIcon id="prayer" size={22} />
+              <RailLineIcon id={prayer.icon || 'prayer'} size={20} />
             </span>
           </button>
         </div>

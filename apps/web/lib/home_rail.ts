@@ -13,7 +13,8 @@ export type RailIconId =
   | 'challenge'
   | 'plans'
   | 'discover'
-  | 'devotional';
+  | 'devotional'
+  | 'campaign';
 
 export type RailCardKind = 'action' | 'media' | 'stat' | 'ghost';
 export type RailTint = 'gold' | 'green' | 'rose' | 'slate';
@@ -34,6 +35,7 @@ export const RAIL_ICONS: Record<string, RailIconId> = {
   plans: 'plans',
   discover: 'discover',
   devotional: 'devotional',
+  campaign: 'devotional',
 };
 
 
@@ -94,6 +96,9 @@ function normalizeRailCard(card: RailCard): RailCard {
       sub = trimRailSub(card.sub || '继续阅读');
       break;
     case 'devotional':
+      sub = trimRailSub(card.sub);
+      break;
+    case 'campaign':
       sub = trimRailSub(card.sub);
       break;
     case 'plan':
@@ -177,6 +182,17 @@ export type HomeRailInput = {
     progressPct?: number;
     progressLabel?: string;
   };
+  /** 群定向活动（今日推荐运营位，最多 2） */
+  campaigns?: Array<{
+    id: string;
+    tag: string;
+    title: string;
+    sub: string;
+    href: string;
+    mediaCaption?: string;
+    mediaCaptionRight?: string;
+    progressPct?: number;
+  }>;
 };
 
 const PRIORITY: string[] = [
@@ -399,7 +415,26 @@ export function buildHomeRail(input: HomeRailInput): {
   main: RailCard[];
   more: HomeMoreItem[];
 } {
-  const available: RailCard[] = [];
+  const campaignCards: RailCard[] = (input.campaigns ?? []).slice(0, 3).map((c) =>
+    normalizeRailCard({
+      id: `campaign-${c.id}`,
+      kind: 'media',
+      tint: 'rose',
+      layout: 'scene-caption',
+      tag: c.tag || '活动',
+      reason: '群活动',
+      title: c.title,
+      sub: c.sub,
+      href: c.href,
+      icon: RAIL_ICONS.campaign,
+      sceneId: 'plan',
+      mediaCaption: c.mediaCaption || c.title,
+      mediaCaptionRight: c.mediaCaptionRight,
+      progressPct: c.progressPct,
+    }),
+  );
+
+  const available: RailCard[] = [...campaignCards];
   for (const id of PRIORITY) {
     if (id === 'plan' && input.prayer) continue;
     if (id === 'prayer' && input.plan) continue;
