@@ -37,10 +37,25 @@ export function HomeTodayPanel({ panel }: Props) {
       <div className="home-today-panel">
         <button
           type="button"
-          className="home-today-primary"
+          className={`home-today-primary${bookId ? ' has-cover' : ''}`}
           onClick={() => navigate(primary.href, router)}
           onContextMenu={(e) => e.preventDefault()}
         >
+          {bookId ? (
+            <div className="home-today-primary-bg" aria-hidden>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={bookCoverImageUrl(bookId)}
+                alt=""
+                className="home-today-primary-bg-img"
+              />
+              <div className="home-today-primary-bg-veil" />
+            </div>
+          ) : (
+            <div className="home-today-primary-bg home-today-primary-bg-fallback" aria-hidden>
+              <RailLineIcon id={primary.icon} size={28} />
+            </div>
+          )}
           <div className="home-today-primary-main">
             <span className="home-today-primary-badge">{primary.tag}</span>
             <strong className="home-today-primary-title">{primary.title}</strong>
@@ -50,20 +65,6 @@ export function HomeTodayPanel({ panel }: Props) {
             {primary.cta ? (
               <span className="home-today-primary-cta">{primary.cta}</span>
             ) : null}
-          </div>
-          <div className="home-today-primary-visual" aria-hidden>
-            {bookId ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={bookCoverImageUrl(bookId)}
-                alt=""
-                className="home-today-primary-book-img"
-              />
-            ) : (
-              <div className="home-today-primary-book-fallback">
-                <RailLineIcon id={primary.icon} size={24} />
-              </div>
-            )}
           </div>
         </button>
 

@@ -1409,7 +1409,7 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .home-hero-carousel {
-  margin-bottom: 28px;
+  margin-bottom: 40px;
 }
 
 .home-page .home-rail-section-label {
@@ -1423,7 +1423,7 @@ html:not([data-app-theme]) .card {
 
 /* 今日推荐：浅底大容器 + 三张独立浅色圆角卡（左大右双） */
 .home-today-shell {
-  margin-top: 4px;
+  margin-top: 6px;
   margin-bottom: 4px;
   padding: 14px 12px 12px;
   border-radius: 22px;
@@ -1461,13 +1461,13 @@ html:not([data-app-theme]) .card {
   position: relative;
   display: flex;
   align-items: stretch;
-  gap: 8px;
   min-width: 0;
   min-height: 168px;
-  padding: 14px 12px 14px 14px;
+  padding: 14px;
   margin: 0;
   border: none;
   border-radius: 16px;
+  overflow: hidden;
   background:
     linear-gradient(
       145deg,
@@ -1486,14 +1486,67 @@ html:not([data-app-theme]) .card {
   filter: brightness(0.98);
 }
 
+/* 书封融入右侧背景，避免「单独贴纸」感 */
+.home-today-primary-bg {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 58%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.home-today-primary-bg-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 30%;
+  transform: scale(1.06);
+  filter: saturate(0.92);
+}
+
+.home-today-primary-bg-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    color-mix(in srgb, var(--gold-wash, #f3ead2) 72%, #fff) 0%,
+    color-mix(in srgb, var(--gold-wash, #f3ead2) 55%, #fff) 28%,
+    color-mix(in srgb, #fff 35%, transparent) 52%,
+    color-mix(in srgb, #fff 12%, transparent) 72%,
+    transparent 100%
+  );
+}
+
+.home-today-primary-bg-fallback {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 16px;
+  color: color-mix(in srgb, var(--accent-deep) 45%, transparent);
+  background: linear-gradient(
+    145deg,
+    transparent 40%,
+    color-mix(in srgb, var(--accent) 10%, transparent) 100%
+  );
+}
+
 .home-today-primary-main {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-width: 0;
+  max-width: 72%;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  z-index: 1;
+}
+
+.home-today-primary.has-cover .home-today-primary-main {
+  max-width: 68%;
 }
 
 .home-today-primary-badge {
@@ -1519,6 +1572,7 @@ html:not([data-app-theme]) .card {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-shadow: 0 1px 0 color-mix(in srgb, #fff 55%, transparent);
 }
 
 .home-today-primary-sub {
@@ -1543,35 +1597,6 @@ html:not([data-app-theme]) .card {
   color: #fff;
   background: var(--accent-deep);
   box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 28%, transparent);
-}
-
-.home-today-primary-visual {
-  flex: 0 0 64px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  align-self: stretch;
-  padding-bottom: 2px;
-}
-
-.home-today-primary-book-img {
-  display: block;
-  width: 58px;
-  height: 84px;
-  border-radius: 8px;
-  object-fit: cover;
-  box-shadow: 0 4px 14px rgba(40, 32, 20, 0.16);
-}
-
-.home-today-primary-book-fallback {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 58px;
-  height: 84px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
-  color: var(--accent-deep);
 }
 
 .home-today-sides {
@@ -1680,18 +1705,16 @@ html:not([data-app-theme]) .card {
 
   .home-today-primary {
     min-height: 152px;
-    gap: 6px;
-    padding: 12px 10px;
+    padding: 12px;
   }
 
-  .home-today-primary-visual {
-    flex-basis: 52px;
+  .home-today-primary-bg {
+    width: 52%;
   }
 
-  .home-today-primary-book-img,
-  .home-today-primary-book-fallback {
-    width: 48px;
-    height: 70px;
+  .home-today-primary-main,
+  .home-today-primary.has-cover .home-today-primary-main {
+    max-width: 74%;
   }
 
   .home-today-primary-title {
