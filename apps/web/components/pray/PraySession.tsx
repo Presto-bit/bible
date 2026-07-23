@@ -4,47 +4,79 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import {
-  PRAY_AMBIENT_TRACKS,
-  prayAmbientById,
+  pickRandomPrayAmbientTrack,
+  prayAmbientAttribution,
   readPrayAmbientMuted,
-  readPrayAmbientTrackId,
   writePrayAmbientMuted,
-  writePrayAmbientTrackId,
+  type PrayAmbientTrack,
 } from '@/lib/pray_ambient';
-import { prayMomentForToday } from '@/lib/pray_moments';
+import { prayFlowForToday } from '@/lib/pray_flow';
 import { logPrayer } from '@/lib/reading';
 import { useToast } from '@/components/ui/ToastProvider';
 import { applyAppTheme } from '@/lib/app_theme';
 
-/** 与 .pray-session 底色一致，避免 PWA 状态栏 / 过滚露出壳层白底 */
 const PRAY_SURFACE = '#f3ebe3';
 
+function MuteIcon({ muted }: { muted: boolean }) {
+  if (muted) {
+    return (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M5 10v4h3l4 3V7l-4 3H5z"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinejoin="round"
+        />
+        <path d="M16 9.5l4 5M20 9.5l-4 5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M5 10v4h3l4 3V7l-4 3H5z"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M16.5 8.5a4.5 4.5 0 010 7M18.8 6.2a7.5 7.5 0 010 11.6"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 /**
- * 全屏沉浸祷告：短文案 + 背景音乐 loop。
- * Portal 到 body，盖住 Tab / 离线条等壳层，适配 standalone PWA。
+ * 全屏沉浸祷告：对话式流程 + 公开授权背景音乐。
+ * 左右滑切换步骤；默认按时自动推进；结束后进入完成态，音乐继续，点关闭退出。
  */
 export default function PraySession() {
   const router = useRouter();
   const toast = useToast();
-  const moment = useMemo(() => prayMomentForToday(), []);
+  const flow = useMemo(() => prayFlowForToday(), []);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const touchStartX = useRef<number | null>(null);
+  const loggedRef = useRef(false);
+  const autoPausedRef = useRef(false);
 
   const [mounted, setMounted] = useState(false);
-  const [trackId, setTrackId] = useState(PRAY_AMBIENT_TRACKS[0]!.id);
+  const [track] = useState<PrayAmbientTrack>(() => pickRandomPrayAmbientTrack());
   const [muted, setMuted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [needGesture, setNeedGesture] = useState(false);
-  const [pickerOpen, setPickerOpen] = useState(false);
-  const [done, setDone] = useState(false);
+  const [stepIndex, setStepIndex] = useState(0);
+  const [completed, setCompleted] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  const track = prayAmbientById(trackId);
+  const steps = flow.steps;
+  const step = steps[stepIndex];
+  const isLastStep = stepIndex >= steps.length - 1;
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    setTrackId(readPrayAmbientTrackId());
     setMuted(readPrayAmbientMuted());
   }, []);
 
@@ -62,14 +94,6 @@ export default function PraySession() {
     document.documentElement.style.background = PRAY_SURFACE;
     meta?.setAttribute('content', PRAY_SURFACE);
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        audioRef.current?.pause();
-        router.push('/');
-      }
-    };
-    window.addEventListener('keydown', onKey);
-
     return () => {
       document.documentElement.classList.remove('pray-session-open');
       document.body.classList.remove('pray-session-open');
@@ -78,9 +102,8 @@ export default function PraySession() {
       document.documentElement.style.background = prevHtmlBg;
       if (prevTheme) meta?.setAttribute('content', prevTheme);
       else applyAppTheme();
-      window.removeEventListener('keydown', onKey);
     };
-  }, [router]);
+  }, []);
 
   const tryPlay = useCallback(async () => {
     const el = audioRef.current;
@@ -89,7 +112,7 @@ export default function PraySession() {
       return;
     }
     try {
-      el.volume = 0.55;
+      el.volume = 0.45;
       await el.play();
       setPlaying(true);
       setNeedGesture(false);
@@ -113,6 +136,62 @@ export default function PraySession() {
     void tryPlay();
   }, [track.src, muted, tryPlay]);
 
+  const markComplete = useCallback(() => {
+    setCompleted(true);
+    if (!loggedRef.current) {
+      loggedRef.current = true;
+      logPrayer();
+      toast('今日祷告已完成');
+    }
+  }, [toast]);
+
+  const goTo = useCallback(
+    (next: number) => {
+      if (next < 0) return;
+      if (next >= steps.length) {
+        markComplete();
+        return;
+      }
+      setStepIndex(next);
+      setProgress(0);
+      autoPausedRef.current = false;
+    },
+    [markComplete, steps.length],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        audioRef.current?.pause();
+        router.push('/');
+        return;
+      }
+      if (completed) return;
+      if (e.key === 'ArrowLeft') goTo(stepIndex - 1);
+      if (e.key === 'ArrowRight') goTo(stepIndex + 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [router, goTo, stepIndex, completed]);
+
+  // 按时自动推进（用户手动滑动后重置计时）
+  useEffect(() => {
+    if (completed || !step) return;
+    const duration = Math.max(3000, step.durationMs);
+    const started = Date.now();
+    const tick = window.setInterval(() => {
+      if (autoPausedRef.current) return;
+      const p = Math.min(1, (Date.now() - started) / duration);
+      setProgress(p);
+      if (p >= 1) {
+        window.clearInterval(tick);
+        if (isLastStep) markComplete();
+        else goTo(stepIndex + 1);
+      }
+    }, 80);
+    return () => window.clearInterval(tick);
+  }, [completed, step, stepIndex, isLastStep, goTo, markComplete]);
+
   const toggleMute = () => {
     const next = !muted;
     setMuted(next);
@@ -125,33 +204,39 @@ export default function PraySession() {
     }
   };
 
-  const selectTrack = (id: string) => {
-    setTrackId(id);
-    writePrayAmbientTrackId(id);
-    setPickerOpen(false);
-  };
-
   const leave = useCallback(() => {
     audioRef.current?.pause();
     router.push('/');
   }, [router]);
 
-  const onAmen = () => {
-    if (done) {
-      leave();
-      return;
-    }
-    logPrayer();
-    setDone(true);
-    toast('已记录今日祷告');
-    audioRef.current?.pause();
-    setPlaying(false);
+  const onTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+    autoPausedRef.current = true;
+  };
+
+  const onTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartX.current;
+    touchStartX.current = null;
+    autoPausedRef.current = false;
+    if (start == null || completed) return;
+    const end = e.changedTouches[0]?.clientX ?? start;
+    const dx = end - start;
+    if (Math.abs(dx) < 48) return;
+    if (dx < 0) goTo(stepIndex + 1);
+    else goTo(stepIndex - 1);
   };
 
   if (!mounted) return null;
 
   return createPortal(
-    <div className="pray-session" role="dialog" aria-modal="true" aria-label="今日祷告">
+    <div
+      className={['pray-session', completed ? 'is-complete' : ''].filter(Boolean).join(' ')}
+      role="dialog"
+      aria-modal="true"
+      aria-label="今日祷告"
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
       {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
       <audio ref={audioRef} preload="auto" playsInline />
 
@@ -162,48 +247,17 @@ export default function PraySession() {
         <button type="button" className="pray-session-close" onClick={leave} aria-label="关闭">
           关闭
         </button>
-        <div className="pray-session-audio-bar">
-          <button
-            type="button"
-            className="pray-session-audio-btn"
-            onClick={toggleMute}
-            aria-pressed={muted}
-            aria-label={muted ? '打开音乐' : '静音'}
-          >
-            {muted ? '静音' : playing ? '乐响' : '音乐'}
-          </button>
-          <button
-            type="button"
-            className="pray-session-audio-btn"
-            onClick={() => setPickerOpen((v) => !v)}
-            aria-expanded={pickerOpen}
-          >
-            {track.title}
-          </button>
-        </div>
+        <button
+          type="button"
+          className="pray-session-mute"
+          onClick={toggleMute}
+          aria-pressed={muted}
+          aria-label={muted ? '打开音乐' : '静音'}
+          title={muted ? '打开音乐' : '静音'}
+        >
+          <MuteIcon muted={muted} />
+        </button>
       </header>
-
-      {pickerOpen ? (
-        <div className="pray-session-picker" role="listbox" aria-label="选择背景音乐">
-          {PRAY_AMBIENT_TRACKS.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              role="option"
-              aria-selected={t.id === trackId}
-              className={[
-                'pray-session-picker-item',
-                t.id === trackId ? 'is-on' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              onClick={() => selectTrack(t.id)}
-            >
-              {t.title}
-            </button>
-          ))}
-        </div>
-      ) : null}
 
       {needGesture && !muted ? (
         <button type="button" className="pray-session-gesture" onClick={() => void tryPlay()}>
@@ -212,15 +266,51 @@ export default function PraySession() {
       ) : null}
 
       <div className="pray-session-body">
-        <p className="pray-session-kicker">{moment.kicker}</p>
-        <p className="pray-session-text">{moment.body}</p>
-        <p className="pray-session-hint">可以闭目安静一会儿</p>
+        {completed ? (
+          <>
+            <p className="pray-session-kicker">已完成</p>
+            <p className="pray-session-text">今日祷告已完成。你可以继续安静一会儿，或关闭离开。</p>
+            <p className="pray-session-hint">背景音乐仍会轻声陪伴</p>
+          </>
+        ) : (
+          <>
+            <p className="pray-session-kicker">
+              {stepIndex + 1} / {steps.length}
+            </p>
+            <p className="pray-session-text" key={step?.id}>
+              {step?.text}
+            </p>
+            <p className="pray-session-hint">左右滑动可切换 · 也可静待自动前进</p>
+            <div className="pray-session-progress" aria-hidden>
+              <span style={{ width: `${Math.round(progress * 100)}%` }} />
+            </div>
+            <div className="pray-session-dots" aria-hidden>
+              {steps.map((s, i) => (
+                <span
+                  key={s.id}
+                  className={['pray-session-dot', i === stepIndex ? 'is-on' : ''].filter(Boolean).join(' ')}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <footer className="pray-session-foot">
-        <button type="button" className="pray-session-amen" onClick={onAmen}>
-          {done ? '回到首页' : moment.amen || '阿们'}
-        </button>
+        {completed ? (
+          <button type="button" className="pray-session-amen" onClick={leave}>
+            关闭
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="pray-session-amen pray-session-amen-ghost"
+            onClick={() => goTo(stepIndex + 1)}
+          >
+            {isLastStep ? '完成' : '下一步'}
+          </button>
+        )}
+        <p className="pray-session-credit">{prayAmbientAttribution()}</p>
       </footer>
     </div>,
     document.body,

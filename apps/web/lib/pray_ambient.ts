@@ -1,39 +1,82 @@
-/** 沉浸祷告背景音乐：10 首原创氛围 loop（public/audio/pray） */
+/** 沉浸祷告背景音乐：Kevin MacLeod（CC BY 4.0）灵修向曲目，进入时随机一首 */
 
 export type PrayAmbientTrack = {
   id: string;
   title: string;
   src: string;
+  artist: string;
 };
 
+/** 公开授权曲目（Creative Commons Attribution 4.0） */
 export const PRAY_AMBIENT_TRACKS: readonly PrayAmbientTrack[] = [
-  { id: 'dawn', title: '晨光', src: '/audio/pray/dawn.mp3' },
-  { id: 'still', title: '宁静', src: '/audio/pray/still.mp3' },
-  { id: 'brook', title: '溪流', src: '/audio/pray/brook.mp3' },
-  { id: 'vesper', title: '晚祷', src: '/audio/pray/vesper.mp3' },
-  { id: 'olive', title: '橄榄山', src: '/audio/pray/olive.mp3' },
-  { id: 'rest', title: '安息', src: '/audio/pray/rest.mp3' },
-  { id: 'cloud', title: '云端', src: '/audio/pray/cloud.mp3' },
-  { id: 'deep', title: '深水', src: '/audio/pray/deep.mp3' },
-  { id: 'lamp', title: '灯火', src: '/audio/pray/lamp.mp3' },
-  { id: 'grace', title: '恩典', src: '/audio/pray/grace.mp3' },
+  {
+    id: 'meditation_01',
+    title: 'Meditation Impromptu 01',
+    src: '/audio/pray/meditation_01.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'meditation_02',
+    title: 'Meditation Impromptu 02',
+    src: '/audio/pray/meditation_02.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'meditation_03',
+    title: 'Meditation Impromptu 03',
+    src: '/audio/pray/meditation_03.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'avalon',
+    title: 'Shores of Avalon',
+    src: '/audio/pray/avalon.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'edge',
+    title: 'Past the Edge',
+    src: '/audio/pray/edge.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'dreamy',
+    title: 'Dreamy Flashback',
+    src: '/audio/pray/dreamy.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'piano',
+    title: 'Relaxing Piano Music',
+    src: '/audio/pray/piano.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'frozen',
+    title: 'Frozen Star',
+    src: '/audio/pray/frozen.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'dawn',
+    title: 'Lightless Dawn',
+    src: '/audio/pray/dawn.mp3',
+    artist: 'Kevin MacLeod',
+  },
+  {
+    id: 'healing',
+    title: 'Healing',
+    src: '/audio/pray/healing.mp3',
+    artist: 'Kevin MacLeod',
+  },
 ] as const;
 
-const TRACK_KEY = 'presto_pray_ambient_track';
 const MUTE_KEY = 'presto_pray_ambient_mute';
 
-export function readPrayAmbientTrackId(): string {
-  if (typeof window === 'undefined') return PRAY_AMBIENT_TRACKS[0]!.id;
-  const saved = window.localStorage.getItem(TRACK_KEY);
-  if (saved && PRAY_AMBIENT_TRACKS.some((t) => t.id === saved)) return saved;
-  // 默认按日轮换一首，避免总是同一曲
-  const day = Math.floor(Date.now() / 86_400_000);
-  return PRAY_AMBIENT_TRACKS[day % PRAY_AMBIENT_TRACKS.length]!.id;
-}
-
-export function writePrayAmbientTrackId(id: string) {
-  if (typeof window === 'undefined') return;
-  window.localStorage.setItem(TRACK_KEY, id);
+/** 每次进入会话随机选一首 */
+export function pickRandomPrayAmbientTrack(): PrayAmbientTrack {
+  const i = Math.floor(Math.random() * PRAY_AMBIENT_TRACKS.length);
+  return PRAY_AMBIENT_TRACKS[i]!;
 }
 
 export function readPrayAmbientMuted(): boolean {
@@ -46,6 +89,6 @@ export function writePrayAmbientMuted(muted: boolean) {
   window.localStorage.setItem(MUTE_KEY, muted ? '1' : '0');
 }
 
-export function prayAmbientById(id: string): PrayAmbientTrack {
-  return PRAY_AMBIENT_TRACKS.find((t) => t.id === id) ?? PRAY_AMBIENT_TRACKS[0]!;
+export function prayAmbientAttribution(): string {
+  return 'Music by Kevin MacLeod (incompetech.com) · CC BY 4.0';
 }

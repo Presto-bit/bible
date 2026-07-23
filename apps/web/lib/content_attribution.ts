@@ -112,6 +112,13 @@ export const CONTENT_ATTRIBUTION_SECTIONS: AttributionSection[] = [
         license: 'Unsplash（已打包）',
         note: '31 张风景图随应用分发，用于每日经文卡片与全屏壁纸，支持离线缓存。',
       },
+      {
+        id: 'pray-ambient',
+        name: '沉浸祷告背景音乐（Kevin MacLeod）',
+        license: 'CC-BY',
+        url: 'https://incompetech.com/',
+        note: 'Meditation Impromptu、Shores of Avalon、Healing 等；页内已署名 CC BY 4.0。',
+      },
     ],
   },
   {
