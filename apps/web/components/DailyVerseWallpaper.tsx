@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DailyVerse } from '@/lib/api';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
+import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
 import { applyAppTheme } from '@/lib/app_theme';
 
 export default function DailyVerseWallpaper({
@@ -79,7 +80,7 @@ export default function DailyVerseWallpaper({
       <div className="verse-full-scrim-top" aria-hidden />
       <div className="verse-full-inner" onClick={(e) => e.stopPropagation()}>
         <div className="verse-full-copy">
-          <p className="verse-full-text">「{dv.text}」</p>
+          <p className="verse-full-text">{formatDailyVerseQuote(dv.text)}</p>
           {dv.ref ? <p className="verse-full-ref">{dv.ref}</p> : null}
         </div>
       </div>

@@ -22600,3 +22600,222 @@ body.ops-pc-active .app-body {
   background-position: right 12px center;
   padding-right: 36px;
 }
+
+/* ─── 沉浸祷告 /pray（PWA standalone 全屏盖住壳层）─── */
+html.pray-session-open,
+body.pray-session-open {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  background: #f3ebe3 !important;
+  /* 避免 iOS 过滚露出浏览器/壳层底色 */
+  overscroll-behavior-y: none;
+}
+
+body.pray-session-open .tabbar,
+body.pray-session-open .offline-bar,
+body.pray-session-open .install-banner {
+  display: none !important;
+}
+
+body.pray-session-open .app-body {
+  /* 底层页面不可见、不可点；会话用 portal 盖住 */
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.pray-session {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  color: #3d342c;
+  background: #f3ebe3;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+.pray-session-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 90% 60% at 50% 0%, #f7d9c4 0%, transparent 55%),
+    radial-gradient(ellipse 70% 50% at 20% 80%, #d9e4dc 0%, transparent 50%),
+    radial-gradient(ellipse 60% 45% at 90% 70%, #e8d5c8 0%, transparent 45%),
+    linear-gradient(180deg, #f6efe8 0%, #efe4d8 48%, #e7ddd2 100%);
+}
+
+.pray-session-glow {
+  position: absolute;
+  inset: 18% 12% auto;
+  height: 40%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, #fff 55%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.pray-session-top {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px;
+}
+
+.pray-session-close {
+  min-width: 44px;
+  height: 40px;
+  margin: 0;
+  padding: 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 55%, transparent);
+  color: #5a4f45;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.pray-session-audio-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.pray-session-audio-btn {
+  margin: 0;
+  padding: 8px 12px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, #fff 58%, transparent);
+  color: #5a4f45;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pray-session-picker {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 12px;
+  border-radius: 16px;
+  background: color-mix(in srgb, #fff 72%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.pray-session-picker-item {
+  margin: 0;
+  padding: 10px 4px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: #5a4f45;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pray-session-picker-item.is-on {
+  background: color-mix(in srgb, var(--accent-deep, #6b8f71) 18%, #fff);
+  color: var(--accent-deep, #4d6b54);
+}
+
+.pray-session-gesture {
+  position: relative;
+  z-index: 2;
+  align-self: center;
+  margin: 4px 16px 0;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-deep, #6b8f71) 88%, #000);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pray-session-body {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 28px 16px;
+  text-align: center;
+}
+
+.pray-session-kicker {
+  margin: 0 0 16px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, #5a4f45 55%, transparent);
+}
+
+.pray-session-text {
+  margin: 0;
+  max-width: 20em;
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1.75;
+  letter-spacing: 0.02em;
+  color: #2f2924;
+}
+
+.pray-session-hint {
+  margin: 28px 0 0;
+  font-size: 13px;
+  color: color-mix(in srgb, #5a4f45 45%, transparent);
+}
+
+.pray-session-foot {
+  position: relative;
+  z-index: 2;
+  padding: 12px 24px calc(20px + env(safe-area-inset-bottom, 0px));
+}
+
+.pray-session-amen {
+  width: 100%;
+  margin: 0;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-deep, #5f7d66);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--accent-deep, #5f7d66) 28%, transparent);
+}
+
+.pray-session-amen:active {
+  transform: scale(0.985);
+}
+
+@media (max-width: 360px) {
+  .pray-session-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pray-session-text {
+    font-size: 18px;
+  }
+}

@@ -38,6 +38,7 @@ import {
 import { consumeHeroReturnToVerse } from '@/lib/hero_b_nav';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { buildHomeGrowthCards, type HomeGrowthCard } from '@/lib/home_growth_cards';
+import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
 import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { bookIdToChineseName } from '@/lib/ref_label';
@@ -570,7 +571,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             {err
               ? '内容加载失败'
               : dv
-                ? `「${dv.text}」`
+                ? formatDailyVerseQuote(dv.text)
                 : dvLoading
                   ? '加载中…'
                   : '暂无经文'}

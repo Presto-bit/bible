@@ -271,7 +271,7 @@ function prayerSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       tag: '祷告',
       title: '开始祷告',
       sub: '',
-      href: '/plans?tab=prayer',
+      href: '/pray',
       icon: 'prayer',
       cta: '去祷告',
     };
@@ -282,7 +282,7 @@ function prayerSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
     tag: '祷告',
     title: trimRailTitle(day || '今日祷告', SIDE_TITLE_MAX),
     sub: '',
-    href: p.href || '/plans?tab=prayer',
+    href: '/pray',
     icon: 'prayer',
     cta: '去祷告',
   };
