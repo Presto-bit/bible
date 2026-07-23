@@ -13,7 +13,7 @@ import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
-import { prayerTodayHref } from '@/lib/plan_today_href';
+import { prayerTodayHref, activePlanTodayHrefSync } from '@/lib/plan_today_href';
 import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_reading';
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
@@ -39,7 +39,6 @@ import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { buildHomeGrowthCards, type HomeGrowthCard } from '@/lib/home_growth_cards';
 import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
-import { loadBooksJson, seededBooks } from '@/lib/bible_local';
 import { bookIdToChineseName } from '@/lib/ref_label';
 import { timedPerf } from '@/lib/perf_rum';
 import { watchChinaDayChange } from '@/lib/daily_clock';
@@ -267,104 +266,131 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   const refreshRail = useCallback(async () => {
     await timedPerf('home.refreshRail', async () => {
-    const report = buildReport();
-    let planCard:
-      | {
-          title: string;
-          sub: string;
-          href: string;
-          progressPct?: number;
-          bookId?: string;
-          chapter?: number;
-        }
-      | undefined;
-    let prayerCard: { title: string; sub: string; href: string } | undefined;
-    const active = getActivePlan();
-    if (active?.kind === 'prayer') {
-      const day = getPlanDay(active.planId) || 1;
-      prayerCard = {
-        title: `第 ${day} 天`,
-        sub: active.title,
-        href: prayerTodayHref(active),
+      type PlanCard = {
+        title: string;
+        sub: string;
+        href: string;
+        progressPct?: number;
+        bookId?: string;
+        chapter?: number;
       };
-    } else if (active) {
-      const day = getPlanDay(active.planId) || 1;
-      const meta = await buildPlanReadingMeta(active, day);
-      if (meta) {
-        const sess = getPlanSession(active.planId, day) ?? meta.session;
+      type ResumeCard = {
+        title: string;
+        sub: string;
+        href: string;
+        bookId: string;
+        chapter: number;
+      };
+
+      const report = buildReport();
+      const suggest = nextReadingSuggestion();
+      const suggestInput = suggest
+        ? {
+            title: suggest.title,
+            sub: suggest.reason,
+            href: suggest.href,
+            bookId: bookIdFromReaderHref(suggest.href)?.bookId,
+          }
+        : undefined;
+
+      let prayerCard: { title: string; sub: string; href: string } | undefined;
+      let planCard: PlanCard | undefined;
+      const active = getActivePlan();
+      if (active?.kind === 'prayer') {
+        const day = getPlanDay(active.planId) || 1;
+        prayerCard = {
+          title: `第 ${day} 天`,
+          sub: active.title,
+          href: prayerTodayHref(active),
+        };
+      } else if (active) {
+        const day = getPlanDay(active.planId) || 1;
+        // 先用同步入口立刻上屏，详情回来后再精修
+        planCard = {
+          title: active.title,
+          sub: `第 ${day} 天`,
+          href: activePlanTodayHrefSync(active),
+        };
+      }
+
+      let resumeCard: ResumeCard | undefined;
+      const last = getLastRead();
+      if (last) {
+        const name = bookIdToChineseName(last.bookId) || last.bookId;
+        resumeCard = {
+          title: `${name} ${last.chapter} 章`,
+          sub: '',
+          href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+          bookId: last.bookId,
+          chapter: last.chapter,
+        };
+      }
+
+      // 本地数据先画「今日推荐」+「成长」，不堵在群请求上
+      setTodayPanel(
+        buildHomeTodayPanel({
+          plan: planCard,
+          resume: resumeCard,
+          group: buildHomeGroupRailInput([], null),
+          prayer: prayerCard,
+          suggest: suggestInput,
+        }),
+      );
+      setGrowthCards(
+        buildHomeGrowthCards({
+          todayMin: todayMinutes(),
+          monthDays: report.monthDays,
+        }),
+      );
+
+      setGroupErr(null);
+      const planDay =
+        active && active.kind !== 'prayer' ? getPlanDay(active.planId) || 1 : 1;
+
+      const planMetaPromise =
+        active && active.kind !== 'prayer'
+          ? buildPlanReadingMeta(active, planDay).catch(() => null)
+          : Promise.resolve(null);
+
+      const socialPromise = Promise.all([api.myGroups(), api.discoverSummary()])
+        .then(([groupsRes, summaryRes]) =>
+          buildHomeGroupRailInput(groupsRes.groups, summaryRes),
+        )
+        .catch((e) => {
+          if (typeof navigator !== 'undefined' && navigator.onLine) {
+            setGroupErr(errorMessage(e, '小组动态加载失败'));
+          }
+          return buildHomeGroupRailInput([], null);
+        });
+
+      const [meta, groupCard] = await Promise.all([planMetaPromise, socialPromise]);
+
+      if (meta && active && active.kind !== 'prayer') {
+        const sess = getPlanSession(active.planId, planDay) ?? meta.session;
         const fullMeta = { ...meta, session: sess };
         const idx = resumeStepIndex(fullMeta);
         const step = meta.steps[idx] ?? meta.steps[0];
         const p = sessionProgress(meta.steps, sess.stepsDone);
         planCard = {
           title: step.label,
-          sub: `第 ${day} 天 · ${p.done}/${p.total} 段`,
+          sub: `第 ${planDay} 天 · ${p.done}/${p.total} 段`,
           href: readerHref(fullMeta, idx),
-          progressPct: p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined,
+          progressPct:
+            p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined,
           bookId: step.bookId,
           chapter: step.chapterStart,
         };
       }
-    }
-    let resumeCard:
-      | {
-          title: string;
-          sub: string;
-          href: string;
-          bookId: string;
-          chapter: number;
-        }
-      | undefined;
-    const last = getLastRead();
-    if (last) {
-      // 用本地书卷名，避免首页串行打 api.books()
-      const books = (await loadBooksJson()) ?? seededBooks();
-      const book = books.find((b) => b.id === last.bookId);
-      const name = book?.name ?? (bookIdToChineseName(last.bookId) || last.bookId);
-      resumeCard = {
-        title: `${name} ${last.chapter} 章`,
-        sub: '继续阅读',
-        href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
-        bookId: last.bookId,
-        chapter: last.chapter,
-      };
-    }
-    let groupCard = buildHomeGroupRailInput([], null);
-    setGroupErr(null);
-    try {
-      const [groupsRes, summaryRes] = await Promise.all([
-        api.myGroups(),
-        api.discoverSummary(),
-      ]);
-      groupCard = buildHomeGroupRailInput(groupsRes.groups, summaryRes);
-    } catch (e) {
-      if (typeof navigator !== 'undefined' && navigator.onLine) {
-        setGroupErr(errorMessage(e, '小组动态加载失败'));
-      }
-    }
-    const suggest = nextReadingSuggestion();
-    setTodayPanel(
-      buildHomeTodayPanel({
-        plan: planCard,
-        resume: resumeCard,
-        group: groupCard,
-        prayer: prayerCard,
-        suggest: suggest
-          ? {
-              title: suggest.title,
-              sub: suggest.reason,
-              href: suggest.href,
-              bookId: bookIdFromReaderHref(suggest.href)?.bookId,
-            }
-          : undefined,
-      }),
-    );
-    setGrowthCards(
-      buildHomeGrowthCards({
-        todayMin: todayMinutes(),
-        monthDays: report.monthDays,
-      }),
-    );
+
+      setTodayPanel(
+        buildHomeTodayPanel({
+          plan: planCard,
+          resume: resumeCard,
+          group: groupCard,
+          prayer: prayerCard,
+          suggest: suggestInput,
+        }),
+      );
     });
   }, []);
 
@@ -384,15 +410,12 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   useEffect(() => {
     if (!homeAwake) return;
-    // 社交轨道延后，先让每日经文占满带宽
-    const t = window.setTimeout(() => {
-      void refreshRail();
-    }, 600);
+    // 本地面板立刻上屏；网络补全在 refreshRail 内并行，不再人为延后 600ms
+    void refreshRail();
     void reloadDailyContent();
     if (consumeHeroReturnToVerse()) {
       setHeroResetNonce((n) => n + 1);
     }
-    return () => window.clearTimeout(t);
   }, [homeAwake, refreshRail, reloadDailyContent]);
 
   const openVerseWallpaper = () => {
