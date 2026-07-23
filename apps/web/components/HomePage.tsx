@@ -11,9 +11,7 @@ import {
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
-import { assistantHref } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
-import { getPendingBookChallenge } from '@/lib/challenge_progress';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { prayerTodayHref } from '@/lib/plan_today_href';
 import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_reading';
@@ -23,10 +21,10 @@ import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
 import { nextReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
-import { listAllThoughts } from '@/lib/reader_thoughts';
-import { buildHomeRail, heroThemeClass, type RailCard } from '@/lib/home_rail';
+import { heroThemeClass } from '@/lib/home_rail';
 import { bookIdFromReaderHref } from '@/lib/book_cover';
-import { HomeRail } from '@/components/home/HomeRail';
+import { buildHomeTodayPanel, type HomeTodayPanelModel } from '@/lib/home_today_panel';
+import { HomeTodayPanel } from '@/components/home/HomeTodayPanel';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
 import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
 import { buildHomeGroupRailInput } from '@/lib/home_social_line';
@@ -51,9 +49,6 @@ import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
 import { markHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
-import { fetchAdminEligible } from '@/lib/admin_rag';
-import { formatParticipants, tabLabel } from '@/lib/devotional_local';
-
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
   const hour = date.getHours();
@@ -209,7 +204,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   }, [router]);
 
   const [plusOpen, setPlusOpen] = useState(false);
-  const [railMain, setRailMain] = useState<RailCard[]>([]);
+  const [todayPanel, setTodayPanel] = useState<HomeTodayPanelModel | null>(null);
   const [growthCards, setGrowthCards] = useState<HomeGrowthCard[]>([]);
   const [userName, setUserName] = useState('');
   const { activeTab } = useTabKeepAlive();
@@ -324,72 +319,15 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     if (last) {
       // 用本地书卷名，避免首页串行打 api.books()
       const books = (await loadBooksJson()) ?? seededBooks();
-        const book = books.find((b) => b.id === last.bookId);
+      const book = books.find((b) => b.id === last.bookId);
       const name = book?.name ?? (bookIdToChineseName(last.bookId) || last.bookId);
-        resumeCard = {
+      resumeCard = {
         title: `${name} ${last.chapter} 章`,
         sub: '继续阅读',
-          href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
+        href: `/reader?book=${last.bookId}&chapter=${last.chapter}`,
         bookId: last.bookId,
         chapter: last.chapter,
       };
-    }
-    let devotionalCard:
-      | {
-          title: string;
-          sub: string;
-          href: string;
-          mediaCaption?: string;
-          mediaCaptionRight?: string;
-          progressPct?: number;
-          progressLabel?: string;
-        }
-      | undefined;
-    try {
-      const adminOk = await fetchAdminEligible();
-      if (adminOk) {
-        const card = await api.devotionalHomeCard('genesis_50_walk');
-        const scheduled = card.scheduled_day || card.day || 7;
-        const doneLabel = `${card.my_days}/${card.days_total}`;
-        const schedulePct = Math.round((scheduled / card.days_total) * 100);
-        if (card.my_days >= card.days_total && card.days_total > 0) {
-          devotionalCard = {
-            title: '你已完成创世记 50 次同行',
-            sub: '回顾我的默想与祷告',
-            href: card.href,
-            mediaCaption: '创世记50天',
-            mediaCaptionRight: doneLabel,
-            progressPct: 100,
-            progressLabel: String(scheduled),
-          };
-        } else if (card.has_opened || card.my_days > 0) {
-          devotionalCard = {
-            title: `今日第 ${scheduled} 次`,
-            sub: `上次停在${tabLabel(card.last_tab)} · 已完成 ${doneLabel}`,
-            href: card.href,
-            mediaCaption: '创世记50天',
-            mediaCaptionRight: doneLabel,
-            progressPct: schedulePct,
-            progressLabel: String(scheduled),
-          };
-        } else {
-          const people =
-            card.participants_count > 0
-              ? formatParticipants(card.participants_count)
-              : '经文、书信与默想 · 约18分钟';
-          devotionalCard = {
-            title: '与神同行',
-            sub: people,
-            href: card.href,
-            mediaCaption: '创世记50天',
-            mediaCaptionRight: `0/${card.days_total || 50}`,
-            progressPct: schedulePct,
-            progressLabel: String(scheduled),
-          };
-        }
-      }
-    } catch {
-      /* 非管理员或不具备权限时不展示入口 */
     }
     let groupCard = buildHomeGroupRailInput([], null);
     setGroupErr(null);
@@ -405,58 +343,22 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       }
     }
     const suggest = nextReadingSuggestion();
-    let assistantCard: { title: string; sub: string; href: string } | undefined;
-    // 复用 bootstrap/缓存的每日经文，避免第二次 dailyVerse 请求
-    const cachedDv = readCachedDailyVerse();
-    const dvRef = cachedDv?.ref;
-    if (dvRef) {
-      const q = '这段经文里，神的应许对你意味着什么？';
-      assistantCard = {
-        title: dvRef,
-        sub: '',
-        href: assistantHref(dvRef, {
-          question: q,
-          autoSend: true,
-          surface: 'home_prefill',
-        }),
-      };
-    }
-    const memCount = listAllThoughts().length;
-    const latestThought = listAllThoughts()[0];
-    const notesCard = {
-      title: memCount > 0 ? `${memCount} 条想法` : '我的想法',
-      sub: memCount > 0 ? '想法 · 划线' : '想法 · 划线',
-      href: '/notes',
-      count: memCount,
-      excerpt: latestThought?.body?.trim().slice(0, 48),
-    };
-    const pendingBookLocal = getPendingBookChallenge();
-    const { main } = buildHomeRail({
-      plan: planCard,
-      resume: resumeCard,
-      devotional: devotionalCard,
-      group: groupCard,
-      prayer: prayerCard,
-      suggest: suggest
-        ? {
-            title: suggest.title,
-            sub: suggest.reason,
-            href: suggest.href,
-            bookId: bookIdFromReaderHref(suggest.href)?.bookId,
-          }
-        : undefined,
-      assistant: assistantCard,
-      notes: notesCard,
-      challenge: pendingBookLocal
-        ? {
-            title: `《${pendingBookLocal.bookName}》`,
-            sub: '巩固问答',
-            href: '/challenge',
-            bookId: pendingBookLocal.bookId,
-          }
-        : undefined,
-    });
-    setRailMain(main);
+    setTodayPanel(
+      buildHomeTodayPanel({
+        plan: planCard,
+        resume: resumeCard,
+        group: groupCard,
+        prayer: prayerCard,
+        suggest: suggest
+          ? {
+              title: suggest.title,
+              sub: suggest.reason,
+              href: suggest.href,
+              bookId: bookIdFromReaderHref(suggest.href)?.bookId,
+            }
+          : undefined,
+      }),
+    );
     setGrowthCards(
       buildHomeGrowthCards({
         todayMin: todayMinutes(),
@@ -691,7 +593,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         {groupErr ? (
           <ErrorBanner message={groupErr} onRetry={() => void refreshRail()} />
         ) : null}
-        <HomeRail cards={railMain} />
+        {todayPanel ? <HomeTodayPanel panel={todayPanel} /> : null}
       </div>
 
       <HomeOnboardingBanner />

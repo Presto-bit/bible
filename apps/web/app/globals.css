@@ -1409,16 +1409,249 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .home-hero-carousel {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .home-page .home-rail-section-label {
   margin-top: 0;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .home-page .home-stack-rail {
   margin-top: 0;
+}
+
+/* 今日推荐：左大右双行动面板（纸感，区别于 Hero 沉浸卡） */
+.home-today-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  min-height: 152px;
+}
+
+.home-today-primary {
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--card-elev-rest, var(--elev-1));
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-today-primary:active {
+  transform: scale(0.985);
+}
+
+.home-today-primary-book {
+  position: relative;
+  flex: 0 0 56px;
+  width: 56px;
+  align-self: center;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--gold-wash, #f3ead2);
+  box-shadow: 0 2px 8px rgba(40, 32, 20, 0.12);
+}
+
+.home-today-primary-book-img {
+  display: block;
+  width: 56px;
+  height: 78px;
+  object-fit: cover;
+}
+
+.home-today-primary-book-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 78px;
+  color: var(--accent-deep);
+}
+
+.home-today-primary-book-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 3px 2px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+  color: #fff;
+  background: linear-gradient(transparent, rgba(20, 16, 10, 0.72));
+  pointer-events: none;
+}
+
+.home-today-primary-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.home-today-primary-title {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-today-primary-sub {
+  font-size: 12px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-today-primary-cta {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+
+.home-today-sides {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.home-today-side {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: 0;
+  margin: 0;
+  padding: 10px 10px 10px 9px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--card-elev-rest, var(--elev-1));
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  transition: transform 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.home-today-side:active {
+  transform: scale(0.985);
+}
+
+.home-today-side-group {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line));
+}
+
+.home-today-side-prayer {
+  background: color-mix(in srgb, var(--dawn-rose, #e8b4b8) 12%, var(--surface));
+  border-color: color-mix(in srgb, var(--dawn-rose, #e8b4b8) 28%, var(--line));
+}
+
+.home-today-side-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 1px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  color: var(--accent-deep);
+}
+
+.home-today-side-prayer .home-today-side-icon {
+  color: color-mix(in srgb, var(--dawn-rose, #c45c6a) 80%, var(--ink));
+}
+
+.home-today-side-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.home-today-side-tag {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ink-faint);
+}
+
+.home-today-side-title {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-today-side-sub {
+  font-size: 11px;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 360px) {
+  .home-today-panel {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    min-height: 140px;
+  }
+
+  .home-today-primary {
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .home-today-primary-book,
+  .home-today-primary-book-img,
+  .home-today-primary-book-fallback {
+    width: 48px;
+  }
+
+  .home-today-primary-book {
+    flex-basis: 48px;
+  }
+
+  .home-today-primary-book-img,
+  .home-today-primary-book-fallback {
+    height: 68px;
+  }
+
+  .home-today-primary-title {
+    font-size: 14px;
+  }
 }
 
 .home-onboarding-banner {
