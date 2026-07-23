@@ -22211,7 +22211,7 @@ label.ops-select-row {
 }
 /* 编辑 Canvas：左右留白更小，画布吃满 */
 .ops-pc-shell--edit {
-  padding: 12px 12px 20px;
+  padding: 10px 10px 16px;
 }
 html.ops-pc-active,
 body.ops-pc-active {
@@ -22361,15 +22361,16 @@ body.ops-pc-active .app-body {
 }
 .ops-canvas-grid {
   display: grid;
-  grid-template-columns: 52px minmax(240px, 320px) minmax(0, 1fr) minmax(280px, 380px);
-  gap: 12px;
-  align-items: start;
+  /* 预览定宽够用；剩余空间给工具 + 页面结构 */
+  grid-template-columns: 60px minmax(320px, 1fr) minmax(420px, 1.45fr) minmax(360px, 420px);
+  gap: 14px;
+  align-items: stretch;
   margin-top: 10px;
   min-height: calc(100dvh - 160px);
   width: 100%;
 }
 .ops-canvas-grid.is-left-collapsed {
-  grid-template-columns: 52px minmax(0, 1fr) minmax(280px, 380px);
+  grid-template-columns: 60px minmax(420px, 1fr) minmax(360px, 420px);
 }
 .ops-canvas-rail {
   grid-column: 1;
@@ -22381,14 +22382,14 @@ body.ops-pc-active .app-body {
   top: 12px;
 }
 .ops-canvas-rail-btn {
-  width: 52px;
-  min-height: 44px;
-  padding: 6px 4px;
+  width: 60px;
+  min-height: 48px;
+  padding: 8px 4px;
   border: 1px solid var(--line, var(--border));
   border-radius: 10px;
   background: var(--surface, #fff);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 650;
   line-height: 1.2;
   cursor: pointer;
@@ -22430,15 +22431,13 @@ body.ops-pc-active .app-body {
 .ops-builder-structure {
   grid-column: 3;
   grid-row: 1;
+  min-width: 0;
   min-height: 420px;
-  max-height: calc(100dvh - 180px);
+  max-height: calc(100dvh - 160px);
   overflow: auto;
 }
 .ops-canvas-grid.is-left-collapsed .ops-builder-structure {
   grid-column: 2;
-}
-.ops-canvas-grid.is-left-collapsed .ops-canvas-preview {
-  grid-column: 3;
 }
 .ops-builder-structure-head {
   display: grid;
@@ -22450,8 +22449,21 @@ body.ops-pc-active .app-body {
   padding: 0;
   background: transparent;
 }
+.ops-canvas-preview {
+  grid-column: 4;
+  grid-row: 1;
+  min-width: 0;
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  max-height: calc(100dvh - 140px);
+  overflow: auto;
+}
 .ops-canvas-preview .ops-preview-panel {
   position: static;
+  width: 100%;
+  box-sizing: border-box;
 }
 .ops-canvas-grid.is-left-collapsed .ops-canvas-preview {
   grid-column: 3;
@@ -22461,12 +22473,26 @@ body.ops-pc-active .app-body {
   flex-wrap: wrap;
   gap: 6px;
 }
+/* 预览栏定宽；手机框居中，桌面预览铺满该栏 */
+.ops-canvas-preview .ops-preview-phone {
+  width: min(100%, 390px);
+  margin: 0 auto;
+}
+.ops-canvas-preview .ops-preview-desktop {
+  width: 100%;
+}
+.ops-canvas-preview .ops-preview-home {
+  width: 100%;
+}
+.ops-canvas-preview .ops-preview-rail-card {
+  max-width: min(240px, 100%);
+}
 @media (max-width: 1100px) {
   .ops-canvas-grid {
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-columns: 60px minmax(0, 1fr);
   }
   .ops-canvas-grid.is-left-collapsed {
-    grid-template-columns: 52px minmax(0, 1fr);
+    grid-template-columns: 60px minmax(0, 1fr);
   }
   .ops-canvas-settings,
   .ops-builder-tools,
