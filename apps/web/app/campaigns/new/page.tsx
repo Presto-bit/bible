@@ -9,6 +9,7 @@ import {
   type OpsCampaignTemplate,
 } from '@/lib/api';
 import { buildPublishChecklist } from '@/lib/campaign_ops';
+import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -21,6 +22,14 @@ function fromLocalInput(value: string): string {
 }
 
 export default function CampaignNewPage() {
+  return (
+    <CampaignAdminGate>
+      <CampaignNewInner />
+    </CampaignAdminGate>
+  );
+}
+
+function CampaignNewInner() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [templates, setTemplates] = useState<OpsCampaignTemplate[]>([]);

@@ -11,8 +11,17 @@ import {
   copyText,
   formatRelativeTime,
 } from '@/lib/campaign_ops';
+import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 
 export default function CampaignsListPage() {
+  return (
+    <CampaignAdminGate>
+      <CampaignsListInner />
+    </CampaignAdminGate>
+  );
+}
+
+function CampaignsListInner() {
   const router = useRouter();
   const [items, setItems] = useState<OpsCampaign[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -96,7 +105,7 @@ export default function CampaignsListPage() {
       <div className="ops-page-head">
         <div>
           <h1 className="ops-page-title">活动运营</h1>
-          <p className="ops-page-sub">向你管理的群发布活动，成员在首页「今日推荐」看到</p>
+          <p className="ops-page-sub">平台管理员向群成员发布活动（首页今日推荐）</p>
         </div>
         <Link href="/campaigns/new" className="btn btn-primary">
           新建

@@ -498,6 +498,12 @@ def _user_is_platform_admin(conn, user_id: str) -> bool:
     return phone_is_admin(row[0] if row else None)
 
 
+def _require_platform_admin(conn, user_id: str) -> None:
+    """本期活动运营配置仅平台超管开放。"""
+    if not _user_is_platform_admin(conn, user_id):
+        raise HTTPException(403, "活动运营目前仅平台管理员可用")
+
+
 def _user_in_audience(conn, campaign_id: str, user_id: str) -> bool:
     meta = conn.execute(
         "SELECT COALESCE(audience_mode, 'groups'), creator_id::text FROM ops_campaign WHERE id = %s",
@@ -642,6 +648,22 @@ def _resolve_audience_groups(
         if not is_platform_admin:
             raise HTTPException(403, "仅平台超管可设置全站或预览受众")
         return []
+    if is_platform_admin:
+        cleaned: list[str] = []
+        for gid in group_ids:
+            g = str(gid).strip()
+            if not g:
+                continue
+            exists = conn.execute(
+                "SELECT 1 FROM social_group WHERE id = %s::uuid LIMIT 1",
+                (g,),
+            ).fetchone()
+            if not exists:
+                raise HTTPException(400, f"群不存在：{g}")
+            cleaned.append(g)
+        if not cleaned:
+            raise HTTPException(400, "请选择至少一个群（谁能看见）")
+        return cleaned
     return _validate_staff_groups(conn, user_id, group_ids)
 
 
@@ -758,7 +780,10 @@ class DayReadBody(BaseModel):
 
 
 @router.get("/templates")
-def list_templates() -> dict:
+def list_templates(user_id: str = Depends(get_current_user)) -> dict:
+    ensure_campaign_schema()
+    with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
     return {
         "domains": [{"id": k, "label": v} for k, v in DOMAIN_LABELS.items()],
         "templates": [
@@ -780,13 +805,14 @@ def list_templates() -> dict:
 def staff_groups(user_id: str = Depends(get_current_user)) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         rows = conn.execute(
             """
-            SELECT g.id::text, g.name, m.role
+            SELECT g.id::text, g.name, COALESCE(m.role, 'admin')
             FROM social_group g
-            JOIN group_member m ON m.group_id = g.id AND m.user_id = %s::uuid
-            WHERE m.role IN ('owner', 'admin')
+            LEFT JOIN group_member m ON m.group_id = g.id AND m.user_id = %s::uuid
             ORDER BY g.name ASC
+            LIMIT 200
             """,
             (user_id,),
         ).fetchall()
@@ -802,6 +828,7 @@ def list_my_campaigns(
 ) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         _expire_due_campaigns(conn)
         rows = conn.execute(
             _CAMPAIGN_SELECT
@@ -976,7 +1003,8 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
         landing["title"] = body.name.strip()
 
     with get_pool().connection() as conn:
-        is_admin = _user_is_platform_admin(conn, user_id)
+        _require_platform_admin(conn, user_id)
+        is_admin = True
         hero = _hero_write_fields(body, is_platform_admin=is_admin)
         group_ids = _resolve_audience_groups(
             conn,
@@ -1129,6 +1157,7 @@ class UserTemplateBody(BaseModel):
 def list_user_templates(user_id: str = Depends(get_current_user)) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         rows = conn.execute(
             """
             SELECT id, name, base_template_id, landing_json, created_at, updated_at
@@ -1158,6 +1187,7 @@ def save_user_template(body: UserTemplateBody, user_id: str = Depends(get_curren
     if body.baseTemplateId not in TEMPLATES:
         raise HTTPException(400, "未知基础模板")
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         count = conn.execute(
             "SELECT count(*)::int FROM ops_user_template WHERE user_id = %s::uuid",
             (user_id,),
@@ -1185,6 +1215,7 @@ def save_user_template(body: UserTemplateBody, user_id: str = Depends(get_curren
 def delete_user_template(template_id: str, user_id: str = Depends(get_current_user)) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         cur = conn.execute(
             "DELETE FROM ops_user_template WHERE id = %s AND user_id = %s::uuid",
             (template_id, user_id),
@@ -1403,12 +1434,13 @@ def update_campaign(
     if not landing.get("title"):
         landing["title"] = body.name.strip()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         row = _get_row(conn, campaign_id)
         if not row:
             raise HTTPException(404, "活动不存在")
         if not _is_creator(row, user_id):
             raise HTTPException(403, "仅创建者可编辑")
-        is_admin = _user_is_platform_admin(conn, user_id)
+        is_admin = True
         hero = _hero_write_fields(body, is_platform_admin=is_admin)
         group_ids = _resolve_audience_groups(
             conn,
@@ -1480,14 +1512,13 @@ def update_campaign(
 def copy_campaign(campaign_id: str, user_id: str = Depends(get_current_user)) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         row = _get_row(conn, campaign_id)
         if not row:
             raise HTTPException(404, "活动不存在")
         if not _is_creator(row, user_id):
             raise HTTPException(403, "仅创建者可复制")
         gids = _load_groups(conn, campaign_id)
-        for gid in gids:
-            access.require_staff(conn, gid, user_id)
         new_id = _new_id()
         landing = _landing(row[12])
         conn.execute(
@@ -1528,6 +1559,7 @@ def copy_campaign(campaign_id: str, user_id: str = Depends(get_current_user)) ->
 def delete_campaign(campaign_id: str, user_id: str = Depends(get_current_user)) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         row = _get_row(conn, campaign_id)
         if not row:
             raise HTTPException(404, "活动不存在")
@@ -1710,6 +1742,7 @@ def extend_campaign(
 ) -> dict:
     ensure_campaign_schema()
     with get_pool().connection() as conn:
+        _require_platform_admin(conn, user_id)
         row = _get_row(conn, campaign_id)
         if not row:
             raise HTTPException(404, "活动不存在")

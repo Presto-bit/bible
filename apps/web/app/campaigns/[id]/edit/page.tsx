@@ -17,6 +17,7 @@ import {
 } from '@/lib/campaign_ops';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { QUICK_HREFS } from '@/lib/campaign_nav';
+import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 
 function toLocalInput(iso: string): string {
   if (!iso) return '';
@@ -32,6 +33,14 @@ function fromLocalInput(value: string): string {
 }
 
 export default function CampaignEditPage() {
+  return (
+    <CampaignAdminGate>
+      <CampaignEditInner />
+    </CampaignAdminGate>
+  );
+}
+
+function CampaignEditInner() {
   const params = useParams();
   const router = useRouter();
   const id = String(params?.id || '');
