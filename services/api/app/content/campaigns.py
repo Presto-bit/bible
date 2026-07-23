@@ -614,8 +614,16 @@ def _apply_day_locks(
     return landing, cap
 
 
-def _validate_staff_groups(conn, user_id: str, group_ids: list[str]) -> list[str]:
+def _validate_staff_groups(
+    conn,
+    user_id: str,
+    group_ids: list[str],
+    *,
+    allow_empty: bool = False,
+) -> list[str]:
     if not group_ids:
+        if allow_empty:
+            return []
         raise HTTPException(400, "请选择至少一个群（谁能看见）")
     cleaned: list[str] = []
     for gid in group_ids:
@@ -625,6 +633,8 @@ def _validate_staff_groups(conn, user_id: str, group_ids: list[str]) -> list[str
         access.require_staff(conn, g, user_id)
         cleaned.append(g)
     if not cleaned:
+        if allow_empty:
+            return []
         raise HTTPException(400, "请选择至少一个群（谁能看见）")
     return cleaned
 
@@ -643,6 +653,7 @@ def _resolve_audience_groups(
     audience_mode: str,
     *,
     is_platform_admin: bool,
+    allow_empty: bool = False,
 ) -> list[str]:
     if audience_mode in {"all", "admin_preview"}:
         if not is_platform_admin:
@@ -662,9 +673,11 @@ def _resolve_audience_groups(
                 raise HTTPException(400, f"群不存在：{g}")
             cleaned.append(g)
         if not cleaned:
+            if allow_empty:
+                return []
             raise HTTPException(400, "请选择至少一个群（谁能看见）")
         return cleaned
-    return _validate_staff_groups(conn, user_id, group_ids)
+    return _validate_staff_groups(conn, user_id, group_ids, allow_empty=allow_empty)
 
 
 def _publish_checklist(
@@ -1012,6 +1025,7 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
             body.groupIds,
             hero["audience_mode"],
             is_platform_admin=is_admin,
+            allow_empty=(status == "draft"),
         )
         payload = {
             "name": body.name.strip(),
@@ -1448,6 +1462,7 @@ def update_campaign(
             body.groupIds,
             hero["audience_mode"],
             is_platform_admin=is_admin,
+            allow_empty=(status == "draft"),
         )
         payload = {
             "name": body.name,

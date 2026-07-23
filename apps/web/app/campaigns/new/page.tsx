@@ -35,7 +35,7 @@ export default function CampaignNewPage() {
 
 function CampaignNewInner() {
   const router = useRouter();
-  const [sceneId, setSceneId] = useState<CampaignSceneId | null>(null);
+  const [sceneId, setSceneId] = useState<CampaignSceneId | ''>('');
   const [templates, setTemplates] = useState<OpsCampaignTemplate[]>([]);
   const [userTemplates, setUserTemplates] = useState<
     Array<{ id: string; name: string; baseTemplateId: string; landing: OpsCampaignLanding }>
@@ -62,14 +62,14 @@ function CampaignNewInner() {
   }, []);
 
   const sceneTemplates = useMemo(() => {
-    const scene = sceneById(sceneId);
+    const scene = sceneById(sceneId || null);
     if (!scene) return [];
     const byId = new Map(templates.map((t) => [t.id, t]));
     return scene.templateIds.map((id) => byId.get(id)).filter(Boolean) as OpsCampaignTemplate[];
   }, [sceneId, templates]);
 
-  const pickScene = (id: CampaignSceneId) => {
-    setSceneId(id);
+  const onSceneChange = (value: string) => {
+    setSceneId((value || '') as CampaignSceneId | '');
     setErr(null);
   };
 
@@ -147,11 +147,7 @@ function CampaignNewInner() {
             ← 活动运营
           </Link>
           <h1 className="ops-page-title">新建活动</h1>
-          <p className="ops-page-sub">
-            {sceneId
-              ? '选一个模板，进入完整配置（可见范围、曝光、落地页内容）'
-              : '先选场景，再只展示该场景下的模板'}
-          </p>
+          <p className="ops-page-sub">下拉选择场景，再点模板进入完整配置</p>
         </div>
       </div>
 
@@ -167,53 +163,33 @@ function CampaignNewInner() {
         </p>
       ) : null}
 
-      {!sceneId ? (
-        <div className="ops-select-list">
+      <label className="ops-field" style={{ marginTop: 14 }}>
+        <span>活动场景</span>
+        <select
+          className="input ops-scene-select"
+          value={sceneId}
+          disabled={busy}
+          onChange={(e) => onSceneChange(e.target.value)}
+          aria-label="选择活动场景"
+        >
+          <option value="">请选择场景</option>
           {userTemplates.length > 0 ? (
-            <button
-              type="button"
-              className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
-              disabled={busy}
-              onClick={() => pickScene('mine')}
-            >
-              <span className="pill pill-active">常用</span>
-              <span className="home-list-main">
-                <strong>我的模板</strong>
-                <span className="muted home-list-sub">
-                  {userTemplates.length} 个已保存，直接复用
-                </span>
-              </span>
-              <span className="muted home-list-chevron">›</span>
-            </button>
+            <option value="mine">我的模板（{userTemplates.length}）</option>
           ) : null}
           {CAMPAIGN_SCENES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="card row-card home-list-row home-list-row-wrap profile-soft-row ops-select-row"
-              disabled={busy}
-              onClick={() => pickScene(s.id)}
-            >
-              <span className="home-list-main">
-                <strong>{s.title}</strong>
-                <span className="muted home-list-sub">{s.sub}</span>
-              </span>
-              <span className="muted home-list-chevron">›</span>
-            </button>
+            <option key={s.id} value={s.id}>
+              {s.title}
+            </option>
           ))}
-        </div>
+        </select>
+      </label>
+
+      {!sceneId ? (
+        <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>
+          选好场景后，下方会列出该场景可用的模板。
+        </p>
       ) : (
         <div className="ops-select-list">
-          <button
-            type="button"
-            className="text-link"
-            style={{ alignSelf: 'flex-start', marginBottom: 4 }}
-            disabled={busy}
-            onClick={() => setSceneId(null)}
-          >
-            ← 重选场景
-          </button>
-
           {sceneId === 'mine' ? (
             userTemplates.length === 0 ? (
               <div className="card ops-empty">
@@ -242,8 +218,8 @@ function CampaignNewInner() {
             )
           ) : (
             <>
-              <p className="section-label" style={{ marginBottom: 0 }}>
-                {sceneById(sceneId)?.title || '模板'}
+              <p className="muted" style={{ fontSize: 13, margin: '4px 0 0' }}>
+                {sceneById(sceneId)?.sub}
               </p>
               {sceneTemplates.map((t) => (
                 <button

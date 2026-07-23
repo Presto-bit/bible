@@ -21709,6 +21709,10 @@ body.devotional-immersive .app-body {
   gap: 12px;
   margin-top: 12px;
 }
+.ops-page-head .icon-btn {
+  flex-shrink: 0;
+  text-decoration: none;
+}
 .ops-page-title {
   margin: 0;
   font-size: 1.35rem;
@@ -22213,4 +22217,12 @@ label.ops-select-row {
 .ops-field > span {
   font-size: 12px;
   color: var(--ink-soft);
+}
+.ops-scene-select {
+  width: 100%;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
 }
