@@ -15125,13 +15125,13 @@ a.feed-verse-hero:active {
 }
 
 .group-wechat-composer {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
   z-index: 40;
-  padding: 6px 10px max(2px, env(safe-area-inset-bottom, 0));
-  background: var(--bg);
+  padding: 6px 10px 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--surface, #fff);
   border-top: 1px solid var(--line);
   box-shadow: none;
 }
@@ -16324,9 +16324,6 @@ html.perf-lite .tabbar {
 }
 
 /* ─── 群页 P2 增强 ─── */
-.group-page {
-  padding-bottom: var(--im-composer-h, calc(140px + env(safe-area-inset-bottom, 0px)));
-}
 
 .group-sticky-zone {
   position: sticky;
@@ -17386,14 +17383,17 @@ html.perf-lite .tabbar {
 }
 
 /* ─── 打卡型共读群（P0–P2）── */
-body:has(.group-page-checkin) .app-body {
+body:has(.group-page-checkin) .app-body,
+body:has(.dm-page) .app-body {
   overflow: hidden;
+  padding-top: 0;
   padding-bottom: 0;
 }
 
 .group-page-checkin {
   position: fixed;
-  top: env(safe-area-inset-top, 0);
+  /* 贴满视口；顶安全区用 padding，底栏才能画到物理底边（含 Home 条） */
+  top: 0;
   left: 0;
   right: 0;
   bottom: 0;
@@ -17403,8 +17403,7 @@ body:has(.group-page-checkin) .app-body {
   max-height: none;
   overflow: hidden;
   padding: 0;
-  /* 给固定底栏（输入区）留空；高度跟实测 --im-composer-h（含 ➕ / @） */
-  padding-bottom: var(--im-composer-h, calc(140px + env(safe-area-inset-bottom, 0px)));
+  padding-top: env(safe-area-inset-top, 0px);
   box-sizing: border-box;
   z-index: 2;
 }
@@ -17427,7 +17426,7 @@ body:has(.group-page-checkin) .app-body {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   overscroll-behavior-x: none;
-  padding: 10px 16px 48px;
+  padding: 10px 16px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -18188,11 +18187,10 @@ html.app-theme-dark .muted {
 }
 
 .group-page-checkin .group-wechat-composer {
-  left: 0;
-  right: 0;
-  bottom: 0;
   z-index: 45;
-  padding: 6px 10px max(2px, env(safe-area-inset-bottom, 0));
+  padding: 6px 10px 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: var(--surface, #fff);
 }
 
 .group-poster-avatar {
@@ -20184,8 +20182,8 @@ html.app-theme-dark body {
 .dm-attach-bar{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
 .dm-bubble-foot{display:flex;align-items:center;gap:8px;margin-top:6px;min-height:16px;}
 .im-retention-hint{font-size:12px;color:var(--muted,#6b6b6b);margin:0 0 10px;line-height:1.45;}
-.im-jump-bottom{position:fixed;right:16px;bottom:calc(56px + env(safe-area-inset-bottom));z-index:30;appearance:none;border:0;padding:10px 14px;border-radius:999px;background:var(--surface,#fff);box-shadow:0 6px 20px rgba(0,0,0,.14);font-size:13px;cursor:pointer;color:var(--ink,#1a1a1a);}
-body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(56px + env(safe-area-inset-bottom));}
+.im-jump-bottom{position:fixed;right:16px;bottom:calc(var(--im-composer-h, 64px) + 12px);z-index:30;appearance:none;border:0;padding:10px 14px;border-radius:999px;background:var(--surface,#fff);box-shadow:0 6px 20px rgba(0,0,0,.14);font-size:13px;cursor:pointer;color:var(--ink,#1a1a1a);}
+body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 64px) + 12px);}
 .group-feed-filters.im-feed-filters{gap:6px;}
 .group-feed-filters.im-feed-filters .mode-chip{font-size:12px;padding:5px 10px;border-radius:8px;}
 .im-msg-menu{position:relative;display:inline-flex;}
@@ -20196,13 +20194,9 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(56px + env(safe-area-i
 .discover-conv-li .swipe-reveal-content{background:transparent;}
 .discover-conv-li .discover-conv-row{width:100%;}
 /* 私信：全屏固定壳，顶栏冻结，仅消息列表滚动（对齐微信） */
-body:has(.dm-page) .app-body {
-  overflow: hidden;
-  padding-bottom: 0;
-}
 .dm-page{
   position:fixed;
-  top:env(safe-area-inset-top, 0);
+  top:0;
   left:0;
   right:0;
   bottom:0;
@@ -20213,7 +20207,7 @@ body:has(.dm-page) .app-body {
   min-height:0;
   overflow:hidden;
   padding:0;
-  padding-bottom:var(--im-composer-h, calc(140px + env(safe-area-inset-bottom, 0px)));
+  padding-top:env(safe-area-inset-top, 0px);
   box-sizing:border-box;
   z-index:2;
 }
@@ -20280,48 +20274,49 @@ body:has(.dm-page) .app-body {
   display:flex;
   flex-direction:column;
   gap:2px;
-  padding:4px 0 48px;
+  padding:4px 0 12px;
 }
-/* 输入栏：贴底 / 贴键盘（微信式） */
+/* 输入栏：文档流贴壳底；底色铺满到物理底边，安全区只垫高输入行，避免「悬空空白」 */
 .dm-composer-dock.im-composer-bar,
 .group-wechat-composer.im-composer-dock{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
+  position:relative;
+  flex-shrink:0;
+  width:100%;
+  left:auto;
+  right:auto;
+  bottom:auto;
   z-index:45;
   margin:0;
-  padding:6px 10px max(2px, env(safe-area-inset-bottom, 0px));
-  background:var(--bg,#fffcfa);
+  margin-top:auto;
+  margin-bottom:0;
+  padding:6px 10px 0;
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+  background:var(--surface, #fff);
   border-top:1px solid var(--line);
   box-shadow:none;
 }
 /*
  * 键盘态（群 / 私信同款）：
  * - 壳高度锁定 visualViewport（--im-vv-h），贴住键盘上沿
- * - 输入栏在壳内 absolute 贴底，不被键盘遮挡
- * - 列表区域已扣除输入栏高度，滚到底后末条在输入框上方
+ * - 输入栏保持文档流贴壳底，自然落在键盘上方
+ * - 列表 flex:1 自动收缩，末条可滚到输入框上方
  */
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
-  top: max(env(safe-area-inset-top, 0px), var(--im-vv-top, 0px));
+  top: var(--im-vv-top, 0px);
   bottom: auto;
-  height: calc(
-    var(--im-vv-h, 100dvh)
-    - max(0px, env(safe-area-inset-top, 0px) - var(--im-vv-top, 0px))
-  );
-  max-height: calc(
-    var(--im-vv-h, 100dvh)
-    - max(0px, env(safe-area-inset-top, 0px) - var(--im-vv-top, 0px))
-  );
-  padding-bottom: var(--im-composer-h, 64px);
+  height: var(--im-vv-h, 100dvh);
+  max-height: var(--im-vv-h, 100dvh);
+  padding-top: max(0px, env(safe-area-inset-top, 0px) - var(--im-vv-top, 0px));
+  padding-bottom: 0;
 }
 body.im-keyboard .dm-composer-dock.im-composer-bar,
 body.im-keyboard .group-wechat-composer.im-composer-dock{
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  /* 键盘已盖住 Home 区，去掉安全区垫高，消除输入行与键盘之间的空隙 */
   padding-bottom: 4px;
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
@@ -20343,7 +20338,7 @@ body.im-keyboard .group-prayer-banner {
   display: none !important;
 }
 .im-jump-bottom{
-  bottom:calc(var(--im-composer-h, 56px) + 12px + env(safe-area-inset-bottom, 0px));
+  bottom:calc(var(--im-composer-h, 64px) + 12px);
 }
 .group-chat-name{
   font-size:12px;

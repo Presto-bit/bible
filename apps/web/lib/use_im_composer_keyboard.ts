@@ -109,8 +109,8 @@ export type ImComposerKeyboardOpts = {
 /**
  * IM 键盘贴合（群 / 私信共用）：
  * - 以 visualViewport 高度锁定会话壳（overlays / resizes-content 都能贴住键盘上沿）
- * - 顶栏不跟 offsetTop 上移
- * - 输入栏贴壳底；列表 scrollTop 滚到底，末条落在输入框上方
+ * - 输入栏保持文档流贴壳底（勿再用 fixed + padding 洞），随壳高收缩自然落在键盘上
+ * - 列表 scrollTop 滚到底，末条落在输入框上方
  */
 export function useImComposerKeyboard(
   active: boolean,
