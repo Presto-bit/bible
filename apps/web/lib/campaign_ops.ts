@@ -27,10 +27,10 @@ export const CAMPAIGN_CONFIG_SECTIONS: Array<{
   label: string;
   hint: string;
 }> = [
-  { id: 'basic', anchor: 'ops-sec-basic', label: '基本', hint: '名称与推荐文案' },
+  { id: 'basic', anchor: 'ops-sec-basic', label: '叫什么', hint: '名称与推荐文案' },
   { id: 'content', anchor: 'ops-sec-content', label: '落地页', hint: '控件搭建内容' },
-  { id: 'audience', anchor: 'ops-sec-audience', label: '可见范围', hint: '谁能看见' },
-  { id: 'exposure', anchor: 'ops-sec-exposure', label: '首页曝光', hint: '推荐位与时段' },
+  { id: 'audience', anchor: 'ops-sec-audience', label: '给谁看', hint: '谁能看见' },
+  { id: 'exposure', anchor: 'ops-sec-exposure', label: '何时出现', hint: '推荐位与时段' },
 ];
 
 function parseLocalOrIso(value: string): number {

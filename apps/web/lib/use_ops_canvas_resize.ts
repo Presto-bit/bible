@@ -78,7 +78,7 @@ export function useOpsCanvasResize() {
     (edge: Edge) => ({
       role: 'separator' as const,
       'aria-orientation': 'vertical' as const,
-      'aria-label': edge === 0 ? '调整左侧与页面结构宽度' : '调整页面结构与预览宽度',
+      'aria-label': edge === 0 ? '调整左侧与预览宽度' : '调整预览与页面结构宽度',
       tabIndex: 0,
       className: `ops-canvas-splitter ops-canvas-splitter-${edge === 0 ? 'a' : 'b'}${
         dragging === edge ? ' is-dragging' : ''

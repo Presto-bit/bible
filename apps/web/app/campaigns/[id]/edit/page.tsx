@@ -23,7 +23,7 @@ import {
 import { getReadingExample, hasReadingExample } from '@/lib/campaign_example_copy';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
-import { ensureLandingBlocks } from '@/lib/campaign_blocks';
+import { addLandingBlock, BLOCK_CATALOG, ensureLandingBlocks, reorderLandingBlocks, type OpsBlockType } from '@/lib/campaign_blocks';
 import { useOpsCanvasResize } from '@/lib/use_ops_canvas_resize';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { CampaignBlockEditor } from '@/components/campaigns/CampaignBlockEditor';
@@ -82,8 +82,9 @@ function CampaignEditInner() {
     exposure: true,
   });
   const pinnedOpen = useRef<Partial<Record<CampaignConfigSectionId, boolean>>>({});
-  /** 顶部三 Tab：空间（控件库）| 配置 | 设置 */
+  /** 顶部三 Tab：搭内容 | 改控件 | 发布条件 */
   const [leftTab, setLeftTab] = useState<'palette' | 'config' | 'settings'>('palette');
+  const [settingsMoreOpen, setSettingsMoreOpen] = useState(false);
   const tabSwipeX = useRef<number | null>(null);
   const { gridRef, gridStyle, splitterProps } = useOpsCanvasResize();
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
@@ -129,6 +130,12 @@ function CampaignEditInner() {
     () => CAMPAIGN_CONFIG_SECTIONS.filter((s) => sectionDone[s.id]).length,
     [sectionDone],
   );
+  const firstGap = useMemo(() => {
+    const incomplete = firstIncompleteSection(checklistInput);
+    if (!incomplete) return null;
+    const label = checklist[0] || `完善「${incomplete.label}」`;
+    return { label, section: incomplete.id, anchor: incomplete.anchor };
+  }, [checklist, checklistInput]);
 
   useEffect(() => {
     setOpenSections((prev) => {
@@ -311,6 +318,25 @@ function CampaignEditInner() {
     [landing.blocks],
   );
 
+  const handleInsertBlock = useCallback(
+    (type: OpsBlockType, beforeId?: string) => {
+      const result = addLandingBlock(landing, type, beforeId ? { beforeId } : undefined);
+      if (!result) {
+        setHint('该控件已存在（单例）');
+        return;
+      }
+      setLanding(result.landing);
+      setFocusBlockId(result.blockId);
+      openLeftTab('config');
+      setHint(`已添加「${BLOCK_CATALOG[type].label}」，可在「改控件」中修改`);
+    },
+    [landing],
+  );
+
+  const handleReorderBlocks = useCallback((fromId: string, toId: string) => {
+    setLanding((prev) => reorderLandingBlocks(prev, fromId, toId));
+  }, []);
+
   const onTabSwipeStart = (e: TouchEvent) => {
     tabSwipeX.current = e.changedTouches[0]?.clientX ?? null;
   };
@@ -479,7 +505,7 @@ function CampaignEditInner() {
             </span>
             <span>{camp.tag || '活动'}</span>
             <span>
-              配置进度 {doneCount}/{CAMPAIGN_CONFIG_SECTIONS.length}
+              {doneCount}/{CAMPAIGN_CONFIG_SECTIONS.length} 就绪
             </span>
             {hint ? <span>· {hint}</span> : null}
           </span>
@@ -490,14 +516,26 @@ function CampaignEditInner() {
           <button type="button" className="btn" disabled={busy} onClick={() => void save('draft')}>
             存草稿
           </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy || checklist.length > 0}
-            onClick={() => void save('published')}
-          >
-            发布
-          </button>
+          <div className="ops-publish-cluster">
+            {firstGap ? (
+              <button
+                type="button"
+                className="ops-publish-gap"
+                onClick={() => jumpToSection(firstGap.section, firstGap.anchor)}
+              >
+                还差：{firstGap.label}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || checklist.length > 0}
+              onClick={() => void save('published')}
+              title={checklist[0] || undefined}
+            >
+              发布
+            </button>
+          </div>
         </>
       }
     >
@@ -506,9 +544,9 @@ function CampaignEditInner() {
       <nav className="ops-canvas-tabs" aria-label="编辑分区">
         {(
           [
-            ['palette', '空间'],
-            ['config', '配置'],
-            ['settings', '设置'],
+            ['palette', '搭内容'],
+            ['config', '改控件'],
+            ['settings', '发布条件'],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -530,14 +568,14 @@ function CampaignEditInner() {
         onTouchEnd={onTabSwipeEnd}
       >
         {leftTab === 'settings' ? (
-          <div className="ops-canvas-settings" aria-label="页面设置">
+          <div className="ops-canvas-settings" aria-label="发布条件">
             <div
               id="ops-sec-basic"
               className={`settings-card ops-sec${openSections.basic ? '' : ' is-collapsed'}`}
             >
               <button type="button" className="ops-sec-toggle" onClick={() => toggleSection('basic')}>
                 <span className="settings-title" style={{ margin: 0 }}>
-                  基本信息
+                  叫什么
                   {sectionDone.basic ? (
                     <span className="ops-sec-badge is-done">已完成</span>
                   ) : (
@@ -563,7 +601,7 @@ function CampaignEditInner() {
                 />
               </label>
               <label className="ops-field" style={{ marginTop: 10 }}>
-                <span>今日推荐副文案</span>
+                <span>首页卡副文案</span>
                 <input
                   className="input"
                   value={subtitle}
@@ -571,7 +609,7 @@ function CampaignEditInner() {
                   placeholder="继续阅读"
                 />
                 <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
-                  出现在主卡底部（原「继续阅读」位置）；留空则显示「继续阅读」
+                  也可在中间首页卡预览里直接改
                 </span>
               </label>
             </div>
@@ -586,7 +624,7 @@ function CampaignEditInner() {
                 onClick={() => toggleSection('audience')}
               >
                 <span className="settings-title" style={{ margin: 0 }}>
-                  谁能看见
+                  给谁看
                   {sectionDone.audience ? (
                     <span className="ops-sec-badge is-done">已完成</span>
                   ) : (
@@ -664,7 +702,7 @@ function CampaignEditInner() {
                 onClick={() => toggleSection('exposure')}
               >
                 <span className="settings-title" style={{ margin: 0 }}>
-                  首页今日推荐
+                  何时出现
                   {sectionDone.exposure ? (
                     <span className="ops-sec-badge is-done">已完成</span>
                   ) : (
@@ -694,19 +732,6 @@ function CampaignEditInner() {
                   </button>
                 ))}
               </div>
-              <label className="ops-field" style={{ marginTop: 12 }}>
-                <span>卡片点击跳转</span>
-                <input
-                  className="input"
-                  value={railHref}
-                  disabled={!railEnabled}
-                  onChange={(e) => setRailHref(e.target.value)}
-                  placeholder="留空=活动落地页；创世记可填 https://genesis-50.pages.dev/?code=0CIW43NR"
-                />
-                <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
-                  创世记 50 天链接会自动登录进入（无需填邀请码、无确认框）
-                </span>
-              </label>
               <div
                 style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}
               >
@@ -731,43 +756,79 @@ function CampaignEditInner() {
               </div>
             </div>
 
-            {camp?.stats && status !== 'draft' ? (
-              <div className="settings-card ops-sec" style={{ marginTop: 12 }}>
-                <div className="ops-sec-toggle" style={{ cursor: 'default' }}>
-                  <span className="settings-title" style={{ margin: 0 }}>
-                    运营数据
-                  </span>
-                  <button
-                    type="button"
-                    className="text-link"
-                    style={{ fontSize: 12 }}
-                    onClick={() => void load()}
-                  >
-                    刷新
-                  </button>
-                </div>
-                <div className="ops-stats-grid" style={{ marginTop: 10 }}>
-                  {(
-                    [
-                      ['打开', camp.stats.opens],
-                      ['已读', camp.stats.readers],
-                      ['赞', camp.stats.likes],
-                      ['RSVP', camp.stats.rsvps],
-                      ['报名', camp.stats.signups ?? 0],
-                      ['提问', camp.stats.questions ?? 0],
-                    ] as const
-                  ).map(([label, n]) => (
-                    <div key={label} className="ops-stat">
-                      <strong>{n ?? 0}</strong>
-                      <span>{label}</span>
-                    </div>
-                  ))}
-                </div>
-                <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-                  仅在此配置页与活动列表可见，成员从今日推荐进入时不会看到
-                </p>
-              </div>
-            ) : null}
+            <div className="settings-card ops-sec" style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="ops-sec-toggle"
+                onClick={() => setSettingsMoreOpen((v) => !v)}
+              >
+                <span className="settings-title" style={{ margin: 0 }}>
+                  更多
+                </span>
+                <span className="muted">{settingsMoreOpen ? '收起' : '展开'}</span>
+              </button>
+              {settingsMoreOpen ? (
+                <>
+                  <label className="ops-field">
+                    <span>卡片点击跳转</span>
+                    <input
+                      className="input"
+                      value={railHref}
+                      disabled={!railEnabled}
+                      onChange={(e) => setRailHref(e.target.value)}
+                      placeholder="留空=活动落地页；创世记可填 https://genesis-50.pages.dev/?code=0CIW43NR"
+                    />
+                    <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+                      创世记 50 天链接会自动登录进入（无需填邀请码、无确认框）
+                    </span>
+                  </label>
+                  {camp?.stats && status !== 'draft' ? (
+                    <>
+                      <div
+                        className="ops-sec-toggle"
+                        style={{ cursor: 'default', marginTop: 14, paddingTop: 10 }}
+                      >
+                        <span className="settings-title" style={{ margin: 0, fontSize: 14 }}>
+                          运营数据
+                        </span>
+                        <button
+                          type="button"
+                          className="text-link"
+                          style={{ fontSize: 12 }}
+                          onClick={() => void load()}
+                        >
+                          刷新
+                        </button>
+                      </div>
+                      <div className="ops-stats-grid" style={{ marginTop: 10 }}>
+                        {(
+                          [
+                            ['打开', camp.stats.opens],
+                            ['已读', camp.stats.readers],
+                            ['赞', camp.stats.likes],
+                            ['RSVP', camp.stats.rsvps],
+                            ['报名', camp.stats.signups ?? 0],
+                            ['提问', camp.stats.questions ?? 0],
+                          ] as const
+                        ).map(([label, n]) => (
+                          <div key={label} className="ops-stat">
+                            <strong>{n ?? 0}</strong>
+                            <span>{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+                        仅运营可见，成员从今日推荐进入时不会看到
+                      </p>
+                    </>
+                  ) : (
+                    <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+                      另存模板、延期等操作在中间预览下方
+                    </p>
+                  )}
+                </>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -785,53 +846,59 @@ function CampaignEditInner() {
           onToolsTabChange={(tab) => openLeftTab(tab)}
           hideTools={leftTab === 'settings'}
           leadingSplitter={<div {...splitterProps(0)} />}
+          centerSlot={
+            <div className="ops-canvas-preview">
+              <CampaignLivePreview
+                name={name}
+                subtitle={subtitle}
+                tag={camp?.tag || undefined}
+                templateId={camp?.templateId || ''}
+                campaignId={id}
+                landing={{ ...landing, title: name.trim() || landing.title, primaryCta: resolvedCta }}
+                railEnabled={railEnabled}
+                railSlot={railSlot}
+                onHint={setHint}
+                onEdit={handlePreviewEdit}
+                onChangeName={setName}
+                onChangeSubtitle={setSubtitle}
+                onChangeRailSlot={setRailSlot}
+                onChangeRailEnabled={setRailEnabled}
+                onInsertBlock={handleInsertBlock}
+                onReorderBlocks={handleReorderBlocks}
+              />
+              <div className="ops-canvas-actions">
+                <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
+                  全屏预览
+                </Link>
+                <button type="button" className="btn" disabled={busy} onClick={() => void copyPreview()}>
+                  复制预览链
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void saveAsTemplate()}
+                >
+                  另存模板
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy}
+                  onClick={() => void copyCampaign()}
+                >
+                  复制活动
+                </button>
+                <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
+                  延期 7 天
+                </button>
+              </div>
+            </div>
+          }
+          trailingSplitter={<div {...splitterProps(1)} />}
           focusBlockId={focusBlockId}
           onFocusBlockConsumed={() => setFocusBlockId(null)}
         />
-
-        <div {...splitterProps(1)} />
-
-        <div className="ops-canvas-preview">
-          <CampaignLivePreview
-            name={name}
-            subtitle={subtitle}
-            tag={camp?.tag || undefined}
-            templateId={camp?.templateId || ''}
-            campaignId={id}
-            landing={{ ...landing, title: name.trim() || landing.title, primaryCta: resolvedCta }}
-            railEnabled={railEnabled}
-            railSlot={railSlot}
-            onHint={setHint}
-            onEdit={handlePreviewEdit}
-          />
-          <div className="ops-canvas-actions">
-            <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
-              全屏预览
-            </Link>
-            <button type="button" className="btn" disabled={busy} onClick={() => void copyPreview()}>
-              复制预览链
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void saveAsTemplate()}
-            >
-              另存模板
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => void copyCampaign()}
-            >
-              复制活动
-            </button>
-            <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
-              延期 7 天
-            </button>
-          </div>
-        </div>
       </div>
     </OpsPcShell>
   );

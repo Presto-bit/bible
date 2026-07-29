@@ -1,15 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import type { OpsCampaignLanding } from '@/lib/api';
 import {
   BLOCK_CATALOG,
+  OPS_BLOCK_TYPE_MIME,
+  isOpsBlockType,
   normalizeBlocks,
+  type OpsBlockType,
   type OpsLandingBlock,
 } from '@/lib/campaign_blocks';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
 
 type TabItem = { id: string; label: string; body: string };
+
+const DROP_END = '__end__';
 
 function asTabs(data?: Record<string, unknown>): TabItem[] {
   const raw = data?.tabs;
@@ -27,6 +32,23 @@ function asTabs(data?: Record<string, unknown>): TabItem[] {
     .filter(Boolean) as TabItem[];
 }
 
+function readPaletteType(e: DragEvent): OpsBlockType | null {
+  const raw =
+    e.dataTransfer.getData(OPS_BLOCK_TYPE_MIME) || e.dataTransfer.getData('text/plain');
+  if (!raw) return null;
+  const type = raw.startsWith('ops-block-type:') ? raw.slice('ops-block-type:'.length) : raw;
+  return isOpsBlockType(type) ? type : null;
+}
+
+function readReorderId(e: DragEvent): string | null {
+  const typed = e.dataTransfer.getData('application/x-ops-block-id');
+  if (typed) return typed;
+  if (e.dataTransfer.types.includes(OPS_BLOCK_TYPE_MIME)) return null;
+  const raw = e.dataTransfer.getData('text/plain');
+  if (!raw || raw.startsWith('ops-block-type:') || isOpsBlockType(raw)) return null;
+  return raw;
+}
+
 /** 按积木顺序渲染落地页内容（预览 / 正式页共用） */
 export function CampaignLandingBlocks({
   landing,
@@ -40,6 +62,10 @@ export function CampaignLandingBlocks({
   onCtaClick,
   /** 预览态点击区块 → 回跳编辑该控件 */
   onEditBlock,
+  /** 从调色板拖入：插到 beforeId 前；无则追加末尾 */
+  onInsertBlock,
+  /** 预览内已有块拖拽排序 */
+  onReorderBlocks,
 }: {
   landing: OpsCampaignLanding;
   templateId?: string;
@@ -49,6 +75,8 @@ export function CampaignLandingBlocks({
   onlyTypes?: OpsLandingBlock['type'][];
   onCtaClick?: () => void;
   onEditBlock?: (blockId: string) => void;
+  onInsertBlock?: (type: OpsBlockType, beforeId?: string) => void;
+  onReorderBlocks?: (fromId: string, toId: string) => void;
 }) {
   const blocks = normalizeBlocks(landing.blocks).filter((b) =>
     onlyTypes ? onlyTypes.includes(b.type) : true,
@@ -62,19 +90,87 @@ export function CampaignLandingBlocks({
   );
   const features = landing.features || {};
 
+  const canDrop = mode === 'preview' && Boolean(onInsertBlock || onReorderBlocks);
+  const canReorder = mode === 'preview' && Boolean(onReorderBlocks);
+  const [overId, setOverId] = useState<string | null>(null);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const skipClickRef = useRef(false);
+
+  const onDragOverZone = (e: DragEvent, zoneId: string) => {
+    if (!canDrop) return;
+    const types = Array.from(e.dataTransfer.types || []);
+    const fromPalette = types.includes(OPS_BLOCK_TYPE_MIME);
+    const fromBlock =
+      canReorder &&
+      (types.includes('application/x-ops-block-id') ||
+        (!fromPalette && types.includes('text/plain')));
+    if (!fromPalette && !fromBlock) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = fromPalette ? 'copy' : 'move';
+    setOverId(zoneId);
+  };
+
+  const onDropZone = (e: DragEvent, beforeId?: string) => {
+    if (!canDrop) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const type = readPaletteType(e);
+    if (type && onInsertBlock) {
+      onInsertBlock(type, beforeId);
+      setOverId(null);
+      setDragId(null);
+      return;
+    }
+    const fromId = readReorderId(e) || dragId;
+    if (fromId && beforeId && onReorderBlocks && fromId !== beforeId) {
+      onReorderBlocks(fromId, beforeId);
+    }
+    setOverId(null);
+    setDragId(null);
+  };
+
+  const dropHint =
+    canDrop && onInsertBlock ? (
+      <div
+        className={`ops-lb-drop-end${overId === DROP_END ? ' is-drop-over' : ''}`}
+        onDragOver={(e) => onDragOverZone(e, DROP_END)}
+        onDragLeave={() => setOverId((id) => (id === DROP_END ? null : id))}
+        onDrop={(e) => onDropZone(e, undefined)}
+      >
+        拖到此处添加控件
+      </div>
+    ) : null;
+
   if (!blocks.length) {
     return (
-      <>
+      <div
+        className={`ops-landing-blocks${mode === 'preview' ? ' is-preview' : ''}${
+          canDrop ? ' is-droppable' : ''
+        }`}
+        onDragOver={canDrop ? (e) => onDragOverZone(e, DROP_END) : undefined}
+        onDrop={canDrop ? (e) => onDropZone(e, undefined) : undefined}
+      >
         {landing.body ? <p className="ops-view-body">{landing.body}</p> : null}
-      </>
+        {dropHint ||
+          (mode === 'preview' && onInsertBlock ? (
+            <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+              从左侧拖入控件开始搭建
+            </p>
+          ) : null)}
+      </div>
     );
   }
 
   return (
-    <div className={`ops-landing-blocks${mode === 'preview' ? ' is-preview' : ''}`}>
+    <div
+      className={`ops-landing-blocks${mode === 'preview' ? ' is-preview' : ''}${
+        canDrop ? ' is-droppable' : ''
+      }`}
+    >
       {mode === 'preview' && tag ? <span className="pill">{tag}</span> : null}
       {blocks.map((block) => {
         const editable = mode === 'preview' && Boolean(onEditBlock);
+        const clickable = editable && block.type !== 'cta' && block.type !== 'divider';
         const inner = (
           <BlockView
             block={block}
@@ -93,32 +189,80 @@ export function CampaignLandingBlocks({
             }
           />
         );
-        if (!editable || block.type === 'cta' || block.type === 'divider') {
-          return (
-            <div key={block.id} className="ops-lb-wrap">
-              {inner}
-            </div>
-          );
-        }
         return (
           <div
             key={block.id}
-            className="ops-lb-wrap is-editable"
-            role="button"
-            tabIndex={0}
-            onClick={() => onEditBlock?.(block.id)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                onEditBlock?.(block.id);
-              }
+            className={[
+              'ops-lb-wrap',
+              clickable ? 'is-editable' : '',
+              canDrop && overId === block.id ? 'is-drop-over' : '',
+              dragId === block.id ? 'is-dragging' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            role={clickable ? 'button' : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            draggable={canReorder}
+            title={
+              canReorder
+                ? '拖拽排序；点击编辑'
+                : clickable
+                  ? '点击编辑此控件'
+                  : undefined
+            }
+            onDragStart={
+              canReorder
+                ? (e) => {
+                    e.dataTransfer.setData('application/x-ops-block-id', block.id);
+                    e.dataTransfer.setData('text/plain', block.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    setDragId(block.id);
+                    skipClickRef.current = false;
+                  }
+                : undefined
+            }
+            onDrag={() => {
+              skipClickRef.current = true;
             }}
-            title="点击编辑此控件"
+            onDragEnd={() => {
+              setDragId(null);
+              setOverId(null);
+              window.setTimeout(() => {
+                skipClickRef.current = false;
+              }, 0);
+            }}
+            onDragOver={(e) => onDragOverZone(e, block.id)}
+            onDragLeave={() => setOverId((id) => (id === block.id ? null : id))}
+            onDrop={(e) => onDropZone(e, block.id)}
+            onClick={
+              clickable
+                ? () => {
+                    if (skipClickRef.current) return;
+                    onEditBlock?.(block.id);
+                  }
+                : undefined
+            }
+            onKeyDown={
+              clickable
+                ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      onEditBlock?.(block.id);
+                    }
+                  }
+                : undefined
+            }
           >
+            {canReorder ? (
+              <span className="ops-lb-drag-hint muted" aria-hidden>
+                ⋮⋮
+              </span>
+            ) : null}
             {inner}
           </div>
         );
       })}
+      {dropHint}
     </div>
   );
 }

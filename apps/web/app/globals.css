@@ -22777,6 +22777,8 @@ body.ops-pc-active .app-body {
   gap: 8px;
   flex-shrink: 0;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .ops-pc-layout {
   display: grid;
@@ -22818,15 +22820,71 @@ body.ops-pc-active .app-body {
   background: var(--surface, #fff);
   box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 8%, transparent);
 }
+.ops-publish-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.ops-publish-gap {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent, #8a6a2f);
+  cursor: pointer;
+  text-align: right;
+  max-width: 220px;
+  line-height: 1.35;
+}
+.ops-publish-gap:hover {
+  text-decoration: underline;
+}
+.ops-preview-home-card-edit {
+  cursor: default;
+  text-align: left;
+}
+.ops-preview-inline-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 0;
+  background: color-mix(in srgb, var(--surface, #fff) 55%, transparent);
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  outline: 1px solid transparent;
+}
+.ops-preview-inline-input:focus {
+  outline-color: color-mix(in srgb, var(--accent, #8a6a2f) 45%, transparent);
+  background: color-mix(in srgb, var(--surface, #fff) 78%, transparent);
+}
+.ops-preview-inline-input.rail-title {
+  font-weight: 700;
+  line-height: 1.25;
+}
+.ops-preview-inline-input.rail-sub {
+  font-size: 12px;
+  opacity: 0.92;
+}
+.ops-preview-home-controls {
+  margin-top: 12px;
+}
 .ops-canvas-grid {
   display: grid;
-  /* 列宽由内联 style / 拖拽控制：左 | 分隔 | 中 | 分隔 | 右 */
+  /* 列宽由内联 style / 拖拽控制：左工具 | 分隔 | 中预览 | 分隔 | 右结构 */
   grid-template-columns:
-    minmax(260px, 1.45fr)
+    minmax(260px, 1.2fr)
     8px
-    minmax(220px, 0.95fr)
+    minmax(260px, 1fr)
     8px
-    minmax(260px, 320px);
+    minmax(220px, 0.95fr);
   gap: 0;
   align-items: stretch;
   margin-top: 10px;
@@ -22886,21 +22944,21 @@ body.ops-canvas-resizing iframe {
 @media (min-width: 1440px) {
   .ops-canvas-grid:not([style*='grid-template-columns']) {
     grid-template-columns:
-      minmax(360px, 1.35fr)
+      minmax(380px, 1.55fr)
       8px
-      minmax(300px, 1fr)
+      minmax(280px, 1fr)
       8px
-      minmax(280px, 1fr);
+      minmax(280px, 340px);
   }
 }
 @media (min-width: 1680px) {
   .ops-canvas-grid:not([style*='grid-template-columns']) {
     grid-template-columns:
-      minmax(400px, 1.4fr)
+      minmax(420px, 1.65fr)
       8px
-      minmax(320px, 1fr)
+      minmax(300px, 1fr)
       8px
-      minmax(300px, 1fr);
+      minmax(300px, 360px);
   }
 }
 .ops-canvas-settings {
@@ -22934,7 +22992,7 @@ body.ops-canvas-resizing iframe {
   box-sizing: border-box;
 }
 .ops-builder-structure {
-  grid-column: 3;
+  grid-column: 5;
   grid-row: 1;
   min-width: 0;
   width: 100%;
@@ -22956,7 +23014,7 @@ body.ops-canvas-resizing iframe {
   background: transparent;
 }
 .ops-canvas-preview {
-  grid-column: 5;
+  grid-column: 3;
   grid-row: 1;
   min-width: 0;
   width: 100%;
@@ -23767,6 +23825,47 @@ body.ops-canvas-resizing iframe {
 .ops-landing-blocks.is-preview {
   margin-top: 4px;
   gap: 10px;
+}
+.ops-landing-blocks.is-droppable .ops-lb-wrap {
+  position: relative;
+}
+.ops-lb-wrap.is-drop-over {
+  box-shadow: inset 0 3px 0 0 color-mix(in srgb, var(--accent-deep, #5f7d66) 75%, transparent);
+}
+.ops-lb-wrap.is-dragging {
+  opacity: 0.45;
+}
+.ops-lb-drag-hint {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 11px;
+  letter-spacing: -1px;
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+}
+.ops-lb-drop-end {
+  margin-top: 4px;
+  padding: 14px 12px;
+  border: 1.5px dashed color-mix(in srgb, var(--line, var(--border)) 90%, transparent);
+  border-radius: 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--surface, #fff) 70%, transparent);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.ops-lb-drop-end.is-drop-over {
+  border-color: color-mix(in srgb, var(--accent-deep, #5f7d66) 65%, transparent);
+  background: color-mix(in srgb, var(--accent-deep, #5f7d66) 8%, var(--surface, #fff));
+  color: var(--ink);
+}
+.ops-block-chip[draggable='true'] {
+  cursor: grab;
+}
+.ops-block-chip[draggable='true']:active {
+  cursor: grabbing;
 }
 .ops-lb-heading {
   margin: 0 0 6px;

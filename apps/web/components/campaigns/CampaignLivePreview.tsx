@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type DragEvent } from 'react';
 import type { OpsCampaignLanding } from '@/lib/api';
 import { RAIL_ICONS, trimRailSub, trimRailTitle, type RailCard } from '@/lib/home_rail';
 import { RailCardVisual } from '@/components/home/RailCardVisual';
 import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlocks';
 import { campaignPreviewUrl, copyText } from '@/lib/campaign_ops';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
+import { isOpsBlockType, OPS_BLOCK_TYPE_MIME, type OpsBlockType } from '@/lib/campaign_blocks';
 
 type PreviewTab = 'home' | 'landing' | 'reading';
 type PreviewDevice = 'phone' | 'desktop';
@@ -57,6 +58,12 @@ export function CampaignLivePreview({
   railSlot,
   onHint,
   onEdit,
+  onChangeName,
+  onChangeSubtitle,
+  onChangeRailSlot,
+  onChangeRailEnabled,
+  onInsertBlock,
+  onReorderBlocks,
 }: {
   name: string;
   subtitle?: string;
@@ -68,6 +75,12 @@ export function CampaignLivePreview({
   railSlot?: number;
   onHint?: (msg: string) => void;
   onEdit?: (target: CampaignPreviewEditTarget) => void;
+  onChangeName?: (value: string) => void;
+  onChangeSubtitle?: (value: string) => void;
+  onChangeRailSlot?: (slot: number) => void;
+  onChangeRailEnabled?: (enabled: boolean) => void;
+  onInsertBlock?: (type: OpsBlockType, beforeId?: string) => void;
+  onReorderBlocks?: (fromId: string, toId: string) => void;
 }) {
   const [tab, setTab] = useState<PreviewTab>(railEnabled === false ? 'landing' : 'home');
   const [device, setDevice] = useState<PreviewDevice>('phone');
@@ -76,6 +89,7 @@ export function CampaignLivePreview({
   const cta = resolvePrimaryCta(templateId, campaignId, landing.primaryCta);
   const inPageReading = ctaOpensInPageReading(templateId, cta.href, campaignId);
   const days = landing.days || [];
+  const canInlineHome = Boolean(onChangeName || onChangeSubtitle || onChangeRailSlot);
 
   const railCard: RailCard = {
     id: campaignId ? `campaign-${campaignId}` : 'campaign-preview',
@@ -105,8 +119,35 @@ export function CampaignLivePreview({
     if (hint) onHint?.(hint);
   };
 
+  const acceptPaletteDropOnPanel = (e: DragEvent) => {
+    if (!onInsertBlock || tab === 'landing') return false;
+    const types = Array.from(e.dataTransfer.types || []);
+    return types.includes(OPS_BLOCK_TYPE_MIME);
+  };
+
   return (
-    <aside className="ops-preview-panel" aria-label="实时预览">
+    <aside
+      className="ops-preview-panel"
+      aria-label="实时预览"
+      onDragOver={(e) => {
+        if (!acceptPaletteDropOnPanel(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+      }}
+      onDrop={(e) => {
+        if (!acceptPaletteDropOnPanel(e) || !onInsertBlock) return;
+        e.preventDefault();
+        const raw =
+          e.dataTransfer.getData(OPS_BLOCK_TYPE_MIME) || e.dataTransfer.getData('text/plain');
+        const type = raw.startsWith('ops-block-type:')
+          ? raw.slice('ops-block-type:'.length)
+          : raw;
+        if (!isOpsBlockType(type)) return;
+        setTab('landing');
+        onInsertBlock(type);
+        onHint?.('已切到落地页并添加控件');
+      }}
+    >
       <div className="ops-preview-head">
         <strong>实时预览</strong>
         <div className="ops-preview-head-actions">
@@ -177,35 +218,103 @@ export function CampaignLivePreview({
         <div className="ops-preview-home home-page">
           {railEnabled === false ? (
             <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
-              未挂今日推荐；成员需通过链接进入落地页。点击卡片可改曝光设置。
+              未挂今日推荐；成员需通过链接进入落地页。
             </p>
           ) : (
             <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
-              与首页「今日推荐」同款 · 第 {railSlot || 1} 位 · 点击可编辑
+              与首页「今日推荐」同款 · 第 {railSlot || 1} 位
+              {canInlineHome ? ' · 可直接改文案与位次' : ' · 点击可编辑'}
             </p>
           )}
           <div className="rail home-rail ops-preview-home-rail" aria-label="首页今日推荐示意">
-            <button
-              type="button"
-              className={homeRailCardClass(railCard)}
-              style={{ ['--tint' as string]: 'var(--dawn-gold)' }}
-              onClick={() => edit({ kind: 'home-card' }, '已打开设置：活动名称 / 副文案 / 曝光')}
-              title="点击编辑首页卡片文案与曝光"
-            >
-              <RailCardVisual card={railCard} />
-              <div className="rail-card-body rail-card-body-padded">
-                <div className="rail-head">
-                  <span className="pill pill-active">{railCard.tag}</span>
-                </div>
-                <div className="rail-title">{railCard.title}</div>
-                {railCard.sub ? (
-                  <div className="rail-foot">
-                    <span className="rail-sub">{railCard.sub}</span>
+            {canInlineHome ? (
+              <div
+                className={`${homeRailCardClass(railCard)} ops-preview-home-card-edit`}
+                style={{ ['--tint' as string]: 'var(--dawn-gold)' }}
+              >
+                <RailCardVisual card={railCard} />
+                <div className="rail-card-body rail-card-body-padded">
+                  <div className="rail-head">
+                    <span className="pill pill-active">{railCard.tag}</span>
                   </div>
-                ) : null}
+                  {onChangeName ? (
+                    <input
+                      className="ops-preview-inline-input rail-title"
+                      value={name}
+                      onChange={(e) => onChangeName(e.target.value)}
+                      placeholder="活动名称"
+                      aria-label="活动名称"
+                    />
+                  ) : (
+                    <div className="rail-title">{railCard.title}</div>
+                  )}
+                  <div className="rail-foot">
+                    {onChangeSubtitle ? (
+                      <input
+                        className="ops-preview-inline-input rail-sub"
+                        value={subtitle || ''}
+                        onChange={(e) => onChangeSubtitle(e.target.value)}
+                        placeholder="继续阅读"
+                        aria-label="首页卡副文案"
+                      />
+                    ) : railCard.sub ? (
+                      <span className="rail-sub">{railCard.sub}</span>
+                    ) : null}
+                  </div>
+                </div>
               </div>
-            </button>
+            ) : (
+              <button
+                type="button"
+                className={homeRailCardClass(railCard)}
+                style={{ ['--tint' as string]: 'var(--dawn-gold)' }}
+                onClick={() => edit({ kind: 'home-card' }, '已打开发布条件：叫什么 / 何时出现')}
+                title="点击编辑首页卡片文案与曝光"
+              >
+                <RailCardVisual card={railCard} />
+                <div className="rail-card-body rail-card-body-padded">
+                  <div className="rail-head">
+                    <span className="pill pill-active">{railCard.tag}</span>
+                  </div>
+                  <div className="rail-title">{railCard.title}</div>
+                  {railCard.sub ? (
+                    <div className="rail-foot">
+                      <span className="rail-sub">{railCard.sub}</span>
+                    </div>
+                  ) : null}
+                </div>
+              </button>
+            )}
           </div>
+          {canInlineHome ? (
+            <div className="ops-preview-home-controls" role="group" aria-label="首页卡曝光">
+              {onChangeRailEnabled ? (
+                <label className="ops-check-row" style={{ margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={railEnabled !== false}
+                    onChange={(e) => onChangeRailEnabled(e.target.checked)}
+                  />
+                  挂今日推荐
+                </label>
+              ) : null}
+              {onChangeRailSlot ? (
+                <div className="ops-chip-row" style={{ marginTop: 8 }}>
+                  {[1, 2, 3].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className={`ops-chip${(railSlot || 1) === n ? ' is-on' : ''}`}
+                      disabled={railEnabled === false}
+                      onClick={() => onChangeRailSlot(n)}
+                    >
+                      第 {n} 位{n === 1 ? ' · 主卡' : ''}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className={device === 'phone' ? 'ops-preview-phone' : 'ops-preview-desktop'}>
@@ -216,13 +325,15 @@ export function CampaignLivePreview({
                 <button
                   type="button"
                   className="ops-preview-title ops-preview-editable"
-                  onClick={() => edit({ kind: 'landing-title' }, '已打开设置：活动名称')}
+                  onClick={() => edit({ kind: 'landing-title' }, '已打开发布条件：叫什么')}
                   title="点击编辑标题"
                 >
                   {title}
                 </button>
                 <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
-                  点击任意区块可编辑对应内容
+                  {onInsertBlock
+                    ? '从左侧拖入控件，或点击区块编辑；预览内可拖拽排序'
+                    : '点击任意区块可编辑对应内容'}
                 </p>
                 <CampaignLandingBlocks
                   landing={landing}
@@ -231,8 +342,10 @@ export function CampaignLivePreview({
                   mode="preview"
                   tag={tag}
                   onEditBlock={(blockId) =>
-                    edit({ kind: 'block', blockId }, '已选中控件，可在「配置」中修改')
+                    edit({ kind: 'block', blockId }, '已选中控件，可在「改控件」中修改')
                   }
+                  onInsertBlock={onInsertBlock}
+                  onReorderBlocks={onReorderBlocks}
                 />
               </>
             ) : (
@@ -249,7 +362,7 @@ export function CampaignLivePreview({
                 onEditDays={(day) =>
                   edit({ kind: 'days', day }, '已打开日课配置')
                 }
-                onEditTitle={() => edit({ kind: 'landing-title' }, '已打开设置：活动名称')}
+                onEditTitle={() => edit({ kind: 'landing-title' }, '已打开发布条件：叫什么')}
               />
             )}
           </div>

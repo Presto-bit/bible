@@ -24,6 +24,9 @@ export type OpsBlockType =
   | 'cta'
   | 'tabs';
 
+/** 调色板 → 预览 / 结构：拖入控件类型（与 text/plain=blockId 排序区分） */
+export const OPS_BLOCK_TYPE_MIME = 'application/x-ops-block-type';
+
 export type OpsLandingBlock = {
   id: string;
   type: OpsBlockType;
@@ -320,15 +323,20 @@ export function ensureLandingBlocks(
 export function addLandingBlock(
   landing: OpsCampaignLanding,
   type: OpsBlockType,
-): OpsCampaignLanding {
+  opts?: { beforeId?: string },
+): { landing: OpsCampaignLanding; blockId: string } | null {
   const blocks = normalizeBlocks(landing.blocks);
   const meta = BLOCK_CATALOG[type];
-  if (!meta.multi && blocks.some((b) => b.type === type)) return landing;
+  if (!meta.multi && blocks.some((b) => b.type === type)) return null;
 
   const block = mk(type);
+  const beforeId = opts?.beforeId;
+  const at = beforeId ? blocks.findIndex((b) => b.id === beforeId) : -1;
+  const nextBlocks =
+    at >= 0 ? [...blocks.slice(0, at), block, ...blocks.slice(at)] : [...blocks, block];
   const next: OpsCampaignLanding = {
     ...landing,
-    blocks: [...blocks, block],
+    blocks: nextBlocks,
   };
 
   if (type === 'days' && !(next.days || []).length) {
@@ -353,9 +361,9 @@ export function addLandingBlock(
     next.features = { likes: true, comments: true, ...(next.features || {}) };
   }
   if (type === 'text' && block.data?.role === 'intro') {
-    return syncIntroTextToLanding(next);
+    return { landing: syncIntroTextToLanding(next), blockId: block.id };
   }
-  return next;
+  return { landing: next, blockId: block.id };
 }
 
 export function removeLandingBlock(

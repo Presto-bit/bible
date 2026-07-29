@@ -1,12 +1,12 @@
-/** 活动编辑三栏（空间/设置 · 页面结构 · 实时预览）宽度拖拽 */
+/** 活动编辑三栏（搭内容/发布条件 · 实时预览 · 页面结构）宽度拖拽 */
 
 export type OpsCanvasCols = { left: number; mid: number; right: number };
 
-const STORAGE_KEY = 'ops-canvas-cols-v1';
+const STORAGE_KEY = 'ops-canvas-cols-v2';
 const GAP = 8;
 
-export const OPS_COL_MIN = { left: 260, mid: 220, right: 260 } as const;
-export const OPS_COL_DEFAULT: OpsCanvasCols = { left: 420, mid: 300, right: 340 };
+export const OPS_COL_MIN = { left: 260, mid: 260, right: 220 } as const;
+export const OPS_COL_DEFAULT: OpsCanvasCols = { left: 380, mid: 340, right: 300 };
 
 export function loadOpsCanvasCols(): OpsCanvasCols {
   if (typeof window === 'undefined') return OPS_COL_DEFAULT;

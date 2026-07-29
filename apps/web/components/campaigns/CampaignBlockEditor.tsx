@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import type { OpsCampaignLanding } from '@/lib/api';
 import {
   BLOCK_CATALOG,
+  OPS_BLOCK_TYPE_MIME,
   addLandingBlock,
   availableBlockTypes,
   blockSummary,
@@ -52,6 +53,8 @@ export function CampaignBlockEditor({
   onToolsTabChange,
   hideTools = false,
   leadingSplitter = null,
+  centerSlot = null,
+  trailingSplitter = null,
   focusBlockId = null,
   onFocusBlockConsumed,
 }: {
@@ -61,14 +64,18 @@ export function CampaignBlockEditor({
   campaignId: string;
   onHint?: (msg: string) => void;
   onError?: (msg: string) => void;
-  /** stacked=旧版内嵌；canvas=左工具+中结构（配合编辑页三栏） */
+  /** stacked=旧版内嵌；canvas=左工具+中预览+右结构（配合编辑页三栏） */
   layout?: 'stacked' | 'canvas';
   toolsTab?: 'palette' | 'config';
   onToolsTabChange?: (tab: 'palette' | 'config') => void;
-  /** canvas 布局下隐藏左侧工具列（例如切到「设置」Tab） */
+  /** canvas 布局下隐藏左侧工具列（例如切到「发布条件」Tab） */
   hideTools?: boolean;
-  /** canvas 下插在工具列与页面结构之间的分隔条 */
+  /** canvas：工具列与中间预览之间的分隔条 */
   leadingSplitter?: ReactNode;
+  /** canvas：中间栏（实时预览） */
+  centerSlot?: ReactNode;
+  /** canvas：中间预览与页面结构之间的分隔条 */
+  trailingSplitter?: ReactNode;
   /** 外部（如实时预览）请求选中某控件 */
   focusBlockId?: string | null;
   onFocusBlockConsumed?: () => void;
@@ -117,14 +124,15 @@ export function CampaignBlockEditor({
     onToolsTabChange?.('config');
   };
 
-  const onAdd = (type: OpsBlockType) => {
-    const next = addLandingBlock(landing, type);
-    patch(next);
-    const added = normalizeBlocks(next.blocks).filter((b) => b.type === type).at(-1);
-    if (added) {
-      setSelectedId(added.id);
-      onToolsTabChange?.('config');
+  const onAdd = (type: OpsBlockType, beforeId?: string) => {
+    const result = addLandingBlock(landing, type, beforeId ? { beforeId } : undefined);
+    if (!result) {
+      onHint?.('该控件已存在（单例）');
+      return;
     }
+    patch(result.landing);
+    setSelectedId(result.blockId);
+    onToolsTabChange?.('config');
   };
 
   const updateDay = (
@@ -175,10 +183,10 @@ export function CampaignBlockEditor({
     <div className="ops-block-palette">
       <div className="ops-builder-palette-head">
         <p className="ops-subblock-title" style={{ margin: 0 }}>
-          空间
+          搭内容
         </p>
         <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-          点击添加到「页面结构」
+          点击添加，或拖到中间预览
         </p>
       </div>
       {examplePack ? (
@@ -229,7 +237,14 @@ export function CampaignBlockEditor({
                     key={type}
                     type="button"
                     className="ops-block-chip"
+                    draggable
+                    title="点击添加，或拖到中间预览"
                     onClick={() => onAdd(type)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(OPS_BLOCK_TYPE_MIME, type);
+                      e.dataTransfer.setData('text/plain', `ops-block-type:${type}`);
+                      e.dataTransfer.effectAllowed = 'copy';
+                    }}
                   >
                     <span className="ops-block-chip-icon" aria-hidden>
                       {meta.icon}
@@ -251,11 +266,11 @@ export function CampaignBlockEditor({
   const inspector = (
     <div className="ops-builder-inspector ops-builder-inspector--panel">
       <p className="ops-subblock-title" style={{ margin: '0 0 8px' }}>
-        {selected ? `配置 · ${BLOCK_CATALOG[selected.type].label}` : '配置面板'}
+        {selected ? `改控件 · ${BLOCK_CATALOG[selected.type].label}` : '改控件'}
       </p>
       {!selected ? (
         <p className="muted" style={{ fontSize: 13, margin: 0 }}>
-          在中间页面结构中点选一个控件开始配置。
+          在中间预览或右侧结构中点选一个控件开始修改。
         </p>
       ) : (
         <div className="ops-builder-inspector-body">
@@ -291,7 +306,7 @@ export function CampaignBlockEditor({
       </div>
       {blocks.length === 0 ? (
         <p className="muted" style={{ fontSize: 13 }}>
-          从「空间」添加第一个控件开始搭建。
+          从「搭内容」添加第一个控件开始搭建。
         </p>
       ) : (
         <div className="ops-block-list">
@@ -378,6 +393,8 @@ export function CampaignBlockEditor({
           <div className="ops-builder-tools">{toolsTab === 'config' ? inspector : palette}</div>
         ) : null}
         {!hideTools ? leadingSplitter : null}
+        {centerSlot}
+        {trailingSplitter}
         {structure}
       </div>
     );
