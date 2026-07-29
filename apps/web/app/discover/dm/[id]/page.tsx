@@ -31,7 +31,7 @@ import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImIma
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
-import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, previewImKeyboardLift, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
+import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
@@ -1227,13 +1227,10 @@ function DmThreadPageInner() {
                 placeholder={online ? (replyTo ? '回复…' : '发消息…') : '离线不可发，联网后继续'}
                 disabled={!online || sending || uploading}
                 onChange={(e) => setText(e.target.value)}
-                onTouchStart={() => previewImKeyboardLift()}
-                onMouseDown={() => previewImKeyboardLift()}
                 onFocus={() => {
-                  previewImKeyboardLift();
                   setPlusOpen(false);
                   setComposerFocused(true);
-                  scrollImChatToBottom(listRef.current);
+                  scrollImChatToBottom(listRef.current, { gentle: true });
                 }}
                 onBlur={() => {
                   window.setTimeout(() => {

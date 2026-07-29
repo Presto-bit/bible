@@ -19,7 +19,6 @@ import {
   useImComposerKeyboard,
   useImComposerHeightSync,
   scrollImChatToBottom,
-  previewImKeyboardLift,
   clearImKeyboardLift,
 } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
@@ -611,14 +610,12 @@ export function GroupComposerBar({
                     const t = e.currentTarget;
                     refreshAtQuery(t.value, t.selectionStart ?? t.value.length);
                   }}
-                  onTouchStart={() => previewImKeyboardLift()}
-                  onMouseDown={() => previewImKeyboardLift()}
                   onFocus={() => {
-                    previewImKeyboardLift();
                     setPanelOpen(false);
                     setComposerFocused(true);
+                    // 轻滚即可；勿在聚焦瞬间连环 pin，避免输入栏跟着跳
                     const el = getScrollEl?.();
-                    scrollImChatToBottom(el);
+                    scrollImChatToBottom(el, { gentle: true });
                   }}
                   onBlur={() => {
                     window.setTimeout(() => {
