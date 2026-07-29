@@ -193,7 +193,7 @@ export function GroupPrayerSheet({
             <textarea
               className="input"
               placeholder="详情（选填）"
-              rows={3}
+              rows={4}
               value={body}
               maxLength={2000}
               onChange={(e) => setBody(e.target.value)}

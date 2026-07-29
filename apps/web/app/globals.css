@@ -24954,13 +24954,44 @@ body.pray-session-open .app-body {
 .group-prayer-compose {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 12px;
+  width: 100%;
+}
+.group-prayer-compose .input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface, #fff);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.group-prayer-compose textarea.input {
+  resize: vertical;
+  min-height: 96px;
+  line-height: 1.55;
+}
+.group-prayer-compose .input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent-deep, #2f4a3a) 45%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-deep, #2f4a3a) 12%, transparent);
+}
+.group-prayer-compose .input::placeholder {
+  color: var(--muted, #6b6b6b);
 }
 .group-prayer-compose-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   font-size: 13px;
+}
+.group-prayer-compose .btn-block {
+  margin-top: 4px;
 }
 .group-prayer-list {
   list-style: none;
