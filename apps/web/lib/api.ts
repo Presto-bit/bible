@@ -49,6 +49,9 @@ export interface Verse {
   text: string;
 }
 
+export type DailyVerseTone = 'strength' | 'faith' | 'encourage' | 'depth' | string;
+export type DailyVerseArc = 'stand' | 'go' | 'trust' | 'lift' | 'depth' | string;
+
 export interface DailyVerse {
   ref: string;
   theme: string;
@@ -58,6 +61,12 @@ export interface DailyVerse {
   chapter?: number;
   verse_start?: number;
   verse_end?: number;
+  /** strength | faith | encourage | depth */
+  tone?: DailyVerseTone;
+  /** stand | go | trust | lift | depth */
+  arc?: DailyVerseArc;
+  /** 一行导语（首页副文案） */
+  line?: string;
   likes_count?: number;
   liked?: boolean;
   shares_count?: number;

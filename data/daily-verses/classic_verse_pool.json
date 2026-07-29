@@ -1,205 +1,1637 @@
 {
-  "schema": "classic_verse_pool@1",
-  "description": "经典经节池，供 enrich_daily_verses 补满 365 天",
+  "schema": "classic_verse_pool@2",
+  "description": "力量与信心优化池 + 经典补位，供 enrich / 运营挑选",
   "verses": [
-    {"ref": "GEN 1:1", "theme": "创造"},
-    {"ref": "GEN 12:1", "theme": "信靠"},
-    {"ref": "GEN 15:6", "theme": "信靠"},
-    {"ref": "GEN 28:15", "theme": "应许"},
-    {"ref": "EXO 14:14", "theme": "力量"},
-    {"ref": "EXO 20:3", "theme": "敬拜"},
-    {"ref": "EXO 33:14", "theme": "平安"},
-    {"ref": "LEV 19:18", "theme": "爱"},
-    {"ref": "NUM 6:24", "theme": "祝福"},
-    {"ref": "DEU 6:5", "theme": "爱"},
-    {"ref": "DEU 31:6", "theme": "勇气"},
-    {"ref": "JOS 1:9", "theme": "勇气"},
-    {"ref": "JOS 24:15", "theme": "顺服"},
-    {"ref": "JDG 6:12", "theme": "力量"},
-    {"ref": "RUT 1:16", "theme": "信靠"},
-    {"ref": "1SA 16:7", "theme": "智慧"},
-    {"ref": "2SA 7:16", "theme": "应许"},
-    {"ref": "1KI 3:9", "theme": "智慧"},
-    {"ref": "1KI 8:23", "theme": "祷告"},
-    {"ref": "2KI 6:16", "theme": "信靠"},
-    {"ref": "1CH 16:34", "theme": "感恩"},
-    {"ref": "2CH 7:14", "theme": "祷告"},
-    {"ref": "EZR 7:10", "theme": "引导"},
-    {"ref": "NEH 8:10", "theme": "喜乐"},
-    {"ref": "EST 4:14", "theme": "使命"},
-    {"ref": "JOB 1:21", "theme": "谦卑"},
-    {"ref": "JOB 19:25", "theme": "盼望"},
-    {"ref": "JOB 42:5", "theme": "敬拜"},
-    {"ref": "PSA 1:1", "theme": "智慧"},
-    {"ref": "PSA 4:8", "theme": "平安"},
-    {"ref": "PSA 16:11", "theme": "喜乐"},
-    {"ref": "PSA 19:1", "theme": "创造"},
-    {"ref": "PSA 23:1", "theme": "平安"},
-    {"ref": "PSA 27:1", "theme": "勇气"},
-    {"ref": "PSA 32:1", "theme": "赦免"},
-    {"ref": "PSA 37:4", "theme": "信靠"},
-    {"ref": "PSA 46:1", "theme": "力量"},
-    {"ref": "PSA 46:10", "theme": "平安"},
-    {"ref": "PSA 51:10", "theme": "赦免"},
-    {"ref": "PSA 56:3", "theme": "信靠"},
-    {"ref": "PSA 62:1", "theme": "信靠"},
-    {"ref": "PSA 73:26", "theme": "盼望"},
-    {"ref": "PSA 84:11", "theme": "恩典"},
-    {"ref": "PSA 90:12", "theme": "智慧"},
-    {"ref": "PSA 91:1", "theme": "平安"},
-    {"ref": "PSA 100:4", "theme": "感恩"},
-    {"ref": "PSA 103:12", "theme": "赦免"},
-    {"ref": "PSA 119:11", "theme": "智慧"},
-    {"ref": "PSA 119:105", "theme": "引导"},
-    {"ref": "PSA 121:1", "theme": "信靠"},
-    {"ref": "PSA 139:14", "theme": "创造"},
-    {"ref": "PSA 139:23", "theme": "祷告"},
-    {"ref": "PSA 145:18", "theme": "祷告"},
-    {"ref": "PSA 147:3", "theme": "安慰"},
-    {"ref": "PRO 1:7", "theme": "智慧"},
-    {"ref": "PRO 3:5", "theme": "信靠"},
-    {"ref": "PRO 3:6", "theme": "引导"},
-    {"ref": "PRO 4:23", "theme": "智慧"},
-    {"ref": "PRO 16:3", "theme": "引导"},
-    {"ref": "PRO 16:9", "theme": "引导"},
-    {"ref": "PRO 18:10", "theme": "力量"},
-    {"ref": "PRO 22:6", "theme": "家庭"},
-    {"ref": "PRO 27:17", "theme": "教会"},
-    {"ref": "PRO 31:30", "theme": "智慧"},
-    {"ref": "ECC 3:1", "theme": "智慧"},
-    {"ref": "ECC 12:13", "theme": "敬拜"},
-    {"ref": "SNG 2:4", "theme": "爱"},
-    {"ref": "ISA 1:18", "theme": "赦免"},
-    {"ref": "ISA 6:8", "theme": "使命"},
-    {"ref": "ISA 9:6", "theme": "盼望"},
-    {"ref": "ISA 26:3", "theme": "平安"},
-    {"ref": "ISA 40:31", "theme": "力量"},
-    {"ref": "ISA 41:10", "theme": "勇气"},
-    {"ref": "ISA 43:1", "theme": "安慰"},
-    {"ref": "ISA 53:5", "theme": "救恩"},
-    {"ref": "ISA 55:8", "theme": "智慧"},
-    {"ref": "ISA 55:11", "theme": "应许"},
-    {"ref": "JER 17:7", "theme": "信靠"},
-    {"ref": "JER 29:11", "theme": "盼望"},
-    {"ref": "JER 33:3", "theme": "祷告"},
-    {"ref": "LAM 3:22", "theme": "恩典"},
-    {"ref": "EZK 36:26", "theme": "圣灵"},
-    {"ref": "DAN 3:17", "theme": "勇气"},
-    {"ref": "DAN 6:10", "theme": "祷告"},
-    {"ref": "HOS 6:6", "theme": "恩典"},
-    {"ref": "JOL 2:13", "theme": "赦免"},
-    {"ref": "MIC 6:8", "theme": "公义"},
-    {"ref": "NAH 1:7", "theme": "安慰"},
-    {"ref": "HAB 2:4", "theme": "信靠"},
-    {"ref": "ZEP 3:17", "theme": "喜乐"},
-    {"ref": "HAG 2:4", "theme": "力量"},
-    {"ref": "ZEC 4:6", "theme": "圣灵"},
-    {"ref": "MAL 3:10", "theme": "信靠"},
-    {"ref": "MAT 1:23", "theme": "盼望"},
-    {"ref": "MAT 4:19", "theme": "使命"},
-    {"ref": "MAT 5:3", "theme": "谦卑"},
-    {"ref": "MAT 5:14", "theme": "使命"},
-    {"ref": "MAT 6:9", "theme": "祷告"},
-    {"ref": "MAT 6:33", "theme": "引导"},
-    {"ref": "MAT 7:7", "theme": "祷告"},
-    {"ref": "MAT 11:28", "theme": "安慰"},
-    {"ref": "MAT 16:24", "theme": "顺服"},
-    {"ref": "MAT 18:20", "theme": "教会"},
-    {"ref": "MAT 22:37", "theme": "爱"},
-    {"ref": "MAT 28:19", "theme": "使命"},
-    {"ref": "MAT 28:20", "theme": "应许"},
-    {"ref": "MRK 10:45", "theme": "谦卑"},
-    {"ref": "MRK 12:30", "theme": "爱"},
-    {"ref": "LUK 1:37", "theme": "力量"},
-    {"ref": "LUK 2:11", "theme": "盼望"},
-    {"ref": "LUK 6:31", "theme": "爱"},
-    {"ref": "LUK 9:23", "theme": "顺服"},
-    {"ref": "LUK 11:9", "theme": "祷告"},
-    {"ref": "LUK 15:7", "theme": "喜乐"},
-    {"ref": "LUK 18:27", "theme": "信靠"},
-    {"ref": "LUK 19:10", "theme": "救恩"},
-    {"ref": "LUK 24:6", "theme": "复活"},
-    {"ref": "JHN 1:1", "theme": "创造"},
-    {"ref": "JHN 1:12", "theme": "恩典"},
-    {"ref": "JHN 3:16", "theme": "爱"},
-    {"ref": "JHN 3:30", "theme": "谦卑"},
-    {"ref": "JHN 4:24", "theme": "敬拜"},
-    {"ref": "JHN 6:35", "theme": "永生"},
-    {"ref": "JHN 8:12", "theme": "引导"},
-    {"ref": "JHN 10:10", "theme": "喜乐"},
-    {"ref": "JHN 10:27", "theme": "信靠"},
-    {"ref": "JHN 11:25", "theme": "复活"},
-    {"ref": "JHN 14:6", "theme": "救恩"},
-    {"ref": "JHN 14:27", "theme": "平安"},
-    {"ref": "JHN 15:5", "theme": "信靠"},
-    {"ref": "JHN 16:33", "theme": "勇气"},
-    {"ref": "JHN 17:3", "theme": "永生"},
-    {"ref": "JHN 20:31", "theme": "信靠"},
-    {"ref": "ACT 1:8", "theme": "圣灵"},
-    {"ref": "ACT 2:38", "theme": "救恩"},
-    {"ref": "ACT 4:12", "theme": "救恩"},
-    {"ref": "ACT 16:31", "theme": "信靠"},
-    {"ref": "ROM 1:16", "theme": "救恩"},
-    {"ref": "ROM 3:23", "theme": "赦免"},
-    {"ref": "ROM 5:8", "theme": "爱"},
-    {"ref": "ROM 6:23", "theme": "救恩"},
-    {"ref": "ROM 8:1", "theme": "赦免"},
-    {"ref": "ROM 8:28", "theme": "引导"},
-    {"ref": "ROM 8:38", "theme": "爱"},
-    {"ref": "ROM 10:9", "theme": "救恩"},
-    {"ref": "ROM 12:1", "theme": "敬拜"},
-    {"ref": "ROM 12:2", "theme": "顺服"},
-    {"ref": "ROM 15:13", "theme": "盼望"},
-    {"ref": "1CO 10:13", "theme": "忍耐"},
-    {"ref": "1CO 13:4", "theme": "爱"},
-    {"ref": "1CO 13:13", "theme": "爱"},
-    {"ref": "1CO 15:3", "theme": "复活"},
-    {"ref": "1CO 15:57", "theme": "救恩"},
-    {"ref": "2CO 5:17", "theme": "圣灵"},
-    {"ref": "2CO 5:21", "theme": "救恩"},
-    {"ref": "2CO 12:9", "theme": "恩典"},
-    {"ref": "GAL 2:20", "theme": "信靠"},
-    {"ref": "GAL 5:22", "theme": "圣灵"},
-    {"ref": "GAL 6:9", "theme": "忍耐"},
-    {"ref": "EPH 2:8", "theme": "恩典"},
-    {"ref": "EPH 4:32", "theme": "宽恕"},
-    {"ref": "EPH 6:10", "theme": "力量"},
-    {"ref": "EPH 6:18", "theme": "祷告"},
-    {"ref": "PHP 1:6", "theme": "应许"},
-    {"ref": "PHP 2:3", "theme": "谦卑"},
-    {"ref": "PHP 4:6", "theme": "平安"},
-    {"ref": "PHP 4:13", "theme": "力量"},
-    {"ref": "PHP 4:19", "theme": "信靠"},
-    {"ref": "COL 3:2", "theme": "引导"},
-    {"ref": "COL 3:23", "theme": "工作"},
-    {"ref": "1TH 5:16", "theme": "喜乐"},
-    {"ref": "1TH 5:17", "theme": "祷告"},
-    {"ref": "1TH 5:18", "theme": "感恩"},
-    {"ref": "2TH 3:3", "theme": "信靠"},
-    {"ref": "1TI 2:5", "theme": "救恩"},
-    {"ref": "1TI 4:12", "theme": "勇气"},
-    {"ref": "2TI 1:7", "theme": "圣灵"},
-    {"ref": "2TI 3:16", "theme": "智慧"},
-    {"ref": "TIT 3:5", "theme": "救恩"},
-    {"ref": "HEB 4:12", "theme": "智慧"},
-    {"ref": "HEB 11:1", "theme": "信靠"},
-    {"ref": "HEB 11:6", "theme": "信靠"},
-    {"ref": "HEB 12:2", "theme": "忍耐"},
-    {"ref": "HEB 13:5", "theme": "信靠"},
-    {"ref": "JAS 1:2", "theme": "忍耐"},
-    {"ref": "JAS 1:5", "theme": "智慧"},
-    {"ref": "JAS 4:8", "theme": "敬拜"},
-    {"ref": "1PE 2:9", "theme": "使命"},
-    {"ref": "1PE 3:15", "theme": "智慧"},
-    {"ref": "1PE 5:7", "theme": "焦虑"},
-    {"ref": "2PE 1:3", "theme": "恩典"},
-    {"ref": "1JN 1:9", "theme": "赦免"},
-    {"ref": "1JN 3:1", "theme": "爱"},
-    {"ref": "1JN 4:8", "theme": "爱"},
-    {"ref": "1JN 4:19", "theme": "爱"},
-    {"ref": "1JN 5:13", "theme": "永生"},
-    {"ref": "REV 3:20", "theme": "应许"},
-    {"ref": "REV 21:4", "theme": "盼望"},
-    {"ref": "REV 22:17", "theme": "救恩"}
+    {
+      "ref": "PSA 73:26",
+      "theme": "盼望",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "衰残之处，祂仍是力量"
+    },
+    {
+      "ref": "ISA 41:10",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "你不是一个人硬撑"
+    },
+    {
+      "ref": "2CO 12:9",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "软弱不是出局"
+    },
+    {
+      "ref": "PSA 46:1",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "先躲进祂，再站起来"
+    },
+    {
+      "ref": "PSA 27:1",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "怕，也有光可跟"
+    },
+    {
+      "ref": "NAM 1:7",
+      "theme": "安慰",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "难处里有保障"
+    },
+    {
+      "ref": "DEU 31:6",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "路再难，有同行者"
+    },
+    {
+      "ref": "PSA 18:32",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "今天被祂束上力量"
+    },
+    {
+      "ref": "PSA 28:7",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "心靠祂，就得帮助"
+    },
+    {
+      "ref": "PSA 31:24",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "凡仰望耶和华的，都要壮胆"
+    },
+    {
+      "ref": "HAB 3:19",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "主耶和华是我的力量"
+    },
+    {
+      "ref": "PSA 18:2",
+      "theme": "信靠",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "祂是我的岩石、我的山寨"
+    },
+    {
+      "ref": "EXO 14:14",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "不要作声，看祂争战"
+    },
+    {
+      "ref": "2KI 6:16",
+      "theme": "信靠",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "与我们同在的，比他们更多"
+    },
+    {
+      "ref": "PSA 121:1",
+      "theme": "信靠",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "帮助从造天地的耶和华而来"
+    },
+    {
+      "ref": "ISA 43:2",
+      "theme": "应许",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "过水火，祂仍同在"
+    },
+    {
+      "ref": "PSA 34:18",
+      "theme": "安慰",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "心碎之处，祂靠近"
+    },
+    {
+      "ref": "MAT 11:28",
+      "theme": "安慰",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "劳苦的人，到我这里来"
+    },
+    {
+      "ref": "PSA 46:10",
+      "theme": "平安",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "你们要休息，要知道我是神"
+    },
+    {
+      "ref": "ROM 8:37",
+      "theme": "盼望",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "靠着爱我们的主，已经得胜有余"
+    },
+    {
+      "ref": "JOS 1:9",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "go",
+      "line": "去，祂与你同在"
+    },
+    {
+      "ref": "ISA 40:31",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "飞、跑、走，都有力"
+    },
+    {
+      "ref": "PHP 4:13",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "不是靠自己硬扛"
+    },
+    {
+      "ref": "PHP 3:14",
+      "theme": "使命",
+      "tone": "strength",
+      "arc": "go",
+      "line": "眼睛向前，不向后"
+    },
+    {
+      "ref": "HEB 12:1",
+      "theme": "忍耐",
+      "tone": "strength",
+      "arc": "go",
+      "line": "定睛耶稣再跑"
+    },
+    {
+      "ref": "HAG 2:4",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "动手时，祂在场"
+    },
+    {
+      "ref": "2TI 1:7",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "go",
+      "line": "胆怯不是从神来的"
+    },
+    {
+      "ref": "EPH 6:10",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "刚强的源头是主"
+    },
+    {
+      "ref": "1CO 16:13",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "go",
+      "line": "当壮胆，要刚强"
+    },
+    {
+      "ref": "EST 4:14",
+      "theme": "使命",
+      "tone": "strength",
+      "arc": "go",
+      "line": "此时此刻，正是为你预备"
+    },
+    {
+      "ref": "ISA 6:8",
+      "theme": "使命",
+      "tone": "strength",
+      "arc": "go",
+      "line": "我在这里，请差遣我"
+    },
+    {
+      "ref": "MAT 28:19",
+      "theme": "使命",
+      "tone": "strength",
+      "arc": "go",
+      "line": "去，使万民作门徒"
+    },
+    {
+      "ref": "ACT 1:8",
+      "theme": "圣灵",
+      "tone": "strength",
+      "arc": "go",
+      "line": "得着能力，作祂见证"
+    },
+    {
+      "ref": "GAL 6:9",
+      "theme": "忍耐",
+      "tone": "strength",
+      "arc": "go",
+      "line": "行善不可丧志"
+    },
+    {
+      "ref": "PRO 16:3",
+      "theme": "引导",
+      "tone": "strength",
+      "arc": "go",
+      "line": "所行的交托耶和华"
+    },
+    {
+      "ref": "COL 3:23",
+      "theme": "工作",
+      "tone": "strength",
+      "arc": "go",
+      "line": "无论做什么，都从心里做"
+    },
+    {
+      "ref": "ZEC 4:6",
+      "theme": "圣灵",
+      "tone": "strength",
+      "arc": "go",
+      "line": "不是倚靠势力，乃是倚靠我的灵"
+    },
+    {
+      "ref": "LUK 1:37",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "出于神的话，没有一句不带能力"
+    },
+    {
+      "ref": "JDG 6:12",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "大能的勇士，耶和华与你同在"
+    },
+    {
+      "ref": "PSA 18:29",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "我靠你冲入敌军"
+    },
+    {
+      "ref": "ROM 8:31",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "天平已经倾向你"
+    },
+    {
+      "ref": "ROM 8:28",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "乱局里仍有旨意"
+    },
+    {
+      "ref": "PRO 3:5",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "信靠，比算尽更稳"
+    },
+    {
+      "ref": "HEB 11:1",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "未见之前先站定"
+    },
+    {
+      "ref": "MRK 9:23",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "信心打开可能"
+    },
+    {
+      "ref": "1JN 5:4",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "胜，从信开始"
+    },
+    {
+      "ref": "PSA 56:3",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "怕可以有，信也要有"
+    },
+    {
+      "ref": "JER 29:11",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "前途在祂手里"
+    },
+    {
+      "ref": "ROM 15:13",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "因信得着喜乐平安"
+    },
+    {
+      "ref": "LAM 3:22",
+      "theme": "恩典",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "祂的怜悯不至断绝"
+    },
+    {
+      "ref": "JER 17:7",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "倚靠耶和华的有福了"
+    },
+    {
+      "ref": "PSA 37:5",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "当将你的事交托耶和华"
+    },
+    {
+      "ref": "PSA 125:1",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "倚靠耶和华的人，好像锡安山"
+    },
+    {
+      "ref": "ISA 55:11",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "祂的话决不徒然返回"
+    },
+    {
+      "ref": "MAT 28:20",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "我就常与你们同在"
+    },
+    {
+      "ref": "HEB 13:5",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "我不撇下你，也不丢弃你"
+    },
+    {
+      "ref": "2CO 1:20",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "神的应许在基督都是是的"
+    },
+    {
+      "ref": "PSA 37:4",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "以耶和华为乐，祂就成全"
+    },
+    {
+      "ref": "HAB 2:4",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "义人必因信得生"
+    },
+    {
+      "ref": "LUK 18:27",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "在神凡事都能"
+    },
+    {
+      "ref": "ROM 5:5",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "盼望不至于羞耻"
+    },
+    {
+      "ref": "PSA 42:11",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "应当仰望神"
+    },
+    {
+      "ref": "JOB 19:25",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "我知道我的救赎主活着"
+    },
+    {
+      "ref": "JHN 11:25",
+      "theme": "永生",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "信我的人虽然死了，也必复活"
+    },
+    {
+      "ref": "ROM 8:38",
+      "theme": "爱",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "没有什么能叫我们与神的爱隔绝"
+    },
+    {
+      "ref": "JHN 3:16",
+      "theme": "爱",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "神爱世人，甚至将祂的独生子赐给他们"
+    },
+    {
+      "ref": "ISA 9:6",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "有一婴孩为我们而生"
+    },
+    {
+      "ref": "1PE 5:7",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "你们要将一切的忧虑卸给神"
+    },
+    {
+      "ref": "PSA 9:10",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "认识你名的人要倚靠你"
+    },
+    {
+      "ref": "PSA 62:1",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "我的心默默无声，专等候神"
+    },
+    {
+      "ref": "NUM 6:24",
+      "theme": "祝福",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "今天领受一份祝福"
+    },
+    {
+      "ref": "NEH 8:10",
+      "theme": "力量",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "喜乐本身就是力量"
+    },
+    {
+      "ref": "PSA 16:11",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "靠近祂就有满足的喜乐"
+    },
+    {
+      "ref": "PHP 4:6",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "把忧虑交出去"
+    },
+    {
+      "ref": "ISA 26:3",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "心定，平安就定"
+    },
+    {
+      "ref": "PSA 23:1",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "有牧者就不慌"
+    },
+    {
+      "ref": "JHN 16:33",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "苦难真，得胜也真"
+    },
+    {
+      "ref": "PSA 118:24",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "这是耶和华所定的日子"
+    },
+    {
+      "ref": "PHP 4:4",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "你们要靠主常常喜乐"
+    },
+    {
+      "ref": "ZEP 3:17",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "祂因你欢欣喜乐"
+    },
+    {
+      "ref": "PSA 30:5",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "一宿虽然有哭泣，早晨便必欢呼"
+    },
+    {
+      "ref": "JHN 15:11",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "叫你们的喜乐可以满足"
+    },
+    {
+      "ref": "PSA 100:4",
+      "theme": "感恩",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "当称谢进入祂的门"
+    },
+    {
+      "ref": "1TH 5:18",
+      "theme": "感恩",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "凡事谢恩"
+    },
+    {
+      "ref": "PSA 107:1",
+      "theme": "感恩",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "你们要称谢耶和华，因祂本为善"
+    },
+    {
+      "ref": "PSA 84:11",
+      "theme": "恩典",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "耶和华要赐下恩惠和荣耀"
+    },
+    {
+      "ref": "EPH 2:8",
+      "theme": "恩典",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "你们得救是本乎恩"
+    },
+    {
+      "ref": "HEB 4:16",
+      "theme": "恩典",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "坦然无惧来到施恩的宝座前"
+    },
+    {
+      "ref": "2CO 9:8",
+      "theme": "恩典",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "神能将各样的恩惠多多加给你们"
+    },
+    {
+      "ref": "PSA 103:1",
+      "theme": "感恩",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "我的心哪，你要称颂耶和华"
+    },
+    {
+      "ref": "JHN 14:27",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "我留下平安给你们"
+    },
+    {
+      "ref": "COL 3:15",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "叫基督的平安在你们心里作主"
+    },
+    {
+      "ref": "PSA 4:8",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "安然躺下睡觉"
+    },
+    {
+      "ref": "PSA 91:1",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "住在至高者隐密处的"
+    },
+    {
+      "ref": "ISA 43:1",
+      "theme": "安慰",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "你是属我的，不要害怕"
+    },
+    {
+      "ref": "PSA 139:14",
+      "theme": "创造",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "我受造奇妙可畏"
+    },
+    {
+      "ref": "ROM 5:8",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "基督在我们还作罪人的时候为我们死"
+    },
+    {
+      "ref": "1JN 4:19",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "我们爱，因为神先爱我们"
+    },
+    {
+      "ref": "JER 31:3",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "我以永远的爱爱你"
+    },
+    {
+      "ref": "PSA 23:4",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "我虽然行过死荫的幽谷，也不怕遭害"
+    },
+    {
+      "ref": "PSA 51:10",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "求你为我造清洁的心"
+    },
+    {
+      "ref": "1JN 1:9",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "我们若认自己的罪"
+    },
+    {
+      "ref": "MIC 6:8",
+      "theme": "公义",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "行公义，好怜悯，存谦卑的心"
+    },
+    {
+      "ref": "JAS 1:5",
+      "theme": "智慧",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "你们中间若有缺少智慧的"
+    },
+    {
+      "ref": "PSA 90:12",
+      "theme": "智慧",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "求你指教我们怎样数算自己的日子"
+    },
+    {
+      "ref": "PHP 2:3",
+      "theme": "谦卑",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "当以基督的心为心"
+    },
+    {
+      "ref": "ROM 12:2",
+      "theme": "顺服",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "不要效法这个世界"
+    },
+    {
+      "ref": "JAS 1:2",
+      "theme": "忍耐",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "落在百般试炼中，都要以为大喜乐"
+    },
+    {
+      "ref": "PSA 119:105",
+      "theme": "引导",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "你的话是我脚前的灯"
+    },
+    {
+      "ref": "ISA 53:5",
+      "theme": "救恩",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "因祂受的鞭伤，我们得医治"
+    },
+    {
+      "ref": "MAT 5:4",
+      "theme": "安慰",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "哀恸的人有福了"
+    },
+    {
+      "ref": "JOB 1:21",
+      "theme": "谦卑",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "赏赐的是耶和华，收取的也是耶和华"
+    },
+    {
+      "ref": "PSA 139:23",
+      "theme": "祷告",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "神啊，求你鉴察我"
+    },
+    {
+      "ref": "ROM 12:1",
+      "theme": "敬拜",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "将身体献上，当作活祭"
+    },
+    {
+      "ref": "JHN 15:5",
+      "theme": "顺服",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "离了我，你们就不能做什么"
+    },
+    {
+      "ref": "GEN 1:1",
+      "theme": "创造",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "GEN 12:1",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "GEN 15:6",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "GEN 28:15",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "EXO 20:3",
+      "theme": "敬拜",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "EXO 33:14",
+      "theme": "平安",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "LEV 19:18",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "DEU 6:5",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "JOS 24:15",
+      "theme": "顺服",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "RUT 1:16",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1SA 16:7",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "2SA 7:16",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1KI 3:9",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1KI 8:23",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1CH 16:34",
+      "theme": "感恩",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "2CH 7:14",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "EZR 7:10",
+      "theme": "引导",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JOB 42:5",
+      "theme": "敬拜",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "PSA 1:1",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PSA 19:1",
+      "theme": "创造",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "PSA 32:1",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "PSA 103:12",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "PSA 119:11",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PSA 145:18",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PSA 147:3",
+      "theme": "安慰",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "PRO 1:7",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PRO 3:6",
+      "theme": "引导",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PRO 4:23",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PRO 16:9",
+      "theme": "引导",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PRO 18:10",
+      "theme": "力量",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "PRO 22:6",
+      "theme": "家庭",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "PRO 27:17",
+      "theme": "教会",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "PRO 31:30",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ECC 3:1",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ECC 12:13",
+      "theme": "敬拜",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "SNG 2:4",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "ISA 1:18",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "ISA 55:8",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JER 33:3",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "EZK 36:26",
+      "theme": "圣灵",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "DAN 3:17",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "DAN 6:10",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "HOS 6:6",
+      "theme": "恩典",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "JOL 2:13",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "NAH 1:7",
+      "theme": "安慰",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "MAL 3:10",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "MAT 1:23",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "MAT 4:19",
+      "theme": "使命",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "MAT 5:3",
+      "theme": "谦卑",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "MAT 5:14",
+      "theme": "使命",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "MAT 6:9",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "MAT 6:33",
+      "theme": "引导",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "MAT 7:7",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "MAT 16:24",
+      "theme": "顺服",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "MAT 18:20",
+      "theme": "教会",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "MAT 22:37",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "MRK 10:45",
+      "theme": "谦卑",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "MRK 12:30",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "LUK 2:11",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "LUK 6:31",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "LUK 9:23",
+      "theme": "顺服",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "LUK 11:9",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "LUK 15:7",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "LUK 19:10",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "LUK 24:6",
+      "theme": "复活",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JHN 1:1",
+      "theme": "创造",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "JHN 1:12",
+      "theme": "恩典",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "JHN 3:30",
+      "theme": "谦卑",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "JHN 4:24",
+      "theme": "敬拜",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "JHN 6:35",
+      "theme": "永生",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JHN 8:12",
+      "theme": "引导",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JHN 10:10",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "JHN 10:27",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JHN 14:6",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JHN 17:3",
+      "theme": "永生",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "JHN 20:31",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ACT 2:38",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ACT 4:12",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ACT 16:31",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ROM 1:16",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ROM 3:23",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "ROM 6:23",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "ROM 8:1",
+      "theme": "赦免",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "ROM 10:9",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1CO 10:13",
+      "theme": "忍耐",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "1CO 13:4",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "1CO 13:13",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "1CO 15:3",
+      "theme": "复活",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1CO 15:57",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "2CO 5:17",
+      "theme": "圣灵",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "2CO 5:21",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "GAL 2:20",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "GAL 5:22",
+      "theme": "圣灵",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "EPH 4:32",
+      "theme": "宽恕",
+      "tone": "depth",
+      "arc": "depth",
+      "line": "安静下来，听祂说话"
+    },
+    {
+      "ref": "EPH 6:18",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PHP 1:6",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "PHP 4:19",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "COL 3:2",
+      "theme": "引导",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1TH 5:16",
+      "theme": "喜乐",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "1TH 5:17",
+      "theme": "祷告",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "2TH 3:3",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1TI 2:5",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "1TI 4:12",
+      "theme": "勇气",
+      "tone": "strength",
+      "arc": "stand",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "2TI 3:16",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "TIT 3:5",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "HEB 4:12",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "HEB 11:6",
+      "theme": "信靠",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "HEB 12:2",
+      "theme": "忍耐",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "JAS 4:8",
+      "theme": "敬拜",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "1PE 2:9",
+      "theme": "使命",
+      "tone": "strength",
+      "arc": "go",
+      "line": "今天靠祂得力"
+    },
+    {
+      "ref": "1PE 3:15",
+      "theme": "智慧",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "2PE 1:3",
+      "theme": "恩典",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "1JN 3:1",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "1JN 4:8",
+      "theme": "爱",
+      "tone": "encourage",
+      "arc": "lift",
+      "line": "愿你被这句话托住"
+    },
+    {
+      "ref": "1JN 5:13",
+      "theme": "永生",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "REV 3:20",
+      "theme": "应许",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "REV 21:4",
+      "theme": "盼望",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    },
+    {
+      "ref": "REV 22:17",
+      "theme": "救恩",
+      "tone": "faith",
+      "arc": "trust",
+      "line": "把心安放在祂的应许里"
+    }
   ]
 }

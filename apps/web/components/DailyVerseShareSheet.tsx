@@ -50,18 +50,19 @@ export function DailyVerseShareSheet({
     setBusy(true);
     setErr(null);
     try {
-      const ok = await shareDailyVerseCard({
+      const result = await shareDailyVerseCard({
         ref: refLabel,
         text,
         day,
         versionLabel,
       });
-      if (!ok) {
+      if (result === 'cancelled') return;
+      if (result === 'failed') {
         setErr('无法生成分享卡片');
         return;
       }
       await record();
-      onToast?.('已调起分享');
+      onToast?.(result === 'downloaded' ? '已保存经文卡片' : '已调起分享');
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {

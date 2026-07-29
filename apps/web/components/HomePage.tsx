@@ -570,13 +570,14 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const shareDailyVerse = useCallback(async () => {
     if (!dv?.text) return;
     try {
-      const ok = await shareDailyVerseCard({
+      const result = await shareDailyVerseCard({
         ref: dv.ref || '每日经文',
         text: dv.text,
         day: dv.day,
         versionLabel: '和合本',
       });
-      if (!ok) {
+      if (result === 'cancelled') return;
+      if (result === 'failed') {
         setShareToast('暂时无法分享');
         window.setTimeout(() => setShareToast(null), 2200);
         return;
@@ -593,8 +594,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       } catch {
         /* ignore */
       }
-      setShareToast('已调起系统分享');
-      window.setTimeout(() => setShareToast(null), 2200);
+      if (result === 'downloaded') {
+        setShareToast('已保存经文卡片');
+        window.setTimeout(() => setShareToast(null), 2200);
+      }
     } catch (e) {
       setShareToast(errorMessage(e, '暂时无法分享'));
       window.setTimeout(() => setShareToast(null), 2200);
@@ -692,7 +695,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className={`hero-like${liked ? ' hero-like-active' : ''}`}
+              className={`hero-action hero-like${liked ? ' hero-like-active' : ''}`}
               disabled={likeBusy || !dv?.day}
               aria-pressed={liked}
               aria-label={liked ? '取消点赞' : '点赞'}
@@ -702,7 +705,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               }}
             >
               {liked ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="hero-like-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="hero-action-icon">
                   <path
                     fill="currentColor"
                     d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
@@ -714,7 +717,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                   height="18"
                   viewBox="0 0 24 24"
                   aria-hidden
-                  className="hero-like-icon"
+                  className="hero-action-icon"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="1.8"
@@ -722,13 +725,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                   strokeLinejoin="round"
                 >
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
+                </svg>
               )}
-              <span>{likeCount.toLocaleString()} 人点赞</span>
+              <span>{likeCount.toLocaleString()}</span>
             </button>
             <button
               type="button"
-              className={`hero-react${myReact ? ' hero-react-active' : ''}`}
+              className={`hero-action hero-react${myReact ? ' hero-react-active' : ''}`}
               disabled={!dv?.day}
               aria-pressed={!!myReact}
               aria-label={myReact ? `我的回应：${myReact.label}` : '回应今日经文'}
@@ -738,18 +741,25 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                 setReactSheetOpen(true);
               }}
             >
-              <span aria-hidden className="hero-react-emoji">
-                {myReact?.emoji || '🙏'}
-              </span>
-              <span>
-                {reactCount > 0
-                  ? `${reactCount.toLocaleString()} 人回应`
-                  : '回应'}
-              </span>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                aria-hidden
+                className="hero-action-icon"
+                fill={myReact ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+              </svg>
+              <span>{reactCount.toLocaleString()}</span>
             </button>
             <button
               type="button"
-              className="hero-share"
+              className="hero-action hero-share"
               disabled={!dv?.text}
               aria-label="分享今日经文"
               onClick={(e) => {
@@ -758,11 +768,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               }}
             >
               <svg
-                width="17"
-                height="17"
+                width="18"
+                height="18"
                 viewBox="0 0 24 24"
                 aria-hidden
-                className="hero-share-icon"
+                className="hero-action-icon"
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.8"
@@ -774,6 +784,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                 <circle cx="18" cy="19" r="3" />
                 <path d="M8.59 13.51 15.42 17.49M15.41 6.51 8.59 10.49" />
               </svg>
+              <span>{(dv?.shares_count ?? 0).toLocaleString()}</span>
             </button>
             {(likeErr || reactErr) && (
               <p className="muted hero-actions-err" role="alert">

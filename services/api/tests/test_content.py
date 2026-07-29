@@ -42,6 +42,13 @@ def test_daily_verses_loaded():
     d = loader.daily_verses()
     assert d["count"] == len(d["verses"]) == 365
     assert len(d["themes"]) > 0
+    sample = d["verses"][209]  # day 210
+    assert sample.get("day") == 210
+    assert sample.get("tone") in {"strength", "faith", "encourage", "depth"}
+    assert sample.get("line")
+    assert sample.get("book") == "PSA"
+    assert sample.get("chapter") == 73
+    assert sample.get("verse_start") == 26
 
 
 @pytest.mark.skipif(not _HAS_DB, reason="缺少经库")

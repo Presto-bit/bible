@@ -10,6 +10,8 @@ export type DailyVerseShareInput = {
   versionLabel?: string;
 };
 
+export type DailyVerseShareResult = 'shared' | 'cancelled' | 'downloaded' | 'failed';
+
 export function buildDailyVerseShareText(input: DailyVerseShareInput): string {
   const quote = (input.text || '').trim();
   const ref = (input.ref || '').trim();
@@ -29,6 +31,19 @@ export function dailyVerseShareUrl(day?: number): string {
   u.searchParams.set('tab', 'home');
   if (day != null) u.searchParams.set('dv', String(day));
   return u.toString();
+}
+
+function isAbortError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { name?: string; message?: string };
+  if (e.name === 'AbortError' || e.name === 'NotAllowedError') return true;
+  const msg = (e.message || '').toLowerCase();
+  return (
+    msg.includes('abort') ||
+    msg.includes('cancel') ||
+    msg.includes('share canceled') ||
+    msg.includes('share cancelled')
+  );
 }
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {
@@ -121,7 +136,7 @@ function drawArtScrim(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillRect(0, 0, w, h);
 }
 
-/** 生成贴近首页每日经文卡的分享图。 */
+/** 生成贴近首页每日经文卡的分享图（含当日经文与出处）。 */
 export async function renderDailyVerseSharePng(
   input: DailyVerseShareInput,
 ): Promise<Blob | null> {
@@ -146,12 +161,10 @@ export async function renderDailyVerseSharePng(
     drawArtScrim(ctx, w, h);
   }
 
-  // 顶部：每日经文
   ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
   ctx.font = '600 34px system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif';
   ctx.fillText('每日经文', padX, 110);
 
-  // 中下区：引用 + 经文（接近 Hero 卡）
   const quote = formatDailyVerseQuote(input.text || '');
   const ref = (input.ref || '').trim();
   const ver = input.versionLabel?.trim();
@@ -182,7 +195,6 @@ export async function renderDailyVerseSharePng(
     ctx.fillText(ver, padX, Math.min(y + 28, h - 140));
   }
 
-  // 底部品牌
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
   ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
@@ -197,54 +209,69 @@ export async function renderDailyVerseSharePng(
   });
 }
 
-/** 生成经文卡图并调起系统分享 / 下载；成功返回 true。 */
-export async function shareDailyVerseCard(input: DailyVerseShareInput): Promise<boolean> {
+/**
+ * 调起系统分享（优先经文卡图 + 文案）。
+ * 用户下滑取消分享时返回 cancelled，不再下载或二次弹窗。
+ */
+export async function shareDailyVerseCard(
+  input: DailyVerseShareInput,
+): Promise<DailyVerseShareResult> {
   const title = (input.ref || '每日经文').trim();
   const body = (input.text || '').trim();
-  if (!body) return false;
+  if (!body) return 'failed';
 
   const blob = await renderDailyVerseSharePng(input);
-  if (!blob) return false;
+  if (!blob) return 'failed';
 
   const file = new File([blob], 'daily-verse-share.png', { type: 'image/png' });
   const text = buildDailyVerseShareText(input);
+  const shareUrl = dailyVerseShareUrl(input.day);
   const nav = navigator as Navigator & {
     share?: (d: { files?: File[]; title?: string; text?: string; url?: string }) => Promise<void>;
-    canShare?: (d: { files?: File[] }) => boolean;
+    canShare?: (d: { files?: File[]; title?: string; text?: string; url?: string }) => boolean;
   };
 
-  if (nav.share && nav.canShare?.({ files: [file] })) {
-    try {
-      await nav.share({
-        files: [file],
-        title,
-        text,
-        url: dailyVerseShareUrl(input.day),
-      });
-      return true;
-    } catch {
-      /* fallthrough */
-    }
-  }
-
   if (nav.share) {
+    const withFiles =
+      typeof nav.canShare !== 'function' || nav.canShare({ files: [file] });
+    // 优先带经文卡图；文案内含当日经文。取消后不再二次弹窗/下载。
+    if (withFiles) {
+      try {
+        await nav.share({
+          files: [file],
+          title,
+          text: `${text}\n${shareUrl}`,
+        });
+        return 'shared';
+      } catch (err) {
+        if (isAbortError(err)) return 'cancelled';
+        return 'failed';
+      }
+    }
+
     try {
       await nav.share({
         title,
         text,
-        url: dailyVerseShareUrl(input.day),
+        url: shareUrl,
       });
-      return true;
-    } catch {
-      /* fallthrough */
+      return 'shared';
+    } catch (err) {
+      if (isAbortError(err)) return 'cancelled';
+      return 'failed';
     }
   }
 
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'daily-verse-share.png';
-  a.click();
-  URL.revokeObjectURL(url);
-  return true;
+  // 无系统分享能力时才下载卡片，避免取消后误触发「预览」
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'daily-verse-share.png';
+    a.click();
+    URL.revokeObjectURL(url);
+    return 'downloaded';
+  } catch {
+    return 'failed';
+  }
 }
