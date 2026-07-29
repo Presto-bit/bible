@@ -1900,13 +1900,16 @@ html:not([data-app-theme]) .card {
 
 .home-page .hero-share {
   border-radius: 999px;
-  padding: 7px 14px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   background: rgba(255, 255, 255, 0.62);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
-  font-size: 12px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .home-page .hero-verse.hero-verse-has-art .hero-like {
@@ -4722,15 +4725,21 @@ button.hero-b-campaign {
 }
 
 .hero-share {
-  font-size: 11px;
-  font-weight: 600;
   border-radius: 999px;
-  padding: 5px 12px;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--accent-deep);
   cursor: pointer;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-share-icon {
+  display: block;
 }
 
 .hero-share-active {
@@ -15674,6 +15683,15 @@ html.perf-lite .tabbar {
   max-width: 260px;
 }
 
+.dv-feed-left {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
 .dv-feed-preset {
   display: flex;
   align-items: center;
@@ -15688,26 +15706,20 @@ html.perf-lite .tabbar {
   line-height: 1;
 }
 
-.dv-feed-right {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  margin-left: auto;
-  text-align: right;
-}
-
 .dv-feed-name {
   font-weight: 600;
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .dv-feed-time {
   font-size: 11px;
   color: var(--ink-faint);
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .dv-react-picker {
@@ -15735,29 +15747,31 @@ html.perf-lite .tabbar {
 
 .dv-react-emoji-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 5px;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 2px;
   margin-bottom: 6px;
 }
 
 .dv-react-chip {
   appearance: none;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 10px;
-  height: 34px;
-  font-size: 16px;
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  height: 26px;
+  font-size: 14px;
   cursor: pointer;
   line-height: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, border-color 0.15s;
+  transition: transform 0.15s ease, opacity 0.15s ease, background 0.15s ease;
+  opacity: 0.9;
 }
 
 .dv-react-chip.is-active {
-  border-color: var(--accent-deep, #3d6b5a);
-  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 14%, var(--surface));
+  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 12%, transparent);
+  transform: scale(1.06);
+  opacity: 1;
 }
 
 .dv-react-phrase-row {

@@ -168,6 +168,7 @@ export default function DailyVerseReactSheet({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={() => { touchStartYRef.current = null; draggingDownRef.current = false; setDragOffset(0); }}
+        onWheel={(e) => e.stopPropagation()}
         role="dialog"
         aria-label="今日回应"
       >
@@ -179,7 +180,14 @@ export default function DailyVerseReactSheet({
         </div>
 
         {/* ── 上：大家的回应（可滚动） ── */}
-        <div className="dv-react-feed-area" ref={feedRef}>
+        <div
+          className="dv-react-feed-area"
+          ref={feedRef}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
           {feedLoading && feed.length === 0 ? (
             <p className="muted" style={{ fontSize: 13, padding: '12px 0' }}>加载中…</p>
           ) : feed.length === 0 ? (
@@ -201,14 +209,14 @@ export default function DailyVerseReactSheet({
             <ul className="dv-react-feed-list">
               {feed.map((item, i) => (
                 <li key={`${item.user_code}-${item.created_at}-${i}`}>
+                  <div className="dv-feed-left">
+                    <span className="dv-feed-name">{item.display_name}</span>
+                    <span className="dv-feed-time">{feedTimeLabel(item.created_at)}</span>
+                  </div>
                   <span className="dv-feed-preset">
                     <span aria-hidden>{item.preset.emoji}</span>
                     <span>{item.preset.label}</span>
                   </span>
-                  <div className="dv-feed-right">
-                    <span className="dv-feed-name">{item.display_name}</span>
-                    <span className="dv-feed-time">{feedTimeLabel(item.created_at)}</span>
-                  </div>
                 </li>
               ))}
             </ul>
@@ -216,7 +224,13 @@ export default function DailyVerseReactSheet({
         </div>
 
         {/* ── 下：我来回应（固定，紧凑） ── */}
-        <div className="dv-react-picker">
+        <div
+          className="dv-react-picker"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
           {mine && (
             <p className="dv-react-mine-label">
               <span aria-hidden>{mine.emoji}</span>
