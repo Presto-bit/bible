@@ -209,12 +209,18 @@ elif need_run "$ROOT/build/bible_kjv.sqlite" "$KJV_JSON"; then
   "$PY" "$ROOT/scripts/import_bible.py" --input "$KJV_JSON" --out "$ROOT/build/bible_kjv.sqlite"
 fi
 
-for pair in "cnv:data/bible/cnv/verses.json:build/bible_cnv.sqlite"; do
+for pair in \
+  "cnv:data/bible/cnv/verses.json:build/bible_cnv.sqlite" \
+  "contemporary:data/bible/contemporary/verses.json:build/bible_contemporary.sqlite"
+do
   IFS=: read -r _ rel_in rel_out <<< "$pair"
   in="$ROOT/$rel_in"
   out="$ROOT/$rel_out"
   if [[ -f "$in" ]] && need_run "$out" "$in"; then
     log "生成 $(basename "$out") …"
+    "$PY" "$ROOT/scripts/import_bible.py" --input "$in" --out "$out"
+  elif [[ -f "$in" ]] && ! validate_bible_sqlite "$out"; then
+    log "重建 $(basename "$out") …"
     "$PY" "$ROOT/scripts/import_bible.py" --input "$in" --out "$out"
   fi
 done

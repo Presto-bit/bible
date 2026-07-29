@@ -30,6 +30,11 @@ import {
 } from '@/lib/chapter_prefetch';
 import { bibleChapter } from '@/lib/bible_client';
 import {
+  FALLBACK_PRIMARY_VERSION,
+  versionDisplayLabel,
+  VERSION_LABELS,
+} from '@/lib/bible_version';
+import {
   canPlanNav,
   resolvePlanNav,
   type PlanNavGuard,
@@ -226,7 +231,9 @@ export default function ReaderView({
   const [layoutVerses, setLayoutVerses] = useState<Verse[]>([]);
   const [parallelVerses, setParallelVerses] = useState<Verse[]>([]);
   const [wholeVerseSel, setWholeVerseSel] = useState<number[]>([]);
-  const [versionLabel, setVersionLabel] = useState('新译本');
+  const [versionLabel, setVersionLabel] = useState(
+    VERSION_LABELS[FALLBACK_PRIMARY_VERSION] || '和合本',
+  );
   const [fontPx, setFontPx] = useState(DEFAULT_FONT_PX);
   const [showSettings, setShowSettings] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
@@ -829,10 +836,10 @@ export default function ReaderView({
   const applyVersionSelection = useCallback(
     (next: string[]) => {
       const list = versions ?? [];
-      const primaryId = list.find((v) => v.primary)?.id ?? 'cuvs';
+      const primaryId = list.find((v) => v.primary)?.id ?? FALLBACK_PRIMARY_VERSION;
       setCheckedVers(next);
       const primary = list.find((v) => v.primary);
-      const primaryLabel = primary?.label ?? '新译本';
+      const primaryLabel = versionDisplayLabel(primaryId, list);
       if (next.length === 1) {
         const id = next[0];
         if (id === primaryId) {
@@ -846,12 +853,10 @@ export default function ReaderView({
           setMainVersion(id);
           setLayout('single');
           setReadingLayout('single');
-          const v = list.find((x) => x.id === id);
-          setVersionLabel(v?.label ?? id.toUpperCase());
+          setVersionLabel(versionDisplayLabel(id, list));
         }
       } else {
         const compareId = next.find((x) => x !== primaryId) ?? 'kjv';
-        const compare = list.find((v) => v.id === compareId);
         setMainVersionId(null);
         setMainVersion(null);
         setParallelVer(compareId);
@@ -859,7 +864,7 @@ export default function ReaderView({
         setLayout('parallel');
         setReadingLayout('parallel');
         setVersionLabel(
-          `${primaryLabel} · ${compare?.label ?? compareId.toUpperCase()}`,
+          `${primaryLabel} · ${versionDisplayLabel(compareId, list)}`,
         );
       }
     },
@@ -971,11 +976,13 @@ export default function ReaderView({
     setParallelVer(savedParallel);
     setMainVersionId(savedMain);
     if (savedMain) {
-      setVersionLabel(savedMain.toUpperCase());
+      setVersionLabel(versionDisplayLabel(savedMain));
     } else if (savedLayout === 'parallel') {
-      setVersionLabel(`新译本 · ${savedParallel.toUpperCase()}`);
+      setVersionLabel(
+        `${versionDisplayLabel(FALLBACK_PRIMARY_VERSION)} · ${versionDisplayLabel(savedParallel)}`,
+      );
     } else {
-      setVersionLabel('新译本');
+      setVersionLabel(versionDisplayLabel(FALLBACK_PRIMARY_VERSION));
     }
     const saved = Number(localStorage.getItem('readerFont'));
     if (saved && FONT_SIZES.some((f) => f.px === saved)) setFontPx(saved);
@@ -984,6 +991,23 @@ export default function ReaderView({
     setPageTurnState(getPageTurn());
     setUnderlinesOn(getUnderlinesOn());
     setThoughtsOn(getThoughtsOn());
+  }, []);
+
+  // 首屏预拉译本列表，补全中文名（勿等点击选择器）。
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .versions()
+      .then((d) => {
+        if (cancelled) return;
+        setVersions((d.versions ?? []).filter((v) => v.available !== false));
+      })
+      .catch(() => {
+        if (!cancelled) setVersions([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -999,11 +1023,9 @@ export default function ReaderView({
     if (!versions?.length) return;
     const primary = versions.find((v) => v.primary) ?? versions.find((v) => v.id === 'cuvs');
     if (mainVersionId) {
-      const v = versions.find((x) => x.id === mainVersionId);
-      if (v) setVersionLabel(v.label);
+      setVersionLabel(versionDisplayLabel(mainVersionId, versions));
       return;
     }
-    // null = 默认主译本（新译本 / primary）
     if (layout !== 'parallel') {
       if (primary) setVersionLabel(primary.label);
       return;
@@ -1026,7 +1048,7 @@ export default function ReaderView({
     void bibleChapter(book.id, chapter, parallelVer)
       .then((verses) => {
         if (!verses?.length) {
-          const label = versions?.find((v) => v.id === parallelVer)?.label ?? parallelVer.toUpperCase();
+          const label = versionDisplayLabel(parallelVer, versions);
           setParallelError(`${label} 暂无经文`);
           setParallelVerses([]);
           return;
@@ -1035,7 +1057,7 @@ export default function ReaderView({
         setParallelError(null);
       })
       .catch(() => {
-        const label = versions?.find((v) => v.id === parallelVer)?.label ?? parallelVer.toUpperCase();
+        const label = versionDisplayLabel(parallelVer, versions);
         setParallelError(`${label} 加载失败`);
         setParallelVerses([]);
       })
@@ -1218,8 +1240,7 @@ export default function ReaderView({
           const altVerses = await loadChapterVerses(book.id, chapter, mainVersionId);
           if (cancelled) return;
           if (!altVerses?.length) {
-            const verLabel =
-              versions?.find((v) => v.id === mainVersionId)?.label ?? mainVersionId.toUpperCase();
+            const verLabel = versionDisplayLabel(mainVersionId, versions);
             setVersionBanner(`${verLabel} 暂无经文，请稍后刷新或换译本`);
             setVerses([]);
             flashToast(`${verLabel} 暂无经文`);
@@ -2490,7 +2511,7 @@ export default function ReaderView({
           )}
           <button type="button" className="reader-version" onClick={(e) => {
             e.stopPropagation();
-            const primaryId = versions?.find((v) => v.primary)?.id ?? 'cuvs';
+            const primaryId = versions?.find((v) => v.primary)?.id ?? FALLBACK_PRIMARY_VERSION;
             if (mainVersionId) setCheckedVers([mainVersionId]);
             else if (layout === 'parallel') setCheckedVers([primaryId, parallelVer]);
             else setCheckedVers([primaryId]);

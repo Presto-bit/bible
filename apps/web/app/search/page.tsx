@@ -151,12 +151,14 @@ export default function SearchPage() {
         setVersions(list.length ? list : [
           { id: 'cuvs', label: '和合本', available: true, primary: true },
           { id: 'cnv', label: '新译本', available: true, primary: false },
+          { id: 'contemporary', label: '当代译本', available: true, primary: false },
           { id: 'kjv', label: 'King James Version', available: true, primary: false },
         ]);
       }).catch(() => {
         setVersions([
           { id: 'cuvs', label: '和合本', available: true, primary: true },
           { id: 'cnv', label: '新译本', available: true, primary: false },
+          { id: 'contemporary', label: '当代译本', available: true, primary: false },
           { id: 'kjv', label: 'King James Version', available: true, primary: false },
         ]);
       }),

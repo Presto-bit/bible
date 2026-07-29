@@ -38,6 +38,7 @@ services:
       BIBLE_DB_PATH: /app/build/bible_cnv.sqlite
       BIBLE_KJV_DB_PATH: /app/build/bible_kjv.sqlite
       BIBLE_CUVS_DB_PATH: /app/build/bible_cuvs.sqlite
+      BIBLE_CONTEMPORARY_DB_PATH: /app/build/bible_contemporary.sqlite
       CONTENT_DATA_DIR: /app/data
     ports:
       - "127.0.0.1:8011:8011"

@@ -36,6 +36,13 @@ export const CONTENT_ATTRIBUTION_SECTIONS: AttributionSection[] = [
         note: '数据来自 midvash/bible-data（标注 Public Domain）；现代和合本在部分地区仍可能有版权限制，商用前请法务确认。',
       },
       {
+        id: 'contemporary',
+        name: '当代译本',
+        license: 'CC BY-SA 4.0',
+        url: 'https://ebible.org/find/show.php?id=cmncbs',
+        note: 'Biblica Open Chinese Contemporary Bible（简体）；离线经库与阅读器可用。',
+      },
+      {
         id: 'kjv',
         name: 'King James Version（KJV）',
         license: 'Public Domain',

@@ -58,6 +58,8 @@ RUN chmod +x /app/deploy/api-entrypoint.sh \
 ENV PYTHONPATH=/app/services/api
 ENV BIBLE_DB_PATH=/app/build/bible_cnv.sqlite
 ENV BIBLE_KJV_DB_PATH=/app/build/bible_kjv.sqlite
+ENV BIBLE_CUVS_DB_PATH=/app/build/bible_cuvs.sqlite
+ENV BIBLE_CONTEMPORARY_DB_PATH=/app/build/bible_contemporary.sqlite
 ENV CONTENT_DATA_DIR=/app/data
 
 WORKDIR /app/services/api

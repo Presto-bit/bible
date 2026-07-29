@@ -1,4 +1,4 @@
-/** 离线经包：下载 zip / 和合本直链 sqlite → 校验 → IndexedDB（CNV / CUVS / KJV）。 */
+/** 离线经包：下载 zip / 和合本直链 sqlite → 校验 → IndexedDB（CNV / CUVS / 当代 / KJV）。 */
 
 import { idbDelete, idbGet, idbGetBundle, idbSet, idbSetBundle } from './offline_idb';
 import {

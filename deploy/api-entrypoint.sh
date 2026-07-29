@@ -4,6 +4,7 @@ set -euo pipefail
 CNV="/app/build/bible_cnv.sqlite"
 KJV="/app/build/bible_kjv.sqlite"
 CUVS="/app/build/bible_cuvs.sqlite"
+CONTEMPORARY="/app/build/bible_contemporary.sqlite"
 
 if [[ ! -f "$CNV" && -f /app/data/bible/cnv/verses.json ]]; then
   echo "[entrypoint] 生成 bible_cnv.sqlite …"
@@ -39,6 +40,23 @@ if [[ -f "$CUVS" && -f /app/data/bible/cuvs/verses.json ]]; then
     python /app/scripts/import_bible.py \
       --input /app/data/bible/cuvs/verses.json \
       --out "$CUVS"
+  fi
+fi
+
+if [[ ! -f "$CONTEMPORARY" && -f /app/data/bible/contemporary/verses.json ]]; then
+  echo "[entrypoint] 生成 bible_contemporary.sqlite …"
+  python /app/scripts/import_bible.py \
+    --input /app/data/bible/contemporary/verses.json \
+    --out "$CONTEMPORARY"
+fi
+
+if [[ -f "$CONTEMPORARY" && -f /app/data/bible/contemporary/verses.json ]]; then
+  contemporary_n="$(python -c "import sqlite3; c=sqlite3.connect('$CONTEMPORARY'); print(c.execute('SELECT COUNT(*) FROM verses').fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
+  if [[ "${contemporary_n:-0}" -lt 10000 ]]; then
+    echo "[entrypoint] 重建 bible_contemporary.sqlite（当前仅 ${contemporary_n} 节）…"
+    python /app/scripts/import_bible.py \
+      --input /app/data/bible/contemporary/verses.json \
+      --out "$CONTEMPORARY"
   fi
 fi
 
