@@ -150,10 +150,10 @@ export function CampaignBlockEditor({
     <div className="ops-block-palette">
       <div className="ops-builder-palette-head">
         <p className="ops-subblock-title" style={{ margin: 0 }}>
-          控件库
+          空间
         </p>
         <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-          点击添加到中间「页面结构」
+          点击添加到「页面结构」
         </p>
       </div>
       {examplePack ? (
@@ -266,7 +266,7 @@ export function CampaignBlockEditor({
       </div>
       {blocks.length === 0 ? (
         <p className="muted" style={{ fontSize: 13 }}>
-          从左侧控件库添加第一个控件开始搭建。
+          从「空间」添加第一个控件开始搭建。
         </p>
       ) : (
         <div className="ops-block-list">

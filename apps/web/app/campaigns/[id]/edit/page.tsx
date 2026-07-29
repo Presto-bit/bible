@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { api, type OpsCampaignDetail, type OpsCampaignLanding } from '@/lib/api';
@@ -10,9 +10,7 @@ import {
   saveCampaignDraft,
 } from '@/lib/campaign_draft';
 import {
-  blockingSlotsPending,
   buildPublishChecklist,
-  buildRequiredSlots,
   CAMPAIGN_CONFIG_SECTIONS,
   campaignPreviewUrl,
   campaignSectionDone,
@@ -83,12 +81,9 @@ function CampaignEditInner() {
     exposure: true,
   });
   const pinnedOpen = useRef<Partial<Record<CampaignConfigSectionId, boolean>>>({});
-  /** 顶栏进度区折叠 */
-  const [topBarOpen, setTopBarOpen] = useState(false);
-  /** 左侧工具面板折叠（仅留 Tab 轨） */
-  const [leftOpen, setLeftOpen] = useState(true);
-  /** 左侧三 Tab：控件 | 配置 | 设置 */
+  /** 顶部三 Tab：空间（控件库）| 配置 | 设置 */
   const [leftTab, setLeftTab] = useState<'palette' | 'config' | 'settings'>('palette');
+  const tabSwipeX = useRef<number | null>(null);
 
   const checklistInput = useMemo(
     () => ({
@@ -119,9 +114,6 @@ function CampaignEditInner() {
 
   const checklist = useMemo(() => buildPublishChecklist(checklistInput), [checklistInput]);
 
-  const requiredSlots = useMemo(() => buildRequiredSlots(checklistInput), [checklistInput]);
-  const pendingBlocking = useMemo(() => blockingSlotsPending(requiredSlots), [requiredSlots]);
-
   const sectionDone = useMemo(() => {
     const map = {} as Record<CampaignConfigSectionId, boolean>;
     for (const s of CAMPAIGN_CONFIG_SECTIONS) {
@@ -133,11 +125,6 @@ function CampaignEditInner() {
   const doneCount = useMemo(
     () => CAMPAIGN_CONFIG_SECTIONS.filter((s) => sectionDone[s.id]).length,
     [sectionDone],
-  );
-
-  const nextSection = useMemo(
-    () => firstIncompleteSection(checklistInput),
-    [checklistInput],
   );
 
   useEffect(() => {
@@ -263,24 +250,40 @@ function CampaignEditInner() {
     pinnedOpen.current[sid] = true;
     setOpenSections((prev) => ({ ...prev, [sid]: true }));
     setActiveSection(sid);
-    setLeftOpen(true);
     if (sid === 'content') {
       setLeftTab('palette');
     } else {
       setLeftTab('settings');
-      setTopBarOpen(true);
       window.setTimeout(() => scrollTo(anchor), 60);
     }
   };
 
   const openLeftTab = (tab: 'palette' | 'config' | 'settings') => {
     setLeftTab(tab);
-    setLeftOpen(true);
     if (tab === 'settings') {
       setActiveSection((prev) => (prev === 'content' ? 'basic' : prev));
     } else {
       setActiveSection('content');
     }
+  };
+
+  const onTabSwipeStart = (e: TouchEvent) => {
+    tabSwipeX.current = e.changedTouches[0]?.clientX ?? null;
+  };
+
+  const onTabSwipeEnd = (e: TouchEvent) => {
+    const start = tabSwipeX.current;
+    tabSwipeX.current = null;
+    if (start == null) return;
+    const end = e.changedTouches[0]?.clientX;
+    if (end == null) return;
+    const dx = end - start;
+    if (Math.abs(dx) < 56) return;
+    const order: Array<'palette' | 'config' | 'settings'> = ['palette', 'config', 'settings'];
+    const idx = order.indexOf(leftTab);
+    if (idx < 0) return;
+    if (dx < 0 && idx < order.length - 1) openLeftTab(order[idx + 1]!);
+    if (dx > 0 && idx > 0) openLeftTab(order[idx - 1]!);
   };
 
   const toggleSection = (sid: CampaignConfigSectionId) => {
@@ -456,172 +459,31 @@ function CampaignEditInner() {
     >
       {err ? <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>{err}</p> : null}
 
-      <div className={`ops-topbar${topBarOpen ? '' : ' is-collapsed'}`}>
-        <div className="ops-topbar-summary">
+      <nav className="ops-canvas-tabs" aria-label="编辑分区">
+        {(
+          [
+            ['palette', '空间'],
+            ['config', '配置'],
+            ['settings', '设置'],
+          ] as const
+        ).map(([id, label]) => (
           <button
+            key={id}
             type="button"
-            className="ops-topbar-toggle"
-            onClick={() => setTopBarOpen((v) => !v)}
-            aria-expanded={topBarOpen}
+            className={`ops-canvas-tab${leftTab === id ? ' is-on' : ''}`}
+            onClick={() => openLeftTab(id)}
           >
-            {topBarOpen ? '收起顶栏' : '展开顶栏'}
+            {label}
           </button>
-          <span className="muted">
-            进度 {doneCount}/{CAMPAIGN_CONFIG_SECTIONS.length}
-            {pendingBlocking.length ? ` · 还差 ${pendingBlocking.length} 项必填` : ' · 可发布'}
-            {hint ? ` · ${hint}` : ''}
-          </span>
-          {!topBarOpen && nextSection ? (
-            <button
-              type="button"
-              className="text-link"
-              onClick={() => {
-                setTopBarOpen(true);
-                jumpToSection(nextSection.id, nextSection.anchor);
-              }}
-            >
-              去完善「{nextSection.label}」→
-            </button>
-          ) : null}
-        </div>
-
-        {topBarOpen ? (
-          <>
-            {checklist.length > 0 ? (
-              <div className="ops-banner ops-banner-warn" style={{ marginTop: 8 }}>
-                <strong style={{ display: 'block', marginBottom: 4 }}>
-                  发布前检查 · 还差 {pendingBlocking.length} 项必填
-                </strong>
-                <ul className="ops-checklist-by-section">
-                  {CAMPAIGN_CONFIG_SECTIONS.map((sec) => {
-                    const items = requiredSlots.filter(
-                      (s) => s.section === sec.id && s.blocking && !s.done,
-                    );
-                    if (!items.length) return null;
-                    return (
-                      <li key={sec.id}>
-                        <button
-                          type="button"
-                          className="text-link"
-                          onClick={() => jumpToSection(sec.id, sec.anchor)}
-                        >
-                          {sec.label}
-                        </button>
-                        <span className="muted"> — {items.map((i) => i.label).join('、')}</span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : (
-              <p className="ops-banner ops-banner-ok" style={{ marginTop: 8 }}>
-                发布检查已通过，可以发布。
-              </p>
-            )}
-
-            <nav className="ops-progress-nav" aria-label="配置进度总览">
-              <div className="ops-progress-meter" aria-hidden="true">
-                <span
-                  className="ops-progress-meter-fill"
-                  style={{
-                    width: `${(doneCount / CAMPAIGN_CONFIG_SECTIONS.length) * 100}%`,
-                  }}
-                />
-              </div>
-              <ol className="ops-progress-steps">
-                {CAMPAIGN_CONFIG_SECTIONS.map((s, idx) => {
-                  const done = sectionDone[s.id];
-                  const current = activeSection === s.id;
-                  const pending = requiredSlots.filter(
-                    (x) => x.section === s.id && x.blocking && !x.done,
-                  );
-                  return (
-                    <li key={s.id}>
-                      <button
-                        type="button"
-                        className={`ops-progress-step${done ? ' is-done' : ''}${current ? ' is-current' : ''}`}
-                        onClick={() => jumpToSection(s.id, s.anchor)}
-                        aria-current={current ? 'step' : undefined}
-                      >
-                        <span className="ops-progress-step-n" aria-hidden="true">
-                          {done ? '✓' : idx + 1}
-                        </span>
-                        <span className="ops-progress-step-text">
-                          <strong>{s.label}</strong>
-                          <span>
-                            {done
-                              ? '已完成'
-                              : pending.length
-                                ? `缺 ${pending.map((p) => p.label).join('、')}`
-                                : s.hint}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
-              <div className="ops-slot-chips" aria-label="必填槽位">
-                {requiredSlots.map((slot) => (
-                  <button
-                    key={slot.id}
-                    type="button"
-                    className={`ops-slot-chip${slot.done ? ' is-done' : ''}${slot.blocking ? '' : ' is-soft'}`}
-                    onClick={() => jumpToSection(slot.section, slot.anchor)}
-                    title={slot.blocking ? '必填' : '建议填写'}
-                  >
-                    {slot.done ? '✓ ' : slot.blocking ? '' : '○ '}
-                    {slot.label}
-                  </button>
-                ))}
-              </div>
-            </nav>
-          </>
-        ) : null}
-      </div>
+        ))}
+      </nav>
 
       <div
-        className={`ops-canvas-grid${leftOpen ? '' : ' is-left-collapsed'}${
-          leftTab === 'settings' ? ' is-settings-tab' : ''
-        }`}
+        className={`ops-canvas-grid${leftTab === 'settings' ? ' is-settings-tab' : ''}`}
+        onTouchStart={onTabSwipeStart}
+        onTouchEnd={onTabSwipeEnd}
       >
-        <aside className="ops-canvas-rail" aria-label="左侧工具">
-          <button
-            type="button"
-            className={`ops-canvas-rail-btn${leftTab === 'palette' && leftOpen ? ' is-on' : ''}`}
-            onClick={() => openLeftTab('palette')}
-            title="控件库"
-          >
-            控件
-          </button>
-          <button
-            type="button"
-            className={`ops-canvas-rail-btn${leftTab === 'config' && leftOpen ? ' is-on' : ''}`}
-            onClick={() => openLeftTab('config')}
-            title="选中控件配置"
-          >
-            配置
-          </button>
-          <button
-            type="button"
-            className={`ops-canvas-rail-btn${leftTab === 'settings' && leftOpen ? ' is-on' : ''}`}
-            onClick={() => openLeftTab('settings')}
-            title="基本 / 可见范围 / 首页曝光"
-          >
-            设置
-          </button>
-          <button
-            type="button"
-            className="ops-canvas-rail-btn ops-canvas-rail-fold"
-            onClick={() => setLeftOpen((v) => !v)}
-            aria-expanded={leftOpen}
-            title={leftOpen ? '收起左侧面板' : '展开左侧面板'}
-          >
-            {leftOpen ? '‹' : '›'}
-          </button>
-        </aside>
-
-        {leftOpen && leftTab === 'settings' ? (
+        {leftTab === 'settings' ? (
           <div className="ops-canvas-settings" aria-label="页面设置">
             <div
               id="ops-sec-basic"
@@ -873,7 +735,7 @@ function CampaignEditInner() {
           layout="canvas"
           toolsTab={leftTab === 'config' ? 'config' : 'palette'}
           onToolsTabChange={(tab) => openLeftTab(tab)}
-          hideTools={!leftOpen || leftTab === 'settings'}
+          hideTools={leftTab === 'settings'}
         />
 
         <div className="ops-canvas-preview">
