@@ -17399,11 +17399,14 @@ body:has(.dm-page) .app-body {
   bottom: 0;
   display: flex;
   flex-direction: column;
+  /* 覆盖 .group-page 的 min-height:100dvh，否则键盘态 bottom:inset 时壳仍被撑满屏 */
   height: auto;
   max-height: none;
+  min-height: 0;
   overflow: hidden;
   padding: 0;
   padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: 0;
   box-sizing: border-box;
   z-index: 2;
 }
@@ -20299,7 +20302,7 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
  * 键盘态（群 / 私信同款）：
  * - 用 --im-kb-inset 抬高壳底（overlays / iOS PWA scroll 代理）
  * - 输入栏文档流贴壳底，自然落在键盘上沿
- * - Android resizes-content 下 inset≈0，壳仍 top/bottom:0 填满已缩 layout
+ * - 群页必须 min-height:0，否则 .group-page 的 100dvh 会盖过 bottom:inset
  */
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
@@ -20307,6 +20310,7 @@ body.im-keyboard .dm-page {
   bottom: var(--im-kb-inset, 0px);
   height: auto;
   max-height: none;
+  min-height: 0;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: 0;
 }
