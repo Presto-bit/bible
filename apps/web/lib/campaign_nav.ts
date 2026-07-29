@@ -1,5 +1,6 @@
-/** 活动落地页 / 推荐卡外链导航（无二次确认） */
+/** 活动落地页 / 推荐卡外链导航（无二次确认；外链走 PWA 内嵌浏览器） */
 
+import { openExternalBrowser } from '@/lib/external_browser';
 import { isGenesis50Href, openGenesis50Authed } from '@/lib/genesis50_auth';
 
 export function isExternalHref(href: string): boolean {
@@ -16,7 +17,15 @@ export function normalizeCampaignHref(href: string): string {
   return t;
 }
 
-/** 站内直跳；外链直接打开（创世记走自动登录）。返回是否已导航。 */
+function titleFromHref(href: string): string {
+  try {
+    return new URL(href).hostname.replace(/^www\./, '') || '外部页面';
+  } catch {
+    return '外部页面';
+  }
+}
+
+/** 站内直跳；外链内嵌打开（创世记走自动登录）。返回是否已导航。 */
 export function openCampaignHref(href: string): boolean {
   const raw = normalizeCampaignHref(href);
   if (!raw) return false;
@@ -28,7 +37,7 @@ export function openCampaignHref(href: string): boolean {
     openGenesis50Authed(raw);
     return true;
   }
-  window.open(raw, '_blank', 'noopener,noreferrer');
+  openExternalBrowser({ url: raw, title: titleFromHref(raw) });
   return true;
 }
 

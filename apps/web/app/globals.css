@@ -24710,3 +24710,149 @@ body.im-keyboard .group-prayer-banner {
   margin-top: 16px;
   align-items: stretch;
 }
+
+/* ─── 活动外链内嵌浏览器（PWA 内全屏，避免跳出系统浏览器）─── */
+html.external-browser-open,
+body.external-browser-open {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  overscroll-behavior-y: none;
+}
+
+body.external-browser-open .tabbar,
+body.external-browser-open .offline-bar,
+body.external-browser-open .install-banner {
+  display: none !important;
+}
+
+body.external-browser-open .app-body {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.external-browser {
+  position: fixed;
+  inset: 0;
+  z-index: 1450;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  background: var(--bg, #fff);
+  color: var(--ink, #222);
+  overscroll-behavior: none;
+}
+
+.external-browser-top {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: minmax(64px, auto) 1fr minmax(64px, auto);
+  align-items: center;
+  gap: 8px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink, #222) 10%, transparent);
+  background: color-mix(in srgb, var(--bg, #fff) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.external-browser-title {
+  min-width: 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.external-browser-close,
+.external-browser-system {
+  min-height: 40px;
+  margin: 0;
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink, #222) 6%, transparent);
+  color: var(--ink, #222);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.external-browser-close {
+  justify-self: start;
+}
+
+.external-browser-system {
+  justify-self: end;
+  background: transparent;
+  color: var(--muted, #888);
+  font-weight: 500;
+}
+
+.external-browser-system:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.external-browser-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg, #fff);
+}
+
+.external-browser-frame {
+  flex: 1 1 auto;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.external-browser-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--muted, #888);
+  font-size: 14px;
+}
+
+.external-browser-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--ink, #222) 12%, transparent);
+  border-top-color: var(--ink, #222);
+  animation: external-browser-spin 0.7s linear infinite;
+}
+
+@keyframes external-browser-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.external-browser-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: color-mix(in srgb, var(--bg, #fff) 94%, transparent);
+  text-align: center;
+  color: var(--muted, #888);
+}

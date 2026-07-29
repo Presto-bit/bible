@@ -8,6 +8,7 @@
  */
 
 import { getUserName } from '@/lib/api';
+import { openExternalBrowser } from '@/lib/external_browser';
 
 const G50_HOST = 'genesis-50.pages.dev';
 const G50_SUPABASE_URL = 'https://ytiwfmufekvxdgyaokae.supabase.co';
@@ -168,29 +169,26 @@ async function obtainGenesis50Session(code: string): Promise<G50Session> {
   }
 }
 
-/** 同步占坑打开窗口，再写入带 session 的地址（避免弹窗拦截；无确认框）。 */
+/** 应用内打开：先展示 loading，登录后把 session 写入 iframe URL（无系统浏览器弹窗）。 */
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
   const code = resolveGenesis50InviteCode(href);
   const fallback = normalizeHref(href);
-  const popup = window.open('about:blank', '_blank');
+  const title = '创世记 50 天';
+
+  openExternalBrowser({ title, loading: true });
 
   void (async () => {
     try {
       const session = await obtainGenesis50Session(code);
-      const url = buildAuthedUrl(fallback, session);
-      if (popup && !popup.closed) {
-        popup.location.replace(url);
-      } else {
-        window.open(url, '_blank', 'noopener,noreferrer');
-      }
+      openExternalBrowser({
+        url: buildAuthedUrl(fallback, session),
+        title,
+        loading: false,
+      });
     } catch (err) {
-      console.warn('[genesis50] auto enter failed, fallback plain open', err);
-      if (popup && !popup.closed) {
-        popup.location.replace(fallback);
-      } else {
-        window.open(fallback, '_blank', 'noopener,noreferrer');
-      }
+      console.warn('[genesis50] auto enter failed, fallback plain embed', err);
+      openExternalBrowser({ url: fallback, title, loading: false });
     }
   })();
 }

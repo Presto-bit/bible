@@ -13,6 +13,7 @@ import { ToastProvider } from '@/components/ui/ToastProvider';
 import { PasswordSheetProvider } from '@/components/ui/PasswordSheetProvider';
 import OfflineBar from '@/components/OfflineBar';
 import WebOnboardingSheet from '@/components/WebOnboardingSheet';
+import ExternalBrowserSheet from '@/components/ExternalBrowserSheet';
 import BottomTabs from '@/components/BottomTabs';
 import TabKeepAlive from '@/components/shell/TabKeepAlive';
 
@@ -118,6 +119,7 @@ export default function RootLayout({
               <InstallBanner />
               <InviteFriendNudge />
               <WebOnboardingSheet />
+              <ExternalBrowserSheet />
             </IdentityShell>
           </PasswordSheetProvider>
           </ToastProvider>
