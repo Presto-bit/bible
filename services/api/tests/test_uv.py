@@ -3,6 +3,7 @@ from app.analytics.uv import (
     legacy_visitor_key,
     resolve_device_fingerprint,
     should_record_uv,
+    uv_guest_identity_sql,
     uv_identity_sql,
     visitor_key,
 )
@@ -47,30 +48,45 @@ def test_should_record_uv_skips_admin_and_health():
     assert should_record_uv("/bible/books", "OPTIONS") is False
 
 
-def test_uv_identity_prefers_user_code():
+def test_uv_identity_is_account_code_only():
+    """UV 去重键只认 accounts.user_code，不回落 fingerprint（避免计入游客）。"""
     sql = uv_identity_sql()
     assert "accounts" in sql
     assert "user_code" in sql
     assert "device_user_bindings" in sql
     assert "pwd_hash" not in sql
+    assert "visitor_key" not in sql
     assert "nullif(trim(" in sql
     aliased = uv_identity_sql("d")
     assert "d.user_id" in aliased
     assert "d.device_fingerprint" in aliased
     assert "d.user_code" in aliased
-    assert "visitor_key" in aliased
+    assert "d.visitor_key" not in aliased
 
 
-def test_uv_attributed_requires_account_not_secured():
-    """UV 计入条件：能解析到 accounts 即可，不要求设密/绑手机。"""
-    from app.analytics.uv_stats import uv_attributed_where
+def test_uv_guest_identity_uses_device_key():
+    sql = uv_guest_identity_sql()
+    assert "device_fingerprint" in sql
+    assert "visitor_key" in sql
+    aliased = uv_guest_identity_sql("d")
+    assert "d.device_fingerprint" in aliased
+    assert "d.visitor_key" in aliased
+
+
+def test_uv_attributed_requires_account_identity():
+    """UV 计入条件：能解析到 accounts.user_code；游客用互补条件统计。"""
+    from app.analytics.uv_stats import uv_attributed_where, uv_deduped_count_sql, uv_guest_rows_sql
 
     sql = uv_attributed_where()
-    assert "accounts" in sql
+    assert "IS NOT NULL" in sql
     assert "pwd_hash" not in sql
-    assert "phone" not in sql
-    assert "device_user_bindings" in sql
     aliased = uv_attributed_where("d")
     assert "d.user_id" in aliased
-    assert "d.device_fingerprint" in aliased
-    assert "d.user_code" in aliased
+
+    deduped = uv_deduped_count_sql()
+    assert "count(DISTINCT" in deduped
+    assert "IS NOT NULL" in deduped
+
+    guest = uv_guest_rows_sql()
+    assert "NOT" in guest
+    assert "visitor_key" in guest or "device_fingerprint" in guest

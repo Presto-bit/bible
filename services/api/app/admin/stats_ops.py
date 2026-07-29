@@ -554,6 +554,7 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 SELECT visit_date::text, count(*)
                 FROM daily_active_visitors
                 WHERE visit_date >= (timezone('Asia/Shanghai', now()))::date - %s::int
+                  AND visitor_key LIKE 'u:%%'
                 GROUP BY visit_date ORDER BY visit_date
                 """,
                 span,
@@ -1356,8 +1357,8 @@ def fetch_admin_stats_detail(
             guest_pct = round(guest_uv / (deduped + guest_uv) * 100, 1) if (deduped + guest_uv) else 0
             convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("去重 UV", deduped, "非游客（有 accounts）；同一账号全天计 1"),
-                _insight("游客设备", guest_uv, f"未计入 UV（无法解析到账号）· 占访问 {guest_pct}%"),
+                _insight("去重 UV", deduped, "非游客（accounts.user_code）；同一账号全天计 1"),
+                _insight("游客设备", guest_uv, f"未计入 UV · 占访问 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
                 _insight("当日转化", converted, f"游客→账号 {convert_pct}%" if converted else None),
                 _insight("次日留存", f"{d1}%" if d1 is not None else "—"),
@@ -1368,7 +1369,13 @@ def fetch_admin_stats_detail(
             )
             summary = (
                 f"今日去重 {totals['uv_today']} · 区间去重 {deduped} · "
-                f"明细 {len(items)} 条 · 转化 {totals.get('uv_converted_today', converted)}"
+                f"明细 {len(items)} 条"
+                + (
+                    f" · 另有游客 {guest_uv}"
+                    if guest_uv
+                    else ""
+                )
+                + f" · 转化 {totals.get('uv_converted_today', converted)}"
             )
 
         elif metric == "ai_requests":

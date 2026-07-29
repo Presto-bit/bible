@@ -32,8 +32,8 @@ def _set_err(msg: str | None) -> None:
     _last_error = msg
 
 
-# 统计去重身份：优先归并到 accounts.user_code（多设备 / 先游客后登录只计 1）；
-# 否则按 user_id / 非空设备指纹 / visitor_key（避免空指纹把多人挤成 1）。
+# 统计去重身份：仅归并到 accounts.user_code（经 user_id / 设备绑定 / 行内 user_code）。
+# 不回落到 fingerprint / visitor_key，避免把游客设备计进 UV，也避免同账号多身份虚高。
 def uv_identity_sql(alias: str | None = None) -> str:
     prefix = f"{alias}." if alias else "daily_active_visitors."
     fp = f"{alias}.device_fingerprint" if alias else "daily_active_visitors.device_fingerprint"
@@ -42,6 +42,8 @@ def uv_identity_sql(alias: str | None = None) -> str:
       SELECT ac.user_code
       FROM accounts ac
       WHERE ac.user_id = {prefix}user_id
+        AND ac.user_code IS NOT NULL
+        AND trim(ac.user_code) <> ''
       LIMIT 1
     )"""
     by_bind = f"""(
@@ -49,6 +51,8 @@ def uv_identity_sql(alias: str | None = None) -> str:
       FROM device_user_bindings dub
       JOIN accounts ac ON ac.user_code = dub.user_code
       WHERE dub.device_fingerprint = {fp}
+        AND ac.user_code IS NOT NULL
+        AND trim(ac.user_code) <> ''
       LIMIT 1
     )"""
     by_code = f"""(
@@ -57,13 +61,20 @@ def uv_identity_sql(alias: str | None = None) -> str:
       WHERE ac.user_code = nullif(trim({code}), '')
       LIMIT 1
     )"""
+    return f"COALESCE({by_user}, {by_bind}, {by_code})"
+
+
+def uv_guest_identity_sql(alias: str | None = None) -> str:
+    """游客设备去重键：无 accounts 时可按指纹 / visitor_key 计「未计入」。"""
+    prefix = f"{alias}." if alias else "daily_active_visitors."
+    fp = f"{alias}.device_fingerprint" if alias else "daily_active_visitors.device_fingerprint"
     return (
-        f"COALESCE({by_user}, {by_bind}, {by_code}, "
-        f"{prefix}user_id::text, nullif(trim({fp}), ''), {prefix}visitor_key)"
+        f"COALESCE(nullif(trim({fp}), ''), {prefix}visitor_key)"
     )
 
 
 UV_IDENTITY_SQL = uv_identity_sql()
+UV_GUEST_IDENTITY_SQL = uv_guest_identity_sql()
 
 
 def should_record_uv(path: str, method: str) -> bool:
