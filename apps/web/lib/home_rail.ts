@@ -234,7 +234,7 @@ function cardFromId(id: string, input: HomeRailInput): RailCard | null {
         tint: 'rose',
         layout: 'scene-caption',
         tag: '50次同行',
-        reason: '创世记专题',
+        reason: '灵修专题',
         title: input.devotional.title,
         sub: input.devotional.sub,
         href: input.devotional.href,

@@ -22,7 +22,6 @@ import '../bible/reading_repository.dart';
 import 'daily_verse_wallpaper_screen.dart';
 import 'hero_b_campaign.dart';
 import 'home_hero_carousel.dart';
-import '../devotionals/devotionals_repository.dart';
 import '../search/search_screen.dart';
 import '../social/social_repository.dart';
 
@@ -307,13 +306,6 @@ class HomeScreen extends ConsumerWidget {
                 onMeditate: (q) => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => AssistantScreen(seedQuestion: q),
                 )),
-                devotionalCard: ref.watch(genesis50HomeCardProvider).maybeWhen(
-                      data: (c) => c,
-                      orElse: () => null,
-                    ),
-                onOpenDevotional: (day) => context.push(
-                  '/devotionals/$genesis50SeriesId?day=$day',
-                ),
               ),
               const SizedBox(height: 14),
               PaperCard(
@@ -597,8 +589,6 @@ class _ForYouRail extends StatefulWidget {
     required this.onAskXiaoAi,
     required this.meditationPrompt,
     required this.onMeditate,
-    required this.onOpenDevotional,
-    this.devotionalCard,
   });
   final _PlanRailData? planRail;
   final String continueTitle;
@@ -607,8 +597,6 @@ class _ForYouRail extends StatefulWidget {
   final VoidCallback onAskXiaoAi;
   final String? meditationPrompt;
   final void Function(String) onMeditate;
-  final void Function(int day) onOpenDevotional;
-  final DevotionalHomeCard? devotionalCard;
 
   @override
   State<_ForYouRail> createState() => _ForYouRailState();
@@ -628,22 +616,6 @@ class _ForYouRailState extends State<_ForYouRail> {
   @override
   Widget build(BuildContext context) {
     final plan = widget.planRail;
-    final dCard = widget.devotionalCard;
-    final dDay = dCard?.scheduledDay ?? dCard?.day ?? genesis50DefaultDay;
-    String? dTitle;
-    String? dSub;
-    if (dCard != null) {
-      if (dCard.isCompleted) {
-        dTitle = '创世记50天';
-        dSub = '${dCard.myDays}/${dCard.daysTotal}';
-      } else if (dCard.hasOpened || dCard.myDays > 0) {
-        dTitle = '创世记50天';
-        dSub = '${dCard.myDays}/${dCard.daysTotal}';
-      } else {
-        dTitle = '创世记50天';
-        dSub = '0/${dCard.daysTotal}';
-      }
-    }
     final cards = <_RailCardData>[
       _RailCardData(
         tag: '计划',
@@ -665,17 +637,6 @@ class _ForYouRailState extends State<_ForYouRail> {
         accentPill: true,
         onTap: widget.onContinueReading,
       ),
-      if (dCard != null && dTitle != null && dSub != null)
-        _RailCardData(
-          tag: '50次同行',
-          title: _trimRailTitle(dTitle),
-          sub: _trimRailSub(dSub),
-          icon: Icons.auto_stories_outlined,
-          iconBg: const Color(0xFFFCE8EC),
-          iconColor: const Color(0xFFC45C6A),
-          accentPill: true,
-          onTap: () => widget.onOpenDevotional(dDay),
-        ),
       _RailCardData(
         tag: '小爱',
         title: _trimRailTitle('今日经文'),

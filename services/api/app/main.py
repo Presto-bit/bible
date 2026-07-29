@@ -15,7 +15,6 @@ from .auth.router import router as auth_router
 from .bible.router import router as bible_router
 from .config import get_settings
 from .content.router import router as content_router
-from .content.devotionals import router as devotionals_router
 from .content.campaigns import router as campaigns_router
 from .db import close_pool, get_pool, ping
 from .guide.router import router as guide_router
@@ -80,7 +79,6 @@ app.include_router(admin_router)
 app.include_router(auth_router)
 app.include_router(sync_router)
 app.include_router(content_router)
-app.include_router(devotionals_router)
 app.include_router(campaigns_router)
 app.include_router(social_router)
 app.include_router(social_im_router)

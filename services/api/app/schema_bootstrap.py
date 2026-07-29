@@ -36,12 +36,6 @@ def bootstrap_schemas(pool) -> None:
     except Exception:
         logger.exception("bootstrap: citation explain schema failed")
     try:
-        from .content.devotionals import ensure_devotional_schema
-
-        ensure_devotional_schema(pool)
-    except Exception:
-        logger.exception("bootstrap: devotionals schema failed")
-    try:
         from .content.campaigns import ensure_campaign_schema
 
         ensure_campaign_schema(pool)
