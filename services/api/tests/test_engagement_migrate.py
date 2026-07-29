@@ -24,12 +24,12 @@ def test_migrate_moves_likes_and_shares():
     conn = MagicMock()
     update_cur = MagicMock()
     update_cur.rowcount = 2
-    conn.execute.side_effect = [None, update_cur, None]
+    conn.execute.side_effect = [None, update_cur, None, None, None]
 
     moved = migrate_daily_verse_engagement(conn, "11111111", "22222222")
 
     assert moved == 2
-    assert conn.execute.call_count == 3
+    assert conn.execute.call_count == 5
     delete_sql = conn.execute.call_args_list[0].args[0]
     assert "DELETE FROM daily_verse_like" in delete_sql
     update_like_args = conn.execute.call_args_list[1].args
@@ -39,3 +39,8 @@ def test_migrate_moves_likes_and_shares():
     )
     update_share_args = conn.execute.call_args_list[2].args
     assert "daily_verse_share" in update_share_args[0]
+    delete_react_sql = conn.execute.call_args_list[3].args[0]
+    assert "DELETE FROM daily_verse_react" in delete_react_sql
+    update_react_args = conn.execute.call_args_list[4].args
+    assert "daily_verse_react" in update_react_args[0]
+    assert update_react_args[1] == ("22222222", "11111111")

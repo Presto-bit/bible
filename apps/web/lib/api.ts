@@ -61,6 +61,44 @@ export interface DailyVerse {
   likes_count?: number;
   liked?: boolean;
   shares_count?: number;
+  reacts_count?: number;
+  my_react?: DailyVerseReactPreset | null;
+  top_presets?: DailyVerseReactTopPreset[];
+}
+
+export interface DailyVerseReactPreset {
+  id: string;
+  kind: 'emoji' | 'phrase' | string;
+  emoji: string;
+  label: string;
+}
+
+export interface DailyVerseReactTopPreset extends DailyVerseReactPreset {
+  count: number;
+}
+
+export interface DailyVerseReactFeedItem {
+  user_code: string;
+  display_name: string;
+  preset: DailyVerseReactPreset;
+  created_at: string;
+}
+
+export interface DailyVerseReactFeed {
+  day: number;
+  items: DailyVerseReactFeedItem[];
+  reacts_count: number;
+  my_react: DailyVerseReactPreset | null;
+  top_presets: DailyVerseReactTopPreset[];
+  emojis: DailyVerseReactPreset[];
+  phrases: DailyVerseReactPreset[];
+}
+
+export interface DailyVerseReactResult {
+  reacts_count: number;
+  my_react: DailyVerseReactPreset | null;
+  top_presets: DailyVerseReactTopPreset[];
+  removed: boolean;
 }
 
 export interface HeroBCampaignPublic {
@@ -1698,6 +1736,21 @@ export const api = {
       `/content/daily-verse/share${day != null ? `?day=${day}` : ''}`,
       { method: 'POST' },
     ),
+  dailyVerseReactPresets: () =>
+    getJson<{ emojis: DailyVerseReactPreset[]; phrases: DailyVerseReactPreset[] }>(
+      '/content/daily-verse/react-presets',
+    ),
+  upsertDailyVerseReact: (presetId: string, day?: number) =>
+    authed<DailyVerseReactResult>(
+      `/content/daily-verse/react${day != null ? `?day=${day}` : ''}`,
+      { method: 'POST', body: { preset_id: presetId } },
+    ),
+  dailyVerseReacts: (day?: number, limit = 40) => {
+    const q = new URLSearchParams();
+    if (day != null) q.set('day', String(day));
+    q.set('limit', String(limit));
+    return getJson<DailyVerseReactFeed>(`/content/daily-verse/reacts?${q}`, authHeaders());
+  },
   dailyDevotional: () =>
     getJson<DailyDevotional>(`/content/daily-devotional?_d=${chinaTodayYmd()}`),
   /** 显式打点今日 UV（走 /content，避开未反代的 /analytics） */

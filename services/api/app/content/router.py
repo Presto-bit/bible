@@ -14,6 +14,12 @@ from ..auth.local_session import make_media_asset_sig, verify_media_asset_sig
 from ..db import get_pool
 from . import loader
 from .daily_clock import china_today, verse_day_for_date
+from .daily_verse_react import (
+    list_presets_payload,
+    list_react_feed,
+    react_engagement,
+    upsert_react,
+)
 from .planner import SCOPE_LABELS, generate_plan
 
 logger = logging.getLogger(__name__)
@@ -125,6 +131,7 @@ def _pick_user_code(x_user_code: str | None, x_user_id: str | None) -> str | Non
 
 
 def _daily_verse_engagement(verse_day: int, user_code: str | None) -> dict:
+    empty_react = {"reacts_count": 0, "my_react": None, "top_presets": []}
     try:
         pool = get_pool()
         with pool.connection() as conn:
@@ -145,10 +152,25 @@ def _daily_verse_engagement(verse_day: int, user_code: str | None) -> dict:
                 (verse_day,),
             ).fetchone()
             shares_count = int(shares_row[0]) if shares_row else 0
-        return {"likes_count": likes_count, "liked": liked, "shares_count": shares_count}
+            try:
+                react_stats = react_engagement(conn, verse_day, user_code)
+            except Exception:
+                logger.exception("daily verse react engagement failed for day=%s", verse_day)
+                react_stats = empty_react
+        return {
+            "likes_count": likes_count,
+            "liked": liked,
+            "shares_count": shares_count,
+            **react_stats,
+        }
     except Exception:
         logger.exception("daily verse engagement query failed for day=%s", verse_day)
-        return {"likes_count": 0, "liked": False, "shares_count": 0}
+        return {
+            "likes_count": 0,
+            "liked": False,
+            "shares_count": 0,
+            **empty_react,
+        }
 
 
 def _no_store_headers(response: Response) -> None:
@@ -251,6 +273,74 @@ def record_daily_verse_share(
         return {"ok": True, **stats}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="分享记录暂不可用") from exc
+
+
+class DailyVerseReactBody(BaseModel):
+    preset_id: str
+
+
+@router.get("/daily-verse/react-presets")
+def daily_verse_react_presets() -> dict:
+    return list_presets_payload()
+
+
+@router.post("/daily-verse/react")
+def upsert_daily_verse_react(
+    body: DailyVerseReactBody,
+    response: Response,
+    day: int | None = Query(None, ge=1),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    _no_store_headers(response)
+    user_code = _user_code_from_session(user_id)
+    if not user_code:
+        raise HTTPException(status_code=400, detail="账号未建档")
+    verse_day, _ = _resolve_verse_day(day)
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            result = upsert_react(
+                conn,
+                verse_day=verse_day,
+                user_code=user_code,
+                preset_id=body.preset_id,
+            )
+            conn.commit()
+        return result
+    except ValueError as exc:
+        if str(exc) == "invalid_preset":
+            raise HTTPException(status_code=400, detail="无效的回应选项") from exc
+        raise
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="回应服务暂不可用") from exc
+
+
+@router.get("/daily-verse/reacts")
+def list_daily_verse_reacts(
+    response: Response,
+    day: int | None = Query(None, ge=1),
+    limit: int = Query(40, ge=1, le=80),
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+) -> dict:
+    _no_store_headers(response)
+    verse_day, _ = _resolve_verse_day(day)
+    user_code = _pick_user_code(x_user_code, x_user_id)
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            stats = react_engagement(conn, verse_day, user_code)
+            items = list_react_feed(conn, verse_day=verse_day, limit=limit)
+        return {
+            "day": verse_day,
+            "items": items,
+            **stats,
+            **list_presets_payload(),
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="回应列表暂不可用") from exc
 
 
 def themes() -> dict:

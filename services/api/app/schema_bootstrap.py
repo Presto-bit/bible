@@ -41,5 +41,13 @@ def bootstrap_schemas(pool) -> None:
         ensure_campaign_schema(pool)
     except Exception:
         logger.exception("bootstrap: campaigns schema failed")
+    try:
+        from .content.daily_verse_react import ensure_daily_verse_react_schema
+
+        with pool.connection() as conn:
+            ensure_daily_verse_react_schema(conn)
+            conn.commit()
+    except Exception:
+        logger.exception("bootstrap: daily verse react schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

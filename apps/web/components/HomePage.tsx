@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation';
 import {
   api,
   type DailyVerse,
+  type DailyVerseReactPreset,
+  type DailyVerseReactTopPreset,
   ensureAccountReady,
   getDisplayName,
   getSessionToken,
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
+import DailyVerseReactSheet from '@/components/DailyVerseReactSheet';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { currentSeasonalEvents } from '@/lib/gamification';
@@ -77,14 +80,27 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const [likeCount, setLikeCount] = useState(() => readCachedDailyVerse()?.likes_count ?? 0);
   const [likeBusy, setLikeBusy] = useState(false);
   const [likeErr, setLikeErr] = useState<string | null>(null);
+  const [reactCount, setReactCount] = useState(() => readCachedDailyVerse()?.reacts_count ?? 0);
+  const [myReact, setMyReact] = useState<DailyVerseReactPreset | null>(
+    () => readCachedDailyVerse()?.my_react ?? null,
+  );
+  const [topPresets, setTopPresets] = useState<DailyVerseReactTopPreset[]>(
+    () => readCachedDailyVerse()?.top_presets ?? [],
+  );
+  const [reactSheetOpen, setReactSheetOpen] = useState(false);
+  const [reactErr, setReactErr] = useState<string | null>(null);
   const likeBusyRef = useRef(false);
   const likedRef = useRef(false);
   const likeCountRef = useRef(0);
+  const reactCountRef = useRef(0);
+  const myReactRef = useRef<DailyVerseReactPreset | null>(null);
   const bootstrapGenRef = useRef(0);
   /** 点赞成功/失败后递增；bootstrap 若在点赞完成前发出则不得覆盖 liked */
   const engagementGenRef = useRef(0);
   likedRef.current = liked;
   likeCountRef.current = likeCount;
+  reactCountRef.current = reactCount;
+  myReactRef.current = myReact;
   const [verseFull, setVerseFull] = useState(false);
   const [heroIllustration, setHeroIllustration] = useState<string | null>(() => {
     const cached = readCachedDailyVerse();
@@ -168,20 +184,31 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             ? v.liked
             : (day > 0 ? readLocalDailyVerseLike(day) : null) ?? false;
         const countVal = v.likes_count ?? 0;
+        const reactCountVal = v.reacts_count ?? 0;
+        const myReactVal = v.my_react ?? null;
+        const topPresetsVal = v.top_presets ?? [];
         const applyEngagement =
           !likeBusyRef.current
           && engagementAtStart === engagementGenRef.current;
         const cacheLiked = applyEngagement ? likedVal : likedRef.current;
         const cacheCount = applyEngagement ? countVal : likeCountRef.current;
+        const cacheReactCount = applyEngagement ? reactCountVal : reactCountRef.current;
+        const cacheMyReact = applyEngagement ? myReactVal : myReactRef.current;
         setDv(v);
         writeCachedDailyVerse({
           ...v,
           liked: cacheLiked,
           likes_count: cacheCount,
+          reacts_count: cacheReactCount,
+          my_react: cacheMyReact,
+          top_presets: applyEngagement ? topPresetsVal : (readCachedDailyVerse()?.top_presets ?? []),
         });
         if (applyEngagement) {
           setLiked(likedVal);
           setLikeCount(countVal);
+          setReactCount(reactCountVal);
+          setMyReact(myReactVal);
+          setTopPresets(topPresetsVal);
           if (day) writeLocalDailyVerseLike(day, likedVal);
         }
         // Hero 图预载不挡首屏与经包调度
@@ -514,6 +541,30 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     }
   }, [likeBusy, dv, liked, likeCount]);
 
+  const applyReactStats = useCallback(
+    (next: {
+      my_react: DailyVerseReactPreset | null;
+      reacts_count: number;
+      top_presets: DailyVerseReactTopPreset[];
+    }) => {
+      engagementGenRef.current += 1;
+      setMyReact(next.my_react);
+      setReactCount(next.reacts_count);
+      setTopPresets(next.top_presets);
+      setReactErr(null);
+      const snap = readCachedDailyVerse();
+      if (snap && snap.day === dv?.day) {
+        writeCachedDailyVerse({
+          ...snap,
+          my_react: next.my_react,
+          reacts_count: next.reacts_count,
+          top_presets: next.top_presets,
+        });
+      }
+    },
+    [dv?.day],
+  );
+
   return (
     <main className="container home-page">
       <header className="greet home-greet-header">
@@ -639,8 +690,31 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               )}
               <span>{likeCount.toLocaleString()} 人点赞</span>
             </button>
-            {likeErr && (
-              <p className="muted" style={{ fontSize: 12, marginTop: 6 }} role="alert">{likeErr}</p>
+            <button
+              type="button"
+              className={`hero-react${myReact ? ' hero-react-active' : ''}`}
+              disabled={!dv?.day}
+              aria-pressed={!!myReact}
+              aria-label={myReact ? `我的回应：${myReact.label}` : '回应今日经文'}
+              onClick={(e) => {
+                e.stopPropagation();
+                setReactErr(null);
+                setReactSheetOpen(true);
+              }}
+            >
+              <span aria-hidden className="hero-react-emoji">
+                {myReact?.emoji || '🙏'}
+              </span>
+              <span>
+                {reactCount > 0
+                  ? `${reactCount.toLocaleString()} 人回应`
+                  : '回应'}
+              </span>
+            </button>
+            {(likeErr || reactErr) && (
+              <p className="muted hero-actions-err" role="alert">
+                {likeErr || reactErr}
+              </p>
             )}
           </div>
         </div>
@@ -651,6 +725,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         bootstrapReady={bootstrapReady}
         resetToVerseNonce={heroResetNonce}
       />
+
+      {reactSheetOpen && dv?.day ? (
+        <DailyVerseReactSheet
+          day={dv.day}
+          myReact={myReact}
+          reactsCount={reactCount}
+          topPresets={topPresets}
+          onClose={() => setReactSheetOpen(false)}
+          onChanged={applyReactStats}
+        />
+      ) : null}
 
       {todayPanel ? <HomeTodayPanel panel={todayPanel} /> : null}
       {groupErr ? (

@@ -1887,7 +1887,24 @@ html:not([data-app-theme]) .card {
   font-weight: 600;
 }
 
+.home-page .hero-react {
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .home-page .hero-verse.hero-verse-has-art .hero-like {
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.home-page .hero-verse.hero-verse-has-art .hero-react {
   background: rgba(255, 255, 255, 0.22);
   color: rgba(255, 255, 255, 0.92);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
@@ -1896,6 +1913,11 @@ html:not([data-app-theme]) .card {
 .home-page .hero-verse.hero-verse-has-art .hero-like-active {
   background: rgba(255, 255, 255, 0.32);
   color: #ffb4bc;
+}
+
+.home-page .hero-verse.hero-verse-has-art .hero-react-active {
+  background: rgba(255, 255, 255, 0.32);
+  color: #ffe08a;
 }
 
 .home-page .home-rail {
@@ -4573,8 +4595,16 @@ button.hero-b-campaign {
   color: rgba(255, 255, 255, 0.92);
 }
 
+.hero-verse.hero-verse-has-art .hero-react {
+  color: rgba(255, 255, 255, 0.92);
+}
+
 .hero-verse.hero-verse-has-art .hero-like-active {
   color: #ff6b7a;
+}
+
+.hero-verse.hero-verse-has-art .hero-react-active {
+  color: #ffe08a;
 }
 
 .hero-verse.hero-verse-has-art .hero-like-active .hero-like-icon {
@@ -4616,12 +4646,20 @@ button.hero-b-campaign {
 .hero-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 0;
   padding-top: 8px;
   flex-shrink: 0;
   position: relative;
   z-index: 2;
+}
+
+.hero-actions-err {
+  flex-basis: 100%;
+  font-size: 12px;
+  margin: 2px 0 0;
 }
 
 .hero-like {
@@ -4643,6 +4681,27 @@ button.hero-b-campaign {
 .hero-like-icon {
   flex-shrink: 0;
   display: block;
+}
+
+.hero-react {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: var(--ink-faint);
+  font-size: 12px;
+}
+
+.hero-react-active {
+  color: var(--accent-deep, #3d6b5a);
+}
+
+.hero-react-emoji {
+  font-size: 15px;
+  line-height: 1;
 }
 
 .hero-share {
@@ -15300,6 +15359,7 @@ button.card:active,
 html.perf-lite .tabbar,
 html.perf-lite .home-page .icon-btn,
 html.perf-lite .home-page .hero-like,
+html.perf-lite .home-page .hero-react,
 html.perf-lite .home-page .home-rail .rail-card-cover-badge,
 html.perf-lite .profile-page .profile-settings-btn {
   backdrop-filter: none !important;
@@ -15499,6 +15559,109 @@ html.perf-lite .tabbar {
 }
 
 .share-social-sheet { max-height: 75vh; overflow: auto; }
+
+.daily-verse-react-sheet {
+  max-height: 78vh;
+  overflow: auto;
+}
+
+.daily-verse-react-section-label {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.daily-verse-react-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.daily-verse-react-chip {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  min-height: 44px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.daily-verse-react-chip.is-active,
+.daily-verse-react-phrase.is-active {
+  border-color: var(--accent-deep, #3d6b5a);
+  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 12%, var(--surface));
+}
+
+.daily-verse-react-phrase-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.daily-verse-react-phrase {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.daily-verse-react-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.daily-verse-react-top-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-faint) 10%, transparent);
+}
+
+.daily-verse-react-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.daily-verse-react-feed li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.daily-verse-react-feed-name {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.daily-verse-react-feed-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+}
 .share-target-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .share-target-row {
   display: flex;
