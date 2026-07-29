@@ -11,6 +11,7 @@ from ..analytics.uv import UV_IDENTITY_SQL, uv_identity_sql, uv_last_error
 from ..analytics.uv_stats import (
     UV_IDENTITY_A,
     UV_IDENTITY_B,
+    uv_attributed_where,
     uv_converted_sql,
     uv_deduped_count_sql,
     uv_guest_rows_sql,
@@ -346,7 +347,7 @@ def _uv_metrics(conn, *, where: str) -> dict[str, int]:
         "AND visitor_key LIKE 'd:%%'",
     )
     return {
-        "deduped": login_rows + guest_rows,
+        "deduped": login_rows,
         "guest_rows": guest_rows,
         "login_rows": login_rows,
         "login_users": login_rows,
@@ -372,7 +373,8 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
         else:
             uv_7d = _scalar(
                 conn,
-                f"SELECT count(*) FROM daily_active_visitors WHERE {uv_7d_where}",
+                f"SELECT count(*) FROM daily_active_visitors WHERE {uv_7d_where} "
+                "AND visitor_key LIKE 'u:%%'",
             )
         totals = {
             "users": _scalar(conn, "SELECT count(*) FROM users"),
@@ -445,10 +447,16 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 conn,
                 uv_deduped_count_sql(where=uv_today_where)
                 if uv_schema_v2(conn)
-                else f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where}",
+                else (
+                    f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where} "
+                    "AND visitor_key LIKE 'u:%%'"
+                ),
                 uv_deduped_count_sql(where=f"visit_date = DATE '{cn_today}' - 1")
                 if uv_schema_v2(conn)
-                else f"SELECT count(*) FROM daily_active_visitors WHERE visit_date = DATE '{cn_today}' - 1",
+                else (
+                    f"SELECT count(*) FROM daily_active_visitors "
+                    f"WHERE visit_date = DATE '{cn_today}' - 1 AND visitor_key LIKE 'u:%%'"
+                ),
             ),
             "ai_requests_today": _dod(
                 conn,
@@ -580,12 +588,12 @@ def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
         "uv": (
             f"SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL}) "
             "FROM daily_active_visitors "
-            "WHERE visit_date BETWEEN %s AND %s "
+            f"WHERE visit_date BETWEEN %s AND %s AND {uv_attributed_where()} "
             "GROUP BY visit_date ORDER BY visit_date"
             if uv_schema_v2(conn)
             else (
                 "SELECT visit_date::text, count(*) FROM daily_active_visitors "
-                "WHERE visit_date BETWEEN %s AND %s "
+                "WHERE visit_date BETWEEN %s AND %s AND visitor_key LIKE 'u:%%' "
                 "GROUP BY visit_date ORDER BY visit_date"
             )
         ),
@@ -1121,7 +1129,9 @@ def fetch_admin_stats_detail(
                     JOIN daily_active_visitors b
                       ON {identity} = {identity_b}
                      AND b.visit_date = a.visit_date + 1
+                     AND {uv_attributed_where("b")}
                     WHERE a.visit_date BETWEEN %s AND %s - 1
+                      AND {uv_attributed_where("a")}
                     """,
                     range_args,
                 )
@@ -1130,6 +1140,7 @@ def fetch_admin_stats_detail(
                     f"""
                     SELECT count(DISTINCT {UV_IDENTITY_SQL}) FROM daily_active_visitors
                     WHERE visit_date BETWEEN %s AND %s - 1
+                      AND {uv_attributed_where()}
                     """,
                     range_args,
                 )
@@ -1140,7 +1151,9 @@ def fetch_admin_stats_detail(
                     JOIN daily_active_visitors b
                       ON {identity} = {identity_b}
                      AND b.visit_date = a.visit_date + 7
+                     AND {uv_attributed_where("b")}
                     WHERE a.visit_date BETWEEN %s AND %s - 7
+                      AND {uv_attributed_where("a")}
                     """,
                     range_args,
                 )
@@ -1149,6 +1162,7 @@ def fetch_admin_stats_detail(
                     f"""
                     SELECT count(DISTINCT {UV_IDENTITY_SQL}) FROM daily_active_visitors
                     WHERE visit_date BETWEEN %s AND %s - 7
+                      AND {uv_attributed_where()}
                     """,
                     range_args,
                 )
@@ -1199,13 +1213,10 @@ def fetch_admin_stats_detail(
                             display_code = f"设备 …{fp[-8:]}" if len(fp) > 8 else f"设备 {fp}"
                         else:
                             display_code = "—"
-                    # 有 8 位码但未归并为「设密登录」时标「游客账号」，纯设备标「游客设备」
-                    if is_login:
-                        row_type = "账号"
-                    elif display_code and display_code.isdigit() and len(display_code) in (8, 10):
-                        row_type = "游客账号"
-                    else:
-                        row_type = "游客设备"
+                    # 概览 UV 不含游客设备；明细列表同步过滤
+                    if not is_login:
+                        continue
+                    row_type = "账号"
                     items.append({
                         "type": row_type,
                         "user_code": display_code,
@@ -1228,7 +1239,10 @@ def fetch_admin_stats_detail(
             else:
                 deduped = _scalar(
                     conn,
-                    "SELECT count(*) FROM daily_active_visitors WHERE visit_date BETWEEN %s AND %s",
+                    """
+                    SELECT count(*) FROM daily_active_visitors
+                    WHERE visit_date BETWEEN %s AND %s AND visitor_key LIKE 'u:%%'
+                    """,
                     range_args,
                 )
                 login_uv = _scalar(
@@ -1256,14 +1270,16 @@ def fetch_admin_stats_detail(
                     SELECT count(DISTINCT a.visitor_key) FROM daily_active_visitors a
                     JOIN daily_active_visitors b
                       ON a.visitor_key = b.visitor_key AND b.visit_date = a.visit_date + 1
+                     AND b.visitor_key LIKE 'u:%%'
                     WHERE a.visit_date BETWEEN %s AND %s - 1
+                      AND a.visitor_key LIKE 'u:%%'
                     """,
                     range_args,
                 )
                 d1_den = _scalar(
                     conn,
                     "SELECT count(DISTINCT visitor_key) FROM daily_active_visitors "
-                    "WHERE visit_date BETWEEN %s AND %s - 1",
+                    "WHERE visit_date BETWEEN %s AND %s - 1 AND visitor_key LIKE 'u:%%'",
                     range_args,
                 )
                 d7_num = _scalar(
@@ -1272,14 +1288,16 @@ def fetch_admin_stats_detail(
                     SELECT count(DISTINCT a.visitor_key) FROM daily_active_visitors a
                     JOIN daily_active_visitors b
                       ON a.visitor_key = b.visitor_key AND b.visit_date = a.visit_date + 7
+                     AND b.visitor_key LIKE 'u:%%'
                     WHERE a.visit_date BETWEEN %s AND %s - 7
+                      AND a.visitor_key LIKE 'u:%%'
                     """,
                     range_args,
                 )
                 d7_den = _scalar(
                     conn,
                     "SELECT count(DISTINCT visitor_key) FROM daily_active_visitors "
-                    "WHERE visit_date BETWEEN %s AND %s - 7",
+                    "WHERE visit_date BETWEEN %s AND %s - 7 AND visitor_key LIKE 'u:%%'",
                     range_args,
                 )
                 rows = conn.execute(
@@ -1293,6 +1311,7 @@ def fetch_admin_stats_detail(
                     FROM daily_active_visitors v
                     {_LEGACY_VK_JOINS}
                     WHERE v.visit_date BETWEEN %s AND %s
+                      AND v.visitor_key LIKE 'u:%%'
                     ORDER BY v.visit_date DESC, v.created_at DESC
                     LIMIT %s
                     """,
@@ -1300,7 +1319,7 @@ def fetch_admin_stats_detail(
                 ).fetchall()
                 items = [
                     {
-                        "type": "登录" if r[5] else "游客",
+                        "type": "账号",
                         "user_code": r[3],
                         "nickname": r[4],
                         "visit_date": r[1],
@@ -1317,11 +1336,11 @@ def fetch_admin_stats_detail(
                 ]
             d1 = round(d1_num / d1_den * 100, 1) if d1_den else None
             d7 = round(d7_num / d7_den * 100, 1) if d7_den else None
-            guest_pct = round(guest_uv / deduped * 100, 1) if deduped else 0
+            guest_pct = round(guest_uv / (deduped + guest_uv) * 100, 1) if (deduped + guest_uv) else 0
             convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("去重 UV", deduped, "同一用户ID（多设备合并）全天计 1"),
-                _insight("游客设备", guest_uv, f"占 {guest_pct}%"),
+                _insight("去重 UV", deduped, "不含游客设备；同一账号全天计 1"),
+                _insight("游客设备", guest_uv, f"未计入 UV · 占访问 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
                 _insight("当日转化", converted, f"游客→登录 {convert_pct}%" if converted else None),
                 _insight("次日留存", f"{d1}%" if d1 is not None else "—"),

@@ -23,11 +23,26 @@ def uv_schema_v2(conn) -> bool:
     return bool(row)
 
 
+def uv_attributed_where(alias: str | None = None) -> str:
+    """已归属用户：有 user_id，或设备已绑定账号。排除纯游客设备。"""
+    p = f"{alias}." if alias else ""
+    fp = f"{alias}.device_fingerprint" if alias else "device_fingerprint"
+    return f"""(
+      {p}user_id IS NOT NULL
+      OR EXISTS (
+        SELECT 1 FROM device_user_bindings dub
+        WHERE dub.device_fingerprint = {fp}
+      )
+    )"""
+
+
 def uv_deduped_count_sql(*, where: str = _TODAY) -> str:
+    """概览 UV：仅计已归属账号的去重访客，不含纯游客设备。"""
     return f"""
         SELECT count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
         WHERE {where}
+          AND {uv_attributed_where()}
     """
 
 
@@ -53,19 +68,8 @@ def uv_login_rows_sql(*, where: str = _TODAY) -> str:
 
 
 def uv_login_users_sql(*, where: str = _TODAY) -> str:
-    """当日去重后归属到账号的 UV（含设备绑定）。"""
-    return f"""
-        SELECT count(DISTINCT {UV_IDENTITY_SQL})
-        FROM daily_active_visitors
-        WHERE {where}
-          AND (
-            user_id IS NOT NULL
-            OR EXISTS (
-              SELECT 1 FROM device_user_bindings dub
-              WHERE dub.device_fingerprint = daily_active_visitors.device_fingerprint
-            )
-          )
-    """
+    """当日去重后归属到账号的 UV（含设备绑定）。与概览 UV 口径一致。"""
+    return uv_deduped_count_sql(where=where)
 
 
 def uv_converted_sql(*, where: str = _TODAY) -> str:
@@ -85,6 +89,7 @@ def uv_series_deduped_sql() -> str:
         SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
         WHERE visit_date >= {CN_TODAY_SQL} - %s::int
+          AND {uv_attributed_where()}
         GROUP BY visit_date
         ORDER BY visit_date
     """
