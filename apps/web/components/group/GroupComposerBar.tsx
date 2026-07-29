@@ -110,7 +110,13 @@ export function GroupComposerBar({
   const restoredRef = useRef<string | null>(null);
   const locked = Boolean(disabled || busy || sending || uploading || !online);
   useImComposerHeightSync(barRef);
-  useImComposerKeyboard(composerFocused || panelOpen, { getScrollEl });
+  /** 仅输入聚焦时抬键盘；加号面板单独贴底，避免套用上次键盘高度造成大块留白 */
+  useImComposerKeyboard(composerFocused, { getScrollEl });
+
+  useEffect(() => {
+    document.body.classList.toggle('im-plus-sheet', panelOpen);
+    return () => document.body.classList.remove('im-plus-sheet');
+  }, [panelOpen]);
 
   useEffect(() => {
     const d = getImDraftRecord('group', gid);

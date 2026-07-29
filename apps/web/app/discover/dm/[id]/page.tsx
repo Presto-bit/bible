@@ -127,9 +127,15 @@ function DmThreadPageInner() {
   const [composerFocused, setComposerFocused] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
   useImComposerHeightSync(composerBarRef);
-  useImComposerKeyboard(composerFocused || plusOpen, {
+  /** 仅输入聚焦时抬键盘；加号打开时不套用 kb-inset，面板贴屏底 */
+  useImComposerKeyboard(composerFocused, {
     getScrollEl: () => listRef.current,
   });
+
+  useEffect(() => {
+    document.body.classList.toggle('im-plus-sheet', plusOpen);
+    return () => document.body.classList.remove('im-plus-sheet');
+  }, [plusOpen]);
   const [plusAccept, setPlusAccept] = useState(
     'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
   );
