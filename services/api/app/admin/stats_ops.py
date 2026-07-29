@@ -1183,6 +1183,7 @@ def fetch_admin_stats_detail(
                       {_USER_JOINS}
                       {_V2_DEVICE_BIND_JOINS}
                       WHERE d.visit_date BETWEEN %s AND %s
+                        AND {uv_attributed_where("d")}
                     ) v
                     ORDER BY visit_date DESC,
                              identity,
@@ -1213,12 +1214,8 @@ def fetch_admin_stats_detail(
                             display_code = f"设备 …{fp[-8:]}" if len(fp) > 8 else f"设备 {fp}"
                         else:
                             display_code = "—"
-                    # 概览 UV 不含游客设备；明细列表同步过滤
-                    if not is_login:
-                        continue
-                    row_type = "账号"
                     items.append({
-                        "type": row_type,
+                        "type": "账号",
                         "user_code": display_code,
                         "nickname": nickname,
                         "converted": "是" if converted_today else "—",

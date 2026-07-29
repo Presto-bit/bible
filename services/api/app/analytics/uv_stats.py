@@ -24,20 +24,33 @@ def uv_schema_v2(conn) -> bool:
 
 
 def uv_attributed_where(alias: str | None = None) -> str:
-    """已归属用户：有 user_id，或设备已绑定账号。排除纯游客设备。"""
+    """已归属真实账号：能解析到 accounts.user_code（排除纯游客与孤儿绑定）。"""
     p = f"{alias}." if alias else ""
     fp = f"{alias}.device_fingerprint" if alias else "device_fingerprint"
+    uid = f"{p}user_id"
+    code = f"{p}user_code"
     return f"""(
-      {p}user_id IS NOT NULL
+      EXISTS (
+        SELECT 1 FROM accounts ac
+        WHERE ac.user_id = {uid}
+      )
       OR EXISTS (
         SELECT 1 FROM device_user_bindings dub
+        JOIN accounts ac ON ac.user_code = dub.user_code
         WHERE dub.device_fingerprint = {fp}
+      )
+      OR (
+        {code} IS NOT NULL
+        AND trim({code}) <> ''
+        AND EXISTS (
+          SELECT 1 FROM accounts ac WHERE ac.user_code = trim({code})
+        )
       )
     )"""
 
 
 def uv_deduped_count_sql(*, where: str = _TODAY) -> str:
-    """概览 UV：仅计已归属账号的去重访客，不含纯游客设备。"""
+    """概览 UV：按可归并到账号的身份去重，不含游客设备。"""
     return f"""
         SELECT count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
@@ -47,16 +60,12 @@ def uv_deduped_count_sql(*, where: str = _TODAY) -> str:
 
 
 def uv_guest_rows_sql(*, where: str = _TODAY) -> str:
-    """纯游客 UV：无 user_id、也未绑定账号的设备（按身份去重）。"""
+    """未计入概览 UV：无法解析到 accounts 的访客（纯游客 + 孤儿绑定等）。"""
     return f"""
         SELECT count(DISTINCT {UV_IDENTITY_SQL})
         FROM daily_active_visitors
         WHERE {where}
-          AND user_id IS NULL
-          AND NOT EXISTS (
-            SELECT 1 FROM device_user_bindings dub
-            WHERE dub.device_fingerprint = daily_active_visitors.device_fingerprint
-          )
+          AND NOT {uv_attributed_where()}
     """
 
 
