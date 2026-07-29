@@ -198,8 +198,8 @@ export function GroupSettingsSheet({
             />
             {onOpenPrayer ? (
               <NavRow
-                label="群代祷"
-                hint="清单"
+                label="代祷清单"
+                hint="为本群代求"
                 onClick={() => {
                   onClose();
                   onOpenPrayer();

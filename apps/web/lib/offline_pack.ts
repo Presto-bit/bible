@@ -14,12 +14,15 @@ import { unzipOfflineZip } from './offline_unzip';
 export const OFFLINE_CNV_KEY = 'bible_cnv_sqlite_v1';
 export const OFFLINE_CUVS_KEY = 'bible_cuvs_sqlite_v1';
 export const OFFLINE_KJV_KEY = 'bible_kjv_sqlite_v1';
+export const OFFLINE_CONTEMPORARY_KEY = 'bible_contemporary_sqlite_v1';
 /** @deprecated 兼容旧键名 */
 export const OFFLINE_DB_KEY = OFFLINE_CNV_KEY;
 export const OFFLINE_META_KEY = 'presto_offline_pack_meta';
 export const OFFLINE_ITEMS_REGISTRY_KEY = 'presto_offline_items_v1';
 
-export type OfflineTranslation = 'cnv' | 'cuvs' | 'kjv';
+export type OfflineTranslation = 'cnv' | 'cuvs' | 'kjv' | 'contemporary';
+
+const BIBLE_OFFLINE_IDS = ['cnv', 'cuvs', 'kjv', 'contemporary'] as const;
 
 export type OfflineItemRecord = {
   manifestVersion: string;
@@ -129,7 +132,7 @@ function syncLegacyBibleRecords() {
     if (!manifest) return;
     const registry = loadItemsRegistry();
     let changed = false;
-    for (const id of ['cnv', 'cuvs', 'kjv'] as const) {
+    for (const id of BIBLE_OFFLINE_IDS) {
       const item = getCatalogItem(id);
       if (!item?.idbKey || registry[id]?.hasFiles) continue;
       const buf = await idbGet(item.idbKey);
@@ -328,7 +331,7 @@ export async function deleteOfflineItemFiles(itemId: string): Promise<void> {
 
 function syncPackMetaFromItems(version?: string) {
   const registry = loadItemsRegistry();
-  const bibleIds = (['cnv', 'cuvs', 'kjv'] as const).filter((id) => registry[id]?.hasFiles);
+  const bibleIds = BIBLE_OFFLINE_IDS.filter((id) => registry[id]?.hasFiles);
   if (!bibleIds.length) {
     localStorage.removeItem(OFFLINE_META_KEY);
     return;
@@ -336,10 +339,10 @@ function syncPackMetaFromItems(version?: string) {
   const bytes = bibleIds.reduce((n, id) => n + (registry[id]?.bytes ?? 0), 0);
   savePackMeta({
     version: version ?? loadPackMeta()?.version ?? '',
-    translation: bibleIds.length > 1 ? 'cnv+cuvs' : bibleIds[0],
+    translation: bibleIds.length > 1 ? bibleIds.join('+') : bibleIds[0],
     installedAt: Math.max(...bibleIds.map((id) => registry[id]?.installedAt ?? 0)),
     bytes,
-    translations: bibleIds,
+    translations: [...bibleIds],
   });
 }
 
@@ -354,6 +357,7 @@ export async function loadOfflineBundle(
 function idbKeyForTranslation(t: OfflineTranslation): string {
   if (t === 'cuvs') return OFFLINE_CUVS_KEY;
   if (t === 'kjv') return OFFLINE_KJV_KEY;
+  if (t === 'contemporary') return OFFLINE_CONTEMPORARY_KEY;
   return OFFLINE_CNV_KEY;
 }
 
@@ -417,8 +421,12 @@ export async function isKjvOfflineReady(): Promise<boolean> {
   return isTranslationOfflineReady('kjv');
 }
 
+export async function isContemporaryOfflineReady(): Promise<boolean> {
+  return isTranslationOfflineReady('contemporary');
+}
+
 export async function clearOfflinePack() {
-  for (const id of ['cnv', 'cuvs', 'kjv'] as const) {
+  for (const id of BIBLE_OFFLINE_IDS) {
     await deleteOfflineItemFiles(id);
   }
   localStorage.removeItem(OFFLINE_META_KEY);
@@ -449,7 +457,7 @@ export async function downloadOfflinePack(
   onProgress?: (p: DownloadProgress) => void,
 ): Promise<number> {
   let total = 0;
-  for (const id of ['cnv', 'cuvs', 'kjv'] as const) {
+  for (const id of BIBLE_OFFLINE_IDS) {
     if ((await getOfflineItemStatus(id)) === 'ready') continue;
     await downloadOfflineItem(id, onProgress);
     total += loadItemRecord(id)?.bytes ?? 0;

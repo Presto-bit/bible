@@ -25,7 +25,7 @@ def chapter(
     chapter: int = Query(..., ge=1),
     version: str | None = Query(
         None,
-        description="译本 id：cuvs / cnv / contemporary / niv / kjv（默认主译本和合本）",
+        description="译本 id：cuvs / cnv / contemporary / kjv（默认主译本和合本）",
     ),
 ) -> dict:
     b = reader.resolve_book(book)
@@ -60,7 +60,7 @@ def compare(
 def search(
     q: str = Query(..., min_length=1),
     limit: int = Query(24, ge=1, le=50),
-    version: str | None = Query(None, description="译本 id：cuvs / cnv / contemporary / niv / kjv"),
+    version: str | None = Query(None, description="译本 id：cuvs / cnv / contemporary / kjv"),
     testament: str | None = Query(None, description="OT / NT"),
 ) -> dict:
     test = (testament or "").strip().upper() or None

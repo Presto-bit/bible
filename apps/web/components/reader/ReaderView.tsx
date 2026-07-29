@@ -2495,7 +2495,11 @@ export default function ReaderView({
             else if (layout === 'parallel') setCheckedVers([primaryId, parallelVer]);
             else setCheckedVers([primaryId]);
             setShowVersions(true);
-            if (!versions) api.versions().then((d) => setVersions(d.versions)).catch(() => setVersions([]));
+            if (!versions) {
+              api.versions()
+                .then((d) => setVersions((d.versions ?? []).filter((v) => v.available !== false)))
+                .catch(() => setVersions([]));
+            }
           }}>
             {versionLabel}
           </button>

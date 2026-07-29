@@ -6643,7 +6643,7 @@ body.verse-full-open .tabbar {
   z-index: 2;
   width: min(520px, calc(100% - 40px));
   margin: 0 auto;
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 24px calc(88px + env(safe-area-inset-bottom, 0px));
   color: #fff;
   cursor: default;
 }
@@ -6659,6 +6659,60 @@ body.verse-full-open .tabbar {
 .verse-full-copy .verse-full-ref {
   text-align: right;
   margin-top: 12px;
+}
+
+/* 全屏贴底互动条：白字透明，无阴影 */
+.verse-full-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  background: transparent;
+  pointer-events: none;
+}
+
+.verse-full-dock-btn {
+  pointer-events: auto;
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.92);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  text-shadow: none;
+  filter: none;
+}
+
+.verse-full-dock-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.verse-full-dock-btn.is-active {
+  color: #fff;
+}
+
+.verse-full-dock-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.verse-full-dock-emoji {
+  font-size: 18px;
+  line-height: 1;
 }
 
 .verse-full-bg-gradient {
@@ -15588,7 +15642,8 @@ html.perf-lite .tabbar {
 
 /* ── 每日经文回应抽屉 ── */
 .dv-react-backdrop {
-  z-index: 105;
+  /* 需盖住全屏经文层 verse-full(1200) */
+  z-index: 1300;
 }
 
 .dv-react-sheet {
@@ -20279,15 +20334,23 @@ body:has(.dm-page) .app-body {
   box-shadow:none;
 }
 /*
- * 键盘态：顶栏不动；只抬高壳底（--im-kb-inset）。
- * 输入栏在壳内 absolute 贴底，列表滚到底即可露出最后一条。
+ * 键盘态（群 / 私信同款）：
+ * - 壳高度锁定 visualViewport（--im-vv-h），贴住键盘上沿
+ * - 输入栏在壳内 absolute 贴底，不被键盘遮挡
+ * - 列表区域已扣除输入栏高度，滚到底后末条在输入框上方
  */
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
-  top: env(safe-area-inset-top, 0px);
-  bottom: var(--im-kb-inset, 0px);
-  height: auto;
-  max-height: none;
+  top: max(env(safe-area-inset-top, 0px), var(--im-vv-top, 0px));
+  bottom: auto;
+  height: calc(
+    var(--im-vv-h, 100dvh)
+    - max(0px, env(safe-area-inset-top, 0px) - var(--im-vv-top, 0px))
+  );
+  max-height: calc(
+    var(--im-vv-h, 100dvh)
+    - max(0px, env(safe-area-inset-top, 0px) - var(--im-vv-top, 0px))
+  );
   padding-bottom: var(--im-composer-h, 64px);
 }
 body.im-keyboard .dm-composer-dock.im-composer-bar,
@@ -20300,13 +20363,18 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
 body.im-keyboard .im-jump-bottom{
-  bottom: calc(var(--im-kb-inset, 0px) + var(--im-composer-h, 64px) + 12px);
+  bottom: calc(var(--im-composer-h, 64px) + 12px);
 }
 body.im-keyboard .group-checkin-scroll {
-  padding-bottom: 16px;
+  padding-bottom: 12px;
 }
 body.im-keyboard .dm-msg-list {
   padding-bottom: 12px;
+}
+/* 键盘态收起会抢高度的附属条，避免末条被挤到输入框下 */
+body.im-keyboard .group-my-task-pin,
+body.im-keyboard .group-coread-sticky {
+  display: none;
 }
 .im-jump-bottom{
   bottom:calc(56px + env(safe-area-inset-bottom, 0px));
@@ -24626,8 +24694,63 @@ body.pray-session-open .app-body {
   font-weight: 600;
 }
 .group-prayer-empty {
-  margin: 20px 0;
+  margin: 24px 0;
   text-align: center;
+}
+
+.group-prayer-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #3d5c4a) 20%, var(--line));
+  background: color-mix(in srgb, var(--accent-wash, #e8efe9) 70%, var(--surface));
+}
+.group-prayer-banner-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.group-prayer-banner-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep, #2f4a3a);
+}
+.group-prayer-banner-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-prayer-banner-desc {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.group-prayer-banner-x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+body.im-keyboard .group-prayer-banner {
+  display: none;
 }
 .daily-verse-share-preview {
   margin: 8px 0 0;

@@ -31,7 +31,7 @@ import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImIma
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
-import { useImComposerKeyboard } from '@/lib/use_im_composer_keyboard';
+import { useImComposerKeyboard, scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
@@ -376,7 +376,7 @@ function DmThreadPageInner() {
   const jumpBottom = () => {
     stickBottom.current = true;
     setShowJump(false);
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    scrollImChatToBottom(listRef.current);
   };
 
   const sendBody = useCallback(
@@ -1133,7 +1133,7 @@ function DmThreadPageInner() {
       </div>
 
       <div
-        className="im-composer-bar dm-composer-dock"
+        className="im-composer-bar dm-composer-dock im-composer-dock"
       >
         {replyTo ? (
           <div className="group-composer-reply" style={{ width: '100%' }}>
@@ -1188,8 +1188,7 @@ function DmThreadPageInner() {
                 onFocus={() => {
                   setPlusOpen(false);
                   setComposerFocused(true);
-                  const el = listRef.current;
-                  if (el) el.scrollTop = el.scrollHeight;
+                  scrollImChatToBottom(listRef.current);
                 }}
                 onBlur={() => {
                   window.setTimeout(() => {

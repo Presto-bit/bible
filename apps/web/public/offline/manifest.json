@@ -1,20 +1,22 @@
 {
-  "version": "2026.07.07",
-  "zip": "bible_offline_2026.07.07.zip",
-  "zip_sha256": "76e000422af276a2ef1da51f54c1c2d138c76ebbb88f05dbb7d85ba557d814b9",
-  "cuvs_sqlite": "bible_cuvs.sqlite",
-  "cuvs_sqlite_sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1",
-  "cuvs_sqlite_bytes": 11423744,
+  "version": "2026.07.29",
+  "zip": "bible_offline_2026.07.29.zip",
+  "zip_sha256": "582d6811cb92be8e30eba29d4298d250af9ae0a01c8e0e52e1046e0a800cd6f8",
   "files": [
+    {
+      "path": "bible/bible_cuvs.sqlite",
+      "bytes": 11423744,
+      "sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1"
+    },
     {
       "path": "bible/bible_cnv.sqlite",
       "bytes": 12316672,
       "sha256": "1d475222ffef33463a5ec0e389f6bf5725e01d44c79116620d28494086e7e23e"
     },
     {
-      "path": "bible/bible_cuvs.sqlite",
-      "bytes": 11423744,
-      "sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1"
+      "path": "bible/bible_contemporary.sqlite",
+      "bytes": 11223040,
+      "sha256": "54190e3bd19a03b565028333b2ce31205a6ee0418302528851ee42e484e29010"
     },
     {
       "path": "bible/bible_kjv.sqlite",
@@ -352,6 +354,9 @@
       "sha256": "3cda3088f84db5c3d5448b63fb56969f40d2e4018b900cdbc6f1aa9726c9f7ca"
     }
   ],
+  "cuvs_sqlite": "bible_cuvs.sqlite",
+  "cuvs_sqlite_sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1",
+  "cuvs_sqlite_bytes": 11423744,
   "schema": "offline_pack@1",
   "translation": "cnv"
 }

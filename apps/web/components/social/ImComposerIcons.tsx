@@ -101,3 +101,13 @@ export function IconKeyboard({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconPrayer({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+      <path d="M12 20v-7" {...stroke} />
+      <path d="M8.2 9.2c-1.6-1.2-2.4-2.7-2.4-4.2A3.2 3.2 0 0 1 9 1.8c1.2 0 2.1.5 3 1.6.9-1.1 1.8-1.6 3-1.6a3.2 3.2 0 0 1 3.2 3.2c0 1.5-.8 3-2.4 4.2L12 13l-3.8-3.8z" {...stroke} />
+      <path d="M9 20h6" {...stroke} />
+    </svg>
+  );
+}

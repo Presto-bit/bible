@@ -12,11 +12,11 @@ from ..config import get_settings
 
 
 # 译本注册表：id → 展示名。主译本提供卷名/目录，其余供对照。
+# NIV 无授权源时不注册，避免前端展示不可用项。
 VERSIONS: dict[str, str] = {
     "cuvs": "和合本",
     "cnv": "新译本",
     "contemporary": "当代译本",
-    "niv": "NIV",
     "kjv": "King James Version",
 }
 PRIMARY_VERSION = "cuvs"
@@ -28,8 +28,6 @@ def _db_path(version: str) -> Path:
         return Path(s.bible_kjv_db_path)
     if version == "cuvs":
         return Path(s.bible_cuvs_db_path)
-    if version == "niv":
-        return Path(s.bible_niv_db_path)
     if version == "contemporary":
         return Path(s.bible_contemporary_db_path)
     return Path(s.bible_db_path)
@@ -48,14 +46,17 @@ def _version_has_verses(vid: str) -> bool:
 
 
 def available_versions() -> list[dict]:
-    """列出已落地且有经文的译本，主译本排首位。"""
+    """列出已落地且有经文的译本，主译本排首位；无源译本不返回。"""
     out: list[dict] = []
     for vid, label in VERSIONS.items():
+        ok = _version_has_verses(vid)
+        if not ok and vid != PRIMARY_VERSION:
+            continue
         out.append(
             {
                 "id": vid,
                 "label": label,
-                "available": _version_has_verses(vid),
+                "available": ok,
                 "primary": vid == PRIMARY_VERSION,
             }
         )

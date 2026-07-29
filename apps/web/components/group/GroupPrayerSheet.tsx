@@ -26,10 +26,22 @@ type Props = {
   gid: string;
   isStaff?: boolean;
   myUserId?: string | null;
+  /** 打开时直接进入新建 */
+  initialCompose?: boolean;
   onClose: () => void;
+  /** 清单变化后通知外层（刷新横幅） */
+  onChanged?: () => void;
 };
 
-export function GroupPrayerSheet({ open, gid, isStaff, myUserId, onClose }: Props) {
+export function GroupPrayerSheet({
+  open,
+  gid,
+  isStaff,
+  myUserId,
+  initialCompose = false,
+  onClose,
+  onChanged,
+}: Props) {
   const [tab, setTab] = useState<Tab>('open');
   const [items, setItems] = useState<GroupPrayerItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,7 +67,13 @@ export function GroupPrayerSheet({ open, gid, isStaff, myUserId, onClose }: Prop
   }, [gid, tab]);
 
   useEffect(() => {
-    if (open) load();
+    if (!open) return;
+    setComposing(initialCompose);
+    if (initialCompose) setTab('open');
+  }, [open, initialCompose]);
+
+  useEffect(() => {
+    if (open) void load();
   }, [open, load]);
 
   if (!open) return null;
@@ -82,6 +100,7 @@ export function GroupPrayerSheet({ open, gid, isStaff, myUserId, onClose }: Prop
       setComposing(false);
       setTab('open');
       await load();
+      onChanged?.();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -96,6 +115,7 @@ export function GroupPrayerSheet({ open, gid, isStaff, myUserId, onClose }: Prop
       if (item.claimed_by_me) await api.unclaimGroupPrayer(gid, item.id);
       else await api.claimGroupPrayer(gid, item.id);
       await load();
+      onChanged?.();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -109,6 +129,7 @@ export function GroupPrayerSheet({ open, gid, isStaff, myUserId, onClose }: Prop
     try {
       await api.answerGroupPrayer(gid, item.id, {});
       await load();
+      onChanged?.();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -122,14 +143,14 @@ export function GroupPrayerSheet({ open, gid, isStaff, myUserId, onClose }: Prop
         className="sheet card group-prayer-sheet"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label="群代祷"
+        aria-label="代祷清单"
       >
         <div className="half-sheet-grab" aria-hidden />
         <div className="section-row group-settings-sheet-head">
           <button type="button" className="text-link" onClick={onClose}>
             关闭
           </button>
-          <strong>群代祷</strong>
+          <strong>代祷清单</strong>
           <button
             type="button"
             className="text-link"

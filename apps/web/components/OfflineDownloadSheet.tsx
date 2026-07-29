@@ -6,6 +6,7 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import {
   catalogItemsForTab,
+  catalogItemsForTabInManifest,
   formatOfflineBytes,
   type OfflineCatalogItem,
   type OfflineCatalogTab,
@@ -127,7 +128,12 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
     }
   };
 
-  const items = catalogItemsForTab(tab);
+  const items = manifest
+    ? catalogItemsForTabInManifest(
+        tab,
+        manifest.files.map((f) => f.path),
+      )
+    : catalogItemsForTab(tab);
   const anyBusy = Boolean(busyId) || queuedIds.length > 0 || Boolean(deletingId);
 
   return (
@@ -224,9 +230,6 @@ function OfflineDownloadRow({
     <div className="offline-download-row">
       <div className="offline-download-row-main">
         <strong>{item.name}</strong>
-        {item.description ? (
-          <span className="muted offline-download-row-desc">{item.description}</span>
-        ) : null}
         {sizeLabel ? (
           <span className="muted offline-download-row-size">{sizeLabel}</span>
         ) : null}

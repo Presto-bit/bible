@@ -28,6 +28,7 @@ import {
   IconMic,
   IconPlan,
   IconPlus,
+  IconPrayer,
   IconTask,
 } from '@/components/social/ImComposerIcons';
 
@@ -48,6 +49,8 @@ type Props = {
   /** 从草稿恢复回复条 */
   onRestoreReply?: (reply: { id: string; author: string; snippet: string }) => void;
   onOpenMode: (mode: ComposerActionMode) => void;
+  /** 打开代祷清单；compose=true 时直接进入新建 */
+  onOpenPrayer?: (opts?: { compose?: boolean }) => void;
   onChat?: (body: string, opts?: { mentions?: string[]; replyToId?: string }) => Promise<void>;
   onChatMedia?: (payload: {
     storage_key: string;
@@ -75,6 +78,7 @@ export function GroupComposerBar({
   onClearReply,
   onRestoreReply,
   onOpenMode,
+  onOpenPrayer,
   onChat,
   onChatMedia,
   getScrollEl,
@@ -655,6 +659,21 @@ export function GroupComposerBar({
                 <IconPlan />
               </span>
               <span>群计划</span>
+            </button>
+          ) : null}
+          {onOpenPrayer ? (
+            <button
+              type="button"
+              className="im-plus-item"
+              onClick={() => {
+                setPanelOpen(false);
+                onOpenPrayer({ compose: true });
+              }}
+            >
+              <span className="im-plus-icon" aria-hidden>
+                <IconPrayer />
+              </span>
+              <span>代祷</span>
             </button>
           ) : null}
           {allowChat && online ? (

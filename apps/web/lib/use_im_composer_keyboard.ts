@@ -10,14 +10,15 @@ function pinScrollTop() {
   if (app instanceof HTMLElement) app.scrollTop = 0;
 }
 
+/**
+ * 滚到会话底：只改滚动容器 scrollTop，避免 scrollIntoView
+ * 在 iOS 上连带顶起 visualViewport / 把输入框顶到键盘下。
+ */
 export function scrollImChatToBottom(el: HTMLElement | null | undefined) {
   if (!el) return;
   const pin = () => {
-    el.scrollTop = el.scrollHeight;
-    const last = el.querySelector('[data-mid]:last-of-type');
-    if (last instanceof HTMLElement) {
-      last.scrollIntoView({ block: 'end', behavior: 'auto' });
-    }
+    const max = Math.max(0, el.scrollHeight - el.clientHeight);
+    el.scrollTop = max;
   };
   requestAnimationFrame(() => {
     pin();
@@ -51,10 +52,10 @@ export type ImComposerKeyboardOpts = {
 };
 
 /**
- * IM 键盘贴合：
- * - 顶栏位置不变（禁止用 offsetTop 上移整壳）
- * - 仅用 --im-kb-inset 从底部抬高会话壳
- * - 输入栏贴壳底；列表滚到底，最后一条出现在输入框上方
+ * IM 键盘贴合（群 / 私信共用）：
+ * - 以 visualViewport 高度锁定会话壳（overlays / resizes-content 都能贴住键盘上沿）
+ * - 顶栏不跟 offsetTop 上移
+ * - 输入栏贴壳底；列表 scrollTop 滚到底，末条落在输入框上方
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -101,8 +102,7 @@ export function useImComposerKeyboard(
     /**
      * 键盘高度：
      * - overlays：layout 不变、vv 变矮 → gap
-     * - resizes-content：layout≈vv → 0
-     * - iOS 异常：用冻结的 baseline - vvH
+     * - resizes-content：layout≈vv → 用冻结 baseline - vvH
      */
     const measureKeyboard = () => {
       pinScrollTop();
@@ -110,10 +110,6 @@ export function useImComposerKeyboard(
       const vvH = vv?.height ?? layoutH;
       const offsetTop = vv?.offsetTop ?? 0;
       const gap = Math.max(0, Math.round(layoutH - vvH - offsetTop));
-
-      if (gap <= 8 && Math.abs(layoutH - vvH) <= 12 && offsetTop <= 8) {
-        return 0;
-      }
       if (gap > 8) return gap;
 
       const base = baselineHRef.current || layoutH;
@@ -132,9 +128,15 @@ export function useImComposerKeyboard(
 
     const applyChrome = (kb: number) => {
       const next = kb > 8 ? kb : 0;
+      const vvH = Math.round(vv?.height ?? window.innerHeight ?? 0);
+      const vvTop = Math.round(vv?.offsetTop ?? 0);
       setInset(next);
       body.classList.add('im-keyboard');
       root.style.setProperty('--im-kb-inset', `${next}px`);
+      // 壳高度锁定到可视区，避免 overlays 下 fixed 底栏沉到键盘下、
+      // 也避免 resizes-content 下再叠加 bottom:kb 造成双倍抬升
+      root.style.setProperty('--im-vv-h', `${Math.max(240, vvH)}px`);
+      root.style.setProperty('--im-vv-top', `${Math.max(0, vvTop)}px`);
       pinChat();
     };
 

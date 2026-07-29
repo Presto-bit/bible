@@ -26,8 +26,19 @@ elif [[ "$ROOT/data/bible/kjv/verses.json" -nt "$ROOT/build/bible_kjv.sqlite" ]]
     --out "$ROOT/build/bible_kjv.sqlite"
 fi
 
+if [[ ! -f "$ROOT/build/bible_contemporary.sqlite" ]]; then
+  if [[ -f "$ROOT/data/bible/contemporary/verses.json" ]]; then
+    echo "→ 生成当代译本 SQLite…"
+    python3 "$ROOT/scripts/import_bible.py" \
+      --input "$ROOT/data/bible/contemporary/verses.json" \
+      --out "$ROOT/build/bible_contemporary.sqlite"
+  else
+    echo "⚠ 缺少当代译本 verses.json，跳过"
+  fi
+fi
+
 echo "→ 打离线 zip…"
-python3 "$ROOT/scripts/build_offline_pack.py"
+python3 "$ROOT/scripts/build_offline_pack.py" --translation cuvs
 
 LATEST_ZIP="$(ls -t "$PACK_DIR"/bible_offline_*.zip | head -1)"
 LATEST_MAN="$(ls -t "$PACK_DIR"/manifest_*.json | head -1)"

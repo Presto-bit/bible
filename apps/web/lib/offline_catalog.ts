@@ -15,12 +15,12 @@ export type OfflineCatalogItem = {
   idbKey?: string;
 };
 
+/** 已有源数据并可打包的译本；NIV 无授权源时不进目录 */
 export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
   {
     id: 'cuvs',
     tab: 'bible',
     name: '和合本',
-    description: 'CUVS 全文（主译本，可单独直链下载）',
     paths: ['bible/bible_cuvs.sqlite'],
     kind: 'sqlite',
     idbKey: 'bible_cuvs_sqlite_v1',
@@ -29,7 +29,6 @@ export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
     id: 'cnv',
     tab: 'bible',
     name: '圣经新译本',
-    description: 'CNV 全文（中文对照）',
     paths: ['bible/bible_cnv.sqlite'],
     kind: 'sqlite',
     idbKey: 'bible_cnv_sqlite_v1',
@@ -38,25 +37,14 @@ export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
     id: 'contemporary',
     tab: 'bible',
     name: '当代译本',
-    description: '易读中文（开放源；打包后可离线下载）',
     paths: ['bible/bible_contemporary.sqlite'],
     kind: 'sqlite',
     idbKey: 'bible_contemporary_sqlite_v1',
   },
   {
-    id: 'niv',
-    tab: 'bible',
-    name: 'NIV',
-    description: 'New International Version（需授权包）',
-    paths: ['bible/bible_niv.sqlite'],
-    kind: 'sqlite',
-    idbKey: 'bible_niv_sqlite_v1',
-  },
-  {
     id: 'kjv',
     tab: 'bible',
     name: 'King James Version',
-    description: 'KJV 全文（经典英文）',
     paths: ['bible/bible_kjv.sqlite'],
     kind: 'sqlite',
     idbKey: 'bible_kjv_sqlite_v1',
@@ -131,6 +119,24 @@ export function getCatalogItem(id: string): OfflineCatalogItem | undefined {
 
 export function catalogItemsForTab(tab: OfflineCatalogTab): OfflineCatalogItem[] {
   return OFFLINE_CATALOG.filter((x) => x.tab === tab);
+}
+
+/** 下载页：仅展示清单里实际有文件的项（避免无源译本占位） */
+export function catalogItemsForTabInManifest(
+  tab: OfflineCatalogTab,
+  manifestPaths: Set<string> | string[],
+): OfflineCatalogItem[] {
+  const paths = manifestPaths instanceof Set ? manifestPaths : new Set(manifestPaths);
+  return catalogItemsForTab(tab).filter((item) => {
+    if (item.paths?.length) return item.paths.some((p) => paths.has(p));
+    if (item.pathsPrefix) {
+      for (const p of paths) {
+        if (p.startsWith(item.pathsPrefix)) return true;
+      }
+      return false;
+    }
+    return false;
+  });
 }
 
 export function bundleIdbKey(itemId: string): string {

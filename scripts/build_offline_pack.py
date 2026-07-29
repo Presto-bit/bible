@@ -32,7 +32,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 
 # 按需打入的额外译本（存在才加）；主 translation 由 --translation 指定，默认 cnv
-EXTRA_TRANSLATIONS = ["cuvs", "contemporary", "kjv"]
+# 不含 niv：无授权源文件时不打包
+EXTRA_TRANSLATIONS = ["cuvs", "cnv", "contemporary", "kjv"]
 
 
 def _sha256(path: Path) -> str:

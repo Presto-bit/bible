@@ -125,7 +125,6 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
             return ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(item.name),
-              subtitle: item.description != null ? Text(item.description!) : null,
               trailing: busy && item.id == 'cnv'
                   ? const SizedBox(
                       width: 20,

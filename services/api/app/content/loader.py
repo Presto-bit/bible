@@ -647,12 +647,6 @@ def content_attribution() -> dict:
             "url": "https://ebible.org/find/show.php?id=cmncbs",
         },
         {
-            "id": "niv",
-            "name": "New International Version (NIV)",
-            "license": "需授权",
-            "url": "",
-        },
-        {
             "id": "kjv",
             "name": "scrollmapper/bible_databases (KJV)",
             "license": "Public Domain",

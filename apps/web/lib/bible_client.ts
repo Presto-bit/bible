@@ -9,7 +9,7 @@ import {
   seededBooks,
   writeBooksLsCache,
 } from './bible_local';
-import { isCuvsOfflineReady, isKjvOfflineReady, isOfflinePackReady } from './offline_pack';
+import { isCuvsOfflineReady, isKjvOfflineReady, isContemporaryOfflineReady, isOfflinePackReady } from './offline_pack';
 
 export async function bibleBooks(): Promise<BibleBook[]> {
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
@@ -58,7 +58,7 @@ export async function bibleChapter(
   const ver = version || 'cuvs';
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-  const tryLocal = async (translation: 'cnv' | 'cuvs' | 'kjv') => {
+  const tryLocal = async (translation: 'cnv' | 'cuvs' | 'kjv' | 'contemporary') => {
     try {
       return await getLocalChapter(bookId, chapter, translation);
     } catch {
@@ -66,8 +66,16 @@ export async function bibleChapter(
     }
   };
 
-  const translation: 'cnv' | 'cuvs' | 'kjv' | null =
-    ver === 'cnv' ? 'cnv' : ver === 'kjv' ? 'kjv' : ver === 'cuvs' ? 'cuvs' : null;
+  const translation: 'cnv' | 'cuvs' | 'kjv' | 'contemporary' | null =
+    ver === 'cnv'
+      ? 'cnv'
+      : ver === 'kjv'
+        ? 'kjv'
+        : ver === 'contemporary'
+          ? 'contemporary'
+          : ver === 'cuvs'
+            ? 'cuvs'
+            : null;
 
   // 在线：优先 API，避免进阅读器时 sql.js 整库进内存尖刺
   if (!offline) {
@@ -96,6 +104,10 @@ export async function bibleChapter(
     const local = await tryLocal('kjv');
     if (local?.length) return local;
   }
+  if (translation === 'contemporary' && (await isContemporaryOfflineReady())) {
+    const local = await tryLocal('contemporary');
+    if (local?.length) return local;
+  }
 
   if (!translation) return null;
   const local = await tryLocal(translation);
@@ -109,9 +121,15 @@ export async function bibleSearch(
   const version = opts?.version || undefined;
   const testament = opts?.testament || undefined;
   const localTranslation =
-    version === 'kjv' ? 'kjv' : version === 'cnv' ? 'cnv' : 'cuvs';
+    version === 'kjv'
+      ? 'kjv'
+      : version === 'cnv'
+        ? 'cnv'
+        : version === 'contemporary'
+          ? 'contemporary'
+          : 'cuvs';
   const canUseLocal =
-    (!version || version === 'cnv' || version === 'cuvs' || version === 'kjv') &&
+    (!version || version === 'cnv' || version === 'cuvs' || version === 'kjv' || version === 'contemporary') &&
     !testament;
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
@@ -131,6 +149,8 @@ export async function bibleSearch(
   const localReady =
     localTranslation === 'kjv'
       ? await isKjvOfflineReady()
+      : localTranslation === 'contemporary'
+        ? await isContemporaryOfflineReady()
       : localTranslation === 'cuvs'
         ? await isCuvsOfflineReady()
         : await isOfflinePackReady();
