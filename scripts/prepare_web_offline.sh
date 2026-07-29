@@ -32,12 +32,29 @@ python3 "$ROOT/scripts/build_offline_pack.py"
 LATEST_ZIP="$(ls -t "$PACK_DIR"/bible_offline_*.zip | head -1)"
 LATEST_MAN="$(ls -t "$PACK_DIR"/manifest_*.json | head -1)"
 cp "$LATEST_ZIP" "$OUT/bible_offline.zip"
+
+# 和合本单独直链：自动下载只拉 ~11MB，避免整包 ~26MB 全家桶
+CUVS_SRC="$ROOT/build/bible_cuvs.sqlite"
+if [[ -f "$CUVS_SRC" ]]; then
+  cp "$CUVS_SRC" "$OUT/bible_cuvs.sqlite"
+  echo "✓ bible_cuvs.sqlite ($(du -h "$OUT/bible_cuvs.sqlite" | awk '{print $1}'))"
+else
+  echo "⚠ 缺少 $CUVS_SRC，跳过和合本直链"
+fi
+
 python3 - <<PY
+import hashlib
 import json
 from pathlib import Path
 manifest = json.loads(Path("$LATEST_MAN").read_text(encoding="utf-8"))
 manifest.setdefault("schema", "offline_pack@1")
 manifest.setdefault("translation", "cnv")
+cuvs = Path("$OUT/bible_cuvs.sqlite")
+if cuvs.is_file():
+    raw = cuvs.read_bytes()
+    manifest["cuvs_sqlite"] = "bible_cuvs.sqlite"
+    manifest["cuvs_sqlite_bytes"] = len(raw)
+    manifest["cuvs_sqlite_sha256"] = hashlib.sha256(raw).hexdigest()
 Path("$OUT/manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
 PY
 

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { api, ensureAccountReady, effectiveId } from '@/lib/api';
+import { whenHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
 
 /** 底栏「发现」总未读：会话未读（跳过免打扰）+ 待处理好友申请。 */
@@ -41,19 +42,29 @@ export function useDiscoverUnread(enabled = true): number {
 
   useEffect(() => {
     if (!enabled) return;
-    void refresh();
-    const unsub = subscribeSocialRealtime(
-      (_c, changed) => {
-        if (changed) void refresh();
+    // 等首页就绪后再拉角标 / 订 SSE，避让冷启动带宽
+    let cancelled = false;
+    let unsub: (() => void) | null = null;
+    whenHomeBootstrapReady(
+      () => {
+        if (cancelled) return;
+        void refresh();
+        unsub = subscribeSocialRealtime(
+          (_c, changed) => {
+            if (changed) void refresh();
+          },
+          { watch: 'all', debounceMs: 300 },
+        );
       },
-      { watch: 'all', debounceMs: 300 },
+      { afterMs: 5_000, fallbackMs: 20_000 },
     );
     const onVis = () => {
       if (document.visibilityState === 'visible') void refresh();
     };
     document.addEventListener('visibilitychange', onVis);
     return () => {
-      unsub();
+      cancelled = true;
+      unsub?.();
       document.removeEventListener('visibilitychange', onVis);
     };
   }, [enabled, refresh]);

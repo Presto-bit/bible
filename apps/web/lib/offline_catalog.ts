@@ -29,7 +29,7 @@ export const OFFLINE_CATALOG: OfflineCatalogItem[] = [
     id: 'cuvs',
     tab: 'bible',
     name: '和合本',
-    description: 'CUVS 全文',
+    description: 'CUVS 全文（可单独直链下载）',
     paths: ['bible/bible_cuvs.sqlite'],
     kind: 'sqlite',
     idbKey: 'bible_cuvs_sqlite_v1',

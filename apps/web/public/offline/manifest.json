@@ -2,6 +2,9 @@
   "version": "2026.07.07",
   "zip": "bible_offline_2026.07.07.zip",
   "zip_sha256": "76e000422af276a2ef1da51f54c1c2d138c76ebbb88f05dbb7d85ba557d814b9",
+  "cuvs_sqlite": "bible_cuvs.sqlite",
+  "cuvs_sqlite_sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1",
+  "cuvs_sqlite_bytes": 11423744,
   "files": [
     {
       "path": "bible/bible_cnv.sqlite",

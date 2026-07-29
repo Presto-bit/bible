@@ -1,4 +1,4 @@
-/** 离线经包：下载 zip → 校验 → 解压 → IndexedDB 持久化（CNV / CUVS / KJV）。 */
+/** 离线经包：下载 zip / 和合本直链 sqlite → 校验 → IndexedDB（CNV / CUVS / KJV）。 */
 
 import { idbDelete, idbGet, idbGetBundle, idbSet, idbSetBundle } from './offline_idb';
 import {
@@ -40,6 +40,10 @@ export interface OfflinePackManifest {
   file_count: number;
   zip?: string;
   zip_sha256?: string;
+  /** 和合本单独直链（相对 /offline/），避免自动装时拉整包 zip */
+  cuvs_sqlite?: string;
+  cuvs_sqlite_sha256?: string;
+  cuvs_sqlite_bytes?: number;
 }
 
 export interface OfflinePackMeta {
@@ -186,6 +190,47 @@ export async function listOfflineItemStatuses(): Promise<
   return out;
 }
 
+/** 和合本优先走单独 sqlite URL（~11MB），失败再回落整包 zip。 */
+async function tryDownloadCuvsSqliteDirect(
+  manifest: OfflinePackManifest,
+  onProgress?: (p: DownloadProgress) => void,
+): Promise<boolean> {
+  const item = getCatalogItem('cuvs');
+  const mf = item ? manifestFilesForItem(item, manifest)[0] : undefined;
+  const fileName = manifest.cuvs_sqlite || 'bible_cuvs.sqlite';
+  const url = withBasePath(`/offline/${fileName}`);
+  const expectedSha = manifest.cuvs_sqlite_sha256 || mf?.sha256;
+  try {
+    onProgress?.({ phase: 'download', percent: 20, message: '下载和合本…' });
+    const res = await fetch(url, { cache: 'force-cache' });
+    if (!res.ok) return false;
+    const buf = await res.arrayBuffer();
+    if (!buf.byteLength) return false;
+    if (expectedSha) {
+      onProgress?.({ phase: 'verify', percent: 55, message: '校验和合本…' });
+      const got = await sha256Hex(buf);
+      if (got !== expectedSha) return false;
+    }
+    onProgress?.({ phase: 'save', percent: 75, message: '写入和合本…' });
+    await idbSet(OFFLINE_CUVS_KEY, buf);
+    const path = mf?.path ?? 'bible/bible_cuvs.sqlite';
+    saveItemRecord('cuvs', {
+      manifestVersion: manifest.version,
+      fileHashes: { [path]: expectedSha || (await sha256Hex(buf)) },
+      installedAt: Date.now(),
+      bytes: buf.byteLength,
+      hasFiles: true,
+    });
+    const { resetLocalBibleDb } = await import('./bible_local');
+    resetLocalBibleDb();
+    syncPackMetaFromItems(manifest.version);
+    window.dispatchEvent(new CustomEvent('presto-offline-pack-ready'));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function downloadOfflineItem(
   itemId: string,
   onProgress?: (p: DownloadProgress) => void,
@@ -197,6 +242,13 @@ export async function downloadOfflineItem(
   const manifest = await fetchManifest();
   const manifestFiles = manifestFilesForItem(item, manifest);
   if (!manifestFiles.length) throw new Error('清单中缺少对应文件');
+
+  if (itemId === 'cuvs') {
+    if (await tryDownloadCuvsSqliteDirect(manifest, onProgress)) {
+      onProgress?.({ phase: 'done', percent: 100, message: '完成' });
+      return;
+    }
+  }
 
   onProgress?.({ phase: 'download', percent: 15, message: `下载${item.name}…` });
   const zipBuf = await fetchOfflineZip(manifest);
@@ -340,22 +392,29 @@ export async function purgeOfflineTranslation(translation: OfflineTranslation): 
   await deleteOfflineItemFiles(translation);
 }
 
+/** 只看 IDB 是否有字节，不打开 sql.js（避免就绪检查触发整库进内存）。 */
+export async function hasOfflineSqliteBytes(
+  translation: OfflineTranslation,
+): Promise<boolean> {
+  const buf = await idbGet(idbKeyForTranslation(translation));
+  return Boolean(buf?.byteLength);
+}
+
+async function isTranslationOfflineReady(id: OfflineTranslation): Promise<boolean> {
+  if ((await getOfflineItemStatus(id)) === 'ready') return true;
+  return hasOfflineSqliteBytes(id);
+}
+
 export async function isOfflinePackReady(): Promise<boolean> {
-  if ((await getOfflineItemStatus('cnv')) !== 'ready') return false;
-  const { getLocalBibleDb } = await import('./bible_local');
-  return (await getLocalBibleDb('cnv')) !== null;
+  return isTranslationOfflineReady('cnv');
 }
 
 export async function isCuvsOfflineReady(): Promise<boolean> {
-  if ((await getOfflineItemStatus('cuvs')) !== 'ready') return false;
-  const { getLocalBibleDb } = await import('./bible_local');
-  return (await getLocalBibleDb('cuvs')) !== null;
+  return isTranslationOfflineReady('cuvs');
 }
 
 export async function isKjvOfflineReady(): Promise<boolean> {
-  if ((await getOfflineItemStatus('kjv')) !== 'ready') return false;
-  const { getLocalBibleDb } = await import('./bible_local');
-  return (await getLocalBibleDb('kjv')) !== null;
+  return isTranslationOfflineReady('kjv');
 }
 
 export async function clearOfflinePack() {
@@ -371,17 +430,21 @@ export type DownloadProgress = {
   message: string;
 };
 
-/** 后台预热目标：CNV + CUVS + KJV 均已就绪。 */
+/** 自动预热目标：仅和合本（CUVS）就绪。 */
 export async function isAutoBiblePackReady(): Promise<boolean> {
-  const [cnv, cuvs, kjv] = await Promise.all([
-    getOfflineItemStatus('cnv'),
-    getOfflineItemStatus('cuvs'),
-    getOfflineItemStatus('kjv'),
-  ]);
-  return cnv === 'ready' && cuvs === 'ready' && kjv === 'ready';
+  return isCuvsOfflineReady();
 }
 
-/** 下载并安装全部圣经译本（兼容旧入口 / 后台预热）。 */
+/** 后台自动下载：只装和合本（优先直链 sqlite）。 */
+export async function downloadAutoBiblePack(
+  onProgress?: (p: DownloadProgress) => void,
+): Promise<number> {
+  if (await isAutoBiblePackReady()) return loadItemRecord('cuvs')?.bytes ?? 0;
+  await downloadOfflineItem('cuvs', onProgress);
+  return loadItemRecord('cuvs')?.bytes ?? 0;
+}
+
+/** 下载并安装全部圣经译本（设置页「全部下载」）。 */
 export async function downloadOfflinePack(
   onProgress?: (p: DownloadProgress) => void,
 ): Promise<number> {

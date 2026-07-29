@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { currentUserId, effectiveId, ensureAccountReady, hasPassword, api } from '@/lib/api';
-import { scheduleOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
+import {
+  scheduleOfflinePackAutoDownload,
+  whenHomeBootstrapReady,
+} from '@/lib/offline_bootstrap';
 import { flushCheckinQueue } from '@/lib/checkin_queue';
 import { rescheduleGroupEveningReminder } from '@/lib/group_reminder';
 import {
@@ -114,7 +117,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         typeof window !== 'undefined' &&
         sessionStorage.getItem(RESTORE_PROMPT_DISMISS_KEY) === '1';
 
-      // 迁移 / 读经恢复放到 idle，避免与首页 bootstrap 抢带宽
+      // 迁移 / 读经恢复：等首页就绪后再跑，避免与 bootstrap 抢带宽
       const runRestore = () => {
         void (async () => {
           if (needsSyncMigration()) {
@@ -126,11 +129,16 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
           runBackgroundSync();
         })();
       };
-      if (typeof window.requestIdleCallback === 'function') {
-        window.requestIdleCallback(() => runRestore(), { timeout: 8000 });
-      } else {
-        window.setTimeout(runRestore, 3000);
-      }
+      whenHomeBootstrapReady(
+        () => {
+          if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(() => runRestore(), { timeout: 10_000 });
+          } else {
+            window.setTimeout(runRestore, 2500);
+          }
+        },
+        { afterMs: 4_000, fallbackMs: 18_000 },
+      );
 
       // 重装空数据时提示恢复；设密改「我的」软催，不再首访弹门闸
       const showRestore =
@@ -146,7 +154,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       void flushCheckinQueue().catch(() => {});
       rescheduleGroupEveningReminder();
       void import('@/lib/bible_warmup').then((m) => m.scheduleBibleWarmup());
-      // 经包延后到首页就绪后，避免 ~26MB zip 拖慢冷启动
+      // 经包：首页就绪后只下和合本直链（~11MB）
       scheduleOfflinePackAutoDownload();
     });
     const onOnline = () => {

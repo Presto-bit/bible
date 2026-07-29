@@ -1,4 +1,4 @@
-/** 经文客户端：离线经包优先，在线 API 回退。 */
+/** 经文客户端：在线优先 API；离线或 API 失败再走本地 sql.js。 */
 
 import { api, type BibleBook, type BibleSearchHit, type Verse } from './api';
 import {
@@ -66,47 +66,38 @@ export async function bibleChapter(
     }
   };
 
-  if (ver === 'cnv' && (await isOfflinePackReady())) {
+  const translation: 'cnv' | 'cuvs' | 'kjv' =
+    ver === 'cuvs' ? 'cuvs' : ver === 'kjv' ? 'kjv' : 'cnv';
+
+  // 在线：优先 API，避免进阅读器时 sql.js 整库进内存尖刺
+  if (!offline) {
+    try {
+      const data = version
+        ? await api.chapter(bookId, chapter, version)
+        : await api.chapter(bookId, chapter);
+      return data.verses;
+    } catch {
+      const local = await tryLocal(translation);
+      if (local?.length) return local;
+      return null;
+    }
+  }
+
+  if (translation === 'cnv' && (await isOfflinePackReady())) {
     const local = await tryLocal('cnv');
     if (local?.length) return local;
   }
-  if (ver === 'cuvs' && (await isCuvsOfflineReady())) {
+  if (translation === 'cuvs' && (await isCuvsOfflineReady())) {
     const local = await tryLocal('cuvs');
     if (local?.length) return local;
   }
-  if (ver === 'kjv' && (await isKjvOfflineReady())) {
+  if (translation === 'kjv' && (await isKjvOfflineReady())) {
     const local = await tryLocal('kjv');
     if (local?.length) return local;
   }
 
-  if (offline) {
-    const local = await tryLocal(
-      ver === 'cuvs' ? 'cuvs' : ver === 'kjv' ? 'kjv' : 'cnv',
-    );
-    if (local?.length) return local;
-    return null;
-  }
-
-  try {
-    const data = version
-      ? await api.chapter(bookId, chapter, version)
-      : await api.chapter(bookId, chapter);
-    return data.verses;
-  } catch {
-    if (ver === 'cnv') {
-      const local = await tryLocal('cnv');
-      if (local?.length) return local;
-    }
-    if (ver === 'cuvs') {
-      const local = await tryLocal('cuvs');
-      if (local?.length) return local;
-    }
-    if (ver === 'kjv') {
-      const local = await tryLocal('kjv');
-      if (local?.length) return local;
-    }
-    return null;
-  }
+  const local = await tryLocal(translation);
+  return local?.length ? local : null;
 }
 
 export async function bibleSearch(
@@ -118,7 +109,23 @@ export async function bibleSearch(
   const localTranslation =
     version === 'kjv' ? 'kjv' : version === 'cuvs' ? 'cuvs' : 'cnv';
   const canUseLocal =
-    (!version || version === 'cnv' || version === 'kjv') && !testament;
+    (!version || version === 'cnv' || version === 'cuvs' || version === 'kjv') &&
+    !testament;
+  const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+  // 在线优先 API，避免搜索路径误开 sql.js
+  if (!offline) {
+    try {
+      const remote = await api.search(q, {
+        version,
+        testament: testament ?? undefined,
+      });
+      return remote.hits;
+    } catch {
+      /* fall through to local */
+    }
+  }
+
   const localReady =
     localTranslation === 'kjv'
       ? await isKjvOfflineReady()
@@ -136,17 +143,11 @@ export async function bibleSearch(
       }));
     }
   }
+  if (offline) return [];
   try {
     const remote = await api.search(q, { version, testament: testament ?? undefined });
     return remote.hits;
   } catch {
-    if (!canUseLocal) return [];
-    const local = await searchLocalVerses(q, 24, localTranslation);
-    return (local ?? []).map((h) => ({
-      ...h,
-      ref: `${h.name}${h.chapter}:${h.verse}`,
-      osis: `${h.book}.${h.chapter}.${h.verse}`,
-      version: localTranslation,
-    }));
+    return [];
   }
 }

@@ -1,6 +1,7 @@
 /** PWA 社交实时：优先 SSE，失败回落智能轮询；仅 cursor 变化时回调。 */
 
 import { API_BASE, authHeaders, api } from './api';
+import { whenHomeBootstrapReady } from './offline_bootstrap';
 
 export type SocialCursor = {
   group_max?: string | null;
@@ -99,6 +100,8 @@ function startSseLoop(signal: AbortSignal): void {
   })();
 }
 
+let startScheduled = false;
+
 function ensureStarted() {
   if (started || typeof window === 'undefined') return;
   started = true;
@@ -115,7 +118,23 @@ function ensureStarted() {
     document.removeEventListener('visibilitychange', onVis);
     started = false;
     stopFn = null;
+    startScheduled = false;
   };
+}
+
+/** 等首页就绪后再开 SSE，避免与 bootstrap / 身份抢带宽 */
+function scheduleEnsureStarted() {
+  if (started || startScheduled || typeof window === 'undefined') return;
+  startScheduled = true;
+  whenHomeBootstrapReady(
+    () => {
+      startScheduled = false;
+      if (listeners.size === 0) return;
+      ensureStarted();
+      void api.realtimeCursor().then(emit).catch(() => {});
+    },
+    { afterMs: 6_000, fallbackMs: 22_000 },
+  );
 }
 
 export type SubscribeRealtimeOpts = {
@@ -159,11 +178,7 @@ export function subscribeSocialRealtime(
   };
 
   listeners.add(handler);
-  ensureStarted();
-  // 仅首个订阅者拉一次，避免群/DM/发现同时订阅时打三次
-  if (listeners.size === 1) {
-    void api.realtimeCursor().then(emit).catch(() => {});
-  }
+  scheduleEnsureStarted();
   return () => {
     if (timer) window.clearTimeout(timer);
     listeners.delete(handler);

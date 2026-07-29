@@ -1,5 +1,6 @@
-/** 首页/启动空闲时预拉书卷目录与上次阅读章节，加速首次进圣经 Tab */
+/** 首页就绪后再预拉书卷目录与上次阅读章节，避免与 bootstrap/身份抢带宽 */
 
+import { whenHomeBootstrapReady } from './offline_bootstrap';
 import { bibleBooks } from './bible_client';
 import { loadChapterVerses } from './chapter_prefetch';
 import { getLastRead } from './reading';
@@ -11,15 +12,19 @@ export function scheduleBibleWarmup() {
   if (typeof window === 'undefined' || scheduled) return;
   scheduled = true;
 
-  const run = () => {
-    void warmBibleAssets();
-  };
-
-  if (typeof window.requestIdleCallback === 'function') {
-    window.requestIdleCallback(run, { timeout: 4000 });
-  } else {
-    window.setTimeout(run, 1200);
-  }
+  whenHomeBootstrapReady(
+    () => {
+      const run = () => {
+        void warmBibleAssets();
+      };
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(run, { timeout: 8000 });
+      } else {
+        window.setTimeout(run, 2000);
+      }
+    },
+    { afterMs: 8_000, fallbackMs: 28_000 },
+  );
 }
 
 export async function warmBibleAssets(): Promise<void> {
