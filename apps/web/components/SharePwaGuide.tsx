@@ -17,8 +17,8 @@ import { BRAND_NAME } from '@/lib/brand';
 export function SharePwaGuide({
   variant = 'analysis',
 }: {
-  /** analysis：解读落地；invite：产品邀请落地 */
-  variant?: 'analysis' | 'invite';
+  /** analysis：解读落地；invite：产品邀请落地；daily：每日经文分享落地 */
+  variant?: 'analysis' | 'invite' | 'daily';
 }) {
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [hidden, setHidden] = useState(true);
@@ -31,7 +31,8 @@ export function SharePwaGuide({
       setHidden(true);
       return;
     }
-    const delay = p === 'inapp' ? 400 : variant === 'invite' ? 1200 : 2800;
+    const delay =
+      p === 'inapp' ? 400 : variant === 'invite' || variant === 'daily' ? 900 : 2800;
     const t = window.setTimeout(() => {
       setHidden(false);
       setReady(true);
@@ -63,11 +64,15 @@ export function SharePwaGuide({
   const title =
     variant === 'invite'
       ? `保存${BRAND_NAME}到主屏幕`
-      : `喜欢这段？保存${BRAND_NAME}到主屏幕`;
+      : variant === 'daily'
+        ? `喜欢这节经文？保存${BRAND_NAME}到主屏幕`
+        : `喜欢这段？保存${BRAND_NAME}到主屏幕`;
   const desc =
     variant === 'invite'
       ? '陪你读经，也帮你读懂 · 下次一点就开'
-      : '下次一点就开 · 离线也能读经';
+      : variant === 'daily'
+        ? '每天一节经文 · 下次一点就开'
+        : '下次一点就开 · 离线也能读经';
 
   return (
     <div className="share-pwa-bar share-pwa-bar-bottom" role="region" aria-label="保存到主屏幕">

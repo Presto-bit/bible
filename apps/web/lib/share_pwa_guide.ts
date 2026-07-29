@@ -26,6 +26,8 @@ export function isShareLandingPath(pathname: string | null | undefined): boolean
     p === '/share/analysis' ||
     p.startsWith('/share/analysis/') ||
     p === '/share/app' ||
-    p.startsWith('/share/app/')
+    p.startsWith('/share/app/') ||
+    p === '/share/daily-verse' ||
+    p.startsWith('/share/daily-verse/')
   );
 }

@@ -1,7 +1,10 @@
 /** 每日经文分享：文字+链 + 经文卡图（贴近首页 Hero 卡） */
+import { analysisShareSiteOrigin } from './analysis_share';
+import { clientWithBasePath, withBasePath } from './basePath';
 import { BRAND_NAME, BRAND_TAGLINE } from './brand';
 import { formatDailyVerseQuote } from './daily_verse_display';
 import { dailyVerseWallpaperUrl } from './daily_verse_wallpaper';
+import { PWA_ICON_SOURCE } from './pwa_brand';
 
 export type DailyVerseShareInput = {
   ref: string;
@@ -12,6 +15,8 @@ export type DailyVerseShareInput = {
 
 export type DailyVerseShareResult = 'shared' | 'cancelled' | 'downloaded' | 'failed';
 
+const SHARE_INSTALL_CTA = `打开链接，把${BRAND_NAME}保存到主屏幕`;
+
 export function buildDailyVerseShareText(input: DailyVerseShareInput): string {
   const quote = (input.text || '').trim();
   const ref = (input.ref || '').trim();
@@ -19,17 +24,25 @@ export function buildDailyVerseShareText(input: DailyVerseShareInput): string {
   const lines = [
     quote ? `「${quote}」` : '',
     ref ? `—— ${ref}${ver ? ` · ${ver}` : ''}` : '',
-    `${BRAND_NAME}每日经文`,
-  ].filter(Boolean);
+    '',
+    `${BRAND_NAME} · 每日经文`,
+    BRAND_TAGLINE,
+    SHARE_INSTALL_CTA,
+  ].filter((line, i, arr) => !(line === '' && arr[i - 1] === ''));
   return lines.join('\n');
 }
 
+/** 分享落地页：展示经文 + 提醒安装到桌面 */
 export function dailyVerseShareUrl(day?: number): string {
-  if (typeof window === 'undefined') return '/';
-  const u = new URL(window.location.origin);
-  u.pathname = '/';
-  u.searchParams.set('tab', 'home');
-  if (day != null) u.searchParams.set('dv', String(day));
+  const origin = analysisShareSiteOrigin();
+  const path =
+    typeof window === 'undefined'
+      ? withBasePath('/share/daily-verse')
+      : clientWithBasePath('/share/daily-verse');
+  const u = new URL(path, origin.endsWith('/') ? origin : `${origin}/`);
+  if (day != null && Number.isFinite(day)) u.searchParams.set('day', String(day));
+  u.searchParams.set('ch1', 'share');
+  u.searchParams.set('ch2', 'daily_verse');
   return u.toString();
 }
 
@@ -136,7 +149,23 @@ function drawArtScrim(ctx: CanvasRenderingContext2D, w: number, h: number) {
   ctx.fillRect(0, 0, w, h);
 }
 
-/** 生成贴近首页每日经文卡的分享图（含当日经文与出处）。 */
+function drawRoundImage(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  x: number,
+  y: number,
+  size: number,
+) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x + size / 2, y + size / 2, size / 2, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(img, x, y, size, size);
+  ctx.restore();
+}
+
+/** 生成贴近首页每日经文卡的分享图（含品牌标识）。 */
 export async function renderDailyVerseSharePng(
   input: DailyVerseShareInput,
 ): Promise<Blob | null> {
@@ -152,7 +181,10 @@ export async function renderDailyVerseSharePng(
 
   const padX = 72;
   const wallpaperSrc = dailyVerseWallpaperUrl(input.day, 'full');
-  const wallpaper = await loadImage(wallpaperSrc);
+  const [wallpaper, brandIcon] = await Promise.all([
+    loadImage(wallpaperSrc),
+    loadImage(clientWithBasePath(PWA_ICON_SOURCE)),
+  ]);
   if (wallpaper) {
     drawCover(ctx, wallpaper, w, h);
     drawArtScrim(ctx, w, h);
@@ -161,9 +193,16 @@ export async function renderDailyVerseSharePng(
     drawArtScrim(ctx, w, h);
   }
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
-  ctx.font = '600 34px system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif';
-  ctx.fillText('每日经文', padX, 110);
+  const iconSize = 56;
+  if (brandIcon) {
+    drawRoundImage(ctx, brandIcon, padX, 78, iconSize);
+  }
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.font = '700 34px system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif';
+  ctx.fillText(BRAND_NAME, padX + (brandIcon ? iconSize + 16 : 0), 104);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+  ctx.font = '500 26px system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif';
+  ctx.fillText('每日经文', padX + (brandIcon ? iconSize + 16 : 0), 140);
 
   const quote = formatDailyVerseQuote(input.text || '');
   const ref = (input.ref || '').trim();
@@ -192,17 +231,20 @@ export async function renderDailyVerseSharePng(
     ctx.shadowOffsetY = 0;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
     ctx.font = '400 28px system-ui, -apple-system, "PingFang SC", sans-serif';
-    ctx.fillText(ver, padX, Math.min(y + 28, h - 140));
+    ctx.fillText(ver, padX, Math.min(y + 28, h - 180));
   }
 
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
   ctx.font = '600 30px system-ui, -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(BRAND_NAME, padX, h - 96);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
+  ctx.fillText(BRAND_NAME, padX, h - 120);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.62)';
   ctx.font = '400 24px system-ui, -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(BRAND_TAGLINE, padX, h - 56);
+  ctx.fillText(BRAND_TAGLINE, padX, h - 80);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.font = '400 22px system-ui, -apple-system, "PingFang SC", sans-serif';
+  ctx.fillText('保存到主屏幕 · 下次一点就开', padX, h - 44);
 
   return new Promise((resolve) => {
     canvas.toBlob((b) => resolve(b), 'image/png', 0.94);
@@ -216,7 +258,7 @@ export async function renderDailyVerseSharePng(
 export async function shareDailyVerseCard(
   input: DailyVerseShareInput,
 ): Promise<DailyVerseShareResult> {
-  const title = (input.ref || '每日经文').trim();
+  const title = `${(input.ref || '每日经文').trim()}｜${BRAND_NAME}`;
   const body = (input.text || '').trim();
   if (!body) return 'failed';
 
