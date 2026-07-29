@@ -15577,189 +15577,170 @@ html.perf-lite .tabbar {
 
 .share-social-sheet { max-height: 75vh; overflow: auto; }
 
-/* ── 每日经文回应抽屉 ── */
-.dv-react-backdrop {
-  /* 压在 tabbar(90) 上面，不超过 reader-sheet(110) */
-  z-index: 105;
+.daily-verse-react-sheet {
+  max-height: min(82dvh, 760px);
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+  overflow: hidden;
 }
 
-.dv-react-sheet {
+.daily-verse-react-sheet-inner {
   display: flex;
   flex-direction: column;
-  /* 高度撑满到底部安全区 */
-  height: min(86dvh, 720px);
-  padding: 12px 20px 0;
-  /* 把底部安全区空出来 */
-  padding-bottom: 0;
-  overflow: hidden;
+  min-height: 0;
+  max-height: inherit;
+  transition: transform 0.18s ease;
   will-change: transform;
-  transition: transform 0.22s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.dv-react-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-shrink: 0;
+.daily-verse-react-sheet-head {
   margin-bottom: 8px;
 }
 
-.dv-react-title {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.dv-react-close {
-  font-size: 16px;
-  color: var(--ink-faint);
-  padding: 4px 2px;
-  line-height: 1;
-}
-
-/* ── 上半：大家的回应（可滚动） ── */
-.dv-react-feed-area {
+.daily-verse-react-feed-panel {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  padding-bottom: 10px;
   -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
 }
 
-.dv-react-feed-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.dv-react-feed-list li {
+.daily-verse-react-feed-head {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 10px;
-  padding: 9px 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
-  font-size: 13px;
 }
 
-.dv-react-feed-list li:last-child {
-  border-bottom: none;
+.daily-verse-react-feed-subtitle,
+.daily-verse-react-hint {
+  margin: 0;
+  font-size: 12px;
 }
 
-/* 左：emoji + 短语 */
-.dv-feed-preset {
-  display: flex;
-  align-items: center;
-  gap: 4px;
+.daily-verse-react-picker {
   flex-shrink: 0;
+  margin: 0 -20px -12px;
+  padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 0));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card, #fff) 92%, white);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.daily-verse-react-section-label {
+  margin: 14px 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-faint);
+}
+
+.daily-verse-react-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.daily-verse-react-chip {
+  appearance: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 12px;
+  min-height: 44px;
+  font-size: 22px;
+  cursor: pointer;
+}
+
+.daily-verse-react-chip.is-active,
+.daily-verse-react-phrase.is-active {
+  border-color: var(--accent-deep, #3d6b5a);
+  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 12%, var(--surface));
+}
+
+.daily-verse-react-phrase-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.daily-verse-react-phrase {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 8px 12px;
   font-size: 13px;
+  cursor: pointer;
   color: var(--ink);
 }
 
-.dv-feed-preset > span:first-child {
-  font-size: 18px;
-  line-height: 1;
+.daily-verse-react-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
-/* 右：姓名 + 时间 */
-.dv-feed-right {
+.daily-verse-react-top-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-faint) 10%, transparent);
+}
+
+.daily-verse-react-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  margin-left: auto;
-  text-align: right;
+  gap: 8px;
 }
 
-.dv-feed-name {
-  font-weight: 600;
+.daily-verse-react-feed li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   font-size: 13px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.daily-verse-react-feed li:last-child {
+  border-bottom: none;
+}
+
+.daily-verse-react-feed-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.daily-verse-react-feed-name {
+  font-weight: 600;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.dv-feed-time {
+.daily-verse-react-feed-meta {
   font-size: 11px;
   color: var(--ink-faint);
 }
 
-/* ── 下半：我来回应（固定底部） ── */
-.dv-react-picker {
-  flex-shrink: 0;
-  /* 负 margin 让分割线贴边 */
-  margin: 0 -20px;
-  padding: 10px 20px calc(14px + env(safe-area-inset-bottom, 0));
-  border-top: 1px solid var(--line);
-  background: color-mix(in srgb, var(--card, #fff) 94%, white);
-  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.05);
-}
-
-.dv-react-mine-label {
-  font-size: 12px;
-  margin: 0 0 8px;
-  color: var(--accent-deep, #3d6b5a);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.dv-react-mine-cancel {
-  color: var(--ink-faint);
-}
-
-/* emoji 图标：2 行 × 5 列 */
-.dv-react-emoji-row {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.dv-react-chip {
-  appearance: none;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 10px;
-  height: 36px;
-  font-size: 18px;
-  cursor: pointer;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.dv-react-chip.is-active {
-  border-color: var(--accent-deep, #3d6b5a);
-  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 14%, var(--surface));
-}
-
-/* 短语：紧凑换行 */
-.dv-react-phrase-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.dv-react-phrase {
-  appearance: none;
+.daily-verse-react-feed-preset {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 12px;
-  cursor: pointer;
-  color: var(--ink);
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.dv-react-phrase.is-active {
-  border-color: var(--accent-deep, #3d6b5a);
-  background: color-mix(in srgb, var(--accent-deep, #3d6b5a) 14%, var(--surface));
+  color: var(--ink-faint);
+  flex-shrink: 0;
 }
 .share-target-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .share-target-row {
