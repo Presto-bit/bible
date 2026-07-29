@@ -582,7 +582,14 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         return;
       }
       try {
-        await api.recordDailyVerseShare(dv.day);
+        const r = await api.recordDailyVerseShare(dv.day);
+        if (typeof r.shares_count === 'number') {
+          setDv((prev) => (prev ? { ...prev, shares_count: r.shares_count } : prev));
+          const snap = readCachedDailyVerse();
+          if (snap && snap.day === dv.day) {
+            writeCachedDailyVerse({ ...snap, shares_count: r.shares_count });
+          }
+        }
       } catch {
         /* ignore */
       }
@@ -818,6 +825,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           dv={dv}
           backgroundUrl={dailyVerseWallpaperUrl(dv.day, 'full')}
           onClose={() => setVerseFull(false)}
+          liked={liked}
+          likeCount={likeCount}
+          likeBusy={likeBusy}
+          onToggleLike={() => void toggleLike()}
+          myReact={myReact}
+          reactCount={reactCount}
+          onOpenReact={() => {
+            setReactErr(null);
+            setReactSheetOpen(true);
+          }}
+          onShare={() => void shareDailyVerse()}
         />
       ) : null}
     </main>

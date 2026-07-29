@@ -2,25 +2,46 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { DailyVerse } from '@/lib/api';
+import type { DailyVerse, DailyVerseReactPreset } from '@/lib/api';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
 import { applyAppTheme } from '@/lib/app_theme';
+
+type Props = {
+  dv: DailyVerse;
+  backgroundUrl?: string | null;
+  onClose: () => void;
+  liked: boolean;
+  likeCount: number;
+  likeBusy?: boolean;
+  onToggleLike: () => void;
+  myReact: DailyVerseReactPreset | null;
+  reactCount: number;
+  onOpenReact: () => void;
+  onShare: () => void;
+  shareBusy?: boolean;
+};
 
 export default function DailyVerseWallpaper({
   dv,
   backgroundUrl,
   onClose,
-}: {
-  dv: DailyVerse;
-  backgroundUrl?: string | null;
-  onClose: () => void;
-}) {
+  liked,
+  likeCount,
+  likeBusy,
+  onToggleLike,
+  myReact,
+  reactCount,
+  onOpenReact,
+  onShare,
+  shareBusy,
+}: Props) {
   const [mounted, setMounted] = useState(false);
   const [bgOk, setBgOk] = useState(true);
 
   const fullUrl = backgroundUrl ?? dailyVerseWallpaperUrl(dv.day, 'full');
   const cardUrl = dailyVerseWallpaperUrl(dv.day, 'card');
+  const shareCount = dv.shares_count ?? 0;
 
   useEffect(() => {
     setMounted(true);
@@ -83,6 +104,86 @@ export default function DailyVerseWallpaper({
           <p className="verse-full-text">{formatDailyVerseQuote(dv.text)}</p>
           {dv.ref ? <p className="verse-full-ref">{dv.ref}</p> : null}
         </div>
+      </div>
+
+      <div
+        className="verse-full-dock"
+        onClick={(e) => e.stopPropagation()}
+        role="toolbar"
+        aria-label="经文互动"
+      >
+        <button
+          type="button"
+          className={`verse-full-dock-btn${liked ? ' is-active' : ''}`}
+          disabled={likeBusy || !dv.day}
+          aria-pressed={liked}
+          aria-label={liked ? '取消点赞' : '点赞'}
+          onClick={() => void onToggleLike()}
+        >
+          {liked ? (
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
+              <path
+                fill="currentColor"
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+              />
+            </svg>
+          ) : (
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              aria-hidden
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+          )}
+          <span>{likeCount.toLocaleString()}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`verse-full-dock-btn${myReact ? ' is-active' : ''}`}
+          disabled={!dv.day}
+          aria-pressed={!!myReact}
+          aria-label={myReact ? `我的回应：${myReact.label}` : '回应'}
+          onClick={onOpenReact}
+        >
+          <span className="verse-full-dock-emoji" aria-hidden>
+            {myReact?.emoji || '🙏'}
+          </span>
+          <span>{reactCount.toLocaleString()}</span>
+        </button>
+
+        <button
+          type="button"
+          className="verse-full-dock-btn"
+          disabled={shareBusy || !dv.text}
+          aria-label="分享"
+          onClick={() => void onShare()}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            aria-hidden
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <circle cx="18" cy="5" r="3" />
+            <circle cx="6" cy="12" r="3" />
+            <circle cx="18" cy="19" r="3" />
+            <path d="M8.59 13.51 15.42 17.49M15.41 6.51 8.59 10.49" />
+          </svg>
+          <span>{shareCount.toLocaleString()}</span>
+        </button>
       </div>
     </div>,
     document.body,
