@@ -20,6 +20,7 @@ import {
   useImComposerHeightSync,
   scrollImChatToBottom,
   previewImKeyboardLift,
+  clearImKeyboardLift,
 } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
@@ -283,7 +284,7 @@ export function GroupComposerBar({
 
   const canType = allowChat && online && !disabled;
 
-  /** 常驻 @：贴底打开成员浮层；不 focus，避免预抬键盘留下空白 */
+  /** 常驻 @：贴底打开成员浮层；不 focus，并清掉键盘抬升避免大块空白 */
   const openMentionPicker = () => {
     if (!canType || sending || uploading) return;
     if (pickerOpen && !composerFocused) {
@@ -298,6 +299,10 @@ export function GroupComposerBar({
     setAtQuery('');
     setAtStart(inputRef.current?.selectionStart ?? text.length);
     setComposerFocused(false);
+    // 同步打上 sheet 标记并清 inset，避免等 effect / blur 轮询期间仍抬着壳
+    document.body.classList.remove('im-plus-sheet');
+    document.body.classList.add('im-mention-sheet');
+    clearImKeyboardLift();
     inputRef.current?.blur();
   };
 
@@ -437,6 +442,10 @@ export function GroupComposerBar({
         inputRef.current?.blur();
         setAtQuery(null);
         setPickerOpen(false);
+        setComposerFocused(false);
+        document.body.classList.remove('im-mention-sheet');
+        document.body.classList.add('im-plus-sheet');
+        clearImKeyboardLift();
       }
       return next;
     });

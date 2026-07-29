@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { contentAssetUrl, effectiveId, type GroupMember, type GroupMessage } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -52,6 +52,18 @@ function taskCompleteTitle(body: string | null | undefined): string | null {
 
 function dedupeMilestones(items: GroupMessage[]): GroupMessage[] {
   let milestoneSeen = false;
+  let needsFilter = false;
+  for (const m of items) {
+    if (m.kind === 'system' && m.body?.includes('全员打卡')) {
+      if (milestoneSeen) {
+        needsFilter = true;
+        break;
+      }
+      milestoneSeen = true;
+    }
+  }
+  if (!needsFilter) return items;
+  milestoneSeen = false;
   return items.filter((m) => {
     if (m.kind !== 'system' || !m.body?.includes('全员打卡')) return true;
     if (milestoneSeen) return false;
@@ -132,10 +144,11 @@ function ChatBubble({
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const longPressFired = useRef(false);
   const uid = effectiveId();
+  const attachKey = m.attachments?.map((a) => a.url).join('|') ?? '';
 
   useEffect(() => {
     setImgBroken(false);
-  }, [m.id, m.attachments?.map((a) => a.url).join('|')]);
+  }, [m.id, attachKey]);
   const actionMine = Boolean(m.mine || (m.user_id && uid && m.user_id === uid));
   const showRecall = canRecallOwnMessage(m.created_at, {
     mine: actionMine,
@@ -437,6 +450,8 @@ function ChatBubble({
                             <img
                               src={href}
                               alt={a.file_name || '图片'}
+                              loading="lazy"
+                              decoding="async"
                               onError={() => setImgBroken(true)}
                             />
                           )}
@@ -568,6 +583,8 @@ function ChatBubble({
   );
 }
 
+const ChatBubbleMemo = memo(ChatBubble);
+
 type Props = {
   gid: string;
   messages: GroupMessage[];
@@ -618,18 +635,87 @@ export function GroupActivityFeed({
     storageKey?: string | null;
   } | null>(null);
 
+  /** 父页回调常随渲染重建；用 ref 稳定传给气泡，避免整表重绘 */
+  const handlersRef = useRef({
+    onReact,
+    onReport,
+    onDelete,
+    onReply,
+    onRecall,
+    onCompleteTask,
+    onResend,
+    onForward,
+    onMemberClick,
+  });
+  handlersRef.current = {
+    onReact,
+    onReport,
+    onDelete,
+    onReply,
+    onRecall,
+    onCompleteTask,
+    onResend,
+    onForward,
+    onMemberClick,
+  };
+
+  const stableReact = useCallback((mid: string, emoji: string) => {
+    handlersRef.current.onReact(mid, emoji);
+  }, []);
+  const stableReport = useCallback((mid: string) => {
+    handlersRef.current.onReport(mid);
+  }, []);
+  const stableDelete = useCallback((mid: string) => {
+    handlersRef.current.onDelete(mid);
+  }, []);
+  const stableReply = useCallback((m: GroupMessage) => {
+    handlersRef.current.onReply?.(m);
+  }, []);
+  const stableRecall = useCallback((mid: string) => {
+    handlersRef.current.onRecall?.(mid);
+  }, []);
+  const stableCompleteTask = useCallback((taskId: string, title: string, ref?: string | null) => {
+    handlersRef.current.onCompleteTask?.(taskId, title, ref);
+  }, []);
+  const stableResend = useCallback((m: GroupMessage) => {
+    handlersRef.current.onResend?.(m);
+  }, []);
+  const stableForward = useCallback((m: GroupMessage) => {
+    handlersRef.current.onForward?.(m);
+  }, []);
+  const stableMemberClick = useCallback((member: GroupMember) => {
+    handlersRef.current.onMemberClick?.(member);
+  }, []);
+
+  const membersSig = members
+    .map((m) => `${m.user_id ?? ''}\u001f${m.name ?? ''}\u001f${m.role ?? ''}`)
+    .join('|');
   const membersById = useMemo(() => {
     const map = new Map<string, GroupMember>();
     for (const mem of members) {
       if (mem.user_id) map.set(mem.user_id, mem);
     }
     return map;
-  }, [members]);
+    // membersSig 变了才重建；内容相同则保留 Map 引用，配合气泡 memo
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membersSig]);
 
-  const openImages = (images: ImLightboxImage[], index: number) => {
+  const openImages = useCallback((images: ImLightboxImage[], index: number) => {
     if (!images.length) return;
     setLightbox({ images, index });
-  };
+  }, []);
+
+  const openFile = useCallback(
+    (payload: {
+      url: string;
+      fileName?: string | null;
+      mime?: string | null;
+      storageKey?: string | null;
+    }) => {
+      setFilePreview(payload);
+    },
+    [],
+  );
 
   const byId = useMemo(() => {
     const map = new Map<string, GroupMessage>();
@@ -638,9 +724,47 @@ export function GroupActivityFeed({
   }, [messages]);
 
   const chrono = useMemo(() => {
-    const sorted = [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
+    let sorted = messages;
+    for (let i = 1; i < messages.length; i++) {
+      if (messages[i]!.created_at.localeCompare(messages[i - 1]!.created_at) < 0) {
+        sorted = [...messages].sort((a, b) => a.created_at.localeCompare(b.created_at));
+        break;
+      }
+    }
     return dedupeMilestones(sorted);
   }, [messages]);
+
+  const rows = useMemo(() => {
+    return chrono.map((m, idx) => {
+      const prev = idx > 0 ? chrono[idx - 1] : null;
+      const dayKey = localDayKey(m.created_at);
+      const prevDay = prev ? localDayKey(prev.created_at) : null;
+      const showDay = !prev || dayKey !== prevDay;
+
+      const parent = m.reply_to_id ? byId.get(m.reply_to_id) : undefined;
+      const replyAuthor = (() => {
+        if (!parent) return '原消息';
+        if (parent.mine) return '我';
+        const mem = parent.user_id ? membersById.get(parent.user_id) : undefined;
+        if (mem) return displayMemberName(mem);
+        if (parent.author && !isPlaceholderDisplayName(parent.author)) return parent.author;
+        return friendRemarkOrName(parent.user_id, '书友');
+      })();
+      const replyPreview = parent
+        ? {
+            id: parent.id,
+            author: replyAuthor,
+            snippet: parent.recalled
+              ? '消息已撤回'
+              : replySnippet(parent.body, parent.kind, parent.attachments?.[0]?.file_name),
+          }
+        : m.reply_to_id
+          ? { author: '原消息', snippet: '（暂未加载）' }
+          : null;
+
+      return { m, dayKey, showDay, replyPreview };
+    });
+  }, [chrono, byId, membersById]);
 
   useEffect(() => {
     if (!hasMore || !onLoadMore) return;
@@ -677,66 +801,35 @@ export function GroupActivityFeed({
         {!hasMore && chrono.length > 12 ? <span className="muted">没有更早消息了</span> : null}
       </div>
 
-      {chrono.map((m, idx) => {
-        const prev = idx > 0 ? chrono[idx - 1] : null;
-        const showAvatar = true;
-        const showName = true;
-
-        const dayKey = localDayKey(m.created_at);
-        const prevDay = prev ? localDayKey(prev.created_at) : null;
-        const showDay = !prev || dayKey !== prevDay;
-
-        const parent = m.reply_to_id ? byId.get(m.reply_to_id) : undefined;
-        const replyAuthor = (() => {
-          if (!parent) return '原消息';
-          if (parent.mine) return '我';
-          const mem = parent.user_id ? membersById.get(parent.user_id) : undefined;
-          if (mem) return displayMemberName(mem);
-          if (parent.author && !isPlaceholderDisplayName(parent.author)) return parent.author;
-          return friendRemarkOrName(parent.user_id, '书友');
-        })();
-        const replyPreview = parent
-          ? {
-              id: parent.id,
-              author: replyAuthor,
-              snippet: parent.recalled
-                ? '消息已撤回'
-                : replySnippet(parent.body, parent.kind, parent.attachments?.[0]?.file_name),
-            }
-          : m.reply_to_id
-            ? { author: '原消息', snippet: '（暂未加载）' }
-            : null;
-
-        return (
-          <div key={m.id} className="group-chat-block">
-            {showDay ? (
-              <div className="dm-day-sep" role="separator">
-                <span>{formatMsgDayLabel(dayKey)}</span>
-              </div>
-            ) : null}
-            <ChatBubble
-              gid={gid}
-              m={m}
-              isOwner={isOwner}
-              showAvatar={showAvatar}
-              showName={showName}
-              membersById={membersById}
-              replyPreview={replyPreview}
-              onReact={onReact}
-              onReport={onReport}
-              onDelete={onDelete}
-              onReply={onReply}
-              onRecall={onRecall}
-              onCompleteTask={onCompleteTask}
-              onResend={onResend}
-              onForward={onForward}
-              onOpenImages={openImages}
-              onMemberClick={onMemberClick}
-              onOpenFile={(payload) => setFilePreview(payload)}
-            />
-          </div>
-        );
-      })}
+      {rows.map(({ m, dayKey, showDay, replyPreview }) => (
+        <div key={m.id} className="group-chat-block">
+          {showDay ? (
+            <div className="dm-day-sep" role="separator">
+              <span>{formatMsgDayLabel(dayKey)}</span>
+            </div>
+          ) : null}
+          <ChatBubbleMemo
+            gid={gid}
+            m={m}
+            isOwner={isOwner}
+            showAvatar
+            showName
+            membersById={membersById}
+            replyPreview={replyPreview}
+            onReact={stableReact}
+            onReport={stableReport}
+            onDelete={stableDelete}
+            onReply={onReply ? stableReply : undefined}
+            onRecall={onRecall ? stableRecall : undefined}
+            onCompleteTask={onCompleteTask ? stableCompleteTask : undefined}
+            onResend={onResend ? stableResend : undefined}
+            onForward={onForward ? stableForward : undefined}
+            onOpenImages={openImages}
+            onMemberClick={onMemberClick ? stableMemberClick : undefined}
+            onOpenFile={openFile}
+          />
+        </div>
+      ))}
 
       {lightbox ? (
         <ImImageLightbox

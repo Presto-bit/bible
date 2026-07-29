@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Avatar from '@/components/Avatar';
 import type { GroupMember } from '@/lib/api';
 import { memberAvatarId } from '@/lib/member_avatar';
@@ -11,7 +12,7 @@ type Props = {
   dimmed?: boolean;
 };
 
-export function MemberAvatar({ member, size = 32, className = '', dimmed }: Props) {
+function MemberAvatarInner({ member, size = 32, className = '', dimmed }: Props) {
   return (
     <span
       className={`member-avatar-wrap${dimmed ? ' member-avatar-dimmed' : ''}${className ? ` ${className}` : ''}`}
@@ -22,3 +23,5 @@ export function MemberAvatar({ member, size = 32, className = '', dimmed }: Prop
     </span>
   );
 }
+
+export const MemberAvatar = memo(MemberAvatarInner);

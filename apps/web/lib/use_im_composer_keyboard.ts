@@ -12,12 +12,19 @@ function pinScrollTop() {
   if (app instanceof HTMLElement) app.scrollTop = 0;
 }
 
+/** 同一容器短时多次滚底合并，避免 RAF/timer 风暴 */
+const scrollBottomLastAt = new WeakMap<HTMLElement, number>();
+
 /**
  * 滚到会话底：只改滚动容器 scrollTop，避免 scrollIntoView
  * 在 iOS 上连带顶起 visualViewport / 把输入框顶到键盘下。
  */
 export function scrollImChatToBottom(el: HTMLElement | null | undefined) {
   if (!el) return;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const last = scrollBottomLastAt.get(el) ?? 0;
+  if (now - last < 64) return;
+  scrollBottomLastAt.set(el, now);
   const pin = () => {
     const max = Math.max(0, el.scrollHeight - el.clientHeight);
     el.scrollTop = max;
@@ -248,25 +255,41 @@ export function useImComposerKeyboard(
 
     if (!active) {
       maxKbRef.current = 0;
-      let n = 0;
-      const kb0 = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
-      if (kb0 <= 24) {
+      const isBottomSheet = () =>
+        body.classList.contains('im-plus-sheet')
+        || body.classList.contains('im-mention-sheet');
+      // 加号 / @ 贴底面板：立刻落回屏底，勿沿用键盘 inset 留白
+      if (isBottomSheet()) {
         clearChrome();
         pinScrollTop();
       } else {
-        applyChrome(kb0);
-        poll = window.setInterval(() => {
-          n += 1;
-          const kb = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
-          if (kb <= 24 || n > 28) {
-            if (poll) window.clearInterval(poll);
-            poll = undefined;
-            clearChrome();
-            pinScrollTop();
-            return;
-          }
-          applyChrome(kb);
-        }, 50);
+        let n = 0;
+        const kb0 = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
+        if (kb0 <= 24) {
+          clearChrome();
+          pinScrollTop();
+        } else {
+          applyChrome(kb0);
+          poll = window.setInterval(() => {
+            n += 1;
+            if (isBottomSheet()) {
+              if (poll) window.clearInterval(poll);
+              poll = undefined;
+              clearChrome();
+              pinScrollTop();
+              return;
+            }
+            const kb = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
+            if (kb <= 24 || n > 28) {
+              if (poll) window.clearInterval(poll);
+              poll = undefined;
+              clearChrome();
+              pinScrollTop();
+              return;
+            }
+            applyChrome(kb);
+          }, 50);
+        }
       }
     } else {
       if (!baselineHRef.current) {
@@ -320,4 +343,15 @@ export function previewImKeyboardLift() {
   const body = document.body;
   body.classList.add('im-keyboard');
   root.style.setProperty('--im-kb-inset', `${kb}px`);
+}
+
+/** 打开加号 / @ 等贴底面板时立刻清掉键盘抬升，避免留下整块空白 */
+export function clearImKeyboardLift() {
+  const root = document.documentElement;
+  const body = document.body;
+  body.classList.remove('im-keyboard', 'im-keyboard-overlay');
+  root.style.removeProperty('--im-kb-inset');
+  root.style.removeProperty('--im-vv-top');
+  root.style.removeProperty('--im-vv-h');
+  pinScrollTop();
 }

@@ -1,6 +1,6 @@
 /** 气泡正文：经文卡 + 链接可点 + @ 高亮。 */
 
-import type { ReactNode } from 'react';
+import { memo, useMemo, type ReactNode } from 'react';
 import Link from 'next/link';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -25,7 +25,54 @@ function shouldShowVerse(kind?: string, verseRef?: string | null): boolean {
   return !['system'].includes(kind);
 }
 
-export function ImMessageBody({
+function renderLinkedText(text: string): ReactNode {
+  // 先按 URL 切开，再在非 URL 片段里做 @
+  const parts: ReactNode[] = [];
+  let last = 0;
+  const urlRe = new RegExp(URL_RE.source, 'gi');
+  let m: RegExpExecArray | null;
+  let i = 0;
+
+  const pushPlain = (chunk: string, keyBase: string) => {
+    if (!chunk) return;
+    const mentionRe = new RegExp(MENTION_RE.source, 'g');
+    let mLast = 0;
+    let mm: RegExpExecArray | null;
+    let j = 0;
+    while ((mm = mentionRe.exec(chunk))) {
+      if (mm.index > mLast) parts.push(chunk.slice(mLast, mm.index));
+      const token = mm[0];
+      const name = mm[1];
+      const isAll = name === '所有人';
+      parts.push(
+        <span
+          key={`${keyBase}-m-${j++}`}
+          className="im-mention-token"
+          data-mention={isAll ? 'all' : name}
+        >
+          {token}
+        </span>,
+      );
+      mLast = mm.index + token.length;
+    }
+    if (mLast < chunk.length) parts.push(chunk.slice(mLast));
+  };
+
+  while ((m = urlRe.exec(text))) {
+    if (m.index > last) pushPlain(text.slice(last, m.index), `t-${i}`);
+    const url = m[0];
+    parts.push(
+      <a key={`u-${i++}`} href={url} target="_blank" rel="noreferrer noopener" className="im-inline-link">
+        {url}
+      </a>,
+    );
+    last = m.index + url.length;
+  }
+  if (last < text.length) pushPlain(text.slice(last), `t-${i}`);
+  return parts.length ? parts : text;
+}
+
+function ImMessageBodyInner({
   body,
   ref: verseRef,
   kind,
@@ -34,58 +81,12 @@ export function ImMessageBody({
 }: Props) {
   const showVerse = showVerseCard && shouldShowVerse(kind, verseRef);
   const href = verseRef ? readerHrefFromRef(verseRef) : null;
+  const textNodes = useMemo(() => (body ? renderLinkedText(body) : null), [body]);
 
   const markReturn = () => {
     if (typeof window !== 'undefined') {
       setReaderReturnHref(`${window.location.pathname}${window.location.search}`);
     }
-  };
-
-  const renderText = (text: string) => {
-    // 先按 URL 切开，再在非 URL 片段里做 @
-    const parts: ReactNode[] = [];
-    let last = 0;
-    const urlRe = new RegExp(URL_RE.source, 'gi');
-    let m: RegExpExecArray | null;
-    let i = 0;
-
-    const pushPlain = (chunk: string, keyBase: string) => {
-      if (!chunk) return;
-      const mentionRe = new RegExp(MENTION_RE.source, 'g');
-      let mLast = 0;
-      let mm: RegExpExecArray | null;
-      let j = 0;
-      while ((mm = mentionRe.exec(chunk))) {
-        if (mm.index > mLast) parts.push(chunk.slice(mLast, mm.index));
-        const token = mm[0];
-        const name = mm[1];
-        const isAll = name === '所有人';
-        parts.push(
-          <span
-            key={`${keyBase}-m-${j++}`}
-            className="im-mention-token"
-            data-mention={isAll ? 'all' : name}
-          >
-            {token}
-          </span>,
-        );
-        mLast = mm.index + token.length;
-      }
-      if (mLast < chunk.length) parts.push(chunk.slice(mLast));
-    };
-
-    while ((m = urlRe.exec(text))) {
-      if (m.index > last) pushPlain(text.slice(last, m.index), `t-${i}`);
-      const url = m[0];
-      parts.push(
-        <a key={`u-${i++}`} href={url} target="_blank" rel="noreferrer noopener" className="im-inline-link">
-          {url}
-        </a>,
-      );
-      last = m.index + url.length;
-    }
-    if (last < text.length) pushPlain(text.slice(last), `t-${i}`);
-    return parts.length ? parts : text;
   };
 
   return (
@@ -109,7 +110,9 @@ export function ImMessageBody({
           </div>
         )
       ) : null}
-      {body ? <p className="im-msg-text">{renderText(body)}</p> : null}
+      {textNodes ? <p className="im-msg-text">{textNodes}</p> : null}
     </div>
   );
 }
+
+export const ImMessageBody = memo(ImMessageBodyInner);

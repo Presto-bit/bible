@@ -20403,6 +20403,17 @@ body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50
 /* 加号 / @ 选人：只收起底栏，不抬键盘高度（否则会留下整块键盘空白） */
 body.im-plus-sheet .tabbar,
 body.im-mention-sheet .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
+/* 面板打开时强制壳贴屏底，覆盖残留的 --im-kb-inset / im-keyboard */
+body.im-plus-sheet .group-page-checkin,
+body.im-mention-sheet .group-page-checkin,
+body.im-plus-sheet .dm-page,
+body.im-mention-sheet .dm-page,
+body.im-plus-sheet.im-keyboard .group-page-checkin,
+body.im-mention-sheet.im-keyboard .group-page-checkin,
+body.im-plus-sheet.im-keyboard .dm-page,
+body.im-mention-sheet.im-keyboard .dm-page {
+  bottom: 0;
+}
 body.im-keyboard .im-jump-bottom{
   bottom: calc(var(--im-kb-inset, 0px) + var(--im-composer-h, 64px) + 12px);
 }

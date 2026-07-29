@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import { Suspense, startTransition, useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { GroupActivityFeed } from '@/components/group/GroupActivityFeed';
 import { GroupMemberProfileSheet } from '@/components/group/GroupMemberProfileSheet';
@@ -35,6 +35,7 @@ import { formatGroupRefLabel } from '@/lib/ref_label';
 import { replySnippet } from '@/lib/im_ui';
 import { useFocusMessage } from '@/lib/use_focus_message';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
+import { keepIfSameMessageList, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { errorMessage } from '@/lib/friendly_error';
 import { hapticSuccess } from '@/lib/haptic';
@@ -102,6 +103,7 @@ function GroupPageInner() {
   const feedWrapRef = useRef<HTMLDivElement>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const feedReloadGate = useRef<ReloadGate>({ busy: false, queued: false });
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -120,7 +122,7 @@ function GroupPageInner() {
       const incoming = Array.isArray(f.messages) ? f.messages : [];
       setFeed((prev) => {
         const temps = prev.filter((m) => m.id.startsWith('temp-'));
-        if (!temps.length) return incoming;
+        if (!temps.length) return keepIfSameMessageList(prev, incoming);
         const merged = [...incoming];
         for (const t of temps) {
           const dup = merged.some(
@@ -134,7 +136,7 @@ function GroupPageInner() {
           if (!dup) merged.push(t);
         }
         merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
-        return merged;
+        return keepIfSameMessageList(prev, merged);
       });
       setHasMore(Boolean(f.has_more));
       hasMoreRef.current = Boolean(f.has_more);
@@ -154,32 +156,36 @@ function GroupPageInner() {
   /** realtime 热路径：只刷消息流，避免反复打重型 group_detail */
   const reloadFeed = useCallback(async () => {
     if (!gid) return;
-    try {
-      const f = await api.groupFeed(gid);
-      const incoming = Array.isArray(f.messages) ? f.messages : [];
-      setFeed((prev) => {
-        const temps = prev.filter((m) => m.id.startsWith('temp-'));
-        if (!temps.length) return incoming;
-        const merged = [...incoming];
-        for (const t of temps) {
-          const dup = merged.some(
-            (m) =>
-              m.mine
-              && m.kind === t.kind
-              && (m.body || '') === (t.body || '')
-              && (m.ref || '') === (t.ref || '')
-              && Math.abs(new Date(m.created_at).getTime() - new Date(t.created_at).getTime()) < 120000,
-          );
-          if (!dup) merged.push(t);
-        }
-        merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
-        return merged;
-      });
-      setHasMore(Boolean(f.has_more));
-      setErr(null);
-    } catch {
-      /* 静默：下次可见时再全量 */
-    }
+    await runReloadGate(feedReloadGate.current, async () => {
+      try {
+        const f = await api.groupFeed(gid);
+        const incoming = Array.isArray(f.messages) ? f.messages : [];
+        startTransition(() => {
+          setFeed((prev) => {
+            const temps = prev.filter((m) => m.id.startsWith('temp-'));
+            if (!temps.length) return keepIfSameMessageList(prev, incoming);
+            const merged = [...incoming];
+            for (const t of temps) {
+              const dup = merged.some(
+                (m) =>
+                  m.mine
+                  && m.kind === t.kind
+                  && (m.body || '') === (t.body || '')
+                  && (m.ref || '') === (t.ref || '')
+                  && Math.abs(new Date(m.created_at).getTime() - new Date(t.created_at).getTime()) < 120000,
+              );
+              if (!dup) merged.push(t);
+            }
+            merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
+            return keepIfSameMessageList(prev, merged);
+          });
+          setHasMore(Boolean(f.has_more));
+          setErr(null);
+        });
+      } catch {
+        /* 静默：下次可见时再全量 */
+      }
+    });
   }, [gid]);
 
   const prayerPendingCountRef = useRef(0);
@@ -264,7 +270,8 @@ function GroupPageInner() {
     const onScroll = () => {
       const dist = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
       stickBottom.current = dist < 100;
-      setShowJump(dist > 140);
+      const nextJump = dist > 140;
+      setShowJump((prev) => (prev === nextJump ? prev : nextJump));
     };
     wrap.addEventListener('scroll', onScroll, { passive: true });
     return () => wrap.removeEventListener('scroll', onScroll);

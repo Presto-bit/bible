@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, startTransition, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { api, contentAssetUrl, effectiveId, ensureAccountReady, type DmMessage } from '@/lib/api';
@@ -31,7 +31,7 @@ import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImIma
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
-import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, previewImKeyboardLift } from '@/lib/use_im_composer_keyboard';
+import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, previewImKeyboardLift, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
@@ -52,6 +52,7 @@ import {
 } from '@/lib/group_reactions';
 import { useFocusMessage } from '@/lib/use_focus_message';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
+import { keepIfSameMessageList, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
 import { useOnline } from '@/lib/use_online';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
@@ -117,6 +118,7 @@ function DmThreadPageInner() {
   const endRef = useRef<HTMLDivElement | null>(null);
   const stickBottom = useRef(true);
   const wasOffline = useRef(false);
+  const dmReloadGate = useRef<ReloadGate>({ busy: false, queued: false });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStart = useRef<{ x: number; y: number } | null>(null);
   const longPressFired = useRef(false);
@@ -224,44 +226,48 @@ function DmThreadPageInner() {
 
   const reload = useCallback(async () => {
     if (!threadId) return;
-    try {
-      const r = await api.dmMessages(threadId, { limit: 50 });
-      const incoming = (r.messages || []) as LocalDm[];
-      if (r.peer_user_id) setPeerUserId(r.peer_user_id);
-      if (r.peer_title || r.peer_user_id) {
-        const raw = r.peer_title || '私信';
-        setPeerTitleRaw(raw);
-        setTitle(dmTitleWithRemark(r.peer_user_id, raw));
-      }
-      setMsgs((prev) => {
-        const temps = prev.filter((m) => m.id.startsWith('temp-'));
-        if (!temps.length) return incoming;
-        const merged = [...incoming];
-        for (const t of temps) {
-          const dup = merged.some(
-            (m) =>
-              m.sender_id === t.sender_id
-              && (m.body || '') === (t.body || '')
-              && m.kind === t.kind
-              && Math.abs(
-                new Date(m.created_at || 0).getTime() - new Date(t.created_at || 0).getTime(),
-              ) < 120000,
-          );
-          if (!dup) merged.push(t);
+    await runReloadGate(dmReloadGate.current, async () => {
+      try {
+        const r = await api.dmMessages(threadId, { limit: 50 });
+        const incoming = (r.messages || []) as LocalDm[];
+        if (r.peer_user_id) setPeerUserId(r.peer_user_id);
+        if (r.peer_title || r.peer_user_id) {
+          const raw = r.peer_title || '私信';
+          setPeerTitleRaw(raw);
+          setTitle(dmTitleWithRemark(r.peer_user_id, raw));
         }
-        return merged;
-      });
-      hasMoreRef.current = Boolean(r.has_more);
-      setHasMore(Boolean(r.has_more));
-      // 已读只在首进/回前台写一次，避免 realtime 刷消息时写放大
-      if (!markedReadRef.current) {
-        markedReadRef.current = true;
-        void api.patchConversationState('dm', threadId, {});
+        startTransition(() => {
+          setMsgs((prev) => {
+            const temps = prev.filter((m) => m.id.startsWith('temp-'));
+            if (!temps.length) return keepIfSameMessageList(prev, incoming);
+            const merged = [...incoming];
+            for (const t of temps) {
+              const dup = merged.some(
+                (m) =>
+                  m.sender_id === t.sender_id
+                  && (m.body || '') === (t.body || '')
+                  && m.kind === t.kind
+                  && Math.abs(
+                    new Date(m.created_at || 0).getTime() - new Date(t.created_at || 0).getTime(),
+                  ) < 120000,
+              );
+              if (!dup) merged.push(t);
+            }
+            return keepIfSameMessageList(prev, merged);
+          });
+          hasMoreRef.current = Boolean(r.has_more);
+          setHasMore(Boolean(r.has_more));
+          // 已读只在首进/回前台写一次，避免 realtime 刷消息时写放大
+          if (!markedReadRef.current) {
+            markedReadRef.current = true;
+            void api.patchConversationState('dm', threadId, {});
+          }
+          setErr(null);
+        });
+      } catch (e) {
+        setErr(errorMessage(e, '加载失败'));
       }
-      setErr(null);
-    } catch (e) {
-      setErr(errorMessage(e, '加载失败'));
-    }
+    });
   }, [threadId]);
 
   const loadMore = useCallback(async (): Promise<boolean> => {
@@ -392,7 +398,8 @@ function DmThreadPageInner() {
     if (!el) return;
     const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
     stickBottom.current = dist < 80;
-    setShowJump(dist > 120);
+    const nextJump = dist > 120;
+    setShowJump((prev) => (prev === nextJump ? prev : nextJump));
   };
 
   const jumpBottom = () => {
@@ -1029,12 +1036,13 @@ function DmThreadPageInner() {
                       <ImMessageBody body={m.body} ref={m.ref} kind={m.kind} />
                       {m.attachments && m.attachments.length > 0 ? (
                         <div className="group-msg-attach">
-                          {m.attachments.map((a) => {
+                          {(() => {
+                            const msgImages = collectMessageImages(m.attachments, m.kind);
+                            return m.attachments.map((a) => {
                             const href = a.url ? contentAssetUrl(a.url) : null;
                             const isImg = (a.mime || '').startsWith('image/') || m.kind === 'image';
                             if (isImg && href) {
-                              const imgs = collectMessageImages(m.attachments, m.kind);
-                              const idx = imgs.findIndex((img) => img.src === href);
+                              const idx = msgImages.findIndex((img) => img.src === href);
                               return (
                                 <button
                                   key={a.id}
@@ -1046,11 +1054,16 @@ function DmThreadPageInner() {
                                       longPressFired.current = false;
                                       return;
                                     }
-                                    openImages(imgs, idx >= 0 ? idx : 0);
+                                    openImages(msgImages, idx >= 0 ? idx : 0);
                                   }}
                                 >
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img src={href} alt={a.file_name || '图片'} />
+                                  <img
+                                    src={href}
+                                    alt={a.file_name || '图片'}
+                                    loading="lazy"
+                                    decoding="async"
+                                  />
                                 </button>
                               );
                             }
@@ -1076,7 +1089,8 @@ function DmThreadPageInner() {
                                 ) : null}
                               </span>
                             );
-                          })}
+                          });
+                          })()}
                         </div>
                       ) : null}
                       {(m.pending || m.sendFailed) ? (
@@ -1273,6 +1287,9 @@ function DmThreadPageInner() {
                 if (next) {
                   inputRef.current?.blur();
                   setVoiceMode(false);
+                  setComposerFocused(false);
+                  document.body.classList.add('im-plus-sheet');
+                  clearImKeyboardLift();
                 }
                 return next;
               });
