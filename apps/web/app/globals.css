@@ -20376,9 +20376,9 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
 }
 /*
  * 键盘态（群 / 私信同款）：
- * - 仅当 --im-kb-inset 为正时抬壳；未聚焦切勿残留 inset（否则底部大块空白）
- * - 输入栏文档流贴壳底，自然落在键盘上沿
- * - 群页必须 min-height:0，否则 .group-page 的 100dvh 会盖过 bottom:inset
+ * - resizes-content：layout 已缩，--im-kb-inset 应为 0，壳 top/bottom:0 填满剩余区
+ * - overlays：才用正 inset 抬壳；切勿与 layout 收缩叠加（会白屏）
+ * - 输入栏文档流贴壳底
  */
 .group-page-checkin,
 .dm-page {
