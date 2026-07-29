@@ -310,6 +310,7 @@ nav.tabbar,
   -webkit-user-select: none;
   user-select: none;
   isolation: isolate;
+  overflow: visible;
 }
 
 .tab-offline-hint {
@@ -547,6 +548,13 @@ body.reader-immersive .tabbar {
   user-select: none;
   touch-action: manipulation;
   transition: transform 0.12s ease, color 0.12s ease, background 0.12s ease;
+  overflow: visible;
+  position: relative;
+  z-index: 0;
+}
+
+.tab:has(.tab-unread-badge) {
+  z-index: 2;
 }
 
 .tab svg {
@@ -559,12 +567,16 @@ body.reader-immersive .tabbar {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
+  max-width: none;
+  padding: 0;
 }
 
 .tab-unread-badge {
   position: absolute;
   top: -5px;
   right: -10px;
+  z-index: 2;
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
@@ -577,9 +589,15 @@ body.reader-immersive .tabbar {
   text-align: center;
   box-sizing: border-box;
   pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  max-width: none;
+  white-space: nowrap;
 }
 
-.tab span {
+.tab > span:not(.tab-icon-wrap) {
   display: block;
   max-width: 100%;
   padding: 0 2px;
@@ -602,7 +620,7 @@ body.reader-immersive .tabbar {
   color: var(--ink);
 }
 
-.tab-active span {
+.tab-active > span:not(.tab-icon-wrap) {
   font-weight: 600;
   color: var(--ink);
 }
