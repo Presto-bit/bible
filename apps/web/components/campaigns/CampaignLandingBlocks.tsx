@@ -98,15 +98,19 @@ export function CampaignLandingBlocks({
 
   const onDragOverZone = (e: DragEvent, zoneId: string) => {
     if (!canDrop) return;
-    const types = Array.from(e.dataTransfer.types || []);
-    const fromPalette = types.includes(OPS_BLOCK_TYPE_MIME);
+    // Safari 等在 dragover 阶段不暴露自定义 MIME，只认 text/plain
+    const types = Array.from(e.dataTransfer.types || []).map((t) => t.toLowerCase());
+    const hasText = types.includes('text/plain') || types.includes('text');
+    const fromPalette =
+      types.includes(OPS_BLOCK_TYPE_MIME.toLowerCase()) ||
+      (hasText && onInsertBlock != null);
     const fromBlock =
       canReorder &&
-      (types.includes('application/x-ops-block-id') ||
-        (!fromPalette && types.includes('text/plain')));
+      (types.includes('application/x-ops-block-id') || hasText);
     if (!fromPalette && !fromBlock) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = fromPalette ? 'copy' : 'move';
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = types.includes('application/x-ops-block-id') ? 'move' : 'copy';
     setOverId(zoneId);
   };
 
@@ -257,6 +261,9 @@ export function CampaignLandingBlocks({
               <span className="ops-lb-drag-hint muted" aria-hidden>
                 ⋮⋮
               </span>
+            ) : null}
+            {mode === 'preview' ? (
+              <span className="ops-lb-type-tag">{BLOCK_CATALOG[block.type].label}</span>
             ) : null}
             {inner}
           </div>

@@ -13,6 +13,7 @@ export type CampaignDraftPayload = {
   railSlot: number;
   railEnabled: boolean;
   railHref?: string;
+  coverUrl?: string;
   startAt: string;
   endAt: string;
   landing: OpsCampaignLanding;

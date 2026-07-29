@@ -64,6 +64,8 @@ export type RailCard = {
   /** 场景卡底部右侧进度文案，如 1/50 */
   mediaCaptionRight?: string;
   coverVariant?: RailCoverVariant;
+  /** 自定义封面图（优先于 bookId） */
+  coverUrl?: string;
 };
 
 const RAIL_TITLE_MAX = 24;
@@ -191,6 +193,7 @@ export type HomeRailInput = {
     sub: string;
     href: string;
     bookId?: string;
+    coverUrl?: string;
     mediaCaption?: string;
     mediaCaptionRight?: string;
     progressPct?: number;
@@ -429,7 +432,8 @@ export function buildHomeRail(input: HomeRailInput): {
       sub: c.sub || '继续阅读',
       href: c.href,
       icon: RAIL_ICONS.campaign,
-      bookId: c.bookId || 'GEN',
+      bookId: c.coverUrl ? undefined : c.bookId || 'GEN',
+      coverUrl: c.coverUrl || undefined,
       progressPct: c.progressPct,
     }),
   );

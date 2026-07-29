@@ -2,11 +2,11 @@
 
 export type OpsCanvasCols = { left: number; mid: number; right: number };
 
-const STORAGE_KEY = 'ops-canvas-cols-v2';
+const STORAGE_KEY = 'ops-canvas-cols-v3';
 const GAP = 8;
 
-export const OPS_COL_MIN = { left: 260, mid: 260, right: 220 } as const;
-export const OPS_COL_DEFAULT: OpsCanvasCols = { left: 380, mid: 340, right: 300 };
+export const OPS_COL_MIN = { left: 240, mid: 200, right: 240 } as const;
+export const OPS_COL_DEFAULT: OpsCanvasCols = { left: 360, mid: 320, right: 360 };
 
 export function loadOpsCanvasCols(): OpsCanvasCols {
   if (typeof window === 'undefined') return OPS_COL_DEFAULT;
@@ -44,26 +44,29 @@ export function clampCols(cols: OpsCanvasCols, containerWidth?: number): OpsCanv
     if (avail >= OPS_COL_MIN.left + OPS_COL_MIN.mid + OPS_COL_MIN.right) {
       let sum = left + mid + right;
       if (sum > avail) {
-        const overflow = sum - avail;
-        // 优先压缩中间，再左右
+        let overflow = sum - avail;
+        // 优先压缩中间预览，再左栏，尽量保住右侧「页面结构」宽度
         const midCut = Math.min(overflow, mid - OPS_COL_MIN.mid);
         mid -= midCut;
-        let rest = overflow - midCut;
-        if (rest > 0) {
-          const leftCut = Math.min(Math.ceil(rest / 2), left - OPS_COL_MIN.left);
+        overflow -= midCut;
+        if (overflow > 0) {
+          const leftCut = Math.min(overflow, left - OPS_COL_MIN.left);
           left -= leftCut;
-          rest -= leftCut;
+          overflow -= leftCut;
         }
-        if (rest > 0) {
-          right = Math.max(OPS_COL_MIN.right, right - rest);
+        if (overflow > 0) {
+          right = Math.max(OPS_COL_MIN.right, right - overflow);
         }
+      } else if (sum < avail) {
+        // 多余空间优先补给页面结构（右栏）
+        right += avail - sum;
       }
     }
   }
   return { left, mid, right };
 }
 
-/** edge 0：调 left|mid；edge 1：调 mid|right */
+/** edge 0：调 left|mid；edge 1：调 mid|right（可再从 left 借宽给 right） */
 export function applyOpsColDrag(
   start: OpsCanvasCols,
   edge: 0 | 1,
@@ -76,10 +79,32 @@ export function applyOpsColDrag(
     const mid = start.left + start.mid - left;
     return clampCols({ left, mid, right: start.right }, containerWidth);
   }
-  const maxMid = start.mid + start.right - OPS_COL_MIN.right;
-  const mid = Math.min(maxMid, Math.max(OPS_COL_MIN.mid, start.mid + dx));
-  const right = start.mid + start.right - mid;
-  return clampCols({ left: start.left, mid, right }, containerWidth);
+
+  // 分隔条右移：预览变宽、结构变窄；左移：结构变宽（可继续从左栏借宽）
+  let left = start.left;
+  let mid = start.mid + dx;
+  let right = start.right - dx;
+
+  if (mid < OPS_COL_MIN.mid) {
+    const deficit = OPS_COL_MIN.mid - mid;
+    mid = OPS_COL_MIN.mid;
+    const fromLeft = Math.min(deficit, left - OPS_COL_MIN.left);
+    left -= fromLeft;
+    const still = deficit - fromLeft;
+    if (still > 0) right = Math.max(OPS_COL_MIN.right, right - still);
+  }
+  if (right < OPS_COL_MIN.right) {
+    const deficit = OPS_COL_MIN.right - right;
+    right = OPS_COL_MIN.right;
+    mid = Math.max(OPS_COL_MIN.mid, mid - deficit);
+  }
+  if (left < OPS_COL_MIN.left) {
+    const deficit = OPS_COL_MIN.left - left;
+    left = OPS_COL_MIN.left;
+    mid = Math.max(OPS_COL_MIN.mid, mid - deficit);
+  }
+
+  return clampCols({ left, mid, right }, containerWidth);
 }
 
 export function opsCanvasGridStyle(cols: OpsCanvasCols): {

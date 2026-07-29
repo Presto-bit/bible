@@ -10,13 +10,16 @@ import {
   saveCampaignDraft,
 } from '@/lib/campaign_draft';
 import {
+  loadLastAudiencePref,
+  resolveDefaultGroupIds,
+  saveLastAudiencePref,
+} from '@/lib/campaign_audience_pref';
+import {
   buildPublishChecklist,
   CAMPAIGN_CONFIG_SECTIONS,
-  campaignPreviewUrl,
   campaignSectionDone,
   campaignStatusLabel,
   campaignStatusTone,
-  copyText,
   firstIncompleteSection,
   type CampaignConfigSectionId,
 } from '@/lib/campaign_ops';
@@ -28,7 +31,9 @@ import { useOpsCanvasResize } from '@/lib/use_ops_canvas_resize';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { CampaignBlockEditor } from '@/components/campaigns/CampaignBlockEditor';
 import { CampaignLivePreview, type CampaignPreviewEditTarget } from '@/components/campaigns/CampaignLivePreview';
+import { CampaignCoverPicker } from '@/components/campaigns/CampaignCoverPicker';
 import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
+import { normalizeCampaignCoverPath } from '@/lib/daily_verse_wallpaper';
 
 function toLocalInput(iso: string): string {
   if (!iso) return '';
@@ -64,6 +69,7 @@ function CampaignEditInner() {
   const [railSlot, setRailSlot] = useState(1);
   const [railEnabled, setRailEnabled] = useState(true);
   const [railHref, setRailHref] = useState('');
+  const [coverUrl, setCoverUrl] = useState('');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
   const [landing, setLanding] = useState<OpsCampaignLanding>({});
@@ -84,7 +90,6 @@ function CampaignEditInner() {
   const pinnedOpen = useRef<Partial<Record<CampaignConfigSectionId, boolean>>>({});
   /** 顶部三 Tab：搭内容 | 改控件 | 发布条件 */
   const [leftTab, setLeftTab] = useState<'palette' | 'config' | 'settings'>('palette');
-  const [settingsMoreOpen, setSettingsMoreOpen] = useState(false);
   const tabSwipeX = useRef<number | null>(null);
   const { gridRef, gridStyle, splitterProps } = useOpsCanvasResize();
   const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
@@ -177,6 +182,7 @@ function CampaignEditInner() {
       setRailSlot(campaign.railSlot || 1);
       setRailEnabled(campaign.railEnabled !== false);
       setRailHref(campaign.railHref || '');
+      setCoverUrl(normalizeCampaignCoverPath(campaign.coverUrl));
       setStartAt(toLocalInput(campaign.startAt));
       setEndAt(toLocalInput(campaign.endAt));
       setAudienceMode(
@@ -187,20 +193,40 @@ function CampaignEditInner() {
         Boolean(draft?.savedAt) &&
         (!campaign.updatedAt ||
           new Date(draft!.savedAt).getTime() > new Date(campaign.updatedAt).getTime());
-      if (draftNewer && window.confirm('发现本地未同步草稿，是否恢复？')) {
+      if (draftNewer) {
         setName(draft!.name);
         setSubtitle(draft!.subtitle);
         setStatus(draft!.status);
-        setGroupIds((draft!.groupIds || []).filter((id) => allowed.has(id)));
+        setGroupIds((draft!.groupIds || []).filter((gid) => allowed.has(gid)));
         if (draft!.audienceMode) setAudienceMode(draft!.audienceMode);
         setRailSlot(draft!.railSlot);
         setRailEnabled(draft!.railEnabled);
         setRailHref(draft!.railHref || '');
+        setCoverUrl(normalizeCampaignCoverPath(draft!.coverUrl));
         setStartAt(draft!.startAt);
         setEndAt(draft!.endAt);
         setLanding(ensureLandingBlocks(draft!.landing || {}, campaign.templateId));
-        setHint('已恢复本地草稿');
+        setHint('已恢复上次编辑');
       } else {
+        const pref = loadLastAudiencePref();
+        const nextIds =
+          savedIds.length > 0
+            ? savedIds
+            : resolveDefaultGroupIds(
+                available.map((x) => x.id),
+                pref?.audienceMode === 'groups' ? pref.groupIds : null,
+              );
+        setGroupIds(nextIds);
+        if (!campaign.audienceMode && pref?.audienceMode) {
+          const mode = pref.audienceMode;
+          setAudienceMode(
+            mode === 'all' || mode === 'admin_preview'
+              ? adminOk
+                ? mode
+                : 'groups'
+              : 'groups',
+          );
+        }
         setLanding(ensureLandingBlocks(campaign.landing || {}, campaign.templateId));
       }
       skipDraftOnce.current = true;
@@ -230,6 +256,7 @@ function CampaignEditInner() {
         railSlot,
         railEnabled,
         railHref,
+        coverUrl,
         startAt,
         endAt,
         landing,
@@ -247,6 +274,7 @@ function CampaignEditInner() {
     railSlot,
     railEnabled,
     railHref,
+    coverUrl,
     startAt,
     endAt,
     landing,
@@ -393,6 +421,7 @@ function CampaignEditInner() {
         railSlot,
         railEnabled,
         railHref: railHref.trim(),
+        coverUrl: coverUrl.trim() || null,
         groupIds: audienceMode === 'groups' ? groupIds : [],
         landing: {
           ...landing,
@@ -406,12 +435,17 @@ function CampaignEditInner() {
       setStatus(campaign.status);
       setAudienceMode((campaign.audienceMode as typeof audienceMode) || 'groups');
       setRailHref(campaign.railHref || '');
+      setCoverUrl(normalizeCampaignCoverPath(campaign.coverUrl));
       setLanding(ensureLandingBlocks(campaign.landing || landing, campaign.templateId));
       clearCampaignDraft(id);
       skipDraftOnce.current = true;
+      saveLastAudiencePref({
+        audienceMode: isPlatformAdmin ? audienceMode : 'groups',
+        groupIds: audienceMode === 'groups' ? groupIds : [],
+      });
       setHint('已保存');
       if (nextStatus === 'published') {
-        router.push(`/campaigns/view/${id}?preview=1`);
+        router.push(`/campaigns/${id}`);
       }
     } catch (e) {
       setErr(e instanceof Error ? e.message : '保存失败');
@@ -439,37 +473,6 @@ function CampaignEditInner() {
     }
   };
 
-  const extend = async () => {
-    setBusy(true);
-    try {
-      const { campaign } = await api.extendCampaign(id, 7);
-      setEndAt(toLocalInput(campaign.endAt));
-      setStatus(campaign.status);
-      setHint('已延期 7 天');
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : '延期失败');
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const copyCampaign = async () => {
-    setBusy(true);
-    try {
-      const { campaign } = await api.copyCampaign(id);
-      setHint('已复制为新草稿');
-      router.push(`/campaigns/${campaign.id}/edit`);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : '复制失败');
-      setBusy(false);
-    }
-  };
-
-  const copyPreview = async () => {
-    const ok = await copyText(campaignPreviewUrl(id));
-    setHint(ok ? '预览链已复制' : '复制失败');
-  };
-
   if (!camp && !err) {
     return (
       <main className="container">
@@ -481,8 +484,8 @@ function CampaignEditInner() {
   if (!camp && err) {
     return (
       <main className="container ops-page">
-        <Link href="/admin?tab=ops" className="ops-back">
-          ← 活动运营
+        <Link href={`/campaigns/${id}`} className="ops-back">
+          ← 活动详情
         </Link>
         <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>
           {err}
@@ -497,6 +500,8 @@ function CampaignEditInner() {
     <OpsPcShell
       title={name.trim() || '编辑活动'}
       variant="edit"
+      backHref={`/campaigns/${id}`}
+      backLabel="活动详情"
       sub={
         camp ? (
           <span style={{ display: 'inline-flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -612,6 +617,12 @@ function CampaignEditInner() {
                   也可在中间首页卡预览里直接改
                 </span>
               </label>
+              <div style={{ marginTop: 12 }}>
+                <CampaignCoverPicker
+                  value={coverUrl}
+                  onChange={(path) => setCoverUrl(normalizeCampaignCoverPath(path))}
+                />
+              </div>
             </div>
 
             <div
@@ -637,7 +648,7 @@ function CampaignEditInner() {
                 <div className="ops-chip-row" style={{ marginTop: 0, marginBottom: 10 }}>
                   {(
                     [
-                      ['groups', '指定群'],
+                      ['groups', '我的群'],
                       ['all', '全站'],
                       ['admin_preview', '仅超管预览'],
                     ] as const
@@ -732,6 +743,19 @@ function CampaignEditInner() {
                   </button>
                 ))}
               </div>
+              <label className="ops-field" style={{ marginTop: 12 }}>
+                <span>卡片点击跳转</span>
+                <input
+                  className="input"
+                  value={railHref}
+                  disabled={!railEnabled}
+                  onChange={(e) => setRailHref(e.target.value)}
+                  placeholder="留空=活动落地页；创世记可填外链"
+                />
+                <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+                  创世记 50 天等外链会自动登录进入
+                </span>
+              </label>
               <div
                 style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}
               >
@@ -754,80 +778,6 @@ function CampaignEditInner() {
                   />
                 </label>
               </div>
-            </div>
-
-            <div className="settings-card ops-sec" style={{ marginTop: 12 }}>
-              <button
-                type="button"
-                className="ops-sec-toggle"
-                onClick={() => setSettingsMoreOpen((v) => !v)}
-              >
-                <span className="settings-title" style={{ margin: 0 }}>
-                  更多
-                </span>
-                <span className="muted">{settingsMoreOpen ? '收起' : '展开'}</span>
-              </button>
-              {settingsMoreOpen ? (
-                <>
-                  <label className="ops-field">
-                    <span>卡片点击跳转</span>
-                    <input
-                      className="input"
-                      value={railHref}
-                      disabled={!railEnabled}
-                      onChange={(e) => setRailHref(e.target.value)}
-                      placeholder="留空=活动落地页；创世记可填 https://genesis-50.pages.dev/?code=0CIW43NR"
-                    />
-                    <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
-                      创世记 50 天链接会自动登录进入（无需填邀请码、无确认框）
-                    </span>
-                  </label>
-                  {camp?.stats && status !== 'draft' ? (
-                    <>
-                      <div
-                        className="ops-sec-toggle"
-                        style={{ cursor: 'default', marginTop: 14, paddingTop: 10 }}
-                      >
-                        <span className="settings-title" style={{ margin: 0, fontSize: 14 }}>
-                          运营数据
-                        </span>
-                        <button
-                          type="button"
-                          className="text-link"
-                          style={{ fontSize: 12 }}
-                          onClick={() => void load()}
-                        >
-                          刷新
-                        </button>
-                      </div>
-                      <div className="ops-stats-grid" style={{ marginTop: 10 }}>
-                        {(
-                          [
-                            ['打开', camp.stats.opens],
-                            ['已读', camp.stats.readers],
-                            ['赞', camp.stats.likes],
-                            ['RSVP', camp.stats.rsvps],
-                            ['报名', camp.stats.signups ?? 0],
-                            ['提问', camp.stats.questions ?? 0],
-                          ] as const
-                        ).map(([label, n]) => (
-                          <div key={label} className="ops-stat">
-                            <strong>{n ?? 0}</strong>
-                            <span>{label}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-                        仅运营可见，成员从今日推荐进入时不会看到
-                      </p>
-                    </>
-                  ) : (
-                    <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
-                      另存模板、延期等操作在中间预览下方
-                    </p>
-                  )}
-                </>
-              ) : null}
             </div>
           </div>
         ) : null}
@@ -863,16 +813,18 @@ function CampaignEditInner() {
                 onChangeSubtitle={setSubtitle}
                 onChangeRailSlot={setRailSlot}
                 onChangeRailEnabled={setRailEnabled}
+                coverUrl={coverUrl}
+                onChangeCoverUrl={(path) => setCoverUrl(normalizeCampaignCoverPath(path))}
                 onInsertBlock={handleInsertBlock}
                 onReorderBlocks={handleReorderBlocks}
               />
               <div className="ops-canvas-actions">
+                <Link href={`/campaigns/${id}`} className="btn">
+                  返回详情
+                </Link>
                 <Link href={`/campaigns/view/${id}?preview=1`} className="btn">
                   全屏预览
                 </Link>
-                <button type="button" className="btn" disabled={busy} onClick={() => void copyPreview()}>
-                  复制预览链
-                </button>
                 <button
                   type="button"
                   className="btn"
@@ -880,17 +832,6 @@ function CampaignEditInner() {
                   onClick={() => void saveAsTemplate()}
                 >
                   另存模板
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  disabled={busy}
-                  onClick={() => void copyCampaign()}
-                >
-                  复制活动
-                </button>
-                <button type="button" className="btn" disabled={busy} onClick={() => void extend()}>
-                  延期 7 天
                 </button>
               </div>
             </div>

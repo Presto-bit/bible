@@ -2,20 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { api, getSessionToken, type OpsCampaign } from '@/lib/api';
 import {
-  campaignPreviewUrl,
-  campaignShareUrl,
   campaignStatusLabel,
   campaignStatusTone,
-  copyText,
   formatRelativeTime,
 } from '@/lib/campaign_ops';
 
 /** 活动运营列表：可嵌在管理后台 ops tab，或独立页使用 */
 export function CampaignsListPanel({ embedded = false }: { embedded?: boolean }) {
-  const router = useRouter();
   const [items, setItems] = useState<OpsCampaign[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [query, setQuery] = useState('');
@@ -68,15 +63,6 @@ export function CampaignsListPanel({ embedded = false }: { embedded?: boolean })
     );
   }, [items, query]);
 
-  const onCopy = async (id: string) => {
-    try {
-      const { campaign } = await api.copyCampaign(id);
-      router.push(`/campaigns/${campaign.id}/edit`);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : '复制失败');
-    }
-  };
-
   const onDelete = async (id: string) => {
     if (!window.confirm('确定删除此活动？')) return;
     try {
@@ -86,11 +72,6 @@ export function CampaignsListPanel({ embedded = false }: { embedded?: boolean })
     } catch (e) {
       setErr(e instanceof Error ? e.message : '删除失败');
     }
-  };
-
-  const onCopyLink = async (id: string) => {
-    const ok = await copyText(campaignShareUrl(id));
-    flash(ok ? '链接已复制' : '复制失败');
   };
 
   return (
@@ -217,7 +198,7 @@ export function CampaignsListPanel({ embedded = false }: { embedded?: boolean })
                   ) : null}
                 </div>
                 <Link
-                  href={`/campaigns/${c.id}/edit`}
+                  href={`/campaigns/${c.id}`}
                   className="ops-list-name"
                   style={{ color: 'inherit', textDecoration: 'none' }}
                 >
@@ -236,15 +217,15 @@ export function CampaignsListPanel({ embedded = false }: { embedded?: boolean })
                 </span>
               </div>
               <div className="ops-list-actions">
+                <Link href={`/campaigns/${c.id}`} className="btn">
+                  详情
+                </Link>
                 <Link href={`/campaigns/${c.id}/edit`} className="btn btn-primary">
                   编辑
                 </Link>
                 <Link href={`/campaigns/view/${c.id}?preview=1`} className="btn">
                   预览
                 </Link>
-                <button type="button" className="btn" onClick={() => void onCopyLink(c.id)}>
-                  链接
-                </button>
                 <div className="ops-more">
                   <button
                     type="button"
@@ -259,34 +240,6 @@ export function CampaignsListPanel({ embedded = false }: { embedded?: boolean })
                   </button>
                   {menuId === c.id ? (
                     <div className="ops-more-menu" onClick={(e) => e.stopPropagation()}>
-                      <button type="button" onClick={() => void onCopy(c.id)}>
-                        复制活动
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const ok = await copyText(campaignPreviewUrl(c.id));
-                          flash(ok ? '预览链已复制' : '复制失败');
-                          setMenuId(null);
-                        }}
-                      >
-                        复制预览链
-                      </button>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await api.extendCampaign(c.id, 7);
-                            flash('已延期 7 天');
-                            setMenuId(null);
-                            void load();
-                          } catch (e) {
-                            setErr(e instanceof Error ? e.message : '延期失败');
-                          }
-                        }}
-                      >
-                        延期 7 天
-                      </button>
                       <button
                         type="button"
                         className="is-danger"

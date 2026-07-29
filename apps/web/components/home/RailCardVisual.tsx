@@ -1,6 +1,7 @@
 'use client';
 
 import { bookCoverImageUrl, bookCoverLabel } from '@/lib/book_cover';
+import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
 import type { RailCard } from '@/lib/home_rail';
 import { railShowsProgress } from '@/lib/home_rail';
 import { railSceneUrl } from '@/lib/rail_scene';
@@ -61,9 +62,11 @@ function SceneBackdrop({ sceneId }: { sceneId: NonNullable<RailCard['sceneId']> 
 export function RailCardVisual({ card }: Props) {
   const { layout } = card;
   const isChallenge = card.coverVariant === 'challenge';
+  const customCover = resolveCampaignCoverUrl(card.coverUrl);
 
-  if (layout === 'cover' && card.bookId) {
+  if (layout === 'cover' && (customCover || card.bookId)) {
     const showRing = railShowsProgress(card) && (card.progressPct ?? 0) > 0;
+    const photoSrc = customCover || bookCoverImageUrl(card.bookId!);
     return (
       <div
         className={[
@@ -77,12 +80,14 @@ export function RailCardVisual({ card }: Props) {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={bookCoverImageUrl(card.bookId)}
+          src={photoSrc}
           alt=""
           className="rail-card-cover-photo"
         />
         <div className="rail-card-cover-veil" aria-hidden />
-        <p className="rail-card-cover-title">{bookCoverLabel(card.bookId)}</p>
+        {customCover ? null : card.bookId ? (
+          <p className="rail-card-cover-title">{bookCoverLabel(card.bookId)}</p>
+        ) : null}
         {isChallenge ? <span className="rail-card-cover-badge">问答</span> : null}
         {showRing ? <ProgressRing pct={card.progressPct!} label={card.progressLabel} /> : null}
       </div>

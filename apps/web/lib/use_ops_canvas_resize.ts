@@ -42,51 +42,53 @@ export function useOpsCanvasResize() {
     saveOpsCanvasCols(cols);
   }, [cols, hydrated]);
 
+  useEffect(() => {
+    if (dragging == null) return;
+    const onMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d) return;
+      const w = gridRef.current?.clientWidth;
+      setCols(applyOpsColDrag(d.start, d.edge, e.clientX - d.startX, w));
+    };
+    const onUp = () => {
+      dragRef.current = null;
+      setDragging(null);
+      document.body.classList.remove('ops-canvas-resizing');
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+  }, [dragging]);
+
   const onSplitterPointerDown = useCallback((edge: Edge) => {
     return (e: ReactPointerEvent<HTMLDivElement>) => {
       if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
-      e.currentTarget.setPointerCapture(e.pointerId);
       dragRef.current = { edge, startX: e.clientX, start: cols };
       setDragging(edge);
       document.body.classList.add('ops-canvas-resizing');
     };
   }, [cols]);
 
-  const onSplitterPointerMove = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const w = gridRef.current?.clientWidth;
-    const next = applyOpsColDrag(d.start, d.edge, e.clientX - d.startX, w);
-    setCols(next);
-  }, []);
-
-  const endDrag = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    dragRef.current = null;
-    setDragging(null);
-    document.body.classList.remove('ops-canvas-resizing');
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
   const splitterProps = useCallback(
     (edge: Edge) => ({
       role: 'separator' as const,
       'aria-orientation': 'vertical' as const,
-      'aria-label': edge === 0 ? '调整左侧与预览宽度' : '调整预览与页面结构宽度',
+      'aria-label':
+        edge === 0
+          ? '调整左侧与预览宽度'
+          : '调整预览与页面结构宽度（向左拖可加宽页面结构）',
       tabIndex: 0,
       className: `ops-canvas-splitter ops-canvas-splitter-${edge === 0 ? 'a' : 'b'}${
         dragging === edge ? ' is-dragging' : ''
       }`,
       onPointerDown: onSplitterPointerDown(edge),
-      onPointerMove: onSplitterPointerMove,
-      onPointerUp: endDrag,
-      onPointerCancel: endDrag,
       onKeyDown: (ev: React.KeyboardEvent<HTMLDivElement>) => {
         const step = ev.shiftKey ? 32 : 16;
         let dx = 0;
@@ -98,7 +100,7 @@ export function useOpsCanvasResize() {
         setCols((prev) => applyOpsColDrag(prev, edge, dx, w));
       },
     }),
-    [dragging, endDrag, onSplitterPointerDown, onSplitterPointerMove],
+    [dragging, onSplitterPointerDown],
   );
 
   return {

@@ -420,6 +420,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                 title: c.name,
                 sub: (c.subtitle || '').trim() || '继续阅读',
                 href: c.href || `/campaigns/view/${c.id}`,
+                coverUrl: c.coverUrl || undefined,
               })),
             )
             .catch(() => undefined)

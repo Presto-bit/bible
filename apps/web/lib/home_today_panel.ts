@@ -15,6 +15,8 @@ export type HomeTodayPanelSlot = {
   href: string;
   icon: RailIconId;
   bookId?: string;
+  /** 自定义封面（优先于 bookId 风景） */
+  coverUrl?: string;
   /** 主卡 / 侧卡 CTA */
   cta?: string;
   /** 侧卡角标（如打卡 2/5） */
@@ -39,6 +41,8 @@ export type HomeTodayCampaignInput = {
   href: string;
   /** 主卡封面书卷；默认 GEN（与继续阅读同款风景） */
   bookId?: string;
+  /** 运营选择的系统/自定义封面，优先于 bookId */
+  coverUrl?: string;
 };
 
 export type HomeTodayPanelInput = {
@@ -79,7 +83,8 @@ function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
     sub: '',
     href: c.href,
     icon: 'devotional',
-    bookId: c.bookId || 'GEN',
+    bookId: c.coverUrl ? undefined : c.bookId || 'GEN',
+    coverUrl: c.coverUrl || undefined,
     cta: action,
   };
 }
@@ -92,6 +97,7 @@ function campaignSide(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
     sub: '',
     href: c.href,
     icon: 'devotional',
+    coverUrl: c.coverUrl || undefined,
     cta: '进入',
   };
 }

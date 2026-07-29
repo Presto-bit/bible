@@ -5,7 +5,7 @@ import type { OpsCampaignLanding } from '@/lib/api';
 import { RAIL_ICONS, trimRailSub, trimRailTitle, type RailCard } from '@/lib/home_rail';
 import { RailCardVisual } from '@/components/home/RailCardVisual';
 import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlocks';
-import { campaignPreviewUrl, copyText } from '@/lib/campaign_ops';
+import { CampaignCoverPicker } from '@/components/campaigns/CampaignCoverPicker';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
 import { isOpsBlockType, OPS_BLOCK_TYPE_MIME, type OpsBlockType } from '@/lib/campaign_blocks';
 
@@ -62,6 +62,8 @@ export function CampaignLivePreview({
   onChangeSubtitle,
   onChangeRailSlot,
   onChangeRailEnabled,
+  coverUrl,
+  onChangeCoverUrl,
   onInsertBlock,
   onReorderBlocks,
 }: {
@@ -73,12 +75,14 @@ export function CampaignLivePreview({
   landing: OpsCampaignLanding;
   railEnabled?: boolean;
   railSlot?: number;
+  coverUrl?: string | null;
   onHint?: (msg: string) => void;
   onEdit?: (target: CampaignPreviewEditTarget) => void;
   onChangeName?: (value: string) => void;
   onChangeSubtitle?: (value: string) => void;
   onChangeRailSlot?: (slot: number) => void;
   onChangeRailEnabled?: (enabled: boolean) => void;
+  onChangeCoverUrl?: (path: string) => void;
   onInsertBlock?: (type: OpsBlockType, beforeId?: string) => void;
   onReorderBlocks?: (fromId: string, toId: string) => void;
 }) {
@@ -102,16 +106,8 @@ export function CampaignLivePreview({
     sub: trimRailSub(subtitle?.trim() || '继续阅读'),
     href: '#preview-landing',
     icon: RAIL_ICONS.campaign,
-    bookId: 'GEN',
-  };
-
-  const copyPreviewLink = async () => {
-    if (!campaignId) {
-      onHint?.('保存草稿后可复制预览链');
-      return;
-    }
-    const ok = await copyText(campaignPreviewUrl(campaignId));
-    onHint?.(ok ? '预览链已复制（带 preview=1）' : '复制失败');
+    bookId: coverUrl ? undefined : 'GEN',
+    coverUrl: coverUrl || undefined,
   };
 
   const edit = (target: CampaignPreviewEditTarget, hint?: string) => {
@@ -120,9 +116,21 @@ export function CampaignLivePreview({
   };
 
   const acceptPaletteDropOnPanel = (e: DragEvent) => {
-    if (!onInsertBlock || tab === 'landing') return false;
-    const types = Array.from(e.dataTransfer.types || []);
-    return types.includes(OPS_BLOCK_TYPE_MIME);
+    if (!onInsertBlock) return false;
+    const types = Array.from(e.dataTransfer.types || []).map((t) => t.toLowerCase());
+    return (
+      types.includes(OPS_BLOCK_TYPE_MIME.toLowerCase()) ||
+      types.includes('text/plain') ||
+      types.includes('text')
+    );
+  };
+
+  const readDroppedType = (e: DragEvent): OpsBlockType | null => {
+    const raw =
+      e.dataTransfer.getData(OPS_BLOCK_TYPE_MIME) || e.dataTransfer.getData('text/plain');
+    if (!raw) return null;
+    const type = raw.startsWith('ops-block-type:') ? raw.slice('ops-block-type:'.length) : raw;
+    return isOpsBlockType(type) ? type : null;
   };
 
   return (
@@ -135,33 +143,17 @@ export function CampaignLivePreview({
         e.dataTransfer.dropEffect = 'copy';
       }}
       onDrop={(e) => {
-        if (!acceptPaletteDropOnPanel(e) || !onInsertBlock) return;
+        if (!onInsertBlock) return;
+        const type = readDroppedType(e);
+        if (!type) return;
         e.preventDefault();
-        const raw =
-          e.dataTransfer.getData(OPS_BLOCK_TYPE_MIME) || e.dataTransfer.getData('text/plain');
-        const type = raw.startsWith('ops-block-type:')
-          ? raw.slice('ops-block-type:'.length)
-          : raw;
-        if (!isOpsBlockType(type)) return;
-        setTab('landing');
+        if (tab !== 'landing') setTab('landing');
         onInsertBlock(type);
-        onHint?.('已切到落地页并添加控件');
+        onHint?.(tab === 'landing' ? '已添加控件' : '已切到落地页并添加控件');
       }}
     >
       <div className="ops-preview-head">
         <strong>实时预览</strong>
-        <div className="ops-preview-head-actions">
-          {campaignId ? (
-            <button
-              type="button"
-              className="text-link"
-              style={{ fontSize: 12 }}
-              onClick={() => void copyPreviewLink()}
-            >
-              复制预览链
-            </button>
-          ) : null}
-        </div>
       </div>
 
       <div className="ops-preview-tabs" role="tablist" aria-label="预览视图">
@@ -222,26 +214,52 @@ export function CampaignLivePreview({
             </p>
           ) : (
             <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
-              与首页「今日推荐」同款 · 第 {railSlot || 1} 位
-              {canInlineHome ? ' · 可直接改文案与位次' : ' · 点击可编辑'}
+              与首页「今日推荐」同款 · 第 {railSlot || 1} 位 · 点卡片打开编辑，或直接改文案
             </p>
           )}
           <div className="rail home-rail ops-preview-home-rail" aria-label="首页今日推荐示意">
             {canInlineHome ? (
               <div
+                role="button"
+                tabIndex={0}
                 className={`${homeRailCardClass(railCard)} ops-preview-home-card-edit`}
                 style={{ ['--tint' as string]: 'var(--dawn-gold)' }}
+                title="点击空白处打开发布条件编辑"
+                onClick={(e) => {
+                  const t = e.target as HTMLElement;
+                  if (t.closest('input, textarea, button, a, label')) return;
+                  edit({ kind: 'home-card' }, '已打开发布条件：叫什么 / 何时出现');
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    const t = e.target as HTMLElement;
+                    if (t.closest('input, textarea')) return;
+                    e.preventDefault();
+                    edit({ kind: 'home-card' }, '已打开发布条件：叫什么 / 何时出现');
+                  }
+                }}
               >
                 <RailCardVisual card={railCard} />
                 <div className="rail-card-body rail-card-body-padded">
                   <div className="rail-head">
                     <span className="pill pill-active">{railCard.tag}</span>
+                    <button
+                      type="button"
+                      className="text-link ops-preview-home-edit-link"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        edit({ kind: 'home-card' }, '已打开发布条件：叫什么 / 何时出现');
+                      }}
+                    >
+                      编辑
+                    </button>
                   </div>
                   {onChangeName ? (
                     <input
                       className="ops-preview-inline-input rail-title"
                       value={name}
                       onChange={(e) => onChangeName(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
                       placeholder="活动名称"
                       aria-label="活动名称"
                     />
@@ -254,6 +272,7 @@ export function CampaignLivePreview({
                         className="ops-preview-inline-input rail-sub"
                         value={subtitle || ''}
                         onChange={(e) => onChangeSubtitle(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
                         placeholder="继续阅读"
                         aria-label="首页卡副文案"
                       />
@@ -313,6 +332,15 @@ export function CampaignLivePreview({
                   ))}
                 </div>
               ) : null}
+              {onChangeCoverUrl ? (
+                <div style={{ marginTop: 10 }}>
+                  <CampaignCoverPicker
+                    value={coverUrl}
+                    onChange={onChangeCoverUrl}
+                    compact
+                  />
+                </div>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -330,10 +358,10 @@ export function CampaignLivePreview({
                 >
                   {title}
                 </button>
-                <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
+                <p className="muted ops-preview-landing-hint">
                   {onInsertBlock
-                    ? '从左侧拖入控件，或点击区块编辑；预览内可拖拽排序'
-                    : '点击任意区块可编辑对应内容'}
+                    ? '左侧拖入控件 · 点击区块编辑 · 可拖拽排序'
+                    : '点击区块可编辑对应内容'}
                 </p>
                 <CampaignLandingBlocks
                   landing={landing}

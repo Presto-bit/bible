@@ -15,6 +15,10 @@ import {
   PLATFORM_TEMPLATE_BLOCK_LABELS,
 } from '@/lib/campaign_scenes';
 import { defaultPrimaryCta } from '@/lib/campaign_nav';
+import {
+  loadLastAudiencePref,
+  resolveDefaultGroupIds,
+} from '@/lib/campaign_audience_pref';
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -41,6 +45,9 @@ function CampaignNewInner() {
     Array<{ id: string; name: string; baseTemplateId: string; landing: OpsCampaignLanding }>
   >([]);
   const [defaultGroupIds, setDefaultGroupIds] = useState<string[]>([]);
+  const [defaultAudienceMode, setDefaultAudienceMode] = useState<
+    'groups' | 'all' | 'admin_preview'
+  >('groups');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -54,7 +61,19 @@ function CampaignNewInner() {
         ]);
         setTemplates(t.templates || []);
         setUserTemplates(ut.templates || []);
-        if (g.groups?.length === 1) setDefaultGroupIds([g.groups[0].id]);
+        const available = (g.groups || []).map((x) => x.id);
+        const pref = loadLastAudiencePref();
+        setDefaultGroupIds(
+          resolveDefaultGroupIds(
+            available,
+            pref?.audienceMode === 'groups' ? pref.groupIds : null,
+          ),
+        );
+        if (pref?.audienceMode === 'groups' || !pref) {
+          setDefaultAudienceMode('groups');
+        } else {
+          setDefaultAudienceMode('groups');
+        }
       } catch (e) {
         setErr(e instanceof Error ? e.message : '加载失败');
       }
@@ -100,7 +119,7 @@ function CampaignNewInner() {
         railSlot: 1,
         railEnabled: true,
         groupIds: defaultGroupIds,
-        audienceMode: 'groups',
+        audienceMode: defaultAudienceMode,
         landing,
         heroEnabled: false,
       });

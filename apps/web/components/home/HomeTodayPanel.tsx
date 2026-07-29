@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { bookCoverImageUrl } from '@/lib/book_cover';
+import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
 import { isExternalHref, openCampaignHref } from '@/lib/campaign_nav';
 import type { HomeTodayPanelModel, HomeTodayPanelSlot } from '@/lib/home_today_panel';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
@@ -28,6 +29,13 @@ function navigate(href: string, router: ReturnType<typeof useRouter>) {
   router.push(href);
 }
 
+function slotCoverSrc(slot: HomeTodayPanelSlot): string | null {
+  const custom = resolveCampaignCoverUrl(slot.coverUrl);
+  if (custom) return custom;
+  if (slot.bookId) return bookCoverImageUrl(slot.bookId);
+  return null;
+}
+
 function SideCard({
   slot,
   toneClass,
@@ -36,9 +44,11 @@ function SideCard({
   toneClass: string;
 }) {
   const router = useRouter();
+  const coverSrc = slotCoverSrc(slot);
   const classes = [
     'home-today-side',
     toneClass,
+    coverSrc ? 'has-cover' : '',
     slot.pending ? 'is-pending' : '',
     slot.done ? 'is-done' : '',
   ]
@@ -52,18 +62,23 @@ function SideCard({
       onClick={() => navigate(slot.href, router)}
       onContextMenu={(e) => e.preventDefault()}
     >
+      {coverSrc ? (
+        <span className="home-today-side-bg" aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={coverSrc} alt="" className="home-today-side-bg-img" />
+          <span className="home-today-side-bg-veil" />
+        </span>
+      ) : null}
       <span className="home-today-side-text">
         <span className="home-today-side-label">{slot.tag}</span>
         <strong className="home-today-side-title">{slot.title}</strong>
-        {slot.cta ? (
-          <span className="home-today-side-cta">{slot.cta}</span>
-        ) : null}
+        {slot.cta ? <span className="home-today-side-cta">{slot.cta}</span> : null}
       </span>
       {slot.badge ? (
         <span className="home-today-side-badge" aria-label={slot.badge}>
           {slot.badge}
         </span>
-      ) : (
+      ) : coverSrc ? null : (
         <span className="home-today-side-icon" aria-hidden>
           <RailLineIcon id={slot.icon || 'group'} size={20} />
         </span>
@@ -76,7 +91,7 @@ function SideCard({
 export function HomeTodayPanel({ panel }: Props) {
   const router = useRouter();
   const { primary, group, prayer } = panel;
-  const bookId = primary.bookId;
+  const coverSrc = slotCoverSrc(primary);
 
   return (
     <section className="home-today-shell" aria-label="今日推荐">
@@ -86,20 +101,16 @@ export function HomeTodayPanel({ panel }: Props) {
       <div className="home-today-panel">
         <button
           type="button"
-          className={['home-today-primary', bookId ? 'has-cover' : '']
+          className={['home-today-primary', coverSrc ? 'has-cover' : '']
             .filter(Boolean)
             .join(' ')}
           onClick={() => navigate(primary.href, router)}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {bookId ? (
+          {coverSrc ? (
             <div className="home-today-primary-bg" aria-hidden>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={bookCoverImageUrl(bookId)}
-                alt=""
-                className="home-today-primary-bg-img"
-              />
+              <img src={coverSrc} alt="" className="home-today-primary-bg-img" />
               <div className="home-today-primary-bg-veil" />
             </div>
           ) : (

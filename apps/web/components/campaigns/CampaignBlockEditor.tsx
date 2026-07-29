@@ -233,17 +233,29 @@ export function CampaignBlockEditor({
               {g.types.map((type) => {
                 const meta = BLOCK_CATALOG[type];
                 return (
-                  <button
+                  <div
                     key={type}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     className="ops-block-chip"
                     draggable
                     title="点击添加，或拖到中间预览"
                     onClick={() => onAdd(type)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onAdd(type);
+                      }
+                    }}
                     onDragStart={(e) => {
                       e.dataTransfer.setData(OPS_BLOCK_TYPE_MIME, type);
                       e.dataTransfer.setData('text/plain', `ops-block-type:${type}`);
                       e.dataTransfer.effectAllowed = 'copy';
+                      try {
+                        e.dataTransfer.setDragImage(e.currentTarget, 24, 24);
+                      } catch {
+                        /* ignore */
+                      }
                     }}
                   >
                     <span className="ops-block-chip-icon" aria-hidden>
@@ -253,7 +265,7 @@ export function CampaignBlockEditor({
                       <strong>{meta.label}</strong>
                       <span className="muted">{meta.blurb}</span>
                     </span>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -301,7 +313,7 @@ export function CampaignBlockEditor({
           页面结构
         </p>
         <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-          主操作区 · 拖拽排序 · 点选配置
+          拖拽排序 · 点选配置 · 左拖分隔条可加宽
         </p>
       </div>
       {blocks.length === 0 ? (
