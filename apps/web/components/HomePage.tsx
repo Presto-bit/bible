@@ -578,19 +578,24 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         window.setTimeout(() => setShareToast(null), 2200);
         return;
       }
-      try {
-        const r = await api.recordDailyVerseShare(dv.day);
-        if (typeof r.shares_count === 'number') {
-          setDv((prev) => (prev ? { ...prev, shares_count: r.shares_count } : prev));
-          const snap = readCachedDailyVerse();
-          if (snap && snap.day === dv.day) {
-            writeCachedDailyVerse({ ...snap, shares_count: r.shares_count });
+      if (result === 'shared' || result === 'copied' || result === 'downloaded') {
+        try {
+          const r = await api.recordDailyVerseShare(dv.day);
+          if (typeof r.shares_count === 'number') {
+            setDv((prev) => (prev ? { ...prev, shares_count: r.shares_count } : prev));
+            const snap = readCachedDailyVerse();
+            if (snap && snap.day === dv.day) {
+              writeCachedDailyVerse({ ...snap, shares_count: r.shares_count });
+            }
           }
+        } catch {
+          /* ignore */
         }
-      } catch {
-        /* ignore */
       }
-      if (result === 'downloaded') {
+      if (result === 'copied') {
+        setShareToast('已复制文案与链接');
+        window.setTimeout(() => setShareToast(null), 2200);
+      } else if (result === 'downloaded') {
         setShareToast('已保存经文卡片');
         window.setTimeout(() => setShareToast(null), 2200);
       }

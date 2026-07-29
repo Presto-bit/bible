@@ -57,17 +57,17 @@ export function InviteAppClient({
   const standalone = platform === 'standalone';
 
   return (
-    <div className="invite-app-ctas">
+    <div className="share-landing-ctas invite-app-ctas">
       {standalone ? (
-        <Link className="btn" href="/">
+        <Link className="btn btn-primary" href="/">
           开始读经
         </Link>
       ) : (
-        <button type="button" className="btn" onClick={() => openPwaInstallSheet()}>
+        <button type="button" className="btn btn-primary" onClick={() => openPwaInstallSheet()}>
           {inApp ? '查看如何保存成 App' : '保存到主屏幕'}
         </button>
       )}
-      <Link className="btn btn-ghost" href="/">
+      <Link className="btn" href="/">
         先看看今日经文
       </Link>
     </div>

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import { BRAND_FULL, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { analysisShareSiteOrigin } from '@/lib/analysis_share';
-import { PWA_ICON_SOURCE, PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
-import { withBasePath } from '@/lib/basePath';
+import { PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
+import { shareOgImageUrl } from '@/lib/share_og';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 import { DailyVerseShareClient } from './share_client';
 
@@ -47,7 +47,7 @@ export async function generateMetadata({
   const description =
     verse.text.slice(0, 120) || `${BRAND_TAGLINE}。${PWA_MANIFEST_DESCRIPTION}`;
   const origin = analysisShareSiteOrigin();
-  const ogImage = `${origin}${withBasePath(PWA_ICON_SOURCE)}`;
+  const og = shareOgImageUrl(day);
 
   return {
     title,
@@ -59,13 +59,13 @@ export async function generateMetadata({
       siteName: BRAND_FULL,
       title,
       description,
-      images: [{ url: ogImage, width: 512, height: 512, alt: BRAND_NAME }],
+      images: [{ url: og.url, width: og.width, height: og.height, alt: title }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title,
       description,
-      images: [ogImage],
+      images: [og.url],
     },
     other: {
       'wechat:title': title,
@@ -84,11 +84,13 @@ export default async function DailyVerseSharePage({
   const day = Number.isFinite(dayRaw) && dayRaw > 0 ? dayRaw : undefined;
 
   return (
-    <main className="container daily-verse-share-page">
+    <main className="container share-landing-page daily-verse-share-page">
       <SharePwaGuide variant="daily" />
       <p className="eyebrow">{BRAND_NAME}</p>
-      <h1 className="daily-verse-share-title">今日经文</h1>
-      <p className="muted daily-verse-share-support">来自朋友的分享 · {BRAND_TAGLINE}</p>
+      <h1 className="share-landing-title daily-verse-share-title">今日经文</h1>
+      <p className="muted share-landing-support daily-verse-share-support">
+        来自朋友的分享 · {BRAND_TAGLINE}
+      </p>
       <DailyVerseShareClient day={day} />
     </main>
   );

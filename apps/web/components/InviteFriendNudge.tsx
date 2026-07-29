@@ -52,7 +52,7 @@ export default function InviteFriendNudge() {
     >
       <button type="button" className="invite-nudge-main" onClick={() => void invite()} disabled={busy}>
         <span className="invite-nudge-title">邀请一位朋友一起读</span>
-        <span className="invite-nudge-desc">有人陪你读懂圣经</span>
+        <span className="invite-nudge-desc">陪你读懂圣经</span>
       </button>
       <button type="button" className="btn invite-nudge-cta" disabled={busy} onClick={() => void invite()}>
         {busy ? '…' : '去邀请'}

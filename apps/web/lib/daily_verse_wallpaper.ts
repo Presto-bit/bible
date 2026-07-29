@@ -1,6 +1,6 @@
 /** 每日经文壁纸：本地风景图按 day 轮换（public/daily-wallpapers；SW 不预拉，首次使用再 runtime cache）。 */
 
-import { clientWithBasePath } from './basePath';
+import { clientWithBasePath, withBasePath } from './basePath';
 
 /** 与 public/daily-wallpapers/ 文件名一致（源自 Unsplash，已打包离线使用） */
 export const DAILY_WALLPAPER_FILES = [
@@ -39,12 +39,20 @@ export const DAILY_WALLPAPER_FILES = [
 
 export type DailyVerseWallpaperVariant = 'card' | 'full';
 
+function wallpaperFile(day?: number): string {
+  const d = Math.max(1, Math.floor(day ?? 1) || 1);
+  return DAILY_WALLPAPER_FILES[(d - 1) % DAILY_WALLPAPER_FILES.length];
+}
+
 /** 按每日经文 day 选取风景壁纸，同一天全员一致。 */
 export function dailyVerseWallpaperUrl(
   day?: number,
   _variant: DailyVerseWallpaperVariant = 'card',
 ): string {
-  const d = Math.max(1, Math.floor(day ?? 1) || 1);
-  const file = DAILY_WALLPAPER_FILES[(d - 1) % DAILY_WALLPAPER_FILES.length];
-  return clientWithBasePath(`/daily-wallpapers/${file}`);
+  return clientWithBasePath(`/daily-wallpapers/${wallpaperFile(day)}`);
+}
+
+/** SSR / OG 用相对站点路径（含 basePath） */
+export function dailyVerseWallpaperPath(day?: number): string {
+  return withBasePath(`/daily-wallpapers/${wallpaperFile(day)}`);
 }

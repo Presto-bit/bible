@@ -1,12 +1,11 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { BRAND_FULL, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import {
   analysisShareSiteOrigin,
   parseAnalysisShareParams,
 } from '@/lib/analysis_share';
-import { PWA_ICON_SOURCE, PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
-import { withBasePath } from '@/lib/basePath';
+import { PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
+import { shareOgImageUrl } from '@/lib/share_og';
 import { AnalysisShareClient } from './share_client';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 
@@ -45,7 +44,7 @@ export async function generateMetadata({
   const title = ogTitle(refLabel, lead);
   const description = lead.slice(0, 120) || PWA_MANIFEST_DESCRIPTION;
   const origin = analysisShareSiteOrigin();
-  const ogImage = `${origin}${withBasePath(PWA_ICON_SOURCE)}`;
+  const og = shareOgImageUrl(3);
 
   return {
     title: `${title} | ${BRAND_NAME}`,
@@ -57,13 +56,13 @@ export async function generateMetadata({
       siteName: BRAND_FULL,
       title,
       description,
-      images: [{ url: ogImage, width: 512, height: 512, alt: BRAND_NAME }],
+      images: [{ url: og.url, width: og.width, height: og.height, alt: title }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title,
       description,
-      images: [ogImage],
+      images: [og.url],
     },
     other: {
       'wechat:title': title,
@@ -81,11 +80,11 @@ export default async function AnalysisSharePage({
   const parsed = parseAnalysisShareParams(paramBag(sp));
 
   return (
-    <main className="container analysis-share-page">
+    <main className="container share-landing-page analysis-share-page">
       <SharePwaGuide />
-      <p className="eyebrow">{BRAND_NAME}</p>
-      <h1 className="analysis-share-title">{parsed.refLabel}</h1>
-      <p className="analysis-share-lead">{parsed.lead}</p>
+      <p className="eyebrow">{BRAND_NAME} · 小爱解读</p>
+      <h1 className="share-landing-title analysis-share-title">{parsed.refLabel}</h1>
+      <p className="share-landing-lead analysis-share-lead">{parsed.lead}</p>
       <AnalysisShareClient
         refLabel={parsed.refLabel}
         refParam={parsed.refParam}
@@ -93,9 +92,6 @@ export default async function AnalysisSharePage({
       />
       <p className="muted analysis-share-disclaimer">
         内容由 AI 生成，请以圣经原文为准。{BRAND_TAGLINE}
-      </p>
-      <p className="muted" style={{ marginTop: 16 }}>
-        <Link href="/" className="text-link">返回首页</Link>
       </p>
     </main>
   );

@@ -7,8 +7,8 @@ import {
   INVITE_SHARE_TITLE,
 } from '@/lib/invite_share';
 import { analysisShareSiteOrigin } from '@/lib/analysis_share';
-import { PWA_ICON_SOURCE, PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
-import { withBasePath } from '@/lib/basePath';
+import { PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
+import { shareOgImageUrl } from '@/lib/share_og';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 import { InviteAppClient } from './invite_client';
 
@@ -17,7 +17,7 @@ const DESCRIPTION = `${INVITE_LANDING_SUPPORT}。${BRAND_TAGLINE}`;
 
 export async function generateMetadata(): Promise<Metadata> {
   const origin = analysisShareSiteOrigin();
-  const ogImage = `${origin}${withBasePath(PWA_ICON_SOURCE)}`;
+  const og = shareOgImageUrl(7);
 
   return {
     title: `${TITLE} | ${BRAND_NAME}`,
@@ -29,25 +29,25 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: BRAND_FULL,
       title: TITLE,
       description: DESCRIPTION,
-      images: [{ url: ogImage, width: 512, height: 512, alt: BRAND_NAME }],
+      images: [{ url: og.url, width: og.width, height: og.height, alt: BRAND_NAME }],
     },
     twitter: {
-      card: 'summary',
+      card: 'summary_large_image',
       title: TITLE,
       description: DESCRIPTION,
-      images: [ogImage],
+      images: [og.url],
     },
   };
 }
 
 export default function InviteAppPage() {
   return (
-    <main className="container invite-app-page">
+    <main className="container share-landing-page invite-app-page">
       <SharePwaGuide variant="invite" />
       <p className="eyebrow">{BRAND_NAME}</p>
-      <h1 className="invite-app-title">有人陪你读懂圣经</h1>
-      <p className="invite-app-support">{INVITE_LANDING_SUPPORT}</p>
-      <p className="muted invite-app-tagline">{BRAND_TAGLINE}</p>
+      <h1 className="share-landing-title invite-app-title">陪你读懂圣经</h1>
+      <p className="share-landing-lead invite-app-support">{INVITE_LANDING_SUPPORT}</p>
+      <p className="muted share-landing-support invite-app-tagline">{BRAND_TAGLINE}</p>
 
       <InviteAppClient />
 
@@ -66,10 +66,6 @@ export default function InviteAppPage() {
       </section>
 
       <InviteAppClient showInstallSteps />
-
-      <p className="muted" style={{ marginTop: 28, fontSize: 12 }}>
-        可保存到主屏幕 · 登录后进度可同步
-      </p>
     </main>
   );
 }

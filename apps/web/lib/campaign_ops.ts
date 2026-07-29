@@ -3,7 +3,7 @@
 import type { OpsCampaignLanding } from '@/lib/api';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { BRAND_NAME } from '@/lib/brand';
-import { shareCard } from '@/lib/share_card';
+import { shareCardOutbound } from '@/lib/share_card';
 
 export type PublishChecklistInput = {
   name: string;
@@ -351,12 +351,23 @@ export function unlockedDayCap(
   return Math.min(daysTotal, Math.max(0, diff));
 }
 
-export function campaignShareUrl(campaignId: string, day?: number): string {
+export function campaignShareUrl(
+  campaignId: string,
+  opts?: { day?: number; title?: string; body?: string },
+): string {
+  const day = opts?.day;
+  const q = new URLSearchParams();
+  q.set('id', campaignId);
+  if (day) q.set('day', String(day));
+  if (opts?.title?.trim()) q.set('t', opts.title.trim().slice(0, 64));
+  if (opts?.body?.trim()) q.set('b', opts.body.trim().slice(0, 120));
+  const path = `/share/campaign?${q.toString()}`;
   if (typeof window === 'undefined') {
-    const q = day ? `?day=${day}&ch1=campaign&ch2=system_share&ch3=campaign:${campaignId}` : `?ch1=campaign&ch2=system_share&ch3=campaign:${campaignId}`;
-    return `/campaigns/view/${campaignId}${q}`;
+    q.set('ch1', 'campaign');
+    q.set('ch2', 'system_share');
+    q.set('ch3', `campaign:${campaignId}`);
+    return `/share/campaign?${q.toString()}`;
   }
-  const path = `/campaigns/view/${campaignId}${day ? `?day=${day}` : ''}`;
   return buildTrackedUrl(path, {
     l1: 'campaign',
     l2: 'system_share',
@@ -377,34 +388,28 @@ export async function shareCampaignLink(opts: {
   title: string;
   body?: string;
   day?: number;
-}): Promise<'shared' | 'copied' | 'failed'> {
-  const url = campaignShareUrl(opts.campaignId, opts.day);
-  const text = `${opts.title}\n${url}`;
-  try {
-    if (navigator.share) {
-      await navigator.share({ title: opts.title, text: opts.body || opts.title, url });
-      return 'shared';
-    }
-  } catch {
-    /* fallthrough */
-  }
-  try {
-    await navigator.clipboard.writeText(text);
-    return 'copied';
-  } catch {
-    /* fallthrough */
-  }
-  try {
-    await shareCard({
-      title: opts.title,
-      body: (opts.body || '邀请你一起参加群活动').slice(0, 120),
-      footer: BRAND_NAME,
-    });
-    await navigator.clipboard.writeText(url);
-    return 'copied';
-  } catch {
-    return 'failed';
-  }
+}): Promise<'shared' | 'copied' | 'cancelled' | 'failed'> {
+  const body = (opts.body || '邀请你一起参加').trim();
+  const url = campaignShareUrl(opts.campaignId, {
+    day: opts.day,
+    title: opts.title,
+    body,
+  });
+  const shareText = `${opts.title}\n${body}`;
+  const result = await shareCardOutbound({
+    title: opts.title,
+    subtitle: '群活动',
+    body: body.slice(0, 120),
+    footer: BRAND_NAME,
+    badge: '活动',
+    day: opts.day ?? 12,
+    shareTitle: opts.title,
+    shareText,
+    shareUrl: url,
+    allowDownload: false,
+  });
+  if (result === 'downloaded') return 'copied';
+  return result;
 }
 
 export function parseDaysFromBulkText(raw: string): Array<{

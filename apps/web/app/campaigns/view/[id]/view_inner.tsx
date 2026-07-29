@@ -179,7 +179,14 @@ export default function CampaignViewInner() {
       body: camp.subtitle || camp.landing?.body,
       day: currentDay?.day,
     });
-    flash(result === 'shared' ? '已调起分享' : result === 'copied' ? '链接已复制' : '分享失败');
+    if (result === 'cancelled') return;
+    flash(
+      result === 'shared'
+        ? '已调起分享'
+        : result === 'copied'
+          ? '链接已复制'
+          : '分享失败',
+    );
   };
 
   const onSignup = async (slotId: string) => {

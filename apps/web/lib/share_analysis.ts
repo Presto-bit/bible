@@ -1,14 +1,15 @@
-/** 解读外部分享：直接调起系统分享（Web Share API） */
+/** 解读外部分享：系统分享契约（图可选 + 文 + 落地链） */
 
 import { buildAnalysisSharePack, type AnalysisShareInput } from '@/lib/analysis_share';
 import { effectiveId } from '@/lib/api';
 import { recordShareAnswer } from '@/lib/badge_events';
-import { shareCard } from '@/lib/share_card';
+import { shareCardOutbound } from '@/lib/share_card';
+import type { ShareOutboundResult } from '@/lib/share_outbound';
 
-export type ShareAnalysisResult = 'shared' | 'copied' | 'cancelled' | 'failed';
+export type ShareAnalysisResult = ShareOutboundResult;
 
 /**
- * 点击「分享」即调起系统分享面板；无 Web Share 时降级为分享图 + 复制链接。
+ * 点击「分享」即调起系统分享；取消不下图；失败只复制文案+链接。
  */
 export async function shareAnalysis(input: AnalysisShareInput): Promise<ShareAnalysisResult> {
   const pack = buildAnalysisSharePack({
@@ -16,38 +17,17 @@ export async function shareAnalysis(input: AnalysisShareInput): Promise<ShareAna
     sharerUserCode: input.sharerUserCode ?? effectiveId(),
   });
   const url = pack.urlFor('system_share');
-  const clipboardText = `${pack.shareText}\n${url}`;
-
-  const nav = navigator as Navigator & {
-    share?: (d: { title?: string; text?: string; url?: string; files?: File[] }) => Promise<void>;
-    canShare?: (d: { files?: File[] }) => boolean;
-  };
-
-  if (nav.share) {
-    try {
-      // 优先：文字 + 链接（微信/系统分享面板）
-      await nav.share({ title: pack.title, text: pack.shareText, url });
-      recordShareAnswer();
-      return 'shared';
-    } catch (err) {
-      const name = err instanceof DOMException ? err.name : '';
-      if (name === 'AbortError') return 'cancelled';
-      /* fallthrough */
-    }
-  }
-
-  try {
-    await shareCard(pack.card);
-    await navigator.clipboard.writeText(clipboardText);
+  const result = await shareCardOutbound({
+    ...pack.card,
+    badge: '小爱解读',
+    day: 3,
+    shareTitle: pack.title,
+    shareText: pack.shareText,
+    shareUrl: url,
+    allowDownload: false,
+  });
+  if (result === 'shared' || result === 'copied') {
     recordShareAnswer();
-    return 'copied';
-  } catch {
-    try {
-      await navigator.clipboard.writeText(clipboardText);
-      recordShareAnswer();
-      return 'copied';
-    } catch {
-      return 'failed';
-    }
   }
+  return result;
 }

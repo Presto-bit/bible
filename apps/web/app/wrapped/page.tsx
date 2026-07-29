@@ -3,29 +3,50 @@
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
-import { Suspense } from 'react';
+import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { buildTrackedUrl } from '@/lib/acquisition';
+import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { shareCardOutbound } from '@/lib/share_card';
 import { buildWrapped } from '@/lib/wrapped';
-import { shareCard } from '@/lib/share_card';
-import { BRAND_NAME } from '@/lib/brand';
 
 function WrappedInner() {
   useEdgeSwipeBack({ href: '/report' });
   const sp = useSearchParams();
   const period = sp.get('period') === 'year' ? 'year' : 'month';
   const w = buildWrapped(period);
+  const [hint, setHint] = useState<string | null>(null);
 
   const share = async () => {
-    const ok = await shareCard({
+    setHint(null);
+    const stats =
+      `活跃 ${w.activeDays} 天 · 阅读 ${w.totalMinutes} 分钟 · 连续 ${w.streak} 天 · 笔记 ${w.notesCount} 条 · 划线 ${w.marksCount} 处`;
+    const q = new URLSearchParams({
+      period,
+      label: w.label,
+      h: w.highlight.slice(0, 64),
+      s: stats.slice(0, 120),
+    });
+    const url = buildTrackedUrl(`/share/wrapped?${q.toString()}`, {
+      l1: 'share',
+      l2: 'system_share',
+      l3: `wrapped:${period}`,
+    });
+    const result = await shareCardOutbound({
       title: w.highlight,
       subtitle: w.label,
-      body: `活跃 ${w.activeDays} 天 · 阅读 ${w.totalMinutes} 分钟 · 连续 ${w.streak} 天 · 笔记 ${w.notesCount} 条 · 划线 ${w.marksCount} 处`,
-      footer: BRAND_NAME,
+      body: stats,
+      footer: `${BRAND_NAME} · ${BRAND_TAGLINE}`,
+      badge: '读经回顾',
+      day: period === 'year' ? 21 : 14,
+      shareTitle: `${w.label}｜${BRAND_NAME}`,
+      shareText: `${w.label}\n${w.highlight}\n${stats}\n打开链接看看我的读经足迹`,
+      shareUrl: url,
+      allowDownload: false,
     });
-    if (!ok) {
-      const text = `${w.label}\n${w.highlight}\n活跃 ${w.activeDays} 天 · 阅读 ${w.totalMinutes} 分钟`;
-      await navigator.clipboard.writeText(text);
-    }
+    if (result === 'copied') setHint('已复制文案与链接');
+    if (result === 'cancelled') setHint(null);
+    if (result === 'failed') setHint('分享失败，请重试');
   };
 
   return (
@@ -51,6 +72,7 @@ function WrappedInner() {
         <button type="button" className="btn" onClick={() => void share()}>
           分享回顾
         </button>
+        {hint ? <p className="muted" style={{ marginTop: 8, fontSize: 13 }}>{hint}</p> : null}
       </div>
     </main>
   );

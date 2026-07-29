@@ -23,11 +23,15 @@ export function dismissSharePwaGuide(): void {
 export function isShareLandingPath(pathname: string | null | undefined): boolean {
   const p = (pathname || '').split('?')[0] || '';
   return (
-    p === '/share/analysis' ||
-    p.startsWith('/share/analysis/') ||
-    p === '/share/app' ||
-    p.startsWith('/share/app/') ||
-    p === '/share/daily-verse' ||
-    p.startsWith('/share/daily-verse/')
+    p === '/share/analysis'
+    || p.startsWith('/share/analysis/')
+    || p === '/share/app'
+    || p.startsWith('/share/app/')
+    || p === '/share/daily-verse'
+    || p.startsWith('/share/daily-verse/')
+    || p === '/share/campaign'
+    || p.startsWith('/share/campaign/')
+    || p === '/share/wrapped'
+    || p.startsWith('/share/wrapped/')
   );
 }

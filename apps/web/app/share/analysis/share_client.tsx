@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
 import { explainVerseQuestion } from '@/lib/assistant_prefill';
+import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { readerHrefFromRef } from '@/lib/group_footprint';
+import { detectInstallPlatform } from '@/lib/pwa_platform';
 
 export function AnalysisShareClient({
   refLabel,
@@ -16,9 +18,11 @@ export function AnalysisShareClient({
   more?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showInstall, setShowInstall] = useState(false);
 
   useEffect(() => {
     captureAcquisitionFromLocation();
+    setShowInstall(detectInstallPlatform() !== 'standalone');
   }, []);
 
   const askHref = refParam
@@ -48,13 +52,18 @@ export function AnalysisShareClient({
         </div>
       ) : null}
 
-      <div className="analysis-share-ctas">
-        <Link className="btn" href={askHref}>
+      <div className="share-landing-ctas analysis-share-ctas">
+        <Link className="btn btn-primary" href={askHref}>
           问小爱：继续解读
         </Link>
-        <Link className="btn btn-ghost" href={readHref}>
+        <Link className="btn" href={readHref}>
           我也在读这一段
         </Link>
+        {showInstall ? (
+          <button type="button" className="btn" onClick={() => openPwaInstallSheet()}>
+            保存到主屏幕
+          </button>
+        ) : null}
       </div>
     </>
   );

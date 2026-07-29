@@ -22842,21 +22842,21 @@ body.ops-canvas-resizing iframe {
 @media (min-width: 1440px) {
   .ops-canvas-grid:not([style*='grid-template-columns']) {
     grid-template-columns:
-      minmax(380px, 1.55fr)
+      minmax(360px, 1.35fr)
       8px
-      minmax(280px, 1fr)
+      minmax(300px, 1fr)
       8px
-      minmax(280px, 340px);
+      minmax(280px, 1fr);
   }
 }
 @media (min-width: 1680px) {
   .ops-canvas-grid:not([style*='grid-template-columns']) {
     grid-template-columns:
-      minmax(420px, 1.65fr)
+      minmax(400px, 1.4fr)
       8px
-      minmax(300px, 1fr)
+      minmax(320px, 1fr)
       8px
-      minmax(300px, 360px);
+      minmax(300px, 1fr);
   }
 }
 .ops-canvas-settings {
@@ -24614,6 +24614,50 @@ body.pray-session-open .app-body {
   display: inline-block;
   margin-top: 12px;
   font-size: 13px;
+}
+
+/* 出站分享落地：一屏内容 + 主 CTA */
+.share-landing-page {
+  padding-top: 20px;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  max-width: 520px;
+}
+.share-landing-page .eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  color: var(--muted, #6b6b6b);
+}
+.share-landing-kicker {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.share-landing-title {
+  margin: 0 0 12px;
+  font-size: clamp(24px, 6vw, 30px);
+  line-height: 1.35;
+  font-weight: 700;
+}
+.share-landing-lead {
+  margin: 0 0 10px;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink, #1a1a1a);
+}
+.share-landing-support {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.share-landing-ctas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.share-landing-ctas .btn {
+  width: 100%;
+  justify-content: center;
 }
 
 .daily-verse-share-page {

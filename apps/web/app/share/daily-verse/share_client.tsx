@@ -52,7 +52,7 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
     return (
       <>
         <p className="muted">{err || '暂时无法加载经文'}</p>
-        <div className="daily-verse-share-ctas">
+        <div className="share-landing-ctas daily-verse-share-ctas">
           <Link className="btn btn-primary" href="/">
             打开{BRAND_NAME}
           </Link>
@@ -69,7 +69,7 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
       </blockquote>
       <p className="muted daily-verse-share-meta">和合本 · {BRAND_TAGLINE}</p>
 
-      <div className="daily-verse-share-ctas">
+      <div className="share-landing-ctas daily-verse-share-ctas">
         {showInstallCta ? (
           <button type="button" className="btn btn-primary" onClick={() => openPwaInstallSheet()}>
             保存到主屏幕

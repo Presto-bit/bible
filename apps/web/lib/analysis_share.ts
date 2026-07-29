@@ -175,6 +175,7 @@ export function buildAnalysisSharePack(input: AnalysisShareInput): AnalysisShare
     subtitle: insight.slice(0, 36),
     body: lead,
     footer: `${BRAND_NAME} · ${BRAND_TAGLINE}`,
+    badge: '小爱解读',
   };
 
   const base = {

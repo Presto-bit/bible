@@ -5,6 +5,7 @@ import { BRAND_NAME, BRAND_TAGLINE } from './brand';
 import { formatDailyVerseQuote } from './daily_verse_display';
 import { dailyVerseWallpaperUrl } from './daily_verse_wallpaper';
 import { PWA_ICON_SOURCE } from './pwa_brand';
+import { shareOutbound } from './share_outbound';
 
 export type DailyVerseShareInput = {
   ref: string;
@@ -13,7 +14,7 @@ export type DailyVerseShareInput = {
   versionLabel?: string;
 };
 
-export type DailyVerseShareResult = 'shared' | 'cancelled' | 'downloaded' | 'failed';
+export type DailyVerseShareResult = 'shared' | 'cancelled' | 'downloaded' | 'copied' | 'failed';
 
 const SHARE_INSTALL_CTA = `打开链接，把${BRAND_NAME}保存到主屏幕`;
 
@@ -44,19 +45,6 @@ export function dailyVerseShareUrl(day?: number): string {
   u.searchParams.set('ch1', 'share');
   u.searchParams.set('ch2', 'daily_verse');
   return u.toString();
-}
-
-function isAbortError(err: unknown): boolean {
-  if (!err || typeof err !== 'object') return false;
-  const e = err as { name?: string; message?: string };
-  if (e.name === 'AbortError' || e.name === 'NotAllowedError') return true;
-  const msg = (e.message || '').toLowerCase();
-  return (
-    msg.includes('abort') ||
-    msg.includes('cancel') ||
-    msg.includes('share canceled') ||
-    msg.includes('share cancelled')
-  );
 }
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {
@@ -253,7 +241,7 @@ export async function renderDailyVerseSharePng(
 
 /**
  * 调起系统分享（优先经文卡图 + 文案）。
- * 用户下滑取消分享时返回 cancelled，不再下载或二次弹窗。
+ * 用户取消 → cancelled（不下图）；无 Share API 才下载卡片。
  */
 export async function shareDailyVerseCard(
   input: DailyVerseShareInput,
@@ -268,52 +256,13 @@ export async function shareDailyVerseCard(
   const file = new File([blob], 'daily-verse-share.png', { type: 'image/png' });
   const text = buildDailyVerseShareText(input);
   const shareUrl = dailyVerseShareUrl(input.day);
-  const nav = navigator as Navigator & {
-    share?: (d: { files?: File[]; title?: string; text?: string; url?: string }) => Promise<void>;
-    canShare?: (d: { files?: File[]; title?: string; text?: string; url?: string }) => boolean;
-  };
 
-  if (nav.share) {
-    const withFiles =
-      typeof nav.canShare !== 'function' || nav.canShare({ files: [file] });
-    // 优先带经文卡图；文案内含当日经文。取消后不再二次弹窗/下载。
-    if (withFiles) {
-      try {
-        await nav.share({
-          files: [file],
-          title,
-          text: `${text}\n${shareUrl}`,
-        });
-        return 'shared';
-      } catch (err) {
-        if (isAbortError(err)) return 'cancelled';
-        return 'failed';
-      }
-    }
-
-    try {
-      await nav.share({
-        title,
-        text,
-        url: shareUrl,
-      });
-      return 'shared';
-    } catch (err) {
-      if (isAbortError(err)) return 'cancelled';
-      return 'failed';
-    }
-  }
-
-  // 无系统分享能力时才下载卡片，避免取消后误触发「预览」
-  try {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'daily-verse-share.png';
-    a.click();
-    URL.revokeObjectURL(url);
-    return 'downloaded';
-  } catch {
-    return 'failed';
-  }
+  return shareOutbound({
+    title,
+    text,
+    url: shareUrl,
+    file,
+    // 每日经文：无系统分享时仍可下载卡图（保留原能力）；有分享时取消绝不下载
+    allowDownload: true,
+  });
 }
