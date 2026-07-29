@@ -31,7 +31,7 @@ import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImIma
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
-import { useImComposerKeyboard, scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
+import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
@@ -122,9 +122,11 @@ function DmThreadPageInner() {
   const longPressFired = useRef(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const composerBarRef = useRef<HTMLDivElement | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const [composerFocused, setComposerFocused] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  useImComposerHeightSync(composerBarRef);
   useImComposerKeyboard(composerFocused || plusOpen, {
     getScrollEl: () => listRef.current,
   });
@@ -1133,7 +1135,8 @@ function DmThreadPageInner() {
       </div>
 
       <div
-        className="im-composer-bar dm-composer-dock im-composer-dock"
+        ref={composerBarRef}
+        className={`im-composer-bar dm-composer-dock im-composer-dock${plusOpen ? ' is-plus-open' : ''}`}
       >
         {replyTo ? (
           <div className="group-composer-reply" style={{ width: '100%' }}>

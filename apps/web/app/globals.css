@@ -16325,7 +16325,7 @@ html.perf-lite .tabbar {
 
 /* ─── 群页 P2 增强 ─── */
 .group-page {
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0));
+  padding-bottom: var(--im-composer-h, calc(140px + env(safe-area-inset-bottom, 0px)));
 }
 
 .group-sticky-zone {
@@ -17403,8 +17403,8 @@ body:has(.group-page-checkin) .app-body {
   max-height: none;
   overflow: hidden;
   padding: 0;
-  /* 给固定底栏（输入区）留空，避免末条图片被挡住约 1/8 */
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  /* 给固定底栏（输入区）留空；高度跟实测 --im-composer-h（含 ➕ / @） */
+  padding-bottom: var(--im-composer-h, calc(140px + env(safe-area-inset-bottom, 0px)));
   box-sizing: border-box;
   z-index: 2;
 }
@@ -20213,7 +20213,7 @@ body:has(.dm-page) .app-body {
   min-height:0;
   overflow:hidden;
   padding:0;
-  padding-bottom:calc(140px + env(safe-area-inset-bottom, 0px));
+  padding-bottom:var(--im-composer-h, calc(140px + env(safe-area-inset-bottom, 0px)));
   box-sizing:border-box;
   z-index:2;
 }
@@ -20334,13 +20334,16 @@ body.im-keyboard .group-checkin-scroll {
 body.im-keyboard .dm-msg-list {
   padding-bottom: 12px;
 }
-/* 键盘态收起会抢高度的附属条，避免末条被挤到输入框下 */
+/* 键盘态收起会抢高度的附属条，避免末条 / ➕ / @ 被挤出 */
 body.im-keyboard .group-my-task-pin,
-body.im-keyboard .group-coread-sticky {
-  display: none;
+body.im-keyboard .group-coread-sticky,
+body.im-keyboard .group-announce-bar,
+body.im-keyboard .group-pinned-task,
+body.im-keyboard .group-prayer-banner {
+  display: none !important;
 }
 .im-jump-bottom{
-  bottom:calc(56px + env(safe-area-inset-bottom, 0px));
+  bottom:calc(var(--im-composer-h, 56px) + 12px + env(safe-area-inset-bottom, 0px));
 }
 .group-chat-name{
   font-size:12px;
@@ -20796,17 +20799,24 @@ html.perf-lite .im-msg-popover{
   display:flex;
   flex-direction:column;
   gap:2px;
-  max-height:168px;
+  /* 键盘矮视口下限制高度，避免顶出壳外被 overflow:hidden 裁切 */
+  max-height:min(168px, 32vh, calc(var(--im-vv-h, 100dvh) * 0.32));
   overflow:auto;
+  -webkit-overflow-scrolling:touch;
   border:1px solid var(--line);
   border-radius:12px;
   background:var(--surface, #fff);
   padding:4px;
   box-shadow:0 8px 24px rgba(0,0,0,.08);
+  z-index:2;
 }
 .im-mention-suggest-head{
   padding:6px 10px 4px;
   font-size:12px;
+  position:sticky;
+  top:0;
+  background:var(--surface, #fff);
+  z-index:1;
 }
 .im-mention-suggest-item{
   text-align:left;
@@ -20816,6 +20826,17 @@ html.perf-lite .im-msg-popover{
   padding:8px 10px;
   font-size:14px;
   cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:2px;
+}
+.im-mention-suggest-name{
+  font-weight:500;
+  color:var(--ink);
+}
+.im-mention-suggest-sub{
+  font-size:12px;
 }
 .im-mention-suggest-item:hover,
 .im-mention-suggest-item:focus{
@@ -20882,6 +20903,12 @@ html.perf-lite .im-msg-popover{
   grid-template-columns:repeat(4, minmax(0, 1fr));
   gap:10px 8px;
   padding:10px 4px 4px;
+  /* 群聊项多（打卡/任务/计划/代祷…）：可滚动，避免被键盘或矮壳裁切 */
+  max-height:min(220px, 38vh, calc(var(--im-vv-h, 100dvh) * 0.38));
+  overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
   animation:im-plus-in .18s ease-out;
 }
 @keyframes im-plus-in{
@@ -20914,6 +20941,16 @@ html.perf-lite .im-msg-popover{
 }
 .im-plus-item:active .im-plus-icon{
   transform:scale(.96);
+}
+/* 群聊 ➕ 项较多：略收紧图标，两行更容易完整露出 */
+.im-composer-dock.is-plus-open .im-plus-icon{
+  width:44px;
+  height:44px;
+  border-radius:12px;
+}
+.im-composer-dock.is-plus-open .im-plus-item{
+  font-size:11px;
+  gap:5px;
 }
 .im-plus-mentions{
   display:flex;
@@ -24721,9 +24758,6 @@ body.pray-session-open .app-body {
   line-height: 1;
   padding: 2px 4px;
   cursor: pointer;
-}
-body.im-keyboard .group-prayer-banner {
-  display: none;
 }
 .daily-verse-share-preview {
   margin: 8px 0 0;

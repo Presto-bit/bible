@@ -15,7 +15,11 @@ import {
   type PendingAttach,
 } from '@/lib/im_composer';
 import { displayMemberName } from '@/lib/group_ui';
-import { useImComposerKeyboard, scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
+import {
+  useImComposerKeyboard,
+  useImComposerHeightSync,
+  scrollImChatToBottom,
+} from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
 import {
@@ -97,12 +101,14 @@ export function GroupComposerBar({
   const [err, setErr] = useState<string | null>(null);
   const [composerFocused, setComposerFocused] = useState(false);
   const [voiceMode, setVoiceMode] = useState(false);
+  const barRef = useRef<HTMLElement | null>(null);
   const imageRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef<string | null>(null);
   const locked = Boolean(disabled || busy || sending || uploading || !online);
+  useImComposerHeightSync(barRef);
   useImComposerKeyboard(composerFocused || panelOpen, { getScrollEl });
 
   useEffect(() => {
@@ -421,8 +427,34 @@ export function GroupComposerBar({
 
   return (
     <footer
-      className="im-composer-bar group-wechat-composer im-composer-dock"
+      ref={(el) => {
+        barRef.current = el;
+      }}
+      className={`im-composer-bar group-wechat-composer im-composer-dock${panelOpen ? ' is-plus-open' : ''}${showSuggest ? ' is-mention-open' : ''}`}
     >
+      {showSuggest ? (
+        <div className="im-mention-suggest" role="listbox">
+          {pickerOpen ? (
+            <div className="im-mention-suggest-head muted">选择要 @ 的人</div>
+          ) : null}
+          {suggestMembers.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="im-mention-suggest-item"
+              role="option"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                pickMention(item);
+              }}
+            >
+              <span className="im-mention-suggest-name">@{item.label}</span>
+              {item.sub ? <span className="im-mention-suggest-sub muted">{item.sub}</span> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {replyTo ? (
         <div className="group-composer-reply" style={{ width: '100%' }}>
           <div>
@@ -443,28 +475,6 @@ export function GroupComposerBar({
           onCancel={clearPending}
           onConfirm={() => void confirmPending()}
         />
-      ) : null}
-
-      {showSuggest ? (
-        <div className="im-mention-suggest" role="listbox">
-          {pickerOpen ? (
-            <div className="im-mention-suggest-head muted">选择要 @ 的人</div>
-          ) : null}
-          {suggestMembers.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="im-mention-suggest-item"
-              role="option"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pickMention(item);
-              }}
-            >
-              @{item.label}
-            </button>
-          ))}
-        </div>
       ) : null}
 
       <div className="im-composer-row">

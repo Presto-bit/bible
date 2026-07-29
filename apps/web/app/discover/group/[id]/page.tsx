@@ -248,24 +248,14 @@ function GroupPageInner() {
   useEffect(() => {
     if (!feed.length) return;
     if (searchParams.get('focusMsg')) return;
-    const wrap = feedWrapRef.current;
-    const pin = (smooth = false) => {
-      if (wrap) {
-        if (smooth) wrap.scrollTo({ top: wrap.scrollHeight, behavior: 'smooth' });
-        else wrap.scrollTop = wrap.scrollHeight;
-        return;
-      }
-      scrollImChatToBottom(feedWrapRef.current);
-    };
     if (!groupInitialPinned.current) {
       groupInitialPinned.current = true;
       stickBottom.current = true;
-      pin(false);
-      requestAnimationFrame(() => pin(false));
+      scrollImChatToBottom(feedWrapRef.current);
       return;
     }
     if (!stickBottom.current) return;
-    pin(false);
+    scrollImChatToBottom(feedWrapRef.current);
   }, [feed.length, searchParams]);
 
   useEffect(() => {

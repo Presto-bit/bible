@@ -31,13 +31,68 @@ export function scrollImChatToBottom(el: HTMLElement | null | undefined) {
   });
 }
 
-function measureComposerHeight(): number {
+function findComposerBar(): HTMLElement | null {
   const bar =
     document.querySelector('.im-composer-bar.im-composer-dock')
     || document.querySelector('.dm-composer-dock')
     || document.querySelector('.group-wechat-composer');
-  if (!(bar instanceof HTMLElement)) return 64;
+  return bar instanceof HTMLElement ? bar : null;
+}
+
+function measureComposerHeight(): number {
+  const bar = findComposerBar();
+  if (!bar) return 64;
   return Math.max(48, Math.round(bar.getBoundingClientRect().height));
+}
+
+function writeComposerHeight(px: number) {
+  document.documentElement.style.setProperty(
+    '--im-composer-h',
+    `${Math.max(48, Math.round(px))}px`,
+  );
+}
+
+/**
+ * 持续同步输入栏实测高度到 --im-composer-h（含 ➕ / @ / 回复条变高），
+ * 供会话壳 padding-bottom 与键盘态共用，避免写死 140px。
+ */
+export function useImComposerHeightSync(
+  barRef?: { current: HTMLElement | null },
+) {
+  useEffect(() => {
+    let ro: ResizeObserver | null = null;
+    let observed: HTMLElement | null = null;
+
+    const apply = () => {
+      const el = barRef?.current ?? findComposerBar();
+      if (!el) return;
+      writeComposerHeight(el.getBoundingClientRect().height);
+    };
+
+    const attach = () => {
+      const el = barRef?.current ?? findComposerBar();
+      if (!el || el === observed) {
+        apply();
+        return;
+      }
+      ro?.disconnect();
+      observed = el;
+      ro = new ResizeObserver(() => apply());
+      ro.observe(el);
+      apply();
+    };
+
+    attach();
+    const t1 = window.setTimeout(attach, 80);
+    const t2 = window.setTimeout(attach, 320);
+    window.addEventListener('resize', apply);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.removeEventListener('resize', apply);
+      ro?.disconnect();
+    };
+  }, [barRef]);
 }
 
 function readViewportHeight(): number {
@@ -94,7 +149,7 @@ export function useImComposerKeyboard(
       setInset(0);
       body.classList.remove('im-keyboard');
       root.style.removeProperty('--im-kb-inset');
-      root.style.removeProperty('--im-composer-h');
+      // --im-composer-h 由 useImComposerHeightSync 持续维护，失焦不清除
       root.style.removeProperty('--im-vv-top');
       root.style.removeProperty('--im-vv-h');
     };
