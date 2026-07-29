@@ -28,7 +28,8 @@ function cardClass(c: RailCard, active: boolean): string {
 
 function navigateRailHref(href: string, router: ReturnType<typeof useRouter>) {
   if (isExternalHref(href)) {
-    openCampaignHref(href);
+    // 今日推荐运营外链：运营已配置，直接打开，不弹确认
+    openCampaignHref(href, { confirm: false });
     return;
   }
   if (href.startsWith('/reader')) {

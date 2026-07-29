@@ -14,18 +14,23 @@ export function normalizeCampaignHref(href: string): string {
   return t;
 }
 
-/** 站内直跳；外链二次确认。返回是否已导航。 */
-export function openCampaignHref(href: string): boolean {
+/** 站内直跳；外链默认二次确认（落地页入口）。返回是否已导航。 */
+export function openCampaignHref(
+  href: string,
+  opts?: { confirm?: boolean },
+): boolean {
   const raw = normalizeCampaignHref(href);
   if (!raw) return false;
   if (!isExternalHref(raw)) {
     if (typeof window !== 'undefined') window.location.assign(raw);
     return true;
   }
-  const ok = window.confirm(
-    `即将打开外部链接，请确认来源可信：\n\n${raw}\n\n是否继续？`,
-  );
-  if (!ok) return false;
+  if (opts?.confirm !== false) {
+    const ok = window.confirm(
+      `即将打开外部链接，请确认来源可信：\n\n${raw}\n\n是否继续？`,
+    );
+    if (!ok) return false;
+  }
   window.open(raw, '_blank', 'noopener,noreferrer');
   return true;
 }

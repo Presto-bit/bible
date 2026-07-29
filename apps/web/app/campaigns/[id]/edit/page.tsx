@@ -792,7 +792,7 @@ function CampaignEditInner() {
                   placeholder="留空=活动落地页；也可填 /plans 或 https://…"
                 />
                 <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
-                  外链点击会二次确认后新开标签页
+                  外链一点即开新标签页（首页推荐不弹确认）
                 </span>
               </label>
               <div
