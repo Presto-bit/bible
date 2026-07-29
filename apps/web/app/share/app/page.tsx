@@ -49,7 +49,7 @@ export default function InviteAppPage() {
       <p className="muted invite-app-tagline">{BRAND_TAGLINE}</p>
       <InviteAppClient />
       <p className="muted" style={{ marginTop: 28, fontSize: 12 }}>
-        免费使用 · 可保存到主屏幕 · 登录后进度可同步
+        可保存到主屏幕 · 登录后进度可同步
       </p>
       <p className="muted" style={{ marginTop: 12 }}>
         <Link href="/" className="text-link">先看看今日经文</Link>

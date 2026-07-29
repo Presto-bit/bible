@@ -5503,6 +5503,39 @@ a.today-card-link {
   -webkit-backdrop-filter: blur(10px);
 }
 
+.profile-page .profile-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.profile-page .profile-invite-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 12px 0 10px;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+  box-shadow: var(--home-shadow);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.profile-page .profile-invite-btn svg {
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
 /* 覆盖 .tab-section-label.section-label { margin: 0 }，保证标题与卡片有呼吸 */
 .profile-page .profile-block-label.tab-section-label {
   margin-top: 30px;
