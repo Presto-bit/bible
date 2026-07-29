@@ -52,7 +52,7 @@ def test_uv_identity_prefers_user_code():
     assert "accounts" in sql
     assert "user_code" in sql
     assert "device_user_bindings" in sql
-    assert "pwd_hash" in sql
+    assert "pwd_hash" not in sql
     assert "nullif(trim(" in sql
     aliased = uv_identity_sql("d")
     assert "d.user_id" in aliased
@@ -61,12 +61,14 @@ def test_uv_identity_prefers_user_code():
     assert "visitor_key" in aliased
 
 
-def test_uv_attributed_requires_secured_account():
+def test_uv_attributed_requires_account_not_secured():
+    """UV 计入条件：能解析到 accounts 即可，不要求设密/绑手机。"""
     from app.analytics.uv_stats import uv_attributed_where
 
     sql = uv_attributed_where()
-    assert "pwd_hash" in sql
-    assert "phone" in sql
+    assert "accounts" in sql
+    assert "pwd_hash" not in sql
+    assert "phone" not in sql
     assert "device_user_bindings" in sql
     aliased = uv_attributed_where("d")
     assert "d.user_id" in aliased

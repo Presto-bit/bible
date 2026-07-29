@@ -1174,32 +1174,16 @@ def fetch_admin_stats_detail(
                       visit_date,
                       created_at,
                       bound_at,
-                      is_login,
                       identity,
                       device_fp
                     FROM (
                       SELECT DISTINCT ON (d.visit_date, {uv_identity_sql("d")})
                              {_v2_uv_user_code_sql()} AS user_code,
                              {_v2_uv_nickname_sql()} AS nickname,
-                             {_ts_sql(
-                                 "COALESCE("
-                                 "CASE WHEN ((a.pwd_hash IS NOT NULL AND trim(a.pwd_hash) <> '') "
-                                 "OR (a.phone IS NOT NULL AND trim(a.phone) <> '')) "
-                                 "THEN a.created_at END, "
-                                 "CASE WHEN ((a_bind.pwd_hash IS NOT NULL AND trim(a_bind.pwd_hash) <> '') "
-                                 "OR (a_bind.phone IS NOT NULL AND trim(a_bind.phone) <> '')) "
-                                 "THEN a_bind.created_at END, "
-                                 "u.created_at)"
-                             )} AS registered_at,
+                             {_ts_sql("COALESCE(a.created_at, a_bind.created_at, u.created_at)")} AS registered_at,
                              d.visit_date::text AS visit_date,
                              {_ts_sql("d.created_at")} AS created_at,
                              {_ts_sql("d.user_bound_at")} AS bound_at,
-                             (
-                               (a.pwd_hash IS NOT NULL AND trim(a.pwd_hash) <> '')
-                               OR (a.phone IS NOT NULL AND trim(a.phone) <> '')
-                               OR (a_bind.pwd_hash IS NOT NULL AND trim(a_bind.pwd_hash) <> '')
-                               OR (a_bind.phone IS NOT NULL AND trim(a_bind.phone) <> '')
-                             ) AS is_login,
                              {uv_identity_sql("d")} AS identity,
                              d.device_fingerprint AS device_fp
                       FROM daily_active_visitors d
@@ -1210,12 +1194,6 @@ def fetch_admin_stats_detail(
                         AND {uv_attributed_where("d")}
                       ORDER BY d.visit_date DESC,
                                {uv_identity_sql("d")},
-                               (
-                                 (a.pwd_hash IS NOT NULL AND trim(a.pwd_hash) <> '')
-                                 OR (a.phone IS NOT NULL AND trim(a.phone) <> '')
-                                 OR (a_bind.pwd_hash IS NOT NULL AND trim(a_bind.pwd_hash) <> '')
-                                 OR (a_bind.phone IS NOT NULL AND trim(a_bind.phone) <> '')
-                               ) DESC,
                                d.created_at DESC
                     ) v
                     ORDER BY visit_date DESC, created_at DESC
@@ -1232,12 +1210,11 @@ def fetch_admin_stats_detail(
                         vdate,
                         created,
                         bound,
-                        is_login,
                         identity,
                         device_fp,
                     ) = r
                     converted_today = bool(
-                        is_login and bound and bound != "—" and bound[:10] == vdate
+                        bound and bound != "—" and bound[:10] == vdate
                     )
                     display_code = user_code if user_code and user_code != "—" else None
                     if not display_code:
@@ -1379,10 +1356,10 @@ def fetch_admin_stats_detail(
             guest_pct = round(guest_uv / (deduped + guest_uv) * 100, 1) if (deduped + guest_uv) else 0
             convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("去重 UV", deduped, "仅已设密/绑手机；同一账号全天计 1"),
-                _insight("游客设备", guest_uv, f"未计入 UV（含静默建档）· 占访问 {guest_pct}%"),
+                _insight("去重 UV", deduped, "非游客（有 accounts）；同一账号全天计 1"),
+                _insight("游客设备", guest_uv, f"未计入 UV（无法解析到账号）· 占访问 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
-                _insight("当日转化", converted, f"游客→有效账号 {convert_pct}%" if converted else None),
+                _insight("当日转化", converted, f"游客→账号 {convert_pct}%" if converted else None),
                 _insight("次日留存", f"{d1}%" if d1 is not None else "—"),
                 _insight("7 日留存", f"{d7}%" if d7 is not None else "—"),
             ]
