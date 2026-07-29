@@ -414,6 +414,8 @@ ALTER TABLE ops_campaign
   ADD COLUMN IF NOT EXISTS hero_badge TEXT;
 ALTER TABLE ops_campaign
   ADD COLUMN IF NOT EXISTS hero_href TEXT;
+ALTER TABLE ops_campaign
+  ADD COLUMN IF NOT EXISTS rail_href TEXT NOT NULL DEFAULT '';
 CREATE INDEX IF NOT EXISTS ops_campaign_hero_idx
   ON ops_campaign (hero_enabled, status, start_at, end_at, priority DESC);
 """
@@ -470,6 +472,35 @@ def _landing(raw: Any) -> dict[str, Any]:
     return {}
 
 
+_RAIL_HREF_MAX = 2000
+
+
+def normalize_rail_href(raw: str | None) -> str:
+    """今日推荐卡跳转：空=默认落地页；站内 /path；http(s) 外链。"""
+    t = (raw or "").strip()
+    if not t:
+        return ""
+    if len(t) > _RAIL_HREF_MAX:
+        raise HTTPException(400, "卡片链接过长")
+    if t.startswith("//"):
+        t = f"https:{t}"
+    if t.startswith("/"):
+        if t.startswith("//") or "\n" in t or "\r" in t:
+            raise HTTPException(400, "卡片链接无效")
+        return t
+    low = t.lower()
+    if low.startswith("https://") or low.startswith("http://"):
+        if any(c in t for c in ("\n", "\r", " ")):
+            raise HTTPException(400, "卡片链接无效")
+        return t
+    raise HTTPException(400, "卡片链接须为站内路径（/…）或 http(s) 外链")
+
+
+def resolve_campaign_rail_href(campaign_id: str, rail_href: str | None) -> str:
+    href = (rail_href or "").strip()
+    return href if href else f"/campaigns/view/{campaign_id}"
+
+
 def _row_campaign(row: tuple, group_ids: list[str] | None = None) -> dict[str, Any]:
     out: dict[str, Any] = {
         "id": row[0],
@@ -499,6 +530,7 @@ def _row_campaign(row: tuple, group_ids: list[str] | None = None) -> dict[str, A
         out["heroAlt"] = row[20] or "" if len(row) > 20 else ""
         out["heroBadge"] = row[21] or "" if len(row) > 21 else ""
         out["heroHref"] = row[22] or "" if len(row) > 22 else ""
+        out["railHref"] = row[23] or "" if len(row) > 23 else ""
     else:
         out["audienceMode"] = "groups"
         out["heroEnabled"] = False
@@ -508,6 +540,8 @@ def _row_campaign(row: tuple, group_ids: list[str] | None = None) -> dict[str, A
         out["heroAlt"] = ""
         out["heroBadge"] = ""
         out["heroHref"] = ""
+        out["railHref"] = ""
+    out["href"] = resolve_campaign_rail_href(row[0], out.get("railHref"))
     return out
 
 
@@ -528,7 +562,8 @@ _CAMPAIGN_SELECT = """
                hero_image_url, hero_image_url_dark,
                COALESCE(hero_image_version, 1),
                COALESCE(hero_alt, ''), COALESCE(hero_badge, ''),
-               COALESCE(hero_href, '')
+               COALESCE(hero_href, ''),
+               COALESCE(rail_href, '')
         FROM ops_campaign
 """
 
@@ -823,6 +858,7 @@ class CampaignUpsert(BaseModel):
     heroAlt: str = ""
     heroBadge: str = ""
     heroHref: str = ""
+    railHref: str = ""
 
 
 class CommentBody(BaseModel):
@@ -1063,6 +1099,7 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
     if end_at <= start_at:
         raise HTTPException(400, "结束时间须晚于开始时间")
     rail_slot = min(3, max(1, int(body.railSlot or 1)))
+    rail_href = normalize_rail_href(body.railHref)
     landing = body.landing or dict(TEMPLATES[body.templateId]["landing"])
     if not landing.get("title"):
         landing["title"] = body.name.strip()
@@ -1106,11 +1143,11 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
               id, creator_id, name, template_id, status, start_at, end_at,
               cover_url, subtitle, rail_slot, rail_enabled, priority, landing_json,
               audience_mode, hero_enabled, hero_image_url, hero_image_url_dark,
-              hero_image_version, hero_alt, hero_badge, hero_href
+              hero_image_version, hero_alt, hero_badge, hero_href, rail_href
             ) VALUES (
               %s, %s::uuid, %s, %s, %s, %s, %s,
               %s, %s, %s, %s, %s, %s::jsonb,
-              %s, %s, %s, %s, %s, %s, %s, %s
+              %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             """,
             (
@@ -1135,6 +1172,7 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
                 hero["hero_alt"],
                 hero["hero_badge"],
                 hero["hero_href"],
+                rail_href,
             ),
         )
         for gid in group_ids:
@@ -1160,7 +1198,8 @@ def home_campaigns(user_id: str | None = Depends(try_get_current_user)) -> dict:
             """
             SELECT DISTINCT c.id, c.creator_id, c.name, c.template_id, c.status, c.start_at, c.end_at,
                    c.cover_url, c.subtitle, c.rail_slot, c.rail_enabled, c.priority,
-                   c.landing_json, c.created_at, c.updated_at
+                   c.landing_json, c.created_at, c.updated_at,
+                   COALESCE(c.rail_href, '')
             FROM ops_campaign c
             LEFT JOIN ops_campaign_audience a ON a.campaign_id = c.id
             LEFT JOIN group_member m ON m.group_id = a.group_id AND m.user_id = %s::uuid
@@ -1209,7 +1248,10 @@ def home_campaigns(user_id: str | None = Depends(try_get_current_user)) -> dict:
                     "subtitle": row[8] or str(landing.get("body") or "")[:40],
                     "coverUrl": row[7],
                     "railSlot": int(row[9] or 1),
-                    "href": f"/campaigns/view/{row[0]}",
+                    "railHref": (row[15] if len(row) > 15 else "") or "",
+                    "href": resolve_campaign_rail_href(
+                        row[0], row[15] if len(row) > 15 else ""
+                    ),
                     "daysTotal": len(days),
                     "daysRead": int(read_n or 0),
                 }
@@ -1500,6 +1542,7 @@ def update_campaign(
     if end_at <= start_at:
         raise HTTPException(400, "结束时间须晚于开始时间")
     rail_slot = min(3, max(1, int(body.railSlot or 1)))
+    rail_href = normalize_rail_href(body.railHref)
     landing = body.landing or {}
     if not landing.get("title"):
         landing["title"] = body.name.strip()
@@ -1546,7 +1589,7 @@ def update_campaign(
               priority = %s, landing_json = %s::jsonb,
               audience_mode = %s, hero_enabled = %s, hero_image_url = %s,
               hero_image_url_dark = %s, hero_image_version = %s,
-              hero_alt = %s, hero_badge = %s, hero_href = %s,
+              hero_alt = %s, hero_badge = %s, hero_href = %s, rail_href = %s,
               updated_at = now()
             WHERE id = %s
             """,
@@ -1570,6 +1613,7 @@ def update_campaign(
                 hero["hero_alt"],
                 hero["hero_badge"],
                 hero["hero_href"],
+                rail_href,
                 campaign_id,
             ),
         )
@@ -1600,10 +1644,12 @@ def copy_campaign(campaign_id: str, user_id: str = Depends(get_current_user)) ->
             """
             INSERT INTO ops_campaign (
               id, creator_id, name, template_id, status, start_at, end_at,
-              cover_url, subtitle, rail_slot, rail_enabled, priority, landing_json
+              cover_url, subtitle, rail_slot, rail_enabled, priority, landing_json,
+              rail_href
             ) VALUES (
               %s, %s::uuid, %s, %s, 'draft', %s, %s,
-              %s, %s, %s, %s, %s, %s::jsonb
+              %s, %s, %s, %s, %s, %s::jsonb,
+              %s
             )
             """,
             (
@@ -1619,6 +1665,7 @@ def copy_campaign(campaign_id: str, user_id: str = Depends(get_current_user)) ->
                 row[10],
                 row[11],
                 json.dumps(landing, ensure_ascii=False),
+                (row[23] if len(row) > 23 else "") or "",
             ),
         )
         for gid in gids:

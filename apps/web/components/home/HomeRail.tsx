@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { railDotClass, type RailCard } from '@/lib/home_rail';
+import { isExternalHref, openCampaignHref } from '@/lib/campaign_nav';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
 import { isPwaMainTabHref, navigatePwaTab, navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { RailCardVisual } from '@/components/home/RailCardVisual';
@@ -26,6 +27,10 @@ function cardClass(c: RailCard, active: boolean): string {
 }
 
 function navigateRailHref(href: string, router: ReturnType<typeof useRouter>) {
+  if (isExternalHref(href)) {
+    openCampaignHref(href);
+    return;
+  }
   if (href.startsWith('/reader')) {
     navigateToReaderHref(href, router);
     return;

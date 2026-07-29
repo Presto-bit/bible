@@ -64,6 +64,7 @@ function CampaignEditInner() {
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [railSlot, setRailSlot] = useState(1);
   const [railEnabled, setRailEnabled] = useState(true);
+  const [railHref, setRailHref] = useState('');
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
   const [landing, setLanding] = useState<OpsCampaignLanding>({});
@@ -178,6 +179,7 @@ function CampaignEditInner() {
       setGroupIds(savedIds);
       setRailSlot(campaign.railSlot || 1);
       setRailEnabled(campaign.railEnabled !== false);
+      setRailHref(campaign.railHref || '');
       setStartAt(toLocalInput(campaign.startAt));
       setEndAt(toLocalInput(campaign.endAt));
       setAudienceMode(
@@ -196,6 +198,7 @@ function CampaignEditInner() {
         if (draft!.audienceMode) setAudienceMode(draft!.audienceMode);
         setRailSlot(draft!.railSlot);
         setRailEnabled(draft!.railEnabled);
+        setRailHref(draft!.railHref || '');
         setStartAt(draft!.startAt);
         setEndAt(draft!.endAt);
         setLanding(ensureLandingBlocks(draft!.landing || {}, campaign.templateId));
@@ -229,6 +232,7 @@ function CampaignEditInner() {
         audienceMode,
         railSlot,
         railEnabled,
+        railHref,
         startAt,
         endAt,
         landing,
@@ -245,6 +249,7 @@ function CampaignEditInner() {
     audienceMode,
     railSlot,
     railEnabled,
+    railHref,
     startAt,
     endAt,
     landing,
@@ -314,6 +319,7 @@ function CampaignEditInner() {
         subtitle: subtitle.trim(),
         railSlot,
         railEnabled,
+        railHref: railHref.trim(),
         groupIds: audienceMode === 'groups' ? groupIds : [],
         landing: {
           ...landing,
@@ -326,6 +332,7 @@ function CampaignEditInner() {
       setCamp(campaign);
       setStatus(campaign.status);
       setAudienceMode((campaign.audienceMode as typeof audienceMode) || 'groups');
+      setRailHref(campaign.railHref || '');
       setLanding(ensureLandingBlocks(campaign.landing || landing, campaign.templateId));
       clearCampaignDraft(id);
       skipDraftOnce.current = true;
@@ -775,6 +782,19 @@ function CampaignEditInner() {
                   </button>
                 ))}
               </div>
+              <label className="ops-field" style={{ marginTop: 12 }}>
+                <span>卡片点击跳转</span>
+                <input
+                  className="input"
+                  value={railHref}
+                  disabled={!railEnabled}
+                  onChange={(e) => setRailHref(e.target.value)}
+                  placeholder="留空=活动落地页；也可填 /plans 或 https://…"
+                />
+                <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+                  外链点击会二次确认后新开标签页
+                </span>
+              </label>
               <div
                 style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr', marginTop: 12 }}
               >

@@ -1365,6 +1365,10 @@ export interface OpsCampaign {
   subtitle: string;
   railSlot: number;
   railEnabled: boolean;
+  /** 今日推荐卡点击跳转；空则默认活动落地页。支持站内 /path 或 http(s) 外链 */
+  railHref?: string;
+  /** 解析后的首页卡 href（railHref 或默认落地页） */
+  href?: string;
   priority: number;
   landing: OpsCampaignLanding;
   groupIds: string[];
@@ -1439,6 +1443,7 @@ export interface OpsHomeCampaign {
   coverUrl?: string | null;
   railSlot: number;
   href: string;
+  railHref?: string;
   daysTotal: number;
   daysRead: number;
 }
@@ -1454,6 +1459,8 @@ export interface OpsCampaignUpsert {
   subtitle?: string;
   railSlot?: number;
   railEnabled?: boolean;
+  /** 今日推荐卡外链/深链；空=默认落地页 */
+  railHref?: string;
   priority?: number;
   groupIds: string[];
   landing: OpsCampaignLanding;

@@ -12,6 +12,7 @@ export type CampaignDraftPayload = {
   audienceMode?: 'groups' | 'all' | 'admin_preview';
   railSlot: number;
   railEnabled: boolean;
+  railHref?: string;
   startAt: string;
   endAt: string;
   landing: OpsCampaignLanding;

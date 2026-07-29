@@ -142,3 +142,26 @@ def test_platform_audience_checklist():
     )
     assert ok_groups == []
 
+
+def test_normalize_rail_href_allows_path_and_http():
+    from fastapi import HTTPException
+
+    from app.content.campaigns import normalize_rail_href, resolve_campaign_rail_href
+
+    assert normalize_rail_href("") == ""
+    assert normalize_rail_href("  /plans  ") == "/plans"
+    assert normalize_rail_href("https://example.com/x") == "https://example.com/x"
+    assert normalize_rail_href("//cdn.example.com/a") == "https://cdn.example.com/a"
+    assert resolve_campaign_rail_href("camp_abc", "") == "/campaigns/view/camp_abc"
+    assert resolve_campaign_rail_href("camp_abc", "https://x.test") == "https://x.test"
+    try:
+        normalize_rail_href("javascript:alert(1)")
+        assert False, "expected reject"
+    except HTTPException as exc:
+        assert exc.status_code == 400
+    try:
+        normalize_rail_href("ftp://x")
+        assert False, "expected reject"
+    except HTTPException as exc:
+        assert exc.status_code == 400
+
