@@ -136,6 +136,20 @@ function DmThreadPageInner() {
     document.body.classList.toggle('im-plus-sheet', plusOpen);
     return () => document.body.classList.remove('im-plus-sheet');
   }, [plusOpen]);
+
+  /** 点消息区空白收起加号面板 */
+  useEffect(() => {
+    if (!plusOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (composerBarRef.current?.contains(t)) return;
+      setPlusOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [plusOpen]);
+
   const [plusAccept, setPlusAccept] = useState(
     'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
   );

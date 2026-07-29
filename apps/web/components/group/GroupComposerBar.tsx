@@ -449,6 +449,24 @@ export function GroupComposerBar({
     if (showSend) setPanelOpen(false);
   }, [showSend]);
 
+  const sheetOpen = panelOpen || pickerOpen || atQuery != null;
+
+  /** 点消息区等空白处收起加号 / @ 浮层 */
+  useEffect(() => {
+    if (!sheetOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (barRef.current?.contains(t)) return;
+      keepMentionPickerRef.current = false;
+      setPanelOpen(false);
+      setPickerOpen(false);
+      setAtQuery(null);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [sheetOpen]);
+
   return (
     <footer
       ref={(el) => {
