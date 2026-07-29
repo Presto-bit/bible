@@ -19,7 +19,7 @@ export function scrollImChatToBottom(el: HTMLElement | null | undefined) {
       last.scrollIntoView({ block: 'end', behavior: 'auto' });
     }
   };
-  // 多帧 + 短延迟：等键盘 inset / composer 高度写入后再滚
+  // 多帧 + 短延迟：等 vv 壳 / composer 高度写入后再滚
   requestAnimationFrame(() => {
     pin();
     requestAnimationFrame(() => {
@@ -45,9 +45,10 @@ export type ImComposerKeyboardOpts = {
 };
 
 /**
- * IM 键盘贴合：
- * - 标记 body.im-keyboard，写入 --im-kb-inset / --im-composer-h
- * - 键盘动画期间多次把聊天区滚到底，保证最后一条在输入框上方可见
+ * IM 键盘贴合（对齐小爱）：
+ * - 把会话壳绑到 visualViewport（--im-vv-top / --im-vv-h）
+ * - 输入栏改在壳内贴底，避免 fixed + 错误 kb-inset 被键盘挡住
+ * - 列表只为 composer 高度留白；键盘动画期多次滚底
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -70,6 +71,8 @@ export function useImComposerKeyboard(
       body.classList.remove('im-keyboard');
       root.style.removeProperty('--im-kb-inset');
       root.style.removeProperty('--im-composer-h');
+      root.style.removeProperty('--im-vv-top');
+      root.style.removeProperty('--im-vv-h');
     };
 
     const measureGap = () => {
@@ -89,45 +92,48 @@ export function useImComposerKeyboard(
       scrollImChatToBottom(getScrollElRef.current?.() ?? null);
     };
 
-    const apply = (gap: number) => {
+    const applyViewportChrome = (gap: number) => {
+      const layoutH = window.innerHeight || root.clientHeight || 0;
+      const vvH = vv?.height ?? layoutH;
+      const offsetTop = vv?.offsetTop ?? 0;
       const next = gap > 8 ? gap : 0;
-      if (active) {
-        setInset(next);
-        body.classList.add('im-keyboard');
-        root.style.setProperty('--im-kb-inset', `${next}px`);
-        pinChat();
-        return;
-      }
-      if (next > 0) {
-        setInset(next);
-        body.classList.add('im-keyboard');
-        root.style.setProperty('--im-kb-inset', `${next}px`);
-        pinChat();
-      } else {
-        clearChrome();
-        pinScrollTop();
-      }
+
+      setInset(next);
+      body.classList.add('im-keyboard');
+      root.style.setProperty('--im-kb-inset', `${next}px`);
+      // 无论 resizes-content 是否生效，都把壳压进可见视口
+      root.style.setProperty('--im-vv-top', `${Math.max(0, Math.round(offsetTop))}px`);
+      root.style.setProperty('--im-vv-h', `${Math.max(120, Math.round(vvH))}px`);
+      pinChat();
     };
 
     const sync = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => apply(measureGap()));
+      raf = requestAnimationFrame(() => applyViewportChrome(measureGap()));
     };
 
     if (!active) {
-      sync();
+      // 失焦后短轮询：等键盘收起动画再清 chrome
       let n = 0;
-      poll = window.setInterval(() => {
-        n += 1;
-        const gap = measureGap();
-        apply(gap);
-        if (gap <= 8 || n > 28) {
-          if (poll) window.clearInterval(poll);
-          poll = undefined;
-          clearChrome();
-          pinScrollTop();
-        }
-      }, 50);
+      const gap0 = measureGap();
+      if (gap0 <= 8) {
+        clearChrome();
+        pinScrollTop();
+      } else {
+        applyViewportChrome(gap0);
+        poll = window.setInterval(() => {
+          n += 1;
+          const gap = measureGap();
+          if (gap <= 8 || n > 28) {
+            if (poll) window.clearInterval(poll);
+            poll = undefined;
+            clearChrome();
+            pinScrollTop();
+            return;
+          }
+          applyViewportChrome(gap);
+        }, 50);
+      }
     } else {
       vv?.addEventListener('resize', sync);
       vv?.addEventListener('scroll', sync);
@@ -145,10 +151,8 @@ export function useImComposerKeyboard(
       vv?.removeEventListener('resize', sync);
       vv?.removeEventListener('scroll', sync);
       window.removeEventListener('resize', sync);
-      if (!active) {
-        clearChrome();
-        pinScrollTop();
-      }
+      clearChrome();
+      pinScrollTop();
     };
   }, [active]);
 
