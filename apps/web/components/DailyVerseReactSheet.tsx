@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   api,
   ensureAccountReady,
@@ -13,7 +13,7 @@ import {
   DAILY_VERSE_REACT_PHRASES,
 } from '@/lib/daily_verse_react_presets';
 import { errorMessage } from '@/components/ErrorBanner';
-import ReaderSheetPortal from '@/components/reader/ReaderSheetPortal';
+import { createPortal } from 'react-dom';
 import { formatMsgTime } from '@/lib/im_ui';
 import { formatRelativeTime } from '@/lib/campaign_ops';
 
@@ -47,18 +47,26 @@ export default function DailyVerseReactSheet({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
   const onChangedRef = useRef(onChanged);
-  const sheetRef = useRef<HTMLDivElement | null>(null);
-  const feedRef = useRef<HTMLDivElement | null>(null);
-  const touchStartYRef = useRef<number | null>(null);
-  const touchDraggingRef = useRef(false);
-  const [dragOffset, setDragOffset] = useState(0);
   onChangedRef.current = onChanged;
 
-  const feedTitle = useMemo(() => {
-    if (count <= 0) return '还没有人回应';
-    return `${count.toLocaleString()} 位读经伙伴已回应`;
-  }, [count]);
+  // portal mount
+  useEffect(() => { setMounted(true); }, []);
+
+  // 下拉关闭：只在 feed 已滚到顶时触发
+  const feedRef = useRef<HTMLDivElement | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const draggingDownRef = useRef(false);
+  const [dragOffset, setDragOffset] = useState(0);
+
+  const feedTimeLabel = (iso?: string) => {
+    if (!iso) return '';
+    const rel = formatRelativeTime(iso);
+    const at = formatMsgTime(iso);
+    if (rel && at) return `${rel} · ${at}`;
+    return rel || at || '';
+  };
 
   const loadFeed = useCallback(async () => {
     setFeedLoading(true);
@@ -83,9 +91,7 @@ export default function DailyVerseReactSheet({
     }
   }, [day]);
 
-  useEffect(() => {
-    void loadFeed();
-  }, [loadFeed]);
+  useEffect(() => { void loadFeed(); }, [loadFeed]);
 
   const pick = async (preset: DailyVerseReactPreset) => {
     if (busyId) return;
@@ -105,6 +111,7 @@ export default function DailyVerseReactSheet({
         reacts_count: nextCount,
         top_presets: nextTop,
       });
+      // 立刻刷新 feed 以展示自己
       void loadFeed();
     } catch (e) {
       setErr(errorMessage(e, '暂时无法回应，请稍后再试'));
@@ -113,134 +120,98 @@ export default function DailyVerseReactSheet({
     }
   };
 
-  const feedTimeLabel = (iso?: string) => {
-    if (!iso) return '';
-    const rel = formatRelativeTime(iso);
-    const at = formatMsgTime(iso);
-    if (rel && at) return `${rel} · ${at}`;
-    return rel || at || '';
+  // ── 下拉关闭手势 ──
+  const onTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    touchStartYRef.current = e.touches[0]?.clientY ?? null;
+    draggingDownRef.current = false;
   };
 
-  const beginDrag = (clientY: number) => {
-    touchStartYRef.current = clientY;
-    touchDraggingRef.current = false;
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+  const onTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     const startY = touchStartYRef.current;
     if (startY == null) return;
-    const currentY = e.touches[0]?.clientY ?? startY;
-    const deltaY = currentY - startY;
-    const feedTop = feedRef.current?.scrollTop ?? 0;
-    if (deltaY > 0 && feedTop <= 0) {
-      touchDraggingRef.current = true;
-      setDragOffset(Math.min(deltaY, 160));
-      e.preventDefault();
+    const dy = (e.touches[0]?.clientY ?? startY) - startY;
+    const atTop = (feedRef.current?.scrollTop ?? 0) <= 0;
+    if (dy > 0 && atTop) {
+      draggingDownRef.current = true;
+      setDragOffset(Math.min(dy, 160));
+      // 阻止传递到 HomePage，防止触发首页滑动
+      e.stopPropagation();
+    } else if (draggingDownRef.current) {
+      // 中途改回上滑，重置
+      draggingDownRef.current = false;
+      setDragOffset(0);
     }
   };
 
-  const handleTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
+  const onTouchEnd = (e: React.TouchEvent<HTMLDivElement>) => {
     const startY = touchStartYRef.current;
     touchStartYRef.current = null;
-    if (startY == null) return;
-    const endY = e.changedTouches[0]?.clientY ?? startY;
-    const deltaY = endY - startY;
-    const shouldClose = touchDraggingRef.current && deltaY > 72;
-    touchDraggingRef.current = false;
+    const dy = startY != null ? (e.changedTouches[0]?.clientY ?? startY) - startY : 0;
+    const should = draggingDownRef.current && dy > 72;
+    draggingDownRef.current = false;
     setDragOffset(0);
-    if (shouldClose) onClose();
+    if (should) onClose();
   };
 
-  return (
-    <ReaderSheetPortal
-      onClose={onClose}
-      backdropClassName="sheet-backdrop-above-tab"
-      sheetClassName="sheet card daily-verse-react-sheet"
+  if (!mounted) return null;
+
+  return createPortal(
+    <div
+      className="sheet-backdrop dv-react-backdrop"
+      onClick={onClose}
     >
       <div
-        ref={sheetRef}
-        className="daily-verse-react-sheet-inner"
-        style={dragOffset > 0 ? { transform: `translateY(${dragOffset}px)` } : undefined}
-        onTouchStart={(e) => beginDrag(e.touches[0]?.clientY ?? 0)}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onTouchCancel={() => {
-          touchStartYRef.current = null;
-          touchDraggingRef.current = false;
-          setDragOffset(0);
-        }}
+        className="sheet card dv-react-sheet"
+        style={dragOffset > 0 ? { transform: `translateY(${dragOffset}px)`, transition: 'none' } : undefined}
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={() => { touchStartYRef.current = null; draggingDownRef.current = false; setDragOffset(0); }}
         role="dialog"
         aria-label="今日回应"
       >
+        {/* grab bar + 标题 */}
         <div className="half-sheet-grab" aria-hidden />
-        <div className="section-row group-settings-sheet-head daily-verse-react-sheet-head">
-          <button type="button" className="text-link" onClick={onClose}>
-            关闭
-          </button>
-          <strong>今日回应</strong>
-          <button type="button" className="text-link" onClick={onClose}>
-            收起
-          </button>
+        <div className="dv-react-header">
+          <strong className="dv-react-title">今日回应</strong>
+          <button type="button" className="text-link dv-react-close" onClick={onClose} aria-label="关闭">✕</button>
         </div>
 
-        <div className="daily-verse-react-feed-panel" ref={feedRef}>
-          <p className="muted daily-verse-react-hint">
-            下拉可关闭；上下滑动可查看大家的回应。
-          </p>
-
-          {top.length > 0 && (
-            <>
-              <p className="daily-verse-react-section-label">大家最常回应</p>
-              <div className="daily-verse-react-top" role="list">
-                {top.map((t) => (
-                  <span key={t.id} className="daily-verse-react-top-item" role="listitem">
-                    <span aria-hidden>{t.emoji}</span>
-                    <span>{t.label}</span>
-                    <span className="muted">{t.count}</span>
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div className="daily-verse-react-feed-head">
-            <div>
-              <p className="daily-verse-react-section-label" style={{ marginBottom: 4 }}>
-                看看大家
-              </p>
-              <p className="muted daily-verse-react-feed-subtitle">{feedTitle}</p>
-            </div>
-          </div>
-
+        {/* ── 上：大家的回应（可滚动） ── */}
+        <div className="dv-react-feed-area" ref={feedRef}>
           {feedLoading && feed.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13 }}>加载中…</p>
+            <p className="muted" style={{ fontSize: 13, padding: '12px 0' }}>加载中…</p>
           ) : feed.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13 }}>还没有人回应，来做第一个吧。</p>
+            <p className="muted" style={{ fontSize: 13, padding: '12px 0' }}>还没有人回应，来做第一个吧。</p>
           ) : (
-            <ul className="daily-verse-react-feed">
+            <ul className="dv-react-feed-list">
               {feed.map((item, i) => (
                 <li key={`${item.user_code}-${item.created_at}-${i}`}>
-                  <div className="daily-verse-react-feed-main">
-                    <span className="daily-verse-react-feed-name">{item.display_name}</span>
-                    <span className="daily-verse-react-feed-meta">{feedTimeLabel(item.created_at)}</span>
-                  </div>
-                  <span className="daily-verse-react-feed-preset">
+                  <span className="dv-feed-preset">
                     <span aria-hidden>{item.preset.emoji}</span>
-                    {item.preset.label}
+                    <span>{item.preset.label}</span>
                   </span>
+                  <div className="dv-feed-right">
+                    <span className="dv-feed-name">{item.display_name}</span>
+                    <span className="dv-feed-time">{feedTimeLabel(item.created_at)}</span>
+                  </div>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        <div className="daily-verse-react-picker">
-          <p className="muted daily-verse-react-hint">
-            点选表情或短语，每人每天一条；再点同一选项可取消。
-          </p>
-
-          <p className="daily-verse-react-section-label">我来回应</p>
-          <div className="daily-verse-react-emoji-grid" role="list">
+        {/* ── 下：我来回应（固定，紧凑） ── */}
+        <div className="dv-react-picker">
+          {mine && (
+            <p className="dv-react-mine-label">
+              <span aria-hidden>{mine.emoji}</span>
+              我已回应：{mine.label}
+              <span className="muted dv-react-mine-cancel">（再次点击可取消）</span>
+            </p>
+          )}
+          <div className="dv-react-emoji-row" role="list">
             {emojis.map((p) => {
               const active = mine?.id === p.id;
               return (
@@ -248,20 +219,19 @@ export default function DailyVerseReactSheet({
                   key={p.id}
                   type="button"
                   role="listitem"
-                  className={`daily-verse-react-chip${active ? ' is-active' : ''}`}
+                  className={`dv-react-chip${active ? ' is-active' : ''}`}
                   disabled={!!busyId}
                   aria-pressed={active}
                   aria-label={p.label}
                   title={p.label}
                   onClick={() => void pick(p)}
                 >
-                  <span aria-hidden>{p.emoji}</span>
+                  {p.emoji}
                 </button>
               );
             })}
           </div>
-
-          <div className="daily-verse-react-phrase-list" role="list">
+          <div className="dv-react-phrase-row" role="list">
             {phrases.map((p) => {
               const active = mine?.id === p.id;
               return (
@@ -269,7 +239,7 @@ export default function DailyVerseReactSheet({
                   key={p.id}
                   type="button"
                   role="listitem"
-                  className={`daily-verse-react-phrase${active ? ' is-active' : ''}`}
+                  className={`dv-react-phrase${active ? ' is-active' : ''}`}
                   disabled={!!busyId}
                   aria-pressed={active}
                   onClick={() => void pick(p)}
@@ -280,14 +250,12 @@ export default function DailyVerseReactSheet({
               );
             })}
           </div>
-
           {err && (
-            <p className="muted" style={{ fontSize: 12, marginTop: 10 }} role="alert">
-              {err}
-            </p>
+            <p className="muted" style={{ fontSize: 12, marginTop: 8 }} role="alert">{err}</p>
           )}
         </div>
       </div>
-    </ReaderSheetPortal>
+    </div>,
+    document.body,
   );
 }
