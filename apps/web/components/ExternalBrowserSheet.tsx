@@ -74,27 +74,15 @@ export default function ExternalBrowserSheet() {
 
   if (!state.open) return null;
 
-  const canOpenSystem = Boolean(state.url);
-
   return (
     <AppBodyPortal>
       <div className="external-browser" role="dialog" aria-modal="true" aria-label={state.title}>
         <header className="external-browser-top">
-          <button type="button" className="external-browser-close" onClick={close}>
+          <button type="button" className="external-browser-close" onClick={close} aria-label="关闭">
             关闭
           </button>
           <div className="external-browser-title">{state.title}</div>
-          <button
-            type="button"
-            className="external-browser-system"
-            disabled={!canOpenSystem}
-            onClick={() => {
-              if (!state.url) return;
-              openInSystemBrowser(state.url);
-            }}
-          >
-            浏览器打开
-          </button>
+          <span className="external-browser-top-spacer" aria-hidden />
         </header>
 
         <div className="external-browser-body">

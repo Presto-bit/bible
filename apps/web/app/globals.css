@@ -24859,6 +24859,11 @@ body.external-browser-open .app-body {
   justify-self: start;
 }
 
+.external-browser-top-spacer {
+  width: 64px;
+  justify-self: end;
+}
+
 .external-browser-system {
   justify-self: end;
   background: transparent;

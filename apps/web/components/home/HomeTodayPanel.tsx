@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { bookCoverImageUrl } from '@/lib/book_cover';
+import { isExternalHref, openCampaignHref } from '@/lib/campaign_nav';
 import type { HomeTodayPanelModel, HomeTodayPanelSlot } from '@/lib/home_today_panel';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
@@ -12,6 +13,10 @@ type Props = {
 };
 
 function navigate(href: string, router: ReturnType<typeof useRouter>) {
+  if (isExternalHref(href)) {
+    openCampaignHref(href);
+    return;
+  }
   if (href.startsWith('/reader')) {
     navigateToReaderHref(href, router);
     return;

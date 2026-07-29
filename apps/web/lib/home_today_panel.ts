@@ -37,6 +37,8 @@ export type HomeTodayCampaignInput = {
   title: string;
   sub: string;
   href: string;
+  /** 主卡封面书卷；默认 GEN（与继续阅读同款风景） */
+  bookId?: string;
 };
 
 export type HomeTodayPanelInput = {
@@ -69,6 +71,7 @@ export type HomeTodayPanelInput = {
 };
 
 function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
+  const action = trimRailSub(c.sub || '继续阅读') || '继续阅读';
   return {
     id: `campaign-${c.id}`,
     tag: c.tag || '活动',
@@ -76,7 +79,8 @@ function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
     sub: '',
     href: c.href,
     icon: 'devotional',
-    cta: '进入',
+    bookId: c.bookId || 'GEN',
+    cta: action,
   };
 }
 
