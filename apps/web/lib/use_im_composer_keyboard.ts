@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 
 const LAST_KB_KEY = 'im-kb-last-h';
 
-function pinScrollTop() {
+function pinScrollTop(force = false) {
   // 输入聚焦时绝不能 scrollTo：iOS 会立刻收起键盘
-  if (isComposerFieldFocused()) return;
+  if (!force && isComposerFieldFocused()) return;
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
@@ -154,7 +154,7 @@ type KbMeasure = {
 /**
  * 测量键盘避让：
  * - resizes-content（本站 viewport 默认）：layout 已缩小，壳 bottom:0 即可，inset 必须 0
- * - overlays / 部分 iOS PWA：layout 仍全屏，才用 gap / scroll 代理抬壳
+ * - overlays：仅用 layout↔vv 的 gap；不用 scrollProxy（收起后易残留误抬）
  */
 function measureImKeyboard(baselineH: number): KbMeasure {
   const vv = window.visualViewport;
@@ -170,22 +170,10 @@ function measureImKeyboard(baselineH: number): KbMeasure {
     return { inset: 0, overlay: false, layoutShrunk: true };
   }
 
-  // overlays：layout 与 vv 有明显缝
-  if (gap > 24) {
-    const cap = Math.max(120, Math.round(layoutH * 0.5));
+  // overlays：layout 与 vv 有明显缝（要求 vvTop 也佐证，减少误报）
+  if (gap > 48 && (vvTop > 0 || gap > 120)) {
+    const cap = Math.max(120, Math.round(layoutH * 0.45));
     return { inset: Math.min(gap, cap), overlay: true, layoutShrunk: false };
-  }
-
-  // iOS 偶发：layout 未缩，靠 scroll/offsetTop 顶起
-  const scrollY =
-    window.scrollY
-    || document.documentElement.scrollTop
-    || document.body.scrollTop
-    || 0;
-  const scrollProxy = Math.max(0, Math.round(scrollY + vvTop));
-  if (scrollProxy > 80) {
-    const cap = Math.max(120, Math.round(layoutH * 0.5));
-    return { inset: Math.min(scrollProxy, cap), overlay: true, layoutShrunk: false };
   }
 
   return { inset: 0, overlay: false, layoutShrunk: false };
@@ -198,9 +186,9 @@ export type ImComposerKeyboardOpts = {
 
 /**
  * IM 键盘贴合（群 / 私信共用）：
- * - 等键盘真正出现再打 im-keyboard（改 padding / 藏 sticky），避免聚焦时先跳一下
- * - resizes-content：inset=0；overlays：用 --im-kb-inset
- * - 聚焦时禁止 window.scrollTo
+ * - 等键盘真正出现再打 im-keyboard
+ * - resizes-content：inset=0；overlays：仅 gap 抬壳
+ * - 失焦 / 键盘收起：立刻清抬升并钉文档，禁止用残留 scroll 再抬（否则底栏悬空）
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -209,14 +197,13 @@ export function useImComposerKeyboard(
   const [inset, setInset] = useState(0);
   const getScrollElRef = useRef(opts?.getScrollEl);
   getScrollElRef.current = opts?.getScrollEl;
-  /** 键盘未开时的可视高度；聚焦后冻结 */
   const baselineHRef = useRef(0);
-  /** overlays 焦点期内见过的最大抬升 */
   const maxKbRef = useRef(0);
   const wasActiveRef = useRef(false);
   const appliedKbRef = useRef(0);
-  /** 是否已进入「键盘已开」布局，避免反复开关 class 造成跳动 */
   const keyboardOpenRef = useRef(false);
+  /** 本焦点期见过 layout 收缩 → 之后只用 resize 路径，忽略 overlays 误测 */
+  const resizeModeRef = useRef(false);
 
   // 失焦时持续刷新 baseline
   useEffect(() => {
@@ -238,7 +225,7 @@ export function useImComposerKeyboard(
     const body = document.body;
     const vv = window.visualViewport;
     let raf = 0;
-    let poll: number | undefined;
+    const settleTimers: number[] = [];
     const followTimers: number[] = [];
 
     const clearChrome = () => {
@@ -249,6 +236,14 @@ export function useImComposerKeyboard(
       root.style.removeProperty('--im-kb-inset');
       root.style.removeProperty('--im-vv-top');
       root.style.removeProperty('--im-vv-h');
+    };
+
+    /** 收起后强制落回屏底（可 force pin，避免焦点竞态拦掉 scrollTo） */
+    const settleDismiss = (forcePin = true) => {
+      maxKbRef.current = 0;
+      resizeModeRef.current = false;
+      clearChrome();
+      pinScrollTop(forcePin);
     };
 
     const applyComposerH = () => {
@@ -271,7 +266,6 @@ export function useImComposerKeyboard(
         return;
       }
 
-      // 键盘未真正出现：保持原布局，避免「先跳一下再跟键盘」
       if (!keyboardUp) {
         if (keyboardOpenRef.current) clearChrome();
         else applyComposerH();
@@ -279,7 +273,6 @@ export function useImComposerKeyboard(
       }
 
       const next = kb > 24 ? kb : 0;
-      // overlays 下忽略过小抖动，减少 inset 来回跳
       if (
         overlay
         && keyboardOpenRef.current
@@ -314,52 +307,42 @@ export function useImComposerKeyboard(
           baselineHRef.current = readViewportHeight();
         }
         const m = measureImKeyboard(baselineHRef.current);
+        if (m.layoutShrunk) resizeModeRef.current = true;
+
+        // 本焦点期已确认 resizes-content：键盘在 → inset 0；键盘收起（仍聚焦）→ 立刻清
+        if (resizeModeRef.current) {
+          if (m.layoutShrunk) {
+            applyChrome(0, false, true);
+          } else if (keyboardOpenRef.current) {
+            clearChrome();
+          } else {
+            applyComposerH();
+          }
+          return;
+        }
+
         if (m.overlay && m.inset > maxKbRef.current) maxKbRef.current = m.inset;
         const held = m.overlay ? Math.max(m.inset, maxKbRef.current) : 0;
-        const keyboardUp = m.layoutShrunk || m.overlay || held > 24;
+        const keyboardUp = m.overlay && held > 24;
+        if (!keyboardUp && keyboardOpenRef.current) {
+          clearChrome();
+          return;
+        }
         applyChrome(held, m.overlay, keyboardUp);
       });
     };
 
     if (!active) {
-      maxKbRef.current = 0;
-      const leavingFocus = wasActiveRef.current;
       wasActiveRef.current = false;
-
-      if (!leavingFocus || isImBottomSheet()) {
-        clearChrome();
-        pinScrollTop();
-      } else {
-        let n = 0;
-        const first = measureImKeyboard(baselineHRef.current || readViewportHeight());
-        const firstUp = first.layoutShrunk || first.overlay || first.inset > 24;
-        if (!firstUp) {
-          clearChrome();
-          pinScrollTop();
-        } else {
-          applyChrome(first.inset, first.overlay, true, { scrollChat: false });
-          poll = window.setInterval(() => {
-            n += 1;
-            if (isImBottomSheet() || isComposerFieldFocused()) {
-              if (poll) window.clearInterval(poll);
-              poll = undefined;
-              if (isComposerFieldFocused()) return;
-              clearChrome();
-              pinScrollTop();
-              return;
-            }
-            const m = measureImKeyboard(baselineHRef.current || readViewportHeight());
-            const up = m.layoutShrunk || m.overlay || m.inset > 24;
-            if (!up || n > 20) {
-              if (poll) window.clearInterval(poll);
-              poll = undefined;
-              clearChrome();
-              pinScrollTop();
-              return;
-            }
-            applyChrome(m.inset, m.overlay, true, { scrollChat: false });
-          }, 50);
-        }
+      // 失焦：立刻清抬升。绝不再用 dismiss 轮询去 applyChrome（scroll/gap 残留会把底栏顶住）
+      settleDismiss(true);
+      for (const ms of [80, 200, 400]) {
+        settleTimers.push(
+          window.setTimeout(() => {
+            if (isComposerFieldFocused()) return;
+            settleDismiss(true);
+          }, ms),
+        );
       }
     } else {
       wasActiveRef.current = true;
@@ -368,13 +351,12 @@ export function useImComposerKeyboard(
       }
       maxKbRef.current = 0;
       keyboardOpenRef.current = false;
-      // 聚焦瞬间不改 class/padding，等 sync 确认键盘后再动
+      resizeModeRef.current = false;
 
       vv?.addEventListener('resize', sync);
       vv?.addEventListener('scroll', sync);
       window.addEventListener('resize', sync);
       sync();
-      // 少几次补采即可，过多 timer 会在键盘动画中反复改布局
       for (const ms of [80, 200, 400, 700]) {
         followTimers.push(window.setTimeout(sync, ms));
       }
@@ -382,14 +364,14 @@ export function useImComposerKeyboard(
 
     return () => {
       cancelAnimationFrame(raf);
-      if (poll) window.clearInterval(poll);
+      for (const t of settleTimers) window.clearTimeout(t);
       for (const t of followTimers) window.clearTimeout(t);
       vv?.removeEventListener('resize', sync);
       vv?.removeEventListener('scroll', sync);
       window.removeEventListener('resize', sync);
       if (active) {
-        clearChrome();
-        pinScrollTop();
+        // 离开聚焦：强制清 + pin，避免残留 inset 顶着输入栏和 tab
+        settleDismiss(true);
       }
     };
   }, [active]);
@@ -399,7 +381,6 @@ export function useImComposerKeyboard(
 
 /**
  * 保留 API：resizes-content 下预抬会叠出白屏/跳动，这里刻意空操作。
- * 键盘布局改动交给 useImComposerKeyboard 在测到键盘后再做。
  */
 export function previewImKeyboardLift() {
   /* no-op */
@@ -413,5 +394,5 @@ export function clearImKeyboardLift() {
   root.style.removeProperty('--im-kb-inset');
   root.style.removeProperty('--im-vv-top');
   root.style.removeProperty('--im-vv-h');
-  if (!isComposerFieldFocused()) pinScrollTop();
+  pinScrollTop(true);
 }
