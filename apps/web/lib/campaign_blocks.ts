@@ -15,6 +15,12 @@ export type OpsBlockType =
   | 'audio'
   | 'image'
   | 'divider'
+  | 'quote'
+  | 'tip'
+  | 'list'
+  | 'video'
+  | 'faq'
+  | 'link_btn'
   | 'verse'
   | 'days'
   | 'schedule'
@@ -79,6 +85,48 @@ export const BLOCK_CATALOG: Record<OpsBlockType, BlockMeta> = {
     blurb: '分隔内容区块',
     icon: '线',
     category: 'content',
+    multi: true,
+  },
+  quote: {
+    label: '引用',
+    blurb: '金句 / 引文强调',
+    icon: '引',
+    category: 'content',
+    multi: true,
+  },
+  tip: {
+    label: '提示卡',
+    blurb: '提示、注意或小贴士',
+    icon: '示',
+    category: 'content',
+    multi: true,
+  },
+  list: {
+    label: '清单',
+    blurb: '条目列表',
+    icon: '列',
+    category: 'content',
+    multi: true,
+  },
+  video: {
+    label: '视频',
+    blurb: '嵌入视频链接',
+    icon: '视',
+    category: 'content',
+    multi: true,
+  },
+  faq: {
+    label: '问答',
+    blurb: '常见问题折叠',
+    icon: '问',
+    category: 'content',
+    multi: true,
+  },
+  link_btn: {
+    label: '次要按钮',
+    blurb: '次要跳转按钮',
+    icon: '链',
+    category: 'action',
     multi: true,
   },
   verse: {
@@ -159,6 +207,23 @@ export function defaultDataForType(type: OpsBlockType): Record<string, unknown> 
       return { url: '', caption: '' };
     case 'divider':
       return { style: 'line' };
+    case 'quote':
+      return { text: '', attribution: '' };
+    case 'tip':
+      return { title: '小贴士', body: '', tone: 'info' };
+    case 'list':
+      return { title: '', items: '第一项\n第二项\n第三项', ordered: false };
+    case 'video':
+      return { title: '', src: '', caption: '' };
+    case 'faq':
+      return {
+        items: [
+          { id: nid('faq'), q: '问题一？', a: '' },
+          { id: nid('faq'), q: '问题二？', a: '' },
+        ],
+      };
+    case 'link_btn':
+      return { label: '了解更多', href: '' };
     case 'verse':
       return { ref: '', note: '' };
     case 'tabs':
@@ -379,15 +444,30 @@ export function removeLandingBlock(
 export function reorderLandingBlocks(
   landing: OpsCampaignLanding,
   fromId: string,
-  toId: string,
+  toId: string | null,
 ): OpsCampaignLanding {
   const blocks = normalizeBlocks(landing.blocks);
   const from = blocks.findIndex((b) => b.id === fromId);
+  if (from < 0) return landing;
+
+  // toId=null：移到末尾
+  if (!toId) {
+    if (from === blocks.length - 1) return landing;
+    const next = [...blocks];
+    const [item] = next.splice(from, 1);
+    next.push(item!);
+    return { ...landing, blocks: next };
+  }
+
   const to = blocks.findIndex((b) => b.id === toId);
-  if (from < 0 || to < 0 || from === to) return landing;
-  const [item] = blocks.splice(from, 1);
-  blocks.splice(to, 0, item);
-  return { ...landing, blocks };
+  if (to < 0 || from === to) return landing;
+
+  const next = [...blocks];
+  const [item] = next.splice(from, 1);
+  // 插到 toId 之前：若 from 在 to 之前，splice 后目标下移
+  const insertAt = from < to ? to - 1 : to;
+  next.splice(insertAt, 0, item!);
+  return { ...landing, blocks: next };
 }
 
 export function updateBlockData(
@@ -428,6 +508,25 @@ export function blockSummary(block: OpsLandingBlock): string {
       return String(d.caption || d.url || '未设置图片').slice(0, 28);
     case 'verse':
       return String(d.ref || '未填经文').slice(0, 28);
+    case 'quote':
+      return String(d.text || '空引用').slice(0, 28);
+    case 'tip':
+      return String(d.title || d.body || '提示卡').slice(0, 28);
+    case 'list': {
+      const lines = String(d.items || '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return lines.length ? `${lines.length} 条` : '空清单';
+    }
+    case 'video':
+      return String(d.title || d.src || '未设置视频').slice(0, 28);
+    case 'faq': {
+      const items = Array.isArray(d.items) ? d.items : [];
+      return `${items.length} 问`;
+    }
+    case 'link_btn':
+      return String(d.label || '次要按钮').slice(0, 28);
     case 'tabs': {
       const tabs = Array.isArray(d.tabs) ? d.tabs : [];
       return `${tabs.length} 个标签`;

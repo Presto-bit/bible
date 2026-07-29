@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { api, type OpsCampaignDetail } from '@/lib/api';
 import { shareCampaignLink, formatCountdown } from '@/lib/campaign_ops';
-import { openCampaignHref } from '@/lib/campaign_nav';
+import { openCampaignHref, resolvePrimaryCta } from '@/lib/campaign_nav';
 import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlocks';
-import { ensureLandingBlocks } from '@/lib/campaign_blocks';
+import { ensureLandingBlocks, normalizeBlocks } from '@/lib/campaign_blocks';
+import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
 
 export default function CampaignViewInner() {
   const params = useParams();
@@ -299,6 +300,393 @@ export default function CampaignViewInner() {
   const dayIndex = days.findIndex((d) => d.day === day);
   const prevDay = dayIndex > 0 ? days[dayIndex - 1] : null;
   const nextDay = dayIndex >= 0 && dayIndex < days.length - 1 ? days[dayIndex + 1] : null;
+  const landingEnsured = ensureLandingBlocks(camp.landing || {}, camp.templateId || '');
+  const blockTypes = new Set(normalizeBlocks(landingEnsured.blocks).map((b) => b.type));
+  const cta = resolvePrimaryCta(camp.templateId || '', id, camp.landing?.primaryCta);
+  const coverSrc = resolveCampaignCoverUrl(camp.coverUrl);
+
+  const entriesSection =
+    (camp.landing?.entries || []).filter((e) => (e.title || '').trim() && (e.href || '').trim())
+      .length > 0 ? (
+      <div style={{ display: 'grid', gap: 8 }}>
+        <p className="section-label" style={{ margin: 0 }}>
+          入口
+        </p>
+        {(camp.landing?.entries || [])
+          .filter((e) => (e.title || '').trim() && (e.href || '').trim())
+          .map((e) => (
+            <button
+              key={e.id || e.href}
+              type="button"
+              className="card ops-entry"
+              onClick={() => openCampaignHref(e.href)}
+            >
+              <strong style={{ display: 'block' }}>{e.title}</strong>
+              {e.sub ? (
+                <span className="muted" style={{ fontSize: 13 }}>
+                  {e.sub}
+                </span>
+              ) : null}
+            </button>
+          ))}
+      </div>
+    ) : null;
+
+  const ctaSection = cta.label && cta.href ? (
+    <button
+      type="button"
+      className="btn btn-primary"
+      style={{ width: '100%' }}
+      onClick={() => openCampaignHref(cta.href)}
+    >
+      {cta.label}
+    </button>
+  ) : null;
+
+  const scheduleSection =
+    schedule && (schedule.location || schedule.onlineNote || schedule.startsAt) ? (
+      <div className="card" style={{ padding: 14 }}>
+        <p className="section-label" style={{ marginTop: 0 }}>
+          聚会信息
+        </p>
+        {countdown ? (
+          <p style={{ margin: '4px 0', fontWeight: 650, fontSize: 16 }}>倒计时：{countdown}</p>
+        ) : null}
+        {schedule.startsAt ? (
+          <p style={{ margin: '4px 0' }}>时间：{new Date(schedule.startsAt).toLocaleString()}</p>
+        ) : null}
+        {schedule.location ? <p style={{ margin: '4px 0' }}>地点：{schedule.location}</p> : null}
+        {schedule.onlineNote ? <p style={{ margin: '4px 0' }}>{schedule.onlineNote}</p> : null}
+      </div>
+    ) : null;
+
+  const slotsSection =
+    (camp.slots || []).length > 0 ? (
+      <div className="card" style={{ padding: 14 }}>
+        <p className="section-label" style={{ marginTop: 0 }}>
+          岗位报名
+        </p>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {(camp.slots || []).map((s) => {
+            const mine = (camp.mySlots || []).includes(s.id);
+            const full = s.limit > 0 && s.taken >= s.limit;
+            return (
+              <div
+                key={s.id}
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div>
+                  <strong>{s.title}</strong>
+                  <span className="muted" style={{ display: 'block', fontSize: 12 }}>
+                    {s.taken}/{s.limit || '∞'}
+                    {full && !mine ? ' · 已满' : ''}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={busy || closed || (full && !mine)}
+                  onClick={() => void onSignup(s.id)}
+                >
+                  {mine ? '取消报名' : '报名'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ) : null;
+
+  const daysSection =
+    days.length > 0 ? (
+      <div>
+        <p className="section-label" style={{ marginBottom: 6 }}>
+          {camp.templateId === 'memory' ? '背诵清单' : '日课'}
+        </p>
+        <div className="ops-day-chips" role="tablist" aria-label="选择天数">
+          {days.map((d) => (
+            <button
+              key={d.day}
+              type="button"
+              role="tab"
+              aria-selected={day === d.day}
+              className={`ops-day-chip${day === d.day ? ' is-on' : ''}${readDays.has(d.day) ? ' is-done' : ''}${d.locked ? ' is-locked' : ''}`}
+              onClick={() => setDay(d.day)}
+            >
+              {d.locked ? '·' : d.day}
+            </button>
+          ))}
+        </div>
+        {currentDay ? (
+          <div className="card" style={{ padding: 16 }}>
+            <h2 style={{ marginTop: 0, fontSize: 18, letterSpacing: '-0.02em' }}>
+              {currentDay.title || `第 ${currentDay.day} 天`}
+            </h2>
+            {currentDay.locked ? (
+              <p className="muted">
+                本日尚未解锁。按活动开始日起每天开放一天
+                {typeof unlockCap === 'number' ? `（当前已到第 ${unlockCap} 天）` : ''}。
+              </p>
+            ) : (
+              <>
+                {currentDay.verseRef ? (
+                  <p className="muted" style={{ fontSize: 13 }}>
+                    经文：{currentDay.verseRef}{' '}
+                    <Link href={`/reader?q=${encodeURIComponent(currentDay.verseRef)}`}>
+                      打开圣经
+                    </Link>
+                  </p>
+                ) : null}
+                <div className="ops-view-body" style={{ marginTop: 8 }}>
+                  {currentDay.body}
+                </div>
+                {currentDay.discussionHint ? (
+                  <p className="ops-banner ops-banner-info" style={{ marginTop: 12 }}>
+                    讨论：{currentDay.discussionHint}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ marginTop: 14, width: '100%' }}
+                  disabled={busy || readDays.has(currentDay.day)}
+                  onClick={() => void onMarkRead()}
+                >
+                  {readDays.has(currentDay.day)
+                    ? camp.templateId === 'memory'
+                      ? '已记住'
+                      : '今日已读'
+                    : camp.templateId === 'memory'
+                      ? '标记已记住'
+                      : '标记今日已读'}
+                </button>
+                <div className="ops-day-nav">
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!prevDay}
+                    onClick={() => prevDay && setDay(prevDay.day)}
+                  >
+                    上一天
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={!nextDay}
+                    onClick={() => nextDay && setDay(nextDay.day)}
+                  >
+                    下一天
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        ) : null}
+      </div>
+    ) : null;
+
+  const questionsSection = features.questions ? (
+    <div className="card" style={{ padding: 14 }}>
+      <p className="section-label" style={{ marginTop: 0 }}>
+        提问箱
+      </p>
+      <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
+        提问仅你与活动创建者可见
+      </p>
+      <textarea
+        className="input"
+        rows={2}
+        value={question}
+        onChange={(e) => setQuestion(e.target.value)}
+        placeholder="想问什么…"
+        style={{ width: '100%' }}
+        disabled={closed}
+      />
+      <button
+        type="button"
+        className="btn"
+        style={{ marginTop: 8 }}
+        disabled={busy || closed}
+        onClick={() => void onAsk()}
+      >
+        提交提问
+      </button>
+      <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+        {(camp.questions || []).map((q) => (
+          <div key={q.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
+            <p style={{ margin: 0 }}>{q.body}</p>
+            {q.answer ? (
+              <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
+                回复：{q.answer}
+              </p>
+            ) : camp.isCreator ? (
+              <div style={{ marginTop: 6 }}>
+                <input
+                  className="input"
+                  style={{ width: '100%' }}
+                  placeholder="回复…"
+                  value={answerDraft[q.id] || ''}
+                  onChange={(e) => setAnswerDraft((d) => ({ ...d, [q.id]: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ marginTop: 6 }}
+                  disabled={busy}
+                  onClick={() => void onAnswer(q.id)}
+                >
+                  回复
+                </button>
+              </div>
+            ) : (
+              <p className="muted" style={{ fontSize: 12 }}>
+                等待回复
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  const rsvpSection = features.rsvp ? (
+    <div className="card" style={{ padding: 14 }}>
+      <p className="section-label" style={{ marginTop: 0 }}>
+        你会来吗？
+      </p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {(
+          [
+            ['yes', '出席'],
+            ['maybe', '未定'],
+            ['no', '请假'],
+          ] as const
+        ).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            className="btn"
+            disabled={busy || closed}
+            style={{ opacity: camp.myRsvp === k ? 1 : 0.65 }}
+            onClick={() => void onRsvp(k)}
+          >
+            {label}
+            {camp.rsvpStats?.[k] ? ` · ${camp.rsvpStats[k]}` : ''}
+          </button>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  const prayerSection = features.prayer ? (
+    <div className="card" style={{ padding: 14 }}>
+      <p className="section-label" style={{ marginTop: 0 }}>
+        代祷意向
+      </p>
+      <textarea
+        className="input"
+        rows={3}
+        value={prayer}
+        onChange={(e) => setPrayer(e.target.value)}
+        placeholder="写下你的代祷…"
+        style={{ width: '100%' }}
+        disabled={closed}
+      />
+      <button
+        type="button"
+        className="btn btn-primary"
+        style={{ marginTop: 8 }}
+        disabled={busy || closed}
+        onClick={() => void onPrayer()}
+      >
+        提交
+      </button>
+      {camp.isCreator && (camp.prayers || []).length > 0 ? (
+        <div style={{ marginTop: 12 }}>
+          <p className="muted" style={{ fontSize: 12 }}>
+            仅创建者可见
+          </p>
+          {(camp.prayers || []).map((p) => (
+            <p
+              key={p.id}
+              style={{ fontSize: 14, borderTop: '1px solid var(--line)', paddingTop: 8 }}
+            >
+              {p.body}
+            </p>
+          ))}
+        </div>
+      ) : (
+        <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+          意向默认仅管理员可见
+        </p>
+      )}
+    </div>
+  ) : null;
+
+  const likesRow = (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      {features.likes !== false ? (
+        <button type="button" className="btn" disabled={busy} onClick={() => void onLike()}>
+          {camp.liked ? '已赞' : '点赞'} · {camp.likesCount || 0}
+        </button>
+      ) : null}
+      <Link href="/" className="btn">
+        回首页
+      </Link>
+    </div>
+  );
+
+  const commentsSection = features.comments ? (
+    <div>
+      <p className="section-label">{camp.templateId === 'testify' ? '见证' : '讨论'}</p>
+      <textarea
+        className="input"
+        rows={2}
+        value={comment}
+        onChange={(e) => setComment(e.target.value)}
+        placeholder={camp.templateId === 'testify' ? '写下短见证…' : '写一句回应…'}
+        style={{ width: '100%' }}
+        disabled={closed}
+      />
+      <button
+        type="button"
+        className="btn"
+        style={{ marginTop: 8 }}
+        disabled={busy || closed}
+        onClick={() => void onComment()}
+      >
+        发送
+      </button>
+      <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+        {(camp.comments || []).map((c) => (
+          <div key={c.id} className="card" style={{ padding: 10 }}>
+            <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+              {c.body}
+            </p>
+            <span className="muted" style={{ fontSize: 11 }}>
+              {c.day ? `第 ${c.day} 天 · ` : ''}
+              {c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  const engageSection = (
+    <div style={{ display: 'grid', gap: 12 }}>
+      {questionsSection}
+      {rsvpSection}
+      {prayerSection}
+      {likesRow}
+      {commentsSection}
+    </div>
+  );
 
   return (
     <main className="container ops-page">
@@ -309,6 +697,13 @@ export default function CampaignViewInner() {
       ) : null}
       {closed ? (
         <p className="ops-banner ops-banner-info">活动已结束 · 可只读回顾；报名/表态已关闭</p>
+      ) : null}
+
+      {coverSrc ? (
+        <div className="ops-view-cover">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={coverSrc} alt="" />
+        </div>
       ) : null}
 
       <div className="ops-view-hero">
@@ -345,322 +740,58 @@ export default function CampaignViewInner() {
       {camp.landing?.body && !(camp.landing?.blocks || []).length ? (
         <p className="ops-view-body">{camp.landing.body}</p>
       ) : null}
+
       <CampaignLandingBlocks
-        landing={ensureLandingBlocks(camp.landing || {}, camp.templateId || '')}
+        landing={landingEnsured}
         templateId={camp.templateId}
         campaignId={id}
         mode="view"
-        onlyTypes={['text', 'audio', 'image', 'divider', 'verse', 'tabs']}
+        renderBlock={(block, fallback) => {
+          if (block.type === 'entries') return entriesSection || fallback;
+          if (block.type === 'cta') return ctaSection || fallback;
+          if (block.type === 'schedule') return scheduleSection || fallback;
+          if (block.type === 'slots') return slotsSection || fallback;
+          if (block.type === 'days') return daysSection || fallback;
+          if (block.type === 'engage') return engageSection;
+          return fallback;
+        }}
       />
 
-      {(camp.landing?.entries || []).filter((e) => (e.title || '').trim() && (e.href || '').trim()).length > 0 ? (
-        <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>
-          <p className="section-label" style={{ margin: 0 }}>入口</p>
-          {(camp.landing?.entries || [])
-            .filter((e) => (e.title || '').trim() && (e.href || '').trim())
-            .map((e) => (
-              <button
-                key={e.id || e.href}
-                type="button"
-                className="card ops-entry"
-                onClick={() => openCampaignHref(e.href)}
-              >
-                <strong style={{ display: 'block' }}>{e.title}</strong>
-                {e.sub ? <span className="muted" style={{ fontSize: 13 }}>{e.sub}</span> : null}
-              </button>
-            ))}
+      {err ? (
+        <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>
+          {err}
+        </p>
+      ) : null}
+
+      {/* 无对应积木时的兜底（旧数据） */}
+      {!blockTypes.has('entries') ? entriesSection : null}
+      {!blockTypes.has('cta') ? (
+        <div style={{ marginTop: 14 }}>{ctaSection}</div>
+      ) : null}
+      {!blockTypes.has('schedule') ? (
+        <div style={{ marginTop: 14 }}>{scheduleSection}</div>
+      ) : null}
+      {!blockTypes.has('slots') ? (
+        <div style={{ marginTop: 12 }}>{slotsSection}</div>
+      ) : null}
+      {!blockTypes.has('days') ? (
+        <div style={{ marginTop: 18 }}>{daysSection}</div>
+      ) : null}
+      {!blockTypes.has('engage') ? (
+        <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+          {questionsSection}
+          {rsvpSection}
+          {prayerSection}
+          <div style={{ marginTop: 4 }}>{likesRow}</div>
+          {commentsSection ? <div style={{ marginTop: 8 }}>{commentsSection}</div> : null}
         </div>
       ) : null}
 
-      {camp.landing?.primaryCta?.label && camp.landing?.primaryCta?.href ? (
-        <button
-          type="button"
-          className="btn btn-primary"
-          style={{ marginTop: 14, width: '100%' }}
-          onClick={() => openCampaignHref(camp.landing!.primaryCta!.href!)}
-        >
-          {camp.landing.primaryCta.label}
-        </button>
-      ) : null}
-
-      {err ? <p className="ops-banner ops-banner-warn" style={{ color: 'var(--danger, #b00)' }}>{err}</p> : null}
-
-      {schedule && (schedule.location || schedule.onlineNote || schedule.startsAt) ? (
-        <div className="card" style={{ padding: 14, marginTop: 14 }}>
-          <p className="section-label" style={{ marginTop: 0 }}>聚会信息</p>
-          {countdown ? (
-            <p style={{ margin: '4px 0', fontWeight: 650, fontSize: 16 }}>倒计时：{countdown}</p>
-          ) : null}
-          {schedule.startsAt ? (
-            <p style={{ margin: '4px 0' }}>时间：{new Date(schedule.startsAt).toLocaleString()}</p>
-          ) : null}
-          {schedule.location ? <p style={{ margin: '4px 0' }}>地点：{schedule.location}</p> : null}
-          {schedule.onlineNote ? <p style={{ margin: '4px 0' }}>{schedule.onlineNote}</p> : null}
+      {hint ? (
+        <div className="ops-toast" role="status">
+          {hint}
         </div>
       ) : null}
-
-      {(camp.slots || []).length > 0 ? (
-        <div className="card" style={{ padding: 14, marginTop: 12 }}>
-          <p className="section-label" style={{ marginTop: 0 }}>岗位报名</p>
-          <div style={{ display: 'grid', gap: 8 }}>
-            {(camp.slots || []).map((s) => {
-              const mine = (camp.mySlots || []).includes(s.id);
-              const full = s.limit > 0 && s.taken >= s.limit;
-              return (
-                <div key={s.id} style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div>
-                    <strong>{s.title}</strong>
-                    <span className="muted" style={{ display: 'block', fontSize: 12 }}>
-                      {s.taken}/{s.limit || '∞'}
-                      {full && !mine ? ' · 已满' : ''}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="btn"
-                    disabled={busy || closed || (full && !mine)}
-                    onClick={() => void onSignup(s.id)}
-                  >
-                    {mine ? '取消报名' : '报名'}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
-
-      {features.questions ? (
-        <div className="card" style={{ padding: 14, marginTop: 12 }}>
-          <p className="section-label" style={{ marginTop: 0 }}>提问箱</p>
-          <p className="muted" style={{ fontSize: 12, marginTop: 0 }}>
-            提问仅你与活动创建者可见
-          </p>
-          <textarea
-            className="input"
-            rows={2}
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="想问什么…"
-            style={{ width: '100%' }}
-            disabled={closed}
-          />
-          <button type="button" className="btn" style={{ marginTop: 8 }} disabled={busy || closed} onClick={() => void onAsk()}>
-            提交提问
-          </button>
-          <div style={{ marginTop: 12, display: 'grid', gap: 10 }}>
-            {(camp.questions || []).map((q) => (
-              <div key={q.id} style={{ borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-                <p style={{ margin: 0 }}>{q.body}</p>
-                {q.answer ? (
-                  <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
-                    回复：{q.answer}
-                  </p>
-                ) : camp.isCreator ? (
-                  <div style={{ marginTop: 6 }}>
-                    <input
-                      className="input"
-                      style={{ width: '100%' }}
-                      placeholder="回复…"
-                      value={answerDraft[q.id] || ''}
-                      onChange={(e) => setAnswerDraft((d) => ({ ...d, [q.id]: e.target.value }))}
-                    />
-                    <button type="button" className="btn" style={{ marginTop: 6 }} disabled={busy} onClick={() => void onAnswer(q.id)}>
-                      回复
-                    </button>
-                  </div>
-                ) : (
-                  <p className="muted" style={{ fontSize: 12 }}>等待回复</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {features.rsvp ? (
-        <div className="card" style={{ padding: 14, marginTop: 12 }}>
-          <p className="section-label" style={{ marginTop: 0 }}>你会来吗？</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {(
-              [
-                ['yes', '出席'],
-                ['maybe', '未定'],
-                ['no', '请假'],
-              ] as const
-            ).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                className="btn"
-                disabled={busy || closed}
-                style={{ opacity: camp.myRsvp === k ? 1 : 0.65 }}
-                onClick={() => void onRsvp(k)}
-              >
-                {label}
-                {camp.rsvpStats?.[k] ? ` · ${camp.rsvpStats[k]}` : ''}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {days.length > 0 ? (
-        <div style={{ marginTop: 18 }}>
-          <p className="section-label" style={{ marginBottom: 6 }}>
-            {camp.templateId === 'memory' ? '背诵清单' : '日课'}
-          </p>
-          <div className="ops-day-chips" role="tablist" aria-label="选择天数">
-            {days.map((d) => (
-              <button
-                key={d.day}
-                type="button"
-                role="tab"
-                aria-selected={day === d.day}
-                className={`ops-day-chip${day === d.day ? ' is-on' : ''}${readDays.has(d.day) ? ' is-done' : ''}${d.locked ? ' is-locked' : ''}`}
-                onClick={() => setDay(d.day)}
-              >
-                {d.locked ? '·' : d.day}
-              </button>
-            ))}
-          </div>
-          {currentDay ? (
-            <div className="card" style={{ padding: 16 }}>
-              <h2 style={{ marginTop: 0, fontSize: 18, letterSpacing: '-0.02em' }}>
-                {currentDay.title || `第 ${currentDay.day} 天`}
-              </h2>
-              {currentDay.locked ? (
-                <p className="muted">
-                  本日尚未解锁。按活动开始日起每天开放一天
-                  {typeof unlockCap === 'number' ? `（当前已到第 ${unlockCap} 天）` : ''}。
-                </p>
-              ) : (
-                <>
-                  {currentDay.verseRef ? (
-                    <p className="muted" style={{ fontSize: 13 }}>
-                      经文：{currentDay.verseRef}{' '}
-                      <Link href={`/reader?q=${encodeURIComponent(currentDay.verseRef)}`}>打开圣经</Link>
-                    </p>
-                  ) : null}
-                  <div className="ops-view-body" style={{ marginTop: 8 }}>{currentDay.body}</div>
-                  {currentDay.discussionHint ? (
-                    <p className="ops-banner ops-banner-info" style={{ marginTop: 12 }}>
-                      讨论：{currentDay.discussionHint}
-                    </p>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ marginTop: 14, width: '100%' }}
-                    disabled={busy || readDays.has(currentDay.day)}
-                    onClick={() => void onMarkRead()}
-                  >
-                    {readDays.has(currentDay.day)
-                      ? camp.templateId === 'memory'
-                        ? '已记住'
-                        : '今日已读'
-                      : camp.templateId === 'memory'
-                        ? '标记已记住'
-                        : '标记今日已读'}
-                  </button>
-                  <div className="ops-day-nav">
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={!prevDay}
-                      onClick={() => prevDay && setDay(prevDay.day)}
-                    >
-                      上一天
-                    </button>
-                    <button
-                      type="button"
-                      className="btn"
-                      disabled={!nextDay}
-                      onClick={() => nextDay && setDay(nextDay.day)}
-                    >
-                      下一天
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
-      {features.prayer ? (
-        <div className="card" style={{ padding: 14, marginTop: 16 }}>
-          <p className="section-label" style={{ marginTop: 0 }}>代祷意向</p>
-          <textarea
-            className="input"
-            rows={3}
-            value={prayer}
-            onChange={(e) => setPrayer(e.target.value)}
-            placeholder="写下你的代祷…"
-            style={{ width: '100%' }}
-            disabled={closed}
-          />
-          <button type="button" className="btn btn-primary" style={{ marginTop: 8 }} disabled={busy || closed} onClick={() => void onPrayer()}>
-            提交
-          </button>
-          {camp.isCreator && (camp.prayers || []).length > 0 ? (
-            <div style={{ marginTop: 12 }}>
-              <p className="muted" style={{ fontSize: 12 }}>仅创建者可见</p>
-              {(camp.prayers || []).map((p) => (
-                <p key={p.id} style={{ fontSize: 14, borderTop: '1px solid var(--line)', paddingTop: 8 }}>
-                  {p.body}
-                </p>
-              ))}
-            </div>
-          ) : (
-            <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-              意向默认仅管理员可见
-            </p>
-          )}
-        </div>
-      ) : null}
-
-      <div style={{ display: 'flex', gap: 8, marginTop: 16, alignItems: 'center' }}>
-        {features.likes !== false ? (
-          <button type="button" className="btn" disabled={busy} onClick={() => void onLike()}>
-            {camp.liked ? '已赞' : '点赞'} · {camp.likesCount || 0}
-          </button>
-        ) : null}
-        <Link href="/" className="btn">
-          回首页
-        </Link>
-      </div>
-
-      {features.comments ? (
-        <div style={{ marginTop: 20 }}>
-          <p className="section-label">{camp.templateId === 'testify' ? '见证' : '讨论'}</p>
-          <textarea
-            className="input"
-            rows={2}
-            value={comment}
-            onChange={(e) => setComment(e.target.value)}
-            placeholder={camp.templateId === 'testify' ? '写下短见证…' : '写一句回应…'}
-            style={{ width: '100%' }}
-            disabled={closed}
-          />
-          <button type="button" className="btn" style={{ marginTop: 8 }} disabled={busy || closed} onClick={() => void onComment()}>
-            发送
-          </button>
-          <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
-            {(camp.comments || []).map((c) => (
-              <div key={c.id} className="card" style={{ padding: 10 }}>
-                <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{c.body}</p>
-                <span className="muted" style={{ fontSize: 11 }}>
-                  {c.day ? `第 ${c.day} 天 · ` : ''}
-                  {c.createdAt ? new Date(c.createdAt).toLocaleString() : ''}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {hint ? <div className="ops-toast" role="status">{hint}</div> : null}
     </main>
   );
 }

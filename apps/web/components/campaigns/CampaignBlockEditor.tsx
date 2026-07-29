@@ -59,7 +59,9 @@ export function CampaignBlockEditor({
   onFocusBlockConsumed,
 }: {
   landing: OpsCampaignLanding;
-  setLanding: (next: OpsCampaignLanding) => void;
+  setLanding: (
+    next: OpsCampaignLanding | ((prev: OpsCampaignLanding) => OpsCampaignLanding),
+  ) => void;
   templateId: string;
   campaignId: string;
   onHint?: (msg: string) => void;
@@ -117,7 +119,9 @@ export function CampaignBlockEditor({
     paletteCat === 'all' ? groups : groups.filter((g) => g.category === paletteCat);
   const selected = blocks.find((b) => b.id === selectedId) || null;
 
-  const patch = (next: OpsCampaignLanding) => setLanding(next);
+  const patch = (
+    next: OpsCampaignLanding | ((prev: OpsCampaignLanding) => OpsCampaignLanding),
+  ) => setLanding(next);
 
   const selectBlock = (id: string) => {
     setSelectedId(id);
@@ -125,13 +129,18 @@ export function CampaignBlockEditor({
   };
 
   const onAdd = (type: OpsBlockType, beforeId?: string) => {
-    const result = addLandingBlock(landing, type, beforeId ? { beforeId } : undefined);
-    if (!result) {
+    let addedId: string | null = null;
+    patch((prev) => {
+      const result = addLandingBlock(prev, type, beforeId ? { beforeId } : undefined);
+      if (!result) return prev;
+      addedId = result.blockId;
+      return result.landing;
+    });
+    if (!addedId) {
       onHint?.('该控件已存在（单例）');
       return;
     }
-    patch(result.landing);
-    setSelectedId(result.blockId);
+    setSelectedId(addedId);
     onToolsTabChange?.('config');
   };
 
@@ -299,7 +308,9 @@ export function CampaignBlockEditor({
             onApplyBulk={applyBulk}
             onUpdateDay={updateDay}
             onLanding={patch}
-            onBlockData={(data) => patch(updateBlockData(landing, selected.id, data))}
+            onBlockData={(data) =>
+              patch((prev) => updateBlockData(prev, selected.id, data))
+            }
           />
         </div>
       )}
@@ -321,7 +332,7 @@ export function CampaignBlockEditor({
           从「搭内容」添加第一个控件开始搭建。
         </p>
       ) : (
-        <div className="ops-block-list">
+        <div className="ops-block-list" key={blocks.map((b) => b.id).join('|')}>
           {blocks.map((block, index) => {
             const meta = BLOCK_CATALOG[block.type];
             return (
@@ -337,7 +348,9 @@ export function CampaignBlockEditor({
                 }}
                 onDrop={(e) => {
                   e.preventDefault();
-                  if (dragId) patch(reorderLandingBlocks(landing, dragId, block.id));
+                  if (dragId) {
+                    patch((prev) => reorderLandingBlocks(prev, dragId, block.id));
+                  }
                   setDragId(null);
                   setOverId(null);
                 }}
@@ -382,7 +395,7 @@ export function CampaignBlockEditor({
                       type="button"
                       className="btn ops-block-remove"
                       onClick={() => {
-                        patch(removeLandingBlock(landing, block.id));
+                        patch((prev) => removeLandingBlock(prev, block.id));
                         if (selectedId === block.id) setSelectedId(null);
                       }}
                     >
@@ -393,6 +406,22 @@ export function CampaignBlockEditor({
               </div>
             );
           })}
+          <div
+            className={`ops-block-drop-end${overId === '__end__' ? ' is-over' : ''}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setOverId('__end__');
+            }}
+            onDragLeave={() => setOverId((id) => (id === '__end__' ? null : id))}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (dragId) patch((prev) => reorderLandingBlocks(prev, dragId, null));
+              setDragId(null);
+              setOverId(null);
+            }}
+          >
+            拖到此处放到最后
+          </div>
         </div>
       )}
     </div>
@@ -585,6 +614,234 @@ function BlockConfig({
             {label}
           </button>
         ))}
+      </div>
+    );
+  }
+
+  if (block.type === 'quote') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>引用正文</span>
+          <textarea
+            className="input"
+            rows={4}
+            value={String(d.text || '')}
+            onChange={(e) => onBlockData({ text: e.target.value })}
+            placeholder="金句或引文"
+          />
+        </label>
+        <label className="ops-field">
+          <span>出处 / 署名</span>
+          <input
+            className="input"
+            value={String(d.attribution || '')}
+            onChange={(e) => onBlockData({ attribution: e.target.value })}
+            placeholder="可选"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (block.type === 'tip') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>标题</span>
+          <input
+            className="input"
+            value={String(d.title || '')}
+            onChange={(e) => onBlockData({ title: e.target.value })}
+            placeholder="小贴士"
+          />
+        </label>
+        <label className="ops-field">
+          <span>内容</span>
+          <textarea
+            className="input"
+            rows={4}
+            value={String(d.body || '')}
+            onChange={(e) => onBlockData({ body: e.target.value })}
+            placeholder="提示说明"
+          />
+        </label>
+        <div className="ops-chip-row" style={{ marginTop: 0 }}>
+          {(
+            [
+              ['info', '提示'],
+              ['warn', '注意'],
+              ['success', '鼓励'],
+            ] as const
+          ).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              className={`ops-chip${(d.tone || 'info') === k ? ' is-on' : ''}`}
+              onClick={() => onBlockData({ tone: k })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (block.type === 'list') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>标题</span>
+          <input
+            className="input"
+            value={String(d.title || '')}
+            onChange={(e) => onBlockData({ title: e.target.value })}
+            placeholder="可选"
+          />
+        </label>
+        <label className="ops-field">
+          <span>条目（每行一项）</span>
+          <textarea
+            className="input"
+            rows={6}
+            value={String(d.items || '')}
+            onChange={(e) => onBlockData({ items: e.target.value })}
+            placeholder={'第一项\n第二项'}
+          />
+        </label>
+        <label className="ops-check-row">
+          <input
+            type="checkbox"
+            checked={Boolean(d.ordered)}
+            onChange={(e) => onBlockData({ ordered: e.target.checked })}
+          />
+          有序列表
+        </label>
+      </div>
+    );
+  }
+
+  if (block.type === 'video') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>标题</span>
+          <input
+            className="input"
+            value={String(d.title || '')}
+            onChange={(e) => onBlockData({ title: e.target.value })}
+            placeholder="可选"
+          />
+        </label>
+        <label className="ops-field">
+          <span>视频地址</span>
+          <input
+            className="input"
+            value={String(d.src || '')}
+            onChange={(e) => onBlockData({ src: e.target.value })}
+            placeholder="YouTube / Vimeo / mp4 链接"
+          />
+        </label>
+        <label className="ops-field">
+          <span>说明</span>
+          <input
+            className="input"
+            value={String(d.caption || '')}
+            onChange={(e) => onBlockData({ caption: e.target.value })}
+            placeholder="可选"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (block.type === 'faq') {
+    const items = Array.isArray(d.items) ? [...(d.items as Array<Record<string, unknown>>)] : [];
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <div className="ops-subblock-head">
+          <p className="ops-subblock-title" style={{ margin: 0 }}>
+            问答项
+          </p>
+          <button
+            type="button"
+            className="btn"
+            onClick={() =>
+              onBlockData({
+                items: [...items, { id: nid('faq'), q: '', a: '' }],
+              })
+            }
+          >
+            加一问
+          </button>
+        </div>
+        {items.map((it, idx) => (
+          <div key={String(it.id || idx)} className="ops-nested-card">
+            <label className="ops-field">
+              <span>问题</span>
+              <input
+                className="input"
+                value={String(it.q || '')}
+                onChange={(e) => {
+                  const next = items.map((row, i) =>
+                    i === idx ? { ...row, q: e.target.value } : row,
+                  );
+                  onBlockData({ items: next });
+                }}
+              />
+            </label>
+            <label className="ops-field" style={{ marginTop: 8 }}>
+              <span>回答</span>
+              <textarea
+                className="input"
+                rows={3}
+                value={String(it.a || '')}
+                onChange={(e) => {
+                  const next = items.map((row, i) =>
+                    i === idx ? { ...row, a: e.target.value } : row,
+                  );
+                  onBlockData({ items: next });
+                }}
+              />
+            </label>
+            {items.length > 1 ? (
+              <button
+                type="button"
+                className="btn"
+                style={{ marginTop: 8 }}
+                onClick={() => onBlockData({ items: items.filter((_, i) => i !== idx) })}
+              >
+                删除
+              </button>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (block.type === 'link_btn') {
+    return (
+      <div style={{ display: 'grid', gap: 10 }}>
+        <label className="ops-field">
+          <span>按钮文案</span>
+          <input
+            className="input"
+            value={String(d.label || '')}
+            onChange={(e) => onBlockData({ label: e.target.value })}
+            placeholder="了解更多"
+          />
+        </label>
+        <label className="ops-field">
+          <span>链接</span>
+          <input
+            className="input"
+            value={String(d.href || '')}
+            onChange={(e) => onBlockData({ href: e.target.value })}
+            placeholder="/reader 或 https://…"
+          />
+        </label>
       </div>
     );
   }

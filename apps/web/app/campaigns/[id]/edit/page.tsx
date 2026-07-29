@@ -346,22 +346,23 @@ function CampaignEditInner() {
     [landing.blocks],
   );
 
-  const handleInsertBlock = useCallback(
-    (type: OpsBlockType, beforeId?: string) => {
-      const result = addLandingBlock(landing, type, beforeId ? { beforeId } : undefined);
-      if (!result) {
-        setHint('该控件已存在（单例）');
-        return;
-      }
-      setLanding(result.landing);
-      setFocusBlockId(result.blockId);
-      openLeftTab('config');
-      setHint(`已添加「${BLOCK_CATALOG[type].label}」，可在「改控件」中修改`);
-    },
-    [landing],
-  );
+  const handleInsertBlock = useCallback((type: OpsBlockType, beforeId?: string) => {
+    let added = false;
+    setLanding((prev) => {
+      const result = addLandingBlock(prev, type, beforeId ? { beforeId } : undefined);
+      if (!result) return prev;
+      added = true;
+      queueMicrotask(() => {
+        setFocusBlockId(result.blockId);
+        openLeftTab('config');
+        setHint(`已添加「${BLOCK_CATALOG[type].label}」，可在「改控件」中修改`);
+      });
+      return result.landing;
+    });
+    if (!added) setHint('该控件已存在（单例）');
+  }, []);
 
-  const handleReorderBlocks = useCallback((fromId: string, toId: string) => {
+  const handleReorderBlocks = useCallback((fromId: string, toId: string | null) => {
     setLanding((prev) => reorderLandingBlocks(prev, fromId, toId));
   }, []);
 

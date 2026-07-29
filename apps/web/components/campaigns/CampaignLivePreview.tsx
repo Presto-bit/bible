@@ -8,6 +8,7 @@ import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlo
 import { CampaignCoverPicker } from '@/components/campaigns/CampaignCoverPicker';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
 import { isOpsBlockType, OPS_BLOCK_TYPE_MIME, type OpsBlockType } from '@/lib/campaign_blocks';
+import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
 
 type PreviewTab = 'home' | 'landing' | 'reading';
 type PreviewDevice = 'phone' | 'desktop';
@@ -84,8 +85,9 @@ export function CampaignLivePreview({
   onChangeRailEnabled?: (enabled: boolean) => void;
   onChangeCoverUrl?: (path: string) => void;
   onInsertBlock?: (type: OpsBlockType, beforeId?: string) => void;
-  onReorderBlocks?: (fromId: string, toId: string) => void;
+  onReorderBlocks?: (fromId: string, toId: string | null) => void;
 }) {
+  const coverResolved = useMemo(() => resolveCampaignCoverUrl(coverUrl), [coverUrl]);
   const [tab, setTab] = useState<PreviewTab>(railEnabled === false ? 'landing' : 'home');
   const [device, setDevice] = useState<PreviewDevice>('phone');
   const [previewDay, setPreviewDay] = useState(1);
@@ -350,6 +352,12 @@ export function CampaignLivePreview({
           <div className={device === 'phone' ? 'ops-preview-phone-body' : 'ops-preview-desktop-body'}>
             {tab === 'landing' ? (
               <>
+                {coverResolved ? (
+                  <div className="ops-view-cover ops-preview-landing-cover">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={coverResolved} alt="" />
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   className="ops-preview-title ops-preview-editable"

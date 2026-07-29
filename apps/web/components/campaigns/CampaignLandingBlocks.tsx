@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type DragEvent } from 'react';
+import { useRef, useState, type DragEvent, type ReactNode } from 'react';
 import type { OpsCampaignLanding } from '@/lib/api';
 import {
   BLOCK_CATALOG,
@@ -10,7 +10,7 @@ import {
   type OpsBlockType,
   type OpsLandingBlock,
 } from '@/lib/campaign_blocks';
-import { resolvePrimaryCta } from '@/lib/campaign_nav';
+import { openCampaignHref, resolvePrimaryCta } from '@/lib/campaign_nav';
 
 type TabItem = { id: string; label: string; body: string };
 
@@ -64,8 +64,10 @@ export function CampaignLandingBlocks({
   onEditBlock,
   /** 从调色板拖入：插到 beforeId 前；无则追加末尾 */
   onInsertBlock,
-  /** 预览内已有块拖拽排序 */
+  /** 预览内已有块拖拽排序；toId=null 表示移到末尾 */
   onReorderBlocks,
+  /** 正式页可替换业务控件为可交互版本 */
+  renderBlock,
 }: {
   landing: OpsCampaignLanding;
   templateId?: string;
@@ -76,7 +78,8 @@ export function CampaignLandingBlocks({
   onCtaClick?: () => void;
   onEditBlock?: (blockId: string) => void;
   onInsertBlock?: (type: OpsBlockType, beforeId?: string) => void;
-  onReorderBlocks?: (fromId: string, toId: string) => void;
+  onReorderBlocks?: (fromId: string, toId: string | null) => void;
+  renderBlock?: (block: OpsLandingBlock, fallback: ReactNode) => ReactNode;
 }) {
   const blocks = normalizeBlocks(landing.blocks).filter((b) =>
     onlyTypes ? onlyTypes.includes(b.type) : true,
@@ -126,8 +129,8 @@ export function CampaignLandingBlocks({
       return;
     }
     const fromId = readReorderId(e) || dragId;
-    if (fromId && beforeId && onReorderBlocks && fromId !== beforeId) {
-      onReorderBlocks(fromId, beforeId);
+    if (fromId && onReorderBlocks && fromId !== beforeId) {
+      onReorderBlocks(fromId, beforeId ?? null);
     }
     setOverId(null);
     setDragId(null);
@@ -175,7 +178,7 @@ export function CampaignLandingBlocks({
       {blocks.map((block) => {
         const editable = mode === 'preview' && Boolean(onEditBlock);
         const clickable = editable && block.type !== 'cta' && block.type !== 'divider';
-        const inner = (
+        const fallback = (
           <BlockView
             block={block}
             landing={landing}
@@ -185,14 +188,19 @@ export function CampaignLandingBlocks({
             entries={entries}
             features={features}
             ctaLabel={cta.label}
+            ctaHref={cta.href}
             mode={mode}
             onCtaClick={
               block.type === 'cta' && editable
                 ? () => onEditBlock?.(block.id)
-                : onCtaClick
+                : onCtaClick ||
+                  (block.type === 'cta' && mode === 'view'
+                    ? () => openCampaignHref(cta.href)
+                    : undefined)
             }
           />
         );
+        const inner = renderBlock ? renderBlock(block, fallback) : fallback;
         return (
           <div
             key={block.id}
@@ -282,6 +290,7 @@ function BlockView({
   entries,
   features,
   ctaLabel,
+  ctaHref,
   mode,
   onCtaClick,
 }: {
@@ -293,6 +302,7 @@ function BlockView({
   entries: NonNullable<OpsCampaignLanding['entries']>;
   features: NonNullable<OpsCampaignLanding['features']>;
   ctaLabel: string;
+  ctaHref?: string;
   mode: 'view' | 'preview';
   onCtaClick?: () => void;
 }) {
@@ -362,6 +372,144 @@ function BlockView({
     );
   }
 
+  if (block.type === 'quote') {
+    const text = String(d.text || '').trim();
+    const attribution = String(d.attribution || '').trim();
+    if (!text && mode === 'view') return null;
+    return (
+      <blockquote className="ops-lb-quote">
+        <p>{text || '引用文案（待填写）'}</p>
+        {attribution ? <cite className="muted">— {attribution}</cite> : null}
+      </blockquote>
+    );
+  }
+
+  if (block.type === 'tip') {
+    const title = String(d.title || '').trim();
+    const body = String(d.body || '').trim();
+    const tone = String(d.tone || 'info');
+    if (!title && !body && mode === 'view') return null;
+    return (
+      <div className={`ops-lb-tip ops-lb-tip-${tone}`}>
+        {title ? <strong>{title}</strong> : null}
+        {body ? <p>{body}</p> : mode === 'preview' ? (
+          <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+            提示内容（待填写）
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (block.type === 'list') {
+    const title = String(d.title || '').trim();
+    const ordered = Boolean(d.ordered);
+    const items = String(d.items || '')
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (!items.length && mode === 'view') return null;
+    const ListTag = ordered ? 'ol' : 'ul';
+    return (
+      <div className="ops-lb-list">
+        {title ? <h3 className="ops-lb-heading">{title}</h3> : null}
+        {items.length ? (
+          <ListTag>
+            {items.map((item, i) => (
+              <li key={`${i}-${item.slice(0, 12)}`}>{item}</li>
+            ))}
+          </ListTag>
+        ) : (
+          <p className="muted" style={{ fontSize: 13 }}>
+            清单（待填写）
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  if (block.type === 'video') {
+    const src = String(d.src || '').trim();
+    const title = String(d.title || '').trim();
+    const caption = String(d.caption || '').trim();
+    if (!src && mode === 'view') return null;
+    const embed = videoEmbedUrl(src);
+    return (
+      <div className="ops-lb-video">
+        {title ? <strong>{title}</strong> : null}
+        {src ? (
+          embed ? (
+            <div className="ops-lb-video-frame">
+              <iframe
+                src={embed}
+                title={title || '视频'}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
+            </div>
+          ) : (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video controls src={src} preload="metadata" style={{ width: '100%', borderRadius: 10 }} />
+          )
+        ) : (
+          <p className="muted" style={{ fontSize: 13 }}>
+            未设置视频地址
+          </p>
+        )}
+        {caption ? <p className="muted" style={{ fontSize: 12, margin: '6px 0 0' }}>{caption}</p> : null}
+      </div>
+    );
+  }
+
+  if (block.type === 'faq') {
+    const items = Array.isArray(d.items)
+      ? (d.items as Array<Record<string, unknown>>)
+      : [];
+    const rows = items
+      .map((it, i) => ({
+        id: String(it.id || `faq-${i}`),
+        q: String(it.q || '').trim(),
+        a: String(it.a || '').trim(),
+      }))
+      .filter((it) => it.q || it.a || mode === 'preview');
+    if (!rows.length) {
+      return mode === 'preview' ? (
+        <p className="muted" style={{ fontSize: 13 }}>
+          问答（待添加）
+        </p>
+      ) : null;
+    }
+    return (
+      <div className="ops-lb-faq">
+        {rows.map((it) => (
+          <details key={it.id} className="ops-lb-faq-item">
+            <summary>{it.q || '问题（待填写）'}</summary>
+            <p>{it.a || (mode === 'preview' ? '答案（待填写）' : '')}</p>
+          </details>
+        ))}
+      </div>
+    );
+  }
+
+  if (block.type === 'link_btn') {
+    const label = String(d.label || '了解更多').trim() || '了解更多';
+    const href = String(d.href || '').trim();
+    if (!href && mode === 'view') return null;
+    if (mode === 'view' && href) {
+      return (
+        <button type="button" className="btn ops-lb-link-btn" onClick={() => openCampaignHref(href)}>
+          {label}
+        </button>
+      );
+    }
+    return (
+      <button type="button" className="btn ops-lb-link-btn" disabled>
+        {label}
+        {!href ? <span className="muted"> · 未设链接</span> : null}
+      </button>
+    );
+  }
+
   if (block.type === 'verse') {
     const ref = String(d.ref || '').trim();
     const note = String(d.note || '').trim();
@@ -418,7 +566,7 @@ function BlockView({
           {BLOCK_CATALOG.days.label} · {days.length} 天
         </strong>
         <ol className="ops-preview-days">
-          {days.slice(0, mode === 'preview' ? 5 : 99).map((day, i) => (
+          {days.slice(0, mode === 'preview' ? 8 : 99).map((day, i) => (
             <li key={day.day || i}>
               <span>第 {day.day || i + 1} 天</span>
               <span className="muted">
@@ -427,8 +575,8 @@ function BlockView({
               </span>
             </li>
           ))}
-          {mode === 'preview' && days.length > 5 ? (
-            <li className="muted">…还有 {days.length - 5} 天</li>
+          {mode === 'preview' && days.length > 8 ? (
+            <li className="muted">…还有 {days.length - 8} 天</li>
           ) : null}
         </ol>
       </div>
@@ -495,19 +643,46 @@ function BlockView({
   }
 
   if (block.type === 'cta') {
-    const clickable = mode === 'preview' && Boolean(onCtaClick);
+    const clickable = Boolean(onCtaClick);
     return (
       <button
         type="button"
         className={`btn btn-primary ops-preview-cta${clickable ? ' is-clickable' : ''}`}
-        disabled={mode === 'preview' && !onCtaClick}
+        disabled={!clickable}
         onClick={clickable ? onCtaClick : undefined}
+        title={!clickable && ctaHref ? ctaHref : undefined}
       >
         {ctaLabel}
       </button>
     );
   }
 
+  return null;
+}
+
+function videoEmbedUrl(src: string): string | null {
+  const raw = (src || '').trim();
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./, '');
+    if (host === 'youtu.be') {
+      const id = u.pathname.replace(/^\//, '');
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (host === 'youtube.com' || host === 'm.youtube.com') {
+      const id = u.searchParams.get('v');
+      if (id) return `https://www.youtube.com/embed/${id}`;
+      const m = u.pathname.match(/\/embed\/([^/]+)/);
+      return m?.[1] ? `https://www.youtube.com/embed/${m[1]}` : null;
+    }
+    if (host === 'vimeo.com') {
+      const id = u.pathname.split('/').filter(Boolean)[0];
+      return id ? `https://player.vimeo.com/video/${id}` : null;
+    }
+  } catch {
+    return null;
+  }
   return null;
 }
 
