@@ -327,11 +327,10 @@ def _uv_metrics(conn, *, where: str) -> dict[str, int]:
                 "converted": _scalar(conn, uv_converted_sql(where=where)),
             }
         except Exception:
-            # 去重 SQL（accounts/bindings）异常时退回原始行数，避免看板整页 0
-            raw = _scalar(conn, f"SELECT count(*) FROM daily_active_visitors WHERE {where}")
+            # 去重 SQL 异常时勿退回含游客的原始行数（会虚高 UV）；记为 0 并保留 raw 供诊断
             return {
-                "deduped": raw,
-                "guest_rows": raw,
+                "deduped": 0,
+                "guest_rows": 0,
                 "login_rows": 0,
                 "login_users": 0,
                 "converted": 0,
@@ -1175,7 +1174,12 @@ def fetch_admin_stats_detail(
                              d.visit_date::text AS visit_date,
                              {_ts_sql("d.created_at")} AS created_at,
                              {_ts_sql("d.user_bound_at")} AS bound_at,
-                             (d.user_id IS NOT NULL OR a_bind.user_code IS NOT NULL) AS is_login,
+                             (
+                               (a.pwd_hash IS NOT NULL AND trim(a.pwd_hash) <> '')
+                               OR (a.phone IS NOT NULL AND trim(a.phone) <> '')
+                               OR (a_bind.pwd_hash IS NOT NULL AND trim(a_bind.pwd_hash) <> '')
+                               OR (a_bind.phone IS NOT NULL AND trim(a_bind.phone) <> '')
+                             ) AS is_login,
                              {uv_identity_sql("d")} AS identity,
                              d.device_fingerprint AS device_fp
                       FROM daily_active_visitors d
@@ -1336,10 +1340,10 @@ def fetch_admin_stats_detail(
             guest_pct = round(guest_uv / (deduped + guest_uv) * 100, 1) if (deduped + guest_uv) else 0
             convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
             insights = [
-                _insight("去重 UV", deduped, "不含游客设备；同一账号全天计 1"),
-                _insight("游客设备", guest_uv, f"未计入 UV · 占访问 {guest_pct}%"),
+                _insight("去重 UV", deduped, "仅已设密/绑手机；同一账号全天计 1"),
+                _insight("游客设备", guest_uv, f"未计入 UV（含静默建档）· 占访问 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
-                _insight("当日转化", converted, f"游客→登录 {convert_pct}%" if converted else None),
+                _insight("当日转化", converted, f"游客→有效账号 {convert_pct}%" if converted else None),
                 _insight("次日留存", f"{d1}%" if d1 is not None else "—"),
                 _insight("7 日留存", f"{d7}%" if d7 is not None else "—"),
             ]

@@ -55,3 +55,16 @@ def test_uv_identity_prefers_user_code():
     aliased = uv_identity_sql("d")
     assert "d.user_id" in aliased
     assert "d.device_fingerprint" in aliased
+
+
+def test_uv_attributed_requires_secured_account():
+    from app.analytics.uv_stats import uv_attributed_where
+
+    sql = uv_attributed_where()
+    assert "pwd_hash" in sql
+    assert "phone" in sql
+    assert "device_user_bindings" in sql
+    aliased = uv_attributed_where("d")
+    assert "d.user_id" in aliased
+    assert "d.device_fingerprint" in aliased
+    assert "d.user_code" in aliased
