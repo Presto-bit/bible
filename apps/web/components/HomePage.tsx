@@ -13,9 +13,9 @@ import {
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import DailyVerseReactSheet from '@/components/DailyVerseReactSheet';
-import { DailyVerseShareSheet } from '@/components/DailyVerseShareSheet';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
+import { shareDailyVerseCard } from '@/lib/daily_verse_share';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { prayerTodayHref, activePlanTodayHrefSync } from '@/lib/plan_today_href';
@@ -90,7 +90,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   );
   const [reactSheetOpen, setReactSheetOpen] = useState(false);
   const [reactErr, setReactErr] = useState<string | null>(null);
-  const [shareSheetOpen, setShareSheetOpen] = useState(false);
   const [shareToast, setShareToast] = useState<string | null>(null);
   const likeBusyRef = useRef(false);
   const likedRef = useRef(false);
@@ -568,6 +567,33 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     [dv?.day],
   );
 
+  const shareDailyVerse = useCallback(async () => {
+    if (!dv?.text) return;
+    try {
+      const ok = await shareDailyVerseCard({
+        ref: dv.ref || '每日经文',
+        text: dv.text,
+        day: dv.day,
+        versionLabel: '和合本',
+      });
+      if (!ok) {
+        setShareToast('暂时无法分享');
+        window.setTimeout(() => setShareToast(null), 2200);
+        return;
+      }
+      try {
+        await api.recordDailyVerseShare(dv.day);
+      } catch {
+        /* ignore */
+      }
+      setShareToast('已调起系统分享');
+      window.setTimeout(() => setShareToast(null), 2200);
+    } catch (e) {
+      setShareToast(errorMessage(e, '暂时无法分享'));
+      window.setTimeout(() => setShareToast(null), 2200);
+    }
+  }, [dv]);
+
   return (
     <main className="container home-page">
       <header className="greet home-greet-header">
@@ -721,10 +747,26 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               aria-label="分享今日经文"
               onClick={(e) => {
                 e.stopPropagation();
-                setShareSheetOpen(true);
+                void shareDailyVerse();
               }}
             >
-              分享
+              <svg
+                width="17"
+                height="17"
+                viewBox="0 0 24 24"
+                aria-hidden
+                className="hero-share-icon"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.59 13.51 15.42 17.49M15.41 6.51 8.59 10.49" />
+              </svg>
             </button>
             {(likeErr || reactErr) && (
               <p className="muted hero-actions-err" role="alert">
@@ -754,20 +796,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           topPresets={topPresets}
           onClose={() => setReactSheetOpen(false)}
           onChanged={applyReactStats}
-        />
-      ) : null}
-
-      {shareSheetOpen && dv?.text ? (
-        <DailyVerseShareSheet
-          refLabel={dv.ref || '每日经文'}
-          text={dv.text}
-          day={dv.day}
-          versionLabel="和合本"
-          onClose={() => setShareSheetOpen(false)}
-          onToast={(msg) => {
-            setShareToast(msg);
-            window.setTimeout(() => setShareToast(null), 2200);
-          }}
         />
       ) : null}
 
