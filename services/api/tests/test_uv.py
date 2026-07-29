@@ -52,9 +52,13 @@ def test_uv_identity_prefers_user_code():
     assert "accounts" in sql
     assert "user_code" in sql
     assert "device_user_bindings" in sql
+    assert "pwd_hash" in sql
+    assert "nullif(trim(" in sql
     aliased = uv_identity_sql("d")
     assert "d.user_id" in aliased
     assert "d.device_fingerprint" in aliased
+    assert "d.user_code" in aliased
+    assert "visitor_key" in aliased
 
 
 def test_uv_attributed_requires_secured_account():

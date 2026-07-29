@@ -132,7 +132,8 @@ function StatsTable({ section }: { section: AdminStatsSection }) {
 
 export default function AdminStatsDetailPanel({ metric }: { metric: AdminStatsSeriesKey }) {
   const isRag = metric === 'rag_documents';
-  const [preset, setPreset] = useState<AdminStatsRangePreset>('7d');
+  const isUv = metric === 'uv';
+  const [preset, setPreset] = useState<AdminStatsRangePreset>(isUv ? 'today' : '7d');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [detail, setDetail] = useState<AdminStatsDetail | null>(null);
@@ -143,7 +144,9 @@ export default function AdminStatsDetailPanel({ metric }: { metric: AdminStatsSe
     setLoading(true);
     setErr(null);
     try {
-      const opts: Parameters<typeof fetchAdminStatsDetail>[1] = { limit: 50 };
+      const opts: Parameters<typeof fetchAdminStatsDetail>[1] = {
+        limit: isUv ? 500 : 50,
+      };
       if (!isRag) {
         if (preset === 'custom') {
           if (!customFrom || !customTo) {
@@ -164,7 +167,7 @@ export default function AdminStatsDetailPanel({ metric }: { metric: AdminStatsSe
     } finally {
       setLoading(false);
     }
-  }, [metric, preset, customFrom, customTo, isRag]);
+  }, [metric, preset, customFrom, customTo, isRag, isUv]);
 
   useEffect(() => {
     void load();

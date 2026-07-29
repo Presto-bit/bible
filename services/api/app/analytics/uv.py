@@ -32,25 +32,41 @@ def _set_err(msg: str | None) -> None:
     _last_error = msg
 
 
-# 统计去重身份：优先归并到 8 位 user_code（多设备 / 先游客后登录只计 1）；否则按设备计
+# 统计去重身份：优先归并到已设密/绑手机的 8–10 位 user_code；
+# 否则按 user_id / 非空设备指纹 / visitor_key（避免空指纹把多人挤成 1）。
 def uv_identity_sql(alias: str | None = None) -> str:
     prefix = f"{alias}." if alias else "daily_active_visitors."
     fp = f"{alias}.device_fingerprint" if alias else "daily_active_visitors.device_fingerprint"
+    code = f"{prefix}user_code"
+    secured = (
+        "(ac.pwd_hash IS NOT NULL AND trim(ac.pwd_hash) <> '') "
+        "OR (ac.phone IS NOT NULL AND trim(ac.phone) <> '')"
+    )
     by_user = f"""(
       SELECT ac.user_code
       FROM accounts ac
       WHERE ac.user_id = {prefix}user_id
+        AND ({secured})
       LIMIT 1
     )"""
     by_bind = f"""(
-      SELECT dub.user_code
+      SELECT ac.user_code
       FROM device_user_bindings dub
+      JOIN accounts ac ON ac.user_code = dub.user_code
       WHERE dub.device_fingerprint = {fp}
+        AND ({secured})
+      LIMIT 1
+    )"""
+    by_code = f"""(
+      SELECT ac.user_code
+      FROM accounts ac
+      WHERE ac.user_code = nullif(trim({code}), '')
+        AND ({secured})
       LIMIT 1
     )"""
     return (
-        f"COALESCE({by_user}, {by_bind}, "
-        f"{prefix}user_id::text, {prefix}device_fingerprint)"
+        f"COALESCE({by_user}, {by_bind}, {by_code}, "
+        f"{prefix}user_id::text, nullif(trim({fp}), ''), {prefix}visitor_key)"
     )
 
 

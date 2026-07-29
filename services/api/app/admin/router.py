@@ -119,7 +119,7 @@ def admin_stats(
 @router.get("/stats/detail/{metric}")
 def admin_stats_detail(
     metric: str,
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=500),
     preset: str | None = Query(None, pattern="^(today|7d|30d|custom)$"),
     days: int | None = Query(None, ge=1, le=90),
     date_from: date | None = Query(None),
@@ -446,8 +446,8 @@ def admin_reindex_document(document_id: str, _phone: str = Depends(require_admin
         result = index_file(
             Path(source_path),
             source_type=source_type,
-            title=title,
-            force=True,
+        title=title,
+        force=True,
         )
     except Exception as exc:
         logger.exception("admin reindex failed")

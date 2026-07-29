@@ -1167,10 +1167,30 @@ def fetch_admin_stats_detail(
                 )
                 rows = conn.execute(
                     f"""
-                    SELECT user_code, nickname, visit_date, created_at, bound_at, is_login, identity, device_fp
+                    SELECT
+                      user_code,
+                      nickname,
+                      registered_at,
+                      visit_date,
+                      created_at,
+                      bound_at,
+                      is_login,
+                      identity,
+                      device_fp
                     FROM (
-                      SELECT {_v2_uv_user_code_sql()} AS user_code,
+                      SELECT DISTINCT ON (d.visit_date, {uv_identity_sql("d")})
+                             {_v2_uv_user_code_sql()} AS user_code,
                              {_v2_uv_nickname_sql()} AS nickname,
+                             {_ts_sql(
+                                 "COALESCE("
+                                 "CASE WHEN ((a.pwd_hash IS NOT NULL AND trim(a.pwd_hash) <> '') "
+                                 "OR (a.phone IS NOT NULL AND trim(a.phone) <> '')) "
+                                 "THEN a.created_at END, "
+                                 "CASE WHEN ((a_bind.pwd_hash IS NOT NULL AND trim(a_bind.pwd_hash) <> '') "
+                                 "OR (a_bind.phone IS NOT NULL AND trim(a_bind.phone) <> '')) "
+                                 "THEN a_bind.created_at END, "
+                                 "u.created_at)"
+                             )} AS registered_at,
                              d.visit_date::text AS visit_date,
                              {_ts_sql("d.created_at")} AS created_at,
                              {_ts_sql("d.user_bound_at")} AS bound_at,
@@ -1188,53 +1208,69 @@ def fetch_admin_stats_detail(
                       {_V2_DEVICE_BIND_JOINS}
                       WHERE d.visit_date BETWEEN %s AND %s
                         AND {uv_attributed_where("d")}
+                      ORDER BY d.visit_date DESC,
+                               {uv_identity_sql("d")},
+                               (
+                                 (a.pwd_hash IS NOT NULL AND trim(a.pwd_hash) <> '')
+                                 OR (a.phone IS NOT NULL AND trim(a.phone) <> '')
+                                 OR (a_bind.pwd_hash IS NOT NULL AND trim(a_bind.pwd_hash) <> '')
+                                 OR (a_bind.phone IS NOT NULL AND trim(a_bind.phone) <> '')
+                               ) DESC,
+                               d.created_at DESC
                     ) v
-                    ORDER BY visit_date DESC,
-                             identity,
-                             is_login DESC,
-                             created_at DESC
+                    ORDER BY visit_date DESC, created_at DESC
+                    LIMIT %s
                     """,
-                    (start, end),
+                    (start, end, limit),
                 ).fetchall()
                 items = []
-                seen_day_identity: set[tuple[str, str]] = set()
                 for r in rows:
-                    user_code, nickname, vdate, created, bound, is_login, identity, device_fp = r
-                    key = (vdate, str(identity or user_code or created))
-                    if key in seen_day_identity:
-                        continue
-                    seen_day_identity.add(key)
+                    (
+                        user_code,
+                        nickname,
+                        registered_at,
+                        vdate,
+                        created,
+                        bound,
+                        is_login,
+                        identity,
+                        device_fp,
+                    ) = r
                     converted_today = bool(
                         is_login and bound and bound != "—" and bound[:10] == vdate
                     )
                     display_code = user_code if user_code and user_code != "—" else None
                     if not display_code:
-                        fp = (device_fp or "").strip()
-                        if fp.startswith("ip:"):
-                            display_code = "设备(IP)"
-                        elif fp.startswith("inst-") or fp.startswith("dev-"):
-                            display_code = f"设备 …{fp[-6:]}" if len(fp) > 6 else f"设备 {fp}"
-                        elif fp:
-                            display_code = f"设备 …{fp[-8:]}" if len(fp) > 8 else f"设备 {fp}"
+                        ident = (identity or "").strip()
+                        if ident and not ident.startswith(("uid:", "ip:", "d:", "u:")):
+                            display_code = ident
                         else:
-                            display_code = "—"
+                            fp = (device_fp or "").strip()
+                            if fp.startswith("ip:"):
+                                display_code = "设备(IP)"
+                            elif fp.startswith("inst-") or fp.startswith("dev-"):
+                                display_code = f"设备 …{fp[-6:]}" if len(fp) > 6 else f"设备 {fp}"
+                            elif fp:
+                                display_code = f"设备 …{fp[-8:]}" if len(fp) > 8 else f"设备 {fp}"
+                            else:
+                                display_code = "—"
                     items.append({
                         "type": "账号",
                         "user_code": display_code,
                         "nickname": nickname,
+                        "registered_at": registered_at if registered_at and registered_at != "—" else "—",
                         "converted": "是" if converted_today else "—",
                         "visit_date": vdate,
                         "created_at": created,
                     })
-                    if len(items) >= limit:
-                        break
                 visitor_cols = [
                     _col("type", "类型"),
                     _col("user_code", "用户ID"),
                     _col("nickname", "昵称"),
+                    _col("registered_at", "注册时间"),
                     _col("converted", "当日转化"),
                     _col("visit_date", "日期"),
-                    _col("created_at", "时间"),
+                    _col("created_at", "访问时间"),
                 ]
 
             else:
@@ -1308,7 +1344,8 @@ def fetch_admin_stats_detail(
                            {_ts_sql("v.created_at")},
                            {_legacy_vk_user_code_sql()},
                            {_legacy_vk_nickname_sql()},
-                           ({_legacy_vk_is_login_sql()}) AS is_login
+                           ({_legacy_vk_is_login_sql()}) AS is_login,
+                           {_ts_sql("COALESCE(a.created_at, a2.created_at, a_dev.created_at, u.created_at)")}
                     FROM daily_active_visitors v
                     {_LEGACY_VK_JOINS}
                     WHERE v.visit_date BETWEEN %s AND %s
@@ -1323,6 +1360,7 @@ def fetch_admin_stats_detail(
                         "type": "账号",
                         "user_code": r[3],
                         "nickname": r[4],
+                        "registered_at": r[6] if r[6] and r[6] != "—" else "—",
                         "visit_date": r[1],
                         "created_at": r[2],
                     }
@@ -1332,8 +1370,9 @@ def fetch_admin_stats_detail(
                     _col("type", "类型"),
                     _col("user_code", "用户ID"),
                     _col("nickname", "昵称"),
+                    _col("registered_at", "注册时间"),
                     _col("visit_date", "日期"),
-                    _col("created_at", "时间"),
+                    _col("created_at", "访问时间"),
                 ]
             d1 = round(d1_num / d1_den * 100, 1) if d1_den else None
             d7 = round(d7_num / d7_den * 100, 1) if d7_den else None
@@ -1348,11 +1387,11 @@ def fetch_admin_stats_detail(
                 _insight("7 日留存", f"{d7}%" if d7 is not None else "—"),
             ]
             sections.append(
-                _section("visitors", "访客明细（脱敏）", visitor_cols, items)
+                _section("visitors", "登录访客明细（非游客）", visitor_cols, items)
             )
             summary = (
                 f"今日去重 {totals['uv_today']} · 区间去重 {deduped} · "
-                f"转化 {totals.get('uv_converted_today', converted)}"
+                f"明细 {len(items)} 条 · 转化 {totals.get('uv_converted_today', converted)}"
             )
 
         elif metric == "ai_requests":
