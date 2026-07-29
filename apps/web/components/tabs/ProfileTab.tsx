@@ -520,15 +520,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   <span className="muted">平台与专题 ›</span>
                 </Link>
                 <Link
-                  href="/dictionary"
-                  className="card row-card"
-                  style={{ display: 'flex', marginTop: 8 }}
-                  onClick={openSettingsRoute}
-                >
-                  <span style={{ flex: 1 }}>圣经词典</span>
-                  <span className="muted">›</span>
-                </Link>
-                <Link
                   href="/profile/reminders"
                   className="card row-card"
                   style={{ display: 'flex', marginTop: 8 }}
