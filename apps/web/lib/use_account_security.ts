@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   bindPhone,
   changePassword,
+  changeUsername,
   effectiveId,
   getUserName,
   hasPassword,
@@ -87,9 +88,16 @@ export function useAccountSecurity(onAccountChange?: () => void) {
           return false;
         }
       }
-      await setCredentials(u, pwd.length >= 6 ? pwd : '');
+      const settingPassword = pwd.length >= 6;
+      if (settingPassword) {
+        // 首次设密（可顺带改名）仍走 register
+        await setCredentials(u, pwd);
+      } else {
+        // 纯改名：走登录后专用接口（已设密也可改）
+        await changeUsername(u);
+      }
       if (phone.trim()) {
-        await bindPhoneIfNeeded(pwd.length >= 6 ? pwd : phonePwd || null);
+        await bindPhoneIfNeeded(settingPassword ? pwd : phonePwd || null);
       }
       setMsg(phone.trim() ? '已保存' : '用户名已保存');
       setPwd('');
@@ -132,6 +140,24 @@ export function useAccountSecurity(onAccountChange?: () => void) {
     if (!ok) return;
   };
 
+  const reshuffleUsernameHandler = async () => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { reshuffleUsername } = await import('@/lib/api');
+      const next = await reshuffleUsername();
+      setName(next);
+      setMsg('已换一个新名字');
+      notify();
+      return true;
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const copyId = async () => {
     if (!id) return;
     try {
@@ -156,12 +182,14 @@ export function useAccountSecurity(onAccountChange?: () => void) {
     devices,
     busy,
     msg,
+    setMsg,
     idCopied,
     showAdvanced,
     setShowAdvanced,
     id,
     load,
     saveUsername,
+    reshuffleUsernameHandler,
     bindPhoneHandler,
     changePasswordHandler,
     copyId,

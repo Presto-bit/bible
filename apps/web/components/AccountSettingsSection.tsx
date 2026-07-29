@@ -1,6 +1,7 @@
 'use client';
 
 import { hasPassword, unbindDevice } from '@/lib/api';
+import { isSystemGeneratedUsername } from '@/lib/system_username';
 import { maskPhone, useAccountSecurity } from '@/lib/use_account_security';
 
 type Props = {
@@ -51,14 +52,24 @@ export default function AccountSettingsSection({ middle, onAccountChange }: Prop
   return (
     <>
       <p className="muted" style={{ fontSize: 12 }}>用户名</p>
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input
           className="book-chip"
-          style={{ flex: 1, textAlign: 'left' }}
+          style={{ flex: 1, minWidth: 120, textAlign: 'left' }}
           placeholder="≥2 字，不可重复"
           value={a.name}
           onChange={(e) => a.setName(e.target.value)}
         />
+        {isSystemGeneratedUsername(a.name) ? (
+          <button
+            type="button"
+            className="text-link"
+            disabled={a.busy}
+            onClick={() => void a.reshuffleUsernameHandler()}
+          >
+            换一个
+          </button>
+        ) : null}
         <button
           type="button"
           className="font-pill"

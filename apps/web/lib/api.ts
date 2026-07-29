@@ -571,6 +571,71 @@ export function getUserName(): string {
   return userLsGet(NAME_KEY) || '';
 }
 
+function applyLocalUsername(name: string, code?: string) {
+  const u = name.trim();
+  if (!u) return;
+  const id = code || effectiveId();
+  userLsSet(NAME_KEY, u, id || undefined);
+  if (!id) return;
+  const reg = readRegistry();
+  for (const key of Object.keys(reg)) {
+    if (reg[key].id === id) delete reg[key];
+  }
+  reg[u] = { id };
+  writeRegistry(reg);
+}
+
+async function readApiError(res: Response, fallback: string): Promise<string> {
+  try {
+    const d = await res.json();
+    if (typeof d.detail === 'string' && d.detail.trim()) return d.detail;
+    if (Array.isArray(d.detail) && d.detail[0]?.msg) return String(d.detail[0].msg);
+  } catch {
+    /* ignore */
+  }
+  return fallback;
+}
+
+/** 登录后改用户名（自定义）。成功后写本地 profile_name。 */
+export async function changeUsername(username: string): Promise<string> {
+  const u = username.trim();
+  if (u.length < 2) throw new Error('用户名至少 2 个字');
+  await ensureAccountReady();
+  const id = effectiveId();
+  if (!id) throw new Error('账号未就绪');
+  const res = await fetch(`${API_BASE}/auth/change-username`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ user_code: id, username: u, random: false }),
+  });
+  if (res.status === 401) throw new Error('请先完成账号初始化');
+  if (res.status === 409) throw new Error('用户名已被占用');
+  if (!res.ok) throw new Error(await readApiError(res, '改名失败'));
+  const d = (await res.json()) as { username?: string };
+  const next = (d.username || u).trim();
+  applyLocalUsername(next, id);
+  return next;
+}
+
+/** 「换一个」：服务端重新分配系统随机名。 */
+export async function reshuffleUsername(): Promise<string> {
+  await ensureAccountReady();
+  const id = effectiveId();
+  if (!id) throw new Error('账号未就绪');
+  const res = await fetch(`${API_BASE}/auth/change-username`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify({ user_code: id, username: null, random: true }),
+  });
+  if (res.status === 401) throw new Error('请先完成账号初始化');
+  if (!res.ok) throw new Error(await readApiError(res, '换名失败'));
+  const d = (await res.json()) as { username?: string };
+  const next = (d.username || '').trim();
+  if (!next) throw new Error('换名失败');
+  applyLocalUsername(next, id);
+  return next;
+}
+
 export function getBoundPhone(): string {
   if (typeof window === 'undefined') return '';
   return localStorage.getItem(PHONE_KEY) || '';
@@ -659,20 +724,10 @@ export async function usernameAvailable(username: string): Promise<boolean> {
   return !localTaken;
 }
 
-// 设置名称 + 密码（首次引导 / 修改）。密码仅存服务端 hash。
+// 设置名称 + 密码（首次引导 / 设密）。已设密后的纯改名请用 changeUsername。
 export async function setCredentials(username: string, password: string): Promise<void> {
   const u = username.trim();
   const id = effectiveId();
-  if (u) {
-    const reg = readRegistry();
-    for (const key of Object.keys(reg)) {
-      if (reg[key].id === id) delete reg[key];
-    }
-    reg[u] = { id };
-    writeRegistry(reg);
-    userLsSet(NAME_KEY, u);
-    void import('./profile_sync').then((m) => m.pushProfileName(u));
-  }
   markOnboarded();
   localStorage.setItem(USER_KEY, id);
   try {
@@ -690,24 +745,18 @@ export async function setCredentials(username: string, password: string): Promis
       if (d.session_token) setSessionToken(d.session_token);
       const serverCode = d.user_code && isUserCode(d.user_code) ? (d.user_code as string) : id;
       adoptAuthenticatedUserCode(serverCode);
-      if (u) {
-        const reg = readRegistry();
-        for (const key of Object.keys(reg)) {
-          if (reg[key].id === id || reg[key].id === serverCode) delete reg[key];
-        }
-        reg[u] = { id: serverCode };
-        writeRegistry(reg);
-      }
-      if (d.username) userLsSet(NAME_KEY, d.username);
+      const finalName = ((d.username as string | undefined) || u || '').trim();
+      if (finalName) applyLocalUsername(finalName, serverCode);
       // 本次提交了密码则本地直接记为已设密，避免回包缺字段导致引导不消失
       if (password.length >= 6 || d.has_password) setHasPasswordCached(true);
       else setHasPasswordCached(Boolean(d.has_password));
       await refreshAccountStatus(serverCode);
-    } else if (password) {
-      throw new Error('保存失败，请检查网络');
+    } else {
+      // 已设密改名等失败必须抛出，禁止「本地已改、云端未改」的假成功
+      throw new Error(await readApiError(res, '保存失败，请检查网络'));
     }
   } catch (e) {
-    if (password) throw e instanceof Error ? e : new Error(String(e));
+    throw e instanceof Error ? e : new Error(String(e));
   }
   resetAccountEnsureCaches();
   await import('./post_login').then((m) => m.afterLogin());

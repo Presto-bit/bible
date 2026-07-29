@@ -13,13 +13,18 @@ from pydantic import BaseModel
 from ..config import get_settings
 from ..content.engagement_migrate import migrate_daily_verse_engagement
 from ..db import get_pool
-from .account_profile import resolve_register_username, upsert_user_profile
+from .account_profile import (
+    apply_username_change,
+    resolve_register_username,
+    upsert_user_profile,
+)
 from .local_session import (
     issue_bootstrap_token,
     issue_session_token,
     revoke_session_token,
 )
 from .rate_limit import enforce_rate_limit
+from .random_username import is_generated_username
 from .session import get_current_user, resolve_user_id
 from .user_code import is_user_code, pick_user_code, uuid_for_code as _uuid_for_code
 from ..social.im_router import OFFICIAL_SUPPORT_USER_CODE
@@ -144,6 +149,11 @@ class ChangePasswordBody(BaseModel):
     old_password: str | None = None
     new_password: str
 
+
+class ChangeUsernameBody(BaseModel):
+    user_code: str
+    username: str | None = None
+    random: bool = False
 
 class BindPhoneBody(BaseModel):
     phone: str
@@ -299,6 +309,47 @@ def change_password(
         raise
     except Exception as exc:
         logger.warning("change-password 失败：%s", exc)
+        raise HTTPException(status_code=503, detail="云端暂不可用") from exc
+
+
+@router.post("/change-username")
+def change_username(
+    body: ChangeUsernameBody,
+    request: Request,
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """登录后修改用户名（自定义或「换一个」随机）。
+
+    不要求已设密；静默建档后只要持有本账号会话即可改。
+    """
+    enforce_rate_limit(request, bucket="auth_change_username", limit=30, window_sec=60)
+    code = (body.user_code or "").strip()
+    if not is_user_code(code):
+        raise HTTPException(status_code=400, detail="用户ID 必须为 8 位数字")
+    if _uuid_for_code(code) != user_id:
+        raise HTTPException(status_code=403, detail="身份不匹配")
+    if not body.random and not (body.username or "").strip():
+        raise HTTPException(status_code=400, detail="请输入用户名，或选择换一个")
+    try:
+        pool = get_pool()
+        with pool.connection() as conn:
+            name = apply_username_change(
+                conn,
+                user_code=code,
+                user_id=user_id,
+                requested=body.username,
+                randomize=bool(body.random),
+            )
+            conn.commit()
+        return {
+            "ok": True,
+            "username": name,
+            "generated": is_generated_username(name),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.warning("change-username 失败：%s", exc)
         raise HTTPException(status_code=503, detail="云端暂不可用") from exc
 
 
