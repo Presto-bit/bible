@@ -108,9 +108,10 @@ export type ImComposerKeyboardOpts = {
 
 /**
  * IM 键盘贴合（群 / 私信共用）：
- * - 以 visualViewport 高度锁定会话壳（overlays / resizes-content 都能贴住键盘上沿）
- * - 输入栏保持文档流贴壳底（勿再用 fixed + padding 洞），随壳高收缩自然落在键盘上
- * - 列表 scrollTop 滚到底，末条落在输入框上方
+ * - resizes-content（viewport.interactiveWidget）：layout 已缩，壳用 top/bottom:0 填满即可
+ * - overlays：layout 仍全屏，才用 visualViewport 锁壳（--im-vv-*），避免输入栏沉到键盘下
+ * - 切勿在 resizes-content 下用偏大的 vv.height 锁壳高（会把底栏顶进键盘）
+ * - 输入栏文档流贴壳底；列表 scrollTop 滚到底
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -147,28 +148,35 @@ export function useImComposerKeyboard(
 
     const clearChrome = () => {
       setInset(0);
-      body.classList.remove('im-keyboard');
+      body.classList.remove('im-keyboard', 'im-keyboard-overlay');
       root.style.removeProperty('--im-kb-inset');
       // --im-composer-h 由 useImComposerHeightSync 持续维护，失焦不清除
       root.style.removeProperty('--im-vv-top');
       root.style.removeProperty('--im-vv-h');
     };
 
-    /**
-     * 键盘高度：
-     * - overlays：layout 不变、vv 变矮 → gap
-     * - resizes-content：layout≈vv → 用冻结 baseline - vvH
-     */
-    const measureKeyboard = () => {
-      pinScrollTop();
+    const readLayout = () => {
       const layoutH = window.innerHeight || root.clientHeight || 0;
       const vvH = vv?.height ?? layoutH;
       const offsetTop = vv?.offsetTop ?? 0;
       const gap = Math.max(0, Math.round(layoutH - vvH - offsetTop));
+      return { layoutH, vvH, offsetTop, gap };
+    };
+
+    /**
+     * 键盘高度：
+     * - overlays：layout 不变、vv 变矮 → gap
+     * - resizes-content：layout≈vv → 用冻结 baseline - min(layout, vv)
+     */
+    const measureKeyboard = () => {
+      pinScrollTop();
+      const { layoutH, vvH, gap } = readLayout();
       if (gap > 8) return gap;
 
+      // layout 已随键盘收缩时，用较小边对比 baseline，避免 stale vv 偏大算成 0
+      const visibleH = Math.min(layoutH, Math.round(vvH));
       const base = baselineHRef.current || layoutH;
-      const fromBase = Math.max(0, Math.round(base - vvH));
+      const fromBase = Math.max(0, Math.round(base - visibleH));
       return fromBase > 48 ? fromBase : 0;
     };
 
@@ -183,15 +191,26 @@ export function useImComposerKeyboard(
 
     const applyChrome = (kb: number) => {
       const next = kb > 8 ? kb : 0;
-      const vvH = Math.round(vv?.height ?? window.innerHeight ?? 0);
-      const vvTop = Math.round(vv?.offsetTop ?? 0);
+      const { layoutH, vvH, offsetTop, gap } = readLayout();
+      // overlays：layout 比可视区明显更高；resizes-content：二者接近，勿锁 vv
+      const overlay = gap > 8;
+      const vvTop = Math.max(0, Math.round(offsetTop));
+      // 壳高取 layout / vv 较小值，防止 vv 滞后时报得过大、底栏钻进键盘
+      const shellH = Math.max(240, Math.min(Math.round(vvH), layoutH - vvTop));
+
       setInset(next);
       body.classList.add('im-keyboard');
+      body.classList.toggle('im-keyboard-overlay', overlay);
       root.style.setProperty('--im-kb-inset', `${next}px`);
-      // 壳高度锁定到可视区，避免 overlays 下 fixed 底栏沉到键盘下、
-      // 也避免 resizes-content 下再叠加 bottom:kb 造成双倍抬升
-      root.style.setProperty('--im-vv-h', `${Math.max(240, vvH)}px`);
-      root.style.setProperty('--im-vv-top', `${Math.max(0, vvTop)}px`);
+
+      if (overlay) {
+        root.style.setProperty('--im-vv-h', `${shellH}px`);
+        root.style.setProperty('--im-vv-top', `${vvTop}px`);
+      } else {
+        // 交给 top/bottom:0 跟随已缩小的 layout viewport
+        root.style.removeProperty('--im-vv-h');
+        root.style.removeProperty('--im-vv-top');
+      }
       pinChat();
     };
 
