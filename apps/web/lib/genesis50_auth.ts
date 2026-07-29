@@ -1,8 +1,8 @@
 /** 创世记 50 天（genesis-50.pages.dev）免改对方代码的自动进入。
  *
  * 对方站点用邀请码换固定邮箱/密码登录 Supabase。我们在本域完成登录后，
- * 把 session 写进目标站 URL hash（其 supabase-js detectSessionInUrl 会接收），
- * 从而跳过邀请码输入页。
+ * 把 session 写进目标站 URL query（其 supabase-js detectSessionInUrl 会接收），
+ * 从而跳过邀请码输入页。iOS PWA iframe 常丢弃 hash，故不用 fragment。
  *
  * 注意：同一邀请码对应同一账号；全员共用一码会进同一账号。
  */
@@ -146,26 +146,35 @@ async function signUpWithInvite(code: string, nickname: string): Promise<G50Sess
 function buildAuthedUrl(href: string, session: G50Session): string {
   const u = new URL(normalizeHref(href));
   u.hash = '';
-  // 清掉 code，避免对方若以后支持 query 时重复处理
+  // 清掉邀请参数，避免进入后又停在邀请码页
   u.searchParams.delete('code');
   u.searchParams.delete('invite');
-  const params = new URLSearchParams({
-    access_token: session.access_token,
-    refresh_token: session.refresh_token,
-    expires_in: String(session.expires_in ?? 3600),
-    token_type: session.token_type || 'bearer',
-    type: 'magiclink',
-  });
-  if (session.expires_at != null) params.set('expires_at', String(session.expires_at));
-  u.hash = params.toString();
+  // 用 query 而不是 hash：iOS PWA iframe 经常丢弃 fragment，导致对方 detectSessionInUrl 失败、又要求填邀请码
+  u.searchParams.set('access_token', session.access_token);
+  u.searchParams.set('refresh_token', session.refresh_token);
+  u.searchParams.set('expires_in', String(session.expires_in ?? 3600));
+  u.searchParams.set('token_type', session.token_type || 'bearer');
+  u.searchParams.set('type', 'magiclink');
+  if (session.expires_at != null) {
+    u.searchParams.set('expires_at', String(session.expires_at));
+  }
   return u.toString();
 }
 
 async function obtainGenesis50Session(code: string): Promise<G50Session> {
   try {
     return await signInWithInvite(code);
-  } catch {
-    return await signUpWithInvite(code, guessNickname());
+  } catch (signInErr) {
+    try {
+      return await signUpWithInvite(code, guessNickname());
+    } catch {
+      // 邀请码已占用时注册会失败；再试一次登录（并发下首次登录也可能失败）
+      try {
+        return await signInWithInvite(code);
+      } catch {
+        throw signInErr;
+      }
+    }
   }
 }
 
@@ -188,7 +197,16 @@ export function openGenesis50Authed(href: string): void {
       });
     } catch (err) {
       console.warn('[genesis50] auto enter failed, fallback plain embed', err);
-      openExternalBrowser({ url: fallback, title, loading: false });
+      // 仍内嵌打开；用户可点顶栏「浏览器打开」。带 code 方便对方站内手动登录时少一步记忆
+      try {
+        const u = new URL(fallback);
+        if (!u.searchParams.get('code') && !u.searchParams.get('invite')) {
+          u.searchParams.set('code', code);
+        }
+        openExternalBrowser({ url: u.toString(), title, loading: false });
+      } catch {
+        openExternalBrowser({ url: fallback, title, loading: false });
+      }
     }
   })();
 }

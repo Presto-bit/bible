@@ -317,11 +317,6 @@ export default function CampaignViewInner() {
             <button type="button" className="btn" onClick={() => void onShare()}>
               分享
             </button>
-            {camp.isCreator ? (
-              <Link href={`/campaigns/${id}/edit`} className="btn">
-                编辑
-              </Link>
-            ) : null}
           </div>
         </div>
 
@@ -350,26 +345,6 @@ export default function CampaignViewInner() {
         mode="view"
         onlyTypes={['text', 'audio', 'image', 'divider', 'verse', 'tabs']}
       />
-
-      {camp.isCreator && camp.status !== 'draft' && camp.stats ? (
-        <div className="ops-stats-grid" style={{ marginTop: 16 }}>
-          {(
-            [
-              ['打开', camp.stats.opens],
-              ['已读', camp.stats.readers],
-              ['赞', camp.stats.likes],
-              ['RSVP', camp.stats.rsvps],
-              ['报名', camp.stats.signups ?? 0],
-              ['提问', camp.stats.questions ?? 0],
-            ] as const
-          ).map(([label, n]) => (
-            <div key={label} className="ops-stat">
-              <strong>{n ?? 0}</strong>
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
-      ) : null}
 
       {(camp.landing?.entries || []).filter((e) => (e.title || '').trim() && (e.href || '').trim()).length > 0 ? (
         <div style={{ display: 'grid', gap: 8, marginTop: 16 }}>

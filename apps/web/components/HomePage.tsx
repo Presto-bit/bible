@@ -418,11 +418,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                 id: c.id,
                 tag: c.tag || '活动',
                 title: c.name,
-                sub:
-                  c.subtitle ||
-                  (c.daysTotal > 0
-                    ? `${c.daysRead}/${c.daysTotal} 天`
-                    : '群活动'),
+                sub: (c.subtitle || '').trim() || '继续阅读',
                 href: c.href || `/campaigns/view/${c.id}`,
               })),
             )

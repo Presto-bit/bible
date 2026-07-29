@@ -57,18 +57,16 @@ export function CampaignLivePreview({
 
   const railCard: RailCard = {
     id: 'campaign-preview',
-    kind: 'media',
-    tint: 'rose',
-    layout: 'scene-caption',
+    kind: 'action',
+    tint: 'gold',
+    layout: 'cover',
     tag: tag || '活动',
     reason: '群活动',
     title: trimRailTitle(name.trim() || title),
-    sub: trimRailSub(subtitle?.trim() || body.slice(0, 40) || '副文案'),
+    sub: trimRailSub(subtitle?.trim() || '继续阅读'),
     href: '#preview-landing',
     icon: RAIL_ICONS.campaign,
-    sceneId: 'plan',
-    mediaCaption: trimRailTitle(name.trim() || title, 20),
-    mediaCaptionRight: railSlot ? `${railSlot}` : undefined,
+    bookId: 'GEN',
   };
 
   const copyPreviewLink = async () => {

@@ -90,6 +90,7 @@ function normalizeRailCard(card: RailCard): RailCard {
     ? trimRailTitle(card.mediaCaptionRight, 8)
     : undefined;
   let sub = '';
+  const isCampaign = card.id === 'campaign' || card.id.startsWith('campaign-');
 
   switch (card.id) {
     case 'resume':
@@ -99,7 +100,7 @@ function normalizeRailCard(card: RailCard): RailCard {
       sub = trimRailSub(card.sub);
       break;
     case 'campaign':
-      sub = trimRailSub(card.sub);
+      sub = trimRailSub(card.sub || '继续阅读');
       break;
     case 'plan':
       sub = trimRailSub(card.sub);
@@ -124,7 +125,7 @@ function normalizeRailCard(card: RailCard): RailCard {
       sub = trimRailSub(card.sub);
       break;
     default:
-      sub = trimRailSub(card.sub);
+      sub = trimRailSub(isCampaign ? card.sub || '继续阅读' : card.sub);
   }
 
   return {
@@ -189,6 +190,7 @@ export type HomeRailInput = {
     title: string;
     sub: string;
     href: string;
+    bookId?: string;
     mediaCaption?: string;
     mediaCaptionRight?: string;
     progressPct?: number;
@@ -418,18 +420,16 @@ export function buildHomeRail(input: HomeRailInput): {
   const campaignCards: RailCard[] = (input.campaigns ?? []).slice(0, 3).map((c) =>
     normalizeRailCard({
       id: `campaign-${c.id}`,
-      kind: 'media',
-      tint: 'rose',
-      layout: 'scene-caption',
+      kind: 'action',
+      tint: 'gold',
+      layout: 'cover',
       tag: c.tag || '活动',
       reason: '群活动',
       title: c.title,
-      sub: c.sub,
+      sub: c.sub || '继续阅读',
       href: c.href,
       icon: RAIL_ICONS.campaign,
-      sceneId: 'plan',
-      mediaCaption: c.mediaCaption || c.title,
-      mediaCaptionRight: c.mediaCaptionRight,
+      bookId: c.bookId || 'GEN',
       progressPct: c.progressPct,
     }),
   );

@@ -660,7 +660,11 @@ function CampaignEditInner() {
                   className="input"
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
+                  placeholder="继续阅读"
                 />
+                <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
+                  出现在主卡底部（原「继续阅读」位置）；留空则显示「继续阅读」
+                </span>
               </label>
             </div>
 
@@ -818,6 +822,44 @@ function CampaignEditInner() {
                 </label>
               </div>
             </div>
+
+            {camp?.stats && status !== 'draft' ? (
+              <div className="settings-card ops-sec" style={{ marginTop: 12 }}>
+                <div className="ops-sec-toggle" style={{ cursor: 'default' }}>
+                  <span className="settings-title" style={{ margin: 0 }}>
+                    运营数据
+                  </span>
+                  <button
+                    type="button"
+                    className="text-link"
+                    style={{ fontSize: 12 }}
+                    onClick={() => void load()}
+                  >
+                    刷新
+                  </button>
+                </div>
+                <div className="ops-stats-grid" style={{ marginTop: 10 }}>
+                  {(
+                    [
+                      ['打开', camp.stats.opens],
+                      ['已读', camp.stats.readers],
+                      ['赞', camp.stats.likes],
+                      ['RSVP', camp.stats.rsvps],
+                      ['报名', camp.stats.signups ?? 0],
+                      ['提问', camp.stats.questions ?? 0],
+                    ] as const
+                  ).map(([label, n]) => (
+                    <div key={label} className="ops-stat">
+                      <strong>{n ?? 0}</strong>
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="muted" style={{ fontSize: 12, margin: '8px 0 0' }}>
+                  仅在此配置页与活动列表可见，成员从今日推荐进入时不会看到
+                </p>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
