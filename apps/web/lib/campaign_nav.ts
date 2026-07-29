@@ -1,4 +1,6 @@
-/** 活动落地页链接安全导航 */
+/** 活动落地页 / 推荐卡外链导航（无二次确认） */
+
+import { isGenesis50Href, openGenesis50Authed } from '@/lib/genesis50_auth';
 
 export function isExternalHref(href: string): boolean {
   const t = (href || '').trim();
@@ -14,22 +16,17 @@ export function normalizeCampaignHref(href: string): string {
   return t;
 }
 
-/** 站内直跳；外链默认二次确认（落地页入口）。返回是否已导航。 */
-export function openCampaignHref(
-  href: string,
-  opts?: { confirm?: boolean },
-): boolean {
+/** 站内直跳；外链直接打开（创世记走自动登录）。返回是否已导航。 */
+export function openCampaignHref(href: string): boolean {
   const raw = normalizeCampaignHref(href);
   if (!raw) return false;
   if (!isExternalHref(raw)) {
     if (typeof window !== 'undefined') window.location.assign(raw);
     return true;
   }
-  if (opts?.confirm !== false) {
-    const ok = window.confirm(
-      `即将打开外部链接，请确认来源可信：\n\n${raw}\n\n是否继续？`,
-    );
-    if (!ok) return false;
+  if (isGenesis50Href(raw)) {
+    openGenesis50Authed(raw);
+    return true;
   }
   window.open(raw, '_blank', 'noopener,noreferrer');
   return true;

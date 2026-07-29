@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { railDotClass, type RailCard } from '@/lib/home_rail';
 import { isExternalHref, openCampaignHref } from '@/lib/campaign_nav';
-import { isGenesis50Href, openGenesis50Authed } from '@/lib/genesis50_auth';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
 import { isPwaMainTabHref, navigatePwaTab, navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { RailCardVisual } from '@/components/home/RailCardVisual';
@@ -28,14 +27,8 @@ function cardClass(c: RailCard, active: boolean): string {
 }
 
 function navigateRailHref(href: string, router: ReturnType<typeof useRouter>) {
-  if (isGenesis50Href(href)) {
-    // 创世记 50 天：本域登录后带 session 跳转，免填邀请码、无确认框
-    openGenesis50Authed(href);
-    return;
-  }
   if (isExternalHref(href)) {
-    // 今日推荐运营外链：运营已配置，直接打开，不弹确认
-    openCampaignHref(href, { confirm: false });
+    openCampaignHref(href);
     return;
   }
   if (href.startsWith('/reader')) {

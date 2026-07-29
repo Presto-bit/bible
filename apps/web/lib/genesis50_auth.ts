@@ -8,7 +8,6 @@
  */
 
 import { getUserName } from '@/lib/api';
-import { normalizeCampaignHref } from '@/lib/campaign_nav';
 
 const G50_HOST = 'genesis-50.pages.dev';
 const G50_SUPABASE_URL = 'https://ytiwfmufekvxdgyaokae.supabase.co';
@@ -25,6 +24,13 @@ type G50Session = {
   token_type?: string;
 };
 
+function normalizeHref(href: string): string {
+  const t = (href || '').trim();
+  if (!t) return '';
+  if (t.startsWith('//')) return `https:${t}`;
+  return t;
+}
+
 function authHeaders(): HeadersInit {
   return {
     apikey: G50_ANON_KEY,
@@ -35,7 +41,7 @@ function authHeaders(): HeadersInit {
 
 export function isGenesis50Href(href: string): boolean {
   try {
-    const u = new URL(normalizeCampaignHref(href));
+    const u = new URL(normalizeHref(href));
     return u.hostname === G50_HOST || u.hostname.endsWith(`.${G50_HOST}`);
   } catch {
     return false;
@@ -44,7 +50,7 @@ export function isGenesis50Href(href: string): boolean {
 
 export function resolveGenesis50InviteCode(href: string): string {
   try {
-    const u = new URL(normalizeCampaignHref(href));
+    const u = new URL(normalizeHref(href));
     const fromQs = (u.searchParams.get('code') || u.searchParams.get('invite') || '')
       .trim()
       .toUpperCase();
@@ -137,7 +143,7 @@ async function signUpWithInvite(code: string, nickname: string): Promise<G50Sess
 }
 
 function buildAuthedUrl(href: string, session: G50Session): string {
-  const u = new URL(normalizeCampaignHref(href));
+  const u = new URL(normalizeHref(href));
   u.hash = '';
   // 清掉 code，避免对方若以后支持 query 时重复处理
   u.searchParams.delete('code');
@@ -166,7 +172,7 @@ async function obtainGenesis50Session(code: string): Promise<G50Session> {
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
   const code = resolveGenesis50InviteCode(href);
-  const fallback = normalizeCampaignHref(href);
+  const fallback = normalizeHref(href);
   const popup = window.open('about:blank', '_blank');
 
   void (async () => {
