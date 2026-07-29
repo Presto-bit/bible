@@ -52,6 +52,7 @@ import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
+import { shareInviteProduct } from '@/lib/invite_share';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
 
 const AVATAR_KEY = 'profile_avatar';
@@ -310,6 +311,13 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     }
   };
 
+  const inviteFriends = async () => {
+    const result = await shareInviteProduct();
+    if (result === 'shared') toast('已调起分享');
+    else if (result === 'copied') toast('邀请文案与链接已复制');
+    else if (result === 'failed') toast('分享失败');
+  };
+
   const displayName = getDisplayName() || name.trim() || '读经伙伴';
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 
@@ -463,6 +471,20 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           </span>
           <span className="muted home-list-chevron">›</span>
         </Link>
+
+        <button
+          type="button"
+          className="card row-card home-list-row home-list-row-wrap profile-soft-row"
+          style={{ width: '100%', textAlign: 'left' }}
+          onClick={() => void inviteFriends()}
+        >
+          <span className="pill pill-active">邀请</span>
+          <span className="home-list-main">
+            <strong>邀请朋友一起读</strong>
+            <span className="muted home-list-sub">有人陪你读懂圣经</span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </button>
 
         <div className="profile-progress-wrap">
           <ReadingProgress />

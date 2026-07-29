@@ -23810,51 +23810,10 @@ body.pray-session-open .app-body {
   }
 }
 
-/* —— 解读分享到微信（P0） —— */
-.wechat-share-sheet {
-  max-width: 420px;
-  width: min(100%, 420px);
-  max-height: min(88vh, 720px);
-  overflow: auto;
-  margin: auto;
-}
-
-.wechat-share-preview {
-  display: block;
-  width: 100%;
-  max-height: 280px;
-  object-fit: contain;
-  border-radius: 12px;
-  margin: 12px 0 8px;
-  background: #f3efe8;
-}
-
-.wechat-share-lead {
-  margin: 0 0 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.wechat-share-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.wechat-share-hints {
-  margin: 14px 0 0;
-  padding-left: 1.1em;
-  font-size: 12px;
-  line-height: 1.55;
-}
-
+/* —— 解读分享落地页 —— */
 .analysis-share-page {
   padding-top: 28px;
-  padding-bottom: 48px;
+  padding-bottom: 96px;
   max-width: 560px;
 }
 
@@ -23874,19 +23833,213 @@ body.pray-session-open .app-body {
 
 .analysis-share-lead {
   margin: 18px 0 12px;
-  font-size: 1.05rem;
+  font-size: 1.12rem;
   line-height: 1.65;
   color: var(--ink, #2c2416);
 }
 
+.analysis-share-more-block {
+  margin: 0 0 16px;
+}
+
+.analysis-share-more {
+  margin: 0 0 8px;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--ink, #2c2416) 88%, transparent);
+}
+
+.analysis-share-expand {
+  font-size: 13px;
+}
+
 .analysis-share-disclaimer {
   font-size: 12px;
-  margin-bottom: 20px;
+  margin-top: 20px;
+  margin-bottom: 0;
 }
 
 .analysis-share-ctas {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+/* 分享回流 PWA 引导 */
+.share-pwa-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 95;
+  background: color-mix(in srgb, var(--surface, #fffcfa) 92%, #5f7d66);
+  border: 1px solid color-mix(in srgb, #5f7d66 22%, transparent);
+  box-shadow: 0 8px 28px rgba(44, 36, 22, 0.12);
+  padding: 12px 12px 12px 14px;
+}
+
+.share-pwa-bar-top {
+  position: sticky;
+  top: 0;
+  margin: 0 0 16px;
+  border-radius: 12px;
+}
+
+.share-pwa-bar-bottom {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  border-radius: 14px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.share-pwa-bar-body,
+.share-pwa-bar-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.share-pwa-bar-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink, #2c2416);
+}
+
+.share-pwa-bar-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--ink, #2c2416) 62%, transparent);
+}
+
+.share-pwa-bar-cta {
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.share-pwa-bar-x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink, #2c2416) 45%, transparent);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+}
+
+/* —— 产品邀请落地 / 轻触达 —— */
+.invite-app-page {
+  padding-top: 28px;
+  padding-bottom: 96px;
+  max-width: 560px;
+}
+
+.invite-app-page .eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep, #5f7d66);
+}
+
+.invite-app-title {
+  margin: 10px 0 0;
+  font-size: 1.65rem;
+  line-height: 1.35;
+  font-family: "Songti SC", "STSong", serif;
+}
+
+.invite-app-support {
+  margin: 14px 0 8px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--ink, #2c2416);
+}
+
+.invite-app-tagline {
+  margin: 0 0 20px;
+  font-size: 13px;
+}
+
+.invite-app-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.invite-nudge-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 96;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 12px 12px 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface, #fffcfa) 94%, #5f7d66);
+  border: 1px solid color-mix(in srgb, #5f7d66 22%, transparent);
+  box-shadow: 0 8px 28px rgba(44, 36, 22, 0.14);
+}
+
+.invite-nudge-bar-pwa {
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+.invite-nudge-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.invite-nudge-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink, #2c2416);
+}
+
+.invite-nudge-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--ink, #2c2416) 62%, transparent);
+}
+
+.invite-nudge-cta {
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.invite-nudge-x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink, #2c2416) 45%, transparent);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
 }
 

@@ -6,6 +6,7 @@ import PwaRegister from '@/components/PwaRegister';
 import PwaStandaloneShell from '@/components/PwaStandaloneShell';
 import StaleShellGuard from '@/components/StaleShellGuard';
 import InstallBanner from '@/components/InstallPwaGuide';
+import InviteFriendNudge from '@/components/InviteFriendNudge';
 import IdentityShell from '@/components/IdentityShell';
 import { ConfirmProvider } from '@/components/ui/ConfirmProvider';
 import { ToastProvider } from '@/components/ui/ToastProvider';
@@ -115,6 +116,7 @@ export default function RootLayout({
               <PwaRegister />
               <PwaStandaloneShell />
               <InstallBanner />
+              <InviteFriendNudge />
               <WebOnboardingSheet />
             </IdentityShell>
           </PasswordSheetProvider>

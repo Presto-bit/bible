@@ -31,6 +31,7 @@ import {
   subscribePwaTabNav,
 } from '@/lib/pwa_tab_nav';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
+import { isShareLandingPath } from '@/lib/share_pwa_guide';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -311,8 +312,9 @@ export default function InstallBanner() {
     return () => window.removeEventListener(PWA_INSTALL_SHEET_EVENT, onOpen);
   }, []);
 
-  // 首页有任务横幅时让路；其它 Tab 可出安装底栏
-  const slotFree = homeClear || !onHome;
+  // 首页有任务横幅时让路；分享落地页改用 SharePwaGuide，隐藏全站 Banner
+  const onShareLanding = isShareLandingPath(pathname);
+  const slotFree = (homeClear || !onHome) && !onShareLanding;
 
   useEffect(() => {
     if (platform === null) return;
@@ -331,6 +333,11 @@ export default function InstallBanner() {
     }
     setHidden(true);
   };
+
+  // 分享落地仍可响应 openPwaInstallSheet()
+  if (onShareLanding) {
+    return <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform ?? undefined} />;
+  }
 
   if (hidden || !platform || platform === 'standalone' || !onboardingDone || !slotFree) {
     return <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform ?? undefined} />;

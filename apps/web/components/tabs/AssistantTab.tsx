@@ -61,7 +61,7 @@ import {
   setSessionKnowledgeBaseId,
 } from '@/lib/assistant_knowledge_base';
 import { ASSISTANT_EMPTY_DEMOS } from '@/lib/assistant_empty_demos';
-import { WeChatShareSheet } from '@/components/WeChatShareSheet';
+import { shareAnalysis } from '@/lib/share_analysis';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -228,19 +228,16 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       flashToast('复制失败');
     }
   };
-  const [wechatShare, setWechatShare] = useState<{
-    answerText: string;
-    refLabel: string;
-    refParam?: string;
-  } | null>(null);
-
-  const openWechatShare = (t: string) => {
+  const shareAnswer = async (t: string) => {
     const label = refToChineseLabel(ref) || ref || '小爱的解读';
-    setWechatShare({
+    const result = await shareAnalysis({
       answerText: stripFollowups(t),
       refLabel: label,
       refParam: ref || undefined,
     });
+    if (result === 'shared') flashToast('已调起分享');
+    else if (result === 'copied') flashToast('已复制链接与摘要');
+    else if (result === 'failed') flashToast('分享失败');
   };
 
   // 语音输入（Web Speech API）：长按说话、松开发送、上滑取消。
@@ -1248,7 +1245,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       >
                         存想法
                       </button>
-                      <button type="button" className="msg-action" onClick={() => openWechatShare(m.text)}>
+                      <button type="button" className="msg-action" onClick={() => void shareAnswer(m.text)}>
                         分享
                       </button>
                       {usedCitations.length > 0 && (
@@ -1354,17 +1351,6 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           </div>
         </AppBodyPortal>
       )}
-
-      {wechatShare ? (
-        <AppBodyPortal>
-          <WeChatShareSheet
-            refLabel={wechatShare.refLabel}
-            answerText={wechatShare.answerText}
-            refParam={wechatShare.refParam}
-            onClose={() => setWechatShare(null)}
-          />
-        </AppBodyPortal>
-      ) : null}
 
     </main>
   );

@@ -25,8 +25,9 @@ import {
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
-import { WeChatShareSheet } from '@/components/WeChatShareSheet';
 import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowledge_base';
+import { shareAnalysis } from '@/lib/share_analysis';
+import { useToast } from '@/components/ui/ToastProvider';
 
 function stripAnswer(raw: string): string {
   return bodyText(raw);
@@ -63,8 +64,8 @@ export default function XiaoAiSheet({
   const [retryKey, setRetryKey] = useState(0);
   const [expanded, setExpanded] = useState(true);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
-  const [shareOpen, setShareOpen] = useState(false);
   const [citations, setCitations] = useState<import('@/lib/api').Citation[]>([]);
+  const flash = useToast();
   const [useRag, setUseRag] = useState<boolean | undefined>(undefined);
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
   const [streamCiteCount, setStreamCiteCount] = useState(0);
@@ -205,6 +206,18 @@ export default function XiaoAiSheet({
     }
   };
 
+  const shareAnswer = async () => {
+    if (!clean || hasError) return;
+    const result = await shareAnalysis({
+      answerText: clean,
+      refLabel,
+      refParam,
+    });
+    if (result === 'shared') flash('已调起分享');
+    else if (result === 'copied') flash('已复制链接与摘要');
+    else if (result === 'failed') flash('分享失败');
+  };
+
   const continueWithAssistant = () => {
     if (done && clean && !hasError) {
       navigateToAssistant(refParam, {
@@ -335,7 +348,7 @@ export default function XiaoAiSheet({
               <button type="button" className="half-sheet-action-btn" onClick={() => void copyAnswer()}>
                 {copied ? '已复制' : '复制'}
               </button>
-              <button type="button" className="half-sheet-action-btn" onClick={() => setShareOpen(true)}>
+              <button type="button" className="half-sheet-action-btn" onClick={() => void shareAnswer()}>
                 分享
               </button>
               <button type="button" className="half-sheet-action-btn" onClick={saveThought}>
@@ -367,20 +380,5 @@ export default function XiaoAiSheet({
   );
 
   if (!mounted) return null;
-  return (
-    <>
-      {createPortal(sheet, document.body)}
-      {shareOpen && done && clean && !hasError
-        ? createPortal(
-            <WeChatShareSheet
-              refLabel={refLabel}
-              answerText={clean}
-              refParam={refParam}
-              onClose={() => setShareOpen(false)}
-            />,
-            document.body,
-          )
-        : null}
-    </>
-  );
+  return createPortal(sheet, document.body);
 }

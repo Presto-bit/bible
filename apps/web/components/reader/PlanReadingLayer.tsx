@@ -31,6 +31,7 @@ import { groupCheckinHref, groupsBoundToPlan, loadOwnerGroups } from '@/lib/plan
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { PlanShareToGroupSheet } from '@/components/plans/PlanShareToGroupSheet';
 import PlanBar from '@/components/reader/PlanBar';
+import { requestInviteNudge } from '@/lib/invite_nudge';
 
 export type { PlanNavGuard };
 
@@ -133,6 +134,11 @@ export default function PlanReadingLayer({
   useEffect(() => {
     if (!dayCompleted && !planAllDone) return;
     void loadOwnerGroups().then((gs) => setBoundGroups(groupsBoundToPlan(gs, meta.planId)));
+  }, [dayCompleted, planAllDone, meta.planId]);
+
+  useEffect(() => {
+    if (!dayCompleted && !planAllDone) return;
+    requestInviteNudge(1800);
   }, [dayCompleted, planAllDone, meta.planId]);
 
   useEffect(() => {

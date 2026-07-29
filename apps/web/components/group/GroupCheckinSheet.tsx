@@ -9,6 +9,7 @@ import {
   buildCheckinRef,
 } from '@/lib/group_checkin';
 import { recordGroupCheckin } from '@/lib/badge_events';
+import { requestInviteNudge } from '@/lib/invite_nudge';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import AppBodyPortal from '@/components/AppBodyPortal';
 
@@ -77,6 +78,7 @@ export default function GroupCheckinSheet({
       });
       recordGroupCheckin(gid);
       setSubmitted(true);
+      requestInviteNudge(1600);
       onDone?.();
       window.setTimeout(onClose, 600);
     } catch (e) {

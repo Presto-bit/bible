@@ -8,6 +8,7 @@ import {
 import { PWA_ICON_SOURCE, PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
 import { withBasePath } from '@/lib/basePath';
 import { AnalysisShareClient } from './share_client';
+import { SharePwaGuide } from '@/components/SharePwaGuide';
 
 type Search = Record<string, string | string[] | undefined>;
 
@@ -24,6 +25,16 @@ function paramBag(searchParams: Search) {
   };
 }
 
+function ogTitle(refLabel: string, lead: string): string {
+  const ref =
+    !refLabel || refLabel === 'FREE' || refLabel === '小爱的解读'
+      ? BRAND_NAME
+      : refLabel;
+  const insight = lead.replace(/\s+/g, ' ').trim().slice(0, 16);
+  if (!insight) return `${ref}｜一分钟解读`;
+  return `${ref}｜${insight}`;
+}
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -31,7 +42,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const sp = await searchParams;
   const { refLabel, lead } = parseAnalysisShareParams(paramBag(sp));
-  const title = `${refLabel} · 一分钟解读`;
+  const title = ogTitle(refLabel, lead);
   const description = lead.slice(0, 120) || PWA_MANIFEST_DESCRIPTION;
   const origin = analysisShareSiteOrigin();
   const ogImage = `${origin}${withBasePath(PWA_ICON_SOURCE)}`;
@@ -71,15 +82,19 @@ export default async function AnalysisSharePage({
 
   return (
     <main className="container analysis-share-page">
+      <SharePwaGuide />
       <p className="eyebrow">{BRAND_NAME}</p>
       <h1 className="analysis-share-title">{parsed.refLabel}</h1>
-      <p className="muted" style={{ marginTop: 4 }}>一分钟解读</p>
       <p className="analysis-share-lead">{parsed.lead}</p>
+      <AnalysisShareClient
+        refLabel={parsed.refLabel}
+        refParam={parsed.refParam}
+        more={parsed.more}
+      />
       <p className="muted analysis-share-disclaimer">
-        内容由 AI 生成摘要，请以圣经原文为准。{BRAND_TAGLINE}
+        内容由 AI 生成，请以圣经原文为准。{BRAND_TAGLINE}
       </p>
-      <AnalysisShareClient refLabel={parsed.refLabel} refParam={parsed.refParam} />
-      <p className="muted" style={{ marginTop: 24 }}>
+      <p className="muted" style={{ marginTop: 16 }}>
         <Link href="/" className="text-link">返回首页</Link>
       </p>
     </main>

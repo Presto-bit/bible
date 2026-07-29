@@ -24,6 +24,7 @@ import { ImChatSearch } from '@/components/social/ImChatSearch';
 import ErrorBanner from '@/components/ErrorBanner';
 import { api, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
+import { requestInviteNudge } from '@/lib/invite_nudge';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
 import { asGroupMembers, myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
@@ -456,6 +457,7 @@ function GroupPageInner() {
     });
     recordGroupCheckin(gid);
     showToast('任务完成并已分享 ✓');
+    requestInviteNudge(1600);
     await reload();
   };
 
@@ -472,6 +474,7 @@ function GroupPageInner() {
       clearGroupCheckinDraft(gid);
       hapticSuccess();
       showToast('打卡已发送 ✓');
+      requestInviteNudge(1600);
       setComposerMode(null);
       await reload();
     } catch (e) {
@@ -480,6 +483,7 @@ function GroupPageInner() {
         clearGroupCheckinDraft(gid);
         hapticSuccess();
         showToast('已离线保存，联网后自动发送');
+        requestInviteNudge(1600);
         setComposerMode(null);
         return;
       }
