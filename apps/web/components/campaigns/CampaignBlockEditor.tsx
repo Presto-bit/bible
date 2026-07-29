@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { OpsCampaignLanding } from '@/lib/api';
 import {
   BLOCK_CATALOG,
@@ -51,6 +51,7 @@ export function CampaignBlockEditor({
   toolsTab = 'palette',
   onToolsTabChange,
   hideTools = false,
+  leadingSplitter = null,
 }: {
   landing: OpsCampaignLanding;
   setLanding: (next: OpsCampaignLanding) => void;
@@ -64,6 +65,8 @@ export function CampaignBlockEditor({
   onToolsTabChange?: (tab: 'palette' | 'config') => void;
   /** canvas 布局下隐藏左侧工具列（例如切到「设置」Tab） */
   hideTools?: boolean;
+  /** canvas 下插在工具列与页面结构之间的分隔条 */
+  leadingSplitter?: ReactNode;
 }) {
   const blocks = normalizeBlocks(landing.blocks);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -351,6 +354,7 @@ export function CampaignBlockEditor({
         {!hideTools ? (
           <div className="ops-builder-tools">{toolsTab === 'config' ? inspector : palette}</div>
         ) : null}
+        {!hideTools ? leadingSplitter : null}
         {structure}
       </div>
     );

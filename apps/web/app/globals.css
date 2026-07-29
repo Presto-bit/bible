@@ -22780,12 +22780,14 @@ body.ops-pc-active .app-body {
 }
 .ops-canvas-grid {
   display: grid;
-  /* 空间/配置加宽，页面结构收窄，预览固定 */
+  /* 列宽由内联 style / 拖拽控制：左 | 分隔 | 中 | 分隔 | 右 */
   grid-template-columns:
-    minmax(340px, 1.45fr)
-    minmax(260px, 0.95fr)
-    320px;
-  gap: 14px;
+    minmax(260px, 1.45fr)
+    8px
+    minmax(220px, 0.95fr)
+    8px
+    minmax(260px, 320px);
+  gap: 0;
   align-items: stretch;
   margin-top: 10px;
   min-height: calc(100dvh - 160px);
@@ -22793,21 +22795,72 @@ body.ops-pc-active .app-body {
   box-sizing: border-box;
   touch-action: pan-y;
 }
+.ops-canvas-splitter {
+  grid-row: 1;
+  width: 8px;
+  margin: 0 -1px;
+  cursor: col-resize;
+  touch-action: none;
+  position: relative;
+  z-index: 3;
+  align-self: stretch;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  flex-shrink: 0;
+}
+.ops-canvas-splitter-a {
+  grid-column: 2;
+}
+.ops-canvas-splitter-b {
+  grid-column: 4;
+}
+.ops-canvas-splitter::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--line, var(--border)) 88%, transparent);
+  transition: background 0.15s ease, width 0.15s ease;
+}
+.ops-canvas-splitter:hover::after,
+.ops-canvas-splitter:focus-visible::after,
+.ops-canvas-splitter.is-dragging::after {
+  width: 3px;
+  background: color-mix(in srgb, var(--accent-deep, #5f7d66) 70%, transparent);
+}
+.ops-canvas-splitter:focus-visible {
+  outline: none;
+}
+body.ops-canvas-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+}
+body.ops-canvas-resizing iframe {
+  pointer-events: none;
+}
 @media (min-width: 1440px) {
-  .ops-canvas-grid {
+  .ops-canvas-grid:not([style*='grid-template-columns']) {
     grid-template-columns:
       minmax(380px, 1.55fr)
+      8px
       minmax(280px, 1fr)
-      340px;
-    gap: 16px;
+      8px
+      minmax(280px, 340px);
   }
 }
 @media (min-width: 1680px) {
-  .ops-canvas-grid {
+  .ops-canvas-grid:not([style*='grid-template-columns']) {
     grid-template-columns:
       minmax(420px, 1.65fr)
+      8px
       minmax(300px, 1fr)
-      360px;
+      8px
+      minmax(300px, 360px);
   }
 }
 .ops-canvas-settings {
@@ -22841,7 +22894,7 @@ body.ops-pc-active .app-body {
   box-sizing: border-box;
 }
 .ops-builder-structure {
-  grid-column: 2;
+  grid-column: 3;
   grid-row: 1;
   min-width: 0;
   width: 100%;
@@ -22863,7 +22916,7 @@ body.ops-pc-active .app-body {
   background: transparent;
 }
 .ops-canvas-preview {
-  grid-column: 3;
+  grid-column: 5;
   grid-row: 1;
   min-width: 0;
   width: 100%;
@@ -22901,13 +22954,16 @@ body.ops-pc-active .app-body {
 }
 @media (max-width: 1100px) {
   .ops-canvas-grid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) !important;
   }
   .ops-canvas-settings,
   .ops-builder-tools,
   .ops-builder-structure,
   .ops-canvas-preview {
     grid-column: 1;
+  }
+  .ops-canvas-splitter {
+    display: none;
   }
   .ops-canvas-preview {
     position: static;

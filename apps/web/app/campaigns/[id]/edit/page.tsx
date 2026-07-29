@@ -24,6 +24,7 @@ import { getReadingExample, hasReadingExample } from '@/lib/campaign_example_cop
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { resolvePrimaryCta } from '@/lib/campaign_nav';
 import { ensureLandingBlocks } from '@/lib/campaign_blocks';
+import { useOpsCanvasResize } from '@/lib/use_ops_canvas_resize';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { CampaignBlockEditor } from '@/components/campaigns/CampaignBlockEditor';
 import { CampaignLivePreview } from '@/components/campaigns/CampaignLivePreview';
@@ -84,6 +85,7 @@ function CampaignEditInner() {
   /** 顶部三 Tab：空间（控件库）| 配置 | 设置 */
   const [leftTab, setLeftTab] = useState<'palette' | 'config' | 'settings'>('palette');
   const tabSwipeX = useRef<number | null>(null);
+  const { gridRef, gridStyle, splitterProps } = useOpsCanvasResize();
 
   const checklistInput = useMemo(
     () => ({
@@ -479,7 +481,9 @@ function CampaignEditInner() {
       </nav>
 
       <div
+        ref={gridRef}
         className={`ops-canvas-grid${leftTab === 'settings' ? ' is-settings-tab' : ''}`}
+        style={gridStyle}
         onTouchStart={onTabSwipeStart}
         onTouchEnd={onTabSwipeEnd}
       >
@@ -725,6 +729,8 @@ function CampaignEditInner() {
           </div>
         ) : null}
 
+        {leftTab === 'settings' ? <div {...splitterProps(0)} /> : null}
+
         <CampaignBlockEditor
           landing={landing}
           setLanding={setLanding}
@@ -736,7 +742,10 @@ function CampaignEditInner() {
           toolsTab={leftTab === 'config' ? 'config' : 'palette'}
           onToolsTabChange={(tab) => openLeftTab(tab)}
           hideTools={leftTab === 'settings'}
+          leadingSplitter={<div {...splitterProps(0)} />}
         />
+
+        <div {...splitterProps(1)} />
 
         <div className="ops-canvas-preview">
           <CampaignLivePreview
