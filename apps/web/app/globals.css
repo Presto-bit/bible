@@ -1898,6 +1898,17 @@ html:not([data-app-theme]) .card {
   font-weight: 600;
 }
 
+.home-page .hero-share {
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: rgba(255, 255, 255, 0.62);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .home-page .hero-verse.hero-verse-has-art .hero-like {
   background: rgba(255, 255, 255, 0.22);
   color: rgba(255, 255, 255, 0.92);
@@ -1905,6 +1916,12 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .hero-verse.hero-verse-has-art .hero-react {
+  background: rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+}
+
+.home-page .hero-verse.hero-verse-has-art .hero-share {
   background: rgba(255, 255, 255, 0.22);
   color: rgba(255, 255, 255, 0.92);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
@@ -15561,8 +15578,53 @@ html.perf-lite .tabbar {
 .share-social-sheet { max-height: 75vh; overflow: auto; }
 
 .daily-verse-react-sheet {
-  max-height: 78vh;
-  overflow: auto;
+  max-height: min(82dvh, 760px);
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+  overflow: hidden;
+}
+
+.daily-verse-react-sheet-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+  transition: transform 0.18s ease;
+  will-change: transform;
+}
+
+.daily-verse-react-sheet-head {
+  margin-bottom: 8px;
+}
+
+.daily-verse-react-feed-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.daily-verse-react-feed-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.daily-verse-react-feed-subtitle,
+.daily-verse-react-hint {
+  margin: 0;
+  font-size: 12px;
+}
+
+.daily-verse-react-picker {
+  flex-shrink: 0;
+  margin: 0 -20px -12px;
+  padding: 12px 20px calc(14px + env(safe-area-inset-bottom, 0));
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--card, #fff) 92%, white);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .daily-verse-react-section-label {
@@ -15641,10 +15703,23 @@ html.perf-lite .tabbar {
 
 .daily-verse-react-feed li {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   font-size: 13px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+}
+
+.daily-verse-react-feed li:last-child {
+  border-bottom: none;
+}
+
+.daily-verse-react-feed-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 
 .daily-verse-react-feed-name {
@@ -15653,6 +15728,11 @@ html.perf-lite .tabbar {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.daily-verse-react-feed-meta {
+  font-size: 11px;
+  color: var(--ink-faint);
 }
 
 .daily-verse-react-feed-preset {
@@ -24347,3 +24427,100 @@ body.pray-session-open .app-body {
   cursor: pointer;
 }
 
+
+/* group prayer + daily verse share */
+.group-prayer-sheet,
+.daily-verse-share-sheet {
+  max-height: min(86vh, 720px);
+  overflow: auto;
+  padding-bottom: 24px;
+}
+.group-prayer-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+.group-prayer-tab {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.group-prayer-tab.active {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  border-color: transparent;
+}
+.group-prayer-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.group-prayer-compose-row {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+}
+.group-prayer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.group-prayer-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+}
+.group-prayer-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.group-prayer-body {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.group-prayer-answered {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+.group-prayer-item-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+  align-items: center;
+}
+.group-prayer-item-actions .text-link.is-active {
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+.group-prayer-empty {
+  margin: 20px 0;
+  text-align: center;
+}
+.daily-verse-share-preview {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.daily-verse-share-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  align-items: stretch;
+}
