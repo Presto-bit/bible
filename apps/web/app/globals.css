@@ -15636,9 +15636,10 @@ html.perf-lite .tabbar {
 
 .dv-react-feed-list li {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px 0;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 60%, transparent);
   font-size: 13px;
 }
@@ -15684,18 +15685,20 @@ html.perf-lite .tabbar {
   display: flex;
   flex-direction: row;
   align-items: baseline;
+  justify-content: space-between;
   gap: 8px;
   min-width: 0;
-  flex: 1;
+  width: 100%;
 }
 
 .dv-feed-preset {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex-shrink: 0;
   font-size: 13px;
   color: var(--ink);
+  padding-left: 0;
 }
 
 .dv-feed-preset > span:first-child {
