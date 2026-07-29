@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+const LAST_KB_KEY = 'im-kb-last-h';
+
 function pinScrollTop() {
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
@@ -50,6 +52,24 @@ function writeComposerHeight(px: number) {
     '--im-composer-h',
     `${Math.max(48, Math.round(px))}px`,
   );
+}
+
+function readLastKb(): number {
+  try {
+    const n = Number(sessionStorage.getItem(LAST_KB_KEY) || '0');
+    return Number.isFinite(n) && n > 80 ? Math.round(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeLastKb(px: number) {
+  if (px < 80) return;
+  try {
+    sessionStorage.setItem(LAST_KB_KEY, String(Math.round(px)));
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -101,6 +121,35 @@ function readViewportHeight(): number {
   return Math.max(layoutH, vvH);
 }
 
+/**
+ * 键盘遮挡高度（多信号取最大）：
+ * - overlays：layout - vv.height - offsetTop
+ * - iOS PWA：vv.height 常不变，Safari 用 scrollY / offsetTop 顶起；二者之和作代理
+ * - baseline：聚焦前全屏高 - 当前可视底
+ *
+ * 注意：键盘态不要反复 pinScrollTop，否则会清掉 iOS 的 scroll/offsetTop 信号，
+ * 导致 inset 一直为 0、输入栏沉在键盘下。
+ */
+function measureKeyboardRaw(baselineH: number): number {
+  const vv = window.visualViewport;
+  const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
+  const vvH = vv?.height ?? layoutH;
+  const vvTop = vv?.offsetTop ?? 0;
+  const scrollY =
+    window.scrollY
+    || document.documentElement.scrollTop
+    || document.body.scrollTop
+    || 0;
+
+  const layoutHidden = Math.max(0, Math.round(layoutH - vvH - vvTop));
+  const scrollProxy = Math.max(0, Math.round(scrollY + vvTop));
+  const vvBottom = Math.round(vvTop + vvH);
+  const fromBase = Math.max(0, Math.round((baselineH || layoutH) - vvBottom));
+  const baseProxy = fromBase > 80 ? fromBase : 0;
+
+  return Math.max(layoutHidden, scrollProxy, baseProxy);
+}
+
 export type ImComposerKeyboardOpts = {
   /** 聊天滚动容器（群 .group-checkin-scroll / 私信 .dm-msg-list） */
   getScrollEl?: () => HTMLElement | null;
@@ -108,10 +157,9 @@ export type ImComposerKeyboardOpts = {
 
 /**
  * IM 键盘贴合（群 / 私信共用）：
- * - resizes-content（viewport.interactiveWidget）：layout 已缩，壳用 top/bottom:0 填满即可
- * - overlays：layout 仍全屏，才用 visualViewport 锁壳（--im-vv-*），避免输入栏沉到键盘下
- * - 切勿在 resizes-content 下用偏大的 vv.height 锁壳高（会把底栏顶进键盘）
- * - 输入栏文档流贴壳底；列表 scrollTop 滚到底
+ * - 用 --im-kb-inset 抬高会话壳底边，输入栏随文档流贴在键盘上沿
+ * - iOS PWA 以 scroll/offsetTop 代理键盘高；本焦点期内 inset 只升不降
+ * - 聚焦前可预抬上次键盘高度，减少首帧被挡
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -120,10 +168,12 @@ export function useImComposerKeyboard(
   const [inset, setInset] = useState(0);
   const getScrollElRef = useRef(opts?.getScrollEl);
   getScrollElRef.current = opts?.getScrollEl;
-  /** 键盘未开时的可视高度；聚焦后冻结，用于推算键盘高度 */
+  /** 键盘未开时的可视高度；聚焦后冻结 */
   const baselineHRef = useRef(0);
+  /** 本焦点期内见过的最大键盘高（避免 pin/回弹把 inset 打回 0） */
+  const maxKbRef = useRef(0);
 
-  // 失焦时持续刷新 baseline，保证下次聚焦前是「全屏」高度
+  // 失焦时持续刷新 baseline
   useEffect(() => {
     if (active) return;
     const refresh = () => {
@@ -145,39 +195,14 @@ export function useImComposerKeyboard(
     let raf = 0;
     let poll: number | undefined;
     const followTimers: number[] = [];
+    let pinTimer: number | undefined;
 
     const clearChrome = () => {
       setInset(0);
       body.classList.remove('im-keyboard', 'im-keyboard-overlay');
       root.style.removeProperty('--im-kb-inset');
-      // --im-composer-h 由 useImComposerHeightSync 持续维护，失焦不清除
       root.style.removeProperty('--im-vv-top');
       root.style.removeProperty('--im-vv-h');
-    };
-
-    const readLayout = () => {
-      const layoutH = window.innerHeight || root.clientHeight || 0;
-      const vvH = vv?.height ?? layoutH;
-      const offsetTop = vv?.offsetTop ?? 0;
-      const gap = Math.max(0, Math.round(layoutH - vvH - offsetTop));
-      return { layoutH, vvH, offsetTop, gap };
-    };
-
-    /**
-     * 键盘高度：
-     * - overlays：layout 不变、vv 变矮 → gap
-     * - resizes-content：layout≈vv → 用冻结 baseline - min(layout, vv)
-     */
-    const measureKeyboard = () => {
-      pinScrollTop();
-      const { layoutH, vvH, gap } = readLayout();
-      if (gap > 8) return gap;
-
-      // layout 已随键盘收缩时，用较小边对比 baseline，避免 stale vv 偏大算成 0
-      const visibleH = Math.min(layoutH, Math.round(vvH));
-      const base = baselineHRef.current || layoutH;
-      const fromBase = Math.max(0, Math.round(base - visibleH));
-      return fromBase > 48 ? fromBase : 0;
     };
 
     const applyComposerH = () => {
@@ -190,47 +215,50 @@ export function useImComposerKeyboard(
     };
 
     const applyChrome = (kb: number) => {
-      const next = kb > 8 ? kb : 0;
-      const { layoutH, vvH, offsetTop, gap } = readLayout();
-      // overlays：layout 比可视区明显更高；resizes-content：二者接近，勿锁 vv
-      const overlay = gap > 8;
-      const vvTop = Math.max(0, Math.round(offsetTop));
-      // 壳高取 layout / vv 较小值，防止 vv 滞后时报得过大、底栏钻进键盘
-      const shellH = Math.max(240, Math.min(Math.round(vvH), layoutH - vvTop));
-
+      const next = kb > 24 ? kb : 0;
       setInset(next);
-      body.classList.add('im-keyboard');
-      body.classList.toggle('im-keyboard-overlay', overlay);
-      root.style.setProperty('--im-kb-inset', `${next}px`);
-
-      if (overlay) {
-        root.style.setProperty('--im-vv-h', `${shellH}px`);
-        root.style.setProperty('--im-vv-top', `${vvTop}px`);
+      if (next > 0) {
+        body.classList.add('im-keyboard');
+        root.style.setProperty('--im-kb-inset', `${next}px`);
+        writeLastKb(next);
       } else {
-        // 交给 top/bottom:0 跟随已缩小的 layout viewport
-        root.style.removeProperty('--im-vv-h');
-        root.style.removeProperty('--im-vv-top');
+        body.classList.add('im-keyboard');
+        root.style.setProperty('--im-kb-inset', '0px');
       }
+      // 不再用 vv 锁壳高；统一靠 bottom: var(--im-kb-inset)
+      root.style.removeProperty('--im-vv-h');
+      root.style.removeProperty('--im-vv-top');
+      body.classList.remove('im-keyboard-overlay');
       pinChat();
     };
 
     const sync = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => applyChrome(measureKeyboard()));
+      raf = requestAnimationFrame(() => {
+        if (!baselineHRef.current) {
+          baselineHRef.current = readViewportHeight();
+        }
+        const raw = measureKeyboardRaw(baselineHRef.current);
+        if (raw > maxKbRef.current) maxKbRef.current = raw;
+        // 焦点期内保留峰值，防止 iOS 回弹/我们晚一点 pin 后信号变 0
+        const held = Math.max(raw, maxKbRef.current);
+        applyChrome(held);
+      });
     };
 
     if (!active) {
+      maxKbRef.current = 0;
       let n = 0;
-      const kb0 = measureKeyboard();
-      if (kb0 <= 8) {
+      const kb0 = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
+      if (kb0 <= 24) {
         clearChrome();
         pinScrollTop();
       } else {
         applyChrome(kb0);
         poll = window.setInterval(() => {
           n += 1;
-          const kb = measureKeyboard();
-          if (kb <= 8 || n > 28) {
+          const kb = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
+          if (kb <= 24 || n > 28) {
             if (poll) window.clearInterval(poll);
             poll = undefined;
             clearChrome();
@@ -244,26 +272,52 @@ export function useImComposerKeyboard(
       if (!baselineHRef.current) {
         baselineHRef.current = readViewportHeight();
       }
+      maxKbRef.current = 0;
+      // 预抬：先用上次稳定键盘高，避免首帧仍沉在键盘下
+      const preview = readLastKb();
+      if (preview > 80) {
+        maxKbRef.current = preview;
+        applyChrome(preview);
+      }
+
       vv?.addEventListener('resize', sync);
       vv?.addEventListener('scroll', sync);
       window.addEventListener('resize', sync);
+      window.addEventListener('scroll', sync, { passive: true });
       sync();
-      for (const ms of [50, 120, 220, 380, 560, 800, 1100, 1500]) {
+      for (const ms of [32, 80, 140, 220, 360, 520, 800, 1200, 1600]) {
         followTimers.push(window.setTimeout(sync, ms));
       }
+      // 等 vv/scroll 信号采到峰值后再轻量钉住文档滚动，减少整页被顶走
+      pinTimer = window.setTimeout(() => {
+        pinScrollTop();
+        sync();
+      }, 420);
     }
 
     return () => {
       cancelAnimationFrame(raf);
       if (poll) window.clearInterval(poll);
+      if (pinTimer) window.clearTimeout(pinTimer);
       for (const t of followTimers) window.clearTimeout(t);
       vv?.removeEventListener('resize', sync);
       vv?.removeEventListener('scroll', sync);
       window.removeEventListener('resize', sync);
+      window.removeEventListener('scroll', sync);
       clearChrome();
       pinScrollTop();
     };
   }, [active]);
 
   return inset;
+}
+
+/** 在 focus 前预抬（touchstart/mousedown），减少 iOS 先挡后抬 */
+export function previewImKeyboardLift() {
+  const kb = readLastKb();
+  if (kb < 80) return;
+  const root = document.documentElement;
+  const body = document.body;
+  body.classList.add('im-keyboard');
+  root.style.setProperty('--im-kb-inset', `${kb}px`);
 }

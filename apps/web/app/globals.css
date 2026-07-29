@@ -20297,26 +20297,18 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
 }
 /*
  * 键盘态（群 / 私信同款）：
- * - 默认（resizes-content）：壳 top/bottom:0 填满已缩小的 layout，输入栏随壳上移
- * - overlays（.im-keyboard-overlay）：再锁 visualViewport，避免底栏沉到键盘下
- * - 输入栏文档流贴壳底；列表 flex:1 收缩
+ * - 用 --im-kb-inset 抬高壳底（overlays / iOS PWA scroll 代理）
+ * - 输入栏文档流贴壳底，自然落在键盘上沿
+ * - Android resizes-content 下 inset≈0，壳仍 top/bottom:0 填满已缩 layout
  */
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
   top: 0;
-  bottom: 0;
+  bottom: var(--im-kb-inset, 0px);
   height: auto;
   max-height: none;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: 0;
-}
-body.im-keyboard.im-keyboard-overlay .group-page-checkin,
-body.im-keyboard.im-keyboard-overlay .dm-page {
-  top: var(--im-vv-top, 0px);
-  bottom: auto;
-  height: var(--im-vv-h, 100dvh);
-  max-height: var(--im-vv-h, 100dvh);
-  padding-top: max(0px, env(safe-area-inset-top, 0px) - var(--im-vv-top, 0px));
 }
 body.im-keyboard .dm-composer-dock.im-composer-bar,
 body.im-keyboard .group-wechat-composer.im-composer-dock{
@@ -20329,7 +20321,7 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
 body.im-keyboard .im-jump-bottom{
-  bottom: calc(var(--im-composer-h, 64px) + 12px);
+  bottom: calc(var(--im-kb-inset, 0px) + var(--im-composer-h, 64px) + 12px);
 }
 body.im-keyboard .group-checkin-scroll {
   padding-bottom: 12px;

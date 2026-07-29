@@ -19,6 +19,7 @@ import {
   useImComposerKeyboard,
   useImComposerHeightSync,
   scrollImChatToBottom,
+  previewImKeyboardLift,
 } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
@@ -554,7 +555,10 @@ export function GroupComposerBar({
                     const t = e.currentTarget;
                     refreshAtQuery(t.value, t.selectionStart ?? t.value.length);
                   }}
+                  onTouchStart={() => previewImKeyboardLift()}
+                  onMouseDown={() => previewImKeyboardLift()}
                   onFocus={() => {
+                    previewImKeyboardLift();
                     setPanelOpen(false);
                     setComposerFocused(true);
                     const el = getScrollEl?.();
