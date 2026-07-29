@@ -79,6 +79,20 @@ function writeLastKb(px: number) {
   }
 }
 
+function isImBottomSheet(): boolean {
+  const body = document.body;
+  return body.classList.contains('im-plus-sheet')
+    || body.classList.contains('im-mention-sheet');
+}
+
+function isComposerFieldFocused(): boolean {
+  const ae = document.activeElement;
+  if (!(ae instanceof HTMLElement)) return false;
+  return Boolean(
+    ae.closest('.im-composer-bar, .group-wechat-composer, .dm-composer-dock'),
+  );
+}
+
 /**
  * 持续同步输入栏实测高度到 --im-composer-h（含 ➕ / @ / 回复条变高），
  * 供会话壳 padding-bottom 与键盘态共用，避免写死 140px。
@@ -157,6 +171,22 @@ function measureKeyboardRaw(baselineH: number): number {
   return Math.max(layoutHidden, scrollProxy, baseProxy);
 }
 
+/**
+ * 收起阶段：不信 scrollProxy（文档残留 scroll / Safari chrome 易误报），
+ * 只看 vv 真正变矮或相对 baseline 的遮挡。
+ */
+function measureKeyboardDismiss(baselineH: number): number {
+  const vv = window.visualViewport;
+  const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
+  const vvH = vv?.height ?? layoutH;
+  const vvTop = vv?.offsetTop ?? 0;
+  const layoutHidden = Math.max(0, Math.round(layoutH - vvH - vvTop));
+  const vvBottom = Math.round(vvTop + vvH);
+  const fromBase = Math.max(0, Math.round((baselineH || layoutH) - vvBottom));
+  const baseProxy = fromBase > 80 ? fromBase : 0;
+  return Math.max(layoutHidden, baseProxy);
+}
+
 export type ImComposerKeyboardOpts = {
   /** 聊天滚动容器（群 .group-checkin-scroll / 私信 .dm-msg-list） */
   getScrollEl?: () => HTMLElement | null;
@@ -167,6 +197,7 @@ export type ImComposerKeyboardOpts = {
  * - 用 --im-kb-inset 抬高会话壳底边，输入栏随文档流贴在键盘上沿
  * - iOS PWA 以 scroll/offsetTop 代理键盘高；本焦点期内 inset 只升不降
  * - 聚焦前可预抬上次键盘高度，减少首帧被挡
+ * - 未聚焦 / 进页时绝不因误测抬壳（否则底部大块空白）
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -179,6 +210,10 @@ export function useImComposerKeyboard(
   const baselineHRef = useRef(0);
   /** 本焦点期内见过的最大键盘高（避免 pin/回弹把 inset 打回 0） */
   const maxKbRef = useRef(0);
+  /** 是否曾聚焦过：仅此时失焦才走「跟随收起」；挂载未聚焦直接贴底 */
+  const wasActiveRef = useRef(false);
+  /** 预抬是否仍在观察窗口内（超时且无真实键盘则收回） */
+  const previewOnlyRef = useRef(false);
 
   // 失焦时持续刷新 baseline
   useEffect(() => {
@@ -203,6 +238,7 @@ export function useImComposerKeyboard(
     let poll: number | undefined;
     const followTimers: number[] = [];
     let pinTimer: number | undefined;
+    let previewGuard: number | undefined;
 
     const clearChrome = () => {
       setInset(0);
@@ -222,6 +258,10 @@ export function useImComposerKeyboard(
     };
 
     const applyChrome = (kb: number) => {
+      if (isImBottomSheet()) {
+        clearChrome();
+        return;
+      }
       const next = kb > 24 ? kb : 0;
       setInset(next);
       if (next > 0) {
@@ -229,10 +269,10 @@ export function useImComposerKeyboard(
         root.style.setProperty('--im-kb-inset', `${next}px`);
         writeLastKb(next);
       } else {
+        // 聚焦但尚无键盘高度：只藏底栏，不抬壳，避免「假键盘空白」
         body.classList.add('im-keyboard');
         root.style.setProperty('--im-kb-inset', '0px');
       }
-      // 不再用 vv 锁壳高；统一靠 bottom: var(--im-kb-inset)
       root.style.removeProperty('--im-vv-h');
       root.style.removeProperty('--im-vv-top');
       body.classList.remove('im-keyboard-overlay');
@@ -242,12 +282,23 @@ export function useImComposerKeyboard(
     const sync = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
+        if (isImBottomSheet()) {
+          clearChrome();
+          return;
+        }
         if (!baselineHRef.current) {
           baselineHRef.current = readViewportHeight();
         }
         const raw = measureKeyboardRaw(baselineHRef.current);
-        if (raw > maxKbRef.current) maxKbRef.current = raw;
-        // 焦点期内保留峰值，防止 iOS 回弹/我们晚一点 pin 后信号变 0
+        if (raw > 80) {
+          previewOnlyRef.current = false;
+          if (raw > maxKbRef.current) maxKbRef.current = raw;
+        }
+        // 预抬未兑现：不要用陈旧 max 一直抬着
+        if (previewOnlyRef.current && raw <= 24) {
+          applyChrome(0);
+          return;
+        }
         const held = Math.max(raw, maxKbRef.current);
         applyChrome(held);
       });
@@ -255,32 +306,35 @@ export function useImComposerKeyboard(
 
     if (!active) {
       maxKbRef.current = 0;
-      const isBottomSheet = () =>
-        body.classList.contains('im-plus-sheet')
-        || body.classList.contains('im-mention-sheet');
-      // 加号 / @ 贴底面板：立刻落回屏底，勿沿用键盘 inset 留白
-      if (isBottomSheet()) {
+      previewOnlyRef.current = false;
+      const leavingFocus = wasActiveRef.current;
+      wasActiveRef.current = false;
+
+      // 进页 / 从未聚焦 / 加号@面板：立刻贴底，禁止用误测抬壳
+      if (!leavingFocus || isImBottomSheet()) {
         clearChrome();
         pinScrollTop();
       } else {
+        // 刚失焦：先钉文档再测，且不用 scrollProxy，避免假抬升
+        pinScrollTop();
         let n = 0;
-        const kb0 = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
+        const kb0 = measureKeyboardDismiss(baselineHRef.current || readViewportHeight());
         if (kb0 <= 24) {
           clearChrome();
-          pinScrollTop();
         } else {
           applyChrome(kb0);
           poll = window.setInterval(() => {
             n += 1;
-            if (isBottomSheet()) {
+            if (isImBottomSheet()) {
               if (poll) window.clearInterval(poll);
               poll = undefined;
               clearChrome();
               pinScrollTop();
               return;
             }
-            const kb = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
-            if (kb <= 24 || n > 28) {
+            pinScrollTop();
+            const kb = measureKeyboardDismiss(baselineHRef.current || readViewportHeight());
+            if (kb <= 24 || n > 20) {
               if (poll) window.clearInterval(poll);
               poll = undefined;
               clearChrome();
@@ -292,15 +346,28 @@ export function useImComposerKeyboard(
         }
       }
     } else {
+      wasActiveRef.current = true;
       if (!baselineHRef.current) {
         baselineHRef.current = readViewportHeight();
       }
       maxKbRef.current = 0;
-      // 预抬：先用上次稳定键盘高，避免首帧仍沉在键盘下
+      previewOnlyRef.current = false;
+
+      // 预抬：仅短窗有效；若真实键盘迟迟不来则收回，避免整页悬空
       const preview = readLastKb();
-      if (preview > 80) {
+      if (preview > 80 && !isImBottomSheet()) {
+        previewOnlyRef.current = true;
         maxKbRef.current = preview;
         applyChrome(preview);
+        previewGuard = window.setTimeout(() => {
+          if (!previewOnlyRef.current) return;
+          const raw = measureKeyboardRaw(baselineHRef.current || readViewportHeight());
+          if (raw <= 80) {
+            previewOnlyRef.current = false;
+            maxKbRef.current = Math.max(0, raw);
+            applyChrome(raw > 24 ? raw : 0);
+          }
+        }, 480);
       }
 
       vv?.addEventListener('resize', sync);
@@ -311,9 +378,11 @@ export function useImComposerKeyboard(
       for (const ms of [32, 80, 140, 220, 360, 520, 800, 1200, 1600]) {
         followTimers.push(window.setTimeout(sync, ms));
       }
-      // 等 vv/scroll 信号采到峰值后再轻量钉住文档滚动，减少整页被顶走
       pinTimer = window.setTimeout(() => {
-        pinScrollTop();
+        // 焦点期钉文档会清掉 iOS scroll 代理；仅在已采到真实高度后轻钉
+        if (maxKbRef.current > 80 && !previewOnlyRef.current) {
+          pinScrollTop();
+        }
         sync();
       }, 420);
     }
@@ -322,6 +391,7 @@ export function useImComposerKeyboard(
       cancelAnimationFrame(raf);
       if (poll) window.clearInterval(poll);
       if (pinTimer) window.clearTimeout(pinTimer);
+      if (previewGuard) window.clearTimeout(previewGuard);
       for (const t of followTimers) window.clearTimeout(t);
       vv?.removeEventListener('resize', sync);
       vv?.removeEventListener('scroll', sync);
@@ -335,18 +405,33 @@ export function useImComposerKeyboard(
   return inset;
 }
 
+let previewClearTimer: number | undefined;
+
 /** 在 focus 前预抬（touchstart/mousedown），减少 iOS 先挡后抬 */
 export function previewImKeyboardLift() {
+  if (isImBottomSheet()) return;
   const kb = readLastKb();
   if (kb < 80) return;
   const root = document.documentElement;
   const body = document.body;
   body.classList.add('im-keyboard');
   root.style.setProperty('--im-kb-inset', `${kb}px`);
+  if (previewClearTimer) window.clearTimeout(previewClearTimer);
+  // 未真正聚焦则收回，避免点一下就留下整块空白
+  previewClearTimer = window.setTimeout(() => {
+    previewClearTimer = undefined;
+    if (isImBottomSheet() || !isComposerFieldFocused()) {
+      clearImKeyboardLift();
+    }
+  }, 500);
 }
 
 /** 打开加号 / @ 等贴底面板时立刻清掉键盘抬升，避免留下整块空白 */
 export function clearImKeyboardLift() {
+  if (previewClearTimer) {
+    window.clearTimeout(previewClearTimer);
+    previewClearTimer = undefined;
+  }
   const root = document.documentElement;
   const body = document.body;
   body.classList.remove('im-keyboard', 'im-keyboard-overlay');

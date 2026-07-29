@@ -20376,10 +20376,14 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
 }
 /*
  * 键盘态（群 / 私信同款）：
- * - 用 --im-kb-inset 抬高壳底（overlays / iOS PWA scroll 代理）
+ * - 仅当 --im-kb-inset 为正时抬壳；未聚焦切勿残留 inset（否则底部大块空白）
  * - 输入栏文档流贴壳底，自然落在键盘上沿
  * - 群页必须 min-height:0，否则 .group-page 的 100dvh 会盖过 bottom:inset
  */
+.group-page-checkin,
+.dm-page {
+  bottom: 0;
+}
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
   top: 0;
