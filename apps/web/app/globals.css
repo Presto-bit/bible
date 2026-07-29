@@ -19978,14 +19978,16 @@ body:has(.dm-page) .app-body {
   border-top:1px solid var(--line);
   box-shadow:none;
 }
-/* 键盘态：会话壳绑 visualViewport；输入栏改壳内贴底，避免被键盘遮挡 */
+/*
+ * 键盘态：顶栏不动；只抬高壳底（--im-kb-inset）。
+ * 输入栏在壳内 absolute 贴底，列表滚到底即可露出最后一条。
+ */
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
-  top: var(--im-vv-top, env(safe-area-inset-top, 0px));
-  height: var(--im-vv-h, 100%);
-  max-height: var(--im-vv-h, 100%);
-  bottom: auto;
-  /* 给壳内 absolute 输入栏留位（不再叠加 kb-inset） */
+  top: env(safe-area-inset-top, 0px);
+  bottom: var(--im-kb-inset, 0px);
+  height: auto;
+  max-height: none;
   padding-bottom: var(--im-composer-h, 64px);
 }
 body.im-keyboard .dm-composer-dock.im-composer-bar,
@@ -19998,15 +20000,13 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
 body.im-keyboard .im-jump-bottom{
-  /* 相对 layout 底：键盘缝 + 输入栏 */
   bottom: calc(var(--im-kb-inset, 0px) + var(--im-composer-h, 64px) + 12px);
 }
-/* 壳已压到 vv 内，列表只需为输入栏留白 */
 body.im-keyboard .group-checkin-scroll {
-  padding-bottom: 20px;
+  padding-bottom: 16px;
 }
 body.im-keyboard .dm-msg-list {
-  padding-bottom: 16px;
+  padding-bottom: 12px;
 }
 .im-jump-bottom{
   bottom:calc(56px + env(safe-area-inset-bottom, 0px));

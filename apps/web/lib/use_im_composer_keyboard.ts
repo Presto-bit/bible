@@ -19,13 +19,13 @@ export function scrollImChatToBottom(el: HTMLElement | null | undefined) {
       last.scrollIntoView({ block: 'end', behavior: 'auto' });
     }
   };
-  // 多帧 + 短延迟：等 vv 壳 / composer 高度写入后再滚
   requestAnimationFrame(() => {
     pin();
     requestAnimationFrame(() => {
       pin();
       window.setTimeout(pin, 60);
       window.setTimeout(pin, 180);
+      window.setTimeout(pin, 360);
     });
   });
 }
@@ -39,16 +39,22 @@ function measureComposerHeight(): number {
   return Math.max(48, Math.round(bar.getBoundingClientRect().height));
 }
 
+function readViewportHeight(): number {
+  const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
+  const vvH = window.visualViewport?.height ?? layoutH;
+  return Math.max(layoutH, vvH);
+}
+
 export type ImComposerKeyboardOpts = {
   /** 聊天滚动容器（群 .group-checkin-scroll / 私信 .dm-msg-list） */
   getScrollEl?: () => HTMLElement | null;
 };
 
 /**
- * IM 键盘贴合（对齐小爱）：
- * - 把会话壳绑到 visualViewport（--im-vv-top / --im-vv-h）
- * - 输入栏改在壳内贴底，避免 fixed + 错误 kb-inset 被键盘挡住
- * - 列表只为 composer 高度留白；键盘动画期多次滚底
+ * IM 键盘贴合：
+ * - 顶栏位置不变（禁止用 offsetTop 上移整壳）
+ * - 仅用 --im-kb-inset 从底部抬高会话壳
+ * - 输入栏贴壳底；列表滚到底，最后一条出现在输入框上方
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -57,6 +63,23 @@ export function useImComposerKeyboard(
   const [inset, setInset] = useState(0);
   const getScrollElRef = useRef(opts?.getScrollEl);
   getScrollElRef.current = opts?.getScrollEl;
+  /** 键盘未开时的可视高度；聚焦后冻结，用于推算键盘高度 */
+  const baselineHRef = useRef(0);
+
+  // 失焦时持续刷新 baseline，保证下次聚焦前是「全屏」高度
+  useEffect(() => {
+    if (active) return;
+    const refresh = () => {
+      baselineHRef.current = readViewportHeight();
+    };
+    refresh();
+    window.addEventListener('resize', refresh);
+    window.visualViewport?.addEventListener('resize', refresh);
+    return () => {
+      window.removeEventListener('resize', refresh);
+      window.visualViewport?.removeEventListener('resize', refresh);
+    };
+  }, [active]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -75,11 +98,27 @@ export function useImComposerKeyboard(
       root.style.removeProperty('--im-vv-h');
     };
 
-    const measureGap = () => {
+    /**
+     * 键盘高度：
+     * - overlays：layout 不变、vv 变矮 → gap
+     * - resizes-content：layout≈vv → 0
+     * - iOS 异常：用冻结的 baseline - vvH
+     */
+    const measureKeyboard = () => {
+      pinScrollTop();
       const layoutH = window.innerHeight || root.clientHeight || 0;
       const vvH = vv?.height ?? layoutH;
       const offsetTop = vv?.offsetTop ?? 0;
-      return Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
+      const gap = Math.max(0, Math.round(layoutH - vvH - offsetTop));
+
+      if (gap <= 8 && Math.abs(layoutH - vvH) <= 12 && offsetTop <= 8) {
+        return 0;
+      }
+      if (gap > 8) return gap;
+
+      const base = baselineHRef.current || layoutH;
+      const fromBase = Math.max(0, Math.round(base - vvH));
+      return fromBase > 48 ? fromBase : 0;
     };
 
     const applyComposerH = () => {
@@ -87,54 +126,48 @@ export function useImComposerKeyboard(
     };
 
     const pinChat = () => {
-      pinScrollTop();
       applyComposerH();
       scrollImChatToBottom(getScrollElRef.current?.() ?? null);
     };
 
-    const applyViewportChrome = (gap: number) => {
-      const layoutH = window.innerHeight || root.clientHeight || 0;
-      const vvH = vv?.height ?? layoutH;
-      const offsetTop = vv?.offsetTop ?? 0;
-      const next = gap > 8 ? gap : 0;
-
+    const applyChrome = (kb: number) => {
+      const next = kb > 8 ? kb : 0;
       setInset(next);
       body.classList.add('im-keyboard');
       root.style.setProperty('--im-kb-inset', `${next}px`);
-      // 无论 resizes-content 是否生效，都把壳压进可见视口
-      root.style.setProperty('--im-vv-top', `${Math.max(0, Math.round(offsetTop))}px`);
-      root.style.setProperty('--im-vv-h', `${Math.max(120, Math.round(vvH))}px`);
       pinChat();
     };
 
     const sync = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => applyViewportChrome(measureGap()));
+      raf = requestAnimationFrame(() => applyChrome(measureKeyboard()));
     };
 
     if (!active) {
-      // 失焦后短轮询：等键盘收起动画再清 chrome
       let n = 0;
-      const gap0 = measureGap();
-      if (gap0 <= 8) {
+      const kb0 = measureKeyboard();
+      if (kb0 <= 8) {
         clearChrome();
         pinScrollTop();
       } else {
-        applyViewportChrome(gap0);
+        applyChrome(kb0);
         poll = window.setInterval(() => {
           n += 1;
-          const gap = measureGap();
-          if (gap <= 8 || n > 28) {
+          const kb = measureKeyboard();
+          if (kb <= 8 || n > 28) {
             if (poll) window.clearInterval(poll);
             poll = undefined;
             clearChrome();
             pinScrollTop();
             return;
           }
-          applyViewportChrome(gap);
+          applyChrome(kb);
         }, 50);
       }
     } else {
+      if (!baselineHRef.current) {
+        baselineHRef.current = readViewportHeight();
+      }
       vv?.addEventListener('resize', sync);
       vv?.addEventListener('scroll', sync);
       window.addEventListener('resize', sync);
