@@ -20365,8 +20365,9 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
   padding-bottom: 4px;
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
-/* 加号面板：只收起底栏，不抬键盘高度（否则会留下整块键盘空白） */
-body.im-plus-sheet .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
+/* 加号 / @ 选人：只收起底栏，不抬键盘高度（否则会留下整块键盘空白） */
+body.im-plus-sheet .tabbar,
+body.im-mention-sheet .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
 body.im-keyboard .im-jump-bottom{
   bottom: calc(var(--im-kb-inset, 0px) + var(--im-composer-h, 64px) + 12px);
 }

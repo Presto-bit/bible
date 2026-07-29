@@ -108,15 +108,23 @@ export function GroupComposerBar({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef<string | null>(null);
+  /** 点 @ 打开选人：blur 后勿关掉浮层，也不抬键盘 */
+  const keepMentionPickerRef = useRef(false);
   const locked = Boolean(disabled || busy || sending || uploading || !online);
   useImComposerHeightSync(barRef);
-  /** 仅输入聚焦时抬键盘；加号面板单独贴底，避免套用上次键盘高度造成大块留白 */
+  /** 仅输入聚焦时抬键盘；加号 / @ 选人贴底，避免套用上次键盘高度造成大块留白 */
   useImComposerKeyboard(composerFocused, { getScrollEl });
 
   useEffect(() => {
     document.body.classList.toggle('im-plus-sheet', panelOpen);
     return () => document.body.classList.remove('im-plus-sheet');
   }, [panelOpen]);
+
+  useEffect(() => {
+    const mentionSheet = pickerOpen && !composerFocused;
+    document.body.classList.toggle('im-mention-sheet', mentionSheet);
+    return () => document.body.classList.remove('im-mention-sheet');
+  }, [pickerOpen, composerFocused]);
 
   useEffect(() => {
     const d = getImDraftRecord('group', gid);
@@ -229,6 +237,7 @@ export function GroupComposerBar({
   const showSuggest = (pickerOpen || atQuery != null) && suggestMembers.length > 0;
 
   const pickMention = (item: { id: string; label: string; all?: boolean }) => {
+    keepMentionPickerRef.current = false;
     const el = inputRef.current;
     let next = text;
     let pos = el?.selectionStart ?? text.length;
@@ -274,14 +283,22 @@ export function GroupComposerBar({
 
   const canType = allowChat && online && !disabled;
 
-  /** 常驻 @：点开成员浮层（无需先打字） */
+  /** 常驻 @：贴底打开成员浮层；不 focus，避免预抬键盘留下空白 */
   const openMentionPicker = () => {
     if (!canType || sending || uploading) return;
+    if (pickerOpen && !composerFocused) {
+      keepMentionPickerRef.current = false;
+      setPickerOpen(false);
+      setAtQuery(null);
+      return;
+    }
+    keepMentionPickerRef.current = true;
     setPanelOpen(false);
     setPickerOpen(true);
     setAtQuery('');
     setAtStart(inputRef.current?.selectionStart ?? text.length);
-    requestAnimationFrame(() => inputRef.current?.focus());
+    setComposerFocused(false);
+    inputRef.current?.blur();
   };
 
   const placeholder = (() => {
@@ -572,12 +589,15 @@ export function GroupComposerBar({
                   }}
                   onBlur={() => {
                     window.setTimeout(() => {
-                      if (document.activeElement !== inputRef.current) {
-                        setComposerFocused(false);
-                        setPickerOpen(false);
-                        if (atQuery != null && !matchAtQuery(text, inputRef.current?.selectionStart ?? text.length)) {
-                          setAtQuery(null);
-                        }
+                      if (document.activeElement === inputRef.current) return;
+                      setComposerFocused(false);
+                      if (keepMentionPickerRef.current) {
+                        keepMentionPickerRef.current = false;
+                        return;
+                      }
+                      setPickerOpen(false);
+                      if (atQuery != null && !matchAtQuery(text, inputRef.current?.selectionStart ?? text.length)) {
+                        setAtQuery(null);
                       }
                     }, 180);
                   }}
