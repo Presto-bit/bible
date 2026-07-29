@@ -22706,12 +22706,12 @@ body.ops-pc-active .app-body {
 }
 .ops-canvas-grid {
   display: grid;
-  /* PC：控件库 + 页面结构吃满剩余；预览固定窄栏，避免挤窄主编辑区 */
+  /* 左轨 + 控件库 + 页面结构吃满；右侧预览固定，不再中间留空列 */
   grid-template-columns:
     60px
-    minmax(0, 1.25fr)
-    minmax(0, 1.9fr)
-    clamp(300px, 22vw, 360px);
+    minmax(280px, 1.15fr)
+    minmax(420px, 2.2fr)
+    340px;
   gap: 16px;
   align-items: stretch;
   margin-top: 10px;
@@ -22723,14 +22723,14 @@ body.ops-pc-active .app-body {
   grid-template-columns:
     60px
     minmax(0, 1fr)
-    clamp(300px, 22vw, 360px);
+    340px;
 }
 @media (min-width: 1440px) {
   .ops-canvas-grid {
     grid-template-columns:
       64px
-      minmax(0, 1.3fr)
-      minmax(0, 2.1fr)
+      minmax(320px, 1.2fr)
+      minmax(520px, 2.4fr)
       360px;
     gap: 18px;
   }
@@ -22745,8 +22745,8 @@ body.ops-pc-active .app-body {
   .ops-canvas-grid {
     grid-template-columns:
       64px
-      minmax(0, 1.35fr)
-      minmax(0, 2.35fr)
+      minmax(360px, 1.25fr)
+      minmax(640px, 2.6fr)
       380px;
   }
 }
@@ -23522,6 +23522,12 @@ body.ops-pc-active .app-body {
   display: grid;
   gap: 14px;
   margin-top: 4px;
+}
+/* 必须压过上方 .ops-builder { display:grid }，否则工具/结构挤进一列、中间留白 */
+.ops-builder.ops-builder--canvas {
+  display: contents;
+  gap: 0;
+  margin-top: 0;
 }
 .ops-builder-palette-head {
   display: grid;
