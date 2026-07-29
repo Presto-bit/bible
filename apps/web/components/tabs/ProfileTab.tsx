@@ -13,9 +13,7 @@ import {
   guestId,
   hasPassword,
   logout,
-  reshuffleUsername,
 } from '@/lib/api';
-import { isSystemGeneratedUsername } from '@/lib/system_username';
 import { OFFICIAL_SUPPORT_USER_CODE } from '@/lib/official_support';
 import {
   getOfflineDownloadSnapshot,
@@ -306,21 +304,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     }
   };
 
-  const reshuffleDisplayName = async () => {
-    setNameBusy(true);
-    try {
-      const next = await reshuffleUsername();
-      setName(next);
-      setNameDraft(next);
-      toast('已换一个新名字');
-      refreshAccount();
-    } catch (e) {
-      toast(e instanceof Error ? e.message : '换名失败');
-    } finally {
-      setNameBusy(false);
-    }
-  };
-
   const chooseAvatar = (id: string) => {
     setAvatarId(id);
     userLsSet(AVATAR_KEY, id);
@@ -387,6 +370,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 value={nameDraft}
                 maxLength={24}
                 disabled={nameBusy}
+                autoFocus
                 placeholder="怎么称呼你？"
                 aria-label="编辑用户名"
                 onChange={(e) => setNameDraft(e.target.value)}
@@ -399,14 +383,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 }}
               />
               <div className="profile-name-edit-actions">
-                <button
-                  type="button"
-                  className="text-link"
-                  disabled={nameBusy}
-                  onClick={() => void reshuffleDisplayName()}
-                >
-                  换一个
-                </button>
                 <button
                   type="button"
                   className="font-pill"
@@ -427,24 +403,29 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             </div>
           ) : (
             <div className="profile-name-row">
+              <strong className="profile-display-name">{displayName}</strong>
               <button
                 type="button"
-                className="profile-display-name profile-display-name-btn"
+                className="profile-name-edit-btn"
                 onClick={beginEditName}
                 aria-label="编辑用户名"
+                title="编辑用户名"
               >
-                {displayName}
-              </button>
-              {isSystemGeneratedUsername(displayName) ? (
-                <button
-                  type="button"
-                  className="text-link profile-name-reshuffle"
-                  disabled={nameBusy}
-                  onClick={() => void reshuffleDisplayName()}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden
                 >
-                  {nameBusy ? '…' : '换一个'}
-                </button>
-              ) : null}
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
               <SyncStatusBadge />
             </div>
           )}
