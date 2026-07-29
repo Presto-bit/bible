@@ -75,7 +75,7 @@ export function KnowledgeBasePicker({ disabled, variant = 'embed' }: Props) {
       >
         <strong style={{ fontSize: 13 }}>平台知识库</strong>
         <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 2 }}>
-          含中文研经、公版英文注释、原文与词典（默认）
+          含中文研经、公版英文注释（不含摘要与词典）
         </span>
       </div>
       <Link

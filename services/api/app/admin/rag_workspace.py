@@ -30,8 +30,8 @@ logger = logging.getLogger(__name__)
 _ALLOW_SUFFIX = {".md", ".txt", ".markdown"}
 _SAFE_SEGMENT = re.compile(r"^[\w.\u4e00-\u9fff\-()（）【】\[\] ]+$")
 
-# 可写集合：中文自有、手工、上传区；公版只读
-WRITABLE_COLLECTION_IDS = frozenset({"zh-owned", "manual", "uploads"})
+# 可写集合：手工研经与上传区；摘要/词典产品目录不可写入知识库
+WRITABLE_COLLECTION_IDS = frozenset({"manual", "uploads"})
 
 
 def _collection_spec(collection_id: str) -> dict:
@@ -522,12 +522,20 @@ def index_workspace_file(*, collection_id: str, path: str, force: bool = True) -
     if not target.is_file():
         raise HTTPException(status_code=404, detail="文件不存在")
     spec = _collection_spec(collection_id)
+    from ..ai.knowledge_bases import PRODUCT_CONTENT_SOURCE_TYPES
+
+    source_type = spec.get("source_type") or "commentary"
+    if spec.get("exclude_from_platform_kb") or source_type in PRODUCT_CONTENT_SOURCE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="摘要、词典等产品内容不进入平台知识库，请使用阅读器/词典入口",
+        )
     doc = _doc_for_path(target)
     title = doc["title"] if doc else target.stem
     try:
         result = index_file(
             target,
-            source_type=spec.get("source_type") or "commentary",
+            source_type=source_type,
             title=title,
             force=force,
         )

@@ -46,7 +46,7 @@ def rag_status():
         with pool.connection() as conn:
             out["documents"] = conn.execute(
                 "SELECT count(*) FROM bible_documents "
-                "WHERE source_type IN ('commentary','reference-en','study-bible-zh','commentary-zh')"
+                "WHERE source_type IN ('commentary','commentary-zh','study-bible')"
             ).fetchone()[0]
             out["chunks"] = conn.execute(
                 "SELECT count(*) FROM bible_rag_chunks"

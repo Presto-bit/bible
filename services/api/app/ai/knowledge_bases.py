@@ -4,12 +4,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-# 平台默认检索类型（与历史 RAG_SOURCE_TYPES 对齐）
+# 产品侧摘要/词典等：有独立产品入口，禁止进入平台知识库向量索引
+PRODUCT_CONTENT_SOURCE_TYPES = frozenset({"study-bible-zh", "reference-en"})
+
+# 平台默认检索类型（仅公版/手工注释类；不含摘要、词典）
 PLATFORM_SOURCE_TYPES = [
     "commentary",
-    "reference-en",
-    "study-bible-zh",
     "commentary-zh",
+    "study-bible",
 ]
 
 # 公版英文注释二级分类（按 HelloAO / 文件名前缀）
@@ -30,8 +32,8 @@ TOPIC_FOLDERS: list[dict[str, Any]] = [
     {
         "id": "zh-study",
         "name": "中文研经",
-        "description": "中文研经与中文注释，便于直接阅读要点。",
-        "source_types": ["study-bible-zh", "commentary-zh"],
+        "description": "手工中文研经与中文注释（不含书卷摘要、词典等产品内容）。",
+        "source_types": ["study-bible", "commentary-zh"],
         "is_default": False,
         "kind": "topic",
     },
@@ -44,14 +46,6 @@ TOPIC_FOLDERS: list[dict[str, Any]] = [
         "kind": "topic",
         "has_subfolders": True,
     },
-    {
-        "id": "reference",
-        "name": "原文与词典",
-        "description": "原文工具与参考词典类资料，适合查词与背景。",
-        "source_types": ["reference-en"],
-        "is_default": False,
-        "kind": "topic",
-    },
 ]
 
 PLATFORM_KB: dict[str, Any] = {
@@ -59,8 +53,8 @@ PLATFORM_KB: dict[str, Any] = {
     "name": "平台知识库",
     "description": (
         "平台统一资料库，供小爱检索出处。"
-        "当前按三类整理：中文研经、公版英文注释（如 Matthew Henry、Tyndale 等）、"
-        "原文与词典；入库文件以 Markdown 注释/词典正文为主，检索时引用片段并标注来源。"
+        "收录公版英文注释与手工研经/中文注释；"
+        "书卷/章节摘要、圣经词典等产品内容不入库，请走阅读器与词典入口。"
     ),
     "source_types": list(PLATFORM_SOURCE_TYPES),
     "is_default": True,
@@ -146,7 +140,8 @@ def build_platform_description(*, total_docs: int, folder_stats: list[dict[str, 
     breakdown = "；".join(parts) if parts else "暂无入库文件"
     refs = (
         "公版英文注释以 Matthew Henry、Tyndale 等公开注释系列为主；"
-        "中文研经为中文注释与研经资料；原文与词典含英文参考词典与工具类正文。"
+        "中文研经为手工研经与中文注释。"
+        "书卷摘要、词典等产品内容不进入本库。"
     )
     return (
         f"平台知识库当前共入库约 {total_docs} 份资料（{breakdown}）。"

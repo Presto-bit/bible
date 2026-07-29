@@ -198,10 +198,13 @@ def index_pending_disk(
     inv = build_rag_inventory()
     root = _commentary_root()
     udir = upload_dir()
+    from ..ai.knowledge_bases import PRODUCT_CONTENT_SOURCE_TYPES
 
     tasks: list[tuple[Path, str, str | None]] = []
     for coll in inv["collections"]:
         if collection_id and coll["id"] != collection_id:
+            continue
+        if coll.get("exclude_from_platform_kb") or coll.get("source_type") in PRODUCT_CONTENT_SOURCE_TYPES:
             continue
         for doc in coll["documents"]:
             if doc["inventory_status"] not in ("pending", "failed", "indexing"):
@@ -212,6 +215,8 @@ def index_pending_disk(
             else:
                 fp = root / doc["file"]
                 st = coll["source_type"]
+            if st in PRODUCT_CONTENT_SOURCE_TYPES:
+                continue
             tasks.append((fp, st, doc.get("title")))
 
     total = len(tasks)
@@ -343,19 +348,45 @@ def import_rag_sources(*, skip_remote: bool = False) -> dict:
     return {"ok": ok, "steps": results}
 
 
+def purge_product_content_from_rag() -> dict:
+    """清空摘要/词典等产品内容在向量库中的文档（CASCADE chunks）。"""
+    from ..ai.knowledge_bases import PRODUCT_CONTENT_SOURCE_TYPES
+    from ..db import get_pool
+
+    removed: dict[str, int] = {}
+    pool = get_pool()
+    with pool.connection() as conn:
+        for st in sorted(PRODUCT_CONTENT_SOURCE_TYPES):
+            cur = conn.execute(
+                "DELETE FROM bible_documents WHERE source_type = %s",
+                (st,),
+            )
+            removed[st] = int(cur.rowcount or 0)
+        conn.commit()
+    total = sum(removed.values())
+    logger.info("purged product RAG content: %s (total=%s)", removed, total)
+    return {"ok": True, "removed": removed, "total": total}
+
+
 def index_rag_collections(*, force: bool = False) -> dict:
-    """对 commentary 各目录批量向量化（等同 ensure_rag.sh 索引段）。"""
+    """对 commentary 各目录批量向量化（等同 ensure_rag.sh 索引段）。
+
+    不含 study-bible-zh / reference-en（摘要、词典等产品内容不进平台知识库）。
+    """
+    from ..ai.knowledge_bases import PRODUCT_CONTENT_SOURCE_TYPES
+
+    purge = purge_product_content_from_rag()
     root = _repo_root()
     comment = root / "content" / "commentary"
-    results: list[dict] = []
+    results: list[dict] = [{"step": "purge_product_content", **purge}]
 
     singles = [
         (comment / "study-bible", "study-bible"),
         (comment / "public-domain", "commentary"),
-        (comment / "reference-en", "reference-en"),
-        (comment / "study-bible-zh", "study-bible-zh"),
     ]
     for dir_path, source_type in singles:
+        if source_type in PRODUCT_CONTENT_SOURCE_TYPES:
+            continue
         results.append(_index_directory(dir_path, source_type, force=force))
 
     ocd = comment / "public-domain-ocd"

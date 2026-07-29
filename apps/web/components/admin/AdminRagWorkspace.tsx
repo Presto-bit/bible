@@ -266,7 +266,7 @@ export default function AdminRagWorkspace() {
   const onMkdir = async () => {
     const coll = currentWritableCollection;
     if (!coll?.writable) {
-      setErr('请先选中可写集合（中文自有 / 手工 / 上传区）');
+      setErr('请先选中可写集合（手工研经 / 上传区）');
       return;
     }
     const name = promptName('新建文件夹名称');
@@ -747,7 +747,7 @@ export default function AdminRagWorkspace() {
           <div className="admin-notion-empty">
             <h2>选择左侧页面开始</h2>
             <p className="muted">
-              公版目录只读 🔒；中文自有 / 手工 / 上传可编辑。可拖拽文件到文件夹移动。
+              公版目录只读 🔒；摘要/词典目录不进知识库；手工 / 上传可编辑。可拖拽文件到文件夹移动。
             </p>
           </div>
         ) : (

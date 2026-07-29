@@ -21,13 +21,11 @@ SKIP_IMPORT="${SKIP_COMMENTARY_IMPORT:-0}"
 FORCE="${RAG_FORCE:-0}"
 PD_DIR="$ROOT/content/commentary/public-domain"
 OCD_DIR="$ROOT/content/commentary/public-domain-ocd"
-REF_DIR="$ROOT/content/commentary/reference-en"
-ZH_DIR="$ROOT/content/commentary/study-bible-zh"
 STUDY_DIR="$ROOT/content/commentary/study-bible"
 
 log() { echo "[ensure-rag] $*"; }
 
-mkdir -p "$PD_DIR" "$OCD_DIR" "$REF_DIR" "$ZH_DIR" "$STUDY_DIR"
+mkdir -p "$PD_DIR" "$OCD_DIR" "$STUDY_DIR"
 
 index_dir() {
   local dir="$1"
@@ -94,22 +92,27 @@ else
   log "跳过英文注释拉取（SKIP_COMMENTARY_IMPORT=1）"
 fi
 
-# ── 2. 中文自有资料 ──
-log "生成中文自有 RAG 资料…"
-"$PY" "$ROOT/scripts/build_rag_zh_content.py"
+# ── 2. 产品内容（摘要/词典）不进平台知识库 ──
+log "清理向量库中的摘要/词典等产品内容…"
+if (
+  cd "$ROOT/services/api" && \
+  PYTHONPATH=. "$PY" -c "from app.admin.rag_ops import purge_product_content_from_rag; print(purge_product_content_from_rag())"
+); then
+  log "✓ 产品内容已从 RAG 移除（若有）"
+else
+  log "⚠ 清理产品 RAG 内容失败（可稍后在管理端重试）"
+fi
 
-# ── 3. RAG 索引（hash 未变则跳过；--reuse 复用已有向量）──
+# ── 3. RAG 索引（仅公版注释 + 手工研经；不含 reference-en / study-bible-zh）──
 ok=0
 index_dir "$STUDY_DIR" "study-bible" && ok=$((ok + 1)) || true
 index_dir "$PD_DIR" "commentary" && ok=$((ok + 1)) || true
 index_ocd_dir "$OCD_DIR" "commentary" && ok=$((ok + 1)) || true
-index_dir "$REF_DIR" "reference-en" && ok=$((ok + 1)) || true
-index_dir "$ZH_DIR" "study-bible-zh" && ok=$((ok + 1)) || true
 
 if [[ "$ok" -eq 0 ]]; then
   log "⚠ 未完成任何 RAG 索引"
   exit 0
 fi
 
-log "RAG 资料检查完成（$ok 类来源）"
+log "RAG 资料检查完成（$ok 类来源；已排除摘要/词典）"
 exit 0

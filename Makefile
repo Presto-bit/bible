@@ -54,7 +54,7 @@ rag-index-pd: ## 公版注释 RAG 入库
 	$(PY) scripts/rag_index.py --dir content/commentary/public-domain --source-type commentary --reuse
 
 .PHONY: rag-zh-content
-rag-zh-content: ## 生成中文自有 RAG 资料（摘要/词典/主题/专题）
+rag-zh-content: ## （已停用）产品摘要/词典不进平台知识库
 	$(PY) scripts/build_rag_zh_content.py
 
 .PHONY: import-commentary-ocd

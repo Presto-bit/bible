@@ -124,8 +124,8 @@ export const RAG_SOURCE_TYPES = [
   { id: 'commentary', label: '英文注释' },
   { id: 'commentary-zh', label: '中文注释' },
   { id: 'study-bible', label: '研经资料' },
-  { id: 'study-bible-zh', label: '中文自有资料' },
-  { id: 'reference-en', label: '英文参考词典' },
+  { id: 'study-bible-zh', label: '中文摘要/词典（不进知识库）' },
+  { id: 'reference-en', label: '英文词典（不进知识库）' },
   { id: 'mixed', label: '混合/上传' },
 ] as const;
 

@@ -203,7 +203,7 @@ def retrieve_for_passage(
 ) -> list[dict]:
     """经文章节检索：书卷+章 → 书卷 → 关键词兜底，带多注释轮询。"""
     types = source_types or [
-        "commentary", "reference-en", "study-bible-zh", "commentary-zh",
+        "commentary", "commentary-zh", "study-bible",
     ]
     s = get_settings()
     base = dict(
