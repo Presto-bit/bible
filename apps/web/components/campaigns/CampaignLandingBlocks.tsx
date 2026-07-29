@@ -38,6 +38,8 @@ export function CampaignLandingBlocks({
   onlyTypes,
   /** 预览态点击主按钮（如切到「今日阅读」预览） */
   onCtaClick,
+  /** 预览态点击区块 → 回跳编辑该控件 */
+  onEditBlock,
 }: {
   landing: OpsCampaignLanding;
   templateId?: string;
@@ -46,6 +48,7 @@ export function CampaignLandingBlocks({
   tag?: string;
   onlyTypes?: OpsLandingBlock['type'][];
   onCtaClick?: () => void;
+  onEditBlock?: (blockId: string) => void;
 }) {
   const blocks = normalizeBlocks(landing.blocks).filter((b) =>
     onlyTypes ? onlyTypes.includes(b.type) : true,
@@ -70,21 +73,52 @@ export function CampaignLandingBlocks({
   return (
     <div className={`ops-landing-blocks${mode === 'preview' ? ' is-preview' : ''}`}>
       {mode === 'preview' && tag ? <span className="pill">{tag}</span> : null}
-      {blocks.map((block) => (
-        <BlockView
-          key={block.id}
-          block={block}
-          landing={landing}
-          days={days}
-          schedule={schedule}
-          slots={slots}
-          entries={entries}
-          features={features}
-          ctaLabel={cta.label}
-          mode={mode}
-          onCtaClick={onCtaClick}
-        />
-      ))}
+      {blocks.map((block) => {
+        const editable = mode === 'preview' && Boolean(onEditBlock);
+        const inner = (
+          <BlockView
+            block={block}
+            landing={landing}
+            days={days}
+            schedule={schedule}
+            slots={slots}
+            entries={entries}
+            features={features}
+            ctaLabel={cta.label}
+            mode={mode}
+            onCtaClick={
+              block.type === 'cta' && editable
+                ? () => onEditBlock?.(block.id)
+                : onCtaClick
+            }
+          />
+        );
+        if (!editable || block.type === 'cta' || block.type === 'divider') {
+          return (
+            <div key={block.id} className="ops-lb-wrap">
+              {inner}
+            </div>
+          );
+        }
+        return (
+          <div
+            key={block.id}
+            className="ops-lb-wrap is-editable"
+            role="button"
+            tabIndex={0}
+            onClick={() => onEditBlock?.(block.id)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onEditBlock?.(block.id);
+              }
+            }}
+            title="点击编辑此控件"
+          >
+            {inner}
+          </div>
+        );
+      })}
     </div>
   );
 }

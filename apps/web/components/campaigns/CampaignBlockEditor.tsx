@@ -52,6 +52,8 @@ export function CampaignBlockEditor({
   onToolsTabChange,
   hideTools = false,
   leadingSplitter = null,
+  focusBlockId = null,
+  onFocusBlockConsumed,
 }: {
   landing: OpsCampaignLanding;
   setLanding: (next: OpsCampaignLanding) => void;
@@ -67,6 +69,9 @@ export function CampaignBlockEditor({
   hideTools?: boolean;
   /** canvas 下插在工具列与页面结构之间的分隔条 */
   leadingSplitter?: ReactNode;
+  /** 外部（如实时预览）请求选中某控件 */
+  focusBlockId?: string | null;
+  onFocusBlockConsumed?: () => void;
 }) {
   const blocks = normalizeBlocks(landing.blocks);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -81,6 +86,23 @@ export function CampaignBlockEditor({
       setSelectedId(blocks[0]?.id || null);
     }
   }, [blocks, selectedId]);
+
+  useEffect(() => {
+    if (!focusBlockId) return;
+    if (!blocks.some((b) => b.id === focusBlockId)) {
+      onFocusBlockConsumed?.();
+      return;
+    }
+    setSelectedId(focusBlockId);
+    onToolsTabChange?.('config');
+    requestAnimationFrame(() => {
+      document.getElementById(`ops-block-${focusBlockId}`)?.scrollIntoView({
+        block: 'nearest',
+        behavior: 'smooth',
+      });
+    });
+    onFocusBlockConsumed?.();
+  }, [focusBlockId, blocks, onToolsTabChange, onFocusBlockConsumed]);
 
   const available = availableBlockTypes(landing);
   const groups = blocksByCategory(available);
@@ -278,6 +300,7 @@ export function CampaignBlockEditor({
             return (
               <div
                 key={block.id}
+                id={`ops-block-${block.id}`}
                 className={`ops-block-card${selectedId === block.id ? ' is-selected' : ''}${
                   dragId === block.id ? ' is-dragging' : ''
                 }${overId === block.id && dragId !== block.id ? ' is-over' : ''}`}

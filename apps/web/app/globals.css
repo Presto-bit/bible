@@ -22941,6 +22941,11 @@ body.ops-canvas-resizing iframe {
 .ops-canvas-preview .ops-preview-home {
   width: 100%;
 }
+.ops-canvas-preview .ops-preview-home .home-rail .rail-card {
+  /* 预览栏内尽量贴近首页单卡观感 */
+  flex-basis: min(100%, 200px);
+  max-width: min(100%, 220px);
+}
 .ops-canvas-preview .ops-preview-rail-card {
   max-width: min(240px, 100%);
 }
@@ -23571,6 +23576,58 @@ body.ops-canvas-resizing iframe {
 }
 .ops-preview-home {
   margin-bottom: 4px;
+}
+/* 复用首页今日推荐卡片视觉：同比例、同圆角与阴影 */
+.ops-preview-home.home-page .ops-preview-home-rail.home-rail {
+  display: flex;
+  gap: 14px;
+  padding: 4px 2px 8px;
+  overflow: visible;
+  --home-rail-media-ratio: 5 / 4;
+  scroll-snap-type: none;
+}
+.ops-preview-home.home-page .home-rail .rail-card {
+  flex: 0 0 min(100%, 200px);
+  max-width: min(100%, 220px);
+  width: min(100%, 220px);
+  border: 1px solid color-mix(in srgb, var(--ink-faint) 22%, var(--line));
+  border-radius: var(--home-card-radius);
+  box-shadow: var(--home-shadow);
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.ops-preview-home.home-page .home-rail .rail-card:hover {
+  outline: 2px solid color-mix(in srgb, var(--dawn-gold, #c4a35a) 45%, transparent);
+  outline-offset: 2px;
+}
+.ops-preview-editable {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 8px;
+  width: 100%;
+}
+.ops-preview-editable:hover,
+.ops-lb-wrap.is-editable:hover {
+  outline: 2px solid color-mix(in srgb, var(--accent-deep, #5f7d66) 35%, transparent);
+  outline-offset: 3px;
+}
+.ops-lb-wrap.is-editable {
+  cursor: pointer;
+  border-radius: 10px;
+}
+.ops-preview-title.ops-preview-editable {
+  display: block;
+  width: 100%;
 }
 .ops-preview-rail-card {
   width: 100%;

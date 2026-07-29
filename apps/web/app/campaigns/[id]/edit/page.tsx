@@ -27,7 +27,7 @@ import { ensureLandingBlocks } from '@/lib/campaign_blocks';
 import { useOpsCanvasResize } from '@/lib/use_ops_canvas_resize';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { CampaignBlockEditor } from '@/components/campaigns/CampaignBlockEditor';
-import { CampaignLivePreview } from '@/components/campaigns/CampaignLivePreview';
+import { CampaignLivePreview, type CampaignPreviewEditTarget } from '@/components/campaigns/CampaignLivePreview';
 import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
 
 function toLocalInput(iso: string): string {
@@ -86,6 +86,7 @@ function CampaignEditInner() {
   const [leftTab, setLeftTab] = useState<'palette' | 'config' | 'settings'>('palette');
   const tabSwipeX = useRef<number | null>(null);
   const { gridRef, gridStyle, splitterProps } = useOpsCanvasResize();
+  const [focusBlockId, setFocusBlockId] = useState<string | null>(null);
 
   const checklistInput = useMemo(
     () => ({
@@ -268,6 +269,47 @@ function CampaignEditInner() {
       setActiveSection('content');
     }
   };
+
+  const handlePreviewEdit = useCallback((target: CampaignPreviewEditTarget) => {
+      const scrollTo = (id: string) => {
+        window.setTimeout(() => {
+          document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+      };
+      if (target.kind === 'home-card') {
+        setLeftTab('settings');
+        setActiveSection('basic');
+        setOpenSections((prev) => ({ ...prev, basic: true, exposure: true }));
+        scrollTo('ops-sec-basic');
+        return;
+      }
+      if (target.kind === 'landing-title') {
+        setLeftTab('settings');
+        setActiveSection('basic');
+        setOpenSections((prev) => ({ ...prev, basic: true }));
+        scrollTo('ops-sec-basic');
+        return;
+      }
+      if (target.kind === 'block') {
+        setLeftTab('config');
+        setActiveSection('content');
+        setFocusBlockId(target.blockId);
+        return;
+      }
+      if (target.kind === 'days' || target.kind === 'cta') {
+        setLeftTab('config');
+        setActiveSection('content');
+        const blocks = landing.blocks || [];
+        const hit =
+          target.kind === 'days'
+            ? blocks.find((b) => b.type === 'days')
+            : blocks.find((b) => b.type === 'cta');
+        if (hit) setFocusBlockId(hit.id);
+        else setFocusBlockId(blocks[0]?.id || null);
+      }
+    },
+    [landing.blocks],
+  );
 
   const onTabSwipeStart = (e: TouchEvent) => {
     tabSwipeX.current = e.changedTouches[0]?.clientX ?? null;
@@ -743,6 +785,8 @@ function CampaignEditInner() {
           onToolsTabChange={(tab) => openLeftTab(tab)}
           hideTools={leftTab === 'settings'}
           leadingSplitter={<div {...splitterProps(0)} />}
+          focusBlockId={focusBlockId}
+          onFocusBlockConsumed={() => setFocusBlockId(null)}
         />
 
         <div {...splitterProps(1)} />
@@ -758,6 +802,7 @@ function CampaignEditInner() {
             railEnabled={railEnabled}
             railSlot={railSlot}
             onHint={setHint}
+            onEdit={handlePreviewEdit}
           />
           <div className="ops-canvas-actions">
             <Link href={`/campaigns/view/${id}?preview=1`} className="btn">

@@ -11,6 +11,13 @@ import { resolvePrimaryCta } from '@/lib/campaign_nav';
 type PreviewTab = 'home' | 'landing' | 'reading';
 type PreviewDevice = 'phone' | 'desktop';
 
+export type CampaignPreviewEditTarget =
+  | { kind: 'home-card' }
+  | { kind: 'landing-title' }
+  | { kind: 'block'; blockId: string }
+  | { kind: 'days'; day?: number }
+  | { kind: 'cta' };
+
 function isSelfLandingHref(href: string, campaignId?: string): boolean {
   if (!campaignId) return false;
   const path = `/campaigns/view/${campaignId}`;
@@ -18,10 +25,24 @@ function isSelfLandingHref(href: string, campaignId?: string): boolean {
   return raw === path || raw.startsWith(`${path}?`) || raw.startsWith(`${path}#`);
 }
 
-/** 主按钮是否进入「本页日课阅读」（非外链/读经器） */
 function ctaOpensInPageReading(templateId: string, href: string, campaignId?: string): boolean {
   if (templateId === 'multi_day' || templateId === 'memory') return true;
   return isSelfLandingHref(href, campaignId);
+}
+
+function homeRailCardClass(c: RailCard): string {
+  return [
+    'rail-card',
+    'rail-card-content',
+    'card',
+    `card-${c.kind}`,
+    `card-tint-${c.tint}`,
+    `rail-card-layout-${c.layout}`,
+    c.kind === 'action' ? 'card-3 card-tint card-accent rail-card-action' : 'card-2 card-tint',
+    'rail-card-active',
+  ]
+    .filter(Boolean)
+    .join(' ');
 }
 
 /** 配置页右侧实时预览：首页卡 + 落地页 + 主按钮点击后的阅读态 */
@@ -35,6 +56,7 @@ export function CampaignLivePreview({
   railEnabled,
   railSlot,
   onHint,
+  onEdit,
 }: {
   name: string;
   subtitle?: string;
@@ -45,18 +67,18 @@ export function CampaignLivePreview({
   railEnabled?: boolean;
   railSlot?: number;
   onHint?: (msg: string) => void;
+  onEdit?: (target: CampaignPreviewEditTarget) => void;
 }) {
   const [tab, setTab] = useState<PreviewTab>(railEnabled === false ? 'landing' : 'home');
   const [device, setDevice] = useState<PreviewDevice>('phone');
   const [previewDay, setPreviewDay] = useState(1);
   const title = (landing.title || name || '活动标题').trim() || '活动标题';
-  const body = (landing.body || '').trim();
   const cta = resolvePrimaryCta(templateId, campaignId, landing.primaryCta);
   const inPageReading = ctaOpensInPageReading(templateId, cta.href, campaignId);
   const days = landing.days || [];
 
   const railCard: RailCard = {
-    id: 'campaign-preview',
+    id: campaignId ? `campaign-${campaignId}` : 'campaign-preview',
     kind: 'action',
     tint: 'gold',
     layout: 'cover',
@@ -78,15 +100,9 @@ export function CampaignLivePreview({
     onHint?.(ok ? '预览链已复制（带 preview=1）' : '复制失败');
   };
 
-  const onPreviewCta = () => {
-    if (inPageReading) {
-      const first = days[0]?.day || 1;
-      setPreviewDay(first);
-      setTab('reading');
-      onHint?.('主按钮进入本页「今日阅读」：选天读日课（不是新页面）');
-      return;
-    }
-    onHint?.(`主按钮将打开：${cta.href || '（未设置链接）'}`);
+  const edit = (target: CampaignPreviewEditTarget, hint?: string) => {
+    onEdit?.(target);
+    if (hint) onHint?.(hint);
   };
 
   return (
@@ -158,33 +174,38 @@ export function CampaignLivePreview({
       ) : null}
 
       {tab === 'home' ? (
-        <div className="ops-preview-home">
+        <div className="ops-preview-home home-page">
           {railEnabled === false ? (
             <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
-              未挂今日推荐；成员需通过链接进入落地页。
+              未挂今日推荐；成员需通过链接进入落地页。点击卡片可改曝光设置。
             </p>
           ) : (
             <p className="muted" style={{ fontSize: 12, margin: '0 0 10px' }}>
-              今日推荐 · 第 {railSlot || 1} 位（示意）
+              与首页「今日推荐」同款 · 第 {railSlot || 1} 位 · 点击可编辑
             </p>
           )}
-          <button
-            type="button"
-            className="ops-preview-rail-card rail-card rail-card-content card card-media card-tint-rose rail-card-layout-scene-caption card-2 card-tint"
-            onClick={() => setTab('landing')}
-            title="点击查看落地页预览"
-          >
-            <RailCardVisual card={railCard} />
-            <div className="rail-card-body rail-card-body-padded">
-              <div className="rail-head">
-                <span className="pill">{railCard.tag}</span>
+          <div className="rail home-rail ops-preview-home-rail" aria-label="首页今日推荐示意">
+            <button
+              type="button"
+              className={homeRailCardClass(railCard)}
+              style={{ ['--tint' as string]: 'var(--dawn-gold)' }}
+              onClick={() => edit({ kind: 'home-card' }, '已打开设置：活动名称 / 副文案 / 曝光')}
+              title="点击编辑首页卡片文案与曝光"
+            >
+              <RailCardVisual card={railCard} />
+              <div className="rail-card-body rail-card-body-padded">
+                <div className="rail-head">
+                  <span className="pill pill-active">{railCard.tag}</span>
+                </div>
+                <div className="rail-title">{railCard.title}</div>
+                {railCard.sub ? (
+                  <div className="rail-foot">
+                    <span className="rail-sub">{railCard.sub}</span>
+                  </div>
+                ) : null}
               </div>
-              {railCard.sub ? <div className="rail-title">{railCard.sub}</div> : null}
-            </div>
-          </button>
-          <p className="muted" style={{ fontSize: 12, margin: '10px 0 0' }}>
-            点击卡片 → 落地页 → 再点主按钮看「今日阅读」
-          </p>
+            </button>
+          </div>
         </div>
       ) : (
         <div className={device === 'phone' ? 'ops-preview-phone' : 'ops-preview-desktop'}>
@@ -192,9 +213,16 @@ export function CampaignLivePreview({
           <div className={device === 'phone' ? 'ops-preview-phone-body' : 'ops-preview-desktop-body'}>
             {tab === 'landing' ? (
               <>
-                <h2 className="ops-preview-title">{title}</h2>
-                <p className="muted" style={{ fontSize: 12, margin: 0 }}>
-                  可点主按钮「{cta.label}」预览点击后布局
+                <button
+                  type="button"
+                  className="ops-preview-title ops-preview-editable"
+                  onClick={() => edit({ kind: 'landing-title' }, '已打开设置：活动名称')}
+                  title="点击编辑标题"
+                >
+                  {title}
+                </button>
+                <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
+                  点击任意区块可编辑对应内容
                 </p>
                 <CampaignLandingBlocks
                   landing={landing}
@@ -202,7 +230,9 @@ export function CampaignLivePreview({
                   campaignId={campaignId}
                   mode="preview"
                   tag={tag}
-                  onCtaClick={onPreviewCta}
+                  onEditBlock={(blockId) =>
+                    edit({ kind: 'block', blockId }, '已选中控件，可在「配置」中修改')
+                  }
                 />
               </>
             ) : (
@@ -216,6 +246,10 @@ export function CampaignLivePreview({
                 ctaHref={cta.href}
                 inPageReading={inPageReading}
                 onBack={() => setTab('landing')}
+                onEditDays={(day) =>
+                  edit({ kind: 'days', day }, '已打开日课配置')
+                }
+                onEditTitle={() => edit({ kind: 'landing-title' }, '已打开设置：活动名称')}
               />
             )}
           </div>
@@ -235,6 +269,8 @@ function PreviewReadingPane({
   ctaHref,
   inPageReading,
   onBack,
+  onEditDays,
+  onEditTitle,
 }: {
   title: string;
   templateId: string;
@@ -245,6 +281,8 @@ function PreviewReadingPane({
   ctaHref: string;
   inPageReading: boolean;
   onBack: () => void;
+  onEditDays?: (day?: number) => void;
+  onEditTitle?: () => void;
 }) {
   const isMemory = templateId === 'memory';
   const current = useMemo(
@@ -267,10 +305,14 @@ function PreviewReadingPane({
         <p className="muted" style={{ fontSize: 13 }}>
           「{ctaLabel}」将打开站内/外链页面，不在活动落地页内阅读：
         </p>
-        <code className="ops-preview-href">{ctaHref || '（未设置）'}</code>
-        <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>
-          可用「全屏预览」在真实页面点按验证。
-        </p>
+        <button
+          type="button"
+          className="ops-preview-href ops-preview-editable"
+          onClick={() => onEditDays?.()}
+          title="点击编辑主按钮"
+        >
+          {ctaHref || '（未设置）'}
+        </button>
       </div>
     );
   }
@@ -281,12 +323,22 @@ function PreviewReadingPane({
         <button type="button" className="text-link" style={{ fontSize: 12 }} onClick={onBack}>
           ← 返回落地页
         </button>
-        <h2 className="ops-preview-title" style={{ marginTop: 8 }}>
+        <button
+          type="button"
+          className="ops-preview-title ops-preview-editable"
+          style={{ marginTop: 8 }}
+          onClick={() => onEditTitle?.()}
+        >
           {title}
-        </h2>
-        <p className="muted" style={{ fontSize: 13 }}>
-          还没有日课。请在左侧「日课列表」添加内容后，即可在此预览点击主按钮后的阅读布局。
-        </p>
+        </button>
+        <button
+          type="button"
+          className="muted ops-preview-editable"
+          style={{ fontSize: 13, display: 'block', textAlign: 'left', marginTop: 8 }}
+          onClick={() => onEditDays?.()}
+        >
+          还没有日课。点击此处添加日课内容。
+        </button>
       </div>
     );
   }
@@ -297,16 +349,21 @@ function PreviewReadingPane({
         ← 返回落地页
       </button>
       <p className="ops-preview-reading-hint">
-        成员点「{ctaLabel}」后：仍在本活动页，进入日课阅读（选天 → 读正文 → 可打开圣经）
+        成员点「{ctaLabel}」后的阅读布局 · 点击下文可编辑日课
       </p>
-      <h2 className="ops-preview-title">{title}</h2>
+      <button
+        type="button"
+        className="ops-preview-title ops-preview-editable"
+        onClick={() => onEditTitle?.()}
+        title="点击编辑标题"
+      >
+        {title}
+      </button>
       <div className="ops-progress" style={{ margin: '4px 0 10px' }}>
         <div className="ops-progress-track" aria-hidden>
           <div className="ops-progress-fill" style={{ width: '0%' }} />
         </div>
-        <span className="ops-progress-label">
-          已完成 0/{days.length}（示意）
-        </span>
+        <span className="ops-progress-label">已完成 0/{days.length}（示意）</span>
       </div>
       <p className="section-label" style={{ marginBottom: 6 }}>
         {isMemory ? '背诵清单' : '日课'}
@@ -319,14 +376,24 @@ function PreviewReadingPane({
             role="tab"
             aria-selected={day === d.day}
             className={`ops-day-chip${(current?.day || day) === d.day ? ' is-on' : ''}`}
-            onClick={() => setDay(d.day)}
+            onClick={() => {
+              setDay(d.day);
+              onEditDays?.(d.day);
+            }}
+            title={`编辑第 ${d.day} 天`}
           >
             {d.day}
           </button>
         ))}
       </div>
       {current ? (
-        <div className="card" style={{ padding: 14, marginTop: 8 }}>
+        <button
+          type="button"
+          className="card ops-preview-editable"
+          style={{ padding: 14, marginTop: 8, width: '100%', textAlign: 'left' }}
+          onClick={() => onEditDays?.(current.day)}
+          title="点击编辑本日内容"
+        >
           <h3 style={{ margin: '0 0 8px', fontSize: 16 }}>
             {current.title || `第 ${current.day} 天`}
           </h3>
@@ -346,28 +413,18 @@ function PreviewReadingPane({
               讨论：{current.discussionHint}
             </p>
           ) : null}
-          <button type="button" className="btn btn-primary" style={{ marginTop: 12, width: '100%' }} disabled>
+          <div className="btn btn-primary" style={{ marginTop: 12, width: '100%', pointerEvents: 'none' }}>
             {isMemory ? '标记已记住' : '标记今日已读'}
-          </button>
-          <div className="ops-day-nav">
-            <button
-              type="button"
-              className="btn"
-              disabled={!prev}
-              onClick={() => prev && setDay(prev.day)}
-            >
-              上一天
-            </button>
-            <button
-              type="button"
-              className="btn"
-              disabled={!next}
-              onClick={() => next && setDay(next.day)}
-            >
-              下一天
-            </button>
           </div>
-        </div>
+          <div className="ops-day-nav" style={{ pointerEvents: 'none' }}>
+            <span className="btn" style={{ opacity: prev ? 1 : 0.45 }}>
+              上一天
+            </span>
+            <span className="btn" style={{ opacity: next ? 1 : 0.45 }}>
+              下一天
+            </span>
+          </div>
+        </button>
       ) : null}
     </div>
   );
