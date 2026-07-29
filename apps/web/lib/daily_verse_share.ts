@@ -1,6 +1,7 @@
-/** 每日经文分享：文字+链 + 经文卡图（二期） */
-import { BRAND_NAME } from './brand';
-import { renderShareCardPng } from './share_card';
+/** 每日经文分享：文字+链 + 经文卡图（贴近首页 Hero 卡） */
+import { BRAND_NAME, BRAND_TAGLINE } from './brand';
+import { formatDailyVerseQuote } from './daily_verse_display';
+import { dailyVerseWallpaperUrl } from './daily_verse_wallpaper';
 
 export type DailyVerseShareInput = {
   ref: string;
@@ -30,17 +31,179 @@ export function dailyVerseShareUrl(day?: number): string {
   return u.toString();
 }
 
+function loadImage(src: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+function drawCover(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  w: number,
+  h: number,
+) {
+  const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+  const dw = img.naturalWidth * scale;
+  const dh = img.naturalHeight * scale;
+  const dx = (w - dw) / 2;
+  const dy = (h - dh) / 2;
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines = 10,
+): number {
+  const chars = [...text];
+  let line = '';
+  let cy = y;
+  let lines = 0;
+  for (const ch of chars) {
+    const test = line + ch;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      if (lines >= maxLines - 1) {
+        const clipped = `${line.replace(/.$/u, '')}…`;
+        ctx.fillText(clipped, x, cy);
+        return cy + lineHeight;
+      }
+      ctx.fillText(line, x, cy);
+      line = ch;
+      cy += lineHeight;
+      lines += 1;
+    } else {
+      line = test;
+    }
+  }
+  if (line) {
+    ctx.fillText(line, x, cy);
+    cy += lineHeight;
+  }
+  return cy;
+}
+
+function drawFallbackScene(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, '#ffecd9');
+  grad.addColorStop(0.45, '#f7ebe0');
+  grad.addColorStop(1, '#d9c5ae');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+
+  const glowA = ctx.createRadialGradient(w * 0.86, h * 0.16, 20, w * 0.86, h * 0.16, w * 0.45);
+  glowA.addColorStop(0, 'rgba(255, 200, 140, 0.55)');
+  glowA.addColorStop(1, 'rgba(255, 200, 140, 0)');
+  ctx.fillStyle = glowA;
+  ctx.fillRect(0, 0, w, h);
+
+  const glowB = ctx.createRadialGradient(w * 0.12, h * 0.88, 10, w * 0.12, h * 0.88, w * 0.38);
+  glowB.addColorStop(0, 'rgba(232, 160, 144, 0.28)');
+  glowB.addColorStop(1, 'rgba(232, 160, 144, 0)');
+  ctx.fillStyle = glowB;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function drawArtScrim(ctx: CanvasRenderingContext2D, w: number, h: number) {
+  const scrim = ctx.createLinearGradient(0, 0, 0, h);
+  scrim.addColorStop(0, 'rgba(20, 24, 28, 0.42)');
+  scrim.addColorStop(0.48, 'rgba(20, 24, 28, 0.28)');
+  scrim.addColorStop(1, 'rgba(20, 24, 28, 0.55)');
+  ctx.fillStyle = scrim;
+  ctx.fillRect(0, 0, w, h);
+}
+
+/** 生成贴近首页每日经文卡的分享图。 */
+export async function renderDailyVerseSharePng(
+  input: DailyVerseShareInput,
+): Promise<Blob | null> {
+  if (typeof document === 'undefined') return null;
+
+  const w = 1080;
+  const h = 1350;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const padX = 72;
+  const wallpaperSrc = dailyVerseWallpaperUrl(input.day, 'full');
+  const wallpaper = await loadImage(wallpaperSrc);
+  if (wallpaper) {
+    drawCover(ctx, wallpaper, w, h);
+    drawArtScrim(ctx, w, h);
+  } else {
+    drawFallbackScene(ctx, w, h);
+    drawArtScrim(ctx, w, h);
+  }
+
+  // 顶部：每日经文
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.82)';
+  ctx.font = '600 34px system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif';
+  ctx.fillText('每日经文', padX, 110);
+
+  // 中下区：引用 + 经文（接近 Hero 卡）
+  const quote = formatDailyVerseQuote(input.text || '');
+  const ref = (input.ref || '').trim();
+  const ver = input.versionLabel?.trim();
+
+  let y = Math.floor(h * 0.42);
+  if (ref) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.88)';
+    ctx.font = '600 36px system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif';
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.28)';
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetY = 2;
+    ctx.fillText(ref, padX, y);
+    y += 56;
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '400 48px "Noto Serif SC", "Songti SC", "Source Han Serif SC", Georgia, serif';
+  ctx.shadowColor = 'rgba(0, 0, 0, 0.35)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetY = 2;
+  y = wrapText(ctx, quote, padX, y + 8, w - padX * 2, 68, 9);
+
+  if (ver) {
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.72)';
+    ctx.font = '400 28px system-ui, -apple-system, "PingFang SC", sans-serif';
+    ctx.fillText(ver, padX, Math.min(y + 28, h - 140));
+  }
+
+  // 底部品牌
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetY = 0;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.78)';
+  ctx.font = '600 30px system-ui, -apple-system, "PingFang SC", sans-serif';
+  ctx.fillText(BRAND_NAME, padX, h - 96);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
+  ctx.font = '400 24px system-ui, -apple-system, "PingFang SC", sans-serif';
+  ctx.fillText(BRAND_TAGLINE, padX, h - 56);
+
+  return new Promise((resolve) => {
+    canvas.toBlob((b) => resolve(b), 'image/png', 0.94);
+  });
+}
+
 /** 生成经文卡图并调起系统分享 / 下载；成功返回 true。 */
 export async function shareDailyVerseCard(input: DailyVerseShareInput): Promise<boolean> {
   const title = (input.ref || '每日经文').trim();
   const body = (input.text || '').trim();
   if (!body) return false;
-  const blob = await renderShareCardPng({
-    title,
-    subtitle: input.versionLabel ? `${BRAND_NAME} · ${input.versionLabel}` : `${BRAND_NAME}每日经文`,
-    body,
-    footer: '安静读经，在话语中相遇',
-  });
+
+  const blob = await renderDailyVerseSharePng(input);
   if (!blob) return false;
 
   const file = new File([blob], 'daily-verse-share.png', { type: 'image/png' });
