@@ -1,6 +1,6 @@
 // 发版后须 bump CACHE（或运行 scripts/bump_sw_cache.sh），否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v36';
+const CACHE = 'presto-bible-v37';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -221,6 +221,43 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+async function networkFirstHtml(request) {
+  const cacheLookup = () =>
+    caches.match(request).then((hit) => hit || offlineNavigationFallback(request));
+
+  const fromNetwork = fetch(request)
+    .then(async (res) => {
+      if (res.ok) {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(request, copy));
+        return res;
+      }
+      // 502/504 等网关错误：优先回退已缓存壳，避免 PWA 白屏卡住
+      const cached = await cacheLookup();
+      if (cached) return cached;
+      return res;
+    })
+    .catch(async () => {
+      const cached = await cacheLookup();
+      return asResponse(cached);
+    });
+
+  // 弱网/上游卡住时不要干等 Nginx 60s 504
+  const timeoutMs = 4500;
+  const raced = await Promise.race([
+    fromNetwork,
+    new Promise((resolve) => {
+      setTimeout(async () => {
+        const cached = await cacheLookup();
+        resolve(cached || null);
+      }, timeoutMs);
+    }),
+  ]);
+
+  if (raced) return raced;
+  return fromNetwork;
+}
+
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
@@ -243,19 +280,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // HTML 页面：网络优先；离线时回退到已缓存壳页，避免 Safari 原生错误页
+  // HTML 页面：短超时网络优先，失败/5xx/超时回退缓存壳
   if (isHtmlNavigation(e.request)) {
-    e.respondWith(
-      fetch(e.request)
-        .then((res) => {
-          if (res.ok) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(e.request, copy));
-          }
-          return res;
-        })
-        .catch(async () => asResponse(await offlineNavigationFallback(e.request))),
-    );
+    e.respondWith(networkFirstHtml(e.request));
     return;
   }
 

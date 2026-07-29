@@ -100,14 +100,31 @@ export interface PrayerToday {
   prompt?: string;
 }
 
-async function getJson<T>(path: string, headers?: Record<string, string>): Promise<T> {
+async function getJson<T>(
+  path: string,
+  headers?: Record<string, string>,
+  opts?: { timeoutMs?: number },
+): Promise<T> {
   // 默认带上设备/用户身份头，供服务端每日 UV 计数（否则 /bible、/content 会漏计）
-  const res = await fetch(`${API_BASE}${path}`, {
-    cache: 'no-store',
-    headers: { ...authHeaders(), ...headers },
-  });
-  if (!res.ok) throw new Error(`请求失败 ${res.status}: ${path}`);
-  return res.json() as Promise<T>;
+  const timeoutMs = opts?.timeoutMs ?? 12_000;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      cache: 'no-store',
+      headers: { ...authHeaders(), ...headers },
+      signal: ac.signal,
+    });
+    if (!res.ok) throw new Error(`请求失败 ${res.status}: ${path}`);
+    return res.json() as Promise<T>;
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      throw new Error(`请求超时: ${path}`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function userCodeHeader(): Record<string, string> {
@@ -1769,7 +1786,10 @@ export const api = {
     const token = getAdminToken();
     const headers: Record<string, string> = { ...authHeaders() };
     if (token) headers.Authorization = `Bearer ${token}`;
-    return getJson<HomeBootstrap>(`/content/home/bootstrap?${q}`, headers);
+    // 首页首屏：短超时，失败走本地缓存，避免干等网关 504
+    return getJson<HomeBootstrap>(`/content/home/bootstrap?${q}`, headers, {
+      timeoutMs: 8_000,
+    });
   },
   dailyVerse: (day?: number) => {
     const q = new URLSearchParams();

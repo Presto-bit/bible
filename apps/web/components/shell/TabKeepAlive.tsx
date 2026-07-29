@@ -29,27 +29,42 @@ const paneLoading = (
   </main>
 );
 
-const HomeTab = dynamic(() => import('@/components/HomePage'), {
+function TabLoadError() {
+  return (
+    <main className="container" style={{ paddingTop: 48, textAlign: 'center' }}>
+      <p className="muted">页面加载失败，请重试</p>
+      <button type="button" className="btn" style={{ marginTop: 12 }} onClick={() => window.location.reload()}>
+        重新加载
+      </button>
+    </main>
+  );
+}
+
+function loadTab<T>(loader: () => Promise<{ default: T }>) {
+  return loader().catch(() => ({ default: TabLoadError as unknown as T }));
+}
+
+const HomeTab = dynamic(() => loadTab(() => import('@/components/HomePage')), {
   ssr: false,
   loading: () => paneLoading,
 });
 
-const ReaderTab = dynamic(() => import('@/components/tabs/ReaderTab'), {
+const ReaderTab = dynamic(() => loadTab(() => import('@/components/tabs/ReaderTab')), {
   ssr: false,
   loading: () => paneLoading,
 });
 
-const AssistantTab = dynamic(() => import('@/components/tabs/AssistantTab'), {
+const AssistantTab = dynamic(() => loadTab(() => import('@/components/tabs/AssistantTab')), {
   ssr: false,
   loading: () => paneLoading,
 });
 
-const DiscoverTab = dynamic(() => import('@/components/tabs/DiscoverTab'), {
+const DiscoverTab = dynamic(() => loadTab(() => import('@/components/tabs/DiscoverTab')), {
   ssr: false,
   loading: () => paneLoading,
 });
 
-const ProfileTab = dynamic(() => import('@/components/tabs/ProfileTab'), {
+const ProfileTab = dynamic(() => loadTab(() => import('@/components/tabs/ProfileTab')), {
   ssr: false,
   loading: () => paneLoading,
 });
@@ -92,9 +107,14 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   const activeTab = keepAliveTabId(pathname);
   const [mounted, setMounted] = useState<Record<KeepAliveTabId, boolean>>(emptyMounted);
 
-  const suppressRoute = enabled && activeTab !== null;
+  // 当前 Tab 首帧就要挂载：不可等 useEffect，否则 suppress 后无 pane → 白屏
+  const paneVisible = (tab: KeepAliveTabId) =>
+    Boolean(mounted[tab] || (enabled && activeTab === tab));
 
-  // 按需挂载：仅在访问过的 Tab 上保持实例；不再首屏并行挂满五个。
+  // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期
+  const suppressRoute = enabled && activeTab !== null && paneVisible(activeTab);
+
+  // 按需挂载：访问过的 Tab 保持实例
   useEffect(() => {
     if (!enabled || !activeTab) return;
     setMounted((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
@@ -128,7 +148,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
         {children}
       </div>
       {ALL_TABS.map((tab) => {
-        if (!mounted[tab]) return null;
+        if (!paneVisible(tab)) return null;
         const Pane = TAB_COMPONENTS[tab];
         const active = activeTab === tab;
         return (
