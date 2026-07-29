@@ -80,7 +80,7 @@ export function setParallelVersion(id: string) {
   localStorage.setItem(PARALLEL_VER_KEY, id);
 }
 
-/** 正文译本 id；null/空 表示默认主译本（和合本）。 */
+/** 正文译本 id；null/空 表示默认主译本（新译本 cnv）。 */
 export function getMainVersion(): string | null {
   if (typeof window === 'undefined') return null;
   return localStorage.getItem(MAIN_VER_KEY);

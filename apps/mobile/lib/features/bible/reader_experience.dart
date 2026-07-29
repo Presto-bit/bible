@@ -257,7 +257,7 @@ class ReaderChapterBody extends ConsumerStatefulWidget {
   final VoidCallback onInteract;
   final void Function(String book, int chapter) onRead;
   final String? compareVersionId;
-  /// 正文译本；null 为默认和合本。
+  /// 正文译本；null 为默认主译本（新译本 cnv）。
   final String? mainVersionId;
   final PlanReadingMeta? planMeta;
   final ValueChanged<PlanReadingMeta?>? onPlanMetaChange;

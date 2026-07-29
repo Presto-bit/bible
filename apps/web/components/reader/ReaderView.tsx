@@ -226,7 +226,7 @@ export default function ReaderView({
   const [layoutVerses, setLayoutVerses] = useState<Verse[]>([]);
   const [parallelVerses, setParallelVerses] = useState<Verse[]>([]);
   const [wholeVerseSel, setWholeVerseSel] = useState<number[]>([]);
-  const [versionLabel, setVersionLabel] = useState('和合本');
+  const [versionLabel, setVersionLabel] = useState('新译本');
   const [fontPx, setFontPx] = useState(DEFAULT_FONT_PX);
   const [showSettings, setShowSettings] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
@@ -832,7 +832,7 @@ export default function ReaderView({
       const primaryId = list.find((v) => v.primary)?.id ?? 'cnv';
       setCheckedVers(next);
       const primary = list.find((v) => v.primary);
-      const primaryLabel = primary?.label ?? (englishUI ? 'Chinese Union' : '和合本');
+      const primaryLabel = primary?.label ?? '新译本';
       if (next.length === 1) {
         const id = next[0];
         if (id === primaryId) {
@@ -863,7 +863,7 @@ export default function ReaderView({
         );
       }
     },
-    [versions, englishUI],
+    [versions],
   );
 
   const applyMarkChoice = useCallback((color: HighlightColor) => {
@@ -973,7 +973,9 @@ export default function ReaderView({
     if (savedMain) {
       setVersionLabel(savedMain.toUpperCase());
     } else if (savedLayout === 'parallel') {
-      setVersionLabel(`和合本 · ${savedParallel.toUpperCase()}`);
+      setVersionLabel(`新译本 · ${savedParallel.toUpperCase()}`);
+    } else {
+      setVersionLabel('新译本');
     }
     const saved = Number(localStorage.getItem('readerFont'));
     if (saved && FONT_SIZES.some((f) => f.px === saved)) setFontPx(saved);
@@ -995,13 +997,17 @@ export default function ReaderView({
   // 译本标签补全（版本列表加载后）。
   useEffect(() => {
     if (!versions?.length) return;
+    const primary = versions.find((v) => v.primary) ?? versions.find((v) => v.id === 'cnv');
     if (mainVersionId) {
       const v = versions.find((x) => x.id === mainVersionId);
       if (v) setVersionLabel(v.label);
       return;
     }
-    if (layout !== 'parallel') return;
-    const primary = versions.find((v) => v.primary);
+    // null = 默认主译本（新译本 / primary）
+    if (layout !== 'parallel') {
+      if (primary) setVersionLabel(primary.label);
+      return;
+    }
     const compare = versions.find((v) => v.id === parallelVer);
     if (primary && compare) {
       setVersionLabel(`${primary.label} · ${compare.label}`);

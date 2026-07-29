@@ -72,7 +72,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   Timer? _timer;
   Timer? _chromeTimer;
   bool _chromeHidden = false;
-  String _versionLabel = '和合本';
+  String _versionLabel = '新译本';
   String? _compareVersionId;
   String? _mainVersionId;
   PlanReadingMeta? _planMeta;
@@ -101,7 +101,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       _versionLabel = savedMain.toUpperCase();
     } else if (savedCompare != null && savedCompare.isNotEmpty) {
       _compareVersionId = savedCompare;
-      _versionLabel = '和合本 · ${savedCompare.toUpperCase()}';
+      _versionLabel = '新译本 · ${savedCompare.toUpperCase()}';
     }
   }
 
@@ -1381,7 +1381,7 @@ class _VersionPickerBodyState extends ConsumerState<_VersionPickerBody> {
 
   void _applyTap(BibleVersion v, List<BibleVersion> versions) {
     final primary = versions.where((x) => x.primary).firstOrNull;
-    final primaryLabel = primary?.label ?? '和合本';
+    final primaryLabel = primary?.label ?? '新译本';
     final isParallel =
         widget.compareVersionId != null && widget.mainVersionId == null;
     final isMainDisplay = v.primary
