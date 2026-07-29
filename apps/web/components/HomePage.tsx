@@ -96,6 +96,21 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const [groupErr, setGroupErr] = useState<string | null>(null);
   const [heroResetNonce, setHeroResetNonce] = useState(0);
 
+  // 加速 Hero LCP：尽早 preload 当日壁纸（体积已压缩，且不再由 SW install 预拉）
+  useEffect(() => {
+    if (!heroIllustration || typeof document === 'undefined') return;
+    const id = 'presto-hero-wallpaper-preload';
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (!link) {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'preload';
+      link.as = 'image';
+      document.head.appendChild(link);
+    }
+    if (link.href !== heroIllustration) link.href = heroIllustration;
+  }, [heroIllustration]);
+
   const applyHeroBCampaign = useCallback(async (campaign: HeroBCampaign | null) => {
     if (!campaign) {
       setHeroBCampaign(null);

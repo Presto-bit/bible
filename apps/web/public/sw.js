@@ -1,6 +1,6 @@
 // 发版后须 bump CACHE（或运行 scripts/bump_sw_cache.sh），否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v35';
+const CACHE = 'presto-bible-v36';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -25,29 +25,10 @@ const ILLUSTRATION_FILES = [
   'theme_祷告.svg', 'theme_忍耐.svg', 'theme_永生.svg', 'theme_顺服.svg',
 ];
 
-const DAILY_WALLPAPER_FILES = [
-  'scenery-01.jpg', 'scenery-02.jpg', 'scenery-03.jpg', 'scenery-04.jpg',
-  'scenery-05.jpg', 'scenery-06.jpg', 'scenery-07.jpg', 'scenery-08.jpg',
-  'scenery-09.jpg', 'scenery-10.jpg', 'scenery-11.jpg', 'scenery-12.jpg',
-  'scenery-13.jpg', 'scenery-14.jpg', 'scenery-15.jpg', 'scenery-16.jpg',
-  'scenery-17.jpg', 'scenery-18.jpg', 'scenery-19.jpg', 'scenery-20.jpg',
-  'scenery-21.jpg', 'scenery-22.jpg', 'scenery-23.jpg', 'scenery-24.jpg',
-  'scenery-25.jpg', 'scenery-26.jpg', 'scenery-27.jpg', 'scenery-28.jpg',
-  'scenery-29.jpg', 'scenery-30.jpg', 'scenery-31.jpg',
-];
-
-/** 与后端 verse_day_for_date(pool=365) + 前端 (day-1)%31 对齐：仅预缓存「今天」壁纸 */
-function todayDailyWallpaperPath() {
-  const cn = new Date(Date.now() + 8 * 60 * 60 * 1000);
-  const y = cn.getUTCFullYear();
-  const start = Date.UTC(y, 0, 0);
-  const yday = Math.floor((Date.UTC(y, cn.getUTCMonth(), cn.getUTCDate()) - start) / 86400000);
-  const verseDay = ((yday - 1) % 365) + 1;
-  const file = DAILY_WALLPAPER_FILES[(verseDay - 1) % DAILY_WALLPAPER_FILES.length];
-  return bp(`/daily-wallpapers/${file}`);
-}
-
-/** 安装期精简壳：大体积插画延后到 activate 空闲预热，加快 SW 就绪 */
+/**
+ * 安装期极简壳：不预拉 sql-wasm / 壁纸 / 大离线包，避免与首屏抢带宽。
+ * sql-wasm、壁纸改为首次使用时 runtime cache；sqlite/zip 永不进 Cache Storage。
+ */
 const SHELL = [
   bp('/offline.html'),
   bp('/manifest.webmanifest'),
@@ -56,25 +37,19 @@ const SHELL = [
   bp('/icon-512.png'),
   bp('/icon-maskable-512.png'),
   bp('/apple-touch-icon.png'),
-  bp('/apple-touch-icon-167.png'),
   bp('/splash-iphone16.png'),
-  bp('/splash-iphone16plus.png'),
   bp('/illustrations/index.json'),
   bp('/offline/books.json'),
   bp('/offline/manifest.json'),
-  bp('/sql-wasm/sql-wasm.js'),
-  bp('/sql-wasm/sql-wasm.wasm'),
-  bp('/sql-wasm/sql-wasm-browser.js'),
-  bp('/sql-wasm/sql-wasm-browser.wasm'),
-  todayDailyWallpaperPath(),
 ];
 
 const SHELL_WARM = [
   ...ILLUSTRATION_FILES.map((f) => bp(`/illustrations/${f}`)),
 ];
 
-const APP_SHELL_PATHS = [
-  '/',
+/** install 只缓存首页 HTML；其余 Tab 壳放到 activate 再暖 */
+const APP_SHELL_INSTALL = [bp('/')];
+const APP_SHELL_WARM_PATHS = [
   '/reader',
   '/search',
   '/assistant',
@@ -82,6 +57,7 @@ const APP_SHELL_PATHS = [
   '/discover',
   '/discover/invites',
 ].map(bp);
+const APP_SHELL_PATHS = [...APP_SHELL_INSTALL, ...APP_SHELL_WARM_PATHS];
 
 /** Tab 页 RSC 数据：离线时需回退缓存，否则点底栏 Tab 会报错 */
 const SHELL_DATA_SEGMENTS = [
@@ -135,11 +111,20 @@ function isShellDataRequest(url) {
   return !tail.includes('/') && tail.endsWith('.json');
 }
 
+/** 和合本 sqlite / 全家桶 zip：只走网络，禁止进 Cache（已有 IDB，避免双份 11–26MB） */
+function isOfflineHeavyAsset(url) {
+  const p = relPath(url.pathname);
+  if (!p.startsWith('/offline/')) return false;
+  return /\.(sqlite|zip)$/i.test(p);
+}
+
 function isStaticAsset(url) {
+  if (isOfflineHeavyAsset(url)) return false;
   const p = url.pathname;
   if (p.includes('/_next/static/')) return true;
   if (p.startsWith(bp('/illustrations/'))) return true;
   if (p.startsWith(bp('/daily-wallpapers/'))) return true;
+  // offline 仅允许小清单类进缓存；sqlite/zip 已在上方排除
   if (p.startsWith(bp('/offline/'))) return true;
   if (p.startsWith(bp('/sql-wasm/'))) return true;
   if (/\.(js|css|woff2?|png|jpe?g|svg|webp|ico|webmanifest|json|wasm)$/i.test(p)) return true;
@@ -199,10 +184,10 @@ async function networkFirstCache(request) {
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE).then(async (c) => {
-      // addAll 遇单一失败会整批失败；壁纸/个别资源用 allSettled 兜底
+      // addAll 遇单一失败会整批失败；个别资源用 allSettled 兜底
       await Promise.allSettled(SHELL.map((url) => c.add(url)));
       await Promise.allSettled(
-        APP_SHELL_PATHS.map((path) =>
+        APP_SHELL_INSTALL.map((path) =>
           fetch(path, { credentials: 'same-origin' }).then((res) => {
             if (res.ok) return c.put(path, res);
           }),
@@ -217,10 +202,17 @@ self.addEventListener('activate', (e) => {
     caches.keys().then((keys) =>
       Promise.all(keys.filter((k) => k !== CACHE && k !== IDENTITY_CACHE).map((k) => caches.delete(k))),
     ).then(async () => {
-      // 先接管客户端，插画预热放到 claim 之后，缩短 SW 就绪等待
+      // 先接管客户端；Tab 壳 / 插画放到 claim 之后，缩短 SW 就绪等待
       await self.clients.claim();
       try {
         const c = await caches.open(CACHE);
+        await Promise.allSettled(
+          APP_SHELL_WARM_PATHS.map((path) =>
+            fetch(path, { credentials: 'same-origin' }).then((res) => {
+              if (res.ok) return c.put(path, res);
+            }),
+          ),
+        );
         await Promise.allSettled(SHELL_WARM.map((url) => c.add(url)));
       } catch {
         /* ignore warm failures */
@@ -233,6 +225,12 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
+
+  // 大离线包：仅网络，禁止读写 Cache Storage
+  if (isOfflineHeavyAsset(url)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
 
   if (isShellDataRequest(url)) {
     e.respondWith(networkFirstCache(e.request));

@@ -1,4 +1,4 @@
-/** 每日经文壁纸：本地风景图按 day 轮换（public/daily-wallpapers；SW 仅预缓存当天，其余 cache-on-demand）。 */
+/** 每日经文壁纸：本地风景图按 day 轮换（public/daily-wallpapers；SW 不预拉，首次使用再 runtime cache）。 */
 
 import { clientWithBasePath } from './basePath';
 

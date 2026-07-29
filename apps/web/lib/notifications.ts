@@ -5,6 +5,7 @@
  * - 群打卡晚间：前台兜底（未打卡检测）
  */
 
+import { whenHomeBootstrapReady } from './offline_bootstrap';
 import { getReminder, reschedule as rescheduleDaily } from './reminder';
 import { getGroupEveningReminder, rescheduleGroupEveningReminder } from './group_reminder';
 import { startDigestPoller } from './push_digest';
@@ -12,14 +13,19 @@ import { subscribeWebPush } from './web_push';
 
 let booted = false;
 
-/** 应用启动时调用一次 */
+/** 应用启动时调用一次（Push 订阅延后，避让冷启动带宽） */
 export function initNotificationServices(): void {
   if (typeof window === 'undefined' || booted) return;
   booted = true;
   rescheduleDaily();
   rescheduleGroupEveningReminder();
   startDigestPoller();
-  void syncPushSubscription();
+  whenHomeBootstrapReady(
+    () => {
+      void syncPushSubscription();
+    },
+    { afterMs: 8_000, fallbackMs: 28_000 },
+  );
 }
 
 /** 偏好变更后同步订阅到服务端 */

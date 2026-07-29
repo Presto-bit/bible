@@ -113,11 +113,22 @@ export default function BottomTabs() {
     document.documentElement.style.removeProperty('--assistant-kb-inset');
   }, [compact, pathname]);
 
+  // PWA：首页就绪后再轻预取「圣经」Tab，避免冷启动五路 prefetch 抢带宽
   useEffect(() => {
     if (!isTabKeepAliveEnabled()) return;
-    for (const href of ['/', '/reader', '/assistant', '/discover', '/profile']) {
-      router.prefetch(href);
-    }
+    let cancelled = false;
+    void import('@/lib/offline_bootstrap').then(({ whenHomeBootstrapReady }) => {
+      whenHomeBootstrapReady(
+        () => {
+          if (cancelled) return;
+          router.prefetch('/reader');
+        },
+        { afterMs: 10_000, fallbackMs: 30_000 },
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   const go = (href: string) => {
