@@ -26,9 +26,24 @@ import {
 } from '@/lib/pwa_brand';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://2sc.prestoai.cn'),
   title: BRAND_FULL,
   description: PWA_MANIFEST_DESCRIPTION,
   manifest: `${BASE_PATH || ''}/manifest.webmanifest`,
+  openGraph: {
+    type: 'website',
+    locale: 'zh_CN',
+    siteName: BRAND_FULL,
+    title: BRAND_FULL,
+    description: PWA_MANIFEST_DESCRIPTION,
+    images: [{ url: `${BASE_PATH || ''}/icon-512.png`, width: 512, height: 512, alt: BRAND_FULL }],
+  },
+  twitter: {
+    card: 'summary',
+    title: BRAND_FULL,
+    description: PWA_MANIFEST_DESCRIPTION,
+    images: [`${BASE_PATH || ''}/icon-512.png`],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

@@ -25,6 +25,7 @@ import {
   type ThinkingPhase,
 } from '@/components/assistant/AssistantThinkingState';
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
+import { WeChatShareSheet } from '@/components/WeChatShareSheet';
 import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowledge_base';
 
 function stripAnswer(raw: string): string {
@@ -62,6 +63,7 @@ export default function XiaoAiSheet({
   const [retryKey, setRetryKey] = useState(0);
   const [expanded, setExpanded] = useState(true);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [citations, setCitations] = useState<import('@/lib/api').Citation[]>([]);
   const [useRag, setUseRag] = useState<boolean | undefined>(undefined);
   const [streamPhase, setStreamPhase] = useState<ThinkingPhase>('understanding');
@@ -333,6 +335,9 @@ export default function XiaoAiSheet({
               <button type="button" className="half-sheet-action-btn" onClick={() => void copyAnswer()}>
                 {copied ? '已复制' : '复制'}
               </button>
+              <button type="button" className="half-sheet-action-btn" onClick={() => setShareOpen(true)}>
+                分享
+              </button>
               <button type="button" className="half-sheet-action-btn" onClick={saveThought}>
                 {saved ? '已存想法' : '存想法'}
               </button>
@@ -362,5 +367,20 @@ export default function XiaoAiSheet({
   );
 
   if (!mounted) return null;
-  return createPortal(sheet, document.body);
+  return (
+    <>
+      {createPortal(sheet, document.body)}
+      {shareOpen && done && clean && !hasError
+        ? createPortal(
+            <WeChatShareSheet
+              refLabel={refLabel}
+              answerText={clean}
+              refParam={refParam}
+              onClose={() => setShareOpen(false)}
+            />,
+            document.body,
+          )
+        : null}
+    </>
+  );
 }

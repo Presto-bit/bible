@@ -13,7 +13,6 @@ import { addThought } from '@/lib/reader_thoughts';
 import {
   recordCitationClick,
   recordSaveAnswerNote,
-  recordShareAnswer,
   recordXiaoAiFollowup,
   recordXiaoAiQuestion,
 } from '@/lib/badge_events';
@@ -62,6 +61,7 @@ import {
   setSessionKnowledgeBaseId,
 } from '@/lib/assistant_knowledge_base';
 import { ASSISTANT_EMPTY_DEMOS } from '@/lib/assistant_empty_demos';
+import { WeChatShareSheet } from '@/components/WeChatShareSheet';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -228,24 +228,19 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       flashToast('复制失败');
     }
   };
-  const shareText = async (t: string) => {
-    const text = stripFollowups(t);
-    const nav = navigator as Navigator & { share?: (d: { text: string; title?: string }) => Promise<void> };
-    if (nav.share) {
-      try {
-        await nav.share({ title: '小爱的解读', text });
-        recordShareAnswer();
-        return;
-      } catch {
-        /* 用户取消或失败，降级复制 */
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(text);
-      flashToast('已复制，可粘贴分享到群或动态');
-    } catch {
-      flashToast('分享失败');
-    }
+  const [wechatShare, setWechatShare] = useState<{
+    answerText: string;
+    refLabel: string;
+    refParam?: string;
+  } | null>(null);
+
+  const openWechatShare = (t: string) => {
+    const label = refToChineseLabel(ref) || ref || '小爱的解读';
+    setWechatShare({
+      answerText: stripFollowups(t),
+      refLabel: label,
+      refParam: ref || undefined,
+    });
   };
 
   // 语音输入（Web Speech API）：长按说话、松开发送、上滑取消。
@@ -1253,7 +1248,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       >
                         存想法
                       </button>
-                      <button type="button" className="msg-action" onClick={() => shareText(m.text)}>
+                      <button type="button" className="msg-action" onClick={() => openWechatShare(m.text)}>
                         分享
                       </button>
                       {usedCitations.length > 0 && (
@@ -1359,6 +1354,17 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           </div>
         </AppBodyPortal>
       )}
+
+      {wechatShare ? (
+        <AppBodyPortal>
+          <WeChatShareSheet
+            refLabel={wechatShare.refLabel}
+            answerText={wechatShare.answerText}
+            refParam={wechatShare.refParam}
+            onClose={() => setWechatShare(null)}
+          />
+        </AppBodyPortal>
+      ) : null}
 
     </main>
   );

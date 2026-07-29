@@ -23809,3 +23809,84 @@ body.pray-session-open .app-body {
     font-size: 15px;
   }
 }
+
+/* —— 解读分享到微信（P0） —— */
+.wechat-share-sheet {
+  max-width: 420px;
+  width: min(100%, 420px);
+  max-height: min(88vh, 720px);
+  overflow: auto;
+  margin: auto;
+}
+
+.wechat-share-preview {
+  display: block;
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 12px;
+  margin: 12px 0 8px;
+  background: #f3efe8;
+}
+
+.wechat-share-lead {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.wechat-share-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.wechat-share-hints {
+  margin: 14px 0 0;
+  padding-left: 1.1em;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.analysis-share-page {
+  padding-top: 28px;
+  padding-bottom: 48px;
+  max-width: 560px;
+}
+
+.analysis-share-page .eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep, #5f7d66);
+}
+
+.analysis-share-title {
+  margin: 8px 0 0;
+  font-size: 1.55rem;
+  line-height: 1.35;
+  font-family: "Songti SC", "STSong", serif;
+}
+
+.analysis-share-lead {
+  margin: 18px 0 12px;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--ink, #2c2416);
+}
+
+.analysis-share-disclaimer {
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+
+.analysis-share-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
