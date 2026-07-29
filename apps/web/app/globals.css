@@ -24562,10 +24562,6 @@ body.pray-session-open .app-body {
   gap: 10px;
   margin-top: 24px;
 }
-  display: inline-block;
-  margin-top: 12px;
-  font-size: 13px;
-}
 
 .invite-nudge-bar {
   position: fixed;
