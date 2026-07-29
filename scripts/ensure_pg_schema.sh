@@ -57,6 +57,7 @@ MIGRATIONS=(
   infra/postgres/init/022_push_reading_dnd.sql
   infra/postgres/init/023_rag_index_jobs.sql
   infra/postgres/init/024_dm_reactions.sql
+  infra/postgres/init/031_user_acquisition.sql
 )
 
 for sql in "${MIGRATIONS[@]}"; do
@@ -127,6 +128,10 @@ WHERE table_schema = 'public'
 SELECT CASE WHEN COUNT(*) = 1 THEN 'ok' ELSE 'missing' END AS check_dm_reactions
 FROM information_schema.tables
 WHERE table_schema = 'public' AND table_name = 'dm_message_reaction';
+
+SELECT CASE WHEN COUNT(*) = 1 THEN 'ok' ELSE 'missing' END AS check_user_acquisition
+FROM information_schema.tables
+WHERE table_schema = 'public' AND table_name = 'user_acquisition';
 SQL
 
 log "完成 — 可验证："

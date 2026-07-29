@@ -694,39 +694,83 @@ def fetch_admin_stats_detail(
                 _insight("已绑账号", with_account, f"占 {totals['users']} 人"),
             ]
             labels = _user_label_sql()
-            rows = conn.execute(
-                f"""
-                SELECT {labels["user_code"]},
-                       {labels["nickname"]},
-                       {_ts_sql("u.created_at")},
-                       (a.user_code IS NOT NULL)
-                FROM users u
-                {_USER_JOINS}
-                WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
-                ORDER BY u.created_at DESC
-                LIMIT %s
-                """,
-                (start, end, limit),
-            ).fetchall()
-            items = [
-                {
-                    "user_code": r[0],
-                    "nickname": r[1],
-                    "created_at": r[2],
-                    "has_account": bool(r[3]),
-                }
-                for r in rows
-            ]
+            has_acq = _table_exists(conn, "user_acquisition")
+            if has_acq:
+                rows = conn.execute(
+                    f"""
+                    SELECT {labels["user_code"]},
+                           {labels["nickname"]},
+                           {_ts_sql("u.created_at")},
+                           (a.user_code IS NOT NULL),
+                           COALESCE(acq.channel_l1, ''),
+                           COALESCE(acq.channel_l2, ''),
+                           COALESCE(acq.channel_l3, '')
+                    FROM users u
+                    {_USER_JOINS}
+                    LEFT JOIN user_acquisition acq
+                      ON acq.user_code = COALESCE(a.user_code, up.user_code)
+                    WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
+                    ORDER BY u.created_at DESC
+                    LIMIT %s
+                    """,
+                    (start, end, limit),
+                ).fetchall()
+                items = [
+                    {
+                        "user_code": r[0],
+                        "nickname": r[1],
+                        "created_at": r[2],
+                        "has_account": bool(r[3]),
+                        "channel_l1": r[4] or "",
+                        "channel_l2": r[5] or "",
+                        "channel_l3": r[6] or "",
+                    }
+                    for r in rows
+                ]
+                columns = [
+                    _col("user_code", "用户ID"),
+                    _col("nickname", "昵称"),
+                    _col("created_at", "注册时间"),
+                    _col("has_account", "已绑账号"),
+                    _col("channel_l1", "一级渠道"),
+                    _col("channel_l2", "二级渠道"),
+                    _col("channel_l3", "三级渠道"),
+                ]
+            else:
+                rows = conn.execute(
+                    f"""
+                    SELECT {labels["user_code"]},
+                           {labels["nickname"]},
+                           {_ts_sql("u.created_at")},
+                           (a.user_code IS NOT NULL)
+                    FROM users u
+                    {_USER_JOINS}
+                    WHERE (timezone('Asia/Shanghai', u.created_at))::date BETWEEN %s AND %s
+                    ORDER BY u.created_at DESC
+                    LIMIT %s
+                    """,
+                    (start, end, limit),
+                ).fetchall()
+                items = [
+                    {
+                        "user_code": r[0],
+                        "nickname": r[1],
+                        "created_at": r[2],
+                        "has_account": bool(r[3]),
+                    }
+                    for r in rows
+                ]
+                columns = [
+                    _col("user_code", "用户ID"),
+                    _col("nickname", "昵称"),
+                    _col("created_at", "注册时间"),
+                    _col("has_account", "已绑账号"),
+                ]
             sections.append(
                 _section(
                     "recent_users",
                     "区间内新注册用户",
-                    [
-                        _col("user_code", "用户ID"),
-                        _col("nickname", "昵称"),
-                        _col("created_at", "注册时间"),
-                        _col("has_account", "已绑账号"),
-                    ],
+                    columns,
                     items,
                 )
             )

@@ -376,6 +376,10 @@ export async function ensureAccountReady(): Promise<void> {
   ensureAccountPromise = (async () => {
     await ensureIdentityReady();
     if (epochAtStart !== identityEpoch) return;
+    // 落地归因：身份就绪后立刻 First Touch 采参（先于建档）
+    void import('./acquisition')
+      .then((m) => m.captureAcquisitionFromLocation())
+      .catch(() => {});
     // 已登录优先用 USER，避免 GUEST 残留旧游客码导致 register 写错 profile 桶
     const code = currentUserId() || guestId();
     if (!code) return;
@@ -415,6 +419,10 @@ export async function ensureAccountReady(): Promise<void> {
     const finalCode = currentUserId() || guestId() || code;
     await refreshAccountStatus(finalCode);
     void import('./post_login').then((m) => m.mergeGuest()).catch(() => {});
+    // 建档有会话后绑定获客渠道（服务端幂等 First Touch）
+    void import('./acquisition')
+      .then((m) => m.bindPendingAcquisition())
+      .catch(() => {});
   })();
   return ensureAccountPromise;
 }

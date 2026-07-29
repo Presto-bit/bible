@@ -1,6 +1,7 @@
 /** 活动运营前端辅助：发布检查清单、日课解锁文案等（进度与发布共用同一套规则） */
 
 import type { OpsCampaignLanding } from '@/lib/api';
+import { buildTrackedUrl } from '@/lib/acquisition';
 import { BRAND_NAME } from '@/lib/brand';
 import { shareCard } from '@/lib/share_card';
 
@@ -351,10 +352,16 @@ export function unlockedDayCap(
 }
 
 export function campaignShareUrl(campaignId: string, day?: number): string {
-  if (typeof window === 'undefined') return `/campaigns/view/${campaignId}`;
-  const u = new URL(`/campaigns/view/${campaignId}`, window.location.origin);
-  if (day) u.searchParams.set('day', String(day));
-  return u.toString();
+  if (typeof window === 'undefined') {
+    const q = day ? `?day=${day}&ch1=campaign&ch2=system_share&ch3=campaign:${campaignId}` : `?ch1=campaign&ch2=system_share&ch3=campaign:${campaignId}`;
+    return `/campaigns/view/${campaignId}${q}`;
+  }
+  const path = `/campaigns/view/${campaignId}${day ? `?day=${day}` : ''}`;
+  return buildTrackedUrl(path, {
+    l1: 'campaign',
+    l2: 'system_share',
+    l3: `campaign:${campaignId}`,
+  });
 }
 
 /** 创建者预览链（草稿也可看） */

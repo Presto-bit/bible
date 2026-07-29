@@ -65,6 +65,7 @@ export function GroupInviteSheet({
     checkedInToday,
     memberTotal,
     joinCode: code,
+    groupId: gid,
   });
   const memberSet = useMemo(() => new Set(memberUserIds), [memberUserIds]);
   const preselectRef = useRef(preselectIds);

@@ -1,4 +1,6 @@
 /** 群邀请文案 / 卡片字段（站内外统一）。 */
+import { groupJoinTrackedUrl } from './acquisition';
+
 export type GroupInviteCardData = {
   groupName: string;
   intro?: string | null;
@@ -7,6 +9,7 @@ export type GroupInviteCardData = {
   checkedInToday?: number;
   memberTotal?: number;
   joinCode: string;
+  groupId?: string;
 };
 
 export function groupInviteIntro(intro?: string | null): string {
@@ -29,12 +32,14 @@ export function groupInviteCheckinLine(data: GroupInviteCardData): string {
 
 export function buildGroupInviteShareText(data: GroupInviteCardData): string {
   const code = (data.joinCode || '').trim().toUpperCase();
+  const link = groupJoinTrackedUrl(code, data.groupId);
   return [
     `邀请你加入共读群「${data.groupName}」`,
     groupInviteIntro(data.intro),
     `本周在读：${groupInviteReadingLine(data)}`,
     groupInviteCheckinLine(data),
     `邀请码：${code}`,
-    '打开圣经 App → 发现 → 加入群，输入邀请码即可。',
+    `打开链接加入：${link}`,
+    '或打开圣经 App → 发现 → 加入群，输入邀请码。',
   ].join('\n');
 }
