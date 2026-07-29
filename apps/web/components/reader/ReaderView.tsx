@@ -230,7 +230,7 @@ export default function ReaderView({
   const [fontPx, setFontPx] = useState(DEFAULT_FONT_PX);
   const [showSettings, setShowSettings] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
-  const [checkedVers, setCheckedVers] = useState<string[]>(['cnv']);
+  const [checkedVers, setCheckedVers] = useState<string[]>(['cuvs']);
   const [versions, setVersions] = useState<BibleVersion[] | null>(null);
   const [chromeHidden, setChromeHidden] = useState(false);
   const [theme, setTheme] = useState<ReaderTheme>('morning');
@@ -829,7 +829,7 @@ export default function ReaderView({
   const applyVersionSelection = useCallback(
     (next: string[]) => {
       const list = versions ?? [];
-      const primaryId = list.find((v) => v.primary)?.id ?? 'cnv';
+      const primaryId = list.find((v) => v.primary)?.id ?? 'cuvs';
       setCheckedVers(next);
       const primary = list.find((v) => v.primary);
       const primaryLabel = primary?.label ?? '新译本';
@@ -997,7 +997,7 @@ export default function ReaderView({
   // 译本标签补全（版本列表加载后）。
   useEffect(() => {
     if (!versions?.length) return;
-    const primary = versions.find((v) => v.primary) ?? versions.find((v) => v.id === 'cnv');
+    const primary = versions.find((v) => v.primary) ?? versions.find((v) => v.id === 'cuvs');
     if (mainVersionId) {
       const v = versions.find((x) => x.id === mainVersionId);
       if (v) setVersionLabel(v.label);
@@ -2490,7 +2490,7 @@ export default function ReaderView({
           )}
           <button type="button" className="reader-version" onClick={(e) => {
             e.stopPropagation();
-            const primaryId = versions?.find((v) => v.primary)?.id ?? 'cnv';
+            const primaryId = versions?.find((v) => v.primary)?.id ?? 'cuvs';
             if (mainVersionId) setCheckedVers([mainVersionId]);
             else if (layout === 'parallel') setCheckedVers([primaryId, parallelVer]);
             else setCheckedVers([primaryId]);

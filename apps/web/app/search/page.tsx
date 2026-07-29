@@ -97,7 +97,7 @@ function highlightText(text: string, query: string): ReactNode {
 }
 
 function defaultSearchVersion(): string {
-  return getMainVersion() || 'cnv';
+  return getMainVersion() || 'cuvs';
 }
 
 export default function SearchPage() {
@@ -124,7 +124,7 @@ export default function SearchPage() {
   const [timelineTours, setTimelineTours] = useState<TimelineTour[]>([]);
   const [toursReady, setToursReady] = useState(false);
   const [scopeTab, setScopeTab] = useState<ScopeTab>('all');
-  const [searchVersion, setSearchVersion] = useState('cnv');
+  const [searchVersion, setSearchVersion] = useState('cuvs');
   const [versions, setVersions] = useState<BibleVersion[]>([]);
   const [entityHits, setEntityHits] = useState<DictEntity[]>([]);
   const [entityLoading, setEntityLoading] = useState(false);
@@ -149,14 +149,14 @@ export default function SearchPage() {
       api.versions().then((d) => {
         const list = (d.versions ?? []).filter((v) => v.available !== false);
         setVersions(list.length ? list : [
-          { id: 'cnv', label: '新译本', available: true, primary: true },
-          { id: 'cuvs', label: '和合本', available: true, primary: false },
+          { id: 'cuvs', label: '和合本', available: true, primary: true },
+          { id: 'cnv', label: '新译本', available: true, primary: false },
           { id: 'kjv', label: 'King James Version', available: true, primary: false },
         ]);
       }).catch(() => {
         setVersions([
-          { id: 'cnv', label: '新译本', available: true, primary: true },
-          { id: 'cuvs', label: '和合本', available: true, primary: false },
+          { id: 'cuvs', label: '和合本', available: true, primary: true },
+          { id: 'cnv', label: '新译本', available: true, primary: false },
           { id: 'kjv', label: 'King James Version', available: true, primary: false },
         ]);
       }),

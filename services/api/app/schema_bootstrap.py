@@ -49,5 +49,11 @@ def bootstrap_schemas(pool) -> None:
             conn.commit()
     except Exception:
         logger.exception("bootstrap: daily verse react schema failed")
+    try:
+        from .social.group_prayer import ensure_group_prayer_schema
+
+        ensure_group_prayer_schema(pool)
+    except Exception:
+        logger.exception("bootstrap: group prayer schema failed")
     _bootstrapped = True
     logger.info("schema bootstrap complete")

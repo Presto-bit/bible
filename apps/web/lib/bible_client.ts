@@ -55,7 +55,7 @@ export async function bibleChapter(
   chapter: number,
   version?: string | null,
 ): Promise<Verse[] | null> {
-  const ver = version || 'cnv';
+  const ver = version || 'cuvs';
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
   const tryLocal = async (translation: 'cnv' | 'cuvs' | 'kjv') => {
@@ -66,8 +66,8 @@ export async function bibleChapter(
     }
   };
 
-  const translation: 'cnv' | 'cuvs' | 'kjv' =
-    ver === 'cuvs' ? 'cuvs' : ver === 'kjv' ? 'kjv' : 'cnv';
+  const translation: 'cnv' | 'cuvs' | 'kjv' | null =
+    ver === 'cnv' ? 'cnv' : ver === 'kjv' ? 'kjv' : ver === 'cuvs' ? 'cuvs' : null;
 
   // 在线：优先 API，避免进阅读器时 sql.js 整库进内存尖刺
   if (!offline) {
@@ -77,18 +77,19 @@ export async function bibleChapter(
         : await api.chapter(bookId, chapter);
       return data.verses;
     } catch {
+      if (!translation) return null;
       const local = await tryLocal(translation);
       if (local?.length) return local;
       return null;
     }
   }
 
-  if (translation === 'cnv' && (await isOfflinePackReady())) {
-    const local = await tryLocal('cnv');
-    if (local?.length) return local;
-  }
   if (translation === 'cuvs' && (await isCuvsOfflineReady())) {
     const local = await tryLocal('cuvs');
+    if (local?.length) return local;
+  }
+  if (translation === 'cnv' && (await isOfflinePackReady())) {
+    const local = await tryLocal('cnv');
     if (local?.length) return local;
   }
   if (translation === 'kjv' && (await isKjvOfflineReady())) {
@@ -96,6 +97,7 @@ export async function bibleChapter(
     if (local?.length) return local;
   }
 
+  if (!translation) return null;
   const local = await tryLocal(translation);
   return local?.length ? local : null;
 }
@@ -107,7 +109,7 @@ export async function bibleSearch(
   const version = opts?.version || undefined;
   const testament = opts?.testament || undefined;
   const localTranslation =
-    version === 'kjv' ? 'kjv' : version === 'cuvs' ? 'cuvs' : 'cnv';
+    version === 'kjv' ? 'kjv' : version === 'cnv' ? 'cnv' : 'cuvs';
   const canUseLocal =
     (!version || version === 'cnv' || version === 'cuvs' || version === 'kjv') &&
     !testament;

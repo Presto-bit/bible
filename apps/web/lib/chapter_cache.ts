@@ -8,7 +8,7 @@ const MAX_ENTRIES = 120;
 export function getCachedChapter(
   book: string,
   chapter: number,
-  version = 'cnv',
+  version = 'cuvs',
 ): Verse[] | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -26,7 +26,7 @@ export function setCachedChapter(
   book: string,
   chapter: number,
   verses: Verse[],
-  version = 'cnv',
+  version = 'cuvs',
 ) {
   if (typeof window === 'undefined') return;
   const key = `${PREFIX}${version}_${book}_${chapter}`;

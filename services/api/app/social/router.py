@@ -23,6 +23,7 @@ from ..content import loader
 from ..db import get_pool
 from ..time_cn import CN_TODAY_SQL, cn_day_sql
 from . import task_ops
+from .group_prayer import ensure_group_prayer_schema
 from .im_schema import ensure_social_im_v12_pool
 from .moderation import ModerationError, moderate_text
 from .media import build_attachment_row
@@ -1927,6 +1928,206 @@ def cancel_group_invite(
         )
         conn.commit()
     return {"ok": True}
+
+
+# ── 群代祷清单 ──
+class CreateGroupPrayer(BaseModel):
+    title: str = Field(..., min_length=1, max_length=120)
+    body: str | None = Field(None, max_length=2000)
+    privacy: str = Field("group", pattern="^(group|staff)$")
+    tag: str | None = Field(None, max_length=32)
+
+
+class AnswerGroupPrayer(BaseModel):
+    note: str | None = Field(None, max_length=500)
+
+
+_PRAYER_COLS = (
+    "id, group_id, author_id, title, body, privacy, status, tag, "
+    "answered_note, answered_at, created_at, updated_at"
+)
+_PRAYER_COLS_P = (
+    "p.id, p.group_id, p.author_id, p.title, p.body, p.privacy, p.status, p.tag, "
+    "p.answered_note, p.answered_at, p.created_at, p.updated_at"
+)
+
+
+def _prayer_row_dict(row, claim_count: int = 0, claimed_by_me: bool = False) -> dict:
+    # row: id, group_id, author_id, title, body, privacy, status, tag,
+    #      answered_note, answered_at, created_at, updated_at
+    return {
+        "id": str(row[0]),
+        "group_id": str(row[1]),
+        "author_id": str(row[2]),
+        "title": row[3],
+        "body": row[4] or "",
+        "privacy": row[5],
+        "status": row[6],
+        "tag": row[7] or "",
+        "answered_note": row[8] or "",
+        "answered_at": row[9].isoformat() if row[9] else None,
+        "created_at": row[10].isoformat() if row[10] else None,
+        "updated_at": row[11].isoformat() if row[11] else None,
+        "claim_count": claim_count,
+        "claimed_by_me": claimed_by_me,
+    }
+
+
+@router.get("/groups/{gid}/prayers")
+def list_group_prayers(
+    gid: str,
+    status: str = Query("open", pattern="^(open|answered|archived|mine)$"),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    ensure_group_prayer_schema(pool)
+    with pool.connection() as conn:
+        role = _require_member(conn, gid, user_id)
+        is_staff = role in ("owner", "admin")
+        if status == "mine":
+            rows = conn.execute(
+                f"SELECT {_PRAYER_COLS_P} FROM group_prayer p "
+                "JOIN group_prayer_claim c ON c.prayer_id = p.id "
+                "WHERE p.group_id = %s AND c.user_id = %s AND p.status = 'open' "
+                "ORDER BY p.updated_at DESC LIMIT 100",
+                (gid, user_id),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                f"SELECT {_PRAYER_COLS} FROM group_prayer "
+                "WHERE group_id = %s AND status = %s "
+                "ORDER BY updated_at DESC LIMIT 100",
+                (gid, status),
+            ).fetchall()
+        items = []
+        for r in rows:
+            if r[5] == "staff" and not is_staff and str(r[2]) != user_id:
+                continue
+            claim = conn.execute(
+                "SELECT COUNT(*)::int, BOOL_OR(user_id = %s) "
+                "FROM group_prayer_claim WHERE prayer_id = %s",
+                (user_id, r[0]),
+            ).fetchone()
+            items.append(
+                _prayer_row_dict(
+                    r,
+                    claim_count=int(claim[0] if claim else 0),
+                    claimed_by_me=bool(claim[1] if claim else False),
+                )
+            )
+    return {"items": items}
+
+
+@router.post("/groups/{gid}/prayers")
+def create_group_prayer(
+    gid: str,
+    body: CreateGroupPrayer,
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    ensure_group_prayer_schema(pool)
+    title = body.title.strip()
+    detail = (body.body or "").strip()
+    if not title:
+        raise HTTPException(400, "请填写代祷标题")
+    try:
+        moderate_text(title)
+        if detail:
+            moderate_text(detail)
+    except ModerationError as e:
+        raise HTTPException(400, e.reason) from e
+    privacy = body.privacy if body.privacy in ("group", "staff") else "group"
+    tag = (body.tag or "").strip()[:32]
+    with pool.connection() as conn:
+        _require_member(conn, gid, user_id)
+        row = conn.execute(
+            f"INSERT INTO group_prayer (group_id, author_id, title, body, privacy, tag) "
+            f"VALUES (%s, %s, %s, %s, %s, %s) RETURNING {_PRAYER_COLS}",
+            (gid, user_id, title, detail, privacy, tag),
+        ).fetchone()
+        conn.commit()
+    return {"item": _prayer_row_dict(row)}
+
+
+@router.post("/groups/{gid}/prayers/{pid}/claim")
+def claim_group_prayer(
+    gid: str, pid: str, user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    ensure_group_prayer_schema(pool)
+    with pool.connection() as conn:
+        _require_member(conn, gid, user_id)
+        p = conn.execute(
+            "SELECT id, status FROM group_prayer WHERE id = %s AND group_id = %s",
+            (pid, gid),
+        ).fetchone()
+        if not p:
+            raise HTTPException(404, "代祷不存在")
+        if p[1] != "open":
+            raise HTTPException(400, "该代祷已结束")
+        conn.execute(
+            "INSERT INTO group_prayer_claim (prayer_id, user_id) VALUES (%s, %s) "
+            "ON CONFLICT DO NOTHING",
+            (pid, user_id),
+        )
+        conn.execute(
+            "UPDATE group_prayer SET updated_at = NOW() WHERE id = %s",
+            (pid,),
+        )
+        conn.commit()
+    return {"ok": True}
+
+
+@router.delete("/groups/{gid}/prayers/{pid}/claim")
+def unclaim_group_prayer(
+    gid: str, pid: str, user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    ensure_group_prayer_schema(pool)
+    with pool.connection() as conn:
+        _require_member(conn, gid, user_id)
+        conn.execute(
+            "DELETE FROM group_prayer_claim WHERE prayer_id = %s AND user_id = %s",
+            (pid, user_id),
+        )
+        conn.commit()
+    return {"ok": True}
+
+
+@router.post("/groups/{gid}/prayers/{pid}/answer")
+def answer_group_prayer(
+    gid: str,
+    pid: str,
+    body: AnswerGroupPrayer,
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    pool = get_pool()
+    ensure_group_prayer_schema(pool)
+    note = (body.note or "").strip()
+    if note:
+        try:
+            moderate_text(note)
+        except ModerationError as e:
+            raise HTTPException(400, e.reason) from e
+    with pool.connection() as conn:
+        role = _require_member(conn, gid, user_id)
+        p = conn.execute(
+            f"SELECT {_PRAYER_COLS} FROM group_prayer WHERE id = %s AND group_id = %s",
+            (pid, gid),
+        ).fetchone()
+        if not p:
+            raise HTTPException(404, "代祷不存在")
+        is_staff = role in ("owner", "admin")
+        if str(p[2]) != user_id and not is_staff:
+            raise HTTPException(403, "仅作者或管理员可标记已应允")
+        row = conn.execute(
+            f"UPDATE group_prayer SET status = 'answered', answered_note = %s, "
+            f"answered_at = NOW(), updated_at = NOW() WHERE id = %s "
+            f"RETURNING {_PRAYER_COLS}",
+            (note, pid),
+        ).fetchone()
+        conn.commit()
+    return {"item": _prayer_row_dict(row)}
 
 
 @router.post("/cron/prune-inactive-groups")

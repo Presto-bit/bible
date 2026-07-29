@@ -23,12 +23,17 @@ def versions() -> dict:
 def chapter(
     book: str = Query(..., description="卷 id 或中文名，如 JHN / 约翰福音"),
     chapter: int = Query(..., ge=1),
-    version: str = Query("cnv", description="译本 id：cnv / cuvs / kjv"),
+    version: str | None = Query(
+        None,
+        description="译本 id：cuvs / cnv / contemporary / niv / kjv（默认主译本和合本）",
+    ),
 ) -> dict:
     b = reader.resolve_book(book)
     if not b:
         raise HTTPException(status_code=404, detail=f"未知卷：{book}")
-    ver = version if version in reader.VERSIONS else reader.PRIMARY_VERSION
+    ver = (version or "").strip().lower() or reader.PRIMARY_VERSION
+    if ver not in reader.VERSIONS:
+        ver = reader.PRIMARY_VERSION
     verses = reader.get_chapter(b["id"], chapter, version=ver)
     if not verses:
         raise HTTPException(status_code=404, detail=f"无此章：{b['name']} {chapter}")
@@ -55,7 +60,7 @@ def compare(
 def search(
     q: str = Query(..., min_length=1),
     limit: int = Query(24, ge=1, le=50),
-    version: str | None = Query(None, description="译本 id：cnv / cuvs / kjv"),
+    version: str | None = Query(None, description="译本 id：cuvs / cnv / contemporary / niv / kjv"),
     testament: str | None = Query(None, description="OT / NT"),
 ) -> dict:
     test = (testament or "").strip().upper() or None

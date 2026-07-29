@@ -3,7 +3,7 @@ import type { Verse } from './api';
 import { getCachedChapter, setCachedChapter } from './chapter_cache';
 
 export function chapterCacheVersion(mainVersionId: string | null | undefined): string {
-  return mainVersionId || 'cnv';
+  return mainVersionId || 'cuvs';
 }
 
 /** 读本地经包 / 章节缓存 / 在线 API。 */

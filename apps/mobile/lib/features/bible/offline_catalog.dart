@@ -20,6 +20,14 @@ class OfflineCatalogItem {
 
 const offlineCatalog = [
   OfflineCatalogItem(
+    id: 'cuvs',
+    tab: 'bible',
+    name: '和合本',
+    description: '主译本 · CUVS 全文',
+    paths: ['bible/bible_cuvs.sqlite'],
+    kind: 'sqlite',
+  ),
+  OfflineCatalogItem(
     id: 'cnv',
     tab: 'bible',
     name: '圣经新译本',
@@ -28,11 +36,19 @@ const offlineCatalog = [
     kind: 'sqlite',
   ),
   OfflineCatalogItem(
-    id: 'cuvs',
+    id: 'contemporary',
     tab: 'bible',
-    name: '和合本',
-    description: 'CUVS 全文',
-    paths: ['bible/bible_cuvs.sqlite'],
+    name: '当代译本',
+    description: '开放源 · 打包后可下载',
+    paths: ['bible/bible_contemporary.sqlite'],
+    kind: 'sqlite',
+  ),
+  OfflineCatalogItem(
+    id: 'niv',
+    tab: 'bible',
+    name: 'NIV',
+    description: '需授权包 · 按需下载',
+    paths: ['bible/bible_niv.sqlite'],
     kind: 'sqlite',
   ),
   OfflineCatalogItem(

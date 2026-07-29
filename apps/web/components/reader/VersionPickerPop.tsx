@@ -83,7 +83,7 @@ export default function VersionPickerPop({
     });
   }, [refreshLocal]);
 
-  const primaryId = versions.find((v) => v.primary)?.id ?? 'cnv';
+  const primaryId = versions.find((v) => v.primary)?.id ?? 'cuvs';
 
   const canSelect = (vv: BibleVersion) => {
     if (hasOfflineCatalog(vv.id)) return isLocalReady(localStatus[vv.id]);

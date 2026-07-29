@@ -20,12 +20,13 @@ class Settings(BaseSettings):
     # ── 数据库 ──
     database_url: str = "postgresql://bible:bible@localhost:5432/bible"
 
-    # ── 离线经文 SQLite（CNV 为主译本，供后端取经文文本/卷名）──
+    # ── 离线经文 SQLite：主译本为和合本 cuvs；cnv 为新译本对照 ──
     bible_db_path: str = str(REPO_ROOT / "build" / "bible_cnv.sqlite")
-    # ── 英文对照译本（KJV），用于多译本对照；缺失时自动降级为单译本 ──
     bible_kjv_db_path: str = str(REPO_ROOT / "build" / "bible_kjv.sqlite")
-    # ── 公版和合本（CUVS），第三译本对照 ──
     bible_cuvs_db_path: str = str(REPO_ROOT / "build" / "bible_cuvs.sqlite")
+    # 授权译本：放入 build/bible_{id}.sqlite 后自动 available（见 scripts/import_bible.py）
+    bible_niv_db_path: str = str(REPO_ROOT / "build" / "bible_niv.sqlite")
+    bible_contemporary_db_path: str = str(REPO_ROOT / "build" / "bible_contemporary.sqlite")
 
     # ── 静态内容数据目录（计划/每日经文/祷告/交叉引用/词典/插画）──
     content_data_dir: str = str(REPO_ROOT / "data")

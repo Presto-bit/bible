@@ -43,6 +43,7 @@ type Props = {
   onDissolve: () => void;
   onMembersChanged: () => void;
   onDetailChanged?: () => void;
+  onOpenPrayer?: () => void;
 };
 
 function InfoRow({ label, value }: { label: string; value: ReactNode }) {
@@ -104,6 +105,7 @@ export function GroupSettingsSheet({
   onDissolve,
   onMembersChanged,
   onDetailChanged,
+  onOpenPrayer,
 }: Props) {
   const [pane, setPane] = useState<GroupSettingsPane>('home');
   const [chatBusy, setChatBusy] = useState(false);
@@ -194,6 +196,16 @@ export function GroupSettingsSheet({
               hint={`${memberCount} 人`}
               onClick={() => setPane('members')}
             />
+            {onOpenPrayer ? (
+              <NavRow
+                label="群代祷"
+                hint="清单"
+                onClick={() => {
+                  onClose();
+                  onOpenPrayer();
+                }}
+              />
+            ) : null}
             {canManagePlan ? (
               <>
                 <NavRow

@@ -9,6 +9,7 @@ import { GroupComposerSheet } from '@/components/group/GroupComposerSheet';
 import { GroupNavBar } from '@/components/group/GroupNavBar';
 import { GroupPageSkeleton } from '@/components/group/GroupPageSkeleton';
 import { GroupSettingsSheet, type GroupSettingsPane } from '@/components/group/GroupSettingsSheet';
+import { GroupPrayerSheet } from '@/components/group/GroupPrayerSheet';
 import { GroupTaskCompleteSheet } from '@/components/group/GroupTaskCompleteSheet';
 import { GroupCoreadStickyBar } from '@/components/group/GroupCoreadStickyBar';
 import { GroupMyTaskPin } from '@/components/group/GroupMyTaskPin';
@@ -22,7 +23,7 @@ import { ReportSheet, type ReportReason } from '@/components/social/ReportSheet'
 import { ForwardPickerSheet, type ForwardPayload } from '@/components/social/ForwardPickerSheet';
 import { ImChatSearch } from '@/components/social/ImChatSearch';
 import ErrorBanner from '@/components/ErrorBanner';
-import { api, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
+import { api, effectiveId, type GeneratedPlan, type GroupDetail, type GroupMember, type GroupMessage, type PlanSummary } from '@/lib/api';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { requestInviteNudge } from '@/lib/invite_nudge';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
@@ -64,6 +65,7 @@ function GroupPageInner() {
   const [busy, setBusy] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsPane, setSettingsPane] = useState<GroupSettingsPane>('home');
+  const [prayerOpen, setPrayerOpen] = useState(false);
   const [cardOpen, setCardOpen] = useState(false);
   const [wallOpen, setWallOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -749,6 +751,7 @@ function GroupPageInner() {
           onOpenCard={() => setCardOpen(true)}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenSettings={() => openSettings('home')}
+          onOpenPrayer={() => setPrayerOpen(true)}
         />
         <GroupAnnounceBar
           text={safeDetail.announcement || ''}
@@ -988,6 +991,15 @@ function GroupPageInner() {
         onDissolve={dissolve}
         onMembersChanged={reload}
         onDetailChanged={reload}
+        onOpenPrayer={() => setPrayerOpen(true)}
+      />
+
+      <GroupPrayerSheet
+        open={prayerOpen}
+        gid={gid}
+        isStaff={isStaff}
+        myUserId={effectiveId()}
+        onClose={() => setPrayerOpen(false)}
       />
 
       {taskComplete && (

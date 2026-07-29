@@ -10,9 +10,10 @@ type Props = {
   onOpenCard: () => void;
   onOpenSearch: () => void;
   onOpenSettings: () => void;
+  onOpenPrayer?: () => void;
 };
 
-export function GroupNavBar({ detail, onOpenCard, onOpenSearch, onOpenSettings }: Props) {
+export function GroupNavBar({ detail, onOpenCard, onOpenSearch, onOpenSettings, onOpenPrayer }: Props) {
   useEdgeSwipeBack({ href: '/discover' });
   const count = groupMemberCount(detail);
 
@@ -24,6 +25,16 @@ export function GroupNavBar({ detail, onOpenCard, onOpenSearch, onOpenSettings }
         <span className="group-wechat-count">（{count}人）</span>
       </button>
       <div className="group-wechat-nav-actions">
+        {onOpenPrayer ? (
+          <button
+            type="button"
+            className="group-wechat-settings icon-btn"
+            aria-label="群代祷"
+            onClick={onOpenPrayer}
+          >
+            祷
+          </button>
+        ) : null}
         <button
           type="button"
           className="group-wechat-settings icon-btn"

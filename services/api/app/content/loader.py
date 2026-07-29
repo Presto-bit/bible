@@ -629,16 +629,28 @@ def content_attribution() -> dict:
     """公开数据集与译本署名说明。"""
     sources = [
         {
+            "id": "cuvs",
+            "name": "和合本（CUVS）",
+            "license": "公版整理",
+            "url": "https://github.com/midvash/bible-data",
+        },
+        {
             "id": "cnv",
             "name": "圣经新译本（CNV）",
             "license": "需授权",
             "url": "https://www.worldwidebiblesociety.org",
         },
         {
-            "id": "cuvs",
-            "name": "midvash/bible-data (CUVS)",
-            "license": "待核实",
-            "url": "https://github.com/midvash/bible-data",
+            "id": "contemporary",
+            "name": "当代译本",
+            "license": "CC BY-SA 4.0（开放资源）",
+            "url": "https://ebible.org/find/show.php?id=cmncbs",
+        },
+        {
+            "id": "niv",
+            "name": "New International Version (NIV)",
+            "license": "需授权",
+            "url": "",
         },
         {
             "id": "kjv",

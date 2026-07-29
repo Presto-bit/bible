@@ -13,6 +13,7 @@ import {
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import DailyVerseReactSheet from '@/components/DailyVerseReactSheet';
+import { DailyVerseShareSheet } from '@/components/DailyVerseShareSheet';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { currentSeasonalEvents } from '@/lib/gamification';
@@ -89,6 +90,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   );
   const [reactSheetOpen, setReactSheetOpen] = useState(false);
   const [reactErr, setReactErr] = useState<string | null>(null);
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+  const [shareToast, setShareToast] = useState<string | null>(null);
   const likeBusyRef = useRef(false);
   const likedRef = useRef(false);
   const likeCountRef = useRef(0);
@@ -711,11 +714,28 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                   : '回应'}
               </span>
             </button>
+            <button
+              type="button"
+              className="hero-share"
+              disabled={!dv?.text}
+              aria-label="分享今日经文"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShareSheetOpen(true);
+              }}
+            >
+              分享
+            </button>
             {(likeErr || reactErr) && (
               <p className="muted hero-actions-err" role="alert">
                 {likeErr || reactErr}
               </p>
             )}
+            {shareToast ? (
+              <p className="muted hero-actions-err" role="status">
+                {shareToast}
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -734,6 +754,20 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           topPresets={topPresets}
           onClose={() => setReactSheetOpen(false)}
           onChanged={applyReactStats}
+        />
+      ) : null}
+
+      {shareSheetOpen && dv?.text ? (
+        <DailyVerseShareSheet
+          refLabel={dv.ref || '每日经文'}
+          text={dv.text}
+          day={dv.day}
+          versionLabel="和合本"
+          onClose={() => setShareSheetOpen(false)}
+          onToast={(msg) => {
+            setShareToast(msg);
+            window.setTimeout(() => setShareToast(null), 2200);
+          }}
         />
       ) : null}
 

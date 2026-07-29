@@ -2395,6 +2395,36 @@ export const api = {
     authed<{ friend_ids: string[] }>(`/social/groups/${gid}/invites/pending`),
   cancelGroupInvite: (gid: string, friendId: string) =>
     authed<{ ok: boolean }>(`/social/groups/${gid}/invites/${friendId}`, { method: 'DELETE' }),
+  listGroupPrayers: (gid: string, status: 'open' | 'answered' | 'archived' | 'mine' = 'open') =>
+    authed<{ items: Array<{
+      id: string;
+      group_id: string;
+      author_id: string;
+      title: string;
+      body: string;
+      privacy: 'group' | 'staff';
+      status: 'open' | 'answered' | 'archived';
+      tag: string;
+      answered_note: string;
+      answered_at?: string | null;
+      created_at?: string | null;
+      claim_count: number;
+      claimed_by_me: boolean;
+    }> }>(`/social/groups/${gid}/prayers?status=${status}`),
+  createGroupPrayer: (
+    gid: string,
+    body: { title: string; body?: string; privacy?: 'group' | 'staff'; tag?: string },
+  ) =>
+    authed<{ item: unknown }>(`/social/groups/${gid}/prayers`, { method: 'POST', body }),
+  claimGroupPrayer: (gid: string, pid: string) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/prayers/${pid}/claim`, { method: 'POST' }),
+  unclaimGroupPrayer: (gid: string, pid: string) =>
+    authed<{ ok: boolean }>(`/social/groups/${gid}/prayers/${pid}/claim`, { method: 'DELETE' }),
+  answerGroupPrayer: (gid: string, pid: string, body?: { note?: string }) =>
+    authed<{ item: unknown }>(`/social/groups/${gid}/prayers/${pid}/answer`, {
+      method: 'POST',
+      body: body || {},
+    }),
 };
 
 export interface DmMessage {
