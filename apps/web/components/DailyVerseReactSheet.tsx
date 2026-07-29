@@ -183,7 +183,20 @@ export default function DailyVerseReactSheet({
           {feedLoading && feed.length === 0 ? (
             <p className="muted" style={{ fontSize: 13, padding: '12px 0' }}>加载中…</p>
           ) : feed.length === 0 ? (
-            <p className="muted" style={{ fontSize: 13, padding: '12px 0' }}>还没有人回应，来做第一个吧。</p>
+            <div className="dv-react-empty">
+              <div className="dv-react-empty-emojis" aria-hidden>
+                <span>🙏</span>
+                <span>✨</span>
+                <span>❤️</span>
+                <span>🕊️</span>
+              </div>
+              <p className="dv-react-empty-title">
+                {mine ? '你已回应，等候更多伙伴加入' : '还没有人回应'}
+              </p>
+              <p className="muted dv-react-empty-subtitle">
+                {mine ? '今天的回应已经送出，愿更多读经伙伴一起被经文触动。' : '你可以做今天第一个回应的人。'}
+              </p>
+            </div>
           ) : (
             <ul className="dv-react-feed-list">
               {feed.map((item, i) => (
