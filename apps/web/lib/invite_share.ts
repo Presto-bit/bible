@@ -15,6 +15,16 @@ export const INVITE_SHARE_TEXT =
 export const INVITE_LANDING_SUPPORT =
   '读的时候能问，不懂的经文有人帮你拆开';
 
+/** 落地页能力区标题 */
+export const INVITE_CAPABILITY_TITLE = '在彼爱，读经不孤单';
+
+export const INVITE_CAPABILITIES: ReadonlyArray<{ title: string; desc: string }> = [
+  { title: '读圣经', desc: '安静读完每一章' },
+  { title: '问小爱', desc: '不懂的经文，当场问明白' },
+  { title: '一起共读', desc: '邀朋友打卡，不独行' },
+  { title: '留在手机', desc: '保存到主屏幕，像打开 App' },
+];
+
 export type ShareInviteResult = 'shared' | 'copied' | 'cancelled' | 'failed';
 
 export function inviteShareUrl(sharerUserCode?: string | null): string {

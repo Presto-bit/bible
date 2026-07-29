@@ -395,7 +395,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               <path d="M8.59 13.51 15.42 17.49" />
               <path d="M15.41 6.51 8.59 10.49" />
             </svg>
-            <span>分享APP</span>
+            <span>分享</span>
           </button>
           <button
             type="button"
