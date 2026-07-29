@@ -789,10 +789,10 @@ function CampaignEditInner() {
                   value={railHref}
                   disabled={!railEnabled}
                   onChange={(e) => setRailHref(e.target.value)}
-                  placeholder="留空=活动落地页；也可填 /plans 或 https://…"
+                  placeholder="留空=活动落地页；创世记可填 https://genesis-50.pages.dev/?code=0CIW43NR"
                 />
                 <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
-                  外链一点即开新标签页（首页推荐不弹确认）
+                  创世记 50 天链接会自动登录进入（无需填邀请码、无确认框）
                 </span>
               </label>
               <div
