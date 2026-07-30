@@ -20376,23 +20376,27 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
 }
 /*
  * 键盘态（群 / 私信同款）：
- * - resizes-content：layout 已缩，--im-kb-inset 应为 0，壳 top/bottom:0 填满剩余区
- * - overlays：才用正 inset 抬壳；切勿与 layout 收缩叠加（会白屏）
- * - 输入栏文档流贴壳底
+ * - 壳始终 bottom:0（resizes-content 靠 layout 收缩；勿用 bottom:inset，收起后易残留白边）
+ * - overlays 兜底：im-keyboard-overlay + transform 上移，失焦即还原
  */
 .group-page-checkin,
 .dm-page {
   bottom: 0;
+  transform: none;
 }
 body.im-keyboard .group-page-checkin,
 body.im-keyboard .dm-page {
   top: 0;
-  bottom: var(--im-kb-inset, 0px);
+  bottom: 0;
   height: auto;
   max-height: none;
   min-height: 0;
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: 0;
+}
+body.im-keyboard-overlay .group-page-checkin,
+body.im-keyboard-overlay .dm-page {
+  transform: translate3d(0, calc(0px - var(--im-kb-inset, 0px)), 0);
 }
 body.im-keyboard .dm-composer-dock.im-composer-bar,
 body.im-keyboard .group-wechat-composer.im-composer-dock{
@@ -20407,7 +20411,7 @@ body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50
 /* 加号 / @ 选人：只收起底栏，不抬键盘高度（否则会留下整块键盘空白） */
 body.im-plus-sheet .tabbar,
 body.im-mention-sheet .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
-/* 面板打开时强制壳贴屏底，覆盖残留的 --im-kb-inset / im-keyboard */
+/* 面板打开时强制壳贴屏底 */
 body.im-plus-sheet .group-page-checkin,
 body.im-mention-sheet .group-page-checkin,
 body.im-plus-sheet .dm-page,
@@ -20417,8 +20421,12 @@ body.im-mention-sheet.im-keyboard .group-page-checkin,
 body.im-plus-sheet.im-keyboard .dm-page,
 body.im-mention-sheet.im-keyboard .dm-page {
   bottom: 0;
+  transform: none;
 }
 body.im-keyboard .im-jump-bottom{
+  bottom: calc(var(--im-composer-h, 64px) + 12px);
+}
+body.im-keyboard-overlay .im-jump-bottom{
   bottom: calc(var(--im-kb-inset, 0px) + var(--im-composer-h, 64px) + 12px);
 }
 body.im-keyboard .group-checkin-scroll {
