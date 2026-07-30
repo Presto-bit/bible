@@ -1,14 +1,26 @@
-/** 章导读轻提示：本地频控与「已看过」记录（无设置页）。 */
+/** 章导读轻提示：按阅读意图出条，不按「每换一章」出。 */
 
 import { getCachedChapterSummary } from './bible_summary';
 
 const SEEN_KEY = 'chapter_guide_seen_v1';
 const DAY_KEY = 'chapter_guide_day_v1';
+const BOOK_DAY_KEY = 'chapter_guide_book_day_v1';
 const DISABLED_KEY = 'chapter_guide_disabled_v1';
 const SESSION_SKIP_KEY = 'chapter_guide_session_skip_v1';
-const DAILY_MAX = 5;
+const SESSION_SHOWN_KEY = 'chapter_guide_session_shown_v1';
+
+/** 每日自动提示上限 */
+const DAILY_MAX = 3;
+/** 同一次 App 会话最多自动出条次数 */
+const SESSION_MAX = 1;
+/** 停留多久视为「在读」意图（毫秒） */
+export const CHAPTER_GUIDE_DWELL_MS = 8_000;
+
+export type ChapterGuideNavKind = 'swipe' | 'adjacent' | 'jump';
+export type ChapterGuideIntent = 'jump' | 'dwell';
 
 type DayState = { day: string; count: number };
+type BookDayState = { day: string; books: Record<string, 1> };
 
 function todayKey(): string {
   const d = new Date();
@@ -17,6 +29,10 @@ function todayKey(): string {
 
 function chapterKey(bookId: string, chapter: number): string {
   return `${bookId.toUpperCase()}.${chapter}`;
+}
+
+function bookKey(bookId: string): string {
+  return bookId.toUpperCase();
 }
 
 function readSeen(): Record<string, 1> {
@@ -56,6 +72,26 @@ function writeDay(state: DayState) {
   }
 }
 
+function readBookDay(): BookDayState {
+  if (typeof window === 'undefined') return { day: todayKey(), books: {} };
+  try {
+    const raw = JSON.parse(localStorage.getItem(BOOK_DAY_KEY) || 'null') as BookDayState | null;
+    const day = todayKey();
+    if (!raw || raw.day !== day) return { day, books: {} };
+    return { day, books: raw.books && typeof raw.books === 'object' ? raw.books : {} };
+  } catch {
+    return { day: todayKey(), books: {} };
+  }
+}
+
+function writeBookDay(state: BookDayState) {
+  try {
+    localStorage.setItem(BOOK_DAY_KEY, JSON.stringify(state));
+  } catch {
+    /* ignore */
+  }
+}
+
 function readSessionSkip(): Record<string, 1> {
   if (typeof window === 'undefined') return {};
   try {
@@ -68,6 +104,23 @@ function readSessionSkip(): Record<string, 1> {
 function writeSessionSkip(map: Record<string, 1>) {
   try {
     sessionStorage.setItem(SESSION_SKIP_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore */
+  }
+}
+
+function readSessionShown(): number {
+  if (typeof window === 'undefined') return 0;
+  try {
+    return Math.max(0, Number(sessionStorage.getItem(SESSION_SHOWN_KEY) || 0) || 0);
+  } catch {
+    return 0;
+  }
+}
+
+function writeSessionShown(n: number) {
+  try {
+    sessionStorage.setItem(SESSION_SHOWN_KEY, String(n));
   } catch {
     /* ignore */
   }
@@ -100,6 +153,16 @@ export function markChapterGuideSeen(bookId: string, chapter: number): void {
   writeSeen(map);
 }
 
+export function hasBookGuideTippedToday(bookId: string): boolean {
+  return Boolean(readBookDay().books[bookKey(bookId)]);
+}
+
+export function markBookGuideTippedToday(bookId: string): void {
+  const state = readBookDay();
+  state.books[bookKey(bookId)] = 1;
+  writeBookDay(state);
+}
+
 export function skipChapterGuideThisSession(bookId: string, chapter: number): void {
   const map = readSessionSkip();
   map[chapterKey(bookId, chapter)] = 1;
@@ -111,44 +174,73 @@ export function isChapterGuideSkippedThisSession(bookId: string, chapter: number
 }
 
 /**
- * 是否应展示章导读轻提示。
- * - 首次进入该章，或目录/计划等跳跃进入
- * - 连翻滑动：仅当该章从未提示过，且未超每日上限
- * - 全局「不再提示」后永不自动出现
+ * 由导航方式推断意图相关的 navKind。
+ * - swipe：手势连翻 → 仅 dwell
+ * - adjacent：同卷 ±1（含底栏翻章）→ 仅 dwell
+ * - jump：开卷 / 换卷 / 跳章 / 计划落点 → 可即时提示
+ */
+export function resolveChapterGuideNavKind(opts: {
+  fromSwipe: boolean;
+  prevBookId: string | null;
+  prevChapter: number | null;
+  bookId: string;
+  chapter: number;
+}): ChapterGuideNavKind {
+  if (opts.fromSwipe) return 'swipe';
+  if (!opts.prevBookId || opts.prevChapter == null) return 'jump';
+  if (opts.prevBookId.toUpperCase() !== opts.bookId.toUpperCase()) return 'jump';
+  if (Math.abs(opts.chapter - opts.prevChapter) !== 1) return 'jump';
+  return 'adjacent';
+}
+
+function passesCommonGates(bookId: string, chapter: number): boolean {
+  if (typeof window === 'undefined') return false;
+  if (isChapterGuideAutoDisabled()) return false;
+  if (!bookId || chapter < 1) return false;
+  if (isChapterGuideSkippedThisSession(bookId, chapter)) return false;
+  if (readSessionShown() >= SESSION_MAX) return false;
+  if (readDay().count >= DAILY_MAX) return false;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    if (!getCachedChapterSummary(bookId, chapter)) return false;
+  }
+  return true;
+}
+
+/**
+ * 是否应自动展示章导读轻提示（按意图，不按换章）。
+ *
+ * - jump：今日该卷第一次「跳入」（目录/计划/换卷/大跳）才即时出
+ * - dwell：停留够久、像在读；该章尚未提示过
+ * - 连翻 / 邻章翻页：不走即时，只靠 dwell
  */
 export function shouldShowChapterGuideTip(opts: {
   bookId: string;
   chapter: number;
-  /** 滑动连翻为 true；目录/选章/按钮跳转为 false */
-  fromContinuousSwipe: boolean;
+  intent: ChapterGuideIntent;
 }): boolean {
-  if (typeof window === 'undefined') return false;
-  if (isChapterGuideAutoDisabled()) return false;
-  const { bookId, chapter, fromContinuousSwipe } = opts;
-  if (!bookId || chapter < 1) return false;
-  if (isChapterGuideSkippedThisSession(bookId, chapter)) return false;
+  const { bookId, chapter, intent } = opts;
+  if (!passesCommonGates(bookId, chapter)) return false;
 
-  // 离线且无本地/种子导读 → 不出条
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    if (!getCachedChapterSummary(bookId, chapter)) return false;
+  if (intent === 'jump') {
+    // 同卷今日已提示过 → 不再因跳章连弹
+    return !hasBookGuideTippedToday(bookId);
   }
 
-  const firstVisit = !hasSeenChapterGuide(bookId, chapter);
-  if (!firstVisit) return false;
-
-  const day = readDay();
-  if (day.count >= DAILY_MAX) return false;
-
-  // 连翻与跳跃共用「每章首次 + 每日上限」；连翻由 UI 用更弱胶囊呈现
-  void fromContinuousSwipe;
+  // dwell：真在读才提醒；已提示过的章不再出
+  if (hasSeenChapterGuide(bookId, chapter)) return false;
   return true;
 }
 
-/** 真正展示提示时记账（计入每日次数 + 标记已看） */
+/** 真正展示提示时记账 */
 export function recordChapterGuideTipShown(bookId: string, chapter: number): void {
   markChapterGuideSeen(bookId, chapter);
+  markBookGuideTippedToday(bookId);
   const day = readDay();
   writeDay({ day: day.day, count: day.count + 1 });
+  writeSessionShown(readSessionShown() + 1);
 }
 
-export { DAILY_MAX as CHAPTER_GUIDE_DAILY_MAX };
+export {
+  DAILY_MAX as CHAPTER_GUIDE_DAILY_MAX,
+  SESSION_MAX as CHAPTER_GUIDE_SESSION_MAX,
+};

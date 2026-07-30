@@ -17,8 +17,10 @@ import { ChapterGuideTip } from '@/components/reader/ChapterGuideTip';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import {
+  CHAPTER_GUIDE_DWELL_MS,
   disableChapterGuideAuto,
   recordChapterGuideTipShown,
+  resolveChapterGuideNavKind,
   shouldShowChapterGuideTip,
   skipChapterGuideThisSession,
 } from '@/lib/chapter_guide_tip';
@@ -317,6 +319,7 @@ export default function ReaderView({
   const [guideTipVisible, setGuideTipVisible] = useState(false);
   const [guideTipCompact, setGuideTipCompact] = useState(false);
   const lastNavFromSwipeRef = useRef(false);
+  const guidePrevLocRef = useRef<{ bookId: string; chapter: number } | null>(null);
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
   const locBtnRef = useRef<HTMLButtonElement>(null);
   const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
@@ -1399,33 +1402,71 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
-  // 章导读轻提示：进章后短暂延迟再出，避免与翻页动画打架
+  // 章导读：按意图出（跳入即时 / 停留 dwell），连翻与邻章翻页不即弹
   useEffect(() => {
     setGuideTipVisible(false);
     setGuideTipCompact(false);
     const fromSwipe = lastNavFromSwipeRef.current;
     lastNavFromSwipeRef.current = false;
-    if (
-      !shouldShowChapterGuideTip({
-        bookId: book.id,
-        chapter,
-        fromContinuousSwipe: fromSwipe,
-      })
-    ) {
-      return;
-    }
-    const showTimer = window.setTimeout(() => {
+    const prev = guidePrevLocRef.current;
+    const navKind = resolveChapterGuideNavKind({
+      fromSwipe,
+      prevBookId: prev?.bookId ?? null,
+      prevChapter: prev?.chapter ?? null,
+      bookId: book.id,
+      chapter,
+    });
+    guidePrevLocRef.current = { bookId: book.id, chapter };
+
+    const showTip = (compact: boolean) => {
       setGuideTipVisible(true);
-      setGuideTipCompact(fromSwipe);
+      setGuideTipCompact(compact);
       recordChapterGuideTipShown(book.id, chapter);
-      // 静默预取，点开半屏尽量秒出
       void loadChapterSummary(book.id, book.name, chapter).catch(() => {});
-    }, 520);
-    const compactTimer = fromSwipe
-      ? 0
-      : window.setTimeout(() => setGuideTipCompact(true), 8520);
+    };
+
+    const timers: number[] = [];
+    let compactTimer = 0;
+
+    const scheduleDwell = () => {
+      timers.push(
+        window.setTimeout(() => {
+          if (
+            shouldShowChapterGuideTip({
+              bookId: book.id,
+              chapter,
+              intent: 'dwell',
+            })
+          ) {
+            showTip(true);
+          }
+        }, CHAPTER_GUIDE_DWELL_MS),
+      );
+    };
+
+    if (navKind === 'jump') {
+      if (
+        shouldShowChapterGuideTip({
+          bookId: book.id,
+          chapter,
+          intent: 'jump',
+        })
+      ) {
+        timers.push(
+          window.setTimeout(() => {
+            showTip(false);
+            compactTimer = window.setTimeout(() => setGuideTipCompact(true), 8520);
+          }, 520),
+        );
+      } else {
+        scheduleDwell();
+      }
+    } else {
+      scheduleDwell();
+    }
+
     return () => {
-      window.clearTimeout(showTimer);
+      for (const t of timers) window.clearTimeout(t);
       if (compactTimer) window.clearTimeout(compactTimer);
     };
   }, [book.id, book.name, chapter]);
@@ -2624,7 +2665,7 @@ export default function ReaderView({
             aria-label="搜索"
             onClick={(e) => e.stopPropagation()}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
               <path d="M21 21l-4-4" />
             </svg>
