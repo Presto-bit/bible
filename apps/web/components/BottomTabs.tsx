@@ -96,6 +96,18 @@ export default function BottomTabs() {
     // 二级页（含 /campaigns）也清 height，避免从其它页残留导致无法下滑
     document.documentElement.style.removeProperty('height');
     document.body.style.removeProperty('height');
+    // 离开群聊/私信后清掉 IM 键盘残留，避免主 Tab 卡顿或点击被顶层 class 干扰
+    if (!compact) {
+      document.body.classList.remove(
+        'im-keyboard',
+        'im-keyboard-overlay',
+        'im-plus-sheet',
+        'im-mention-sheet',
+      );
+      document.documentElement.style.removeProperty('--im-kb-inset');
+      document.documentElement.style.removeProperty('--im-vv-top');
+      document.documentElement.style.removeProperty('--im-vv-h');
+    }
     if (compact) return;
     // 先清残留 inline，保证各 Tab 底栏同位（含刚进入小爱）
     bar.style.removeProperty('transform');

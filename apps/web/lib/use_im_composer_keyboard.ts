@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * iOS PWA 键盘：站点用 interactive-widget=resizes-content。
- * 壳始终 bottom:0，勿再用 --im-kb-inset 抬底（收起后易残留悬空白边）。
- * overlays 兜底只用 transform 上移，失焦必清并强制视口复位。
+ * iOS PWA 键盘：interactive-widget=resizes-content。
+ * 壳始终 bottom:0；overlays 仅用 transform。
+ * 失焦只做轻量清理，避免反复改 html/body height 卡死主线程、吞掉点击。
  */
 
 function isImBottomSheet(): boolean {
@@ -31,7 +31,6 @@ function pinScrollTop(force = false) {
   if (app instanceof HTMLElement) app.scrollTop = 0;
 }
 
-/** 同一容器短时多次滚底合并 */
 const scrollBottomLastAt = new WeakMap<HTMLElement, number>();
 
 export function scrollImChatToBottom(
@@ -53,11 +52,7 @@ export function scrollImChatToBottom(
   }
   requestAnimationFrame(() => {
     pin();
-    requestAnimationFrame(() => {
-      pin();
-      window.setTimeout(pin, 80);
-      window.setTimeout(pin, 200);
-    });
+    requestAnimationFrame(pin);
   });
 }
 
@@ -82,53 +77,47 @@ function writeComposerHeight(px: number) {
   );
 }
 
-function clearTabbarInline() {
-  const tab = document.querySelector('.tabbar');
-  if (!(tab instanceof HTMLElement)) return;
-  tab.style.removeProperty('transform');
-  tab.style.removeProperty('bottom');
-  tab.style.removeProperty('top');
-  tab.style.removeProperty('opacity');
-  tab.style.removeProperty('visibility');
-}
-
-/**
- * iOS PWA 收起键盘后 layout/vv 常卡住：强制滚回 + 清高度锁 + 轻 nudge。
- */
-function forceViewportRestore() {
+function hasKeyboardChromeResidue(): boolean {
   const root = document.documentElement;
   const body = document.body;
+  if (body.classList.contains('im-keyboard') || body.classList.contains('im-keyboard-overlay')) {
+    return true;
+  }
+  if (root.style.getPropertyValue('--im-kb-inset')) return true;
+  if (root.style.height || body.style.height) return true;
   const vv = window.visualViewport;
+  if (vv && vv.offsetTop > 2) return true;
+  return false;
+}
 
-  pinScrollTop(true);
-
-  // 清可能残留的键盘变量与 class
-  body.classList.remove('im-keyboard', 'im-keyboard-overlay');
+/** 轻量清键盘残留：不改写 html/body 高度，避免离开聊天后整 App 卡顿、点击失灵 */
+export function clearImKeyboardLift() {
+  const root = document.documentElement;
+  const body = document.body;
+  body.classList.remove('im-keyboard', 'im-keyboard-overlay', 'im-plus-sheet', 'im-mention-sheet');
   root.style.removeProperty('--im-kb-inset');
   root.style.removeProperty('--im-vv-top');
   root.style.removeProperty('--im-vv-h');
-  clearTabbarInline();
-
-  // 用当前 innerHeight 顶一下，促使 iOS 重新计算 layout viewport
-  const h = window.innerHeight || root.clientHeight || 0;
-  if (h > 0) {
-    root.style.height = `${h}px`;
-    body.style.height = `${h}px`;
-  }
-  void root.offsetHeight;
-
-  // nudge：部分 iOS 要先滚一下再回 0 才会撤掉 vv.offsetTop
-  const top = vv?.offsetTop ?? 0;
-  if (top > 0) {
-    window.scrollTo(0, top);
-  }
-  window.scrollTo(0, 0);
-  root.scrollTop = 0;
-  body.scrollTop = 0;
-
+  // 清掉可能卡住的高度锁（勿再主动写入 height）
   root.style.removeProperty('height');
   body.style.removeProperty('height');
-  clearTabbarInline();
+  if (!isComposerFieldFocused()) pinScrollTop(true);
+}
+
+/**
+ * 仅在确实有残留时做一次轻 nudge；禁止连环 setTimeout + 强制 reflow。
+ */
+function softViewportRestore() {
+  clearImKeyboardLift();
+  if (!hasKeyboardChromeResidue() && !(window.visualViewport && window.visualViewport.offsetTop > 2)) {
+    return;
+  }
+  const vv = window.visualViewport;
+  const top = vv?.offsetTop ?? 0;
+  if (top > 0) {
+    window.scrollTo(0, 0);
+  }
+  pinScrollTop(true);
 }
 
 export function useImComposerHeightSync(
@@ -176,7 +165,6 @@ function readBaseline(): number {
   return Math.max(layoutH, vvH);
 }
 
-/** overlays：layout 几乎不变、vv 明显变矮 */
 function readOverlayGap(): number {
   const vv = window.visualViewport;
   const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
@@ -191,9 +179,9 @@ export type ImComposerKeyboardOpts = {
 
 /**
  * IM 键盘贴合：
- * - resizes-content：只打 im-keyboard（藏 sticky/改 padding），壳始终贴底
- * - overlays：用 transform 上移壳（--im-kb-inset），不用 bottom 抬升
- * - 失焦：强制视口复位，清掉 class / 变量 / tabbar 内联样式
+ * - resizes-content：只打 im-keyboard（藏 sticky），壳贴底
+ * - overlays：transform + --im-kb-inset
+ * - 失焦：轻量 soft restore（最多再补一次），绝不连打 5 次强制 reflow
  */
 export function useImComposerKeyboard(
   active: boolean,
@@ -225,7 +213,8 @@ export function useImComposerKeyboard(
     const body = document.body;
     const vv = window.visualViewport;
     let raf = 0;
-    const timers: number[] = [];
+    let followTimer: number | undefined;
+    let settleTimer: number | undefined;
 
     const clearChrome = () => {
       setInset(0);
@@ -239,7 +228,7 @@ export function useImComposerKeyboard(
     const settle = () => {
       resizeModeRef.current = false;
       clearChrome();
-      forceViewportRestore();
+      softViewportRestore();
     };
 
     const applyOpenChrome = (overlayPx: number) => {
@@ -279,7 +268,6 @@ export function useImComposerKeyboard(
         if (layoutShrunk) resizeModeRef.current = true;
 
         if (resizeModeRef.current) {
-          // resizes-content：layout 已缩就标键盘态；涨回去则清（仍聚焦也清抬升）
           if (layoutShrunk) {
             applyOpenChrome(0);
             scrollImChatToBottom(getScrollElRef.current?.() ?? null, { gentle: true });
@@ -301,15 +289,11 @@ export function useImComposerKeyboard(
 
     if (!active) {
       settle();
-      // iOS 收起动画途中要连打几次，否则 layout 卡在键盘高度
-      for (const ms of [50, 120, 250, 450, 700]) {
-        timers.push(
-          window.setTimeout(() => {
-            if (isComposerFieldFocused()) return;
-            settle();
-          }, ms),
-        );
-      }
+      // 仅再补一次（键盘收起动画末尾），禁止 5 连发
+      settleTimer = window.setTimeout(() => {
+        if (isComposerFieldFocused()) return;
+        if (hasKeyboardChromeResidue()) softViewportRestore();
+      }, 280);
     } else {
       if (!baselineRef.current) baselineRef.current = readBaseline();
       resizeModeRef.current = false;
@@ -319,14 +303,13 @@ export function useImComposerKeyboard(
       vv?.addEventListener('scroll', sync);
       window.addEventListener('resize', sync);
       sync();
-      for (const ms of [100, 280, 520]) {
-        timers.push(window.setTimeout(sync, ms));
-      }
+      followTimer = window.setTimeout(sync, 320);
     }
 
     return () => {
       cancelAnimationFrame(raf);
-      for (const t of timers) window.clearTimeout(t);
+      if (followTimer) window.clearTimeout(followTimer);
+      if (settleTimer) window.clearTimeout(settleTimer);
       vv?.removeEventListener('resize', sync);
       vv?.removeEventListener('scroll', sync);
       window.removeEventListener('resize', sync);
@@ -337,11 +320,7 @@ export function useImComposerKeyboard(
   return inset;
 }
 
-/** @deprecated 预抬易导致 iOS 悬空，保留空实现兼容调用方 */
+/** @deprecated 预抬易导致悬空，保留空实现 */
 export function previewImKeyboardLift() {
   /* no-op */
-}
-
-export function clearImKeyboardLift() {
-  forceViewportRestore();
 }

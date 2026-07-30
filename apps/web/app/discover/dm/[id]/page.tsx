@@ -135,11 +135,6 @@ function DmThreadPageInner() {
   });
 
   useEffect(() => {
-    clearImKeyboardLift();
-    return () => clearImKeyboardLift();
-  }, [threadId]);
-
-  useEffect(() => {
     document.body.classList.toggle('im-plus-sheet', plusOpen);
     return () => document.body.classList.remove('im-plus-sheet');
   }, [plusOpen]);

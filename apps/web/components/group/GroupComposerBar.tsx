@@ -115,12 +115,6 @@ export function GroupComposerBar({
   /** 仅输入聚焦时抬键盘；加号 / @ 选人贴底，避免套用上次键盘高度造成大块留白 */
   useImComposerKeyboard(composerFocused, { getScrollEl });
 
-  // 进群时清掉上页/预抬残留的键盘抬升，避免首屏输入栏悬空
-  useEffect(() => {
-    clearImKeyboardLift();
-    return () => clearImKeyboardLift();
-  }, [gid]);
-
   useEffect(() => {
     document.body.classList.toggle('im-plus-sheet', panelOpen);
     return () => document.body.classList.remove('im-plus-sheet');
