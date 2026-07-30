@@ -127,12 +127,31 @@ export default function ReadingProgress({
           }}
         >
           <span className="profile-footprint-label">
-            <span className="profile-footprint-kind">旅程</span>
+            <span className="profile-footprint-kind-row">
+              <span className="profile-footprint-glyph" aria-hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="6.5" cy="17.5" r="2" />
+                  <circle cx="17.5" cy="6.5" r="2" />
+                  <path d="M8.2 16.2 15.8 7.8" />
+                </svg>
+              </span>
+              <span className="profile-footprint-kind">旅程</span>
+            </span>
           </span>
-          <strong className={`profile-footprint-value${overallPct > 0 || summary ? '' : ' is-empty'}`}>
-            {summary
-              || (overallPct > 0 ? `通读 ${overallPct}%` : '开始一段旅程')}
-          </strong>
+          <span className="profile-footprint-body">
+            <strong className={`profile-footprint-value${overallPct > 0 || summary ? '' : ' is-empty'}`}>
+              {summary
+                || (overallPct > 0 ? `通读 ${overallPct}%` : '开始一段旅程')}
+            </strong>
+            <span className="profile-footprint-adorn" aria-hidden>
+              <span
+                className="profile-footprint-mini-ring"
+                style={{ ['--pct' as string]: overallPct }}
+              >
+                {overallPct}%
+              </span>
+            </span>
+          </span>
         </button>
       ) : (
         <button

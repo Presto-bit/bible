@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
 import {
   api,
   changeUsername,
@@ -103,20 +103,103 @@ function clipPreview(text: string, max = 28): string {
   return t.length > max ? `${t.slice(0, max)}…` : t;
 }
 
+type FootprintTone = 'thought' | 'mark' | 'badge' | 'journey';
+type ShortcutTone = 'challenge' | 'remind' | 'offline';
+
+function ProfileGlyph({
+  name,
+  size = 18,
+}: {
+  name: FootprintTone | ShortcutTone;
+  size?: number;
+}) {
+  const common = {
+    width: size,
+    height: size,
+    viewBox: '0 0 24 24',
+    fill: 'none',
+    stroke: 'currentColor',
+    strokeWidth: 1.7,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    'aria-hidden': true as const,
+  };
+  switch (name) {
+    case 'thought':
+      return (
+        <svg {...common}>
+          <path d="M12 19c-4.2 0-7.5-2.7-7.5-6S7.8 7 12 7s7.5 2.7 7.5 6c0 2-1.1 3.7-2.9 4.8L17 20l-3.2-1.1c-.6.1-1.2.1-1.8.1Z" />
+          <path d="M9.5 11.5h5M9.5 14h3.2" />
+        </svg>
+      );
+    case 'mark':
+      return (
+        <svg {...common}>
+          <path d="M6 4h9a2 2 0 0 1 2 2v14l-4.5-2.2L8 20V6a2 2 0 0 1 2-2" />
+          <path d="M9 8h6M9 11.5h5" />
+        </svg>
+      );
+    case 'badge':
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="10" r="5.5" />
+          <path d="M9.2 14.8 8 20l4-1.8L16 20l-1.2-5.2" />
+        </svg>
+      );
+    case 'journey':
+      return (
+        <svg {...common}>
+          <circle cx="6.5" cy="17.5" r="2" />
+          <circle cx="17.5" cy="6.5" r="2" />
+          <path d="M8.2 16.2 15.8 7.8" />
+        </svg>
+      );
+    case 'challenge':
+      return (
+        <svg {...common}>
+          <path d="M9 4h6v3a3 3 0 0 1-6 0V4Z" />
+          <path d="M8 7H6.5A2.5 2.5 0 0 0 4 9.5V11a4 4 0 0 0 4 4h.5" />
+          <path d="M16 7h1.5A2.5 2.5 0 0 1 20 9.5V11a4 4 0 0 1-4 4h-.5" />
+          <path d="M12 15v5M9.5 20h5" />
+        </svg>
+      );
+    case 'remind':
+      return (
+        <svg {...common}>
+          <path d="M6 16h12l-1.2-1.2A6 6 0 0 1 15 10V9a3 3 0 1 0-6 0v1a6 6 0 0 1-1.8 4.8L6 16Z" />
+          <path d="M10 19a2 2 0 0 0 4 0" />
+        </svg>
+      );
+    case 'offline':
+      return (
+        <svg {...common}>
+          <path d="M7 7h10v12H7z" />
+          <path d="M10 4h4v3h-4zM9.5 11h5M9.5 14.5h5" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 function FootprintCell({
   kind,
+  tone,
   count,
   value,
   empty,
   isNew,
+  adornment,
   onOpen,
   onShare,
 }: {
   kind: string;
+  tone: FootprintTone;
   count?: number;
   value: string;
   empty?: boolean;
   isNew?: boolean;
+  adornment?: ReactNode;
   onOpen: () => void;
   onShare?: () => void;
 }) {
@@ -136,7 +219,7 @@ function FootprintCell({
   return (
     <button
       type="button"
-      className={`card profile-footprint-cell${isNew ? ' has-new' : ''}${empty ? ' is-empty' : ''}`}
+      className={`card profile-footprint-cell tone-${tone}${isNew ? ' has-new' : ''}${empty ? ' is-empty' : ''}`}
       role="listitem"
       title={onShare ? '长按可分享' : undefined}
       aria-label={isNew ? `${label}，有新内容` : label}
@@ -184,12 +267,20 @@ function FootprintCell({
     >
       {isNew ? <span className="profile-footprint-dot" aria-hidden /> : null}
       <span className="profile-footprint-label">
-        <span className="profile-footprint-kind">{kind}</span>
+        <span className="profile-footprint-kind-row">
+          <span className="profile-footprint-glyph" aria-hidden>
+            <ProfileGlyph name={tone} size={16} />
+          </span>
+          <span className="profile-footprint-kind">{kind}</span>
+        </span>
         {count && count > 0 ? (
           <span className="profile-footprint-count">{count}</span>
         ) : null}
       </span>
-      <strong className={`profile-footprint-value${empty ? ' is-empty' : ''}`}>{value}</strong>
+      <span className="profile-footprint-body">
+        <strong className={`profile-footprint-value${empty ? ' is-empty' : ''}`}>{value}</strong>
+        {adornment ? <span className="profile-footprint-adorn">{adornment}</span> : null}
+      </span>
     </button>
   );
 }
@@ -227,6 +318,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [markCount, setMarkCount] = useState(0);
   const [markPreview, setMarkPreview] = useState('');
   const [badgePreview, setBadgePreview] = useState('');
+  const [badgePreviewIcon, setBadgePreviewIcon] = useState('');
   const [badgeDoneCount, setBadgeDoneCount] = useState(0);
   const [footprintSeen, setFootprintSeen] = useState<FootprintSeen>({
     thoughts: 0,
@@ -381,6 +473,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setBadges(list);
       const latest = profilePreviewBadges(list, 1)[0];
       setBadgePreview(latest?.label || '');
+      setBadgePreviewIcon(latest?.icon || '');
       setBadgeDoneCount(list.filter((b) => b.done).length);
     };
     void loadBadges();
@@ -450,6 +543,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         setBadges(list);
         const latest = profilePreviewBadges(list, 1)[0];
         setBadgePreview(latest?.label || '');
+        setBadgePreviewIcon(latest?.icon || '');
         setBadgeDoneCount(list.filter((b) => b.done).length);
       });
       setFootprintSeen(readFootprintSeen());
@@ -887,9 +981,19 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           }
         >
           <div className="profile-companion-main">
-            <strong className="profile-companion-title">
-              {streak > 0 ? `已同行 ${streak} 天` : '开始同行读经'}
-            </strong>
+            {streak > 0 ? (
+              <strong className="profile-companion-title">
+                <span className="profile-companion-kicker">已同行</span>
+                <span className="profile-companion-days">
+                  <span className="profile-companion-num">{streak}</span>
+                  <span className="profile-companion-unit">天</span>
+                </span>
+              </strong>
+            ) : (
+              <strong className="profile-companion-title profile-companion-title-empty">
+                开始同行读经
+              </strong>
+            )}
             <span className="muted profile-companion-sub">
               今日 {mins} 分钟 · 本周 {weekMins} 分钟
             </span>
@@ -899,7 +1003,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             style={{ ['--pct' as string]: journeyPct }}
             aria-hidden
           >
-            <span>{journeyPct}%</span>
+            <span className="profile-companion-ring-num">{journeyPct}</span>
+            <span className="profile-companion-ring-unit">%</span>
           </div>
         </Link>
 
@@ -934,6 +1039,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       <div className="profile-footprint-grid" role="list">
         <FootprintCell
           kind="想法"
+          tone="thought"
           count={thoughtCount}
           value={thoughtPreview || '写下第一句'}
           empty={!thoughtPreview}
@@ -943,6 +1049,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         />
         <FootprintCell
           kind="划线"
+          tone="mark"
           count={markCount}
           value={markPreview || '去读经划线'}
           empty={!markPreview}
@@ -950,29 +1057,30 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           onOpen={openHighlights}
           onShare={markPreview ? () => void shareMarkPreview() : undefined}
         />
-        <button
-          type="button"
-          className={`card profile-footprint-cell${badgeNew ? ' has-new' : ''}${badgePreview ? '' : ' is-empty'}`}
-          role="listitem"
-          aria-label={
-            badgeNew
-              ? `成就${badgeDoneCount > 0 ? ` · ${badgeDoneCount}` : ''}，有新内容`
-              : `成就${badgeDoneCount > 0 ? ` · ${badgeDoneCount}` : ''}`
+        <FootprintCell
+          kind="成就"
+          tone="badge"
+          count={badgeDoneCount}
+          value={badgePreview || '读经解锁'}
+          empty={!badgePreview}
+          isNew={badgeNew}
+          onOpen={openBadges}
+          adornment={
+            badgePreviewIcon ? (
+              <span className="profile-footprint-badge-thumb badge-circle badge-done" aria-hidden>
+                {badgePreviewIcon}
+              </span>
+            ) : (
+              <span className="profile-footprint-badge-thumb is-empty" aria-hidden>
+                <ProfileGlyph name="badge" size={18} />
+              </span>
+            )
           }
-          onClick={openBadges}
+        />
+        <div
+          className={`profile-footprint-cell profile-footprint-cell-progress tone-journey${journeyPct > 0 ? '' : ' is-empty'}`}
+          role="listitem"
         >
-          {badgeNew ? <span className="profile-footprint-dot" aria-hidden /> : null}
-          <span className="profile-footprint-label">
-            <span className="profile-footprint-kind">成就</span>
-            {badgeDoneCount > 0 ? (
-              <span className="profile-footprint-count">{badgeDoneCount}</span>
-            ) : null}
-          </span>
-          <strong className={`profile-footprint-value${badgePreview ? '' : ' is-empty'}`}>
-            {badgePreview || '读经解锁'}
-          </strong>
-        </button>
-        <div className="profile-footprint-cell profile-footprint-cell-progress" role="listitem">
           <ReadingProgress
             variant="footprint"
             summary={
@@ -986,21 +1094,27 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
       <p className="section-label tab-section-label profile-block-label">常用</p>
       <div className="profile-shortcut-grid" role="navigation" aria-label="常用捷径">
-        <Link href="/challenge" className="profile-shortcut">
+        <Link href="/challenge" className="profile-shortcut tone-challenge">
+          <span className="profile-shortcut-glyph" aria-hidden>
+            <ProfileGlyph name="challenge" size={20} />
+          </span>
           <strong>今日 5 题</strong>
-          <span className="muted">问答</span>
         </Link>
-        <Link href="/profile/reminders" className="profile-shortcut">
+        <Link href="/profile/reminders" className="profile-shortcut tone-remind">
+          <span className="profile-shortcut-glyph" aria-hidden>
+            <ProfileGlyph name="remind" size={20} />
+          </span>
           <strong>提醒</strong>
-          <span className="muted">推送</span>
         </Link>
         <button
           type="button"
-          className="profile-shortcut"
+          className="profile-shortcut tone-offline"
           onClick={() => setDownloadOpen(true)}
         >
+          <span className="profile-shortcut-glyph" aria-hidden>
+            <ProfileGlyph name="offline" size={20} />
+          </span>
           <strong>离线</strong>
-          <span className="muted">{downloadHint ? '下载中' : '圣经'}</span>
         </button>
       </div>
 
