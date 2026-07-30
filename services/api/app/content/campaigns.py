@@ -36,7 +36,8 @@ TEMPLATES: dict[str, dict[str, Any]] = {
         "id": "blank",
         "name": "空白页",
         "domain": "H",
-        "tag": "空白",
+        # 首页角标用语；勿用「空白」（会原样出现在今日推荐主卡左上）
+        "tag": "活动",
         "blurb": "从零用控件搭建落地页",
         "landing": {
             "title": "",
@@ -501,6 +502,17 @@ def resolve_campaign_rail_href(campaign_id: str, rail_href: str | None) -> str:
     return href if href else f"/campaigns/view/{campaign_id}"
 
 
+def resolve_home_rail_tag(template_id: str | None, raw_tag: str | None = None) -> str:
+    """今日推荐左上角角标：模板 tag；「空白」等占位词回落为「活动」。"""
+    t = (raw_tag or "").strip()
+    if not t:
+        t = (TEMPLATES.get(template_id or "") or {}).get("tag") or ""
+    t = str(t).strip()
+    if not t or t in {"空白", "空白页", "未命名"}:
+        return "活动"
+    return t[:8]
+
+
 def _row_campaign(row: tuple, group_ids: list[str] | None = None) -> dict[str, Any]:
     out: dict[str, Any] = {
         "id": row[0],
@@ -519,7 +531,7 @@ def _row_campaign(row: tuple, group_ids: list[str] | None = None) -> dict[str, A
         "groupIds": group_ids or [],
         "createdAt": _iso(row[13]),
         "updatedAt": _iso(row[14]),
-        "tag": (TEMPLATES.get(row[3]) or {}).get("tag") or "活动",
+        "tag": resolve_home_rail_tag(row[3]),
     }
     if len(row) > 15:
         out["audienceMode"] = str(row[15] or "groups")
@@ -1249,7 +1261,7 @@ def list_home_rail_campaigns(user_id: str | None) -> list[dict]:
                     "id": row[0],
                     "name": row[2],
                     "templateId": row[3],
-                    "tag": (TEMPLATES.get(row[3]) or {}).get("tag") or "活动",
+                    "tag": resolve_home_rail_tag(row[3]),
                     "subtitle": row[8] or str(landing.get("body") or "")[:40],
                     "coverUrl": row[7],
                     "railSlot": int(row[9] or 1),
@@ -1367,7 +1379,7 @@ def get_campaign(
                 "teaser": {
                     "id": row[0],
                     "name": row[2],
-                    "tag": (TEMPLATES.get(row[3]) or {}).get("tag") or "活动",
+                    "tag": resolve_home_rail_tag(row[3]),
                     "status": row[4],
                 },
             }

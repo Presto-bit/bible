@@ -20,7 +20,11 @@ function normalizeList(parsed: unknown): HomeTodayCampaignInput[] | null {
     .slice(0, 3)
     .map((c) => ({
       id: String(c.id),
-      tag: String(c.tag || '活动'),
+      tag: (() => {
+        const t = String(c.tag || '活动').trim();
+        if (!t || t === '空白' || t === '空白页' || t === '未命名') return '活动';
+        return t.slice(0, 8);
+      })(),
       title: String(c.title || ''),
       sub: String(c.sub || ''),
       href: String(c.href || ''),
@@ -87,6 +91,12 @@ export function clearCachedHomeCampaigns(): void {
   }
 }
 
+function normalizeHomeRailTag(tag: string | undefined | null): string {
+  const t = (tag || '').trim();
+  if (!t || t === '空白' || t === '空白页' || t === '未命名') return '活动';
+  return t.slice(0, 8);
+}
+
 /** 把 bootstrap / homeCampaigns API 行映射为今日推荐输入 */
 export function mapApiCampaignsToHomeInput(
   rows: Array<{
@@ -100,7 +110,7 @@ export function mapApiCampaignsToHomeInput(
 ): HomeTodayCampaignInput[] {
   return rows.slice(0, 3).map((c) => ({
     id: c.id,
-    tag: c.tag || '活动',
+    tag: normalizeHomeRailTag(c.tag),
     title: c.name,
     sub: (c.subtitle || '').trim() || '进入活动',
     href: c.href || `/campaigns/view/${c.id}`,

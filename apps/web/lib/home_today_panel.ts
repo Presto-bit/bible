@@ -84,9 +84,12 @@ export type HomeTodayPanelInput = {
 
 function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
   const action = trimRailSub(c.sub || '进入活动') || '进入活动';
+  const tag = (c.tag || '').trim();
+  const safeTag =
+    !tag || tag === '空白' || tag === '空白页' || tag === '未命名' ? '活动' : tag;
   return {
     id: `campaign-${c.id}`,
-    tag: c.tag || '活动',
+    tag: safeTag,
     title: trimRailTitle(c.title),
     sub: '',
     href: c.href,
@@ -98,9 +101,12 @@ function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
 }
 
 function campaignSide(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
+  const tag = (c.tag || '').trim();
+  const safeTag =
+    !tag || tag === '空白' || tag === '空白页' || tag === '未命名' ? '活动' : tag;
   return {
     id: `campaign-${c.id}`,
-    tag: c.tag || '活动',
+    tag: safeTag,
     title: trimRailTitle(c.title, SIDE_TITLE_MAX),
     sub: '',
     href: c.href,
