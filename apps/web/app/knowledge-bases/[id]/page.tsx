@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
 import { KnowledgeDocPreviewSheet } from '@/components/knowledge/KnowledgeDocPreviewSheet';
 import { getKnowledgeBase, type KnowledgeBaseDetail } from '@/lib/api';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 function formatUpdated(iso?: string | null): string {
   if (!iso) return '暂无更新';
@@ -85,6 +86,7 @@ function KnowledgeBaseDetailInner() {
     if (group) return '公版英文注释';
     return '平台知识库';
   })();
+  useEdgeSwipeBack({ href: backHref });
 
   const onFolderClick = (folderId: string) => {
     if (isPlatform) {

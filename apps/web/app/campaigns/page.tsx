@@ -2,10 +2,12 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 /** 活动列表已并入管理后台「活动运营」tab；旧链接重定向。 */
 export default function CampaignsListPage() {
   const router = useRouter();
+  useEdgeSwipeBack({ href: '/' });
   useEffect(() => {
     router.replace('/admin?tab=ops');
   }, [router]);

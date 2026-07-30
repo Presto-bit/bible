@@ -22,6 +22,11 @@ import { getImDraftRecord, IM_DRAFTS_EVENT } from '@/lib/im_drafts';
 import { listFailedText, listFailedMediaMeta } from '@/lib/im_send_queue';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 import { timedPerf } from '@/lib/perf_rum';
+import {
+  useHomePullRefresh,
+  usePrefersReducedMotion,
+} from '@/lib/use_home_pull_refresh';
+import { useToast } from '@/components/ui/ToastProvider';
 
 function convListSubtitle(it: ConversationItem): string {
   if (it.scope === 'group' || it.scope === 'dm') {
@@ -86,6 +91,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const router = useRouter();
   const pathname = usePathname();
   const online = useOnline();
+  const toast = useToast();
   const account = useAccountReady();
   const uid = account.status === 'ready' ? account.uid : null;
   const [items, setItems] = useState<ConversationItem[]>([]);
@@ -102,6 +108,11 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const plusRef = useRef<HTMLDivElement | null>(null);
   const messagesLoadedRef = useRef(false);
   const reloadGenRef = useRef(0);
+  const rootRef = useRef<HTMLElement | null>(null);
+  const ptrContentRef = useRef<HTMLDivElement | null>(null);
+  const ptrIndicatorRef = useRef<HTMLDivElement | null>(null);
+  const ptrLabelRef = useRef<HTMLSpanElement | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
 
   const friendsById = useMemo(() => {
     const map = new Map<string, Friend>();
@@ -235,6 +246,20 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     return () => window.clearTimeout(t);
   }, [searchQ]);
 
+  const { refreshing: ptrRefreshing } = useHomePullRefresh({
+    enabled: Boolean(paneActive && online && uid),
+    reducedMotion,
+    enableBottomStretch: false,
+    onRefresh: async () => {
+      await reload();
+      toast('消息已更新');
+    },
+    rootRef,
+    contentRef: ptrContentRef,
+    indicatorRef: ptrIndicatorRef,
+    labelRef: ptrLabelRef,
+  });
+
   const go = (href: string) => {
     markRouteNavigation();
     router.push(href);
@@ -363,7 +388,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   }
 
   return (
-    <main className="container discover-page discover-im">
+    <main
+      ref={rootRef}
+      className={`container discover-page discover-im${ptrRefreshing ? ' is-ptr-refreshing' : ''}`}
+    >
+      <div
+        ref={ptrIndicatorRef}
+        className="home-ptr-indicator discover-ptr-indicator"
+        aria-hidden={!ptrRefreshing}
+      >
+        <span ref={ptrLabelRef} className={`home-ptr-label${ptrRefreshing ? ' is-busy' : ''}`} />
+      </div>
+      <div ref={ptrContentRef} className="home-ptr-content discover-ptr-content">
       {!online ? (
         <p className="muted offline-page-hint">当前离线，消息需联网后刷新。</p>
       ) : null}
@@ -600,6 +636,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
           </ul>
         )
       ) : null}
+      </div>
     </main>
   );
 }

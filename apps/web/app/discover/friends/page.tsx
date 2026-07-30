@@ -2,10 +2,12 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 /** 好友列表已并入通讯录；旧路由重定向。 */
 export default function FriendsListRedirectPage() {
   const router = useRouter();
+  useEdgeSwipeBack({ href: '/discover/contacts' });
   useEffect(() => {
     router.replace('/discover/contacts');
   }, [router]);

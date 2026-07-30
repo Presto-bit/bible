@@ -34,6 +34,7 @@ import { CampaignLivePreview, type CampaignPreviewEditTarget } from '@/component
 import { CampaignCoverPicker } from '@/components/campaigns/CampaignCoverPicker';
 import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
 import { normalizeCampaignCoverPath } from '@/lib/daily_verse_wallpaper';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 function toLocalInput(iso: string): string {
   if (!iso) return '';
@@ -60,6 +61,7 @@ function CampaignEditInner() {
   const params = useParams();
   const router = useRouter();
   const id = String(params?.id || '');
+  useEdgeSwipeBack({ href: `/campaigns/${id}` });
   const [camp, setCamp] = useState<OpsCampaignDetail | null>(null);
   const [groups, setGroups] = useState<Array<{ id: string; name: string; role: string }>>([]);
   const [name, setName] = useState('');

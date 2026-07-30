@@ -13,6 +13,7 @@ import { pickPrayFlow, prayFlowById } from '@/lib/pray_flow';
 import { logPrayer } from '@/lib/reading';
 import { useToast } from '@/components/ui/ToastProvider';
 import { applyAppTheme } from '@/lib/app_theme';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 const PRAY_SURFACE = '#f3ebe3';
 
@@ -53,6 +54,7 @@ function MuteIcon({ muted }: { muted: boolean }) {
  */
 export default function PraySession() {
   const router = useRouter();
+  useEdgeSwipeBack({ href: '/' });
   const toast = useToast();
   const pick = useMemo(() => pickPrayFlow(), []);
   const audioRef = useRef<HTMLAudioElement | null>(null);

@@ -23,6 +23,8 @@ type Opts = {
   indicatorRef: RefObject<HTMLElement | null>;
   labelRef: RefObject<HTMLElement | null>;
   endFooterRef?: RefObject<HTMLElement | null>;
+  /** 底 overscroll；发现列表等只需顶下拉时关 */
+  enableBottomStretch?: boolean;
 };
 
 function scrollTop(): number {
@@ -64,6 +66,7 @@ export function useHomePullRefresh({
   indicatorRef,
   labelRef,
   endFooterRef,
+  enableBottomStretch = true,
 }: Opts) {
   const [phase, setPhase] = useState<HomePtrPhase>('idle');
   const [refreshing, setRefreshing] = useState(false);
@@ -198,6 +201,9 @@ export function useHomePullRefresh({
     }
   }, [applyPhase, paintTop, resetTop, rootRef]);
 
+  const enableBottomRef = useRef(enableBottomStretch);
+  enableBottomRef.current = enableBottomStretch;
+
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
@@ -218,8 +224,9 @@ export function useHomePullRefresh({
       if (modeRef.current === 'none') {
         if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.1) return;
         if (dy > 6 && scrollTop() <= 0) modeRef.current = 'top';
-        else if (dy < -6 && atDocumentBottom()) modeRef.current = 'bottom';
-        else return;
+        else if (enableBottomRef.current && dy < -6 && atDocumentBottom()) {
+          modeRef.current = 'bottom';
+        } else return;
       }
 
       if (modeRef.current === 'top') {

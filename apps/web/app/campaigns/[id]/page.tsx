@@ -14,6 +14,7 @@ import {
 } from '@/lib/campaign_ops';
 import { CampaignAdminGate } from '@/components/campaigns/CampaignAdminGate';
 import { OpsPcShell } from '@/components/campaigns/OpsPcShell';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 function formatWhen(iso: string): string {
   if (!iso) return '—';
@@ -39,6 +40,7 @@ export default function CampaignDetailPage() {
 function CampaignDetailInner() {
   const params = useParams();
   const router = useRouter();
+  useEdgeSwipeBack({ href: '/admin?tab=ops' });
   const id = String(params?.id || '');
   const [camp, setCamp] = useState<OpsCampaignDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);

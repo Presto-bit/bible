@@ -2703,6 +2703,16 @@ html:not([data-app-theme]) .card {
   transition: none !important;
 }
 
+.discover-page.is-ptr-pulling .discover-ptr-content,
+.discover-page.is-ptr-pulling .discover-ptr-indicator {
+  transition: none !important;
+}
+
+html.pwa-standalone .discover-page.is-ptr-pulling,
+html.pwa-standalone .discover-page.is-ptr-refreshing {
+  overscroll-behavior-y: none;
+}
+
 .home-ptr-toast {
   margin: 10px 4px 0;
   text-align: center;

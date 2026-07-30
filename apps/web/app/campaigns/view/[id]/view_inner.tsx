@@ -9,10 +9,12 @@ import { openCampaignHref, resolvePrimaryCta } from '@/lib/campaign_nav';
 import { CampaignLandingBlocks } from '@/components/campaigns/CampaignLandingBlocks';
 import { ensureLandingBlocks, normalizeBlocks } from '@/lib/campaign_blocks';
 import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 export default function CampaignViewInner() {
   const params = useParams();
   const search = useSearchParams();
+  useEdgeSwipeBack({ href: '/' });
   const id = String(params?.id || '');
   const preview = search.get('preview') === '1';
   const dayParam = search.get('day');

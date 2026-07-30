@@ -19,6 +19,7 @@ import {
   loadLastAudiencePref,
   resolveDefaultGroupIds,
 } from '@/lib/campaign_audience_pref';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 function toLocalInput(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -40,6 +41,7 @@ export default function CampaignNewPage() {
 
 function CampaignNewInner() {
   const router = useRouter();
+  useEdgeSwipeBack({ href: '/admin?tab=ops' });
   const [templates, setTemplates] = useState<OpsCampaignTemplate[]>([]);
   const [userTemplates, setUserTemplates] = useState<
     Array<{ id: string; name: string; baseTemplateId: string; landing: OpsCampaignLanding }>

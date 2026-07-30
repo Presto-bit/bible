@@ -7,9 +7,11 @@ import {
   browseKnowledgeBases,
   type KnowledgeBaseBrowsePlatform,
 } from '@/lib/api';
+import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 /** 知识库入口：仅展示平台知识库，点入主页看文件夹 */
 export default function KnowledgeBasesPage() {
+  useEdgeSwipeBack({ href: '/profile?settings=1' });
   const [platform, setPlatform] = useState<KnowledgeBaseBrowsePlatform | null>(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
