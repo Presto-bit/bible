@@ -40,7 +40,13 @@ def _version_has_verses(vid: str) -> bool:
     try:
         with _connect(vid) as conn:
             n = conn.execute("SELECT COUNT(*) FROM verses").fetchone()[0]
-            return int(n) > 0
+            if int(n) <= 0:
+                return False
+            # 书卷码须与主译本一致（JHN 而非 eBible 的 JOH），否则前端选了也读不出
+            jhn = conn.execute(
+                "SELECT COUNT(*) FROM verses WHERE book = 'JHN' AND chapter = 3"
+            ).fetchone()[0]
+            return int(jhn) > 0
     except (sqlite3.OperationalError, FileNotFoundError):
         return False
 

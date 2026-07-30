@@ -15,6 +15,21 @@ import json
 import sqlite3
 from pathlib import Path
 
+# eBible VPL / 部分源站书卷码 → 本仓库 canonical（与 cuvs/cnv/kjv 一致）
+BOOK_ID_ALIASES: dict[str, str] = {
+    "JOH": "JHN",
+    "MAR": "MRK",
+    "PHI": "PHP",
+    "SOL": "SNG",
+    "EZE": "EZK",
+    "JAM": "JAS",
+    "JOE": "JOL",
+    "NAH": "NAM",
+    "1JO": "1JN",
+    "2JO": "2JN",
+    "3JO": "3JN",
+}
+
 SCHEMA = """
 PRAGMA journal_mode = WAL;
 
@@ -51,6 +66,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS verses_fts USING fts5(
 """
 
 
+def normalize_book_id(raw: str, valid: set[str]) -> str:
+    b = (raw or "").strip().upper()
+    if b in valid:
+        return b
+    mapped = BOOK_ID_ALIASES.get(b, b)
+    return mapped if mapped in valid else b
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", required=True)
@@ -60,18 +83,33 @@ def main() -> None:
     data = json.loads(Path(args.input).read_text(encoding="utf-8"))
     translation = data["translation"]
     books = data["books"]
+    valid_ids = {str(b["id"]).upper() for b in books}
 
     # 去重（KJV best-effort 解析可能产生重复键，保留首次出现）
     seen: set[tuple] = set()
     verses = []
     dropped = 0
+    remapped = 0
+    unknown_books: set[str] = set()
     for v in data["verses"]:
-        key = (v["book"], v["chapter"], v["verse"])
+        raw_book = str(v["book"])
+        book = normalize_book_id(raw_book, valid_ids)
+        if book != raw_book.upper():
+            remapped += 1
+        if book not in valid_ids:
+            unknown_books.add(raw_book)
+            continue
+        key = (book, v["chapter"], v["verse"])
         if key in seen:
             dropped += 1
             continue
         seen.add(key)
-        verses.append(v)
+        verses.append({**v, "book": book})
+
+    if unknown_books:
+        raise SystemExit(
+            f"未知书卷码（未映射到 books.id）：{sorted(unknown_books)[:20]}"
+        )
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -123,10 +161,14 @@ def main() -> None:
         conn.close()
 
     print(f"✓ {translation}: {n} 节 / {nb} 卷 → {out} ({out.stat().st_size // 1024} KB)")
+    if remapped:
+        print(f"  书卷码规范化 {remapped} 节（如 JOH→JHN）")
     if dropped:
         print(f"  ⚠ 跳过重复键 {dropped} 条（best-effort 解析）")
     if row:
         print(f"  getChapter(JHN,3) 首节 v{row[0]} = {row[1][:48]}")
+    else:
+        print("  ⚠ getChapter(JHN,3) 无结果 — 书卷码可能仍未对齐")
     print(f"  FTS 命中（示例词）= {fts}")
 
 

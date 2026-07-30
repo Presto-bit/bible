@@ -62,10 +62,12 @@ import sqlite3, sys
 c = sqlite3.connect(sys.argv[1])
 try:
     n = c.execute('SELECT COUNT(*) FROM verses').fetchone()[0]
+    jhn = c.execute(\"SELECT COUNT(*) FROM verses WHERE book='JHN' AND chapter=3\").fetchone()[0]
 except sqlite3.OperationalError:
     n = 0
+    jhn = 0
 c.close()
-print(n)
+print(n if jhn > 0 else 0)
 " "$f")"
   [[ "$count" -ge 10000 ]]
 }

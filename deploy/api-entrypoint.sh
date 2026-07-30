@@ -52,8 +52,9 @@ fi
 
 if [[ -f "$CONTEMPORARY" && -f /app/data/bible/contemporary/verses.json ]]; then
   contemporary_n="$(python -c "import sqlite3; c=sqlite3.connect('$CONTEMPORARY'); print(c.execute('SELECT COUNT(*) FROM verses').fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
-  if [[ "${contemporary_n:-0}" -lt 10000 ]]; then
-    echo "[entrypoint] 重建 bible_contemporary.sqlite（当前仅 ${contemporary_n} 节）…"
+  contemporary_jhn="$(python -c "import sqlite3; c=sqlite3.connect('$CONTEMPORARY'); print(c.execute(\"SELECT COUNT(*) FROM verses WHERE book='JHN' AND chapter=3\").fetchone()[0]); c.close()" 2>/dev/null || echo 0)"
+  if [[ "${contemporary_n:-0}" -lt 10000 || "${contemporary_jhn:-0}" -lt 1 ]]; then
+    echo "[entrypoint] 重建 bible_contemporary.sqlite（节数=${contemporary_n:-0} · JHN.3=${contemporary_jhn:-0}）…"
     python /app/scripts/import_bible.py \
       --input /app/data/bible/contemporary/verses.json \
       --out "$CONTEMPORARY"

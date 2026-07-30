@@ -18,3 +18,9 @@
 
 - `data/bible/contemporary/verses.json`
 - `build/bible_contemporary.sqlite`
+
+## Book id note
+
+Upstream VPL uses alternate codes (`JOH`, `MAR`, `PHI`, …). Import normalizes them to
+project canonical ids (`JHN`, `MRK`, `PHP`, …) via `scripts/import_bible.py` aliases,
+matching cuvs/cnv/kjv so `/bible/chapter?book=JHN&version=contemporary` resolves.
