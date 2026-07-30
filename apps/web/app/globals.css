@@ -11649,7 +11649,8 @@ a.license-row-name:hover {
 .reader-content.verse-transition-off .verse-word,
 .reader-content.verse-transition-off .verse-mark-span,
 .reader-content.verse-transition-off .verse-resume-lead-flash,
-.reader-content.verse-transition-off .verse-resume-flash {
+.reader-content.verse-transition-off .verse-resume-flash,
+.reader-content.verse-transition-off .verse-resume-flash-text {
   animation: none !important;
   transition: none !important;
 }
@@ -11702,6 +11703,11 @@ a.license-row-name:hover {
 .verse-resume-flash {
   animation: verse-resume-flash 2.4s ease-out 1;
   border-radius: 10px;
+}
+
+.verse-resume-flash-text {
+  border-radius: 6px;
+  animation: verse-resume-flash 2.4s ease-out 1;
 }
 
 @keyframes verse-resume-flash {

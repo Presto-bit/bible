@@ -68,6 +68,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const [planMeta, setPlanMeta] = useState<PlanReadingMeta | null>(null);
   const [checkinGroupId, setCheckinGroupId] = useState<string | null>(null);
   const [flashRef, setFlashRef] = useState<string | null>(null);
+  const [flashNonce, setFlashNonce] = useState(0);
   const [feedHint, setFeedHint] = useState<FeedActivityHint | null>(null);
   const booksLenRef = useRef(0);
   const errRef = useRef<string | null>(null);
@@ -239,26 +240,28 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
 
   const bookRef = useRef(book);
   bookRef.current = book;
-  const appliedUrlNavKeyRef = useRef('');
 
   useEffect(() => {
     if (!books.length) return;
     let cancelled = false;
     const refParam = searchParams.get('ref');
     const flashParam = searchParams.get('flash');
+    const verseParam = searchParams.get('verse');
     const parsedRef = refParam ? parseMarkRef(refParam) : null;
+    const parsedFlash = flashParam ? parseMarkRef(flashParam) : null;
     const bookId =
       searchParams.get('book') ||
       parsedRef?.bookId ||
+      parsedFlash?.bookId ||
       null;
     const planId = searchParams.get('plan');
-    const hasUrlNav = Boolean(bookId || planId || flashParam || refParam);
+    const hasUrlNav = Boolean(bookId || planId || flashParam || refParam || verseParam);
 
     const clearReaderNavQuery = () => {
       if (typeof window === 'undefined') return;
       const url = new URL(window.location.href);
       let changed = false;
-      for (const key of ['book', 'chapter', 'ref', 'flash', 'group']) {
+      for (const key of ['book', 'chapter', 'ref', 'flash', 'verse', 'group']) {
         if (url.searchParams.has(key)) {
           url.searchParams.delete(key);
           changed = true;
@@ -269,9 +272,32 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     };
 
     const apply = async () => {
-      if (flashParam) setFlashRef(flashParam);
-      else if (refParam) setFlashRef(refParam);
-      else setFlashRef(null);
+      const chapterFromUrl =
+        searchParams.get('chapter') ||
+        (parsedRef ? String(parsedRef.chapter) : null) ||
+        (parsedFlash ? String(parsedFlash.chapter) : null) ||
+        '1';
+      const verseFromUrl = Number(
+        verseParam ||
+          (parsedFlash?.verseStart != null ? String(parsedFlash.verseStart) : '') ||
+          (parsedRef?.verseStart != null ? String(parsedRef.verseStart) : ''),
+      );
+      const synthesizedFlash =
+        flashParam ||
+        refParam ||
+        (bookId && Number.isFinite(verseFromUrl) && verseFromUrl >= 1
+          ? `${bookId.toUpperCase()}.${chapterFromUrl}.${Math.floor(verseFromUrl)}`
+          : null);
+
+      // 仅在有导航参数时更新 flash；清 query 后的空 URL 不要冲掉待滚动的 flashRef
+      if (hasUrlNav) {
+        if (synthesizedFlash) {
+          setFlashRef(synthesizedFlash);
+          setFlashNonce((n) => n + 1);
+        } else {
+          setFlashRef(null);
+        }
+      }
 
       setFeedHint(parseFeedHintFromSearchParams(searchParams));
 
@@ -285,10 +311,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         if (meta) {
           setPlanMeta(meta);
           const step = meta.steps[meta.session.currentStepIndex] ?? meta.steps[0];
-          const ch = Number(
-            searchParams.get('chapter') ||
-              (parsedRef ? String(parsedRef.chapter) : '1'),
-          );
+          const ch = Number(chapterFromUrl);
           const b = books.find((x) => x.id === (bookId?.toUpperCase() ?? step.bookId));
           if (b) {
             const nextCh = Math.min(Math.max(1, bookId ? ch : step.chapterStart), b.chapter_count);
@@ -301,19 +324,13 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       }
 
       if (bookId) {
-        const ch = Number(
-          searchParams.get('chapter') ||
-            (parsedRef ? String(parsedRef.chapter) : '1'),
-        );
-        const navKey = `${bookId.toUpperCase()}:${ch}:${refParam || ''}:${flashParam || ''}`;
-        if (appliedUrlNavKeyRef.current === navKey) return;
+        const ch = Number(chapterFromUrl);
         const b = books.find((x) => x.id === bookId.toUpperCase());
         if (b) {
           const nextCh = Math.min(Math.max(1, ch), b.chapter_count);
           setBook(b);
           setChapter(nextCh);
           setLastRead(b.id, nextCh);
-          appliedUrlNavKeyRef.current = navKey;
           clearReaderNavQuery();
         }
         return;
@@ -447,6 +464,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
         onPlanExit={planMeta ? handlePlanExit : undefined}
         externalOverlayOpen={Boolean(dictPopup)}
         flashRef={flashRef}
+        flashNonce={flashNonce}
         feedHint={feedHint}
         checkinGroupId={checkinGroupId}
         paneActive={paneActive}

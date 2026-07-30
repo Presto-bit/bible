@@ -216,6 +216,7 @@ export default function ReaderView({
   onPlanExit,
   externalOverlayOpen = false,
   flashRef = null,
+  flashNonce = 0,
   feedHint = null,
   checkinGroupId = null,
   paneActive = true,
@@ -232,6 +233,8 @@ export default function ReaderView({
   onPlanExit?: () => void;
   externalOverlayOpen?: boolean;
   flashRef?: string | null;
+  /** 递增以强制再次滚到 flash 节（同节重复深链） */
+  flashNonce?: number;
   feedHint?: FeedActivityHint | null;
   checkinGroupId?: string | null;
   paneActive?: boolean;
@@ -684,13 +687,8 @@ export default function ReaderView({
       }
 
       if (flashLead && text) {
-        const lead = text.slice(0, 2);
-        const tail = text.slice(2);
         return (
-          <>
-            <span className="verse-resume-lead-flash">{lead}</span>
-            {tail ? renderText(tail, 'tail') : null}
-          </>
+          <span className="verse-resume-flash-text">{renderText(text, 'flash')}</span>
         );
       }
 
@@ -1286,10 +1284,11 @@ export default function ReaderView({
               : null;
           if (flashVerse) {
             document.getElementById(`verse-anchor-${flashVerse}`)?.scrollIntoView({
-              behavior: 'auto',
+              behavior: 'smooth',
               block: 'center',
             });
             setResumeFlashVerse(flashVerse);
+            setLastReadVerse(book.id, chapter, flashVerse);
             window.setTimeout(() => setResumeFlashVerse(null), 2600);
             return;
           }
@@ -1316,7 +1315,7 @@ export default function ReaderView({
       cancelled = true;
       cancelPendingChapterProgress();
     };
-  }, [book, chapter, mainVersionId, bookAbbr, flashRef, swipeTurn, books, prefetchTarget]);
+  }, [book, chapter, mainVersionId, bookAbbr, flashRef, flashNonce, swipeTurn, books, prefetchTarget]);
 
   useEffect(() => {
     const el = readerScrollEl(contentRef.current);
@@ -2467,7 +2466,7 @@ export default function ReaderView({
                         <div className="reader-parallel-primary">
                           <span
                             id={`verse-anchor-${v.verse}`}
-                            className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
+                            className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                             onClick={(e) => handleVerseClick(e, v.verse, text)}
                             onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                           >
@@ -2532,7 +2531,7 @@ export default function ReaderView({
                       {renderFeedHint(v.verse)}
                       <span
                         id={`verse-anchor-${v.verse}`}
-                        className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}`}
+                        className={`verse-inline verse-token ${highlightClass(wholeMark)}${verseThoughtClass(v.verse)}${verseSelClass(v.verse)}${resumeFlashVerse === v.verse ? ' verse-resume-flash' : ''}`}
                         onClick={(e) => handleVerseClick(e, v.verse, verseDisplayText(v.verse, v.text))}
                         onDoubleClick={(e) => handleVerseDoubleClick(e, v.verse)}
                       >
