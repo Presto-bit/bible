@@ -20,6 +20,7 @@ import {
 } from '@/lib/badge_events';
 import { bodyText, followupsForMessage, followupsOf, stripFollowups } from '@/lib/assistant_format';
 import { resolveScene, refForChatTurn, SCENES, type AssistantScene } from '@/lib/assistant_scenes';
+import { detectsViewpointsIntent } from '@/lib/assistant_viewpoints';
 import { bumpAndEnqueueAiSession } from '@/lib/ai_session_sync';
 import { personalizedAssistantChips } from '@/lib/assistant_personalize';
 import { staticAssistantChips } from '@/lib/assistant_chip_prompts';
@@ -647,9 +648,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         content: msg.role === 'assistant' ? bodyText(msg.text) : msg.text,
       }));
     const refForApi = refForChatTurn(anchor, history.length);
-    const scene = nextScene && refForApi
+    let scene = nextScene && refForApi
       ? nextScene
       : resolveScene(nextScene, m, Boolean(refForApi));
+    // 用户显式要「争议/并列」且未指定其他 scene 时，走并列观点模板
+    if (!nextScene && detectsViewpointsIntent(q)) {
+      scene = 'chat_viewpoints';
+    }
     const userMsgsInSession = msgs.filter((msg) => msg.role === 'user').length + 1;
     recordXiaoAiQuestion({ scene, ref: refForApi ?? undefined });
     recordXiaoAiFollowup(userMsgsInSession);
@@ -1172,6 +1177,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                     <span>小爱</span>
                     {m.sceneLabel && (
                       <span className="assistant-scene-tag">{m.sceneLabel}</span>
+                    )}
+                    {m.scene === 'chat_viewpoints' && (
+                      <span className="assistant-viewpoints-hint">
+                        已并列常见理解 · 请核对来源
+                      </span>
                     )}
                   </div>
                 )}

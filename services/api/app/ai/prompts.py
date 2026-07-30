@@ -175,6 +175,12 @@ def build_messages(
     if scene.id == "chat_general":
         base = _BASE_GENERAL
         mode_guide = "本次为未绑定经文的主题问答，请直接回答读者问题，并用 ### 相关经节 推荐延伸阅读。"
+    elif scene.id == "chat_viewpoints":
+        base = _BASE if use_rag else _BASE_NO_RAG
+        mode_guide = (
+            "本次为「并列观点」模式：对争议或易分歧主题并列呈现主要理解与依据，"
+            "不替读者做教义裁决；释义不等于圣经正文。"
+        )
     else:
         base = _BASE if use_rag else _BASE_NO_RAG
         mode_guide = _MODE_GUIDE[mode]

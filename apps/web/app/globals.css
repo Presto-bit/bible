@@ -7931,6 +7931,29 @@ body.verse-full-open .tabbar {
   color: var(--accent-deep);
 }
 
+.assistant-viewpoints-hint {
+  margin-left: 6px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.answer-rich-md .ans-md-h-viewpoint {
+  display: block;
+  margin: 14px 0 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent-wash) 70%, var(--surface));
+  border-left: 3px solid var(--accent-deep);
+  font-size: calc(var(--assistant-answer-font-size, var(--font-base)) + 0px);
+  font-weight: 700;
+  color: var(--accent-deep);
+}
+
+.answer-rich-md .ans-md-h-viewpoint-b {
+  border-left-color: color-mix(in srgb, var(--gold) 80%, var(--accent-deep));
+  background: color-mix(in srgb, var(--wash) 55%, var(--surface));
+}
+
 .followup-row-label {
   width: 100%;
   font-size: 12px;
@@ -11399,6 +11422,103 @@ a.license-row-name:hover {
   margin-bottom: 8px;
   padding-bottom: 0;
   border-bottom: none;
+}
+
+.chapter-guide-tip {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 10px;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent-wash) 88%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+  animation: chapter-guide-tip-in 0.28s ease-out;
+}
+
+.chapter-guide-tip.is-compact {
+  padding: 5px 8px;
+  gap: 6px 8px;
+}
+
+.chapter-guide-tip-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chapter-guide-tip-icon {
+  flex-shrink: 0;
+  color: var(--accent-deep);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.chapter-guide-tip-text {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapter-guide-tip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.chapter-guide-tip-open,
+.chapter-guide-tip-skip,
+.chapter-guide-tip-mute {
+  border: none;
+  background: none;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.2;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.chapter-guide-tip-open {
+  background: var(--accent-deep);
+  color: #fff;
+  font-weight: 600;
+}
+
+.chapter-guide-tip-skip,
+.chapter-guide-tip-mute {
+  color: var(--ink-faint);
+}
+
+.chapter-guide-tip-mute {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@keyframes chapter-guide-tip-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter-guide-tip {
+    animation: none;
+  }
 }
 
 .reader-chapter-title {

@@ -109,6 +109,16 @@ def test_resolve_scene_without_ref():
     assert resolve_scene("chat_understand", "understand", has_ref=False).id == "chat_general"
     assert resolve_scene(None, "understand", has_ref=False).id == "chat_general"
     assert resolve_scene("summary_book", "explain", has_ref=False).id == "summary_book"
+    assert resolve_scene("chat_viewpoints", "explain", has_ref=False).id == "chat_viewpoints"
+
+
+def test_viewpoints_scene_format():
+    assert "chat_viewpoints" in SCENES
+    guide = SCENES["chat_viewpoints"].format_guide
+    assert "观点 A" in guide
+    assert "观点 B" in guide
+    assert "请以圣经原文为准" in guide
+    assert SCENES["chat_viewpoints"].wants_followups is True
 
 
 @pytest.mark.skipif(not _HAS_DB, reason="缺少经文库")

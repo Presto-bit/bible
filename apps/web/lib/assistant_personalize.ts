@@ -38,6 +38,7 @@ export function personalizedAssistantChips(opts: {
       chip('生活应用', 'chat_apply', chipUserQuestion('生活应用', refLabel)),
       chip('预备查经', 'chat_study', chipUserQuestion('预备查经', refLabel)),
       chip('译本对照', 'chat_compare', chipUserQuestion('译本对照', refLabel)),
+      chip('并列观点', 'chat_viewpoints', chipUserQuestion('并列观点', refLabel)),
     );
   } else {
     chips.push(

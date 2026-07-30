@@ -13,8 +13,16 @@ import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
 import { useToast } from '@/components/ui/ToastProvider';
 import PageBackBar from '@/components/PageBackBar';
 import SummarySheet from '@/components/reader/SummarySheet';
+import { ChapterGuideTip } from '@/components/reader/ChapterGuideTip';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
+import {
+  disableChapterGuideAuto,
+  recordChapterGuideTipShown,
+  shouldShowChapterGuideTip,
+  skipChapterGuideThisSession,
+} from '@/lib/chapter_guide_tip';
+import { loadChapterSummary } from '@/lib/bible_summary';
 import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import ThoughtHubSheet from '@/components/reader/ThoughtHubSheet';
 import ReaderSheetPortal from '@/components/reader/ReaderSheetPortal';
@@ -306,6 +314,9 @@ export default function ReaderView({
   const [bookCelebrate, setBookCelebrate] = useState(false);
   const [chapterBottomTick, setChapterBottomTick] = useState(0);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [guideTipVisible, setGuideTipVisible] = useState(false);
+  const [guideTipCompact, setGuideTipCompact] = useState(false);
+  const lastNavFromSwipeRef = useRef(false);
   const [locPopoverOpen, setLocPopoverOpen] = useState(false);
   const locBtnRef = useRef<HTMLButtonElement>(null);
   const [highlightMap, setHighlightMap] = useState<ReturnType<typeof getHighlightMap>>({});
@@ -1387,8 +1398,40 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
+  // 章导读轻提示：进章后短暂延迟再出，避免与翻页动画打架
+  useEffect(() => {
+    setGuideTipVisible(false);
+    setGuideTipCompact(false);
+    const fromSwipe = lastNavFromSwipeRef.current;
+    lastNavFromSwipeRef.current = false;
+    if (
+      !shouldShowChapterGuideTip({
+        bookId: book.id,
+        chapter,
+        fromContinuousSwipe: fromSwipe,
+      })
+    ) {
+      return;
+    }
+    const showTimer = window.setTimeout(() => {
+      setGuideTipVisible(true);
+      setGuideTipCompact(fromSwipe);
+      recordChapterGuideTipShown(book.id, chapter);
+      // 静默预取，点开半屏尽量秒出
+      void loadChapterSummary(book.id, book.name, chapter).catch(() => {});
+    }, 520);
+    const compactTimer = fromSwipe
+      ? 0
+      : window.setTimeout(() => setGuideTipCompact(true), 8520);
+    return () => {
+      window.clearTimeout(showTimer);
+      if (compactTimer) window.clearTimeout(compactTimer);
+    };
+  }, [book.id, book.name, chapter]);
+
   const applyNavigate = useCallback(
     async (target: { book: BibleBook; chapter: number }, opts?: { fromSwipe?: boolean }) => {
+      lastNavFromSwipeRef.current = Boolean(opts?.fromSwipe);
       const isNextPeek =
         target.book.id === peekNextBook?.id && target.chapter === peekNextChapter;
       const isPrevPeek =
@@ -2323,6 +2366,26 @@ export default function ReaderView({
       <span className="reader-chapter-title">
         {book.name} · {englishUI ? `Chapter ${chapter}` : `第 ${chapter} 章`}
       </span>
+      {guideTipVisible ? (
+        <ChapterGuideTip
+          bookName={book.name}
+          chapter={chapter}
+          compact={guideTipCompact}
+          englishUI={englishUI}
+          onOpen={() => {
+            setGuideTipVisible(false);
+            setSummaryOpen(true);
+          }}
+          onSkipSession={() => {
+            skipChapterGuideThisSession(book.id, chapter);
+            setGuideTipVisible(false);
+          }}
+          onDisableForever={() => {
+            disableChapterGuideAuto();
+            setGuideTipVisible(false);
+          }}
+        />
+      ) : null}
     </div>
   );
 

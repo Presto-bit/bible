@@ -11,6 +11,7 @@ export type AssistantScene =
   | 'chat_compare'
   | 'chat_original'
   | 'chat_general'
+  | 'chat_viewpoints'
   | 'summary_chapter'
   | 'summary_book';
 
@@ -93,6 +94,13 @@ export const SCENES: Record<AssistantScene, SceneConfig> = {
     timeoutMs: 90_000,
     wantsFollowups: true,
   },
+  chat_viewpoints: {
+    id: 'chat_viewpoints',
+    mode: 'explain',
+    label: '并列观点',
+    timeoutMs: 90_000,
+    wantsFollowups: true,
+  },
   summary_chapter: {
     id: 'summary_chapter',
     mode: 'explain',
@@ -171,6 +179,7 @@ export function chipUserQuestion(label: string, ref?: string): string {
     原文释义: `请说明${anchor}在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。`,
     '原文（希伯来文对照解释）': `请说明${anchor}在圣经原文中的整句表达与含义，并对照不同译本的措辞差异。`,
     讲道大纲: `请为${anchor}生成讲道大纲要点。`,
+    并列观点: `请就${anchor}相关常见争议，并列说明主要理解与各自依据，不要替我做教义裁决。`,
   };
   return map[label] ?? `关于${anchor}，请按「${label}」作答。`;
 }
@@ -184,6 +193,7 @@ export function chipSceneForLabel(label: string): AssistantScene {
     原文释义: 'chat_compare',
     '原文（希伯来文对照解释）': 'chat_compare',
     讲道大纲: 'chat_preach',
+    并列观点: 'chat_viewpoints',
   };
   return map[label] ?? 'chat_explain';
 }
@@ -192,5 +202,6 @@ export function personalizedSceneForLabel(label: string): AssistantScene {
   if (label === '关键词释义') return 'chat_compare';
   if (label === '今日默想' || label === '生活应用' || label === '坚持鼓励') return 'chat_apply';
   if (label === '信仰问答') return 'chat_general';
+  if (label === '并列观点') return 'chat_viewpoints';
   return 'chat_explain';
 }

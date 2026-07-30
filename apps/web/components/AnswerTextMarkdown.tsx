@@ -31,6 +31,16 @@ function CitationButton({
   );
 }
 
+function childrenToPlain(children: React.ReactNode): string {
+  if (children == null || typeof children === 'boolean') return '';
+  if (typeof children === 'string' || typeof children === 'number') return String(children);
+  if (Array.isArray(children)) return children.map(childrenToPlain).join('');
+  if (React.isValidElement<{ children?: React.ReactNode }>(children)) {
+    return childrenToPlain(children.props.children);
+  }
+  return '';
+}
+
 export default function AnswerText({
   text,
   streaming = false,
@@ -45,7 +55,22 @@ export default function AnswerText({
   const components = useMemo<Components>(() => ({
     h1: ({ children }) => <h3 className="ans-md-h">{children}</h3>,
     h2: ({ children }) => <h3 className="ans-md-h">{children}</h3>,
-    h3: ({ children }) => <h3 className="ans-md-h ans-md-h-section">{children}</h3>,
+    h3: ({ children }) => {
+      const plain = childrenToPlain(children);
+      const viewpoint = /观点\s*([ABC一二三]|[AaBbCc])/.exec(plain);
+      if (viewpoint) {
+        const key = viewpoint[1].toUpperCase();
+        const isB = key === 'B' || key === '二';
+        return (
+          <h3
+            className={`ans-md-h ans-md-h-viewpoint${isB ? ' ans-md-h-viewpoint-b' : ''}`}
+          >
+            {children}
+          </h3>
+        );
+      }
+      return <h3 className="ans-md-h ans-md-h-section">{children}</h3>;
+    },
     h4: ({ children }) => <h4 className="ans-md-h4">{children}</h4>,
     p: ({ children }) => <p className="ans-md-p">{children}</p>,
     ul: ({ children }) => <ul className="ans-md-list">{children}</ul>,
