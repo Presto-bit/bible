@@ -38,7 +38,17 @@ import { HomeTodayPanel } from '@/components/home/HomeTodayPanel';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
 import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
 import { homeGreeting } from '@/lib/home_greeting';
+import {
+  consumeCheckinFlash,
+  consumePlanDoneHomeHaptic,
+  isPlanDayDoneToday,
+  isWelcomeBackGap,
+  markPlanDayDoneToday,
+  shouldPlayHomeStagger,
+  todayHasReadingActivity,
+} from '@/lib/home_liveness';
 import { buildHomeGroupRailInput } from '@/lib/home_social_line';
+import { HomeSkeleton } from '@/components/Skeleton';
 import {
   buildHomeAnchorBlock,
   buildHomeAnchorFromGroupRail,
@@ -286,10 +296,33 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   });
   const [ptrToast, setPtrToast] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
+  const [greeting, setGreeting] = useState(() =>
+    typeof window === 'undefined' ? '你好' : homeGreeting(),
+  );
+  const [likePop, setLikePop] = useState(false);
+  const [groupFlash, setGroupFlash] = useState(false);
+  const [staggerEnter, setStaggerEnter] = useState(false);
+  const [summaryFlash, setSummaryFlash] = useState(false);
   const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
   const homeAwake = paneActive && (activeTab == null || activeTab === 'home');
   const reducedMotion = usePrefersReducedMotion();
+  const showHomeSkeleton = !dv && dvLoading && !todayPanel;
+  const hideSeasonalForCampaign = Boolean(
+    todayPanel?.primary?.id?.startsWith('campaign-'),
+  );
+
+  const panelLiveness = useCallback(
+    (): Pick<
+      HomeTodayPanelInput,
+      'planDoneToday' | 'readToday' | 'welcomeBack'
+    > => ({
+      planDoneToday: isPlanDayDoneToday(),
+      readToday: todayHasReadingActivity(),
+      welcomeBack: isWelcomeBackGap(),
+    }),
+    [],
+  );
 
   useEffect(() => {
     // 每日经文直接铺风景图（按 day 轮换）
@@ -413,6 +446,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           prayer: prayerCard,
           suggest: suggestInput,
           campaigns: cachedCampaigns,
+          ...panelLiveness(),
         }),
       );
       setGrowthModel(
@@ -421,6 +455,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           monthDays: report.monthDays,
         }),
       );
+      setSummaryFlash(true);
+      window.setTimeout(() => setSummaryFlash(false), 420);
 
       if (!fetchRemote) return;
 
@@ -477,12 +513,14 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         const idx = resumeStepIndex(fullMeta);
         const step = meta.steps[idx] ?? meta.steps[0];
         const p = sessionProgress(meta.steps, sess.stepsDone);
+        const pct =
+          p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined;
+        if (pct != null && pct >= 100) markPlanDayDoneToday();
         planCard = {
           title: step.label,
           sub: `第 ${planDay} 天 · ${p.done}/${p.total} 段`,
           href: readerHref(fullMeta, idx),
-          progressPct:
-            p.total > 0 ? Math.round((p.done / p.total) * 100) : undefined,
+          progressPct: pct,
           bookId: step.bookId,
           chapter: step.chapterStart,
         };
@@ -504,10 +542,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           prayer: prayerCard,
           campaigns: nextCampaigns,
           suggest: suggestInput,
+          ...panelLiveness(),
         }),
       );
+      setSummaryFlash(true);
+      window.setTimeout(() => setSummaryFlash(false), 420);
     });
-  }, []);
+  }, [panelLiveness]);
 
   useEffect(() => {
     applyCachedCampaignsPaintRef.current = () => {
@@ -649,6 +690,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     likedRef.current = nextLiked;
     likeCountRef.current = nextCount;
     writeLocalDailyVerseLike(verseDay, nextLiked);
+    if (nextLiked && !reducedMotion) {
+      setLikePop(true);
+      window.setTimeout(() => setLikePop(false), 380);
+      hapticLight();
+    }
     try {
       const r = await api.toggleDailyVerseLike(verseDay);
       // 以 toggle 响应为准；若字段缺失则保留乐观更新
@@ -681,7 +727,23 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       likeBusyRef.current = false;
       setLikeBusy(false);
     }
-  }, [likeBusy, dv, liked, likeCount]);
+  }, [likeBusy, dv, liked, likeCount, reducedMotion]);
+
+  useEffect(() => {
+    if (!homeAwake) return;
+    setGreeting(homeGreeting());
+    if (shouldPlayHomeStagger() && !reducedMotion) {
+      setStaggerEnter(true);
+      window.setTimeout(() => setStaggerEnter(false), 700);
+    }
+    if (consumeCheckinFlash()) {
+      setGroupFlash(true);
+      window.setTimeout(() => setGroupFlash(false), 1200);
+    }
+    if (isPlanDayDoneToday() && consumePlanDoneHomeHaptic() && !reducedMotion) {
+      hapticSuccess();
+    }
+  }, [homeAwake, reducedMotion]);
 
   const applyReactStats = useCallback(
     (next: {
@@ -763,7 +825,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       </div>
       <div ref={ptrContentRef} className="home-ptr-content">
       <header className="greet home-greet-header">
-        <HomeGreetStreak greeting={homeGreeting()} userName={userName} />
+        <HomeGreetStreak greeting={greeting} userName={userName} />
         <div className="greet-actions">
           <button
             type="button"
@@ -790,7 +852,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         </div>
       </header>
 
-      {seasonal[0] && (
+      {seasonal[0] && !hideSeasonalForCampaign ? (
         <button
           type="button"
           className="card row-card home-list-row home-list-row-wrap seasonal-card seasonal-card-pulse"
@@ -803,8 +865,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           </span>
           <span className="muted home-list-chevron">›</span>
         </button>
-      )}
+      ) : null}
 
+      {showHomeSkeleton ? <HomeSkeleton /> : null}
+
+      {!showHomeSkeleton ? (
       <HomeHeroCarousel
         verseSlide={(
       <div
@@ -825,7 +890,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           }
         />
         <div className="hero-inner hero-inner-split">
-          <span className="hero-kicker hero-kicker-corner">每日经文</span>
+          <span className="hero-kicker hero-kicker-corner">
+            {dv?.theme ? `每日经文 · ${dv.theme}` : '每日经文'}
+          </span>
           <div className="hero-main">
           {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
           <p className="verse-text">
@@ -851,7 +918,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           <div className="hero-actions" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
-              className={`hero-action hero-like${liked ? ' hero-like-active' : ''}`}
+              className={`hero-action hero-like${liked ? ' hero-like-active' : ''}${likePop ? ' hero-like-pop' : ''}`}
               disabled={likeBusy || !dv?.day}
               aria-pressed={liked}
               aria-label={liked ? '取消点赞' : '点赞'}
@@ -996,6 +1063,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         bootstrapReady={bootstrapReady}
         resetToVerseNonce={heroResetNonce}
       />
+      ) : null}
 
       {reactSheetOpen && dv?.day ? (
         <DailyVerseReactSheet
@@ -1008,7 +1076,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         />
       ) : null}
 
-      {todayPanel ? <HomeTodayPanel panel={todayPanel} /> : null}
+      {!showHomeSkeleton && todayPanel ? (
+        <HomeTodayPanel
+          panel={todayPanel}
+          groupFlash={groupFlash}
+          staggerEnter={staggerEnter}
+        />
+      ) : null}
       {groupErr ? (
         <div className="home-stack home-stack-rail" style={{ marginTop: 10 }}>
           <ErrorBanner message={groupErr} onRetry={() => void refreshHome({ force: true })} />
@@ -1017,13 +1091,15 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
       <HomeOnboardingBanner />
 
-      {growthModel ? (
+      {!showHomeSkeleton && growthModel ? (
         <HomeGrowthStack
           model={growthModel}
           anchor={anchorBlock}
           onGo={go}
           reducedMotion={reducedMotion}
           endFooterRef={endFooterRef}
+          summaryFlash={summaryFlash}
+          staggerEnter={staggerEnter}
         />
       ) : null}
 

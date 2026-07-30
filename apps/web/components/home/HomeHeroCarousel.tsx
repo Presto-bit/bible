@@ -36,7 +36,11 @@ export function HomeHeroCarousel({
   const slideRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const trackRef = useRef<HTMLDivElement>(null);
-  const touchRef = useRef<{ x: number; y: number } | null>(null);
+  const touchRef = useRef<{ x: number; y: number; dragging: boolean } | null>(
+    null,
+  );
+  const [dragX, setDragX] = useState(0);
+  const [dragging, setDragging] = useState(false);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -88,27 +92,64 @@ export function HomeHeroCarousel({
 
     const onTouchStart = (e: TouchEvent) => {
       const t = e.touches[0];
-      touchRef.current = { x: t.clientX, y: t.clientY };
+      touchRef.current = { x: t.clientX, y: t.clientY, dragging: false };
+      clearTimer();
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const start = touchRef.current;
+      if (!start) return;
+      const t = e.touches[0];
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
+      if (!start.dragging) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (Math.abs(dy) > Math.abs(dx)) {
+          touchRef.current = null;
+          setDragX(0);
+          setDragging(false);
+          return;
+        }
+        start.dragging = true;
+        setDragging(true);
+      }
+      const width = track.clientWidth || 1;
+      // 边界阻尼
+      let limited = dx;
+      if (slideRef.current === 0 && dx > 0) limited = dx * 0.35;
+      if (slideRef.current === 1 && dx < 0) limited = dx * 0.35;
+      setDragX(Math.max(-width * 0.45, Math.min(width * 0.45, limited)));
     };
     const onTouchEnd = (e: TouchEvent) => {
       const start = touchRef.current;
       touchRef.current = null;
-      if (!start) return;
+      setDragging(false);
+      setDragX(0);
+      if (!start) {
+        scheduleNext();
+        return;
+      }
       const t = e.changedTouches[0];
       const dx = t.clientX - start.x;
       const dy = t.clientY - start.y;
-      if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return;
+      if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) {
+        scheduleNext();
+        return;
+      }
       if (dx < 0) goSlide(slideRef.current + 1);
       else goSlide(slideRef.current - 1);
     };
 
     track.addEventListener('touchstart', onTouchStart, { passive: true });
+    track.addEventListener('touchmove', onTouchMove, { passive: true });
     track.addEventListener('touchend', onTouchEnd, { passive: true });
+    track.addEventListener('touchcancel', onTouchEnd, { passive: true });
     return () => {
       track.removeEventListener('touchstart', onTouchStart);
+      track.removeEventListener('touchmove', onTouchMove);
       track.removeEventListener('touchend', onTouchEnd);
+      track.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [goSlide, hasOps]);
+  }, [clearTimer, goSlide, hasOps, scheduleNext]);
 
   if (!hasOps) {
     return <section className="home-hero-block">{verseSlide}</section>;
@@ -142,8 +183,10 @@ export function HomeHeroCarousel({
       </div>
       <div
         ref={trackRef}
-        className="home-hero-carousel-track"
-        style={{ transform: `translateX(-${slide * 100}%)` }}
+        className={`home-hero-carousel-track${dragging ? ' is-dragging' : ''}`}
+        style={{
+          transform: `translateX(calc(-${slide * 100}% + ${dragX}px))`,
+        }}
       >
         <div className="home-hero-carousel-slide">{verseSlide}</div>
         <div className="home-hero-carousel-slide">

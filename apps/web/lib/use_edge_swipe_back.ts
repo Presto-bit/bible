@@ -27,6 +27,20 @@ export function useEdgeSwipeBack({
   const router = useRouter();
   const tracking = useRef<{ x: number; y: number; active: boolean } | null>(null);
 
+  // 二级页进入轻过渡（M4）
+  useEffect(() => {
+    if (!enabled || typeof document === 'undefined') return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const main = document.querySelector('main');
+    if (!main) return;
+    main.classList.add('page-enter-soft');
+    const t = window.setTimeout(() => main.classList.remove('page-enter-soft'), 220);
+    return () => {
+      window.clearTimeout(t);
+      main.classList.remove('page-enter-soft');
+    };
+  }, [enabled]);
+
   useEffect(() => {
     if (!enabled) return;
 

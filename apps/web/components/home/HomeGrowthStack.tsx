@@ -12,6 +12,8 @@ type Props = {
   onGo: (href: string) => void;
   reducedMotion?: boolean;
   endFooterRef?: RefObject<HTMLDivElement | null>;
+  summaryFlash?: boolean;
+  staggerEnter?: boolean;
 };
 
 function GrowthRow({
@@ -87,13 +89,25 @@ export function HomeGrowthStack({
   onGo,
   reducedMotion = false,
   endFooterRef,
+  summaryFlash = false,
+  staggerEnter = false,
 }: Props) {
   return (
     <section
-      className={`home-stack home-growth-stack${model.memory ? ' has-memory' : ''}`}
+      className={[
+        'home-stack',
+        'home-growth-stack',
+        model.memory ? 'has-memory' : '',
+        staggerEnter ? 'home-stagger-enter' : '',
+        summaryFlash ? 'is-summary-flash' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
       aria-label="阅读摘要与落点"
     >
-      <GrowthRow card={model.summary} onGo={onGo} />
+      <div className={staggerEnter ? 'home-stagger-item home-stagger-3' : undefined}>
+        <GrowthRow card={model.summary} onGo={onGo} />
+      </div>
       {anchor ? <HomeAnchorBlock block={anchor} onGo={onGo} /> : null}
       {model.memory ? <GrowthRow card={model.memory} onGo={onGo} /> : null}
       <HomeEndFooter ref={endFooterRef} reducedMotion={reducedMotion} />

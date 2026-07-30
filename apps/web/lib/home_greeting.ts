@@ -1,7 +1,9 @@
 /**
  * 首页问候前缀（仅 Web/PWA）。
- * 优先级：节期/教会年当天 > 主日 > 时段。
+ * 优先级：节期/教会年当天 > 欢迎回来(≥3天) > 主日 > 时段。
  */
+
+import { isWelcomeBackGap } from './home_liveness';
 
 /** 与 Mobile 对齐的时段问候（更细分） */
 export function timeOfDayGreeting(date = new Date()): string {
@@ -43,14 +45,14 @@ export function westernEasterSunday(year: number): Date {
   return new Date(year, month - 1, day);
 }
 
-function ymdKey(d: Date): string {
+export function ymdKey(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
 }
 
-function addDays(d: Date, n: number): Date {
+export function addDays(d: Date, n: number): Date {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   x.setDate(x.getDate() + n);
   return x;
@@ -63,13 +65,8 @@ export function liturgicalGreeting(date = new Date()): string | null {
   const day = date.getDate();
   const key = ymdKey(date);
 
-  // 新年
   if (m === 1 && day === 1) return '新年蒙福';
-
-  // 圣诞夜 / 圣诞
   if (m === 12 && (day === 24 || day === 25)) return '圣诞安好';
-
-  // 秋收感恩短窗（与首页季节卡 9 月呼应）
   if (m === 9 && day <= 7) return '感恩的日子';
 
   const easter = westernEasterSunday(y);
@@ -80,12 +77,13 @@ export function liturgicalGreeting(date = new Date()): string | null {
   return null;
 }
 
-/** 首页展示用问候（节期 > 主日 > 时段） */
+/** 首页展示用问候（节期 > 欢迎回来 > 主日 > 时段） */
 export function homeGreeting(date = new Date()): string {
   const liturgical = liturgicalGreeting(date);
   if (liturgical) return liturgical;
 
-  // 0 = 周日
+  if (isWelcomeBackGap(date)) return '欢迎回来';
+
   if (date.getDay() === 0) return sundayGreeting(date);
 
   return timeOfDayGreeting(date);

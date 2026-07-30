@@ -102,6 +102,7 @@ export default function PlanReadingLayer({
     setCompletedDayNum(dayToFinish);
     onMetaChange({ ...meta, session, day: Math.min(meta.totalDays, dayToFinish + 1) });
     setDayCompleted(true);
+    void import('@/lib/home_liveness').then((m) => m.markPlanDayDoneToday());
     if (allDone || dayToFinish >= meta.totalDays) {
       setPlanAllDone(true);
     }

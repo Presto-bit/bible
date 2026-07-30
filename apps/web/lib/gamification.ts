@@ -2,6 +2,7 @@
 
 import { dailyMinutes, getReadingLogMap, type DayLog } from './reading';
 import { userLsGet, userLsSet, userLsRemove } from './user_storage';
+import { addDays, westernEasterSunday, ymdKey } from './home_greeting';
 
 const QUIZ_PROGRESS_KEY = 'presto_quiz_progress';
 const AI_QUIZ_KEY = 'presto_ai_quiz_progress';
@@ -195,30 +196,26 @@ export interface SeasonalEvent {
   badge?: string;
 }
 
-export function currentSeasonalEvents(): SeasonalEvent[] {
-  const m = new Date().getMonth() + 1;
+export function currentSeasonalEvents(now = new Date()): SeasonalEvent[] {
+  const y = now.getFullYear();
+  const m = now.getMonth() + 1;
+  const day = now.getDate();
+  const key = ymdKey(now);
   const events: SeasonalEvent[] = [];
-  if (m === 12 || m === 1) {
+
+  // 短窗：与首页问候同源（圣诞 12/24–26、感恩 9/1–7、复活周）
+  if (m === 12 && day >= 24 && day <= 26) {
     events.push({
-      id: 'advent',
-      title: '圣诞季 · 道成肉身',
-      subtitle: '12月–1月专题读经',
+      id: 'christmas',
+      title: '圣诞 · 道成肉身',
+      subtitle: '读马太福音的降生叙事',
       theme: '降生',
       href: '/reader?book=MAT&chapter=2',
       badge: '圣诞',
     });
   }
-  if (m >= 3 && m <= 4) {
-    events.push({
-      id: 'easter',
-      title: '复活节 · 胜过死亡',
-      subtitle: '受难周与复活专题',
-      theme: '复活',
-      href: '/reader?book=MRK&chapter=16',
-      badge: '复活节',
-    });
-  }
-  if (m === 9) {
+
+  if (m === 9 && day <= 7) {
     events.push({
       id: 'autumn',
       title: '秋收感恩',
@@ -228,6 +225,21 @@ export function currentSeasonalEvents(): SeasonalEvent[] {
       badge: '感恩',
     });
   }
+
+  const easter = westernEasterSunday(y);
+  const goodFriday = addDays(easter, -2);
+  const easterPlus = addDays(easter, 1);
+  if (key >= ymdKey(goodFriday) && key <= ymdKey(easterPlus)) {
+    events.push({
+      id: 'easter',
+      title: '复活节 · 胜过死亡',
+      subtitle: '受难与复活专题',
+      theme: '复活',
+      href: '/reader?book=MRK&chapter=16',
+      badge: '复活节',
+    });
+  }
+
   return events;
 }
 

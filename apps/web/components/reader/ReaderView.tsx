@@ -1380,7 +1380,8 @@ export default function ReaderView({
       if (nearBottom && verses.length > 0) {
         setBookDone(true);
         setBookCelebrate(true);
-        flashToast(`🎉 恭喜读完《${book.name}》`);
+        void import('@/lib/haptic').then((m) => m.hapticSuccess());
+        flashToast(`恭喜读完《${book.name}》`);
       }
     };
     el.addEventListener('scroll', onScroll);

@@ -27,6 +27,28 @@ import {
   usePrefersReducedMotion,
 } from '@/lib/use_home_pull_refresh';
 import { useToast } from '@/components/ui/ToastProvider';
+import { userLsGet, userLsSet } from '@/lib/user_storage';
+
+const CONV_CACHE_KEY = 'presto_discover_conv_cache_v1';
+
+function readConvCache(): ConversationItem[] {
+  try {
+    const raw = userLsGet(CONV_CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { items?: ConversationItem[] };
+    return Array.isArray(parsed.items) ? parsed.items : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeConvCache(items: ConversationItem[]) {
+  try {
+    userLsSet(CONV_CACHE_KEY, JSON.stringify({ items, at: Date.now() }));
+  } catch {
+    /* ignore */
+  }
+}
 
 function convListSubtitle(it: ConversationItem): string {
   if (it.scope === 'group' || it.scope === 'dm') {
@@ -253,6 +275,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     onRefresh: async () => {
       await reload();
       toast('消息已更新');
+      if (!reducedMotion) {
+        const { hapticSuccess } = await import('@/lib/haptic');
+        hapticSuccess();
+      }
     },
     rootRef,
     contentRef: ptrContentRef,

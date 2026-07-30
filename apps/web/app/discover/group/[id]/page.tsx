@@ -607,6 +607,7 @@ function GroupPageInner() {
       recordGroupCheckin(gid);
       clearGroupCheckinDraft(gid);
       hapticSuccess();
+      void import('@/lib/home_liveness').then((m) => m.markCheckinFlash());
       showToast('打卡已发送 ✓');
       requestInviteNudge(1600);
       setComposerMode(null);
@@ -616,6 +617,7 @@ function GroupPageInner() {
         queueCheckin(gid, payload);
         clearGroupCheckinDraft(gid);
         hapticSuccess();
+        void import('@/lib/home_liveness').then((m) => m.markCheckinFlash());
         showToast('已离线保存，联网后自动发送');
         requestInviteNudge(1600);
         setComposerMode(null);

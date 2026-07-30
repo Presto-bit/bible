@@ -111,6 +111,9 @@ export default function DailyVerseReactSheet({
         reacts_count: nextCount,
         top_presets: nextTop,
       });
+      if (nextMine && !r.removed) {
+        void import('@/lib/haptic').then((m) => m.hapticLight());
+      }
       // 立刻刷新 feed 以展示自己
       void loadFeed();
     } catch (e) {

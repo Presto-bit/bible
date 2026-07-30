@@ -25,6 +25,8 @@ export type HomeTodayPanelSlot = {
   done?: boolean;
   /** 侧卡待办强调 */
   pending?: boolean;
+  /** 主卡进度 0–100 */
+  progressPct?: number;
 };
 
 export type HomeTodayPanelModel = {
@@ -72,6 +74,12 @@ export type HomeTodayPanelInput = {
   suggest?: { title: string; sub: string; href: string; bookId?: string };
   /** 群定向 / 全站活动，最多 3 张：依次占主卡 / 右上 / 右下 */
   campaigns?: HomeTodayCampaignInput[];
+  /** 今日计划日已完成（会话/进度） */
+  planDoneToday?: boolean;
+  /** 今日已有阅读分钟 */
+  readToday?: boolean;
+  /** 断签 ≥3 天召回 */
+  welcomeBack?: boolean;
 };
 
 function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
@@ -103,7 +111,57 @@ function campaignSide(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
 }
 
 function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
+  const planDone =
+    Boolean(input.plan && (input.plan.progressPct ?? 0) >= 100) ||
+    Boolean(input.planDoneToday);
+  const readToday = Boolean(input.readToday);
+  const welcomeBack = Boolean(input.welcomeBack);
+
+  if (welcomeBack && !planDone && !readToday) {
+    if (input.plan) {
+      return {
+        id: 'plan',
+        tag: '欢迎回来',
+        title: trimRailTitle(input.plan.title),
+        sub: trimRailSub(input.plan.sub || '从上次继续就好'),
+        href: input.plan.href,
+        icon: 'plan',
+        bookId: input.plan.bookId,
+        cta: '继续',
+        progressPct: input.plan.progressPct,
+      };
+    }
+    if (input.resume) {
+      return {
+        id: 'resume',
+        tag: '欢迎回来',
+        title: trimRailTitle(input.resume.title),
+        sub: '从上次继续就好',
+        href: input.resume.href,
+        icon: 'resume',
+        bookId: input.resume.bookId,
+        cta: '继续',
+      };
+    }
+  }
+
   if (input.plan) {
+    if (planDone) {
+      return {
+        id: 'plan',
+        tag: '计划',
+        title: trimRailTitle(input.plan.title),
+        sub: '今日已完成 · 可回顾',
+        href: input.plan.href,
+        icon: 'plan',
+        bookId: input.plan.bookId,
+        cta: '看看',
+        done: true,
+        progressPct: 100,
+      };
+    }
+    const pct = input.plan.progressPct;
+    const inProgress = typeof pct === 'number' && pct > 0;
     return {
       id: 'plan',
       tag: '计划',
@@ -112,19 +170,20 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       href: input.plan.href,
       icon: 'plan',
       bookId: input.plan.bookId,
-      cta: '继续',
+      cta: inProgress ? '继续' : '开始',
+      progressPct: pct,
     };
   }
   if (input.resume) {
     return {
       id: 'resume',
-      tag: '继续',
+      tag: readToday ? '已读' : '继续',
       title: trimRailTitle(input.resume.title),
-      sub: '',
+      sub: readToday ? '今日已读 · 可继续' : '',
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
-      cta: '继续',
+      cta: readToday ? '再读' : '继续',
     };
   }
   const suggest = input.suggest;
@@ -135,12 +194,12 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   return {
     id: 'suggest',
     tag: '开始',
-    title: trimRailTitle(suggest?.title || '从约翰福音开始'),
-    sub: '',
-    href: suggest?.href || '/reader?book=JHN&chapter=1',
+    title: trimRailTitle(suggest?.title || '选一个计划开始'),
+    sub: suggest?.sub ? trimRailSub(suggest.sub) : '从一段经文开始今天',
+    href: suggest?.href || '/plans',
     icon: 'suggest',
     bookId,
-    cta: '去读',
+    cta: suggest?.href?.startsWith('/reader') ? '去读' : '去选',
   };
 }
 
