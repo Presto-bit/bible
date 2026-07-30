@@ -29,7 +29,7 @@ import {
 } from '@/components/social/ImComposerIcons';
 import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
 import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
-import { ImMediaAttachment } from '@/components/social/ImMediaAttachment';
+import { ImMediaAttachment, parseVoiceDurationHint } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
@@ -37,12 +37,22 @@ import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
 import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
+import {
+  formatVoiceDurationLabel,
+  useVoiceRecorder,
+  voiceRecorderSupported,
+} from '@/lib/use_voice_recorder';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
 import {
   dequeueFailedText,
   enqueueFailedText,
+  enqueueFailedMediaMeta,
+  dequeueFailedMediaMeta,
+  listFailedMediaMeta,
   listFailedText,
+  loadMediaFile,
+  peekFailedMediaMeta,
   peekMediaFile,
   rememberMediaFile,
   takeMediaFile,
@@ -57,7 +67,7 @@ import {
 import { useFocusMessage } from '@/lib/use_focus_message';
 import { useImVirtualList } from '@/lib/use_im_virtual_list';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
-import { keepIfSameMessageList, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
+import { keepIfSameMessageList, mergeImMessageTail, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
 import { useOnline } from '@/lib/use_online';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
@@ -194,8 +204,8 @@ function DmThreadPageInner() {
 
   const msgKeys = useMemo(() => msgs.map((m) => m.id), [msgs]);
   const virtPinKeys = useMemo(
-    () => [activeFocus, actionMsgId, replyTo?.id],
-    [activeFocus, actionMsgId, replyTo?.id],
+    () => [activeFocus, actionMsgId, replyTo?.id, ...(selectMode ? [...selectedIds] : [])],
+    [activeFocus, actionMsgId, replyTo?.id, selectMode, selectedIds],
   );
   const virt = useImVirtualList({
     itemKeys: msgKeys,
@@ -259,31 +269,14 @@ function DmThreadPageInner() {
           setTitle(dmTitleWithRemark(r.peer_user_id, raw));
         }
         startTransition(() => {
-          setMsgs((prev) => {
-            const temps = prev.filter((m) => m.id.startsWith('temp-'));
-            if (!temps.length) return keepIfSameMessageList(prev, incoming);
-            const merged = [...incoming];
-            for (const t of temps) {
-              const dup = merged.some(
-                (m) =>
-                  m.sender_id === t.sender_id
-                  && (m.body || '') === (t.body || '')
-                  && m.kind === t.kind
-                  && Math.abs(
-                    new Date(m.created_at || 0).getTime() - new Date(t.created_at || 0).getTime(),
-                  ) < 120000,
-              );
-              if (!dup) merged.push(t);
-            }
-            return keepIfSameMessageList(prev, merged);
-          });
-          hasMoreRef.current = Boolean(r.has_more);
-          setHasMore(Boolean(r.has_more));
-          // 已读只在首进/回前台写一次，避免 realtime 刷消息时写放大
-          if (!markedReadRef.current) {
-            markedReadRef.current = true;
-            void api.patchConversationState('dm', threadId, {});
+          setMsgs((prev) => mergeImMessageTail(prev, incoming));
+          // 已翻页时勿被热刷新把 has_more 打回 true 导致哨兵误触
+          if (!hasMoreRef.current || msgsRef.current.length <= incoming.length + 2) {
+            hasMoreRef.current = Boolean(r.has_more);
+            setHasMore(Boolean(r.has_more));
           }
+          void api.patchConversationState('dm', threadId, {}).catch(() => {});
+          markedReadRef.current = true;
           setErr(null);
         });
       } catch (e) {
@@ -337,11 +330,45 @@ function DmThreadPageInner() {
 
   useEffect(() => {
     if (!uid || !threadId) return;
+    const queued = listFailedMediaMeta('dm', threadId);
+    if (!queued.length) return;
+    setMsgs((prev) => {
+      const have = new Set(prev.map((m) => m.id));
+      const extras: LocalDm[] = [];
+      for (const q of queued) {
+        if (have.has(q.id)) continue;
+        extras.push({
+          id: q.id,
+          sender_id: uid,
+          kind: q.kind || detectImMediaKind(q.mime, q.file_name) || 'file',
+          body: q.body,
+          reply_to_id: q.replyToId || null,
+          created_at: new Date().toISOString(),
+          pending: false,
+          sendFailed: true,
+          mine: true,
+          retryMedia: {
+            storage_key: q.storage_key,
+            file_name: q.file_name,
+            mime: q.mime,
+            size_bytes: q.size_bytes,
+            url: q.url,
+            body: q.body,
+            reply_to_id: q.replyToId,
+          },
+        });
+      }
+      return extras.length ? [...prev, ...extras] : prev;
+    });
+  }, [uid, threadId]);
+
+  useEffect(() => {
+    if (!uid || !threadId) return;
     return subscribeSocialRealtime(
       (_c, changed) => {
         if (changed) void reload();
       },
-      { watch: 'dm', debounceMs: 250 },
+      { watch: 'dm', debounceMs: 400 },
     );
   }, [uid, threadId, reload]);
 
@@ -506,7 +533,104 @@ function DmThreadPageInner() {
     }
   };
 
-  const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = useHoldToTalk({
+  // Real voice (preferred) with STT fallback
+  const sendVoiceFile = async (file: File, durationSec: number) => {
+    if (!online || !threadId || !uid || sending || uploading) return;
+    const tempId = `temp-${Date.now()}`;
+    const caption = formatVoiceDurationLabel(durationSec);
+    const replyId = replyTo?.id;
+    setMsgs((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        sender_id: uid,
+        kind: 'audio',
+        body: caption,
+        reply_to_id: replyId || null,
+        created_at: new Date().toISOString(),
+        pending: true,
+        mine: true,
+      },
+    ]);
+    rememberMediaFile(tempId, file);
+    setUploading(true);
+    setUploadPct(0);
+    let uploaded: Awaited<ReturnType<typeof api.uploadSocialMedia>> | null = null;
+    try {
+      uploaded = await api.uploadSocialMedia(file, {
+        onProgress: (pct) => setUploadPct(pct),
+      });
+      await api.sendDmMedia(threadId, {
+        storage_key: uploaded.storage_key,
+        file_name: uploaded.file_name,
+        mime: uploaded.mime_type,
+        size_bytes: uploaded.size_bytes,
+        url: uploaded.url,
+        body: caption,
+        reply_to_id: replyId,
+      });
+      takeMediaFile(tempId);
+      dequeueFailedMediaMeta(tempId);
+      clearImDraft('dm', threadId);
+      setReplyTo(null);
+      await reload();
+    } catch (e) {
+      rememberMediaFile(tempId, file);
+      if (uploaded) {
+        const retryMedia = {
+          storage_key: uploaded.storage_key,
+          file_name: uploaded.file_name,
+          mime: uploaded.mime_type,
+          size_bytes: uploaded.size_bytes,
+          url: uploaded.url,
+          body: caption,
+          reply_to_id: replyId,
+        };
+        enqueueFailedMediaMeta({
+          id: tempId,
+          scope: 'dm',
+          refId: threadId,
+          kind: 'audio',
+          storage_key: uploaded.storage_key,
+          file_name: uploaded.file_name,
+          mime: uploaded.mime_type,
+          size_bytes: uploaded.size_bytes,
+          url: uploaded.url,
+          body: caption,
+          replyToId: replyId,
+        });
+        setMsgs((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? { ...m, pending: false, sendFailed: true, retryMedia }
+              : m,
+          ),
+        );
+      } else {
+        setMsgs((prev) =>
+          prev.map((m) =>
+            m.id === tempId ? { ...m, pending: false, sendFailed: true } : m,
+          ),
+        );
+      }
+      setErr(errorMessage(e, '语音发送失败'));
+    } finally {
+      setUploading(false);
+      setUploadPct(0);
+    }
+  };
+
+  const recorder = useVoiceRecorder({
+    onRecorded: (file, sec) => {
+      void sendVoiceFile(file, sec);
+    },
+    onUnsupported: () => {
+      setErr('当前浏览器不支持录音，请用键盘');
+      setVoiceMode(false);
+    },
+    onError: (msg) => setErr(msg),
+  });
+  const stt = useHoldToTalk({
     onResult: (spoken) => {
       void (async () => {
         if (!online) {
@@ -527,13 +651,62 @@ function DmThreadPageInner() {
       setVoiceMode(false);
     },
   });
+  const useRecorder = voiceRecorderSupported();
+  const recording = useRecorder ? recorder.recording : stt.recording;
+  const cancelArmed = useRecorder ? recorder.cancelArmed : stt.cancelArmed;
+  const startVoice = useRecorder ? recorder.startVoice : stt.startVoice;
+  const onVoiceMove = useRecorder ? recorder.onVoiceMove : stt.onVoiceMove;
+  const endVoice = useRecorder ? recorder.endVoice : stt.endVoice;
+  const voiceHoldLabel = recording
+    ? cancelArmed
+      ? '松开取消'
+      : useRecorder
+        ? `松开发送 ${recorder.elapsedSec || 1}″ · 上滑取消`
+        : '松开发送 · 上滑取消'
+    : useRecorder
+      ? '按住 说话'
+      : '按住 说话（转文字）';
 
   const resend = async (m: LocalDm) => {
     if (m.sendFailed && m.retryText) {
       await sendBody(m.retryText, m.reply_to_id || undefined, m.id);
       return;
     }
-    const file = peekMediaFile(m.id);
+    const meta = m.retryMedia || peekFailedMediaMeta(m.id);
+    if (meta && threadId) {
+      const replyToId =
+        ('reply_to_id' in meta ? meta.reply_to_id : undefined)
+        || ('replyToId' in meta ? meta.replyToId : undefined)
+        || m.reply_to_id
+        || undefined;
+      setUploading(true);
+      setMsgs((prev) =>
+        prev.map((x) => (x.id === m.id ? { ...x, pending: true, sendFailed: false } : x)),
+      );
+      try {
+        await api.sendDmMedia(threadId, {
+          storage_key: meta.storage_key,
+          file_name: meta.file_name,
+          mime: meta.mime,
+          size_bytes: meta.size_bytes,
+          url: meta.url,
+          body: meta.body,
+          reply_to_id: replyToId,
+        });
+        dequeueFailedMediaMeta(m.id);
+        takeMediaFile(m.id);
+        await reload();
+      } catch (e) {
+        setMsgs((prev) =>
+          prev.map((x) => (x.id === m.id ? { ...x, pending: false, sendFailed: true } : x)),
+        );
+        setErr(errorMessage(e, '重发失败'));
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+    const file = peekMediaFile(m.id) || (await loadMediaFile(m.id));
     if (file) {
       await resendMedia(m.id, file, m.body || undefined, m.reply_to_id || undefined);
     }
@@ -553,28 +726,61 @@ function DmThreadPageInner() {
         m.id === tempId ? { ...m, pending: true, sendFailed: false } : m,
       ),
     );
+    let uploaded: Awaited<ReturnType<typeof api.uploadSocialMedia>> | null = null;
     try {
-      const meta = await api.uploadSocialMedia(file, {
+      uploaded = await api.uploadSocialMedia(file, {
         onProgress: (pct) => setUploadPct(pct),
       });
       await api.sendDmMedia(threadId, {
-        storage_key: meta.storage_key,
-        file_name: meta.file_name,
-        mime: meta.mime_type,
-        size_bytes: meta.size_bytes,
-        url: meta.url,
+        storage_key: uploaded.storage_key,
+        file_name: uploaded.file_name,
+        mime: uploaded.mime_type,
+        size_bytes: uploaded.size_bytes,
+        url: uploaded.url,
         body: caption,
         reply_to_id: replyId,
       });
       takeMediaFile(tempId);
+      dequeueFailedMediaMeta(tempId);
       await reload();
     } catch (e) {
       rememberMediaFile(tempId, file);
-      setMsgs((prev) =>
-        prev.map((m) =>
-          m.id === tempId ? { ...m, pending: false, sendFailed: true } : m,
-        ),
-      );
+      if (uploaded) {
+        const retryMedia = {
+          storage_key: uploaded.storage_key,
+          file_name: uploaded.file_name,
+          mime: uploaded.mime_type,
+          size_bytes: uploaded.size_bytes,
+          url: uploaded.url,
+          body: caption,
+          reply_to_id: replyId,
+        };
+        enqueueFailedMediaMeta({
+          id: tempId,
+          scope: 'dm',
+          refId: threadId,
+          storage_key: uploaded.storage_key,
+          file_name: uploaded.file_name,
+          mime: uploaded.mime_type,
+          size_bytes: uploaded.size_bytes,
+          url: uploaded.url,
+          body: caption,
+          replyToId: replyId,
+        });
+        setMsgs((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? { ...m, pending: false, sendFailed: true, retryMedia }
+              : m,
+          ),
+        );
+      } else {
+        setMsgs((prev) =>
+          prev.map((m) =>
+            m.id === tempId ? { ...m, pending: false, sendFailed: true } : m,
+          ),
+        );
+      }
       setErr(errorMessage(e, '发送失败'));
     } finally {
       setUploading(false);
@@ -625,19 +831,22 @@ function DmThreadPageInner() {
         pending: true,
       },
     ]);
+    let uploaded: Awaited<ReturnType<typeof api.uploadSocialMedia>> | null = null;
     try {
-      const meta = await api.uploadSocialMedia(file, {
+      uploaded = await api.uploadSocialMedia(file, {
         onProgress: (pct) => setUploadPct(pct),
       });
       await api.sendDmMedia(threadId, {
-        storage_key: meta.storage_key,
-        file_name: meta.file_name,
-        mime: meta.mime_type,
-        size_bytes: meta.size_bytes,
-        url: meta.url,
+        storage_key: uploaded.storage_key,
+        file_name: uploaded.file_name,
+        mime: uploaded.mime_type,
+        size_bytes: uploaded.size_bytes,
+        url: uploaded.url,
         body: caption,
         reply_to_id: replyId,
       });
+      takeMediaFile(tempId);
+      dequeueFailedMediaMeta(tempId);
       setText('');
       clearImDraft('dm', threadId);
       setReplyTo(null);
@@ -645,9 +854,41 @@ function DmThreadPageInner() {
       await reload();
     } catch (e) {
       rememberMediaFile(tempId, file);
-      setMsgs((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...m, pending: false, sendFailed: true } : m)),
-      );
+      if (uploaded) {
+        const retryMedia = {
+          storage_key: uploaded.storage_key,
+          file_name: uploaded.file_name,
+          mime: uploaded.mime_type,
+          size_bytes: uploaded.size_bytes,
+          url: uploaded.url,
+          body: caption,
+          reply_to_id: replyId,
+        };
+        enqueueFailedMediaMeta({
+          id: tempId,
+          scope: 'dm',
+          refId: threadId,
+          kind: mediaKind,
+          storage_key: uploaded.storage_key,
+          file_name: uploaded.file_name,
+          mime: uploaded.mime_type,
+          size_bytes: uploaded.size_bytes,
+          url: uploaded.url,
+          body: caption,
+          replyToId: replyId,
+        });
+        setMsgs((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? { ...m, pending: false, sendFailed: true, retryMedia }
+              : m,
+          ),
+        );
+      } else {
+        setMsgs((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, pending: false, sendFailed: true } : m)),
+        );
+      }
       setErr(errorMessage(e, '发送失败'));
     } finally {
       setUploading(false);
@@ -730,7 +971,16 @@ function DmThreadPageInner() {
     for (const id of selectedIds) {
       const m = byId.get(id);
       if (!m || m.recalled) continue;
-      items.push({ body: m.body, kind: m.kind, ref: m.ref });
+      items.push({
+        body: m.body,
+        kind: m.kind,
+        ref: m.ref,
+        attachments: m.attachments?.map((a) => ({
+          url: a.url,
+          file_name: a.file_name,
+          mime: a.mime,
+        })),
+      });
     }
     if (items.length) openForward(items);
   };
@@ -797,6 +1047,7 @@ function DmThreadPageInner() {
         danger: true,
         onClick: () => {
           dequeueFailedText(actionMsg.id);
+          dequeueFailedMediaMeta(actionMsg.id);
           takeMediaFile(actionMsg.id);
           setMsgs((prev) => prev.filter((x) => x.id !== actionMsg.id));
         },
@@ -814,6 +1065,7 @@ function DmThreadPageInner() {
               actionMsg.body,
               actionMsg.kind,
               actionMsg.attachments?.[0]?.file_name,
+              actionMsg.ref,
             ),
           });
         },
@@ -841,7 +1093,16 @@ function DmThreadPageInner() {
         label: '转发',
         onClick: () => {
           openForward([
-            { body: actionMsg.body, kind: actionMsg.kind, ref: actionMsg.ref },
+            {
+              body: actionMsg.body,
+              kind: actionMsg.kind,
+              ref: actionMsg.ref,
+              attachments: actionMsg.attachments?.map((a) => ({
+                url: a.url,
+                file_name: a.file_name,
+                mime: a.mime,
+              })),
+            },
           ]);
         },
       });
@@ -917,14 +1178,7 @@ function DmThreadPageInner() {
             取消
           </button>
           <span className="muted">已选 {selectedIds.size} 条</span>
-          <button
-            type="button"
-            className="btn"
-            disabled={selectedIds.size === 0}
-            onClick={forwardSelected}
-          >
-            转发
-          </button>
+          <span className="im-select-toolbar-spacer" aria-hidden />
         </div>
       ) : null}
 
@@ -1126,6 +1380,7 @@ function DmThreadPageInner() {
                                     mime={a.mime}
                                     messageKind={m.kind}
                                     sizeBytes={a.size_bytes}
+                                    durationHintSec={parseVoiceDurationHint(m.body)}
                                   />
                                 </div>
                               );
@@ -1176,6 +1431,7 @@ function DmThreadPageInner() {
                             onClick={(e) => {
                               e.stopPropagation();
                               dequeueFailedText(m.id);
+                              dequeueFailedMediaMeta(m.id);
                               takeMediaFile(m.id);
                               setMsgs((prev) => prev.filter((x) => x.id !== m.id));
                             }}
@@ -1221,7 +1477,11 @@ function DmThreadPageInner() {
           <div ref={endRef} />
         </div>
         {showJump ? (
-          <button type="button" className="im-jump-bottom" onClick={jumpBottom}>
+          <button
+            type="button"
+            className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}`}
+            onClick={jumpBottom}
+          >
             回到底部
           </button>
         ) : null}
@@ -1229,8 +1489,21 @@ function DmThreadPageInner() {
 
       <div
         ref={composerBarRef}
-        className={`im-composer-bar dm-composer-dock im-composer-dock${plusOpen ? ' is-plus-open' : ''}`}
+        className={`im-composer-bar dm-composer-dock im-composer-dock${plusOpen ? ' is-plus-open' : ''}${selectMode ? ' is-select-dock' : ''}`}
       >
+        {selectMode ? (
+          <div className="im-select-dock">
+            <button
+              type="button"
+              className="btn"
+              disabled={selectedIds.size === 0}
+              onClick={forwardSelected}
+            >
+              转发{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+            </button>
+          </div>
+        ) : (
+          <>
         {replyTo ? (
           <div className="group-composer-reply" style={{ width: '100%' }}>
             <div>
@@ -1263,11 +1536,7 @@ function DmThreadPageInner() {
                 onPointerUp={endVoice}
                 onPointerCancel={endVoice}
               >
-                {recording
-                  ? cancelArmed
-                    ? '松开取消'
-                    : '松开发送 · 上滑取消'
-                  : '按住 说话'}
+                {voiceHoldLabel}
               </button>
             ) : (
               <textarea
@@ -1419,6 +1688,8 @@ function DmThreadPageInner() {
             e.target.value = '';
           }}
         />
+          </>
+        )}
       </div>
 
       {actionMsg && !actionMsg.recalled && actionItems.length > 0 ? (

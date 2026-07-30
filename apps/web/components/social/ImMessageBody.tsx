@@ -18,6 +18,8 @@ type Props = {
   mentions?: string[] | null;
   /** 为 false 时不渲染经文卡（父级已渲染） */
   showVerseCard?: boolean;
+  /** 为 false 时不渲染打卡/任务 chip（父级已有 kind chip） */
+  showKindChip?: boolean;
 };
 
 function shouldShowVerse(kind?: string, verseRef?: string | null): boolean {
@@ -88,6 +90,7 @@ function ImMessageBodyInner({
   kind,
   mentions: _mentions,
   showVerseCard = true,
+  showKindChip = true,
 }: Props) {
   const showVerse = showVerseCard && shouldShowVerse(kind, verseRef);
   const href = verseRef ? readerHrefFromRef(verseRef) : null;
@@ -100,11 +103,11 @@ function ImMessageBodyInner({
   };
 
   return (
-    <div className={`im-msg-body${kind === 'checkin' || kind === 'task' ? ` is-rich-${kind}` : ''}`}>
-      {kind === 'checkin' ? (
+    <div className={`im-msg-body${kind === 'checkin' || kind === 'task' ? ` is-rich-${kind}` : ''}${kind === 'verse' ? ' is-rich-verse' : ''}`}>
+      {showKindChip && kind === 'checkin' ? (
         <span className="im-rich-kind-chip is-checkin">打卡</span>
       ) : null}
-      {kind === 'task' ? (
+      {showKindChip && kind === 'task' ? (
         <span className="im-rich-kind-chip is-task">任务</span>
       ) : null}
       {showVerse && verseRef ? (
@@ -112,15 +115,23 @@ function ImMessageBodyInner({
           <Link href={href} className="im-verse-card" onClick={markReturn}>
             <span className="im-verse-card-label">经文</span>
             <strong>{formatGroupRefLabel(verseRef)}</strong>
+            {textNodes && kind === 'verse' ? (
+              <span className="im-verse-card-excerpt">{textNodes}</span>
+            ) : null}
           </Link>
         ) : (
           <div className="im-verse-card static">
             <span className="im-verse-card-label">经文</span>
             <strong>{formatGroupRefLabel(verseRef)}</strong>
+            {textNodes && kind === 'verse' ? (
+              <span className="im-verse-card-excerpt">{textNodes}</span>
+            ) : null}
           </div>
         )
       ) : null}
-      {textNodes ? <p className="im-msg-text">{textNodes}</p> : null}
+      {textNodes && !(kind === 'verse' && showVerse) ? (
+        <p className="im-msg-text">{textNodes}</p>
+      ) : null}
     </div>
   );
 }

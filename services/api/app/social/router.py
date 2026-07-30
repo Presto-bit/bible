@@ -687,7 +687,15 @@ def push_digest(user_id: str = Depends(get_current_user)) -> dict:
             gid = summary.get("first_pending_group_id")
             href = f"/discover/group/{gid}" if gid else "/discover"
 
-    if unread_total > 0:
+    if mention_parts:
+        title = "有人@你"
+        if unread_total > 1:
+            title = f"有人@你 · {unread_total} 条未读"
+    elif unread_total > 0 and (
+        summary["groups_pending_checkin"] > 0 or summary["groups_pending_tasks"] > 0
+    ):
+        title = f"共读消息 · {unread_total} 条未读"
+    elif unread_total > 0:
         title = f"消息 · {unread_total} 条未读"
     elif summary["groups_pending_checkin"] > 0:
         title = f"共读 · {summary['groups_pending_checkin']} 个群待打卡"
@@ -1420,6 +1428,12 @@ def checkin(gid: str, body: Checkin, user_id: str = Depends(get_current_user)) -
             (gid,),
         )
         conn.commit()
+    try:
+        from ..push.digest_scheduler import schedule_group_members
+
+        schedule_group_members(gid, exclude_user_id=user_id, priority=True)
+    except Exception:
+        logger.exception("schedule checkin digest failed gid=%s", gid[:8] if gid else "?")
     return {"id": str(row[0])}
 
 
@@ -1509,7 +1523,14 @@ def create_task(gid: str, body: CreateTask, user_id: str = Depends(get_current_u
         attachments = task_ops.list_attachments(conn, str(task_id))
         assignee_ids = task_ops.list_assignee_ids(conn, str(task_id))
         conn.commit()
-        return {
+    if status == "published":
+        try:
+            from ..push.digest_scheduler import schedule_group_members
+
+            schedule_group_members(gid, exclude_user_id=user_id, priority=True)
+        except Exception:
+            logger.exception("schedule task digest failed gid=%s", gid[:8] if gid else "?")
+    return {
             "id": str(task_id),
             "title": body.title.strip(),
             "ref": body.ref,

@@ -22,6 +22,11 @@ import {
   clearImKeyboardLift,
 } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
+import {
+  formatVoiceDurationLabel,
+  useVoiceRecorder,
+  voiceRecorderSupported,
+} from '@/lib/use_voice_recorder';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
 import {
   IconCheckin,
@@ -69,6 +74,10 @@ type Props = {
   }) => Promise<void>;
   /** 键盘升起时滚到底的聊天容器 */
   getScrollEl?: () => HTMLElement | null;
+  /** 多选模式：底栏改为转发操作 */
+  selectMode?: boolean;
+  selectedCount?: number;
+  onForwardSelected?: () => void;
 };
 
 export function GroupComposerBar({
@@ -87,6 +96,9 @@ export function GroupComposerBar({
   onChat,
   onChatMedia,
   getScrollEl,
+  selectMode = false,
+  selectedCount = 0,
+  onForwardSelected,
 }: Props) {
   const [text, setText] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
@@ -115,6 +127,14 @@ export function GroupComposerBar({
   useImComposerHeightSync(barRef);
   /** 仅输入聚焦时抬键盘；加号 / @ 选人贴底，避免套用上次键盘高度造成大块留白 */
   useImComposerKeyboard(composerFocused, { getScrollEl });
+
+  useEffect(() => {
+    if (!selectMode) return;
+    setPanelOpen(false);
+    setPickerOpen(false);
+    setComposerFocused(false);
+    setVoiceMode(false);
+  }, [selectMode]);
 
   useEffect(() => {
     document.body.classList.toggle('im-plus-sheet', panelOpen);
@@ -237,31 +257,53 @@ export function GroupComposerBar({
 
   const showSuggest = (pickerOpen || atQuery != null) && suggestMembers.length > 0;
 
+  /**
+   * 选中提及：优先替换光标处正在输入的 @query，避免按钮路径再插一次变成 @@昵称。
+   * @ 只写入正文（下方不再叠 pill，避免界面上两个 @）。
+   */
   const pickMention = (item: { id: string; label: string; all?: boolean }) => {
     keepMentionPickerRef.current = false;
     const el = inputRef.current;
-    let next = text;
-    let pos = el?.selectionStart ?? text.length;
+    const cursor = el?.selectionStart ?? text.length;
+    const hit = matchAtQuery(text, cursor) ?? (
+      atQuery != null && text[atStart] === '@'
+        ? { query: atQuery, start: atStart }
+        : null
+    );
 
-    // 从手打 @query 选中时，去掉 "@query"，插入可见 @昵称
-    if (atQuery != null && text[atStart] === '@') {
-      const cursor = el?.selectionStart ?? text.length;
-      const before = text.slice(0, atStart);
+    const token = `@${item.label}`;
+    const insert = `${token} `;
+    let next: string;
+    let pos: number;
+
+    if (hit) {
+      const before = text.slice(0, hit.start);
       const after = text.slice(cursor);
-      const insert = `@${item.label} `;
-      next = `${before}${insert}${after}`;
-      pos = before.length + insert.length;
-      setText(next);
+      if (after.startsWith(`${token} `) || after.startsWith(token)) {
+        next = text;
+        pos = hit.start + (after.startsWith(`${token} `) ? insert.length : token.length);
+      } else {
+        next = `${before}${insert}${after}`;
+        pos = before.length + insert.length;
+      }
     } else {
-      // 从 @ 按钮打开：在光标处插入 @昵称
-      const insert = `@${item.label} `;
-      const before = text.slice(0, pos);
-      const after = text.slice(pos);
-      next = `${before}${insert}${after}`;
-      pos = before.length + insert.length;
-      setText(next);
+      const before = text.slice(0, cursor);
+      const after = text.slice(cursor);
+      if (
+        before.endsWith(`${token} `)
+        || before.endsWith(token)
+        || after.startsWith(`${token} `)
+        || after.startsWith(token)
+      ) {
+        next = text;
+        pos = cursor;
+      } else {
+        next = `${before}${insert}${after}`;
+        pos = before.length + insert.length;
+      }
     }
 
+    setText(next);
     setAtQuery(null);
     setPickerOpen(false);
     if (item.all) {
@@ -284,10 +326,10 @@ export function GroupComposerBar({
 
   const canType = allowChat && online && !disabled;
 
-  /** 常驻 @：贴底打开成员浮层；不 focus，并清掉键盘抬升避免大块空白 */
+  /** 常驻 @：贴底打开成员浮层；若已在输入 @query 则沿用过滤，不额外写入 @ */
   const openMentionPicker = () => {
     if (!canType || sending || uploading) return;
-    if (pickerOpen && !composerFocused) {
+    if (pickerOpen && !composerFocused && atQuery == null) {
       keepMentionPickerRef.current = false;
       setPickerOpen(false);
       setAtQuery(null);
@@ -295,11 +337,18 @@ export function GroupComposerBar({
     }
     keepMentionPickerRef.current = true;
     setPanelOpen(false);
+    const cursor = inputRef.current?.selectionStart ?? text.length;
+    const hit = matchAtQuery(text, cursor);
+    if (hit) {
+      setAtQuery(hit.query);
+      setAtStart(hit.start);
+    } else {
+      // 仅用 pickerOpen 展示列表；勿设 atQuery=''，否则易与正文里的 @ 叠成 @@
+      setAtQuery(null);
+      setAtStart(cursor);
+    }
     setPickerOpen(true);
-    setAtQuery('');
-    setAtStart(inputRef.current?.selectionStart ?? text.length);
     setComposerFocused(false);
-    // 同步打上 sheet 标记并清 inset，避免等 effect / blur 轮询期间仍抬着壳
     document.body.classList.remove('im-plus-sheet');
     document.body.classList.add('im-mention-sheet');
     clearImKeyboardLift();
@@ -368,7 +417,55 @@ export function GroupComposerBar({
     }
   };
 
-  const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = useHoldToTalk({
+  const sendVoiceFile = async (file: File, durationSec: number) => {
+    if (!allowChat || !onChatMedia || locked) return;
+    if (!online) {
+      setErr('当前离线，联网后再发送');
+      return;
+    }
+    setErr(null);
+    setSending(true);
+    setUploading(true);
+    setUploadPct(0);
+    setPanelOpen(false);
+    try {
+      const meta = await api.uploadSocialMedia(file, {
+        onProgress: (pct) => setUploadPct(pct),
+      });
+      await onChatMedia({
+        storage_key: meta.storage_key,
+        file_name: meta.file_name,
+        mime_type: meta.mime_type,
+        size_bytes: meta.size_bytes,
+        url: meta.url,
+        body: formatVoiceDurationLabel(durationSec),
+        mentions: mentionPayload(),
+        reply_to_id: replyTo?.id,
+      });
+      clearImDraft('group', gid);
+      clearMentions();
+      onClearReply?.();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSending(false);
+      setUploading(false);
+      setUploadPct(0);
+    }
+  };
+
+  const useRecorder = voiceRecorderSupported();
+  const recorder = useVoiceRecorder({
+    onRecorded: (file, sec) => {
+      void sendVoiceFile(file, sec);
+    },
+    onUnsupported: () => {
+      setErr('当前浏览器不支持录音，请用键盘');
+      setVoiceMode(false);
+    },
+    onError: (msg) => setErr(msg),
+  });
+  const stt = useHoldToTalk({
     onResult: (t) => {
       void sendVoice(t);
     },
@@ -377,6 +474,18 @@ export function GroupComposerBar({
       setVoiceMode(false);
     },
   });
+  const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = useRecorder
+    ? recorder
+    : stt;
+  const voiceHoldLabel = recording
+    ? cancelArmed
+      ? '松开取消'
+      : useRecorder
+        ? `松开发送${'elapsedSec' in recorder && recorder.elapsedSec ? ` ${recorder.elapsedSec}″` : ''} · 上滑取消`
+        : '松开发送 · 上滑取消'
+    : useRecorder
+      ? '按住 说话'
+      : '按住 说话（转文字）';
 
   const clearPending = () => {
     setPending((prev) => {
@@ -484,8 +593,21 @@ export function GroupComposerBar({
       ref={(el) => {
         barRef.current = el;
       }}
-      className={`im-composer-bar group-wechat-composer im-composer-dock${panelOpen ? ' is-plus-open' : ''}${showSuggest ? ' is-mention-open' : ''}`}
+      className={`im-composer-bar group-wechat-composer im-composer-dock${panelOpen ? ' is-plus-open' : ''}${showSuggest ? ' is-mention-open' : ''}${selectMode ? ' is-select-dock' : ''}`}
     >
+      {selectMode ? (
+        <div className="im-select-dock">
+          <button
+            type="button"
+            className="btn"
+            disabled={selectedCount === 0}
+            onClick={() => onForwardSelected?.()}
+          >
+            转发{selectedCount > 0 ? ` (${selectedCount})` : ''}
+          </button>
+        </div>
+      ) : (
+        <>
       {showSuggest ? (
         <div className="im-mention-suggest" role="listbox">
           {pickerOpen ? (
@@ -545,29 +667,6 @@ export function GroupComposerBar({
               <IconMention />
             </button>
             <div className={`im-composer-field-wrap${locked && !online ? ' is-offline' : ''}`}>
-              {(mentionAll || mentions.length > 0) && (
-                <div className="im-mention-pills">
-                  {mentionAll ? (
-                    <button
-                      type="button"
-                      className="im-mention-pill"
-                      onClick={() => setMentionAll(false)}
-                    >
-                      @所有人 ×
-                    </button>
-                  ) : null}
-                  {mentions.map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      className="im-mention-pill"
-                      onClick={() => setMentions((prev) => prev.filter((x) => x.id !== m.id))}
-                    >
-                      @{m.label} ×
-                    </button>
-                  ))}
-                </div>
-              )}
               {voiceMode ? (
                 <button
                   type="button"
@@ -578,11 +677,7 @@ export function GroupComposerBar({
                   onPointerUp={endVoice}
                   onPointerCancel={endVoice}
                 >
-                  {recording
-                    ? cancelArmed
-                      ? '松开取消'
-                      : '松开发送 · 上滑取消'
-                    : '按住 说话'}
+                  {voiceHoldLabel}
                 </button>
               ) : (
                 <textarea
@@ -817,6 +912,8 @@ export function GroupComposerBar({
           e.target.value = '';
         }}
       />
+        </>
+      )}
     </footer>
   );
 }

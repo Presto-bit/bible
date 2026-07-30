@@ -1,4 +1,6 @@
 /** 与服务端 im_router._RECALL_WINDOW 一致 */
+import { formatGroupRefLabel } from './ref_label';
+
 export const RECALL_WINDOW_MS = 2 * 60 * 1000;
 
 export function canRecallOwnMessage(
@@ -18,16 +20,37 @@ export function replySnippet(
   body?: string | null,
   kind?: string,
   fileName?: string | null,
+  ref?: string | null,
 ): string {
-  if (kind === 'image') return '[图片]';
-  if (kind === 'video') return '[视频]';
-  if (kind === 'audio') return '[语音]';
-  if (kind === 'file') return fileName ? `[文件] ${fileName}` : '[文件]';
-  if (kind === 'checkin') return body?.trim() ? replySnippet(body) : '[打卡]';
-  if (kind === 'task') return body?.trim() ? replySnippet(body) : '[任务]';
-  const t = (body || '').trim();
-  if (!t) return kind === 'verse' ? '[经文]' : '[消息]';
-  return t.length > 48 ? `${t.slice(0, 48)}…` : t;
+  const k = (kind || '').toLowerCase();
+  const b = (body || '').trim();
+  const r = (ref || '').trim();
+  const refLabel = r ? formatGroupRefLabel(r) || r : '';
+  if (k === 'image') return b ? `[图片] ${b.slice(0, 24)}` : '[图片]';
+  if (k === 'video') return b ? `[视频] ${b.slice(0, 24)}` : '[视频]';
+  if (k === 'audio') return b ? `[语音] ${b.slice(0, 16)}` : '[语音]';
+  if (k === 'file') return fileName ? `[文件] ${fileName}` : b ? `[文件] ${b.slice(0, 24)}` : '[文件]';
+  if (k === 'checkin') {
+    if (refLabel) return `[打卡] ${refLabel}`;
+    if (b) return `[打卡] ${b.length > 40 ? `${b.slice(0, 40)}…` : b}`;
+    return '[打卡]';
+  }
+  if (k === 'task') {
+    if (refLabel) return `[任务] ${refLabel}`;
+    if (b) return `[任务] ${b.length > 40 ? `${b.slice(0, 40)}…` : b}`;
+    return '[任务]';
+  }
+  if (k === 'verse') {
+    if (refLabel && b) {
+      const excerpt = b.length > 28 ? `${b.slice(0, 28)}…` : b;
+      return `[经文] ${refLabel} · ${excerpt}`;
+    }
+    if (refLabel) return `[经文] ${refLabel}`;
+    if (b) return `[经文] ${b.length > 40 ? `${b.slice(0, 40)}…` : b}`;
+    return '[经文]';
+  }
+  if (!b) return refLabel ? `[经文] ${refLabel}` : '[消息]';
+  return b.length > 48 ? `${b.slice(0, 48)}…` : b;
 }
 
 export function formatMsgTime(iso: string | null | undefined): string {

@@ -32,7 +32,7 @@ import { BRAND_NAME } from '@/lib/brand';
 import { ImMessageBody } from '@/components/social/ImMessageBody';
 import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
 import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
-import { ImMediaAttachment } from '@/components/social/ImMediaAttachment';
+import { ImMediaAttachment, parseVoiceDurationHint } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
@@ -103,6 +103,10 @@ type BubbleProps = {
   showName: boolean;
   membersById: Map<string, GroupMember>;
   replyPreview?: { id?: string; author: string; snippet: string } | null;
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (mid: string) => void;
+  onEnterSelect?: (mid: string) => void;
   onReact: (mid: string, emoji: string) => void;
   onReport: (mid: string) => void;
   onDelete: (mid: string) => void;
@@ -129,6 +133,10 @@ function ChatBubble({
   showName,
   membersById,
   replyPreview,
+  selectMode = false,
+  selected = false,
+  onToggleSelect,
+  onEnterSelect,
   onReact,
   onReport,
   onDelete,
@@ -223,7 +231,7 @@ function ChatBubble({
   };
 
   const openActions = (el?: HTMLElement | null) => {
-    if (m.recalled || m.pending) return;
+    if (selectMode || m.recalled || m.pending) return;
     longPressFired.current = true;
     try {
       navigator.vibrate?.(12);
@@ -249,7 +257,7 @@ function ChatBubble({
   const actionItems: ImPopoverAction[] = (() => {
     const items: ImPopoverAction[] = [];
     if (m.sendFailed) {
-      if (onResend && m.kind === 'chat' && m.body) {
+      if (onResend && (m.retryMedia || (m.kind === 'chat' && m.body))) {
         items.push({ id: 'resend', label: '重发', onClick: () => onResend(m) });
       }
       items.push({ id: 'delete', label: '删除', danger: true, onClick: () => onDelete(m.id) });
@@ -286,11 +294,18 @@ function ChatBubble({
           },
         });
       }
-      if (onForward && (m.body || m.ref) && !m.recalled) {
+      if (onForward && !m.recalled && (m.body || m.ref || (m.attachments && m.attachments.length > 0))) {
         items.push({
           id: 'forward',
           label: '转发',
           onClick: () => onForward(m),
+        });
+      }
+      if (onEnterSelect && !m.id.startsWith('temp-') && !m.recalled) {
+        items.push({
+          id: 'multi',
+          label: '多选',
+          onClick: () => onEnterSelect(m.id),
         });
       }
       if (showRecall && onRecall) {
@@ -324,8 +339,28 @@ function ChatBubble({
   return (
     <div
       data-mid={m.id}
-      className={`group-chat-row${actionMine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}`}
+      className={`group-chat-row${actionMine ? ' is-mine' : ' is-peer'}${m.pending ? ' is-pending' : ''}${m.sendFailed ? ' is-failed' : ''}${selected ? ' is-selected' : ''}`}
+      onClick={() => {
+        if (longPressFired.current) {
+          longPressFired.current = false;
+          return;
+        }
+        if (selectMode && onToggleSelect && !m.recalled && !m.pending && !m.id.startsWith('temp-')) {
+          onToggleSelect(m.id);
+        }
+      }}
     >
+      {selectMode ? (
+        <button
+          type="button"
+          className={`im-msg-check${selected ? ' is-on' : ''}`}
+          aria-label={selected ? '取消选择' : '选择'}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!m.recalled && !m.pending && !m.id.startsWith('temp-')) onToggleSelect?.(m.id);
+          }}
+        />
+      ) : null}
       <div className="group-chat-avatar-slot">
         {showAvatar ? (
           <button
@@ -421,7 +456,13 @@ function ChatBubble({
                 </p>
               ) : null}
 
-              <ImMessageBody body={bodyForRender} ref={m.ref} kind={m.kind} mentions={m.mentions} />
+              <ImMessageBody
+                body={bodyForRender}
+                ref={m.ref}
+                kind={m.kind}
+                mentions={m.mentions}
+                showKindChip={!chip}
+              />
 
               {m.attachments && m.attachments.length > 0 ? (
                 <div className="group-msg-attach">
@@ -469,6 +510,7 @@ function ChatBubble({
                             mime={a.mime}
                             messageKind={m.kind}
                             sizeBytes={a.size_bytes}
+                            durationHintSec={parseVoiceDurationHint(m.body)}
                           />
                         </div>
                       );
@@ -595,12 +637,12 @@ function ChatBubble({
       {m.sendFailed && actionMine ? (
         <ImSendFailBadge
           label={
-            onResend && m.kind === 'chat' && m.body
+            onResend && (m.retryMedia || (m.kind === 'chat' && m.body))
               ? '发送失败，点击重发'
               : '发送失败'
           }
           onClick={
-            onResend && m.kind === 'chat' && m.body
+            onResend && (m.retryMedia || (m.kind === 'chat' && m.body))
               ? () => onResend(m)
               : undefined
           }
@@ -634,6 +676,10 @@ type Props = {
   scrollParentRef?: RefObject<HTMLElement | null>;
   /** 搜索/推送落地消息 id，虚拟列表强制挂载 */
   focusMsgId?: string | null;
+  selectMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (mid: string) => void;
+  onEnterSelect?: (mid: string) => void;
 };
 
 export function GroupActivityFeed({
@@ -656,6 +702,10 @@ export function GroupActivityFeed({
   onMemberClick,
   scrollParentRef,
   focusMsgId,
+  selectMode = false,
+  selectedIds,
+  onToggleSelect,
+  onEnterSelect,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const fallbackScrollRef = useRef<HTMLDivElement>(null);
@@ -681,6 +731,8 @@ export function GroupActivityFeed({
     onResend,
     onForward,
     onMemberClick,
+    onToggleSelect,
+    onEnterSelect,
   });
   handlersRef.current = {
     onReact,
@@ -692,6 +744,8 @@ export function GroupActivityFeed({
     onResend,
     onForward,
     onMemberClick,
+    onToggleSelect,
+    onEnterSelect,
   };
 
   const stableReact = useCallback((mid: string, emoji: string) => {
@@ -720,6 +774,12 @@ export function GroupActivityFeed({
   }, []);
   const stableMemberClick = useCallback((member: GroupMember) => {
     handlersRef.current.onMemberClick?.(member);
+  }, []);
+  const stableToggleSelect = useCallback((mid: string) => {
+    handlersRef.current.onToggleSelect?.(mid);
+  }, []);
+  const stableEnterSelect = useCallback((mid: string) => {
+    handlersRef.current.onEnterSelect?.(mid);
   }, []);
 
   const membersSig = members
@@ -791,7 +851,7 @@ export function GroupActivityFeed({
             author: replyAuthor,
             snippet: parent.recalled
               ? '消息已撤回'
-              : replySnippet(parent.body, parent.kind, parent.attachments?.[0]?.file_name),
+              : replySnippet(parent.body, parent.kind, parent.attachments?.[0]?.file_name, parent.ref),
           }
         : m.reply_to_id
           ? { author: '原消息', snippet: '（暂未加载）' }
@@ -802,7 +862,13 @@ export function GroupActivityFeed({
   }, [chrono, byId, membersById]);
 
   const rowKeys = useMemo(() => rows.map((r) => r.m.id), [rows]);
-  const virtPinKeys = useMemo(() => [focusMsgId], [focusMsgId]);
+  const virtPinKeys = useMemo(() => {
+    const pins: Array<string | null | undefined> = [focusMsgId];
+    if (selectMode && selectedIds) {
+      for (const id of selectedIds) pins.push(id);
+    }
+    return pins;
+  }, [focusMsgId, selectMode, selectedIds]);
   const virt = useImVirtualList({
     itemKeys: rowKeys,
     scrollRef,
@@ -867,6 +933,10 @@ export function GroupActivityFeed({
             showName
             membersById={membersById}
             replyPreview={replyPreview}
+            selectMode={selectMode}
+            selected={Boolean(selectedIds?.has(m.id))}
+            onToggleSelect={onToggleSelect ? stableToggleSelect : undefined}
+            onEnterSelect={onEnterSelect ? stableEnterSelect : undefined}
             onReact={stableReact}
             onReport={stableReport}
             onDelete={stableDelete}

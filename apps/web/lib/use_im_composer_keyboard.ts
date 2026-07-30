@@ -3,13 +3,12 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * iOS PWA IM 视口策略（根本修复）：
+ * iOS PWA IM 视口策略：
  *
- * 问题：interactive-widget=resizes-content 下，键盘收起后 layout viewport 常卡住偏矮，
- * fixed + bottom:0 的聊天壳只填满「矮 layout」，底部留白；该状态跨进出群聊仍在。
- *
- * 方案：聊天页挂载期间用 visualViewport 驱动壳的 top/height（body.im-vv-shell），
- * 与 layout 是否卡住无关；卸载时摘掉绑定。性能：仅 rAF 合并，不写 html/body height。
+ * - interactive-widget=resizes-content：多数情况下 layout 已随键盘收缩，壳应贴 layout，
+ *   再按 visualViewport 缩小会造成「输入框上跳 / 与键盘脱节」。
+ * - 少数机型 layout 卡住偏高：则用 vv.height（top 固定 0 + 锁文档滚动）兜底。
+ * - 卸载时拆除 vv-shell，避免跨页残留。
  */
 
 function isImBottomSheet(): boolean {
@@ -157,9 +156,47 @@ export type ImComposerKeyboardOpts = {
   getScrollEl?: () => HTMLElement | null;
 };
 
+type ShellMetrics = { top: number; h: number; keyboardUp: boolean };
+
 /**
- * 群 / 私信挂载期间用 visualViewport 驱动壳尺寸；
- * composerFocused 仅控制 im-keyboard（藏 sticky），不抬 bottom。
+ * 计算聊天壳尺寸：
+ * - layout 已随键盘收缩 → 贴 layout（避免与 vv 双重收缩导致上跳）
+ * - layout 未收缩 / 卡住 → 用 vv.height，top 固定 0
+ */
+function computeShellMetrics(
+  focused: boolean,
+  openBaseline: number,
+): ShellMetrics {
+  const vv = window.visualViewport;
+  const layoutH = Math.round(window.innerHeight || 0);
+  const vvH = Math.round(vv?.height ?? layoutH);
+  const vvTop = Math.max(0, Math.round(vv?.offsetTop ?? 0));
+  const base = openBaseline || Math.max(layoutH, vvH + vvTop);
+
+  const layoutShrunk = base - layoutH > 40;
+  const vvOccluded = base - (vvH + vvTop) > 40 || base - vvH > 40;
+  const keyboardUp = Boolean(focused && (layoutShrunk || vvOccluded));
+
+  if (!keyboardUp) {
+    // 未开键盘：优先用 layout；若 layout 异常偏矮则跟 vv
+    if (layoutH > 0 && (base - layoutH < 80 || !vv)) {
+      return { top: 0, h: layoutH, keyboardUp: false };
+    }
+    return { top: 0, h: Math.max(120, vvH), keyboardUp: false };
+  }
+
+  if (layoutShrunk) {
+    // layout 已正确收缩：不要再跟 offsetTop / 二次缩小
+    return { top: 0, h: Math.max(120, layoutH), keyboardUp: true };
+  }
+
+  // layout 卡住：仅用可视高度，强制 top=0 + 锁滚动，避免 offsetTop 把整壳顶飞
+  return { top: 0, h: Math.max(120, vvH), keyboardUp: true };
+}
+
+/**
+ * 群 / 私信挂载期间驱动壳尺寸；
+ * composerFocused 控制 im-keyboard（藏 sticky），不额外抬 bottom。
  */
 export function useImComposerKeyboard(
   composerFocused: boolean,
@@ -173,7 +210,6 @@ export function useImComposerKeyboard(
   const focusedRef = useRef(composerFocused);
   focusedRef.current = composerFocused;
 
-  // 页面级 vv → 壳（进出页才装卸）
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
@@ -185,6 +221,24 @@ export function useImComposerKeyboard(
       Math.max(window.innerHeight || 0, vv?.height ?? 0),
     );
 
+    const applyShell = (m: ShellMetrics) => {
+      const prev = lastShellRef.current;
+      if (prev.top !== m.top || prev.h !== m.h) {
+        lastShellRef.current = { top: m.top, h: m.h };
+        root.style.setProperty('--im-shell-top', `${m.top}px`);
+        root.style.setProperty('--im-shell-h', `${m.h}px`);
+      }
+      body.classList.toggle('im-keyboard', m.keyboardUp);
+      body.classList.remove('im-keyboard-overlay');
+      root.style.setProperty('--im-kb-inset', '0px');
+      setInset(0);
+      writeComposerHeight(measureComposerHeight());
+      if (m.keyboardUp) {
+        pinDocScroll();
+        scrollImChatToBottom(getScrollElRef.current?.() ?? null, { gentle: true });
+      }
+    };
+
     const sync = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
@@ -193,28 +247,7 @@ export function useImComposerKeyboard(
           setInset(0);
           return;
         }
-        const top = Math.max(0, Math.round(vv?.offsetTop ?? 0));
-        const h = Math.max(
-          120,
-          Math.round(vv?.height ?? window.innerHeight ?? 0),
-        );
-        const prev = lastShellRef.current;
-        if (prev.top !== top || prev.h !== h) {
-          lastShellRef.current = { top, h };
-          root.style.setProperty('--im-shell-top', `${top}px`);
-          root.style.setProperty('--im-shell-h', `${h}px`);
-        }
-
-        const base = openBaselineRef.current || h;
-        const keyboardUp = focusedRef.current && base - h > 40;
-        body.classList.toggle('im-keyboard', keyboardUp);
-        body.classList.remove('im-keyboard-overlay');
-        root.style.setProperty('--im-kb-inset', '0px');
-        setInset(0);
-        writeComposerHeight(measureComposerHeight());
-        if (keyboardUp) {
-          scrollImChatToBottom(getScrollElRef.current?.() ?? null, { gentle: true });
-        }
+        applyShell(computeShellMetrics(focusedRef.current, openBaselineRef.current));
       });
     };
 
@@ -234,18 +267,13 @@ export function useImComposerKeyboard(
     };
   }, []);
 
-  // 焦点变化：触发一次 sync 语义（写壳 + 切换 im-keyboard）
   useEffect(() => {
+    const m = computeShellMetrics(composerFocused, openBaselineRef.current);
     const root = document.documentElement;
     const body = document.body;
-    const vv = window.visualViewport;
-    const top = Math.max(0, Math.round(vv?.offsetTop ?? 0));
-    const h = Math.max(120, Math.round(vv?.height ?? window.innerHeight ?? 0));
-    const base = openBaselineRef.current || h;
-
-    root.style.setProperty('--im-shell-top', `${top}px`);
-    root.style.setProperty('--im-shell-h', `${h}px`);
-    lastShellRef.current = { top, h };
+    lastShellRef.current = { top: m.top, h: m.h };
+    root.style.setProperty('--im-shell-top', `${m.top}px`);
+    root.style.setProperty('--im-shell-h', `${m.h}px`);
     writeComposerHeight(measureComposerHeight());
 
     if (!composerFocused) {
@@ -255,9 +283,9 @@ export function useImComposerKeyboard(
       return;
     }
 
-    const keyboardUp = base - h > 40;
-    body.classList.toggle('im-keyboard', keyboardUp);
-    if (keyboardUp) {
+    body.classList.toggle('im-keyboard', m.keyboardUp);
+    pinDocScroll();
+    if (m.keyboardUp) {
       scrollImChatToBottom(getScrollElRef.current?.() ?? null, { gentle: true });
     }
     setInset(0);

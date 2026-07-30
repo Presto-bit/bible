@@ -341,27 +341,65 @@ def _attachment_names(conn, scope: str, message_ids: list) -> dict[str, str]:
     return out
 
 
-def _summarize(kind: str | None, body: str | None, file_name: str | None = None) -> str:
+def _summarize(
+    kind: str | None,
+    body: str | None,
+    file_name: str | None = None,
+    ref: str | None = None,
+) -> str:
     k = (kind or "chat").lower()
     b = (body or "").strip().replace("\n", " ")
+    r = (ref or "").strip()
+    ref_label = ""
+    if r:
+        try:
+            from ..bible.refs import parse_ref
+
+            parsed = parse_ref(r)
+            ref_label = (parsed.display if parsed else r)[:48]
+        except Exception:
+            ref_label = r[:48]
     if k == "checkin":
-        return f"[打卡] {b[:48]}" if b else "[打卡]"
+        if ref_label and b:
+            return f"[打卡] {ref_label}"
+        if ref_label:
+            return f"[打卡] {ref_label}"
+        if b:
+            return f"[打卡] {b[:48]}"
+        return "[打卡]"
     if k == "task":
-        return f"[任务] {b[:48]}" if b else "[任务]"
+        if ref_label and b:
+            return f"[任务] {ref_label}"
+        if ref_label:
+            return f"[任务] {ref_label}"
+        if b:
+            return f"[任务] {b[:48]}"
+        return "[任务]"
     if k == "plan":
         return f"[计划] {b[:48]}" if b else "[计划]"
     if k == "verse":
-        return f"[经文] {b[:48]}" if b else "[经文]"
+        # 经文卡：优先展示卷章节，感想作次要（与客户端 replySnippet / 气泡一致）
+        if ref_label and b:
+            excerpt = b[:28]
+            return f"[经文] {ref_label} · {excerpt}"
+        if ref_label:
+            return f"[经文] {ref_label}"
+        if b:
+            return f"[经文] {b[:48]}"
+        return "[经文]"
     if k == "image":
         return f"[图片] {b[:40]}" if b else "[图片]"
     if k == "video":
         return f"[视频] {b[:40]}" if b else "[视频]"
     if k == "audio":
+        # body 常为时长标签，如 12″
+        if b and any(ch in b for ch in ("″", "'", "′", "″", ":")):
+            return f"[语音] {b[:16]}"
+        if b and b.isdigit():
+            return f"[语音] {b}″"
         return f"[语音] {b[:40]}" if b else "[语音]"
     if k == "file":
         name = (file_name or "").strip()
-        if name and b:
-            return f"[文件] {name}"
         if name:
             return f"[文件] {name}"
         return f"[文件] {b[:40]}" if b else "[文件]"
@@ -369,6 +407,8 @@ def _summarize(kind: str | None, body: str | None, file_name: str | None = None)
         return b[:60] or "[系统]"
     if b.startswith("回复 ") or "┃" in b:
         return b[:80]
+    if not b and ref_label:
+        return f"[经文] {ref_label}"
     return b[:80] if b else "[消息]"
 
 
@@ -381,9 +421,10 @@ def _conv_preview(
     viewer_id: str,
     sender_id: str | None = None,
     author_name: str | None = None,
+    ref: str | None = None,
 ) -> str | None:
     """会话列表末条预览（微信式：群聊带发送人）。"""
-    preview = _summarize(kind, body, file_name)
+    preview = _summarize(kind, body, file_name, ref)
     if not preview:
         return None
     k = (kind or "chat").lower()
@@ -607,13 +648,14 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                       LIMIT 100
                     ) u
                   ) AS unread,
-                  g.created_at AS group_created_at
+                  g.created_at AS group_created_at,
+                  lm.ref AS last_ref
                 FROM social_group g
                 JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
                 LEFT JOIN conversation_state cs
                   ON cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text
                 LEFT JOIN LATERAL (
-                  SELECT gm.id, gm.kind, gm.body, gm.created_at, gm.user_id,
+                  SELECT gm.id, gm.kind, gm.body, gm.created_at, gm.user_id, gm.ref,
                     COALESCE(
                       NULLIF(TRIM(mb.display_name), ''),
                       CASE WHEN COALESCE(TRIM(u.display_name), '') ~ '^用户[0-9A-Fa-f]{4,}$' THEN NULL
@@ -644,11 +686,11 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                     """
                     SELECT g.id, g.name, m.role,
                       lm.id, lm.kind, lm.body, lm.created_at, lm.user_id, lm.author_name,
-                      NULL::timestamptz, false, 0, g.created_at
+                      NULL::timestamptz, false, 0, g.created_at, lm.ref
                     FROM social_group g
                     JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
                     LEFT JOIN LATERAL (
-                      SELECT gm.id, gm.kind, gm.body, gm.created_at, gm.user_id,
+                      SELECT gm.id, gm.kind, gm.body, gm.created_at, gm.user_id, gm.ref,
                         COALESCE(
                           NULLIF(TRIM(u.display_name), ''),
                           NULLIF(TRIM(u.handle), ''),
@@ -679,7 +721,8 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 (
                     gid, name, role, last_id, last_kind, last_body, last_at,
                     last_uid, author_name, pinned_at, muted, unread, group_created,
-                ) = r
+                ) = r[:13]
+                last_ref = r[13] if len(r) > 13 else None
                 fname = group_fnames.get(str(last_id)) if last_id else None
                 sort_at = last_at or group_created
                 items.append({
@@ -694,6 +737,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                         viewer_id=user_id,
                         sender_id=str(last_uid) if last_uid else None,
                         author_name=author_name,
+                        ref=str(last_ref) if last_ref else None,
                     ) if last_id else None,
                     "unread": int(unread or 0),
                     "updated_at": sort_at.isoformat() if sort_at else None,
@@ -714,7 +758,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
             threads = conn.execute(
                 """
                 SELECT t.id, t.user_low_id, t.user_high_id,
-                  lm.id, lm.kind, lm.body, lm.created_at,
+                  lm.id, lm.kind, lm.body, lm.created_at, lm.ref,
                   cs.pinned_at, COALESCE(cs.muted, false),
                   (
                     SELECT count(*)::int FROM (
@@ -731,7 +775,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 LEFT JOIN conversation_state cs
                   ON cs.user_id = %s AND cs.scope = 'dm' AND cs.ref_id = t.id::text
                 LEFT JOIN LATERAL (
-                  SELECT dm.id, dm.kind, dm.body, dm.created_at
+                  SELECT dm.id, dm.kind, dm.body, dm.created_at, dm.ref
                   FROM direct_message dm
                   WHERE dm.thread_id = t.id
                     AND dm.recalled_at IS NULL
@@ -758,13 +802,13 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
         parsed_threads: list[tuple] = []
         for r in threads:
             try:
-                tid, low, high, last_id, last_kind, last_body, last_at, pinned_at, muted, unread = r
+                tid, low, high, last_id, last_kind, last_body, last_at, last_ref, pinned_at, muted, unread = r
                 peer = str(high) if str(low) == user_id else str(low)
                 peers.append(peer)
                 if last_id and (last_kind or "") in ("file", "image", "video", "audio"):
                     dm_attach_ids.append(last_id)
                 parsed_threads.append(
-                    (tid, peer, last_id, last_kind, last_body, last_at, pinned_at, muted, unread)
+                    (tid, peer, last_id, last_kind, last_body, last_at, last_ref, pinned_at, muted, unread)
                 )
             except Exception:
                 continue
@@ -773,7 +817,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
         peer_avatars = _peer_avatars(conn, peers)
         dm_fnames = _attachment_names(conn, "dm", dm_attach_ids)
 
-        for tid, peer, last_id, last_kind, last_body, last_at, pinned_at, muted, unread in parsed_threads:
+        for tid, peer, last_id, last_kind, last_body, last_at, last_ref, pinned_at, muted, unread in parsed_threads:
             try:
                 fname = dm_fnames.get(str(last_id)) if last_id else None
                 items.append({
@@ -788,6 +832,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                         file_name=fname,
                         scope="dm",
                         viewer_id=user_id,
+                        ref=str(last_ref) if last_ref else None,
                     ) if last_id else None,
                     "unread": int(unread or 0),
                     "updated_at": last_at.isoformat() if last_at else None,
@@ -1262,7 +1307,7 @@ def send_dm(
     try:
         from ..push.digest_scheduler import schedule_dm_peer
 
-        schedule_dm_peer(peer)
+        schedule_dm_peer(peer, priority=(kind == "verse"))
     except Exception:
         logger.exception("schedule dm digest failed peer=%s", peer[:8] if peer else "?")
     invalidate_realtime_cursors([user_id, peer])
@@ -1304,9 +1349,53 @@ def send_group_chat(
     try:
         from ..push.digest_scheduler import schedule_group_members
 
-        schedule_group_members(gid, exclude_user_id=user_id)
+        has_mention = bool(mentions) or ("@所有人" in text)
+        schedule_group_members(gid, exclude_user_id=user_id, priority=has_mention)
     except Exception:
         logger.exception("schedule group digest failed gid=%s", gid[:8] if gid else "?")
+    _notify_group_realtime(gid, include_user_id=user_id)
+    return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
+
+
+class GroupVerseIn(BaseModel):
+    ref: str = Field(..., min_length=1, max_length=80)
+    body: str | None = Field(default=None, max_length=2000)
+    reply_to_id: str | None = None
+
+
+@router.post("/groups/{gid}/verse")
+def send_group_verse(
+    gid: str, body: GroupVerseIn, user_id: str = Depends(get_current_user),
+) -> dict:
+    """群内经文卡（非打卡）：kind=verse + ref，可附感想。"""
+    ref = body.ref.strip()
+    text = (body.body or "").strip()
+    if text:
+        try:
+            moderate_text(text)
+        except ModerationError as e:
+            raise HTTPException(400, e.reason) from e
+    pool = get_pool()
+    with pool.connection() as conn:
+        _ensure_im_tables(conn)
+        access.require_member(conn, gid, user_id)
+        allow = conn.execute(
+            "SELECT COALESCE(allow_chat, true) FROM social_group WHERE id = %s", (gid,),
+        ).fetchone()
+        if allow and allow[0] is False:
+            raise HTTPException(403, "本群已关闭闲聊")
+        row = conn.execute(
+            "INSERT INTO group_message (group_id, user_id, kind, body, ref, reply_to_id) "
+            "VALUES (%s, %s, 'verse', %s, %s, %s) RETURNING id, created_at",
+            (gid, user_id, text or None, ref, body.reply_to_id),
+        ).fetchone()
+        conn.commit()
+    try:
+        from ..push.digest_scheduler import schedule_group_members
+
+        schedule_group_members(gid, exclude_user_id=user_id, priority=True)
+    except Exception:
+        logger.exception("schedule group verse failed gid=%s", gid[:8] if gid else "?")
     _notify_group_realtime(gid, include_user_id=user_id)
     return {"id": str(row[0]), "created_at": row[1].isoformat() if row[1] else None}
 

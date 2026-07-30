@@ -33,14 +33,16 @@ import { asGroupMembers, myDisplayName, normalizeGroupDetail } from '@/lib/group
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { replySnippet } from '@/lib/im_ui';
+import { detectImMediaKind } from '@/lib/im_av';
 import { useFocusMessage } from '@/lib/use_focus_message';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
-import { keepIfSameMessageList, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
+import { keepIfSameMessageList, mergeImMessageTail, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { errorMessage } from '@/lib/friendly_error';
 import { hapticSuccess } from '@/lib/haptic';
 import { queueCheckin } from '@/lib/checkin_queue';
 import { clearGroupCheckinDraft, readGroupCheckinDraft } from '@/lib/group_checkin_draft';
+import { enqueueFailedMediaMeta, dequeueFailedMediaMeta, listFailedMediaMeta, takeMediaFile, enqueueFailedText, dequeueFailedText, listFailedText } from '@/lib/im_send_queue';
 import { useOnline } from '@/lib/use_online';
 
 function GroupPageInner() {
@@ -53,12 +55,15 @@ function GroupPageInner() {
   const activeFocus = focusOverride || focusMsg;
   const [searchOpen, setSearchOpen] = useState(false);
   const [forwardItems, setForwardItems] = useState<ForwardPayload[] | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [profileMember, setProfileMember] = useState<GroupMember | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMoreRef = useRef(false);
   const feedRef = useRef<GroupMessage[]>([]);
   const loadingMoreRef = useRef(false);
+  const markedReadRef = useRef(false);
   const params = useParams<{ id: string }>();
   const rawId = params.id;
   const gid = Array.isArray(rawId) ? rawId[0] : rawId ?? '';
@@ -161,25 +166,12 @@ function GroupPageInner() {
         const f = await api.groupFeed(gid);
         const incoming = Array.isArray(f.messages) ? f.messages : [];
         startTransition(() => {
-          setFeed((prev) => {
-            const temps = prev.filter((m) => m.id.startsWith('temp-'));
-            if (!temps.length) return keepIfSameMessageList(prev, incoming);
-            const merged = [...incoming];
-            for (const t of temps) {
-              const dup = merged.some(
-                (m) =>
-                  m.mine
-                  && m.kind === t.kind
-                  && (m.body || '') === (t.body || '')
-                  && (m.ref || '') === (t.ref || '')
-                  && Math.abs(new Date(m.created_at).getTime() - new Date(t.created_at).getTime()) < 120000,
-              );
-              if (!dup) merged.push(t);
-            }
-            merged.sort((a, b) => a.created_at.localeCompare(b.created_at));
-            return keepIfSameMessageList(prev, merged);
-          });
-          setHasMore(Boolean(f.has_more));
+          setFeed((prev) => mergeImMessageTail(prev, incoming));
+          // 仅当尚未翻页时用服务端 has_more；已 loadMore 则保留本地 hasMore
+          if (!hasMoreRef.current || feedRef.current.length <= incoming.length + 2) {
+            hasMoreRef.current = Boolean(f.has_more);
+            setHasMore(Boolean(f.has_more));
+          }
           setErr(null);
         });
       } catch {
@@ -210,8 +202,78 @@ function GroupPageInner() {
   }, [gid]);
 
   useEffect(() => {
+    markedReadRef.current = false;
+  }, [gid]);
+
+  const markGroupRead = useCallback(() => {
+    if (!gid || markedReadRef.current) return;
+    markedReadRef.current = true;
+    void api.patchConversationState('group', gid, {}).catch(() => {
+      markedReadRef.current = false;
+    });
+  }, [gid]);
+
+  useEffect(() => {
     void reload();
   }, [reload]);
+
+  useEffect(() => {
+    markGroupRead();
+  }, [markGroupRead]);
+
+  /** 刷新后恢复失败文本 / 媒体气泡 */
+  useEffect(() => {
+    if (!gid) return;
+    const textQueued = listFailedText('group', gid);
+    const mediaQueued = listFailedMediaMeta('group', gid);
+    if (!textQueued.length && !mediaQueued.length) return;
+    setFeed((prev) => {
+      const have = new Set(prev.map((m) => m.id));
+      const extras: GroupMessage[] = [];
+      for (const q of textQueued) {
+        if (have.has(q.id)) continue;
+        extras.push({
+          id: q.id,
+          author: myDisplayName(detail?.members),
+          mine: true,
+          kind: 'chat',
+          body: q.body,
+          reactions: {},
+          created_at: new Date().toISOString(),
+          reply_to_id: q.replyToId || null,
+          mentions: q.mentions,
+          pending: false,
+          sendFailed: true,
+        });
+      }
+      for (const q of mediaQueued) {
+        if (have.has(q.id)) continue;
+        extras.push({
+          id: q.id,
+          author: myDisplayName(detail?.members),
+          mine: true,
+          kind: q.kind || detectImMediaKind(q.mime, q.file_name) || 'file',
+          body: q.body,
+          reactions: {},
+          created_at: new Date().toISOString(),
+          reply_to_id: q.replyToId || null,
+          pending: false,
+          sendFailed: true,
+          retryMedia: {
+            storage_key: q.storage_key,
+            file_name: q.file_name,
+            mime: q.mime,
+            size_bytes: q.size_bytes,
+            url: q.url,
+            body: q.body,
+            reply_to_id: q.replyToId,
+            mentions: q.mentions,
+          },
+        });
+      }
+      return extras.length ? [...prev, ...extras] : prev;
+    });
+  }, [gid, detail?.members]);
 
   useEffect(() => {
     void refreshPrayerPending();
@@ -227,24 +289,28 @@ function GroupPageInner() {
     if (!gid) return;
     return subscribeSocialRealtime(
       (_c, changed) => {
-        if (changed) void reloadFeed();
+        if (!changed) return;
+        markedReadRef.current = false;
+        void reloadFeed().then(() => markGroupRead());
       },
-      { watch: 'group', debounceMs: 250 },
+      { watch: 'group', debounceMs: 400 },
     );
-  }, [gid, reloadFeed]);
+  }, [gid, reloadFeed, markGroupRead]);
 
-  // 回到前台时轻量补一次 detail（任务/成员），不跟每条消息绑死
+  // 回到前台时轻量补一次 detail（任务/成员），并刷新已读
   useEffect(() => {
     if (!gid) return;
     const onVis = () => {
       if (document.visibilityState !== 'visible') return;
+      markedReadRef.current = false;
+      markGroupRead();
       void api.groupDetail(gid, { light: true }).then((d) => {
         setDetail(normalizeGroupDetail(d));
       }).catch(() => {});
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [gid]);
+  }, [gid, markGroupRead]);
 
   const groupInitialPinned = useRef(false);
   useEffect(() => {
@@ -454,6 +520,14 @@ function GroupPageInner() {
   };
 
   const deleteMsg = async (mid: string) => {
+    const local = feed.find((m) => m.id === mid);
+    if (mid.startsWith('temp-') || local?.sendFailed) {
+      dequeueFailedMediaMeta(mid);
+      dequeueFailedText(mid);
+      takeMediaFile(mid);
+      setFeed((prev) => prev.filter((x) => x.id !== mid));
+      return;
+    }
     try {
       await api.deleteMessage(mid);
       reload();
@@ -603,9 +677,16 @@ function GroupPageInner() {
     return temp.id;
   };
 
-  const markOptimisticFailed = (tempId: string) => {
+  const markOptimisticFailed = (
+    tempId: string,
+    retryMedia?: GroupMessage['retryMedia'],
+  ) => {
     setFeed((prev) =>
-      prev.map((m) => (m.id === tempId ? { ...m, pending: false, sendFailed: true } : m)),
+      prev.map((m) =>
+        m.id === tempId
+          ? { ...m, pending: false, sendFailed: true, retryMedia: retryMedia || m.retryMedia }
+          : m,
+      ),
     );
   };
 
@@ -614,7 +695,7 @@ function GroupPageInner() {
     opts?: { mentions?: string[]; replyToId?: string },
   ) => {
     if (!online) {
-      showToast('闲聊需联网发送');
+      showToast('当前离线，联网后再发送');
       throw new Error('离线');
     }
     setBusy(true);
@@ -627,10 +708,20 @@ function GroupPageInner() {
         mentions: opts?.mentions,
         replyToId: opts?.replyToId,
       });
+      dequeueFailedText(tempId);
       setReplyTarget(null);
       setComposerMode(null);
       await reload();
     } catch (e) {
+      enqueueFailedText({
+        id: tempId,
+        scope: 'group',
+        refId: gid,
+        body,
+        replyToId: opts?.replyToId,
+        mentions: opts?.mentions,
+        kind: 'chat',
+      });
       markOptimisticFailed(tempId);
       showToast(errorMessage(e, '发送失败'));
       throw e;
@@ -650,16 +741,26 @@ function GroupPageInner() {
     reply_to_id?: string;
   }) => {
     if (!online) {
-      showToast('闲聊需联网发送');
+      showToast('当前离线，联网后再发送');
       throw new Error('离线');
     }
     setBusy(true);
-    const kind = (payload.mime_type || '').startsWith('image/') ? 'image' : 'file';
+    const kind = detectImMediaKind(payload.mime_type, payload.file_name) || 'file';
     const tempId = appendOptimisticChat({
       body: payload.body,
       kind,
       reply_to_id: payload.reply_to_id,
     });
+    const retryMedia = {
+      storage_key: payload.storage_key,
+      file_name: payload.file_name,
+      mime: payload.mime_type,
+      size_bytes: payload.size_bytes,
+      url: payload.url,
+      body: payload.body,
+      reply_to_id: payload.reply_to_id,
+      mentions: payload.mentions,
+    };
     try {
       await api.sendGroupMedia(gid, {
         storage_key: payload.storage_key,
@@ -671,13 +772,76 @@ function GroupPageInner() {
         mentions: payload.mentions,
         reply_to_id: payload.reply_to_id,
       });
+      dequeueFailedMediaMeta(tempId);
       setReplyTarget(null);
       setComposerMode(null);
       await reload();
     } catch (e) {
-      markOptimisticFailed(tempId);
+      enqueueFailedMediaMeta({
+        id: tempId,
+        scope: 'group',
+        refId: gid,
+        kind,
+        ...retryMedia,
+      });
+      markOptimisticFailed(tempId, retryMedia);
       showToast(errorMessage(e, '发送失败'));
       throw e;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resendGroupMessage = async (m: GroupMessage) => {
+    if (m.kind === 'chat' && m.body) {
+      setFeed((prev) =>
+        prev.map((x) => (x.id === m.id ? { ...x, pending: true, sendFailed: false } : x)),
+      );
+      try {
+        await api.sendGroupChat(gid, m.body, {
+          replyToId: m.reply_to_id || undefined,
+          mentions: m.mentions,
+        });
+        dequeueFailedText(m.id);
+        setFeed((prev) => prev.filter((x) => x.id !== m.id));
+        await reload();
+      } catch (e) {
+        enqueueFailedText({
+          id: m.id,
+          scope: 'group',
+          refId: gid,
+          body: m.body,
+          replyToId: m.reply_to_id || undefined,
+          mentions: m.mentions,
+          kind: 'chat',
+        });
+        markOptimisticFailed(m.id);
+        showToast(errorMessage(e, '重发失败'));
+      }
+      return;
+    }
+    const meta = m.retryMedia;
+    if (!meta?.storage_key) return;
+    setBusy(true);
+    setFeed((prev) =>
+      prev.map((x) => (x.id === m.id ? { ...x, pending: true, sendFailed: false } : x)),
+    );
+    try {
+      await api.sendGroupMedia(gid, {
+        storage_key: meta.storage_key,
+        file_name: meta.file_name,
+        mime: meta.mime,
+        size_bytes: meta.size_bytes,
+        url: meta.url,
+        body: meta.body,
+        mentions: meta.mentions,
+        reply_to_id: meta.reply_to_id,
+      });
+      dequeueFailedMediaMeta(m.id);
+      await reload();
+    } catch (e) {
+      markOptimisticFailed(m.id, meta);
+      showToast(errorMessage(e, '重发失败'));
     } finally {
       setBusy(false);
     }
@@ -697,7 +861,7 @@ function GroupPageInner() {
     setReplyTarget({
       id: m.id,
       author: m.mine ? '我' : m.author || '群友',
-      snippet: replySnippet(m.body, m.kind, m.attachments?.[0]?.file_name),
+      snippet: replySnippet(m.body, m.kind, m.attachments?.[0]?.file_name, m.ref),
     });
   };
 
@@ -781,6 +945,42 @@ function GroupPageInner() {
       : safeDetail.plan_title
     : null;
 
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const toggleSelect = (mid: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(mid)) next.delete(mid);
+      else next.add(mid);
+      return next;
+    });
+  };
+
+  const forwardSelected = () => {
+    const items: ForwardPayload[] = [];
+    const byId = new Map(feed.map((m) => [m.id, m]));
+    for (const id of selectedIds) {
+      const m = byId.get(id);
+      if (!m || m.recalled) continue;
+      items.push({
+        body: m.body,
+        kind: m.kind,
+        ref: m.ref,
+        attachments: m.attachments?.map((a) => ({
+          url: a.url,
+          file_name: a.file_name,
+          mime: a.mime,
+        })),
+      });
+    }
+    if (!items.length) return;
+    setForwardItems(items);
+    exitSelectMode();
+  };
+
   return (
     <main className="group-page group-page-checkin">
       <div className="group-checkin-nav-fixed">
@@ -790,10 +990,20 @@ function GroupPageInner() {
           onOpenSearch={() => setSearchOpen(true)}
           onOpenSettings={() => openSettings('home')}
         />
-        <GroupAnnounceBar
-          text={safeDetail.announcement || ''}
-          onOpen={() => openSettings('profile')}
-        />
+        {selectMode ? (
+          <div className="im-select-toolbar">
+            <button type="button" className="text-link" onClick={exitSelectMode}>
+              取消
+            </button>
+            <span className="muted">已选 {selectedIds.size} 条</span>
+            <span className="im-select-toolbar-spacer" aria-hidden />
+          </div>
+        ) : (
+          <GroupAnnounceBar
+            text={safeDetail.announcement || ''}
+            onOpen={() => openSettings('profile')}
+          />
+        )}
       </div>
 
       <div className="group-checkin-scroll" ref={feedWrapRef}>
@@ -863,16 +1073,29 @@ function GroupPageInner() {
             onCompleteTask={completeTask}
             scrollParentRef={feedWrapRef}
             focusMsgId={activeFocus}
+            selectMode={selectMode}
+            selectedIds={selectedIds}
+            onToggleSelect={toggleSelect}
+            onEnterSelect={(mid) => {
+              setSelectMode(true);
+              setSelectedIds(new Set([mid]));
+            }}
             onResend={(m) => {
-              if (!m.body || m.kind !== 'chat') return;
-              setFeed((prev) => prev.filter((x) => x.id !== m.id));
-              void handleChat(m.body, {
-                replyToId: m.reply_to_id || undefined,
-                mentions: m.mentions,
-              });
+              void resendGroupMessage(m);
             }}
             onForward={(m) => {
-              setForwardItems([{ body: m.body, kind: m.kind, ref: m.ref }]);
+              setForwardItems([
+                {
+                  body: m.body,
+                  kind: m.kind,
+                  ref: m.ref,
+                  attachments: m.attachments?.map((a) => ({
+                    url: a.url,
+                    file_name: a.file_name,
+                    mime: a.mime,
+                  })),
+                },
+              ]);
             }}
             onMemberClick={(member) => setProfileMember(member)}
           />
@@ -883,7 +1106,7 @@ function GroupPageInner() {
       {showJump ? (
         <button
           type="button"
-          className="im-jump-bottom"
+          className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}`}
           onClick={() => {
             stickBottom.current = true;
             setShowJump(false);
@@ -894,7 +1117,7 @@ function GroupPageInner() {
         </button>
       ) : null}
 
-      {myOpenTask ? (
+      {myOpenTask && !selectMode ? (
         <GroupMyTaskPin
           gid={gid}
           task={myOpenTask}
@@ -911,10 +1134,10 @@ function GroupPageInner() {
 
       <GroupComposerBar
         gid={gid}
-        disabled={busy}
+        disabled={busy || selectMode}
         busy={busy}
         online={online}
-        allowChat={allowChat}
+        allowChat={allowChat && !selectMode}
         canPostTask={isStaff}
         members={members}
         replyTo={replyTarget}
@@ -925,6 +1148,9 @@ function GroupPageInner() {
         onChat={handleChat}
         onChatMedia={handleChatMedia}
         getScrollEl={() => feedWrapRef.current}
+        selectMode={selectMode}
+        selectedCount={selectedIds.size}
+        onForwardSelected={forwardSelected}
       />
 
       <GroupComposerSheet

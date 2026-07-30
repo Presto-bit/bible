@@ -17,9 +17,22 @@ type Props = {
   mime?: string | null;
   messageKind?: string | null;
   sizeBytes?: number | null;
+  /** 语音时长提示（秒），来自 body 如 `12″` */
+  durationHintSec?: number;
   /** 点普通文件时的回退 */
   onOpenFile?: () => void;
 };
+
+/** 从语音消息 body（如 `12″` / `1′05″`）解析秒数 */
+export function parseVoiceDurationHint(body?: string | null): number | undefined {
+  if (!body) return undefined;
+  const t = body.trim();
+  const m = t.match(/^(\d+)\s*[′']\s*(\d{1,2})\s*[″"]?$/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  const s = t.match(/^(\d+)\s*[″"']$/);
+  if (s) return Number(s[1]);
+  return undefined;
+}
 
 function ImVideoPlayer({
   url,
@@ -60,11 +73,24 @@ function ImVideoPlayer({
   );
 }
 
-function ImAudioBubble({ url, fileName }: { url: string; fileName?: string | null }) {
+function ImAudioBubble({
+  url,
+  fileName,
+  durationHintSec,
+}: {
+  url: string;
+  fileName?: string | null;
+  /** 发送时写入 body 的时长提示（秒），元数据未到前先用它撑宽 */
+  durationHintSec?: number;
+}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(durationHintSec || 0);
   const [current, setCurrent] = useState(0);
+
+  useEffect(() => {
+    if (durationHintSec && durationHintSec > duration) setDuration(durationHintSec);
+  }, [durationHintSec, duration]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -80,7 +106,10 @@ function ImAudioBubble({ url, fileName }: { url: string; fileName?: string | nul
       clearExclusiveAudio(el);
     };
     const onTime = () => setCurrent(el.currentTime || 0);
-    const onMeta = () => setDuration(el.duration || 0);
+    const onMeta = () => {
+      const d = el.duration || 0;
+      if (Number.isFinite(d) && d > 0) setDuration(d);
+    };
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onPause);
     el.addEventListener('ended', onEnded);
@@ -109,9 +138,10 @@ function ImAudioBubble({ url, fileName }: { url: string; fileName?: string | nul
 
   const pct = duration > 0 ? Math.min(100, (current / duration) * 100) : 0;
   const label = playing ? formatMediaDuration(current) : formatMediaDuration(duration || 0);
+  const widthPx = Math.min(220, Math.max(96, 72 + Math.round(duration || durationHintSec || 1) * 3.2));
 
   return (
-    <div className="im-audio-bubble">
+    <div className={`im-audio-bubble${playing ? ' is-playing' : ''}`} style={{ width: widthPx }}>
       <audio ref={audioRef} src={url} preload="metadata" />
       <button type="button" className="im-audio-play" aria-label={playing ? '暂停' : '播放'} onClick={toggle}>
         {playing ? '❚❚' : '▶'}
@@ -160,6 +190,7 @@ export function ImMediaAttachment({
   fileName,
   mime,
   messageKind,
+  durationHintSec,
   onOpenFile,
 }: Props) {
   const kind = detectImMediaKind(mime, fileName, messageKind);
@@ -167,7 +198,7 @@ export function ImMediaAttachment({
   const openVideo = useCallback(() => setVideoOpen(true), []);
 
   if (kind === 'audio') {
-    return <ImAudioBubble url={url} fileName={fileName} />;
+    return <ImAudioBubble url={url} fileName={fileName} durationHintSec={durationHintSec} />;
   }
   if (kind === 'video') {
     return (

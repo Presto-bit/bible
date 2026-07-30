@@ -5,6 +5,8 @@ import { userLsGet, userLsSet, userLsRemove } from './user_storage';
 const KEY = 'im_drafts_v2';
 const LEGACY_KEY = 'im_drafts_v1';
 
+export const IM_DRAFTS_EVENT = 'presto:im-drafts';
+
 export type ImDraftMention = { id: string; label: string };
 
 export type ImDraft = {
@@ -79,6 +81,9 @@ function load(): DraftMap {
 
 function save(map: DraftMap) {
   userLsSet(KEY, JSON.stringify(map));
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(IM_DRAFTS_EVENT));
+  }
 }
 
 export function draftKey(scope: 'group' | 'dm', refId: string): string {

@@ -24,10 +24,12 @@ export function matchAtQuery(
   text: string,
   cursor: number,
 ): { query: string; start: number } | null {
-  const head = text.slice(0, cursor);
-  const m = head.match(/@([^\s@]*)$/);
+  const head = text.slice(0, Math.max(0, Math.min(cursor, text.length)));
+  // 仅匹配「独立」的 @：行首或空白后，避免邮箱/已完成的 @昵称 被二次截取
+  const m = head.match(/(^|[\s\u3000])@([^\s@]*)$/);
   if (!m || m.index == null) return null;
-  return { query: m[1] || '', start: m.index };
+  const atIndex = m.index + m[1].length;
+  return { query: m[2] || '', start: atIndex };
 }
 
 export type PendingAttach = {

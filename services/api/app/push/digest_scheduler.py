@@ -11,8 +11,10 @@ from .digest_delivery import deliver_group_digest
 
 logger = logging.getLogger(__name__)
 
-# 近实时：约 2s 合并连发，避免每条都推
+# 普通闲聊：约 2s 合并连发
 DEBOUNCE_SECONDS = 2
+# @ / 经文 / 打卡 / 任务：立即投递（仍走同一队列，due_at=now）
+PRIORITY_DEBOUNCE_SECONDS = 0
 _POLL_INTERVAL = 1.0
 _RETRY_SECONDS = 15
 
@@ -58,15 +60,24 @@ def start_digest_worker() -> None:
         logger.info("push digest worker started (debounce=%ss)", DEBOUNCE_SECONDS)
 
 
-def schedule_digest_users(user_ids: list[str] | set[str]) -> None:
-    """为接收方登记/重置 due_at = now + debounce（仅有 group_digest 订阅的用户）。"""
+def schedule_digest_users(
+    user_ids: list[str] | set[str],
+    *,
+    priority: bool = False,
+) -> None:
+    """为接收方登记/重置 due_at。
+
+    priority=True（@/经文/打卡/任务）：due_at=now，下一轮 poll 即投。
+    普通闲聊：due_at=now+debounce，合并连发。
+    """
     ids = [str(u).strip() for u in user_ids if u and str(u).strip()]
     if not ids:
         return
     try:
         ensure_digest_due_schema()
         start_digest_worker()
-        due = datetime.now(timezone.utc) + timedelta(seconds=DEBOUNCE_SECONDS)
+        delay = PRIORITY_DEBOUNCE_SECONDS if priority else DEBOUNCE_SECONDS
+        due = datetime.now(timezone.utc) + timedelta(seconds=delay)
         pool = get_pool()
         with pool.connection() as conn:
             rows = conn.execute(
@@ -76,30 +87,43 @@ def schedule_digest_users(user_ids: list[str] | set[str]) -> None:
             ).fetchall()
             eligible = [r[0] for r in rows]
             for uid in eligible:
+                # 永不推迟已登记的更早 due_at（保护共读高优即时投递）
                 conn.execute(
                     "INSERT INTO push_digest_due (user_id, due_at, updated_at) "
                     "VALUES (%s::uuid, %s, now()) "
                     "ON CONFLICT (user_id) DO UPDATE SET "
-                    "due_at = EXCLUDED.due_at, updated_at = now()",
+                    "due_at = LEAST(push_digest_due.due_at, EXCLUDED.due_at), "
+                    "updated_at = now()",
                     (uid, due),
                 )
             conn.commit()
         if eligible:
-            logger.debug("digest scheduled n=%s due_in=%ss", len(eligible), DEBOUNCE_SECONDS)
+            logger.debug(
+                "digest scheduled n=%s due_in=%ss priority=%s",
+                len(eligible),
+                delay,
+                priority,
+            )
     except Exception:
         logger.exception("schedule_digest_users failed")
 
 
-def schedule_dm_peer(peer_id: str) -> None:
-    schedule_digest_users([peer_id])
+def schedule_dm_peer(peer_id: str, *, priority: bool = False) -> None:
+    schedule_digest_users([peer_id], priority=priority)
 
 
-def schedule_group_members(gid: str, *, exclude_user_id: str) -> None:
-    """群成员中已开启聚合推送的用户：直接排队（不再二次过滤）。"""
+def schedule_group_members(
+    gid: str,
+    *,
+    exclude_user_id: str,
+    priority: bool = False,
+) -> None:
+    """群成员中已开启聚合推送的用户：直接排队。"""
     try:
         ensure_digest_due_schema()
         start_digest_worker()
-        due = datetime.now(timezone.utc) + timedelta(seconds=DEBOUNCE_SECONDS)
+        delay = PRIORITY_DEBOUNCE_SECONDS if priority else DEBOUNCE_SECONDS
+        due = datetime.now(timezone.utc) + timedelta(seconds=delay)
         pool = get_pool()
         with pool.connection() as conn:
             rows = conn.execute(
@@ -114,16 +138,18 @@ def schedule_group_members(gid: str, *, exclude_user_id: str) -> None:
                     "INSERT INTO push_digest_due (user_id, due_at, updated_at) "
                     "VALUES (%s::uuid, %s, now()) "
                     "ON CONFLICT (user_id) DO UPDATE SET "
-                    "due_at = EXCLUDED.due_at, updated_at = now()",
+                    "due_at = LEAST(push_digest_due.due_at, EXCLUDED.due_at), "
+                    "updated_at = now()",
                     (uid, due),
                 )
             conn.commit()
         if rows:
             logger.debug(
-                "digest scheduled group=%s n=%s due_in=%ss",
+                "digest scheduled group=%s n=%s due_in=%ss priority=%s",
                 gid[:8],
                 len(rows),
-                DEBOUNCE_SECONDS,
+                delay,
+                priority,
             )
     except Exception:
         logger.exception("schedule_group_members failed gid=%s", gid)

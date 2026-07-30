@@ -1350,6 +1350,17 @@ export interface GroupMessage {
   /** 客户端乐观发送 */
   pending?: boolean;
   sendFailed?: boolean;
+  /** 已上传、待重发的媒体元数据 */
+  retryMedia?: {
+    storage_key: string;
+    file_name?: string;
+    mime?: string;
+    size_bytes?: number;
+    url?: string;
+    body?: string;
+    reply_to_id?: string;
+    mentions?: string[];
+  };
 }
 export interface DiscoverSummary {
   groups_pending_checkin: number;
@@ -2569,4 +2580,16 @@ export interface DmMessage {
     storage_key?: string | null;
     url?: string | null;
   }>;
+  pending?: boolean;
+  sendFailed?: boolean;
+  retryText?: string;
+  retryMedia?: {
+    storage_key: string;
+    file_name?: string;
+    mime?: string;
+    size_bytes?: number;
+    url?: string;
+    body?: string;
+    reply_to_id?: string;
+  };
 }

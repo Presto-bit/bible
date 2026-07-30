@@ -18,8 +18,27 @@ import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { friendDisplayName } from '@/lib/friend_label';
 import { FRIEND_REMARKS_EVENT, dmTitleWithRemark } from '@/lib/friend_remarks';
 import { formatConvListTime } from '@/lib/im_ui';
+import { getImDraftRecord, IM_DRAFTS_EVENT } from '@/lib/im_drafts';
+import { listFailedText, listFailedMediaMeta } from '@/lib/im_send_queue';
 import { SwipeRevealRow } from '@/components/SwipeRevealRow';
 import { timedPerf } from '@/lib/perf_rum';
+
+function convListSubtitle(it: ConversationItem): string {
+  if (it.scope === 'group' || it.scope === 'dm') {
+    const draft = getImDraftRecord(it.scope, it.ref_id);
+    const draftText = draft.text.trim();
+    if (draftText) {
+      const clip = draftText.length > 36 ? `${draftText.slice(0, 36)}…` : draftText;
+      return `[草稿] ${clip}`;
+    }
+    const failedText = listFailedText(it.scope, it.ref_id);
+    const failedMedia = listFailedMediaMeta(it.scope, it.ref_id);
+    if (failedText.length || failedMedia.length) {
+      return '有消息发送失败';
+    }
+  }
+  return it.subtitle || (it.scope === 'group' || it.scope === 'dm' ? '暂无消息' : '');
+}
 
 function ConversationAvatar({
   it,
@@ -79,6 +98,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const [searchErr, setSearchErr] = useState<string | null>(null);
   const [plusOpen, setPlusOpen] = useState(false);
   const [remarkTick, setRemarkTick] = useState(0);
+  const [draftTick, setDraftTick] = useState(0);
   const plusRef = useRef<HTMLDivElement | null>(null);
   const messagesLoadedRef = useRef(false);
   const reloadGenRef = useRef(0);
@@ -133,6 +153,19 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     const onRemark = () => setRemarkTick((n) => n + 1);
     window.addEventListener(FRIEND_REMARKS_EVENT, onRemark);
     return () => window.removeEventListener(FRIEND_REMARKS_EVENT, onRemark);
+  }, []);
+
+  useEffect(() => {
+    const onDraft = () => setDraftTick((n) => n + 1);
+    window.addEventListener(IM_DRAFTS_EVENT, onDraft);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') setDraftTick((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener(IM_DRAFTS_EVENT, onDraft);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, []);
 
   useEffect(() => {
@@ -388,8 +421,8 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
               >
                 新建群
               </button>
-              <button
-                type="button"
+                      <button
+                        type="button"
                 role="menuitem"
                 onClick={() => {
                   setPlusOpen(false);
@@ -397,9 +430,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 }}
               >
                 加入群
-              </button>
-              <button
-                type="button"
+                      </button>
+                      <button
+                        type="button"
                 role="menuitem"
                 onClick={() => {
                   setPlusOpen(false);
@@ -467,7 +500,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 <button type="button" className="btn" onClick={() => go('/friend/add')}>加好友</button>
                 <button type="button" className="btn btn-ghost" onClick={() => go('/discover/contacts')}>
                   通讯录
-                </button>
+                      </button>
                 <button type="button" className="btn btn-ghost" onClick={() => go('/group/create')}>新建群</button>
               </div>
             ) : null}
@@ -491,6 +524,13 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                     )
                   : it.title;
               void remarkTick;
+              void draftTick;
+              const subtitle = convListSubtitle(it);
+              const subTone = subtitle.startsWith('[草稿]')
+                ? ' is-draft'
+                : subtitle === '有消息发送失败'
+                  ? ' is-failed'
+                  : '';
               const row = (
                 <div className="discover-conv-row">
                   <ConversationAvatar it={it} friend={peerFriend} />
@@ -508,12 +548,15 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                       ) : null}
                     </div>
                     <div className="discover-conv-sub-row">
-                      <p className="muted discover-conv-sub">
-                        {it.subtitle || (it.scope === 'group' || it.scope === 'dm' ? '暂无消息' : '')}
+                      <p className={`muted discover-conv-sub${subTone}`}>
+                        {subtitle}
                       </p>
                       {(it.unread || 0) > 0 ? (
-                        <span className="discover-conv-unread">
-                          {(it.unread || 0) > 99 ? '99+' : it.unread}
+                        <span
+                          className={`discover-conv-unread${it.muted ? ' is-muted is-dot' : ''}`}
+                          aria-label={it.muted ? `免打扰，${it.unread} 条未读` : `${it.unread} 条未读`}
+                        >
+                          {it.muted ? null : (it.unread || 0) > 99 ? '99+' : it.unread}
                         </span>
                       ) : null}
                     </div>
@@ -521,7 +564,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 </div>
               );
               return (
-                <li key={key} className="discover-conv-li">
+                <li
+                  key={key}
+                  className={`discover-conv-li${(it.unread || 0) > 0 ? ' is-unread' : ''}`}
+                >
                   {canState ? (
                     <SwipeRevealRow
                       onContentClick={() => openItem(it)}

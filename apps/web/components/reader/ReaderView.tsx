@@ -22,6 +22,7 @@ import AppBodyPortal from '@/components/AppBodyPortal';
 import VersionPickerPop from '@/components/reader/VersionPickerPop';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
+import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
 import {
   chapterCacheVersion,
@@ -331,6 +332,7 @@ export default function ReaderView({
   }>(null);
   const [thoughtRevision, setThoughtRevision] = useState(0);
   const [groupCheckinOpen, setGroupCheckinOpen] = useState(false);
+  const [verseShareOpen, setVerseShareOpen] = useState(false);
   const [planOverlayOpen, setPlanOverlayOpen] = useState(false);
   const planNavGuardRef = useRef<PlanNavGuard | null>(null);
   const bindPlanNavGuard = useCallback((guard: PlanNavGuard | null) => {
@@ -2790,6 +2792,24 @@ export default function ReaderView({
               className="vsb-icon-btn"
               onClick={() => {
                 setMarkPaletteOpen(false);
+                setVerseShareOpen(true);
+              }}
+            >
+              <span className="vsb-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+                </svg>
+              </span>
+              <span className="vsb-label">{englishUI ? 'Share' : '分享'}</span>
+            </button>
+            <button
+              type="button"
+              className="vsb-icon-btn"
+              onClick={() => {
+                setMarkPaletteOpen(false);
                 setToolsSheet({
                   tab: 'crossrefs',
                   refParam: effRefParam,
@@ -3083,6 +3103,23 @@ export default function ReaderView({
           presetTaskTitle={groupCtx.taskTitle}
           onClose={() => setGroupCheckinOpen(false)}
           onDone={() => flashToast(englishUI ? 'Shared to group' : '已分享到共读群')}
+        />
+      )}
+
+      {verseShareOpen && (
+        <ShareToSocialSheet
+          ref={effSelectedRef || effRefParam}
+          refLabel={effRefLabel}
+          body={effSelectionText || undefined}
+          kind="verse"
+          defaultGroupMode="verse"
+          onClose={() => {
+            setVerseShareOpen(false);
+            clearSelection();
+          }}
+          onDone={(target) =>
+            flashToast(englishUI ? `Shared to ${target}` : `已分享到 ${target}`)
+          }
         />
       )}
     </main>
