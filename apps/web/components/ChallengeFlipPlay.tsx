@@ -5,7 +5,7 @@ import PageBackBar from '@/components/PageBackBar';
 import type { ChallengeQuestion } from '@/lib/challenge_levels';
 import { localizeRefsInText, refToChineseLabel } from '@/lib/ref_label';
 
-type Phase = 'pick' | 'flip' | 'answer';
+type Phase = 'pick' | 'flip' | 'answer' | 'done';
 
 export default function ChallengeFlipPlay({
   title,
@@ -28,13 +28,16 @@ export default function ChallengeFlipPlay({
   const [picked, setPicked] = useState<number | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
   const [phase, setPhase] = useState<Phase>('pick');
+  const [finalScore, setFinalScore] = useState<{ correct: number; total: number } | null>(null);
 
   const q = questions[qIdx];
 
   const advance = (wasCorrect: boolean) => {
     const nextCorrect = correctCount + (wasCorrect ? 1 : 0);
     if (qIdx + 1 >= questions.length) {
-      setTimeout(() => onFinish(nextCorrect, questions.length), 1200);
+      setFinalScore({ correct: nextCorrect, total: questions.length });
+      setPhase('done');
+      setTimeout(() => onFinish(nextCorrect, questions.length), 900);
     } else {
       setTimeout(() => {
         setCorrectCount(nextCorrect);
@@ -60,7 +63,25 @@ export default function ChallengeFlipPlay({
     setPicked(null);
     setCorrectCount(0);
     setPhase('pick');
+    setFinalScore(null);
   }, [questions]);
+
+  if (phase === 'done' && finalScore) {
+    return (
+      <main className="container challenge-play">
+        <header className="challenge-play-head">
+          <PageBackBar variant="page" onClick={onBack} label="返回" />
+          <span className="muted">{title}</span>
+        </header>
+        <div className="card challenge-q-card challenge-finish-card">
+          <strong>完成 · {finalScore.correct}/{finalScore.total}</strong>
+          <p className="muted" style={{ margin: '8px 0 0', fontSize: 13 }}>
+            做得不错，继续保持
+          </p>
+        </div>
+      </main>
+    );
+  }
 
   if (!q) return null;
 

@@ -364,8 +364,8 @@ export default function SearchPage() {
                 {toursReady
                   ? (mapTours[0]
                     ? `${mapTours[0].stops?.length ?? 0} 站 · 点击开始`
-                    : '暂无专题')
-                  : '加载中…'}
+                    : '暂无专题，稍后再来')
+                  : '正在载入专题…'}
               </p>
               <span className="story-tour-toggle">开始游览 ›</span>
             </TopicNavCard>
@@ -403,8 +403,8 @@ export default function SearchPage() {
                 {toursReady
                   ? (timelineTours[0]
                     ? `${timelineTours[0].events?.length ?? 0} 个节点 · 点击开始`
-                    : '暂无专题')
-                  : '加载中…'}
+                    : '暂无专题，稍后再来')
+                  : '正在载入专题…'}
               </p>
               <span className="story-tour-toggle">开始游览 ›</span>
             </TopicNavCard>
@@ -568,7 +568,7 @@ export default function SearchPage() {
               disabled={loadingMore}
               onClick={() => loadMoreHits()}
             >
-              {loadingMore ? '加载中…' : `加载更多（还有 ${Math.max(0, totalHits - displayHits.length)} 处）`}
+              {loadingMore ? '正在载入…' : `加载更多（还有 ${Math.max(0, totalHits - displayHits.length)} 处）`}
             </button>
           ) : null}
         </section>

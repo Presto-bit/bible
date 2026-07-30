@@ -17,7 +17,7 @@ function GraphTopicPageContent() {
 
 export default function GraphTopicPage() {
   return (
-    <Suspense fallback={<main className="container"><p className="muted">加载中…</p></main>}>
+    <Suspense fallback={<main className="container"><p className="muted">正在载入…</p></main>}>
       <GraphTopicPageContent />
     </Suspense>
   );

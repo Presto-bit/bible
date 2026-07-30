@@ -36,7 +36,7 @@ function DiagramTourPageContent() {
         <h2 className="page-head-title">{diagram?.title ?? '图鉴'}</h2>
       </header>
 
-      {loading ? <p className="muted">加载中…</p> : null}
+      {loading ? <p className="muted">正在载入…</p> : null}
       {!loading && diagram ? (
         <DiagramViewer
           diagram={diagram}
@@ -66,7 +66,7 @@ function DiagramTourPageContent() {
 
 export default function DiagramTourPage() {
   return (
-    <Suspense fallback={<main className="container"><p className="muted">加载中…</p></main>}>
+    <Suspense fallback={<main className="container"><p className="muted">正在载入…</p></main>}>
       <DiagramTourPageContent />
     </Suspense>
   );

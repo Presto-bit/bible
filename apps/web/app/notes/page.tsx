@@ -451,7 +451,7 @@ export default function NotesPage() {
             <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
               {query
                 ? '没有匹配的想法。'
-                : '还没有想法。点右上角 + 新建，或在小爱回答里存想法。'}
+                : '写下第一句。点右上角 +，或在小爱回答里存想法。'}
             </p>
           ) : (
             thoughtGroups.map((g) => (
@@ -486,7 +486,7 @@ export default function NotesPage() {
             <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
               {query || colorFilter !== COLOR_FILTER_ALL
                 ? '没有匹配的划线。'
-                : '还没有划线。阅读时选中经文可划线。'}
+                : '去读经划线。阅读时选中经文即可。'}
             </p>
           ) : (
             filteredHighlights.map((h) => {

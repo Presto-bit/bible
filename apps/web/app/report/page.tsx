@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook } from '@/lib/api';
 import { dailyMinutes, rangeStats, type RangeStats } from '@/lib/reading';
 import { registrationYear } from '@/lib/api';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 type Mode = 'day' | 'week' | 'month' | 'year';
 
@@ -202,7 +203,7 @@ export default function ReportPage() {
       <header className="page-head">
         <PageBackBar href="/profile" label="我的" />
         <h2 className="page-head-title">读经回顾</h2>
-        <Link href="/wrapped" className="muted" style={{ fontSize: 13 }}>读经报告 ›</Link>
+        <Link href="/wrapped" className="muted" style={{ fontSize: 13 }}>月度回顾 ›</Link>
       </header>
 
       <div className="seg-tabs" style={{ marginBottom: 12 }}>
@@ -281,10 +282,19 @@ export default function ReportPage() {
         <Tile value={stats.minutes} unit="分钟" label="阅读时长" />
         <Tile value={stats.days} unit="天" label="阅读天数" />
         <Tile value={stats.chapters} unit="章" label="完成章节" />
-        <Tile value={stats.prayers} unit="次" label="祷告打卡" />
+        {stats.prayers > 0 ? (
+          <Tile value={stats.prayers} unit="次" label="祷告打卡" />
+        ) : (
+          <Link href="/pray" className="report-tile report-tile-link" onClick={() => markRouteNavigation()}>
+            <strong>去祷告</strong>
+            <span className="muted">开始第一次</span>
+          </Link>
+        )}
       </div>
       <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-        当前统计：{statLabel}
+        {stats.minutes === 0 && stats.chapters === 0
+          ? '读一章，这里就会亮起来'
+          : `当前统计：${statLabel}`}
       </p>
 
       <h3 style={{ fontSize: 15, margin: '20px 0 10px' }}>常读的卷</h3>

@@ -249,6 +249,17 @@ html.pwa-standalone a[href] {
   z-index: 1;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .tab-keep-pane.tab-keep-pane-active {
+    animation: tab-pane-fade-in 150ms ease;
+  }
+}
+
+@keyframes tab-pane-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .container {
   max-width: min(720px, 100%);
   width: 100%;
@@ -6921,6 +6932,26 @@ body.verse-full-open .tabbar {
   text-align: center;
 }
 
+a.report-tile-link {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  background: color-mix(in srgb, var(--accent, #07c160) 10%, var(--surface));
+}
+
+a.report-tile-link strong {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+a.report-tile-link .muted {
+  font-size: 12px;
+}
+
 .report-tile-val {
   font-size: 24px;
   font-weight: 800;
@@ -10886,6 +10917,18 @@ a.license-row-name:hover {
   flex-direction: column;
   padding: 18px !important;
   box-sizing: border-box;
+}
+
+.challenge-finish-card {
+  margin-top: 48px;
+  padding: 28px 20px !important;
+  text-align: center;
+  align-items: center;
+}
+
+.challenge-finish-card strong {
+  font-size: 22px;
+  font-weight: 750;
 }
 
 .challenge-q-card .quiz-q {
@@ -20029,14 +20072,38 @@ html.app-theme-dark body {
 .discover-search-hit{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:10px 12px;border:0;border-radius:10px;background:var(--card,#f3f1ec);cursor:pointer;}
 .discover-search-hit span{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;}
 .discover-empty{
-  margin-top:16px;padding:28px 18px;border-radius:14px;
-  background:var(--surface,#fff);border:1px solid var(--line);text-align:left;
+  margin-top:16px;padding:24px 18px;
+  border-radius:var(--home-card-radius, 20px);
+  background:var(--surface,#fff);
+  border:none;
+  box-shadow:var(--home-shadow, 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1));
+  text-align:left;
 }
 .discover-empty.is-compact{padding:18px 16px;margin-top:8px;}
 .discover-empty strong{display:block;font-size:16px;margin:0 0 6px;}
 .discover-empty .muted{margin:0;line-height:1.5;font-size:13px;}
-.discover-empty-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.discover-empty-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px;}
+.discover-empty-actions .text-link{font-size:13px;font-weight:600;}
 .discover-empty-inline{margin:8px 0 0;font-size:13px;}
+.discover-conv-skeleton{
+  list-style:none;margin:8px 0 0;padding:0 16px;display:flex;flex-direction:column;gap:10px;
+}
+.discover-conv-skeleton-row{
+  display:flex;align-items:center;gap:12px;padding:12px 14px;
+  border-radius:16px;background:var(--surface,#fff);
+  box-shadow:var(--home-shadow, 0 2px 8px rgba(15, 23, 42, 0.06));
+}
+.discover-conv-skeleton-avatar{
+  width:48px;height:48px;border-radius:10px;flex-shrink:0;
+  background:color-mix(in srgb, var(--ink-faint) 18%, transparent);
+}
+.discover-conv-skeleton-lines{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;}
+.discover-conv-skeleton-line{
+  height:10px;border-radius:6px;
+  background:color-mix(in srgb, var(--ink-faint) 16%, transparent);
+}
+.discover-conv-skeleton-line.w60{width:60%;}
+.discover-conv-skeleton-line.w40{width:40%;}
 /* 消息列表全宽铺满（微信式） */
 .discover-page.discover-im.container{
   padding-left:0;
@@ -20055,21 +20122,28 @@ html.app-theme-dark body {
   margin-left:16px;
   margin-right:16px;
 }
-.discover-conv-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0;}
+.discover-conv-list{
+  list-style:none;margin:0;padding:8px 12px 12px;display:flex;flex-direction:column;gap:8px;
+}
 .discover-conv-li{
-  position:relative;display:flex;align-items:stretch;gap:0;border-bottom:1px solid var(--line);
+  position:relative;display:flex;align-items:stretch;gap:0;
+  border-bottom:0;
+  border-radius:16px;
+  background:var(--surface,#fff);
+  box-shadow:var(--home-shadow, 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08));
+  overflow:hidden;
   content-visibility:auto;
   contain-intrinsic-size:auto 64px;
   width:100%;
 }
 .discover-conv-li .swipe-reveal-row{
   width:100%;
-  border-radius:0;
+  border-radius:16px;
 }
 .discover-conv-li:last-child{border-bottom:0;}
 .discover-conv-row{
   display:flex;align-items:center;gap:12px;flex:1;min-width:0;width:100%;
-  text-align:left;padding:12px 16px;cursor:pointer;border:0;background:transparent;color:inherit;
+  text-align:left;padding:12px 14px;min-height:64px;cursor:pointer;border:0;background:transparent;color:inherit;
 }
 .discover-conv-avatar{
   flex-shrink:0;width:48px;height:48px;border-radius:6px;

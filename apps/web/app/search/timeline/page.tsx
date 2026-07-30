@@ -30,8 +30,8 @@ export default function SearchTimelineIndexPage() {
         按历史节点顺序读经。
       </p>
       <div className="topic-picker-list" style={{ marginTop: 14 }}>
-        {loading ? <p className="muted">加载中…</p> : null}
-        {!loading && tours.length === 0 ? <p className="muted">暂无时间线专题</p> : null}
+        {loading ? <p className="muted">正在载入…</p> : null}
+        {!loading && tours.length === 0 ? <p className="muted">暂无时间线专题，稍后再来</p> : null}
         {tours.map((tour) => (
           <TopicNavCard
             key={tour.id}

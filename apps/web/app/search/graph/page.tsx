@@ -36,8 +36,8 @@ export default function SearchGraphIndexPage() {
         人物与地点关系脉络，附经文依据。
       </p>
       <div className="topic-picker-list" style={{ marginTop: 14 }}>
-        {loading ? <p className="muted">加载中…</p> : null}
-        {!loading && topics.length === 0 ? <p className="muted">暂无关系专题</p> : null}
+        {loading ? <p className="muted">正在载入…</p> : null}
+        {!loading && topics.length === 0 ? <p className="muted">暂无关系专题，稍后再来</p> : null}
         {topics.map((t) => (
           <TopicNavCard
             key={t.id}

@@ -60,10 +60,15 @@ export function TimelineStoryMode({
   };
 
   if (loading) {
-    return <p className="muted">加载时间线…</p>;
+    return <p className="muted">正在载入时间线…</p>;
   }
   if (!tour || !current) {
-    return <p className="muted">未找到该时间线</p>;
+    return (
+      <p className="muted">
+        未找到该时间线。
+        <a href="/search/timeline"> 返回专题列表 ›</a>
+      </p>
+    );
   }
 
   const isLast = step >= events.length - 1;

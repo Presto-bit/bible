@@ -53,7 +53,7 @@ export function MapTourPanels({
   }, [detail]);
 
   if (!tours.length) {
-    return <p className="muted">暂无地图专题</p>;
+    return <p className="muted">暂无地图专题，稍后再来</p>;
   }
 
   return (
@@ -215,7 +215,7 @@ export function TimelineTourPanels({ tours }: { tours: TimelineTour[] }) {
   const [openId, setOpenId] = useState<string | null>(tours[0]?.id ?? null);
 
   if (!tours.length) {
-    return <p className="muted">暂无时间线专题</p>;
+    return <p className="muted">暂无时间线专题，稍后再来</p>;
   }
 
   return (

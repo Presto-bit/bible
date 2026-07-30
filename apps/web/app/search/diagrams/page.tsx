@@ -40,8 +40,8 @@ export default function SearchDiagramsIndexPage() {
         示意图可点热区，按顺序导读。
       </p>
       <div className="topic-picker-list" style={{ marginTop: 14 }}>
-        {loading ? <p className="muted">加载中…</p> : null}
-        {!loading && items.length === 0 ? <p className="muted">暂无图鉴</p> : null}
+        {loading ? <p className="muted">正在载入…</p> : null}
+        {!loading && items.length === 0 ? <p className="muted">暂无图鉴，稍后再来</p> : null}
         {items.map((d) => (
           <TopicNavCard
             key={d.id}

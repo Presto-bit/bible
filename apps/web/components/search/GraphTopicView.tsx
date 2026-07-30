@@ -61,10 +61,15 @@ export function GraphTopicView({
   };
 
   if (loading) {
-    return <p className="muted">加载关系专题…</p>;
+    return <p className="muted">正在载入关系专题…</p>;
   }
   if (!topic || !graph) {
-    return <p className="muted">未找到该专题</p>;
+    return (
+      <p className="muted">
+        未找到该专题。
+        <a href="/search/graph"> 返回专题列表 ›</a>
+      </p>
+    );
   }
 
   const useNarrative = graph.edges.length <= NARRATIVE_EDGE_MAX;

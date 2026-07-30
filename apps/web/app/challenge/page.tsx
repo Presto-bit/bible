@@ -79,7 +79,7 @@ export default function ChallengePage() {
   if (play && playQuestions) {
     const title =
       play.kind === 'daily'
-        ? '每日问答'
+        ? '今日 5 题'
         : play.kind === 'random'
           ? '随机挑战'
           : play.kind === 'wrong'
@@ -117,7 +117,7 @@ export default function ChallengePage() {
     <main className="container">
       <header className="page-head">
         <PageBackBar href="/" label="首页" />
-        <h2 className="page-head-title">每日问答</h2>
+        <h2 className="page-head-title">今日问答</h2>
         <span className="muted" style={{ fontSize: 12 }}>{QUESTION_BANK_SIZE} 题</span>
       </header>
 
@@ -129,7 +129,7 @@ export default function ChallengePage() {
         >
           <span className="challenge-daily-badge">{dailyDone ? '✓' : '☀'}</span>
           <div style={{ flex: 1, textAlign: 'left' }}>
-            <strong>每日问答</strong>
+            <strong>今日 5 题</strong>
             <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
               {dailyDone ? '今日已完成' : '优先复习错题'}
             </p>

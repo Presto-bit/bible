@@ -66,10 +66,15 @@ export function MapStoryMode({
   };
 
   if (loading) {
-    return <p className="muted">加载路线…</p>;
+    return <p className="muted">正在载入路线…</p>;
   }
   if (!tour || !current) {
-    return <p className="muted">未找到该路线</p>;
+    return (
+      <p className="muted">
+        未找到该路线。
+        <a href="/search/map"> 返回专题列表 ›</a>
+      </p>
+    );
   }
 
   const isLast = step >= stops.length - 1;

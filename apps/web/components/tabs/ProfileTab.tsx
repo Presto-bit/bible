@@ -782,6 +782,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       toast('请选择图片文件');
       return;
     }
+    if (file.size > 12 * 1024 * 1024) {
+      toast('图片过大，请选择 12MB 以内的照片');
+      return;
+    }
+    const prevId = avatarId;
     setAvatarUploading(true);
     try {
       const blob = await cropCompressAvatar(file, 512, 0.82);
@@ -798,13 +803,14 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setAvatarId(nextId);
       userLsSet(AVATAR_KEY, nextId);
       pushProfileAvatar(nextId);
+      void syncNow().catch(() => {});
       setPickerOpen(false);
       toast('头像已更新');
     } catch (e) {
       clearCachedCustomAvatar();
       const saved = userLsGet(AVATAR_KEY);
-      setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
-      toast(e instanceof Error ? e.message : '头像上传失败');
+      setAvatarId(saved || prevId || defaultAvatarId(effectiveId() || undefined));
+      toast(e instanceof Error ? `${e.message} · 已恢复原头像` : '头像上传失败 · 已恢复原头像');
     } finally {
       setAvatarUploading(false);
       if (avatarFileRef.current) avatarFileRef.current.value = '';
@@ -1181,8 +1187,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           className="card profile-companion-card"
           aria-label={
             streak > 0
-              ? `已同行 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，打开读经回顾`
-              : `读经回顾，今日 ${mins} 分钟，通读 ${journeyPct}%`
+              ? `已同行 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，打开同行读经`
+              : `开始同行读经，今日 ${mins} 分钟，通读 ${journeyPct}%`
           }
         >
           <div className="profile-companion-main">
@@ -1266,8 +1272,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           kind="成就"
           tone="badge"
           count={badgeDoneCount}
-          value=""
-          hideValue
+          value={badgeDoneCount > 0 ? '' : '去解锁第一枚'}
+          hideValue={badgeDoneCount > 0}
           empty={badgeDoneCount === 0}
           isNew={badgeNew}
           onOpen={openBadges}
@@ -1497,7 +1503,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 <div className="settings-group-list">
                   <SettingsNavRow
                     title="外观"
-                    hint="主题与阅读"
+                    hint="主题与阅读器"
                     href="/profile/appearance"
                     onClick={openSettingsRoute}
                     glyph={settingsGlyph(
@@ -1509,7 +1515,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   />
                   <SettingsNavRow
                     title="推送提醒"
-                    hint="每日读经"
+                    hint="读经提醒"
                     href="/profile/reminders"
                     onClick={openSettingsRoute}
                     glyph={settingsGlyph(
@@ -1533,7 +1539,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   />
                   <SettingsNavRow
                     title="知识库"
-                    hint="平台与专题"
+                    hint="知识库与专题"
                     href="/knowledge-bases"
                     onClick={openSettingsRoute}
                     glyph={settingsGlyph(
@@ -1551,7 +1557,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 <div className="settings-group-list">
                   <SettingsNavRow
                     title="帮助与反馈"
-                    hint={helpBusy ? '打开中…' : '官方客服'}
+                    hint={helpBusy ? '打开中…' : '帮助与反馈'}
                     disabled={helpBusy}
                     onClick={() => void openHelpFeedback()}
                     glyph={settingsGlyph(
@@ -1708,7 +1714,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   disabled={avatarUploading}
                   onClick={() => avatarFileRef.current?.click()}
                 >
-                  {avatarUploading ? '处理中…' : '从相册选择'}
+                  {avatarUploading ? '上传中…' : '从相册选择'}
                 </button>
                 {isCustomAvatarId(avatarId) ? (
                   <button
