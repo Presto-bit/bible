@@ -9,7 +9,7 @@ import { localizeRefsInText, refToChineseLabel } from '@/lib/ref_label';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
-type Phase = 'pick' | 'flip' | 'answer' | 'done';
+type Phase = 'pick' | 'reveal' | 'done';
 
 export default function ChallengeFlipPlay({
   title,
@@ -39,33 +39,80 @@ export default function ChallengeFlipPlay({
 
   const q = questions[qIdx];
 
-  const advance = (wasCorrect: boolean) => {
-    const nextCorrect = correctCount + (wasCorrect ? 1 : 0);
-    if (qIdx + 1 >= questions.length) {
-      setCorrectCount(nextCorrect);
-      setFinalScore({ correct: nextCorrect, total: questions.length });
-      setPhase('done');
-      if (!softMode) {
-        setTimeout(() => onFinish(nextCorrect, questions.length), 900);
+  // 左缘右滑退出本局（不走路由）
+  useEffect(() => {
+    const EDGE_PX = 24;
+    const MIN_DX = 72;
+    const MAX_DY = 48;
+    let tracking: { x: number; y: number; active: boolean } | null = null;
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0];
+      if (t.clientX > EDGE_PX) return;
+      tracking = { x: t.clientX, y: t.clientY, active: true };
+    };
+    const onMove = (e: TouchEvent) => {
+      if (!tracking?.active || e.touches.length !== 1) return;
+      const t = e.touches[0];
+      const dx = t.clientX - tracking.x;
+      const dy = Math.abs(t.clientY - tracking.y);
+      if (dy > MAX_DY && dy > Math.abs(dx)) tracking.active = false;
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (!tracking?.active) {
+        tracking = null;
+        return;
       }
-    } else {
-      setTimeout(() => {
-        setCorrectCount(nextCorrect);
-        setQIdx((x) => x + 1);
-        setPicked(null);
-        setPhase('pick');
-      }, softMode ? 1600 : 1400);
-    }
-  };
+      const t = e.changedTouches[0];
+      const dx = t.clientX - tracking.x;
+      tracking = null;
+      if (dx >= MIN_DX) {
+        if (phase === 'done' && finalScore) {
+          onFinish(finalScore.correct, finalScore.total);
+        } else {
+          onBack();
+        }
+      }
+    };
+    const onCancel = () => {
+      tracking = null;
+    };
+
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+    document.addEventListener('touchcancel', onCancel, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onCancel);
+    };
+  }, [onBack, onFinish, phase, finalScore]);
 
   const pick = (i: number) => {
     if (!q || picked != null || phase !== 'pick') return;
     setPicked(i);
-    setPhase('flip');
     const ok = i === q.answer;
     onEachAnswer?.(q.id, ok);
-    setTimeout(() => setPhase('answer'), 380);
-    setTimeout(() => advance(ok), softMode ? 1800 : 1400);
+    setCorrectCount((c) => c + (ok ? 1 : 0));
+    setPhase('reveal');
+  };
+
+  const goNext = () => {
+    if (phase !== 'reveal' || picked == null) return;
+    if (qIdx + 1 >= questions.length) {
+      setFinalScore({ correct: correctCount, total: questions.length });
+      setPhase('done');
+      if (!softMode) {
+        setTimeout(() => onFinish(correctCount, questions.length), 400);
+      }
+      return;
+    }
+    setQIdx((x) => x + 1);
+    setPicked(null);
+    setPhase('pick');
   };
 
   useEffect(() => {
@@ -85,7 +132,10 @@ export default function ChallengeFlipPlay({
       <main className="container challenge-play">
         <header className="challenge-play-head">
           <PageBackBar variant="page" onClick={close} label="返回" />
-          <span className="muted">{title}</span>
+          <span className="challenge-play-head-title muted">{title}</span>
+          <span className="challenge-play-head-step muted" aria-hidden>
+            {'\u00a0'}
+          </span>
         </header>
         <div className="card challenge-q-card challenge-finish-card challenge-finish-soft">
           <p className="challenge-finish-kicker muted">今日温习</p>
@@ -115,70 +165,91 @@ export default function ChallengeFlipPlay({
 
   if (!q) return null;
 
-  const flipped = phase === 'answer';
+  const revealed = phase === 'reveal';
   const readerHref = q.ref ? readerHrefFromRef(q.ref) : null;
+  const isLast = qIdx + 1 >= questions.length;
+  const showStep = softMode || !hideProgress;
 
   return (
     <main className="container challenge-play">
       <header className="challenge-play-head">
         <PageBackBar variant="page" onClick={onBack} label="返回" />
-        <span className="muted">{title}</span>
+        <span className="challenge-play-head-title muted">{title}</span>
+        {showStep ? (
+          <span className="challenge-play-head-step muted" aria-live="polite">
+            {qIdx + 1} / {questions.length}
+          </span>
+        ) : (
+          <span className="challenge-play-head-step" aria-hidden />
+        )}
       </header>
-      {softMode ? (
-        <p className="challenge-soft-step muted" aria-live="polite">
-          {qIdx + 1} / {questions.length}
-        </p>
-      ) : !hideProgress ? (
-        <div className="challenge-progress-bar">
-          <div style={{ width: `${((qIdx + (flipped ? 1 : 0)) / questions.length) * 100}%` }} />
-        </div>
-      ) : null}
-      <div className={`challenge-flip-wrap ${phase === 'flip' || flipped ? 'challenge-flip-active' : ''}`}>
-        <div className="challenge-flip-inner">
-          <div className="challenge-flip-front card challenge-q-card">
-            <span className="pill">{subtitle}</span>
-            {q.ref && (
+
+      <div className="challenge-play-body">
+        <div className="card challenge-q-card challenge-q-card-static">
+          <span className="pill">{subtitle}</span>
+          {q.ref ? (
+            readerHref ? (
+              <Link
+                href={readerHref}
+                className="challenge-q-ref text-link"
+                onClick={() => markRouteNavigation()}
+              >
+                {refToChineseLabel(q.ref) ?? q.ref}
+              </Link>
+            ) : (
               <p className="challenge-q-ref muted">{refToChineseLabel(q.ref) ?? q.ref}</p>
-            )}
-            <p className="quiz-q">{localizeRefsInText(q.question)}</p>
-            <div className="quiz-options">
-              {q.options.map((o, i) => (
+            )
+          ) : null}
+          <p className="quiz-q">{localizeRefsInText(q.question)}</p>
+          <div className="quiz-options">
+            {q.options.map((o, i) => {
+              let optClass = 'quiz-opt';
+              if (revealed) {
+                if (i === q.answer) optClass += ' quiz-opt-correct';
+                else if (i === picked) optClass += ' quiz-opt-wrong';
+                else optClass += ' quiz-opt-dim';
+              }
+              return (
                 <button
                   key={i}
                   type="button"
-                  className="quiz-opt"
+                  className={optClass}
                   onClick={() => pick(i)}
                   disabled={picked != null}
                 >
                   {o}
                 </button>
-              ))}
+              );
+            })}
+          </div>
+
+          {revealed ? (
+            <div className="challenge-reveal">
+              <span className={`pill ${picked === q.answer ? 'pill-active' : ''}`}>
+                {quizAnswerPill(picked === q.answer)}
+              </span>
+              <p className="quiz-explain">{localizeRefsInText(q.explain)}</p>
             </div>
-          </div>
-          <div className="challenge-flip-back card challenge-q-card">
-            <span className={`pill ${picked === q.answer ? 'pill-active' : ''}`}>
-              {quizAnswerPill(picked === q.answer)}
-            </span>
-            <p className="quiz-q quiz-answer">{q.options[q.answer]}</p>
-            <p className="quiz-explain">{localizeRefsInText(q.explain)}</p>
-            {q.ref ? (
-              <p className="muted" style={{ marginTop: 10, fontSize: 12 }}>
-                {readerHref ? (
-                  <Link
-                    href={readerHref}
-                    className="text-link"
-                    onClick={() => markRouteNavigation()}
-                  >
-                    去读 {refToChineseLabel(q.ref) ?? q.ref} ›
-                  </Link>
-                ) : (
-                  <>参考：{refToChineseLabel(q.ref) ?? q.ref}</>
-                )}
-              </p>
-            ) : null}
-          </div>
+          ) : null}
         </div>
       </div>
+
+      {revealed ? (
+        <div className="challenge-play-footer">
+          <button type="button" className="btn challenge-play-next" onClick={goNext}>
+            {isLast ? '看结果' : '下一题'}
+          </button>
+          {q.ref && readerHref ? (
+            <Link
+              href={readerHref}
+              className="text-link challenge-play-read"
+              onClick={() => markRouteNavigation()}
+            >
+              去读 {refToChineseLabel(q.ref) ?? q.ref} ›
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </main>
   );
 }

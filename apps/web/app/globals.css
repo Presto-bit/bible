@@ -5237,12 +5237,8 @@ a.today-card-link {
 }
 
 .profile-challenge-play-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1200;
-  background: var(--bg, #f7f7f5);
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
+  /* 已废弃：温习统一走 /challenge，保留选择器避免旧缓存闪一下 */
+  display: none;
 }
 
 .profile-page .profile-streak-title {
@@ -11129,7 +11125,7 @@ a.license-row-name:hover {
 }
 
 .challenge-finish-card {
-  margin-top: 48px;
+  margin-top: 24px;
   padding: 28px 20px !important;
   text-align: center;
   align-items: center;
@@ -24207,14 +24203,40 @@ body.external-browser-open .app-body {
 }
 
 /* 今日温习 / 提醒页（彼爱习惯能力） */
-.challenge-warmup-page .challenge-warmup-hero{
-  width:100%;text-align:left;padding:18px 16px;margin-top:12px;cursor:pointer;
-  border:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+.challenge-warmup-page{
+  padding-bottom:28px;
+}
+.challenge-warmup-head{
+  position:sticky;
+  top:0;
+  z-index:20;
+  margin:0 -4px 8px;
+  padding:4px 4px 8px;
+  background:color-mix(in srgb, var(--paper, #fffcfa) 92%, transparent);
+  backdrop-filter:blur(8px);
+}
+.challenge-warmup-hero{
+  width:100%;
+  text-align:left;
+  padding:20px 18px 18px;
+  margin-top:8px;
+  border-radius:16px;
+  background:var(--surface, #fff);
+  box-shadow:var(--home-shadow, 0 1px 3px rgba(40,36,30,.06));
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:6px;
 }
 .challenge-warmup-hero-kicker{margin:0;font-size:12px;}
-.challenge-warmup-hero-title{font-size:18px;font-weight:600;line-height:1.35;}
+.challenge-warmup-hero-title{
+  margin:0;
+  font-size:18px;
+  font-weight:600;
+  line-height:1.35;
+}
 .challenge-warmup-hero-sub{margin:0;font-size:13px;line-height:1.45;}
-.challenge-warmup-hero-cta{margin-top:8px;font-size:14px;color:var(--accent,#5B6B4F);font-weight:600;}
+.challenge-warmup-start{margin-top:14px;min-width:140px;}
 .challenge-warmup-secondary{
   width:100%;margin-top:10px;padding:14px 16px;text-align:left;border:0;cursor:pointer;
   display:flex;flex-direction:column;align-items:flex-start;gap:4px;
@@ -24222,6 +24244,94 @@ body.external-browser-open .app-body {
 .challenge-warmup-stats{margin:14px 0 6px;font-size:12px;}
 .challenge-warmup-more-toggle{display:inline-block;margin:4px 0 12px;font-size:13px;}
 .challenge-warmup-more{margin-bottom:24px;}
+
+/* 答题页：安全区顶栏 + 底栏，取消翻卡 */
+.challenge-play{
+  display:flex;
+  flex-direction:column;
+  min-height:calc(100dvh - 24px);
+  margin-top:calc(0px - env(safe-area-inset-top, 0px));
+  padding-top:0 !important;
+  padding-bottom:0 !important;
+  box-sizing:border-box;
+}
+.challenge-play-head{
+  position:sticky;
+  top:0;
+  z-index:30;
+  display:grid;
+  grid-template-columns:auto 1fr auto;
+  align-items:center;
+  gap:8px;
+  min-height:44px;
+  margin:0 -4px;
+  padding:max(10px, env(safe-area-inset-top, 0px)) 4px 10px;
+  background:var(--paper, #fffcfa);
+  border-bottom:1px solid color-mix(in srgb, var(--ink, #2a2620) 6%, transparent);
+}
+.challenge-play-head-title{
+  justify-self:center;
+  font-size:14px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  max-width:100%;
+}
+.challenge-play-head-step{
+  justify-self:end;
+  font-size:12px;
+  min-width:2.5em;
+  text-align:right;
+}
+.challenge-play-body{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:auto;
+  -webkit-overflow-scrolling:touch;
+  padding:12px 0 16px;
+}
+.challenge-q-card-static{
+  gap:10px;
+}
+.challenge-q-ref{
+  display:inline-block;
+  margin:0;
+  font-size:13px;
+}
+.challenge-reveal{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+  margin-top:4px;
+  padding-top:12px;
+  border-top:1px solid color-mix(in srgb, var(--ink, #2a2620) 6%, transparent);
+}
+.quiz-opt-dim{
+  opacity:.45;
+}
+.challenge-play-footer{
+  position:sticky;
+  bottom:0;
+  z-index:30;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  gap:10px;
+  padding:12px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  background:linear-gradient(
+    to top,
+    var(--paper, #fffcfa) 70%,
+    color-mix(in srgb, var(--paper, #fffcfa) 0%, transparent)
+  );
+}
+.challenge-play-next{width:100%;}
+.challenge-play-read{
+  text-align:center;
+  font-size:13px;
+  padding:4px 0 2px;
+}
+
 .challenge-soft-step{text-align:center;font-size:12px;margin:4px 0 8px;}
 .challenge-finish-soft{padding:22px 18px;}
 .challenge-finish-kicker{margin:0 0 8px;font-size:12px;}

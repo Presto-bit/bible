@@ -26,19 +26,12 @@ import AccountSettingsSection from '@/components/AccountSettingsSection';
 import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
-import ChallengeFlipPlay from '@/components/ChallengeFlipPlay';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { todayMinutes, dailyMinutes, bookProgressMap } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
 import type { BadgeDef } from '@/lib/badges';
 import { computeBadgesWithUnlock, profilePreviewBadges } from '@/lib/badge_unlock';
-import {
-  answerStats,
-  dailyQuizDone,
-  dailyQuizQuestions,
-  markDailyQuizDone,
-  recordAnswer,
-} from '@/lib/daily_quiz';
+import { answerStats, dailyQuizDone } from '@/lib/daily_quiz';
 import {
   dailyWarmupCta,
   dailyWarmupSubtitle,
@@ -434,10 +427,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     total: 0,
     accuracyPct: 0,
   }));
-  const [challengePlay, setChallengePlay] = useState(false);
-  const [dailyQuestions, setDailyQuestions] = useState<ReturnType<typeof dailyQuizQuestions> | null>(
-    null,
-  );
   const [reminderPref, setReminderPref] = useState<ReminderPref>({
     enabled: false,
     hour: 8,
@@ -950,22 +939,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const startDailyQuiz = () => {
-    if (dailyDone) {
-      markRouteNavigation();
-      router.push('/challenge');
-      return;
-    }
-    setDailyQuestions(dailyQuizQuestions(5));
-    setChallengePlay(true);
-  };
-
-  const finishDailyQuiz = (correct: number, total: number) => {
-    markDailyQuizDone();
-    setDailyDone(true);
-    setQuizStats(answerStats());
-    setChallengePlay(false);
-    setDailyQuestions(null);
-    toast(`${dailyWarmupTitle()}完成`);
+    markRouteNavigation();
+    router.push('/challenge?start=daily');
   };
 
   const applyRemindSlot = async (hour: number, minute: number) => {
@@ -1383,13 +1358,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 <button type="button" className="btn" onClick={startDailyQuiz}>
                   {dailyWarmupCta(dailyDone)}
                 </button>
-                <Link
-                  href="/challenge"
-                  className="text-link"
-                  onClick={() => markRouteNavigation()}
-                >
-                  温习页 ›
-                </Link>
               </div>
             </>
           ) : null}
@@ -1684,26 +1652,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           </div>
         </AppBodyPortal>
       )}
-
-      {challengePlay && dailyQuestions ? (
-        <AppBodyPortal>
-          <div className="profile-challenge-play-overlay">
-            <ChallengeFlipPlay
-              title={dailyWarmupTitle()}
-              subtitle="轻问"
-              questions={dailyQuestions}
-              hideProgress
-              softMode
-              onBack={() => {
-                setChallengePlay(false);
-                setDailyQuestions(null);
-              }}
-              onFinish={finishDailyQuiz}
-              onEachAnswer={(id, correct) => recordAnswer(id, correct)}
-            />
-          </div>
-        </AppBodyPortal>
-      ) : null}
 
       {downloadOpen ? (
         <OfflineDownloadSheet onClose={() => setDownloadOpen(false)} />

@@ -51,11 +51,21 @@ export default function ChallengePage() {
   const [moreOpen, setMoreOpen] = useState(false);
   const pending = getPendingBookChallenge();
 
-  useEdgeSwipeBack({ href: '/', enabled: !play });
+  useEdgeSwipeBack({ href: '/profile', enabled: !play });
 
   useEffect(() => {
     setDailyDone(dailyQuizDone());
   }, [play]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sp = new URLSearchParams(window.location.search);
+    if (sp.get('start') !== 'daily') return;
+    setPlay({ kind: 'daily' });
+    sp.delete('start');
+    const q = sp.toString();
+    window.history.replaceState(null, '', window.location.pathname + (q ? `?${q}` : ''));
+  }, []);
 
   const playQuestions: QuestionBankEntry[] | null = useMemo(() => {
     if (!play) return null;
@@ -129,27 +139,29 @@ export default function ChallengePage() {
 
   return (
     <main className="container challenge-warmup-page">
-      <header className="page-head">
-        <PageBackBar href="/" label="首页" />
+      <header className="page-head challenge-warmup-head">
+        <PageBackBar href="/profile" label="我的" />
         <h2 className="page-head-title">{dailyWarmupTitle()}</h2>
       </header>
 
-      <button
-        type="button"
-        className="card challenge-warmup-hero"
-        onClick={() => setPlay({ kind: 'daily' })}
-      >
+      <section className="challenge-warmup-hero" aria-labelledby="warmup-hero-title">
         <p className="challenge-warmup-hero-kicker muted">
           {dailyDone ? '已完成' : '今天'}
         </p>
-        <strong className="challenge-warmup-hero-title">
+        <h3 id="warmup-hero-title" className="challenge-warmup-hero-title">
           {dailyWarmupSubtitle(dailyDone)}
-        </strong>
+        </h3>
         <p className="muted challenge-warmup-hero-sub">
           {dailyWarmupHubHint(dailyDone)}
         </p>
-        <span className="challenge-warmup-hero-cta">{dailyWarmupCta(dailyDone)} ›</span>
-      </button>
+        <button
+          type="button"
+          className="btn challenge-warmup-start"
+          onClick={() => setPlay({ kind: 'daily' })}
+        >
+          {dailyWarmupCta(dailyDone)}
+        </button>
+      </section>
 
       {wrongIds.length > 0 ? (
         <button
@@ -193,7 +205,7 @@ export default function ChallengePage() {
         className="text-link challenge-warmup-more-toggle"
         onClick={() => setMoreOpen((v) => !v)}
       >
-        {moreOpen ? '收起更多' : '更多温习方式'}
+        {moreOpen ? '收起更多' : '更多温习方式 ›'}
       </button>
 
       {moreOpen ? (
