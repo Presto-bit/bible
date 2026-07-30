@@ -31,6 +31,7 @@ import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImIma
 import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
 import { ImMediaAttachment } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
+import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
@@ -986,6 +987,22 @@ function DmThreadPageInner() {
                     }}
                   />
                 ) : null}
+                {m.sendFailed && mine ? (
+                  <ImSendFailBadge
+                    label={
+                      m.retryText || peekMediaFile(m.id)
+                        ? '发送失败，点击重发'
+                        : '发送失败'
+                    }
+                    onClick={
+                      m.retryText || peekMediaFile(m.id)
+                        ? () => {
+                            void resend(m);
+                          }
+                        : undefined
+                    }
+                  />
+                ) : null}
                 <div className="dm-bubble-wrap">
                 <div
                   role="button"
@@ -1125,39 +1142,26 @@ function DmThreadPageInner() {
                           })()}
                         </div>
                       ) : null}
-                      {(m.pending || m.sendFailed) ? (
+                      {m.pending ? (
                         <div className="dm-bubble-foot">
-                          <span className="dm-bubble-time muted">
-                            {m.pending ? '发送中…' : '发送失败'}
-                          </span>
-                          {m.sendFailed ? (
-                            <button
-                              type="button"
-                              className="text-link"
-                              style={{ fontSize: 12 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void resend(m);
-                              }}
-                            >
-                              重发
-                            </button>
-                          ) : null}
-                          {m.sendFailed ? (
-                            <button
-                              type="button"
-                              className="text-link danger"
-                              style={{ fontSize: 12 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                dequeueFailedText(m.id);
-                                takeMediaFile(m.id);
-                                setMsgs((prev) => prev.filter((x) => x.id !== m.id));
-                              }}
-                            >
-                              删除
-                            </button>
-                          ) : null}
+                          <span className="dm-bubble-time muted">发送中…</span>
+                        </div>
+                      ) : null}
+                      {m.sendFailed ? (
+                        <div className="dm-bubble-foot">
+                          <button
+                            type="button"
+                            className="text-link danger"
+                            style={{ fontSize: 12 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              dequeueFailedText(m.id);
+                              takeMediaFile(m.id);
+                              setMsgs((prev) => prev.filter((x) => x.id !== m.id));
+                            }}
+                          >
+                            删除
+                          </button>
                         </div>
                       ) : null}
                     </>

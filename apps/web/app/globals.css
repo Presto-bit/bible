@@ -20224,7 +20224,28 @@ html.app-theme-dark body {
 .dm-msg-row.is-peer{align-self:flex-start;}
 .dm-msg-row.is-pending .dm-bubble{opacity:.75;}
 .dm-msg-row.is-failed .dm-bubble{
-  outline:1px solid color-mix(in srgb, #b33 40%, transparent);
+  outline:none;
+}
+.im-send-fail-btn{
+  appearance:none;
+  border:none;
+  background:transparent;
+  padding:0;
+  margin:0;
+  flex-shrink:0;
+  align-self:center;
+  width:22px;
+  height:22px;
+  line-height:0;
+  cursor:pointer;
+  color:#fa5151;
+}
+.im-send-fail-btn:disabled{
+  cursor:default;
+  opacity:.95;
+}
+.im-send-fail-btn:not(:disabled):active{
+  opacity:.75;
 }
 .dm-bubble{
   flex:1;
@@ -21166,7 +21187,7 @@ html.perf-lite .im-msg-popover{
 }
 .group-chat-row.is-pending{ opacity: .72; }
 .group-chat-row.is-failed .group-chat-bubble{
-  outline: 1px solid color-mix(in srgb, #b33 40%, transparent);
+  outline: none;
 }
 .group-chat-avatar-slot{
   width: 36px;

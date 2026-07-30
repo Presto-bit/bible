@@ -34,6 +34,7 @@ import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImIma
 import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
 import { ImMediaAttachment } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
+import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
 import { MemberAvatar } from './MemberAvatar';
@@ -586,12 +587,24 @@ function ChatBubble({
           />
         ) : null}
 
-        {(m.pending || m.sendFailed) ? (
-          <span className="group-chat-time muted">
-            {m.pending ? '发送中…' : '发送失败'}
-          </span>
+        {m.pending ? (
+          <span className="group-chat-time muted">发送中…</span>
         ) : null}
       </div>
+      {m.sendFailed && actionMine ? (
+        <ImSendFailBadge
+          label={
+            onResend && m.kind === 'chat' && m.body
+              ? '发送失败，点击重发'
+              : '发送失败'
+          }
+          onClick={
+            onResend && m.kind === 'chat' && m.body
+              ? () => onResend(m)
+              : undefined
+          }
+        />
+      ) : null}
     </div>
   );
 }

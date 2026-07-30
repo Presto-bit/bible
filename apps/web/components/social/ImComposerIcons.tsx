@@ -111,3 +111,14 @@ export function IconPrayer({ className }: IconProps) {
     </svg>
   );
 }
+
+/** 仿微信：发送失败红色感叹号 */
+export function IconSendFailed({ className }: IconProps) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+      <circle cx="12" cy="12" r="10" fill="#fa5151" />
+      <path d="M12 7v7" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" />
+      <circle cx="12" cy="17.2" r="1.35" fill="#fff" />
+    </svg>
+  );
+}
