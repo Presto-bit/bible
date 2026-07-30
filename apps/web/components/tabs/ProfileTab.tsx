@@ -708,9 +708,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       }).catch(() => {});
     };
     const refreshStatus = () => {
-      if (getSyncState() === 'syncing') {
-        setDataStatus('恢复中…');
-      } else if (!hasSecuredAccount()) {
+      // 身份区不展示同步态（恢复中/同步中）；仅提示未登录本机数据
+      if (!hasSecuredAccount()) {
         setDataStatus('未登录，数据仅本机');
       } else {
         setDataStatus(null);
@@ -733,8 +732,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     setName(getDisplayName());
     setHasPwd(hasPassword());
     setAccountComplete(isAccountComplete());
-    if (getSyncState() === 'syncing') setDataStatus('恢复中…');
-    else if (!hasSecuredAccount()) setDataStatus('未登录，数据仅本机');
+    if (!hasSecuredAccount()) setDataStatus('未登录，数据仅本机');
     else setDataStatus(null);
   };
   const saveBio = (v: string) => {
