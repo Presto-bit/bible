@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ensureAccountReady, effectiveId } from '@/lib/api';
 import { whenHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
+import { subscribeDiscoverUnreadChanged } from '@/lib/discover_unread';
 
 /** 底栏「发现」总未读：轻量 /social/unread-count（含申请/邀请 + 会话未读）。 */
 export function useDiscoverUnread(enabled = true): number {
   const [count, setCount] = useState(0);
+  const refreshTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -23,19 +25,39 @@ export function useDiscoverUnread(enabled = true): number {
     }
   }, []);
 
+  const scheduleRefresh = useCallback(
+    (delayMs = 80) => {
+      if (refreshTimer.current != null) window.clearTimeout(refreshTimer.current);
+      refreshTimer.current = window.setTimeout(() => {
+        refreshTimer.current = null;
+        void refresh();
+      }, delayMs);
+    },
+    [refresh],
+  );
+
   useEffect(() => {
     if (!enabled) return;
-    // 等首页就绪后再拉角标 / 订 SSE，避让冷启动带宽
     let cancelled = false;
-    let unsub: (() => void) | null = null;
+    let unsubRealtime: (() => void) | null = null;
     let visTimer: number | null = null;
+
+    // 本地「已读」事件立刻订阅，不拖到首页 bootstrap 之后
+    const unsubLocal = subscribeDiscoverUnreadChanged((detail) => {
+      if (typeof detail.delta === 'number' && detail.delta !== 0) {
+        setCount((c) => Math.max(0, c + detail.delta!));
+      }
+      scheduleRefresh(detail.delta ? 120 : 0);
+    });
+
+    // 等首页就绪后再拉角标 / 订 SSE，避让冷启动带宽
     whenHomeBootstrapReady(
       () => {
         if (cancelled) return;
         void refresh();
-        unsub = subscribeSocialRealtime(
+        unsubRealtime = subscribeSocialRealtime(
           (_c, changed) => {
-            if (changed) void refresh();
+            if (changed) scheduleRefresh(200);
           },
           { watch: 'all', debounceMs: 300 },
         );
@@ -52,11 +74,13 @@ export function useDiscoverUnread(enabled = true): number {
     document.addEventListener('visibilitychange', onVis);
     return () => {
       cancelled = true;
-      unsub?.();
+      unsubRealtime?.();
+      unsubLocal();
       if (visTimer != null) window.clearTimeout(visTimer);
+      if (refreshTimer.current != null) window.clearTimeout(refreshTimer.current);
       document.removeEventListener('visibilitychange', onVis);
     };
-  }, [enabled, refresh]);
+  }, [enabled, refresh, scheduleRefresh]);
 
   return count;
 }

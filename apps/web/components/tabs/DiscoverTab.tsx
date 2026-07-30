@@ -28,6 +28,7 @@ import {
 } from '@/lib/use_home_pull_refresh';
 import { useToast } from '@/components/ui/ToastProvider';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
+import { notifyDiscoverUnreadChanged } from '@/lib/discover_unread';
 
 const CONV_CACHE_KEY = 'presto_discover_conv_cache_v1';
 
@@ -331,6 +332,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
               : row,
           ),
         );
+        notifyDiscoverUnreadChanged({ delta: -prevUnread });
         void api.patchConversationState(it.scope, it.ref_id, {}).catch(() => {
           setItems((prev) =>
             prev.map((row) =>
@@ -339,6 +341,7 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 : row,
             ),
           );
+          notifyDiscoverUnreadChanged({ delta: prevUnread });
         });
       } else {
         void api.patchConversationState(it.scope, it.ref_id, {});

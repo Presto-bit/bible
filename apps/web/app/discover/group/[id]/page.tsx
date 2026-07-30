@@ -212,6 +212,7 @@ function GroupPageInner() {
   const markGroupRead = useCallback(() => {
     if (!gid || markedReadRef.current) return;
     markedReadRef.current = true;
+    void import('@/lib/discover_unread').then((m) => m.notifyDiscoverUnreadChanged());
     void api.patchConversationState('group', gid, {}).catch(() => {
       markedReadRef.current = false;
     });

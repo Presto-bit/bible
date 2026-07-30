@@ -279,7 +279,10 @@ function DmThreadPageInner() {
             setHasMore(Boolean(r.has_more));
           }
           void api.patchConversationState('dm', threadId, {}).catch(() => {});
-          markedReadRef.current = true;
+          if (!markedReadRef.current) {
+            markedReadRef.current = true;
+            void import('@/lib/discover_unread').then((m) => m.notifyDiscoverUnreadChanged());
+          }
           setErr(null);
         });
       } catch (e) {
@@ -380,8 +383,10 @@ function DmThreadPageInner() {
     const onVis = () => {
       if (document.visibilityState !== 'visible') return;
       markedReadRef.current = false;
+      markedReadRef.current = false;
       void api.patchConversationState('dm', threadId, {}).then(() => {
         markedReadRef.current = true;
+        void import('@/lib/discover_unread').then((m) => m.notifyDiscoverUnreadChanged());
       }).catch(() => {});
     };
     document.addEventListener('visibilitychange', onVis);
