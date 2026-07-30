@@ -285,6 +285,62 @@ function FootprintCell({
   );
 }
 
+function SettingsNavRow({
+  title,
+  hint,
+  href,
+  onClick,
+  disabled,
+  glyph,
+  danger,
+}: {
+  title: string;
+  hint?: string;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+  glyph?: ReactNode;
+  danger?: boolean;
+}) {
+  const className = `settings-nav-row${danger ? ' is-danger' : ''}${disabled ? ' is-disabled' : ''}`;
+  const body = (
+    <>
+      {glyph ? (
+        <span className="settings-nav-glyph" aria-hidden>
+          {glyph}
+        </span>
+      ) : null}
+      <span className="settings-nav-main">
+        <strong>{title}</strong>
+        {hint ? <span className="muted">{hint}</span> : null}
+      </span>
+      <span className="muted settings-nav-chevron" aria-hidden>
+        ›
+      </span>
+    </>
+  );
+  if (href) {
+    return (
+      <Link href={href} className={className} onClick={onClick}>
+        {body}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" className={className} disabled={disabled} onClick={onClick}>
+      {body}
+    </button>
+  );
+}
+
+function settingsGlyph(path: ReactNode) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      {path}
+    </svg>
+  );
+}
+
 export default function ProfileTab({ paneActive = true }: { paneActive?: boolean }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -1129,150 +1185,195 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       {settingsOpen && (
         <AppBodyPortal>
           <div className="sheet-backdrop" onClick={() => setSettingsOpen(false)}>
-            <div className="sheet card settings-sheet" onClick={(e) => e.stopPropagation()}>
-              <div className="section-row" style={{ marginTop: 0 }}>
-                <h3 style={{ margin: 0 }}>设置</h3>
+            <div
+              className="sheet card settings-sheet"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-labelledby="settings-sheet-title"
+            >
+              <div className="section-row settings-sheet-head">
+                <h3 id="settings-sheet-title">设置</h3>
                 <SheetCloseButton onClick={() => setSettingsOpen(false)} />
               </div>
 
-              <div className="settings-card">
-                <p className="settings-title">账号</p>
-                <AccountSettingsSection onAccountChange={refreshAccount} />
-              </div>
-
-              <div className="settings-card">
-                <p className="settings-title">工具</p>
-                <button
-                  type="button"
-                  className="card row-card"
-                  style={{ display: 'flex', width: '100%', textAlign: 'left', alignItems: 'center' }}
-                  onClick={() => setDownloadOpen(true)}
-                >
-                  <span style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ display: 'block' }}>下载</span>
-                    {downloadHint ? (
-                      <span
-                        className="muted"
-                        style={{ display: 'block', fontSize: 12, marginTop: 2, fontWeight: 400 }}
-                      >
-                        {downloadHint}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="muted" style={{ flexShrink: 0 }}>
-                    {downloadHint ? '进行中 ›' : '离线圣经与资料 ›'}
-                  </span>
-                </button>
-                <Link
-                  href="/knowledge-bases"
-                  className="card row-card"
-                  style={{ display: 'flex', marginTop: 8 }}
-                  onClick={openSettingsRoute}
-                >
-                  <span style={{ flex: 1 }}>知识库</span>
-                  <span className="muted">平台与专题 ›</span>
-                </Link>
-                <Link
-                  href="/profile/reminders"
-                  className="card row-card"
-                  style={{ display: 'flex', marginTop: 8 }}
-                  onClick={openSettingsRoute}
-                >
-                  <span style={{ flex: 1 }}>推送提醒</span>
-                  <span className="muted">›</span>
-                </Link>
-                <Link
-                  href="/profile/appearance"
-                  className="card row-card"
-                  style={{ display: 'flex', marginTop: 8 }}
-                  onClick={openSettingsRoute}
-                >
-                  <span style={{ flex: 1 }}>外观</span>
-                  <span className="muted">›</span>
-                </Link>
-                <Link
-                  href="/profile/licenses"
-                  className="card row-card"
-                  style={{ display: 'flex', marginTop: 8 }}
-                  onClick={openSettingsRoute}
-                >
-                  <span style={{ flex: 1 }}>数据来源与许可</span>
-                  <span className="muted">›</span>
-                </Link>
-                <button
-                  type="button"
-                  className="card row-card"
-                  style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
-                  disabled={helpBusy}
-                  onClick={() => void openHelpFeedback()}
-                >
-                  <span style={{ flex: 1 }}>帮助与反馈</span>
-                  <span className="muted">{helpBusy ? '打开中…' : '官方客服 ›'}</span>
-                </button>
-                {!installedPwa ? (
-                  <button
-                    type="button"
-                    className="card row-card"
-                    style={{ display: 'flex', marginTop: 8, width: '100%', textAlign: 'left' }}
-                    onClick={() => {
-                      setSettingsOpen(false);
-                      openPwaInstallSheet();
-                    }}
-                  >
-                    <span style={{ flex: 1 }}>保存到桌面 App</span>
-                    <span className="muted">保存读经记录 ›</span>
-                  </button>
-                ) : null}
-              </div>
-
-              {adminEligible ? (
-                <div className="settings-card">
-                  <p className="settings-title">管理</p>
-                  <Link
-                    href="/admin?tab=ops"
-                    className="card row-card"
-                    style={{ display: 'flex', marginTop: 8 }}
-                    onClick={() => {
-                      openSettingsRoute();
-                    }}
-                  >
-                    <span style={{ flex: 1 }}>管理后台</span>
-                    <span className="muted">活动运营 ›</span>
-                  </Link>
+              <section className="settings-group">
+                <h4 className="settings-group-label">账号与安全</h4>
+                <div className="settings-group-list">
+                  <AccountSettingsSection collapsible onAccountChange={refreshAccount} />
+                  <SettingsNavRow
+                    title="在其他设备恢复"
+                    hint="登录或恢复账号"
+                    href="/login"
+                    glyph={settingsGlyph(
+                      <>
+                        <rect x="5" y="2" width="14" height="20" rx="2" />
+                        <path d="M12 17h.01" />
+                      </>,
+                    )}
+                  />
                 </div>
-              ) : null}
+              </section>
 
-              <div className="settings-card">
-                <p className="settings-title">账号</p>
-                <Link href="/login" className="card row-card" style={{ display: 'flex', marginTop: 8 }}>
-                  <span style={{ flex: 1 }}>在其他设备恢复账号</span>
-                  <span className="muted">›</span>
-                </Link>
-                <button
-                  type="button"
-                  className="clear-cache-btn"
-                  onClick={handleClearCache}
-                  disabled={clearCacheBusy}
-                >
-                  {clearCacheBusy ? '清除中…' : '清除缓存'}
-                </button>
-                {uid ? (
+              <section className="settings-group">
+                <h4 className="settings-group-label">读经与体验</h4>
+                <div className="settings-group-list">
+                  <SettingsNavRow
+                    title="外观"
+                    hint="主题与阅读"
+                    href="/profile/appearance"
+                    onClick={openSettingsRoute}
+                    glyph={settingsGlyph(
+                      <>
+                        <circle cx="12" cy="12" r="4" />
+                        <path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
+                      </>,
+                    )}
+                  />
+                  <SettingsNavRow
+                    title="推送提醒"
+                    hint="每日读经"
+                    href="/profile/reminders"
+                    onClick={openSettingsRoute}
+                    glyph={settingsGlyph(
+                      <>
+                        <path d="M6 16h12l-1.2-1.2A6 6 0 0 1 15 10V9a3 3 0 1 0-6 0v1a6 6 0 0 1-1.8 4.8L6 16Z" />
+                        <path d="M10 19a2 2 0 0 0 4 0" />
+                      </>,
+                    )}
+                  />
+                  <SettingsNavRow
+                    title="离线下载"
+                    hint={downloadHint || '圣经与资料'}
+                    onClick={() => setDownloadOpen(true)}
+                    glyph={settingsGlyph(
+                      <>
+                        <path d="M12 4v10" />
+                        <path d="m8 10 4 4 4-4" />
+                        <path d="M5 18h14" />
+                      </>,
+                    )}
+                  />
+                  <SettingsNavRow
+                    title="知识库"
+                    hint="平台与专题"
+                    href="/knowledge-bases"
+                    onClick={openSettingsRoute}
+                    glyph={settingsGlyph(
+                      <>
+                        <path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H20v15.5" />
+                        <path d="M6.5 19.5A2.5 2.5 0 0 0 9 17h11" />
+                      </>,
+                    )}
+                  />
+                </div>
+              </section>
+
+              <section className="settings-group">
+                <h4 className="settings-group-label">支持与关于</h4>
+                <div className="settings-group-list">
+                  <SettingsNavRow
+                    title="帮助与反馈"
+                    hint={helpBusy ? '打开中…' : '官方客服'}
+                    disabled={helpBusy}
+                    onClick={() => void openHelpFeedback()}
+                    glyph={settingsGlyph(
+                      <>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4" />
+                        <path d="M12 17h.01" />
+                      </>,
+                    )}
+                  />
+                  <SettingsNavRow
+                    title="数据来源与许可"
+                    href="/profile/licenses"
+                    onClick={openSettingsRoute}
+                    glyph={settingsGlyph(
+                      <>
+                        <path d="M7 4h10v16H7z" />
+                        <path d="M10 8h4M10 12h4M10 16h3" />
+                      </>,
+                    )}
+                  />
+                  {!installedPwa ? (
+                    <SettingsNavRow
+                      title="保存到桌面 App"
+                      hint="像打开 App 一样读"
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        openPwaInstallSheet();
+                      }}
+                      glyph={settingsGlyph(
+                        <>
+                          <rect x="6" y="3" width="12" height="18" rx="2" />
+                          <path d="M12 17h.01" />
+                        </>,
+                      )}
+                    />
+                  ) : null}
+                  <div className="settings-version-row">
+                    <span className="muted">版本 {appVersion}</span>
+                    {adminEligible ? (
+                      <Link
+                        href="/admin?tab=ops"
+                        className="text-link settings-admin-link"
+                        onClick={openSettingsRoute}
+                      >
+                        管理后台
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              </section>
+
+              <section className="settings-group settings-group-danger">
+                <h4 className="settings-group-label">数据</h4>
+                <div className="settings-group-list">
                   <button
                     type="button"
-                    className="logout-btn settings-logout-btn"
-                    onClick={() => {
-                      logout();
-                      setUid(null);
-                      setSettingsOpen(false);
-                    }}
+                    className="settings-nav-row"
+                    disabled={clearCacheBusy}
+                    onClick={() => void handleClearCache()}
                   >
-                    退出登录
+                    <span className="settings-nav-glyph" aria-hidden>
+                      {settingsGlyph(
+                        <>
+                          <path d="M4 7h16" />
+                          <path d="M9 7V5h6v2" />
+                          <path d="M8 7l1 12h6l1-12" />
+                        </>,
+                      )}
+                    </span>
+                    <span className="settings-nav-main">
+                      <strong>{clearCacheBusy ? '清除中…' : '清除缓存'}</strong>
+                      <span className="muted">不删除读经记录</span>
+                    </span>
                   </button>
-                ) : null}
-                <p className="muted settings-version-line">
-                  版本 {appVersion}
-                </p>
-              </div>
+                  {uid ? (
+                    <button
+                      type="button"
+                      className="settings-nav-row is-danger"
+                      onClick={() => {
+                        logout();
+                        setUid(null);
+                        setSettingsOpen(false);
+                      }}
+                    >
+                      <span className="settings-nav-glyph" aria-hidden>
+                        {settingsGlyph(
+                          <>
+                            <path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" />
+                            <path d="M15 12H3m0 0 3-3m-3 3 3 3" />
+                          </>,
+                        )}
+                      </span>
+                      <span className="settings-nav-main">
+                        <strong>退出登录</strong>
+                      </span>
+                    </button>
+                  ) : null}
+                </div>
+              </section>
             </div>
           </div>
         </AppBodyPortal>

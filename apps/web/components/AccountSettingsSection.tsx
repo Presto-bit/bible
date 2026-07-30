@@ -1,61 +1,45 @@
 'use client';
 
+import { useEffect, useState, type ReactNode } from 'react';
 import { hasPassword, unbindDevice } from '@/lib/api';
+import { isAccountComplete } from '@/lib/account_guide';
 import { isSystemGeneratedUsername } from '@/lib/system_username';
 import { maskPhone, useAccountSecurity } from '@/lib/use_account_security';
 
 type Props = {
-  middle?: React.ReactNode;
+  middle?: ReactNode;
   onAccountChange?: () => void;
+  /** 完备时默认收起为摘要行，点开再编辑 */
+  collapsible?: boolean;
 };
 
-export default function AccountSettingsSection({ middle, onAccountChange }: Props) {
+export default function AccountSettingsSection({
+  middle,
+  onAccountChange,
+  collapsible = false,
+}: Props) {
   const a = useAccountSecurity(onAccountChange);
+  const [expanded, setExpanded] = useState(() => !collapsible || !isAccountComplete());
 
-  const phoneBlock = !a.phoneStored ? (
-    <>
-      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>绑定手机号</p>
-      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-        <input
-          className="book-chip"
-          style={{ flex: 1, textAlign: 'left' }}
-          placeholder="大陆手机号（可选）"
-          value={a.phone}
-          onChange={(e) => a.setPhone(e.target.value)}
-        />
-        <button
-          type="button"
-          className="font-pill"
-          disabled={a.busy || !a.phone.trim()}
-          onClick={() => void a.bindPhoneHandler()}
-        >
-          绑定
-        </button>
-      </div>
-      {hasPassword() ? (
-        <input
-          className="book-chip"
-          type="password"
-          style={{ width: '100%', textAlign: 'left', marginTop: 8 }}
-          placeholder="当前密码"
-          value={a.phonePwd}
-          onChange={(e) => a.setPhonePwd(e.target.value)}
-        />
-      ) : null}
-    </>
-  ) : (
-    <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>
-      已绑定手机 {maskPhone(a.phoneStored)}
-    </p>
-  );
+  useEffect(() => {
+    if (!collapsible) return;
+    // 异步拉到手机/密码状态后：完备则收起，未完备保持展开
+    if (isAccountComplete() && a.phoneStored) setExpanded(false);
+    else if (!isAccountComplete()) setExpanded(true);
+  }, [collapsible, a.phoneStored]);
 
-  return (
-    <>
-      <p className="muted" style={{ fontSize: 12 }}>用户名</p>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+  const phoneHint = a.phoneStored
+    ? `手机 ${maskPhone(a.phoneStored)}`
+    : '未绑手机';
+  const pwdHint = hasPassword() ? '已设密码' : '未设密码';
+  const summary = `${phoneHint} · ${pwdHint}`;
+
+  const form = (
+    <div className="settings-account-form">
+      <p className="settings-field-label">用户名</p>
+      <div className="settings-field-row">
         <input
-          className="book-chip"
-          style={{ flex: 1, minWidth: 120, textAlign: 'left' }}
+          className="book-chip settings-field-input"
           placeholder="≥2 字，不可重复"
           value={a.name}
           onChange={(e) => a.setName(e.target.value)}
@@ -79,15 +63,46 @@ export default function AccountSettingsSection({ middle, onAccountChange }: Prop
           {a.busy ? '…' : '确认'}
         </button>
       </div>
-      {phoneBlock}
-      {a.msg ? (
-        <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>{a.msg}</p>
-      ) : null}
+
+      {!a.phoneStored ? (
+        <>
+          <p className="settings-field-label">绑定手机号</p>
+          <div className="settings-field-row">
+            <input
+              className="book-chip settings-field-input"
+              placeholder="大陆手机号（可选）"
+              value={a.phone}
+              onChange={(e) => a.setPhone(e.target.value)}
+            />
+            <button
+              type="button"
+              className="font-pill"
+              disabled={a.busy || !a.phone.trim()}
+              onClick={() => void a.bindPhoneHandler()}
+            >
+              绑定
+            </button>
+          </div>
+          {hasPassword() ? (
+            <input
+              className="book-chip settings-field-input settings-field-input-block"
+              type="password"
+              placeholder="当前密码"
+              value={a.phonePwd}
+              onChange={(e) => a.setPhonePwd(e.target.value)}
+            />
+          ) : null}
+        </>
+      ) : (
+        <p className="muted settings-field-hint">已绑定手机 {maskPhone(a.phoneStored)}</p>
+      )}
+
+      {a.msg ? <p className="muted settings-field-hint">{a.msg}</p> : null}
       {middle}
+
       <button
         type="button"
         className="settings-icon-btn"
-        style={{ marginTop: 10 }}
         onClick={() => void a.changePasswordHandler()}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -96,19 +111,20 @@ export default function AccountSettingsSection({ middle, onAccountChange }: Prop
         </svg>
         修改密码
       </button>
+
       <button
         type="button"
-        className="text-link"
-        style={{ marginTop: 10, display: 'block' }}
+        className="text-link settings-advanced-toggle"
         onClick={() => a.setShowAdvanced((v) => !v)}
       >
         {a.showAdvanced ? '收起高级选项' : '设备与用户 ID ›'}
       </button>
+
       {a.showAdvanced ? (
-        <div style={{ marginTop: 10 }}>
-          <p className="muted" style={{ fontSize: 12 }}>已绑定设备</p>
+        <div className="settings-advanced">
+          <p className="settings-field-label">已绑定设备</p>
           {a.devices.length === 0 ? (
-            <p className="muted" style={{ fontSize: 12 }}>暂无记录</p>
+            <p className="muted settings-field-hint">暂无记录</p>
           ) : (
             a.devices.map((d) => (
               <div key={d.id} className="device-row">
@@ -123,7 +139,7 @@ export default function AccountSettingsSection({ middle, onAccountChange }: Prop
               </div>
             ))
           )}
-          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>用户 ID（可复制给客服）</p>
+          <p className="settings-field-label">用户 ID（可复制给客服）</p>
           {a.id ? (
             <button type="button" className="id-chip" onClick={() => void a.copyId()}>
               {a.idCopied ? '已复制 ✓' : `ID ${a.id}`}
@@ -131,6 +147,34 @@ export default function AccountSettingsSection({ middle, onAccountChange }: Prop
           ) : null}
         </div>
       ) : null}
-    </>
+    </div>
+  );
+
+  if (!collapsible) return form;
+
+  return (
+    <div className="settings-account-block">
+      <button
+        type="button"
+        className="settings-nav-row"
+        aria-expanded={expanded}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span className="settings-nav-glyph" aria-hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="3.5" />
+            <path d="M5.5 19.5c1.8-3 4-4.5 6.5-4.5s4.7 1.5 6.5 4.5" />
+          </svg>
+        </span>
+        <span className="settings-nav-main">
+          <strong>账号与安全</strong>
+          <span className="muted">{summary}</span>
+        </span>
+        <span className="muted settings-nav-chevron" aria-hidden>
+          {expanded ? '⌃' : '›'}
+        </span>
+      </button>
+      {expanded ? form : null}
+    </div>
   );
 }
