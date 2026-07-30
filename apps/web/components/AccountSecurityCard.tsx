@@ -3,7 +3,6 @@
 import { isAccountComplete } from '@/lib/account_guide';
 import { platformAccountHint } from '@/lib/platform';
 import { useAccountSecurity } from '@/lib/use_account_security';
-import SyncStatusBadge from '@/components/SyncStatusBadge';
 
 type Props = {
   onComplete?: () => void;
@@ -21,7 +20,6 @@ export default function AccountSecurityCard({ onComplete }: Props) {
     <div className="card account-security-card" style={{ marginBottom: 12 }}>
       <div className="section-row" style={{ marginTop: 0 }}>
         <strong>本机账号</strong>
-        <SyncStatusBadge />
       </div>
       <p className="muted" style={{ fontSize: 12, lineHeight: 1.5, margin: '6px 0 12px' }}>
         {platformAccountHint()}

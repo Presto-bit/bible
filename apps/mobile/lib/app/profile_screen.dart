@@ -14,7 +14,6 @@ import '../core/gamification.dart';
 import '../core/theme.dart';
 import '../core/widgets/avatar_bubble.dart';
 import '../core/widgets/sync_migrate_sheet.dart';
-import '../core/widgets/sync_status_badge.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/login_screen.dart';
 import '../features/bible/reader_experience.dart' show readerFontProvider, ReaderFontSize, ReaderFontSizeX;
@@ -455,7 +454,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ],
                   ),
                 ),
-                const SyncStatusBadge(),
                 IconButton(
                   onPressed: _openSettings,
                   icon: const Icon(Icons.settings_outlined),

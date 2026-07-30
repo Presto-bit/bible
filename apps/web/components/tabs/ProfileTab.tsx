@@ -24,7 +24,6 @@ import {
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
 import AccountSettingsSection from '@/components/AccountSettingsSection';
-import SyncStatusBadge from '@/components/SyncStatusBadge';
 import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
@@ -426,7 +425,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
                 </svg>
               </button>
-              <SyncStatusBadge />
             </div>
           )}
           {dataStatus ? (
