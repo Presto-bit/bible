@@ -536,16 +536,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       if (activeTab !== 'profile') {
         setSettingsOpen(false);
         setBadgeOpen(false);
-        setChallengePlay(false);
-        setDailyQuestions(null);
       }
       return;
     }
     if (normalizeAppPath(pathname) !== '/profile') {
       setSettingsOpen(false);
       setBadgeOpen(false);
-      setChallengePlay(false);
-      setDailyQuestions(null);
     }
   }, [enabled, activeTab, pathname]);
 
