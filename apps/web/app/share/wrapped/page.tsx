@@ -13,6 +13,24 @@ function first(v: string | string[] | undefined): string {
   return v || '';
 }
 
+function parseMetricPairs(stats: string): { value: string; label: string }[] {
+  const out: { value: string; label: string }[] = [];
+  const rules: [RegExp, string][] = [
+    [/活跃\s*(\d+)\s*天/u, '活跃天'],
+    [/阅读\s*(\d+)\s*分钟/u, '分钟'],
+    [/连续\s*(\d+)\s*天/u, '连续天'],
+    [/(\d+)\s*章/u, '章'],
+    [/笔记\s*(\d+)/u, '笔记'],
+    [/划线\s*(\d+)/u, '划线'],
+  ];
+  for (const [re, label] of rules) {
+    const m = stats.match(re);
+    if (m) out.push({ value: m[1], label });
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -59,14 +77,26 @@ export default async function WrappedSharePage({
   const label = first(sp.label).trim() || (period === 'year' ? '今年读经' : '本月读经');
   const highlight = first(sp.h).trim() || `我在${BRAND_NAME}留下了足迹`;
   const stats = first(sp.s).trim();
+  const metrics = parseMetricPairs(stats);
 
   return (
-    <main className="container share-landing-page">
+    <main className="container share-landing-page share-landing-wrapped">
       <SharePwaGuide variant="wrapped" />
       <p className="eyebrow">{BRAND_NAME} · 读经回顾</p>
       <p className="muted share-landing-kicker">{label}</p>
       <h1 className="share-landing-title">{highlight}</h1>
-      {stats ? <p className="share-landing-lead">{stats}</p> : null}
+      {metrics.length > 0 ? (
+        <div className="share-landing-metrics">
+          {metrics.map((m) => (
+            <div key={`${m.label}-${m.value}`} className="share-landing-metric">
+              <strong>{m.value}</strong>
+              <span>{m.label}</span>
+            </div>
+          ))}
+        </div>
+      ) : stats ? (
+        <p className="share-landing-lead">{stats}</p>
+      ) : null}
       <p className="muted share-landing-support">{BRAND_TAGLINE}</p>
       <WrappedShareClient period={period} />
     </main>
