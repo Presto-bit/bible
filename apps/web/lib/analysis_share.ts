@@ -48,7 +48,7 @@ const LEAD_MAX = 120;
 const MORE_MAX = 160;
 const TITLE_MAX = 28;
 const SITE = 'https://2sc.prestoai.cn';
-const SHARE_CTA = '打开链接，继续问小爱';
+const SHARE_CTA = '打开后保存到主屏幕，继续问小爱';
 
 function stripMd(text: string): string {
   return text

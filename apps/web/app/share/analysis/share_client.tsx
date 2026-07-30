@@ -1,16 +1,15 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
 import { navigateToAssistant, storeAssistantPrefill } from '@/lib/assistant_prefill';
-import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { readerHrefFromRef } from '@/lib/group_footprint';
-import { detectInstallPlatform } from '@/lib/pwa_platform';
 import type { Citation } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
 import { CitationBar } from '@/components/CitationBar';
+import { ShareLandingCtas } from '@/components/ShareLandingCtas';
+import { BRAND_NAME } from '@/lib/brand';
 
 export function AnalysisShareClient({
   refLabel,
@@ -31,12 +30,10 @@ export function AnalysisShareClient({
   compactPreview?: boolean;
 }) {
   const [expanded, setExpanded] = useState(Boolean(answerMarkdown));
-  const [showInstall, setShowInstall] = useState(false);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
 
   useEffect(() => {
     captureAcquisitionFromLocation();
-    setShowInstall(detectInstallPlatform() !== 'standalone');
   }, []);
 
   const fullAnswer = (answerMarkdown || '').trim();
@@ -132,19 +129,15 @@ export function AnalysisShareClient({
         </div>
       ) : null}
 
-      <div className="share-landing-ctas analysis-share-ctas">
-        <button type="button" className="btn btn-primary" onClick={continueAsk}>
-          在小爱继续解读
-        </button>
-        <Link className="btn" href={readHref}>
-          我也在读这一段
-        </Link>
-        {showInstall ? (
-          <button type="button" className="btn" onClick={() => openPwaInstallSheet()}>
-            保存到主屏幕
-          </button>
-        ) : null}
-      </div>
+      <ShareLandingCtas
+        preferContentPrimary
+        contentPrimary={{ label: '在小爱继续解读', onClick: continueAsk }}
+        installLabel="保存到主屏幕"
+        secondary={[
+          { href: readHref, label: '我也在读这一段' },
+          { href: '/', label: `打开${BRAND_NAME}` },
+        ]}
+      />
       {snapshotId ? (
         <p className="muted analysis-share-snap-meta">分享编号 {snapshotId}</p>
       ) : null}

@@ -8,10 +8,16 @@ import {
 } from '@/lib/share_pwa_guide';
 import { detectInstallPlatform, type InstallPlatform } from '@/lib/pwa_platform';
 import { BRAND_NAME } from '@/lib/brand';
+import {
+  copyCurrentPageUrl,
+  wechatInstallPrimaryLabel,
+  wechatOpenBrowserToast,
+} from '@/lib/wechat_open_browser';
+import { useToast } from '@/components/ui/ToastProvider';
 
 /**
  * 分享落地页专用 PWA 引导：
- * - 微信等内置浏览器：顶栏「在浏览器打开」
+ * - 微信等内置浏览器：右上角示意遮罩 + 复制链接
  * - 系统浏览器：读完后底栏「保存到主屏幕」→ 打开 InstallPwaSheet
  */
 export function SharePwaGuide({
@@ -20,9 +26,11 @@ export function SharePwaGuide({
   /** analysis：解读；invite：邀请；daily：每日经文；campaign：活动；wrapped：回顾 */
   variant?: 'analysis' | 'invite' | 'daily' | 'campaign' | 'wrapped';
 }) {
+  const toast = useToast();
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [hidden, setHidden] = useState(true);
   const [ready, setReady] = useState(false);
+  const [copyBusy, setCopyBusy] = useState(false);
 
   useEffect(() => {
     const p = detectInstallPlatform();
@@ -33,7 +41,7 @@ export function SharePwaGuide({
     }
     const delay =
       p === 'inapp'
-        ? 400
+        ? 280
         : variant === 'invite' || variant === 'daily' || variant === 'campaign' || variant === 'wrapped'
           ? 900
           : 2800;
@@ -46,21 +54,64 @@ export function SharePwaGuide({
 
   if (!ready || hidden || !platform || platform === 'standalone') return null;
 
-  const dismiss = () => {
+  const softDismiss = () => {
     dismissSharePwaGuide();
     setHidden(true);
   };
 
+  const copyAndHint = async () => {
+    if (copyBusy) return;
+    setCopyBusy(true);
+    try {
+      const ok = await copyCurrentPageUrl();
+      toast(wechatOpenBrowserToast(ok));
+    } finally {
+      setCopyBusy(false);
+    }
+  };
+
   if (platform === 'inapp') {
     return (
-      <div className="share-pwa-bar share-pwa-bar-top" role="status">
-        <div className="share-pwa-bar-body">
-          <p className="share-pwa-bar-title">用浏览器打开，才能保存成 App</p>
-          <p className="share-pwa-bar-desc">点右上角 ··· →「在浏览器打开」，再添加到主屏幕</p>
+      <div className="share-wechat-mask" role="dialog" aria-modal="true" aria-labelledby="share-wechat-title">
+        <button
+          type="button"
+          className="share-wechat-mask-scrim"
+          aria-label="先看看内容"
+          onClick={softDismiss}
+        />
+        <div className="share-wechat-arrow" aria-hidden>
+          <span className="share-wechat-arrow-tip">右上角 ···</span>
+          <svg className="share-wechat-arrow-svg" viewBox="0 0 80 96" width="72" height="86">
+            <path
+              d="M48 8c18 10 26 28 22 52"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.5"
+              strokeLinecap="round"
+            />
+            <path d="M58 52l12 4-8 10" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </div>
-        <button type="button" className="share-pwa-bar-x" onClick={dismiss} aria-label="关闭">
-          ✕
-        </button>
+        <div className="share-wechat-card">
+          <p id="share-wechat-title" className="share-wechat-title">
+            在浏览器打开，才能保存成 App
+          </p>
+          <p className="share-wechat-desc">
+            微信里无法添加到主屏幕。点右上角 ··· →「在浏览器打开」，再保存
+            {BRAND_NAME}，下次一点就开。
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary share-wechat-cta"
+            disabled={copyBusy}
+            onClick={() => void copyAndHint()}
+          >
+            {copyBusy ? '复制中…' : wechatInstallPrimaryLabel()}
+          </button>
+          <button type="button" className="text-link share-wechat-skip" onClick={softDismiss}>
+            先看看内容
+          </button>
+        </div>
       </div>
     );
   }
@@ -101,7 +152,7 @@ export function SharePwaGuide({
       <button type="button" className="btn share-pwa-bar-cta" onClick={() => openPwaInstallSheet()}>
         去保存
       </button>
-      <button type="button" className="share-pwa-bar-x" onClick={dismiss} aria-label="关闭">
+      <button type="button" className="share-pwa-bar-x" onClick={softDismiss} aria-label="关闭">
         ✕
       </button>
     </div>

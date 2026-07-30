@@ -89,8 +89,9 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
       ];
     case 'inapp':
       return [
-        { title: '用系统浏览器打开', detail: '微信内无法安装，请点右上角 …' },
-        { title: '在 Safari / Chrome 中打开', detail: '再按对应平台的安装步骤操作' },
+        { title: '点右上角 ···', detail: '微信菜单里选「在浏览器打开」或「用 Safari 打开」' },
+        { title: '复制链接备用', detail: '也可先复制本页链接，粘贴到 Safari / Chrome' },
+        { title: '添加到主屏幕', detail: '在系统浏览器里按提示保存彼爱' },
       ];
     case 'desktop':
       return [

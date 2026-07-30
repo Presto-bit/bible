@@ -14,6 +14,7 @@ import {
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useOnline } from '@/lib/use_online';
 import { useDiscoverUnread } from '@/lib/use_discover_unread';
+import { isShareLandingPath } from '@/lib/share_pwa_guide';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
 // outline 为未选中态，filled 为选中态（与 App 的 NavigationDestination 行为一致）。
@@ -86,9 +87,18 @@ export default function BottomTabs() {
   const router = useRouter();
   const discoverUnread = useDiscoverUnread(true);
   const online = useOnline();
+  const onShareLanding = isShareLandingPath(pathname);
   const compact =
     SECONDARY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
     || GROUP_COMPACT_RE.test(pathname);
+
+  useEffect(() => {
+    if (onShareLanding) {
+      document.body.classList.add('share-landing-active');
+      return () => document.body.classList.remove('share-landing-active');
+    }
+    document.body.classList.remove('share-landing-active');
+  }, [onShareLanding]);
 
   useEffect(() => {
     const bar = document.querySelector<HTMLElement>('.tabbar');
@@ -155,6 +165,8 @@ export default function BottomTabs() {
     }
     router.push(href);
   };
+
+  if (onShareLanding) return null;
 
   return (
     <nav

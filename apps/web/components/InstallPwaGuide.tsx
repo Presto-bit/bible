@@ -105,8 +105,13 @@ export function InstallPwaSheet({
   const loggedIn = Boolean(currentUserId() && hasPassword());
   const isDesktop = platform === 'desktop';
 
-  const dismiss = () => {
+  const dismissForever = () => {
     localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
+    onClose();
+  };
+
+  /** 分享落地 / 微信内关闭不永久隐藏全站 Banner，避免真进浏览器后看不到引导 */
+  const softClose = () => {
     onClose();
   };
 
@@ -136,7 +141,7 @@ export function InstallPwaSheet({
       clearDeferredInstallPrompt();
       if (choice.outcome === 'accepted') {
         toast('已保存到桌面 App');
-        dismiss();
+        dismissForever();
       }
     } finally {
       setBusy(false);
@@ -144,11 +149,11 @@ export function InstallPwaSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={dismiss}>
+    <div className="sheet-backdrop" onClick={softClose}>
       <div className="sheet card install-pwa-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>{isDesktop ? '保存到桌面 App' : '添加到主屏幕'}</strong>
-          <SheetCloseButton onClick={dismiss} />
+          <SheetCloseButton onClick={softClose} />
         </div>
 
         <div className="install-pwa-brand">
@@ -198,7 +203,7 @@ export function InstallPwaSheet({
                 await deferred.userChoice;
                 setDeferred(null);
                 clearDeferredInstallPrompt();
-                dismiss();
+                dismissForever();
               } finally {
                 setBusy(false);
               }
@@ -234,18 +239,28 @@ export function InstallPwaSheet({
             type="button"
             className="btn btn-block"
             onClick={async () => {
-              try {
-                await navigator.clipboard.writeText(window.location.href);
-              } catch {
-                /* ignore */
-              }
+              const { copyCurrentPageUrl, wechatOpenBrowserToast } = await import(
+                '@/lib/wechat_open_browser'
+              );
+              const ok = await copyCurrentPageUrl();
+              toast(wechatOpenBrowserToast(ok));
             }}
           >
-            复制链接
+            复制链接，用浏览器打开
           </button>
         ) : null}
 
-        <button type="button" className="text-link install-pwa-dismiss" onClick={dismiss}>
+        <button
+          type="button"
+          className="text-link install-pwa-dismiss"
+          onClick={() => {
+            if (platform === 'inapp' || isShareLandingPath(window.location.pathname)) {
+              softClose();
+              return;
+            }
+            dismissForever();
+          }}
+        >
           暂不保存
         </button>
       </div>

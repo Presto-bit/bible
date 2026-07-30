@@ -1,8 +1,8 @@
 /** 分享回流场景：PWA 安装引导的 dismiss / 冷却 */
 
 export const SHARE_PWA_DISMISS_KEY = 'pwa-install-from-share-dismissed';
-/** 冷却 14 天 */
-export const SHARE_PWA_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
+/** 冷却 2 天（原 14 天过长，微信回流用户再进仍应看到引导） */
+export const SHARE_PWA_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
 
 export function isSharePwaDismissed(): boolean {
   if (typeof window === 'undefined') return false;
@@ -19,7 +19,7 @@ export function dismissSharePwaGuide(): void {
   localStorage.setItem(SHARE_PWA_DISMISS_KEY, String(Date.now()));
 }
 
-/** 当前是否在分享落地路径（用于隐藏全站 InstallBanner） */
+/** 当前是否在分享落地路径（用于隐藏全站 InstallBanner / 底栏） */
 export function isShareLandingPath(pathname: string | null | undefined): boolean {
   const p = (pathname || '').split('?')[0] || '';
   return (

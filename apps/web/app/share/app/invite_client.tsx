@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
+import { ShareLandingCtas } from '@/components/ShareLandingCtas';
 import {
   detectInstallPlatform,
   installHeadline,
@@ -46,30 +47,29 @@ export function InviteAppClient({
             </li>
           ))}
         </ol>
-        <button type="button" className="text-link invite-app-steps-more" onClick={() => openPwaInstallSheet()}>
-          看图解步骤
-        </button>
+        {platform === 'inapp' ? null : (
+          <button type="button" className="text-link invite-app-steps-more" onClick={() => openPwaInstallSheet()}>
+            看图解步骤
+          </button>
+        )}
       </section>
     );
   }
 
-  const inApp = platform === 'inapp';
-  const standalone = platform === 'standalone';
-
-  return (
-    <div className="share-landing-ctas invite-app-ctas">
-      {standalone ? (
+  if (platform === 'standalone') {
+    return (
+      <div className="share-landing-ctas invite-app-ctas">
         <Link className="btn btn-primary" href="/">
           开始读经
         </Link>
-      ) : (
-        <button type="button" className="btn btn-primary" onClick={() => openPwaInstallSheet()}>
-          {inApp ? '查看如何保存成 App' : '保存到主屏幕'}
-        </button>
-      )}
-      <Link className="btn" href="/">
-        先看看今日经文
-      </Link>
-    </div>
+      </div>
+    );
+  }
+
+  return (
+    <ShareLandingCtas
+      installLabel="保存到主屏幕"
+      secondary={[{ href: '/', label: '先看看今日经文' }]}
+    />
   );
 }

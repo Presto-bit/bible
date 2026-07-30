@@ -23303,6 +23303,113 @@ body.pray-session-open .app-body {
   cursor: pointer;
 }
 
+/* 微信内：分享落地 → 系统浏览器遮罩 */
+.share-wechat-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.share-wechat-mask-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(28, 22, 14, 0.52);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.share-wechat-arrow {
+  position: absolute;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  color: #f7f1e6;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  animation: share-wechat-pulse 1.6s ease-in-out infinite;
+}
+
+.share-wechat-arrow-tip {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+.share-wechat-arrow-svg {
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+@keyframes share-wechat-pulse {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(4px); opacity: 0.85; }
+}
+
+.share-wechat-card {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 18px 16px 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface, #fffcfa) 96%, #5f7d66);
+  border: 1px solid color-mix(in srgb, #5f7d66 18%, transparent);
+  box-shadow: 0 16px 40px rgba(20, 14, 8, 0.28);
+  pointer-events: auto;
+  text-align: left;
+}
+
+.share-wechat-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink, #2c2416);
+}
+
+.share-wechat-desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--ink, #2c2416) 68%, transparent);
+}
+
+.share-wechat-cta {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.share-wechat-skip {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.share-landing-wechat-hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body.share-landing-active {
+  --tabbar-space: 0px;
+}
+
+body.share-landing-active .tabbar {
+  display: none !important;
+}
+
 /* —— 产品邀请落地 / 轻触达 —— */
 .invite-app-page {
   padding-top: 28px;
@@ -23440,10 +23547,10 @@ body.pray-session-open .app-body {
   font-size: 13px;
 }
 
-/* 出站分享落地：一屏内容 + 主 CTA */
+/* 出站分享落地：一屏内容 + 主 CTA（无底栏） */
 .share-landing-page {
   padding-top: 20px;
-  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
   max-width: 520px;
 }
 .share-landing-page .eyebrow {

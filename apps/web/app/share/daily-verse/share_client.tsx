@@ -1,23 +1,19 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
 import { api, type DailyVerse } from '@/lib/api';
 import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
-import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
-import { detectInstallPlatform } from '@/lib/pwa_platform';
+import { ShareLandingCtas } from '@/components/ShareLandingCtas';
 
 export function DailyVerseShareClient({ day }: { day?: number }) {
   const [verse, setVerse] = useState<DailyVerse | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showInstallCta, setShowInstallCta] = useState(false);
 
   useEffect(() => {
     captureAcquisitionFromLocation();
-    setShowInstallCta(detectInstallPlatform() !== 'standalone');
   }, []);
 
   useEffect(() => {
@@ -52,11 +48,11 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
     return (
       <>
         <p className="muted">{err || '暂时无法加载经文'}</p>
-        <div className="share-landing-ctas daily-verse-share-ctas">
-          <Link className="btn btn-primary" href="/">
-            打开{BRAND_NAME}
-          </Link>
-        </div>
+        <ShareLandingCtas
+          secondary={[
+            { href: '/', label: `打开${BRAND_NAME}` },
+          ]}
+        />
       </>
     );
   }
@@ -69,19 +65,13 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
       </blockquote>
       <p className="muted daily-verse-share-meta">和合本 · {BRAND_TAGLINE}</p>
 
-      <div className="share-landing-ctas daily-verse-share-ctas">
-        {showInstallCta ? (
-          <button type="button" className="btn btn-primary" onClick={() => openPwaInstallSheet()}>
-            保存到主屏幕
-          </button>
-        ) : null}
-        <Link className="btn" href="/">
-          打开{BRAND_NAME}首页
-        </Link>
-        <Link className="btn btn-ghost" href="/reader">
-          去读经
-        </Link>
-      </div>
+      <ShareLandingCtas
+        installLabel="保存到主屏幕"
+        secondary={[
+          { href: '/', label: `打开${BRAND_NAME}首页` },
+          { href: '/reader', label: '去读经' },
+        ]}
+      />
     </>
   );
 }
