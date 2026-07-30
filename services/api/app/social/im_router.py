@@ -443,6 +443,96 @@ class ReportIn(BaseModel):
 
 
 # ── 会话列表 ──
+@router.get("/unread-count")
+def unread_count(user_id: str = Depends(get_current_user)) -> dict:
+    """底栏角标轻量未读：群/私信未读（跳过免打扰）+ 待处理好友申请/群邀请。
+
+    不返回会话预览，避免角标轮询打满 list_conversations。
+    """
+    pool = get_pool()
+    cutoff = _retention_cutoff()
+    ensure_social_im_v12_pool(pool)
+    total = 0
+    with pool.connection() as conn:
+        try:
+            pending_fr = conn.execute(
+                "SELECT count(*)::int FROM friend_request "
+                "WHERE to_user_id = %s AND status = 'pending'",
+                (user_id,),
+            ).fetchone()[0]
+            total += int(pending_fr or 0)
+        except Exception:
+            conn.rollback()
+
+        try:
+            pending_gi = conn.execute(
+                "SELECT count(*)::int FROM group_invite "
+                "WHERE invitee_id = %s AND status = 'pending'",
+                (user_id,),
+            ).fetchone()[0]
+            total += int(pending_gi or 0)
+        except Exception:
+            conn.rollback()
+
+        try:
+            grow = conn.execute(
+                """
+                SELECT COALESCE(SUM(u.unread), 0)::int FROM (
+                  SELECT (
+                    SELECT count(*)::int FROM (
+                      SELECT 1 FROM group_message gm
+                      WHERE gm.group_id = g.id
+                        AND gm.recalled_at IS NULL
+                        AND gm.created_at >= %s
+                        AND gm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
+                        AND gm.user_id <> %s
+                      LIMIT 100
+                    ) x
+                  ) AS unread
+                  FROM social_group g
+                  JOIN group_member m ON m.group_id = g.id AND m.user_id = %s
+                  LEFT JOIN conversation_state cs
+                    ON cs.user_id = %s AND cs.scope = 'group' AND cs.ref_id = g.id::text
+                  WHERE COALESCE(cs.muted, false) = false
+                ) u
+                """,
+                (cutoff, user_id, user_id, user_id),
+            ).fetchone()[0]
+            total += int(grow or 0)
+        except Exception:
+            conn.rollback()
+
+        try:
+            drow = conn.execute(
+                """
+                SELECT COALESCE(SUM(u.unread), 0)::int FROM (
+                  SELECT (
+                    SELECT count(*)::int FROM (
+                      SELECT 1 FROM direct_message dm
+                      WHERE dm.thread_id = t.id
+                        AND dm.recalled_at IS NULL
+                        AND dm.created_at >= %s
+                        AND dm.sender_id <> %s
+                        AND dm.created_at > COALESCE(cs.last_read_at, '-infinity'::timestamptz)
+                      LIMIT 100
+                    ) x
+                  ) AS unread
+                  FROM direct_thread t
+                  LEFT JOIN conversation_state cs
+                    ON cs.user_id = %s AND cs.scope = 'dm' AND cs.ref_id = t.id::text
+                  WHERE (t.user_low_id = %s OR t.user_high_id = %s)
+                    AND COALESCE(cs.muted, false) = false
+                ) u
+                """,
+                (cutoff, user_id, user_id, user_id, user_id),
+            ).fetchone()[0]
+            total += int(drow or 0)
+        except Exception:
+            conn.rollback()
+
+    return {"unread": max(0, int(total))}
+
+
 @router.get("/conversations")
 def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
     pool = get_pool()

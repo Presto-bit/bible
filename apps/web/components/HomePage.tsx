@@ -9,7 +9,6 @@ import {
   type DailyVerseReactTopPreset,
   ensureAccountReady,
   getDisplayName,
-  getSessionToken,
 } from '@/lib/api';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import DailyVerseReactSheet from '@/components/DailyVerseReactSheet';
@@ -28,8 +27,9 @@ import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { heroThemeClass } from '@/lib/home_rail';
 import { bookIdFromReaderHref } from '@/lib/book_cover';
-import { buildHomeTodayPanel, type HomeTodayPanelModel } from '@/lib/home_today_panel';
+import { buildHomeTodayPanel, type HomeTodayPanelInput, type HomeTodayPanelModel } from '@/lib/home_today_panel';
 import {
+  mapApiCampaignsToHomeInput,
   readCachedHomeCampaigns,
   writeCachedHomeCampaigns,
 } from '@/lib/home_campaigns_cache';
@@ -58,6 +58,12 @@ import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { initPcWheelPassthrough } from '@/lib/pc_wheel_passthrough';
 import { markHomeBootstrapReady } from '@/lib/offline_bootstrap';
 import HomeOnboardingBanner from '@/components/home/HomeOnboardingBanner';
+import {
+  HOME_BOOTSTRAP_TTL_MS,
+  HOME_RAIL_NET_TTL_MS,
+  HOME_REFRESH_DEBOUNCE_MS,
+  shouldFetchHomeNetwork,
+} from '@/lib/home_refresh';
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
   const hour = date.getHours();
@@ -151,6 +157,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     writeCachedHeroBCampaign(campaign);
   }, []);
 
+  /** bootstrap 写完活动缓存后触发本地面板重绘（避免依赖 refreshRail 声明顺序） */
+  const applyCachedCampaignsPaintRef = useRef<() => void>(() => {});
+
   const loadHomeBootstrap = useCallback(() => {
     const gen = ++bootstrapGenRef.current;
     const engagementAtStart = engagementGenRef.current;
@@ -219,6 +228,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         }
         // Hero 图预载不挡首屏与经包调度
         void applyHeroBCampaign(boot.heroBCampaign);
+        if (Array.isArray(boot.railCampaigns)) {
+          writeCachedHomeCampaigns(mapApiCampaignsToHomeInput(boot.railCampaigns));
+          // 用本地重绘把运营卡并进今日推荐，避免再打 /campaigns/home
+          applyCachedCampaignsPaintRef.current();
+        }
       })
       .catch((e) => {
         if (gen !== bootstrapGenRef.current) return;
@@ -267,54 +281,28 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   useEffect(() => {
     if (!homeAwake) return;
-    return watchChinaDayChange(reloadDailyContent);
-  }, [homeAwake, reloadDailyContent]);
-
-  useEffect(() => {
-    if (!homeAwake) return;
-    const refresh = () => {
-      if (document.visibilityState === 'visible') reloadDailyContent();
-    };
-    document.addEventListener('visibilitychange', refresh);
-    window.addEventListener('focus', refresh);
-    return () => {
-      document.removeEventListener('visibilitychange', refresh);
-      window.removeEventListener('focus', refresh);
-    };
-  }, [homeAwake, reloadDailyContent]);
-
-  useEffect(() => {
-    if (!homeAwake) return;
     return initPcWheelPassthrough();
   }, [homeAwake]);
 
-  useEffect(() => {
-    if (!homeAwake) return;
-    const refreshName = () => {
-      setUserName(getDisplayName());
-      const report = buildReport();
-      setGrowthCards(
-        buildHomeGrowthCards({
-          todayMin: todayMinutes(),
-          monthDays: report.monthDays,
-        }),
-      );
-    };
-    refreshName();
-    void import('@/lib/bible_warmup').then((m) => m.scheduleBibleWarmup());
-    window.addEventListener('focus', refreshName);
-    const unsubSync = subscribeSyncState(() => {
-      if (getSyncState() === 'synced') refreshName();
-    });
-    const unsubData = subscribeLocalDataChanged(refreshName);
-    return () => {
-      window.removeEventListener('focus', refreshName);
-      unsubSync();
-      unsubData();
-    };
-  }, [homeAwake]);
+  const lastRailNetAtRef = useRef(0);
+  const lastBootstrapAtRef = useRef(0);
+  const homeRefreshTimerRef = useRef<number | null>(null);
+  const lastGroupInputRef = useRef<HomeTodayPanelInput['group']>(undefined);
+  const bibleWarmupOnceRef = useRef(false);
 
-  const refreshRail = useCallback(async () => {
+  const paintLocalChrome = useCallback(() => {
+    setUserName(getDisplayName());
+    const report = buildReport();
+    setGrowthCards(
+      buildHomeGrowthCards({
+        todayMin: todayMinutes(),
+        monthDays: report.monthDays,
+      }),
+    );
+  }, []);
+
+  const refreshRail = useCallback(async (opts?: { fetchRemote?: boolean }) => {
+    const fetchRemote = opts?.fetchRemote !== false;
     await timedPerf('home.refreshRail', async () => {
       type PlanCard = {
         title: string;
@@ -355,7 +343,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         };
       } else if (active) {
         const day = getPlanDay(active.planId) || 1;
-        // 先用同步入口立刻上屏，网络/详情回来后再精修
         planCard = {
           title: active.title,
           sub: `第 ${day} 天`,
@@ -376,13 +363,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         };
       }
 
-      // 本地数据先画「今日推荐」+「成长」；活动用缓存首屏，避免先闪续读卡再跳成活动主卡
-      const cachedCampaigns = readCachedHomeCampaigns() || undefined;
+      const cachedCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
+      const localGroup =
+        lastGroupInputRef.current || buildHomeGroupRailInput([], null);
+
+      // 本地先上屏；TTL 内跳过网络时沿用上次小组卡 + 活动缓存
       setTodayPanel(
         buildHomeTodayPanel({
           plan: planCard,
           resume: resumeCard,
-          group: buildHomeGroupRailInput([], null),
+          group: localGroup,
           prayer: prayerCard,
           suggest: suggestInput,
           campaigns: cachedCampaigns,
@@ -395,10 +385,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         }),
       );
 
+      if (!fetchRemote) return;
+
       setGroupErr(null);
-      const planDay = active && active.kind !== 'prayer'
-        ? getPlanDay(active.planId) || 1
-        : 1;
+      const planDay =
+        active && active.kind !== 'prayer' ? getPlanDay(active.planId) || 1 : 1;
 
       const planMetaPromise =
         active && active.kind !== 'prayer'
@@ -413,29 +404,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           if (typeof navigator !== 'undefined' && navigator.onLine) {
             setGroupErr(errorMessage(e, '小组动态加载失败'));
           }
-          return buildHomeGroupRailInput([], null);
+          return lastGroupInputRef.current || buildHomeGroupRailInput([], null);
         });
 
-      const campaignsPromise = getSessionToken()
-        ? api
-            .homeCampaigns()
-            .then((campRes) =>
-              (campRes.campaigns || []).slice(0, 3).map((c) => ({
-                id: c.id,
-                tag: c.tag || '活动',
-                title: c.name,
-                sub: (c.subtitle || '').trim() || '进入活动',
-                href: c.href || `/campaigns/view/${c.id}`,
-                coverUrl: c.coverUrl || undefined,
-              })),
-            )
-            .catch(() => null)
-        : Promise.resolve(null);
-
-      const [meta, groupCard, campaigns] = await Promise.all([
+      // 运营卡改由 homeBootstrap.railCampaigns 写入缓存；此处不再打 /campaigns/home
+      const [meta, groupCard] = await Promise.all([
         planMetaPromise,
         socialPromise,
-        campaignsPromise,
       ]);
 
       if (meta && active && active.kind !== 'prayer') {
@@ -455,12 +430,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         };
       }
 
-      // null = 请求失败，保留缓存；数组（含空）= 服务端结果，写回缓存
-      let nextCampaigns = cachedCampaigns;
-      if (campaigns !== null) {
-        writeCachedHomeCampaigns(campaigns);
-        nextCampaigns = campaigns.length ? campaigns : undefined;
-      }
+      const nextCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
+
+      lastGroupInputRef.current = groupCard;
+      lastRailNetAtRef.current = Date.now();
 
       setTodayPanel(
         buildHomeTodayPanel({
@@ -476,28 +449,94 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   }, []);
 
   useEffect(() => {
-    if (!homeAwake) return;
-    const onRefresh = () => {
-      if (document.visibilityState !== 'visible') return;
-      void refreshRail();
+    applyCachedCampaignsPaintRef.current = () => {
+      void refreshRail({ fetchRemote: false });
     };
-    document.addEventListener('visibilitychange', onRefresh);
-    window.addEventListener('focus', onRefresh);
-    return () => {
-      document.removeEventListener('visibilitychange', onRefresh);
-      window.removeEventListener('focus', onRefresh);
-    };
-  }, [homeAwake, refreshRail]);
+  }, [refreshRail]);
+
+  const refreshHome = useCallback(
+    async (opts?: { force?: boolean }) => {
+      const force = Boolean(opts?.force);
+      paintLocalChrome();
+
+      const needRailNet = shouldFetchHomeNetwork(
+        lastRailNetAtRef.current,
+        HOME_RAIL_NET_TTL_MS,
+        force,
+      );
+      const needBoot = shouldFetchHomeNetwork(
+        lastBootstrapAtRef.current,
+        HOME_BOOTSTRAP_TTL_MS,
+        force,
+      );
+
+      await refreshRail({ fetchRemote: needRailNet });
+
+      if (needBoot) {
+        lastBootstrapAtRef.current = Date.now();
+        reloadDailyContent();
+      }
+    },
+    [paintLocalChrome, refreshRail, reloadDailyContent],
+  );
+
+  const scheduleHomeRefresh = useCallback(
+    (force = false) => {
+      if (homeRefreshTimerRef.current != null) {
+        window.clearTimeout(homeRefreshTimerRef.current);
+      }
+      homeRefreshTimerRef.current = window.setTimeout(() => {
+        homeRefreshTimerRef.current = null;
+        void refreshHome({ force });
+      }, HOME_REFRESH_DEBOUNCE_MS);
+    },
+    [refreshHome],
+  );
 
   useEffect(() => {
     if (!homeAwake) return;
-    // 本地面板立刻上屏；网络补全在 refreshRail 内并行，不再人为延后 600ms
-    void refreshRail();
-    void reloadDailyContent();
+    return watchChinaDayChange(() => {
+      void refreshHome({ force: true });
+    });
+  }, [homeAwake, refreshHome]);
+
+  useEffect(() => {
+    if (!homeAwake) return;
+    paintLocalChrome();
+    if (!bibleWarmupOnceRef.current) {
+      bibleWarmupOnceRef.current = true;
+      void import('@/lib/bible_warmup').then((m) => m.scheduleBibleWarmup());
+    }
+    // 进入首页：立刻刷新；网络部分受 TTL 约束（首次 last*=0 会拉网）
+    void refreshHome({ force: false });
     if (consumeHeroReturnToVerse()) {
       setHeroResetNonce((n) => n + 1);
     }
-  }, [homeAwake, refreshRail, reloadDailyContent]);
+
+    const onForeground = () => {
+      if (document.visibilityState !== 'visible') return;
+      scheduleHomeRefresh(false);
+    };
+    document.addEventListener('visibilitychange', onForeground);
+    window.addEventListener('focus', onForeground);
+
+    const unsubSync = subscribeSyncState(() => {
+      if (getSyncState() === 'synced') paintLocalChrome();
+    });
+    const unsubData = subscribeLocalDataChanged(() => paintLocalChrome());
+
+    return () => {
+      document.removeEventListener('visibilitychange', onForeground);
+      window.removeEventListener('focus', onForeground);
+      unsubSync();
+      unsubData();
+      if (homeRefreshTimerRef.current != null) {
+        window.clearTimeout(homeRefreshTimerRef.current);
+        homeRefreshTimerRef.current = null;
+      }
+    };
+  }, [homeAwake, paintLocalChrome, refreshHome, scheduleHomeRefresh]);
+
   const openVerseWallpaper = () => {
     if (!dv?.text) return;
     setVerseFull(true);
@@ -835,7 +874,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       {todayPanel ? <HomeTodayPanel panel={todayPanel} /> : null}
       {groupErr ? (
         <div className="home-stack home-stack-rail" style={{ marginTop: 10 }}>
-          <ErrorBanner message={groupErr} onRetry={() => void refreshRail()} />
+          <ErrorBanner message={groupErr} onRetry={() => void refreshHome({ force: true })} />
         </div>
       ) : null}
 

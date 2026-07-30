@@ -11,6 +11,8 @@ import {
 } from './offline_pack';
 
 const dbPromises: Partial<Record<OfflineTranslation, Promise<Database | null>>> = {};
+const dbInstances: Partial<Record<OfflineTranslation, Database>> = {};
+let releaseTimer: number | null = null;
 
 /** sql.js 浏览器包请求 sql-wasm-browser.wasm，静态资源目录只有 sql-wasm.wasm */
 function mapSqlWasmFile(file: string): string {
@@ -96,6 +98,7 @@ export async function getLocalBibleDb(
   translation: OfflineTranslation = 'cnv',
 ): Promise<Database | null> {
   if (typeof window === 'undefined') return null;
+  cancelScheduledReleaseLocalBibleDb();
   if (!dbPromises[translation]) {
     dbPromises[translation] = (async () => {
       try {
@@ -111,11 +114,14 @@ export async function getLocalBibleDb(
           }
           await purgeOfflineTranslation(translation);
           delete dbPromises[translation];
+          delete dbInstances[translation];
           return null;
         }
+        dbInstances[translation] = db;
         return db;
       } catch {
         delete dbPromises[translation];
+        delete dbInstances[translation];
         return null;
       }
     })();
@@ -123,10 +129,39 @@ export async function getLocalBibleDb(
   return dbPromises[translation]!;
 }
 
+/** 关闭已打开的本地经库，释放 ~10MB+ 堆内存（搜经后可调度）。 */
 export function resetLocalBibleDb() {
+  cancelScheduledReleaseLocalBibleDb();
   for (const k of Object.keys(dbPromises) as OfflineTranslation[]) {
+    const db = dbInstances[k];
+    if (db) {
+      try {
+        db.close();
+      } catch {
+        /* ignore */
+      }
+      delete dbInstances[k];
+    }
     delete dbPromises[k];
   }
+}
+
+export function cancelScheduledReleaseLocalBibleDb() {
+  if (typeof window === 'undefined') return;
+  if (releaseTimer != null) {
+    window.clearTimeout(releaseTimer);
+    releaseTimer = null;
+  }
+}
+
+/** 空闲后释放本地经库；阅读器开章会取消。 */
+export function scheduleReleaseLocalBibleDb(delayMs = 45_000) {
+  if (typeof window === 'undefined') return;
+  cancelScheduledReleaseLocalBibleDb();
+  releaseTimer = window.setTimeout(() => {
+    releaseTimer = null;
+    resetLocalBibleDb();
+  }, delayMs);
 }
 
 export function seededBooks(): BibleBook[] {

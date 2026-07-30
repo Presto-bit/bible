@@ -736,8 +736,9 @@ def home_bootstrap(
     x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
 ) -> dict:
-    """每日经文 + Hero B 活动（合并首页首屏请求）。"""
+    """每日经文 + Hero B 活动 + 今日推荐运营卡（合并首页首屏请求）。"""
     _no_store_headers(response)
+    uid = None
     # 首页必经路径内联记 UV，避免仅依赖中间件 / 未反代的 /analytics
     try:
         from ..analytics.uv import record_daily_visit
@@ -768,9 +769,17 @@ def home_bootstrap(
         admin_preview=admin_preview,
         preview_campaign_id=preview_campaign_id,
     )
+    rail_campaigns: list = []
+    try:
+        from .campaigns import list_home_rail_campaigns
+
+        rail_campaigns = list_home_rail_campaigns(uid)
+    except Exception:
+        rail_campaigns = []
     return {
         "dailyVerse": {**payload, **stats},
         "heroBCampaign": campaign,
+        "railCampaigns": rail_campaigns,
     }
 
 

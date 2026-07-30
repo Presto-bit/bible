@@ -1187,9 +1187,14 @@ def create_campaign(body: CampaignUpsert, user_id: str = Depends(get_current_use
 @router.get("/home")
 def home_campaigns(user_id: str | None = Depends(try_get_current_user)) -> dict:
     """首页今日推荐：按成员过滤的已发布活动（含全站）。"""
+    return {"campaigns": list_home_rail_campaigns(user_id)}
+
+
+def list_home_rail_campaigns(user_id: str | None) -> list[dict]:
+    """供 /campaigns/home 与 /home/bootstrap 共用：最多 3 张运营卡。"""
     ensure_campaign_schema()
     if not user_id:
-        return {"campaigns": []}
+        return []
     now = datetime.now(timezone.utc)
     with get_pool().connection() as conn:
         _expire_due_campaigns(conn)
@@ -1256,7 +1261,7 @@ def home_campaigns(user_id: str | None = Depends(try_get_current_user)) -> dict:
                     "daysRead": int(read_n or 0),
                 }
             )
-    return {"campaigns": out}
+    return out
 
 
 class UserTemplateBody(BaseModel):

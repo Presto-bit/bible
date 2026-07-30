@@ -55,7 +55,13 @@ function ProgressRing({ pct, label }: { pct: number; label?: string }) {
 function SceneBackdrop({ sceneId }: { sceneId: NonNullable<RailCard['sceneId']> }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={railSceneUrl(sceneId)} alt="" className="rail-card-scene-img" />
+    <img
+      src={railSceneUrl(sceneId)}
+      alt=""
+      className="rail-card-scene-img"
+      loading="lazy"
+      decoding="async"
+    />
   );
 }
 
@@ -83,6 +89,10 @@ export function RailCardVisual({ card }: Props) {
           src={photoSrc}
           alt=""
           className="rail-card-cover-photo"
+          width={200}
+          height={200}
+          decoding="async"
+          loading="lazy"
         />
         <div className="rail-card-cover-veil" aria-hidden />
         {customCover ? null : card.bookId ? (

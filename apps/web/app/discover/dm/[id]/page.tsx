@@ -55,6 +55,7 @@ import {
   reactionBarEntries,
 } from '@/lib/group_reactions';
 import { useFocusMessage } from '@/lib/use_focus_message';
+import { useImVirtualList } from '@/lib/use_im_virtual_list';
 import { subscribeSocialRealtime } from '@/lib/social_realtime';
 import { keepIfSameMessageList, runReloadGate, type ReloadGate } from '@/lib/im_list_perf';
 import { useOnline } from '@/lib/use_online';
@@ -190,6 +191,17 @@ function DmThreadPageInner() {
     for (const m of msgs) map.set(m.id, m);
     return map;
   }, [msgs]);
+
+  const msgKeys = useMemo(() => msgs.map((m) => m.id), [msgs]);
+  const virtPinKeys = useMemo(
+    () => [activeFocus, actionMsgId, replyTo?.id],
+    [activeFocus, actionMsgId, replyTo?.id],
+  );
+  const virt = useImVirtualList({
+    itemKeys: msgKeys,
+    scrollRef: listRef,
+    pinKeys: virtPinKeys,
+  });
 
   useEffect(() => {
     if (!threadId) return;
@@ -936,7 +948,11 @@ function DmThreadPageInner() {
               <p className="muted">发一句问候，开始这段对话。</p>
             </div>
           ) : null}
-          {msgs.map((m, idx) => {
+          {virt.paddingTop > 0 ? (
+            <div style={{ height: virt.paddingTop }} aria-hidden />
+          ) : null}
+          {msgs.slice(virt.start, virt.end).map((m, sliceIdx) => {
+            const idx = virt.start + sliceIdx;
             const mine = m.mine ?? m.sender_id === uid;
             const parent = m.reply_to_id ? byId.get(m.reply_to_id) : undefined;
             const prev = idx > 0 ? msgs[idx - 1]! : null;
@@ -959,7 +975,11 @@ function DmThreadPageInner() {
             const canSelect = selectMode && !m.recalled && !m.pending && !m.id.startsWith('temp-');
 
             return (
-              <div key={m.id} className="dm-msg-block">
+              <div
+                key={m.id}
+                className="dm-msg-block"
+                ref={(node) => virt.measureRef(m.id, node)}
+              >
                 {showDay || showTimeSep ? (
                   <div className={`dm-day-sep${showTimeSep && !showDay ? ' is-time' : ''}`} role="separator">
                     <span>{formatChatTimeSep(m.created_at)}</span>
@@ -1195,6 +1215,9 @@ function DmThreadPageInner() {
               </div>
             );
           })}
+          {virt.paddingBottom > 0 ? (
+            <div style={{ height: virt.paddingBottom }} aria-hidden />
+          ) : null}
           <div ref={endRef} />
         </div>
         {showJump ? (

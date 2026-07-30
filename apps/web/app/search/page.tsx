@@ -31,7 +31,7 @@ import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { getMainVersion } from '@/lib/reader_settings';
 
 const HISTORY_KEY = 'search_history';
-const SEARCH_PAGE_SIZE = 60;
+const SEARCH_PAGE_SIZE = 40;
 
 /** all / ot / nt —— 切换约别会带 testament 重新请求 */
 type ScopeTab = 'all' | 'ot' | 'nt';

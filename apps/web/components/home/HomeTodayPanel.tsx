@@ -65,7 +65,16 @@ function SideCard({
       {coverSrc ? (
         <span className="home-today-side-bg" aria-hidden>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={coverSrc} alt="" className="home-today-side-bg-img" />
+          <img
+            src={coverSrc}
+            alt=""
+            className="home-today-side-bg-img"
+            width={160}
+            height={120}
+            loading="lazy"
+            decoding="async"
+            fetchPriority="low"
+          />
           <span className="home-today-side-bg-veil" />
         </span>
       ) : null}
@@ -110,7 +119,15 @@ export function HomeTodayPanel({ panel }: Props) {
           {coverSrc ? (
             <div className="home-today-primary-bg" aria-hidden>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={coverSrc} alt="" className="home-today-primary-bg-img" />
+              <img
+                src={coverSrc}
+                alt=""
+                className="home-today-primary-bg-img"
+                width={360}
+                height={220}
+                decoding="async"
+                fetchPriority="high"
+              />
               <div className="home-today-primary-bg-veil" />
             </div>
           ) : (

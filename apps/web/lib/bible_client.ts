@@ -6,6 +6,7 @@ import {
   listLocalBooksFromDb,
   loadBooksJson,
   searchLocalVerses,
+  scheduleReleaseLocalBibleDb,
   seededBooks,
   writeBooksLsCache,
 } from './bible_local';
@@ -190,6 +191,8 @@ export async function bibleSearch(
         osis: `${h.book}.${h.chapter}.${h.verse}`,
         version: localTranslation,
       }));
+      // 搜完空闲释放整库，避免长期占 ~10MB+ 内存
+      scheduleReleaseLocalBibleDb();
       // 离线无总数：用本页是否满页粗估 hasMore
       return {
         hits,

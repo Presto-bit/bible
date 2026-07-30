@@ -1,28 +1,55 @@
-/** 首页今日推荐活动卡缓存：避免每次切回首页先闪「继续阅读」再换成活动主卡 */
+/** 首页今日推荐活动卡缓存：localStorage + TTL，跨会话避免先闪续读卡 */
 
 import type { HomeTodayCampaignInput } from '@/lib/home_today_panel';
 
-const KEY = 'home_campaigns_cache_v1';
+const KEY = 'home_campaigns_cache_v2';
+/** 6 小时：覆盖日常回访；过期仍可读作 stale 首屏，网络回来再覆盖 */
+export const HOME_CAMPAIGNS_TTL_MS = 6 * 60 * 60 * 1000;
 
-export function readCachedHomeCampaigns(): HomeTodayCampaignInput[] | null {
+type CachePayload = {
+  savedAt: number;
+  campaigns: HomeTodayCampaignInput[];
+};
+
+function normalizeList(parsed: unknown): HomeTodayCampaignInput[] | null {
+  if (!Array.isArray(parsed)) return null;
+  return parsed
+    .filter((c): c is HomeTodayCampaignInput =>
+      Boolean(c && typeof c === 'object' && (c as HomeTodayCampaignInput).id),
+    )
+    .slice(0, 3)
+    .map((c) => ({
+      id: String(c.id),
+      tag: String(c.tag || '活动'),
+      title: String(c.title || ''),
+      sub: String(c.sub || ''),
+      href: String(c.href || ''),
+      bookId: c.bookId ? String(c.bookId) : undefined,
+      coverUrl: c.coverUrl ? String(c.coverUrl) : undefined,
+    }));
+}
+
+export function readCachedHomeCampaigns(opts?: {
+  /** 为 true 时过期也返回（仅作首屏占位） */
+  allowStale?: boolean;
+}): HomeTodayCampaignInput[] | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = sessionStorage.getItem(KEY);
+    const raw = localStorage.getItem(KEY) || sessionStorage.getItem('home_campaigns_cache_v1');
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return null;
-    return parsed
-      .filter((c): c is HomeTodayCampaignInput => Boolean(c && typeof c === 'object' && (c as HomeTodayCampaignInput).id))
-      .slice(0, 3)
-      .map((c) => ({
-        id: String(c.id),
-        tag: String(c.tag || '活动'),
-        title: String(c.title || ''),
-        sub: String(c.sub || ''),
-        href: String(c.href || ''),
-        bookId: c.bookId ? String(c.bookId) : undefined,
-        coverUrl: c.coverUrl ? String(c.coverUrl) : undefined,
-      }));
+    // v1：纯数组
+    if (Array.isArray(parsed)) {
+      const list = normalizeList(parsed);
+      return list;
+    }
+    const payload = parsed as CachePayload;
+    const list = normalizeList(payload?.campaigns);
+    if (!list) return null;
+    const savedAt = Number(payload.savedAt) || 0;
+    const fresh = savedAt > 0 && Date.now() - savedAt < HOME_CAMPAIGNS_TTL_MS;
+    if (fresh || opts?.allowStale) return list;
+    return null;
   } catch {
     return null;
   }
@@ -30,18 +57,53 @@ export function readCachedHomeCampaigns(): HomeTodayCampaignInput[] | null {
 
 export function writeCachedHomeCampaigns(campaigns: HomeTodayCampaignInput[]): void {
   if (typeof window === 'undefined') return;
+  const payload: CachePayload = {
+    savedAt: Date.now(),
+    campaigns: campaigns.slice(0, 3),
+  };
   try {
-    sessionStorage.setItem(KEY, JSON.stringify(campaigns.slice(0, 3)));
+    localStorage.setItem(KEY, JSON.stringify(payload));
   } catch {
     /* quota / private mode */
+  }
+  try {
+    sessionStorage.removeItem('home_campaigns_cache_v1');
+  } catch {
+    /* ignore */
   }
 }
 
 export function clearCachedHomeCampaigns(): void {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.removeItem(KEY);
+    localStorage.removeItem(KEY);
   } catch {
     /* ignore */
   }
+  try {
+    sessionStorage.removeItem('home_campaigns_cache_v1');
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 把 bootstrap / homeCampaigns API 行映射为今日推荐输入 */
+export function mapApiCampaignsToHomeInput(
+  rows: Array<{
+    id: string;
+    name: string;
+    tag?: string;
+    subtitle?: string;
+    href?: string;
+    coverUrl?: string | null;
+  }>,
+): HomeTodayCampaignInput[] {
+  return rows.slice(0, 3).map((c) => ({
+    id: c.id,
+    tag: c.tag || '活动',
+    title: c.name,
+    sub: (c.subtitle || '').trim() || '进入活动',
+    href: c.href || `/campaigns/view/${c.id}`,
+    coverUrl: c.coverUrl || undefined,
+  }));
 }

@@ -123,6 +123,15 @@ export interface HeroBCampaignPublic {
 export interface HomeBootstrap {
   dailyVerse: DailyVerse;
   heroBCampaign: HeroBCampaignPublic | null;
+  /** 今日推荐运营卡（与 /content/campaigns/home 同形，可缺省兼容旧后端） */
+  railCampaigns?: Array<{
+    id: string;
+    name: string;
+    tag?: string;
+    subtitle?: string;
+    href?: string;
+    coverUrl?: string | null;
+  }>;
 }
 
 export interface DailyDevotional {
@@ -2266,6 +2275,7 @@ export const api = {
       display_name?: string | null;
     }>('/social/me'),
   conversations: () => authed<{ items: ConversationItem[] }>('/social/conversations'),
+  unreadCount: () => authed<{ unread: number }>('/social/unread-count'),
   friendRequests: () =>
     authed<{ incoming: FriendRequestItem[]; outgoing: FriendRequestItem[] }>(
       '/social/friend-requests',

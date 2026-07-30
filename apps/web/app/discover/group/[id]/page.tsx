@@ -861,6 +861,8 @@ function GroupPageInner() {
             onReply={allowChat ? startReply : undefined}
             onRecall={recallMsg}
             onCompleteTask={completeTask}
+            scrollParentRef={feedWrapRef}
+            focusMsgId={activeFocus}
             onResend={(m) => {
               if (!m.body || m.kind !== 'chat') return;
               setFeed((prev) => prev.filter((x) => x.id !== m.id));

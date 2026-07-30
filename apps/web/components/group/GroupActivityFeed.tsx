@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { contentAssetUrl, effectiveId, type GroupMember, type GroupMessage } from '@/lib/api';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
@@ -37,6 +37,7 @@ import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/Im
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
+import { useImVirtualList } from '@/lib/use_im_virtual_list';
 import { MemberAvatar } from './MemberAvatar';
 
 const QUICK_EMOJIS = [...GROUP_EMOJIS];
@@ -629,6 +630,10 @@ type Props = {
   onResend?: (m: GroupMessage) => void;
   onForward?: (m: GroupMessage) => void;
   onMemberClick?: (member: GroupMember) => void;
+  /** 外层滚动容器（群页 feed wrap） */
+  scrollParentRef?: RefObject<HTMLElement | null>;
+  /** 搜索/推送落地消息 id，虚拟列表强制挂载 */
+  focusMsgId?: string | null;
 };
 
 export function GroupActivityFeed({
@@ -649,8 +654,12 @@ export function GroupActivityFeed({
   onResend,
   onForward,
   onMemberClick,
+  scrollParentRef,
+  focusMsgId,
 }: Props) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const fallbackScrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = scrollParentRef ?? fallbackScrollRef;
   const [lightbox, setLightbox] = useState<{ images: ImLightboxImage[]; index: number } | null>(
     null,
   );
@@ -792,6 +801,14 @@ export function GroupActivityFeed({
     });
   }, [chrono, byId, membersById]);
 
+  const rowKeys = useMemo(() => rows.map((r) => r.m.id), [rows]);
+  const virtPinKeys = useMemo(() => [focusMsgId], [focusMsgId]);
+  const virt = useImVirtualList({
+    itemKeys: rowKeys,
+    scrollRef,
+    pinKeys: virtPinKeys,
+  });
+
   useEffect(() => {
     if (!hasMore || !onLoadMore) return;
     const el = loadMoreRef.current;
@@ -800,11 +817,11 @@ export function GroupActivityFeed({
       (entries) => {
         if (entries[0]?.isIntersecting && !loadingMore) onLoadMore();
       },
-      { rootMargin: '120px' },
+      { root: scrollRef.current, rootMargin: '120px' },
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [hasMore, loadingMore, onLoadMore]);
+  }, [hasMore, loadingMore, onLoadMore, scrollRef]);
 
   if (messages.length === 0) {
     return (
@@ -821,14 +838,22 @@ export function GroupActivityFeed({
   }
 
   return (
-    <div className="group-chat-feed">
+    <div className="group-chat-feed" ref={scrollParentRef ? undefined : fallbackScrollRef}>
       <div ref={loadMoreRef} className="group-feed-load-sentinel" aria-hidden>
         {loadingMore ? <span className="muted">加载更早消息…</span> : null}
         {!hasMore && chrono.length > 12 ? <span className="muted">没有更早消息了</span> : null}
       </div>
 
-      {rows.map(({ m, dayKey, showDay, replyPreview }) => (
-        <div key={m.id} className="group-chat-block">
+      {virt.paddingTop > 0 ? (
+        <div style={{ height: virt.paddingTop }} aria-hidden />
+      ) : null}
+
+      {rows.slice(virt.start, virt.end).map(({ m, dayKey, showDay, replyPreview }) => (
+        <div
+          key={m.id}
+          className="group-chat-block"
+          ref={(node) => virt.measureRef(m.id, node)}
+        >
           {showDay ? (
             <div className="dm-day-sep" role="separator">
               <span>{formatMsgDayLabel(dayKey)}</span>
@@ -856,6 +881,10 @@ export function GroupActivityFeed({
           />
         </div>
       ))}
+
+      {virt.paddingBottom > 0 ? (
+        <div style={{ height: virt.paddingBottom }} aria-hidden />
+      ) : null}
 
       {lightbox ? (
         <ImImageLightbox

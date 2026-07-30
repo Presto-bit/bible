@@ -78,6 +78,8 @@ const TAB_COMPONENTS: Record<KeepAliveTabId, React.ComponentType<{ paneActive?: 
 };
 
 const ALL_TABS: KeepAliveTabId[] = ['home', 'reader', 'assistant', 'discover', 'profile'];
+/** 同时保活上限：home + 当前 + 1 个最近访问，降低阅读器/小爱常驻内存 */
+const MAX_MOUNTED_TABS = 3;
 
 function emptyMounted(): Record<KeepAliveTabId, boolean> {
   return {
@@ -94,6 +96,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   const enabled = useSyncExternalStore(subscribeKeepAlive, getKeepAliveSnapshot, () => false);
   const pwaPathname = useSyncExternalStore(subscribePwaTabNav, getPwaTabPathname, () => '/');
   const prevRouterRef = useRef(routerPathname);
+  const lastActiveAtRef = useRef<Partial<Record<KeepAliveTabId, number>>>({});
   if (enabled && prevRouterRef.current !== routerPathname) {
     const r = normalizeAppPath(routerPathname);
     if (keepAliveTabId(r) === null) {
@@ -114,10 +117,29 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
   // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期
   const suppressRoute = enabled && activeTab !== null && paneVisible(activeTab);
 
-  // 按需挂载：访问过的 Tab 保持实例
+  // 按需挂载 + LRU 驱逐：访问过的 Tab 保持实例，超出上限卸掉最久未用（保护 home/当前）
   useEffect(() => {
     if (!enabled || !activeTab) return;
-    setMounted((prev) => (prev[activeTab] ? prev : { ...prev, [activeTab]: true }));
+    lastActiveAtRef.current[activeTab] = Date.now();
+    setMounted((prev) => {
+      const next: Record<KeepAliveTabId, boolean> = { ...prev, [activeTab]: true };
+      let mountedIds = ALL_TABS.filter((t) => next[t]);
+      if (mountedIds.length <= MAX_MOUNTED_TABS) return next;
+
+      const protectedTabs = new Set<KeepAliveTabId>(['home', activeTab]);
+      const victims = mountedIds
+        .filter((t) => !protectedTabs.has(t))
+        .sort(
+          (a, b) =>
+            (lastActiveAtRef.current[a] || 0) - (lastActiveAtRef.current[b] || 0),
+        );
+      for (const v of victims) {
+        mountedIds = ALL_TABS.filter((t) => next[t]);
+        if (mountedIds.length <= MAX_MOUNTED_TABS) break;
+        next[v] = false;
+      }
+      return next;
+    });
   }, [enabled, activeTab]);
 
   useEffect(() => {
