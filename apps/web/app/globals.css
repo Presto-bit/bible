@@ -1939,6 +1939,7 @@ html:not([data-app-theme]) .card {
 
 .home-page .hero-like,
 .home-page .hero-react,
+.home-page .hero-xiaoai,
 .home-page .hero-share {
   border-radius: 999px;
   padding: 7px 14px;
@@ -1952,6 +1953,12 @@ html:not([data-app-theme]) .card {
   font-size: 12px;
   font-weight: 600;
   border: none;
+}
+
+.home-page .hero-xiaoai {
+  /* 仅图标：左右内边距与高度对齐赞/回应/分享 */
+  padding-left: 11px;
+  padding-right: 11px;
 }
 
 .home-page .hero-verse.hero-verse-has-art .hero-like,
@@ -14623,6 +14630,8 @@ html.perf-lite .tabbar,
 html.perf-lite .home-page .icon-btn,
 html.perf-lite .home-page .hero-like,
 html.perf-lite .home-page .hero-react,
+html.perf-lite .home-page .hero-xiaoai,
+html.perf-lite .home-page .hero-share,
 html.perf-lite .home-page .home-rail .rail-card-cover-badge,
 html.perf-lite .home-page .home-today-primary,
 html.perf-lite .home-page .home-today-side,
