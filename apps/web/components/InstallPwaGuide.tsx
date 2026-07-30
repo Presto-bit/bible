@@ -105,12 +105,18 @@ export function InstallPwaSheet({
   const loggedIn = Boolean(currentUserId() && hasPassword());
   const isDesktop = platform === 'desktop';
 
+  /** 分享落地 / 微信内：点关闭或「暂不」不写永久 dismiss */
+  const softCloseOnly =
+    platform === 'inapp' ||
+    isShareLandingPath(
+      typeof window !== 'undefined' ? window.location.pathname : '',
+    );
+
   const dismissForever = () => {
     localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
     onClose();
   };
 
-  /** 分享落地 / 微信内关闭不永久隐藏全站 Banner，避免真进浏览器后看不到引导 */
   const softClose = () => {
     onClose();
   };
@@ -266,7 +272,7 @@ export function InstallPwaSheet({
           type="button"
           className="text-link install-pwa-dismiss"
           onClick={() => {
-            if (platform === 'inapp' || isShareLandingPath(window.location.pathname)) {
+            if (softCloseOnly) {
               softClose();
               return;
             }
@@ -355,10 +361,9 @@ export default function InstallBanner() {
 
   const closeSheet = () => {
     setSheetOpen(false);
-    if (!isDismissed()) {
-      localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
-    }
-    setHidden(true);
+    // 仅当 Sheet 内已写永久 dismiss（如「暂不保存」/安装成功）时隐藏 Banner；
+    // 分享落地 / 微信内 softClose 不写 key，避免逃出微信后看不到引导。
+    if (isDismissed()) setHidden(true);
   };
 
   // 分享落地仍可响应 openPwaInstallSheet()

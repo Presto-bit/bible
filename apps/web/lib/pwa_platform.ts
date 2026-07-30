@@ -66,32 +66,38 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
   switch (platform) {
     case 'ios-safari':
       return [
-        { title: '点底部分享', detail: 'Safari 底部中间的 ↑ 分享按钮' },
-        { title: '添加到主屏幕', detail: '在菜单中找到「添加到主屏幕」' },
+        {
+          title: '点底部「共享」',
+          detail: 'Safari 底栏中间的 ↑，系统叫「共享」（不是发给朋友）',
+        },
+        { title: '添加到主屏幕', detail: '在弹出菜单里向下滑，点「添加到主屏幕」' },
         { title: '确认名称「彼爱」', detail: '主屏幕将显示与 iOS 一致的图标与名称' },
       ];
     case 'ios-other':
       return [
-        { title: '用 Safari 打开', detail: '复制链接，在 Safari 中打开更稳定' },
-        { title: '分享 → 添加到主屏幕', detail: '与 Safari 安装步骤相同' },
+        { title: '建议用 Safari 打开', detail: '复制链接，粘贴到 Safari 更稳；也可继续用当前浏览器' },
+        {
+          title: '点工具栏「共享」',
+          detail: 'Chrome / Edge 等也是 ↑「共享」或「⋯」里的共享，再选「添加到主屏幕」',
+        },
       ];
     case 'android-chrome':
       return [
-        { title: '点「添加」或菜单', detail: '本页可能弹出「添加到主屏幕」' },
+        { title: '点「添加」或菜单', detail: '本页可能弹出「添加到主屏幕」，或点右上角 ⋮' },
         { title: '确认安装', detail: '图标与 iOS 同源，不会另做 Android 风格' },
         { title: '从主屏幕打开', detail: '全屏竖屏，与 iOS 同款体验' },
       ];
     case 'android-other':
       return [
         { title: '打开浏览器菜单 ⋮', detail: '小米 / 华为 / OPPO 等通常在右上角' },
-        { title: '添加到主屏幕 / 桌面', detail: '文案因浏览器而异' },
+        { title: '添加到主屏幕 / 桌面', detail: '文案因浏览器而异（菜单里找「主屏幕 / 桌面」）' },
         { title: '确认名称「彼爱」', detail: '图标与 iPhone 主屏幕一致' },
       ];
     case 'inapp':
       return [
         { title: '点右上角 ···', detail: '微信菜单里选「在浏览器打开」或「用 Safari 打开」' },
         { title: '复制链接备用', detail: '也可先复制本页链接，粘贴到 Safari / Chrome' },
-        { title: '添加到主屏幕', detail: '在系统浏览器里按提示保存彼爱' },
+        { title: '在浏览器里保存', detail: '系统浏览器里按「共享 / 菜单 → 添加到主屏幕」' },
       ];
     case 'desktop':
       return [

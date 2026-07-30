@@ -3,12 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { bookCoverImageUrl } from '@/lib/book_cover';
 import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
-import { isExternalHref, openCampaignHref } from '@/lib/campaign_nav';
+import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import type { HomeTodayPanelModel, HomeTodayPanelSlot } from '@/lib/home_today_panel';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
 import { HomeTodayProgressRing } from '@/components/home/HomeTodayProgressRing';
-import { isTabKeepAliveEnabled } from '@/lib/platform';
-import { isPwaMainTabHref, navigatePwaTab, navigateToReaderHref } from '@/lib/pwa_tab_nav';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 
 type Props = {
   panel: HomeTodayPanelModel;
@@ -19,19 +18,12 @@ type Props = {
 };
 
 function navigate(href: string, router: ReturnType<typeof useRouter>) {
-  if (isExternalHref(href)) {
+  const internal = toInternalAppPath(href);
+  if (!internal) {
     openCampaignHref(href);
     return;
   }
-  if (href.startsWith('/reader')) {
-    navigateToReaderHref(href, router);
-    return;
-  }
-  if (isTabKeepAliveEnabled() && isPwaMainTabHref(href)) {
-    navigatePwaTab(href);
-    return;
-  }
-  router.push(href);
+  navigateAppHref(internal, router);
 }
 
 function slotCoverSrc(slot: HomeTodayPanelSlot): string | null {

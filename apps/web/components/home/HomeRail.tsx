@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { railDotClass, type RailCard } from '@/lib/home_rail';
-import { isExternalHref, openCampaignHref } from '@/lib/campaign_nav';
-import { isTabKeepAliveEnabled } from '@/lib/platform';
-import { isPwaMainTabHref, navigatePwaTab, navigateToReaderHref } from '@/lib/pwa_tab_nav';
+import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
+import { navigateAppHref } from '@/lib/pwa_tab_nav';
 import { RailCardVisual } from '@/components/home/RailCardVisual';
 
 type Props = {
@@ -27,19 +26,12 @@ function cardClass(c: RailCard, active: boolean): string {
 }
 
 function navigateRailHref(href: string, router: ReturnType<typeof useRouter>) {
-  if (isExternalHref(href)) {
+  const internal = toInternalAppPath(href);
+  if (!internal) {
     openCampaignHref(href);
     return;
   }
-  if (href.startsWith('/reader')) {
-    navigateToReaderHref(href, router);
-    return;
-  }
-  if (isTabKeepAliveEnabled() && isPwaMainTabHref(href)) {
-    navigatePwaTab(href);
-    return;
-  }
-  router.push(href);
+  navigateAppHref(internal, router);
 }
 
 export function HomeRail({ cards }: Props) {

@@ -1,8 +1,8 @@
 /** 分享回流场景：PWA 安装引导的 dismiss / 冷却 */
 
 export const SHARE_PWA_DISMISS_KEY = 'pwa-install-from-share-dismissed';
-/** 冷却 2 天（原 14 天过长，微信回流用户再进仍应看到引导） */
-export const SHARE_PWA_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
+/** 冷却 1 天（关掉后次日仍可再引导） */
+export const SHARE_PWA_COOLDOWN_MS = 1 * 24 * 60 * 60 * 1000;
 
 export function isSharePwaDismissed(): boolean {
   if (typeof window === 'undefined') return false;
