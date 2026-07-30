@@ -1,8 +1,8 @@
-/** 气泡正文：经文卡 + 链接可点（应用内打开）+ @ 高亮。 */
+/** 气泡正文：经文卡 + 链接可点（站内同窗 / 真外链内嵌）+ @ 高亮。 */
 
 import { memo, useMemo, type ReactNode } from 'react';
 import Link from 'next/link';
-import { openCampaignHref } from '@/lib/campaign_nav';
+import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { setReaderReturnHref } from '@/lib/reader_return';
@@ -26,6 +26,24 @@ function shouldShowVerse(kind?: string, verseRef?: string | null): boolean {
   if (!verseRef) return false;
   if (!kind) return true;
   return !['system'].includes(kind);
+}
+
+function linkLabel(url: string): string {
+  const internal = toInternalAppPath(url);
+  if (internal) {
+    try {
+      const u = new URL(internal, 'https://local.invalid');
+      const path = u.pathname === '/' ? '首页' : u.pathname;
+      return path.length > 36 ? `${path.slice(0, 35)}…` : path;
+    } catch {
+      return '打开链接';
+    }
+  }
+  try {
+    return new URL(url).hostname.replace(/^www\./, '') || url;
+  } catch {
+    return url;
+  }
 }
 
 function renderLinkedText(text: string): ReactNode {
@@ -64,18 +82,19 @@ function renderLinkedText(text: string): ReactNode {
   while ((m = urlRe.exec(text))) {
     if (m.index > last) pushPlain(text.slice(last, m.index), `t-${i}`);
     const url = m[0];
+    const internal = Boolean(toInternalAppPath(url));
     parts.push(
       <a
         key={`u-${i++}`}
         href={url}
-        className="im-inline-link"
+        className={`im-inline-link${internal ? ' is-internal' : ' is-external'}`}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
           openCampaignHref(url);
         }}
       >
-        {url}
+        {linkLabel(url)}
       </a>,
     );
     last = m.index + url.length;

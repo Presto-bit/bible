@@ -23959,6 +23959,25 @@ body.external-browser-open .app-body {
   white-space: nowrap;
 }
 
+.external-browser-title-wrap {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.external-browser-host {
+  max-width: 100%;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted, #888);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .external-browser-close,
 .external-browser-system {
   min-height: 40px;
@@ -23989,6 +24008,9 @@ body.external-browser-open .app-body {
   background: transparent;
   color: var(--muted, #888);
   font-weight: 500;
+  font-size: 12px;
+  padding: 0 8px;
+  white-space: nowrap;
 }
 
 .external-browser-system:disabled {

@@ -7,6 +7,7 @@ import {
   openInSystemBrowser,
   type ExternalBrowserOpenDetail,
 } from '@/lib/external_browser';
+import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 
 type BrowserState = {
   open: boolean;
@@ -18,7 +19,8 @@ type BrowserState = {
 const CLOSED: BrowserState = { open: false, url: '', title: '', loading: false };
 
 /**
- * 活动外链全屏内嵌浏览器：留在 PWA 壳内，避免 window.open 跳出系统浏览器。
+ * 真外链全屏内嵌浏览器：留在 PWA 壳内。
+ * 若事件误带站内 URL，直接同窗跳转，不展示浏览器顶栏。
  */
 export default function ExternalBrowserSheet() {
   const [state, setState] = useState<BrowserState>(CLOSED);
@@ -28,6 +30,13 @@ export default function ExternalBrowserSheet() {
     const onOpen = (e: Event) => {
       const detail = (e as CustomEvent<ExternalBrowserOpenDetail>).detail || {};
       const nextUrl = (detail.url || '').trim();
+
+      // 站内链接不应进入内嵌浏览器（避免 PWA 套 PWA + 双层壳）
+      if (nextUrl && toInternalAppPath(nextUrl)) {
+        openCampaignHref(nextUrl);
+        return;
+      }
+
       setState((prev) => {
         const loading =
           typeof detail.loading === 'boolean'
@@ -38,7 +47,7 @@ export default function ExternalBrowserSheet() {
         return {
           open: true,
           url: nextUrl || prev.url,
-          title: (detail.title || '').trim() || prev.title || '外部页面',
+          title: (detail.title || '').trim() || prev.title || '网页',
           loading,
         };
       });
@@ -74,22 +83,40 @@ export default function ExternalBrowserSheet() {
 
   if (!state.open) return null;
 
+  const hostLabel = (() => {
+    try {
+      return state.url ? new URL(state.url).hostname.replace(/^www\./, '') : '';
+    } catch {
+      return '';
+    }
+  })();
+
   return (
     <AppBodyPortal>
       <div className="external-browser" role="dialog" aria-modal="true" aria-label={state.title}>
         <header className="external-browser-top">
-          <button type="button" className="external-browser-close" onClick={close} aria-label="关闭">
-            关闭
+          <button type="button" className="external-browser-close" onClick={close} aria-label="返回">
+            返回
           </button>
-          <div className="external-browser-title">{state.title}</div>
-          <span className="external-browser-top-spacer" aria-hidden />
+          <div className="external-browser-title-wrap">
+            <div className="external-browser-title">{state.title === hostLabel ? '网页' : state.title}</div>
+            {hostLabel ? <div className="external-browser-host">{hostLabel}</div> : null}
+          </div>
+          <button
+            type="button"
+            className="external-browser-system"
+            disabled={!state.url || state.loading}
+            onClick={() => state.url && openInSystemBrowser(state.url)}
+          >
+            浏览器打开
+          </button>
         </header>
 
         <div className="external-browser-body">
           {state.loading || !state.url ? (
             <div className="external-browser-loading" aria-live="polite">
               <span className="external-browser-spinner" aria-hidden />
-              <p>正在进入…</p>
+              <p>正在打开…</p>
             </div>
           ) : (
             <iframe
@@ -111,6 +138,9 @@ export default function ExternalBrowserSheet() {
                 onClick={() => openInSystemBrowser(state.url)}
               >
                 用浏览器打开
+              </button>
+              <button type="button" className="text-link" onClick={close}>
+                返回
               </button>
             </div>
           ) : null}
