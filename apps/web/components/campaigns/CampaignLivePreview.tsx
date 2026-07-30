@@ -105,7 +105,7 @@ export function CampaignLivePreview({
     tag: tag || '活动',
     reason: '群活动',
     title: trimRailTitle(name.trim() || title),
-    sub: trimRailSub(subtitle?.trim() || '继续阅读'),
+    sub: trimRailSub(subtitle?.trim() || '进入活动'),
     href: '#preview-landing',
     icon: RAIL_ICONS.campaign,
     bookId: coverUrl ? undefined : 'GEN',
@@ -275,7 +275,7 @@ export function CampaignLivePreview({
                         value={subtitle || ''}
                         onChange={(e) => onChangeSubtitle(e.target.value)}
                         onClick={(e) => e.stopPropagation()}
-                        placeholder="继续阅读"
+                        placeholder="进入活动"
                         aria-label="首页卡副文案"
                       />
                     ) : railCard.sub ? (

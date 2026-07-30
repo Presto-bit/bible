@@ -29,6 +29,10 @@ import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { heroThemeClass } from '@/lib/home_rail';
 import { bookIdFromReaderHref } from '@/lib/book_cover';
 import { buildHomeTodayPanel, type HomeTodayPanelModel } from '@/lib/home_today_panel';
+import {
+  readCachedHomeCampaigns,
+  writeCachedHomeCampaigns,
+} from '@/lib/home_campaigns_cache';
 import { HomeTodayPanel } from '@/components/home/HomeTodayPanel';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
 import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
@@ -372,7 +376,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         };
       }
 
-      // 本地数据先画「今日推荐」+「成长」，不堵在群/活动请求上
+      // 本地数据先画「今日推荐」+「成长」；活动用缓存首屏，避免先闪续读卡再跳成活动主卡
+      const cachedCampaigns = readCachedHomeCampaigns() || undefined;
       setTodayPanel(
         buildHomeTodayPanel({
           plan: planCard,
@@ -380,6 +385,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           group: buildHomeGroupRailInput([], null),
           prayer: prayerCard,
           suggest: suggestInput,
+          campaigns: cachedCampaigns,
         }),
       );
       setGrowthCards(
@@ -418,13 +424,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                 id: c.id,
                 tag: c.tag || '活动',
                 title: c.name,
-                sub: (c.subtitle || '').trim() || '继续阅读',
+                sub: (c.subtitle || '').trim() || '进入活动',
                 href: c.href || `/campaigns/view/${c.id}`,
                 coverUrl: c.coverUrl || undefined,
               })),
             )
-            .catch(() => undefined)
-        : Promise.resolve(undefined);
+            .catch(() => null)
+        : Promise.resolve(null);
 
       const [meta, groupCard, campaigns] = await Promise.all([
         planMetaPromise,
@@ -449,13 +455,20 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         };
       }
 
+      // null = 请求失败，保留缓存；数组（含空）= 服务端结果，写回缓存
+      let nextCampaigns = cachedCampaigns;
+      if (campaigns !== null) {
+        writeCachedHomeCampaigns(campaigns);
+        nextCampaigns = campaigns.length ? campaigns : undefined;
+      }
+
       setTodayPanel(
         buildHomeTodayPanel({
           plan: planCard,
           resume: resumeCard,
           group: groupCard,
           prayer: prayerCard,
-          campaigns,
+          campaigns: nextCampaigns,
           suggest: suggestInput,
         }),
       );

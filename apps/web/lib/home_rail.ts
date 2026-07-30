@@ -96,13 +96,13 @@ function normalizeRailCard(card: RailCard): RailCard {
 
   switch (card.id) {
     case 'resume':
-      sub = trimRailSub(card.sub || '继续阅读');
+      sub = trimRailSub(card.sub || '继续');
       break;
     case 'devotional':
       sub = trimRailSub(card.sub);
       break;
     case 'campaign':
-      sub = trimRailSub(card.sub || '继续阅读');
+      sub = trimRailSub(card.sub || '进入活动');
       break;
     case 'plan':
       sub = trimRailSub(card.sub);
@@ -127,7 +127,7 @@ function normalizeRailCard(card: RailCard): RailCard {
       sub = trimRailSub(card.sub);
       break;
     default:
-      sub = trimRailSub(isCampaign ? card.sub || '继续阅读' : card.sub);
+      sub = trimRailSub(isCampaign ? card.sub || '进入活动' : card.sub);
   }
 
   return {
@@ -429,10 +429,10 @@ export function buildHomeRail(input: HomeRailInput): {
       tag: c.tag || '活动',
       reason: '群活动',
       title: c.title,
-      sub: c.sub || '继续阅读',
+      sub: c.sub || '进入活动',
       href: c.href,
       icon: RAIL_ICONS.campaign,
-      bookId: c.coverUrl ? undefined : c.bookId || 'GEN',
+      bookId: c.coverUrl ? undefined : c.bookId,
       coverUrl: c.coverUrl || undefined,
       progressPct: c.progressPct,
     }),

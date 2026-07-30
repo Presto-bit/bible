@@ -39,7 +39,7 @@ export type HomeTodayCampaignInput = {
   title: string;
   sub: string;
   href: string;
-  /** 主卡封面书卷；默认 GEN（与继续阅读同款风景） */
+  /** 主卡封面书卷；有 coverUrl 时不用 */
   bookId?: string;
   /** 运营选择的系统/自定义封面，优先于 bookId */
   coverUrl?: string;
@@ -75,7 +75,7 @@ export type HomeTodayPanelInput = {
 };
 
 function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
-  const action = trimRailSub(c.sub || '继续阅读') || '继续阅读';
+  const action = trimRailSub(c.sub || '进入活动') || '进入活动';
   return {
     id: `campaign-${c.id}`,
     tag: c.tag || '活动',
@@ -83,7 +83,7 @@ function campaignPrimary(c: HomeTodayCampaignInput): HomeTodayPanelSlot {
     sub: '',
     href: c.href,
     icon: 'devotional',
-    bookId: c.coverUrl ? undefined : c.bookId || 'GEN',
+    bookId: c.coverUrl ? undefined : c.bookId,
     coverUrl: c.coverUrl || undefined,
     cta: action,
   };

@@ -612,7 +612,7 @@ function CampaignEditInner() {
                   className="input"
                   value={subtitle}
                   onChange={(e) => setSubtitle(e.target.value)}
-                  placeholder="继续阅读"
+                  placeholder="进入活动"
                 />
                 <span className="muted" style={{ display: 'block', marginTop: 4, fontSize: 12 }}>
                   也可在中间首页卡预览里直接改

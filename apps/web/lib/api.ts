@@ -13,6 +13,7 @@ import {
 } from './device_id';
 import { deviceIdToUserCode, isUserCode, USER_CODE_RE } from './user_code';
 import { userLsGet, userLsSet, userLsRemove } from './user_storage';
+import { clearCachedHomeCampaigns } from './home_campaigns_cache';
 
 export { getDeviceId, stableDeviceFingerprint } from './device_id';
 export { deviceIdToUserCode, isUserCode, USER_CODE_LEN, USER_CODE_RE } from './user_code';
@@ -855,6 +856,7 @@ export function logout() {
   }
   clearLocalAccountIdentity();
   resetAccountEnsureCaches();
+  clearCachedHomeCampaigns();
   void ensureIdentityReady().then(() => ensureAccountReady());
 }
 
