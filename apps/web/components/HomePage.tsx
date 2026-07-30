@@ -736,6 +736,15 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           likes_count: syncedCount,
         });
       }
+      if (syncedLiked) {
+        void import('@/lib/product_events').then((m) =>
+          m.trackProductEvent('daily_verse_like', {
+            props: { day: verseDay },
+            oncePerDay: true,
+            onceSalt: String(verseDay),
+          }),
+        );
+      }
     } catch (e) {
       engagementGenRef.current += 1;
       setLiked(prevLiked);
@@ -765,6 +774,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       hapticSuccess();
     }
   }, [homeAwake, reducedMotion]);
+
+  useEffect(() => {
+    if (!homeAwake || !dv?.day || !dv?.text) return;
+    void import('@/lib/product_events').then((m) =>
+      m.trackProductEvent('daily_verse_view', {
+        props: { day: dv.day },
+        oncePerDay: true,
+        onceSalt: String(dv.day),
+      }),
+    );
+  }, [homeAwake, dv?.day, dv?.text]);
 
   const applyReactStats = useCallback(
     (next: {
