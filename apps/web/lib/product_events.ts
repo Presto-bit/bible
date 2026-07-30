@@ -88,6 +88,7 @@ export function trackProductEvent(
   }
   const path = typeof location !== 'undefined' ? location.pathname : '';
   void postEvent(name, opts.props || {}, path);
+  void import('./pwa_first_open').then((m) => m.maybeEmitPwaValue(name));
 }
 
 /** 打开 App：每自然日一次 */

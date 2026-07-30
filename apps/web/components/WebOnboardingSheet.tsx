@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react';
 import { BRAND_NAME, BRAND_PWA_SUBTITLE } from '@/lib/brand';
 import { ONBOARDING_DONE_EVENT, ONBOARDING_SEEN_KEY } from '@/lib/onboarding';
+import { isStandalone } from '@/lib/pwa_platform';
+import { isPwaFirstOpenDone } from '@/lib/pwa_first_open';
 
 /** 首访欢迎：单步开始使用；设密改「我的」软催，安装改底栏横幅。 */
 export default function WebOnboardingSheet() {
@@ -11,6 +13,12 @@ export default function WebOnboardingSheet() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (localStorage.getItem(ONBOARDING_SEEN_KEY)) return;
+    // 主屏幕首启由 PwaFirstOpenGuide 接管，避免两套欢迎叠层
+    if (isStandalone() && !isPwaFirstOpenDone()) {
+      localStorage.setItem(ONBOARDING_SEEN_KEY, '1');
+      window.dispatchEvent(new Event(ONBOARDING_DONE_EVENT));
+      return;
+    }
     const t = window.setTimeout(() => setOpen(true), 600);
     return () => window.clearTimeout(t);
   }, []);

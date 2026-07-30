@@ -25,7 +25,7 @@ export function getReminder(): ReminderPref {
   }
 }
 
-export function setReminder(p: ReminderPref) {
+export function setReminder(p: ReminderPref, opts?: { source?: string }) {
   const prev = getReminder();
   localStorage.setItem(KEY, JSON.stringify(p));
   reschedule();
@@ -33,7 +33,11 @@ export function setReminder(p: ReminderPref) {
   if (p.enabled && !prev.enabled) {
     void import('./product_events').then((m) =>
       m.trackProductEvent('reminder_enable', {
-        props: { hour: p.hour, minute: p.minute },
+        props: {
+          hour: p.hour,
+          minute: p.minute,
+          ...(opts?.source ? { source: opts.source } : {}),
+        },
         oncePerDay: true,
       }),
     );

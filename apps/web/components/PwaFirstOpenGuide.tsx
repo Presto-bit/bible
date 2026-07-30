@@ -1,73 +1,139 @@
 'use client';
 
 /**
- * Standalone 首启：欢迎 → 开启读经提醒 → 软设密（均可跳过）。
- * 装完主屏幕后的注册/回访黄金链路。
+ * Standalone 首启黄金链路（内容优先）：
+ * 1) 恢复装前深链 / 留在首页今日
+ * 2) 等有效读经（或短兜底）后再问「读经提醒」
+ * 3) 开了提醒再软设密；均可跳过，不挡读经
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
-import { isOnboardingSeen, ONBOARDING_DONE_EVENT } from '@/lib/onboarding';
+import { BRAND_NAME } from '@/lib/brand';
+import { ONBOARDING_DONE_EVENT, ONBOARDING_SEEN_KEY } from '@/lib/onboarding';
 import { isStandalone } from '@/lib/pwa_platform';
 import {
   isPwaFirstOpenDone,
   markPwaFirstOpenDone,
+  markPwaFirstOpenWaiting,
+  PWA_FIRST_OPEN_FALLBACK_MS,
+  PWA_VALUE_EVENT,
 } from '@/lib/pwa_first_open';
-import { consumePostInstallPath } from '@/lib/wechat_escape';
+import { consumePostInstallPath, peekPostInstallPath } from '@/lib/wechat_escape';
 import { ensurePermission, getReminder, setReminder } from '@/lib/reminder';
 import { hasPassword } from '@/lib/api';
 import { reminderHeroSub, reminderHeroTitle } from '@/lib/beiai_habit_copy';
 import AccountSecurityCard from '@/components/AccountSecurityCard';
 import { clearSharePwaDismiss } from '@/lib/share_pwa_guide';
 
-type Step = 'welcome' | 'reminder' | 'account' | 'done';
+type Step = 'reminder' | 'account';
+
+function skipGenericOnboarding(): void {
+  try {
+    if (!localStorage.getItem(ONBOARDING_SEEN_KEY)) {
+      localStorage.setItem(ONBOARDING_SEEN_KEY, '1');
+      window.dispatchEvent(new Event(ONBOARDING_DONE_EVENT));
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function trackFirstOpen(props: Record<string, unknown>): void {
+  void import('@/lib/product_events').then((m) =>
+    m.trackProductEvent('app_open', {
+      props: { funnel: 'standalone_first_open', ...props },
+    }),
+  );
+}
 
 export default function PwaFirstOpenGuide() {
   const router = useRouter();
   const [step, setStep] = useState<Step | null>(null);
   const [busy, setBusy] = useState(false);
+  const started = useRef(false);
+  const sheetShown = useRef(false);
+
+  const finish = (outcome: string) => {
+    markPwaFirstOpenDone();
+    setStep(null);
+    trackFirstOpen({ step: 'done', outcome });
+    consumePostInstallPath();
+  };
+
+  const openHabitSheet = (reason: string) => {
+    if (sheetShown.current || isPwaFirstOpenDone()) return;
+    sheetShown.current = true;
+    clearSharePwaDismiss();
+
+    if (getReminder().enabled) {
+      if (hasPassword()) {
+        finish(`skip_habit_${reason}`);
+        return;
+      }
+      setStep('account');
+      trackFirstOpen({ step: 'account', reason });
+      return;
+    }
+
+    setStep('reminder');
+    trackFirstOpen({ step: 'reminder', reason });
+  };
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (!isStandalone() || isPwaFirstOpenDone()) return;
+    if (!isStandalone() || isPwaFirstOpenDone() || started.current) return;
+    started.current = true;
 
-    const maybeOpen = () => {
-      if (!isOnboardingSeen()) return;
-      clearSharePwaDismiss();
-      setStep('welcome');
-    };
+    skipGenericOnboarding();
+    clearSharePwaDismiss();
 
-    maybeOpen();
-    window.addEventListener(ONBOARDING_DONE_EVENT, maybeOpen);
-    return () => window.removeEventListener(ONBOARDING_DONE_EVENT, maybeOpen);
-  }, []);
+    const deepPeek = peekPostInstallPath();
+    trackFirstOpen({
+      step: 'land',
+      has_deep_link: Boolean(deepPeek),
+    });
 
-  const finish = () => {
-    markPwaFirstOpenDone();
-    setStep(null);
     const deep = consumePostInstallPath();
     if (deep && deep !== '/' && deep !== window.location.pathname + window.location.search) {
       router.push(deep);
     }
-  };
+
+    markPwaFirstOpenWaiting();
+
+    const onValue = () => openHabitSheet('value');
+    window.addEventListener(PWA_VALUE_EVENT, onValue);
+    const t = window.setTimeout(() => openHabitSheet('fallback'), PWA_FIRST_OPEN_FALLBACK_MS);
+
+    return () => {
+      window.removeEventListener(PWA_VALUE_EVENT, onValue);
+      window.clearTimeout(t);
+    };
+    // 仅 standalone 首启跑一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router]);
 
   const enableReminder = async () => {
     setBusy(true);
+    let granted = false;
     try {
-      const ok = await ensurePermission();
-      if (ok) {
+      granted = await ensurePermission();
+      if (granted) {
         const cur = getReminder();
-        setReminder({ ...cur, enabled: true });
+        setReminder({ ...cur, enabled: true }, { source: 'pwa_first_open' });
       }
     } finally {
       setBusy(false);
-      if (hasPassword()) finish();
-      else setStep('account');
+      if (hasPassword()) {
+        finish(granted ? 'reminder_on' : 'reminder_denied');
+      } else {
+        setStep('account');
+        trackFirstOpen({ step: 'account', reason: granted ? 'after_reminder' : 'after_denied' });
+      }
     }
   };
 
-  if (!step || step === 'done') return null;
+  if (!step) return null;
 
   return (
     <div className="sheet-backdrop pwa-first-open-backdrop" style={{ zIndex: 145 }}>
@@ -78,31 +144,15 @@ export default function PwaFirstOpenGuide() {
         aria-modal="true"
         aria-labelledby="pwa-first-open-title"
       >
-        {step === 'welcome' ? (
+        {step === 'reminder' ? (
           <>
             <p className="eyebrow">{BRAND_NAME}</p>
             <h2 id="pwa-first-open-title" style={{ marginTop: 4 }}>
-              已在主屏幕，下次一点就开
-            </h2>
-            <p className="muted" style={{ lineHeight: 1.65 }}>
-              {BRAND_TAGLINE}。先留一个轻提醒，读经会更容易回来。
-            </p>
-            <button type="button" className="btn btn-primary btn-block" onClick={() => setStep('reminder')}>
-              继续
-            </button>
-            <button type="button" className="text-link" style={{ marginTop: 10 }} onClick={finish}>
-              先去读经
-            </button>
-          </>
-        ) : null}
-
-        {step === 'reminder' ? (
-          <>
-            <h2 id="pwa-first-open-title" style={{ marginTop: 0 }}>
               {reminderHeroTitle(false)}
             </h2>
             <p className="muted" style={{ lineHeight: 1.65 }}>
               {reminderHeroSub(false)}
+              。留一个轻提醒，明天更容易从主屏幕回来。
             </p>
             <button
               type="button"
@@ -116,12 +166,9 @@ export default function PwaFirstOpenGuide() {
               type="button"
               className="text-link"
               style={{ marginTop: 10 }}
-              onClick={() => {
-                if (hasPassword()) finish();
-                else setStep('account');
-              }}
+              onClick={() => finish('reminder_skip')}
             >
-              稍后再说
+              先继续读经
             </button>
           </>
         ) : null}
@@ -134,9 +181,14 @@ export default function PwaFirstOpenGuide() {
             <p className="muted" style={{ lineHeight: 1.55, marginBottom: 8 }}>
               不设也能用。删掉主屏幕重装时，有密码更安心。
             </p>
-            <AccountSecurityCard onComplete={finish} />
-            <button type="button" className="text-link" style={{ marginTop: 4 }} onClick={finish}>
-              跳过，开始读经
+            <AccountSecurityCard onComplete={() => finish('password_set')} />
+            <button
+              type="button"
+              className="text-link"
+              style={{ marginTop: 4 }}
+              onClick={() => finish('password_skip')}
+            >
+              跳过，继续读经
             </button>
           </>
         ) : null}
