@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { BRAND_FULL, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { analysisShareSiteOrigin } from '@/lib/analysis_share';
 import { shareOgImageUrl } from '@/lib/share_og';
+import { withShareInstallHint } from '@/lib/share_site';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 import { CampaignShareClient } from './share_client';
 
@@ -24,23 +25,24 @@ export async function generateMetadata({
   const day = Number(first(sp.day)) || 12;
   const origin = analysisShareSiteOrigin();
   const og = shareOgImageUrl(day);
+  const description = withShareInstallHint(body.slice(0, 90));
 
   return {
     title: `${title}｜${BRAND_NAME}`,
-    description: body.slice(0, 120),
+    description,
     metadataBase: new URL(origin),
     openGraph: {
       type: 'website',
       locale: 'zh_CN',
       siteName: BRAND_FULL,
       title,
-      description: body.slice(0, 120),
+      description,
       images: [{ url: og.url, width: og.width, height: og.height, alt: BRAND_NAME }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
-      description: body.slice(0, 120),
+      description,
       images: [og.url],
     },
   };

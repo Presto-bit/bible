@@ -3,6 +3,7 @@ import { BRAND_FULL, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { analysisShareSiteOrigin } from '@/lib/analysis_share';
 import { PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
 import { shareOgImageUrl } from '@/lib/share_og';
+import { withShareInstallHint } from '@/lib/share_site';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 import { DailyVerseShareClient } from './share_client';
 
@@ -44,8 +45,9 @@ export async function generateMetadata({
   const day = Number.isFinite(dayRaw) && dayRaw > 0 ? dayRaw : undefined;
   const verse = await fetchVerseMeta(day);
   const title = `${verse.ref}｜${BRAND_NAME}每日经文`;
-  const description =
-    verse.text.slice(0, 120) || `${BRAND_TAGLINE}。${PWA_MANIFEST_DESCRIPTION}`;
+  const description = withShareInstallHint(
+    verse.text.slice(0, 100) || `${BRAND_TAGLINE}。${PWA_MANIFEST_DESCRIPTION}`,
+  );
   const origin = analysisShareSiteOrigin();
   const og = shareOgImageUrl(day);
 

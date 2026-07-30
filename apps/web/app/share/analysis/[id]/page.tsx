@@ -3,6 +3,7 @@ import { BRAND_FULL, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { analysisShareSiteOrigin } from '@/lib/analysis_share';
 import { PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
 import { shareOgImageUrl } from '@/lib/share_og';
+import { withShareInstallHint } from '@/lib/share_site';
 import { AnalysisShareClient } from '../share_client';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 import type { Citation } from '@/lib/api';
@@ -57,7 +58,7 @@ export async function generateMetadata({
   const refLabel = snap?.ref_label || '小爱的解读';
   const lead = snap?.lead || PWA_MANIFEST_DESCRIPTION;
   const title = ogTitle(refLabel, lead);
-  const description = lead.slice(0, 120) || PWA_MANIFEST_DESCRIPTION;
+  const description = withShareInstallHint(lead.slice(0, 90) || PWA_MANIFEST_DESCRIPTION);
   const origin = analysisShareSiteOrigin();
   const og = shareOgImageUrl(3);
 

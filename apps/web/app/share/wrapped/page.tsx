@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { BRAND_FULL, BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { analysisShareSiteOrigin } from '@/lib/analysis_share';
 import { shareOgImageUrl } from '@/lib/share_og';
+import { withShareInstallHint } from '@/lib/share_site';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 import { WrappedShareClient } from './share_client';
 
@@ -21,26 +22,28 @@ export async function generateMetadata({
   const label = first(sp.label).trim() || '读经回顾';
   const highlight = first(sp.h).trim() || `我在${BRAND_NAME}的读经足迹`;
   const stats = first(sp.s).trim();
-  const description = [highlight, stats].filter(Boolean).join(' · ').slice(0, 120);
+  const description = withShareInstallHint(
+    [highlight, stats].filter(Boolean).join(' · ').slice(0, 90) || BRAND_TAGLINE,
+  );
   const origin = analysisShareSiteOrigin();
   const og = shareOgImageUrl(18);
 
   return {
     title: `${label}｜${BRAND_NAME}`,
-    description: description || BRAND_TAGLINE,
+    description,
     metadataBase: new URL(origin),
     openGraph: {
       type: 'website',
       locale: 'zh_CN',
       siteName: BRAND_FULL,
       title: `${label} · ${highlight}`.slice(0, 40),
-      description: description || BRAND_TAGLINE,
+      description,
       images: [{ url: og.url, width: og.width, height: og.height, alt: BRAND_NAME }],
     },
     twitter: {
       card: 'summary_large_image',
       title: label,
-      description: description || BRAND_TAGLINE,
+      description,
       images: [og.url],
     },
   };

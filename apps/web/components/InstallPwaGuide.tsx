@@ -141,6 +141,12 @@ export function InstallPwaSheet({
       clearDeferredInstallPrompt();
       if (choice.outcome === 'accepted') {
         toast('已保存到桌面 App');
+        try {
+          const { clearSharePwaDismiss } = await import('@/lib/share_pwa_guide');
+          clearSharePwaDismiss();
+        } catch {
+          /* ignore */
+        }
         dismissForever();
       }
     } finally {
@@ -203,6 +209,12 @@ export function InstallPwaSheet({
                 await deferred.userChoice;
                 setDeferred(null);
                 clearDeferredInstallPrompt();
+                try {
+                  const { clearSharePwaDismiss } = await import('@/lib/share_pwa_guide');
+                  clearSharePwaDismiss();
+                } catch {
+                  /* ignore */
+                }
                 dismissForever();
               } finally {
                 setBusy(false);

@@ -4,6 +4,7 @@ import { buildTrackedUrl } from './acquisition';
 import { extractSummaryLead } from './assistant_markdown';
 import { BRAND_NAME, BRAND_TAGLINE } from './brand';
 import type { ShareCardInput } from './share_card';
+import { canonicalShareOrigin } from './share_site';
 import { isUserCode } from './user_code';
 
 export type WeChatShareTarget = 'wechat_friend' | 'wechat_moments' | 'wechat_group';
@@ -47,7 +48,6 @@ const INSIGHT_MAX = 80;
 const LEAD_MAX = 120;
 const MORE_MAX = 160;
 const TITLE_MAX = 28;
-const SITE = 'https://2sc.prestoai.cn';
 const SHARE_CTA = '打开后保存到主屏幕，继续问小爱';
 
 function stripMd(text: string): string {
@@ -151,7 +151,7 @@ export function analysisSharePath(opts: {
   if (opts.snapshotId?.trim()) {
     return `/share/analysis/${encodeURIComponent(opts.snapshotId.trim())}`;
   }
-  const u = new URL('/share/analysis', SITE);
+  const u = new URL('/share/analysis', canonicalShareOrigin());
   u.searchParams.set('ref', opts.refLabel.slice(0, 64));
   u.searchParams.set('lead', opts.lead.slice(0, LEAD_MAX));
   if (opts.more?.trim()) u.searchParams.set('more', opts.more.trim().slice(0, MORE_MAX));
@@ -228,10 +228,7 @@ export function parseAnalysisShareParams(search: {
 }
 
 export function analysisShareSiteOrigin(): string {
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return window.location.origin;
-  }
-  return process.env.NEXT_PUBLIC_SITE_URL || SITE;
+  return canonicalShareOrigin();
 }
 
 export { LEAD_MAX, MORE_MAX, INSIGHT_MAX };

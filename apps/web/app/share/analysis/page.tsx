@@ -6,6 +6,7 @@ import {
 } from '@/lib/analysis_share';
 import { PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
 import { shareOgImageUrl } from '@/lib/share_og';
+import { withShareInstallHint } from '@/lib/share_site';
 import { AnalysisShareClient } from './share_client';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 
@@ -42,7 +43,7 @@ export async function generateMetadata({
   const sp = await searchParams;
   const { refLabel, lead } = parseAnalysisShareParams(paramBag(sp));
   const title = ogTitle(refLabel, lead);
-  const description = lead.slice(0, 120) || PWA_MANIFEST_DESCRIPTION;
+  const description = withShareInstallHint(lead.slice(0, 90) || PWA_MANIFEST_DESCRIPTION);
   const origin = analysisShareSiteOrigin();
   const og = shareOgImageUrl(3);
 

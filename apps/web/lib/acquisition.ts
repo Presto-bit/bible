@@ -2,6 +2,7 @@
 
 import { API_BASE, authHeaders, effectiveId } from './api';
 import { getDeviceId } from './device_id';
+import { canonicalShareOrigin } from './share_site';
 
 const PENDING_KEY = 'presto_acq_pending';
 const BOUND_KEY = 'presto_acq_bound';
@@ -311,38 +312,65 @@ export async function bindPendingAcquisition(): Promise<boolean> {
   return false;
 }
 
-/** 生成带 ch1/ch2/ch3 的追踪链接 */
+/** 生成带 ch1/ch2/ch3 的追踪链接（绝对地址默认走 canonical 域名） */
 export function buildTrackedUrl(
   pathOrUrl: string,
-  opts: { l1: ChannelL1; l2: string; l3?: string; absolute?: boolean },
+  opts: {
+    l1: ChannelL1;
+    l2: string;
+    l3?: string;
+    absolute?: boolean;
+    /** 默认 true：出站统一 2sc，避免 PWA origin 碎片 */
+    canonical?: boolean;
+  },
 ): string {
-  const absolute = opts.absolute !== false && typeof window !== 'undefined';
+  const wantAbsolute = opts.absolute !== false;
+  const useCanonical = opts.canonical !== false;
   let u: URL;
   try {
-    u = absolute
-      ? new URL(pathOrUrl, window.location.origin)
-      : new URL(pathOrUrl, 'https://local.invalid');
+    if (wantAbsolute) {
+      const base =
+        useCanonical || typeof window === 'undefined'
+          ? canonicalShareOrigin()
+          : window.location.origin;
+      u = new URL(pathOrUrl, base.endsWith('/') ? base : `${base}/`);
+      if (useCanonical) {
+        const canon = new URL(canonicalShareOrigin());
+        u.protocol = canon.protocol;
+        u.host = canon.host;
+      }
+    } else {
+      u = new URL(pathOrUrl, 'https://local.invalid');
+    }
   } catch {
     return pathOrUrl;
   }
   u.searchParams.set('ch1', opts.l1);
   u.searchParams.set('ch2', slug(opts.l2, 64) || 'direct');
   if (opts.l3) u.searchParams.set('ch3', slug(opts.l3, 128));
-  if (!absolute) {
+  if (!wantAbsolute) {
     return `${u.pathname}${u.search}${u.hash}`;
   }
   return u.toString();
 }
 
 export function dailyVerseShareUrl(day: number, sharerUserCode?: string): string {
+  const d = Number.isFinite(day) && day > 0 ? Math.floor(day) : 1;
   const l3 = sharerUserCode
-    ? `dv:${day}.u:${slug(sharerUserCode, 32)}`
-    : `dv:${day}`;
-  return buildTrackedUrl('/', {
+    ? `dv:${d}.u:${slug(sharerUserCode, 32)}`
+    : `dv:${d}`;
+  const url = buildTrackedUrl('/share/daily-verse', {
     l1: 'share',
-    l2: 'system_share',
+    l2: 'daily_verse',
     l3,
   });
+  try {
+    const u = new URL(url);
+    u.searchParams.set('day', String(d));
+    return u.toString();
+  } catch {
+    return url;
+  }
 }
 
 export function groupJoinTrackedUrl(joinCode: string, groupId?: string): string {

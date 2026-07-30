@@ -23410,6 +23410,21 @@ body.share-landing-active .tabbar {
   display: none !important;
 }
 
+.pwa-first-open-sheet {
+  max-width: 420px;
+  margin: 0 auto;
+  padding-bottom: 18px;
+}
+
+.pwa-first-open-sheet .btn-block {
+  width: 100%;
+}
+
+.pwa-first-open-sheet .account-security-card {
+  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--ink, #2c2416) 10%, transparent);
+}
+
 /* —— 产品邀请落地 / 轻触达 —— */
 .invite-app-page {
   padding-top: 28px;

@@ -395,7 +395,7 @@ export async function shareCampaignLink(opts: {
     title: opts.title,
     body,
   });
-  const shareText = `${opts.title}\n${body}`;
+  const shareText = `${opts.title}\n${body}\n打开后保存到主屏幕，一起参加`;
   const result = await shareCardOutbound({
     title: opts.title,
     subtitle: '群活动',

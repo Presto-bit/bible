@@ -9,11 +9,12 @@ import {
 import { analysisShareSiteOrigin } from '@/lib/analysis_share';
 import { PWA_MANIFEST_DESCRIPTION } from '@/lib/pwa_brand';
 import { shareOgImageUrl } from '@/lib/share_og';
+import { withShareInstallHint } from '@/lib/share_site';
 import { SharePwaGuide } from '@/components/SharePwaGuide';
 import { InviteAppClient } from './invite_client';
 
 const TITLE = INVITE_SHARE_TITLE;
-const DESCRIPTION = `${INVITE_LANDING_SUPPORT}。${BRAND_TAGLINE}`;
+const DESCRIPTION = withShareInstallHint(`${INVITE_LANDING_SUPPORT}。${BRAND_TAGLINE}`);
 
 export async function generateMetadata(): Promise<Metadata> {
   const origin = analysisShareSiteOrigin();

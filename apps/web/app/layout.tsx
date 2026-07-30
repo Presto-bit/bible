@@ -16,6 +16,8 @@ import WebOnboardingSheet from '@/components/WebOnboardingSheet';
 import ExternalBrowserSheet from '@/components/ExternalBrowserSheet';
 import BottomTabs from '@/components/BottomTabs';
 import TabKeepAlive from '@/components/shell/TabKeepAlive';
+import ShareFunnelBootstrap from '@/components/ShareFunnelBootstrap';
+import PwaFirstOpenGuide from '@/components/PwaFirstOpenGuide';
 
 import { BASE_PATH } from '@/lib/basePath';
 import { BRAND_FULL } from '@/lib/brand';
@@ -119,6 +121,8 @@ export default function RootLayout({
               <InstallBanner />
               <InviteFriendNudge />
               <WebOnboardingSheet />
+              <PwaFirstOpenGuide />
+              <ShareFunnelBootstrap />
               <ExternalBrowserSheet />
             </IdentityShell>
           </PasswordSheetProvider>

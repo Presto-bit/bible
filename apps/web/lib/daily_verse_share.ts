@@ -1,6 +1,7 @@
 /** 每日经文分享：文字+链 + 经文卡图（贴近首页 Hero 卡） */
-import { analysisShareSiteOrigin } from './analysis_share';
-import { clientWithBasePath, withBasePath } from './basePath';
+import { dailyVerseShareUrl as trackedDailyVerseUrl } from './acquisition';
+import { effectiveId } from './api';
+import { clientWithBasePath } from './basePath';
 import { BRAND_NAME, BRAND_TAGLINE } from './brand';
 import { formatDailyVerseQuote } from './daily_verse_display';
 import { dailyVerseWallpaperUrl } from './daily_verse_wallpaper';
@@ -33,18 +34,11 @@ export function buildDailyVerseShareText(input: DailyVerseShareInput): string {
   return lines.join('\n');
 }
 
-/** 分享落地页：展示经文 + 提醒安装到桌面 */
-export function dailyVerseShareUrl(day?: number): string {
-  const origin = analysisShareSiteOrigin();
-  const path =
-    typeof window === 'undefined'
-      ? withBasePath('/share/daily-verse')
-      : clientWithBasePath('/share/daily-verse');
-  const u = new URL(path, origin.endsWith('/') ? origin : `${origin}/`);
-  if (day != null && Number.isFinite(day)) u.searchParams.set('day', String(day));
-  u.searchParams.set('ch1', 'share');
-  u.searchParams.set('ch2', 'daily_verse');
-  return u.toString();
+/** 分享落地页：canonical 域名 + ch 归因（含分享者） */
+export function dailyVerseShareUrl(day?: number, sharerUserCode?: string | null): string {
+  const code = ((sharerUserCode ?? effectiveId()) || '').trim() || undefined;
+  const d = day != null && Number.isFinite(day) && day > 0 ? Math.floor(day) : 1;
+  return trackedDailyVerseUrl(d, code);
 }
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {

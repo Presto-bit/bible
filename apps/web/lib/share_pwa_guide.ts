@@ -19,6 +19,16 @@ export function dismissSharePwaGuide(): void {
   localStorage.setItem(SHARE_PWA_DISMISS_KEY, String(Date.now()));
 }
 
+/** 安装成功后清掉分享引导冷却，避免已装用户再被挡 */
+export function clearSharePwaDismiss(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(SHARE_PWA_DISMISS_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** 当前是否在分享落地路径（用于隐藏全站 InstallBanner / 底栏） */
 export function isShareLandingPath(pathname: string | null | undefined): boolean {
   const p = (pathname || '').split('?')[0] || '';
