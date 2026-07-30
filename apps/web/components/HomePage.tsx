@@ -37,6 +37,7 @@ import {
 import { HomeTodayPanel } from '@/components/home/HomeTodayPanel';
 import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
 import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
+import { homeGreeting } from '@/lib/home_greeting';
 import { buildHomeGroupRailInput } from '@/lib/home_social_line';
 import {
   buildHomeAnchorBlock,
@@ -75,19 +76,6 @@ import {
   usePrefersReducedMotion,
 } from '@/lib/use_home_pull_refresh';
 import { hapticLight, hapticSuccess } from '@/lib/haptic';
-
-/** 与 Mobile 首页一致的时段问候（更细分） */
-function timeOfDayGreeting(date = new Date()): string {
-  const hour = date.getHours();
-  if (hour < 5) return '夜深了';
-  if (hour < 8) return '清晨好';
-  if (hour < 11) return '上午好';
-  if (hour < 13) return '中午好';
-  if (hour < 17) return '下午好';
-  if (hour < 19) return '傍晚好';
-  if (hour < 23) return '晚上好';
-  return '夜深了';
-}
 
 export default function HomePageClient({ paneActive = true }: { paneActive?: boolean }) {
   const [dv, setDv] = useState<DailyVerse | null>(() => readCachedDailyVerse());
@@ -775,7 +763,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       </div>
       <div ref={ptrContentRef} className="home-ptr-content">
       <header className="greet home-greet-header">
-        <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
+        <HomeGreetStreak greeting={homeGreeting()} userName={userName} />
         <div className="greet-actions">
           <button
             type="button"
