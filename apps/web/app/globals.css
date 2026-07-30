@@ -4483,17 +4483,6 @@ a.today-card-link {
   overflow: hidden;
 }
 
-.profile-page .profile-companion-card::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 14px;
-  bottom: 14px;
-  width: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent, #07c160) 72%, transparent);
-}
-
 .profile-page .profile-companion-card:active {
   transform: scale(0.985);
   opacity: 0.92;
@@ -4515,7 +4504,6 @@ a.today-card-link {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-left: 6px;
 }
 
 .profile-page .profile-companion-title {
@@ -4736,16 +4724,18 @@ a.today-card-link {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted, #6b6b6b);
   font-weight: 500;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .profile-page .profile-footprint-kind-row {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
 }
 
@@ -4753,15 +4743,16 @@ a.today-card-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--surface) 72%, transparent);
   flex-shrink: 0;
 }
 
 .profile-page .profile-footprint-kind {
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 700;
   letter-spacing: 0.02em;
   color: var(--ink-soft, #555);
 }
@@ -4778,6 +4769,12 @@ a.today-card-link {
   justify-content: space-between;
   gap: 8px;
   min-height: 2.7em;
+}
+
+.profile-page .profile-footprint-body.is-adorn-only {
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 40px;
 }
 
 .profile-page .profile-footprint-value {
@@ -4806,25 +4803,43 @@ a.today-card-link {
   justify-content: center;
 }
 
+.profile-page .profile-footprint-badge-stack {
+  display: inline-flex;
+  align-items: center;
+  flex-direction: row-reverse;
+}
+
 .profile-page .profile-footprint-badge-thumb {
-  width: 36px;
-  height: 36px;
-  border-radius: 18px;
-  font-size: 18px;
+  width: 34px;
+  height: 34px;
+  border-radius: 17px;
+  font-size: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.profile-page .profile-footprint-badge-stack .profile-footprint-badge-thumb + .profile-footprint-badge-thumb {
+  margin-right: -10px;
 }
 
 .profile-page .profile-footprint-badge-thumb.is-empty {
   background: color-mix(in srgb, var(--ink-faint) 12%, var(--surface));
   color: var(--muted, #888);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-faint) 22%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--ink-faint) 22%, transparent),
+    0 0 0 2px var(--surface);
 }
 
-.profile-page .profile-footprint-mini-ring {
+.profile-page .profile-footprint-trigger.is-journey {
+  position: relative;
+}
+
+.profile-page .profile-footprint-corner-ring {
   --pct: 0;
+  flex-shrink: 0;
   width: 36px;
   height: 36px;
   border-radius: 50%;
@@ -4841,78 +4856,191 @@ a.today-card-link {
     );
 }
 
-.profile-page .profile-shortcut-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+.profile-page .profile-footprint-trigger.is-journey .profile-footprint-body {
+  align-items: flex-start;
+  min-height: 2.2em;
+  padding-right: 2px;
+}
+
+.profile-page .profile-shortcut-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   margin: 0 0 4px;
 }
 
-.profile-page .profile-shortcut {
+.profile-page .profile-shortcut-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 4px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ink-faint) 10%, var(--surface));
+  border: var(--soft-card-edge);
+}
+
+.profile-page .profile-shortcut-tab {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  gap: 8px;
-  min-height: 72px;
+  gap: 4px;
+  min-height: 56px;
   margin: 0;
-  padding: 12px;
-  border: var(--soft-card-edge);
-  border-radius: 16px;
-  background: var(--surface);
-  box-shadow: none;
-  text-decoration: none;
-  color: inherit;
+  padding: 8px 6px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink-soft, #555);
   font: inherit;
-  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.profile-page .profile-shortcut-tab.is-active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.profile-page .profile-shortcut-tab-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+}
+
+.profile-page .profile-shortcut-tab.tone-challenge .profile-shortcut-tab-glyph {
+  color: color-mix(in srgb, var(--accent, #07c160) 78%, var(--ink));
+}
+
+.profile-page .profile-shortcut-tab.tone-remind .profile-shortcut-tab-glyph {
+  color: color-mix(in srgb, #5a7a9a 78%, var(--ink));
+}
+
+.profile-page .profile-shortcut-tab.tone-offline .profile-shortcut-tab-glyph {
+  color: color-mix(in srgb, #666 70%, var(--ink));
+}
+
+.profile-page .profile-shortcut-tab strong {
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.profile-page .profile-shortcut-tab:active {
+  opacity: 0.88;
+}
+
+.profile-page .profile-shortcut-panel {
+  margin: 0;
+  padding: 16px 16px 14px;
+  border: var(--soft-card-edge);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--home-shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-page .profile-shortcut-panel.tone-challenge {
+  background: color-mix(in srgb, var(--accent, #07c160) 6%, var(--surface));
+}
+
+.profile-page .profile-shortcut-panel.tone-remind {
+  background: color-mix(in srgb, #6b8cae 7%, var(--surface));
+}
+
+.profile-page .profile-shortcut-panel.tone-offline {
+  background: color-mix(in srgb, #8a8a8a 7%, var(--surface));
+}
+
+.profile-page .profile-shortcut-panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.profile-page .profile-shortcut-panel-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.profile-page .profile-shortcut-panel-sub {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink-soft, #666);
+}
+
+.profile-page .profile-shortcut-panel-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted, #888);
+}
+
+.profile-page .profile-shortcut-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.profile-page .profile-shortcut-slot {
+  margin: 0;
+  padding: 7px 12px;
+  border: 1px solid color-mix(in srgb, var(--ink-faint) 35%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  color: var(--ink-soft, #555);
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
 }
 
-.profile-page .profile-shortcut.tone-challenge {
-  background: color-mix(in srgb, var(--accent, #07c160) 7%, var(--surface));
+.profile-page .profile-shortcut-slot.is-active {
+  border-color: color-mix(in srgb, #6b8cae 55%, transparent);
+  background: color-mix(in srgb, #6b8cae 14%, var(--surface));
+  color: var(--ink);
 }
 
-.profile-page .profile-shortcut.tone-remind {
-  background: color-mix(in srgb, #6b8cae 8%, var(--surface));
-}
-
-.profile-page .profile-shortcut.tone-offline {
-  background: color-mix(in srgb, #8a8a8a 8%, var(--surface));
-}
-
-.profile-page .profile-shortcut-glyph {
-  display: inline-flex;
+.profile-page .profile-shortcut-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  color: var(--ink-soft, #555);
+  gap: 10px 14px;
 }
 
-.profile-page .profile-shortcut.tone-challenge .profile-shortcut-glyph {
-  color: color-mix(in srgb, var(--accent, #07c160) 78%, var(--ink));
+.profile-page .profile-shortcut-panel-actions .btn {
+  min-height: 40px;
+  padding: 0 16px;
+  font-size: 14px;
 }
 
-.profile-page .profile-shortcut.tone-remind .profile-shortcut-glyph {
-  color: color-mix(in srgb, #5a7a9a 78%, var(--ink));
-}
-
-.profile-page .profile-shortcut.tone-offline .profile-shortcut-glyph {
-  color: color-mix(in srgb, #666 70%, var(--ink));
-}
-
-.profile-page .profile-shortcut strong {
+.profile-page .profile-shortcut-panel-actions .text-link {
   font-size: 13px;
-  font-weight: 650;
-  line-height: 1.25;
+  font-weight: 600;
 }
 
-.profile-page .profile-shortcut:active {
-  opacity: 0.88;
+.profile-challenge-play-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: var(--bg, #f7f7f5);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .profile-page .profile-streak-title {
@@ -5014,12 +5142,8 @@ body.pwa-standalone .profile-page .profile-badge-card,
 body.pwa-standalone .profile-page .profile-soft-row.card,
 body.pwa-standalone .profile-page .profile-companion-card,
 body.pwa-standalone .profile-page .profile-footprint-cell,
-body.pwa-standalone .profile-page .profile-shortcut {
+body.pwa-standalone .profile-page .profile-shortcut-panel {
   box-shadow: var(--home-shadow);
-}
-
-body.pwa-standalone .profile-page .profile-shortcut {
-  box-shadow: none;
 }
 
 .profile-page .profile-review-link {

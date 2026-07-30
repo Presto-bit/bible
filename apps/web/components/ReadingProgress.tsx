@@ -120,7 +120,7 @@ export default function ReadingProgress({
       {variant === 'footprint' ? (
         <button
           type="button"
-          className="profile-footprint-trigger"
+          className="profile-footprint-trigger is-journey"
           onClick={() => {
             setRev((r) => r + 1);
             setOpen(true);
@@ -137,20 +137,19 @@ export default function ReadingProgress({
               </span>
               <span className="profile-footprint-kind">旅程</span>
             </span>
+            <span
+              className="profile-footprint-corner-ring"
+              style={{ ['--pct' as string]: overallPct }}
+              aria-hidden
+            >
+              {overallPct}%
+            </span>
           </span>
           <span className="profile-footprint-body">
             <strong className={`profile-footprint-value${overallPct > 0 || summary ? '' : ' is-empty'}`}>
               {summary
                 || (overallPct > 0 ? `通读 ${overallPct}%` : '开始一段旅程')}
             </strong>
-            <span className="profile-footprint-adorn" aria-hidden>
-              <span
-                className="profile-footprint-mini-ring"
-                style={{ ['--pct' as string]: overallPct }}
-              >
-                {overallPct}%
-              </span>
-            </span>
           </span>
         </button>
       ) : (

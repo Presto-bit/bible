@@ -26,11 +26,27 @@ import AccountSettingsSection from '@/components/AccountSettingsSection';
 import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
+import ChallengeFlipPlay from '@/components/ChallengeFlipPlay';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { todayMinutes, dailyMinutes, bookProgressMap } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
 import type { BadgeDef } from '@/lib/badges';
 import { computeBadgesWithUnlock, profilePreviewBadges } from '@/lib/badge_unlock';
+import {
+  answerStats,
+  dailyQuizDone,
+  dailyQuizQuestions,
+  markDailyQuizDone,
+  recordAnswer,
+} from '@/lib/daily_quiz';
+import {
+  ensurePermission,
+  getReminder,
+  setReminder,
+  type ReminderPref,
+} from '@/lib/reminder';
+import { checkPushReadiness, pushReadinessHint } from '@/lib/push_status';
+import { isAutoBiblePackReady } from '@/lib/offline_pack';
 import { listAllThoughts } from '@/lib/reader_thoughts';
 import { highlightCount } from '@/lib/reader_highlights';
 import { listMarksDetailed } from '@/lib/mark_stats';
@@ -79,6 +95,30 @@ import { userLsGet, userLsSet } from '@/lib/user_storage';
 
 const AVATAR_KEY = 'profile_avatar';
 const BIO_KEY = 'profile_bio';
+const SHORTCUT_KEY = 'presto_profile_shortcut';
+
+type ShortcutTone = 'challenge' | 'remind' | 'offline';
+
+const REMIND_SLOTS = [
+  { key: 'morning', label: '晨读', hour: 7, minute: 0 },
+  { key: 'noon', label: '午间', hour: 12, minute: 30 },
+  { key: 'evening', label: '晚读', hour: 21, minute: 0 },
+] as const;
+
+function readStoredShortcut(): ShortcutTone {
+  if (typeof window === 'undefined') return 'challenge';
+  try {
+    const v = sessionStorage.getItem(SHORTCUT_KEY);
+    if (v === 'challenge' || v === 'remind' || v === 'offline') return v;
+  } catch {
+    /* ignore */
+  }
+  return 'challenge';
+}
+
+function formatRemindTime(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
 
 function ymdLocal(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
@@ -104,7 +144,6 @@ function clipPreview(text: string, max = 28): string {
 }
 
 type FootprintTone = 'thought' | 'mark' | 'badge' | 'journey';
-type ShortcutTone = 'challenge' | 'remind' | 'offline';
 
 function ProfileGlyph({
   name,
@@ -190,6 +229,7 @@ function FootprintCell({
   empty,
   isNew,
   adornment,
+  hideValue,
   onOpen,
   onShare,
 }: {
@@ -200,6 +240,7 @@ function FootprintCell({
   empty?: boolean;
   isNew?: boolean;
   adornment?: ReactNode;
+  hideValue?: boolean;
   onOpen: () => void;
   onShare?: () => void;
 }) {
@@ -269,7 +310,7 @@ function FootprintCell({
       <span className="profile-footprint-label">
         <span className="profile-footprint-kind-row">
           <span className="profile-footprint-glyph" aria-hidden>
-            <ProfileGlyph name={tone} size={16} />
+            <ProfileGlyph name={tone} size={17} />
           </span>
           <span className="profile-footprint-kind">{kind}</span>
         </span>
@@ -277,8 +318,10 @@ function FootprintCell({
           <span className="profile-footprint-count">{count}</span>
         ) : null}
       </span>
-      <span className="profile-footprint-body">
-        <strong className={`profile-footprint-value${empty ? ' is-empty' : ''}`}>{value}</strong>
+      <span className={`profile-footprint-body${hideValue ? ' is-adorn-only' : ''}`}>
+        {hideValue ? null : (
+          <strong className={`profile-footprint-value${empty ? ' is-empty' : ''}`}>{value}</strong>
+        )}
         {adornment ? <span className="profile-footprint-adorn">{adornment}</span> : null}
       </span>
     </button>
@@ -373,9 +416,28 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [thoughtPreview, setThoughtPreview] = useState('');
   const [markCount, setMarkCount] = useState(0);
   const [markPreview, setMarkPreview] = useState('');
-  const [badgePreview, setBadgePreview] = useState('');
-  const [badgePreviewIcon, setBadgePreviewIcon] = useState('');
+  const [badgePreviewIcons, setBadgePreviewIcons] = useState<string[]>([]);
   const [badgeDoneCount, setBadgeDoneCount] = useState(0);
+  const [shortcut, setShortcut] = useState<ShortcutTone>('challenge');
+  const [dailyDone, setDailyDone] = useState(false);
+  const [quizStats, setQuizStats] = useState(() => ({
+    correct: 0,
+    wrong: 0,
+    total: 0,
+    accuracyPct: 0,
+  }));
+  const [challengePlay, setChallengePlay] = useState(false);
+  const [dailyQuestions, setDailyQuestions] = useState<ReturnType<typeof dailyQuizQuestions> | null>(
+    null,
+  );
+  const [reminderPref, setReminderPref] = useState<ReminderPref>({
+    enabled: false,
+    hour: 8,
+    minute: 0,
+  });
+  const [remindBusy, setRemindBusy] = useState(false);
+  const [pushHint, setPushHint] = useState('');
+  const [offlineReady, setOfflineReady] = useState(false);
   const [footprintSeen, setFootprintSeen] = useState<FootprintSeen>({
     thoughts: 0,
     marks: 0,
@@ -445,12 +507,31 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     const refreshHint = () => {
       if (!isOfflineDownloadActive()) {
         setDownloadHint(null);
-        return;
+      } else {
+        setDownloadHint(offlineDownloadLabel(getOfflineDownloadSnapshot()));
       }
-      setDownloadHint(offlineDownloadLabel(getOfflineDownloadSnapshot()));
+      void isAutoBiblePackReady().then(setOfflineReady).catch(() => setOfflineReady(false));
     };
     refreshHint();
     return subscribeOfflineDownload(refreshHint);
+  }, [profileAwake]);
+
+  useEffect(() => {
+    setShortcut(readStoredShortcut());
+  }, []);
+
+  useEffect(() => {
+    if (!profileAwake) return;
+    const refreshShortcutData = () => {
+      setDailyDone(dailyQuizDone());
+      setQuizStats(answerStats());
+      setReminderPref(getReminder());
+    };
+    refreshShortcutData();
+    void checkPushReadiness().then((r) => {
+      setPushHint(r.ok ? '' : pushReadinessHint(r));
+    });
+    return subscribeLocalDataChanged(refreshShortcutData);
   }, [profileAwake]);
 
   useEffect(() => {
@@ -458,12 +539,16 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       if (activeTab !== 'profile') {
         setSettingsOpen(false);
         setBadgeOpen(false);
+        setChallengePlay(false);
+        setDailyQuestions(null);
       }
       return;
     }
     if (normalizeAppPath(pathname) !== '/profile') {
       setSettingsOpen(false);
       setBadgeOpen(false);
+      setChallengePlay(false);
+      setDailyQuestions(null);
     }
   }, [enabled, activeTab, pathname]);
 
@@ -527,9 +612,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       const list = await computeBadgesWithUnlock();
       if (cancelled) return;
       setBadges(list);
-      const latest = profilePreviewBadges(list, 1)[0];
-      setBadgePreview(latest?.label || '');
-      setBadgePreviewIcon(latest?.icon || '');
+      const preview = profilePreviewBadges(list, 3);
+      setBadgePreviewIcons(preview.map((b) => b.icon).filter(Boolean));
       setBadgeDoneCount(list.filter((b) => b.done).length);
     };
     void loadBadges();
@@ -597,9 +681,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       refreshFootprintLocal(bookNamesRef.current);
       void computeBadgesWithUnlock().then((list) => {
         setBadges(list);
-        const latest = profilePreviewBadges(list, 1)[0];
-        setBadgePreview(latest?.label || '');
-        setBadgePreviewIcon(latest?.icon || '');
+        const preview = profilePreviewBadges(list, 3);
+        setBadgePreviewIcons(preview.map((b) => b.icon).filter(Boolean));
         setBadgeDoneCount(list.filter((b) => b.done).length);
       });
       setFootprintSeen(readFootprintSeen());
@@ -830,6 +913,72 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     markFootprintSeen('badges', badgeDoneCount);
     setFootprintSeen(readFootprintSeen());
     setBadgeOpen(true);
+  };
+
+  const selectShortcut = (next: ShortcutTone) => {
+    setShortcut(next);
+    try {
+      sessionStorage.setItem(SHORTCUT_KEY, next);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const startDailyQuiz = () => {
+    if (dailyDone) {
+      markRouteNavigation();
+      router.push('/challenge');
+      return;
+    }
+    setDailyQuestions(dailyQuizQuestions(5));
+    setChallengePlay(true);
+  };
+
+  const finishDailyQuiz = (correct: number, total: number) => {
+    markDailyQuizDone();
+    setDailyDone(true);
+    setQuizStats(answerStats());
+    setChallengePlay(false);
+    setDailyQuestions(null);
+    toast(`今日 5 题完成 · ${correct}/${total}`);
+  };
+
+  const applyRemindSlot = async (hour: number, minute: number) => {
+    if (remindBusy) return;
+    setRemindBusy(true);
+    try {
+      const ok = await ensurePermission();
+      if (!ok) {
+        toast('请在浏览器或系统设置中允许通知');
+        return;
+      }
+      const next = { enabled: true, hour, minute };
+      setReminder(next);
+      setReminderPref(next);
+      toast(`已设为每天 ${formatRemindTime(hour, minute)}`);
+    } finally {
+      setRemindBusy(false);
+    }
+  };
+
+  const toggleReminder = async (enabled: boolean) => {
+    if (remindBusy) return;
+    setRemindBusy(true);
+    try {
+      if (enabled) {
+        const ok = await ensurePermission();
+        if (!ok) {
+          toast('请在浏览器或系统设置中允许通知');
+          return;
+        }
+      }
+      const next = { ...reminderPref, enabled };
+      setReminder(next);
+      setReminderPref(next);
+      toast(enabled ? '已开启读经提醒' : '已关闭读经提醒');
+    } finally {
+      setRemindBusy(false);
+    }
   };
 
   const shareThoughtPreview = async () => {
@@ -1117,14 +1266,22 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           kind="成就"
           tone="badge"
           count={badgeDoneCount}
-          value={badgePreview || '读经解锁'}
-          empty={!badgePreview}
+          value=""
+          hideValue
+          empty={badgeDoneCount === 0}
           isNew={badgeNew}
           onOpen={openBadges}
           adornment={
-            badgePreviewIcon ? (
-              <span className="profile-footprint-badge-thumb badge-circle badge-done" aria-hidden>
-                {badgePreviewIcon}
+            badgePreviewIcons.length > 0 ? (
+              <span className="profile-footprint-badge-stack" aria-hidden>
+                {badgePreviewIcons.map((icon, i) => (
+                  <span
+                    key={`${icon}-${i}`}
+                    className="profile-footprint-badge-thumb badge-circle badge-done"
+                  >
+                    {icon}
+                  </span>
+                ))}
               </span>
             ) : (
               <span className="profile-footprint-badge-thumb is-empty" aria-hidden>
@@ -1149,29 +1306,150 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       </div>
 
       <p className="section-label tab-section-label profile-block-label">常用</p>
-      <div className="profile-shortcut-grid" role="navigation" aria-label="常用捷径">
-        <Link href="/challenge" className="profile-shortcut tone-challenge">
-          <span className="profile-shortcut-glyph" aria-hidden>
-            <ProfileGlyph name="challenge" size={20} />
-          </span>
-          <strong>今日 5 题</strong>
-        </Link>
-        <Link href="/profile/reminders" className="profile-shortcut tone-remind">
-          <span className="profile-shortcut-glyph" aria-hidden>
-            <ProfileGlyph name="remind" size={20} />
-          </span>
-          <strong>提醒</strong>
-        </Link>
-        <button
-          type="button"
-          className="profile-shortcut tone-offline"
-          onClick={() => setDownloadOpen(true)}
+      <div className="profile-shortcut-block">
+        <div className="profile-shortcut-tabs" role="tablist" aria-label="常用">
+          {(
+            [
+              { id: 'challenge' as const, label: '今日 5 题' },
+              { id: 'remind' as const, label: '提醒' },
+              { id: 'offline' as const, label: '离线' },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={shortcut === tab.id}
+              className={`profile-shortcut-tab tone-${tab.id}${shortcut === tab.id ? ' is-active' : ''}`}
+              onClick={() => selectShortcut(tab.id)}
+            >
+              <span className="profile-shortcut-tab-glyph" aria-hidden>
+                <ProfileGlyph name={tab.id} size={18} />
+              </span>
+              <strong>{tab.label}</strong>
+            </button>
+          ))}
+        </div>
+
+        <div
+          className={`card profile-shortcut-panel tone-${shortcut}`}
+          role="tabpanel"
+          aria-label={
+            shortcut === 'challenge' ? '今日 5 题' : shortcut === 'remind' ? '提醒' : '离线'
+          }
         >
-          <span className="profile-shortcut-glyph" aria-hidden>
-            <ProfileGlyph name="offline" size={20} />
-          </span>
-          <strong>离线</strong>
-        </button>
+          {shortcut === 'challenge' ? (
+            <>
+              <div className="profile-shortcut-panel-head">
+                <p className="profile-shortcut-panel-title">
+                  {dailyDone ? '今日已完成' : '今日 5 题待答'}
+                </p>
+                <p className="profile-shortcut-panel-sub">
+                  {quizStats.total > 0
+                    ? `累计正确率 ${quizStats.accuracyPct}% · 共答 ${quizStats.total} 题`
+                    : '优先复习错题，每天五道就好'}
+                </p>
+              </div>
+              <div className="profile-shortcut-panel-actions">
+                <button type="button" className="btn" onClick={startDailyQuiz}>
+                  {dailyDone ? '再看闯关' : '开始今日 5 题'}
+                </button>
+                <Link
+                  href="/challenge"
+                  className="text-link"
+                  onClick={() => markRouteNavigation()}
+                >
+                  更多闯关 ›
+                </Link>
+              </div>
+            </>
+          ) : null}
+
+          {shortcut === 'remind' ? (
+            <>
+              <div className="profile-shortcut-panel-head">
+                <p className="profile-shortcut-panel-title">
+                  {reminderPref.enabled
+                    ? `每天 ${formatRemindTime(reminderPref.hour, reminderPref.minute)}`
+                    : '读经提醒未开启'}
+                </p>
+                <p className="profile-shortcut-panel-sub">
+                  {reminderPref.enabled
+                    ? '到点轻声提醒，把读经留在日常里'
+                    : '选一个时段，开始养成同行习惯'}
+                </p>
+                {pushHint ? (
+                  <p className="profile-shortcut-panel-hint">{pushHint}</p>
+                ) : null}
+              </div>
+              <div className="profile-shortcut-slots" role="group" aria-label="提醒时段">
+                {REMIND_SLOTS.map((slot) => {
+                  const active =
+                    reminderPref.enabled &&
+                    reminderPref.hour === slot.hour &&
+                    reminderPref.minute === slot.minute;
+                  return (
+                    <button
+                      key={slot.key}
+                      type="button"
+                      className={`profile-shortcut-slot${active ? ' is-active' : ''}`}
+                      disabled={remindBusy}
+                      onClick={() => void applyRemindSlot(slot.hour, slot.minute)}
+                    >
+                      {slot.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="profile-shortcut-panel-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={remindBusy}
+                  onClick={() => void toggleReminder(!reminderPref.enabled)}
+                >
+                  {reminderPref.enabled ? '关闭提醒' : '开启提醒'}
+                </button>
+                <Link
+                  href="/profile/reminders"
+                  className="text-link"
+                  onClick={() => markRouteNavigation()}
+                >
+                  更多提醒设置 ›
+                </Link>
+              </div>
+            </>
+          ) : null}
+
+          {shortcut === 'offline' ? (
+            <>
+              <div className="profile-shortcut-panel-head">
+                <p className="profile-shortcut-panel-title">
+                  {downloadHint
+                    ? '正在下载'
+                    : offlineReady
+                      ? '和合本已就绪'
+                      : '离线圣经未下载'}
+                </p>
+                <p className="profile-shortcut-panel-sub">
+                  {downloadHint ||
+                    (offlineReady
+                      ? '可在无网时继续读经；也可管理其他译本与资料'
+                      : '下载后无网也能读；资料包可按需管理')}
+                </p>
+              </div>
+              <div className="profile-shortcut-panel-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => setDownloadOpen(true)}
+                >
+                  {downloadHint ? '查看进度' : offlineReady ? '管理离线包' : '下载离线包'}
+                </button>
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
 
       <p className="profile-brand-foot muted">
@@ -1378,6 +1656,25 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           </div>
         </AppBodyPortal>
       )}
+
+      {challengePlay && dailyQuestions ? (
+        <AppBodyPortal>
+          <div className="profile-challenge-play-overlay">
+            <ChallengeFlipPlay
+              title="每日问答"
+              subtitle="今日问答"
+              questions={dailyQuestions}
+              hideProgress
+              onBack={() => {
+                setChallengePlay(false);
+                setDailyQuestions(null);
+              }}
+              onFinish={finishDailyQuiz}
+              onEachAnswer={(id, correct) => recordAnswer(id, correct)}
+            />
+          </div>
+        </AppBodyPortal>
+      ) : null}
 
       {downloadOpen ? (
         <OfflineDownloadSheet onClose={() => setDownloadOpen(false)} />
