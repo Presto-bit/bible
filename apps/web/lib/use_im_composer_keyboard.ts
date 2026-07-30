@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 
 /**
- * iOS PWA 键盘：interactive-widget=resizes-content。
- * 壳始终 bottom:0；overlays 仅用 transform。
- * 失焦只做轻量清理，避免反复改 html/body height 卡死主线程、吞掉点击。
+ * iOS PWA IM 视口策略（根本修复）：
+ *
+ * 问题：interactive-widget=resizes-content 下，键盘收起后 layout viewport 常卡住偏矮，
+ * fixed + bottom:0 的聊天壳只填满「矮 layout」，底部留白；该状态跨进出群聊仍在。
+ *
+ * 方案：聊天页挂载期间用 visualViewport 驱动壳的 top/height（body.im-vv-shell），
+ * 与 layout 是否卡住无关；卸载时摘掉绑定。性能：仅 rAF 合并，不写 html/body height。
  */
 
 function isImBottomSheet(): boolean {
@@ -22,8 +26,7 @@ function isComposerFieldFocused(): boolean {
   );
 }
 
-function pinScrollTop(force = false) {
-  if (!force && isComposerFieldFocused()) return;
+function pinDocScroll() {
   window.scrollTo(0, 0);
   document.documentElement.scrollTop = 0;
   document.body.scrollTop = 0;
@@ -77,47 +80,38 @@ function writeComposerHeight(px: number) {
   );
 }
 
-function hasKeyboardChromeResidue(): boolean {
-  const root = document.documentElement;
-  const body = document.body;
-  if (body.classList.contains('im-keyboard') || body.classList.contains('im-keyboard-overlay')) {
-    return true;
-  }
-  if (root.style.getPropertyValue('--im-kb-inset')) return true;
-  if (root.style.height || body.style.height) return true;
-  const vv = window.visualViewport;
-  if (vv && vv.offsetTop > 2) return true;
-  return false;
-}
-
-/** 轻量清键盘残留：不改写 html/body 高度，避免离开聊天后整 App 卡顿、点击失灵 */
+/** 清掉键盘相关 class / CSS 变量（不含拆除 vv-shell） */
 export function clearImKeyboardLift() {
   const root = document.documentElement;
   const body = document.body;
-  body.classList.remove('im-keyboard', 'im-keyboard-overlay', 'im-plus-sheet', 'im-mention-sheet');
+  body.classList.remove('im-keyboard', 'im-keyboard-overlay');
   root.style.removeProperty('--im-kb-inset');
   root.style.removeProperty('--im-vv-top');
   root.style.removeProperty('--im-vv-h');
-  // 清掉可能卡住的高度锁（勿再主动写入 height）
   root.style.removeProperty('height');
   body.style.removeProperty('height');
-  if (!isComposerFieldFocused()) pinScrollTop(true);
+  if (!isComposerFieldFocused()) pinDocScroll();
 }
 
-/**
- * 仅在确实有残留时做一次轻 nudge；禁止连环 setTimeout + 强制 reflow。
- */
-function softViewportRestore() {
-  clearImKeyboardLift();
-  if (!hasKeyboardChromeResidue() && !(window.visualViewport && window.visualViewport.offsetTop > 2)) {
-    return;
-  }
-  const vv = window.visualViewport;
-  const top = vv?.offsetTop ?? 0;
-  if (top > 0) {
-    window.scrollTo(0, 0);
-  }
-  pinScrollTop(true);
+/** 拆除 vv-shell 绑定并复位（离开聊天 / 回主 Tab） */
+export function teardownImViewportShell() {
+  const root = document.documentElement;
+  const body = document.body;
+  body.classList.remove(
+    'im-vv-shell',
+    'im-keyboard',
+    'im-keyboard-overlay',
+    'im-plus-sheet',
+    'im-mention-sheet',
+  );
+  root.style.removeProperty('--im-shell-top');
+  root.style.removeProperty('--im-shell-h');
+  root.style.removeProperty('--im-kb-inset');
+  root.style.removeProperty('--im-vv-top');
+  root.style.removeProperty('--im-vv-h');
+  root.style.removeProperty('height');
+  body.style.removeProperty('height');
+  pinDocScroll();
 }
 
 export function useImComposerHeightSync(
@@ -159,168 +153,120 @@ export function useImComposerHeightSync(
   }, [barRef]);
 }
 
-function readBaseline(): number {
-  const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
-  const vvH = window.visualViewport?.height ?? layoutH;
-  return Math.max(layoutH, vvH);
-}
-
-function readOverlayGap(): number {
-  const vv = window.visualViewport;
-  const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
-  const vvH = vv?.height ?? layoutH;
-  const vvTop = vv?.offsetTop ?? 0;
-  return Math.max(0, Math.round(layoutH - vvH - vvTop));
-}
-
 export type ImComposerKeyboardOpts = {
   getScrollEl?: () => HTMLElement | null;
 };
 
 /**
- * IM 键盘贴合：
- * - resizes-content：只打 im-keyboard（藏 sticky），壳贴底
- * - overlays：transform + --im-kb-inset
- * - 失焦：轻量 soft restore（最多再补一次），绝不连打 5 次强制 reflow
+ * 群 / 私信挂载期间用 visualViewport 驱动壳尺寸；
+ * composerFocused 仅控制 im-keyboard（藏 sticky），不抬 bottom。
  */
 export function useImComposerKeyboard(
-  active: boolean,
+  composerFocused: boolean,
   opts?: ImComposerKeyboardOpts,
 ) {
   const [inset, setInset] = useState(0);
   const getScrollElRef = useRef(opts?.getScrollEl);
   getScrollElRef.current = opts?.getScrollEl;
-  const baselineRef = useRef(0);
-  const resizeModeRef = useRef(false);
-  const appliedOverlayRef = useRef(0);
+  const openBaselineRef = useRef(0);
+  const lastShellRef = useRef({ top: -1, h: -1 });
+  const focusedRef = useRef(composerFocused);
+  focusedRef.current = composerFocused;
 
-  useEffect(() => {
-    if (active) return;
-    const refresh = () => {
-      baselineRef.current = readBaseline();
-    };
-    refresh();
-    window.addEventListener('resize', refresh);
-    window.visualViewport?.addEventListener('resize', refresh);
-    return () => {
-      window.removeEventListener('resize', refresh);
-      window.visualViewport?.removeEventListener('resize', refresh);
-    };
-  }, [active]);
-
+  // 页面级 vv → 壳（进出页才装卸）
   useEffect(() => {
     const root = document.documentElement;
     const body = document.body;
     const vv = window.visualViewport;
     let raf = 0;
-    let followTimer: number | undefined;
-    let settleTimer: number | undefined;
 
-    const clearChrome = () => {
-      setInset(0);
-      appliedOverlayRef.current = 0;
-      body.classList.remove('im-keyboard', 'im-keyboard-overlay');
-      root.style.removeProperty('--im-kb-inset');
-      root.style.removeProperty('--im-vv-top');
-      root.style.removeProperty('--im-vv-h');
-    };
-
-    const settle = () => {
-      resizeModeRef.current = false;
-      clearChrome();
-      softViewportRestore();
-    };
-
-    const applyOpenChrome = (overlayPx: number) => {
-      if (isImBottomSheet()) {
-        clearChrome();
-        return;
-      }
-      body.classList.add('im-keyboard');
-      if (overlayPx > 48) {
-        const next = Math.min(overlayPx, Math.round((window.innerHeight || 600) * 0.45));
-        if (Math.abs(next - appliedOverlayRef.current) < 10 && appliedOverlayRef.current > 0) {
-          return;
-        }
-        appliedOverlayRef.current = next;
-        setInset(next);
-        body.classList.add('im-keyboard-overlay');
-        root.style.setProperty('--im-kb-inset', `${next}px`);
-      } else {
-        appliedOverlayRef.current = 0;
-        setInset(0);
-        body.classList.remove('im-keyboard-overlay');
-        root.style.setProperty('--im-kb-inset', '0px');
-      }
-      writeComposerHeight(measureComposerHeight());
-    };
+    body.classList.add('im-vv-shell');
+    openBaselineRef.current = Math.round(
+      Math.max(window.innerHeight || 0, vv?.height ?? 0),
+    );
 
     const sync = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         if (isImBottomSheet()) {
-          clearChrome();
+          body.classList.remove('im-keyboard', 'im-keyboard-overlay');
+          setInset(0);
           return;
         }
-        const base = baselineRef.current || readBaseline();
-        const layoutH = window.innerHeight || document.documentElement.clientHeight || 0;
-        const layoutShrunk = base - layoutH > 40;
-        if (layoutShrunk) resizeModeRef.current = true;
-
-        if (resizeModeRef.current) {
-          if (layoutShrunk) {
-            applyOpenChrome(0);
-            scrollImChatToBottom(getScrollElRef.current?.() ?? null, { gentle: true });
-          } else {
-            clearChrome();
-          }
-          return;
+        const top = Math.max(0, Math.round(vv?.offsetTop ?? 0));
+        const h = Math.max(
+          120,
+          Math.round(vv?.height ?? window.innerHeight ?? 0),
+        );
+        const prev = lastShellRef.current;
+        if (prev.top !== top || prev.h !== h) {
+          lastShellRef.current = { top, h };
+          root.style.setProperty('--im-shell-top', `${top}px`);
+          root.style.setProperty('--im-shell-h', `${h}px`);
         }
 
-        const gap = readOverlayGap();
-        if (gap > 48) {
-          applyOpenChrome(gap);
+        const base = openBaselineRef.current || h;
+        const keyboardUp = focusedRef.current && base - h > 40;
+        body.classList.toggle('im-keyboard', keyboardUp);
+        body.classList.remove('im-keyboard-overlay');
+        root.style.setProperty('--im-kb-inset', '0px');
+        setInset(0);
+        writeComposerHeight(measureComposerHeight());
+        if (keyboardUp) {
           scrollImChatToBottom(getScrollElRef.current?.() ?? null, { gentle: true });
-        } else {
-          clearChrome();
         }
       });
     };
 
-    if (!active) {
-      settle();
-      // 仅再补一次（键盘收起动画末尾），禁止 5 连发
-      settleTimer = window.setTimeout(() => {
-        if (isComposerFieldFocused()) return;
-        if (hasKeyboardChromeResidue()) softViewportRestore();
-      }, 280);
-    } else {
-      if (!baselineRef.current) baselineRef.current = readBaseline();
-      resizeModeRef.current = false;
-      appliedOverlayRef.current = 0;
-
-      vv?.addEventListener('resize', sync);
-      vv?.addEventListener('scroll', sync);
-      window.addEventListener('resize', sync);
-      sync();
-      followTimer = window.setTimeout(sync, 320);
-    }
+    sync();
+    vv?.addEventListener('resize', sync);
+    vv?.addEventListener('scroll', sync);
+    window.addEventListener('resize', sync);
+    const t = window.setTimeout(sync, 120);
 
     return () => {
       cancelAnimationFrame(raf);
-      if (followTimer) window.clearTimeout(followTimer);
-      if (settleTimer) window.clearTimeout(settleTimer);
+      window.clearTimeout(t);
       vv?.removeEventListener('resize', sync);
       vv?.removeEventListener('scroll', sync);
       window.removeEventListener('resize', sync);
-      if (active) settle();
+      teardownImViewportShell();
     };
-  }, [active]);
+  }, []);
+
+  // 焦点变化：触发一次 sync 语义（写壳 + 切换 im-keyboard）
+  useEffect(() => {
+    const root = document.documentElement;
+    const body = document.body;
+    const vv = window.visualViewport;
+    const top = Math.max(0, Math.round(vv?.offsetTop ?? 0));
+    const h = Math.max(120, Math.round(vv?.height ?? window.innerHeight ?? 0));
+    const base = openBaselineRef.current || h;
+
+    root.style.setProperty('--im-shell-top', `${top}px`);
+    root.style.setProperty('--im-shell-h', `${h}px`);
+    lastShellRef.current = { top, h };
+    writeComposerHeight(measureComposerHeight());
+
+    if (!composerFocused) {
+      body.classList.remove('im-keyboard', 'im-keyboard-overlay');
+      pinDocScroll();
+      setInset(0);
+      return;
+    }
+
+    const keyboardUp = base - h > 40;
+    body.classList.toggle('im-keyboard', keyboardUp);
+    if (keyboardUp) {
+      scrollImChatToBottom(getScrollElRef.current?.() ?? null, { gentle: true });
+    }
+    setInset(0);
+  }, [composerFocused]);
 
   return inset;
 }
 
-/** @deprecated 预抬易导致悬空，保留空实现 */
+/** @deprecated 保留空实现兼容旧调用 */
 export function previewImKeyboardLift() {
   /* no-op */
 }

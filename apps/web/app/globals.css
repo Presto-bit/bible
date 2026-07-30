@@ -20376,27 +20376,27 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
 }
 /*
  * 键盘态（群 / 私信同款）：
- * - 壳始终 bottom:0（resizes-content 靠 layout 收缩；勿用 bottom:inset，收起后易残留白边）
- * - overlays 兜底：im-keyboard-overlay + transform 上移，失焦即还原
+ * - body.im-vv-shell：壳用 visualViewport 的 top/height，避开 iOS layout 卡住导致的底白边
+ * - im-keyboard：仅藏 sticky / 收紧 composer 安全区，不再用 bottom:inset 抬壳
  */
 .group-page-checkin,
 .dm-page {
   bottom: 0;
   transform: none;
 }
-body.im-keyboard .group-page-checkin,
-body.im-keyboard .dm-page {
-  top: 0;
-  bottom: 0;
-  height: auto;
+body.im-vv-shell .group-page-checkin,
+body.im-vv-shell .dm-page {
+  top: var(--im-shell-top, 0px);
+  height: var(--im-shell-h, 100dvh);
+  bottom: auto;
   max-height: none;
   min-height: 0;
+  transform: none;
+}
+body.im-keyboard .group-page-checkin,
+body.im-keyboard .dm-page {
   padding-top: env(safe-area-inset-top, 0px);
   padding-bottom: 0;
-}
-body.im-keyboard-overlay .group-page-checkin,
-body.im-keyboard-overlay .dm-page {
-  transform: translate3d(0, calc(0px - var(--im-kb-inset, 0px)), 0);
 }
 body.im-keyboard .dm-composer-dock.im-composer-bar,
 body.im-keyboard .group-wechat-composer.im-composer-dock{
@@ -20404,30 +20404,20 @@ body.im-keyboard .group-wechat-composer.im-composer-dock{
   left: auto;
   right: auto;
   bottom: auto;
-  /* 键盘已盖住 Home 区，去掉安全区垫高，消除输入行与键盘之间的空隙 */
   padding-bottom: 4px;
 }
 body.im-keyboard .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
-/* 加号 / @ 选人：只收起底栏，不抬键盘高度（否则会留下整块键盘空白） */
 body.im-plus-sheet .tabbar,
 body.im-mention-sheet .tabbar{opacity:0;pointer-events:none;transform:translate3d(-50%,120%,0);}
-/* 面板打开时强制壳贴屏底 */
 body.im-plus-sheet .group-page-checkin,
 body.im-mention-sheet .group-page-checkin,
 body.im-plus-sheet .dm-page,
-body.im-mention-sheet .dm-page,
-body.im-plus-sheet.im-keyboard .group-page-checkin,
-body.im-mention-sheet.im-keyboard .group-page-checkin,
-body.im-plus-sheet.im-keyboard .dm-page,
-body.im-mention-sheet.im-keyboard .dm-page {
-  bottom: 0;
+body.im-mention-sheet .dm-page {
+  /* 选人/加号仍跟 vv-shell；勿再套 transform 抬升 */
   transform: none;
 }
 body.im-keyboard .im-jump-bottom{
   bottom: calc(var(--im-composer-h, 64px) + 12px);
-}
-body.im-keyboard-overlay .im-jump-bottom{
-  bottom: calc(var(--im-kb-inset, 0px) + var(--im-composer-h, 64px) + 12px);
 }
 body.im-keyboard .group-checkin-scroll {
   padding-bottom: 12px;
@@ -20435,7 +20425,6 @@ body.im-keyboard .group-checkin-scroll {
 body.im-keyboard .dm-msg-list {
   padding-bottom: 12px;
 }
-/* 键盘态收起会抢高度的附属条，避免末条 / ➕ / @ 被挤出 */
 body.im-keyboard .group-my-task-pin,
 body.im-keyboard .group-coread-sticky,
 body.im-keyboard .group-announce-bar,
