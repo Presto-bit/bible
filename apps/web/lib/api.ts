@@ -2456,6 +2456,52 @@ export const api = {
       xhr.onerror = () => reject(new Error('网络异常，上传失败'));
       xhr.send(form);
     }),
+  /** 资料头像：持久 storage_key，不走 IM 24h 签名链 */
+  uploadProfileAvatar: (
+    file: File,
+    opts?: { onProgress?: (pct: number) => void },
+  ) =>
+    new Promise<{
+      ok: boolean;
+      kind: string;
+      file_name: string;
+      mime_type: string;
+      size_bytes: number;
+      storage_key: string;
+      url: string;
+      avatar_id?: string;
+    }>((resolve, reject) => {
+      const form = new FormData();
+      form.append('file', file);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/social/uploads/avatar`);
+      const headers = authHeaders();
+      for (const [k, v] of Object.entries(headers)) xhr.setRequestHeader(k, v);
+      xhr.upload.onprogress = (ev) => {
+        if (!ev.lengthComputable || !opts?.onProgress) return;
+        opts.onProgress(Math.min(99, Math.round((ev.loaded / ev.total) * 100)));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          opts?.onProgress?.(100);
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            reject(new Error('上传响应异常'));
+          }
+          return;
+        }
+        let detail = `${xhr.status}`;
+        try {
+          detail = JSON.parse(xhr.responseText).detail || detail;
+        } catch {
+          /* ignore */
+        }
+        reject(new Error(typeof detail === 'string' ? detail : '上传失败'));
+      };
+      xhr.onerror = () => reject(new Error('网络异常，上传失败'));
+      xhr.send(form);
+    }),
   sendGroupMedia: (
     gid: string,
     body: {

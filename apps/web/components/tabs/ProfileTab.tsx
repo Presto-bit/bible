@@ -64,6 +64,7 @@ import {
   cropCompressAvatar,
   encodeCustomAvatarId,
   isCustomAvatarId,
+  normalizeCustomAvatarId,
   setCachedCustomAvatar,
 } from '@/lib/profile_avatar';
 import {
@@ -595,7 +596,16 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setUid(currentUserId());
       setGid(guestId());
       const saved = userLsGet(AVATAR_KEY);
-      setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
+      if (saved && isCustomAvatarId(saved)) {
+        const normalized = normalizeCustomAvatarId(saved);
+        if (normalized !== saved) {
+          userLsSet(AVATAR_KEY, normalized);
+          pushProfileAvatar(normalized);
+        }
+        setAvatarId(normalized);
+      } else {
+        setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
+      }
       setName(getDisplayName());
       setBio(userLsGet(BIO_KEY) || '');
       setMins(todayMinutes());
@@ -799,14 +809,16 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       const blob = await cropCompressAvatar(file, 512, 0.82);
       const dataUrl = await blobToDataUrl(blob);
       setCachedCustomAvatar(dataUrl);
-      // 先本地预览（data URL），上传成功后再换成远端地址并同步
+      // 先本地预览（data URL），上传成功后再换成持久 key
       const previewId = encodeCustomAvatarId(dataUrl);
       setAvatarId(previewId);
       const uploadFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
-      const meta = await api.uploadSocialMedia(uploadFile);
-      const remote = meta.url || meta.storage_key;
-      if (!remote) throw new Error('上传成功但未返回地址');
-      const nextId = encodeCustomAvatarId(remote);
+      const meta = await api.uploadProfileAvatar(uploadFile);
+      const durable =
+        meta.avatar_id
+        || (meta.storage_key ? encodeCustomAvatarId(meta.storage_key) : '');
+      if (!durable) throw new Error('上传成功但未返回地址');
+      const nextId = encodeCustomAvatarId(durable);
       setAvatarId(nextId);
       userLsSet(AVATAR_KEY, nextId);
       pushProfileAvatar(nextId);
@@ -1727,20 +1739,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 >
                   {avatarUploading ? '上传中…' : '从相册选择'}
                 </button>
-                {isCustomAvatarId(avatarId) ? (
-                  <button
-                    type="button"
-                    className="text-link"
-                    disabled={avatarUploading}
-                    onClick={() => {
-                      const fallback = defaultAvatarId(effectiveId() || undefined);
-                      chooseAvatar(fallback);
-                      toast('已恢复预设头像');
-                    }}
-                  >
-                    恢复预设
-                  </button>
-                ) : null}
                 <input
                   ref={avatarFileRef}
                   type="file"

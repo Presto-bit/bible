@@ -1,6 +1,7 @@
 import { enqueue } from './sync';
 import { userLsGet, userLsSet } from './user_storage';
 import { notifyLocalDataChanged } from './local_data_events';
+import { normalizeCustomAvatarId } from './profile_avatar';
 
 const AVATAR_KEY = 'profile_avatar';
 const NAME_KEY = 'profile_name';
@@ -18,10 +19,11 @@ export function pushProfileAvatar(avatarId: string) {
   if (!id) return;
   // 禁止把本机 data URL 推上云
   if (id.startsWith('data:') || id.startsWith('u:data:')) return;
+  const durable = normalizeCustomAvatarId(id);
   enqueue({
     entity: 'user_profile',
     op: 'update',
-    data: { avatar_id: id },
+    data: { avatar_id: durable },
     client_ts: new Date().toISOString(),
   });
 }
@@ -51,8 +53,17 @@ export function applyRemoteProfile(data?: UserProfilePayload | null) {
   let changed = false;
   if (data.avatar_id) {
     const local = userLsGet(AVATAR_KEY);
-    if (local !== data.avatar_id) {
-      userLsSet(AVATAR_KEY, data.avatar_id);
+    let remote = data.avatar_id;
+    // 自定义头像规范化为持久 key，避免短时签名链回写把头像「清掉」
+    if (
+      remote.startsWith('u:')
+      || remote.startsWith('http')
+      || remote.startsWith('data:')
+    ) {
+      remote = normalizeCustomAvatarId(remote);
+    }
+    if (local !== remote) {
+      userLsSet(AVATAR_KEY, remote);
       changed = true;
     }
   }

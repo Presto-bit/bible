@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Requ
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from ..auth.session import get_current_user
+from ..auth.session import get_current_user, try_get_current_user
 from ..auth.user_code import pick_user_code, uuid_for_code
 from ..config import get_settings
 from ..db import get_pool
@@ -1709,6 +1709,97 @@ async def upload_social_media(
 
     meta = await save_social_upload(file=file, prefix=user_id[:8])
     return {"ok": True, **meta}
+
+
+@router.post("/uploads/avatar")
+async def upload_profile_avatar(
+    file: UploadFile = File(...),
+    user_id: str = Depends(get_current_user),
+) -> dict:
+    """资料头像专用上传：持久 key，不走 IM 签名短链。"""
+    from .media import save_profile_avatar
+
+    meta = await save_profile_avatar(file=file, user_id=user_id)
+    # 立刻写入资料，便于公开读取鉴权
+    pool = get_pool()
+    avatar_ref = f"u:key:{meta['storage_key']}"
+    with pool.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO user_profile (user_id, avatar_id)
+            VALUES (%s::uuid, %s)
+            ON CONFLICT (user_id) DO UPDATE SET avatar_id = EXCLUDED.avatar_id
+            """,
+            (user_id, avatar_ref),
+        )
+        conn.commit()
+    return {"ok": True, **meta, "avatar_id": avatar_ref}
+
+
+def _profile_avatar_key_allowed(conn, storage_key: str, viewer_id: str | None) -> bool:
+    """资料头像可读：profile-avatar-* 前缀，或已挂在任意用户 avatar_id 上，或本人 social-im 前缀。"""
+    norm = normalize_object_key(storage_key)
+    if not norm:
+        return False
+    name = Path(norm).name
+    if name.startswith("profile-avatar-") or norm.startswith("profile-avatars/"):
+        return True
+    try:
+        hit = conn.execute(
+            """
+            SELECT 1 FROM user_profile
+            WHERE avatar_id = %s
+               OR avatar_id = %s
+               OR avatar_id LIKE %s
+            LIMIT 1
+            """,
+            (f"u:key:{norm}", norm, f"%{norm}%"),
+        ).fetchone()
+        if hit:
+            return True
+    except Exception:
+        pass
+    if viewer_id:
+        marker = f"social-im/{viewer_id[:8]}/"
+        if norm.startswith(marker):
+            return True
+    return False
+
+
+@router.get("/media/profile-asset")
+def profile_avatar_asset(
+    key: str = Query(..., min_length=4),
+    user_id: str | None = Depends(try_get_current_user),
+) -> Response:
+    """资料头像持久直链（不依赖短时签名；头像半公开）。"""
+    norm = normalize_object_key(key)
+    if not norm or ".." in norm:
+        raise HTTPException(400, "无效 key")
+    pool = get_pool()
+    with pool.connection() as conn:
+        if not _profile_avatar_key_allowed(conn, norm, user_id):
+            raise HTTPException(404, "头像不存在")
+    store = get_blob_store()
+    try:
+        data = store.read_bytes(norm)
+    except Exception:
+        raise HTTPException(404, "头像文件不存在") from None
+    media = "image/jpeg"
+    lower = Path(norm).name.lower()
+    if lower.endswith(".png"):
+        media = "image/png"
+    elif lower.endswith(".webp"):
+        media = "image/webp"
+    elif lower.endswith(".gif"):
+        media = "image/gif"
+    return Response(
+        content=data,
+        media_type=media,
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 def _assert_owns_upload(user_id: str, storage_key: str) -> str:

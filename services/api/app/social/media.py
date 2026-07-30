@@ -5,6 +5,7 @@ import hashlib
 import re
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from fastapi import HTTPException, UploadFile
 
@@ -121,11 +122,46 @@ async def save_social_upload(*, file: UploadFile, prefix: str = "m") -> dict[str
     }
 
 
+async def save_profile_avatar(*, file: UploadFile, user_id: str) -> dict[str, Any]:
+    """资料头像：独立前缀，不进 IM 30 天清理；固定 key 可覆盖。"""
+    suffix = Path(file.filename or "avatar.jpg").suffix.lower()
+    if suffix not in _IMAGE:
+        raise HTTPException(400, "头像仅支持 jpg/png/webp/gif")
+    raw = await file.read()
+    if len(raw) > 8 * 1024 * 1024:
+        raise HTTPException(400, "头像不能超过 8MB")
+    content_type = (file.content_type or "").split(";")[0].strip().lower()
+    if not content_type or content_type == "application/octet-stream":
+        content_type = _MIME.get(suffix, "image/jpeg")
+    uid = re.sub(r"[^a-zA-Z0-9_-]", "", (user_id or "").replace("-", ""))[:36] or "anon"
+    # 本地 BlobStore 按文件名扁平落盘：用唯一文件名，避免多用户互相覆盖
+    object_key = f"profile-avatar-{uid}{suffix if suffix else '.jpg'}"
+    store = get_blob_store()
+    for old_suf in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
+        old_key = f"profile-avatar-{uid}{old_suf}"
+        if old_key != object_key:
+            try:
+                store.delete(old_key)
+            except Exception:
+                pass
+    stored_key = store.put(object_key, raw, content_type)
+    return {
+        "kind": "image",
+        "file_name": Path(file.filename or stored_key).name[:180],
+        "mime_type": content_type,
+        "size_bytes": len(raw),
+        "storage_key": stored_key,
+        # 持久引用：客户端应存 storage_key，勿存短时签名 url
+        "url": f"/social/media/profile-asset?key={quote(stored_key, safe='')}",
+    }
+
+
 __all__ = [
     "attachment_url",
     "build_attachment_row",
     "media_dir",
     "resolve_media_kind",
+    "save_profile_avatar",
     "save_social_upload",
     "unlink_storage_keys",
 ]

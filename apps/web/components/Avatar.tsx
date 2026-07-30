@@ -6,6 +6,7 @@
 
 import {
   customAvatarSrc,
+  getCachedCustomAvatar,
   isCustomAvatarId,
 } from '@/lib/profile_avatar';
 
@@ -181,6 +182,7 @@ function AvatarScene({ sceneKey, pal }: { sceneKey: string; pal: AvatarPalette }
 export default function Avatar({ id, size = 48 }: { id: string; size?: number }) {
   if (isCustomAvatarId(id)) {
     const src = customAvatarSrc(id);
+    const cached = getCachedCustomAvatar();
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -189,6 +191,11 @@ export default function Avatar({ id, size = 48 }: { id: string; size?: number })
         width={size}
         height={size}
         decoding="async"
+        onError={(e) => {
+          if (cached && e.currentTarget.src !== cached) {
+            e.currentTarget.src = cached;
+          }
+        }}
         style={{
           width: size,
           height: size,
