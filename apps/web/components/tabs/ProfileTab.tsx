@@ -81,7 +81,7 @@ import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
 import { hasSecuredAccount, isAccountComplete } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { isStandalonePwa } from '@/lib/platform';
-import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+import { markRouteNavigation, navigateAppHref } from '@/lib/pwa_tab_nav';
 import {
   PROFILE_SETTINGS_BACK_LABEL,
   PROFILE_SETTINGS_HREF,
@@ -250,7 +250,7 @@ function FootprintCell({
   const startXY = useRef<{ x: number; y: number } | null>(null);
   const label = count && count > 0 ? `${kind} · ${count}` : kind;
 
-  const clear = () => {
+  const clearTimer = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -269,12 +269,10 @@ function FootprintCell({
         if (e.pointerType === 'mouse' && e.button !== 0) return;
         if (!onShare) return;
         longPressFired.current = false;
-        if (longPressTimer.current) {
-          clearTimeout(longPressTimer.current);
-          longPressTimer.current = null;
-        }
+        clearTimer();
         startXY.current = { x: e.clientX, y: e.clientY };
         longPressTimer.current = setTimeout(() => {
+          longPressTimer.current = null;
           longPressFired.current = true;
           try {
             navigator.vibrate?.(10);
@@ -282,17 +280,17 @@ function FootprintCell({
             /* ignore */
           }
           onShare();
-        }, 480);
+        }, 650);
       }}
       onPointerMove={(e) => {
         if (!startXY.current || !longPressTimer.current) return;
         const dx = Math.abs(e.clientX - startXY.current.x);
         const dy = Math.abs(e.clientY - startXY.current.y);
-        if (dx > 10 || dy > 10) clear();
+        if (dx > 12 || dy > 12) clearTimer();
       }}
-      onPointerUp={clear}
-      onPointerCancel={clear}
-      onPointerLeave={clear}
+      onPointerUp={clearTimer}
+      onPointerCancel={clearTimer}
+      onPointerLeave={clearTimer}
       onContextMenu={(e) => {
         if (!onShare) return;
         e.preventDefault();
@@ -906,15 +904,13 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const openThoughts = () => {
     markFootprintSeen('thoughts', thoughtCount);
     setFootprintSeen(readFootprintSeen());
-    markRouteNavigation();
-    router.push('/notes');
+    navigateAppHref('/notes', router);
   };
 
   const openHighlights = () => {
     markFootprintSeen('marks', markCount);
     setFootprintSeen(readFootprintSeen());
-    markRouteNavigation();
-    router.push('/notes?tab=highlights');
+    navigateAppHref('/notes?tab=highlights', router);
   };
 
   const openBadges = () => {
@@ -1173,6 +1169,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         <Link
           href="/report"
           className="card profile-companion-card"
+          onClick={() => markRouteNavigation()}
           aria-label={
             streak > 0
               ? `已同行 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，打开同行读经`

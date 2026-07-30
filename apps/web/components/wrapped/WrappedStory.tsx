@@ -59,23 +59,41 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
       return;
     }
     setPreviewing(true);
-    void renderWrappedSharePng(stats, template).then((blob) => {
-      if (cancelled) return;
-      if (!blob) {
+    const timer = window.setTimeout(() => {
+      void renderWrappedSharePng(stats, template, { scale: 0.35 }).then((blob) => {
+        if (cancelled) return;
+        if (!blob) {
+          setPreviewing(false);
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        setPreviewUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
         setPreviewing(false);
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      setPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
       });
-      setPreviewing(false);
-    });
+    }, 120);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
     };
-  }, [index, total, template, stats]);
+  }, [
+    index,
+    total,
+    template,
+    stats.period,
+    stats.label,
+    stats.highlight,
+    stats.yearVerse?.ref,
+    stats.yearVerse?.text,
+    stats.topBookName,
+    stats.totalMinutes,
+    stats.activeDays,
+    stats.streak,
+    stats.chapters,
+    stats.defaultShareTemplate,
+  ]);
 
   useEffect(
     () => () => {

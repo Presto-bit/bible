@@ -16700,8 +16700,8 @@ html.perf-lite .home-page .home-hero-carousel {
   }
 }
 
-body:has(.wrapped-page-shell) .tabbar,
-body:has(.wrapped-page-shell) .tabbar-compact-nav {
+body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-shell)) .tabbar,
+body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-shell)) .tabbar-compact-nav {
   display: none !important;
 }
 

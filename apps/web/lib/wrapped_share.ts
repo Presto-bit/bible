@@ -109,14 +109,19 @@ function wallpaperDayFor(w: WrappedStats, template: WrappedShareTemplate): numbe
   return w.period === 'year' ? 21 : 14;
 }
 
-async function prepCanvas(w: WrappedStats, template: WrappedShareTemplate) {
-  const width = 1080;
-  const height = 1920;
+async function prepCanvas(
+  w: WrappedStats,
+  template: WrappedShareTemplate,
+  scale = 1,
+) {
+  const width = Math.round(1080 * scale);
+  const height = Math.round(1920 * scale);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
   if (!ctx) return null;
+  if (scale !== 1) ctx.scale(scale, scale);
 
   const day = wallpaperDayFor(w, template);
   const [wallpaper, brandIcon] = await Promise.all([
@@ -124,24 +129,28 @@ async function prepCanvas(w: WrappedStats, template: WrappedShareTemplate) {
     loadImage(clientWithBasePath(PWA_ICON_SOURCE)),
   ]);
 
+  // Drawing uses logical 1080×1920 coords when scaled
+  const logicalW = 1080;
+  const logicalH = 1920;
+
   if (wallpaper) {
-    drawCover(ctx, wallpaper, width, height);
+    drawCover(ctx, wallpaper, logicalW, logicalH);
   } else {
-    const g = ctx.createLinearGradient(0, 0, 0, height);
+    const g = ctx.createLinearGradient(0, 0, 0, logicalH);
     g.addColorStop(0, '#1c332c');
     g.addColorStop(1, '#0f1c18');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, logicalW, logicalH);
   }
 
-  const scrim = ctx.createLinearGradient(0, 0, 0, height);
+  const scrim = ctx.createLinearGradient(0, 0, 0, logicalH);
   scrim.addColorStop(0, 'rgba(12, 22, 18, 0.58)');
   scrim.addColorStop(0.45, 'rgba(12, 22, 18, 0.32)');
   scrim.addColorStop(1, 'rgba(12, 22, 18, 0.78)');
   ctx.fillStyle = scrim;
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, logicalW, logicalH);
 
-  return { canvas, ctx, width, height, brandIcon };
+  return { canvas, ctx, width: logicalW, height: logicalH, brandIcon };
 }
 
 function drawBrandHeader(
@@ -305,6 +314,7 @@ function drawBookTemplate(
 export async function renderWrappedSharePng(
   w: WrappedStats,
   template: WrappedShareTemplate = w.defaultShareTemplate,
+  opts?: { scale?: number },
 ): Promise<Blob | null> {
   if (typeof document === 'undefined') return null;
 
@@ -312,7 +322,8 @@ export async function renderWrappedSharePng(
   if (t === 'verse' && !w.yearVerse) t = 'footprint';
   if (t === 'book' && !w.topBookName) t = 'footprint';
 
-  const prepared = await prepCanvas(w, t);
+  const scale = Math.min(1, Math.max(0.2, opts?.scale ?? 1));
+  const prepared = await prepCanvas(w, t, scale);
   if (!prepared) return null;
   const { canvas, ctx, width, height, brandIcon } = prepared;
 
@@ -321,6 +332,6 @@ export async function renderWrappedSharePng(
   else drawFootprintTemplate(ctx, w, brandIcon, width, height);
 
   return new Promise((resolve) => {
-    canvas.toBlob((b) => resolve(b), 'image/png', 0.94);
+    canvas.toBlob((b) => resolve(b), 'image/png', scale < 1 ? 0.82 : 0.94);
   });
 }

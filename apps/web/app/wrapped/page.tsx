@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import WrappedStory from '@/components/wrapped/WrappedStory';
+import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { BRAND_NAME } from '@/lib/brand';
 import { shareOutbound } from '@/lib/share_outbound';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import {
   buildWrapped,
   enrichWrappedTexts,
@@ -83,12 +85,20 @@ function WrappedInner() {
   return (
     <main className="wrapped-page-shell">
       <header className="wrapped-page-head">
-        <PageBackBar href="/report" label="读经回顾" />
+        <PageBackBar href="/report" label="读经回顾" onClick={() => markRouteNavigation()} />
         <div className="wrapped-tabs">
-          <Link href="/wrapped?period=month" className={period === 'month' ? 'active' : ''}>
+          <Link
+            href="/wrapped?period=month"
+            className={period === 'month' ? 'active' : ''}
+            onClick={() => markRouteNavigation()}
+          >
             本月
           </Link>
-          <Link href="/wrapped?period=year" className={period === 'year' ? 'active' : ''}>
+          <Link
+            href="/wrapped?period=year"
+            className={period === 'year' ? 'active' : ''}
+            onClick={() => markRouteNavigation()}
+          >
             今年
           </Link>
         </div>
@@ -104,6 +114,9 @@ function WrappedInner() {
 }
 
 export default function WrappedPage() {
+  const suppress = useSuppressKeepAliveRoute();
+  if (suppress) return null;
+
   return (
     <Suspense
       fallback={

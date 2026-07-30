@@ -203,7 +203,14 @@ export default function ReportPage() {
       <header className="page-head">
         <PageBackBar href="/profile" label="我的" />
         <h2 className="page-head-title">读经回顾</h2>
-        <Link href="/wrapped" className="muted" style={{ fontSize: 13 }}>故事回顾 ›</Link>
+        <Link
+          href="/wrapped"
+          className="muted"
+          style={{ fontSize: 13 }}
+          onClick={() => markRouteNavigation()}
+        >
+          故事回顾 ›
+        </Link>
       </header>
 
       <div className="seg-tabs" style={{ marginBottom: 12 }}>
