@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   api,
   changeUsername,
@@ -22,16 +22,37 @@ import {
   subscribeOfflineDownload,
 } from '@/lib/offline_download_job';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
-import AccountSecurityCard from '@/components/AccountSecurityCard';
 import AccountSettingsSection from '@/components/AccountSettingsSection';
 import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
 import ReadingProgress from '@/components/ReadingProgress';
 import BadgeGallery from '@/components/BadgeGallery';
 import AppBodyPortal from '@/components/AppBodyPortal';
-import { todayMinutes } from '@/lib/reading';
+import { todayMinutes, dailyMinutes, bookProgressMap } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
 import type { BadgeDef } from '@/lib/badges';
 import { computeBadgesWithUnlock, profilePreviewBadges } from '@/lib/badge_unlock';
+import { listAllThoughts } from '@/lib/reader_thoughts';
+import { highlightCount } from '@/lib/reader_highlights';
+import { listMarksDetailed } from '@/lib/mark_stats';
+import { formatMarkRefLabel } from '@/lib/mark_ref';
+import {
+  blobToDataUrl,
+  clearCachedCustomAvatar,
+  cropCompressAvatar,
+  encodeCustomAvatarId,
+  isCustomAvatarId,
+  setCachedCustomAvatar,
+} from '@/lib/profile_avatar';
+import {
+  footprintHasNew,
+  markFootprintSeen,
+  markStreakMilestoneShared,
+  pendingStreakMilestone,
+  readFootprintSeen,
+  type FootprintSeen,
+} from '@/lib/profile_footprint';
+import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
+import { shareCardOutbound } from '@/lib/share_card';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
@@ -52,11 +73,118 @@ import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
-import { shareInviteProduct } from '@/lib/invite_share';
+import { shareInviteProduct, inviteShareUrl } from '@/lib/invite_share';
+import { buildTrackedUrl } from '@/lib/acquisition';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
 
 const AVATAR_KEY = 'profile_avatar';
 const BIO_KEY = 'profile_bio';
+
+function ymdLocal(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function weekMinutesTotal(): number {
+  const logs = dailyMinutes();
+  const now = new Date();
+  let sum = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    sum += logs[ymdLocal(d)] || 0;
+  }
+  return sum;
+}
+
+function clipPreview(text: string, max = 28): string {
+  const t = text.replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  return t.length > max ? `${t.slice(0, max)}…` : t;
+}
+
+function FootprintCell({
+  label,
+  value,
+  empty,
+  isNew,
+  onOpen,
+  onShare,
+}: {
+  label: string;
+  value: string;
+  empty?: boolean;
+  isNew?: boolean;
+  onOpen: () => void;
+  onShare?: () => void;
+}) {
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressFired = useRef(false);
+  const startXY = useRef<{ x: number; y: number } | null>(null);
+
+  const clear = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    startXY.current = null;
+  };
+
+  return (
+    <button
+      type="button"
+      className={`card profile-footprint-cell${isNew ? ' has-new' : ''}`}
+      role="listitem"
+      title={onShare ? '长按可分享' : undefined}
+      aria-label={isNew ? `${label}，有新内容` : label}
+      onPointerDown={(e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (!onShare) return;
+        longPressFired.current = false;
+        if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+        }
+        startXY.current = { x: e.clientX, y: e.clientY };
+        longPressTimer.current = setTimeout(() => {
+          longPressFired.current = true;
+          try {
+            navigator.vibrate?.(10);
+          } catch {
+            /* ignore */
+          }
+          onShare();
+        }, 480);
+      }}
+      onPointerMove={(e) => {
+        if (!startXY.current || !longPressTimer.current) return;
+        const dx = Math.abs(e.clientX - startXY.current.x);
+        const dy = Math.abs(e.clientY - startXY.current.y);
+        if (dx > 10 || dy > 10) clear();
+      }}
+      onPointerUp={clear}
+      onPointerCancel={clear}
+      onPointerLeave={clear}
+      onContextMenu={(e) => {
+        if (!onShare) return;
+        e.preventDefault();
+        longPressFired.current = true;
+        onShare();
+      }}
+      onClick={() => {
+        if (longPressFired.current) {
+          longPressFired.current = false;
+          return;
+        }
+        onOpen();
+      }}
+    >
+      {isNew ? <span className="profile-footprint-dot" aria-hidden /> : null}
+      <span className="profile-footprint-label">{label}</span>
+      <strong className={`profile-footprint-value${empty ? ' is-empty' : ''}`}>{value}</strong>
+    </button>
+  );
+}
 
 export default function ProfileTab({ paneActive = true }: { paneActive?: boolean }) {
   const confirm = useConfirm();
@@ -83,12 +211,33 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
   const [hasPwd, setHasPwd] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [weekMins, setWeekMins] = useState(0);
+  const [journeyPct, setJourneyPct] = useState(0);
+  const [journeyReadBooks, setJourneyReadBooks] = useState(0);
+  const [thoughtCount, setThoughtCount] = useState(0);
+  const [thoughtPreview, setThoughtPreview] = useState('');
+  const [markCount, setMarkCount] = useState(0);
+  const [markPreview, setMarkPreview] = useState('');
+  const [badgePreview, setBadgePreview] = useState('');
+  const [badgeDoneCount, setBadgeDoneCount] = useState(0);
+  const [footprintSeen, setFootprintSeen] = useState<FootprintSeen>({
+    thoughts: 0,
+    marks: 0,
+    badges: 0,
+  });
+  const [milestone, setMilestone] = useState<number | null>(null);
+  const [milestoneBusy, setMilestoneBusy] = useState(false);
+  const [bookNames, setBookNames] = useState<Record<string, string>>({});
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const avatarFileRef = useRef<HTMLInputElement | null>(null);
   const [adminEligible, setAdminEligible] = useState(false);
   const [installedPwa, setInstalledPwa] = useState(
     () => typeof window !== 'undefined' && isStandalonePwa(),
   );
+  const bookNamesRef = useRef(bookNames);
+  bookNamesRef.current = bookNames;
 
   const pathname = usePathname();
   const { enabled, activeTab } = useTabKeepAlive();
@@ -136,10 +285,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   }, [enabled, activeTab, pathname]);
 
   useEffect(() => {
-    if (!settingsOpen) {
-      setDownloadHint(null);
-      return;
-    }
+    if (!profileAwake) return;
     const refreshHint = () => {
       if (!isOfflineDownloadActive()) {
         setDownloadHint(null);
@@ -148,11 +294,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setDownloadHint(offlineDownloadLabel(getOfflineDownloadSnapshot()));
     };
     refreshHint();
-    const unsub = subscribeOfflineDownload(refreshHint);
-    return () => {
-      unsub();
-    };
-  }, [settingsOpen]);
+    return subscribeOfflineDownload(refreshHint);
+  }, [profileAwake]);
 
   useEffect(() => {
     if (enabled) {
@@ -208,9 +351,13 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setName(getDisplayName());
       setBio(userLsGet(BIO_KEY) || '');
       setMins(todayMinutes());
+      setWeekMins(weekMinutesTotal());
       setStreak(readingStreak());
       setHasPwd(hasPassword());
       setAccountComplete(isAccountComplete());
+      setFootprintSeen(readFootprintSeen());
+      setMilestone(pendingStreakMilestone(readingStreak()));
+      refreshFootprintLocal({});
     };
     void boot();
     return () => {
@@ -224,6 +371,9 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       const list = await computeBadgesWithUnlock();
       if (cancelled) return;
       setBadges(list);
+      const latest = profilePreviewBadges(list, 1)[0];
+      setBadgePreview(latest?.label || '');
+      setBadgeDoneCount(list.filter((b) => b.done).length);
     };
     void loadBadges();
     return () => {
@@ -232,13 +382,87 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    api
+      .books()
+      .then((d) => {
+        if (cancelled) return;
+        const names: Record<string, string> = {};
+        const totals: Record<string, number> = {};
+        for (const b of d.books) {
+          names[b.id] = b.name;
+          totals[b.id] = b.chapter_count;
+        }
+        setBookNames(names);
+        const progress = bookProgressMap(totals);
+        const totalBooks = d.books.length;
+        const readBooks = Object.values(progress).filter(
+          (p) => p.passes >= 1 || p.distinctChapters > 0,
+        ).length;
+        setJourneyReadBooks(readBooks);
+        setJourneyPct(totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0);
+        refreshFootprintLocal(names);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setJourneyPct(0);
+          setJourneyReadBooks(0);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refreshFootprintLocal = (names: Record<string, string>) => {
+    const thoughts = listAllThoughts();
+    setThoughtCount(thoughts.length);
+    setThoughtPreview(clipPreview(thoughts[0]?.body || ''));
+
+    const marks = listMarksDetailed();
+    setMarkCount(highlightCount());
+    if (marks[0]) {
+      const label = formatMarkRefLabel(marks[0].ref, names);
+      setMarkPreview(clipPreview(marks[0].notePreview || label, 22));
+    } else {
+      setMarkPreview('');
+    }
+  };
+
+  useEffect(() => {
     if (!profileAwake) return;
     const refreshReading = () => {
       setMins(todayMinutes());
+      setWeekMins(weekMinutesTotal());
       setStreak(readingStreak());
       setName(getDisplayName());
       setBio(userLsGet(BIO_KEY) || '');
-      void computeBadgesWithUnlock().then(setBadges);
+      refreshFootprintLocal(bookNamesRef.current);
+      void computeBadgesWithUnlock().then((list) => {
+        setBadges(list);
+        const latest = profilePreviewBadges(list, 1)[0];
+        setBadgePreview(latest?.label || '');
+        setBadgeDoneCount(list.filter((b) => b.done).length);
+      });
+      setFootprintSeen(readFootprintSeen());
+      setMilestone(pendingStreakMilestone(readingStreak()));
+      void api.books().then((d) => {
+        const names: Record<string, string> = {};
+        const totals: Record<string, number> = {};
+        for (const b of d.books) {
+          names[b.id] = b.name;
+          totals[b.id] = b.chapter_count;
+        }
+        setBookNames(names);
+        const progress = bookProgressMap(totals);
+        const totalBooks = d.books.length;
+        const readBooks = Object.values(progress).filter(
+          (p) => p.passes >= 1 || p.distinctChapters > 0,
+        ).length;
+        setJourneyReadBooks(readBooks);
+        setJourneyPct(totalBooks > 0 ? Math.round((readBooks / totalBooks) * 100) : 0);
+        refreshFootprintLocal(names);
+      }).catch(() => {});
     };
     const refreshStatus = () => {
       if (getSyncState() === 'syncing') {
@@ -304,10 +528,46 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const chooseAvatar = (id: string) => {
+    clearCachedCustomAvatar();
     setAvatarId(id);
     userLsSet(AVATAR_KEY, id);
     pushProfileAvatar(id);
     setPickerOpen(false);
+  };
+
+  const onPickCustomAvatar = async (file: File | null) => {
+    if (!file || avatarUploading) return;
+    if (!file.type.startsWith('image/')) {
+      toast('请选择图片文件');
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const blob = await cropCompressAvatar(file, 512, 0.82);
+      const dataUrl = await blobToDataUrl(blob);
+      setCachedCustomAvatar(dataUrl);
+      // 先本地预览（data URL），上传成功后再换成远端地址并同步
+      const previewId = encodeCustomAvatarId(dataUrl);
+      setAvatarId(previewId);
+      const uploadFile = new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+      const meta = await api.uploadSocialMedia(uploadFile);
+      const remote = meta.url || meta.storage_key;
+      if (!remote) throw new Error('上传成功但未返回地址');
+      const nextId = encodeCustomAvatarId(remote);
+      setAvatarId(nextId);
+      userLsSet(AVATAR_KEY, nextId);
+      pushProfileAvatar(nextId);
+      setPickerOpen(false);
+      toast('头像已更新');
+    } catch (e) {
+      clearCachedCustomAvatar();
+      const saved = userLsGet(AVATAR_KEY);
+      setAvatarId(saved || defaultAvatarId(effectiveId() || undefined));
+      toast(e instanceof Error ? e.message : '头像上传失败');
+    } finally {
+      setAvatarUploading(false);
+      if (avatarFileRef.current) avatarFileRef.current.value = '';
+    }
   };
 
   const idValue = uid || gid;
@@ -348,18 +608,129 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const displayName = getDisplayName() || name.trim() || '读经伙伴';
+
+  const shareMilestone = async () => {
+    if (!milestone || milestoneBusy) return;
+    setMilestoneBusy(true);
+    try {
+      const shareUrl = buildTrackedUrl('/share/app', {
+        l1: 'share',
+        l2: 'system_share',
+        l3: `streak:${milestone}`,
+      });
+      const result = await shareCardOutbound({
+        title: `已同行 ${milestone} 天`,
+        subtitle: displayName,
+        body: `在${BRAND_NAME}安静读经，一天又一天。愿话语继续同行。`,
+        footer: `${BRAND_NAME} · ${BRAND_TAGLINE}`,
+        badge: '读经同行',
+        day: Math.min(milestone, 28),
+        shareTitle: `已同行 ${milestone} 天｜${BRAND_NAME}`,
+        shareText: `我在${BRAND_NAME}已同行读经 ${milestone} 天。愿话语继续同行。`,
+        shareUrl,
+        allowDownload: false,
+      });
+      if (result === 'shared' || result === 'copied' || result === 'downloaded') {
+        markStreakMilestoneShared(milestone);
+        setMilestone(null);
+        toast(
+          result === 'copied'
+            ? '文案已复制'
+            : result === 'downloaded'
+              ? '分享图已保存'
+              : '已调起分享',
+        );
+      } else if (result === 'failed') {
+        toast('分享失败');
+      }
+    } finally {
+      setMilestoneBusy(false);
+    }
+  };
+
+  const dismissMilestone = () => {
+    if (!milestone) return;
+    markStreakMilestoneShared(milestone);
+    setMilestone(null);
+  };
+
+  const openThoughts = () => {
+    markFootprintSeen('thoughts', thoughtCount);
+    setFootprintSeen(readFootprintSeen());
+    markRouteNavigation();
+    router.push('/notes');
+  };
+
+  const openHighlights = () => {
+    markFootprintSeen('marks', markCount);
+    setFootprintSeen(readFootprintSeen());
+    markRouteNavigation();
+    router.push('/notes?tab=highlights');
+  };
+
+  const openBadges = () => {
+    markFootprintSeen('badges', badgeDoneCount);
+    setFootprintSeen(readFootprintSeen());
+    setBadgeOpen(true);
+  };
+
+  const shareThoughtPreview = async () => {
+    if (!thoughtPreview) return;
+    const shareUrl = inviteShareUrl(effectiveId());
+    const result = await shareCardOutbound({
+      title: '我的想法',
+      subtitle: displayName,
+      body: thoughtPreview,
+      footer: `${BRAND_NAME} · ${BRAND_TAGLINE}`,
+      badge: '想法',
+      day: 5,
+      shareTitle: `我的想法｜${BRAND_NAME}`,
+      shareText: thoughtPreview,
+      shareUrl,
+      allowDownload: false,
+    });
+    if (result === 'shared') toast('已调起分享');
+    else if (result === 'copied') toast('已复制');
+    else if (result === 'failed') toast('分享失败');
+  };
+
+  const shareMarkPreview = async () => {
+    if (!markPreview) return;
+    const shareUrl = inviteShareUrl(effectiveId());
+    const result = await shareCardOutbound({
+      title: '我的划线',
+      subtitle: displayName,
+      body: markPreview,
+      footer: `${BRAND_NAME} · ${BRAND_TAGLINE}`,
+      badge: '划线',
+      day: 9,
+      shareTitle: `我的划线｜${BRAND_NAME}`,
+      shareText: markPreview,
+      shareUrl,
+      allowDownload: false,
+    });
+    if (result === 'shared') toast('已调起分享');
+    else if (result === 'copied') toast('已复制');
+    else if (result === 'failed') toast('分享失败');
+  };
+
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
+  const thoughtNew = footprintHasNew('thoughts', thoughtCount, footprintSeen);
+  const markNew = footprintHasNew('marks', markCount, footprintSeen);
+  const badgeNew = footprintHasNew('badges', badgeDoneCount, footprintSeen);
 
   return (
     <main className="container profile-page">
       <header className="profile-head profile-greet-head">
         <button
           type="button"
-          className="profile-avatar-btn"
+          className={`profile-avatar-btn${avatarUploading ? ' is-uploading' : ''}`}
           onClick={() => setPickerOpen(true)}
           aria-label="更换头像"
+          disabled={avatarUploading}
         >
           <Avatar id={avatarId} size={56} />
+          {avatarUploading ? <span className="profile-avatar-spin" aria-hidden /> : null}
         </button>
         <div className="profile-meta">
           {nameEditing ? (
@@ -458,18 +829,16 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               </span>
             </button>
           )}
-          <p className="profile-meta-line muted">
-            {streak > 0 ? `连续 ${streak} 天` : '开始连续读经'}
-            {idValue && !accountComplete ? (
-              <>
-                {' · '}
+          {(idValue && !accountComplete) || (accountComplete && !hasPwd) ? (
+            <p className="profile-meta-line muted">
+              {idValue && !accountComplete ? (
                 <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
                   {idCopied ? '已复制' : `ID ${idValue}`}
                 </button>
-              </>
-            ) : null}
-            {hasPwd ? ' · 已设密码' : ' · 建议设置用户名'}
-          </p>
+              ) : null}
+              {accountComplete && !hasPwd ? '可在设置中完善密码' : null}
+            </p>
+          ) : null}
         </div>
         <div className="profile-head-actions">
           <button
@@ -502,61 +871,117 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       </header>
 
       {!accountComplete ? (
-        <AccountSecurityCard onComplete={refreshAccount} />
-      ) : null}
-
-      <p className="section-label tab-section-label profile-block-label">成长</p>
-      <div className="profile-soft-stack">
-        <Link href="/report" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
-          <span className="pill pill-active">成长</span>
-          <span className="home-list-main">
-            <strong className="profile-streak-title">
-              {streak > 0 ? `连续 ${streak} 天` : '读经回顾'}
-              {' · '}
-              今日 {mins} 分钟
-            </strong>
-            <span className="muted home-list-sub">读经回顾 ›</span>
-          </span>
-          <span className="muted home-list-chevron">›</span>
-        </Link>
-
         <button
           type="button"
-          className="card profile-badge-card"
-          onClick={() => setBadgeOpen(true)}
+          className="profile-account-tip"
+          onClick={() => setSettingsOpen(true)}
         >
-          <div className="profile-badge-card-head">
-            <span className="profile-badge-card-title">成就</span>
-            <span className="muted">
-              {badges.length
-                ? `已收集 ${badges.filter((b) => b.done).length}/${badges.length} ›`
-                : '查看全部 ›'}
-            </span>
-          </div>
-          <div className="badge-row profile-badge-preview">
-            {(() => {
-              if (!badges.length) {
-                return <span className="muted" style={{ fontSize: 12 }}>加载中…</span>;
-              }
-              const preview = profilePreviewBadges(badges, 4);
-              if (!preview.length) {
-                return (
-                  <span className="muted" style={{ fontSize: 12 }}>
-                    读经、探索与小爱互动，解锁第一枚徽章
-                  </span>
-                );
-              }
-              return preview.map((b) => (
-                <div key={b.id} className="badge-item">
-                  <div className={`badge-circle ${b.done ? 'badge-done' : ''}`}>
-                    {b.icon}
-                  </div>
-                  <span>{b.label}</span>
-                </div>
-              ));
-            })()}
-          </div>
+          <span>完善账号，换机也能同步</span>
+          <span className="muted" aria-hidden>›</span>
         </button>
+      ) : null}
+
+      <Link
+        href="/report"
+        className="card profile-companion-card"
+        aria-label={
+          streak > 0
+            ? `已同行 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，查看读经回顾`
+            : `读经回顾，今日 ${mins} 分钟，通读 ${journeyPct}%`
+        }
+      >
+        <div className="profile-companion-main">
+          <strong className="profile-companion-title">
+            {streak > 0 ? `已同行 ${streak} 天` : '开始同行读经'}
+          </strong>
+          <span className="muted profile-companion-sub">
+            今日 {mins} 分钟 · 本周 {weekMins} 分钟
+          </span>
+        </div>
+        <div
+          className="profile-companion-ring"
+          style={{ ['--pct' as string]: journeyPct }}
+          aria-hidden
+        >
+          <span>{journeyPct}%</span>
+        </div>
+      </Link>
+
+      {milestone ? (
+        <div className="profile-milestone-banner">
+          <div className="profile-milestone-copy">
+            <strong>同行 {milestone} 天</strong>
+            <span className="muted">愿话语继续同行 · 可分享这一刻</span>
+          </div>
+          <div className="profile-milestone-actions">
+            <button
+              type="button"
+              className="btn profile-milestone-share"
+              disabled={milestoneBusy}
+              onClick={() => void shareMilestone()}
+            >
+              {milestoneBusy ? '…' : '分享'}
+            </button>
+            <button
+              type="button"
+              className="text-link"
+              disabled={milestoneBusy}
+              onClick={dismissMilestone}
+            >
+              稍后
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <p className="section-label tab-section-label profile-block-label">我的足迹</p>
+      <div className="profile-footprint-grid" role="list">
+        <FootprintCell
+          label={`想法${thoughtCount > 0 ? ` · ${thoughtCount}` : ''}`}
+          value={thoughtPreview || '写下第一句'}
+          empty={!thoughtPreview}
+          isNew={thoughtNew}
+          onOpen={openThoughts}
+          onShare={thoughtPreview ? () => void shareThoughtPreview() : undefined}
+        />
+        <FootprintCell
+          label={`划线${markCount > 0 ? ` · ${markCount}` : ''}`}
+          value={markPreview || '去读经划线'}
+          empty={!markPreview}
+          isNew={markNew}
+          onOpen={openHighlights}
+          onShare={markPreview ? () => void shareMarkPreview() : undefined}
+        />
+        <button
+          type="button"
+          className={`card profile-footprint-cell${badgeNew ? ' has-new' : ''}`}
+          role="listitem"
+          aria-label={
+            badgeNew
+              ? `成就${badgeDoneCount > 0 ? ` · ${badgeDoneCount}` : ''}，有新内容`
+              : `成就${badgeDoneCount > 0 ? ` · ${badgeDoneCount}` : ''}`
+          }
+          onClick={openBadges}
+        >
+          {badgeNew ? <span className="profile-footprint-dot" aria-hidden /> : null}
+          <span className="profile-footprint-label">
+            成就
+            {badgeDoneCount > 0 ? ` · ${badgeDoneCount}` : ''}
+          </span>
+          <strong className={`profile-footprint-value${badgePreview ? '' : ' is-empty'}`}>
+            {badgePreview || '读经解锁'}
+          </strong>
+        </button>
+        <div className="profile-footprint-cell profile-footprint-cell-progress" role="listitem">
+          <ReadingProgress
+            variant="footprint"
+            summary={
+              journeyPct > 0
+                ? `通读 ${journeyPct}% · ${journeyReadBooks} 卷`
+                : undefined
+            }
+          />
+        </div>
       </div>
 
       <p className="section-label tab-section-label profile-block-label">常用</p>
@@ -570,19 +995,37 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           <span className="muted home-list-chevron">›</span>
         </Link>
 
-        <Link href="/notes" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
-          <span className="pill">想法</span>
+        <Link
+          href="/profile/reminders"
+          className="card row-card home-list-row home-list-row-wrap profile-soft-row"
+        >
+          <span className="pill">提醒</span>
           <span className="home-list-main">
-            <strong>我的想法</strong>
-            <span className="muted home-list-sub">想法 · 划线</span>
+            <strong>推送提醒</strong>
+            <span className="muted home-list-sub">每日读经提醒</span>
           </span>
           <span className="muted home-list-chevron">›</span>
         </Link>
 
-        <div className="profile-progress-wrap">
-          <ReadingProgress />
-        </div>
+        <button
+          type="button"
+          className="card row-card home-list-row home-list-row-wrap profile-soft-row"
+          onClick={() => setDownloadOpen(true)}
+        >
+          <span className="pill">离线</span>
+          <span className="home-list-main">
+            <strong>离线圣经</strong>
+            <span className="muted home-list-sub">
+              {downloadHint || '下载经文与资料'}
+            </span>
+          </span>
+          <span className="muted home-list-chevron">›</span>
+        </button>
       </div>
+
+      <p className="profile-brand-foot muted">
+        {BRAND_NAME} · {BRAND_TAGLINE}
+      </p>
 
       {badgeOpen && (
         <BadgeGallery badges={badges} onClose={() => setBadgeOpen(false)} />
@@ -748,7 +1191,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         <AppBodyPortal>
           <div
             className="sheet-backdrop"
-            onClick={() => setPickerOpen(false)}
+            onClick={() => !avatarUploading && setPickerOpen(false)}
           >
             <div
               className="sheet card avatar-picker-sheet"
@@ -757,22 +1200,66 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               aria-labelledby="avatar-picker-title"
             >
               <h3 id="avatar-picker-title" style={{ marginTop: 0 }}>选择头像</h3>
-              <p className="muted" style={{ fontSize: 12, marginTop: -6 }}>
-                {PRESET_AVATARS.length} 款预设 · 圣经主题插画
+              <div className="avatar-picker-current">
+                <Avatar id={avatarId} size={64} />
+                <div className="avatar-picker-current-text">
+                  <strong>{isCustomAvatarId(avatarId) ? '当前：自定义' : '当前：系统预设'}</strong>
+                  <span className="muted">默认预设 · 也可从相册上传</span>
+                </div>
+              </div>
+
+              <div className="avatar-picker-actions">
+                <button
+                  type="button"
+                  className="btn avatar-picker-upload-btn"
+                  disabled={avatarUploading}
+                  onClick={() => avatarFileRef.current?.click()}
+                >
+                  {avatarUploading ? '处理中…' : '从相册选择'}
+                </button>
+                {isCustomAvatarId(avatarId) ? (
+                  <button
+                    type="button"
+                    className="text-link"
+                    disabled={avatarUploading}
+                    onClick={() => {
+                      const fallback = defaultAvatarId(effectiveId() || undefined);
+                      chooseAvatar(fallback);
+                      toast('已恢复预设头像');
+                    }}
+                  >
+                    恢复预设
+                  </button>
+                ) : null}
+                <input
+                  ref={avatarFileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    void onPickCustomAvatar(f);
+                  }}
+                />
+              </div>
+
+              <p className="muted avatar-picker-presets-label">
+                {PRESET_AVATARS.length} 款预设插画
               </p>
               <div className="avatar-grid">
                 {PRESET_AVATARS.map((a) => (
                   <button
                     key={a.id}
                     type="button"
-                    className={`avatar-cell ${a.id === avatarId ? 'avatar-cell-active' : ''}`}
+                    className={`avatar-cell ${!isCustomAvatarId(avatarId) && a.id === avatarId ? 'avatar-cell-active' : ''}`}
                     title={a.label}
-                    aria-pressed={a.id === avatarId}
+                    aria-pressed={!isCustomAvatarId(avatarId) && a.id === avatarId}
+                    disabled={avatarUploading}
                     onClick={() => chooseAvatar(a.id)}
                   >
                     <span className="avatar-cell-frame">
                       <Avatar id={a.id} size={44} />
-                      {a.id === avatarId ? (
+                      {!isCustomAvatarId(avatarId) && a.id === avatarId ? (
                         <span className="avatar-cell-check" aria-hidden>✓</span>
                       ) : null}
                     </span>

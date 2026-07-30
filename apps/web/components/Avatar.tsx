@@ -2,6 +2,12 @@
 
 // 圣经主题插画头像：5 套配色 × 10 款场景 = 50 款预设。
 // 与 App（Flutter）端 avatar_bubble.dart 共用同一规格，确保两端一致。
+// 自定义上传：id 以 `u:` 开头或为 http(s)/data URL。
+
+import {
+  customAvatarSrc,
+  isCustomAvatarId,
+} from '@/lib/profile_avatar';
 
 export type AvatarPalette = {
   name: string;
@@ -173,6 +179,29 @@ function AvatarScene({ sceneKey, pal }: { sceneKey: string; pal: AvatarPalette }
 }
 
 export default function Avatar({ id, size = 48 }: { id: string; size?: number }) {
+  if (isCustomAvatarId(id)) {
+    const src = customAvatarSrc(id);
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        width={size}
+        height={size}
+        decoding="async"
+        style={{
+          width: size,
+          height: size,
+          borderRadius: '50%',
+          objectFit: 'cover',
+          display: 'block',
+          flexShrink: 0,
+          background: 'color-mix(in srgb, var(--ink-faint, #ccc) 35%, transparent)',
+        }}
+      />
+    );
+  }
+
   const a = PRESET_AVATARS.find((x) => x.id === id) ?? PRESET_AVATARS[0];
   const pal = AVATAR_PALETTES[a.palette % AVATAR_PALETTES.length];
   const sc = AVATAR_SCENES[a.scene % AVATAR_SCENES.length];

@@ -4205,14 +4205,214 @@ a.today-card-link {
 
 /* 首节：头像区已有 margin-bottom，标题只需少量顶距 */
 .profile-page .profile-greet-head + .profile-block-label.tab-section-label,
-.profile-page .account-security-card + .profile-block-label.tab-section-label {
+.profile-page .account-security-card + .profile-block-label.tab-section-label,
+.profile-page .profile-companion-card + .profile-block-label.tab-section-label {
   margin-top: 8px;
+}
+
+.profile-page .profile-greet-head + .profile-companion-card,
+.profile-page .account-security-card + .profile-companion-card,
+.profile-page .profile-account-tip + .profile-companion-card {
+  margin-top: 4px;
+}
+
+.profile-page .profile-account-tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border: var(--soft-card-edge);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent, #07c160) 8%, var(--surface));
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.profile-page .profile-account-tip:active {
+  opacity: 0.88;
+}
+
+.profile-page .profile-greet-head + .profile-account-tip {
+  margin-top: 2px;
 }
 
 .profile-page .profile-soft-stack {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+.profile-page .profile-companion-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0 0 4px;
+  padding: 18px 16px;
+  border: var(--soft-card-edge);
+  border-radius: var(--home-card-radius, 24px);
+  box-shadow: var(--home-shadow);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+  min-height: 88px;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.profile-page .profile-companion-card:active {
+  transform: scale(0.985);
+  opacity: 0.92;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-page .profile-companion-card {
+    transition: none;
+  }
+
+  .profile-page .profile-companion-card:active {
+    transform: none;
+  }
+}
+
+.profile-page .profile-companion-card + .profile-milestone-banner {
+  margin-top: 10px;
+}
+
+.profile-page .profile-companion-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-page .profile-companion-title {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.profile-page .profile-companion-sub {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.profile-page .profile-companion-ring {
+  --pct: 0;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(closest-side, var(--surface) 72%, transparent 73%),
+    conic-gradient(
+      var(--accent, #07c160) calc(var(--pct) * 1%),
+      color-mix(in srgb, var(--ink-faint) 28%, transparent) 0
+    );
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.profile-page .profile-footprint-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.profile-page .profile-footprint-cell,
+.profile-page a.profile-footprint-cell,
+.profile-page button.profile-footprint-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  height: 96px;
+  min-height: 96px;
+  max-height: 96px;
+  margin: 0;
+  padding: 14px 12px;
+  border: var(--soft-card-edge);
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  background: var(--surface);
+  text-align: left;
+  text-decoration: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  overflow: hidden;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 0.12s ease;
+}
+
+.profile-page .profile-footprint-cell:active,
+.profile-page a.profile-footprint-cell:active,
+.profile-page button.profile-footprint-cell:active {
+  opacity: 0.92;
+}
+
+.profile-page .profile-footprint-cell-progress {
+  padding: 0;
+}
+
+.profile-page .profile-footprint-trigger {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  height: 96px;
+  min-height: 96px;
+  margin: 0;
+  padding: 14px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.profile-page .profile-footprint-label {
+  font-size: 12px;
+  color: var(--muted, #6b6b6b);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.profile-page .profile-footprint-value {
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  min-height: 2.7em;
+}
+
+.profile-page .profile-footprint-value.is-empty {
+  font-weight: 500;
+  color: var(--muted, #6b6b6b);
 }
 
 .profile-page .profile-streak-title {
@@ -4273,7 +4473,8 @@ a.today-card-link {
 }
 
 .profile-page .profile-soft-row.card,
-.profile-page a.profile-soft-row.card {
+.profile-page a.profile-soft-row.card,
+.profile-page button.profile-soft-row.card {
   border: var(--soft-card-edge);
   border-radius: 20px;
   box-shadow: var(--home-shadow);
@@ -4310,7 +4511,9 @@ a.today-card-link {
 
 /* 覆盖 body.pwa-standalone .card 的 elev 阴影，与成长卡一致 */
 body.pwa-standalone .profile-page .profile-badge-card,
-body.pwa-standalone .profile-page .profile-soft-row.card {
+body.pwa-standalone .profile-page .profile-soft-row.card,
+body.pwa-standalone .profile-page .profile-companion-card,
+body.pwa-standalone .profile-page .profile-footprint-cell {
   box-shadow: var(--home-shadow);
 }
 
@@ -6616,10 +6819,141 @@ body.verse-full-open .tabbar {
 
 .avatar-picker-sheet {
   margin-bottom: 0;
-  max-height: min(70vh, 520px);
+  max-height: min(78vh, 580px);
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.avatar-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+}
+
+.avatar-picker-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 12px;
+}
+
+.avatar-picker-current-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.avatar-picker-current-text strong {
+  font-size: 14px;
+}
+
+.avatar-picker-upload-btn {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.avatar-picker-presets-label {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.profile-page .profile-avatar-btn {
+  position: relative;
+}
+
+.profile-page .profile-avatar-btn.is-uploading {
+  opacity: 0.72;
+}
+
+.profile-page .profile-avatar-spin {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--surface) 40%, transparent);
+  border-top-color: var(--accent, #07c160);
+  animation: profile-spin 0.7s linear infinite;
+}
+
+@keyframes profile-spin {
+  to { transform: rotate(360deg); }
+}
+
+.profile-page .profile-milestone-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 0 2px;
+  padding: 12px 14px;
+  border: var(--soft-card-edge);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent, #07c160) 9%, var(--surface));
+  box-shadow: var(--home-shadow);
+}
+
+@media (max-width: 360px) {
+  .profile-page .profile-milestone-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+.profile-page .profile-milestone-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.profile-page .profile-milestone-copy strong {
+  font-size: 15px;
+}
+
+.profile-page .profile-milestone-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.profile-page .profile-milestone-share {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.profile-page .profile-footprint-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #07c160);
+  box-shadow: 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+
+.profile-page .profile-footprint-cell.has-new {
+  box-shadow:
+    var(--home-shadow),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent, #07c160) 28%, transparent);
+}
+
+.profile-page .profile-brand-foot {
+  margin: 28px 0 8px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.02em;
 }
 
 .avatar-picker-sheet .avatar-grid {

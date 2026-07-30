@@ -1,10 +1,12 @@
 # 圣经 App 代码实施计划
 
 > 版本：v2.0  
-> 更新日期：2026-06-29  
+> 更新日期：2026-07-30  
 > 依据：[PRODUCT.md](./PRODUCT.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [RAG.md](./RAG.md) · [READING-EXPERIENCE.md](./READING-EXPERIENCE.md)
 
 > **v2.0 变化（2026-06-29）：** 纳入近期定稿——**云优先用户数据**（服务端真相源 + 本地缓存/outbox）、**Web/H5+PWA** 第二端、**AI 选型**（DeepSeek `deepseek-v4-flash` + DashScope `text-embedding-v4`，Key 已配）、**静态数据已生成**（计划/每日经文/祷告/交叉引用/词典/插画）、**部署域名** `www.prestoai.cn`（H5 `/2sc`）。RAG 与登录**复用 `minimax_aipodcast`**（见 §11）。里程碑改为 M0–M6 详排（见 §3）。
+
+> **2026-07-30 ·「我的」读经身份页：** 产品定稿见 [`PRODUCT.md` §5.5](./PRODUCT.md#55-我的--读经身份页2026-07-30-定稿)。工程按下方 **§1.5** P0→P2 推进（Web `ProfileTab` 优先）。
 
 ---
 
@@ -66,6 +68,20 @@
 | Phase 3 打磨与上架 | 3–4 周 | 17–22 周 |
 
 *按 1 名全栈估算；2 人前后端分工可压缩 Phase 1 约 20–30%。*
+
+### 1.5 「我的」读经身份页 · 推进方案（2026-07-30）
+
+> 规格全文：`PRODUCT.md` §5.5；本表仅工程拆解。
+
+| 阶段 | 任务 | 主要落点 | 验收 |
+|------|------|----------|------|
+| **P0** | 同行主卡（整卡→`/report`，无「查看回顾」）；去重回顾列表行；签名空态厘清；足迹 **2×2 骨架**（数量/空态即可）；常用初收敛；间距对齐首页 soft card | `apps/web/components/tabs/ProfileTab.tsx`、`globals.css` profile 区 | 主屏无回顾 CTA；点主卡进报告；四格在位 |
+| **P1** | 2×2 **真实预览**（想法/划线/成就/进行中）；满空同高；本地摘要刷新；常用最终 ≤4；账号未完备改细条；可选回流角标 | 同上 + notes/badges/progress 摘要读取 | 预览与目的地一致；进页无重请求卡顿 |
+| **P2** | 头像相册上传·裁圆·压缩·恢复预设·资料同步·社交回落小图；里程碑分享；可选长按足迹分享 | `Avatar` / picker Sheet、`profile_sync`、媒体上传 API、群/私信头像回落 | 默认仍为预设；上传后列表用小图 |
+
+**不做（与产品一致）：** 九宫格、首页式任务流、主卡次 CTA、签名改「今日一句」。
+
+**Flutter：** Web P0–P1 稳定后，按同 IA 对齐 `features/profile/`。
 
 ---
 

@@ -34,7 +34,14 @@ function bookHref(bookId: string): string {
   return `/reader?book=${bookId}&chapter=${ch && ch > 0 ? ch : 1}`;
 }
 
-export default function ReadingProgress() {
+export default function ReadingProgress({
+  variant = 'card',
+  summary,
+}: {
+  variant?: 'card' | 'footprint';
+  /** footprint 格自定义预览文案 */
+  summary?: string;
+}) {
   const [books, setBooks] = useState<BibleBook[]>([]);
   const [open, setOpen] = useState(false);
   const [rev, setRev] = useState(0);
@@ -110,33 +117,50 @@ export default function ReadingProgress() {
 
   return (
     <>
-      <button
-        type="button"
-        className="card progress-card"
-        onClick={() => {
-          setRev((r) => r + 1);
-          setOpen(true);
-        }}
-      >
-        <div className="section-row" style={{ marginTop: 0 }}>
-          <span>读经旅程</span>
-          <span className="muted">目录 ›</span>
-        </div>
-        <div className="progress-summary">
-          <div className="progress-ring" style={{ ['--pct' as string]: overallPct }}>
-            <span>{overallPct}%</span>
+      {variant === 'footprint' ? (
+        <button
+          type="button"
+          className="profile-footprint-trigger"
+          onClick={() => {
+            setRev((r) => r + 1);
+            setOpen(true);
+          }}
+        >
+          <span className="profile-footprint-label">旅程</span>
+          <strong className={`profile-footprint-value${overallPct > 0 || summary ? '' : ' is-empty'}`}>
+            {summary
+              || (overallPct > 0 ? `通读 ${overallPct}%` : '开始一段旅程')}
+          </strong>
+        </button>
+      ) : (
+        <button
+          type="button"
+          className="card progress-card"
+          onClick={() => {
+            setRev((r) => r + 1);
+            setOpen(true);
+          }}
+        >
+          <div className="section-row" style={{ marginTop: 0 }}>
+            <span>读经旅程</span>
+            <span className="muted">目录 ›</span>
           </div>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <p style={{ margin: 0, fontWeight: 600 }}>
-              已读 {readBooks} / {totalBooks} 卷
-              {doneBooks > 0 ? ` · 通读 ${doneBooks} 卷` : ''}
-            </p>
-            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-              点击查看目录与进度
-            </p>
+          <div className="progress-summary">
+            <div className="progress-ring" style={{ ['--pct' as string]: overallPct }}>
+              <span>{overallPct}%</span>
+            </div>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                已读 {readBooks} / {totalBooks} 卷
+                {doneBooks > 0 ? ` · 通读 ${doneBooks} 卷` : ''}
+              </p>
+              <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
+                点击查看目录与进度
+              </p>
+            </div>
           </div>
-        </div>
-      </button>
+        </button>
+      )}
 
       {open && (
         <AppBodyPortal>

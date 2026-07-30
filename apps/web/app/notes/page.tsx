@@ -59,7 +59,12 @@ export default function NotesPage() {
   useEdgeSwipeBack({ href: '/profile' });
 
   const confirm = useConfirm();
-  const [tab, setTab] = useState<Tab>('thoughts');
+  const [tab, setTab] = useState<Tab>(() => {
+    if (typeof window === 'undefined') return 'thoughts';
+    return new URLSearchParams(window.location.search).get('tab') === 'highlights'
+      ? 'highlights'
+      : 'thoughts';
+  });
   const [query, setQuery] = useState('');
   const [thoughts, setThoughts] = useState<ThoughtRow[]>([]);
   const [highlights, setHighlights] = useState<{ ref: string; mark: HighlightMark }[]>([]);

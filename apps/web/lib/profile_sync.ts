@@ -14,10 +14,14 @@ export type UserProfilePayload = {
 };
 
 export function pushProfileAvatar(avatarId: string) {
+  const id = avatarId.trim();
+  if (!id) return;
+  // 禁止把本机 data URL 推上云
+  if (id.startsWith('data:') || id.startsWith('u:data:')) return;
   enqueue({
     entity: 'user_profile',
     op: 'update',
-    data: { avatar_id: avatarId },
+    data: { avatar_id: id },
     client_ts: new Date().toISOString(),
   });
 }
