@@ -135,6 +135,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
   const ptrIndicatorRef = useRef<HTMLDivElement | null>(null);
   const ptrLabelRef = useRef<HTMLSpanElement | null>(null);
   const reducedMotion = usePrefersReducedMotion();
+  const cacheHydratedRef = useRef(false);
+
+  useEffect(() => {
+    if (cacheHydratedRef.current) return;
+    cacheHydratedRef.current = true;
+    const cached = readConvCache();
+    if (cached.length > 0) {
+      setItems(cached);
+      messagesLoadedRef.current = true;
+      setLoading(false);
+    }
+  }, []);
 
   const friendsById = useMemo(() => {
     const map = new Map<string, Friend>();
@@ -156,6 +168,13 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     const gen = ++reloadGenRef.current;
     if (!isBrowserOnline()) {
       setErr(null);
+      if (!messagesLoadedRef.current) {
+        const cached = readConvCache();
+        if (cached.length > 0) {
+          setItems(cached);
+          messagesLoadedRef.current = true;
+        }
+      }
       setLoading(false);
       return;
     }
@@ -168,7 +187,9 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
           api.friends().catch(() => null),
         ]);
         if (gen !== reloadGenRef.current) return;
-        setItems(Array.isArray(conv.items) ? conv.items : []);
+        const next = Array.isArray(conv.items) ? conv.items : [];
+        setItems(next);
+        writeConvCache(next);
         if (fRes) setFriends(Array.isArray(fRes.friends) ? fRes.friends : []);
         messagesLoadedRef.current = true;
       });
@@ -537,14 +558,26 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       </div>
 
       {loading && items.length === 0 ? (
-        <p className="muted" style={{ padding: '12px 0' }}>加载中…</p>
+        <ul className="discover-conv-skeleton" aria-hidden>
+          {[0, 1, 2].map((i) => (
+            <li key={i} className="discover-conv-skeleton-row">
+              <span className="discover-conv-skeleton-avatar" />
+              <span className="discover-conv-skeleton-lines">
+                <span className="discover-conv-skeleton-line w60" />
+                <span className="discover-conv-skeleton-line w40" />
+              </span>
+            </li>
+          ))}
+        </ul>
       ) : null}
 
       {!searching && !loading && online && err && items.length === 0 ? (
         <div className="discover-empty">
           <strong>消息加载失败</strong>
           <p className="muted">{err}</p>
-          <button type="button" className="btn" onClick={() => void reload()}>重试</button>
+          <div className="discover-empty-actions">
+            <button type="button" className="btn" onClick={() => void reload()}>重试</button>
+          </div>
         </div>
       ) : null}
 
@@ -554,16 +587,21 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
             <strong>{online ? '还没有消息' : '消息暂不可用'}</strong>
             <p className="muted">
               {online
-                ? '加好友后可私信，建群后可打卡与闲聊。消息与附件仅保留近 30 天。'
+                ? '加好友后即可私信，也能一起读经。'
                 : '当前离线，联网后即可刷新消息列表。'}
             </p>
             {online ? (
               <div className="discover-empty-actions">
-                <button type="button" className="btn" onClick={() => go('/friend/add')}>加好友</button>
-                <button type="button" className="btn btn-ghost" onClick={() => go('/discover/contacts')}>
-                  通讯录
-                      </button>
-                <button type="button" className="btn btn-ghost" onClick={() => go('/group/create')}>新建群</button>
+                <button type="button" className="btn" onClick={() => go('/friend/add')}>
+                  加好友
+                </button>
+                <button
+                  type="button"
+                  className="text-link"
+                  onClick={() => go('/discover/contacts')}
+                >
+                  通讯录 ›
+                </button>
               </div>
             ) : null}
           </div>
