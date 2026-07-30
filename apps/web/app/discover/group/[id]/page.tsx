@@ -29,7 +29,8 @@ import { scrollImChatToBottom } from '@/lib/use_im_composer_keyboard';
 import { recordGroupCheckin, recordGroupResponse } from '@/lib/badge_events';
 import { requestInviteNudge } from '@/lib/invite_nudge';
 import { loadGeneratedPlans } from '@/lib/generated_plans';
-import { asGroupMembers, myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
+import { asGroupMembers, displayMemberName, myDisplayName, normalizeGroupDetail } from '@/lib/group_ui';
+import { friendRemarkOrName } from '@/lib/friend_remarks';
 import { dismissPendingGroup, markGroupsListDirty } from '@/lib/groups_refresh';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { replySnippet } from '@/lib/im_ui';
@@ -58,6 +59,7 @@ function GroupPageInner() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [profileMember, setProfileMember] = useState<GroupMember | null>(null);
+  const [mentionSeed, setMentionSeed] = useState<{ id: string; label: string } | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const hasMoreRef = useRef(false);
@@ -85,7 +87,9 @@ function GroupPageInner() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [composerMode, setComposerMode] = useState<ComposerActionMode | null>(null);
   const [showJump, setShowJump] = useState(false);
+  const [jumpUnread, setJumpUnread] = useState(0);
   const stickBottom = useRef(true);
+  const bottomMsgIdRef = useRef<string | null>(null);
   const [replyTarget, setReplyTarget] = useState<{
     id: string;
     author: string;
@@ -336,12 +340,29 @@ function GroupPageInner() {
     const onScroll = () => {
       const dist = wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight;
       stickBottom.current = dist < 100;
+      if (stickBottom.current) setJumpUnread(0);
       const nextJump = dist > 140;
       setShowJump((prev) => (prev === nextJump ? prev : nextJump));
     };
     wrap.addEventListener('scroll', onScroll, { passive: true });
     return () => wrap.removeEventListener('scroll', onScroll);
   }, [detail]);
+
+  useEffect(() => {
+    const last = feed[feed.length - 1];
+    if (!last) return;
+    const prevId = bottomMsgIdRef.current;
+    bottomMsgIdRef.current = last.id;
+    if (!prevId || prevId === last.id) return;
+    if (stickBottom.current) {
+      setJumpUnread(0);
+      return;
+    }
+    if (!last.mine && !last.id.startsWith('temp-')) {
+      setJumpUnread((n) => n + 1);
+      setShowJump(true);
+    }
+  }, [feed]);
 
   useEffect(() => {
     if (searchParams.get('focus') === 'checkin') {
@@ -505,11 +526,11 @@ function GroupPageInner() {
     setReportMid(mid);
   };
 
-  const submitReport = async (reason: ReportReason) => {
+  const submitReport = async (reason: ReportReason, detail?: string) => {
     if (!reportMid) return;
     setReportBusy(true);
     try {
-      await api.reportContent('group_message', reportMid, reason);
+      await api.reportContent('group_message', reportMid, reason, detail);
       setReportMid(null);
       showToast(reason === 'heresy' ? '已提交异端举报，将优先复核' : '已举报，感谢反馈');
     } catch (e) {
@@ -981,6 +1002,16 @@ function GroupPageInner() {
     exitSelectMode();
   };
 
+  const deleteSelected = async () => {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`删除已选 ${selectedIds.size} 条消息？`)) return;
+    const ids = [...selectedIds];
+    exitSelectMode();
+    for (const id of ids) {
+      await deleteMsg(id);
+    }
+  };
+
   return (
     <main className="group-page group-page-checkin">
       <div className="group-checkin-nav-fixed">
@@ -1106,14 +1137,18 @@ function GroupPageInner() {
       {showJump ? (
         <button
           type="button"
-          className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}`}
+          className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}${jumpUnread > 0 ? ' has-unread' : ''}`}
           onClick={() => {
             stickBottom.current = true;
             setShowJump(false);
+            setJumpUnread(0);
             scrollImChatToBottom(feedWrapRef.current);
           }}
         >
           回到底部
+          {jumpUnread > 0 ? (
+            <span className="im-jump-badge">{jumpUnread > 99 ? '99+' : jumpUnread}</span>
+          ) : null}
         </button>
       ) : null}
 
@@ -1151,6 +1186,9 @@ function GroupPageInner() {
         selectMode={selectMode}
         selectedCount={selectedIds.size}
         onForwardSelected={forwardSelected}
+        onDeleteSelected={() => void deleteSelected()}
+        externalMention={mentionSeed}
+        onExternalMentionHandled={() => setMentionSeed(null)}
       />
 
       <GroupComposerSheet
@@ -1316,6 +1354,12 @@ function GroupPageInner() {
       <GroupMemberProfileSheet
         member={profileMember}
         onClose={() => setProfileMember(null)}
+        onMention={(m) => {
+          if (!m.user_id) return;
+          const base = displayMemberName(m);
+          const label = friendRemarkOrName(m.user_id, base);
+          setMentionSeed({ id: m.user_id, label });
+        }}
       />
 
       <GroupToast message={toast} />

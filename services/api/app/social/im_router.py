@@ -481,6 +481,7 @@ class ReportIn(BaseModel):
     target_type: str = "group_message"
     target_id: str
     reason: str = "other"
+    detail: str | None = Field(default=None, max_length=500)
 
 
 # ── 会话列表 ──
@@ -930,9 +931,18 @@ def create_friend_request(
             raise HTTPException(400, e.reason) from e
     pool = get_pool()
     with pool.connection() as conn:
-        row = conn.execute(
-            "SELECT id, display_name, handle FROM users WHERE handle = %s", (key,),
-        ).fetchone()
+        row = None
+        try:
+            uuid.UUID(key)
+            row = conn.execute(
+                "SELECT id, display_name, handle FROM users WHERE id = %s", (key,),
+            ).fetchone()
+        except ValueError:
+            pass
+        if not row:
+            row = conn.execute(
+                "SELECT id, display_name, handle FROM users WHERE handle = %s", (key,),
+            ).fetchone()
         if not row and pick_user_code(key):
             uid = uuid_for_code(key)
             row = conn.execute(
@@ -1535,6 +1545,8 @@ def create_report(
     pool = get_pool()
     with pool.connection() as conn:
         snap: dict = {"target_type": body.target_type, "target_id": body.target_id}
+        if body.detail and body.detail.strip():
+            snap["detail"] = body.detail.strip()[:500]
         if body.target_type == "group_message":
             m = conn.execute(
                 "SELECT group_id, user_id, kind, body, created_at FROM group_message WHERE id = %s",

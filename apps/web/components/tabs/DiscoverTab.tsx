@@ -619,9 +619,18 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                           onClick: () => void patchState(it, { muted: !it.muted }),
                         },
                         {
-                          label: '删除',
+                          label: '不显示',
                           tone: 'danger',
-                          onClick: () => void hideConversation(it),
+                          onClick: () => {
+                            if (
+                              !window.confirm(
+                                '从消息列表中不显示该会话？有新消息时会再次出现。',
+                              )
+                            ) {
+                              return;
+                            }
+                            void hideConversation(it);
+                          },
                         },
                       ]}
                     >

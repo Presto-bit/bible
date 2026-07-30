@@ -8,6 +8,8 @@ export type ImPopoverAction = {
   label: string;
   onClick: () => void;
   danger?: boolean;
+  /** 宫格图标（emoji / 短字符） */
+  icon?: string;
 };
 
 type Props = {
@@ -190,6 +192,7 @@ export function ImMsgActionPopover({
                   onClose();
                 }}
               >
+                {a.icon ? <span className="im-msg-popover-icon" aria-hidden>{a.icon}</span> : null}
                 <span className="im-msg-popover-label">{a.label}</span>
               </button>
             ))}

@@ -28,6 +28,8 @@ import {
   voiceRecorderSupported,
 } from '@/lib/use_voice_recorder';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
+import { ImVoiceRecordHud } from '@/components/social/ImVoiceRecordHud';
+import { MemberAvatar } from '@/components/group/MemberAvatar';
 import {
   IconCheckin,
   IconClose,
@@ -78,6 +80,10 @@ type Props = {
   selectMode?: boolean;
   selectedCount?: number;
   onForwardSelected?: () => void;
+  onDeleteSelected?: () => void;
+  /** 从名片等外部触发 @ 某人 */
+  externalMention?: { id: string; label: string } | null;
+  onExternalMentionHandled?: () => void;
 };
 
 export function GroupComposerBar({
@@ -99,6 +105,9 @@ export function GroupComposerBar({
   selectMode = false,
   selectedCount = 0,
   onForwardSelected,
+  onDeleteSelected,
+  externalMention = null,
+  onExternalMentionHandled,
 }: Props) {
   const [text, setText] = useState('');
   const [panelOpen, setPanelOpen] = useState(false);
@@ -135,6 +144,14 @@ export function GroupComposerBar({
     setComposerFocused(false);
     setVoiceMode(false);
   }, [selectMode]);
+
+  useEffect(() => {
+    if (!externalMention?.id || !externalMention.label) return;
+    pickMention({ id: externalMention.id, label: externalMention.label });
+    onExternalMentionHandled?.();
+    // pickMention 稳定依赖文本，仅在外部请求变化时触发
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalMention]);
 
   useEffect(() => {
     document.body.classList.toggle('im-plus-sheet', panelOpen);
@@ -255,7 +272,7 @@ export function GroupComposerBar({
     return list;
   }, [atQuery, pickerOpen, members, mentions, mentionAll]);
 
-  const showSuggest = (pickerOpen || atQuery != null) && suggestMembers.length > 0;
+  const showSuggest = pickerOpen || atQuery != null;
 
   /**
    * 选中提及：优先替换光标处正在输入的 @query，避免按钮路径再插一次变成 @@昵称。
@@ -477,11 +494,12 @@ export function GroupComposerBar({
   const { recording, cancelArmed, startVoice, onVoiceMove, endVoice } = useRecorder
     ? recorder
     : stt;
+  const elapsedSec = useRecorder && 'elapsedSec' in recorder ? recorder.elapsedSec : 0;
   const voiceHoldLabel = recording
     ? cancelArmed
       ? '松开取消'
       : useRecorder
-        ? `松开发送${'elapsedSec' in recorder && recorder.elapsedSec ? ` ${recorder.elapsedSec}″` : ''} · 上滑取消`
+        ? `松开发送${elapsedSec ? ` ${elapsedSec}″` : ''} · 上滑取消`
         : '松开发送 · 上滑取消'
     : useRecorder
       ? '按住 说话'
@@ -605,6 +623,16 @@ export function GroupComposerBar({
           >
             转发{selectedCount > 0 ? ` (${selectedCount})` : ''}
           </button>
+          {onDeleteSelected ? (
+            <button
+              type="button"
+              className="btn im-select-dock-danger"
+              disabled={selectedCount === 0}
+              onClick={() => onDeleteSelected()}
+            >
+              删除{selectedCount > 0 ? ` (${selectedCount})` : ''}
+            </button>
+          ) : null}
         </div>
       ) : (
         <>
@@ -613,21 +641,43 @@ export function GroupComposerBar({
           {pickerOpen ? (
             <div className="im-mention-suggest-head muted">选择要 @ 的人</div>
           ) : null}
-          {suggestMembers.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className="im-mention-suggest-item"
-              role="option"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                pickMention(item);
-              }}
-            >
-              <span className="im-mention-suggest-name">@{item.label}</span>
-              {item.sub ? <span className="im-mention-suggest-sub muted">{item.sub}</span> : null}
-            </button>
-          ))}
+          {suggestMembers.length === 0 ? (
+            <p className="muted im-mention-empty">无匹配成员</p>
+          ) : (
+            suggestMembers.map((item) => {
+              const mem = item.all
+                ? null
+                : members.find((m) => m.user_id === item.id) || null;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="im-mention-suggest-item"
+                  role="option"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    pickMention(item);
+                  }}
+                >
+                  {mem ? (
+                    <MemberAvatar member={mem} size={32} className="im-mention-suggest-avatar" />
+                  ) : (
+                    <span
+                      className="im-mention-suggest-avatar friend-avatar"
+                      style={{ width: 32, height: 32, fontSize: 12, display: 'grid', placeItems: 'center' }}
+                      aria-hidden
+                    >
+                      @
+                    </span>
+                  )}
+                  <span className="im-mention-suggest-text">
+                    <span className="im-mention-suggest-name">@{item.label}</span>
+                    {item.sub ? <span className="im-mention-suggest-sub muted">{item.sub}</span> : null}
+                  </span>
+                </button>
+              );
+            })
+          )}
         </div>
       ) : null}
 
@@ -648,6 +698,8 @@ export function GroupComposerBar({
           pending={pending}
           busy={uploading}
           progress={uploadPct}
+          caption={text}
+          onCaptionChange={setText}
           onCancel={clearPending}
           onConfirm={() => void confirmPending()}
         />
@@ -914,6 +966,11 @@ export function GroupComposerBar({
       />
         </>
       )}
+      <ImVoiceRecordHud
+        open={Boolean(recording && useRecorder)}
+        cancelArmed={cancelArmed}
+        elapsedSec={elapsedSec}
+      />
     </footer>
   );
 }

@@ -7,6 +7,8 @@ type Props = {
   pending: PendingAttach;
   busy?: boolean;
   progress?: number;
+  caption?: string;
+  onCaptionChange?: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -15,6 +17,8 @@ export function ImAttachPreview({
   pending,
   busy,
   progress = 0,
+  caption,
+  onCaptionChange,
   onCancel,
   onConfirm,
 }: Props) {
@@ -43,6 +47,16 @@ export function ImAttachPreview({
           {busy ? <span className="muted">上传 {progress}%</span> : null}
         </div>
       </div>
+      {onCaptionChange ? (
+        <input
+          className="input im-attach-caption"
+          value={caption || ''}
+          disabled={busy}
+          placeholder="添加附言（可选）"
+          maxLength={500}
+          onChange={(e) => onCaptionChange(e.target.value)}
+        />
+      ) : null}
       <div className="im-attach-preview-actions">
         <button type="button" className="text-link" disabled={busy} onClick={onCancel}>
           取消

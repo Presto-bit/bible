@@ -23625,3 +23625,152 @@ body.external-browser-open .app-body {
   text-align: center;
   color: var(--muted, #888);
 }
+
+/* ── IM ContactPicker（转发/分享共用） ── */
+.im-contact-picker-backdrop{z-index:90;}
+.im-contact-picker{
+  display:flex;flex-direction:column;gap:0;
+  max-height:min(88vh,720px);padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+  width:min(480px,100%);
+}
+.im-contact-picker-head{
+  display:grid;grid-template-columns:64px 1fr 40px;align-items:center;gap:8px;margin-bottom:8px;
+}
+.im-contact-picker-head strong{text-align:center;font-size:16px;}
+.im-contact-preview{
+  margin:0 0 8px;padding:8px 10px;border-radius:10px;
+  background:color-mix(in srgb,var(--ink,#222) 5%,transparent);font-size:13px;line-height:1.35;
+}
+.im-contact-search{margin-bottom:10px;}
+.im-contact-progress{font-size:12px;margin:0 0 8px;}
+.im-contact-scroll{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:8px;}
+.im-contact-section{margin-bottom:14px;}
+.im-contact-section-title{
+  margin:0 0 8px;font-size:12px;font-weight:600;color:var(--muted,#888);letter-spacing:.02em;
+}
+.im-contact-empty{font-size:13px;margin:4px 0 0;}
+.im-contact-recent-row{
+  display:flex;gap:12px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  padding:2px 2px 10px;margin-bottom:4px;scrollbar-width:none;
+}
+.im-contact-recent-row::-webkit-scrollbar{display:none;}
+.im-contact-recent-chip{
+  appearance:none;border:0;background:transparent;padding:0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:6px;min-width:56px;max-width:64px;
+  position:relative;color:inherit;
+}
+.im-contact-recent-chip.is-on .friend-avatar,
+.im-contact-recent-chip.is-on .im-contact-recent-avatar{
+  box-shadow:0 0 0 2px var(--accent,#2f6fed);
+}
+.im-contact-recent-name{
+  font-size:11px;line-height:1.2;text-align:center;max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.im-contact-recent-check{
+  position:absolute;top:-2px;right:2px;width:16px;height:16px;border-radius:50%;
+  background:var(--accent,#2f6fed);color:#fff;font-size:10px;line-height:16px;text-align:center;
+}
+.im-contact-list{display:flex;flex-direction:column;gap:2px;}
+.im-contact-row{
+  appearance:none;border:0;background:transparent;width:100%;text-align:left;cursor:pointer;
+  display:flex;align-items:center;gap:10px;padding:8px 6px;border-radius:12px;color:inherit;
+}
+.im-contact-row:hover,.im-contact-row:active{background:color-mix(in srgb,var(--ink,#222) 5%,transparent);}
+.im-contact-row.is-on{background:color-mix(in srgb,var(--accent,#2f6fed) 8%,transparent);}
+.im-contact-check{
+  width:20px;height:20px;border-radius:50%;flex-shrink:0;
+  border:1.5px solid color-mix(in srgb,var(--ink,#222) 28%,transparent);
+  background:transparent;
+}
+.im-contact-check.is-on{
+  border-color:var(--accent,#2f6fed);background:var(--accent,#2f6fed);
+  box-shadow:inset 0 0 0 3px #fff;
+}
+.im-contact-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;}
+.im-contact-main strong{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.im-contact-main .muted{font-size:12px;}
+.im-contact-dock{
+  display:flex;gap:8px;align-items:center;padding-top:10px;
+  border-top:1px solid color-mix(in srgb,var(--ink,#222) 8%,transparent);
+}
+.im-contact-leave{flex:1;min-width:0;font-size:14px;}
+.im-contact-send{flex-shrink:0;min-width:88px;}
+
+/* 语音全屏 HUD */
+.im-voice-hud{
+  position:fixed;inset:0;z-index:95;display:flex;align-items:flex-end;justify-content:center;
+  padding:0 24px calc(120px + env(safe-area-inset-bottom));
+  background:rgba(0,0,0,.42);pointer-events:none;
+}
+.im-voice-hud-card{
+  width:min(280px,100%);padding:22px 20px 18px;border-radius:18px;text-align:center;
+  background:rgba(28,28,30,.92);color:#fff;box-shadow:0 12px 40px rgba(0,0,0,.28);
+}
+.im-voice-hud.is-cancel .im-voice-hud-card{background:rgba(180,48,48,.94);}
+.im-voice-hud-wave{display:flex;align-items:flex-end;justify-content:center;gap:5px;height:36px;margin-bottom:10px;}
+.im-voice-hud-wave span{
+  width:4px;height:10px;border-radius:2px;background:rgba(255,255,255,.85);
+  animation:im-voice-bar .7s ease-in-out infinite alternate;
+}
+.im-voice-hud.is-cancel .im-voice-hud-wave span{animation:none;opacity:.55;}
+@keyframes im-voice-bar{from{height:8px}to{height:28px}}
+.im-voice-hud-time{display:block;font-size:28px;font-weight:600;letter-spacing:.02em;}
+.im-voice-hud-tip{margin:8px 0 0;font-size:13px;opacity:.88;}
+
+/* 回到底部未读角标 */
+.im-jump-bottom.has-unread{padding-right:12px;display:inline-flex;align-items:center;gap:6px;}
+.im-jump-badge{
+  min-width:18px;height:18px;padding:0 5px;border-radius:999px;
+  background:var(--accent,#2f6fed);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:600;
+}
+
+/* 多选底栏 */
+.im-select-dock{display:flex;gap:10px;width:100%;justify-content:center;padding:4px 0;}
+.im-select-dock .btn{min-width:96px;}
+.im-select-dock .btn.is-danger,
+.im-select-dock-danger{
+  background:transparent;border:1px solid color-mix(in srgb,#c0392b 55%,transparent);color:#c0392b;
+}
+
+/* 长按菜单图标宫格 */
+.im-msg-popover-actions{display:grid;grid-template-columns:repeat(4,minmax(56px,1fr));gap:4px;padding:4px 2px 2px;}
+.im-msg-popover-item{
+  display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;padding:8px 4px;
+}
+.im-msg-popover-icon{font-size:18px;line-height:1;opacity:.95;}
+.im-msg-popover-label{font-size:11px;white-space:nowrap;}
+
+/* @ 选人头像 */
+.im-mention-suggest-item{display:flex;align-items:center;gap:10px;}
+.im-mention-suggest-avatar{flex-shrink:0;}
+.im-mention-suggest-text{display:flex;flex-direction:column;align-items:flex-start;min-width:0;}
+.im-mention-empty{padding:10px 12px;font-size:13px;}
+
+/* 举报确认 */
+.im-report-note{width:100%;min-height:64px;margin:8px 0 12px;resize:vertical;font-size:14px;}
+.im-report-confirm{width:100%;margin-top:8px;}
+
+/* 看图底栏 */
+.im-lightbox-actions{
+  position:absolute;left:0;right:0;bottom:0;z-index:2;
+  display:flex;justify-content:center;gap:16px;
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:linear-gradient(transparent,rgba(0,0,0,.55));
+}
+.im-lightbox-action{
+  appearance:none;border:0;background:rgba(255,255,255,.16);color:#fff;
+  padding:10px 18px;border-radius:999px;font-size:14px;cursor:pointer;
+}
+.im-lightbox-action:disabled{opacity:.4;cursor:default;}
+
+/* 搜索高亮 */
+.im-chat-search-snip mark,
+.im-search-mark{
+  background:color-mix(in srgb,#f5c542 55%,transparent);color:inherit;border-radius:2px;padding:0 1px;
+}
+
+/* 发图附言 */
+.im-attach-caption{
+  width:100%;margin-top:8px;font-size:14px;min-height:36px;
+}

@@ -2283,10 +2283,16 @@ export const api = {
     targetType: 'group_message' | 'dm' | 'group' | 'user',
     targetId: string,
     reason: 'spam' | 'abuse' | 'heresy' | 'illegal' | 'other',
+    detail?: string,
   ) =>
     authed<{ id: string; status: string }>('/social/reports', {
       method: 'POST',
-      body: { target_type: targetType, target_id: targetId, reason },
+      body: {
+        target_type: targetType,
+        target_id: targetId,
+        reason,
+        ...(detail?.trim() ? { detail: detail.trim().slice(0, 500) } : {}),
+      },
     }),
   deleteMessage: (mid: string) =>
     authed<{ ok: boolean }>(`/social/messages/${mid}`, { method: 'DELETE' }),

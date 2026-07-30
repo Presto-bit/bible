@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { api } from '@/lib/api';
@@ -20,6 +20,31 @@ type Props = {
   onClose: () => void;
   onSelect: (messageId: string) => void;
 };
+
+function highlightSnippet(snippet: string, query: string): ReactNode {
+  const q = query.trim();
+  if (!q || !snippet) return snippet || '';
+  const lower = snippet.toLowerCase();
+  const needle = q.toLowerCase();
+  const parts: ReactNode[] = [];
+  let i = 0;
+  let key = 0;
+  while (i < snippet.length) {
+    const hit = lower.indexOf(needle, i);
+    if (hit < 0) {
+      parts.push(snippet.slice(i));
+      break;
+    }
+    if (hit > i) parts.push(snippet.slice(i, hit));
+    parts.push(
+      <mark key={key++} className="im-search-mark">
+        {snippet.slice(hit, hit + q.length)}
+      </mark>,
+    );
+    i = hit + q.length;
+  }
+  return parts;
+}
 
 /** 会话内消息搜索：顶栏输入，避免键盘遮挡。 */
 export function ImChatSearch({ open, scope, refId, onClose, onSelect }: Props) {
@@ -141,7 +166,9 @@ export function ImChatSearch({ open, scope, refId, onClose, onSelect }: Props) {
                       onClose();
                     }}
                   >
-                    <span className="im-chat-search-snip">{h.snippet || `[${h.kind}]`}</span>
+                    <span className="im-chat-search-snip">
+                      {highlightSnippet(h.snippet || `[${h.kind}]`, q)}
+                    </span>
                     {h.created_at ? (
                       <time className="muted">{formatConvListTime(h.created_at)}</time>
                     ) : null}

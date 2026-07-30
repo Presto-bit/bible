@@ -19,6 +19,7 @@ import {
   replySnippet,
 } from '@/lib/im_ui';
 import { ImAttachPreview } from '@/components/social/ImAttachPreview';
+import { ImVoiceRecordHud } from '@/components/social/ImVoiceRecordHud';
 import {
   IconClose,
   IconFile,
@@ -119,6 +120,7 @@ function DmThreadPageInner() {
   const [reportId, setReportId] = useState<string | null>(null);
   const [reportBusy, setReportBusy] = useState(false);
   const [showJump, setShowJump] = useState(false);
+  const [jumpUnread, setJumpUnread] = useState(0);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [forwardOpen, setForwardOpen] = useState(false);
@@ -138,6 +140,7 @@ function DmThreadPageInner() {
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
   const stickBottom = useRef(true);
+  const bottomMsgIdRef = useRef<string | null>(null);
   const wasOffline = useRef(false);
   const dmReloadGate = useRef<ReloadGate>({ busy: false, queued: false });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -447,6 +450,7 @@ function DmThreadPageInner() {
     if (!el) return;
     const dist = el.scrollHeight - el.scrollTop - el.clientHeight;
     stickBottom.current = dist < 80;
+    if (stickBottom.current) setJumpUnread(0);
     const nextJump = dist > 120;
     setShowJump((prev) => (prev === nextJump ? prev : nextJump));
   };
@@ -454,6 +458,7 @@ function DmThreadPageInner() {
   const jumpBottom = () => {
     stickBottom.current = true;
     setShowJump(false);
+    setJumpUnread(0);
     scrollImChatToBottom(listRef.current);
   };
 
@@ -666,6 +671,22 @@ function DmThreadPageInner() {
     : useRecorder
       ? '按住 说话'
       : '按住 说话（转文字）';
+
+  useEffect(() => {
+    const last = msgs[msgs.length - 1];
+    if (!last) return;
+    const prevId = bottomMsgIdRef.current;
+    bottomMsgIdRef.current = last.id;
+    if (!prevId || prevId === last.id) return;
+    if (stickBottom.current) {
+      setJumpUnread(0);
+      return;
+    }
+    if (last.sender_id !== uid && !last.id.startsWith('temp-')) {
+      setJumpUnread((n) => n + 1);
+      setShowJump(true);
+    }
+  }, [msgs, uid]);
 
   const resend = async (m: LocalDm) => {
     if (m.sendFailed && m.retryText) {
@@ -934,11 +955,11 @@ function DmThreadPageInner() {
     }
   };
 
-  const submitReport = async (reason: ReportReason) => {
+  const submitReport = async (reason: ReportReason, detail?: string) => {
     if (!reportId) return;
     setReportBusy(true);
     try {
-      await api.reportContent('dm', reportId, reason);
+      await api.reportContent('dm', reportId, reason, detail);
       setReportId(null);
     } catch (e) {
       setErr(errorMessage(e, '举报失败'));
@@ -983,6 +1004,31 @@ function DmThreadPageInner() {
       });
     }
     if (items.length) openForward(items);
+  };
+
+  const deleteSelected = async () => {
+    if (!selectedIds.size) return;
+    if (!window.confirm(`删除已选 ${selectedIds.size} 条消息？仅可删除自己发送的消息。`)) return;
+    const ids = [...selectedIds];
+    exitSelectMode();
+    for (const id of ids) {
+      const m = msgsRef.current.find((x) => x.id === id);
+      if (!m) continue;
+      if (id.startsWith('temp-') || m.sendFailed) {
+        dequeueFailedText(id);
+        dequeueFailedMediaMeta(id);
+        takeMediaFile(id);
+        setMsgs((prev) => prev.filter((x) => x.id !== id));
+        continue;
+      }
+      if (m.sender_id !== uid) continue;
+      try {
+        await api.deleteMessage(id);
+        setMsgs((prev) => prev.filter((x) => x.id !== id));
+      } catch (e) {
+        setErr(errorMessage(e, '删除失败'));
+      }
+    }
   };
 
   const clearLongPress = () => {
@@ -1039,11 +1085,13 @@ function DmThreadPageInner() {
       items.push({
         id: 'resend',
         label: '重发',
+        icon: '↻',
         onClick: () => void resend(actionMsg),
       });
       items.push({
         id: 'discard',
         label: '删除',
+        icon: '⌫',
         danger: true,
         onClick: () => {
           dequeueFailedText(actionMsg.id);
@@ -1058,6 +1106,7 @@ function DmThreadPageInner() {
       items.push({
         id: 'reply',
         label: '回复',
+        icon: '↩',
         onClick: () => {
           setReplyTo({
             id: actionMsg.id,
@@ -1074,6 +1123,7 @@ function DmThreadPageInner() {
         items.push({
           id: 'copy',
           label: '复制',
+          icon: '⧉',
           onClick: () => {
             void copyMessageText([actionMsg.ref, actionMsg.body]);
           },
@@ -1083,6 +1133,7 @@ function DmThreadPageInner() {
         items.push({
           id: 'save',
           label: '保存',
+          icon: '↓',
           onClick: () => {
             void downloadImAsset(actionImages[0]!.src, actionImages[0]!.alt);
           },
@@ -1091,6 +1142,7 @@ function DmThreadPageInner() {
       items.push({
         id: 'forward',
         label: '转发',
+        icon: '↗',
         onClick: () => {
           openForward([
             {
@@ -1110,6 +1162,7 @@ function DmThreadPageInner() {
         items.push({
           id: 'multi',
           label: '多选',
+          icon: '☑',
           onClick: () => {
             setSelectMode(true);
             setSelectedIds(new Set([actionMsg.id]));
@@ -1125,14 +1178,34 @@ function DmThreadPageInner() {
         items.push({
           id: 'recall',
           label: '撤回',
+          icon: '↺',
           danger: true,
           onClick: () => void recall(actionMsg.id),
+        });
+      }
+      if (actionMine && !actionMsg.id.startsWith('temp-')) {
+        items.push({
+          id: 'delete',
+          label: '删除',
+          icon: '⌫',
+          danger: true,
+          onClick: () => {
+            void (async () => {
+              try {
+                await api.deleteMessage(actionMsg.id);
+                setMsgs((prev) => prev.filter((x) => x.id !== actionMsg.id));
+              } catch (e) {
+                setErr(errorMessage(e, '删除失败'));
+              }
+            })();
+          },
         });
       }
       if (!actionMine) {
         items.push({
           id: 'report',
           label: '举报',
+          icon: '⚑',
           danger: true,
           onClick: () => setReportId(actionMsg.id),
         });
@@ -1479,10 +1552,13 @@ function DmThreadPageInner() {
         {showJump ? (
           <button
             type="button"
-            className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}`}
+            className={`im-jump-bottom${selectMode ? ' is-selecting' : ''}${jumpUnread > 0 ? ' has-unread' : ''}`}
             onClick={jumpBottom}
           >
             回到底部
+            {jumpUnread > 0 ? (
+              <span className="im-jump-badge">{jumpUnread > 99 ? '99+' : jumpUnread}</span>
+            ) : null}
           </button>
         ) : null}
       </div>
@@ -1500,6 +1576,14 @@ function DmThreadPageInner() {
               onClick={forwardSelected}
             >
               转发{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
+            </button>
+            <button
+              type="button"
+              className="btn im-select-dock-danger"
+              disabled={selectedIds.size === 0}
+              onClick={() => void deleteSelected()}
+            >
+              删除{selectedIds.size > 0 ? ` (${selectedIds.size})` : ''}
             </button>
           </div>
         ) : (
@@ -1520,6 +1604,8 @@ function DmThreadPageInner() {
             pending={pending}
             busy={uploading}
             progress={uploadPct}
+            caption={text}
+            onCaptionChange={setText}
             onCancel={clearPending}
             onConfirm={() => void confirmPending()}
           />
@@ -1690,6 +1776,11 @@ function DmThreadPageInner() {
         />
           </>
         )}
+        <ImVoiceRecordHud
+          open={Boolean(recording && useRecorder)}
+          cancelArmed={cancelArmed}
+          elapsedSec={useRecorder ? recorder.elapsedSec : 0}
+        />
       </div>
 
       {actionMsg && !actionMsg.recalled && actionItems.length > 0 ? (
@@ -1715,6 +1806,17 @@ function DmThreadPageInner() {
           index={lightbox.index}
           onClose={() => setLightbox(null)}
           onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+          onSave={(img) => void downloadImAsset(img.src, img.alt)}
+          onForward={(img) => {
+            openForward([
+              {
+                kind: 'image',
+                body: '',
+                attachments: [{ url: img.src, file_name: img.alt || 'image.jpg', mime: 'image/*' }],
+              },
+            ]);
+            setLightbox(null);
+          }}
         />
       ) : null}
 

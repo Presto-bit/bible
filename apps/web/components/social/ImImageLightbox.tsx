@@ -13,6 +13,8 @@ type Props = {
   index: number;
   onClose: () => void;
   onIndexChange?: (index: number) => void;
+  onSave?: (image: ImLightboxImage) => void;
+  onForward?: (image: ImLightboxImage) => void;
 };
 
 const MIN_SCALE = 1;
@@ -21,7 +23,14 @@ const MAX_SCALE = 4;
 const OPEN_GUARD_MS = 420;
 
 /** 轻量图片预览：双指缩放、双击放大、滑动切图、下滑关闭。 */
-export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props) {
+export function ImImageLightbox({
+  images,
+  index,
+  onClose,
+  onIndexChange,
+  onSave,
+  onForward,
+}: Props) {
   const safeIndex = Math.max(0, Math.min(index, images.length - 1));
   const [scale, setScale] = useState(1);
   const [tx, setTx] = useState(0);
@@ -254,6 +263,28 @@ export function ImImageLightbox({ images, index, onClose, onIndexChange }: Props
             >
               下一张
             </button>
+          </div>
+        ) : null}
+        {(onSave || onForward) && !broken ? (
+          <div className="im-lightbox-actions">
+            {onSave ? (
+              <button
+                type="button"
+                className="im-lightbox-action"
+                onClick={() => onSave(current)}
+              >
+                保存
+              </button>
+            ) : null}
+            {onForward ? (
+              <button
+                type="button"
+                className="im-lightbox-action"
+                onClick={() => onForward(current)}
+              >
+                转发
+              </button>
+            ) : null}
           </div>
         ) : null}
       </div>

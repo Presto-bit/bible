@@ -1644,21 +1644,38 @@ def report_message(mid: str, body: Report, user_id: str = Depends(get_current_us
 
 @router.delete("/messages/{mid}")
 def delete_message(mid: str, user_id: str = Depends(get_current_user)) -> dict:
-    """删除消息：作者本人或群主/管理员可删。"""
+    """删除消息：群内作者/管理员可删；私信仅作者可删。"""
     pool = get_pool()
     with pool.connection() as conn:
         row = conn.execute(
             "SELECT group_id, user_id FROM group_message WHERE id = %s", (mid,)
         ).fetchone()
+        if row:
+            gid, author_id = str(row[0]), str(row[1])
+            role = _require_member(conn, gid, user_id)
+            if author_id != user_id and role not in ("owner", "admin"):
+                raise HTTPException(403, "仅作者、群主或管理员可删除")
+            conn.execute("DELETE FROM group_message WHERE id = %s", (mid,))
+            conn.commit()
+            return {"ok": True, "scope": "group"}
+
+        row = conn.execute(
+            "SELECT thread_id, sender_id FROM direct_message WHERE id = %s", (mid,)
+        ).fetchone()
         if not row:
             raise HTTPException(404, "消息不存在")
-        gid, author_id = str(row[0]), str(row[1])
-        role = _require_member(conn, gid, user_id)
-        if author_id != user_id and role not in ("owner", "admin"):
-            raise HTTPException(403, "仅作者、群主或管理员可删除")
-        conn.execute("DELETE FROM group_message WHERE id = %s", (mid,))
+        thread_id, author_id = str(row[0]), str(row[1])
+        t = conn.execute(
+            "SELECT user_low_id, user_high_id FROM direct_thread WHERE id = %s",
+            (thread_id,),
+        ).fetchone()
+        if not t or user_id not in (str(t[0]), str(t[1])):
+            raise HTTPException(403, "无权删除")
+        if author_id != user_id:
+            raise HTTPException(403, "只能删除自己的私信")
+        conn.execute("DELETE FROM direct_message WHERE id = %s", (mid,))
         conn.commit()
-    return {"ok": True}
+    return {"ok": True, "scope": "dm"}
 
 
 @router.post("/messages/{mid}/react")

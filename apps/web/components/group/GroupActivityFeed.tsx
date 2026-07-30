@@ -258,19 +258,20 @@ function ChatBubble({
     const items: ImPopoverAction[] = [];
     if (m.sendFailed) {
       if (onResend && (m.retryMedia || (m.kind === 'chat' && m.body))) {
-        items.push({ id: 'resend', label: '重发', onClick: () => onResend(m) });
+        items.push({ id: 'resend', label: '重发', icon: '↻', onClick: () => onResend(m) });
       }
-      items.push({ id: 'delete', label: '删除', danger: true, onClick: () => onDelete(m.id) });
+      items.push({ id: 'delete', label: '删除', icon: '⌫', danger: true, onClick: () => onDelete(m.id) });
       return items;
     }
     if (!m.pending) {
       if (onReply && isChatLite) {
-        items.push({ id: 'reply', label: '回复', onClick: () => onReply(m) });
+        items.push({ id: 'reply', label: '回复', icon: '↩', onClick: () => onReply(m) });
       }
       if (m.body || m.ref) {
         items.push({
           id: 'copy',
           label: '复制',
+          icon: '⧉',
           onClick: () => {
             void copyMessageText([m.ref ? formatGroupRefLabel(m.ref) : null, m.body]);
           },
@@ -280,6 +281,7 @@ function ChatBubble({
         items.push({
           id: 'save',
           label: '保存',
+          icon: '↓',
           onClick: () => {
             void downloadImAsset(msgImages[0]!.src, msgImages[0]!.alt);
           },
@@ -289,6 +291,7 @@ function ChatBubble({
         items.push({
           id: 'share',
           label: '分享',
+          icon: '⇪',
           onClick: () => {
             void shareMessageCard();
           },
@@ -298,6 +301,7 @@ function ChatBubble({
         items.push({
           id: 'forward',
           label: '转发',
+          icon: '↗',
           onClick: () => onForward(m),
         });
       }
@@ -305,6 +309,7 @@ function ChatBubble({
         items.push({
           id: 'multi',
           label: '多选',
+          icon: '☑',
           onClick: () => onEnterSelect(m.id),
         });
       }
@@ -312,6 +317,7 @@ function ChatBubble({
         items.push({
           id: 'recall',
           label: '撤回',
+          icon: '↺',
           danger: true,
           onClick: () => onRecall(m.id),
         });
@@ -320,6 +326,7 @@ function ChatBubble({
         items.push({
           id: 'delete',
           label: '删除',
+          icon: '⌫',
           danger: true,
           onClick: () => onDelete(m.id),
         });
@@ -328,6 +335,7 @@ function ChatBubble({
         items.push({
           id: 'report',
           label: '举报',
+          icon: '⚑',
           danger: true,
           onClick: () => onReport(m.id),
         });
@@ -962,6 +970,30 @@ export function GroupActivityFeed({
           index={lightbox.index}
           onClose={() => setLightbox(null)}
           onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+          onSave={(img) => void downloadImAsset(img.src, img.alt)}
+          onForward={
+            onForward
+              ? (img) => {
+                  onForward({
+                    id: `lightbox-${Date.now()}`,
+                    author: '',
+                    mine: true,
+                    kind: 'image',
+                    body: '',
+                    reactions: {},
+                    created_at: new Date().toISOString(),
+                    attachments: [
+                      {
+                        url: img.src,
+                        file_name: img.alt || 'image.jpg',
+                        mime: 'image/*',
+                      },
+                    ],
+                  } as GroupMessage);
+                  setLightbox(null);
+                }
+              : undefined
+          }
         />
       ) : null}
 

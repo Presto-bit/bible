@@ -10,14 +10,18 @@ import { MemberAvatar } from './MemberAvatar';
 type Props = {
   member: GroupMember | null;
   onClose: () => void;
+  /** 群内 @TA：关闭名片并插入提及 */
+  onMention?: (member: GroupMember) => void;
 };
 
 /** 群聊内点头像：弹层展示成员信息，私信再跳转。 */
-export function GroupMemberProfileSheet({ member, onClose }: Props) {
+export function GroupMemberProfileSheet({ member, onClose, onMention }: Props) {
   const router = useRouter();
   const [friendIds, setFriendIds] = useState<Set<string>>(new Set());
   const [dmBusy, setDmBusy] = useState(false);
+  const [addBusy, setAddBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!member?.user_id || member.is_me) return;
@@ -64,6 +68,24 @@ export function GroupMemberProfileSheet({ member, onClose }: Props) {
     }
   };
 
+  const addFriend = async () => {
+    if (!member?.user_id || member.is_me) return;
+    setAddBusy(true);
+    setErr(null);
+    setHint(null);
+    try {
+      const r = await api.addFriend(member.user_id);
+      setHint(r.message || (r.pending ? '已发送好友申请' : '已成为好友'));
+      if (!r.pending && r.friend_id) {
+        setFriendIds((prev) => new Set([...prev, member.user_id!]));
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '添加失败');
+    } finally {
+      setAddBusy(false);
+    }
+  };
+
   if (!member) return null;
 
   const isFriend = Boolean(member.user_id && friendIds.has(member.user_id));
@@ -83,7 +105,20 @@ export function GroupMemberProfileSheet({ member, onClose }: Props) {
           <span className="muted">{roleLabel}</span>
         </div>
         {err ? <p className="group-composer-err">{err}</p> : null}
+        {hint ? <p className="muted" style={{ fontSize: 13, textAlign: 'center' }}>{hint}</p> : null}
         <div className="group-member-profile-actions">
+          {!member.is_me && member.user_id && onMention ? (
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => {
+                onMention(member);
+                onClose();
+              }}
+            >
+              @TA
+            </button>
+          ) : null}
           {!member.is_me && isFriend ? (
             <button
               type="button"
@@ -92,6 +127,16 @@ export function GroupMemberProfileSheet({ member, onClose }: Props) {
               onClick={() => void openDm()}
             >
               {dmBusy ? '打开中…' : '发私信'}
+            </button>
+          ) : null}
+          {!member.is_me && !isFriend && member.user_id ? (
+            <button
+              type="button"
+              className="btn"
+              disabled={addBusy}
+              onClick={() => void addFriend()}
+            >
+              {addBusy ? '发送中…' : '加好友'}
             </button>
           ) : null}
           <button type="button" className="font-pill" onClick={onClose}>
