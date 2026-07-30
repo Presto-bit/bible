@@ -4,11 +4,15 @@
 // 与 App（Flutter）端 avatar_bubble.dart 共用同一规格，确保两端一致。
 // 自定义上传：id 以 `u:` 开头或为 http(s)/data URL。
 
+import { useState } from 'react';
 import {
   customAvatarSrc,
+  extractAvatarStorageKey,
   getCachedCustomAvatar,
   isCustomAvatarId,
+  normalizeCustomAvatarId,
 } from '@/lib/profile_avatar';
+import { userLsGet } from '@/lib/user_storage';
 
 export type AvatarPalette = {
   name: string;
@@ -60,6 +64,21 @@ export function defaultAvatarId(seed?: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   return PRESET_AVATARS[h % PRESET_AVATARS.length].id;
+}
+
+/** 本机自定义图缓存只属于「当前用户」；他人头像失败时绝不可回退到它 */
+function isOwnCustomAvatar(id: string): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const mine = userLsGet('profile_avatar');
+    if (!mine || !isCustomAvatarId(mine)) return false;
+    if (normalizeCustomAvatarId(id) === normalizeCustomAvatarId(mine)) return true;
+    const ka = extractAvatarStorageKey(id);
+    const kb = extractAvatarStorageKey(mine);
+    return Boolean(ka && kb && ka === kb);
+  } catch {
+    return false;
+  }
 }
 
 function AvatarScene({ sceneKey, pal }: { sceneKey: string; pal: AvatarPalette }) {
@@ -180,21 +199,30 @@ function AvatarScene({ sceneKey, pal }: { sceneKey: string; pal: AvatarPalette }
 }
 
 export default function Avatar({ id, size = 48 }: { id: string; size?: number }) {
-  if (isCustomAvatarId(id)) {
+  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const showCustom = isCustomAvatarId(id) && failedFor !== id;
+
+  if (showCustom) {
     const src = customAvatarSrc(id);
-    const cached = getCachedCustomAvatar();
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
+        key={id}
         src={src}
         alt=""
         width={size}
         height={size}
         decoding="async"
         onError={(e) => {
-          if (cached && e.currentTarget.src !== cached) {
-            e.currentTarget.src = cached;
+          // 仅本人：弱网可用本机缓存；他人失败改预设，禁止「串成我的脸」
+          if (isOwnCustomAvatar(id)) {
+            const cached = getCachedCustomAvatar();
+            if (cached && e.currentTarget.src !== cached) {
+              e.currentTarget.src = cached;
+              return;
+            }
           }
+          setFailedFor(id);
         }}
         style={{
           width: size,
@@ -209,10 +237,11 @@ export default function Avatar({ id, size = 48 }: { id: string; size?: number })
     );
   }
 
-  const a = PRESET_AVATARS.find((x) => x.id === id) ?? PRESET_AVATARS[0];
+  const presetId = isCustomAvatarId(id) ? defaultAvatarId(id) : id;
+  const a = PRESET_AVATARS.find((x) => x.id === presetId) ?? PRESET_AVATARS[0];
   const pal = AVATAR_PALETTES[a.palette % AVATAR_PALETTES.length];
   const sc = AVATAR_SCENES[a.scene % AVATAR_SCENES.length];
-  const uid = `${id}`;
+  const uid = `${presetId}`;
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" style={{ display: 'block', flexShrink: 0 }}>
       <defs>
