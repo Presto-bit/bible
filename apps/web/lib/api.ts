@@ -2353,6 +2353,14 @@ export const api = {
         mentions: opts?.mentions,
       },
     }),
+  sendGroupVerse: (
+    gid: string,
+    body: { ref: string; body?: string; reply_to_id?: string },
+  ) =>
+    authed<{ id: string; created_at?: string }>(`/social/groups/${gid}/verse`, {
+      method: 'POST',
+      body,
+    }),
   patchConversationState: (
     scope: string,
     refId: string,
