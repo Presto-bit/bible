@@ -59,7 +59,8 @@ def compare(
 @router.get("/search")
 def search(
     q: str = Query(..., min_length=1),
-    limit: int = Query(24, ge=1, le=50),
+    limit: int = Query(40, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     version: str | None = Query(None, description="译本 id：cuvs / cnv / contemporary / kjv"),
     testament: str | None = Query(None, description="OT / NT"),
 ) -> dict:
@@ -69,8 +70,23 @@ def search(
     ver = (version or "").strip().lower() or None
     if ver and ver not in reader.VERSIONS:
         raise HTTPException(status_code=400, detail=f"未知译本：{version}")
-    hits = reader.search_verses(q, limit=limit, version=ver, testament=test)
-    return {"query": q, "hits": hits, "version": ver, "testament": test}
+    result = reader.search_verses(
+        q, limit=limit, offset=offset, version=ver, testament=test,
+    )
+    hits = result["hits"]
+    total = int(result["total"])
+    return {
+        "query": q,
+        "hits": hits,
+        "total": total,
+        "total_ot": int(result.get("total_ot") or 0),
+        "total_nt": int(result.get("total_nt") or 0),
+        "limit": limit,
+        "offset": offset,
+        "has_more": offset + len(hits) < total,
+        "version": result.get("version") or ver,
+        "testament": test,
+    }
 
 
 @router.get("/ref")

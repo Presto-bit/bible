@@ -239,22 +239,34 @@ export interface LocalSearchHit {
 
 export async function searchLocalVerses(
   query: string,
-  limit = 24,
+  limit = 40,
   translation: OfflineTranslation = 'cnv',
+  opts?: { testament?: 'OT' | 'NT' | null; offset?: number },
 ): Promise<LocalSearchHit[] | null> {
   const db = await getLocalBibleDb(translation);
   if (!db) return null;
   const q = query.trim();
   if (!q) return [];
+  const testament = opts?.testament || null;
+  const offset = Math.max(0, opts?.offset ?? 0);
   try {
+    const where = ["v.text LIKE ? ESCAPE '\\'"];
+    const binds: Array<string | number> = [
+      `%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`,
+    ];
+    if (testament === 'OT' || testament === 'NT') {
+      where.push('b.testament = ?');
+      binds.push(testament);
+    }
+    binds.push(limit, offset);
     const stmt = db.prepare(
       `SELECT v.book, b.name, v.chapter, v.verse, v.text
        FROM verses v JOIN books b ON b.id = v.book
-       WHERE v.text LIKE ? ESCAPE '\\'
+       WHERE ${where.join(' AND ')}
        ORDER BY b.sort_order, v.chapter, v.verse
-       LIMIT ?`,
+       LIMIT ? OFFSET ?`,
     );
-    stmt.bind([`%${q.replace(/[%_\\]/g, (c) => `\\${c}`)}%`, limit]);
+    stmt.bind(binds);
     const out: LocalSearchHit[] = [];
     while (stmt.step()) {
       const row = stmt.getAsObject() as unknown as LocalSearchHit;

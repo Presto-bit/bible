@@ -114,12 +114,27 @@ export async function bibleChapter(
   return local?.length ? local : null;
 }
 
+export type BibleSearchPage = {
+  hits: BibleSearchHit[];
+  total: number;
+  totalOt: number;
+  totalNt: number;
+  hasMore: boolean;
+};
+
 export async function bibleSearch(
   q: string,
-  opts?: { version?: string | null; testament?: 'OT' | 'NT' | null },
-): Promise<BibleSearchHit[]> {
+  opts?: {
+    version?: string | null;
+    testament?: 'OT' | 'NT' | null;
+    limit?: number;
+    offset?: number;
+  },
+): Promise<BibleSearchPage> {
   const version = opts?.version || undefined;
   const testament = opts?.testament || undefined;
+  const limit = opts?.limit ?? 40;
+  const offset = opts?.offset ?? 0;
   const localTranslation =
     version === 'kjv'
       ? 'kjv'
@@ -128,19 +143,28 @@ export async function bibleSearch(
         : version === 'contemporary'
           ? 'contemporary'
           : 'cuvs';
-  const canUseLocal =
-    (!version || version === 'cnv' || version === 'cuvs' || version === 'kjv' || version === 'contemporary') &&
-    !testament;
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+  const fromRemote = async (): Promise<BibleSearchPage> => {
+    const remote = await api.search(q, {
+      version,
+      testament: testament ?? undefined,
+      limit,
+      offset,
+    });
+    return {
+      hits: remote.hits,
+      total: remote.total ?? remote.hits.length,
+      totalOt: remote.total_ot ?? 0,
+      totalNt: remote.total_nt ?? 0,
+      hasMore: Boolean(remote.has_more),
+    };
+  };
 
   // 在线优先 API，避免搜索路径误开 sql.js
   if (!offline) {
     try {
-      const remote = await api.search(q, {
-        version,
-        testament: testament ?? undefined,
-      });
-      return remote.hits;
+      return await fromRemote();
     } catch {
       /* fall through to local */
     }
@@ -154,22 +178,34 @@ export async function bibleSearch(
       : localTranslation === 'cuvs'
         ? await isCuvsOfflineReady()
         : await isOfflinePackReady();
-  if (canUseLocal && localReady) {
-    const local = await searchLocalVerses(q, 24, localTranslation);
+  if (localReady) {
+    const local = await searchLocalVerses(q, limit, localTranslation, {
+      testament,
+      offset,
+    });
     if (local) {
-      return local.map((h) => ({
+      const hits = local.map((h) => ({
         ...h,
         ref: `${h.name}${h.chapter}:${h.verse}`,
         osis: `${h.book}.${h.chapter}.${h.verse}`,
         version: localTranslation,
       }));
+      // 离线无总数：用本页是否满页粗估 hasMore
+      return {
+        hits,
+        total: offset + hits.length + (hits.length >= limit ? 1 : 0),
+        totalOt: 0,
+        totalNt: 0,
+        hasMore: hits.length >= limit,
+      };
     }
   }
-  if (offline) return [];
+  if (offline) {
+    return { hits: [], total: 0, totalOt: 0, totalNt: 0, hasMore: false };
+  }
   try {
-    const remote = await api.search(q, { version, testament: testament ?? undefined });
-    return remote.hits;
+    return await fromRemote();
   } catch {
-    return [];
+    return { hits: [], total: 0, totalOt: 0, totalNt: 0, hasMore: false };
   }
 }

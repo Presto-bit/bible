@@ -29,11 +29,11 @@ import {
 } from '@/lib/topic_routes';
 import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { getMainVersion } from '@/lib/reader_settings';
-import { testament } from '@/lib/dictionary_match';
 
 const HISTORY_KEY = 'search_history';
+const SEARCH_PAGE_SIZE = 60;
 
-/** all = 默认全部；ot/nt = 仅前端筛选，不重搜 */
+/** all / ot / nt —— 切换约别会带 testament 重新请求 */
 type ScopeTab = 'all' | 'ot' | 'nt';
 
 function searchTooShort(q: string): boolean {
@@ -129,6 +129,11 @@ export default function SearchPage() {
   const [entityHits, setEntityHits] = useState<DictEntity[]>([]);
   const [entityLoading, setEntityLoading] = useState(false);
   const [searchRetry, setSearchRetry] = useState(0);
+  const [totalHits, setTotalHits] = useState(0);
+  const [totalOt, setTotalOt] = useState(0);
+  const [totalNt, setTotalNt] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -177,20 +182,36 @@ export default function SearchPage() {
       .slice(0, 10);
   }, [thoughts, query]);
 
-  // 仅关键词 / 译本变化时重新搜索；新旧约只做前端筛选
+  // 关键词 / 译本 / 约别变化时重新搜索（约别走 API testament，避免高频词被旧约截断）
   useEffect(() => {
     const q = query.trim();
     if (searchTooShort(q)) {
       setHits([]);
+      setTotalHits(0);
+      setTotalOt(0);
+      setTotalNt(0);
+      setHasMore(false);
       setErr(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
     setErr(null);
-    bibleSearch(q, { version: searchVersion })
-      .then((rows) => {
-        if (!cancelled) setHits(rows);
+    const testament =
+      scopeTab === 'ot' ? 'OT' : scopeTab === 'nt' ? 'NT' : null;
+    bibleSearch(q, {
+      version: searchVersion,
+      testament,
+      limit: SEARCH_PAGE_SIZE,
+      offset: 0,
+    })
+      .then((page) => {
+        if (cancelled) return;
+        setHits(page.hits);
+        setTotalHits(page.total);
+        setTotalOt(page.totalOt);
+        setTotalNt(page.totalNt);
+        setHasMore(page.hasMore);
       })
       .catch((e) => {
         if (!cancelled) setErr(errorMessage(e, '搜索失败'));
@@ -201,7 +222,41 @@ export default function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [query, searchVersion, searchRetry]);
+  }, [query, searchVersion, scopeTab, searchRetry]);
+
+  const loadMoreHits = () => {
+    const q = query.trim();
+    if (searchTooShort(q) || loadingMore || !hasMore) return;
+    const testament =
+      scopeTab === 'ot' ? 'OT' : scopeTab === 'nt' ? 'NT' : null;
+    setLoadingMore(true);
+    bibleSearch(q, {
+      version: searchVersion,
+      testament,
+      limit: SEARCH_PAGE_SIZE,
+      offset: hits.length,
+    })
+      .then((page) => {
+        setHits((prev) => {
+          const seen = new Set(prev.map((h) => `${h.osis}|${h.version}`));
+          const merged = [...prev];
+          for (const h of page.hits) {
+            const key = `${h.osis}|${h.version}`;
+            if (!seen.has(key)) {
+              seen.add(key);
+              merged.push(h);
+            }
+          }
+          return merged;
+        });
+        setTotalHits(page.total);
+        setTotalOt(page.totalOt);
+        setTotalNt(page.totalNt);
+        setHasMore(page.hasMore);
+      })
+      .catch((e) => setErr(errorMessage(e, '加载更多失败')))
+      .finally(() => setLoadingMore(false));
+  };
 
   useEffect(() => {
     const q = query.trim();
@@ -227,11 +282,7 @@ export default function SearchPage() {
     };
   }, [query]);
 
-  const displayHits = useMemo(() => {
-    if (scopeTab === 'ot') return hits.filter((h) => testament(h.book) === 'OT');
-    if (scopeTab === 'nt') return hits.filter((h) => testament(h.book) === 'NT');
-    return hits;
-  }, [hits, scopeTab]);
+  const displayHits = hits;
 
   const onSubmit = (q: string) => {
     const next = saveHistory(q);
@@ -439,8 +490,35 @@ export default function SearchPage() {
           <p className="muted search-filter-hint">
             {scopeTab === 'ot' ? '旧约 · ' : scopeTab === 'nt' ? '新约 · ' : '全部 · '}
             {versionLabel}
-            {!loading && hits.length > 0 ? ` · ${displayHits.length}/${hits.length}` : ''}
+            {!loading && totalHits > 0
+              ? ` · 已显示 ${displayHits.length}/${totalHits}`
+              : ''}
+            {scopeTab === 'all' && !loading && (totalOt > 0 || totalNt > 0)
+              ? ` · 旧约 ${totalOt} · 新约 ${totalNt}`
+              : ''}
           </p>
+          {scopeTab === 'all' && !loading && totalNt > 0 && !displayHits.some((h) => {
+            const order = h.book;
+            // MAT 及之后为新约卷 id（标准 OSIS）
+            return [
+              'MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'ROM', '1CO', '2CO', 'GAL', 'EPH',
+              'PHP', 'COL', '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM', 'HEB', 'JAS',
+              '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV',
+            ].includes(order);
+          }) ? (
+            <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+              当前结果偏靠前卷；新约另有{' '}
+              <button
+                type="button"
+                className="text-link"
+                style={{ fontSize: 13 }}
+                onClick={() => setScopeTab('nt')}
+              >
+                {totalNt} 处
+              </button>
+              （含希伯来书等），点「新约」可直接查看。
+            </p>
+          ) : null}
           {loading && <p className="muted">搜索中…</p>}
           {err && (
             <ErrorBanner
@@ -450,9 +528,7 @@ export default function SearchPage() {
             />
           )}
           {!loading && !err && displayHits.length === 0 && (
-            <p className="muted">
-              {hits.length > 0 ? '当前约别下无匹配经文' : '未找到匹配经文'}
-            </p>
+            <p className="muted">未找到匹配经文</p>
           )}
           {displayHits.map((h) => (
             <div
@@ -484,6 +560,17 @@ export default function SearchPage() {
               </button>
             </div>
           ))}
+          {!loading && hasMore ? (
+            <button
+              type="button"
+              className="btn"
+              style={{ width: '100%', marginTop: 4 }}
+              disabled={loadingMore}
+              onClick={() => loadMoreHits()}
+            >
+              {loadingMore ? '加载中…' : `加载更多（还有 ${Math.max(0, totalHits - displayHits.length)} 处）`}
+            </button>
+          ) : null}
         </section>
       )}
 

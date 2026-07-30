@@ -215,28 +215,32 @@ def search_verses(
     q: str,
     *,
     limit: int = 24,
+    offset: int = 0,
     version: str | None = None,
     testament: str | None = None,
-) -> list[dict]:
+) -> dict:
     """经文检索（自动选库 + 高级语法）：
       • 含中文 → 查 CNV，LIKE 子串匹配（FTS5 默认分词器对 CJK 不友好）；
       • 纯拉丁词 → 查 KJV（若已落地），LIKE 子串匹配（支持多词 AND / 排除 / 卷书限定）。
       • version / testament 可显式指定译本与新旧约。
     支持语法：引号短语、-排除词、书卷:/book: 限定卷书。
-    返回结果带 version 字段，供前端标注译本。"""
+    返回 hits / total / total_ot / total_nt，供前端分页与约别提示。
+    """
     q = (q or "").strip()
+    empty = {"hits": [], "total": 0, "total_ot": 0, "total_nt": 0, "version": PRIMARY_VERSION}
     if not q:
-        return []
+        return empty
     parsed = parse_query(q)
     includes = parsed["includes"]
     excludes = parsed["excludes"]
     book_id = parsed["book_id"]
     # 至少要有一个 include 词，且整体不能过短（避免空跑）。
     if not includes:
-        return []
+        return empty
     if all(_too_short(t) for t in includes):
-        return []
-    lim = max(1, min(int(limit), 50))
+        return empty
+    lim = max(1, min(int(limit), 200))
+    off = max(0, int(offset))
     joined = " ".join(includes)
     has_cjk = any("\u4e00" <= ch <= "\u9fff" for ch in joined)
 
@@ -264,18 +268,44 @@ def search_verses(
     if test in ("OT", "NT"):
         where.append("b.testament = ?")
         params.append(test)
-    params.append(lim)
 
-    sql = (
-        "SELECT v.book, b.name, v.chapter, v.verse, v.text "
-        "FROM verses v JOIN books b ON b.id=v.book "
-        "WHERE " + " AND ".join(where) + " "
-        "ORDER BY b.sort_order, v.chapter, v.verse "
-        "LIMIT ?"
-    )
+    where_sql = " AND ".join(where)
+    base_from = "FROM verses v JOIN books b ON b.id=v.book WHERE " + where_sql
+
     with _connect(ver) as conn:
-        rows = conn.execute(sql, tuple(params)).fetchall()
-    return [_hit_row(r, ver) for r in rows]
+        total = int(conn.execute(f"SELECT COUNT(*) {base_from}", tuple(params)).fetchone()[0])
+        if test in ("OT", "NT"):
+            total_ot = total if test == "OT" else 0
+            total_nt = total if test == "NT" else 0
+        else:
+            # 同条件下按约别计数，便于「全部」页提示新约还有多少
+            total_ot = int(
+                conn.execute(
+                    f"SELECT COUNT(*) {base_from} AND b.testament = ?",
+                    tuple(params) + ("OT",),
+                ).fetchone()[0]
+            )
+            total_nt = int(
+                conn.execute(
+                    f"SELECT COUNT(*) {base_from} AND b.testament = ?",
+                    tuple(params) + ("NT",),
+                ).fetchone()[0]
+            )
+        rows = conn.execute(
+            "SELECT v.book, b.name, v.chapter, v.verse, v.text "
+            f"{base_from} "
+            "ORDER BY b.sort_order, v.chapter, v.verse "
+            "LIMIT ? OFFSET ?",
+            tuple(params) + (lim, off),
+        ).fetchall()
+
+    return {
+        "hits": [_hit_row(r, ver) for r in rows],
+        "total": total,
+        "total_ot": total_ot,
+        "total_nt": total_nt,
+        "version": ver,
+    }
 
 
 def _hit_row(r: sqlite3.Row, version: str = PRIMARY_VERSION) -> dict:

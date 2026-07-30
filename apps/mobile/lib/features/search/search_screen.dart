@@ -347,7 +347,7 @@ final bibleSearchProvider =
     FutureProvider.family<List<BibleSearchHit>, String>((ref, q) async {
   if (searchTooShort(q)) return [];
   final dio = ref.watch(dioProvider);
-  final res = await dio.get('/bible/search', queryParameters: {'q': q});
+  final res = await dio.get('/bible/search', queryParameters: {'q': q, 'limit': 100});
   final hits = (res.data['hits'] ?? []) as List;
   return hits
       .map((e) => BibleSearchHit.fromJson(e as Map<String, dynamic>))
