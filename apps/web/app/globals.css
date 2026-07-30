@@ -2644,8 +2644,8 @@ html:not([data-app-theme]) .card {
   justify-content: flex-start;
   padding: 18px 12px 8px;
   margin-top: 4px;
-  transition: transform 0.18s ease;
   will-change: transform;
+  backface-visibility: hidden;
 }
 
 .home-page .home-end-sentinel {
@@ -2660,28 +2660,36 @@ html:not([data-app-theme]) .card {
   letter-spacing: 0.06em;
   color: var(--ink-faint);
   user-select: none;
+  opacity: 0.35;
   transition: opacity 0.25s ease;
 }
 
 .home-page .home-end-footer.is-at-end .home-end-label {
   color: var(--ink-soft);
+  opacity: 1;
 }
 
 .home-ptr-indicator {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  overflow: hidden;
+  height: 88px;
+  margin-top: -88px;
   pointer-events: none;
-  transition: height 0.15s ease;
+  opacity: 0;
+  transform: translate3d(0, -88px, 0);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
 }
 
 .home-ptr-label {
   font-size: 12px;
   color: var(--ink-faint);
   letter-spacing: 0.04em;
-  padding-bottom: 8px;
-  opacity: 0.9;
+  padding-bottom: 10px;
+  min-height: 1.2em;
 }
 
 .home-ptr-label.is-busy {
@@ -2689,13 +2697,16 @@ html:not([data-app-theme]) .card {
 }
 
 .home-ptr-content {
+  position: relative;
+  z-index: 1;
   will-change: transform;
-  transition: transform 0.18s ease;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .home-page.is-ptr-pulling .home-ptr-content,
-.home-page.is-ptr-refreshing .home-ptr-content {
-  transition: none;
+.home-page.is-ptr-pulling .home-ptr-indicator {
+  transition: none !important;
 }
 
 .home-ptr-toast {

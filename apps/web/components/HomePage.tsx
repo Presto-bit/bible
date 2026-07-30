@@ -539,16 +539,21 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     }
   }, [refreshHome, reducedMotion]);
 
-  const {
-    pullPx,
-    refreshing: ptrRefreshing,
-    canRelease,
-    bottomStretch,
-    contentOffset,
-  } = useHomePullRefresh({
+  const homeRootRef = useRef<HTMLElement | null>(null);
+  const ptrContentRef = useRef<HTMLDivElement | null>(null);
+  const ptrIndicatorRef = useRef<HTMLDivElement | null>(null);
+  const ptrLabelRef = useRef<HTMLSpanElement | null>(null);
+  const endFooterRef = useRef<HTMLDivElement | null>(null);
+
+  const { refreshing: ptrRefreshing } = useHomePullRefresh({
     enabled: homeAwake,
     reducedMotion,
     onRefresh: onPullRefresh,
+    rootRef: homeRootRef,
+    contentRef: ptrContentRef,
+    indicatorRef: ptrIndicatorRef,
+    labelRef: ptrLabelRef,
+    endFooterRef,
   });
 
   const scheduleHomeRefresh = useCallback(
@@ -731,25 +736,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   return (
     <main
-      className={`container home-page${ptrRefreshing ? ' is-ptr-refreshing' : ''}${pullPx > 0 ? ' is-ptr-pulling' : ''}`}
+      ref={homeRootRef}
+      className={`container home-page${ptrRefreshing ? ' is-ptr-refreshing' : ''}`}
     >
       <div
+        ref={ptrIndicatorRef}
         className="home-ptr-indicator"
-        aria-hidden={pullPx <= 0 && !ptrRefreshing}
-        style={{ height: Math.max(contentOffset, ptrRefreshing ? 36 : 0) }}
+        aria-hidden={!ptrRefreshing}
       >
-        <span className={`home-ptr-label${ptrRefreshing ? ' is-busy' : ''}`}>
-          {ptrRefreshing ? '更新中' : canRelease ? '松开刷新' : pullPx > 12 ? '下拉刷新' : ''}
-        </span>
+        <span ref={ptrLabelRef} className={`home-ptr-label${ptrRefreshing ? ' is-busy' : ''}`} />
       </div>
-      <div
-        className="home-ptr-content"
-        style={
-          contentOffset > 0
-            ? { transform: `translateY(${contentOffset}px)` }
-            : undefined
-        }
-      >
+      <div ref={ptrContentRef} className="home-ptr-content">
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
         <div className="greet-actions">
@@ -922,9 +919,15 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                 viewBox="0 0 24 24"
                 aria-hidden
                 className="hero-action-icon"
-                fill="currentColor"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               >
-                <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25z" />
+                <path d="M12 3l1.09 3.35L16.5 7.5l-3.41 1.15L12 12l-1.09-3.35L7.5 7.5l3.41-1.15L12 3z" />
+                <path d="M18.5 13l.7 2.15L21.5 16l-2.3.75L18.5 19l-.7-2.25L15.5 16l2.3-.85L18.5 13z" />
+                <path d="M5.5 14l.55 1.7L7.8 16.5l-1.75.55L5.5 18.8l-.55-1.75L3.2 16.5l1.75-.8L5.5 14z" />
               </svg>
             </button>
             <button
@@ -1003,8 +1006,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           model={growthModel}
           anchor={anchorBlock}
           onGo={go}
-          bottomStretch={bottomStretch}
           reducedMotion={reducedMotion}
+          endFooterRef={endFooterRef}
         />
       ) : null}
 
@@ -1031,15 +1034,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           onOpenReact={() => {
             setReactErr(null);
             setReactSheetOpen(true);
-          }}
-          onAskXiaoAi={() => {
-            if (!dv.ref) return;
-            setVerseFull(false);
-            navigateToAssistant(dv.ref, {
-              question: `请简要解读今天这节经文（${dv.ref}），先抓住核心信息，再给一点今日应用。`,
-              scene: 'verse_full',
-              surface: 'home_daily_verse',
-            });
           }}
           onShare={() => void shareDailyVerse()}
         />

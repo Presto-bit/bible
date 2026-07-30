@@ -1,5 +1,6 @@
 'use client';
 
+import type { RefObject } from 'react';
 import type { HomeGrowthCard, HomeGrowthModel } from '@/lib/home_growth_cards';
 import type { HomeAnchorBlockModel } from '@/lib/home_anchor_block';
 import { HomeAnchorBlock } from '@/components/home/HomeAnchorBlock';
@@ -9,8 +10,8 @@ type Props = {
   model: HomeGrowthModel;
   anchor: HomeAnchorBlockModel | null;
   onGo: (href: string) => void;
-  bottomStretch?: number;
   reducedMotion?: boolean;
+  endFooterRef?: RefObject<HTMLDivElement | null>;
 };
 
 function GrowthRow({
@@ -59,15 +60,15 @@ export function HomeGrowthStack({
   model,
   anchor,
   onGo,
-  bottomStretch = 0,
   reducedMotion = false,
+  endFooterRef,
 }: Props) {
   return (
     <section className="home-stack home-growth-stack" aria-label="阅读摘要与落点">
       <GrowthRow card={model.summary} onGo={onGo} />
       {anchor ? <HomeAnchorBlock block={anchor} onGo={onGo} /> : null}
       {model.memory ? <GrowthRow card={model.memory} onGo={onGo} /> : null}
-      <HomeEndFooter stretchPx={bottomStretch} reducedMotion={reducedMotion} />
+      <HomeEndFooter ref={endFooterRef} reducedMotion={reducedMotion} />
     </section>
   );
 }
