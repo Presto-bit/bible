@@ -19,6 +19,7 @@ const VALID_METRICS = new Set<AdminStatsSeriesKey>([
   'uv',
   'ai_requests',
   'rag_documents',
+  'product',
 ]);
 
 const METRIC_LABELS: Record<string, string> = {
@@ -29,6 +30,7 @@ const METRIC_LABELS: Record<string, string> = {
   uv: '访问 UV',
   ai_requests: 'AI 请求',
   rag_documents: 'RAG 资料',
+  product: '功能使用',
 };
 
 const NAV = [

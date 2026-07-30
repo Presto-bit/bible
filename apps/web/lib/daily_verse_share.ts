@@ -264,5 +264,14 @@ export async function shareDailyVerseCard(
     file,
     // 每日经文：无系统分享时仍可下载卡图（保留原能力）；有分享时取消绝不下载
     allowDownload: true,
+  }).then((result) => {
+    if (result === 'shared' || result === 'copied' || result === 'downloaded') {
+      void import('./product_events').then((m) =>
+        m.trackProductEvent('share_out', {
+          props: { surface: 'daily_verse', result },
+        }),
+      );
+    }
+    return result;
   });
 }

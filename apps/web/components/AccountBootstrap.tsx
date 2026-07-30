@@ -9,6 +9,7 @@ import { scheduleOfflinePackAutoDownload } from '@/lib/offline_bootstrap';
 export default function AccountBootstrap() {
   useEffect(() => {
     captureAcquisitionFromLocation();
+    void import('@/lib/product_events').then((m) => m.trackAppOpen());
     void ensureAccountReady().then(() => {
       scheduleOfflinePackAutoDownload();
     });

@@ -26,9 +26,18 @@ export function getReminder(): ReminderPref {
 }
 
 export function setReminder(p: ReminderPref) {
+  const prev = getReminder();
   localStorage.setItem(KEY, JSON.stringify(p));
   reschedule();
   void import('./notifications').then((m) => m.syncPushSubscription().catch(() => {}));
+  if (p.enabled && !prev.enabled) {
+    void import('./product_events').then((m) =>
+      m.trackProductEvent('reminder_enable', {
+        props: { hour: p.hour, minute: p.minute },
+        oncePerDay: true,
+      }),
+    );
+  }
 }
 
 export async function ensurePermission(): Promise<boolean> {

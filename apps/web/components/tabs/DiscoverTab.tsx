@@ -148,6 +148,13 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
     }
   }, []);
 
+  useEffect(() => {
+    if (!paneActive) return;
+    void import('@/lib/product_events').then((m) =>
+      m.trackProductEvent('discover_open', { oncePerDay: true }),
+    );
+  }, [paneActive]);
+
   const friendsById = useMemo(() => {
     const map = new Map<string, Friend>();
     for (const f of friends) map.set(f.user_id, f);

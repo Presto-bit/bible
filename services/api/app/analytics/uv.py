@@ -15,7 +15,11 @@ _SKIP_PREFIXES = (
     "/openapi.json",
     "/redoc",
     "/analytics/visit",
+    "/analytics/events",
+    "/analytics/acquisition",
     "/content/uv-visit",
+    "/content/product-event",
+    "/content/acquisition",
 )
 
 _schema_lock = threading.Lock()

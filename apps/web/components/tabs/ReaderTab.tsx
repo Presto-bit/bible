@@ -179,6 +179,29 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   }, [inScriptureReading]);
 
   useEffect(() => {
+    if (!paneActive || !book) return;
+    const openedAt = Date.now();
+    const bookId = book.id;
+    const ch = chapter;
+    void import('@/lib/product_events').then((m) =>
+      m.trackProductEvent('reader_open', {
+        props: { book: bookId, chapter: ch },
+        oncePerDay: true,
+        onceSalt: bookId,
+      }),
+    );
+    return () => {
+      const sec = Math.max(1, Math.round((Date.now() - openedAt) / 1000));
+      void import('@/lib/product_events').then((m) =>
+        m.trackProductEvent('reader_session_end', {
+          props: { book: bookId, chapter: ch, duration_sec: sec },
+        }),
+      );
+    };
+    // 按书卷维度计会话；换章不重置，避免刷 session_end
+  }, [paneActive, book?.id]);
+
+  useEffect(() => {
     preloadSectionTitles();
     api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
 

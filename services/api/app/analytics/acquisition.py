@@ -2,13 +2,53 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
+import threading
 from datetime import datetime
 from typing import Any
 
 CHANNEL_L1 = frozenset({"organic", "share", "campaign", "social", "ads", "unknown"})
 
 _SLUG_RE = re.compile(r"[^a-z0-9_.:-]+")
+logger = logging.getLogger(__name__)
+_schema_lock = threading.Lock()
+_schema_ready = False
+
+
+def ensure_acquisition_schema(conn) -> None:
+    """缺表时就地补齐。"""
+    global _schema_ready
+    if _schema_ready:
+        return
+    with _schema_lock:
+        if _schema_ready:
+            return
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_acquisition (
+              user_code TEXT PRIMARY KEY,
+              channel_l1 TEXT NOT NULL
+                CHECK (channel_l1 IN ('organic', 'share', 'campaign', 'social', 'ads', 'unknown')),
+              channel_l2 TEXT NOT NULL DEFAULT '',
+              channel_l3 TEXT NOT NULL DEFAULT '',
+              raw_params JSONB NOT NULL DEFAULT '{}'::jsonb,
+              landing_path TEXT NOT NULL DEFAULT '',
+              referrer_host TEXT NOT NULL DEFAULT '',
+              device_id TEXT,
+              captured_at TIMESTAMPTZ,
+              bound_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS user_acquisition_l1_idx
+              ON user_acquisition (channel_l1, bound_at DESC)
+            """
+        )
+        conn.commit()
+        _schema_ready = True
 
 
 def sanitize_slug(value: str | None, *, max_len: int) -> str:
@@ -87,59 +127,64 @@ def bind_user_acquisition(
     captured = _parse_captured_at(captured_at)
 
     pool = get_pool()
-    with pool.connection() as conn:
-        row = conn.execute(
-            """
-            INSERT INTO user_acquisition (
-              user_code, channel_l1, channel_l2, channel_l3,
-              raw_params, landing_path, referrer_host, device_id,
-              captured_at, bound_at
-            ) VALUES (
-              %s, %s, %s, %s,
-              %s::jsonb, %s, %s, %s,
-              %s, now()
-            )
-            ON CONFLICT (user_code) DO NOTHING
-            RETURNING channel_l1, channel_l2, channel_l3, bound_at
-            """,
-            (
-                code,
-                l1,
-                l2,
-                l3,
-                json.dumps(params, ensure_ascii=False),
-                path,
-                ref_host,
-                device,
-                captured,
-            ),
-        ).fetchone()
-        conn.commit()
-        if row:
+    try:
+        with pool.connection() as conn:
+            ensure_acquisition_schema(conn)
+            row = conn.execute(
+                """
+                INSERT INTO user_acquisition (
+                  user_code, channel_l1, channel_l2, channel_l3,
+                  raw_params, landing_path, referrer_host, device_id,
+                  captured_at, bound_at
+                ) VALUES (
+                  %s, %s, %s, %s,
+                  %s::jsonb, %s, %s, %s,
+                  %s, now()
+                )
+                ON CONFLICT (user_code) DO NOTHING
+                RETURNING channel_l1, channel_l2, channel_l3, bound_at
+                """,
+                (
+                    code,
+                    l1,
+                    l2,
+                    l3,
+                    json.dumps(params, ensure_ascii=False),
+                    path,
+                    ref_host,
+                    device,
+                    captured,
+                ),
+            ).fetchone()
+            conn.commit()
+            if row:
+                return {
+                    "ok": True,
+                    "bound": True,
+                    "existing": False,
+                    "channel_l1": row[0],
+                    "channel_l2": row[1],
+                    "channel_l3": row[2],
+                    "bound_at": row[3].isoformat() if row[3] else None,
+                }
+            existing = conn.execute(
+                """
+                SELECT channel_l1, channel_l2, channel_l3, bound_at
+                FROM user_acquisition WHERE user_code = %s
+                """,
+                (code,),
+            ).fetchone()
+            if not existing:
+                return {"ok": False, "bound": False, "error": "insert_failed"}
             return {
                 "ok": True,
-                "bound": True,
-                "existing": False,
-                "channel_l1": row[0],
-                "channel_l2": row[1],
-                "channel_l3": row[2],
-                "bound_at": row[3].isoformat() if row[3] else None,
+                "bound": False,
+                "existing": True,
+                "channel_l1": existing[0],
+                "channel_l2": existing[1],
+                "channel_l3": existing[2],
+                "bound_at": existing[3].isoformat() if existing[3] else None,
             }
-        existing = conn.execute(
-            """
-            SELECT channel_l1, channel_l2, channel_l3, bound_at
-            FROM user_acquisition WHERE user_code = %s
-            """,
-            (code,),
-        ).fetchone()
-        if not existing:
-            return {"ok": False, "bound": False, "error": "insert_failed"}
-        return {
-            "ok": True,
-            "bound": False,
-            "existing": True,
-            "channel_l1": existing[0],
-            "channel_l2": existing[1],
-            "channel_l3": existing[2],
-            "bound_at": existing[3].isoformat() if existing[3] else None,
-        }
+    except Exception as exc:
+        logger.warning("acquisition bind failed: %s", exc)
+        return {"ok": False, "bound": False, "error": "write_failed"}

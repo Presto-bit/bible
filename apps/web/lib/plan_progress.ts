@@ -48,8 +48,18 @@ export function getActivePlan(): ActivePlan | null {
 }
 
 export function setActivePlan(plan: ActivePlan) {
+  const prev = getActivePlan();
   writeJson(ACTIVE_KEY, plan);
   cachePlanMeta(plan);
+  if (!prev || prev.planId !== plan.planId) {
+    void import('./product_events').then((m) =>
+      m.trackProductEvent('plan_start', {
+        props: { plan_id: plan.planId, kind: plan.kind },
+        oncePerDay: true,
+        onceSalt: plan.planId,
+      }),
+    );
+  }
 }
 
 export function cancelActivePlan() {
@@ -84,6 +94,7 @@ export function setCompletedPlanDays(planId: string, days: number[]) {
 }
 
 export function markPlanDayCompleted(planId: string, day: number) {
+  const already = getCompletedPlanDays(planId).includes(day);
   const set = new Set(getCompletedPlanDays(planId));
   set.add(day);
   setCompletedPlanDays(planId, Array.from(set));
@@ -91,6 +102,15 @@ export function markPlanDayCompleted(planId: string, day: number) {
   const skipped = new Set(getSkippedPlanDays(planId));
   if (skipped.delete(day)) {
     setSkippedPlanDays(planId, Array.from(skipped));
+  }
+  if (!already) {
+    void import('./product_events').then((m) =>
+      m.trackProductEvent('plan_day_done', {
+        props: { plan_id: planId, day },
+        oncePerDay: true,
+        onceSalt: `${planId}:${day}`,
+      }),
+    );
   }
 }
 

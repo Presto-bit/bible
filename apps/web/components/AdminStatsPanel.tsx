@@ -35,6 +35,15 @@ const METRICS: MetricDef[] = [
     seriesKey: 'uv',
   },
   {
+    key: 'product',
+    label: '功能事件',
+    total: (t) => t.product_events_today ?? 0,
+    hint: () => '12 项产品事件 · 排行与漏斗',
+    dodKey: 'product_events_today',
+    dodLabel: '较昨日',
+    seriesKey: 'product',
+  },
+  {
     key: 'users',
     label: '注册用户',
     total: (t) => t.users,

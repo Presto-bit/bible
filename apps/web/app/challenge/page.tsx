@@ -77,6 +77,12 @@ export default function ChallengePage() {
     }
     if (play?.kind === 'daily') {
       markDailyQuizDone();
+      void import('@/lib/product_events').then((m) =>
+        m.trackProductEvent('warmup_finish', {
+          props: { correct, total },
+          oncePerDay: true,
+        }),
+      );
     }
     setProg(levelProgress());
     setPlay(null);

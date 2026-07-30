@@ -13,6 +13,7 @@ from ..db import get_pool
 from ..time_cn import china_today
 from .acquisition import bind_user_acquisition
 from .middleware import _client_ip
+from .product_events import record_product_event
 from .uv import record_daily_visit, uv_last_error
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
@@ -123,4 +124,41 @@ def record_acquisition(
         referrer_host=body.referrer_host,
         device_id=device_id,
         captured_at=body.captured_at,
+    )
+
+
+class ProductEventBody(BaseModel):
+    event: str = Field(..., min_length=1, max_length=64)
+    props: dict[str, Any] = Field(default_factory=dict)
+    path: str = Field(default="")
+
+
+def _optional_session_user_code(authorization: str | None) -> str | None:
+    try:
+        return _require_session_user_code(authorization)
+    except HTTPException:
+        return None
+
+
+@router.post("/events")
+def record_event(
+    body: ProductEventBody,
+    request: Request,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+) -> dict:
+    """产品功能事件入库（允许游客用 device_id）。"""
+    user_code = _optional_session_user_code(authorization)
+    device_id = (x_device_id or x_guest_id or "").strip() or None
+    if not device_id:
+        ip = _client_ip(request)
+        if ip:
+            device_id = f"ip:{ip}"
+    return record_product_event(
+        event_name=body.event,
+        user_code=user_code,
+        device_id=device_id,
+        props=body.props,
+        path=body.path,
     )

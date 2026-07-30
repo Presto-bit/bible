@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   api,
@@ -65,7 +65,7 @@ import {
 import { consumeHeroReturnToVerse } from '@/lib/hero_b_nav';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { buildHomeGrowthModel, type HomeGrowthModel } from '@/lib/home_growth_cards';
-import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
+import { formatDailyVerseQuote, dailyVerseReaderHref } from '@/lib/daily_verse_display';
 import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { bookIdToChineseName } from '@/lib/ref_label';
@@ -684,6 +684,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     setVerseFull(true);
   };
 
+  const openDailyVerseReader = useCallback(
+    (e: MouseEvent) => {
+      e.stopPropagation();
+      if (!dv) return;
+      const href = dailyVerseReaderHref(dv);
+      if (!href) return;
+      go(href);
+    },
+    [dv, go],
+  );
+
   const toggleLike = useCallback(async () => {
     if (likeBusy || !dv?.day) return;
     const verseDay = dv.day;
@@ -725,6 +736,15 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           likes_count: syncedCount,
         });
       }
+      if (syncedLiked) {
+        void import('@/lib/product_events').then((m) =>
+          m.trackProductEvent('daily_verse_like', {
+            props: { day: verseDay },
+            oncePerDay: true,
+            onceSalt: String(verseDay),
+          }),
+        );
+      }
     } catch (e) {
       engagementGenRef.current += 1;
       setLiked(prevLiked);
@@ -754,6 +774,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       hapticSuccess();
     }
   }, [homeAwake, reducedMotion]);
+
+  useEffect(() => {
+    if (!homeAwake || !dv?.day || !dv?.text) return;
+    void import('@/lib/product_events').then((m) =>
+      m.trackProductEvent('daily_verse_view', {
+        props: { day: dv.day },
+        oncePerDay: true,
+        onceSalt: String(dv.day),
+      }),
+    );
+  }, [homeAwake, dv?.day, dv?.text]);
 
   const applyReactStats = useCallback(
     (next: {
@@ -900,28 +931,36 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           }
         />
         <div className="hero-inner hero-inner-split">
-          <span className="hero-kicker hero-kicker-corner">
-            {dv?.theme ? `每日经文 · ${dv.theme}` : '每日经文'}
-          </span>
+          <span className="hero-kicker hero-kicker-corner">每日经文</span>
           <div className="hero-main">
-          {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
-          <p className="verse-text">
-            {err
-              ? '内容加载失败'
-              : dv
-                ? formatDailyVerseQuote(dv.text)
-                : dvLoading
-                  ? '加载中…'
-                  : '暂无经文'}
-          </p>
-          {err && (
+          {err ? (
+            <>
+              <p className="verse-text">内容加载失败</p>
+              <button
+                type="button"
+                className="text-link"
+                style={{ marginTop: 8, fontSize: 13 }}
+                onClick={(e) => { e.stopPropagation(); loadHomeBootstrap(); }}
+              >
+                点击重试
+              </button>
+            </>
+          ) : (
             <button
               type="button"
-              className="text-link"
-              style={{ marginTop: 8, fontSize: 13 }}
-                onClick={(e) => { e.stopPropagation(); loadHomeBootstrap(); }}
+              className="hero-main-read"
+              disabled={!dv || !dailyVerseReaderHref(dv)}
+              aria-label={dv?.ref ? `阅读 ${dv.ref}` : '阅读今日经文'}
+              onClick={openDailyVerseReader}
             >
-              点击重试
+              {dv?.ref ? <p className="hero-ref">{dv.ref}</p> : null}
+              <p className="verse-text">
+                {dv
+                  ? formatDailyVerseQuote(dv.text)
+                  : dvLoading
+                    ? '加载中…'
+                    : '暂无经文'}
+              </p>
             </button>
           )}
           </div>

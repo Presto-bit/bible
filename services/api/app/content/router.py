@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import logging
 import re
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from ..auth.session import get_current_user
 from ..auth.user_code import is_user_code
@@ -794,7 +795,6 @@ def content_uv_visit(
     from ..analytics.uv import record_daily_visit, uv_last_error
     from ..auth.local_session import verify_session_token
     from ..auth.session import resolve_user_id
-    from ..auth.user_code import is_user_code
     from ..time_cn import china_today
 
     uid = resolve_user_id(
@@ -818,6 +818,84 @@ def content_uv_visit(
         "day": china_today().isoformat(),
         "error": None if ok else uv_last_error(),
     }
+
+
+class ContentAcquisitionBody(BaseModel):
+    channel_l1: str = Field(default="organic")
+    channel_l2: str = Field(default="")
+    channel_l3: str = Field(default="")
+    raw_params: dict[str, Any] = Field(default_factory=dict)
+    landing_path: str = Field(default="")
+    referrer_host: str = Field(default="")
+    captured_at: str | None = None
+
+
+@router.post("/acquisition")
+def content_acquisition(
+    body: ContentAcquisitionBody,
+    request: Request,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+) -> dict:
+    """获客绑定（/content 双路径，兼容未反代 /analytics 的 Nginx）。"""
+    from ..analytics.acquisition import bind_user_acquisition
+    from ..analytics.router import _require_session_user_code
+
+    user_code = _require_session_user_code(authorization)
+    device = (x_device_id or x_guest_id or "").strip() or None
+    if not device:
+        forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        if forwarded:
+            device = f"ip:{forwarded[:64]}"
+        elif request.client and request.client.host:
+            device = f"ip:{request.client.host[:64]}"
+    return bind_user_acquisition(
+        user_code=user_code,
+        channel_l1=body.channel_l1,
+        channel_l2=body.channel_l2,
+        channel_l3=body.channel_l3,
+        raw_params=body.raw_params,
+        landing_path=body.landing_path,
+        referrer_host=body.referrer_host,
+        device_id=device,
+        captured_at=body.captured_at,
+    )
+
+
+class ContentProductEventBody(BaseModel):
+    event: str = Field(..., min_length=1, max_length=64)
+    props: dict[str, Any] = Field(default_factory=dict)
+    path: str = Field(default="")
+
+
+@router.post("/product-event")
+def content_product_event(
+    body: ContentProductEventBody,
+    request: Request,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
+    x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+) -> dict:
+    """产品事件（/content 双路径）。"""
+    from ..analytics.product_events import record_product_event
+    from ..analytics.router import _optional_session_user_code
+
+    user_code = _optional_session_user_code(authorization)
+    device = (x_device_id or x_guest_id or "").strip() or None
+    if not device and not user_code:
+        forwarded = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        if forwarded:
+            device = f"ip:{forwarded[:64]}"
+        elif request.client and request.client.host:
+            device = f"ip:{request.client.host[:64]}"
+    return record_product_event(
+        event_name=body.event,
+        user_code=user_code,
+        device_id=device,
+        props=body.props,
+        path=body.path,
+    )
 
 
 @router.get("/hero-b/link-catalog")

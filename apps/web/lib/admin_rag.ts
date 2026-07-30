@@ -273,6 +273,8 @@ export type AdminStatsTotals = {
   uv_login_visits: number;
   uv_converted_today: number;
   uv_7d: number;
+  /** 今日产品事件次数 */
+  product_events_today?: number;
 };
 
 export type AdminStatsDod = {
@@ -292,7 +294,8 @@ export type AdminStatsSeriesKey =
   | 'checkins'
   | 'ai_requests'
   | 'rag_documents'
-  | 'uv';
+  | 'uv'
+  | 'product';
 
 export type AdminStats = {
   totals: AdminStatsTotals;

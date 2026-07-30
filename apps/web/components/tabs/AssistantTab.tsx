@@ -658,6 +658,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     const userMsgsInSession = msgs.filter((msg) => msg.role === 'user').length + 1;
     recordXiaoAiQuestion({ scene, ref: refForApi ?? undefined });
     recordXiaoAiFollowup(userMsgsInSession);
+    void import('@/lib/product_events').then((m) =>
+      m.trackProductEvent('ai_ask', {
+        props: { scene, surface: surface || 'assistant' },
+      }),
+    );
     setMode(m);
     replaceComposerValue('');
     const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];

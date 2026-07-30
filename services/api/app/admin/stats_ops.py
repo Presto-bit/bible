@@ -20,6 +20,15 @@ from ..analytics.uv_stats import (
     uv_schema_v2,
     uv_series_deduped_sql,
 )
+from ..analytics.product_events import (
+    acquisition_source_breakdown,
+    activation_funnel,
+    d1_retention,
+    feature_usage_ranking,
+    product_events_series,
+    product_events_series_between,
+    product_events_today_count,
+)
 
 STATS_DETAIL_METRICS = frozenset(
     {
@@ -30,6 +39,7 @@ STATS_DETAIL_METRICS = frozenset(
         "uv",
         "ai_requests",
         "rag_documents",
+        "product",
     }
 )
 
@@ -43,6 +53,7 @@ TITLE_MAP = {
     "uv": "访问 UV",
     "ai_requests": "AI 请求",
     "rag_documents": "RAG 资料",
+    "product": "功能使用",
 }
 
 
@@ -416,7 +427,28 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
             "uv_converted_today": uv_today["converted"],
             "uv_write_error": uv_last_error(),
             "uv_7d": uv_7d,
+            "product_events_today": product_events_today_count(conn),
         }
+        try:
+            product_dod = _dod(
+                conn,
+                """
+                SELECT count(*) FROM product_events
+                WHERE (timezone('Asia/Shanghai', created_at))::date
+                  = (timezone('Asia/Shanghai', now()))::date
+                """,
+                """
+                SELECT count(*) FROM product_events
+                WHERE (timezone('Asia/Shanghai', created_at))::date
+                  = (timezone('Asia/Shanghai', now()))::date - 1
+                """,
+            )
+        except Exception:
+            product_dod = {
+                "today": totals["product_events_today"],
+                "yesterday": 0,
+                "pct": None,
+            }
         dod = {
             "users_new": _dod(
                 conn,
@@ -470,6 +502,7 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 "SELECT count(*) FROM bible_documents WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
                 "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
+            "product_events_today": product_dod,
         }
         series = {
             "ai_requests": _date_series(
@@ -560,10 +593,23 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 span,
             ),
         }
+        try:
+            series["product"] = product_events_series(conn, span)
+        except Exception:
+            from datetime import timedelta as _td
+            from ..time_cn import china_today as _ct
+
+            start = _ct() - _td(days=span - 1)
+            series["product"] = [
+                {"date": (start + _td(days=i)).isoformat(), "count": 0}
+                for i in range(span)
+            ]
     return {"totals": totals, "series": series, "dod": dod}
 
 
 def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
+    if metric == "product":
+        return product_events_series_between(conn, start, end)
     sql_map = {
         "users": (
             "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM users "
@@ -782,6 +828,39 @@ def fetch_admin_stats_detail(
                     items,
                 )
             )
+            # 来源空值拆分 + D1
+            try:
+                src = acquisition_source_breakdown(conn, start, end)
+                sections.append(
+                    _section(
+                        "acquisition_breakdown",
+                        "新注册来源拆分",
+                        [
+                            _col("label", "来源"),
+                            _col("users", "人数"),
+                        ],
+                        [{"label": r["label"], "users": r["users"]} for r in src],
+                    )
+                )
+                unbound = next((r["users"] for r in src if r["bucket"] == "unbound"), 0)
+                insights.append(
+                    _insight("未绑定来源", unbound, "无 user_acquisition 行"),
+                )
+            except Exception:
+                pass
+            try:
+                d1 = d1_retention(conn, start, end)
+                rate = d1.get("rate_pct")
+                insights.append(
+                    _insight(
+                        "D1 留存",
+                        f"{rate}%" if rate is not None else "—",
+                        f"回访 {d1.get('returned', 0)}/{d1.get('cohort', 0)}"
+                        + (f" · {d1.get('hint')}" if d1.get("hint") else ""),
+                    )
+                )
+            except Exception:
+                pass
             summary = f"累计 {totals['users']} 人 · 区间新增 {sum(p['count'] for p in series)}"
 
         elif metric == "groups":
@@ -1534,6 +1613,84 @@ def fetch_admin_stats_detail(
                     )
                 )
                 summary = f"今日 {totals['ai_requests_today']} 次 · 近 7 日 {totals['ai_requests_7d']} 次"
+
+        elif metric == "product":
+            ranking = feature_usage_ranking(conn, start, end)
+            funnel = activation_funnel(conn, start, end)
+            d1 = d1_retention(conn, start, end)
+            total_events = sum(int(r["events"]) for r in ranking)
+            top = ranking[0] if ranking else None
+            insights = [
+                _insight("区间事件", total_events, "12 项产品事件合计"),
+                _insight(
+                    "Top 功能",
+                    (top or {}).get("label") or "—",
+                    f"{(top or {}).get('events', 0)} 次 · {(top or {}).get('users', 0)} 人"
+                    if top
+                    else None,
+                ),
+                _insight(
+                    "D1 留存",
+                    f"{d1['rate_pct']}%" if d1.get("rate_pct") is not None else "—",
+                    f"回访 {d1.get('returned', 0)}/{d1.get('cohort', 0)}",
+                ),
+            ]
+            sections.append(
+                _section(
+                    "feature_rank",
+                    "功能使用排行",
+                    [
+                        _col("label", "功能"),
+                        _col("events", "次数"),
+                        _col("users", "去重用户"),
+                        _col("event", "事件名"),
+                    ],
+                    ranking,
+                )
+            )
+            cohort = funnel[0]["users"] if funnel else 0
+            funnel_rows = []
+            for step in funnel:
+                n = int(step["users"])
+                pct = round(n / cohort * 100, 1) if cohort else 0.0
+                funnel_rows.append(
+                    {
+                        "label": step["label"],
+                        "users": n,
+                        "pct": f"{pct}%",
+                        "step": step["step"],
+                    }
+                )
+            sections.append(
+                _section(
+                    "activation_funnel",
+                    "新用户激活漏斗",
+                    [
+                        _col("label", "步骤"),
+                        _col("users", "人数"),
+                        _col("pct", "占注册"),
+                    ],
+                    funnel_rows,
+                )
+            )
+            try:
+                src = acquisition_source_breakdown(conn, start, end)
+                sections.append(
+                    _section(
+                        "acquisition_breakdown",
+                        "新注册来源拆分",
+                        [_col("label", "来源"), _col("users", "人数")],
+                        [{"label": r["label"], "users": r["users"]} for r in src],
+                    )
+                )
+            except Exception:
+                pass
+            items = ranking
+            summary = (
+                f"今日 {totals.get('product_events_today', 0)} 次 · "
+                f"区间 {total_events} 次 · "
+                f"D1 {d1.get('rate_pct') if d1.get('rate_pct') is not None else '—'}%"
+            )
 
         else:
             raise HTTPException(status_code=404, detail="未知指标")

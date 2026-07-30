@@ -174,6 +174,22 @@ function fromReferrer(): AcquisitionPayload | null {
   return null;
 }
 
+/** 微信内置浏览器常无 referrer：用 UA 补一条弱归因，避免全空 */
+function fromWechatUa(): AcquisitionPayload | null {
+  if (typeof navigator === 'undefined') return null;
+  const ua = navigator.userAgent || '';
+  if (!/MicroMessenger/i.test(ua)) return null;
+  return {
+    channel_l1: 'share',
+    channel_l2: 'wechat_inapp',
+    channel_l3: '',
+    raw_params: { ua_hint: 'micromessenger' },
+    landing_path: typeof location !== 'undefined' ? location.pathname : '',
+    referrer_host: referrerHost(),
+    captured_at: new Date().toISOString(),
+  };
+}
+
 function organicDirect(): AcquisitionPayload {
   return {
     channel_l1: 'organic',
@@ -203,6 +219,7 @@ export function resolveAcquisitionFromLocation(
     fromUtm(search) ||
     fromPath(url.pathname, search) ||
     fromReferrer() ||
+    fromWechatUa() ||
     organicDirect()
   );
 }
@@ -249,33 +266,47 @@ function alreadyBoundLocally(userCode: string): boolean {
   }
 }
 
-/** 建档有会话后，把 pending 绑定到 user_code（服务端幂等） */
+/** 建档有会话后，把 pending 绑定到 user_code（服务端幂等；双路径 + 一次重试） */
 export async function bindPendingAcquisition(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   const code = effectiveId();
   if (!code) return false;
   if (alreadyBoundLocally(code)) return true;
 
-  // 确保有 pending（老会话重进也至少 organic）
+  // 确保有 pending（老会话重进也至少 organic / 微信 UA）
   const pending = captureAcquisitionFromLocation();
-  try {
-    const res = await fetch(`${API_BASE}/analytics/acquisition`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...authHeaders(),
-        ...(getDeviceId() ? { 'X-Device-Id': getDeviceId() } : {}),
-      },
-      body: JSON.stringify(pending),
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { ok?: boolean; existing?: boolean; bound?: boolean };
-    if (data.ok) {
-      markBoundLocally(code);
-      return true;
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...authHeaders(),
+    ...(getDeviceId() ? { 'X-Device-Id': getDeviceId() } : {}),
+  };
+  const body = JSON.stringify(pending);
+  const urls = [
+    `${API_BASE}/analytics/acquisition`,
+    `${API_BASE}/content/acquisition`,
+  ];
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { method: 'POST', headers, body });
+        if (!res.ok) continue;
+        const data = (await res.json()) as {
+          ok?: boolean;
+          existing?: boolean;
+          bound?: boolean;
+        };
+        if (data.ok) {
+          markBoundLocally(code);
+          return true;
+        }
+      } catch {
+        /* try next */
+      }
     }
-  } catch {
-    return false;
+    if (attempt === 0) {
+      await new Promise((r) => setTimeout(r, 600));
+    }
   }
   return false;
 }

@@ -21,6 +21,7 @@ const METRIC_LABELS: Record<AdminStatsSeriesKey, string> = {
   ai_requests: 'AI 请求',
   rag_documents: 'RAG 资料',
   group_members: '群成员',
+  product: '功能使用',
 };
 
 const RAG_COLUMNS: Record<string, string> = {

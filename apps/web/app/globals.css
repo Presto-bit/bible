@@ -3472,6 +3472,37 @@ button.hero-b-campaign {
   padding-bottom: 4px;
 }
 
+.hero-main-read {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.hero-main-read:disabled {
+  cursor: default;
+}
+
+.hero-main-read:not(:disabled):active {
+  opacity: 0.92;
+}
+
+.hero-main-read .hero-ref,
+.hero-main-read .verse-text {
+  pointer-events: none;
+}
+
 .hero-verse .hero-kicker,
 .hero-verse .hero-ref,
 .hero-verse .verse-text {
