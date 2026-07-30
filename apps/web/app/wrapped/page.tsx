@@ -4,15 +4,18 @@ import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import WrappedStory from '@/components/wrapped/WrappedStory';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
-import { Suspense, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { BRAND_NAME } from '@/lib/brand';
 import { shareOutbound } from '@/lib/share_outbound';
 import {
   buildWrapped,
+  enrichWrappedTexts,
   wrappedShareStatsLine,
   wrappedShareText,
+  type WrappedShareTemplate,
+  type WrappedStats,
 } from '@/lib/wrapped';
 import { renderWrappedSharePng } from '@/lib/wrapped_share';
 
@@ -20,11 +23,23 @@ function WrappedInner() {
   useEdgeSwipeBack({ href: '/report' });
   const sp = useSearchParams();
   const period = sp.get('period') === 'year' ? 'year' : 'month';
-  const w = useMemo(() => buildWrapped(period), [period]);
+  const base = useMemo(() => buildWrapped(period), [period]);
+  const [w, setW] = useState<WrappedStats>(base);
   const [hint, setHint] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
-  const share = async () => {
+  useEffect(() => {
+    setW(base);
+    let cancelled = false;
+    void enrichWrappedTexts(base).then((enriched) => {
+      if (!cancelled) setW(enriched);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [base]);
+
+  const share = async (template: WrappedShareTemplate) => {
     setHint(null);
     setSharing(true);
     try {
@@ -32,21 +47,25 @@ function WrappedInner() {
       const q = new URLSearchParams({
         period,
         label: w.label,
-        h: w.highlight.slice(0, 64),
+        h: (w.yearVerse?.label || w.highlight).slice(0, 64),
         s: stats.slice(0, 120),
+        t: template,
       });
+      if (w.yearVerse?.text) q.set('vt', w.yearVerse.text.slice(0, 120));
+      if (w.yearVerse?.label) q.set('vl', w.yearVerse.label.slice(0, 40));
+      if (w.topBookName) q.set('b', w.topBookName.slice(0, 24));
       const url = buildTrackedUrl(`/share/wrapped?${q.toString()}`, {
         l1: 'share',
         l2: 'system_share',
-        l3: `wrapped:${period}`,
+        l3: `wrapped:${period}:${template}`,
       });
-      const blob = await renderWrappedSharePng(w);
+      const blob = await renderWrappedSharePng(w, template);
       const file = blob
-        ? new File([blob], `beiai-wrapped-${period}.png`, { type: 'image/png' })
+        ? new File([blob], `beiai-wrapped-${period}-${template}.png`, { type: 'image/png' })
         : null;
       const result = await shareOutbound({
         title: `${w.label}｜${BRAND_NAME}`,
-        text: `${wrappedShareText(w)}\n打开链接看看我的读经足迹`,
+        text: `${wrappedShareText(w, template)}\n打开链接看看我的读经足迹`,
         url,
         file,
         allowDownload: true,
@@ -76,7 +95,7 @@ function WrappedInner() {
       </header>
       <WrappedStory
         stats={w}
-        onShare={() => void share()}
+        onShare={(t) => void share(t)}
         shareHint={hint}
         sharing={sharing}
       />

@@ -38,10 +38,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const sp = await searchParams;
   const label = first(sp.label).trim() || '读经回顾';
-  const highlight = first(sp.h).trim() || `我在${BRAND_NAME}的读经足迹`;
+  const verseLabel = first(sp.vl).trim();
+  const verseText = first(sp.vt).trim();
+  const highlight =
+    first(sp.h).trim() ||
+    verseLabel ||
+    `我在${BRAND_NAME}的读经足迹`;
   const stats = first(sp.s).trim();
   const description = withShareInstallHint(
-    [highlight, stats].filter(Boolean).join(' · ').slice(0, 90) || BRAND_TAGLINE,
+    [verseText || highlight, stats].filter(Boolean).join(' · ').slice(0, 90) || BRAND_TAGLINE,
   );
   const origin = analysisShareSiteOrigin();
   const og = shareOgImageUrl(18);
@@ -74,17 +79,34 @@ export default async function WrappedSharePage({
 }) {
   const sp = await searchParams;
   const period = first(sp.period) === 'year' ? 'year' : 'month';
+  const template = first(sp.t).trim();
   const label = first(sp.label).trim() || (period === 'year' ? '今年读经' : '本月读经');
+  const verseText = first(sp.vt).trim();
+  const verseLabel = first(sp.vl).trim();
+  const bookName = first(sp.b).trim();
   const highlight = first(sp.h).trim() || `我在${BRAND_NAME}留下了足迹`;
   const stats = first(sp.s).trim();
-  const metrics = parseMetricPairs(stats);
+  const metrics = template === 'verse' ? [] : parseMetricPairs(stats);
+
+  const title =
+    template === 'verse' && verseText
+      ? `「${verseText}」`
+      : template === 'book' && bookName
+        ? `《${bookName}》`
+        : highlight;
 
   return (
     <main className="container share-landing-page share-landing-wrapped">
       <SharePwaGuide variant="wrapped" />
       <p className="eyebrow">{BRAND_NAME} · 读经回顾</p>
       <p className="muted share-landing-kicker">{label}</p>
-      <h1 className="share-landing-title">{highlight}</h1>
+      <h1 className="share-landing-title">{title}</h1>
+      {template === 'verse' && verseLabel ? (
+        <p className="share-landing-cite">{verseLabel}</p>
+      ) : null}
+      {template === 'book' && bookName ? (
+        <p className="share-landing-lead">{highlight}</p>
+      ) : null}
       {metrics.length > 0 ? (
         <div className="share-landing-metrics">
           {metrics.map((m) => (
@@ -94,7 +116,7 @@ export default async function WrappedSharePage({
             </div>
           ))}
         </div>
-      ) : stats ? (
+      ) : stats && template !== 'verse' && template !== 'book' ? (
         <p className="share-landing-lead">{stats}</p>
       ) : null}
       <p className="muted share-landing-support">{BRAND_TAGLINE}</p>
