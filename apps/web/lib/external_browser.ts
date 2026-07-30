@@ -2,12 +2,17 @@
 
 export const EXTERNAL_BROWSER_OPEN = 'presto-external-browser-open';
 
+/** app：仅返回+标题（默认）；browser：显示域名与「浏览器打开」（兼容旧调用） */
+export type ExternalBrowserChrome = 'app' | 'browser';
+
 export type ExternalBrowserOpenDetail = {
   /** 目标 URL；loading 时可为空，稍后用同事件更新 */
   url?: string;
   title?: string;
   /** 为 true 时显示加载态（创世记取 session 等） */
   loading?: boolean;
+  /** 顶栏形态；默认 app */
+  chrome?: ExternalBrowserChrome;
 };
 
 export function openExternalBrowser(detail: ExternalBrowserOpenDetail): void {
@@ -18,6 +23,7 @@ export function openExternalBrowser(detail: ExternalBrowserOpenDetail): void {
         url: (detail.url || '').trim(),
         title: (detail.title || '').trim() || undefined,
         loading: Boolean(detail.loading),
+        chrome: detail.chrome === 'browser' ? 'browser' : 'app',
       } satisfies ExternalBrowserOpenDetail,
     }),
   );

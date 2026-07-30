@@ -178,14 +178,14 @@ async function obtainGenesis50Session(code: string): Promise<G50Session> {
   }
 }
 
-/** 应用内打开：先展示 loading，登录后把 session 写入 iframe URL（无系统浏览器弹窗）。 */
+/** 应用内打开：先展示 loading，登录后把 session 写入 iframe URL（活动沉浸顶栏，无浏览器感）。 */
 export function openGenesis50Authed(href: string): void {
   if (typeof window === 'undefined') return;
   const code = resolveGenesis50InviteCode(href);
   const fallback = normalizeHref(href);
   const title = '创世记 50 天';
 
-  openExternalBrowser({ title, loading: true });
+  openExternalBrowser({ title, loading: true, chrome: 'app' });
 
   void (async () => {
     try {
@@ -194,18 +194,19 @@ export function openGenesis50Authed(href: string): void {
         url: buildAuthedUrl(fallback, session),
         title,
         loading: false,
+        chrome: 'app',
       });
     } catch (err) {
       console.warn('[genesis50] auto enter failed, fallback plain embed', err);
-      // 仍内嵌打开；用户可点顶栏「浏览器打开」。带 code 方便对方站内手动登录时少一步记忆
+      // 仍内嵌打开；带 code 方便对方站内手动登录时少一步记忆
       try {
         const u = new URL(fallback);
         if (!u.searchParams.get('code') && !u.searchParams.get('invite')) {
           u.searchParams.set('code', code);
         }
-        openExternalBrowser({ url: u.toString(), title, loading: false });
+        openExternalBrowser({ url: u.toString(), title, loading: false, chrome: 'app' });
       } catch {
-        openExternalBrowser({ url: fallback, title, loading: false });
+        openExternalBrowser({ url: fallback, title, loading: false, chrome: 'app' });
       }
     }
   })();

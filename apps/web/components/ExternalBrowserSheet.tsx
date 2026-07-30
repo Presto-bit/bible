@@ -5,6 +5,7 @@ import AppBodyPortal from '@/components/AppBodyPortal';
 import {
   EXTERNAL_BROWSER_OPEN,
   openInSystemBrowser,
+  type ExternalBrowserChrome,
   type ExternalBrowserOpenDetail,
 } from '@/lib/external_browser';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
@@ -14,13 +15,21 @@ type BrowserState = {
   url: string;
   title: string;
   loading: boolean;
+  chrome: ExternalBrowserChrome;
 };
 
-const CLOSED: BrowserState = { open: false, url: '', title: '', loading: false };
+const CLOSED: BrowserState = {
+  open: false,
+  url: '',
+  title: '',
+  loading: false,
+  chrome: 'app',
+};
 
 /**
  * 真外链全屏内嵌浏览器：留在 PWA 壳内。
  * 若事件误带站内 URL，直接同窗跳转，不展示浏览器顶栏。
+ * 默认 chrome=app：仅返回+标题；无网址 / 无「浏览器打开」。
  */
 export default function ExternalBrowserSheet() {
   const [state, setState] = useState<BrowserState>(CLOSED);
@@ -44,11 +53,20 @@ export default function ExternalBrowserSheet() {
             : nextUrl
               ? false
               : prev.loading;
+        const chrome =
+          detail.chrome === 'browser'
+            ? 'browser'
+            : detail.chrome === 'app'
+              ? 'app'
+              : prev.open
+                ? prev.chrome
+                : 'app';
         return {
           open: true,
           url: nextUrl || prev.url,
           title: (detail.title || '').trim() || prev.title || '网页',
           loading,
+          chrome,
         };
       });
       if (nextUrl) setFrameBlocked(false);
@@ -83,7 +101,9 @@ export default function ExternalBrowserSheet() {
 
   if (!state.open) return null;
 
+  const appChrome = state.chrome === 'app';
   const hostLabel = (() => {
+    if (appChrome) return '';
     try {
       return state.url ? new URL(state.url).hostname.replace(/^www\./, '') : '';
     } catch {
@@ -93,23 +113,34 @@ export default function ExternalBrowserSheet() {
 
   return (
     <AppBodyPortal>
-      <div className="external-browser" role="dialog" aria-modal="true" aria-label={state.title}>
+      <div
+        className={`external-browser${appChrome ? ' external-browser--app' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={state.title}
+      >
         <header className="external-browser-top">
           <button type="button" className="external-browser-close" onClick={close} aria-label="返回">
             返回
           </button>
           <div className="external-browser-title-wrap">
-            <div className="external-browser-title">{state.title === hostLabel ? '网页' : state.title}</div>
+            <div className="external-browser-title">
+              {state.title === hostLabel ? '网页' : state.title}
+            </div>
             {hostLabel ? <div className="external-browser-host">{hostLabel}</div> : null}
           </div>
-          <button
-            type="button"
-            className="external-browser-system"
-            disabled={!state.url || state.loading}
-            onClick={() => state.url && openInSystemBrowser(state.url)}
-          >
-            浏览器打开
-          </button>
+          {appChrome ? (
+            <span className="external-browser-top-spacer" aria-hidden />
+          ) : (
+            <button
+              type="button"
+              className="external-browser-system"
+              disabled={!state.url || state.loading}
+              onClick={() => state.url && openInSystemBrowser(state.url)}
+            >
+              浏览器打开
+            </button>
+          )}
         </header>
 
         <div className="external-browser-body">

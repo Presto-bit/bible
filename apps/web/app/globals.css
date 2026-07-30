@@ -24388,6 +24388,18 @@ body.external-browser-open .app-body {
   -webkit-backdrop-filter: blur(10px);
 }
 
+.external-browser--app .external-browser-top {
+  border-bottom-color: color-mix(in srgb, var(--ink, #222) 6%, transparent);
+  background: var(--bg, #fff);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.external-browser--app .external-browser-title {
+  font-size: 15px;
+  font-weight: 650;
+}
+
 .external-browser-title {
   min-width: 0;
   text-align: center;
