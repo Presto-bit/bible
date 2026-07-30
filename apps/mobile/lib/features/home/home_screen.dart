@@ -844,6 +844,18 @@ class _BelowFold extends ConsumerWidget {
             ),
           ),
         ],
+        const SizedBox(height: 18),
+        const Center(
+          child: Text(
+            '· 已经到底了 ·',
+            style: TextStyle(
+              fontSize: 12,
+              letterSpacing: 0.6,
+              color: AppColors.inkFaint,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
       ],
     );
   }

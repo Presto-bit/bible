@@ -39,6 +39,11 @@ import { HomeGreetStreak } from '@/components/home/HomeGreetStreak';
 import { HomeHeroCarousel } from '@/components/home/HomeHeroCarousel';
 import { buildHomeGroupRailInput } from '@/lib/home_social_line';
 import {
+  buildHomeAnchorBlock,
+  buildHomeAnchorFromGroupRail,
+  type HomeAnchorBlockModel,
+} from '@/lib/home_anchor_block';
+import {
   type HeroBCampaign,
   preloadHeroBCampaignImage,
   readCachedHeroBCampaign,
@@ -65,6 +70,12 @@ import {
   HOME_REFRESH_DEBOUNCE_MS,
   shouldFetchHomeNetwork,
 } from '@/lib/home_refresh';
+import {
+  useHomePullRefresh,
+  usePrefersReducedMotion,
+} from '@/lib/use_home_pull_refresh';
+import { hapticLight, hapticSuccess } from '@/lib/haptic';
+
 /** 与 Mobile 首页一致的时段问候（更细分） */
 function timeOfDayGreeting(date = new Date()): string {
   const hour = date.getHours();
@@ -269,11 +280,24 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   const [plusOpen, setPlusOpen] = useState(false);
   const [todayPanel, setTodayPanel] = useState<HomeTodayPanelModel | null>(null);
-  const [growthModel, setGrowthModel] = useState<HomeGrowthModel | null>(null);
+  const [growthModel, setGrowthModel] = useState<HomeGrowthModel | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return buildHomeGrowthModel();
+    } catch {
+      return null;
+    }
+  });
+  const [anchorBlock, setAnchorBlock] = useState<HomeAnchorBlockModel | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return buildHomeAnchorBlock([], null);
+  });
+  const [ptrToast, setPtrToast] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
   const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
   const homeAwake = paneActive && (activeTab == null || activeTab === 'home');
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     // 每日经文直接铺风景图（按 day 轮换）
@@ -289,6 +313,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const lastBootstrapAtRef = useRef(0);
   const homeRefreshTimerRef = useRef<number | null>(null);
   const lastGroupInputRef = useRef<HomeTodayPanelInput['group']>(undefined);
+  const lastAnchorRef = useRef<HomeAnchorBlockModel | null>(null);
   const bibleWarmupOnceRef = useRef(false);
 
   const paintLocalChrome = useCallback(() => {
@@ -300,6 +325,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         monthDays: report.monthDays,
       }),
     );
+    if (!lastAnchorRef.current) {
+      const fallback = buildHomeAnchorBlock([], null);
+      lastAnchorRef.current = fallback;
+      setAnchorBlock(fallback);
+    }
   }, []);
 
   const refreshRail = useCallback(async (opts?: { fetchRemote?: boolean }) => {
@@ -367,6 +397,10 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const cachedCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
       const localGroup =
         lastGroupInputRef.current || buildHomeGroupRailInput([], null);
+      const localAnchor =
+        lastAnchorRef.current || buildHomeAnchorFromGroupRail(localGroup);
+      lastAnchorRef.current = localAnchor;
+      setAnchorBlock(localAnchor);
 
       // 本地先上屏；TTL 内跳过网络时沿用上次小组卡 + 活动缓存
       setTodayPanel(
@@ -398,21 +432,32 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           : Promise.resolve(null);
 
       const socialPromise = Promise.all([api.myGroups(), api.discoverSummary()])
-        .then(([groupsRes, summaryRes]) =>
-          buildHomeGroupRailInput(groupsRes.groups, summaryRes),
-        )
+        .then(([groupsRes, summaryRes]) => {
+          const groups = Array.isArray(groupsRes.groups) ? groupsRes.groups : [];
+          return {
+            rail: buildHomeGroupRailInput(groups, summaryRes),
+            anchor: buildHomeAnchorBlock(groups, summaryRes),
+          };
+        })
         .catch((e) => {
           if (typeof navigator !== 'undefined' && navigator.onLine) {
             setGroupErr(errorMessage(e, '小组动态加载失败'));
           }
-          return lastGroupInputRef.current || buildHomeGroupRailInput([], null);
+          const rail =
+            lastGroupInputRef.current || buildHomeGroupRailInput([], null);
+          return {
+            rail,
+            anchor: lastAnchorRef.current || buildHomeAnchorFromGroupRail(rail),
+          };
         });
 
       // 运营卡改由 homeBootstrap.railCampaigns 写入缓存；此处不再打 /campaigns/home
-      const [meta, groupCard] = await Promise.all([
+      const [meta, social] = await Promise.all([
         planMetaPromise,
         socialPromise,
       ]);
+      const groupCard = social.rail;
+      const nextAnchor = social.anchor;
 
       if (meta && active && active.kind !== 'prayer') {
         const sess = getPlanSession(active.planId, planDay) ?? meta.session;
@@ -434,7 +479,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const nextCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
 
       lastGroupInputRef.current = groupCard;
+      lastAnchorRef.current = nextAnchor;
       lastRailNetAtRef.current = Date.now();
+      setAnchorBlock(nextAnchor);
 
       setTodayPanel(
         buildHomeTodayPanel({
@@ -480,6 +527,29 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     },
     [paintLocalChrome, refreshRail, reloadDailyContent],
   );
+
+  const onPullRefresh = useCallback(async () => {
+    try {
+      await refreshHome({ force: true });
+      if (!reducedMotion) hapticSuccess();
+    } catch (e) {
+      setPtrToast(errorMessage(e, '刷新失败，请稍后再试'));
+      window.setTimeout(() => setPtrToast(null), 2200);
+      if (!reducedMotion) hapticLight();
+    }
+  }, [refreshHome, reducedMotion]);
+
+  const {
+    pullPx,
+    refreshing: ptrRefreshing,
+    canRelease,
+    bottomStretch,
+    contentOffset,
+  } = useHomePullRefresh({
+    enabled: homeAwake,
+    reducedMotion,
+    onRefresh: onPullRefresh,
+  });
 
   const scheduleHomeRefresh = useCallback(
     (force = false) => {
@@ -660,7 +730,26 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   }, [dv]);
 
   return (
-    <main className="container home-page">
+    <main
+      className={`container home-page${ptrRefreshing ? ' is-ptr-refreshing' : ''}${pullPx > 0 ? ' is-ptr-pulling' : ''}`}
+    >
+      <div
+        className="home-ptr-indicator"
+        aria-hidden={pullPx <= 0 && !ptrRefreshing}
+        style={{ height: Math.max(contentOffset, ptrRefreshing ? 36 : 0) }}
+      >
+        <span className={`home-ptr-label${ptrRefreshing ? ' is-busy' : ''}`}>
+          {ptrRefreshing ? '更新中' : canRelease ? '松开刷新' : pullPx > 12 ? '下拉刷新' : ''}
+        </span>
+      </div>
+      <div
+        className="home-ptr-content"
+        style={
+          contentOffset > 0
+            ? { transform: `translateY(${contentOffset}px)` }
+            : undefined
+        }
+      >
       <header className="greet home-greet-header">
         <HomeGreetStreak greeting={timeOfDayGreeting()} userName={userName} />
         <div className="greet-actions">
@@ -837,7 +926,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               >
                 <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25z" />
               </svg>
-              <span>小爱</span>
             </button>
             <button
               type="button"
@@ -908,7 +996,22 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
       <HomeOnboardingBanner />
 
-      {growthModel ? <HomeGrowthStack model={growthModel} onGo={go} /> : null}
+      {growthModel ? (
+        <HomeGrowthStack
+          model={growthModel}
+          anchor={anchorBlock}
+          onGo={go}
+          bottomStretch={bottomStretch}
+          reducedMotion={reducedMotion}
+        />
+      ) : null}
+
+      {ptrToast ? (
+        <p className="home-ptr-toast" role="status">
+          {ptrToast}
+        </p>
+      ) : null}
+      </div>
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
 

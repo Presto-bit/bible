@@ -1,10 +1,16 @@
 'use client';
 
 import type { HomeGrowthCard, HomeGrowthModel } from '@/lib/home_growth_cards';
+import type { HomeAnchorBlockModel } from '@/lib/home_anchor_block';
+import { HomeAnchorBlock } from '@/components/home/HomeAnchorBlock';
+import { HomeEndFooter } from '@/components/home/HomeEndFooter';
 
 type Props = {
   model: HomeGrowthModel;
+  anchor: HomeAnchorBlockModel | null;
   onGo: (href: string) => void;
+  bottomStretch?: number;
+  reducedMotion?: boolean;
 };
 
 function GrowthRow({
@@ -46,12 +52,22 @@ function GrowthRow({
   );
 }
 
-/** 一行摘要 + 可选一张记忆卡；无「成长与回忆」分区标题。 */
-export function HomeGrowthStack({ model, onGo }: Props) {
+/**
+ * 折叠线下：摘要 A → 稳定落点 B → 记忆卡 C（可选）→ 到底 D
+ */
+export function HomeGrowthStack({
+  model,
+  anchor,
+  onGo,
+  bottomStretch = 0,
+  reducedMotion = false,
+}: Props) {
   return (
-    <section className="home-stack home-growth-stack" aria-label="阅读摘要与回忆">
+    <section className="home-stack home-growth-stack" aria-label="阅读摘要与落点">
       <GrowthRow card={model.summary} onGo={onGo} />
+      {anchor ? <HomeAnchorBlock block={anchor} onGo={onGo} /> : null}
       {model.memory ? <GrowthRow card={model.memory} onGo={onGo} /> : null}
+      <HomeEndFooter stretchPx={bottomStretch} reducedMotion={reducedMotion} />
     </section>
   );
 }

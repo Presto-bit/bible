@@ -2611,6 +2611,101 @@ html:not([data-app-theme]) .card {
   padding-left: 4px;
 }
 
+.home-page .home-anchor-block {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--home-shadow);
+  min-height: 52px;
+  padding: 13px 16px;
+  background: var(--surface);
+}
+
+.home-page .home-anchor-block .home-list-main strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.home-page .home-end-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 18px 12px 8px;
+  margin-top: 4px;
+  transition: transform 0.18s ease;
+  will-change: transform;
+}
+
+.home-page .home-end-sentinel {
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.home-page .home-end-label {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  user-select: none;
+  transition: opacity 0.25s ease;
+}
+
+.home-page .home-end-footer.is-at-end .home-end-label {
+  color: var(--ink-soft);
+}
+
+.home-ptr-indicator {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: none;
+  transition: height 0.15s ease;
+}
+
+.home-ptr-label {
+  font-size: 12px;
+  color: var(--ink-faint);
+  letter-spacing: 0.04em;
+  padding-bottom: 8px;
+  opacity: 0.9;
+}
+
+.home-ptr-label.is-busy {
+  color: var(--accent-deep);
+}
+
+.home-ptr-content {
+  will-change: transform;
+  transition: transform 0.18s ease;
+}
+
+.home-page.is-ptr-pulling .home-ptr-content,
+.home-page.is-ptr-refreshing .home-ptr-content {
+  transition: none;
+}
+
+.home-ptr-toast {
+  margin: 10px 4px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+html.pwa-standalone .home-page.is-ptr-pulling,
+html.pwa-standalone .home-page.is-ptr-refreshing {
+  overscroll-behavior-y: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-ptr-content,
+  .home-page .home-end-footer,
+  .home-ptr-indicator {
+    transition: none !important;
+  }
+}
+
 .home-page .home-social-line.card {
   border: none;
   border-radius: 20px;
