@@ -111,13 +111,13 @@ export function HomeHeroCarousel({
   }, [goSlide, hasOps]);
 
   if (!hasOps) {
-    return <>{verseSlide}</>;
+    return <section className="home-hero-block">{verseSlide}</section>;
   }
 
   const imgSrc = campaign ? heroBCampaignImageSrc(campaign) : '';
 
   return (
-    <section className="home-hero-carousel" aria-label="每日经文与活动推荐">
+    <section className="home-hero-block home-hero-carousel" aria-label="每日经文与活动推荐">
       <div className="home-hero-carousel-dots" role="tablist" aria-label="首页推荐分页">
         <button
           type="button"

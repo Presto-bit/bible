@@ -1,4 +1,4 @@
-/// 首页：问候 + 每日经文 hero + 「为你」横滑卡轨 + 今日统计 + 成长与回忆。
+/// 首页：问候 + 每日经文 hero + 「为你」横滑卡轨 + 今日统计 + 折叠线下渐进内容。
 /// 布局对齐 canvas demo（HomeScreen / HomeForYouRail / HomeBelowFold）。
 library;
 
@@ -341,7 +341,6 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 22),
               _BelowFold(
                 onOpenDiscover: () => goTab(3),
-                onContinueReading: () => goTab(1),
                 onOpenReview: () => goTab(4),
               ),
             ],
@@ -761,11 +760,9 @@ class _ForYouRailState extends State<_ForYouRail> {
 class _BelowFold extends ConsumerWidget {
   const _BelowFold({
     required this.onOpenDiscover,
-    required this.onContinueReading,
     required this.onOpenReview,
   });
   final VoidCallback onOpenDiscover;
-  final VoidCallback onContinueReading;
   final VoidCallback onOpenReview;
 
   @override
@@ -789,6 +786,11 @@ class _BelowFold extends ConsumerWidget {
         : groupName != null
             ? '$groupName · 一起去发现'
             : '创建或加入共读群';
+    final now = DateTime.now();
+    final lastDay = DateTime(now.year, now.month + 1, 0).day;
+    final monthReviewWindow = now.day >= lastDay - 2;
+    final yearReviewWindow = now.month == 12 || now.month == 1;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -807,69 +809,41 @@ class _BelowFold extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: 18),
-        const Text('成长与回忆',
-            style: TextStyle(
-                color: AppColors.inkFaint,
-                fontSize: 12,
-                letterSpacing: 0.4)),
-        const SizedBox(height: 8),
-        PaperCard(
-          tier: 2,
-          tint: AppColors.accent,
-          accent: true,
-          onTap: onContinueReading,
-          margin: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            children: [
-              const _Pill('就快读完', active: true),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text('马可福音还剩 2 章就读完啦',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink)),
-              ),
-              const Text('读完它 ›',
-                  style: TextStyle(
-                      color: AppColors.accentDeep,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12)),
-            ],
+        if (monthReviewWindow) ...[
+          const SizedBox(height: 10),
+          PaperCard(
+            onTap: onOpenReview,
+            child: Row(
+              children: [
+                const _Pill('回顾', active: true),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('${now.month} 月回顾可生成',
+                      style: const TextStyle(fontSize: 13, color: AppColors.ink)),
+                ),
+                const Text('看看 ›',
+                    style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
+              ],
+            ),
           ),
-        ),
-        PaperCard(
-          onTap: onContinueReading,
-          margin: const EdgeInsets.only(bottom: 10),
-          child: Row(
-            children: [
-              const _Pill('去年今日'),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text('去年今日你读了诗篇 23，还划了线',
-                    style: TextStyle(fontSize: 13, color: AppColors.ink)),
-              ),
-              const Text('看看 ›',
-                  style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
-            ],
+        ] else if (yearReviewWindow) ...[
+          const SizedBox(height: 10),
+          PaperCard(
+            onTap: () => context.push('/wrapped'),
+            child: Row(
+              children: [
+                const _Pill('年度', active: true),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text('${now.year} 年度回顾',
+                      style: const TextStyle(fontSize: 13, color: AppColors.ink)),
+                ),
+                const Text('生成 ›',
+                    style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
+              ],
+            ),
           ),
-        ),
-        PaperCard(
-          onTap: () => context.push('/wrapped'),
-          child: Row(
-            children: [
-              const _Pill('回顾'),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text('月/年度读经回顾',
-                    style: TextStyle(fontSize: 13, color: AppColors.ink)),
-              ),
-              const Text('生成回顾 ›',
-                  style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
-            ],
-          ),
-        ),
+        ],
       ],
     );
   }

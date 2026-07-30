@@ -1387,9 +1387,11 @@ html:not([data-app-theme]) .card {
 .home-page {
   --home-card-radius: 24px;
   --home-hero-radius: 28px;
+  --home-section-gap: 14px;
   --home-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
   --home-shadow-lift: 0 4px 16px rgba(15, 23, 42, 0.08), 0 12px 40px rgba(15, 23, 42, 0.12);
   padding-top: 16px;
+  padding-bottom: 8px;
   touch-action: pan-y;
 }
 
@@ -1426,8 +1428,14 @@ html:not([data-app-theme]) .card {
   box-shadow: 0 4px 16px rgba(7, 193, 96, 0.28);
 }
 
+/* hero 区块统一底间距：有/无活动轮播路径一致（取代原 100px hack） */
+.home-page .home-hero-block {
+  margin-bottom: var(--home-section-gap);
+}
+
 .home-page .home-hero-carousel {
-  margin-bottom: 100px;
+  margin-bottom: var(--home-section-gap);
+  overflow: hidden;
 }
 
 .home-page .home-rail-section-label {
@@ -1441,8 +1449,8 @@ html:not([data-app-theme]) .card {
 
 /* 今日推荐：中性浅底容器 + 三张独立浅色圆角卡（左大右双） */
 .home-today-shell {
-  margin-top: 6px;
-  margin-bottom: 4px;
+  margin-top: 0;
+  margin-bottom: 0;
   padding: 12px 12px 12px;
   border-radius: 22px;
   background: color-mix(in srgb, var(--surface-sunken, #f3f0ea) 78%, var(--surface));
@@ -1844,8 +1852,8 @@ html:not([data-app-theme]) .card {
 }
 
 .home-onboarding-banner {
-  margin-top: 16px;
-  margin-bottom: 8px;
+  margin-top: var(--home-section-gap, 14px);
+  margin-bottom: 0;
   padding: 14px;
 }
 
@@ -2441,7 +2449,9 @@ html:not([data-app-theme]) .card {
 
 .home-page .home-list-row:active,
 .home-page .home-social-line:active {
-  transform: none;
+  transform: scale(0.992);
+  opacity: 0.97;
+  transition: transform 0.1s ease, opacity 0.1s ease;
 }
 
 .home-page button.home-list-row,
@@ -2487,27 +2497,67 @@ html:not([data-app-theme]) .card {
   font-variant-numeric: tabular-nums;
 }
 
+.home-page .home-growth-stack {
+  margin-top: var(--home-section-gap, 14px);
+  margin-bottom: 4px;
+}
+
+/* Onboarding 紧挨成长区时收紧叠间距 */
+.home-onboarding-banner + .home-growth-stack {
+  margin-top: 10px;
+}
+
 .home-page .home-growth-stack button.home-list-row {
-  min-height: 72px;
+  min-height: 52px;
   align-items: center;
+  transition: transform 0.1s ease, opacity 0.1s ease, box-shadow 0.12s ease;
 }
 
 .home-page .home-growth-stack button.home-growth-row-single {
-  min-height: 56px;
+  min-height: 52px;
 }
 
-.home-page .home-growth-stack .home-reading-summary {
-  min-height: 72px;
+.home-page .home-growth-stack button.home-reading-summary {
+  min-height: 52px;
+  padding: 13px 16px;
 }
 
 .home-page .home-growth-stack button.home-growth-row-single.home-reading-summary {
-  min-height: 56px;
+  min-height: 52px;
+}
+
+.home-page .home-growth-stack .home-growth-memory {
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04), 0 4px 14px rgba(15, 23, 42, 0.06);
+  min-height: 52px;
+  padding: 12px 16px;
+  background: color-mix(in srgb, var(--surface) 94%, var(--paper, #f7f4ef));
+}
+
+.home-page .home-growth-stack button.home-list-row-wrap.home-growth-memory {
+  min-height: 64px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.home-page .home-growth-stack .home-growth-memory .home-list-main strong {
+  font-weight: 500;
+  font-size: var(--font-base);
+  color: var(--ink-soft);
+}
+
+.home-page .home-growth-stack .home-growth-memory .pill {
+  font-size: 11px;
+  opacity: 0.92;
+  flex-shrink: 0;
 }
 
 .home-page .home-growth-stack .home-growth-row-single .home-list-main {
   display: flex;
   align-items: center;
   min-height: 0;
+  min-width: 0;
 }
 
 .home-page .home-growth-stack .home-growth-row-single .home-list-main strong {
@@ -2518,9 +2568,27 @@ html:not([data-app-theme]) .card {
   font-weight: 500;
 }
 
+/* 摘要里程碑文案：小屏允许两行，避免硬截断 */
+.home-page .home-growth-stack .home-reading-summary .home-list-main {
+  min-width: 0;
+}
+
+.home-page .home-growth-stack .home-reading-summary .home-list-main strong {
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.35;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
 .home-page .home-growth-stack .home-list-main {
   display: block;
   white-space: normal;
+  min-width: 0;
 }
 
 .home-page .home-growth-stack .home-list-main strong {
@@ -2535,6 +2603,11 @@ html:not([data-app-theme]) .card {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-height: calc(12px * 1.35);
+}
+
+.home-page .home-growth-stack .home-list-chevron {
+  flex-shrink: 0;
+  padding-left: 4px;
 }
 
 .home-page .home-social-line.card {
@@ -2553,9 +2626,13 @@ html:not([data-app-theme]) .card {
 }
 
 /* ─── 首页 Hero 轮播（经文 + 活动全图） ─── */
+.home-hero-block,
 .home-hero-carousel {
   position: relative;
   margin-bottom: 16px;
+}
+
+.home-hero-carousel {
   overflow: hidden;
 }
 
@@ -13898,6 +13975,22 @@ body.pwa-standalone .tab {
   padding-bottom: 6px;
 }
 
+/* 首页 PWA：底栏前多一点呼吸；触控高亮关掉（顶安全区已由 .app-body 承担） */
+html.pwa-standalone .home-page {
+  padding-bottom: 12px;
+}
+
+html.pwa-standalone .home-page .home-growth-stack {
+  margin-bottom: 8px;
+}
+
+html.pwa-standalone .home-page .home-list-row,
+html.pwa-standalone .home-page .home-growth-memory,
+html.pwa-standalone .home-page .home-reading-summary {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 body.pwa-standalone .card {
   box-shadow: var(--elev-1);
 }
@@ -13918,9 +14011,12 @@ button.card:active,
   .icon-btn:active,
   a.card:active,
   button.card:active,
-  .card.row-card:active {
+  .card.row-card:active,
+  .home-page .home-list-row:active,
+  .home-page .home-social-line:active {
     animation: none;
     transform: none;
+    opacity: 1;
     transition: none;
   }
 }

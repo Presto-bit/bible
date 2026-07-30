@@ -45,7 +45,7 @@ import {
 } from '@/lib/hero_b_campaign';
 import { consumeHeroReturnToVerse } from '@/lib/hero_b_nav';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
-import { buildHomeGrowthCards, type HomeGrowthCard } from '@/lib/home_growth_cards';
+import { buildHomeGrowthModel, type HomeGrowthModel } from '@/lib/home_growth_cards';
 import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
 import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
@@ -268,7 +268,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
   const [plusOpen, setPlusOpen] = useState(false);
   const [todayPanel, setTodayPanel] = useState<HomeTodayPanelModel | null>(null);
-  const [growthCards, setGrowthCards] = useState<HomeGrowthCard[]>([]);
+  const [growthModel, setGrowthModel] = useState<HomeGrowthModel | null>(null);
   const [userName, setUserName] = useState('');
   const { activeTab } = useTabKeepAlive();
   const seasonal = currentSeasonalEvents();
@@ -293,8 +293,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const paintLocalChrome = useCallback(() => {
     setUserName(getDisplayName());
     const report = buildReport();
-    setGrowthCards(
-      buildHomeGrowthCards({
+    setGrowthModel(
+      buildHomeGrowthModel({
         todayMin: todayMinutes(),
         monthDays: report.monthDays,
       }),
@@ -378,8 +378,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           campaigns: cachedCampaigns,
         }),
       );
-      setGrowthCards(
-        buildHomeGrowthCards({
+      setGrowthModel(
+        buildHomeGrowthModel({
           todayMin: todayMinutes(),
           monthDays: report.monthDays,
         }),
@@ -880,8 +880,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
       <HomeOnboardingBanner />
 
-      <p className="section-label">成长与回忆</p>
-      <HomeGrowthStack cards={growthCards} onGo={go} />
+      {growthModel ? <HomeGrowthStack model={growthModel} onGo={go} /> : null}
 
       <PlusMenu anchorRef={plusBtnRef} open={plusOpen} onClose={() => setPlusOpen(false)} />
 
