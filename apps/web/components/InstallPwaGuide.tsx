@@ -32,18 +32,21 @@ import {
 } from '@/lib/pwa_tab_nav';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
+import {
+  clearInstallPromptDismiss,
+  dismissInstallPrompt,
+  isInstallPromptSuppressed,
+  noteInstallPromptShown,
+  PWA_INSTALL_DISMISS_KEY,
+} from '@/lib/pwa_install_prompt';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: string }>;
 }
 
-export const PWA_INSTALL_DISMISS_KEY = 'pwa-install-dismissed';
+export { PWA_INSTALL_DISMISS_KEY };
 export const PWA_INSTALL_SHEET_EVENT = 'presto-pwa-install-open';
-
-function isDismissed(): boolean {
-  return typeof window !== 'undefined' && localStorage.getItem(PWA_INSTALL_DISMISS_KEY) === '1';
-}
 
 export function openPwaInstallSheet() {
   window.dispatchEvent(new Event(PWA_INSTALL_SHEET_EVENT));
@@ -105,15 +108,15 @@ export function InstallPwaSheet({
   const loggedIn = Boolean(currentUserId() && hasPassword());
   const isDesktop = platform === 'desktop';
 
-  /** 分享落地 / 微信内：点关闭或「暂不」不写永久 dismiss */
+  /** 分享落地 / 微信内：点关闭或「暂不」只关 Sheet，不写全站冷却（分享条自有冷却） */
   const softCloseOnly =
     platform === 'inapp' ||
     isShareLandingPath(
       typeof window !== 'undefined' ? window.location.pathname : '',
     );
 
-  const dismissForever = () => {
-    localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
+  const dismissPassive = () => {
+    dismissInstallPrompt();
     onClose();
   };
 
@@ -122,9 +125,20 @@ export function InstallPwaSheet({
   };
 
   const goSetAccount = () => {
-    localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
+    dismissInstallPrompt();
     onClose();
     router.push('/profile?settings=1');
+  };
+
+  const onInstallAccepted = async () => {
+    try {
+      const { clearSharePwaDismiss } = await import('@/lib/share_pwa_guide');
+      clearSharePwaDismiss();
+    } catch {
+      /* ignore */
+    }
+    clearInstallPromptDismiss();
+    onClose();
   };
 
   const runDesktopInstall = async () => {
@@ -147,13 +161,7 @@ export function InstallPwaSheet({
       clearDeferredInstallPrompt();
       if (choice.outcome === 'accepted') {
         toast('已保存到桌面 App');
-        try {
-          const { clearSharePwaDismiss } = await import('@/lib/share_pwa_guide');
-          clearSharePwaDismiss();
-        } catch {
-          /* ignore */
-        }
-        dismissForever();
+        await onInstallAccepted();
       }
     } finally {
       setBusy(false);
@@ -215,13 +223,7 @@ export function InstallPwaSheet({
                 await deferred.userChoice;
                 setDeferred(null);
                 clearDeferredInstallPrompt();
-                try {
-                  const { clearSharePwaDismiss } = await import('@/lib/share_pwa_guide');
-                  clearSharePwaDismiss();
-                } catch {
-                  /* ignore */
-                }
-                dismissForever();
+                await onInstallAccepted();
               } finally {
                 setBusy(false);
               }
@@ -276,7 +278,7 @@ export function InstallPwaSheet({
               softClose();
               return;
             }
-            dismissForever();
+            dismissPassive();
           }}
         >
           暂不保存
@@ -286,7 +288,7 @@ export function InstallPwaSheet({
   );
 }
 
-/** 底部轻量 Banner：点击展开完整引导；与首页任务横幅错开，关闭即永久隐藏 */
+/** 底部轻量 Banner：点击展开完整引导；与首页任务横幅错开；暂不=短冷却+本会话不再出 */
 export default function InstallBanner() {
   const routerPath = usePathname();
   const pwaPath = useSyncExternalStore(
@@ -351,22 +353,29 @@ export default function InstallBanner() {
 
   useEffect(() => {
     if (platform === null) return;
-    if (platform === 'standalone' || isDismissed() || !onboardingDone || !slotFree) {
+    if (
+      platform === 'standalone' ||
+      isInstallPromptSuppressed() ||
+      !onboardingDone ||
+      !slotFree
+    ) {
       setHidden(true);
       return;
     }
-    const t = window.setTimeout(() => setHidden(false), 1200);
+    const t = window.setTimeout(() => {
+      noteInstallPromptShown();
+      setHidden(false);
+    }, 1200);
     return () => window.clearTimeout(t);
   }, [platform, onboardingDone, slotFree]);
 
   const closeSheet = () => {
     setSheetOpen(false);
-    // 仅当 Sheet 内已写永久 dismiss（如「暂不保存」/安装成功）时隐藏 Banner；
-    // 分享落地 / 微信内 softClose 不写 key，避免逃出微信后看不到引导。
-    if (isDismissed()) setHidden(true);
+    // 「暂不」写了冷却后隐藏 Banner；主动打开再 softClose 不写冷却则保持
+    if (isInstallPromptSuppressed()) setHidden(true);
   };
 
-  // 分享落地仍可响应 openPwaInstallSheet()
+  // 分享落地仍可响应 openPwaInstallSheet()；standalone 永不自动引导
   if (onShareLanding) {
     return <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform ?? undefined} />;
   }
@@ -395,8 +404,8 @@ export default function InstallBanner() {
           type="button"
           className="install-banner-close"
           onClick={() => {
+            dismissInstallPrompt();
             setHidden(true);
-            localStorage.setItem(PWA_INSTALL_DISMISS_KEY, '1');
           }}
           aria-label="关闭"
         >

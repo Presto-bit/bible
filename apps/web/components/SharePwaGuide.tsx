@@ -5,6 +5,7 @@ import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import {
   dismissSharePwaGuide,
   isSharePwaDismissed,
+  noteSharePwaShown,
 } from '@/lib/share_pwa_guide';
 import { detectInstallPlatform, type InstallPlatform } from '@/lib/pwa_platform';
 import { BRAND_NAME } from '@/lib/brand';
@@ -46,6 +47,7 @@ export function SharePwaGuide({
           ? 900
           : 2800;
     const t = window.setTimeout(() => {
+      noteSharePwaShown();
       setHidden(false);
       setReady(true);
     }, delay);
