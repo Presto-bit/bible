@@ -29,7 +29,7 @@ import {
 } from '@/components/assistant/AssistantThinkingState';
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
 import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowledge_base';
-import { shareAnalysis } from '@/lib/share_analysis';
+import { AnalysisShareSheet } from '@/components/AnalysisShareSheet';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -78,6 +78,7 @@ export default function XiaoAiSheet({
   const [slowHint, setSlowHint] = useState(false);
   const [kbId, setKbId] = useState(DEFAULT_KB_ID);
   const [kbName, setKbName] = useState<string | undefined>();
+  const [shareOpen, setShareOpen] = useState(false);
   const accRef = useRef('');
   const rafRef = useRef<number | null>(null);
   const fetchStartedRef = useRef(false);
@@ -212,18 +213,9 @@ export default function XiaoAiSheet({
     }
   };
 
-  const shareAnswer = async () => {
+  const shareAnswer = () => {
     if (!clean || hasError) return;
-    const cites = usedCitations.length ? usedCitations : citations;
-    const result = await shareAnalysis({
-      answerText: clean,
-      refLabel,
-      refParam,
-      citations: cites.length ? cites : undefined,
-    });
-    if (result === 'shared') flash('已调起分享');
-    else if (result === 'copied') flash('已复制链接与摘要');
-    else if (result === 'failed') flash('分享失败');
+    setShareOpen(true);
   };
 
   const continueWithAssistant = () => {
@@ -358,7 +350,7 @@ export default function XiaoAiSheet({
                       onOpenSources={openSources}
                       onCopy={() => void copyAnswer()}
                       copied={copied}
-                      onShare={() => void shareAnswer()}
+                      onShare={shareAnswer}
                       onContinueChat={continueWithAssistant}
                     />
                   ) : null}
@@ -416,6 +408,22 @@ export default function XiaoAiSheet({
           </div>
         )}
       </div>
+      {shareOpen && clean && !hasError ? (
+        <AnalysisShareSheet
+          refLabel={refLabel}
+          refParam={refParam}
+          answerText={clean}
+          citations={
+            (usedCitations.length ? usedCitations : citations).length
+              ? usedCitations.length
+                ? usedCitations
+                : citations
+              : undefined
+          }
+          onClose={() => setShareOpen(false)}
+          onToast={flash}
+        />
+      ) : null}
     </div>
   );
 

@@ -910,6 +910,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                   question: `请简要解读今天这节经文（${dv.ref}），先抓住核心信息，再给一点今日应用。`,
                   scene: 'verse_full',
                   surface: 'home_daily_verse',
+                  autoSend: true,
                 });
               }}
             >
@@ -1034,6 +1035,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
           onOpenReact={() => {
             setReactErr(null);
             setReactSheetOpen(true);
+          }}
+          onAskXiaoAi={() => {
+            if (!dv.ref) return;
+            setVerseFull(false);
+            navigateToAssistant(dv.ref, {
+              question: `请简要解读今天这节经文（${dv.ref}），先抓住核心信息，再给一点今日应用。`,
+              scene: 'verse_full',
+              surface: 'home_daily_verse',
+              autoSend: true,
+            });
           }}
           onShare={() => void shareDailyVerse()}
         />

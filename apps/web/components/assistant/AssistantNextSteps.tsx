@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 小爱回答后的「接下来」：主路径动作（继续读 / 存想法 / 看来源）+ 次级工具行。
+ * 小爱回答后操作：与复制/分享同一行，不单独成块。
  */
 export function AssistantNextSteps({
   showContinueRead,
@@ -31,46 +31,35 @@ export function AssistantNextSteps({
   className?: string;
 }) {
   return (
-    <div className={['assistant-next-steps', className].filter(Boolean).join(' ')}>
-      <p className="assistant-next-steps-label">接下来</p>
-      <div className="assistant-next-steps-primary">
-        {showContinueRead && onContinueRead ? (
-          <button type="button" className="assistant-next-btn" onClick={onContinueRead}>
-            继续读
-          </button>
-        ) : null}
-        <button type="button" className="assistant-next-btn" onClick={onSaveThought}>
-          {savedThought ? '已存想法' : '存想法'}
+    <div className={['msg-actions', 'assistant-msg-actions', className].filter(Boolean).join(' ')}>
+      {onCopy ? (
+        <button type="button" className="msg-action" onClick={onCopy}>
+          {copied ? '已复制' : '复制'}
         </button>
-        {showSources && onOpenSources ? (
-          <button type="button" className="assistant-next-btn" onClick={onOpenSources}>
-            看来源
-          </button>
-        ) : null}
-      </div>
-      {(onCopy || onShare || onContinueChat) && (
-        <div className="assistant-next-steps-secondary">
-          {onCopy ? (
-            <button type="button" className="assistant-next-link" onClick={onCopy}>
-              {copied ? '已复制' : '复制'}
-            </button>
-          ) : null}
-          {onShare ? (
-            <button type="button" className="assistant-next-link" onClick={onShare}>
-              分享
-            </button>
-          ) : null}
-          {onContinueChat ? (
-            <button
-              type="button"
-              className="assistant-next-link assistant-next-link-accent"
-              onClick={onContinueChat}
-            >
-              {continueChatLabel}
-            </button>
-          ) : null}
-        </div>
-      )}
+      ) : null}
+      {onShare ? (
+        <button type="button" className="msg-action" onClick={onShare}>
+          分享
+        </button>
+      ) : null}
+      <button type="button" className="msg-action" onClick={onSaveThought}>
+        {savedThought ? '已存想法' : '存想法'}
+      </button>
+      {showContinueRead && onContinueRead ? (
+        <button type="button" className="msg-action" onClick={onContinueRead}>
+          继续读
+        </button>
+      ) : null}
+      {showSources && onOpenSources ? (
+        <button type="button" className="msg-action" onClick={onOpenSources}>
+          看来源
+        </button>
+      ) : null}
+      {onContinueChat ? (
+        <button type="button" className="msg-action msg-action-accent" onClick={onContinueChat}>
+          {continueChatLabel}
+        </button>
+      ) : null}
     </div>
   );
 }

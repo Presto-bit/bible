@@ -8,12 +8,24 @@ import { friendDisplayName } from '@/lib/friend_label';
 import { friendRemarkOrName } from '@/lib/friend_remarks';
 
 type Tab = 'group' | 'dm';
+type ShareMode = 'verse' | 'checkin';
+
+type CacheBundle = {
+  at: number;
+  groups: Awaited<ReturnType<typeof api.myGroups>>['groups'];
+  friends: Awaited<ReturnType<typeof api.friends>>['friends'];
+};
+
+let shareTargetsCache: CacheBundle | null = null;
+const SHARE_CACHE_TTL_MS = 60_000;
 
 type Props = {
   ref: string;
   refLabel: string;
   body?: string;
-  kind?: 'thought' | 'verse' | 'note';
+  kind?: 'thought' | 'verse' | 'note' | 'analysis';
+  /** 群默认：发经文卡；可选打卡 */
+  defaultGroupMode?: ShareMode;
   onClose: () => void;
   onDone?: (target: string) => void;
 };
@@ -22,13 +34,26 @@ export function ShareToSocialSheet({
   ref: verseRef,
   refLabel,
   body,
-  kind: _kind = 'verse',
+  kind = 'verse',
+  defaultGroupMode = 'verse',
   onClose,
   onDone,
 }: Props) {
+  const isAnalysis = kind === 'analysis';
+  const canVerseCard =
+    Boolean(verseRef?.trim()) &&
+    verseRef !== 'FREE' &&
+    verseRef !== '小爱的解读';
   const [tab, setTab] = useState<Tab>('group');
-  const [groups, setGroups] = useState<Awaited<ReturnType<typeof api.myGroups>>['groups']>([]);
-  const [friends, setFriends] = useState<Awaited<ReturnType<typeof api.friends>>['friends']>([]);
+  const [groupMode, setGroupMode] = useState<ShareMode>(
+    isAnalysis ? 'verse' : defaultGroupMode,
+  );
+  const [groups, setGroups] = useState<Awaited<ReturnType<typeof api.myGroups>>['groups']>(
+    () => shareTargetsCache?.groups || [],
+  );
+  const [friends, setFriends] = useState<Awaited<ReturnType<typeof api.friends>>['friends']>(
+    () => shareTargetsCache?.friends || [],
+  );
   const [message, setMessage] = useState(body || '');
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -36,8 +61,16 @@ export function ShareToSocialSheet({
   const uid = effectiveId();
 
   const reload = useCallback(async () => {
+    const now = Date.now();
+    if (shareTargetsCache && now - shareTargetsCache.at < SHARE_CACHE_TTL_MS) {
+      setGroups(shareTargetsCache.groups);
+      setFriends(shareTargetsCache.friends);
+      setErr(null);
+      return;
+    }
     try {
       const [g, f] = await Promise.all([api.myGroups(), api.friends()]);
+      shareTargetsCache = { at: Date.now(), groups: g.groups, friends: f.friends };
       setGroups(g.groups);
       setFriends(f.friends);
       setErr(null);
@@ -54,10 +87,20 @@ export function ShareToSocialSheet({
     setBusy(gid);
     setErr(null);
     try {
-      await api.checkin(gid, {
-        ref: verseRef,
-        body: message.trim() || GROUP_CHECKIN_DEFAULT_BODY,
-      });
+      if (!isAnalysis && groupMode === 'checkin') {
+        await api.checkin(gid, {
+          ref: verseRef,
+          body: message.trim() || GROUP_CHECKIN_DEFAULT_BODY,
+        });
+      } else if (isAnalysis && !canVerseCard) {
+        const text = (message.trim() || refLabel).slice(0, 2000);
+        await api.sendGroupChat(gid, text);
+      } else {
+        await api.sendGroupVerse(gid, {
+          ref: canVerseCard ? verseRef : verseRef || 'FREE',
+          body: message.trim() || undefined,
+        });
+      }
       onDone?.(name);
       onClose();
     } catch (e) {
@@ -72,11 +115,18 @@ export function ShareToSocialSheet({
     setErr(null);
     try {
       const dm = await api.openDm(peerId);
-      await api.sendDm(dm.thread_id, {
-        kind: 'verse',
-        ref: verseRef,
-        body: message.trim() || refLabel,
-      });
+      if (isAnalysis && !canVerseCard) {
+        await api.sendDm(dm.thread_id, {
+          kind: 'chat',
+          body: (message.trim() || refLabel).slice(0, 2000),
+        });
+      } else {
+        await api.sendDm(dm.thread_id, {
+          kind: 'verse',
+          ref: canVerseCard ? verseRef : verseRef || 'FREE',
+          body: message.trim() || refLabel,
+        });
+      }
       onDone?.(label);
       onClose();
     } catch (e) {
@@ -88,7 +138,13 @@ export function ShareToSocialSheet({
 
   if (!uid) {
     return (
-      <div className="sheet-backdrop" onClick={onClose}>
+      <div
+        className="sheet-backdrop"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+      >
         <div className="sheet card" onClick={(e) => e.stopPropagation()}>
           <p>本机账号就绪后即可分享到共读群或私信好友。</p>
           <a className="btn" href="/profile">前往我的</a>
@@ -98,17 +154,23 @@ export function ShareToSocialSheet({
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
+    <div
+      className="sheet-backdrop"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClose();
+      }}
+    >
       <div className="sheet card share-social-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
-          <strong>分享</strong>
+          <strong>{isAnalysis ? '分享解读' : '分享经文'}</strong>
           <SheetCloseButton onClick={onClose} />
         </div>
         <p className="muted" style={{ fontSize: 12 }}>{refLabel}</p>
         <textarea
           className="group-composer-text"
-          rows={2}
-          placeholder="附言（可选）"
+          rows={isAnalysis ? 4 : 2}
+          placeholder={isAnalysis ? '分享文案（可改）' : '附言（可选）'}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
@@ -128,6 +190,24 @@ export function ShareToSocialSheet({
             私信好友
           </button>
         </div>
+        {tab === 'group' && !isAnalysis ? (
+          <div className="reader-tools-tabs" style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className={`mode-chip ${groupMode === 'verse' ? 'mode-chip-active' : ''}`}
+              onClick={() => setGroupMode('verse')}
+            >
+              发经文卡
+            </button>
+            <button
+              type="button"
+              className={`mode-chip ${groupMode === 'checkin' ? 'mode-chip-active' : ''}`}
+              onClick={() => setGroupMode('checkin')}
+            >
+              打卡分享
+            </button>
+          </div>
+        ) : null}
         {err && <p className="group-composer-err">{err}</p>}
         {tab === 'group' ? (
           groups.length === 0 ? (
@@ -143,7 +223,15 @@ export function ShareToSocialSheet({
                   onClick={() => void shareToGroup(g.id, g.name)}
                 >
                   <span>{g.name}</span>
-                  <span className="muted">{busy === g.id ? '发送中…' : '打卡分享 ›'}</span>
+                  <span className="muted">
+                    {busy === g.id
+                      ? '发送中…'
+                      : isAnalysis
+                        ? '分享 ›'
+                        : groupMode === 'checkin'
+                          ? '打卡分享 ›'
+                          : '发经文 ›'}
+                  </span>
                 </button>
               ))}
             </div>

@@ -63,7 +63,7 @@ import {
   setSessionKnowledgeBaseId,
 } from '@/lib/assistant_knowledge_base';
 import { ASSISTANT_EMPTY_DEMOS } from '@/lib/assistant_empty_demos';
-import { shareAnalysis } from '@/lib/share_analysis';
+import { AnalysisShareSheet } from '@/components/AnalysisShareSheet';
 
 interface Msg {
   role: 'user' | 'assistant';
@@ -135,11 +135,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const seedBoot = useRef(false);
+  const seedBoot = useRef<string | false>(false);
   const hydratedRef = useRef(false);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
   /** 哪一条助手消息正在展示脚标弹窗（FAB 带入的历史消息也要可点） */
   const [citationMsgIdx, setCitationMsgIdx] = useState<number | null>(null);
+  const [shareTarget, setShareTarget] = useState<{
+    text: string;
+    citations?: Citation[];
+  } | null>(null);
   const rafRef = useRef<number | null>(null);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const sessionScrollRef = useRef(true);
@@ -230,17 +234,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       flashToast('复制失败');
     }
   };
-  const shareAnswer = async (t: string, cites?: Citation[]) => {
-    const label = refToChineseLabel(ref) || ref || '小爱的解读';
-    const result = await shareAnalysis({
-      answerText: stripFollowups(t),
-      refLabel: label,
-      refParam: ref || undefined,
-      citations: cites,
-    });
-    if (result === 'shared') flashToast('已调起分享');
-    else if (result === 'copied') flashToast('已复制链接与摘要');
-    else if (result === 'failed') flashToast('分享失败');
+  const shareAnswer = (t: string, cites?: Citation[]) => {
+    setShareTarget({ text: stripFollowups(t), citations: cites });
   };
 
   // 语音输入（Web Speech API）：长按说话、松开发送、上滑取消。
@@ -832,20 +827,28 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           question = payload.question;
         } else {
           refVal = payload.ref || refVal;
-          const resumed = refVal ? resumeIfMatch(refVal) : false;
-          if (!resumed && payload.seedMessages?.length) {
-            setMsgs(
-              payload.seedMessages.map((m) => ({
-                role: m.role,
-                text: m.text,
-                citations: m.citations,
-                scene: m.scene,
-                sceneLabel: m.sceneLabel,
-              })),
-            );
-            skipInputPrefill = true;
-          } else if (!resumed) {
+          // 今日经文入口：新开会话并自动发送，不续接旧聊、不停留在确认态
+          if (payload.surface === 'home_daily_verse') {
+            setActiveId('current');
+            setMsgs([]);
+            replaceComposerValue('');
             question = payload.question;
+          } else {
+            const resumed = refVal ? resumeIfMatch(refVal) : false;
+            if (!resumed && payload.seedMessages?.length) {
+              setMsgs(
+                payload.seedMessages.map((m) => ({
+                  role: m.role,
+                  text: m.text,
+                  citations: m.citations,
+                  scene: m.scene,
+                  sceneLabel: m.sceneLabel,
+                })),
+              );
+              skipInputPrefill = true;
+            } else if (!resumed) {
+              question = payload.question;
+            }
           }
         }
         if (payload.autoSend) autoSend = true;
@@ -890,17 +893,20 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     if (handled && refVal && !isTopicLike(prefillSurface, prefillScene)) setRef(refVal);
     else if (!handled && refParam) setRef(refParam);
 
-    if (question && autoSend && !seedBoot.current) {
-      const scene = prefillScene ?? (refVal ? 'chat_explain' : 'chat_general');
-      seedBoot.current = true;
-      void sendRef.current(
-        question,
-        SCENES[scene].mode,
-        refVal,
-        userVisibleQuestion(question, refVal),
-        scene,
-        prefillSurface,
-      );
+    if (question && autoSend) {
+      const bootKey = sid || `${refVal}|${question}|${prefillSurface || ''}`;
+      if (seedBoot.current !== bootKey) {
+        const scene = prefillScene ?? (refVal ? 'chat_explain' : 'chat_general');
+        seedBoot.current = bootKey;
+        void sendRef.current(
+          question,
+          SCENES[scene].mode,
+          refVal,
+          userVisibleQuestion(question, refVal),
+          scene,
+          prefillSurface,
+        );
+      }
     }
 
     if (sid || legacyQ || autoSendParam || kbParam) {
@@ -1255,7 +1261,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                         }
                       }}
                       onCopy={() => copyText(m.text)}
-                      onShare={() => void shareAnswer(m.text, usedCitations)}
+                      onShare={() => shareAnswer(m.text, usedCitations)}
                     />
                     {displayFollowups.length > 0 && (
                       <div className="followup-row">
@@ -1378,6 +1384,19 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           </div>
         </AppBodyPortal>
       )}
+
+      {shareTarget ? (
+        <AppBodyPortal>
+          <AnalysisShareSheet
+            refLabel={refToChineseLabel(ref) || ref || '小爱的解读'}
+            refParam={ref || undefined}
+            answerText={shareTarget.text}
+            citations={shareTarget.citations}
+            onClose={() => setShareTarget(null)}
+            onToast={flashToast}
+          />
+        </AppBodyPortal>
+      ) : null}
 
     </main>
   );
