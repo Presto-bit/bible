@@ -88,8 +88,16 @@ _STATEMENTS: tuple[str, ...] = (
       reactions JSONB NOT NULL DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       CONSTRAINT direct_message_kind_chk
-        CHECK (kind IN ('chat', 'verse', 'image', 'file', 'system'))
+        CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'))
     )
+    """,
+    """
+    ALTER TABLE direct_message DROP CONSTRAINT IF EXISTS direct_message_kind_chk
+    """,
+    """
+    ALTER TABLE direct_message
+      ADD CONSTRAINT direct_message_kind_chk
+      CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'))
     """,
     """
     ALTER TABLE direct_message

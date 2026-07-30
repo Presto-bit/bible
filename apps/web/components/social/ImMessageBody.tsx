@@ -1,7 +1,8 @@
-/** 气泡正文：经文卡 + 链接可点 + @ 高亮。 */
+/** 气泡正文：经文卡 + 链接可点（应用内打开）+ @ 高亮。 */
 
 import { memo, useMemo, type ReactNode } from 'react';
 import Link from 'next/link';
+import { openCampaignHref } from '@/lib/campaign_nav';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { setReaderReturnHref } from '@/lib/reader_return';
@@ -62,7 +63,16 @@ function renderLinkedText(text: string): ReactNode {
     if (m.index > last) pushPlain(text.slice(last, m.index), `t-${i}`);
     const url = m[0];
     parts.push(
-      <a key={`u-${i++}`} href={url} target="_blank" rel="noreferrer noopener" className="im-inline-link">
+      <a
+        key={`u-${i++}`}
+        href={url}
+        className="im-inline-link"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          openCampaignHref(url);
+        }}
+      >
         {url}
       </a>,
     );

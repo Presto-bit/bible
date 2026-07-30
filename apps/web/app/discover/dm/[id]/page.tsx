@@ -28,9 +28,12 @@ import {
   IconPlus,
 } from '@/components/social/ImComposerIcons';
 import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
+import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
+import { ImMediaAttachment } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
+import { detectImMediaKind } from '@/lib/im_av';
 import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
 import { clearImDraft, getImDraftRecord, setImDraftRecord } from '@/lib/im_drafts';
@@ -113,6 +116,12 @@ function DmThreadPageInner() {
   const [lightbox, setLightbox] = useState<{ images: ImLightboxImage[]; index: number } | null>(
     null,
   );
+  const [filePreview, setFilePreview] = useState<{
+    url: string;
+    fileName?: string | null;
+    mime?: string | null;
+    storageKey?: string | null;
+  } | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -153,7 +162,7 @@ function DmThreadPageInner() {
   }, [plusOpen]);
 
   const [plusAccept, setPlusAccept] = useState(
-    'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
+    'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/aac,audio/ogg,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.mp3,.m4a,.mp4,.mov,.webm',
   );
   const [pending, setPending] = useState<PendingAttach | null>(null);
   const msgsRef = useRef(msgs);
@@ -572,7 +581,10 @@ function DmThreadPageInner() {
     const file = files[0];
     if (!file) return;
     setPlusOpen(false);
-    const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+    const previewUrl =
+      file.type.startsWith('image/') || file.type.startsWith('video/')
+        ? URL.createObjectURL(file)
+        : null;
     setPending((prev) => {
       if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
       return { file, previewUrl };
@@ -587,13 +599,13 @@ function DmThreadPageInner() {
     const tempId = `temp-${Date.now()}`;
     const caption = text.trim() || undefined;
     const replyId = replyTo?.id;
-    const isImg = file.type.startsWith('image/');
+    const mediaKind = detectImMediaKind(file.type, file.name);
     setMsgs((prev) => [
       ...prev,
       {
         id: tempId,
         sender_id: uid,
-        kind: isImg ? 'image' : 'file',
+        kind: mediaKind,
         body: caption,
         reply_to_id: replyId || null,
         created_at: new Date().toISOString(),
@@ -1040,7 +1052,8 @@ function DmThreadPageInner() {
                             const msgImages = collectMessageImages(m.attachments, m.kind);
                             return m.attachments.map((a) => {
                             const href = a.url ? contentAssetUrl(a.url) : null;
-                            const isImg = (a.mime || '').startsWith('image/') || m.kind === 'image';
+                            const mediaKind = detectImMediaKind(a.mime, a.file_name, m.kind);
+                            const isImg = mediaKind === 'image';
                             if (isImg && href) {
                               const idx = msgImages.findIndex((img) => img.src === href);
                               return (
@@ -1067,20 +1080,39 @@ function DmThreadPageInner() {
                                 </button>
                               );
                             }
+                            if (href && (mediaKind === 'video' || mediaKind === 'audio')) {
+                              return (
+                                <div key={a.id} onClick={(e) => e.stopPropagation()}>
+                                  <ImMediaAttachment
+                                    url={href}
+                                    fileName={a.file_name}
+                                    mime={a.mime}
+                                    messageKind={m.kind}
+                                    sizeBytes={a.size_bytes}
+                                  />
+                                </div>
+                              );
+                            }
                             return href ? (
-                              <a
+                              <button
                                 key={a.id}
-                                href={href}
-                                download={a.file_name || undefined}
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={(e) => e.stopPropagation()}
+                                type="button"
+                                className="im-attach-file-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setFilePreview({
+                                    url: href,
+                                    fileName: a.file_name,
+                                    mime: a.mime,
+                                    storageKey: a.storage_key,
+                                  });
+                                }}
                               >
                                 {a.file_name || '附件'}
                                 {a.size_bytes ? (
                                   <span className="im-attach-dl">{formatSize(a.size_bytes)}</span>
                                 ) : null}
-                              </a>
+                              </button>
                             ) : (
                               <span key={a.id}>
                                 {a.file_name || '附件'}
@@ -1318,7 +1350,24 @@ function DmThreadPageInner() {
               disabled={uploading || sending || !online}
               onClick={() => {
                 setPlusAccept(
-                  'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx',
+                  'video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/aac,audio/ogg,.mp4,.mov,.webm,.mp3,.m4a,.wav',
+                );
+                setPlusOpen(false);
+                requestAnimationFrame(() => fileInputRef.current?.click());
+              }}
+            >
+              <span className="im-plus-icon" aria-hidden>
+                <IconMic />
+              </span>
+              <span>音视频</span>
+            </button>
+            <button
+              type="button"
+              className="im-plus-item"
+              disabled={uploading || sending || !online}
+              onClick={() => {
+                setPlusAccept(
+                  'image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv',
                 );
                 setPlusOpen(false);
                 requestAnimationFrame(() => fileInputRef.current?.click());
@@ -1368,6 +1417,16 @@ function DmThreadPageInner() {
           index={lightbox.index}
           onClose={() => setLightbox(null)}
           onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
+        />
+      ) : null}
+
+      {filePreview ? (
+        <ImFilePreviewSheet
+          url={filePreview.url}
+          fileName={filePreview.fileName}
+          mime={filePreview.mime}
+          storageKey={filePreview.storageKey}
+          onClose={() => setFilePreview(null)}
         />
       ) : null}
 

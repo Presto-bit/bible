@@ -1,4 +1,4 @@
-"""社交消息附件上传（图 + PDF/Office + 文本）。"""
+"""社交消息附件上传（图 + 音视频 + PDF/Office + 文本）。"""
 from __future__ import annotations
 
 import hashlib
@@ -10,17 +10,30 @@ from fastapi import HTTPException, UploadFile
 
 from .blob_store import attachment_url, get_blob_store, normalize_object_key, unlink_storage_keys
 
-_ALLOW_SUFFIX = {
-    ".jpg", ".jpeg", ".png", ".webp", ".gif",
+_IMAGE = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_VIDEO = {".mp4", ".webm", ".mov", ".m4v"}
+_AUDIO = {".mp3", ".m4a", ".wav", ".aac", ".ogg", ".oga"}
+_DOC = {
     ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
     ".txt", ".md", ".csv",
 }
+_ALLOW_SUFFIX = _IMAGE | _VIDEO | _AUDIO | _DOC
 _MIME = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".png": "image/png",
     ".webp": "image/webp",
     ".gif": "image/gif",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
+    ".mov": "video/quicktime",
+    ".m4v": "video/x-m4v",
+    ".mp3": "audio/mpeg",
+    ".m4a": "audio/mp4",
+    ".wav": "audio/wav",
+    ".aac": "audio/aac",
+    ".ogg": "audio/ogg",
+    ".oga": "audio/ogg",
     ".pdf": "application/pdf",
     ".doc": "application/msword",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -32,8 +45,26 @@ _MIME = {
     ".md": "text/markdown",
     ".csv": "text/csv",
 }
-_MAX_BYTES = 20 * 1024 * 1024
-_IMAGE = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+_MAX_BYTES = 50 * 1024 * 1024
+
+
+def resolve_media_kind(mime: str | None, file_name: str | None = None) -> str:
+    """根据 mime / 扩展名判定消息 kind：image | video | audio | file。"""
+    m = (mime or "").split(";")[0].strip().lower()
+    if m.startswith("image/"):
+        return "image"
+    if m.startswith("video/"):
+        return "video"
+    if m.startswith("audio/"):
+        return "audio"
+    suffix = Path(file_name or "").suffix.lower()
+    if suffix in _IMAGE:
+        return "image"
+    if suffix in _VIDEO:
+        return "video"
+    if suffix in _AUDIO:
+        return "audio"
+    return "file"
 
 
 def media_dir():
@@ -66,10 +97,10 @@ def build_attachment_row(
 async def save_social_upload(*, file: UploadFile, prefix: str = "m") -> dict[str, Any]:
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in _ALLOW_SUFFIX:
-        raise HTTPException(400, "仅支持图片、PDF/Office 或 txt/md/csv")
+        raise HTTPException(400, "仅支持图片、音视频、PDF/Office 或 txt/md/csv")
     raw = await file.read()
     if len(raw) > _MAX_BYTES:
-        raise HTTPException(400, "单个文件不能超过 20MB")
+        raise HTTPException(400, "单个文件不能超过 50MB")
     content_type = (file.content_type or "").split(";")[0].strip().lower()
     if not content_type or content_type == "application/octet-stream":
         content_type = _MIME[suffix]
@@ -78,7 +109,7 @@ async def save_social_upload(*, file: UploadFile, prefix: str = "m") -> dict[str
     object_key = f"social-im/{safe}/{digest}{suffix}"
     store = get_blob_store()
     stored_key = store.put(object_key, raw, content_type)
-    kind = "image" if suffix in _IMAGE else "file"
+    kind = resolve_media_kind(content_type, file.filename)
     url = store.url(stored_key)
     return {
         "kind": kind,
@@ -94,6 +125,7 @@ __all__ = [
     "attachment_url",
     "build_attachment_row",
     "media_dir",
+    "resolve_media_kind",
     "save_social_upload",
     "unlink_storage_keys",
 ]

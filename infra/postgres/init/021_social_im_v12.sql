@@ -69,8 +69,14 @@ CREATE TABLE IF NOT EXISTS direct_message (
   recalled_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT direct_message_kind_chk
-    CHECK (kind IN ('chat', 'verse', 'image', 'file', 'system'))
+    CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'))
 );
+
+-- 已有库放宽 kind（音视频）
+ALTER TABLE direct_message DROP CONSTRAINT IF EXISTS direct_message_kind_chk;
+ALTER TABLE direct_message
+  ADD CONSTRAINT direct_message_kind_chk
+  CHECK (kind IN ('chat', 'verse', 'image', 'file', 'video', 'audio', 'system'));
 
 CREATE INDEX IF NOT EXISTS direct_message_thread_idx
   ON direct_message (thread_id, created_at DESC);

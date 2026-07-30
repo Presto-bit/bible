@@ -1,4 +1,5 @@
 import { contentAssetUrl } from '@/lib/api';
+import { detectImMediaKind } from '@/lib/im_av';
 
 /** 从消息附件中取出可预览的图片 URL 列表。 */
 export function collectMessageImages(
@@ -12,13 +13,7 @@ export function collectMessageImages(
   const out: { src: string; alt?: string }[] = [];
   for (const a of attachments) {
     if (!a.url) continue;
-    const name = (a.file_name || a.url || '').toLowerCase();
-    const byExt = /\.(png|jpe?g|gif|webp|heic|bmp)(\?|$)/i.test(name);
-    const isImg =
-      (a.mime || '').startsWith('image/')
-      || kind === 'image'
-      || byExt;
-    if (!isImg) continue;
+    if (detectImMediaKind(a.mime, a.file_name, kind) !== 'image') continue;
     out.push({ src: contentAssetUrl(a.url), alt: a.file_name || '图片' });
   }
   return out;

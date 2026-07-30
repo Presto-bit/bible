@@ -354,6 +354,10 @@ def _summarize(kind: str | None, body: str | None, file_name: str | None = None)
         return f"[经文] {b[:48]}" if b else "[经文]"
     if k == "image":
         return f"[图片] {b[:40]}" if b else "[图片]"
+    if k == "video":
+        return f"[视频] {b[:40]}" if b else "[视频]"
+    if k == "audio":
+        return f"[语音] {b[:40]}" if b else "[语音]"
     if k == "file":
         name = (file_name or "").strip()
         if name and b:
@@ -576,7 +580,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
 
         group_attach_ids = [
             r[3] for r in groups
-            if r[3] and (r[4] or "") in ("file", "image")
+            if r[3] and (r[4] or "") in ("file", "image", "video", "audio")
         ]
         group_fnames = _attachment_names(conn, "group", group_attach_ids)
 
@@ -667,7 +671,7 @@ def list_conversations(user_id: str = Depends(get_current_user)) -> dict:
                 tid, low, high, last_id, last_kind, last_body, last_at, pinned_at, muted, unread = r
                 peer = str(high) if str(low) == user_id else str(low)
                 peers.append(peer)
-                if last_id and (last_kind or "") in ("file", "image"):
+                if last_id and (last_kind or "") in ("file", "image", "video", "audio"):
                     dm_attach_ids.append(last_id)
                 parsed_threads.append(
                     (tid, peer, last_id, last_kind, last_body, last_at, pinned_at, muted, unread)
@@ -1138,7 +1142,7 @@ def send_dm(
     thread_id: str, body: DmIn, user_id: str = Depends(get_current_user),
 ) -> dict:
     kind = (body.kind or "chat").lower()
-    if kind not in ("chat", "verse", "image", "file"):
+    if kind not in ("chat", "verse", "image", "file", "video", "audio"):
         raise HTTPException(400, "不支持的消息类型")
     text = (body.body or "").strip()
     if kind in ("chat", "verse") and not text and not body.ref:
@@ -1671,11 +1675,11 @@ def send_group_media(
         ).fetchone()
         if allow and allow[0] is False:
             raise HTTPException(403, "本群已关闭闲聊")
-        kind = "image" if (body.mime or "").startswith("image/") else "file"
+        from .media import resolve_media_kind
+
+        kind = resolve_media_kind(body.mime, body.file_name)
         if body.url and "/social-media/" in body.url and body.mime is None:
-            kind = "image" if any(
-                body.url.lower().endswith(x) for x in (".png", ".jpg", ".jpeg", ".gif", ".webp")
-            ) else "file"
+            kind = resolve_media_kind(None, body.url)
         text = (body.body or "").strip() or None
         if text:
             try:
@@ -1733,7 +1737,9 @@ def send_dm_media(
             raise HTTPException(404, "会话不存在")
         peer = str(t[1]) if str(t[0]) == user_id else str(t[0])
         _require_dm_allowed(conn, user_id, peer)
-        kind = "image" if (body.mime or "").startswith("image/") else "file"
+        from .media import resolve_media_kind
+
+        kind = resolve_media_kind(body.mime, body.file_name)
         text = (body.body or "").strip() or None
         if text:
             try:

@@ -105,6 +105,7 @@ export function GroupComposerBar({
   const barRef = useRef<HTMLElement | null>(null);
   const imageRef = useRef<HTMLInputElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const avRef = useRef<HTMLInputElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restoredRef = useRef<string | null>(null);
@@ -389,7 +390,10 @@ export function GroupComposerBar({
     const file = files[0];
     if (!file) return;
     setPanelOpen(false);
-    const previewUrl = file.type.startsWith('image/') ? URL.createObjectURL(file) : null;
+    const previewUrl =
+      file.type.startsWith('image/') || file.type.startsWith('video/')
+        ? URL.createObjectURL(file)
+        : null;
     setPending((prev) => {
       if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
       return { file, previewUrl };
@@ -757,6 +761,17 @@ export function GroupComposerBar({
                 type="button"
                 className="im-plus-item"
                 disabled={uploading || busy || sending}
+                onClick={() => avRef.current?.click()}
+              >
+                <span className="im-plus-icon" aria-hidden>
+                  <IconMic />
+                </span>
+                <span>音视频</span>
+              </button>
+              <button
+                type="button"
+                className="im-plus-item"
+                disabled={uploading || busy || sending}
                 onClick={() => fileRef.current?.click()}
               >
                 <span className="im-plus-icon" aria-hidden>
@@ -781,9 +796,20 @@ export function GroupComposerBar({
         }}
       />
       <input
+        ref={avRef}
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime,audio/mpeg,audio/mp4,audio/wav,audio/aac,audio/ogg,.mp4,.mov,.webm,.mp3,.m4a,.wav"
+        hidden
+        tabIndex={-1}
+        onChange={(e) => {
+          queueFiles(e.target.files);
+          e.target.value = '';
+        }}
+      />
+      <input
         ref={fileRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv"
+        accept="application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.md,.csv"
         hidden
         tabIndex={-1}
         onChange={(e) => {

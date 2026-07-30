@@ -20,6 +20,8 @@ export function ImAttachPreview({
 }: Props) {
   const { file, previewUrl } = pending;
   const isImg = file.type.startsWith('image/');
+  const isVideo = file.type.startsWith('video/');
+  const isAudio = file.type.startsWith('audio/');
 
   return (
     <div className="im-attach-preview">
@@ -27,9 +29,12 @@ export function ImAttachPreview({
         {isImg && previewUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={previewUrl} alt="" className="im-attach-preview-thumb" />
+        ) : isVideo && previewUrl ? (
+          <video src={previewUrl} className="im-attach-preview-thumb" muted playsInline preload="metadata" />
         ) : (
           <div className="im-attach-preview-file">
             <IconFile />
+            {isAudio ? <span className="muted" style={{ fontSize: 11 }}>语音</span> : null}
           </div>
         )}
         <div className="im-attach-preview-meta">

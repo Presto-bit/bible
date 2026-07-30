@@ -20,6 +20,8 @@ export function replySnippet(
   fileName?: string | null,
 ): string {
   if (kind === 'image') return '[图片]';
+  if (kind === 'video') return '[视频]';
+  if (kind === 'audio') return '[语音]';
   if (kind === 'file') return fileName ? `[文件] ${fileName}` : '[文件]';
   if (kind === 'checkin') return body?.trim() ? replySnippet(body) : '[打卡]';
   if (kind === 'task') return body?.trim() ? replySnippet(body) : '[任务]';

@@ -1,29 +1,23 @@
 """文本审核钩子（群闲聊 / 打卡 / 私信）。
 
-MVP：本地关键词 + 导流模式 + 异端渗透词表。
+MVP：本地关键词 + 异端渗透词表。
 `moderate_text` 为统一入口，后续可换第三方内容安全 API。
+普通外链 / 手机号 / 微信号允许发送（聊天内嵌打开）。
 """
 from __future__ import annotations
 
 import os
-import re
 
 # 通审：广告 / 低俗等
 _BLOCKLIST = {
-    "广告", "加微信", "代购", "色情", "赌博", "诈骗", "fuck", "shit",
+    "广告", "代购", "色情", "赌博", "诈骗", "fuck", "shit",
 }
 # 异端 / 邪教渗透（示例表；生产可用 SOCIAL_HERESY_WORDS 逗号分隔覆盖追加）
 _HERESY_BLOCKLIST = {
     "东方闪电", "全能神", "呼喊派", "观音法门", "法轮大法",
     "门徒会", "三班仆人", "血水圣灵", "统一教", "新天地",
 }
-# 简单的联系方式/外链（导流）模式
-_PATTERNS = [
-    re.compile(r"(?:https?://|www\.)\S+", re.I),
-    re.compile(r"(?<!\d)(?:1[3-9]\d{9})(?!\d)"),
-    re.compile(r"[Vv]:?\s*[A-Za-z0-9_-]{5,}"),
-]
-# 可疑域名（异端常用引流）— 命中外链且含这些域名 → heresy
+# 可疑域名（异端常用引流）
 _HERESY_DOMAINS = {
     "godfootsteps.org",
     "kingdomsalvation.org",
@@ -63,11 +57,6 @@ def moderate_text(text: str | None) -> None:
     for w in _BLOCKLIST:
         if w in low:
             raise ModerationError("内容包含不当词汇", category="abuse")
-    for pat in _PATTERNS:
-        m = pat.search(text)
-        if not m:
-            continue
-        hit = m.group(0).lower()
-        if any(d in hit for d in _HERESY_DOMAINS):
+    for d in _HERESY_DOMAINS:
+        if d in low:
             raise ModerationError("内容疑似异端引流链接", category="heresy")
-        raise ModerationError("内容疑似含联系方式或外链", category="spam")

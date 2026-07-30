@@ -32,8 +32,10 @@ import { BRAND_NAME } from '@/lib/brand';
 import { ImMessageBody } from '@/components/social/ImMessageBody';
 import { ImImageLightbox, type ImLightboxImage } from '@/components/social/ImImageLightbox';
 import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
+import { ImMediaAttachment } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
+import { detectImMediaKind } from '@/lib/im_av';
 import { MemberAvatar } from './MemberAvatar';
 
 const QUICK_EMOJIS = [...GROUP_EMOJIS];
@@ -158,7 +160,7 @@ function ChatBubble({
   const isTaskDone = isTaskCompleteCheckin(m);
   const isCheckin = m.kind === 'checkin' && !m.recalled && !m.pending;
   const isChatLite =
-    m.kind === 'chat' || m.kind === 'image' || m.kind === 'file' || m.kind === 'verse';
+    m.kind === 'chat' || m.kind === 'image' || m.kind === 'file' || m.kind === 'video' || m.kind === 'audio' || m.kind === 'verse';
   const dueLabel = isTask ? formatDueCountdown(m.task_due_at) : null;
   const completeTitle = isTaskDone ? taskCompleteTitle(m.body) : null;
   const refLabel = m.ref ? formatGroupRefLabel(m.ref) : '';
@@ -423,10 +425,8 @@ function ChatBubble({
                 <div className="group-msg-attach">
                   {m.attachments.map((a) => {
                     const href = a.url ? contentAssetUrl(a.url) : null;
-                    const name = (a.file_name || a.url || '').toLowerCase();
-                    const byExt = /\.(png|jpe?g|gif|webp|heic|bmp)(\?|$)/i.test(name);
-                    const isImg =
-                      (a.mime || '').startsWith('image/') || m.kind === 'image' || byExt;
+                    const mediaKind = detectImMediaKind(a.mime, a.file_name, m.kind);
+                    const isImg = mediaKind === 'image';
                     if (isImg && href) {
                       const idx = msgImages.findIndex((img) => img.src === href);
                       return (
@@ -456,6 +456,19 @@ function ChatBubble({
                             />
                           )}
                         </button>
+                      );
+                    }
+                    if (href && (mediaKind === 'video' || mediaKind === 'audio')) {
+                      return (
+                        <div key={a.id} onClick={(e) => e.stopPropagation()}>
+                          <ImMediaAttachment
+                            url={href}
+                            fileName={a.file_name}
+                            mime={a.mime}
+                            messageKind={m.kind}
+                            sizeBytes={a.size_bytes}
+                          />
+                        </div>
                       );
                     }
                     return href ? (

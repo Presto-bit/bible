@@ -26,16 +26,20 @@ def test_moderation_blocks_blocklist():
         moderate_text("出售代购，有意私聊")
 
 
-def test_moderation_blocks_url_and_phone():
-    with pytest.raises(ModerationError):
-        moderate_text("详情见 http://spam.example")
-    with pytest.raises(ModerationError):
-        moderate_text("联系我 13800138000")
+def test_moderation_allows_url_and_phone():
+    moderate_text("详情见 http://example.com/path")
+    moderate_text("联系我 13800138000")
+
+
+def test_moderation_blocks_heresy_domain():
+    with pytest.raises(ModerationError) as ei:
+        moderate_text("见 https://www.godfootsteps.org/x")
+    assert ei.value.category == "heresy"
 
 
 def test_moderation_blocks_too_long():
     with pytest.raises(ModerationError):
-        moderate_text("一" * 1001)
+        moderate_text("一" * 2001)
 
 
 # ── 计划生成（需经库） ──
