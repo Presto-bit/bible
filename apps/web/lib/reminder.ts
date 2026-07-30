@@ -58,9 +58,9 @@ async function fireReminder() {
   const streak = readingStreak();
   const body =
     isStreakRecallEnabled() && streak === 0
-      ? '今天只需 5 分钟，从一节经文开始就好。'
+      ? '今天只需一节经文，从打开彼爱开始就好。'
       : '愿话语成为你脚前的灯，点开继续今天的阅读。';
-  new Notification('今日读经', { body });
+  new Notification('彼爱 · 今日读经', { body });
 }
 
 export function reschedule() {

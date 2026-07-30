@@ -21,6 +21,12 @@ import {
   wrongQuestionIds,
 } from '@/lib/daily_quiz';
 import {
+  dailyWarmupCta,
+  dailyWarmupHubHint,
+  dailyWarmupSubtitle,
+  dailyWarmupTitle,
+} from '@/lib/beiai_habit_copy';
+import {
   QUESTION_BANK,
   QUESTION_BANK_SIZE,
   QUESTION_THEMES,
@@ -42,7 +48,7 @@ export default function ChallengePage() {
   const [play, setPlay] = useState<PlayMode | null>(null);
   const [prog, setProg] = useState(levelProgress());
   const [dailyDone, setDailyDone] = useState(false);
-  const [showWrongList, setShowWrongList] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const pending = getPendingBookChallenge();
 
   useEdgeSwipeBack({ href: '/', enabled: !play });
@@ -77,25 +83,26 @@ export default function ChallengePage() {
   };
 
   if (play && playQuestions) {
+    const soft = play.kind === 'daily';
     const title =
       play.kind === 'daily'
-        ? '今日 5 题'
+        ? dailyWarmupTitle()
         : play.kind === 'random'
-          ? '随机挑战'
+          ? '随手几题'
           : play.kind === 'wrong'
-            ? '错题重练'
+            ? '错题再读'
             : play.kind === 'theme'
               ? play.title
               : play.level.title;
     const sub =
       play.kind === 'daily'
-        ? '今日问答'
+        ? '轻问'
         : play.kind === 'random'
-          ? '随机抽题'
+          ? '随机'
           : play.kind === 'wrong'
-            ? '巩固错题'
+            ? '巩固'
             : play.kind === 'theme'
-              ? '主题闯关'
+              ? '主题'
               : play.level.subtitle;
 
     return (
@@ -103,7 +110,8 @@ export default function ChallengePage() {
         title={title}
         subtitle={sub}
         questions={playQuestions}
-        hideProgress
+        hideProgress={soft}
+        softMode={soft}
         onBack={() => setPlay(null)}
         onFinish={finishPlay}
         onEachAnswer={(id, correct) => recordAnswer(id, correct)}
@@ -114,131 +122,121 @@ export default function ChallengePage() {
   const wrongIds = wrongQuestionIds();
 
   return (
-    <main className="container">
+    <main className="container challenge-warmup-page">
       <header className="page-head">
         <PageBackBar href="/" label="首页" />
-        <h2 className="page-head-title">今日问答</h2>
-        <span className="muted" style={{ fontSize: 12 }}>{QUESTION_BANK_SIZE} 题</span>
+        <h2 className="page-head-title">{dailyWarmupTitle()}</h2>
       </header>
-
-      <div className="challenge-mode-row challenge-mode-row-2">
-        <button
-          type="button"
-          className="card challenge-daily-compact"
-          onClick={() => setPlay({ kind: 'daily' })}
-        >
-          <span className="challenge-daily-badge">{dailyDone ? '✓' : '☀'}</span>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <strong>今日 5 题</strong>
-            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-              {dailyDone ? '今日已完成' : '优先复习错题'}
-            </p>
-          </div>
-        </button>
-        <button
-          type="button"
-          className="card challenge-mode-card-compact"
-          onClick={() => setPlay({ kind: 'random' })}
-        >
-          <span className="challenge-daily-badge">🎲</span>
-          <div style={{ flex: 1, textAlign: 'left' }}>
-            <strong>随机挑战</strong>
-            <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-              随机抽题
-            </p>
-          </div>
-        </button>
-      </div>
 
       <button
         type="button"
-        className="card challenge-stats-card"
-        style={{ width: '100%', marginTop: 10 }}
-        onClick={() => setShowWrongList((v) => !v)}
+        className="card challenge-warmup-hero"
+        onClick={() => setPlay({ kind: 'daily' })}
       >
-        <div className="challenge-hero-ring challenge-stats-ring">
-          <span>{stats.accuracyPct}%</span>
-        </div>
-        <div style={{ flex: 1, textAlign: 'left' }}>
-          <strong>答题统计</strong>
-          <p className="muted" style={{ margin: '4px 0 0', fontSize: 12 }}>
-            共答 {stats.total} 题 · 正确 {stats.correct} · 错误 {stats.wrong}
-          </p>
-        </div>
-        <span className="muted">{showWrongList ? '▾' : '▸'}</span>
+        <p className="challenge-warmup-hero-kicker muted">
+          {dailyDone ? '已完成' : '今天'}
+        </p>
+        <strong className="challenge-warmup-hero-title">
+          {dailyWarmupSubtitle(dailyDone)}
+        </strong>
+        <p className="muted challenge-warmup-hero-sub">
+          {dailyWarmupHubHint(dailyDone)}
+        </p>
+        <span className="challenge-warmup-hero-cta">{dailyWarmupCta(dailyDone)} ›</span>
       </button>
 
-      {showWrongList && (
-        <div className="card" style={{ marginTop: 8, padding: 12 }}>
-          {wrongIds.length === 0 ? (
-            <p className="muted" style={{ margin: 0, fontSize: 13 }}>暂无错题，继续保持！</p>
-          ) : (
-            <>
-              <p className="muted" style={{ fontSize: 12, margin: '0 0 8px' }}>
-                {wrongIds.length} 道错题待巩固
-              </p>
-              <button type="button" className="btn" style={{ width: '100%' }} onClick={() => setPlay({ kind: 'wrong' })}>
-                重练错题
-              </button>
-            </>
-          )}
-        </div>
-      )}
+      {wrongIds.length > 0 ? (
+        <button
+          type="button"
+          className="card challenge-warmup-secondary"
+          onClick={() => setPlay({ kind: 'wrong' })}
+        >
+          <strong>错题再读</strong>
+          <span className="muted">{wrongIds.length} 道 · 不赶进度</span>
+        </button>
+      ) : null}
 
-      {pending && (
-        <div className="challenge-nudge card">
-          <span className="pill pill-active">读完 {pending.bookName}</span>
-          <p style={{ margin: '8px 0 0', fontSize: 14 }}>来一关巩固挑战？</p>
+      {pending ? (
+        <div className="card challenge-warmup-secondary">
+          <strong>读完 {pending.bookName}</strong>
+          <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>
+            想巩固一下也可以，随时可跳过
+          </p>
           <button
             type="button"
-            className="btn"
-            style={{ marginTop: 10 }}
+            className="text-link"
+            style={{ marginTop: 8 }}
             onClick={() => {
               const lv = levels.find((l) => l.id === pending.levelId);
               if (lv) setPlay({ kind: 'level', level: lv });
             }}
           >
-            开始巩固关 ›
+            开始巩固 ›
           </button>
         </div>
-      )}
+      ) : null}
 
-      <p className="section-label">按主题闯关</p>
-      <div className="challenge-level-grid">
-        {QUESTION_THEMES.map((t) => (
+      <p className="muted challenge-warmup-stats">
+        {stats.total > 0
+          ? `曾温习 ${stats.total} 题`
+          : `题库 ${QUESTION_BANK_SIZE} 题，每天五道就好`}
+      </p>
+
+      <button
+        type="button"
+        className="text-link challenge-warmup-more-toggle"
+        onClick={() => setMoreOpen((v) => !v)}
+      >
+        {moreOpen ? '收起更多' : '更多温习方式'}
+      </button>
+
+      {moreOpen ? (
+        <div className="challenge-warmup-more">
           <button
-            key={t.id}
             type="button"
-            className="challenge-level-card"
-            onClick={() => setPlay({ kind: 'theme', themeId: t.id, title: t.name })}
+            className="card challenge-warmup-secondary"
+            onClick={() => setPlay({ kind: 'random' })}
           >
-            <span className="challenge-level-icon">📚</span>
-            <strong>{t.name}</strong>
+            <strong>随手几题</strong>
+            <span className="muted">随机抽题，不计成就</span>
           </button>
-        ))}
-      </div>
 
-      <p className="section-label">经典关卡</p>
-      <div className="challenge-level-grid">
-        {levels.map((lv, i) => {
-          const p = prog[lv.id];
-          const locked = i > 0 && !prog[levels[i - 1].id]?.done && !lv.bookId;
-          const done = p?.done;
-          return (
-            <button
-              key={lv.id}
-              type="button"
-              className={`challenge-level-card ${done ? 'challenge-level-done' : ''} ${locked ? 'challenge-level-locked' : ''}`}
-              disabled={locked}
-              onClick={() => !locked && setPlay({ kind: 'level', level: lv })}
-            >
-              <span className="challenge-level-icon">{done ? '✓' : lv.icon}</span>
-              <strong>{lv.title}</strong>
-              <span className="muted" style={{ fontSize: 11 }}>{lv.subtitle}</span>
-            </button>
-          );
-        })}
-      </div>
+          <p className="section-label tab-section-label">按主题</p>
+          <div className="challenge-level-grid">
+            {QUESTION_THEMES.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="challenge-level-card"
+                onClick={() => setPlay({ kind: 'theme', themeId: t.id, title: t.name })}
+              >
+                <strong>{t.name}</strong>
+              </button>
+            ))}
+          </div>
+
+          <p className="section-label tab-section-label">书卷巩固</p>
+          <div className="challenge-level-grid">
+            {levels.map((lv, i) => {
+              const p = prog[lv.id];
+              const locked = i > 0 && !prog[levels[i - 1].id]?.done && !lv.bookId;
+              const done = p?.done;
+              return (
+                <button
+                  key={lv.id}
+                  type="button"
+                  className={`challenge-level-card ${done ? 'challenge-level-done' : ''} ${locked ? 'challenge-level-locked' : ''}`}
+                  disabled={locked}
+                  onClick={() => !locked && setPlay({ kind: 'level', level: lv })}
+                >
+                  <strong>{lv.title}</strong>
+                  <span className="muted" style={{ fontSize: 11 }}>{lv.subtitle}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

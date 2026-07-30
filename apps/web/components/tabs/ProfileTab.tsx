@@ -40,6 +40,13 @@ import {
   recordAnswer,
 } from '@/lib/daily_quiz';
 import {
+  dailyWarmupCta,
+  dailyWarmupSubtitle,
+  dailyWarmupTitle,
+  reminderHeroSub,
+  reminderHeroTitle,
+} from '@/lib/beiai_habit_copy';
+import {
   ensurePermission,
   getReminder,
   setReminder,
@@ -946,7 +953,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     setQuizStats(answerStats());
     setChallengePlay(false);
     setDailyQuestions(null);
-    toast(`今日 5 题完成 · ${correct}/${total}`);
+    toast(`${dailyWarmupTitle()}完成`);
   };
 
   const applyRemindSlot = async (hour: number, minute: number) => {
@@ -1316,7 +1323,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         <div className="profile-shortcut-tabs" role="tablist" aria-label="常用">
           {(
             [
-              { id: 'challenge' as const, label: '今日 5 题' },
+              { id: 'challenge' as const, label: dailyWarmupTitle() },
               { id: 'remind' as const, label: '提醒' },
               { id: 'offline' as const, label: '离线' },
             ] as const
@@ -1341,31 +1348,35 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           className={`card profile-shortcut-panel tone-${shortcut}`}
           role="tabpanel"
           aria-label={
-            shortcut === 'challenge' ? '今日 5 题' : shortcut === 'remind' ? '提醒' : '离线'
+            shortcut === 'challenge'
+              ? dailyWarmupTitle()
+              : shortcut === 'remind'
+                ? '提醒'
+                : '离线'
           }
         >
           {shortcut === 'challenge' ? (
             <>
               <div className="profile-shortcut-panel-head">
                 <p className="profile-shortcut-panel-title">
-                  {dailyDone ? '今日已完成' : '今日 5 题待答'}
+                  {dailyWarmupSubtitle(dailyDone)}
                 </p>
                 <p className="profile-shortcut-panel-sub">
                   {quizStats.total > 0
-                    ? `累计正确率 ${quizStats.accuracyPct}% · 共答 ${quizStats.total} 题`
-                    : '优先复习错题，每天五道就好'}
+                    ? `曾温习 ${quizStats.total} 题 · 错题会优先出现`
+                    : '五道轻问，巩固读过的经文；不是考试'}
                 </p>
               </div>
               <div className="profile-shortcut-panel-actions">
                 <button type="button" className="btn" onClick={startDailyQuiz}>
-                  {dailyDone ? '再看闯关' : '开始今日 5 题'}
+                  {dailyWarmupCta(dailyDone)}
                 </button>
                 <Link
                   href="/challenge"
                   className="text-link"
                   onClick={() => markRouteNavigation()}
                 >
-                  更多闯关 ›
+                  温习页 ›
                 </Link>
               </div>
             </>
@@ -1375,14 +1386,13 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             <>
               <div className="profile-shortcut-panel-head">
                 <p className="profile-shortcut-panel-title">
-                  {reminderPref.enabled
-                    ? `每天 ${formatRemindTime(reminderPref.hour, reminderPref.minute)}`
-                    : '读经提醒未开启'}
+                  {reminderHeroTitle(
+                    reminderPref.enabled,
+                    formatRemindTime(reminderPref.hour, reminderPref.minute),
+                  )}
                 </p>
                 <p className="profile-shortcut-panel-sub">
-                  {reminderPref.enabled
-                    ? '到点轻声提醒，把读经留在日常里'
-                    : '选一个时段，开始养成同行习惯'}
+                  {reminderHeroSub(reminderPref.enabled)}
                 </p>
                 {pushHint ? (
                   <p className="profile-shortcut-panel-hint">{pushHint}</p>
@@ -1421,7 +1431,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   className="text-link"
                   onClick={() => markRouteNavigation()}
                 >
-                  更多提醒设置 ›
+                  提醒与勿扰 ›
                 </Link>
               </div>
             </>
@@ -1514,8 +1524,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                     )}
                   />
                   <SettingsNavRow
-                    title="推送提醒"
-                    hint="读经提醒"
+                    title="提醒与勿扰"
+                    hint="读经提醒 · 圣经勿扰"
                     href="/profile/reminders"
                     onClick={openSettingsRoute}
                     glyph={settingsGlyph(
@@ -1667,10 +1677,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         <AppBodyPortal>
           <div className="profile-challenge-play-overlay">
             <ChallengeFlipPlay
-              title="每日问答"
-              subtitle="今日问答"
+              title={dailyWarmupTitle()}
+              subtitle="轻问"
               questions={dailyQuestions}
               hideProgress
+              softMode
               onBack={() => {
                 setChallengePlay(false);
                 setDailyQuestions(null);

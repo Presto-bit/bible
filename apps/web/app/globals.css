@@ -24025,3 +24025,63 @@ body.external-browser-open .app-body {
 .im-attach-caption{
   width:100%;margin-top:8px;font-size:14px;min-height:36px;
 }
+  background:color-mix(in srgb,#f5c542 55%,transparent);color:inherit;border-radius:2px;padding:0 1px;
+}
+
+/* 发图附言 */
+.im-attach-caption{
+  width:100%;margin-top:8px;font-size:14px;min-height:36px;
+}
+
+/* 今日温习 / 提醒页（彼爱习惯能力） */
+.challenge-warmup-page .challenge-warmup-hero{
+  width:100%;text-align:left;padding:18px 16px;margin-top:12px;cursor:pointer;
+  border:0;display:flex;flex-direction:column;align-items:flex-start;gap:6px;
+}
+.challenge-warmup-hero-kicker{margin:0;font-size:12px;}
+.challenge-warmup-hero-title{font-size:18px;font-weight:600;line-height:1.35;}
+.challenge-warmup-hero-sub{margin:0;font-size:13px;line-height:1.45;}
+.challenge-warmup-hero-cta{margin-top:8px;font-size:14px;color:var(--accent,#5B6B4F);font-weight:600;}
+.challenge-warmup-secondary{
+  width:100%;margin-top:10px;padding:14px 16px;text-align:left;border:0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:flex-start;gap:4px;
+}
+.challenge-warmup-stats{margin:14px 0 6px;font-size:12px;}
+.challenge-warmup-more-toggle{display:inline-block;margin:4px 0 12px;font-size:13px;}
+.challenge-warmup-more{margin-bottom:24px;}
+.challenge-soft-step{text-align:center;font-size:12px;margin:4px 0 8px;}
+.challenge-finish-soft{padding:22px 18px;}
+.challenge-finish-kicker{margin:0 0 8px;font-size:12px;}
+.challenge-finish-title{display:block;font-size:17px;line-height:1.45;font-weight:600;}
+.challenge-finish-score{margin:10px 0 0;font-size:13px;}
+.challenge-finish-actions{display:flex;align-items:center;gap:14px;margin-top:16px;}
+
+.reminder-page-msg{margin-top:8px;font-size:13px;}
+.reminder-page-hint{margin-top:8px;font-size:12px;line-height:1.55;color:var(--warn,#b45309);}
+.reminder-hero{margin-top:14px;padding:16px;}
+.reminder-hero-kicker{margin:0 0 4px;font-size:12px;}
+.reminder-hero-sub{margin:6px 0 0;font-size:13px;line-height:1.5;}
+.reminder-hero-head{align-items:flex-start;gap:12px;}
+.reminder-slot-row{display:flex;gap:8px;margin-top:14px;}
+.reminder-chip{
+  flex:1;appearance:none;border:1px solid color-mix(in srgb,var(--ink,#222) 10%,transparent);
+  background:color-mix(in srgb,var(--ink,#222) 3%,transparent);border-radius:12px;
+  padding:10px 8px;cursor:pointer;display:flex;flex-direction:column;gap:2px;align-items:center;
+  color:inherit;
+}
+.reminder-chip strong{font-size:13px;}
+.reminder-chip span{font-size:11px;color:var(--muted,#888);}
+.reminder-chip.is-active{
+  border-color:color-mix(in srgb,var(--accent,#5B6B4F) 45%,transparent);
+  background:color-mix(in srgb,var(--accent,#5B6B4F) 10%,transparent);
+}
+.reminder-custom-toggle{display:inline-block;margin-top:12px;font-size:13px;}
+.reminder-custom-row{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap;}
+.reminder-custom-row .search-input{width:72px;margin-left:6px;text-align:center;}
+.reminder-custom-row .btn{margin-top:0;padding:8px 14px;flex-shrink:0;}
+.reminder-dnd-card{margin-top:12px;padding:14px 16px;}
+.reminder-card-sub{margin:6px 0 0;font-size:12px;line-height:1.55;}
+.reminder-more-toggle{display:inline-block;margin:14px 0 8px;font-size:13px;}
+.reminder-more{margin-bottom:8px;}
+.reminder-more .card{padding:14px 16px;}
+.reminder-page-foot{margin:20px 0 32px;font-size:12px;line-height:1.55;}
