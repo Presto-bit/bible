@@ -1,4 +1,8 @@
 import type { DiscoverSummary, Group } from './api';
+import {
+  formatFriendsCheckedLine,
+  formatHomeGroupLine,
+} from './home_group_line';
 
 export type HomeSocialLine = {
   text: string;
@@ -13,7 +17,7 @@ export type HomeGroupRailInput = {
   statLabel?: string;
 };
 
-/** 共读卡：并入首页横滑轨 */
+/** 共读卡：今日推荐侧卡；文案与落点共用 formatHomeGroupLine */
 export function buildHomeGroupRailInput(
   groups: Group[],
   summary: DiscoverSummary | null,
@@ -26,65 +30,51 @@ export function buildHomeGroupRailInput(
     };
   }
 
-  const pendingGroup =
-    (summary?.first_pending_group_id
-      ? groups.find((g) => g.id === summary.first_pending_group_id)
-      : null)
-    ?? groups.find((g) => !g.my_checked_in_today)
-    ?? groups.find((g) => (g.open_tasks ?? 0) > 0)
-    ?? null;
-
-  if (pendingGroup && !pendingGroup.my_checked_in_today) {
-    const members = pendingGroup.members || 1;
-    const checked = pendingGroup.checked_in_today ?? 0;
+  const line = formatHomeGroupLine(groups, summary);
+  if (line?.pending && line.status === '等你打卡') {
     return {
       title: '今日待打卡',
-      sub: pendingGroup.name,
-      href: `/discover/group/${pendingGroup.id}?focus=checkin`,
-      statPct: members > 0 ? Math.round((checked / members) * 100) : 0,
-      statLabel: `${checked}/${members}`,
+      sub: line.name,
+      href: line.href,
+      statPct: line.statPct,
+      statLabel: line.statLabel,
+    };
+  }
+  if (line?.pending && line.status.includes('任务')) {
+    return {
+      title: line.status,
+      sub: line.name,
+      href: line.href,
+      statPct: line.statPct,
+      statLabel: line.statLabel,
     };
   }
 
-  if (pendingGroup && (pendingGroup.open_tasks ?? 0) > 0) {
-    const members = pendingGroup.members || 1;
-    const checked = pendingGroup.checked_in_today ?? 0;
+  const friends = formatFriendsCheckedLine(summary);
+  // 全员已打卡且有好友动态时，侧卡可展示好友（与旧逻辑接近）
+  if (friends && line && !line.pending) {
     return {
-      title: `${pendingGroup.open_tasks} 个任务`,
-      sub: pendingGroup.name,
-      href: `/discover/group/${pendingGroup.id}`,
-      statPct: members > 0 ? Math.round((checked / members) * 100) : undefined,
-      statLabel: members > 0 ? `${checked}/${members}` : undefined,
-    };
-  }
-
-  const friendsChecked = summary?.friends_checked_in_today ?? 0;
-  if (friendsChecked > 0) {
-    return {
-      title: `${friendsChecked} 位好友已打卡`,
+      title: friends.title.replace(/^今天\s*/, ''),
       sub: '看看动态',
-      href: '/discover',
+      href: friends.href,
     };
   }
 
-  if (pendingGroup) {
-    const checked = pendingGroup.checked_in_today ?? 0;
-    const members = pendingGroup.members || 1;
+  if (line) {
     return {
-      title: pendingGroup.name,
-      sub: checked > 0 ? `今日 ${checked} 人` : '今日已打卡',
-      href: `/discover/group/${pendingGroup.id}`,
-      statPct: members > 0 ? Math.round((checked / members) * 100) : undefined,
-      statLabel: members > 0 ? `${checked}/${members}` : undefined,
+      title: line.status,
+      sub: line.name,
+      href: line.href,
+      statPct: line.statPct,
+      statLabel: line.statLabel,
     };
   }
 
-  const checked = groups.reduce((n, g) => n + (g.checked_in_today ?? 0), 0);
   const primary = groups[0];
   return {
-    title: checked > 0 ? '今日共读已完成' : primary.name,
-    sub: checked > 0 ? '看看动态' : '今日已打卡',
-    href: checked > 0 ? '/discover' : `/discover/group/${primary.id}`,
+    title: primary.name,
+    sub: '今日已打卡',
+    href: `/discover/group/${primary.id}`,
   };
 }
 
@@ -95,48 +85,9 @@ export function buildHomeSocialLine(
   if (!groups.length) {
     return { text: '邀请好友一起打卡', href: '/discover' };
   }
-
-  const pendingGroup =
-    (summary?.first_pending_group_id
-      ? groups.find((g) => g.id === summary.first_pending_group_id)
-      : null)
-    ?? groups.find((g) => !g.my_checked_in_today)
-    ?? groups.find((g) => (g.open_tasks ?? 0) > 0)
-    ?? null;
-
-  if (pendingGroup && !pendingGroup.my_checked_in_today) {
-    return {
-      text: `${pendingGroup.name} · 等你打卡`,
-      href: `/discover/group/${pendingGroup.id}?focus=checkin`,
-    };
-  }
-
-  if (pendingGroup && (pendingGroup.open_tasks ?? 0) > 0) {
-    return {
-      text: `${pendingGroup.name} · ${pendingGroup.open_tasks} 个任务待完成`,
-      href: `/discover/group/${pendingGroup.id}`,
-    };
-  }
-
-  const friendsChecked = summary?.friends_checked_in_today ?? 0;
-  if (friendsChecked > 0) {
-    return {
-      text: `今天 ${friendsChecked} 位好友已打卡`,
-      href: '/discover',
-    };
-  }
-
-  if (pendingGroup) {
-    const checked = pendingGroup.checked_in_today ?? 0;
-    return {
-      text: `${pendingGroup.name} · 今日 ${checked} 人已打卡`,
-      href: `/discover/group/${pendingGroup.id}`,
-    };
-  }
-
-  const checked = groups.reduce((n, g) => n + (g.checked_in_today ?? 0), 0);
-  return {
-    text: checked > 0 ? `今日共读已完成 · 看看动态` : `${groups[0].name} · 今日已打卡`,
-    href: '/discover',
-  };
+  const line = formatHomeGroupLine(groups, summary);
+  if (line) return { text: line.title, href: line.href };
+  const friends = formatFriendsCheckedLine(summary);
+  if (friends) return { text: friends.title, href: friends.href };
+  return { text: '去发现，找人一起读', href: '/discover' };
 }

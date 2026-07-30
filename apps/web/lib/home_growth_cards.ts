@@ -1,4 +1,4 @@
-/** 首页成长钩子：一行摘要（可轮换）+ 折叠线下最多 1 张记忆卡。不动今日经文 / 今日推荐。 */
+/** 首页成长钩子：摘要主行锁定进度 + 可选副行里程碑 + ≤1 记忆卡。 */
 
 import { seededBooks } from './bible_local';
 import { listMarksDetailed } from './mark_stats';
@@ -16,11 +16,13 @@ export type HomeGrowthCard = {
   id: string;
   tag: string;
   title: string;
+  /** 摘要副行里程碑（仅 summary） */
   sub?: string;
+  /** 副行点击（默认同 href） */
+  subHref?: string;
   href: string;
   pillActive?: boolean;
   accent?: boolean;
-  /** 摘要行：无 pill、轻量 */
   kind?: 'summary' | 'memory';
 };
 
@@ -31,9 +33,7 @@ export type HomeGrowthModel = {
 
 const TITLE_MAX = 28;
 const SUB_MAX = 36;
-/** 剩余章数 ≤ 此值视为「就快读完」 */
 const ALMOST_REMAINING_MAX = 3;
-/** 书卷至少这么多章才提示「就快读完」（避免短书误触） */
 const ALMOST_MIN_CHAPTERS = 4;
 
 function trimTitle(text: string, max = TITLE_MAX): string {
@@ -62,6 +62,7 @@ function isMonthReviewWindow(now = new Date()): boolean {
   return now.getDate() >= lastDay - 2;
 }
 
+/** 仅 12 / 1 月（U10） */
 function isYearReviewWindow(now = new Date()): boolean {
   const m = now.getMonth();
   return m === 11 || m === 0;
@@ -75,59 +76,46 @@ type AlmostDone = {
   href: string;
 };
 
-function chapterSetsByBook(): Map<string, Set<number>> {
-  const map = new Map<string, Set<number>>();
-  for (const e of readEvents()) {
-    let set = map.get(e.book);
-    if (!set) {
-      set = new Set();
-      map.set(e.book, set);
-    }
-    set.add(e.chapter);
-  }
-  return map;
-}
-
+/**
+ * 就快读完（L1/L2）：当前阅读卷；1…current 无空洞；
+ * remaining = total - current 且 1…3；跳转 current+1。
+ */
 function findAlmostDone(): AlmostDone | null {
-  const books = seededBooks();
-  const byBook = chapterSetsByBook();
   const last = getLastRead();
-  const candidates: AlmostDone[] = [];
+  if (!last) return null;
+  const book = seededBooks().find((b) => b.id === last.bookId);
+  if (!book || book.chapter_count < ALMOST_MIN_CHAPTERS) return null;
 
-  for (const b of books) {
-    if (b.chapter_count < ALMOST_MIN_CHAPTERS) continue;
-    const read = byBook.get(b.id);
-    if (!read?.size) continue;
-    const remaining = b.chapter_count - read.size;
-    if (remaining < 1 || remaining > ALMOST_REMAINING_MAX) continue;
-    let nextChapter = b.chapter_count;
-    for (let ch = 1; ch <= b.chapter_count; ch++) {
-      if (!read.has(ch)) {
-        nextChapter = ch;
-        break;
-      }
-    }
-    candidates.push({
-      bookId: b.id,
-      name: b.name || bookIdToChineseName(b.id) || b.id,
-      remaining,
-      nextChapter,
-      href: `/reader?book=${b.id}&chapter=${nextChapter}`,
-    });
+  const read = new Set<number>();
+  for (const e of readEvents()) {
+    if (e.book === last.bookId) read.add(e.chapter);
+  }
+  // 至少读到 last.chapter
+  read.add(last.chapter);
+
+  const current = last.chapter;
+  if (current < 1 || current >= book.chapter_count) return null;
+
+  for (let ch = 1; ch <= current; ch++) {
+    if (!read.has(ch)) return null; // 有空洞则不出
   }
 
-  if (!candidates.length) return null;
-  if (last) {
-    const hit = candidates.find((c) => c.bookId === last.bookId);
-    if (hit) return hit;
-  }
-  candidates.sort((a, b) => a.remaining - b.remaining || a.name.localeCompare(b.name, 'zh'));
-  return candidates[0];
+  const remaining = book.chapter_count - current;
+  if (remaining < 1 || remaining > ALMOST_REMAINING_MAX) return null;
+
+  const nextChapter = current + 1;
+  const name = book.name || bookIdToChineseName(book.id) || book.id;
+  return {
+    bookId: book.id,
+    name,
+    remaining,
+    nextChapter,
+    href: `/reader?book=${book.id}&chapter=${nextChapter}`,
+  };
 }
 
 type OnThisDay = {
   title: string;
-  sub?: string;
   href: string;
 };
 
@@ -149,20 +137,19 @@ function findOnThisDayLastYear(): OnThisDay | null {
       : '/notes';
     return {
       title: trimTitle(`${label}${m.notePreview ? ' · 还留下想法' : ' · 你划了线'}`),
-      sub: '去年今日',
       href,
     };
   }
 
-  const targetY = lastYear;
   const { m, day } = ymdParts(now);
   for (const e of readEvents()) {
     const d = new Date(e.ts);
-    if (d.getFullYear() !== targetY || d.getMonth() !== m || d.getDate() !== day) continue;
+    if (d.getFullYear() !== lastYear || d.getMonth() !== m || d.getDate() !== day) {
+      continue;
+    }
     const name = bookIdToChineseName(e.book) || e.book;
     return {
       title: trimTitle(`你读了${name} ${e.chapter}章`),
-      sub: '去年今日',
       href: `/reader?book=${e.book}&chapter=${e.chapter}`,
     };
   }
@@ -170,9 +157,8 @@ function findOnThisDayLastYear(): OnThisDay | null {
 }
 
 /**
- * 构建首页成长区：
- * - summary：始终一行（可轮换里程碑文案）
- * - memory：有素材时最多 1 张；与 summary 同源钩子互斥
+ * - summary 主行锁定今日进度；副行可选里程碑
+ * - memory ≤1；与副行情绪互斥（L4）
  */
 export function buildHomeGrowthModel(opts?: {
   todayMin?: number;
@@ -188,9 +174,10 @@ export function buildHomeGrowthModel(opts?: {
   const yearWindow = isYearReviewWindow(now);
   const monthWindow = isMonthReviewWindow(now);
 
-  type SummaryKind = 'almost' | 'month' | 'year' | 'default';
-  let summaryKind: SummaryKind = 'default';
-  let summary: HomeGrowthCard = {
+  type MilestoneKind = 'almost' | 'month' | 'year' | null;
+  let milestoneKind: MilestoneKind = null;
+
+  const summary: HomeGrowthCard = {
     id: 'summary',
     kind: 'summary',
     tag: '今日',
@@ -198,43 +185,29 @@ export function buildHomeGrowthModel(opts?: {
     href: '/report',
   };
 
+  // 副行优先级：就快读完 > 月末 > 年末（R2）
   if (almost) {
-    summaryKind = 'almost';
-    summary = {
-      id: 'summary-almost',
-      kind: 'summary',
-      tag: '今日',
-      title: trimTitle(
-        `${almost.name}还剩 ${almost.remaining} 章 · 今日 ${todayMin} 分钟`,
-      ),
-      href: almost.href,
-    };
+    milestoneKind = 'almost';
+    summary.sub = trimSub(`${almost.name}还剩 ${almost.remaining} 章 · 读完它`);
+    summary.subHref = almost.href;
   } else if (monthWindow && monthDays > 0) {
-    summaryKind = 'month';
-    summary = {
-      id: 'summary-month',
-      kind: 'summary',
-      tag: '今日',
-      title: trimTitle(
-        `${now.getMonth() + 1} 月回顾可生成 · 已读 ${monthDays} 天`,
-      ),
-      href: '/report',
-    };
+    milestoneKind = 'month';
+    // U6/L5：报告浏览口径，不用「可生成」
+    summary.sub = trimSub(`${now.getMonth() + 1} 月足迹 · 已读 ${monthDays} 天`);
+    summary.subHref = '/report';
   } else if (yearWindow && yearWrap.activeDays >= 7) {
-    summaryKind = 'year';
-    summary = {
-      id: 'summary-year',
-      kind: 'summary',
-      tag: '今日',
-      title: trimTitle(`${now.getFullYear()} 年度回顾 · 已读 ${yearWrap.activeDays} 天`),
-      href: '/wrapped?period=year',
-    };
+    milestoneKind = 'year';
+    summary.sub = trimSub(`生成 ${now.getFullYear()} 年度回顾`);
+    summary.subHref = '/wrapped?period=year';
   }
 
   type Cand = { card: HomeGrowthCard; score: number };
   const pool: Cand[] = [];
 
-  if (onThisDay) {
+  // L4：副行已有 almost 时不再出记忆情绪卡
+  const allowMemory = milestoneKind !== 'almost';
+
+  if (allowMemory && onThisDay) {
     pool.push({
       score: 95,
       card: {
@@ -242,68 +215,36 @@ export function buildHomeGrowthModel(opts?: {
         kind: 'memory',
         tag: '去年今日',
         title: onThisDay.title,
-        sub: onThisDay.sub === '去年今日' ? undefined : onThisDay.sub,
         href: onThisDay.href,
         pillActive: true,
       },
     });
   }
 
-  if (almost && summaryKind !== 'almost') {
-    pool.push({
-      score: 88,
-      card: {
-        id: 'almost-done',
-        kind: 'memory',
-        tag: '就快读完',
-        title: trimTitle(`${almost.name}还剩 ${almost.remaining} 章就读完啦`),
-        href: almost.href,
-        pillActive: true,
-        accent: true,
-      },
-    });
-  }
-
-  if (yearWindow && yearWrap.activeDays >= 7 && summaryKind !== 'year') {
+  // 就快读完只走副行，不再进记忆卡（避免双份）
+  if (allowMemory && yearWindow && yearWrap.activeDays >= 7 && milestoneKind !== 'year') {
     pool.push({
       score: 80,
       card: {
         id: 'year-wrapped',
         kind: 'memory',
         tag: '年度',
-        title: trimTitle(yearWrap.label),
+        title: trimTitle(`生成 ${yearWrap.label}`),
         sub: trimSub(yearWrap.highlight),
         href: '/wrapped?period=year',
-        accent: true,
         pillActive: true,
-      },
-    });
-  } else if (
-    !yearWindow &&
-    yearWrap.activeDays >= 30 &&
-    now.getMonth() >= 10
-  ) {
-    pool.push({
-      score: 55,
-      card: {
-        id: 'year-wrapped-soft',
-        kind: 'memory',
-        tag: '年度',
-        title: trimTitle(`${now.getFullYear()} 年度回顾`),
-        sub: trimSub(yearWrap.highlight),
-        href: '/wrapped?period=year',
       },
     });
   }
 
-  if (monthWindow && monthDays > 0 && summaryKind !== 'month') {
+  if (allowMemory && monthWindow && monthDays > 0 && milestoneKind !== 'month') {
     pool.push({
       score: 70,
       card: {
         id: 'month-review',
         kind: 'memory',
         tag: '回顾',
-        title: trimTitle(`${now.getMonth() + 1} 月回顾`),
+        title: trimTitle(`看 ${now.getMonth() + 1} 月足迹`),
         sub: `本月已读 ${monthDays} 天`,
         href: '/report',
         pillActive: true,
@@ -317,7 +258,7 @@ export function buildHomeGrowthModel(opts?: {
   return { summary, memory };
 }
 
-/** @deprecated 兼容旧调用：返回 [摘要, …记忆] */
+/** @deprecated */
 export function buildHomeGrowthCards(opts?: {
   todayMin?: number;
   monthDays?: number;

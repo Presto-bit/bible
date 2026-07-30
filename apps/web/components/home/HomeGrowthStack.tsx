@@ -22,7 +22,35 @@ function GrowthRow({
   onGo: (href: string) => void;
 }) {
   const isSummary = card.kind === 'summary' || card.id.startsWith('summary');
-  const singleLine = !card.sub;
+  const hasSub = Boolean(card.sub);
+
+  if (isSummary) {
+    return (
+      <div className="card home-reading-summary home-summary-card">
+        <button
+          type="button"
+          className="home-summary-main"
+          aria-label={card.title}
+          onClick={() => onGo(card.href)}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <strong>{card.title}</strong>
+          <span className="muted home-list-chevron">›</span>
+        </button>
+        {hasSub ? (
+          <button
+            type="button"
+            className="home-summary-sub"
+            aria-label={card.sub}
+            onClick={() => onGo(card.subHref || card.href)}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            {card.sub}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <button
@@ -31,19 +59,16 @@ function GrowthRow({
         'card',
         'row-card',
         'home-list-row',
-        isSummary ? 'home-reading-summary' : 'home-growth-memory',
-        singleLine ? 'home-growth-row-single' : 'home-list-row-wrap',
-        card.accent ? 'card-2 card-tint card-accent' : '',
+        'home-growth-memory',
+        hasSub ? 'home-list-row-wrap' : 'home-growth-row-single',
       ]
         .filter(Boolean)
         .join(' ')}
-      aria-label={isSummary ? card.title : `${card.tag}：${card.title}`}
+      aria-label={`${card.tag}：${card.title}`}
       onClick={() => onGo(card.href)}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {!isSummary ? (
-        <span className={`pill${card.pillActive ? ' pill-active' : ''}`}>{card.tag}</span>
-      ) : null}
+      <span className={`pill${card.pillActive ? ' pill-active' : ''}`}>{card.tag}</span>
       <span className="home-list-main">
         <strong>{card.title}</strong>
         {card.sub ? <span className="muted home-list-sub">{card.sub}</span> : null}
@@ -64,7 +89,10 @@ export function HomeGrowthStack({
   endFooterRef,
 }: Props) {
   return (
-    <section className="home-stack home-growth-stack" aria-label="阅读摘要与落点">
+    <section
+      className={`home-stack home-growth-stack${model.memory ? ' has-memory' : ''}`}
+      aria-label="阅读摘要与落点"
+    >
       <GrowthRow card={model.summary} onGo={onGo} />
       {anchor ? <HomeAnchorBlock block={anchor} onGo={onGo} /> : null}
       {model.memory ? <GrowthRow card={model.memory} onGo={onGo} /> : null}

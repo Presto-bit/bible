@@ -290,7 +290,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   });
   const [anchorBlock, setAnchorBlock] = useState<HomeAnchorBlockModel | null>(() => {
     if (typeof window === 'undefined') return null;
-    return buildHomeAnchorBlock([], null);
+    return buildHomeAnchorBlock({
+      groups: [],
+      summary: null,
+      todayPanelHasGroup: false,
+    });
   });
   const [ptrToast, setPtrToast] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
@@ -314,6 +318,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const homeRefreshTimerRef = useRef<number | null>(null);
   const lastGroupInputRef = useRef<HomeTodayPanelInput['group']>(undefined);
   const lastAnchorRef = useRef<HomeAnchorBlockModel | null>(null);
+  const lastHadGroupsRef = useRef(false);
   const bibleWarmupOnceRef = useRef(false);
 
   const paintLocalChrome = useCallback(() => {
@@ -326,7 +331,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       }),
     );
     if (!lastAnchorRef.current) {
-      const fallback = buildHomeAnchorBlock([], null);
+      const fallback = buildHomeAnchorBlock({
+        groups: [],
+        summary: null,
+        todayPanelHasGroup: false,
+      });
       lastAnchorRef.current = fallback;
       setAnchorBlock(fallback);
     }
@@ -397,8 +406,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const cachedCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
       const localGroup =
         lastGroupInputRef.current || buildHomeGroupRailInput([], null);
-      const localAnchor =
-        lastAnchorRef.current || buildHomeAnchorFromGroupRail(localGroup);
+      const localAnchor = lastHadGroupsRef.current
+        ? buildHomeAnchorBlock({
+            groups: [],
+            summary: null,
+            todayPanelHasGroup: true,
+          })
+        : lastAnchorRef.current || buildHomeAnchorFromGroupRail(localGroup);
       lastAnchorRef.current = localAnchor;
       setAnchorBlock(localAnchor);
 
@@ -434,9 +448,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const socialPromise = Promise.all([api.myGroups(), api.discoverSummary()])
         .then(([groupsRes, summaryRes]) => {
           const groups = Array.isArray(groupsRes.groups) ? groupsRes.groups : [];
+          const rail = buildHomeGroupRailInput(groups, summaryRes);
+          // 推荐侧卡已露出群深链 → B 禁止再出「小组」；侧卡改好友时允许 B 出小组
+          const todayPanelHasGroup = rail.href.startsWith('/discover/group/');
           return {
-            rail: buildHomeGroupRailInput(groups, summaryRes),
-            anchor: buildHomeAnchorBlock(groups, summaryRes),
+            rail,
+            anchor: buildHomeAnchorBlock({
+              groups,
+              summary: summaryRes,
+              todayPanelHasGroup,
+            }),
+            hasGroups: groups.length > 0,
           };
         })
         .catch((e) => {
@@ -447,7 +469,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             lastGroupInputRef.current || buildHomeGroupRailInput([], null);
           return {
             rail,
-            anchor: lastAnchorRef.current || buildHomeAnchorFromGroupRail(rail),
+            anchor:
+              lastAnchorRef.current || buildHomeAnchorFromGroupRail(rail),
+            hasGroups: lastHadGroupsRef.current,
           };
         });
 
@@ -480,6 +504,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
       lastGroupInputRef.current = groupCard;
       lastAnchorRef.current = nextAnchor;
+      lastHadGroupsRef.current = Boolean(social.hasGroups);
       lastRailNetAtRef.current = Date.now();
       setAnchorBlock(nextAnchor);
 
@@ -532,6 +557,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     try {
       await refreshHome({ force: true });
       if (!reducedMotion) hapticSuccess();
+      setPtrToast('已更新');
+      window.setTimeout(() => setPtrToast(null), 1200);
     } catch (e) {
       setPtrToast(errorMessage(e, '刷新失败，请稍后再试'));
       window.setTimeout(() => setPtrToast(null), 2200);
