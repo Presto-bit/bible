@@ -126,7 +126,9 @@ export default function ReadingProgress({
             setOpen(true);
           }}
         >
-          <span className="profile-footprint-label">旅程</span>
+          <span className="profile-footprint-label">
+            <span className="profile-footprint-kind">旅程</span>
+          </span>
           <strong className={`profile-footprint-value${overallPct > 0 || summary ? '' : ' is-empty'}`}>
             {summary
               || (overallPct > 0 ? `通读 ${overallPct}%` : '开始一段旅程')}

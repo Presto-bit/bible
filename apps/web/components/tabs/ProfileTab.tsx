@@ -104,14 +104,16 @@ function clipPreview(text: string, max = 28): string {
 }
 
 function FootprintCell({
-  label,
+  kind,
+  count,
   value,
   empty,
   isNew,
   onOpen,
   onShare,
 }: {
-  label: string;
+  kind: string;
+  count?: number;
   value: string;
   empty?: boolean;
   isNew?: boolean;
@@ -121,6 +123,7 @@ function FootprintCell({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const startXY = useRef<{ x: number; y: number } | null>(null);
+  const label = count && count > 0 ? `${kind} · ${count}` : kind;
 
   const clear = () => {
     if (longPressTimer.current) {
@@ -133,7 +136,7 @@ function FootprintCell({
   return (
     <button
       type="button"
-      className={`card profile-footprint-cell${isNew ? ' has-new' : ''}`}
+      className={`card profile-footprint-cell${isNew ? ' has-new' : ''}${empty ? ' is-empty' : ''}`}
       role="listitem"
       title={onShare ? '长按可分享' : undefined}
       aria-label={isNew ? `${label}，有新内容` : label}
@@ -180,7 +183,12 @@ function FootprintCell({
       }}
     >
       {isNew ? <span className="profile-footprint-dot" aria-hidden /> : null}
-      <span className="profile-footprint-label">{label}</span>
+      <span className="profile-footprint-label">
+        <span className="profile-footprint-kind">{kind}</span>
+        {count && count > 0 ? (
+          <span className="profile-footprint-count">{count}</span>
+        ) : null}
+      </span>
       <strong className={`profile-footprint-value${empty ? ' is-empty' : ''}`}>{value}</strong>
     </button>
   );
@@ -722,151 +730,138 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   return (
     <main className="container profile-page">
       <header className="profile-head profile-greet-head">
-        <button
-          type="button"
-          className={`profile-avatar-btn${avatarUploading ? ' is-uploading' : ''}`}
-          onClick={() => setPickerOpen(true)}
-          aria-label="更换头像"
-          disabled={avatarUploading}
-        >
-          <Avatar id={avatarId} size={56} />
-          {avatarUploading ? <span className="profile-avatar-spin" aria-hidden /> : null}
-        </button>
-        <div className="profile-meta">
-          {nameEditing ? (
-            <div className="profile-name-edit-wrap">
-              <input
-                className="book-chip profile-name-input"
-                value={nameDraft}
-                maxLength={24}
-                disabled={nameBusy}
-                autoFocus
-                placeholder="怎么称呼你？"
-                aria-label="编辑用户名"
-                onChange={(e) => setNameDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void saveDisplayName();
-                  }
-                  if (e.key === 'Escape') setNameEditing(false);
-                }}
-              />
-              <div className="profile-name-edit-actions">
-                <button
-                  type="button"
-                  className="font-pill"
-                  disabled={nameBusy}
-                  onClick={() => void saveDisplayName()}
-                >
-                  {nameBusy ? '…' : '保存'}
-                </button>
-                <button
-                  type="button"
-                  className="text-link"
-                  disabled={nameBusy}
-                  onClick={() => setNameEditing(false)}
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="profile-name-row">
-              <strong className="profile-display-name">{displayName}</strong>
-              <button
-                type="button"
-                className="profile-name-edit-btn"
-                onClick={beginEditName}
-                aria-label="编辑用户名"
-                title="编辑用户名"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden
-                >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
-                </svg>
-              </button>
-            </div>
-          )}
-          {dataStatus ? (
-            <p className="muted" style={{ fontSize: 12, margin: '2px 0 0' }}>{dataStatus}</p>
-          ) : null}
-          {bioEditing ? (
-            <div className="profile-bio-edit-wrap">
-              <input
-                className="book-chip profile-bio-input"
-                placeholder="一句话签名（≤15 字）"
-                value={bio}
-                maxLength={15}
-                autoFocus
-                onChange={(e) => saveBio(e.target.value)}
-                onBlur={() => setBioEditing(false)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') setBioEditing(false);
-                }}
-              />
-              <span className="muted" style={{ fontSize: 11 }}>{bio.length}/15</span>
-            </div>
-          ) : (
+        <div className="profile-head-top">
+          <div className="profile-head-actions">
             <button
               type="button"
-              className="profile-bio-edit"
-              onClick={() => setBioEditing(true)}
-              aria-label="编辑签名"
+              className="icon-btn profile-head-icon-btn"
+              aria-label="分享 App，邀请朋友一起读"
+              onClick={() => void inviteFriends()}
             >
-              <span className="muted profile-bio-text">
-                {bio.trim() ? bio : '点击添加签名'}
-              </span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <path d="M8.59 13.51 15.42 17.49" />
+                <path d="M15.41 6.51 8.59 10.49" />
+              </svg>
             </button>
-          )}
-          {(idValue && !accountComplete) || (accountComplete && !hasPwd) ? (
-            <p className="profile-meta-line muted">
-              {idValue && !accountComplete ? (
-                <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
-                  {idCopied ? '已复制' : `ID ${idValue}`}
-                </button>
-              ) : null}
-              {accountComplete && !hasPwd ? '可在设置中完善密码' : null}
-            </p>
-          ) : null}
+            <button
+              type="button"
+              className="icon-btn profile-head-icon-btn"
+              aria-label="设置"
+              onClick={() => setSettingsOpen(true)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="profile-head-actions">
+
+        <div className="profile-identity">
           <button
             type="button"
-            className="profile-invite-btn"
-            aria-label="分享 App，邀请朋友一起读"
-            onClick={() => void inviteFriends()}
+            className={`profile-avatar-btn${avatarUploading ? ' is-uploading' : ''}`}
+            onClick={() => setPickerOpen(true)}
+            aria-label="更换头像"
+            disabled={avatarUploading}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <circle cx="18" cy="5" r="3" />
-              <circle cx="6" cy="12" r="3" />
-              <circle cx="18" cy="19" r="3" />
-              <path d="M8.59 13.51 15.42 17.49" />
-              <path d="M15.41 6.51 8.59 10.49" />
-            </svg>
-            <span>分享</span>
+            <Avatar id={avatarId} size={68} />
+            {avatarUploading ? <span className="profile-avatar-spin" aria-hidden /> : null}
           </button>
-          <button
-            type="button"
-            className="icon-btn profile-settings-btn"
-            aria-label="设置"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
+          <div className="profile-meta">
+            {nameEditing ? (
+              <div className="profile-name-edit-wrap">
+                <input
+                  className="book-chip profile-name-input"
+                  value={nameDraft}
+                  maxLength={24}
+                  disabled={nameBusy}
+                  autoFocus
+                  placeholder="怎么称呼你？"
+                  aria-label="编辑用户名"
+                  onChange={(e) => setNameDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void saveDisplayName();
+                    }
+                    if (e.key === 'Escape') setNameEditing(false);
+                  }}
+                />
+                <div className="profile-name-edit-actions">
+                  <button
+                    type="button"
+                    className="font-pill"
+                    disabled={nameBusy}
+                    onClick={() => void saveDisplayName()}
+                  >
+                    {nameBusy ? '…' : '保存'}
+                  </button>
+                  <button
+                    type="button"
+                    className="text-link"
+                    disabled={nameBusy}
+                    onClick={() => setNameEditing(false)}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="profile-name-hit"
+                onClick={beginEditName}
+                aria-label="编辑用户名"
+              >
+                <strong className="profile-display-name">{displayName}</strong>
+              </button>
+            )}
+            {dataStatus ? (
+              <p className="muted profile-data-status">{dataStatus}</p>
+            ) : null}
+            {bioEditing ? (
+              <div className="profile-bio-edit-wrap">
+                <input
+                  className="book-chip profile-bio-input"
+                  placeholder="一句话签名（≤15 字）"
+                  value={bio}
+                  maxLength={15}
+                  autoFocus
+                  onChange={(e) => saveBio(e.target.value)}
+                  onBlur={() => setBioEditing(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') setBioEditing(false);
+                  }}
+                />
+                <span className="muted profile-bio-count">{bio.length}/15</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="profile-bio-edit"
+                onClick={() => setBioEditing(true)}
+                aria-label="编辑签名"
+              >
+                <span className={`profile-bio-text${bio.trim() ? '' : ' is-empty'}`}>
+                  {bio.trim() ? bio : '点击添加签名'}
+                </span>
+              </button>
+            )}
+            {(idValue && !accountComplete) || (accountComplete && !hasPwd) ? (
+              <p className="profile-meta-line muted">
+                {idValue && !accountComplete ? (
+                  <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
+                    {idCopied ? '已复制' : `ID ${idValue}`}
+                  </button>
+                ) : null}
+                {accountComplete && !hasPwd ? '可在设置中完善密码' : null}
+              </p>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -881,63 +876,65 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         </button>
       ) : null}
 
-      <Link
-        href="/report"
-        className="card profile-companion-card"
-        aria-label={
-          streak > 0
-            ? `已同行 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，查看读经回顾`
-            : `读经回顾，今日 ${mins} 分钟，通读 ${journeyPct}%`
-        }
-      >
-        <div className="profile-companion-main">
-          <strong className="profile-companion-title">
-            {streak > 0 ? `已同行 ${streak} 天` : '开始同行读经'}
-          </strong>
-          <span className="muted profile-companion-sub">
-            今日 {mins} 分钟 · 本周 {weekMins} 分钟
-          </span>
-        </div>
-        <div
-          className="profile-companion-ring"
-          style={{ ['--pct' as string]: journeyPct }}
-          aria-hidden
+      <div className="profile-companion-wrap">
+        <Link
+          href="/report"
+          className="card profile-companion-card"
+          aria-label={
+            streak > 0
+              ? `已同行 ${streak} 天，今日 ${mins} 分钟，通读 ${journeyPct}%，打开读经回顾`
+              : `读经回顾，今日 ${mins} 分钟，通读 ${journeyPct}%`
+          }
         >
-          <span>{journeyPct}%</span>
-        </div>
-      </Link>
+          <div className="profile-companion-main">
+            <strong className="profile-companion-title">
+              {streak > 0 ? `已同行 ${streak} 天` : '开始同行读经'}
+            </strong>
+            <span className="muted profile-companion-sub">
+              今日 {mins} 分钟 · 本周 {weekMins} 分钟
+            </span>
+          </div>
+          <div
+            className="profile-companion-ring"
+            style={{ ['--pct' as string]: journeyPct }}
+            aria-hidden
+          >
+            <span>{journeyPct}%</span>
+          </div>
+        </Link>
 
-      {milestone ? (
-        <div className="profile-milestone-banner">
-          <div className="profile-milestone-copy">
-            <strong>同行 {milestone} 天</strong>
-            <span className="muted">愿话语继续同行 · 可分享这一刻</span>
+        {milestone ? (
+          <div className="profile-milestone-strip">
+            <span className="profile-milestone-copy">
+              同行 {milestone} 天 · 可分享这一刻
+            </span>
+            <div className="profile-milestone-actions">
+              <button
+                type="button"
+                className="text-link profile-milestone-share"
+                disabled={milestoneBusy}
+                onClick={() => void shareMilestone()}
+              >
+                {milestoneBusy ? '…' : '分享'}
+              </button>
+              <button
+                type="button"
+                className="text-link muted"
+                disabled={milestoneBusy}
+                onClick={dismissMilestone}
+              >
+                稍后
+              </button>
+            </div>
           </div>
-          <div className="profile-milestone-actions">
-            <button
-              type="button"
-              className="btn profile-milestone-share"
-              disabled={milestoneBusy}
-              onClick={() => void shareMilestone()}
-            >
-              {milestoneBusy ? '…' : '分享'}
-            </button>
-            <button
-              type="button"
-              className="text-link"
-              disabled={milestoneBusy}
-              onClick={dismissMilestone}
-            >
-              稍后
-            </button>
-          </div>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       <p className="section-label tab-section-label profile-block-label">我的足迹</p>
       <div className="profile-footprint-grid" role="list">
         <FootprintCell
-          label={`想法${thoughtCount > 0 ? ` · ${thoughtCount}` : ''}`}
+          kind="想法"
+          count={thoughtCount}
           value={thoughtPreview || '写下第一句'}
           empty={!thoughtPreview}
           isNew={thoughtNew}
@@ -945,7 +942,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           onShare={thoughtPreview ? () => void shareThoughtPreview() : undefined}
         />
         <FootprintCell
-          label={`划线${markCount > 0 ? ` · ${markCount}` : ''}`}
+          kind="划线"
+          count={markCount}
           value={markPreview || '去读经划线'}
           empty={!markPreview}
           isNew={markNew}
@@ -954,7 +952,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         />
         <button
           type="button"
-          className={`card profile-footprint-cell${badgeNew ? ' has-new' : ''}`}
+          className={`card profile-footprint-cell${badgeNew ? ' has-new' : ''}${badgePreview ? '' : ' is-empty'}`}
           role="listitem"
           aria-label={
             badgeNew
@@ -965,8 +963,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         >
           {badgeNew ? <span className="profile-footprint-dot" aria-hidden /> : null}
           <span className="profile-footprint-label">
-            成就
-            {badgeDoneCount > 0 ? ` · ${badgeDoneCount}` : ''}
+            <span className="profile-footprint-kind">成就</span>
+            {badgeDoneCount > 0 ? (
+              <span className="profile-footprint-count">{badgeDoneCount}</span>
+            ) : null}
           </span>
           <strong className={`profile-footprint-value${badgePreview ? '' : ' is-empty'}`}>
             {badgePreview || '读经解锁'}
@@ -985,41 +985,22 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       </div>
 
       <p className="section-label tab-section-label profile-block-label">常用</p>
-      <div className="profile-soft-stack">
-        <Link href="/challenge" className="card row-card home-list-row home-list-row-wrap profile-soft-row">
-          <span className="pill pill-active">问答</span>
-          <span className="home-list-main">
-            <strong>今日 5 题</strong>
-            <span className="muted home-list-sub">复习错题 · 答题统计</span>
-          </span>
-          <span className="muted home-list-chevron">›</span>
+      <div className="profile-shortcut-grid" role="navigation" aria-label="常用捷径">
+        <Link href="/challenge" className="profile-shortcut">
+          <strong>今日 5 题</strong>
+          <span className="muted">问答</span>
         </Link>
-
-        <Link
-          href="/profile/reminders"
-          className="card row-card home-list-row home-list-row-wrap profile-soft-row"
-        >
-          <span className="pill">提醒</span>
-          <span className="home-list-main">
-            <strong>推送提醒</strong>
-            <span className="muted home-list-sub">每日读经提醒</span>
-          </span>
-          <span className="muted home-list-chevron">›</span>
+        <Link href="/profile/reminders" className="profile-shortcut">
+          <strong>提醒</strong>
+          <span className="muted">推送</span>
         </Link>
-
         <button
           type="button"
-          className="card row-card home-list-row home-list-row-wrap profile-soft-row"
+          className="profile-shortcut"
           onClick={() => setDownloadOpen(true)}
         >
-          <span className="pill">离线</span>
-          <span className="home-list-main">
-            <strong>离线圣经</strong>
-            <span className="muted home-list-sub">
-              {downloadHint || '下载经文与资料'}
-            </span>
-          </span>
-          <span className="muted home-list-chevron">›</span>
+          <strong>离线</strong>
+          <span className="muted">{downloadHint ? '下载中' : '圣经'}</span>
         </button>
       </div>
 
