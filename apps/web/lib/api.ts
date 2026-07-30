@@ -1,6 +1,5 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
 import { chinaTodayYmd } from './daily_clock';
-import { getAdminToken } from './admin_rag';
 import {
   bindDeviceGuestId,
   clearDeviceGuestBinding,
@@ -1826,9 +1825,9 @@ export const api = {
     const q = new URLSearchParams();
     q.set('_d', chinaTodayYmd());
     if (previewCampaignId) q.set('preview_campaign_id', previewCampaignId);
-    const token = getAdminToken();
+    // 用用户/访客会话拉今日推荐；勿用 admin token 覆盖 Authorization，
+    // 否则群定向活动易变成 [] 并冲掉本地活动卡缓存。
     const headers: Record<string, string> = { ...authHeaders() };
-    if (token) headers.Authorization = `Bearer ${token}`;
     // 首页首屏：短超时，失败走本地缓存，避免干等网关 504
     return getJson<HomeBootstrap>(`/content/home/bootstrap?${q}`, headers, {
       timeoutMs: 8_000,

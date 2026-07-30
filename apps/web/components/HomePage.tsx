@@ -7,9 +7,11 @@ import {
   type DailyVerse,
   type DailyVerseReactPreset,
   type DailyVerseReactTopPreset,
+  currentUserId,
   ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
+import { getAdminToken } from '@/lib/admin_rag';
 import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
 import DailyVerseReactSheet from '@/components/DailyVerseReactSheet';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
@@ -239,9 +241,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         // Hero 图预载不挡首屏与经包调度
         void applyHeroBCampaign(boot.heroBCampaign);
         if (Array.isArray(boot.railCampaigns)) {
-          writeCachedHomeCampaigns(mapApiCampaignsToHomeInput(boot.railCampaigns));
-          // 用本地重绘把运营卡并进今日推荐，避免再打 /campaigns/home
-          applyCachedCampaignsPaintRef.current();
+          const next = mapApiCampaignsToHomeInput(boot.railCampaigns);
+          const prev = readCachedHomeCampaigns({ allowStale: true });
+          // 后端无 uid 时固定返回 []；与 ensureAccountReady 并行时、或 admin token
+          // 抢占 Authorization 时，空列表会冲掉本地「50天同行」等活动卡，主卡回退成「继续」。
+          // 仅在「已登录用户会话且非 admin token 抢占」时信任空结果。
+          const trustEmpty =
+            Boolean(currentUserId()) && !getAdminToken();
+          if (next.length > 0 || !prev?.length || trustEmpty) {
+            writeCachedHomeCampaigns(next);
+            applyCachedCampaignsPaintRef.current();
+          }
         }
       })
       .catch((e) => {
