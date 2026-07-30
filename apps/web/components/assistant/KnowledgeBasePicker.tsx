@@ -73,9 +73,9 @@ export function KnowledgeBasePicker({ disabled, variant = 'embed' }: Props) {
           background: 'var(--wash, #f5f0e8)',
         }}
       >
-        <strong style={{ fontSize: 13 }}>平台知识库</strong>
+        <strong style={{ fontSize: 13 }}>平台参考库</strong>
         <span className="muted" style={{ display: 'block', fontSize: 11, marginTop: 2 }}>
-          含中文研经、公版英文注释（不含摘要与词典）
+          当前问答唯一检索来源 · 含中文研经与公版注释
         </span>
       </div>
       <Link
@@ -84,7 +84,7 @@ export function KnowledgeBasePicker({ disabled, variant = 'embed' }: Props) {
         style={{ display: 'block', padding: '8px 10px', fontSize: 12 }}
         onClick={() => setOpen(false)}
       >
-        浏览知识库 ›
+        浏览专题资料（仅查阅） ›
       </Link>
     </div>
   ) : null;
@@ -98,8 +98,8 @@ export function KnowledgeBasePicker({ disabled, variant = 'embed' }: Props) {
           disabled={disabled}
           aria-expanded={open}
           aria-haspopup="listbox"
-          aria-label="知识库：平台知识库"
-          title="平台知识库"
+          aria-label="当前使用：平台参考库"
+          title="当前使用：平台参考库"
           onClick={() => setOpen((v) => !v)}
         >
           <KbSourceIcon />
@@ -125,7 +125,7 @@ export function KnowledgeBasePicker({ disabled, variant = 'embed' }: Props) {
           cursor: disabled ? 'default' : 'pointer',
         }}
       >
-        平台知识库 ▾
+        当前使用：平台参考库 ▾
       </button>
       {menu}
     </div>

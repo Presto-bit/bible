@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import type { DailyDevotional } from '@/lib/api';
 
 export function DailyDevotionalCard({
@@ -34,16 +33,6 @@ export function DailyDevotionalCard({
       <p className="daily-devotional-prayer" style={{ lineHeight: 1.65, marginTop: 10 }}>
         {data.prayer}
       </p>
-      <div className="share-actions" style={{ marginTop: 12 }}>
-        {data.verse?.ref && (
-          <Link
-            className="font-pill"
-            href={`/assistant?ref=${encodeURIComponent(data.verse.ref)}`}
-          >
-            问小爱
-          </Link>
-        )}
-      </div>
     </div>
   );
 }

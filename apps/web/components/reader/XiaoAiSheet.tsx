@@ -3,9 +3,12 @@
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useRouter } from 'next/navigation';
 import { chatStream } from '@/lib/api';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
+import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
+import { AssistantNextSteps } from '@/components/assistant/AssistantNextSteps';
 import { addThought } from '@/lib/reader_thoughts';
 import { extractSummaryLead } from '@/lib/assistant_markdown';
 import {
@@ -27,6 +30,8 @@ import {
 import { RagSourceStatus } from '@/components/assistant/RagSourceStatus';
 import { getSessionKnowledgeBaseId, DEFAULT_KB_ID } from '@/lib/assistant_knowledge_base';
 import { shareAnalysis } from '@/lib/share_analysis';
+import { readerHrefFromRef } from '@/lib/group_footprint';
+import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { useToast } from '@/components/ui/ToastProvider';
 
 function stripAnswer(raw: string): string {
@@ -46,6 +51,7 @@ export default function XiaoAiSheet({
   selectionText: string;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const scene: AssistantScene = mode === 'ask' ? 'verse_full' : 'verse_quick';
   const userQuestion = useMemo(() => {
     const snippet = selectionText.trim();
@@ -208,10 +214,12 @@ export default function XiaoAiSheet({
 
   const shareAnswer = async () => {
     if (!clean || hasError) return;
+    const cites = usedCitations.length ? usedCitations : citations;
     const result = await shareAnalysis({
       answerText: clean,
       refLabel,
       refParam,
+      citations: cites.length ? cites : undefined,
     });
     if (result === 'shared') flash('已调起分享');
     else if (result === 'copied') flash('已复制链接与摘要');
@@ -244,8 +252,24 @@ export default function XiaoAiSheet({
     addThought(refParam || 'FREE', clean, 'private', { skipPublish: true });
     recordSaveAnswerNote();
     setSaved(true);
+    flash('已存为想法（本机）');
     setTimeout(() => setSaved(false), 1800);
   };
+
+  const continueRead = () => {
+    const href = readerHrefFromRef(refParam);
+    if (!href) return;
+    onClose();
+    navigateToReaderHref(href, router);
+  };
+
+  const openSources = () => {
+    const cites = usedCitations.length ? usedCitations : citations;
+    if (cites[0]) setCitationOpen(cites[0].n);
+  };
+
+  const evidenceCites = usedCitations.length > 0 ? usedCitations : citations;
+  const canContinueRead = Boolean(readerHrefFromRef(refParam));
 
   const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
 
@@ -289,6 +313,7 @@ export default function XiaoAiSheet({
                       useRag={useRag}
                       knowledgeBaseId={kbId}
                       knowledgeBaseName={kbName}
+                      onReview={evidenceCites.length > 0 ? openSources : undefined}
                     />
                   )}
                   {showCollapsed ? (
@@ -313,6 +338,30 @@ export default function XiaoAiSheet({
                       }}
                     />
                   )}
+                  {done && !hasError && evidenceCites.length > 0 ? (
+                    <CitationEvidenceRail
+                      citations={evidenceCites}
+                      bookName={refLabel.split(' ')[0]}
+                      onOpen={(n) => {
+                        recordCitationClick();
+                        setCitationOpen(n);
+                      }}
+                    />
+                  ) : null}
+                  {done && clean && !hasError ? (
+                    <AssistantNextSteps
+                      showContinueRead={canContinueRead}
+                      onContinueRead={continueRead}
+                      onSaveThought={saveThought}
+                      savedThought={saved}
+                      showSources={evidenceCites.length > 0}
+                      onOpenSources={openSources}
+                      onCopy={() => void copyAnswer()}
+                      copied={copied}
+                      onShare={() => void shareAnswer()}
+                      onContinueChat={continueWithAssistant}
+                    />
+                  ) : null}
                 </>
               ) : (
                 <AssistantThinkingState
@@ -342,39 +391,30 @@ export default function XiaoAiSheet({
             </p>
           )}
         </div>
-        <div className="half-sheet-foot half-sheet-actions reader-ai-actions">
-          {done && clean && !hasError && (
-            <>
-              <button type="button" className="half-sheet-action-btn" onClick={() => void copyAnswer()}>
-                {copied ? '已复制' : '复制'}
-              </button>
-              <button type="button" className="half-sheet-action-btn" onClick={() => void shareAnswer()}>
-                分享
-              </button>
-              <button type="button" className="half-sheet-action-btn" onClick={saveThought}>
-                {saved ? '已存想法' : '存想法'}
-              </button>
-              {citations.length > 0 ? (
-                <CitationBar
-                  variant="action"
-                  compact
-                  className="half-sheet-action-btn reader-ai-cite-btn"
-                  citations={usedCitations.length > 0 ? usedCitations : citations}
-                  activeN={citationOpen}
-                  onActiveChange={setCitationOpen}
-                  bookName={refLabel.split(' ')[0]}
-                />
-              ) : null}
-            </>
-          )}
-          <button
-            type="button"
-            className="half-sheet-action-btn half-sheet-action-primary"
-            onClick={continueWithAssistant}
-          >
-            继续聊
-          </button>
-        </div>
+        {evidenceCites.length > 0 ? (
+          <div className="xiaoai-cite-host" aria-hidden={citationOpen == null}>
+            <CitationBar
+              variant="action"
+              compact
+              className="xiaoai-cite-host-trigger"
+              citations={evidenceCites}
+              activeN={citationOpen}
+              onActiveChange={setCitationOpen}
+              bookName={refLabel.split(' ')[0]}
+            />
+          </div>
+        ) : null}
+        {(!done || hasError) && (
+          <div className="half-sheet-foot half-sheet-actions reader-ai-actions">
+            <button
+              type="button"
+              className="half-sheet-action-btn half-sheet-action-primary"
+              onClick={continueWithAssistant}
+            >
+              继续聊
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

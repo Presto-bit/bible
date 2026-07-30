@@ -10,6 +10,8 @@ type Props = {
   knowledgeBaseId?: string | null;
   /** 无命中且非平台库时：换回平台库 */
   onSwitchToPlatform?: () => void;
+  /** 有来源时点按打开核对 */
+  onReview?: () => void;
   className?: string;
 };
 
@@ -23,30 +25,57 @@ export function RagSourceStatus({
   knowledgeBaseName,
   knowledgeBaseId,
   onSwitchToPlatform,
+  onReview,
   className,
 }: Props) {
   if (useRag === false) return null;
   const isTopic = Boolean(knowledgeBaseId && knowledgeBaseId !== 'platform');
   const kbSuffix =
     isTopic && knowledgeBaseName ? ` · ${knowledgeBaseName}` : '';
-  const text =
-    count > 0
-      ? `已参考 ${count} 条释经资料${kbSuffix}`
-      : `本次以圣经与通识作答 · 资料库暂无直接对应注释${kbSuffix}`;
+
+  if (count > 0) {
+    return (
+      <div
+        className={['assistant-rag-status', 'assistant-rag-status-row', className]
+          .filter(Boolean)
+          .join(' ')}
+        role="status"
+      >
+        <p className="muted assistant-rag-status-text">
+          已参考 {count} 条来源{kbSuffix}
+          {onReview ? (
+            <>
+              {' · '}
+              <button type="button" className="text-link" onClick={onReview}>
+                核对
+              </button>
+            </>
+          ) : null}
+        </p>
+        <p className="assistant-rag-disclaimer">AI 释义，请以圣经原文为准</p>
+      </div>
+    );
+  }
+
   return (
-    <p
-      className={['assistant-rag-status', 'muted', className].filter(Boolean).join(' ')}
+    <div
+      className={['assistant-rag-status', 'assistant-rag-status-row', className]
+        .filter(Boolean)
+        .join(' ')}
       role="status"
     >
-      {text}
-      {count === 0 && isTopic && onSwitchToPlatform ? (
-        <>
-          {' · '}
-          <button type="button" className="text-link" onClick={onSwitchToPlatform}>
-            换回平台库
-          </button>
-        </>
-      ) : null}
-    </p>
+      <p className="muted assistant-rag-status-text">
+        本次主要依据经文与通识 · 未检索到专题资料{kbSuffix}
+        {isTopic && onSwitchToPlatform ? (
+          <>
+            {' · '}
+            <button type="button" className="text-link" onClick={onSwitchToPlatform}>
+              换回平台库
+            </button>
+          </>
+        ) : null}
+      </p>
+      <p className="assistant-rag-disclaimer">AI 释义，请以圣经原文为准</p>
+    </div>
   );
 }

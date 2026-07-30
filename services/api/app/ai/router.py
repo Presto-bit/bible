@@ -340,6 +340,60 @@ def knowledge_base_detail(
     }
 
 
+class AnalysisShareCreate(BaseModel):
+    ref_label: str | None = None
+    ref_param: str | None = None
+    answer_markdown: str
+    lead: str | None = None
+    citations: list[dict] | None = None
+
+
+@router.post("/analysis-share")
+def analysis_share_create(
+    body: AnalysisShareCreate,
+    x_user_code: str | None = Header(default=None, alias="X-User-Code"),
+    x_user_id: str | None = Header(default=None, alias="X-User-Id"),
+):
+    """创建解读分享快照（完整回答 + 来源），返回可跨设备打开的 id。"""
+    from fastapi import HTTPException
+
+    from .analysis_share import create_snapshot
+
+    try:
+        snap = create_snapshot(
+            ref_label=body.ref_label or "小爱的解读",
+            ref_param=body.ref_param or "",
+            answer_markdown=body.answer_markdown,
+            lead=body.lead or "",
+            citations=body.citations,
+            creator_code=x_user_code or x_user_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("analysis share create failed")
+        raise HTTPException(status_code=500, detail="分享快照创建失败") from exc
+    return {
+        "id": snap["id"],
+        "path": f"/share/analysis/{snap['id']}",
+        "lead": snap["lead"],
+        "ref_label": snap["ref_label"],
+        "expires_at": snap.get("expires_at"),
+    }
+
+
+@router.get("/analysis-share/{snapshot_id}")
+def analysis_share_get(snapshot_id: str):
+    from fastapi import HTTPException
+
+    from .analysis_share import get_snapshot
+
+    snap = get_snapshot(snapshot_id)
+    if not snap:
+        raise HTTPException(status_code=404, detail="分享不存在或已过期")
+    return snap
+
+
 @router.post("/citations/explain")
 def citations_explain(body: CitationExplainRequest):
     from .citation_explain import explain_citation_snippet

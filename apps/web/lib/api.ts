@@ -1013,6 +1013,33 @@ export async function explainCitation(body: {
   return res.json() as Promise<CitationExplainResult>;
 }
 
+export type AnalysisShareSnapshot = {
+  id: string;
+  ref_label: string;
+  ref_param: string;
+  lead: string;
+  answer_markdown: string;
+  citations: Citation[];
+  created_at?: string | null;
+  expires_at?: string | null;
+};
+
+export async function createAnalysisShareSnapshot(body: {
+  ref_label?: string;
+  ref_param?: string;
+  answer_markdown: string;
+  lead?: string;
+  citations?: Citation[];
+}): Promise<{ id: string; path: string; lead: string; ref_label: string }> {
+  return authed('/ai/analysis-share', { method: 'POST', body });
+}
+
+export async function getAnalysisShareSnapshot(
+  id: string,
+): Promise<AnalysisShareSnapshot> {
+  return getJson(`/ai/analysis-share/${encodeURIComponent(id)}`);
+}
+
 export interface ChatHistoryTurn {
   role: 'user' | 'assistant';
   content: string;

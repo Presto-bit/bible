@@ -36,6 +36,12 @@ def bootstrap_schemas(pool) -> None:
     except Exception:
         logger.exception("bootstrap: citation explain schema failed")
     try:
+        from .ai.analysis_share import ensure_analysis_share_schema
+
+        ensure_analysis_share_schema()
+    except Exception:
+        logger.exception("bootstrap: analysis share schema failed")
+    try:
         from .content.campaigns import ensure_campaign_schema
 
         ensure_campaign_schema(pool)

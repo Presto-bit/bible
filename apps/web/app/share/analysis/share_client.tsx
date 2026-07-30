@@ -1,43 +1,123 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { captureAcquisitionFromLocation } from '@/lib/acquisition';
-import { explainVerseQuestion } from '@/lib/assistant_prefill';
+import { navigateToAssistant, storeAssistantPrefill } from '@/lib/assistant_prefill';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { detectInstallPlatform } from '@/lib/pwa_platform';
+import type { Citation } from '@/lib/api';
+import AnswerText from '@/components/AnswerText';
+import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
+import { CitationBar } from '@/components/CitationBar';
 
 export function AnalysisShareClient({
   refLabel,
   refParam,
   more,
+  answerMarkdown,
+  citations = [],
+  snapshotId,
+  compactPreview,
 }: {
   refLabel: string;
   refParam: string;
   more?: string;
+  answerMarkdown?: string;
+  citations?: Citation[];
+  snapshotId?: string;
+  /** query 截断链：精简预览 */
+  compactPreview?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(Boolean(answerMarkdown));
   const [showInstall, setShowInstall] = useState(false);
+  const [citationOpen, setCitationOpen] = useState<number | null>(null);
 
   useEffect(() => {
     captureAcquisitionFromLocation();
     setShowInstall(detectInstallPlatform() !== 'standalone');
   }, []);
 
-  const askHref = refParam
-    ? `/assistant?ref=${encodeURIComponent(refParam)}&q=${encodeURIComponent(explainVerseQuestion(refLabel || refParam))}&scene=verse_full`
-    : '/assistant';
+  const fullAnswer = (answerMarkdown || '').trim();
+  const hasFull = Boolean(fullAnswer);
+  const hasMore = Boolean(more?.trim()) && !hasFull;
+
+  const continueAsk = () => {
+    const question = hasFull
+      ? `基于你对「${refLabel}」的解读继续深入：请补充背景与今日应用。`
+      : `请继续解读：${refLabel}`;
+    if (hasFull) {
+      const sid = storeAssistantPrefill({
+        ref: refParam || '',
+        question,
+        scene: 'verse_full',
+        surface: 'share_analysis',
+        seedMessages: [
+          {
+            role: 'assistant',
+            text: fullAnswer,
+            citations: citations.length ? citations : undefined,
+            scene: 'verse_full',
+            sceneLabel: '分享解读',
+          },
+        ],
+      });
+      window.location.href = `/assistant?${new URLSearchParams({
+        ...(refParam ? { ref: refParam } : {}),
+        sid,
+        scene: 'verse_full',
+      }).toString()}`;
+      return;
+    }
+    navigateToAssistant(refParam || undefined, {
+      question,
+      scene: 'verse_full',
+      surface: 'share_analysis',
+    });
+  };
 
   const readHref = refParam
     ? readerHrefFromRef(refParam) || '/reader'
     : '/reader';
 
-  const hasMore = Boolean(more?.trim());
+  const bookName = useMemo(
+    () => refLabel.replace(/\s*\d+.*$/, '').trim(),
+    [refLabel],
+  );
 
   return (
     <>
-      {hasMore ? (
+      {compactPreview ? (
+        <p className="muted analysis-share-compact-hint" role="status">
+          精简预览 · 完整解读需分享者重新分享
+        </p>
+      ) : null}
+
+      {hasFull ? (
+        <div className="analysis-share-answer card card-2">
+          <AnswerText text={fullAnswer} />
+          {citations.length > 0 ? (
+            <>
+              <CitationEvidenceRail
+                citations={citations}
+                bookName={bookName}
+                onOpen={setCitationOpen}
+              />
+              <div className="xiaoai-cite-host">
+                <CitationBar
+                  variant="action"
+                  className="xiaoai-cite-host-trigger"
+                  citations={citations}
+                  activeN={citationOpen}
+                  onActiveChange={setCitationOpen}
+                  bookName={bookName}
+                />
+              </div>
+            </>
+          ) : null}
+        </div>
+      ) : hasMore ? (
         <div className="analysis-share-more-block">
           {expanded ? (
             <p className="analysis-share-more">{more}</p>
@@ -53,9 +133,9 @@ export function AnalysisShareClient({
       ) : null}
 
       <div className="share-landing-ctas analysis-share-ctas">
-        <Link className="btn btn-primary" href={askHref}>
-          问小爱：继续解读
-        </Link>
+        <button type="button" className="btn btn-primary" onClick={continueAsk}>
+          在小爱继续解读
+        </button>
         <Link className="btn" href={readHref}>
           我也在读这一段
         </Link>
@@ -65,6 +145,9 @@ export function AnalysisShareClient({
           </button>
         ) : null}
       </div>
+      {snapshotId ? (
+        <p className="muted analysis-share-snap-meta">分享编号 {snapshotId}</p>
+      ) : null}
     </>
   );
 }

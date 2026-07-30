@@ -18,6 +18,14 @@ export type AnalysisShareInput = {
   refParam?: string;
   /** 分享者 8 位 user_code，写入 ch3 */
   sharerUserCode?: string | null;
+  /** 参考来源（写入服务端快照） */
+  citations?: Array<{
+    n: number;
+    title: string;
+    snippet?: string;
+    document_id?: string | null;
+    score?: number;
+  }>;
 };
 
 export type AnalysisSharePack = {
@@ -137,7 +145,12 @@ export function analysisSharePath(opts: {
   lead: string;
   more?: string;
   refParam?: string;
+  /** 服务端快照 id；有则优先短链 */
+  snapshotId?: string;
 }): string {
+  if (opts.snapshotId?.trim()) {
+    return `/share/analysis/${encodeURIComponent(opts.snapshotId.trim())}`;
+  }
   const u = new URL('/share/analysis', SITE);
   u.searchParams.set('ref', opts.refLabel.slice(0, 64));
   u.searchParams.set('lead', opts.lead.slice(0, LEAD_MAX));
@@ -153,6 +166,7 @@ export function analysisShareUrl(
     more?: string;
     refParam?: string;
     sharerUserCode?: string | null;
+    snapshotId?: string;
   },
   target: AnalysisShareChannel,
 ): string {
@@ -160,11 +174,13 @@ export function analysisShareUrl(
   return buildTrackedUrl(path, {
     l1: 'share',
     l2: target,
-    l3: `analysis:${slugRef(opts.refLabel, opts.refParam)}${sharerSuffix(opts.sharerUserCode)}`,
+    l3: `analysis:${opts.snapshotId?.trim() || slugRef(opts.refLabel, opts.refParam)}${sharerSuffix(opts.sharerUserCode)}`,
   });
 }
 
-export function buildAnalysisSharePack(input: AnalysisShareInput): AnalysisSharePack {
+export function buildAnalysisSharePack(
+  input: AnalysisShareInput & { snapshotId?: string },
+): AnalysisSharePack {
   const refLabel = (input.refLabel || '').trim() || '小爱的解读';
   const { insight, lead, more } = extractShareCopy(input.answerText, refLabel);
   const title = shareTitle(refLabel, insight);
@@ -184,6 +200,7 @@ export function buildAnalysisSharePack(input: AnalysisShareInput): AnalysisShare
     more,
     refParam: input.refParam,
     sharerUserCode: input.sharerUserCode,
+    snapshotId: input.snapshotId,
   };
 
   return {

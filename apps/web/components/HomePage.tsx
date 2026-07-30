@@ -15,6 +15,7 @@ import DailyVerseReactSheet from '@/components/DailyVerseReactSheet';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { shareDailyVerseCard } from '@/lib/daily_verse_share';
+import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { prayerTodayHref, activePlanTodayHrefSync } from '@/lib/plan_today_href';
@@ -810,6 +811,33 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
                 <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
               </svg>
               <span>{reactCount.toLocaleString()}</span>
+            </button>
+            <button
+              type="button"
+              className="hero-action hero-xiaoai"
+              disabled={!dv?.ref}
+              aria-label={dv?.ref ? `用小爱解读今日经文：${dv.ref}` : '用小爱解读今日经文'}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!dv?.ref) return;
+                navigateToAssistant(dv.ref, {
+                  question: `请简要解读今天这节经文（${dv.ref}），先抓住核心信息，再给一点今日应用。`,
+                  scene: 'verse_full',
+                  surface: 'home_daily_verse',
+                });
+              }}
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                aria-hidden
+                className="hero-action-icon"
+                fill="currentColor"
+              >
+                <path d="M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25z" />
+              </svg>
+              <span>小爱</span>
             </button>
             <button
               type="button"

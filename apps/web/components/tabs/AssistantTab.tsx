@@ -9,6 +9,8 @@ import { useOnline } from '@/lib/use_online';
 import AnswerText from '@/components/AnswerText';
 import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
+import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
+import { AssistantNextSteps } from '@/components/assistant/AssistantNextSteps';
 import { addThought } from '@/lib/reader_thoughts';
 import {
   recordCitationClick,
@@ -228,12 +230,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       flashToast('复制失败');
     }
   };
-  const shareAnswer = async (t: string) => {
+  const shareAnswer = async (t: string, cites?: Citation[]) => {
     const label = refToChineseLabel(ref) || ref || '小爱的解读';
     const result = await shareAnalysis({
       answerText: stripFollowups(t),
       refLabel: label,
       refParam: ref || undefined,
+      citations: cites,
     });
     if (result === 'shared') flashToast('已调起分享');
     else if (result === 'copied') flashToast('已复制链接与摘要');
@@ -1183,6 +1186,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           knowledgeBaseId={m.knowledgeBaseId}
                           knowledgeBaseName={m.knowledgeBaseName}
                           onSwitchToPlatform={() => setKnowledgeBaseId(DEFAULT_KB_ID)}
+                          onReview={
+                            usedCitations.length > 0
+                              ? () => {
+                                  setCitationMsgIdx(i);
+                                  setCitationOpen(usedCitations[0].n);
+                                }
+                              : undefined
+                          }
                         />
                       )}
                       <AnswerText
@@ -1212,6 +1223,40 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 )}
                 {showActions && (
                   <>
+                    {usedCitations.length > 0 && (
+                      <CitationEvidenceRail
+                        citations={usedCitations}
+                        bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
+                        onOpen={(n) => {
+                          recordCitationClick();
+                          setCitationMsgIdx(i);
+                          setCitationOpen(n);
+                        }}
+                      />
+                    )}
+                    <AssistantNextSteps
+                      showContinueRead={Boolean(ref && readerHrefFromRef(ref))}
+                      onContinueRead={() => {
+                        const href = ref ? readerHrefFromRef(ref) : null;
+                        if (href) navigateToReaderHref(href, router);
+                      }}
+                      onSaveThought={() => {
+                        addThought(ref || 'FREE', stripFollowups(m.text), 'private', {
+                          skipPublish: true,
+                        });
+                        recordSaveAnswerNote();
+                        flashToast('已存为想法（本机）');
+                      }}
+                      showSources={usedCitations.length > 0}
+                      onOpenSources={() => {
+                        if (usedCitations[0]) {
+                          setCitationMsgIdx(i);
+                          setCitationOpen(usedCitations[0].n);
+                        }
+                      }}
+                      onCopy={() => copyText(m.text)}
+                      onShare={() => void shareAnswer(m.text, usedCitations)}
+                    />
                     {displayFollowups.length > 0 && (
                       <div className="followup-row">
                         <span className="followup-row-label">相关追问</span>
@@ -1228,29 +1273,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                         ))}
                       </div>
                     )}
-                    <div className="msg-actions">
-                      <button type="button" className="msg-action" onClick={() => copyText(m.text)}>
-                        复制
-                      </button>
-                      <button
-                        type="button"
-                        className="msg-action"
-                        onClick={() => {
-                          addThought(ref || 'FREE', stripFollowups(m.text), 'private', {
-                            skipPublish: true,
-                          });
-                          recordSaveAnswerNote();
-                          flashToast('已存想法');
-                        }}
-                      >
-                        存想法
-                      </button>
-                      <button type="button" className="msg-action" onClick={() => void shareAnswer(m.text)}>
-                        分享
-                      </button>
-                      {usedCitations.length > 0 && (
+                    {usedCitations.length > 0 && (
+                      <div className="xiaoai-cite-host">
                         <CitationBar
                           variant="action"
+                          className="xiaoai-cite-host-trigger"
                           citations={usedCitations}
                           activeN={citationMsgIdx === i ? citationOpen : undefined}
                           onActiveChange={(n) => {
@@ -1259,8 +1286,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }}
                           bookName={refToChineseLabel(ref)?.replace(/\s*\d+.*$/, '').trim()}
                         />
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

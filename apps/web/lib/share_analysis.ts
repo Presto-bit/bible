@@ -1,7 +1,11 @@
-/** 解读外部分享：系统分享契约（图可选 + 文 + 落地链） */
+/** 解读外部分享：优先服务端快照，失败降级 query 截断链 */
 
-import { buildAnalysisSharePack, type AnalysisShareInput } from '@/lib/analysis_share';
-import { effectiveId } from '@/lib/api';
+import {
+  buildAnalysisSharePack,
+  extractShareCopy,
+  type AnalysisShareInput,
+} from '@/lib/analysis_share';
+import { createAnalysisShareSnapshot, effectiveId, type Citation } from '@/lib/api';
 import { recordShareAnswer } from '@/lib/badge_events';
 import { shareCardOutbound } from '@/lib/share_card';
 import type { ShareOutboundResult } from '@/lib/share_outbound';
@@ -10,11 +14,31 @@ export type ShareAnalysisResult = ShareOutboundResult;
 
 /**
  * 点击「分享」即调起系统分享；取消不下图；失败只复制文案+链接。
+ * 优先创建服务端快照，保证跨设备可读全文与来源。
  */
-export async function shareAnalysis(input: AnalysisShareInput): Promise<ShareAnalysisResult> {
+export async function shareAnalysis(
+  input: AnalysisShareInput & { citations?: Citation[] },
+): Promise<ShareAnalysisResult> {
+  const sharerUserCode = input.sharerUserCode ?? effectiveId();
+  const { lead } = extractShareCopy(input.answerText, input.refLabel);
+  let snapshotId: string | undefined;
+  try {
+    const snap = await createAnalysisShareSnapshot({
+      ref_label: input.refLabel,
+      ref_param: input.refParam,
+      answer_markdown: input.answerText,
+      lead,
+      citations: input.citations,
+    });
+    snapshotId = snap.id;
+  } catch {
+    snapshotId = undefined;
+  }
+
   const pack = buildAnalysisSharePack({
     ...input,
-    sharerUserCode: input.sharerUserCode ?? effectiveId(),
+    sharerUserCode,
+    snapshotId,
   });
   const url = pack.urlFor('system_share');
   const result = await shareCardOutbound({

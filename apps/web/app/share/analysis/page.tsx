@@ -71,6 +71,7 @@ export async function generateMetadata({
   };
 }
 
+/** 旧版 query 截断链（精简预览降级） */
 export default async function AnalysisSharePage({
   searchParams,
 }: {
@@ -89,6 +90,7 @@ export default async function AnalysisSharePage({
         refLabel={parsed.refLabel}
         refParam={parsed.refParam}
         more={parsed.more}
+        compactPreview
       />
       <p className="muted analysis-share-disclaimer">
         内容由 AI 生成，请以圣经原文为准。{BRAND_TAGLINE}
