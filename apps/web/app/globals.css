@@ -1955,10 +1955,15 @@ html:not([data-app-theme]) .card {
   border: none;
 }
 
-.home-page .hero-xiaoai {
-  /* 仅图标：左右内边距与高度对齐赞/回应/分享 */
-  padding-left: 11px;
-  padding-right: 11px;
+.home-page .hero-action-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* 实心星芒视觉面积偏大，略缩与描边图标对齐 */
+.home-page .hero-xiaoai .hero-action-icon {
+  transform: scale(0.92);
+  transform-origin: center;
 }
 
 .home-page .hero-verse.hero-verse-has-art .hero-like,
@@ -5912,8 +5917,15 @@ body.verse-full-open .tabbar {
 }
 
 .verse-full-dock-btn svg {
-  display: block;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
+  display: block;
+}
+
+.verse-full-dock-xiaoai svg {
+  transform: scale(0.92);
+  transform-origin: center;
 }
 
 .verse-full-bg-gradient {
