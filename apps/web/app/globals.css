@@ -24025,13 +24025,6 @@ body.external-browser-open .app-body {
 .im-attach-caption{
   width:100%;margin-top:8px;font-size:14px;min-height:36px;
 }
-  background:color-mix(in srgb,#f5c542 55%,transparent);color:inherit;border-radius:2px;padding:0 1px;
-}
-
-/* 发图附言 */
-.im-attach-caption{
-  width:100%;margin-top:8px;font-size:14px;min-height:36px;
-}
 
 /* 今日温习 / 提醒页（彼爱习惯能力） */
 .challenge-warmup-page .challenge-warmup-hero{
