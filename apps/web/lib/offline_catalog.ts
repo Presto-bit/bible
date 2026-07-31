@@ -125,10 +125,25 @@ export function catalogItemsForTab(tab: OfflineCatalogTab): OfflineCatalogItem[]
 export function catalogItemsForTabInManifest(
   tab: OfflineCatalogTab,
   manifestPaths: Set<string> | string[],
+  /** 直链字段（如 contemporary_sqlite），用于 SW 旧缓存缺 files[] 条目时仍能展示 */
+  directKeys?: Iterable<string>,
 ): OfflineCatalogItem[] {
   const paths = manifestPaths instanceof Set ? manifestPaths : new Set(manifestPaths);
+  const directs = new Set(
+    [...(directKeys ?? [])].map((k) => k.trim()).filter(Boolean),
+  );
   return catalogItemsForTab(tab).filter((item) => {
-    if (item.paths?.length) return item.paths.some((p) => paths.has(p));
+    if (item.paths?.length) {
+      if (item.paths.some((p) => paths.has(p))) return true;
+      // 圣经 sqlite：直链文件名匹配（bible_contemporary.sqlite ↔ paths）
+      if (item.tab === 'bible' && item.kind === 'sqlite') {
+        return item.paths.some((p) => {
+          const base = p.split('/').pop() || p;
+          return directs.has(base) || directs.has(p);
+        });
+      }
+      return false;
+    }
     if (item.pathsPrefix) {
       for (const p of paths) {
         if (p.startsWith(item.pathsPrefix)) return true;

@@ -164,7 +164,25 @@ export function expectedItemBytes(
   item: OfflineCatalogItem,
   manifest: OfflinePackManifest,
 ): number {
-  return manifestFilesForItem(item, manifest).reduce((n, f) => n + f.bytes, 0);
+  const fromFiles = manifestFilesForItem(item, manifest).reduce((n, f) => n + f.bytes, 0);
+  if (fromFiles > 0) return fromFiles;
+  if (item.id === 'contemporary' && manifest.contemporary_sqlite_bytes) {
+    return manifest.contemporary_sqlite_bytes;
+  }
+  if (item.id === 'cuvs' && manifest.cuvs_sqlite_bytes) {
+    return manifest.cuvs_sqlite_bytes;
+  }
+  return 0;
+}
+
+function hasDirectSqlite(itemId: string, manifest: OfflinePackManifest): boolean {
+  if (itemId === 'contemporary') {
+    return Boolean(manifest.contemporary_sqlite || manifest.contemporary_sqlite_sha256);
+  }
+  if (itemId === 'cuvs') {
+    return Boolean(manifest.cuvs_sqlite || manifest.cuvs_sqlite_sha256);
+  }
+  return false;
 }
 
 export async function getOfflineItemStatus(
@@ -223,7 +241,7 @@ async function tryDownloadSqliteDirect(
   const url = withBasePath(`/offline/${fileName}`);
   try {
     onProgress?.({ phase: 'download', percent: 20, message: `下载${label}…` });
-    const res = await fetch(url, { cache: 'force-cache' });
+    const res = await fetch(url, { cache: 'no-store' });
     if (!res.ok) return false;
     const buf = await res.arrayBuffer();
     if (!buf.byteLength) return false;
@@ -262,13 +280,25 @@ export async function downloadOfflineItem(
   onProgress?.({ phase: 'manifest', percent: 5, message: '读取清单…' });
   const manifest = await fetchManifest();
   const manifestFiles = manifestFilesForItem(item, manifest);
-  if (!manifestFiles.length) throw new Error('清单中缺少对应文件');
+  const canDirect = hasDirectSqlite(itemId, manifest);
+
+  if (!manifestFiles.length && !canDirect) {
+    throw new Error('清单中缺少对应文件');
+  }
 
   if (itemId === 'cuvs' || itemId === 'contemporary') {
     if (await tryDownloadSqliteDirect(itemId, manifest, onProgress)) {
       onProgress?.({ phase: 'done', percent: 100, message: '完成' });
       return;
     }
+    // 直链失败且无 zip 条目时直接报错，避免再拉整包空转
+    if (!manifestFiles.length) {
+      throw new Error(`下载${item.name}失败，请稍后重试`);
+    }
+  }
+
+  if (!manifestFiles.length) {
+    throw new Error('清单中缺少对应文件');
   }
 
   onProgress?.({ phase: 'download', percent: 15, message: `下载${item.name}…` });

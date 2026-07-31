@@ -1,6 +1,6 @@
 // 发版后须 bump CACHE（或运行 scripts/bump_sw_cache.sh），否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v37';
+const CACHE = 'presto-bible-v38';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -40,7 +40,7 @@ const SHELL = [
   bp('/splash-iphone16.png'),
   bp('/illustrations/index.json'),
   bp('/offline/books.json'),
-  bp('/offline/manifest.json'),
+  // 注意：offline/manifest.json 不进 SHELL——须 network-first，否则会长期卡在旧译本清单
 ];
 
 const SHELL_WARM = [
@@ -118,13 +118,19 @@ function isOfflineHeavyAsset(url) {
   return /\.(sqlite|zip)$/i.test(p);
 }
 
+/** 离线包清单：必须 network-first，避免 cache-first 隐藏新译本（如当代译本） */
+function isOfflineManifest(url) {
+  return relPath(url.pathname) === '/offline/manifest.json';
+}
+
 function isStaticAsset(url) {
   if (isOfflineHeavyAsset(url)) return false;
+  if (isOfflineManifest(url)) return false;
   const p = url.pathname;
   if (p.includes('/_next/static/')) return true;
   if (p.startsWith(bp('/illustrations/'))) return true;
   if (p.startsWith(bp('/daily-wallpapers/'))) return true;
-  // offline 仅允许小清单类进缓存；sqlite/zip 已在上方排除
+  // offline 仅允许小清单类进缓存；sqlite/zip / manifest 已在上方排除
   if (p.startsWith(bp('/offline/'))) return true;
   if (p.startsWith(bp('/sql-wasm/'))) return true;
   if (/\.(js|css|woff2?|png|jpe?g|svg|webp|ico|webmanifest|json|wasm)$/i.test(p)) return true;
@@ -266,6 +272,12 @@ self.addEventListener('fetch', (e) => {
   // 大离线包：仅网络，禁止读写 Cache Storage
   if (isOfflineHeavyAsset(url)) {
     e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // 离线包清单：网络优先（可短暂回退旧缓存，避免离线完全打不开下载页）
+  if (isOfflineManifest(url)) {
+    e.respondWith(networkFirstCache(e.request));
     return;
   }
 

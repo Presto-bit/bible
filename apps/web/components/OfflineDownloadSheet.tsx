@@ -128,12 +128,21 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
     }
   };
 
-  const items = manifest
-    ? catalogItemsForTabInManifest(
-        tab,
-        manifest.files.map((f) => f.path),
-      )
-    : catalogItemsForTab(tab);
+  // 圣经译本目录已收敛为有源译本；不因 SW 旧 manifest 再过滤，避免当代译本等被藏掉。
+  // 资料仍按清单文件过滤，避免无源占位。
+  const items =
+    tab === 'bible'
+      ? catalogItemsForTab('bible')
+      : manifest
+        ? catalogItemsForTabInManifest(
+            tab,
+            manifest.files.map((f) => f.path),
+            [
+              manifest.cuvs_sqlite,
+              manifest.contemporary_sqlite,
+            ].filter((x): x is string => Boolean(x)),
+          )
+        : catalogItemsForTab(tab);
   const anyBusy = Boolean(busyId) || queuedIds.length > 0 || Boolean(deletingId);
 
   return (
