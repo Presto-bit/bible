@@ -41,7 +41,8 @@ export default function AccountGateSheet({ onDone }: Props) {
       const p = phone.trim();
       if (p) await bindPhone(p, null);
       markAccountGateSeen();
-      toast(p ? '账号已保护，可用手机号找回' : '密码已设置，换机可用用户 ID 找回');
+      toast(p ? '账号已保护，可用手机号找回' : '密码已设置，已开启云同步');
+      void import('@/lib/sync').then((m) => m.syncNow().catch(() => {}));
       finish();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));

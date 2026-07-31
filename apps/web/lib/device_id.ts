@@ -383,6 +383,22 @@ export function getDeviceId(): string {
   return readCookieDeviceId() || localStorage.getItem(DEVICE_KEY) || '';
 }
 
+/** 本机可读名称（用于设备列表「当前」项；不上传完整 UA） */
+export function localDeviceFriendlyName(): string {
+  if (typeof navigator === 'undefined') return '此设备';
+  const ua = navigator.userAgent || '';
+  if (/iPhone|iPad|iPod/i.test(ua)) return 'iPhone / iPad';
+  if (/Android/i.test(ua)) return 'Android';
+  if (/Macintosh|Mac OS X/i.test(ua)) return 'Mac 浏览器';
+  if (/Windows/i.test(ua)) return 'Windows 浏览器';
+  if (/CrOS/i.test(ua)) return 'ChromeOS';
+  if (/Edg\//i.test(ua)) return 'Edge 浏览器';
+  if (/Chrome\//i.test(ua) && !/Edg\//i.test(ua)) return 'Chrome 浏览器';
+  if (/Safari\//i.test(ua) && !/Chrome\//i.test(ua)) return 'Safari 浏览器';
+  if (/Firefox\//i.test(ua)) return 'Firefox 浏览器';
+  return '此设备';
+}
+
 export function getDeviceBoundGuestId(): string | null {
   const deviceId = getDeviceId();
   if (!deviceId) return null;

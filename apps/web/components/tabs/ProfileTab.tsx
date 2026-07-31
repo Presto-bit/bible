@@ -12,6 +12,7 @@ import {
   getDisplayName,
   getUserName,
   guestId,
+  hasPassword,
   logout,
 } from '@/lib/api';
 import {
@@ -80,13 +81,12 @@ import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
-import { syncNow } from '@/lib/sync';
+import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
 import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
 import {
   accountDataStatus,
   accountRecoveryHint,
   canCloudSync,
-  hasSecuredAccount,
   isAccountComplete,
 } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
@@ -103,9 +103,6 @@ import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { shareInviteProduct, inviteShareUrl } from '@/lib/invite_share';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
-import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
-import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
-import { hasPassword } from '@/lib/api';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { activePlanTodayHrefSync } from '@/lib/plan_today_href';
 
@@ -579,7 +576,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   }, [uid, settingsOpen, profileAwake]);
 
   useEffect(() => {
-    if (currentUserId()) {
+    if (currentUserId() && canCloudSync()) {
       void import('@/lib/post_login').then((m) => m.mergeGuest());
       void syncNow().catch(() => {});
     }
@@ -723,21 +720,20 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       }).catch(() => {});
     };
     const refreshStatus = () => {
-      // 身份区不展示同步态（恢复中/同步中）；仅提示未登录本机数据
-      if (!hasSecuredAccount()) {
-        setDataStatus('未登录，数据仅本机');
-      } else {
-        setDataStatus(null);
-      }
+      setDataStatus(accountDataStatus());
     };
     refreshStatus();
     refreshReading();
     const unsubSync = subscribeSyncState(() => {
       refreshStatus();
-      setSyncLabel(syncStateLabel(getSyncState()));
+      setSyncLabel(
+        canCloudSync() ? syncStateLabel(getSyncState()) : '需先设置密码',
+      );
       if (getSyncState() === 'synced') refreshReading();
     });
-    setSyncLabel(syncStateLabel(getSyncState()));
+    setSyncLabel(
+      canCloudSync() ? syncStateLabel(getSyncState()) : '需先设置密码',
+    );
     const unsubData = subscribeLocalDataChanged(refreshReading);
     return () => {
       unsubSync();
@@ -748,8 +744,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const refreshAccount = () => {
     setName(getDisplayName());
     setAccountComplete(isAccountComplete());
-    if (!hasSecuredAccount()) setDataStatus('未登录，数据仅本机');
-    else setDataStatus(null);
+    setDataStatus(accountDataStatus());
+    setSyncLabel(
+      canCloudSync() ? syncStateLabel(getSyncState()) : '需先设置密码',
+    );
   };
   const saveBio = (v: string) => {
     const t = v.slice(0, 15);
@@ -925,16 +923,28 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
   const handleSyncNow = async () => {
     if (syncBusy) return;
+    if (!canCloudSync()) {
+      toast('请先设置密码，设置后才会云同步');
+      setSettingsOpen(true);
+      return;
+    }
     setSyncBusy(true);
     try {
       await syncNow();
       setSyncLabel(syncStateLabel(getSyncState()));
       toast('已同步');
-    } catch {
-      toast('同步失败，请检查网络后重试');
+    } catch (e) {
+      if (isSyncRequiresPasswordError(e)) {
+        toast('请先设置密码，设置后才会云同步');
+        setSettingsOpen(true);
+      } else {
+        toast('同步失败，请检查网络后重试');
+      }
     } finally {
       setSyncBusy(false);
-      setSyncLabel(syncStateLabel(getSyncState()));
+      setSyncLabel(
+        canCloudSync() ? syncStateLabel(getSyncState()) : '需先设置密码',
+      );
     }
   };
 
@@ -1180,7 +1190,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 </span>
               </button>
             )}
-            {idValue && !accountComplete ? (
+            {idValue ? (
               <p className="profile-meta-line muted">
                 <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
                   {idCopied ? '已复制' : `ID ${idValue}`}

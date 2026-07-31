@@ -37,6 +37,7 @@ const RESTORE_PROMPT_DISMISS_KEY = 'presto_restore_prompt_dismissed';
 
 /** 默认同步本机阅读到账号（不再弹窗确认） */
 async function autoSaveReadingToAccount(): Promise<void> {
+  if (!hasPassword()) return;
   try {
     await syncPullFirst();
     enqueueLocalReadingMigration();
@@ -61,6 +62,12 @@ async function autoSaveReadingToAccount(): Promise<void> {
 async function restoreReadingForAccount(uid: string): Promise<void> {
   const fromIdb = await restoreLocalReadingSnapshotIfNeeded(uid);
   if (fromIdb) notifyLocalDataChanged('idb-reading-restore');
+
+  // 未设密：只恢复本机快照，不上云
+  if (!hasPassword()) {
+    if (uid && hasLocalReadingData()) void backupLocalReadingSnapshot(uid);
+    return;
+  }
 
   // 本机已有读经时只做轻量快照合并，避免每次启动全量 sync 占满带宽
   const hadLocal = !needsCloudReadingRestore();

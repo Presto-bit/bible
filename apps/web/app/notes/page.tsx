@@ -22,6 +22,7 @@ import {
 import { deleteThoughtAndClearMark } from '@/lib/thought_mark_cleanup';
 import { api, currentUserId, type BibleBook } from '@/lib/api';
 import { syncNow } from '@/lib/sync';
+import { canCloudSync } from '@/lib/account_guide';
 import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
 import { listHighlightRefs, removeHighlight, type HighlightMark } from '@/lib/reader_highlights';
@@ -107,7 +108,7 @@ function NotesInner() {
         setBookNames(map);
       })
       .catch(() => {});
-    if (currentUserId()) {
+    if (currentUserId() && canCloudSync()) {
       syncNow()
         .then(() => refresh())
         .catch(() => {});

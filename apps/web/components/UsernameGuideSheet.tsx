@@ -23,6 +23,7 @@ export default function UsernameGuideSheet({ onDone }: { onDone: () => void }) {
       const p = phone.trim();
       if (p) await bindPhone(p, null);
       dismissUsernameGuide();
+      void import('@/lib/sync').then((m) => m.syncNow().catch(() => {}));
       onDone();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));

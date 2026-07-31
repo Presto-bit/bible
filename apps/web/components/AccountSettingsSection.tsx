@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { hasPassword, unbindDevice } from '@/lib/api';
+import { getDeviceId, hasPassword, unbindDevice } from '@/lib/api';
+import { localDeviceFriendlyName } from '@/lib/device_id';
 import { isAccountComplete } from '@/lib/account_guide';
 import { maskPhone, useAccountSecurity } from '@/lib/use_account_security';
 
@@ -12,7 +13,19 @@ type Props = {
   collapsible?: boolean;
 };
 
-/** 设置 · 账号与安全：密码 / 手机 / 设备 / ID（不含展示称呼） */
+function deviceDisplayLabel(id: string, serverLabel: string, currentId: string): string {
+  const isCurrent = Boolean(currentId) && id === currentId;
+  if (isCurrent) return `${localDeviceFriendlyName()}（当前）`;
+  if (serverLabel && serverLabel !== '未知设备') return serverLabel;
+  if (id.startsWith('inst-')) return '主屏幕 / 浏览器';
+  if (id.startsWith('dev-')) return '本机 / PWA';
+  if (id.startsWith('fp-')) return '浏览器';
+  if (id.startsWith('hw-a-')) return 'Android 设备';
+  if (id.startsWith('hw-i-')) return 'iPhone / iPad';
+  return serverLabel || '未知设备';
+}
+
+/** 设置 · 账号与安全：ID / 密码 / 手机 / 设备（不含展示称呼） */
 export default function AccountSettingsSection({
   middle,
   onAccountChange,
@@ -20,6 +33,7 @@ export default function AccountSettingsSection({
 }: Props) {
   const a = useAccountSecurity(onAccountChange);
   const [expanded, setExpanded] = useState(() => !collapsible || !isAccountComplete());
+  const [currentDeviceId, setCurrentDeviceId] = useState('');
 
   useEffect(() => {
     if (!collapsible) return;
@@ -27,18 +41,36 @@ export default function AccountSettingsSection({
     else setExpanded(true);
   }, [collapsible, a.phoneStored]);
 
+  useEffect(() => {
+    setCurrentDeviceId(getDeviceId());
+  }, [expanded, a.devices]);
+
   const phoneHint = a.phoneStored
     ? `手机 ${maskPhone(a.phoneStored)}`
     : '未绑手机';
   const pwdHint = hasPassword() ? '已设密码' : '未设密码';
-  const summary = `${pwdHint} · ${phoneHint}`;
+  const summary = a.id
+    ? `ID ${a.id} · ${pwdHint} · ${phoneHint}`
+    : `${pwdHint} · ${phoneHint}`;
 
   const form = (
     <div className="settings-account-form">
+      <p className="settings-field-label">用户 ID</p>
+      <p className="muted settings-field-hint">换机登录或联系客服时使用，建议复制保存。</p>
+      {a.id ? (
+        <button type="button" className="id-chip" onClick={() => void a.copyId()}>
+          {a.idCopied ? '已复制 ✓' : `ID ${a.id}`}
+        </button>
+      ) : (
+        <p className="muted settings-field-hint">账号准备中…</p>
+      )}
+
       {!hasPassword() ? (
         <>
           <p className="settings-field-label">设置密码</p>
-          <p className="muted settings-field-hint">换机或重装后，用手机号或用户 ID + 密码找回。</p>
+          <p className="muted settings-field-hint">
+            设置后才会云同步。换机用手机号或用户 ID + 密码找回。
+          </p>
           <div className="settings-field-row">
             <input
               className="book-chip settings-field-input"
@@ -59,7 +91,7 @@ export default function AccountSettingsSection({
           </div>
         </>
       ) : (
-        <p className="muted settings-field-hint">已设密码。可在下方修改。</p>
+        <p className="muted settings-field-hint">已设密码，读经进度可云同步。</p>
       )}
 
       {!a.phoneStored ? (
@@ -115,7 +147,7 @@ export default function AccountSettingsSection({
         className="text-link settings-advanced-toggle"
         onClick={() => a.setShowAdvanced((v) => !v)}
       >
-        {a.showAdvanced ? '收起高级选项' : '设备与用户 ID ›'}
+        {a.showAdvanced ? '收起已绑定设备' : '已绑定设备 ›'}
       </button>
 
       {a.showAdvanced ? (
@@ -126,23 +158,21 @@ export default function AccountSettingsSection({
           ) : (
             a.devices.map((d) => (
               <div key={d.id} className="device-row">
-                <span>{d.label}</span>
-                <button
-                  type="button"
-                  className="text-link"
-                  onClick={() => void unbindDevice(d.id).then(() => void a.load())}
-                >
-                  解绑
-                </button>
+                <span>{deviceDisplayLabel(d.id, d.label, currentDeviceId)}</span>
+                {d.id === currentDeviceId ? (
+                  <span className="muted">本机</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="text-link"
+                    onClick={() => void unbindDevice(d.id).then(() => void a.load())}
+                  >
+                    解绑
+                  </button>
+                )}
               </div>
             ))
           )}
-          <p className="settings-field-label">用户 ID（可复制给客服）</p>
-          {a.id ? (
-            <button type="button" className="id-chip" onClick={() => void a.copyId()}>
-              {a.idCopied ? '已复制 ✓' : `ID ${a.id}`}
-            </button>
-          ) : null}
         </div>
       ) : null}
     </div>

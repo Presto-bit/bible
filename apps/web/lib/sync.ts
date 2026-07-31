@@ -584,6 +584,9 @@ export async function pullReadingStateByUser(): Promise<{
   events: number;
   hasProgress: boolean;
 }> {
+  if (!canCloudSync()) {
+    throw new SyncRequiresPasswordError();
+  }
   await ensureAccountReady();
   const res = await fetch(`${API_BASE}/sync/reading-state`, {
     headers: authHeaders(),

@@ -789,10 +789,16 @@ def _device_label(fp: str) -> str:
         return "Android 设备"
     if fp.startswith("hw-i-"):
         return "iPhone / iPad"
+    if fp.startswith("hw-u-"):
+        return "移动设备"
+    if fp.startswith("inst-"):
+        return "主屏幕 / 浏览器"
     if fp.startswith("dev-"):
         return "本机 / PWA"
     if fp.startswith("fp-"):
         return "浏览器"
+    if fp.startswith("release-smoke"):
+        return "部署检测"
     return "未知设备"
 
 
