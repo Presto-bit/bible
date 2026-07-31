@@ -79,34 +79,34 @@ export default async function WrappedSharePage({
 }) {
   const sp = await searchParams;
   const period = first(sp.period) === 'year' ? 'year' : 'month';
-  const template = first(sp.t).trim();
   const label = first(sp.label).trim() || (period === 'year' ? '今年读经' : '本月读经');
   const verseText = first(sp.vt).trim();
   const verseLabel = first(sp.vl).trim();
   const bookName = first(sp.b).trim();
+  const daypart = first(sp.dp).trim();
   const highlight = first(sp.h).trim() || `我在${BRAND_NAME}留下了足迹`;
   const stats = first(sp.s).trim();
-  const metrics = template === 'verse' ? [] : parseMetricPairs(stats);
-
-  const title =
-    template === 'verse' && verseText
-      ? `「${verseText}」`
-      : template === 'book' && bookName
-        ? `《${bookName}》`
-        : highlight;
+  const metrics = parseMetricPairs(stats);
 
   return (
     <main className="container share-landing-page share-landing-wrapped">
       <SharePwaGuide variant="wrapped" />
       <p className="eyebrow">{BRAND_NAME} · 读经回顾</p>
       <p className="muted share-landing-kicker">{label}</p>
-      <h1 className="share-landing-title">{title}</h1>
-      {template === 'verse' && verseLabel ? (
-        <p className="share-landing-cite">{verseLabel}</p>
-      ) : null}
-      {template === 'book' && bookName ? (
+
+      {verseText ? (
+        <blockquote className="share-landing-verse">
+          <p className="share-landing-verse-text">「{verseText}」</p>
+          {verseLabel ? <cite className="share-landing-cite">{verseLabel}</cite> : null}
+        </blockquote>
+      ) : (
+        <h1 className="share-landing-title">{highlight}</h1>
+      )}
+
+      {verseText && highlight ? (
         <p className="share-landing-lead">{highlight}</p>
       ) : null}
+
       {metrics.length > 0 ? (
         <div className="share-landing-metrics">
           {metrics.map((m) => (
@@ -116,9 +116,21 @@ export default async function WrappedSharePage({
             </div>
           ))}
         </div>
-      ) : stats && template !== 'verse' && template !== 'book' ? (
+      ) : stats ? (
         <p className="share-landing-lead">{stats}</p>
       ) : null}
+
+      {(bookName || daypart) && (
+        <div className="share-landing-chips">
+          {bookName ? (
+            <span className="share-landing-chip">常读《{bookName}》</span>
+          ) : null}
+          {daypart ? (
+            <span className="share-landing-chip">偏爱{daypart}</span>
+          ) : null}
+        </div>
+      )}
+
       <p className="muted share-landing-support">{BRAND_TAGLINE}</p>
       <WrappedShareClient period={period} />
     </main>

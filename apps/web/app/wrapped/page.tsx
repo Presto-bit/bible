@@ -16,7 +16,6 @@ import {
   enrichWrappedTexts,
   wrappedShareStatsLine,
   wrappedShareText,
-  type WrappedShareTemplate,
   type WrappedStats,
 } from '@/lib/wrapped';
 import { renderWrappedSharePng } from '@/lib/wrapped_share';
@@ -41,7 +40,7 @@ function WrappedInner() {
     };
   }, [base]);
 
-  const share = async (template: WrappedShareTemplate) => {
+  const share = async () => {
     setHint(null);
     setSharing(true);
     try {
@@ -49,25 +48,25 @@ function WrappedInner() {
       const q = new URLSearchParams({
         period,
         label: w.label,
-        h: (w.yearVerse?.label || w.highlight).slice(0, 64),
+        h: w.highlight.slice(0, 80),
         s: stats.slice(0, 120),
-        t: template,
       });
-      if (w.yearVerse?.text) q.set('vt', w.yearVerse.text.slice(0, 120));
+      if (w.yearVerse?.text) q.set('vt', w.yearVerse.text.slice(0, 160));
       if (w.yearVerse?.label) q.set('vl', w.yearVerse.label.slice(0, 40));
       if (w.topBookName) q.set('b', w.topBookName.slice(0, 24));
+      if (w.daypartLabel) q.set('dp', w.daypartLabel.slice(0, 8));
       const url = buildTrackedUrl(`/share/wrapped?${q.toString()}`, {
         l1: 'share',
         l2: 'system_share',
-        l3: `wrapped:${period}:${template}`,
+        l3: `wrapped:${period}`,
       });
-      const blob = await renderWrappedSharePng(w, template);
+      const blob = await renderWrappedSharePng(w);
       const file = blob
-        ? new File([blob], `beiai-wrapped-${period}-${template}.png`, { type: 'image/png' })
+        ? new File([blob], `beiai-wrapped-${period}.png`, { type: 'image/png' })
         : null;
       const result = await shareOutbound({
         title: `${w.label}｜${BRAND_NAME}`,
-        text: `${wrappedShareText(w, template)}\n打开链接看看我的读经足迹`,
+        text: `${wrappedShareText(w)}\n打开链接看看我的读经足迹`,
         url,
         file,
         allowDownload: true,
@@ -105,7 +104,7 @@ function WrappedInner() {
       </header>
       <WrappedStory
         stats={w}
-        onShare={(t) => void share(t)}
+        onShare={() => void share()}
         shareHint={hint}
         sharing={sharing}
       />

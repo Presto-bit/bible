@@ -1,14 +1,10 @@
-/** 读经回顾分享图：经文海报 / 足迹卡 / 书卷印象 */
+/** 读经回顾分享图：经文 + 足迹 + 书卷合一海报 */
 
 import { clientWithBasePath } from './basePath';
 import { BRAND_NAME, BRAND_TAGLINE } from './brand';
 import { dailyVerseWallpaperUrl } from './daily_verse_wallpaper';
 import { PWA_ICON_SOURCE } from './pwa_brand';
-import {
-  bookThemeDay,
-  type WrappedShareTemplate,
-  type WrappedStats,
-} from './wrapped';
+import { bookThemeDay, type WrappedStats } from './wrapped';
 
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
@@ -101,19 +97,13 @@ function roundRect(
   ctx.closePath();
 }
 
-function wallpaperDayFor(w: WrappedStats, template: WrappedShareTemplate): number {
-  if (template === 'verse' && w.yearVerse) {
-    return bookThemeDay(w.yearVerse.ref.split('.')[0] || w.topBookId);
-  }
-  if (template === 'book') return bookThemeDay(w.topBookId);
+function wallpaperDayFor(w: WrappedStats): number {
+  if (w.yearVerse) return bookThemeDay(w.yearVerse.ref.split('.')[0] || w.topBookId);
+  if (w.topBookId) return bookThemeDay(w.topBookId);
   return w.period === 'year' ? 21 : 14;
 }
 
-async function prepCanvas(
-  w: WrappedStats,
-  template: WrappedShareTemplate,
-  scale = 1,
-) {
+async function prepCanvas(w: WrappedStats, scale = 1) {
   const width = Math.round(1080 * scale);
   const height = Math.round(1920 * scale);
   const canvas = document.createElement('canvas');
@@ -123,15 +113,12 @@ async function prepCanvas(
   if (!ctx) return null;
   if (scale !== 1) ctx.scale(scale, scale);
 
-  const day = wallpaperDayFor(w, template);
-  const [wallpaper, brandIcon] = await Promise.all([
-    loadImage(dailyVerseWallpaperUrl(day, 'full')),
-    loadImage(clientWithBasePath(PWA_ICON_SOURCE)),
-  ]);
-
-  // Drawing uses logical 1080×1920 coords when scaled
   const logicalW = 1080;
   const logicalH = 1920;
+  const [wallpaper, brandIcon] = await Promise.all([
+    loadImage(dailyVerseWallpaperUrl(wallpaperDayFor(w), 'full')),
+    loadImage(clientWithBasePath(PWA_ICON_SOURCE)),
+  ]);
 
   if (wallpaper) {
     drawCover(ctx, wallpaper, logicalW, logicalH);
@@ -145,19 +132,20 @@ async function prepCanvas(
 
   const scrim = ctx.createLinearGradient(0, 0, 0, logicalH);
   scrim.addColorStop(0, 'rgba(12, 22, 18, 0.58)');
-  scrim.addColorStop(0.45, 'rgba(12, 22, 18, 0.32)');
-  scrim.addColorStop(1, 'rgba(12, 22, 18, 0.78)');
+  scrim.addColorStop(0.42, 'rgba(12, 22, 18, 0.34)');
+  scrim.addColorStop(1, 'rgba(12, 22, 18, 0.8)');
   ctx.fillStyle = scrim;
   ctx.fillRect(0, 0, logicalW, logicalH);
 
   return { canvas, ctx, width: logicalW, height: logicalH, brandIcon };
 }
 
-function drawBrandHeader(
+function drawCombinedPoster(
   ctx: CanvasRenderingContext2D,
+  w: WrappedStats,
   brandIcon: HTMLImageElement | null,
-  label: string,
-  badge: string,
+  width: number,
+  height: number,
 ) {
   const pad = 72;
   if (brandIcon) drawRoundImage(ctx, brandIcon, pad, 88, 56);
@@ -166,13 +154,82 @@ function drawBrandHeader(
   ctx.fillText(BRAND_NAME, pad + (brandIcon ? 72 : 0), 118);
   ctx.fillStyle = 'rgba(255,255,255,0.68)';
   ctx.font = '500 26px system-ui, -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(label, pad + (brandIcon ? 72 : 0), 158);
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '600 24px system-ui, -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(badge, pad, 220);
-}
+  ctx.fillText(w.label, pad + (brandIcon ? 72 : 0), 158);
 
-function drawFooter(ctx: CanvasRenderingContext2D, height: number, pad: number) {
+  let y = 260;
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '600 24px system-ui, -apple-system, "PingFang SC", sans-serif';
+  ctx.fillText(w.period === 'year' ? '年度回顾' : '本月回顾', pad, y);
+  y += 56;
+
+  // Hero: verse if present, else highlight
+  ctx.fillStyle = '#ffffff';
+  ctx.shadowColor = 'rgba(0,0,0,0.35)';
+  ctx.shadowBlur = 14;
+  if (w.yearVerse?.text) {
+    ctx.font = '700 48px "Noto Serif SC", "Songti SC", Georgia, serif';
+    y = wrapText(ctx, `「${w.yearVerse.text}」`, pad, y, width - pad * 2, 66, 5);
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.78)';
+    ctx.font = '500 28px system-ui, -apple-system, "PingFang SC", sans-serif';
+    ctx.fillText(`— ${w.yearVerse.label}`, pad, y + 36);
+    y += 88;
+  } else {
+    ctx.font = '700 48px "Noto Serif SC", "Songti SC", Georgia, serif';
+    y = wrapText(ctx, w.highlight, pad, y, width - pad * 2, 66, 4);
+    ctx.shadowBlur = 0;
+    y += 48;
+  }
+
+  // Metrics
+  const tiles: { value: string; label: string }[] = [
+    { value: String(w.totalMinutes), label: '分钟' },
+    { value: String(w.activeDays), label: '活跃天' },
+    { value: String(w.streak), label: '连续天' },
+  ];
+  if (w.chapters > 0) tiles.push({ value: String(w.chapters), label: '章' });
+
+  const tileW = (width - pad * 2 - 24) / 2;
+  const tileH = 156;
+  let tx = pad;
+  let ty = y;
+  tiles.slice(0, 4).forEach((t, i) => {
+    if (i === 2) {
+      tx = pad;
+      ty += tileH + 20;
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(ctx, tx, ty, tileW, tileH, 24);
+    ctx.fill();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 56px system-ui, -apple-system, "PingFang SC", sans-serif';
+    ctx.fillText(t.value, tx + 28, ty + 72);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '500 26px system-ui, -apple-system, "PingFang SC", sans-serif';
+    ctx.fillText(t.label, tx + 28, ty + 118);
+    tx += tileW + 24;
+  });
+  y = ty + tileH + 40;
+
+  // Book + highlight strip
+  if (w.topBookName || (w.yearVerse && w.highlight)) {
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(ctx, pad, y, width - pad * 2, w.topBookName && w.yearVerse ? 140 : 100, 24);
+    ctx.fill();
+    let iy = y + 44;
+    if (w.topBookName) {
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.font = '600 32px "Noto Serif SC", "Songti SC", Georgia, serif';
+      ctx.fillText(`常读 · 《${w.topBookName}》`, pad + 28, iy);
+      iy += 44;
+    }
+    if (w.yearVerse) {
+      ctx.fillStyle = 'rgba(255,255,255,0.72)';
+      ctx.font = '500 26px system-ui, -apple-system, "PingFang SC", sans-serif';
+      wrapText(ctx, w.highlight, pad + 28, iy, width - pad * 2 - 56, 36, 2);
+    }
+  }
+
   ctx.fillStyle = 'rgba(255,255,255,0.88)';
   ctx.font = '600 30px system-ui, -apple-system, "PingFang SC", sans-serif';
   ctx.fillText(BRAND_NAME, pad, height - 140);
@@ -184,152 +241,18 @@ function drawFooter(ctx: CanvasRenderingContext2D, height: number, pad: number) 
   ctx.fillText('保存到主屏幕 · 下次一点就开', pad, height - 56);
 }
 
-function drawVerseTemplate(
-  ctx: CanvasRenderingContext2D,
-  w: WrappedStats,
-  brandIcon: HTMLImageElement | null,
-  width: number,
-  height: number,
-) {
-  const pad = 72;
-  const v = w.yearVerse!;
-  drawBrandHeader(
-    ctx,
-    brandIcon,
-    w.label,
-    w.period === 'year' ? '年度经文' : '本月经文',
-  );
-
-  let y = 360;
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '700 54px "Noto Serif SC", "Songti SC", Georgia, serif';
-  ctx.shadowColor = 'rgba(0,0,0,0.35)';
-  ctx.shadowBlur = 14;
-  const body = v.text || w.highlight;
-  y = wrapText(ctx, `「${body}」`, pad, y, width - pad * 2, 72, 8);
-  ctx.shadowBlur = 0;
-
-  ctx.fillStyle = 'rgba(255,255,255,0.82)';
-  ctx.font = '500 32px system-ui, -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(`— ${v.label}`, pad, Math.min(y + 48, height - 280));
-
-  drawFooter(ctx, height, pad);
-}
-
-function drawFootprintTemplate(
-  ctx: CanvasRenderingContext2D,
-  w: WrappedStats,
-  brandIcon: HTMLImageElement | null,
-  width: number,
-  height: number,
-) {
-  const pad = 72;
-  drawBrandHeader(ctx, brandIcon, w.label, '读经足迹');
-
-  let y = 340;
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '700 52px "Noto Serif SC", "Songti SC", Georgia, serif';
-  ctx.shadowColor = 'rgba(0,0,0,0.35)';
-  ctx.shadowBlur = 14;
-  y = wrapText(ctx, w.highlight, pad, y, width - pad * 2, 70, 4);
-  ctx.shadowBlur = 0;
-
-  const tiles: { value: string; label: string }[] = [
-    { value: String(w.totalMinutes), label: '分钟' },
-    { value: String(w.activeDays), label: '活跃天' },
-    { value: String(w.streak), label: '连续天' },
-  ];
-  if (w.chapters > 0) tiles.push({ value: String(w.chapters), label: '章' });
-
-  const tileW = (width - pad * 2 - 24) / 2;
-  const tileH = 180;
-  let tx = pad;
-  let ty = y + 48;
-  tiles.slice(0, 4).forEach((t, i) => {
-    if (i === 2) {
-      tx = pad;
-      ty += tileH + 24;
-    }
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    roundRect(ctx, tx, ty, tileW, tileH, 28);
-    ctx.fill();
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 64px system-ui, -apple-system, "PingFang SC", sans-serif';
-    ctx.fillText(t.value, tx + 36, ty + 88);
-    ctx.fillStyle = 'rgba(255,255,255,0.72)';
-    ctx.font = '500 28px system-ui, -apple-system, "PingFang SC", sans-serif';
-    ctx.fillText(t.label, tx + 36, ty + 136);
-    tx += tileW + 24;
-  });
-
-  if (w.topBookName) {
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    ctx.font = '500 30px system-ui, -apple-system, "PingFang SC", sans-serif';
-    ctx.fillText(`常读 · 《${w.topBookName}》`, pad, height - 220);
-  }
-
-  drawFooter(ctx, height, pad);
-}
-
-function drawBookTemplate(
-  ctx: CanvasRenderingContext2D,
-  w: WrappedStats,
-  brandIcon: HTMLImageElement | null,
-  width: number,
-  height: number,
-) {
-  const pad = 72;
-  drawBrandHeader(ctx, brandIcon, w.label, '书卷印象');
-
-  let y = 420;
-  ctx.fillStyle = 'rgba(255,255,255,0.7)';
-  ctx.font = '500 30px system-ui, -apple-system, "PingFang SC", sans-serif';
-  ctx.fillText(w.period === 'year' ? '今年常在' : '这个月常在', pad, y);
-  y += 80;
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '700 72px "Noto Serif SC", "Songti SC", Georgia, serif';
-  ctx.shadowColor = 'rgba(0,0,0,0.35)';
-  ctx.shadowBlur = 14;
-  y = wrapText(ctx, `《${w.topBookName || '圣经'}》`, pad, y, width - pad * 2, 88, 3);
-  ctx.shadowBlur = 0;
-
-  y += 36;
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.font = '500 34px system-ui, -apple-system, "PingFang SC", sans-serif';
-  y = wrapText(
-    ctx,
-    w.chapters > 0 ? `留下 ${w.chapters} 章足迹 · ${w.highlight}` : w.highlight,
-    pad,
-    y,
-    width - pad * 2,
-    48,
-    4,
-  );
-
-  drawFooter(ctx, height, pad);
-}
-
-/** 9:16 回顾分享图（支持模板） */
+/** 9:16 合一回顾分享图 */
 export async function renderWrappedSharePng(
   w: WrappedStats,
-  template: WrappedShareTemplate = w.defaultShareTemplate,
   opts?: { scale?: number },
 ): Promise<Blob | null> {
   if (typeof document === 'undefined') return null;
 
-  let t = template;
-  if (t === 'verse' && !w.yearVerse) t = 'footprint';
-  if (t === 'book' && !w.topBookName) t = 'footprint';
-
   const scale = Math.min(1, Math.max(0.2, opts?.scale ?? 1));
-  const prepared = await prepCanvas(w, t, scale);
+  const prepared = await prepCanvas(w, scale);
   if (!prepared) return null;
   const { canvas, ctx, width, height, brandIcon } = prepared;
-
-  if (t === 'verse') drawVerseTemplate(ctx, w, brandIcon, width, height);
-  else if (t === 'book') drawBookTemplate(ctx, w, brandIcon, width, height);
-  else drawFootprintTemplate(ctx, w, brandIcon, width, height);
+  drawCombinedPoster(ctx, w, brandIcon, width, height);
 
   return new Promise((resolve) => {
     canvas.toBlob((b) => resolve(b), 'image/png', scale < 1 ? 0.82 : 0.94);

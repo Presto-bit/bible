@@ -2,17 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
-import {
-  wrappedShareTemplates,
-  type WrappedShareTemplate,
-  type WrappedSlide,
-  type WrappedStats,
-} from '@/lib/wrapped';
+import type { WrappedSlide, WrappedStats } from '@/lib/wrapped';
 import { renderWrappedSharePng } from '@/lib/wrapped_share';
 
 type Props = {
   stats: WrappedStats;
-  onShare: (template: WrappedShareTemplate) => void;
+  onShare: () => void;
   shareHint?: string | null;
   sharing?: boolean;
 };
@@ -20,18 +15,15 @@ type Props = {
 export default function WrappedStory({ stats, onShare, shareHint, sharing }: Props) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
-  const [template, setTemplate] = useState<WrappedShareTemplate>(stats.defaultShareTemplate);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const slides = stats.slides;
   const total = slides.length;
-  const templates = wrappedShareTemplates(stats);
 
   useEffect(() => {
-    setTemplate(stats.defaultShareTemplate);
     setIndex(0);
     scrollerRef.current?.scrollTo({ top: 0 });
-  }, [stats.period, stats.defaultShareTemplate]);
+  }, [stats.period]);
 
   const syncIndex = useCallback(() => {
     const el = scrollerRef.current;
@@ -60,7 +52,7 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     }
     setPreviewing(true);
     const timer = window.setTimeout(() => {
-      void renderWrappedSharePng(stats, template, { scale: 0.35 }).then((blob) => {
+      void renderWrappedSharePng(stats, { scale: 0.35 }).then((blob) => {
         if (cancelled) return;
         if (!blob) {
           setPreviewing(false);
@@ -81,7 +73,6 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
   }, [
     index,
     total,
-    template,
     stats.period,
     stats.label,
     stats.highlight,
@@ -92,7 +83,6 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     stats.activeDays,
     stats.streak,
     stats.chapters,
-    stats.defaultShareTemplate,
   ]);
 
   useEffect(
@@ -135,12 +125,9 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
             period={stats.period}
             active={i === index}
             isLast={i === total - 1}
-            templates={templates}
-            template={template}
-            onTemplateChange={setTemplate}
             previewUrl={previewUrl}
             previewing={previewing}
-            onShare={() => onShare(template)}
+            onShare={onShare}
             shareHint={shareHint}
             sharing={sharing}
             onNext={() => go(i + 1)}
@@ -167,9 +154,6 @@ function WrappedSlideView({
   period,
   active,
   isLast,
-  templates,
-  template,
-  onTemplateChange,
   previewUrl,
   previewing,
   onShare,
@@ -181,9 +165,6 @@ function WrappedSlideView({
   period: WrappedStats['period'];
   active: boolean;
   isLast: boolean;
-  templates: { id: WrappedShareTemplate; label: string }[];
-  template: WrappedShareTemplate;
-  onTemplateChange: (t: WrappedShareTemplate) => void;
   previewUrl: string | null;
   previewing: boolean;
   onShare: () => void;
@@ -246,23 +227,6 @@ function WrappedSlideView({
 
         {isLast ? (
           <div className="wrapped-slide-actions">
-            {templates.length > 1 ? (
-              <div className="wrapped-share-templates" role="tablist" aria-label="分享模板">
-                {templates.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={template === t.id}
-                    className={`wrapped-share-tpl${template === t.id ? ' is-on' : ''}`}
-                    onClick={() => onTemplateChange(t.id)}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-
             <div className="wrapped-share-preview">
               {previewUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -287,7 +251,7 @@ function WrappedSlideView({
                 {shareHint}
               </p>
             ) : (
-              <p className="wrapped-share-hint muted">可发朋友圈 / 微信 · 不含笔记正文</p>
+              <p className="wrapped-share-hint muted">一图含经文与足迹 · 可发朋友圈</p>
             )}
           </div>
         ) : (

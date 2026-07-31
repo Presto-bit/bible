@@ -23,8 +23,6 @@ export type WrappedSlideKind =
   | 'marks'
   | 'close';
 
-export type WrappedShareTemplate = 'verse' | 'footprint' | 'book';
-
 export type WrappedVerseQuote = {
   ref: string;
   label: string;
@@ -67,8 +65,6 @@ export interface WrappedStats {
   daypart?: WrappedDaypart;
   daypartLabel?: string;
   slides: WrappedSlide[];
-  /** 默认可选分享模板 */
-  defaultShareTemplate: WrappedShareTemplate;
 }
 
 const DAYPART_LABEL: Record<WrappedDaypart, string> = {
@@ -96,18 +92,6 @@ export function bookThemeDay(bookId?: string): number {
   if (['GEN', 'EXO', 'JOS', 'RUT', 'EST', 'JON', 'DAN'].includes(id)) return 15;
   if (id === 'REV') return 28;
   return 18;
-}
-
-export function wrappedShareTemplates(w: WrappedStats): {
-  id: WrappedShareTemplate;
-  label: string;
-}[] {
-  const out: { id: WrappedShareTemplate; label: string }[] = [
-    { id: 'footprint', label: '足迹卡' },
-  ];
-  if (w.yearVerse) out.unshift({ id: 'verse', label: '经文海报' });
-  if (w.topBookName) out.push({ id: 'book', label: '书卷印象' });
-  return out;
 }
 
 function periodRange(period: WrappedPeriod): {
@@ -404,7 +388,6 @@ export function buildWrapped(period: WrappedPeriod): WrappedStats {
     daypart,
     daypartLabel,
     slides,
-    defaultShareTemplate: yearVerse ? 'verse' : 'footprint',
   };
 }
 
@@ -465,23 +448,17 @@ function trimQuote(text: string, max: number): string {
 }
 
 /** 分享文案（不含链接） */
-export function wrappedShareText(w: WrappedStats, template: WrappedShareTemplate = w.defaultShareTemplate): string {
-  if (template === 'verse' && w.yearVerse) {
-    const text = w.yearVerse.text ? `「${w.yearVerse.text}」\n` : '';
-    return `${w.label}\n${text}${w.yearVerse.label}`;
+export function wrappedShareText(w: WrappedStats): string {
+  const lines = [w.label, w.highlight];
+  if (w.yearVerse) {
+    if (w.yearVerse.text) lines.push(`「${w.yearVerse.text}」`);
+    lines.push(w.yearVerse.label);
   }
-  if (template === 'book' && w.topBookName) {
-    return `${w.label}\n${w.period === 'year' ? '今年' : '这个月'}常在《${w.topBookName}》\n${w.highlight}`;
+  if (w.topBookName) {
+    lines.push(`${w.period === 'year' ? '今年' : '这个月'}常在《${w.topBookName}》`);
   }
-  const stats = [
-    `活跃 ${w.activeDays} 天`,
-    `阅读 ${w.totalMinutes} 分钟`,
-    w.chapters > 0 ? `${w.chapters} 章` : null,
-    `连续 ${w.streak} 天`,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  return `${w.label}\n${w.highlight}\n${stats}`;
+  lines.push(wrappedShareStatsLine(w));
+  return lines.filter(Boolean).join('\n');
 }
 
 export function wrappedShareStatsLine(w: WrappedStats): string {

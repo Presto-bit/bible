@@ -16568,31 +16568,6 @@ html.perf-lite .home-page .home-hero-carousel {
   gap: 10px;
 }
 
-.wrapped-share-templates {
-  display: flex;
-  gap: 6px;
-  padding: 4px;
-  border-radius: 14px;
-  background: rgba(0, 0, 0, 0.28);
-}
-
-.wrapped-share-tpl {
-  flex: 1;
-  min-height: 36px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: rgba(244, 247, 245, 0.7);
-  font-size: 13px;
-  font-weight: 550;
-  cursor: pointer;
-}
-
-.wrapped-share-tpl.is-on {
-  background: rgba(244, 247, 245, 0.95);
-  color: #12201b;
-}
-
 .wrapped-share-preview {
   width: 100%;
   max-width: 180px;
@@ -16651,6 +16626,44 @@ html.perf-lite .home-page .home-hero-carousel {
   margin: 8px 0 0;
   font-size: 15px;
   color: var(--ink-soft);
+  font-style: normal;
+}
+
+.share-landing-verse {
+  margin: 8px 0 0;
+  padding: 18px 18px 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent, #7d9b8a) 10%, var(--surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent, #7d9b8a) 18%, transparent);
+}
+
+.share-landing-verse-text {
+  margin: 0;
+  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+  font-size: clamp(22px, 5.5vw, 30px);
+  line-height: 1.45;
+  font-weight: 650;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.share-landing-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 4px;
+}
+
+.share-landing-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--accent, #7d9b8a) 12%, var(--surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent, #7d9b8a) 16%, transparent);
 }
 
 .wrapped-slide-tap {
