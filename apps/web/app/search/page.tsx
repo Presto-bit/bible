@@ -51,9 +51,17 @@ import { KnowledgeTopicCardBody } from '@/components/search/KnowledgeTopicCardBo
 
 const HISTORY_KEY = 'search_history';
 const SEARCH_PAGE_SIZE = 40;
+/** 与发现页消息搜索对齐，避免每键打 API */
+const SEARCH_DEBOUNCE_MS = 320;
 
 /** all / ot / nt —— 切换约别会带 testament 重新请求 */
 type ScopeTab = 'all' | 'ot' | 'nt';
+
+const NT_BOOK_IDS = new Set([
+  'MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'ROM', '1CO', '2CO', 'GAL', 'EPH',
+  'PHP', 'COL', '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM', 'HEB', 'JAS',
+  '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV',
+]);
 
 function searchTooShort(q: string): boolean {
   const hasCjk = /[\u4e00-\u9fff]/.test(q);
@@ -94,8 +102,7 @@ function highlightTerms(query: string): string[] {
   return Array.from(new Set(parts));
 }
 
-function highlightText(text: string, query: string): ReactNode {
-  const terms = highlightTerms(query);
+function highlightText(text: string, terms: string[]): ReactNode {
   if (!terms.length || !text) return text;
   const re = new RegExp(`(${terms.map(escapeRegExp).join('|')})`, 'gi');
   const nodes: ReactNode[] = [];
@@ -134,6 +141,8 @@ export default function SearchPage() {
   });
 
   const [query, setQuery] = useState('');
+  /** 防抖后的查询：驱动 API / 本地过滤，输入框仍即时更新 */
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [history, setHistory] = useState<string[]>([]);
   const [hits, setHits] = useState<BibleSearchHit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -156,6 +165,22 @@ export default function SearchPage() {
   const [seriesProgressHint, setSeriesProgressHint] = useState('');
   const [seriesHref, setSeriesHref] = useState(exodusCoverHref());
 
+  const flushQuery = (next: string) => {
+    setQuery(next);
+    setDebouncedQuery(next);
+  };
+
+  useEffect(() => {
+    const q = query.trim();
+    // 清空或过短：立刻同步，避免删字后仍显示旧结果
+    if (searchTooShort(q)) {
+      setDebouncedQuery(query);
+      return;
+    }
+    const t = window.setTimeout(() => setDebouncedQuery(query), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(t);
+  }, [query]);
+
   useEffect(() => {
     setHistory(loadHistory());
     setThoughts(listAllThoughts());
@@ -165,7 +190,7 @@ export default function SearchPage() {
     if (from) setBackHref(from);
     const q = (params.get('q') || '').trim();
     if (q) {
-      setQuery(q);
+      flushQuery(q);
       const next = saveHistory(q);
       if (next) setHistory(next);
     }
@@ -177,7 +202,7 @@ export default function SearchPage() {
       const resume = resumeStoryAlbum(EXODUS_STORY.id, EXODUS_STORY.episodes.length);
       const ep = EXODUS_STORY.episodes[resume.episodeIndex];
       setSeriesProgressHint(
-        ep
+          ep
           ? `继续第 ${resume.episodeIndex + 1} 章 · ${ep.title}`
           : `约 ${EXODUS_STORY.minutes} 分钟`,
       );
@@ -208,8 +233,11 @@ export default function SearchPage() {
     ]).finally(() => setToursReady(true));
   }, []);
 
+  const searchQ = debouncedQuery.trim();
+  const markTerms = useMemo(() => highlightTerms(searchQ), [searchQ]);
+
   const thoughtHits = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = searchQ.toLowerCase();
     if (searchTooShort(q)) return [];
     return thoughts
       .filter(
@@ -218,11 +246,11 @@ export default function SearchPage() {
           (t.ref || '').toLowerCase().includes(q),
       )
       .slice(0, 10);
-  }, [thoughts, query]);
+  }, [thoughts, searchQ]);
 
   // 关键词 / 译本 / 约别变化时重新搜索（约别走 API testament，避免高频词被旧约截断）
   useEffect(() => {
-    const q = query.trim();
+    const q = searchQ;
     if (searchTooShort(q)) {
       setHits([]);
       setTotalHits(0);
@@ -230,6 +258,7 @@ export default function SearchPage() {
       setTotalNt(0);
       setHasMore(false);
       setErr(null);
+      setLoading(false);
       return;
     }
     let cancelled = false;
@@ -260,10 +289,10 @@ export default function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [query, searchVersion, scopeTab, searchRetry]);
+  }, [searchQ, searchVersion, scopeTab, searchRetry]);
 
   const loadMoreHits = () => {
-    const q = query.trim();
+    const q = searchQ;
     if (searchTooShort(q) || loadingMore || !hasMore) return;
     const testament =
       scopeTab === 'ot' ? 'OT' : scopeTab === 'nt' ? 'NT' : null;
@@ -297,9 +326,10 @@ export default function SearchPage() {
   };
 
   useEffect(() => {
-    const q = query.trim();
+    const q = searchQ;
     if (searchTooShort(q)) {
       setEntityHits([]);
+      setEntityLoading(false);
       return;
     }
     let cancelled = false;
@@ -318,9 +348,17 @@ export default function SearchPage() {
     return () => {
       cancelled = true;
     };
-  }, [query]);
+  }, [searchQ]);
 
   const displayHits = hits;
+  const showNtHint = useMemo(
+    () =>
+      scopeTab === 'all'
+      && !loading
+      && totalNt > 0
+      && !displayHits.some((h) => NT_BOOK_IDS.has(h.book)),
+    [scopeTab, loading, totalNt, displayHits],
+  );
 
   const onSubmit = (q: string) => {
     const next = saveHistory(q);
@@ -328,22 +366,22 @@ export default function SearchPage() {
   };
 
   const applyHistoryQuery = (name: string) => {
-    setQuery(name);
+    flushQuery(name);
     onSubmit(name);
   };
 
   const openReader = (hit: BibleSearchHit) => {
-    onSubmit(query);
+    onSubmit(searchQ || query);
     window.location.href = `/reader?book=${encodeURIComponent(hit.book)}&chapter=${hit.chapter}`;
   };
 
   const openAssistant = (hit: BibleSearchHit) => {
-    onSubmit(query);
+    onSubmit(searchQ || query);
     const snippet = hit.text.length > 24 ? `${hit.text.slice(0, 24)}…` : hit.text;
     navigateToAssistant(hit.osis, { question: `请解释：${snippet}` });
   };
 
-  const hasQuery = !searchTooShort(query.trim());
+  const hasQuery = !searchTooShort(searchQ);
   const versionLabel =
     versions.find((v) => v.id === searchVersion)?.label
     || searchVersion.toUpperCase();
@@ -365,7 +403,10 @@ export default function SearchPage() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') onSubmit(query);
+          if (e.key === 'Enter') {
+            flushQuery(query);
+            onSubmit(query);
+          }
         }}
       />
 
@@ -620,15 +661,7 @@ export default function SearchPage() {
               ? ` · 旧约 ${totalOt} · 新约 ${totalNt}`
               : ''}
           </p>
-          {scopeTab === 'all' && !loading && totalNt > 0 && !displayHits.some((h) => {
-            const order = h.book;
-            // MAT 及之后为新约卷 id（标准 OSIS）
-            return [
-              'MAT', 'MRK', 'LUK', 'JHN', 'ACT', 'ROM', '1CO', '2CO', 'GAL', 'EPH',
-              'PHP', 'COL', '1TH', '2TH', '1TI', '2TI', 'TIT', 'PHM', 'HEB', 'JAS',
-              '1PE', '2PE', '1JN', '2JN', '3JN', 'JUD', 'REV',
-            ].includes(order);
-          }) ? (
+          {showNtHint ? (
             <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
               当前结果偏靠前卷；新约另有{' '}
               <button
@@ -669,7 +702,7 @@ export default function SearchPage() {
                 </span>
               </div>
               <p className="search-hit-text">
-                {highlightText(h.text, query)}
+                {highlightText(h.text, markTerms)}
               </p>
               <button
                 type="button"
@@ -712,7 +745,7 @@ export default function SearchPage() {
                 </span>
               )}
               <p style={{ margin: t.ref ? '6px 0 0' : 0, lineHeight: 1.55 }}>
-                {highlightText(t.body, query)}
+                {highlightText(t.body, markTerms)}
               </p>
             </div>
           ))}
