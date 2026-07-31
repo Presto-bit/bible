@@ -9,8 +9,10 @@ import {
   effectiveId,
   ensureAccountReady,
   getDisplayName,
+  getUserName,
   isUserCode,
 } from '@/lib/api';
+import { needsSelfSetDisplayName } from '@/lib/system_username';
 
 export default function AddFriendPage() {
   useEdgeSwipeBack({ href: '/discover' });
@@ -120,6 +122,19 @@ export default function AddFriendPage() {
       <p className="muted" style={{ marginBottom: 16 }}>
         输入对方的 8 位用户 ID（或历史 10 位）或用户名，发送好友申请。对方同意后即可私信。
       </p>
+      {needsSelfSetDisplayName(getUserName()) ? (
+        <p className="muted" style={{ marginBottom: 12, fontSize: 13, lineHeight: 1.5 }}>
+          你还在用占位称呼。可先去「我的」起个名字，朋友会更容易认出你。
+          <button
+            type="button"
+            className="text-link"
+            style={{ marginLeft: 6 }}
+            onClick={() => router.push('/profile')}
+          >
+            去设置
+          </button>
+        </p>
+      ) : null}
       <input
         className="search-input"
         placeholder="用户 ID 或用户名"

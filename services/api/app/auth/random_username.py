@@ -1,4 +1,4 @@
-"""注册默认用户名：圣经正向词 前缀+后缀（PRODUCT §5.5）。"""
+"""注册默认用户名：圣经正向词 前缀+后缀（灵感词；新账号不再自动分配）。"""
 from __future__ import annotations
 
 import random

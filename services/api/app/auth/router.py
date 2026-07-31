@@ -297,7 +297,8 @@ def change_password(
                 """,
                 (code, uid, uname, pwd_hash, pwd_salt),
             )
-            upsert_user_profile(conn, user_id=uid, user_code=code, username=uname)
+            if uname:
+                upsert_user_profile(conn, user_id=uid, user_code=code, username=uname)
             conn.commit()
         # 吊销本次改密所用令牌，签发新会话（其他设备旧令牌仍有效至过期，见续审 P1）
         revoke_session_token(authorization)
@@ -542,14 +543,15 @@ def register(
                     INSERT INTO accounts (user_code, user_id, username, pwd_hash, pwd_salt, updated_at)
                     VALUES (%s, %s, %s, %s, %s, now())
                     ON CONFLICT (user_code) DO UPDATE SET
-                      username = EXCLUDED.username,
+                      username = COALESCE(EXCLUDED.username, accounts.username),
                       pwd_hash = COALESCE(EXCLUDED.pwd_hash, accounts.pwd_hash),
                       pwd_salt = COALESCE(EXCLUDED.pwd_salt, accounts.pwd_salt),
                       updated_at = now()
                     """,
                     (code, user_id, name, pwd_hash, pwd_salt),
                 )
-                upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
+                if name:
+                    upsert_user_profile(conn, user_id=user_id, user_code=code, username=name)
                 _bind_device_user(conn, x_device_id, code, reclaim=True)
             else:
                 # 静默建档：已存在账号必须证明所有权，禁止对任意 user_code 签发会话
@@ -573,7 +575,7 @@ def register(
                         """,
                         (code, user_id, name),
                     ).fetchone()
-                    if inserted:
+                    if inserted and name:
                         upsert_user_profile(
                             conn, user_id=user_id, user_code=code, username=name
                         )
@@ -712,7 +714,7 @@ def bind_phone(
     x_device_id: str | None = Header(default=None),
     x_device_fingerprint: str | None = Header(default=None),
 ) -> dict:
-    """绑定手机号（换机恢复）；若已设密码需验证。"""
+    """绑定手机号（换机恢复）。已持有本账号会话即可绑定，无需再输密码。"""
     phone = _normalize_phone(body.phone)
     if not _PHONE_RE.match(phone):
         raise HTTPException(status_code=400, detail="请输入有效的大陆手机号")
@@ -723,8 +725,9 @@ def bind_phone(
             if row is None:
                 raise HTTPException(status_code=404, detail="账号不存在")
             code, username, pwd_hash, pwd_salt, _ = row
-            if pwd_hash:
-                if not body.password or not _verify_pwd(
+            # 兼容旧客户端：若传了密码则校验；有会话时可不传
+            if body.password:
+                if not pwd_hash or not _verify_pwd(
                     body.password, pwd_salt or "", pwd_hash
                 ):
                     raise HTTPException(status_code=401, detail="密码不正确")

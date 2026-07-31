@@ -10,10 +10,14 @@ import {
   effectiveId,
   ensureAccountReady,
   getDisplayName,
+  getUserName,
   guestId,
-  hasPassword,
   logout,
 } from '@/lib/api';
+import {
+  displayNameHint,
+  isSystemGeneratedUsername,
+} from '@/lib/system_username';
 import { OFFICIAL_SUPPORT_USER_CODE } from '@/lib/official_support';
 import {
   getOfflineDownloadSnapshot,
@@ -78,7 +82,11 @@ import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
-import { hasSecuredAccount, isAccountComplete } from '@/lib/account_guide';
+import {
+  accountRecoveryHint,
+  hasSecuredAccount,
+  isAccountComplete,
+} from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
 import { isStandalonePwa } from '@/lib/platform';
 import { markRouteNavigation, navigateAppHref } from '@/lib/pwa_tab_nav';
@@ -406,7 +414,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [nameBusy, setNameBusy] = useState(false);
   const [accountComplete, setAccountComplete] = useState(false);
   const [clearCacheBusy, setClearCacheBusy] = useState(false);
-  const [hasPwd, setHasPwd] = useState(false);
   const [streak, setStreak] = useState(0);
   const [weekMins, setWeekMins] = useState(0);
   const [journeyPct, setJourneyPct] = useState(0);
@@ -594,7 +601,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setMins(todayMinutes());
       setWeekMins(weekMinutesTotal());
       setStreak(readingStreak());
-      setHasPwd(hasPassword());
       setAccountComplete(isAccountComplete());
       setFootprintSeen(readFootprintSeen());
       setMilestone(pendingStreakMilestone(readingStreak()));
@@ -728,7 +734,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
   const refreshAccount = () => {
     setName(getDisplayName());
-    setHasPwd(hasPassword());
     setAccountComplete(isAccountComplete());
     if (!hasSecuredAccount()) setDataStatus('未登录，数据仅本机');
     else setDataStatus(null);
@@ -741,7 +746,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const beginEditName = () => {
-    setNameDraft(getDisplayName() || name.trim() || '');
+    const cur = (getUserName() || '').trim();
+    // 系统名/空名：留空方便自设，避免用户以为必须改一两个字
+    setNameDraft(
+      !cur || isSystemGeneratedUsername(cur) ? '' : cur,
+    );
     setNameEditing(true);
     setBioEditing(false);
   };
@@ -749,7 +758,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const saveDisplayName = async () => {
     const u = nameDraft.trim();
     if (u.length < 2) {
-      toast('用户名至少 2 个字');
+      toast('称呼至少 2 个字');
       return;
     }
     setNameBusy(true);
@@ -757,7 +766,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       const next = await changeUsername(u);
       setName(next);
       setNameEditing(false);
-      toast('用户名已保存');
+      toast('称呼已保存');
       refreshAccount();
     } catch (e) {
       toast(e instanceof Error ? e.message : '改名失败');
@@ -1070,7 +1079,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   disabled={nameBusy}
                   autoFocus
                   placeholder="怎么称呼你？"
-                  aria-label="编辑用户名"
+                  aria-label="编辑称呼"
                   onChange={(e) => setNameDraft(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -1104,9 +1113,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 type="button"
                 className="profile-name-hit"
                 onClick={beginEditName}
-                aria-label="编辑用户名"
+                aria-label="编辑称呼"
               >
                 <strong className="profile-display-name">{displayName}</strong>
+                {displayNameHint(getUserName()) ? (
+                  <span className="muted profile-name-hint">{displayNameHint(getUserName())}</span>
+                ) : null}
               </button>
             )}
             {dataStatus ? (
@@ -1140,27 +1152,24 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 </span>
               </button>
             )}
-            {(idValue && !accountComplete) || (accountComplete && !hasPwd) ? (
+            {idValue && !accountComplete ? (
               <p className="profile-meta-line muted">
-                {idValue && !accountComplete ? (
-                  <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
-                    {idCopied ? '已复制' : `ID ${idValue}`}
-                  </button>
-                ) : null}
-                {accountComplete && !hasPwd ? '可在设置中完善密码' : null}
+                <button type="button" className="profile-id-inline" onClick={() => void copyId()}>
+                  {idCopied ? '已复制' : `ID ${idValue}`}
+                </button>
               </p>
             ) : null}
           </div>
         </div>
       </header>
 
-      {!accountComplete ? (
+      {accountRecoveryHint() ? (
         <button
           type="button"
           className="profile-account-tip"
           onClick={() => setSettingsOpen(true)}
         >
-          <span>完善账号，换机也能同步</span>
+          <span>{accountRecoveryHint()}</span>
           <span className="muted" aria-hidden>›</span>
         </button>
       ) : null}

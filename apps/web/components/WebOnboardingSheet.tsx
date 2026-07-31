@@ -37,7 +37,7 @@ export default function WebOnboardingSheet() {
         <h2 style={{ marginTop: 0 }}>{BRAND_NAME}</h2>
         <p className="muted" style={{ lineHeight: 1.65 }}>{BRAND_PWA_SUBTITLE}，在话语中相遇</p>
         <p style={{ fontSize: 14, lineHeight: 1.65 }}>
-          打开即可读经、记笔记、做每日问答。换机同步可稍后在「我的」设置用户名与密码。
+          打开即可读经、记笔记、做每日问答。换机同步可稍后在「我的」设置密码。
         </p>
         <button type="button" className="btn" onClick={finish}>开始使用</button>
       </div>

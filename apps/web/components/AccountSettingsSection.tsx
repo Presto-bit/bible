@@ -3,7 +3,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { hasPassword, unbindDevice } from '@/lib/api';
 import { isAccountComplete } from '@/lib/account_guide';
-import { isSystemGeneratedUsername } from '@/lib/system_username';
 import { maskPhone, useAccountSecurity } from '@/lib/use_account_security';
 
 type Props = {
@@ -13,6 +12,7 @@ type Props = {
   collapsible?: boolean;
 };
 
+/** 设置 · 账号与安全：密码 / 手机 / 设备 / ID（不含展示称呼） */
 export default function AccountSettingsSection({
   middle,
   onAccountChange,
@@ -23,75 +23,71 @@ export default function AccountSettingsSection({
 
   useEffect(() => {
     if (!collapsible) return;
-    // 异步拉到手机/密码状态后：完备则收起，未完备保持展开
-    if (isAccountComplete() && a.phoneStored) setExpanded(false);
-    else if (!isAccountComplete()) setExpanded(true);
+    if (isAccountComplete()) setExpanded(false);
+    else setExpanded(true);
   }, [collapsible, a.phoneStored]);
 
   const phoneHint = a.phoneStored
     ? `手机 ${maskPhone(a.phoneStored)}`
     : '未绑手机';
   const pwdHint = hasPassword() ? '已设密码' : '未设密码';
-  const summary = `${phoneHint} · ${pwdHint}`;
+  const summary = `${pwdHint} · ${phoneHint}`;
 
   const form = (
     <div className="settings-account-form">
-      <p className="settings-field-label">用户名</p>
-      <div className="settings-field-row">
-        <input
-          className="book-chip settings-field-input"
-          placeholder="≥2 字，不可重复"
-          value={a.name}
-          onChange={(e) => a.setName(e.target.value)}
-        />
-        {isSystemGeneratedUsername(a.name) ? (
-          <button
-            type="button"
-            className="text-link"
-            disabled={a.busy}
-            onClick={() => void a.reshuffleUsernameHandler()}
-          >
-            换一个
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="font-pill"
-          disabled={a.busy}
-          onClick={() => void a.saveUsername(false)}
-        >
-          {a.busy ? '…' : '确认'}
-        </button>
-      </div>
-
-      {!a.phoneStored ? (
+      {!hasPassword() ? (
         <>
-          <p className="settings-field-label">绑定手机号</p>
+          <p className="settings-field-label">设置密码</p>
+          <p className="muted settings-field-hint">换机或重装后，用手机号或用户 ID + 密码找回。</p>
           <div className="settings-field-row">
             <input
               className="book-chip settings-field-input"
-              placeholder="大陆手机号（可选）"
-              value={a.phone}
-              onChange={(e) => a.setPhone(e.target.value)}
+              type="password"
+              placeholder="密码（≥6 位）"
+              value={a.pwd}
+              onChange={(e) => a.setPwd(e.target.value)}
+              autoComplete="new-password"
             />
             <button
               type="button"
               className="font-pill"
-              disabled={a.busy || !a.phone.trim()}
+              disabled={a.busy}
+              onClick={() => void a.savePassword()}
+            >
+              {a.busy ? '…' : '保存'}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="muted settings-field-hint">已设密码。可在下方修改。</p>
+      )}
+
+      {!a.phoneStored ? (
+        <>
+          <p className="settings-field-label">绑定手机号</p>
+          <p className="muted settings-field-hint">
+            {hasPassword()
+              ? '登录更方便，建议绑定。'
+              : '请先设置密码，再绑定手机。'}
+          </p>
+          <div className="settings-field-row">
+            <input
+              className="book-chip settings-field-input"
+              placeholder="大陆手机号"
+              value={a.phone}
+              onChange={(e) => a.setPhone(e.target.value)}
+              inputMode="tel"
+              disabled={!hasPassword()}
+            />
+            <button
+              type="button"
+              className="font-pill"
+              disabled={a.busy || !a.phone.trim() || !hasPassword()}
               onClick={() => void a.bindPhoneHandler()}
             >
               绑定
             </button>
           </div>
-          {hasPassword() ? (
-            <input
-              className="book-chip settings-field-input settings-field-input-block"
-              type="password"
-              placeholder="当前密码"
-              value={a.phonePwd}
-              onChange={(e) => a.setPhonePwd(e.target.value)}
-            />
-          ) : null}
         </>
       ) : (
         <p className="muted settings-field-hint">已绑定手机 {maskPhone(a.phoneStored)}</p>
@@ -100,17 +96,19 @@ export default function AccountSettingsSection({
       {a.msg ? <p className="muted settings-field-hint">{a.msg}</p> : null}
       {middle}
 
-      <button
-        type="button"
-        className="settings-icon-btn"
-        onClick={() => void a.changePasswordHandler()}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-          <rect x="5" y="11" width="14" height="10" rx="2" />
-          <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-        </svg>
-        修改密码
-      </button>
+      {hasPassword() ? (
+        <button
+          type="button"
+          className="settings-icon-btn"
+          onClick={() => void a.changePasswordHandler()}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="5" y="11" width="14" height="10" rx="2" />
+            <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+          </svg>
+          修改密码
+        </button>
+      ) : null}
 
       <button
         type="button"

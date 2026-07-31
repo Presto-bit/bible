@@ -2,20 +2,16 @@
 
 import { useState } from 'react';
 import { dismissUsernameGuide } from '@/lib/account_guide';
-import { setCredentials, usernameAvailable } from '@/lib/api';
+import { bindPhone, getUserName, setCredentials } from '@/lib/api';
 
+/** 软催设密（可顺带绑手机）；展示称呼请在「我的」Hero 设置 */
 export default function UsernameGuideSheet({ onDone }: { onDone: () => void }) {
-  const [name, setName] = useState('');
   const [pwd, setPwd] = useState('');
+  const [phone, setPhone] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
-    const u = name.trim();
-    if (u.length < 2) {
-      setErr('用户名至少 2 个字');
-      return;
-    }
     if (pwd.length < 6) {
       setErr('密码至少 6 位');
       return;
@@ -23,12 +19,9 @@ export default function UsernameGuideSheet({ onDone }: { onDone: () => void }) {
     setBusy(true);
     setErr(null);
     try {
-      const ok = await usernameAvailable(u);
-      if (!ok) {
-        setErr('用户名已被占用');
-        return;
-      }
-      await setCredentials(u, pwd);
+      await setCredentials(getUserName().trim(), pwd);
+      const p = phone.trim();
+      if (p) await bindPhone(p, null);
       dismissUsernameGuide();
       onDone();
     } catch (e) {
@@ -46,17 +39,10 @@ export default function UsernameGuideSheet({ onDone }: { onDone: () => void }) {
   return (
     <div className="sheet-backdrop" style={{ alignItems: 'center', zIndex: 130 }}>
       <div className="sheet card" style={{ borderRadius: 18, maxWidth: 360 }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginTop: 0 }}>给账号起个名字吧</h3>
+        <h3 style={{ marginTop: 0 }}>设置密码，换机可找回</h3>
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
-          你已有笔记或群数据。设置用户名和密码后，换手机也能找回，无需记住数字 ID。
+          用手机号或用户 ID + 密码即可登录。称呼可稍后在「我的」里修改。
         </p>
-        <input
-          className="book-chip"
-          style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-          placeholder="用户名（≥2 字）"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
         <input
           className="book-chip"
           type="password"
@@ -64,6 +50,15 @@ export default function UsernameGuideSheet({ onDone }: { onDone: () => void }) {
           placeholder="密码（≥6 位）"
           value={pwd}
           onChange={(e) => setPwd(e.target.value)}
+          autoComplete="new-password"
+        />
+        <input
+          className="book-chip"
+          style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
+          placeholder="手机号（可选）"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          inputMode="tel"
         />
         {err ? <p style={{ color: '#b1554a', fontSize: 13 }}>{err}</p> : null}
         <button type="button" className="btn" disabled={busy} onClick={() => void save()}>

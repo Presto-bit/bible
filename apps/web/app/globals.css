@@ -4455,10 +4455,20 @@ a.today-card-link {
   background: transparent;
   padding: 0;
   margin: 0;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   max-width: 100%;
   text-align: left;
   cursor: pointer;
+}
+
+.profile-page .profile-name-hint {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: normal;
 }
 
 .profile-page .profile-name-hit:active .profile-display-name {

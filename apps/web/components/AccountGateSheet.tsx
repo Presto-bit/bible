@@ -6,7 +6,7 @@ import {
   acceptGuestRisk,
   markAccountGateSeen,
 } from '@/lib/account_guide';
-import { setCredentials, usernameAvailable } from '@/lib/api';
+import { bindPhone, getUserName, setCredentials } from '@/lib/api';
 import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import { useToast } from '@/components/ui/ToastProvider';
 
@@ -16,11 +16,12 @@ type Props = {
   onDone: () => void;
 };
 
+/** 首启门闸：只催设密（可顺带绑手机）；称呼请在「我的」设置 */
 export default function AccountGateSheet({ onDone }: Props) {
   const toast = useToast();
   const [mode, setMode] = useState<Mode>('choose');
-  const [name, setName] = useState('');
   const [pwd, setPwd] = useState('');
+  const [phone, setPhone] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -29,11 +30,6 @@ export default function AccountGateSheet({ onDone }: Props) {
   };
 
   const save = async () => {
-    const u = name.trim();
-    if (u.length < 2) {
-      setErr('用户名至少 2 个字');
-      return;
-    }
     if (pwd.length < 6) {
       setErr('密码至少 6 位');
       return;
@@ -41,14 +37,11 @@ export default function AccountGateSheet({ onDone }: Props) {
     setBusy(true);
     setErr(null);
     try {
-      const ok = await usernameAvailable(u);
-      if (!ok) {
-        setErr('用户名已被占用');
-        return;
-      }
-      await setCredentials(u, pwd);
+      await setCredentials(getUserName().trim(), pwd);
+      const p = phone.trim();
+      if (p) await bindPhone(p, null);
       markAccountGateSeen();
-      toast('账号已保护，换机可凭用户名找回');
+      toast(p ? '账号已保护，可用手机号找回' : '密码已设置，换机可用用户 ID 找回');
       finish();
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
@@ -73,20 +66,12 @@ export default function AccountGateSheet({ onDone }: Props) {
           <>
             <h3 style={{ marginTop: 0 }}>保护你的读经进度</h3>
             <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 14 }}>
-              删掉 App、换手机或清除网站数据后，没有账号的进度可能找不回来。
-              建议先设置用户名和密码。
+              删掉 App、换手机或清除网站数据后，没有密码的进度可能找不回来。
+              建议先设置密码；绑定手机后登录更方便。
             </p>
 
             {mode === 'form' ? (
               <div className="account-gate-form">
-                <input
-                  className="book-chip"
-                  style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
-                  placeholder="用户名（≥2 字）"
-                  autoComplete="username"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
                 <input
                   className="book-chip"
                   type="password"
@@ -95,6 +80,14 @@ export default function AccountGateSheet({ onDone }: Props) {
                   autoComplete="new-password"
                   value={pwd}
                   onChange={(e) => setPwd(e.target.value)}
+                />
+                <input
+                  className="book-chip"
+                  style={{ width: '100%', textAlign: 'left', marginBottom: 10 }}
+                  placeholder="手机号（可选）"
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
                 />
                 {err ? <p style={{ color: '#b1554a', fontSize: 13 }}>{err}</p> : null}
                 <button type="button" className="btn" style={{ width: '100%', marginTop: 0 }} disabled={busy} onClick={() => void save()}>
@@ -115,7 +108,7 @@ export default function AccountGateSheet({ onDone }: Props) {
             ) : (
               <div className="account-gate-actions">
                 <button type="button" className="btn" style={{ width: '100%', marginTop: 0 }} onClick={() => setMode('form')}>
-                  设置用户名和密码
+                  设置密码
                 </button>
                 <button
                   type="button"
@@ -134,7 +127,6 @@ export default function AccountGateSheet({ onDone }: Props) {
                   style={{ display: 'block', margin: '14px auto 0', textAlign: 'center' }}
                   onClick={() => {
                     markRouteNavigation();
-                    // 仅关闭本层，不记「已走过门闸」，未登录回来冷启动仍会提示
                     finish();
                   }}
                 >
@@ -145,12 +137,12 @@ export default function AccountGateSheet({ onDone }: Props) {
           </>
         ) : (
           <>
-            <h3 style={{ marginTop: 0 }}>确定先不设账号？</h3>
+            <h3 style={{ marginTop: 0 }}>确定先不设密码？</h3>
             <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, marginBottom: 14 }}>
               本机读经、笔记与成就在重装、换机或清除网站数据后可能被清空，且无法用账号找回。
             </p>
             <button type="button" className="btn" style={{ width: '100%', marginTop: 0 }} onClick={() => setMode('form')}>
-              回去设账号
+              回去设密码
             </button>
             <button
               type="button"

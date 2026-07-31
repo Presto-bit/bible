@@ -605,10 +605,10 @@ async function readApiError(res: Response, fallback: string): Promise<string> {
   return fallback;
 }
 
-/** 登录后改用户名（自定义）。成功后写本地 profile_name。 */
+/** 登录后改展示称呼。成功后写本地 profile_name。 */
 export async function changeUsername(username: string): Promise<string> {
   const u = username.trim();
-  if (u.length < 2) throw new Error('用户名至少 2 个字');
+  if (u.length < 2) throw new Error('称呼至少 2 个字');
   await ensureAccountReady();
   const id = effectiveId();
   if (!id) throw new Error('账号未就绪');
@@ -618,7 +618,7 @@ export async function changeUsername(username: string): Promise<string> {
     body: JSON.stringify({ user_code: id, username: u, random: false }),
   });
   if (res.status === 401) throw new Error('请先完成账号初始化');
-  if (res.status === 409) throw new Error('用户名已被占用');
+  if (res.status === 409) throw new Error('该称呼已被占用');
   if (!res.ok) throw new Error(await readApiError(res, '改名失败'));
   const d = (await res.json()) as { username?: string };
   const next = (d.username || u).trim();
@@ -695,12 +695,10 @@ export async function unbindDevice(deviceId: string): Promise<void> {
   if (!res.ok) throw new Error('解绑失败');
 }
 
-/** 全 App 统一显示名：资料昵称/用户名 → 游客后缀 → 读经伙伴 */
+/** 全 App 统一显示名：自设昵称 → 中性占位（不再用「用户xxxx」冒充身份） */
 export function getDisplayName(): string {
   const name = getUserName().trim();
   if (name) return name;
-  const g = guestId();
-  if (g) return `用户${g.slice(-4)}`;
   return '读经伙伴';
 }
 
@@ -808,10 +806,10 @@ export async function changePassword(oldPassword: string | null, newPassword: st
 // 登录：标识符可为 8/10 位用户ID，或用户名（需配密码）。必须经服务端校验。
 export async function loginWithIdentifier(identifier: string, password: string): Promise<string> {
   const idf = identifier.trim();
-  if (!idf) throw new Error('请输入用户ID或用户名');
+  if (!idf) throw new Error('请输入手机号、用户 ID 或用户名');
 
   if (!/^\d{8}$/.test(idf) && !/^\d{10}$/.test(idf) && !password) {
-    throw new Error('用户名登录需要密码');
+    throw new Error('登录需要密码');
   }
 
   // 确保有 device_id，登录才能抢绑本机，刷新后不会回到旧游客
@@ -830,7 +828,7 @@ export async function loginWithIdentifier(identifier: string, password: string):
 
   if (res.status === 401) {
     const d = await res.json().catch(() => ({}));
-    throw new Error(d.detail || '用户名或密码错误');
+    throw new Error(d.detail || '账号或密码错误');
   }
   if (!res.ok) {
     throw new Error('登录失败，请稍后重试');

@@ -144,7 +144,7 @@ export function InstallPwaSheet({
   const runDesktopInstall = async () => {
     if (!deferred) return;
     if (!loggedIn) {
-      toast('请先设置用户名与密码，再保存到桌面 App');
+      toast('请先设置密码，再保存到桌面 App');
       goSetAccount();
       return;
     }
@@ -188,7 +188,7 @@ export function InstallPwaSheet({
 
         {isDesktop && !loggedIn ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
-            未设置账号密码时，本机读经记录只留在当前浏览器。重装或清除网站数据后将无法找回，请先设置用户名与密码。
+            未设置密码时，本机读经记录只留在当前浏览器。重装或清除网站数据后将无法找回，请先设置密码（建议绑定手机）。
           </p>
         ) : null}
 

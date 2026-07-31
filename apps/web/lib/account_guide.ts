@@ -1,7 +1,6 @@
-/** 账号引导：设密改「我的」软催；遗留门闸/用户名引导兼容 */
+/** 账号引导：称呼归 Hero；密码+手机归找回；软催不挡读经 */
 
-import { hasPassword } from './api';
-import { userLsGet } from './user_storage';
+import { getBoundPhone, hasPassword } from './api';
 
 const DISMISSED_KEY = 'presto_username_guide_dismissed';
 const DATA_KEY = 'presto_has_local_data';
@@ -24,9 +23,8 @@ export function dismissUsernameGuide() {
 export function hasSeenAccountGate(): boolean {
   if (typeof window === 'undefined') return true;
   if (localStorage.getItem(GATE_SEEN_KEY) === '1') return true;
-  // 兼容旧版：曾关掉用户名引导 / 已完成账号
   if (localStorage.getItem(DISMISSED_KEY)) return true;
-  if (isAccountComplete()) return true;
+  if (hasSecuredAccount()) return true;
   return false;
 }
 
@@ -48,31 +46,40 @@ export function acceptGuestRisk() {
   markAccountGateSeen();
 }
 
-/**
- * 首次门闸：已改为不自动弹窗（「我的」AccountSecurityCard 软催）。
- * 保留函数供兼容旧调用；恒为 false。
- */
 export function shouldPromptAccountGate(): boolean {
   return false;
 }
 
-/**
- * 旧逻辑：产生本地数据后弹用户名引导。
- * 门闸落地后不再自动弹出（改由「我的」安全卡软催）。
- */
 export function shouldPromptUsername(): boolean {
   return false;
 }
 
-/** 用户名 + 密码均已设置，视为账号引导完成 */
-export function isAccountComplete(): boolean {
+export function hasBoundPhone(): boolean {
   if (typeof window === 'undefined') return false;
-  const name = (userLsGet('profile_name') || '').trim();
-  return name.length >= 2 && hasPassword();
+  return Boolean(getBoundPhone().trim());
 }
 
+/** 强完备：密码 + 手机（换机主路径） */
+export function isAccountComplete(): boolean {
+  if (typeof window === 'undefined') return false;
+  return hasPassword() && hasBoundPhone();
+}
+
+/** 半完备：已设密、未绑手机 */
+export function isAccountHalfComplete(): boolean {
+  if (typeof window === 'undefined') return false;
+  return hasPassword() && !hasBoundPhone();
+}
+
+/** 非纯游客：有密码或已绑手机 */
 export function hasSecuredAccount(): boolean {
-  return isAccountComplete() || Boolean(
-    typeof window !== 'undefined' && localStorage.getItem('account_phone'),
-  );
+  if (typeof window === 'undefined') return false;
+  return hasPassword() || hasBoundPhone();
+}
+
+/** 「我的」细条文案：一屏一事 */
+export function accountRecoveryHint(): string | null {
+  if (!hasPassword()) return '设置密码，换机可找回进度';
+  if (!hasBoundPhone()) return '绑定手机，登录更方便';
+  return null;
 }

@@ -15,8 +15,8 @@ def resolve_register_username(
     *,
     user_code: str,
     requested: str | None,
-) -> str:
-    """注册/建档：客户端未传用户名时为首次账号分配随机名，已有则保留。"""
+) -> str | None:
+    """注册/建档：有请求则校验；已有则保留；否则不自动分配（展示名由用户自设）。"""
     requested_clean = (requested or "").strip() or None
     row = conn.execute(
         "SELECT username FROM accounts WHERE user_code = %s",
@@ -36,11 +36,12 @@ def resolve_register_username(
     if existing:
         return existing
 
-    return allocate_unique_username(conn, exclude_user_code=user_code)
+    # 新账号：不再系统随机起名；展示用客户端占位「读经伙伴」
+    return None
 
 
 def upsert_user_profile(
-    conn, *, user_id: str, user_code: str, username: str
+    conn, *, user_id: str, user_code: str, username: str | None
 ) -> None:
     conn.execute(
         """
@@ -51,7 +52,7 @@ def upsert_user_profile(
           user_code = EXCLUDED.user_code,
           updated_at = now()
         """,
-        (user_id, username, user_code),
+        (user_id, (username or "").strip() or None, user_code),
     )
 
 
@@ -63,7 +64,7 @@ def apply_username_change(
     requested: str | None = None,
     randomize: bool = False,
 ) -> str:
-    """登录后改用户名：自定义或一键随机；写 accounts / user_profile / users.display_name。"""
+    """登录后改用户名：自定义或一键随机灵感；写 accounts / user_profile / users.display_name。"""
     if randomize:
         name = allocate_unique_username(conn, exclude_user_code=user_code)
     else:

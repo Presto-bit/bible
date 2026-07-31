@@ -13,7 +13,7 @@ export function friendlyError(err: unknown, fallback = '出了点问题，请稍
     if (lower.includes('密码')) return s.length < 40 ? s : '密码不正确';
     return '账号验证失败，请重新恢复账号';
   }
-  if (lower.includes('409') || lower.includes('占用')) return '该用户名已被占用';
+  if (lower.includes('409') || lower.includes('占用')) return '该称呼已被占用';
   if (lower.includes('timeout')) return '请求超时，请稍后重试';
   if (/^\d{3}(\s|$)/.test(s) || lower.includes('sql') || lower.includes('migration') || lower.includes('postgres')) {
     return fallback;

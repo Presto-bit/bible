@@ -101,7 +101,7 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
       ];
     case 'desktop':
       return [
-        { title: '设置账号密码', detail: '在「我的」设置用户名与密码，读经记录才会保存在账号里' },
+        { title: '设置密码', detail: '在「我的 → 账号与安全」设置密码（建议绑定手机），读经记录才会保存在账号里' },
         { title: '保存到桌面 App', detail: 'Chrome / Edge 地址栏右侧 ⊕，或菜单「安装彼爱…」' },
         { title: '重装勿清数据', detail: '卸载时不要勾选「清除网站数据」；之后用同一账号登录即可找回' },
       ];

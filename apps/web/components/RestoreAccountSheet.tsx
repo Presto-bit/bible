@@ -21,7 +21,7 @@ export default function RestoreAccountSheet({ onDismiss }: Props) {
       >
         <h2 id="restore-account-title">已有账号？</h2>
         <p className="sync-migrate-desc">
-          删除桌面图标后，用户 ID 可能还在，但读经记录常被清空。若你曾设置过用户名与密码，登录或联网后会从账号拉回进度。
+          删除桌面图标后，用户 ID 可能还在，但读经记录常被清空。若你曾设置过密码，用手机号或用户 ID + 密码登录后会从账号拉回进度。
         </p>
         <div className="sync-migrate-actions">
           <Link href="/login" className="btn primary" onClick={onDismiss}>

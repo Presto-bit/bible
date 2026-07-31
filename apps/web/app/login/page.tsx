@@ -73,8 +73,8 @@ export default function LoginPage() {
     <main className="container">
       <h2 style={{ marginBottom: 8 }}>恢复账号</h2>
       <p className="muted" style={{ marginBottom: 20, lineHeight: 1.5 }}>
-        桌面 App 重装或清除网站数据后，输入<strong>用户名 + 密码</strong>
-        即可从账号找回笔记与读经记录。也支持手机号或用户 ID 登录。
+        桌面 App 重装或清除网站数据后，输入<strong>手机号或用户 ID + 密码</strong>
+        即可从账号找回笔记与读经记录。也支持历史用户名登录。
       </p>
 
       {uid ? (
@@ -112,11 +112,11 @@ export default function LoginPage() {
         </div>
       ) : (
         <div className="card">
-          <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>推荐：用户名 + 密码</p>
+          <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>推荐：手机号或用户 ID + 密码</p>
           <input
             className="book-chip"
             style={{ width: '100%', textAlign: 'left', marginBottom: 12 }}
-            placeholder="用户名 / 手机号 / 用户 ID"
+            placeholder="手机号 / 用户 ID / 用户名"
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
           />
@@ -137,7 +137,7 @@ export default function LoginPage() {
             {busy ? '恢复中…' : '恢复账号'}
           </button>
           <p className="muted" style={{ fontSize: 12, marginTop: 14 }}>
-            日常在本机使用无需此步骤。设置账号后，读经记录会保存在账号中，桌面 App 重装后可在此恢复。
+            日常在本机使用无需此步骤。设置密码后，读经记录会保存在账号中，桌面 App 重装后可在此恢复。
           </p>
         </div>
       )}
