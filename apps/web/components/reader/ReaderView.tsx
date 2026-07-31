@@ -901,15 +901,18 @@ export default function ReaderView({
           setVersionLabel(versionDisplayLabel(id, list));
         }
       } else {
-        const compareId = next.find((x) => x !== primaryId) ?? 'kjv';
-        setMainVersionId(null);
-        setMainVersion(null);
-        setParallelVer(compareId);
-        setParallelVersion(compareId);
+        // 先勾选的在上（主栏），后勾选的在下（对照栏）
+        const topId = next[0] ?? primaryId;
+        const bottomId = next[1] ?? next.find((x) => x !== topId) ?? 'kjv';
+        const topIsPrimary = topId === primaryId;
+        setMainVersionId(topIsPrimary ? null : topId);
+        setMainVersion(topIsPrimary ? null : topId);
+        setParallelVer(bottomId);
+        setParallelVersion(bottomId);
         setLayout('parallel');
         setReadingLayout('parallel');
         setVersionLabel(
-          `${primaryLabel} · ${versionDisplayLabel(compareId, list)}`,
+          `${versionDisplayLabel(topId, list)} · ${versionDisplayLabel(bottomId, list)}`,
         );
       }
     },
@@ -1150,22 +1153,22 @@ export default function ReaderView({
   useEffect(() => {
     if (!versions?.length) return;
     const primary = versions.find((v) => v.primary) ?? versions.find((v) => v.id === 'cuvs');
+    const topId = mainVersionId || primary?.id || FALLBACK_PRIMARY_VERSION;
+    if (layout === 'parallel') {
+      setVersionLabel(
+        `${versionDisplayLabel(topId, versions)} · ${versionDisplayLabel(parallelVer, versions)}`,
+      );
+      return;
+    }
     if (mainVersionId) {
       setVersionLabel(versionDisplayLabel(mainVersionId, versions));
       return;
     }
-    if (layout !== 'parallel') {
-      if (primary) setVersionLabel(primary.label);
-      return;
-    }
-    const compare = versions.find((v) => v.id === parallelVer);
-    if (primary && compare) {
-      setVersionLabel(`${primary.label} · ${compare.label}`);
-    }
+    if (primary) setVersionLabel(primary.label);
   }, [layout, parallelVer, mainVersionId, versions]);
 
   useEffect(() => {
-    if (layout !== 'parallel' || mainVersionId) {
+    if (layout !== 'parallel') {
       setParallelVerses([]);
       setParallelError(null);
       setParallelLoading(false);
@@ -1190,7 +1193,7 @@ export default function ReaderView({
         setParallelVerses([]);
       })
       .finally(() => setParallelLoading(false));
-  }, [layout, mainVersionId, book.id, chapter, parallelVer, versions]);
+  }, [layout, book.id, chapter, parallelVer, versions]);
 
   const readerLocation = useMemo(() => ({ bookId: book.id, chapter }), [book.id, chapter]);
 
@@ -1205,7 +1208,7 @@ export default function ReaderView({
   const bundleOpts = useMemo(
     () => ({
       mainVersionId,
-      parallelVer: layout === 'parallel' && !mainVersionId ? parallelVer : null,
+      parallelVer: layout === 'parallel' ? parallelVer : null,
     }),
     [mainVersionId, layout, parallelVer],
   );
@@ -2572,7 +2575,7 @@ export default function ReaderView({
         <ReaderSkeleton />
       ) : verses.length === 0 && versionBanner ? (
         <p className="muted reader-version-banner">{versionBanner}</p>
-      ) : verses.length === 0 ? null : layout === 'parallel' && !mainVersionId ? (
+      ) : verses.length === 0 ? null : layout === 'parallel' ? (
         <div className="reader-parallel">
           {paragraphs.map((para) => {
             const marks = outline.filter((s) => s.verse >= para.startVerse && s.verse <= para.endVerse);
@@ -2804,9 +2807,14 @@ export default function ReaderView({
           <button type="button" className="reader-version" onClick={(e) => {
             e.stopPropagation();
             const primaryId = versions?.find((v) => v.primary)?.id ?? FALLBACK_PRIMARY_VERSION;
-            if (mainVersionId) setCheckedVers([mainVersionId]);
-            else if (layout === 'parallel') setCheckedVers([primaryId, parallelVer]);
-            else setCheckedVers([primaryId]);
+            if (layout === 'parallel') {
+              const topId = mainVersionId || primaryId;
+              setCheckedVers([topId, parallelVer].filter(Boolean));
+            } else if (mainVersionId) {
+              setCheckedVers([mainVersionId]);
+            } else {
+              setCheckedVers([primaryId]);
+            }
             setShowVersions(true);
             if (!versions) {
               api.versions()
@@ -3077,24 +3085,6 @@ export default function ReaderView({
               </span>
               <span className="vsb-label">{ui.copy}</span>
             </button>
-            <button
-              type="button"
-              className="vsb-icon-btn"
-              onClick={() => {
-                setMarkPaletteOpen(false);
-                setVerseShareOpen(true);
-              }}
-            >
-              <span className="vsb-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <circle cx="18" cy="5" r="3" />
-                  <circle cx="6" cy="12" r="3" />
-                  <circle cx="18" cy="19" r="3" />
-                  <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
-                </svg>
-              </span>
-              <span className="vsb-label">{englishUI ? 'Share' : '分享'}</span>
-            </button>
             {readingMode !== 'focus' ? (
               <button
                 type="button"
@@ -3130,29 +3120,6 @@ export default function ReaderView({
                   </svg>
                 </span>
                 <span className="vsb-label">相关</span>
-              </button>
-            ) : null}
-            {readingMode === 'study' ? (
-              <button
-                type="button"
-                className="vsb-icon-btn"
-                onClick={() => {
-                  setMarkPaletteOpen(false);
-                  setStrongSheet({
-                    refParam: effRefParam,
-                    refLabel: effRefLabel,
-                  });
-                  clearSelection();
-                }}
-              >
-                <span className="vsb-icon" aria-hidden>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                    <path d="M8 7h8M8 11h5" />
-                  </svg>
-                </span>
-                <span className="vsb-label">{englishUI ? "Strong's" : '原文'}</span>
               </button>
             ) : null}
             {readingMode !== 'focus' ? (

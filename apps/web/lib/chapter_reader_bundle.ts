@@ -35,7 +35,7 @@ export async function loadChapterReaderBundle(
     : versesP;
   const outlineP = outlineForAsync(bookId, chapter);
   const parallelP =
-    parallelVer && !mainVersionId
+    parallelVer
       ? loadChapterVerses(bookId, chapter, parallelVer)
       : Promise.resolve(null);
 
@@ -76,7 +76,7 @@ export function getChapterReaderBundleSync(
   }
 
   let parallelVerses: Verse[] | null = null;
-  if (parallelVer && !mainVersionId) {
+  if (parallelVer) {
     parallelVerses = getChapterVersesSync(bookId, chapter, parallelVer);
     if (!parallelVerses?.length) return null;
   }
@@ -100,7 +100,7 @@ export function prefetchChapterReaderBundle(
     void loadChapterVerses(bookId, chapter, null);
     void loadChapterVerses(bookId, chapter, opts.mainVersionId);
   }
-  if (opts.parallelVer && !opts.mainVersionId) {
+  if (opts.parallelVer) {
     void loadChapterVerses(bookId, chapter, opts.parallelVer);
   }
 }
@@ -131,7 +131,7 @@ export function prefetchReaderVicinityBundles<T extends { id: string; chapter_co
     if (opts.mainVersionId) {
       void loadChapterVerses(target.book.id, target.chapter, null);
     }
-    if (opts.parallelVer && !opts.mainVersionId) {
+    if (opts.parallelVer) {
       void loadChapterVerses(target.book.id, target.chapter, opts.parallelVer);
     }
   }
