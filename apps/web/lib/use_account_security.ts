@@ -80,6 +80,8 @@ export function useAccountSecurity(onAccountChange?: () => void) {
       setMsg(phone.trim() ? '密码已保存，手机已绑定' : '密码已保存');
       setPwd('');
       notify();
+      // 设密后立刻云同步，把此前仅本机的 outbox 推上去
+      void import('@/lib/sync').then((m) => m.syncNow().catch(() => {}));
       return true;
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));

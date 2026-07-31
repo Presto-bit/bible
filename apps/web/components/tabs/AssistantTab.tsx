@@ -33,7 +33,7 @@ import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
   findResumableSession,
   formatSessionUpdatedLabel,
-  groupSessionsByDate,
+  groupSessionsByRef,
   hasUserMessages,
   loadAssistantSessions,
   renameAssistantSession,
@@ -77,6 +77,7 @@ interface Msg {
   useRag?: boolean;
   knowledgeBaseId?: string;
   knowledgeBaseName?: string;
+  instantHint?: string;
 }
 
 interface Session {
@@ -184,7 +185,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       }),
     [ref],
   );
-  const sessionGroups = useMemo(() => groupSessionsByDate(sessions), [sessions]);
+  const sessionGroups = useMemo(() => groupSessionsByRef(sessions), [sessions]);
   const composerChips = useMemo(() => {
     const merged = [...personalized, ...staticAssistantChips(ref || undefined)];
     const seen = new Set<string>();
@@ -202,9 +203,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     if (!historyOpen) return;
     setCollapsedGroups((prev) => {
       const next = { ...prev };
-      for (const g of sessionGroups) {
-        if (!(g.label in next)) next[g.label] = g.label !== '今天';
-      }
+      sessionGroups.forEach((g, i) => {
+        if (!(g.label in next)) next[g.label] = i !== 0;
+      });
       return next;
     });
   }, [historyOpen, sessionGroups]);
@@ -686,6 +687,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let useRag: boolean | undefined;
     let kbId = knowledgeBaseId;
     let kbName: string | undefined;
+    let instantHint: string | undefined;
     let serverFollowups: string[] = [];
     let sceneLabel = SCENES[scene].label;
     let gotDelta = false;
@@ -703,6 +705,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           useRag,
           knowledgeBaseId: kbId,
           knowledgeBaseName: kbName,
+          instantHint,
         };
         return copy;
       });
@@ -740,6 +743,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           if (meta.scene_label) sceneLabel = meta.scene_label;
           if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
           if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
+          if (meta.cache_hit || meta.instant) {
+            instantHint =
+              meta.cache_source === 'prewarm' ? '已预读这节 · 秒回' : '缓存 · 秒回';
+          }
           setStreamCiteCount(cites.length);
           setStreamPhase('refs');
         },
@@ -1206,6 +1213,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }
                           knowledgeBaseId={m.knowledgeBaseId}
                           knowledgeBaseName={m.knowledgeBaseName}
+                          instantHint={m.instantHint}
                           onSwitchToPlatform={() => setKnowledgeBaseId(DEFAULT_KB_ID)}
                           onReview={
                             usedCitations.length > 0
@@ -1344,8 +1352,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
                 ) : (
                   <div className="history-group-list" style={{ marginTop: 8 }}>
-                    {sessionGroups.map((group) => {
-                      const collapsed = collapsedGroups[group.label] ?? group.label !== '今天';
+                    {sessionGroups.map((group, gi) => {
+                      const collapsed = collapsedGroups[group.label] ?? gi !== 0;
+                      const headLabel =
+                        group.label === '随问'
+                          ? '随问'
+                          : (refToChineseLabel(group.label) ?? group.label);
                       return (
                         <div key={group.label} className="history-date-group">
                           <button
@@ -1358,7 +1370,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                               }))
                             }
                           >
-                            <span>{group.label}</span>
+                            <span>{headLabel}</span>
                             <span className="muted" style={{ fontSize: 11 }}>
                               {group.items.length} 条 · {collapsed ? '展开' : '收起'}
                             </span>

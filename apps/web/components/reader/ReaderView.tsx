@@ -15,6 +15,7 @@ import PageBackBar from '@/components/PageBackBar';
 import SummarySheet from '@/components/reader/SummarySheet';
 import { ChapterGuideTip } from '@/components/reader/ChapterGuideTip';
 import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
+import { StrongSheet } from '@/components/reader/StrongSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import {
   CHAPTER_GUIDE_DWELL_MS,
@@ -311,6 +312,10 @@ export default function ReaderView({
     refParam: string;
     refLabel: string;
     sourceText?: string;
+  }>(null);
+  const [strongSheet, setStrongSheet] = useState<null | {
+    refParam: string;
+    refLabel: string;
   }>(null);
   const [versePreview, setVersePreview] = useState<null | { osis: string; label: string }>(null);
   const [parallelLoading, setParallelLoading] = useState(false);
@@ -1401,6 +1406,20 @@ export default function ReaderView({
     return () => window.clearTimeout(timer);
   }, [bookCelebrate]);
 
+  // 进入章节时静默预热首节「解释」答案（支撑半屏秒回）
+  useEffect(() => {
+    if (!verses.length) return;
+    const v =
+      getLastReadVerse(book.id, chapter)
+      ?? verses[0]?.verse
+      ?? 1;
+    const ref = `${book.id}.${chapter}.${v}`;
+    const t = window.setTimeout(() => {
+      void api.prewarmAnswer(ref);
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [book.id, chapter, verses]);
+
   // 章导读：按意图出（跳入即时 / 停留 dwell），连翻与邻章翻页不即弹
   useEffect(() => {
     setGuideTipVisible(false);
@@ -1749,6 +1768,7 @@ export default function ReaderView({
         else if (showVersions) setShowVersions(false);
         else if (aiSheet) setAiSheet(false);
         else if (toolsSheet) setToolsSheet(null);
+        else if (strongSheet) setStrongSheet(null);
         else if (thoughtWrite) setThoughtWrite(null);
         else if (thoughtHub) setThoughtHub(null);
         else if (groupCheckinOpen) setGroupCheckinOpen(false);
@@ -2934,6 +2954,27 @@ export default function ReaderView({
             <button
               type="button"
               className="vsb-icon-btn"
+              onClick={() => {
+                setMarkPaletteOpen(false);
+                setStrongSheet({
+                  refParam: effRefParam,
+                  refLabel: effRefLabel,
+                });
+                clearSelection();
+              }}
+            >
+              <span className="vsb-icon" aria-hidden>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  <path d="M8 7h8M8 11h5" />
+                </svg>
+              </span>
+              <span className="vsb-label">{englishUI ? "Strong's" : '原文'}</span>
+            </button>
+            <button
+              type="button"
+              className="vsb-icon-btn"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 selectionPinRef.current = effSelectionText;
@@ -3129,6 +3170,14 @@ export default function ReaderView({
           sourceText={toolsSheet.sourceText}
           initialTab={toolsSheet.tab}
           onClose={() => setToolsSheet(null)}
+        />
+      )}
+
+      {strongSheet && (
+        <StrongSheet
+          refParam={strongSheet.refParam}
+          refLabel={strongSheet.refLabel}
+          onClose={() => setStrongSheet(null)}
         />
       )}
 

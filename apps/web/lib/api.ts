@@ -1075,6 +1075,10 @@ export interface ChatMetaPayload {
   knowledge_base_id?: string;
   knowledge_base_name?: string;
   quota?: { used: number; limit: number };
+  /** 答案缓存 / 预读命中 */
+  cache_hit?: boolean;
+  cache_source?: 'cache' | 'prewarm' | string;
+  instant?: boolean;
 }
 
 export interface ChatDonePayload {
@@ -1082,6 +1086,9 @@ export interface ChatDonePayload {
   word_count?: number;
   followups?: string[];
   sections?: { id: string; title: string }[];
+  cache_hit?: boolean;
+  cache_source?: 'cache' | 'prewarm' | string;
+  instant?: boolean;
 }
 
 export interface ChatCallbacks {
@@ -2058,6 +2065,16 @@ export const api = {
     getJson<CrossrefResult>(`/content/crossrefs?ref=${encodeURIComponent(ref)}`),
   strongs: (ref: string) =>
     getJson<StrongsResult>(`/content/strongs?ref=${encodeURIComponent(ref)}`),
+  /** 读经静默预热「解释这节」首答 */
+  prewarmAnswer: (ref: string, opts?: { mode?: string; scene?: string }) =>
+    authed<{ status: string; cache_source?: string }>('/ai/prewarm', {
+      method: 'POST',
+      body: {
+        ref,
+        mode: opts?.mode ?? 'explain',
+        scene: opts?.scene ?? 'verse_full',
+      },
+    }).catch(() => ({ status: 'skipped' as const })),
   topics: (topic?: string) =>
     getJson<{ topics: TopicEntry[] } | TopicEntry>(
       topic ? `/content/topics?topic=${encodeURIComponent(topic)}` : '/content/topics',

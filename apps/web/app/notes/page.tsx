@@ -10,6 +10,8 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 import {
   addThought,
   listAllThoughts,
@@ -56,6 +58,12 @@ function bookLabel(bookId: string, bookNames: Record<string, string>): string {
 }
 
 export default function NotesPage() {
+  const suppress = useSuppressKeepAliveRoute();
+  if (suppress) return null;
+  return <NotesInner />;
+}
+
+function NotesInner() {
   useEdgeSwipeBack({ href: '/profile' });
 
   const confirm = useConfirm();
@@ -227,7 +235,7 @@ export default function NotesPage() {
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/profile" label="我的" />
+        <PageBackBar href="/profile" label="我的" onClick={() => markRouteNavigation()} />
         <h2 className="page-head-title">我的想法</h2>
         <div className="page-head-actions">
           <button
@@ -352,7 +360,11 @@ export default function NotesPage() {
                   {visibilityLabel(thoughtDetail.visibility)}
                 </span>
                 {thoughtDetail.ref && thoughtDetail.ref !== FREE_THOUGHT_REF ? (
-                  <Link href={readerMarkHref(thoughtDetail.ref)} className="text-link">
+                  <Link
+                    href={readerMarkHref(thoughtDetail.ref)}
+                    className="text-link"
+                    onClick={() => markRouteNavigation()}
+                  >
                     {refLabel(thoughtDetail.ref)}
                   </Link>
                 ) : (
@@ -518,7 +530,11 @@ export default function NotesPage() {
                     </p>
                   )}
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                    <Link className="text-link" href={readerMarkHref(h.ref)}>
+                    <Link
+                      className="text-link"
+                      href={readerMarkHref(h.ref)}
+                      onClick={() => markRouteNavigation()}
+                    >
                       跳转经文
                     </Link>
                     <button type="button" className="text-link" onClick={() => openHighlightEdit(h.ref)}>

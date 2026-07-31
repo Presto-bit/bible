@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import PageBackBar from '@/components/PageBackBar';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
+import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { useEffect, useMemo, useState } from 'react';
 import { api, type BibleBook } from '@/lib/api';
 import { dailyMinutes, rangeStats, type RangeStats } from '@/lib/reading';
@@ -33,6 +34,12 @@ interface Cell {
 }
 
 export default function ReportPage() {
+  const suppress = useSuppressKeepAliveRoute();
+  if (suppress) return null;
+  return <ReportInner />;
+}
+
+function ReportInner() {
   useEdgeSwipeBack({ href: '/profile' });
 
   const [mode, setMode] = useState<Mode>('day');
@@ -201,7 +208,7 @@ export default function ReportPage() {
   return (
     <main className="container">
       <header className="page-head">
-        <PageBackBar href="/profile" label="我的" />
+        <PageBackBar href="/profile" label="我的" onClick={() => markRouteNavigation()} />
         <h2 className="page-head-title">读经回顾</h2>
         <Link
           href="/wrapped"

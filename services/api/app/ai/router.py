@@ -20,6 +20,17 @@ from .request_log import log_ai_request
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/ai", tags=["ai"])
 
+_PREWARM_POOL = None
+
+
+def _prewarm_pool():
+    global _PREWARM_POOL
+    if _PREWARM_POOL is None:
+        from concurrent.futures import ThreadPoolExecutor
+
+        _PREWARM_POOL = ThreadPoolExecutor(max_workers=2, thread_name_prefix="rag-prewarm")
+    return _PREWARM_POOL
+
 
 @router.get("/rag/status")
 def rag_status():
@@ -405,6 +416,73 @@ def citations_explain(body: CitationExplainRequest):
     )
 
 
+class PrewarmRequest(BaseModel):
+    ref: str
+    mode: str = "explain"
+    scene: str | None = "verse_full"
+
+
+@router.post("/prewarm")
+def prewarm_answer(body: PrewarmRequest):
+    """读经进入经节时静默预生成「解释这节」首答，写入答案缓存。"""
+    from ..bible.refs import parse_ref
+    from ..rag.answer_cache import cache_key, get_answer, put_answer
+    from .llm import complete_chat
+    from .parse_output import extract_sections, split_body_and_followups
+
+    settings = get_settings()
+    if not settings.rag_prewarm_on_read:
+        return {"status": "disabled"}
+    ref_raw = (body.ref or "").strip()
+    if not ref_raw:
+        return JSONResponse(status_code=400, content={"error": "缺少经节"})
+    parsed = parse_ref(ref_raw)
+    if not parsed or parsed.chapter is None or parsed.verse_start is None:
+        return JSONResponse(status_code=400, content={"error": "经节无效"})
+    mode = (body.mode or "explain").strip() or "explain"
+    scene = (body.scene or "verse_full").strip() or "verse_full"
+    question = f"请解读：{parsed.display}"
+    key = cache_key(ref=ref_raw, mode=mode, question=question, scene=scene)
+    if get_answer(key):
+        return {"status": "hit", "cache_source": "cache"}
+
+    def _warm() -> None:
+        try:
+            prep = prepare(
+                ref_raw=ref_raw,
+                question=question,
+                mode=mode,
+                scene=scene,
+                history=None,
+                surface="prewarm",
+                reader_context=None,
+                knowledge_base_id=None,
+            )
+            text = complete_chat(prep["messages"], max_tokens=int(prep["max_tokens"]))
+            body_text, followups = split_body_and_followups(text)
+            sections = extract_sections(body_text)
+            put_answer(
+                key,
+                {
+                    "answer": body_text,
+                    "followups": followups,
+                    "sections": sections,
+                    "meta": {
+                        **prep["meta"],
+                        "cache_hit": True,
+                        "cache_source": "prewarm",
+                        "instant": True,
+                    },
+                    "source": "prewarm",
+                },
+            )
+        except Exception:
+            logger.exception("ai prewarm failed ref=%s", ref_raw)
+
+    _prewarm_pool().submit(_warm)
+    return {"status": "warming"}
+
+
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
@@ -418,8 +496,78 @@ def chat(
     x_user_code: str | None = Header(default=None, alias="X-User-Code"),
     cookie: str | None = Header(default=None),
 ):
+    from ..rag.answer_cache import cache_key, get_answer, put_answer
+
     settings = get_settings()
+    history = [t.model_dump() for t in body.history] if body.history else None
+    cacheable = (
+        not history
+        and bool((body.ref or "").strip())
+        and bool((body.question or "").strip())
+    )
+    key = (
+        cache_key(
+            ref=body.ref,
+            mode=body.mode,
+            question=body.question,
+            scene=body.scene,
+        )
+        if cacheable
+        else ""
+    )
+    cached = get_answer(key) if key else None
+
     logged_in = try_get_current_user(authorization, x_user_id, x_user_code, cookie)
+    if cached:
+        # 缓存命中不计额度
+        used, limit = (0, 0) if logged_in else peek_quota(
+            x_guest_id, settings.ai_guest_daily_limit
+        )
+
+        def gen_cached():
+            meta = {
+                **(cached.get("meta") or {}),
+                "cache_hit": True,
+                "cache_source": cached.get("source") or "cache",
+                "instant": True,
+                "quota": {"used": used, "limit": limit},
+            }
+            yield _sse("meta", meta)
+            answer = cached.get("answer") or ""
+            # 分小块推送，保持前端流式路径
+            step = 48
+            for i in range(0, len(answer), step):
+                yield _sse("delta", {"text": answer[i : i + step]})
+            followups = cached.get("followups") or []
+            if followups:
+                yield _sse("followups", {"items": followups})
+            yield _sse(
+                "done",
+                {
+                    "length": len(answer),
+                    "word_count": len(answer),
+                    "sections": cached.get("sections") or [],
+                    "followups": followups,
+                    "cache_hit": True,
+                    "cache_source": cached.get("source") or "cache",
+                    "instant": True,
+                },
+            )
+            log_ai_request(
+                device_id=x_guest_id,
+                user_id=logged_in,
+                scene=(cached.get("meta") or {}).get("scene"),
+                mode=body.mode,
+                surface=body.surface,
+                status="ok_cache",
+            )
+
+        return StreamingResponse(
+            gen_cached(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     if logged_in:
         allowed, used, limit = True, 0, 0
         record_ai_request(x_guest_id, logged_in)
@@ -435,7 +583,6 @@ def chat(
             },
         )
 
-    history = [t.model_dump() for t in body.history] if body.history else None
     prep = prepare(
         ref_raw=body.ref,
         question=body.question,
@@ -505,6 +652,17 @@ def chat(
                 "followups": followups,
             },
         )
+        if key and body_text and not body_text.startswith("⚠️"):
+            put_answer(
+                key,
+                {
+                    "answer": body_text,
+                    "followups": followups,
+                    "sections": sections,
+                    "meta": {**prep["meta"]},
+                    "source": "cache",
+                },
+            )
         log_ai_request(
             device_id=x_guest_id,
             user_id=logged_in,

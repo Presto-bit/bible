@@ -146,3 +146,26 @@ export function groupSessionsByDate(sessions: AssistantSessionRecord[]): Session
   }
   return groups;
 }
+
+/** 按经节锚点分组（无锚点归「随问」） */
+export function groupSessionsByRef(sessions: AssistantSessionRecord[]): SessionDateGroup[] {
+  const buckets = new Map<string, AssistantSessionRecord[]>();
+  for (const s of sessions) {
+    const key = normalizeSessionRef(s.ref);
+    const label = key || '随问';
+    const list = buckets.get(label) ?? [];
+    list.push(s);
+    buckets.set(label, list);
+  }
+  const entries = [...buckets.entries()].sort((a, b) => {
+    if (a[0] === '随问') return 1;
+    if (b[0] === '随问') return -1;
+    const ta = Math.max(...a[1].map(sessionTime));
+    const tb = Math.max(...b[1].map(sessionTime));
+    return tb - ta;
+  });
+  return entries.map(([key, items]) => ({
+    label: key === '随问' ? '随问' : key,
+    items: sortSessionsDesc(items),
+  }));
+}

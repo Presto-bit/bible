@@ -1,8 +1,9 @@
 // H5 云同步客户端：outbox 上行（/sync/push）+ 游标下行（/sync/pull）。
-// 隐式账号（user_code）默认可同步；本地 outbox 有网时自动推送。
+// 需已设密码才同步；未设密数据仅本机 outbox，设密后自动上行。
 
-import { API_BASE, effectiveId, ensureAccountReady, authHeaders } from './api';
+import { API_BASE, effectiveId, ensureAccountReady, authHeaders, hasPassword } from './api';
 import { markSyncDone, markSyncStart, forceMarkSyncIdle } from './sync_status';
+import { canCloudSync } from './account_guide';
 import { applyRemoteNote, type LocalNote } from './notes';
 import { applyRemotePlanProgress } from './plan_sync';
 import {
@@ -216,13 +217,15 @@ function pruneChunkAfterPush(
 
 let flushTimer: number | null = null;
 
-/** 防抖触发一轮同步（阅读写入后） */
+/** 防抖触发一轮同步（阅读写入后）；未设密跳过 */
 export function scheduleSyncFlush(delayMs = 1200) {
   if (typeof window === 'undefined') return;
+  if (!canCloudSync()) return;
   if (flushTimer != null) window.clearTimeout(flushTimer);
   flushTimer = window.setTimeout(() => {
     flushTimer = null;
     if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+    if (!canCloudSync()) return;
     void syncNow().catch(() => {
       forceMarkSyncIdle();
     });
@@ -291,9 +294,10 @@ async function push(): Promise<number> {
   }
 }
 
-/** 关页时尽量刷出 outbox（keepalive；体积分批首包） */
+/** 关页时尽量刷出 outbox（keepalive；体积分批首包）；未设密不上云 */
 export function flushOutboxKeepalive(): void {
   if (typeof window === 'undefined') return;
+  if (!canCloudSync()) return;
   const userCode = syncAccountId();
   const outbox = readOutbox(userCode);
   if (outbox.length === 0) return;
@@ -404,7 +408,7 @@ function applyPullChanges(changes: PullChange[]): number {
       applyRemoteThought({
         id: c.id,
         op: c.op,
-        version: c.version,
+        version: typeof c.version === 'number' ? c.version : undefined,
         data: c.data as {
           ref?: string;
           body?: string;
@@ -504,11 +508,35 @@ export type SyncOptions = {
   fullPull?: boolean;
 };
 
+export const SYNC_NEED_PASSWORD = 'NEED_PASSWORD';
+
+export class SyncRequiresPasswordError extends Error {
+  readonly code = SYNC_NEED_PASSWORD;
+  constructor(message = '请先设置密码后再云同步') {
+    super(message);
+    this.name = 'SyncRequiresPasswordError';
+  }
+}
+
+export function isSyncRequiresPasswordError(err: unknown): boolean {
+  return (
+    err instanceof SyncRequiresPasswordError ||
+    (err instanceof Error && (err as { code?: string }).code === SYNC_NEED_PASSWORD)
+  );
+}
+
 // 完整一轮同步。默认先推后拉（离线编辑优先）；登录/合并用 pullFirst + fullPull。
+// 未设密码：抛 SyncRequiresPasswordError（后台调用方应静默忽略）。
 export async function syncNow(opts: SyncOptions = {}): Promise<SyncResult> {
+  if (!canCloudSync()) {
+    throw new SyncRequiresPasswordError();
+  }
   await ensureAccountReady();
   const uid = effectiveId();
   if (!uid) throw new Error('账号未就绪');
+  if (!hasPassword()) {
+    throw new SyncRequiresPasswordError();
+  }
   dropLegacyGlobalSyncKeys();
   migrateLegacyOutboxIfNeeded(uid);
 

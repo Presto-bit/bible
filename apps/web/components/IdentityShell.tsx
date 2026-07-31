@@ -100,6 +100,7 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
   useEffect(() => {
     const runBackgroundSync = () => {
       if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+      if (!hasPassword()) return;
       void syncNow().catch(() => {});
     };
     void ensureAccountReady().then(() => {

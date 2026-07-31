@@ -1,4 +1,4 @@
-/** 账号引导：称呼归 Hero；密码+手机归找回；软催不挡读经 */
+/** 账号引导：称呼归 Hero；密码+手机归找回；未设密不同步 */
 
 import { getBoundPhone, hasPassword } from './api';
 
@@ -77,9 +77,22 @@ export function hasSecuredAccount(): boolean {
   return hasPassword() || hasBoundPhone();
 }
 
+/** 云同步门槛：必须已设密码（手机仅便于登录，不挡同步） */
+export function canCloudSync(): boolean {
+  if (typeof window === 'undefined') return false;
+  return hasPassword();
+}
+
+/** 「我的」身份区数据状态 */
+export function accountDataStatus(): string | null {
+  if (!hasPassword()) return '未设密码 · 数据仅本机，暂不同步';
+  if (!hasBoundPhone()) return '已云同步 · 建议绑定手机';
+  return null;
+}
+
 /** 「我的」细条文案：一屏一事 */
 export function accountRecoveryHint(): string | null {
-  if (!hasPassword()) return '设置密码，换机可找回进度';
+  if (!hasPassword()) return '设置密码后才会云同步，换机可找回';
   if (!hasBoundPhone()) return '绑定手机，登录更方便';
   return null;
 }

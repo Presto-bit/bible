@@ -83,7 +83,9 @@ import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_sta
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
 import {
+  accountDataStatus,
   accountRecoveryHint,
+  canCloudSync,
   hasSecuredAccount,
   isAccountComplete,
 } from '@/lib/account_guide';
@@ -101,6 +103,9 @@ import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { shareInviteProduct, inviteShareUrl } from '@/lib/invite_share';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
+import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
+import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
+import { hasPassword } from '@/lib/api';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
 import { activePlanTodayHrefSync } from '@/lib/plan_today_href';
 
@@ -1313,19 +1318,40 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             )
           }
         />
-        <div
-          className={`profile-footprint-cell profile-footprint-cell-progress tone-journey${journeyPct > 0 ? '' : ' is-empty'}`}
-          role="listitem"
-        >
-          <ReadingProgress
-            variant="footprint"
-            summary={
-              journeyPct > 0
-                ? `通读 ${journeyPct}% · ${journeyReadBooks} 卷`
-                : undefined
-            }
-          />
-        </div>
+        {(() => {
+          const active = getActivePlan();
+          const day = active ? getPlanDay(active.planId) : 0;
+          if (active) {
+            const preview = `${active.title} · 第 ${Math.max(1, day)} / ${active.days} 天`;
+            return (
+              <FootprintCell
+                kind="进行中"
+                tone="journey"
+                value={preview}
+                empty={false}
+                onOpen={() => {
+                  markRouteNavigation();
+                  router.push(activePlanTodayHrefSync(active));
+                }}
+              />
+            );
+          }
+          return (
+            <div
+              className={`profile-footprint-cell profile-footprint-cell-progress tone-journey${journeyPct > 0 ? '' : ' is-empty'}`}
+              role="listitem"
+            >
+              <ReadingProgress
+                variant="footprint"
+                summary={
+                  journeyPct > 0
+                    ? `通读 ${journeyPct}% · ${journeyReadBooks} 卷`
+                    : undefined
+                }
+              />
+            </div>
+          );
+        })()}
       </div>
 
       <p className="section-label tab-section-label profile-block-label">常用</p>

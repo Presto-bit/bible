@@ -59,11 +59,11 @@ export function DailyVerseShareClient({ day }: { day?: number }) {
 
   return (
     <>
-      <p className="daily-verse-share-ref">{verse.ref || '每日经文'}</p>
-      <blockquote className="daily-verse-share-quote">
-        {formatDailyVerseQuote(verse.text)}
+      <p className="share-landing-cite daily-verse-share-ref">{verse.ref || '每日经文'}</p>
+      <blockquote className="share-landing-verse">
+        <p className="share-landing-verse-text">{formatDailyVerseQuote(verse.text)}</p>
       </blockquote>
-      <p className="muted daily-verse-share-meta">和合本 · {BRAND_TAGLINE}</p>
+      <p className="muted share-landing-support daily-verse-share-meta">和合本 · {BRAND_TAGLINE}</p>
 
       <ShareLandingCtas
         installLabel="保存到主屏幕"

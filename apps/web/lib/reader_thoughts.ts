@@ -365,8 +365,9 @@ export function deleteThought(id: string, opts?: { skipSync?: boolean }): boolea
   if (!row || row.authorId !== uid) return false;
   writeAll(all.filter((t) => t.id !== id));
   if (!opts?.skipSync) {
+    const syncId = ensureThoughtSyncId(row.id);
     enqueueThought({
-      id: row.id,
+      id: syncId,
       ref: row.ref,
       body: row.body,
       visibility: row.visibility,
@@ -390,12 +391,18 @@ export function updateThought(
   const i = all.findIndex((t) => t.id === id && t.authorId === uid);
   if (i < 0) return false;
   const nextVisibility = visibility ?? all[i].visibility;
-  all[i] = { ...all[i], body: trimmed, visibility: nextVisibility };
+  const syncId = opts?.skipSync ? all[i].id : ensureThoughtSyncId(all[i].id);
+  all[i] = {
+    ...all[i],
+    id: syncId,
+    body: trimmed,
+    visibility: nextVisibility,
+  };
   writeAll(all);
   rememberVisibility(nextVisibility);
   if (!opts?.skipSync) {
     enqueueThought({
-      id: all[i].id,
+      id: syncId,
       ref: all[i].ref,
       body: all[i].body,
       visibility: all[i].visibility,

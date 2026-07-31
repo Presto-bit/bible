@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     # 无书卷过滤时的兜底上限（过高会拖垮助手首包）
     rag_candidate_limit_fallback: int = 280
     rag_query_embed_cache_ttl: int = 300
+    rag_answer_cache_ttl: int = 86400
+    rag_retrieval_cache_ttl: int = 3600
+    rag_prewarm_on_read: int = 1
     note_rag_per_chapter_min_chunks: int = 2
     note_rag_max_chunks_abs: int = 512
     bible_rag_vector_backend: str = "auto"  # auto | pgvector | jsonb
