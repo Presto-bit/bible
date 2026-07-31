@@ -150,7 +150,7 @@ export async function renderVerseCardPng(input: VerseCardInput): Promise<Blob | 
   }
 
   let quote = (input.text || '').trim();
-  if (quote.length > 120) quote = `${quote.slice(0, 118)}…`;
+  if (quote.length > 160) quote = `${quote.slice(0, 159)}…`;
   ctx.fillStyle = '#fff';
   ctx.font = '400 46px "Noto Serif SC", "Songti SC", Georgia, serif';
   ctx.shadowBlur = 12;

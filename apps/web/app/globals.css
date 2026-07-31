@@ -12646,6 +12646,106 @@ a.license-row-name:hover {
   cursor: pointer;
 }
 
+.verse-compare-sheet {
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  max-height: min(86vh, 720px);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+
+.verse-compare-scroll {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+  margin-top: 4px;
+}
+
+.verse-compare-block {
+  margin-top: 14px;
+}
+
+.verse-compare-ver-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.verse-compare-section-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.verse-compare-text {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+}
+
+.verse-compare-text-secondary {
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.verse-compare-ver-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.verse-compare-strongs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.verse-compare-strongs li {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.verse-compare-gloss {
+  color: var(--ink-soft);
+}
+
+.verse-compare-ai {
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.verse-compare-err {
+  margin: 0;
+  color: #b1554a;
+  font-size: 13px;
+}
+
+.verse-compare-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.verse-compare-disclaimer {
+  margin: 10px 0 0;
+  font-size: 11px;
+  text-align: center;
+}
+
 .verse-card-sheet {
   max-width: 420px;
   margin: 0 auto;
@@ -12660,39 +12760,133 @@ a.license-row-name:hover {
   overflow: hidden;
 }
 
+/* Stage A：预览比例与成图一致（1080×1350 = 4:5），版心对齐 canvas */
+.verse-card-preview-poster {
+  aspect-ratio: 4 / 5;
+  min-height: 0;
+  width: 100%;
+}
+
 .verse-card-preview-scrim {
-  min-height: 280px;
-  padding: 28px 22px;
+  height: 100%;
+  min-height: 0;
+  padding: 18px 18px 22px;
+  box-sizing: border-box;
   background: linear-gradient(
     180deg,
-    rgba(20, 24, 28, 0.35),
-    rgba(20, 24, 28, 0.55)
+    rgba(20, 24, 28, 0.45) 0%,
+    rgba(20, 24, 28, 0.28) 50%,
+    rgba(20, 24, 28, 0.58) 100%
   );
   color: #fff;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 0;
+}
+
+.verse-card-preview-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: auto;
+  padding-top: 2px;
+}
+
+.verse-card-preview-brand-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  opacity: 0.92;
+}
+
+.verse-card-preview-brand-sub {
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.72;
+}
+
+.verse-card-preview-body {
+  margin-top: 18%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
 }
 
 .verse-card-preview-ref {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   opacity: 0.9;
 }
 
 .verse-card-preview-quote {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1.55;
   font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .verse-card-preview-note {
   margin: 0;
-  font-size: 13px;
+  font-size: 12px;
   opacity: 0.8;
+  line-height: 1.4;
+}
+
+.verse-card-preview-version {
+  margin: 4px 0 0;
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.verse-card-truncate-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.verse-card-wallpaper-strip {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.verse-card-wallpaper-thumb {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 65px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.verse-card-wallpaper-thumb.is-active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--accent-deep, #3d6b5a);
+}
+
+.verse-card-note-toggle {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
 }
 
 .verse-card-wallpaper-row {

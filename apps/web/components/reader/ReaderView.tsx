@@ -14,7 +14,7 @@ import { useToast } from '@/components/ui/ToastProvider';
 import PageBackBar from '@/components/PageBackBar';
 import SummarySheet from '@/components/reader/SummarySheet';
 import { ChapterGuideTip } from '@/components/reader/ChapterGuideTip';
-import { ReaderToolsSheet } from '@/components/reader/ReaderToolsSheet';
+import VerseCompareSheet from '@/components/reader/VerseCompareSheet';
 import { StrongSheet } from '@/components/reader/StrongSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import {
@@ -327,16 +327,11 @@ export default function ReaderView({
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
-  const [toolsSheet, setToolsSheet] = useState<null | {
-    tab: 'crossrefs' | 'guide';
-    refParam: string;
-    refLabel: string;
-    sourceText?: string;
-  }>(null);
   const [strongSheet, setStrongSheet] = useState<null | {
     refParam: string;
     refLabel: string;
   }>(null);
+  const [verseCompareOpen, setVerseCompareOpen] = useState(false);
   const [versePreview, setVersePreview] = useState<null | { osis: string; label: string }>(null);
   const [parallelLoading, setParallelLoading] = useState(false);
   const [parallelError, setParallelError] = useState<string | null>(null);
@@ -441,7 +436,8 @@ export default function ReaderView({
     || locPopoverOpen
     || thoughtHub
     || thoughtWrite
-    || toolsSheet
+    || verseCompareOpen
+    || strongSheet
     || groupCheckinOpen
     || bookCelebrate,
   );
@@ -1886,7 +1882,7 @@ export default function ReaderView({
         else if (showSettings) setShowSettings(false);
         else if (showVersions) setShowVersions(false);
         else if (aiSheet) setAiSheet(false);
-        else if (toolsSheet) setToolsSheet(null);
+        else if (verseCompareOpen) setVerseCompareOpen(false);
         else if (strongSheet) setStrongSheet(null);
         else if (thoughtWrite) setThoughtWrite(null);
         else if (thoughtHub) setThoughtHub(null);
@@ -1915,7 +1911,8 @@ export default function ReaderView({
     showSettings,
     showVersions,
     aiSheet,
-    toolsSheet,
+    verseCompareOpen,
+    strongSheet,
     thoughtWrite,
     thoughtHub,
     groupCheckinOpen,
@@ -3102,24 +3099,23 @@ export default function ReaderView({
               <button
                 type="button"
                 className="vsb-icon-btn"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  selectionPinRef.current = effSelectionText;
+                }}
                 onClick={() => {
                   setMarkPaletteOpen(false);
-                  setToolsSheet({
-                    tab: 'crossrefs',
-                    refParam: effRefParam,
-                    refLabel: effRefLabel,
-                    sourceText: effSelectionText || undefined,
-                  });
+                  setVerseCompareOpen(true);
                   clearSelection();
                 }}
               >
                 <span className="vsb-icon" aria-hidden>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M8 6h11M8 12h11M8 18h11" />
-                    <path d="M4 6h.01M4 12h.01M4 18h.01" />
+                    <path d="M8 6h5M8 12h5M8 18h5" />
+                    <path d="M16 7l4 5-4 5" />
                   </svg>
                 </span>
-                <span className="vsb-label">相关</span>
+                <span className="vsb-label">对照</span>
               </button>
             ) : null}
             {readingMode !== 'focus' ? (
@@ -3358,13 +3354,24 @@ export default function ReaderView({
         />
       )}
 
-      {toolsSheet && (
-        <ReaderToolsSheet
-          refParam={toolsSheet.refParam}
-          refLabel={toolsSheet.refLabel}
-          sourceText={toolsSheet.sourceText}
-          initialTab={toolsSheet.tab}
-          onClose={() => setToolsSheet(null)}
+      {verseCompareOpen && (
+        <VerseCompareSheet
+          refParam={effRefParam}
+          refLabel={effRefLabel}
+          selectionText={selectionPinRef.current || effSelectionText || undefined}
+          mainVersionId={mainVersionId || FALLBACK_PRIMARY_VERSION}
+          onClose={() => setVerseCompareOpen(false)}
+          onOpenStrongs={() => {
+            setStrongSheet({
+              refParam: effRefParam,
+              refLabel: effRefLabel,
+            });
+          }}
+          onOpenChapterParallel={(secondaryVersionId) => {
+            const topId = mainVersionId || FALLBACK_PRIMARY_VERSION;
+            applyVersionSelection([topId, secondaryVersionId]);
+            setVerseCompareOpen(false);
+          }}
         />
       )}
 
