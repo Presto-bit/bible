@@ -575,10 +575,12 @@ def register(
                         """,
                         (code, user_id, name),
                     ).fetchone()
-                    if inserted and name:
-                        upsert_user_profile(
-                            conn, user_id=user_id, user_code=code, username=name
-                        )
+                    if inserted:
+                        # 新账号可无 username（占位「读经伙伴」）；勿把 name is None 当成并发失败
+                        if name:
+                            upsert_user_profile(
+                                conn, user_id=user_id, user_code=code, username=name
+                            )
                     else:
                         # 并发建档已抢走该码：无所有权则拒绝签发
                         bound_now = _lookup_bound_user_code(conn, x_device_id)
