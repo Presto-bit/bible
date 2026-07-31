@@ -8,7 +8,6 @@ import {
 } from './home_group_line';
 import {
   groupIdFromHref,
-  homeMediaDaySeed,
   homeMediaGroupCoverUrl,
   homeMediaIconForTone,
   homeMediaSceneUrl,
@@ -45,11 +44,9 @@ function withMedia(
   let imageUrl: string | null = null;
   if (mediaTone === 'group') {
     const gid = groupIdFromHref(block.href);
-    imageUrl = gid
-      ? homeMediaGroupCoverUrl(gid)
-      : homeMediaSceneUrl('group', homeMediaDaySeed());
+    imageUrl = gid ? homeMediaGroupCoverUrl(gid) : homeMediaSceneUrl('group');
   } else {
-    imageUrl = homeMediaSceneUrl(mediaTone, homeMediaDaySeed());
+    imageUrl = homeMediaSceneUrl(mediaTone);
   }
   return { ...block, mediaTone, icon, imageUrl };
 }

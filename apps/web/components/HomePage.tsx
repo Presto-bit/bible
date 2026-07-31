@@ -52,11 +52,6 @@ import {
 import { buildHomeGroupRailInput } from '@/lib/home_social_line';
 import { HomeSkeleton } from '@/components/Skeleton';
 import {
-  buildHomeAnchorBlock,
-  buildHomeAnchorFromGroupRail,
-  type HomeAnchorBlockModel,
-} from '@/lib/home_anchor_block';
-import {
   type HeroBCampaign,
   preloadHeroBCampaignImage,
   readCachedHeroBCampaign,
@@ -64,9 +59,15 @@ import {
 } from '@/lib/hero_b_campaign';
 import { consumeHeroReturnToVerse } from '@/lib/hero_b_nav';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
-import { buildHomeGrowthModel, type HomeGrowthModel } from '@/lib/home_growth_cards';
+import {
+  buildHomeGrowthModel,
+  occupiedFromTodayPanel,
+  type HomeGrowthFeatureInput,
+  type HomeGrowthModel,
+} from '@/lib/home_growth_cards';
 import { formatDailyVerseQuote, dailyVerseReaderHref } from '@/lib/daily_verse_display';
 import { HomeGrowthStack } from '@/components/home/HomeGrowthStack';
+import { loadDailyThemes } from '@/lib/daily_themes';
 import { readCachedDailyVerse, writeCachedDailyVerse } from '@/lib/daily_verse_cache';
 import { bookIdToChineseName } from '@/lib/ref_label';
 import { timedPerf } from '@/lib/perf_rum';
@@ -296,14 +297,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       return null;
     }
   });
-  const [anchorBlock, setAnchorBlock] = useState<HomeAnchorBlockModel | null>(() => {
-    if (typeof window === 'undefined') return null;
-    return buildHomeAnchorBlock({
-      groups: [],
-      summary: null,
-      todayPanelHasGroup: false,
-    });
-  });
+  const [themeFeature, setThemeFeature] = useState<HomeGrowthFeatureInput | null>(null);
+  const themeFeatureRef = useRef<HomeGrowthFeatureInput | null>(null);
   const [ptrToast, setPtrToast] = useState<string | null>(null);
   const [userName, setUserName] = useState('');
   const [greeting, setGreeting] = useState(() =>
@@ -348,28 +343,65 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const lastBootstrapAtRef = useRef(0);
   const homeRefreshTimerRef = useRef<number | null>(null);
   const lastGroupInputRef = useRef<HomeTodayPanelInput['group']>(undefined);
-  const lastAnchorRef = useRef<HomeAnchorBlockModel | null>(null);
   const lastHadGroupsRef = useRef(false);
   const bibleWarmupOnceRef = useRef(false);
 
-  const paintLocalChrome = useCallback(() => {
-    setUserName(getDisplayName());
+  useEffect(() => {
+    themeFeatureRef.current = themeFeature;
+  }, [themeFeature]);
+
+  useEffect(() => {
+    void loadDailyThemes().then((idx) => {
+      const next: HomeGrowthFeatureInput = {
+        title: '探索经文主题',
+        detail:
+          idx.themes.length > 0
+            ? `${idx.themes.length} 个主题 · 去探索`
+            : '按主题找经文',
+        href: '/discover',
+      };
+      themeFeatureRef.current = next;
+      setThemeFeature(next);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!themeFeature) return;
+    const active = getActivePlan();
+    let plan: HomeGrowthFeatureInput | null = null;
+    let prayer: HomeGrowthFeatureInput | null = null;
+    if (active?.kind === 'prayer') {
+      const day = getPlanDay(active.planId) || 1;
+      prayer = {
+        title: `第 ${day} 天`,
+        detail: active.title,
+        href: prayerTodayHref(active),
+      };
+    } else if (active) {
+      const day = getPlanDay(active.planId) || 1;
+      plan = {
+        title: active.title,
+        detail: `第 ${day} 天`,
+        href: activePlanTodayHrefSync(active),
+      };
+    }
     const report = buildReport();
     setGrowthModel(
       buildHomeGrowthModel({
         todayMin: todayMinutes(),
         monthDays: report.monthDays,
+        occupied: occupiedFromTodayPanel(todayPanel),
+        plan,
+        prayer,
+        theme: themeFeature,
       }),
     );
-    if (!lastAnchorRef.current) {
-      const fallback = buildHomeAnchorBlock({
-        groups: [],
-        summary: null,
-        todayPanelHasGroup: false,
-      });
-      lastAnchorRef.current = fallback;
-      setAnchorBlock(fallback);
-    }
+    // 仅主题索引就绪时补一次；日常刷新由 refreshRail 负责
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally ignore todayPanel churn
+  }, [themeFeature]);
+
+  const paintLocalChrome = useCallback(() => {
+    setUserName(getDisplayName());
   }, []);
 
   const refreshRail = useCallback(async (opts?: { fetchRemote?: boolean }) => {
@@ -435,32 +467,38 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const cachedCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
       const localGroup =
         lastGroupInputRef.current || buildHomeGroupRailInput([], null);
-      const localAnchor = lastHadGroupsRef.current
-        ? buildHomeAnchorBlock({
-            groups: [],
-            summary: null,
-            todayPanelHasGroup: true,
-          })
-        : lastAnchorRef.current || buildHomeAnchorFromGroupRail(localGroup);
-      lastAnchorRef.current = localAnchor;
-      setAnchorBlock(localAnchor);
 
       // 本地先上屏；TTL 内跳过网络时沿用上次小组卡 + 活动缓存
-      setTodayPanel(
-        buildHomeTodayPanel({
-          plan: planCard,
-          resume: resumeCard,
-          group: localGroup,
-          prayer: prayerCard,
-          suggest: suggestInput,
-          campaigns: cachedCampaigns,
-          ...panelLiveness(),
-        }),
-      );
+      const localPanel = buildHomeTodayPanel({
+        plan: planCard,
+        resume: resumeCard,
+        group: localGroup,
+        prayer: prayerCard,
+        suggest: suggestInput,
+        campaigns: cachedCampaigns,
+        ...panelLiveness(),
+      });
+      setTodayPanel(localPanel);
       setGrowthModel(
         buildHomeGrowthModel({
           todayMin: todayMinutes(),
           monthDays: report.monthDays,
+          occupied: occupiedFromTodayPanel(localPanel),
+          plan: planCard
+            ? {
+                title: planCard.title,
+                detail: planCard.sub,
+                href: planCard.href,
+              }
+            : null,
+          prayer: prayerCard
+            ? {
+                title: prayerCard.title,
+                detail: prayerCard.sub,
+                href: prayerCard.href,
+              }
+            : null,
+          theme: themeFeatureRef.current,
         }),
       );
       setSummaryFlash(true);
@@ -481,15 +519,8 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         .then(([groupsRes, summaryRes]) => {
           const groups = Array.isArray(groupsRes.groups) ? groupsRes.groups : [];
           const rail = buildHomeGroupRailInput(groups, summaryRes);
-          // 推荐侧卡已露出群深链 → B 禁止再出「小组」；侧卡改好友时允许 B 出小组
-          const todayPanelHasGroup = rail.href.startsWith('/discover/group/');
           return {
             rail,
-            anchor: buildHomeAnchorBlock({
-              groups,
-              summary: summaryRes,
-              todayPanelHasGroup,
-            }),
             hasGroups: groups.length > 0,
           };
         })
@@ -501,8 +532,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
             lastGroupInputRef.current || buildHomeGroupRailInput([], null);
           return {
             rail,
-            anchor:
-              lastAnchorRef.current || buildHomeAnchorFromGroupRail(rail),
             hasGroups: lastHadGroupsRef.current,
           };
         });
@@ -513,7 +542,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         socialPromise,
       ]);
       const groupCard = social.rail;
-      const nextAnchor = social.anchor;
 
       if (meta && active && active.kind !== 'prayer') {
         const sess = getPlanSession(active.planId, planDay) ?? meta.session;
@@ -537,20 +565,39 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       const nextCampaigns = readCachedHomeCampaigns({ allowStale: true }) || undefined;
 
       lastGroupInputRef.current = groupCard;
-      lastAnchorRef.current = nextAnchor;
       lastHadGroupsRef.current = Boolean(social.hasGroups);
       lastRailNetAtRef.current = Date.now();
-      setAnchorBlock(nextAnchor);
 
-      setTodayPanel(
-        buildHomeTodayPanel({
-          plan: planCard,
-          resume: resumeCard,
-          group: groupCard,
-          prayer: prayerCard,
-          campaigns: nextCampaigns,
-          suggest: suggestInput,
-          ...panelLiveness(),
+      const nextPanel = buildHomeTodayPanel({
+        plan: planCard,
+        resume: resumeCard,
+        group: groupCard,
+        prayer: prayerCard,
+        campaigns: nextCampaigns,
+        suggest: suggestInput,
+        ...panelLiveness(),
+      });
+      setTodayPanel(nextPanel);
+      setGrowthModel(
+        buildHomeGrowthModel({
+          todayMin: todayMinutes(),
+          monthDays: report.monthDays,
+          occupied: occupiedFromTodayPanel(nextPanel),
+          plan: planCard
+            ? {
+                title: planCard.title,
+                detail: planCard.sub,
+                href: planCard.href,
+              }
+            : null,
+          prayer: prayerCard
+            ? {
+                title: prayerCard.title,
+                detail: prayerCard.sub,
+                href: prayerCard.href,
+              }
+            : null,
+          theme: themeFeatureRef.current,
         }),
       );
       setSummaryFlash(true);
@@ -1141,7 +1188,6 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       {!showHomeSkeleton && growthModel ? (
         <HomeGrowthStack
           model={growthModel}
-          anchor={anchorBlock}
           onGo={go}
           reducedMotion={reducedMotion}
           endFooterRef={endFooterRef}

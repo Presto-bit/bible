@@ -66,6 +66,15 @@ function IconPaths({ id }: { id: HomeMediaIconId }) {
           <path d="M12 4.5 13.2 9.2 18 10.5 13.2 11.8 12 16.5 10.8 11.8 6 10.5 10.8 9.2z" />
         </>
       );
+    case 'prayer':
+      return (
+        <>
+          <path d="M12 4.5v3.5" />
+          <path d="M8.5 8c0-2 1.6-3.5 3.5-3.5s3.5 1.5 3.5 3.5" />
+          <path d="M7 10.5 12 19l5-8.5" />
+          <path d="M9.5 14h5" />
+        </>
+      );
     default:
       return <circle cx="12" cy="12" r="6" />;
   }

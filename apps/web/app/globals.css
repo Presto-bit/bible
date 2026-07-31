@@ -1773,7 +1773,7 @@ html:not([data-app-theme]) .card {
   .home-stagger-enter .home-stagger-1 { animation-delay: 0ms; }
   .home-stagger-enter .home-stagger-2 { animation-delay: 40ms; }
   .home-stagger-enter .home-stagger-3 { animation-delay: 80ms; }
-  .home-growth-stack.is-summary-flash .home-summary-card {
+  .home-growth-stack.is-summary-flash .home-growth-summary {
     animation: home-summary-flash 0.42s ease;
   }
   .hero-like.hero-like-pop .hero-action-icon {
@@ -2776,41 +2776,26 @@ html:not([data-app-theme]) .card {
   margin-top: 20px;
 }
 
-.home-page .home-summary-card,
-.home-page .home-media-summary {
-  border: none;
-  border-radius: 18px;
-  box-shadow: var(--home-shadow);
-  padding: 0;
-  font-variant-numeric: tabular-nums;
-  background:
-    linear-gradient(
-      165deg,
-      color-mix(in srgb, var(--accent, #8fa88a) 7%, var(--surface)) 0%,
-      var(--surface) 55%
-    );
-  overflow: hidden;
-}
-
 .home-page .home-growth-stack {
   margin-top: var(--home-section-gap, 14px);
   margin-bottom: 4px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  width: 100%;
 }
 
-/* Onboarding 紧挨成长区时收紧叠间距 */
 .home-onboarding-banner + .home-growth-stack {
   margin-top: 10px;
 }
 
-/* —— 成长区左媒右文 —— */
+/* —— 成长区左媒右文（全宽功能卡） —— */
 .home-page .home-media-row {
   display: flex;
   align-items: center;
   gap: 14px;
   width: 100%;
+  box-sizing: border-box;
   margin: 0;
   padding: 11px 14px 11px 11px;
   min-height: 82px;
@@ -2889,7 +2874,6 @@ html:not([data-app-theme]) .card {
   pointer-events: none;
 }
 
-/* 风景缩略上保留类型角标，扫一眼可辨 */
 .home-page .home-media-thumb-chip {
   position: absolute;
   left: 5px;
@@ -3053,76 +3037,41 @@ html.perf-lite .home-page .home-media-thumb-chip {
   color: #8a6e28;
 }
 
-.home-page .home-media-summary .home-media-summary-main {
-  box-shadow: none;
-  border-radius: 0;
-  background: transparent;
-  min-height: 80px;
-  padding-bottom: 10px;
+.home-page .home-media-row.tone-plan .home-media-thumb {
+  background: color-mix(in srgb, #6b8cae 16%, var(--surface));
+}
+.home-page .home-media-row.tone-plan .home-media-thumb-fallback {
+  color: #4a6a88;
 }
 
-.home-page .home-media-summary .home-media-detail {
-  color: var(--ink-soft);
+.home-page .home-media-row.tone-prayer .home-media-thumb {
+  background: color-mix(in srgb, #8fa88a 18%, var(--surface));
 }
-
-.home-page .home-summary-sub {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  margin: 0;
-  padding: 9px 14px 12px 85px;
-  border: none;
-  border-top: 1px solid color-mix(in srgb, var(--ink-faint) 18%, transparent);
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  line-height: 1.35;
+.home-page .home-media-row.tone-prayer .home-media-thumb-fallback {
   color: var(--accent-deep, #4a6b52);
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.home-page .home-summary-sub-mark {
-  flex: 0 0 6px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent-deep, #4a6b52) 70%, transparent);
+.home-page .home-media-row.tone-theme .home-media-thumb {
+  background: color-mix(in srgb, #c4a574 18%, var(--surface));
+}
+.home-page .home-media-row.tone-theme .home-media-thumb-fallback {
+  color: #8a6a3c;
 }
 
-.home-page .home-summary-sub-text {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 500;
-}
-
-.home-page .home-summary-sub:active {
-  opacity: 0.88;
-  background: color-mix(in srgb, var(--accent, #8fa88a) 6%, transparent);
-}
-
-.home-page .home-growth-stack .home-growth-memory {
-  background: color-mix(in srgb, var(--surface) 96%, var(--paper, #f7f4ef));
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.03),
-    0 4px 14px rgba(15, 23, 42, 0.05);
-}
-
-.home-page .home-growth-stack .home-growth-memory .home-media-title {
-  font-weight: 500;
-  color: var(--ink-soft);
-}
-
-.home-page .home-anchor-block {
+.home-page .home-growth-summary {
   background: var(--surface);
 }
 
-.home-page .home-anchor-block .home-media-title {
+.home-page .home-growth-summary .home-media-detail {
+  color: var(--ink-soft);
+}
+
+.home-page .home-growth-stack .home-growth-feature {
+  background: var(--surface);
+  box-shadow: var(--home-shadow);
+}
+
+.home-page .home-growth-stack .home-growth-feature .home-media-title {
   font-weight: 600;
   color: var(--ink);
 }
@@ -3143,10 +3092,6 @@ html.perf-lite .home-page .home-media-thumb-chip {
 
   .home-page .home-media-metric-value {
     font-size: 20px;
-  }
-
-  .home-page .home-summary-sub {
-    padding-left: 78px;
   }
 }
 

@@ -1,4 +1,4 @@
-/** 首页成长区左媒：图标 / 风景 / 封面映射（按日稳定，卡种错开）。 */
+/** 首页成长区左媒：图标 / 风景 / 封面映射（按卡种固定，不随日轮换）。 */
 
 import { bookCoverImageUrl, bookIdFromReaderHref } from './book_cover';
 import { dailyVerseWallpaperUrl } from './daily_verse_wallpaper';
@@ -9,7 +9,10 @@ export type HomeMediaTone =
   | 'group'
   | 'peers'
   | 'memory'
-  | 'review';
+  | 'review'
+  | 'plan'
+  | 'prayer'
+  | 'theme';
 
 export type HomeMediaIconId =
   | 'clock'
@@ -18,26 +21,20 @@ export type HomeMediaIconId =
   | 'calendar'
   | 'book'
   | 'footprint'
-  | 'spark';
+  | 'spark'
+  | 'prayer';
 
-/** 卡种风景池偏移，避免同天多卡撞同一张图（P2 扩池）。 */
-const TONE_SCENE_OFFSET: Record<HomeMediaTone, number> = {
-  summary: 0,
-  discover: 2,
-  group: 9,
-  peers: 16,
-  memory: 23,
-  review: 5,
-};
-
-/** 同种卡第二风景候选偏移（按日奇偶切换，丰富池）。 */
-const TONE_SCENE_ALT: Record<HomeMediaTone, number> = {
-  summary: 11,
-  discover: 18,
-  group: 25,
-  peers: 4,
-  memory: 12,
-  review: 20,
+/** 卡种固定风景下标（1-based），长期不变。 */
+const TONE_SCENE_DAY: Record<HomeMediaTone, number> = {
+  summary: 1,
+  discover: 3,
+  group: 10,
+  peers: 17,
+  memory: 24,
+  review: 6,
+  plan: 8,
+  prayer: 14,
+  theme: 21,
 };
 
 const TONE_ICON: Record<HomeMediaTone, HomeMediaIconId> = {
@@ -47,30 +44,20 @@ const TONE_ICON: Record<HomeMediaTone, HomeMediaIconId> = {
   peers: 'footprint',
   memory: 'book',
   review: 'calendar',
+  plan: 'calendar',
+  prayer: 'prayer',
+  theme: 'compass',
 };
-
-export function homeMediaDaySeed(now = new Date()): number {
-  return Math.max(1, now.getDate());
-}
-
-function wallpaperIndex(seed: number, offset: number): number {
-  const n = DAILY_WALLPAPER_COUNT;
-  return ((Math.floor(seed) - 1 + offset) % n + n) % n;
-}
 
 const DAILY_WALLPAPER_COUNT = 31;
 
-/** 按卡种 + 日种子取风景（同用户同天同卡稳定）。 */
-export function homeMediaSceneUrl(
-  tone: HomeMediaTone,
-  seed = homeMediaDaySeed(),
-): string {
-  const alt = seed % 2 === 0 ? TONE_SCENE_ALT[tone] : TONE_SCENE_OFFSET[tone];
-  const idx = wallpaperIndex(seed, alt);
-  return dailyVerseWallpaperUrl(idx + 1);
+/** 按卡种取固定风景（同卡种始终同一张）。 */
+export function homeMediaSceneUrl(tone: HomeMediaTone): string {
+  const day = ((TONE_SCENE_DAY[tone] - 1) % DAILY_WALLPAPER_COUNT) + 1;
+  return dailyVerseWallpaperUrl(day);
 }
 
-/** 群落点：按 groupId 稳定封面（识别优先于按日轮换）。 */
+/** 群落点：按 groupId 稳定封面。 */
 export function homeMediaGroupCoverUrl(groupId: string): string {
   const h = hashString(groupId);
   return dailyVerseWallpaperUrl((h % DAILY_WALLPAPER_COUNT) + 1);
@@ -93,15 +80,14 @@ export function groupIdFromHref(href: string): string | null {
   return m?.[1] ? decodeURIComponent(m[1]) : null;
 }
 
-/** 记忆卡：能解析书卷则用书卷封面，否则按日风景。 */
+/** 记忆卡：能解析书卷则用书卷封面，否则用固定卡种风景。 */
 export function homeMediaMemoryImageUrl(
   href: string,
   tone: HomeMediaTone = 'memory',
-  seed = homeMediaDaySeed(),
 ): string {
   const parsed = bookIdFromReaderHref(href);
   if (parsed?.bookId) return bookCoverImageUrl(parsed.bookId);
-  return homeMediaSceneUrl(tone, seed);
+  return homeMediaSceneUrl(tone);
 }
 
 /** 本月阅读进度：已读天数 / 当月天数。 */
