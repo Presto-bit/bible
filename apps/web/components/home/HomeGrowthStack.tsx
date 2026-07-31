@@ -5,6 +5,7 @@ import type { HomeGrowthCard, HomeGrowthModel } from '@/lib/home_growth_cards';
 import type { HomeAnchorBlockModel } from '@/lib/home_anchor_block';
 import { HomeAnchorBlock } from '@/components/home/HomeAnchorBlock';
 import { HomeEndFooter } from '@/components/home/HomeEndFooter';
+import { HomeMediaRow } from '@/components/home/HomeMediaRow';
 
 type Props = {
   model: HomeGrowthModel;
@@ -24,22 +25,26 @@ function GrowthRow({
   onGo: (href: string) => void;
 }) {
   const isSummary = card.kind === 'summary' || card.id.startsWith('summary');
-  const hasSub = Boolean(card.sub);
+  const hasMilestone = Boolean(card.sub);
 
   if (isSummary) {
     return (
-      <div className="card home-reading-summary home-summary-card">
-        <button
-          type="button"
-          className="home-summary-main"
-          aria-label={card.title}
+      <div className="home-summary-card home-media-summary">
+        <HomeMediaRow
+          title={card.title}
+          detail={card.detail}
+          metric={card.metric}
+          tone={card.mediaTone}
+          icon={card.icon}
+          imageUrl={card.imageUrl}
+          progressPct={card.progressPct}
+          ariaLabel={
+            card.detail ? `${card.title}，${card.detail}` : card.title
+          }
+          className="home-media-summary-main"
           onClick={() => onGo(card.href)}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <strong>{card.title}</strong>
-          <span className="muted home-list-chevron">›</span>
-        </button>
-        {hasSub ? (
+        />
+        {hasMilestone ? (
           <button
             type="button"
             className="home-summary-sub"
@@ -47,7 +52,8 @@ function GrowthRow({
             onClick={() => onGo(card.subHref || card.href)}
             onContextMenu={(e) => e.preventDefault()}
           >
-            {card.sub}
+            <span className="home-summary-sub-mark" aria-hidden />
+            <span className="home-summary-sub-text">{card.sub}</span>
           </button>
         ) : null}
       </div>
@@ -55,28 +61,17 @@ function GrowthRow({
   }
 
   return (
-    <button
-      type="button"
-      className={[
-        'card',
-        'row-card',
-        'home-list-row',
-        'home-growth-memory',
-        hasSub ? 'home-list-row-wrap' : 'home-growth-row-single',
-      ]
-        .filter(Boolean)
-        .join(' ')}
-      aria-label={`${card.tag}：${card.title}`}
+    <HomeMediaRow
+      title={card.title}
+      detail={card.detail}
+      eyebrow={card.tag}
+      tone={card.mediaTone}
+      icon={card.icon}
+      imageUrl={card.imageUrl}
+      ariaLabel={`${card.tag}：${card.title}`}
+      className="home-growth-memory"
       onClick={() => onGo(card.href)}
-      onContextMenu={(e) => e.preventDefault()}
-    >
-      <span className={`pill${card.pillActive ? ' pill-active' : ''}`}>{card.tag}</span>
-      <span className="home-list-main">
-        <strong>{card.title}</strong>
-        {card.sub ? <span className="muted home-list-sub">{card.sub}</span> : null}
-      </span>
-      <span className="muted home-list-chevron">›</span>
-    </button>
+    />
   );
 }
 

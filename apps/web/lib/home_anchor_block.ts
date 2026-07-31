@@ -6,12 +6,25 @@ import {
   formatFriendsCheckedLine,
   formatHomeGroupLine,
 } from './home_group_line';
+import {
+  groupIdFromHref,
+  homeMediaDaySeed,
+  homeMediaGroupCoverUrl,
+  homeMediaIconForTone,
+  homeMediaSceneUrl,
+  toneFromAnchorTag,
+  type HomeMediaIconId,
+  type HomeMediaTone,
+} from './home_media_visual';
 
 export type HomeAnchorBlockModel = {
   tag: '小组' | '同行' | '发现';
   title: string;
   href: string;
   pillActive?: boolean;
+  mediaTone: HomeMediaTone;
+  icon: HomeMediaIconId;
+  imageUrl?: string | null;
 };
 
 export type BuildHomeAnchorOpts = {
@@ -24,6 +37,23 @@ export type BuildHomeAnchorOpts = {
   todayPanelHasGroup?: boolean;
 };
 
+function withMedia(
+  block: Omit<HomeAnchorBlockModel, 'mediaTone' | 'icon' | 'imageUrl'>,
+): HomeAnchorBlockModel {
+  const mediaTone = toneFromAnchorTag(block.tag);
+  const icon = homeMediaIconForTone(mediaTone);
+  let imageUrl: string | null = null;
+  if (mediaTone === 'group') {
+    const gid = groupIdFromHref(block.href);
+    imageUrl = gid
+      ? homeMediaGroupCoverUrl(gid)
+      : homeMediaSceneUrl('group', homeMediaDaySeed());
+  } else {
+    imageUrl = homeMediaSceneUrl(mediaTone, homeMediaDaySeed());
+  }
+  return { ...block, mediaTone, icon, imageUrl };
+}
+
 /** 有群且推荐未占群 → 小组；否则同行 > 发现。 */
 export function buildHomeAnchorBlock(
   opts: BuildHomeAnchorOpts,
@@ -35,47 +65,47 @@ export function buildHomeAnchorBlock(
   // 推荐区已含群 → 禁止重复小组
   if (hasGroups && todayPanelHasGroup) {
     if (friends) {
-      return {
+      return withMedia({
         tag: '同行',
         title: friends.title,
         href: friends.href,
         pillActive: true,
-      };
+      });
     }
-    return {
+    return withMedia({
       tag: '发现',
       title: '去发现，找人一起读',
       href: '/discover',
-    };
+    });
   }
 
   if (hasGroups) {
     const line = formatHomeGroupLine(groups, summary);
     if (line) {
-      return {
+      return withMedia({
         tag: '小组',
         title: line.title,
         href: line.href,
         pillActive: true,
-      };
+      });
     }
   }
 
   if (friends) {
-    return {
+    return withMedia({
       tag: '同行',
       title: friends.title,
       href: friends.href,
       pillActive: true,
-    };
+    });
   }
 
   // 冷启动：与推荐区「创建共读」错开（U5）
-  return {
+  return withMedia({
     tag: '发现',
     title: hasGroups ? '去发现逛一逛' : '去发现，找人一起读',
     href: '/discover',
-  };
+  });
 }
 
 /**
@@ -91,42 +121,42 @@ export function buildHomeAnchorFromGroupRail(
     // 推荐侧已有群 → B 禁止再出小组
     const n = opts?.summaryFriendsChecked ?? 0;
     if (n > 0) {
-      return {
+      return withMedia({
         tag: '同行',
         title: `今天 ${n} 位好友已打卡`,
         href: '/discover',
         pillActive: true,
-      };
+      });
     }
-    return {
+    return withMedia({
       tag: '发现',
       title: '去发现，找人一起读',
       href: '/discover',
-    };
+    });
   }
 
   if (group.title.includes('好友')) {
-    return {
+    return withMedia({
       tag: '同行',
       title: group.title.startsWith('今天')
         ? group.title
         : `今天 ${group.title}`,
       href: group.href || '/discover',
       pillActive: true,
-    };
+    });
   }
 
   if (group.title === '创建共读') {
-    return {
+    return withMedia({
       tag: '发现',
       title: '去发现，找人一起读',
       href: '/discover',
-    };
+    });
   }
 
-  return {
+  return withMedia({
     tag: '发现',
     title: group.title || '去发现逛一逛',
     href: group.href || '/discover',
-  };
+  });
 }

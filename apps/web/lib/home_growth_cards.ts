@@ -3,6 +3,15 @@
 import { seededBooks } from './bible_local';
 import { listMarksDetailed } from './mark_stats';
 import { parseMarkRef } from './mark_ref';
+import {
+  homeMediaDaySeed,
+  homeMediaIconForTone,
+  homeMediaMemoryImageUrl,
+  homeMediaMonthProgressPct,
+  homeMediaSceneUrl,
+  type HomeMediaIconId,
+  type HomeMediaTone,
+} from './home_media_visual';
 import { bookIdToChineseName, refToChineseLabel } from './ref_label';
 import {
   buildReport,
@@ -16,7 +25,11 @@ export type HomeGrowthCard = {
   id: string;
   tag: string;
   title: string;
-  /** 摘要副行里程碑（仅 summary） */
+  /** 右栏辅文（如本月天数） */
+  detail?: string;
+  /** 摘要数字强调 */
+  metric?: { prefix?: string; value: string; suffix?: string };
+  /** 摘要副行里程碑（仅 summary，独立热区） */
   sub?: string;
   /** 副行点击（默认同 href） */
   subHref?: string;
@@ -24,6 +37,10 @@ export type HomeGrowthCard = {
   pillActive?: boolean;
   accent?: boolean;
   kind?: 'summary' | 'memory';
+  mediaTone: HomeMediaTone;
+  icon: HomeMediaIconId;
+  imageUrl?: string | null;
+  progressPct?: number;
 };
 
 export type HomeGrowthModel = {
@@ -177,12 +194,22 @@ export function buildHomeGrowthModel(opts?: {
   type MilestoneKind = 'almost' | 'month' | 'year' | null;
   let milestoneKind: MilestoneKind = null;
 
+  const daySeed = homeMediaDaySeed(now);
   const summary: HomeGrowthCard = {
     id: 'summary',
     kind: 'summary',
     tag: '今日',
-    title: `今日 ${todayMin} 分钟 · 本月已读 ${monthDays} 天`,
+    title: `今日 ${todayMin} 分钟`,
+    detail: `本月已读 ${monthDays} 天`,
+    metric: {
+      prefix: '今日',
+      value: String(todayMin),
+      suffix: '分钟',
+    },
     href: '/report',
+    mediaTone: 'summary',
+    icon: homeMediaIconForTone('summary'),
+    progressPct: homeMediaMonthProgressPct(monthDays, now),
   };
 
   // 副行优先级：就快读完 > 月末 > 年末（R2）
@@ -217,6 +244,9 @@ export function buildHomeGrowthModel(opts?: {
         title: onThisDay.title,
         href: onThisDay.href,
         pillActive: true,
+        mediaTone: 'memory',
+        icon: homeMediaIconForTone('memory'),
+        imageUrl: homeMediaMemoryImageUrl(onThisDay.href, 'memory', daySeed),
       },
     });
   }
@@ -230,9 +260,12 @@ export function buildHomeGrowthModel(opts?: {
         kind: 'memory',
         tag: '年度',
         title: trimTitle(`生成 ${yearWrap.label}`),
-        sub: trimSub(yearWrap.highlight),
+        detail: trimSub(yearWrap.highlight),
         href: '/wrapped?period=year',
         pillActive: true,
+        mediaTone: 'review',
+        icon: 'spark',
+        imageUrl: homeMediaSceneUrl('review', daySeed),
       },
     });
   }
@@ -245,9 +278,12 @@ export function buildHomeGrowthModel(opts?: {
         kind: 'memory',
         tag: '回顾',
         title: trimTitle(`看 ${now.getMonth() + 1} 月足迹`),
-        sub: `本月已读 ${monthDays} 天`,
+        detail: `本月已读 ${monthDays} 天`,
         href: '/report',
         pillActive: true,
+        mediaTone: 'review',
+        icon: homeMediaIconForTone('review'),
+        imageUrl: homeMediaSceneUrl('review', daySeed + 3),
       },
     });
   }
