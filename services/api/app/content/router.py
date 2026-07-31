@@ -132,25 +132,38 @@ def _pick_user_code(x_user_code: str | None, x_user_id: str | None) -> str | Non
 
 
 def _daily_verse_engagement(verse_day: int, user_code: str | None) -> dict:
+    """点赞/分享按「本年 + verse_day」统计。
+
+    verse_day 是年内天序（同日每年复用），若不加年份过滤，前台会把往年点赞累加进来，
+    与管理台「今日埋点」对不上。
+    """
     empty_react = {"reacts_count": 0, "my_react": None, "top_presets": []}
+    year = china_today().year
+    year_sql = "EXTRACT(YEAR FROM timezone('Asia/Shanghai', created_at))::int = %s"
     try:
         pool = get_pool()
         with pool.connection() as conn:
             likes_row = conn.execute(
-                "SELECT COUNT(*)::int FROM daily_verse_like WHERE verse_day = %s",
-                (verse_day,),
+                f"SELECT COUNT(*)::int FROM daily_verse_like WHERE verse_day = %s AND {year_sql}",
+                (verse_day, year),
             ).fetchone()
             likes_count = int(likes_row[0]) if likes_row else 0
             liked = False
             if user_code:
                 liked_row = conn.execute(
-                    "SELECT 1 FROM daily_verse_like WHERE verse_day = %s AND user_code = %s",
-                    (verse_day, user_code),
+                    f"""
+                    SELECT 1 FROM daily_verse_like
+                    WHERE verse_day = %s AND user_code = %s AND {year_sql}
+                    """,
+                    (verse_day, user_code, year),
                 ).fetchone()
                 liked = liked_row is not None
             shares_row = conn.execute(
-                "SELECT COUNT(DISTINCT user_code)::int FROM daily_verse_share WHERE verse_day = %s",
-                (verse_day,),
+                f"""
+                SELECT COUNT(DISTINCT user_code)::int FROM daily_verse_share
+                WHERE verse_day = %s AND {year_sql}
+                """,
+                (verse_day, year),
             ).fetchone()
             shares_count = int(shares_row[0]) if shares_row else 0
             try:
@@ -226,20 +239,36 @@ def toggle_daily_verse_like(
     if not user_code:
         raise HTTPException(status_code=400, detail="账号未建档")
     verse_day, _ = _resolve_verse_day(day)
+    year = china_today().year
+    year_sql = "EXTRACT(YEAR FROM timezone('Asia/Shanghai', created_at))::int = %s"
     try:
         pool = get_pool()
         with pool.connection() as conn:
             exists = conn.execute(
-                "SELECT 1 FROM daily_verse_like WHERE verse_day = %s AND user_code = %s",
-                (verse_day, user_code),
+                f"""
+                SELECT 1 FROM daily_verse_like
+                WHERE verse_day = %s AND user_code = %s AND {year_sql}
+                """,
+                (verse_day, user_code, year),
             ).fetchone()
             if exists:
                 conn.execute(
-                    "DELETE FROM daily_verse_like WHERE verse_day = %s AND user_code = %s",
+                    """
+                    DELETE FROM daily_verse_like
+                    WHERE verse_day = %s AND user_code = %s
+                    """,
                     (verse_day, user_code),
                 )
                 liked = False
             else:
+                # 清掉往年同天序残留，避免主键冲突导致今年无法再赞
+                conn.execute(
+                    """
+                    DELETE FROM daily_verse_like
+                    WHERE verse_day = %s AND user_code = %s
+                    """,
+                    (verse_day, user_code),
+                )
                 conn.execute(
                     "INSERT INTO daily_verse_like (verse_day, user_code) VALUES (%s, %s)",
                     (verse_day, user_code),
