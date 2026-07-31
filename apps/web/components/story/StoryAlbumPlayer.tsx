@@ -54,8 +54,10 @@ export function StoryAlbumPlayer({
   const [overviewOpen, setOverviewOpen] = useState(false);
   const [placePreview, setPlacePreview] = useState<PlacePreview | null>(null);
   const [shareHint, setShareHint] = useState<string | null>(null);
-  const touchX = useRef<number | null>(null);
+  const [insightOpen, setInsightOpen] = useState(false);
+  const touchStart = useRef<{ x: number; y: number; inCaption: boolean } | null>(null);
   const ignoreSwipe = useRef(false);
+  const [pullDy, setPullDy] = useState(0);
 
   const episode: StoryEpisode | null = series.episodes[epIndex] ?? null;
   const beats = episode?.beats ?? [];
@@ -82,6 +84,10 @@ export function StoryAlbumPlayer({
       setDiagram(null);
     }
   }, [episode, beats]);
+
+  useEffect(() => {
+    setInsightOpen(false);
+  }, [epIndex, beatIndex]);
 
   useEffect(() => {
     if (!episode || !beat) return;
@@ -142,40 +148,50 @@ export function StoryAlbumPlayer({
   }, []);
 
   const goPrev = useCallback(() => {
-    if (beatIndex > 0) {
-      goBeat(beatIndex - 1);
-      return;
-    }
-    // 首拍再向「返回」方向滑 → 回封面
-    exitToCover();
-  }, [beatIndex, goBeat, exitToCover]);
+    if (beatIndex > 0) goBeat(beatIndex - 1);
+  }, [beatIndex, goBeat]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (placePreview || askOpen || tocOpen || overviewOpen) return;
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goNext();
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'Escape') {
-        if (e.key === 'Escape') exitToCover();
-        else goPrev();
-      }
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
+      if (e.key === 'Escape') exitToCover();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [placePreview, askOpen, tocOpen, overviewOpen, goNext, goPrev, exitToCover]);
 
-  const onSwipeStart = (clientX: number) => {
+  const onSwipeStart = (clientX: number, clientY: number, target: EventTarget | null) => {
     if (ignoreSwipe.current || placePreview || askOpen || tocOpen || overviewOpen) return;
-    touchX.current = clientX;
+    const inCaption = target instanceof Element && Boolean(target.closest('.story-beat-caption'));
+    touchStart.current = { x: clientX, y: clientY, inCaption };
+    setPullDy(0);
   };
 
-  const onSwipeEnd = (clientX: number) => {
-    if (touchX.current == null) return;
-    const dx = clientX - touchX.current;
-    touchX.current = null;
-    if (Math.abs(dx) < SWIPE_MIN) return;
-    // 向左滑（dx < 0）= 返回上一拍 / 封面；向右滑 = 下一拍
-    if (dx < 0) goPrev();
-    else goNext();
+  const onSwipeMove = (clientY: number) => {
+    const start = touchStart.current;
+    if (!start || start.inCaption) return;
+    const dy = clientY - start.y;
+    setPullDy(dy > 0 ? Math.min(dy, 120) : 0);
+  };
+
+  const onSwipeEnd = (clientX: number, clientY: number) => {
+    const start = touchStart.current;
+    touchStart.current = null;
+    setPullDy(0);
+    if (!start) return;
+    const dx = clientX - start.x;
+    const dy = clientY - start.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (!start.inCaption && dy > 72 && absY > absX * 1.15) {
+      exitToCover();
+      return;
+    }
+    if (absX < SWIPE_MIN || absX < absY) return;
+    if (dx < 0) goNext();
+    else goPrev();
   };
 
   const openRef = () => {
@@ -266,30 +282,42 @@ export function StoryAlbumPlayer({
         >
           关闭
         </Link>
-        <div className="story-album-player-bar-mid">
-          <span className="story-album-player-ep">
-            出埃及 · 第 {epIndex + 1}/{series.episodes.length} 章
-          </span>
-          <strong className="story-album-player-ep-title">{episode.title}</strong>
-        </div>
-        <button type="button" className="text-link story-album-player-toc" onClick={() => setTocOpen(true)}>
+        <p className="story-album-player-bar-mid">
+          第 {epIndex + 1} 幕 · {episode.title}
+        </p>
+        <button type="button" className="story-album-player-toc" onClick={() => setTocOpen(true)}>
           目录
         </button>
       </header>
 
       <div
         className="story-album-stage"
-        onTouchStart={(e) => onSwipeStart(e.touches[0]?.clientX ?? 0)}
-        onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0)}
+        onTouchStart={(e) =>
+          onSwipeStart(e.touches[0]?.clientX ?? 0, e.touches[0]?.clientY ?? 0, e.target)
+        }
+        onTouchMove={(e) => onSwipeMove(e.touches[0]?.clientY ?? 0)}
+        onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0, e.changedTouches[0]?.clientY ?? 0)}
       >
-        <button
-          type="button"
-          className="story-album-edge story-album-edge-left"
-          aria-label="返回上一拍"
-          onClick={goPrev}
-        />
-        <article className="story-beat-frame">
+        {pullDy > 8 ? (
+          <p className="story-album-pull-hint" style={{ opacity: Math.min(1, pullDy / 72) }}>
+            下拉退出
+          </p>
+        ) : null}
+        <article
+          className="story-beat-frame"
+          style={
+            pullDy > 0
+              ? { transform: `translateY(${pullDy * 0.35}px)`, opacity: Math.max(0.55, 1 - pullDy / 220) }
+              : undefined
+          }
+        >
           <div className="story-beat-visual">
+            <button
+              type="button"
+              className="story-album-edge story-album-edge-left"
+              aria-label="上一拍"
+              onClick={goPrev}
+            />
             <BeatVisual
               beat={beat}
               episode={episode}
@@ -298,20 +326,33 @@ export function StoryAlbumPlayer({
               diagram={diagram}
               onPlaceClick={onPlaceClick}
               onHotspotClick={onHotspotClick}
-              onOpenOverview={() => setOverviewOpen(true)}
+            />
+            <button
+              type="button"
+              className="story-album-edge story-album-edge-right"
+              aria-label="下一拍"
+              onClick={goNext}
             />
           </div>
           <div className="story-beat-caption">
             <h2 className="story-beat-caption-title">{beat.title}</h2>
             <p className="story-beat-caption-narration">{beat.narration}</p>
             {beat.insight ? (
-              <p className="story-beat-caption-insight">{beat.insight}</p>
+              <div className="story-beat-caption-insight-block">
+                <button
+                  type="button"
+                  className="story-beat-caption-insight-toggle"
+                  aria-expanded={insightOpen}
+                  onClick={() => setInsightOpen((v) => !v)}
+                >
+                  {insightOpen ? '收起洞察' : '再想一层'}
+                </button>
+                {insightOpen ? (
+                  <p className="story-beat-caption-insight">{beat.insight}</p>
+                ) : null}
+              </div>
             ) : null}
-            <div
-              className="story-beat-caption-links"
-              onTouchStart={(e) => e.stopPropagation()}
-              onTouchEnd={(e) => e.stopPropagation()}
-            >
+            <div className="story-beat-caption-links">
               {beat.ref ? (
                 <button type="button" className="story-beat-caption-link" onClick={openRef}>
                   {formatGroupRefLabel(beat.ref) || beat.ref}
@@ -330,16 +371,10 @@ export function StoryAlbumPlayer({
             </div>
           </div>
         </article>
-        <button
-          type="button"
-          className="story-album-edge story-album-edge-right"
-          aria-label="下一拍"
-          onClick={goNext}
-        />
       </div>
 
       <footer className="story-album-footer">
-        <div className="story-album-dots" aria-label="进度">
+        <div className="story-album-dots" aria-label={`进度 ${progressLabel}`}>
           {beats.map((b, i) => (
             <button
               key={b.id}
@@ -350,9 +385,7 @@ export function StoryAlbumPlayer({
             />
           ))}
         </div>
-        <p className="muted story-album-progress-label">
-          {progressLabel} · 右滑下一拍 · 左滑返回
-        </p>
+        <p className="story-album-progress-label">{progressLabel}</p>
         {beat.media === 'fin' ? (
           <div className="story-album-footer-actions">
             {beat.fin_kind === 'series' ? (
@@ -370,7 +403,7 @@ export function StoryAlbumPlayer({
               </>
             ) : (
               <button type="button" className="font-pill accent" onClick={goNext}>
-                下一章：{series.episodes[epIndex + 1]?.title ?? ''} ›
+                下一幕：{series.episodes[epIndex + 1]?.title ?? ''} ›
               </button>
             )}
           </div>
@@ -414,7 +447,7 @@ export function StoryAlbumPlayer({
         <div className="sheet-backdrop" onClick={() => setTocOpen(false)}>
           <div className="sheet card half-sheet" onClick={(e) => e.stopPropagation()}>
             <div className="half-sheet-title">
-              <strong>本章目录 · {episode.title}</strong>
+              <strong>本幕目录 · {episode.title}</strong>
               <SheetCloseButton onClick={() => setTocOpen(false)} />
             </div>
             <div className="half-sheet-body">
@@ -549,7 +582,7 @@ function BeatVisual({
           <GeoMiniMap
             places={mapPlaces}
             activeId={beat.place_id}
-            height={280}
+            height={240}
             routeStops={routeStops}
             onPlaceClick={onPlaceClick}
             lockView
