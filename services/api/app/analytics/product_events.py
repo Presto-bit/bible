@@ -247,15 +247,20 @@ def feature_usage_ranking(conn, start: date, end: date) -> list[dict]:
     return out
 
 
-def activation_funnel(conn, start: date, end: date) -> list[dict]:
+def activation_funnel(conn, start: date, end: date, *, within_days: int = 7) -> list[dict]:
     """
     区间新注册用户激活漏斗（按 user_code）：
     注册 → 打开 → 看经文 → 互动(赞/读) → 习惯钩子(计划日/提醒/温习)
+
+    后续步骤仅计「注册日起 within_days 日内」发生的事件（含注册当日）。
     """
     ensure_product_events_schema(conn)
+    window = max(1, min(int(within_days or 7), 30))
     cohort = conn.execute(
         """
-        SELECT DISTINCT COALESCE(a.user_code, up.user_code) AS user_code
+        SELECT DISTINCT
+          COALESCE(a.user_code, up.user_code) AS user_code,
+          (timezone('Asia/Shanghai', u.created_at))::date AS reg_day
         FROM users u
         LEFT JOIN accounts a ON a.user_id = u.id
         LEFT JOIN user_profile up ON up.user_id = u.id
@@ -265,26 +270,38 @@ def activation_funnel(conn, start: date, end: date) -> list[dict]:
         """,
         (start, end),
     ).fetchall()
-    codes = [str(r[0]) for r in cohort if r and r[0]]
-    registered = len(codes)
-    if not codes:
+    pairs = [(str(r[0]), r[1]) for r in cohort if r and r[0] and r[1]]
+    registered = len({p[0] for p in pairs})
+    if not pairs:
         return [
             {"step": "registered", "label": "新注册", "users": 0},
-            {"step": "app_open", "label": "打开 App", "users": 0},
-            {"step": "daily_verse_view", "label": "看今日经文", "users": 0},
-            {"step": "engaged", "label": "赞或阅读", "users": 0},
-            {"step": "habit_hook", "label": "计划/提醒/温习", "users": 0},
+            {"step": "app_open", "label": f"打开 App（{window} 日内）", "users": 0},
+            {"step": "daily_verse_view", "label": f"看今日经文（{window} 日内）", "users": 0},
+            {"step": "engaged", "label": f"赞或阅读（{window} 日内）", "users": 0},
+            {"step": "habit_hook", "label": f"计划/提醒/温习（{window} 日内）", "users": 0},
         ]
+
+    codes = [p[0] for p in pairs]
+    reg_days = [p[1] for p in pairs]
 
     def _count_with_events(names: tuple[str, ...]) -> int:
         row = conn.execute(
             """
-            SELECT count(DISTINCT pe.user_code)
-            FROM product_events pe
-            WHERE pe.user_code = ANY(%s)
-              AND pe.event_name = ANY(%s)
+            WITH cohort AS (
+              SELECT * FROM unnest(%s::text[], %s::date[]) AS c(user_code, reg_day)
+            )
+            SELECT count(DISTINCT c.user_code)
+            FROM cohort c
+            WHERE EXISTS (
+              SELECT 1 FROM product_events pe
+              WHERE pe.user_code = c.user_code
+                AND pe.event_name = ANY(%s)
+                AND (timezone('Asia/Shanghai', pe.created_at))::date >= c.reg_day
+                AND (timezone('Asia/Shanghai', pe.created_at))::date
+                    <= c.reg_day + %s::int
+            )
             """,
-            (codes, list(names)),
+            (codes, reg_days, list(names), window - 1),
         ).fetchone()
         return int(row[0] or 0) if row else 0
 
@@ -292,22 +309,22 @@ def activation_funnel(conn, start: date, end: date) -> list[dict]:
         {"step": "registered", "label": "新注册", "users": registered},
         {
             "step": "app_open",
-            "label": "打开 App",
+            "label": f"打开 App（{window} 日内）",
             "users": _count_with_events(("app_open",)),
         },
         {
             "step": "daily_verse_view",
-            "label": "看今日经文",
+            "label": f"看今日经文（{window} 日内）",
             "users": _count_with_events(("daily_verse_view",)),
         },
         {
             "step": "engaged",
-            "label": "赞或阅读",
+            "label": f"赞或阅读（{window} 日内）",
             "users": _count_with_events(("daily_verse_like", "reader_open")),
         },
         {
             "step": "habit_hook",
-            "label": "计划/提醒/温习",
+            "label": f"计划/提醒/温习（{window} 日内）",
             "users": _count_with_events(
                 ("plan_day_done", "reminder_enable", "warmup_finish")
             ),

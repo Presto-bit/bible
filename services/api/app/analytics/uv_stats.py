@@ -67,13 +67,17 @@ def uv_login_users_sql(*, where: str = _TODAY) -> str:
 
 
 def uv_converted_sql(*, where: str = _TODAY) -> str:
-    """当日设备绑定到账号（游客→账号）。"""
+    """
+    当日游客→账号：同日 visit 上 user_bound_at 晚于 created_at
+    （排除「首访即带账号」时 INSERT 误写的 bound_at）。
+    """
     bound_day = cn_day_sql("user_bound_at")
     return f"""
         SELECT count(*) FROM daily_active_visitors
         WHERE {where}
           AND user_bound_at IS NOT NULL
           AND {bound_day} = visit_date
+          AND user_bound_at > created_at
           AND {uv_attributed_where()}
     """
 

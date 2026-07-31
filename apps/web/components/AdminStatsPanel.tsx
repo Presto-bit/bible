@@ -28,6 +28,7 @@ const METRICS: MetricDef[] = [
     total: (t) => t.uv_today,
     hint: (t) =>
       `非游客（有账号）· 未计入游客 ${t.uv_today_guest ?? 0}`
+      + (t.uv_converted_today != null ? ` · 今日转化 ${t.uv_converted_today}` : '')
       + (t.uv_today_raw != null ? ` · 总行 ${t.uv_today_raw}` : '')
       + (t.uv_write_error ? ` · 写失败` : ''),
     dodKey: 'uv_today',
@@ -87,6 +88,15 @@ const METRICS: MetricDef[] = [
     dodKey: 'messages_today',
     dodLabel: '较昨日',
     seriesKey: 'messages',
+  },
+  {
+    key: 'checkins',
+    label: '今日打卡',
+    total: (t) => t.checkins_today,
+    hint: () => '群内打卡消息',
+    dodKey: 'checkins_today',
+    dodLabel: '较昨日',
+    seriesKey: 'checkins',
   },
   {
     key: 'friendships',

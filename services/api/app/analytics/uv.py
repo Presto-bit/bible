@@ -332,7 +332,7 @@ def _upsert_uv_v2(
         )
         VALUES (
           %s, %s, %s, %s,
-          CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
+          NULL,
           now(), %s, %s
         )
         ON CONFLICT (visit_date, device_fingerprint)
@@ -340,17 +340,21 @@ def _upsert_uv_v2(
           user_id = COALESCE(EXCLUDED.user_id, daily_active_visitors.user_id),
           user_code = COALESCE(EXCLUDED.user_code, daily_active_visitors.user_code),
           client_kind = COALESCE(daily_active_visitors.client_kind, EXCLUDED.client_kind),
-          user_bound_at = COALESCE(
-            daily_active_visitors.user_bound_at,
-            CASE WHEN EXCLUDED.user_id IS NOT NULL THEN now() ELSE NULL END
-          ),
+          user_bound_at = CASE
+            WHEN daily_active_visitors.user_bound_at IS NOT NULL
+              THEN daily_active_visitors.user_bound_at
+            WHEN daily_active_visitors.user_id IS NULL
+              AND EXCLUDED.user_id IS NOT NULL
+              THEN now()
+            ELSE daily_active_visitors.user_bound_at
+          END,
           visitor_key = CASE
             WHEN EXCLUDED.user_id IS NOT NULL THEN 'u:' || EXCLUDED.user_id::text
             ELSE daily_active_visitors.visitor_key
           END,
           updated_at = now()
         """,
-        (visit_day, fingerprint, user_id, legacy_key, user_id, user_code, client_kind),
+        (visit_day, fingerprint, user_id, legacy_key, user_code, client_kind),
     )
 
 
@@ -374,7 +378,7 @@ def _upsert_uv_by_visitor_key(
             )
             VALUES (
               %s, %s, %s, %s,
-              CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
+              NULL,
               now(), %s, %s
             )
             ON CONFLICT (visit_date, visitor_key)
@@ -385,13 +389,17 @@ def _upsert_uv_by_visitor_key(
               user_id = COALESCE(EXCLUDED.user_id, daily_active_visitors.user_id),
               user_code = COALESCE(EXCLUDED.user_code, daily_active_visitors.user_code),
               client_kind = COALESCE(daily_active_visitors.client_kind, EXCLUDED.client_kind),
-              user_bound_at = COALESCE(
-                daily_active_visitors.user_bound_at,
-                CASE WHEN EXCLUDED.user_id IS NOT NULL THEN now() ELSE NULL END
-              ),
+              user_bound_at = CASE
+                WHEN daily_active_visitors.user_bound_at IS NOT NULL
+                  THEN daily_active_visitors.user_bound_at
+                WHEN daily_active_visitors.user_id IS NULL
+                  AND EXCLUDED.user_id IS NOT NULL
+                  THEN now()
+                ELSE daily_active_visitors.user_bound_at
+              END,
               updated_at = now()
             """,
-            (visit_day, fingerprint, user_id, legacy_key, user_id, user_code, client_kind),
+            (visit_day, fingerprint, user_id, legacy_key, user_code, client_kind),
         )
         return
     conn.execute(

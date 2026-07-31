@@ -1,4 +1,4 @@
--- 每日经文点赞 / 分享（按年内天序 verse_day 聚合）
+-- 每日经文点赞 / 分享（verse_day = 年内天序；业务计数按 created_at 北京「今日」）
 
 CREATE TABLE IF NOT EXISTS daily_verse_like (
   verse_day INT NOT NULL,

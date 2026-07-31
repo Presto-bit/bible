@@ -37,6 +37,7 @@ STATS_DETAIL_METRICS = frozenset(
         "groups",
         "friendships",
         "messages",
+        "checkins",
         "uv",
         "ai_requests",
         "rag_documents",
@@ -51,6 +52,7 @@ TITLE_MAP = {
     "groups": "读经群",
     "friendships": "好友关系",
     "messages": "群消息",
+    "checkins": "打卡",
     "uv": "访问 UV",
     "ai_requests": "AI 请求",
     "rag_documents": "RAG 资料",
@@ -379,6 +381,69 @@ def _uv_metrics(conn, *, where: str) -> dict[str, int]:
     }
 
 
+def _fetch_admin_totals(conn) -> dict:
+    """仅 totals（明细页用，避免重复拉 series/dod）。"""
+    cn_today = china_today().isoformat()
+    uv_today_where = f"visit_date = DATE '{cn_today}'"
+    uv_today = _uv_metrics(conn, where=uv_today_where)
+    uv_today_raw = _scalar(
+        conn,
+        f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where}",
+    )
+    uv_7d_where = f"visit_date >= DATE '{cn_today}' - 6"
+    if uv_schema_v2(conn):
+        uv_7d = _scalar(conn, uv_deduped_count_sql(where=uv_7d_where))
+    else:
+        uv_7d = _scalar(
+            conn,
+            f"SELECT count(*) FROM daily_active_visitors WHERE {uv_7d_where} "
+            "AND visitor_key LIKE 'u:%%'",
+        )
+    return {
+        "users": _scalar(conn, "SELECT count(*) FROM users"),
+        "accounts": _scalar(conn, "SELECT count(*) FROM accounts"),
+        "groups": _scalar(conn, "SELECT count(*) FROM social_group"),
+        "group_members": _scalar(conn, "SELECT count(*) FROM group_member"),
+        "friendships": _scalar(conn, "SELECT count(*) FROM friendship"),
+        "messages_today": _scalar(
+            conn,
+            "SELECT count(*) FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+        ),
+        "checkins_today": _scalar(
+            conn,
+            "SELECT count(*) FROM group_message "
+            "WHERE kind = 'checkin' AND created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+        ),
+        "rag_documents": _scalar(conn, "SELECT count(*) FROM bible_documents"),
+        "rag_chunks": _scalar(conn, "SELECT count(*) FROM bible_rag_chunks"),
+        "rag_failed": _scalar(
+            conn,
+            "SELECT count(*) FROM bible_documents "
+            "WHERE rag_index_error IS NOT NULL "
+            "OR status NOT IN ('ready', 'indexed')",
+        ),
+        "ai_requests_today": _scalar(
+            conn,
+            "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
+            "WHERE usage_date = (timezone('Asia/Shanghai', now()))::date",
+        ),
+        "ai_requests_7d": _scalar(
+            conn,
+            "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
+            "WHERE usage_date >= (timezone('Asia/Shanghai', now()))::date - 6",
+        ),
+        "uv_today": uv_today["deduped"],
+        "uv_today_raw": uv_today_raw,
+        "uv_today_guest": uv_today["guest_rows"],
+        "uv_today_login": uv_today["login_users"],
+        "uv_login_visits": uv_today["login_rows"],
+        "uv_converted_today": uv_today["converted"],
+        "uv_write_error": uv_last_error(),
+        "uv_7d": uv_7d,
+        "product_events_today": product_events_today_count(conn),
+    }
+
+
 def fetch_admin_stats(*, series_days: int = 7) -> dict:
     span = max(1, min(series_days, 90))
     pool = get_pool()
@@ -386,63 +451,7 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
         # 与写入侧共用 Python 北京日期，避免仅 SQL timezone 表达式读写错位
         cn_today = china_today().isoformat()
         uv_today_where = f"visit_date = DATE '{cn_today}'"
-        uv_today = _uv_metrics(conn, where=uv_today_where)
-        uv_today_raw = _scalar(
-            conn,
-            f"SELECT count(*) FROM daily_active_visitors WHERE {uv_today_where}",
-        )
-        uv_7d_where = f"visit_date >= DATE '{cn_today}' - 6"
-        if uv_schema_v2(conn):
-            uv_7d = _scalar(conn, uv_deduped_count_sql(where=uv_7d_where))
-        else:
-            uv_7d = _scalar(
-                conn,
-                f"SELECT count(*) FROM daily_active_visitors WHERE {uv_7d_where} "
-                "AND visitor_key LIKE 'u:%%'",
-            )
-        totals = {
-            "users": _scalar(conn, "SELECT count(*) FROM users"),
-            "accounts": _scalar(conn, "SELECT count(*) FROM accounts"),
-            "groups": _scalar(conn, "SELECT count(*) FROM social_group"),
-            "group_members": _scalar(conn, "SELECT count(*) FROM group_member"),
-            "friendships": _scalar(conn, "SELECT count(*) FROM friendship"),
-            "messages_today": _scalar(
-                conn,
-                "SELECT count(*) FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
-            ),
-            "checkins_today": _scalar(
-                conn,
-                "SELECT count(*) FROM group_message "
-                "WHERE kind = 'checkin' AND created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
-            ),
-            "rag_documents": _scalar(conn, "SELECT count(*) FROM bible_documents"),
-            "rag_chunks": _scalar(conn, "SELECT count(*) FROM bible_rag_chunks"),
-            "rag_failed": _scalar(
-                conn,
-                "SELECT count(*) FROM bible_documents "
-                "WHERE rag_index_error IS NOT NULL "
-                "OR status NOT IN ('ready', 'indexed')",
-            ),
-            "ai_requests_today": _scalar(
-                conn,
-                "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date = (timezone('Asia/Shanghai', now()))::date",
-            ),
-            "ai_requests_7d": _scalar(
-                conn,
-                "SELECT coalesce(sum(request_count), 0) FROM ai_usage_daily "
-                "WHERE usage_date >= (timezone('Asia/Shanghai', now()))::date - 6",
-            ),
-            "uv_today": uv_today["deduped"],
-            "uv_today_raw": uv_today_raw,
-            "uv_today_guest": uv_today["guest_rows"],
-            "uv_today_login": uv_today["login_users"],
-            "uv_login_visits": uv_today["login_rows"],
-            "uv_converted_today": uv_today["converted"],
-            "uv_write_error": uv_last_error(),
-            "uv_7d": uv_7d,
-            "product_events_today": product_events_today_count(conn),
-        }
+        totals = _fetch_admin_totals(conn)
         try:
             product_dod = _dod(
                 conn,
@@ -486,6 +495,14 @@ def fetch_admin_stats(*, series_days: int = 7) -> dict:
                 conn,
                 "SELECT count(*) FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
                 "SELECT count(*) FROM group_message WHERE created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
+                "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+            ),
+            "checkins_today": _dod(
+                conn,
+                "SELECT count(*) FROM group_message WHERE kind = 'checkin' "
+                "AND created_at >= (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
+                "SELECT count(*) FROM group_message WHERE kind = 'checkin' "
+                "AND created_at >= (((timezone('Asia/Shanghai', now()))::date - 1)::timestamp AT TIME ZONE 'Asia/Shanghai') "
                 "AND created_at < (((timezone('Asia/Shanghai', now()))::date)::timestamp AT TIME ZONE 'Asia/Shanghai')",
             ),
             "uv_today": _dod(
@@ -645,6 +662,11 @@ def _series_for_metric(conn, metric: str, start: date, end: date) -> list[dict]:
             "WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
             "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
         ),
+        "checkins": (
+            "SELECT (timezone('Asia/Shanghai', created_at))::date::text, count(*) FROM group_message "
+            "WHERE kind = 'checkin' AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s "
+            "GROUP BY (timezone('Asia/Shanghai', created_at))::date ORDER BY (timezone('Asia/Shanghai', created_at))::date"
+        ),
         "uv": (
             f"SELECT visit_date::text, count(DISTINCT {UV_IDENTITY_SQL}) "
             "FROM daily_active_visitors "
@@ -725,15 +747,16 @@ def fetch_admin_stats_detail(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> dict:
-    stats = fetch_admin_stats()
-    totals = stats["totals"]
     title = TITLE_MAP.get(metric, metric)
 
     if metric == "rag_documents":
         pool = get_pool()
         with pool.connection() as conn:
+            totals = _fetch_admin_totals(conn)
             detail = _fetch_rag_detail(conn, totals, limit)
-            detail["series"] = stats["series"].get("rag_documents", [])
+            detail["series"] = _series_for_metric(
+                conn, "rag_documents", china_today() - timedelta(days=6), china_today()
+            )
             return detail
 
     start, end, range_preset = resolve_stats_range(
@@ -743,6 +766,7 @@ def fetch_admin_stats_detail(
 
     pool = get_pool()
     with pool.connection() as conn:
+        totals = _fetch_admin_totals(conn)
         series = _series_for_metric(conn, metric, start, end)
         insights: list[dict] = []
         sections: list[dict] = []
@@ -1161,7 +1185,8 @@ def fetch_admin_stats_detail(
             ]
             hour_rows = conn.execute(
                 """
-                SELECT extract(hour from created_at)::int AS hour, count(*) AS cnt
+                SELECT extract(hour from timezone('Asia/Shanghai', created_at))::int AS hour,
+                       count(*) AS cnt
                 FROM group_message
                 WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
                 GROUP BY hour ORDER BY hour
@@ -1190,7 +1215,7 @@ def fetch_admin_stats_detail(
                 ),
                 _section(
                     "hourly",
-                    "发送时段分布",
+                    "发送时段分布（北京时间）",
                     [_col("hour", "时段"), _col("count", "消息数")],
                     hour_items,
                 ),
@@ -1202,6 +1227,91 @@ def fetch_admin_stats_detail(
                 ),
             ]
             summary = f"今日 {totals['messages_today']} · 打卡 {totals['checkins_today']}"
+
+        elif metric == "checkins":
+            total_in_range = _scalar(
+                conn,
+                "SELECT count(*) FROM group_message WHERE kind = 'checkin' "
+                "AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s",
+                (start, end),
+            )
+            groups_with = _scalar(
+                conn,
+                """
+                SELECT count(DISTINCT group_id) FROM group_message
+                WHERE kind = 'checkin'
+                  AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+                """,
+                (start, end),
+            )
+            insights = [
+                _insight("区间打卡", total_in_range),
+                _insight("有打卡的群", groups_with),
+                _insight("今日打卡", totals["checkins_today"]),
+            ]
+            group_rows = conn.execute(
+                """
+                SELECT g.name, count(*) AS checkins
+                FROM group_message m
+                JOIN social_group g ON g.id = m.group_id
+                WHERE m.kind = 'checkin'
+                  AND (timezone('Asia/Shanghai', m.created_at))::date BETWEEN %s AND %s
+                GROUP BY g.id, g.name
+                ORDER BY checkins DESC
+                LIMIT %s
+                """,
+                (start, end, min(limit, 20)),
+            ).fetchall()
+            group_items = [
+                {"group": r[0], "checkins": int(r[1])}
+                for r in group_rows
+            ]
+            hour_rows = conn.execute(
+                """
+                SELECT extract(hour from timezone('Asia/Shanghai', created_at))::int AS hour,
+                       count(*) AS cnt
+                FROM group_message
+                WHERE kind = 'checkin'
+                  AND (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
+                GROUP BY hour ORDER BY hour
+                """,
+                (start, end),
+            ).fetchall()
+            hour_items = [{"hour": f"{int(r[0]):02d}:00", "count": int(r[1])} for r in hour_rows]
+            recent_rows = conn.execute(
+                f"""
+                SELECT g.name, m.ref, {_ts_sql("m.created_at")}
+                FROM group_message m
+                JOIN social_group g ON g.id = m.group_id
+                WHERE m.kind = 'checkin'
+                  AND (timezone('Asia/Shanghai', m.created_at))::date BETWEEN %s AND %s
+                ORDER BY m.created_at DESC
+                LIMIT %s
+                """,
+                (start, end, limit),
+            ).fetchall()
+            items = [{"group": r[0], "ref": r[1], "created_at": r[2]} for r in recent_rows]
+            sections = [
+                _section(
+                    "by_group",
+                    "按群聚合",
+                    [_col("group", "群"), _col("checkins", "打卡")],
+                    group_items,
+                ),
+                _section(
+                    "hourly",
+                    "打卡时段分布（北京时间）",
+                    [_col("hour", "时段"), _col("count", "打卡数")],
+                    hour_items,
+                ),
+                _section(
+                    "recent",
+                    "最近打卡",
+                    [_col("group", "群"), _col("ref", "经文"), _col("created_at", "时间")],
+                    items,
+                ),
+            ]
+            summary = f"今日 {totals['checkins_today']} · 区间 {total_in_range}"
 
         elif metric == "uv":
             range_where = "visit_date BETWEEN %s AND %s"
@@ -1281,7 +1391,8 @@ def fetch_admin_stats_detail(
                       bound_at,
                       identity,
                       device_fp,
-                      client_kind
+                      client_kind,
+                      is_converted
                     FROM (
                       SELECT DISTINCT ON (d.visit_date, {uv_identity_sql("d")})
                              {_v2_uv_user_code_sql()} AS user_code,
@@ -1292,7 +1403,12 @@ def fetch_admin_stats_detail(
                              {_ts_sql("d.user_bound_at")} AS bound_at,
                              {uv_identity_sql("d")} AS identity,
                              d.device_fingerprint AS device_fp,
-                             {kind_select}
+                             {kind_select},
+                             (
+                               d.user_bound_at IS NOT NULL
+                               AND (timezone('Asia/Shanghai', d.user_bound_at))::date = d.visit_date
+                               AND d.user_bound_at > d.created_at
+                             ) AS is_converted
                       FROM daily_active_visitors d
                       LEFT JOIN users u ON u.id = d.user_id
                       {_USER_JOINS}
@@ -1320,10 +1436,9 @@ def fetch_admin_stats_detail(
                         identity,
                         device_fp,
                         kind,
+                        is_converted,
                     ) = r
-                    converted_today = bool(
-                        bound and bound != "—" and bound[:10] == vdate
-                    )
+                    converted_today = bool(is_converted)
                     display_code = user_code if user_code and user_code != "—" else None
                     if not display_code:
                         ident = (identity or "").strip()
@@ -1464,12 +1579,23 @@ def fetch_admin_stats_detail(
             d1 = round(d1_num / d1_den * 100, 1) if d1_den else None
             d7 = round(d7_num / d7_den * 100, 1) if d7_den else None
             guest_pct = round(guest_uv / (deduped + guest_uv) * 100, 1) if (deduped + guest_uv) else 0
-            convert_pct = round(converted / guest_uv * 100, 1) if guest_uv and converted else 0
+            convert_base = guest_uv + converted
+            convert_pct = round(converted / convert_base * 100, 1) if convert_base else 0
+            same_day = start == end
+            uv_hint = (
+                "非游客（accounts.user_code）；同一账号全天计 1"
+                if same_day
+                else "非游客；区间内同一账号计 1（跨日去重）"
+            )
             insights = [
-                _insight("去重 UV", deduped, "非游客（accounts.user_code）；同一账号全天计 1"),
+                _insight("去重 UV", deduped, uv_hint),
                 _insight("游客设备", guest_uv, f"未计入 UV · 占访问 {guest_pct}%"),
                 _insight("登录用户", login_users, f"访问 {login_visits} 次"),
-                _insight("当日转化", converted, f"游客→账号 {convert_pct}%" if converted else None),
+                _insight(
+                    "区间转化" if not same_day else "当日转化",
+                    converted,
+                    f"游客→账号 {convert_pct}%（分母=游客+转化）" if converted else "同设备当日绑定",
+                ),
                 _insight("次日留存", f"{d1}%" if d1 is not None else "—"),
                 _insight("7 日留存", f"{d7}%" if d7 is not None else "—"),
             ]
@@ -1531,7 +1657,7 @@ def fetch_admin_stats_detail(
                     if guest_uv
                     else ""
                 )
-                + f" · 转化 {totals.get('uv_converted_today', converted)}"
+                + f" · 区间转化 {converted}"
             )
 
         elif metric == "ai_requests":
@@ -1569,7 +1695,8 @@ def fetch_admin_stats_detail(
                 scene_items = [{"scene": r[0], "count": int(r[1])} for r in scene_rows]
                 hour_rows = conn.execute(
                     """
-                    SELECT extract(hour from created_at)::int AS hour, count(*) AS cnt
+                    SELECT extract(hour from timezone('Asia/Shanghai', created_at))::int AS hour,
+                           count(*) AS cnt
                     FROM ai_request_log
                     WHERE (timezone('Asia/Shanghai', created_at))::date BETWEEN %s AND %s
                     GROUP BY hour ORDER BY hour
@@ -1627,7 +1754,7 @@ def fetch_admin_stats_detail(
                     ),
                     _section(
                         "hourly",
-                        "时段分布",
+                        "时段分布（北京时间）",
                         [_col("hour", "时段"), _col("count", "请求数")],
                         hour_items,
                     ),

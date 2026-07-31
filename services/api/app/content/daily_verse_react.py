@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..time_cn import CN_TODAY_SQL, cn_day_sql
+
 # id 必须稳定；客户端与服务端共用同一套
 DAILY_VERSE_REACT_PRESETS: list[dict[str, str]] = [
     # emoji
@@ -85,9 +87,11 @@ def list_presets_payload() -> dict[str, Any]:
 
 
 def react_engagement(conn, verse_day: int, user_code: str | None) -> dict[str, Any]:
+    """点赞同口径：只统计「今天」写下的回应（北京日历日）。"""
     ensure_daily_verse_react_schema(conn)
+    today_sql = f"{cn_day_sql('created_at')} = {CN_TODAY_SQL}"
     count_row = conn.execute(
-        "SELECT COUNT(*)::int FROM daily_verse_react WHERE verse_day = %s",
+        f"SELECT COUNT(*)::int FROM daily_verse_react WHERE verse_day = %s AND {today_sql}",
         (verse_day,),
     ).fetchone()
     reacts_count = int(count_row[0]) if count_row else 0
@@ -95,9 +99,9 @@ def react_engagement(conn, verse_day: int, user_code: str | None) -> dict[str, A
     my_react = None
     if user_code:
         mine = conn.execute(
-            """
+            f"""
             SELECT preset_id FROM daily_verse_react
-            WHERE verse_day = %s AND user_code = %s
+            WHERE verse_day = %s AND user_code = %s AND {today_sql}
             LIMIT 1
             """,
             (verse_day, user_code),
@@ -106,10 +110,10 @@ def react_engagement(conn, verse_day: int, user_code: str | None) -> dict[str, A
             my_react = serialize_preset(mine[0])
 
     top_rows = conn.execute(
-        """
+        f"""
         SELECT preset_id, COUNT(*)::int AS c
         FROM daily_verse_react
-        WHERE verse_day = %s
+        WHERE verse_day = %s AND {today_sql}
         GROUP BY preset_id
         ORDER BY c DESC, preset_id ASC
         LIMIT 5
@@ -136,10 +140,11 @@ def upsert_react(conn, *, verse_day: int, user_code: str, preset_id: str) -> dic
     if not preset:
         raise ValueError("invalid_preset")
 
+    today_sql = f"{cn_day_sql('created_at')} = {CN_TODAY_SQL}"
     existing = conn.execute(
-        """
+        f"""
         SELECT preset_id FROM daily_verse_react
-        WHERE verse_day = %s AND user_code = %s
+        WHERE verse_day = %s AND user_code = %s AND {today_sql}
         LIMIT 1
         """,
         (verse_day, user_code),
@@ -152,13 +157,15 @@ def upsert_react(conn, *, verse_day: int, user_code: str, preset_id: str) -> dic
         )
         removed = True
     else:
+        # 清掉往日/往年同天序残留，避免主键冲突；与点赞口径一致
+        conn.execute(
+            "DELETE FROM daily_verse_react WHERE verse_day = %s AND user_code = %s",
+            (verse_day, user_code),
+        )
         conn.execute(
             """
             INSERT INTO daily_verse_react (verse_day, user_code, preset_id, created_at, updated_at)
             VALUES (%s, %s, %s, now(), now())
-            ON CONFLICT (verse_day, user_code) DO UPDATE SET
-              preset_id = EXCLUDED.preset_id,
-              updated_at = now()
             """,
             (verse_day, user_code, preset["id"]),
         )
@@ -186,6 +193,8 @@ def list_react_feed(conn, *, verse_day: int, limit: int = 40) -> list[dict[str, 
         LEFT JOIN accounts a ON a.user_code = r.user_code
         LEFT JOIN user_profile up ON up.user_id = a.user_id
         WHERE r.verse_day = %s
+          AND (timezone('Asia/Shanghai', r.created_at))::date
+            = (timezone('Asia/Shanghai', now()))::date
         ORDER BY r.created_at DESC
         LIMIT %s
         """,
