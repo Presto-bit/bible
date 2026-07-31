@@ -79,7 +79,7 @@ import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
-import { getSyncState, subscribeSyncState } from '@/lib/sync_status';
+import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
 import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
 import {
@@ -101,6 +101,8 @@ import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { shareInviteProduct, inviteShareUrl } from '@/lib/invite_share';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
+import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
+import { activePlanTodayHrefSync } from '@/lib/plan_today_href';
 
 const AVATAR_KEY = 'profile_avatar';
 const BIO_KEY = 'profile_bio';
@@ -447,6 +449,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   });
   const [milestone, setMilestone] = useState<number | null>(null);
   const [milestoneBusy, setMilestoneBusy] = useState(false);
+  const [syncBusy, setSyncBusy] = useState(false);
+  const [syncLabel, setSyncLabel] = useState(() =>
+    typeof window !== 'undefined' ? syncStateLabel(getSyncState()) : '已同步到云端',
+  );
   const [bookNames, setBookNames] = useState<Record<string, string>>({});
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [badgeOpen, setBadgeOpen] = useState(false);
@@ -723,8 +729,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     refreshReading();
     const unsubSync = subscribeSyncState(() => {
       refreshStatus();
+      setSyncLabel(syncStateLabel(getSyncState()));
       if (getSyncState() === 'synced') refreshReading();
     });
+    setSyncLabel(syncStateLabel(getSyncState()));
     const unsubData = subscribeLocalDataChanged(refreshReading);
     return () => {
       unsubSync();
@@ -908,6 +916,21 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     if (!milestone) return;
     markStreakMilestoneShared(milestone);
     setMilestone(null);
+  };
+
+  const handleSyncNow = async () => {
+    if (syncBusy) return;
+    setSyncBusy(true);
+    try {
+      await syncNow();
+      setSyncLabel(syncStateLabel(getSyncState()));
+      toast('已同步');
+    } catch {
+      toast('同步失败，请检查网络后重试');
+    } finally {
+      setSyncBusy(false);
+      setSyncLabel(syncStateLabel(getSyncState()));
+    }
   };
 
   const openThoughts = () => {
@@ -1603,6 +1626,25 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               <section className="settings-group settings-group-danger">
                 <h4 className="settings-group-label">数据</h4>
                 <div className="settings-group-list">
+                  <button
+                    type="button"
+                    className="settings-nav-row"
+                    disabled={syncBusy}
+                    onClick={() => void handleSyncNow()}
+                  >
+                    <span className="settings-nav-glyph" aria-hidden>
+                      {settingsGlyph(
+                        <>
+                          <path d="M21 12a9 9 0 1 1-2.6-6.3" />
+                          <path d="M21 3v6h-6" />
+                        </>,
+                      )}
+                    </span>
+                    <span className="settings-nav-main">
+                      <strong>{syncBusy ? '同步中…' : '同步到云端'}</strong>
+                      <span className="muted">{syncLabel}</span>
+                    </span>
+                  </button>
                   <button
                     type="button"
                     className="settings-nav-row"

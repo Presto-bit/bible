@@ -8,6 +8,7 @@ class SyncContract {
     'note',
     'highlight',
     'bookmark',
+    'thought',
     'ai_session',
     'plan_progress',
     'reading_progress',

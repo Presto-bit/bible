@@ -181,10 +181,11 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
     };
     window.addEventListener('pagehide', onPageHide);
     const syncInterval = window.setInterval(() => {
-      if (pendingCount() > 0) runBackgroundSync();
+      // 有 pending 上行，或定期拉增量，便于多端变更尽快可见
+      runBackgroundSync();
       const uid = currentUserId() || effectiveId();
       if (uid && hasLocalReadingData()) void backupLocalReadingSnapshot(uid);
-    }, 30000);
+    }, 45000);
     return () => {
       window.removeEventListener('online', onOnline);
       document.removeEventListener('visibilitychange', onVisible);

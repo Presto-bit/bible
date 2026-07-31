@@ -1,9 +1,16 @@
-// 经文想法（本地 JSON；不再同步「好友动态」，v1.2 已下线）。
+// 经文想法（本地 JSON + 云同步；点赞仍本机）。
 
 import { effectiveId, getDisplayName, getUserName } from './api';
 import { listNotes } from './notes';
 import { notifyLocalDataChanged } from './local_data_events';
 import { userLsGet, userLsSet, userLsRemove, userPrefixedGet, userPrefixedSet, userPrefixedRemove } from './user_storage';
+import {
+  clearThoughtSyncMeta,
+  enqueueThought,
+  ensureThoughtSyncId,
+  recordRemoteThought,
+  remoteVersionForThought,
+} from './thought_sync';
 
 export type ThoughtVisibility = 'public' | 'friends' | 'private';
 
@@ -295,6 +302,7 @@ type AddThoughtOpts = {
   skipPublish?: boolean;
   createdAtMs?: number;
   id?: string;
+  skipSync?: boolean;
 };
 
 export function addThought(
@@ -303,8 +311,11 @@ export function addThought(
   visibility: ThoughtVisibility = getDefaultVisibility(),
   opts?: AddThoughtOpts,
 ): ThoughtRow {
+  const id = opts?.skipSync
+    ? opts.id ?? `t_${Date.now()}`
+    : ensureThoughtSyncId(opts?.id);
   const row: ThoughtRow = {
-    id: opts?.id ?? `t_${Date.now()}`,
+    id,
     ref,
     body: body.trim(),
     authorId: userId(),
@@ -319,6 +330,15 @@ export function addThought(
   writeAll(all);
   rememberVisibility(visibility);
   clearThoughtDraft(ref);
+  if (!opts?.skipSync) {
+    enqueueThought({
+      id: row.id,
+      ref: row.ref,
+      body: row.body,
+      visibility: row.visibility,
+      createdAtMs: row.createdAtMs,
+    });
+  }
   return row;
 }
 
@@ -338,12 +358,22 @@ export function isThoughtLiked(t: ThoughtRow): boolean {
   return t.likedBy.includes(userId());
 }
 
-export function deleteThought(id: string): boolean {
+export function deleteThought(id: string, opts?: { skipSync?: boolean }): boolean {
   const uid = userId();
   const all = readAll();
   const row = all.find((t) => t.id === id);
   if (!row || row.authorId !== uid) return false;
   writeAll(all.filter((t) => t.id !== id));
+  if (!opts?.skipSync) {
+    enqueueThought({
+      id: row.id,
+      ref: row.ref,
+      body: row.body,
+      visibility: row.visibility,
+      createdAtMs: row.createdAtMs,
+      isDelete: true,
+    });
+  }
   return true;
 }
 
@@ -351,6 +381,7 @@ export function updateThought(
   id: string,
   body: string,
   visibility?: ThoughtVisibility,
+  opts?: { skipSync?: boolean },
 ): boolean {
   const uid = userId();
   const trimmed = body.trim();
@@ -362,10 +393,72 @@ export function updateThought(
   all[i] = { ...all[i], body: trimmed, visibility: nextVisibility };
   writeAll(all);
   rememberVisibility(nextVisibility);
+  if (!opts?.skipSync) {
+    enqueueThought({
+      id: all[i].id,
+      ref: all[i].ref,
+      body: all[i].body,
+      visibility: all[i].visibility,
+      createdAtMs: all[i].createdAtMs,
+    });
+  }
   return true;
 }
 
 export function getThoughtById(id: string): ThoughtRow | null {
   const uid = userId();
   return readAll().find((t) => t.id === id && t.authorId === uid) ?? null;
+}
+
+/** 远端 pull 合并（不回写 outbox） */
+export function applyRemoteThought(opts: {
+  id: string;
+  op: string;
+  version?: number;
+  data?: {
+    ref?: string;
+    body?: string;
+    visibility?: string;
+    created_at_ms?: number;
+  };
+}) {
+  const incoming = opts.version ?? 1;
+  if (remoteVersionForThought(opts.id) > incoming && opts.op !== 'delete') return;
+
+  if (opts.op === 'delete') {
+    deleteThought(opts.id, { skipSync: true });
+    clearThoughtSyncMeta(opts.id);
+    return;
+  }
+
+  const ref = opts.data?.ref?.trim();
+  const body = opts.data?.body?.trim();
+  if (!ref || !body) return;
+
+  const visibility =
+    opts.data?.visibility === 'public' ||
+    opts.data?.visibility === 'friends' ||
+    opts.data?.visibility === 'private'
+      ? opts.data.visibility
+      : 'private';
+  const createdAtMs = Number(opts.data?.created_at_ms) || Date.now();
+  const all = readAll();
+  const i = all.findIndex((t) => t.id === opts.id);
+  if (i >= 0) {
+    all[i] = {
+      ...all[i],
+      ref,
+      body,
+      visibility,
+      createdAtMs: all[i].createdAtMs || createdAtMs,
+    };
+    writeAll(all);
+  } else {
+    addThought(ref, body, visibility, {
+      id: opts.id,
+      createdAtMs,
+      skipSync: true,
+    });
+  }
+  recordRemoteThought(opts.id, incoming);
 }

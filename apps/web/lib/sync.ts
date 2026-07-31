@@ -27,6 +27,7 @@ import { applyRemoteProfile } from './profile_sync';
 import { mergeRemoteReadingLog } from './reading_log_sync';
 import { mergeRemoteReadEvent } from './read_event_sync';
 import { applyRemoteBadgeUnlock } from './badge_unlock_sync';
+import { applyRemoteThought } from './reader_thoughts';
 import { SYNC_PULL_ENTITIES } from './sync_contract';
 import { removeHighlight, setHighlight, type HighlightColor } from './reader_highlights';
 import { notifyLocalDataChanged } from './local_data_events';
@@ -398,6 +399,19 @@ function applyPullChanges(changes: PullChange[]): number {
         applyRemoteFavorite(ref, true);
         recordRemoteBookmark(ref, c.id, incoming);
       }
+    }
+    if (c.entity === 'thought' && c.id) {
+      applyRemoteThought({
+        id: c.id,
+        op: c.op,
+        version: c.version,
+        data: c.data as {
+          ref?: string;
+          body?: string;
+          visibility?: string;
+          created_at_ms?: number;
+        },
+      });
     }
     if (c.entity === 'ai_session' && c.id) {
       aiSessionChanges.push({

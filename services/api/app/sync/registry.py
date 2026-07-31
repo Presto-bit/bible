@@ -36,6 +36,10 @@ REGISTRY: dict[str, EntitySpec] = {
     "bookmark": EntitySpec(
         "bookmark", "user_bookmark", ("id",), ("id",), ("ref",), True,
     ),
+    "thought": EntitySpec(
+        "thought", "user_thought", ("id",), ("id",),
+        ("ref", "body", "visibility", "created_at_ms"), True,
+    ),
     "ai_session": EntitySpec(
         "ai_session", "ai_session", ("id",), ("id",), ("anchor_ref", "title"), True,
     ),
