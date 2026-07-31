@@ -968,18 +968,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const selectShortcut = (next: ShortcutTone) => {
-    if (next === 'challenge') {
-      setShortcut('challenge');
-      try {
-        sessionStorage.setItem(SHORTCUT_KEY, 'challenge');
-      } catch {
-        /* ignore */
-      }
-      // 规格：常用「今日温习」进 /challenge，避免面板 CTA 落在底栏下
-      markRouteNavigation();
-      router.push('/challenge');
-      return;
-    }
     setShortcut(next);
     try {
       sessionStorage.setItem(SHORTCUT_KEY, next);
@@ -1431,25 +1419,34 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           }
         >
           {shortcut === 'challenge' ? (
-            <button
-              type="button"
-              className="profile-shortcut-go"
-              onClick={dailyDone ? openWarmupHub : startDailyQuiz}
-            >
-              <span className="profile-shortcut-go-copy">
-                <strong className="profile-shortcut-panel-title">
+            <>
+              <div className="profile-shortcut-panel-head">
+                <p className="profile-shortcut-panel-title">
                   {dailyWarmupSubtitle(dailyDone)}
-                </strong>
-                <span className="profile-shortcut-panel-sub">
+                </p>
+                <p className="profile-shortcut-panel-sub">
                   {quizStats.total > 0
                     ? `曾温习 ${quizStats.total} 题 · 错题会优先出现`
                     : '五道轻问，巩固读过的经文；不是考试'}
-                </span>
-              </span>
-              <span className="profile-shortcut-go-cta">
-                {dailyWarmupCta(dailyDone)}
-              </span>
-            </button>
+                </p>
+              </div>
+              <div className="profile-shortcut-panel-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={dailyDone ? openWarmupHub : startDailyQuiz}
+                >
+                  {dailyWarmupCta(dailyDone)}
+                </button>
+                <Link
+                  href="/challenge"
+                  className="text-link"
+                  onClick={() => markRouteNavigation()}
+                >
+                  温习页 ›
+                </Link>
+              </div>
+            </>
           ) : null}
 
           {shortcut === 'remind' ? (

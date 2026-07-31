@@ -5278,8 +5278,6 @@ a.today-card-link {
 }
 
 .profile-page .profile-shortcut-panel.tone-challenge {
-  padding: 0;
-  overflow: hidden;
   background: color-mix(in srgb, var(--accent, #07c160) 6%, var(--surface));
 }
 
