@@ -12576,6 +12576,161 @@ a.license-row-name:hover {
   }
 }
 
+.chapter-complete-tip {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  max-width: min(520px, calc(100vw - 24px));
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent-wash));
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+  box-shadow: 0 8px 28px rgba(20, 24, 28, 0.12);
+}
+
+.chapter-complete-tip-text {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.chapter-complete-tip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.chapter-complete-tip-primary,
+.chapter-complete-tip-skip {
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chapter-complete-tip-primary {
+  background: var(--accent-deep);
+  color: #fff;
+  font-weight: 600;
+}
+
+.chapter-complete-tip-skip {
+  color: var(--ink-faint);
+}
+
+.verse-diff-mark {
+  background: color-mix(in srgb, var(--gold) 28%, transparent);
+  border-radius: 3px;
+  padding: 0 1px;
+  cursor: pointer;
+}
+
+.verse-diff-heavy {
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--gold) 45%, transparent);
+  cursor: pointer;
+}
+
+.verse-card-sheet {
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.verse-card-preview {
+  margin-top: 10px;
+  border-radius: 14px;
+  min-height: 280px;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.verse-card-preview-scrim {
+  min-height: 280px;
+  padding: 28px 22px;
+  background: linear-gradient(
+    180deg,
+    rgba(20, 24, 28, 0.35),
+    rgba(20, 24, 28, 0.55)
+  );
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.verse-card-preview-ref {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.verse-card-preview-quote {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.55;
+  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+}
+
+.verse-card-preview-note {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.verse-card-wallpaper-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.verse-card-note-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.verse-card-note-input {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.strongs-lemma-he {
+  font-family: "Noto Sans Hebrew", "Times New Roman", serif;
+  font-size: 1.15em;
+  direction: rtl;
+  unicode-bidi: embed;
+}
+
+.plan-day-complete-backdrop {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+}
+
+.plan-day-complete-backdrop .plan-day-complete {
+  width: min(420px, 100%);
+  margin-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+}
+
 .reader-chapter-title {
   font-size: calc(var(--reader-font-size, 18px) * 0.88);
   font-weight: 600;

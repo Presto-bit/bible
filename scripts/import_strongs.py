@@ -47,14 +47,35 @@ TAHOT_URLS = [
         {"GEN", "EXO", "LEV", "NUM", "DEU"},
     ),
     (
+        "TAHOT-Jos-Est.txt",
+        "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/"
+        "Translators%20Amalgamated%20OT%2BNT/"
+        "TAHOT%20Jos-Est%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+        {
+            "JOS", "JDG", "RUT", "1SA", "2SA", "1KI", "2KI",
+            "1CH", "2CH", "EZR", "NEH", "EST",
+        },
+    ),
+    (
         "TAHOT-Job-Sng.txt",
         "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/"
         "Translators%20Amalgamated%20OT%2BNT/"
         "TAHOT%20Job-Sng%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
         {"JOB", "PSA", "PRO", "ECC", "SNG"},
     ),
+    (
+        "TAHOT-Isa-Mal.txt",
+        "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/"
+        "Translators%20Amalgamated%20OT%2BNT/"
+        "TAHOT%20Isa-Mal%20-%20Translators%20Amalgamated%20Hebrew%20OT%20-%20STEPBible.org%20CC%20BY.txt",
+        {
+            "ISA", "JER", "LAM", "EZK", "DAN", "HOS", "JOL", "AMO", "OBA",
+            "JON", "MIC", "NAM", "HAB", "ZEP", "HAG", "ZEC", "MAL",
+        },
+    ),
 ]
-TAHOT_P0_BOOKS = {"GEN", "PSA"}
+# 默认导入全部 TAHOT 书卷；可用 --ot-books GEN,PSA 缩范围
+TAHOT_P0_BOOKS: set[str] | None = None
 TBESG_URL = (
     "https://raw.githubusercontent.com/STEPBible/STEPBible-Data/master/Lexicons/"
     "TBESG%20-%20Translators%20Brief%20lexicon%20of%20Extended%20Strongs%20for%20Greek%20"
@@ -216,14 +237,13 @@ def main() -> int:
     ap.add_argument(
         "--ot-books",
         default="",
-        help="旧约逐词书卷过滤，逗号分隔；默认 P0=GEN,PSA",
+        help="旧约逐词书卷过滤，逗号分隔；空=导入全部 TAHOT 书卷；示例 GEN,PSA",
     )
     args = ap.parse_args()
-    ot_filter = (
-        {b.strip().upper() for b in args.ot_books.split(",") if b.strip()}
-        if args.ot_books
-        else TAHOT_P0_BOOKS
-    )
+    if args.ot_books.strip().upper() in {"", "ALL", "*"}:
+        ot_filter: set[str] | None = TAHOT_P0_BOOKS  # None → 不按书过滤
+    else:
+        ot_filter = {b.strip().upper() for b in args.ot_books.split(",") if b.strip()}
 
     greek_lex = _load_lexicon(_fetch("TBESG.txt", TBESG_URL), "greek")
     hebrew_lex = _load_lexicon(_fetch("TBESH.txt", TBESH_URL), "hebrew")
@@ -233,7 +253,7 @@ def main() -> int:
     for fname, url in TAGNT_URLS:
         verse_rows.extend(_parse_tagnt(_fetch(fname, url)))
     for fname, url, file_books in TAHOT_URLS:
-        books = ot_filter & file_books if ot_filter else file_books
+        books = (ot_filter & file_books) if ot_filter else file_books
         if not books:
             continue
         verse_rows.extend(_parse_tahot(_fetch(fname, url), books=books))

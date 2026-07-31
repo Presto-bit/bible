@@ -184,18 +184,38 @@ import {
 import {
   FONT_FAMILIES,
   PAGE_TURN_MODES,
+  READING_MODES,
   fontFamilyCss,
+  getChapterCompleteTipOn,
   getFontFamily,
   getPageTurn,
+  getReadingMode,
+  getShowParallelDiff,
   getThoughtsOn,
   getUnderlinesOn,
+  setChapterCompleteTipOn as persistChapterCompleteTipOn,
   setFontFamily,
   setPageTurn,
+  setReadingMode as persistReadingMode,
+  setShowParallelDiff as persistShowParallelDiff,
   setThoughtsOn as persistThoughtsOn,
   setUnderlinesOn as persistUnderlinesOn,
   type PageTurnMode,
   type ReaderFontFamily,
+  type ReadingMode,
 } from '@/lib/reader_preferences';
+import {
+  hasShownChapterCompleteTip,
+  markChapterCompleteTipShown,
+} from '@/lib/chapter_complete_tip';
+import {
+  cachedVerseDiff,
+  renderTextWithDiffSpans,
+  sameScriptRoughly,
+  type VerseDiffResult,
+} from '@/lib/verse_diff';
+import { ChapterCompleteTip } from '@/components/reader/ChapterCompleteTip';
+import VerseCardSheet from '@/components/reader/VerseCardSheet';
 
 const FONT_SIZES = [
   { label: '中', px: 18 },
@@ -370,6 +390,12 @@ export default function ReaderView({
   const [readerFollow, setReaderFollow] = useState(false);
   const [underlinesOn, setUnderlinesOn] = useState(true);
   const [thoughtsOn, setThoughtsOn] = useState(true);
+  const [readingMode, setReadingMode] = useState<ReadingMode>('study');
+  const [showParallelDiff, setShowParallelDiff] = useState(false);
+  const [chapterCompleteTipOn, setChapterCompleteTipOn] = useState(true);
+  const [chapterCompleteVisible, setChapterCompleteVisible] = useState(false);
+  const [verseCardOpen, setVerseCardOpen] = useState(false);
+  const [parallelDiffMap, setParallelDiffMap] = useState<Record<number, VerseDiffResult>>({});
   const [fontFamily, setFontFamilyState] = useState<ReaderFontFamily>('serif');
   const [pageTurn, setPageTurnState] = useState<PageTurnMode>('swipe');
   const swipeTurn = pageTurn === 'swipe';
@@ -1010,7 +1036,90 @@ export default function ReaderView({
     setPageTurnState(getPageTurn());
     setUnderlinesOn(getUnderlinesOn());
     setThoughtsOn(getThoughtsOn());
+    setReadingMode(getReadingMode());
+    setShowParallelDiff(getShowParallelDiff());
+    setChapterCompleteTipOn(getChapterCompleteTipOn());
   }, []);
+
+  // 对照差异：idle 分片计算，不挡翻页
+  useEffect(() => {
+    if (
+      layout !== 'parallel'
+      || !showParallelDiff
+      || readingMode !== 'study'
+      || !verses.length
+      || !parallelVerses.length
+    ) {
+      setParallelDiffMap({});
+      return;
+    }
+    let cancelled = false;
+    const mainKey = mainVersionId || FALLBACK_PRIMARY_VERSION;
+    const run = () => {
+      if (cancelled) return;
+      const next: Record<number, VerseDiffResult> = {};
+      for (const v of verses) {
+        const p2 = parallelVerses.find((x) => x.verse === v.verse);
+        if (!p2?.text || !v.text) continue;
+        if (!sameScriptRoughly(v.text, p2.text)) continue;
+        next[v.verse] = cachedVerseDiff(
+          `${mainKey}|${parallelVer}|${book.id}.${chapter}.${v.verse}`,
+          v.text,
+          p2.text,
+        );
+      }
+      if (!cancelled) setParallelDiffMap(next);
+    };
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    let idleId: number | null = null;
+    let timeoutId: number | null = null;
+    if (typeof w.requestIdleCallback === 'function') {
+      idleId = w.requestIdleCallback(run, { timeout: 900 });
+    } else {
+      timeoutId = window.setTimeout(run, 60);
+    }
+    return () => {
+      cancelled = true;
+      if (idleId != null && typeof w.cancelIdleCallback === 'function') {
+        w.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) window.clearTimeout(timeoutId);
+    };
+  }, [
+    layout,
+    showParallelDiff,
+    readingMode,
+    verses,
+    parallelVerses,
+    mainVersionId,
+    parallelVer,
+    book.id,
+    chapter,
+  ]);
+
+  // 日常章末「读完」轻提示（计划模式走 PlanReadingLayer）
+  useEffect(() => {
+    if (!chapterBottomTick) return;
+    if (planMeta) return;
+    if (!chapterCompleteTipOn || readingMode === 'focus') return;
+    if (hasShownChapterCompleteTip(book.id, chapter)) return;
+    setChapterCompleteVisible(true);
+    markChapterCompleteTipShown(book.id, chapter);
+  }, [
+    chapterBottomTick,
+    planMeta,
+    chapterCompleteTipOn,
+    readingMode,
+    book.id,
+    chapter,
+  ]);
+
+  useEffect(() => {
+    setChapterCompleteVisible(false);
+  }, [book.id, chapter]);
 
   // 首屏预拉译本列表，补全中文名（勿等点击选择器）。
   useEffect(() => {
@@ -1426,10 +1535,11 @@ export default function ReaderView({
     return () => window.clearTimeout(t);
   }, [book.id, chapter, verses]);
 
-  // 章导读：按意图出（跳入即时 / 停留 dwell），连翻与邻章翻页不即弹
+  // 章导读：按意图出（跳入即时 / 停留 dwell），连翻与邻章翻页不即弹；专注模式关闭
   useEffect(() => {
     setGuideTipVisible(false);
     setGuideTipCompact(false);
+    if (readingMode === 'focus') return;
     const fromSwipe = lastNavFromSwipeRef.current;
     lastNavFromSwipeRef.current = false;
     const prev = guidePrevLocRef.current;
@@ -1493,7 +1603,7 @@ export default function ReaderView({
       for (const t of timers) window.clearTimeout(t);
       if (compactTimer) window.clearTimeout(compactTimer);
     };
-  }, [book.id, book.name, chapter]);
+  }, [book.id, book.name, chapter, readingMode]);
 
   const applyNavigate = useCallback(
     async (target: { book: BibleBook; chapter: number }, opts?: { fromSwipe?: boolean }) => {
@@ -2519,9 +2629,59 @@ export default function ReaderView({
                             vi === 0 ? (
                               <span className="reader-parallel-error">{parallelError}</span>
                             ) : null
-                          ) : (
-                            <span className="verse-inline">{p2?.text ?? '—'}</span>
-                          )}
+                          ) : (() => {
+                            const sec = p2?.text ?? '—';
+                            const diff = showParallelDiff && readingMode === 'study'
+                              ? parallelDiffMap[v.verse]
+                              : undefined;
+                            if (!diff || (!diff.heavy && !diff.parallel.length)) {
+                              return <span className="verse-inline">{sec}</span>;
+                            }
+                            if (diff.heavy) {
+                              return (
+                                <span
+                                  className="verse-inline verse-diff-heavy"
+                                  title="本节措辞差异较多"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setAiSheetContext({
+                                      refParam: `${book.id}.${chapter}.${v.verse}`,
+                                      refLabel: `${book.name} ${chapter}:${v.verse}`,
+                                      selectionText: text,
+                                    });
+                                    setAiSheet(true);
+                                  }}
+                                >
+                                  {sec}
+                                </span>
+                              );
+                            }
+                            return (
+                              <span className="verse-inline">
+                                {renderTextWithDiffSpans(sec, diff.parallel).map((part) =>
+                                  part.diff ? (
+                                    <mark
+                                      key={part.key}
+                                      className="verse-diff-mark"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAiSheetContext({
+                                          refParam: `${book.id}.${chapter}.${v.verse}`,
+                                          refLabel: `${book.name} ${chapter}:${v.verse}`,
+                                          selectionText: text,
+                                        });
+                                        setAiSheet(true);
+                                      }}
+                                    >
+                                      {part.text}
+                                    </mark>
+                                  ) : (
+                                    <span key={part.key}>{part.text}</span>
+                                  ),
+                                )}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
                     );
@@ -2851,7 +3011,7 @@ export default function ReaderView({
             </div>
           )}
           <div className="reader-focus-row reader-focus-row-actions">
-            {thoughtsOn && (
+            {thoughtsOn && readingMode !== 'focus' && (
               <button
                 type="button"
                 className="vsb-icon-btn"
@@ -2874,7 +3034,7 @@ export default function ReaderView({
                 <span className="vsb-label">想法</span>
               </button>
             )}
-            {underlinesOn && (
+            {underlinesOn && readingMode !== 'focus' && (
               <button
                 type="button"
                 className={`vsb-icon-btn${markPaletteOpen || currentMark ? ' vsb-icon-btn-active' : ''}`}
@@ -2935,70 +3095,89 @@ export default function ReaderView({
               </span>
               <span className="vsb-label">{englishUI ? 'Share' : '分享'}</span>
             </button>
-            <button
-              type="button"
-              className="vsb-icon-btn"
-              onClick={() => {
-                setMarkPaletteOpen(false);
-                setToolsSheet({
-                  tab: 'crossrefs',
-                  refParam: effRefParam,
-                  refLabel: effRefLabel,
-                  sourceText: effSelectionText || undefined,
-                });
-                clearSelection();
-              }}
-            >
-              <span className="vsb-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M8 6h11M8 12h11M8 18h11" />
-                  <path d="M4 6h.01M4 12h.01M4 18h.01" />
-                </svg>
-              </span>
-              <span className="vsb-label">相关</span>
-            </button>
-            <button
-              type="button"
-              className="vsb-icon-btn"
-              onClick={() => {
-                setMarkPaletteOpen(false);
-                setStrongSheet({
-                  refParam: effRefParam,
-                  refLabel: effRefLabel,
-                });
-                clearSelection();
-              }}
-            >
-              <span className="vsb-icon" aria-hidden>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  <path d="M8 7h8M8 11h5" />
-                </svg>
-              </span>
-              <span className="vsb-label">{englishUI ? "Strong's" : '原文'}</span>
-            </button>
-            <button
-              type="button"
-              className="vsb-icon-btn"
-              onPointerDown={(e) => {
-                e.stopPropagation();
-                selectionPinRef.current = effSelectionText;
-              }}
-              onClick={() => {
-                setMarkPaletteOpen(false);
-                setAiSheetContext({
-                  refParam: effRefParam,
-                  refLabel: effRefLabel,
-                  selectionText: selectionPinRef.current || effSelectionText,
-                });
-                clearSelection();
-                setAiSheet(true);
-              }}
-            >
-              <span className="vsb-icon" aria-hidden>✦</span>
-              <span className="vsb-label">小爱</span>
-            </button>
+            {readingMode !== 'focus' ? (
+              <button
+                type="button"
+                className="vsb-icon-btn"
+                onClick={() => {
+                  setMarkPaletteOpen(false);
+                  setVerseCardOpen(true);
+                }}
+              >
+                <span className="vsb-icon" aria-hidden>▣</span>
+                <span className="vsb-label">金句卡</span>
+              </button>
+            ) : null}
+            {readingMode === 'study' ? (
+              <button
+                type="button"
+                className="vsb-icon-btn"
+                onClick={() => {
+                  setMarkPaletteOpen(false);
+                  setToolsSheet({
+                    tab: 'crossrefs',
+                    refParam: effRefParam,
+                    refLabel: effRefLabel,
+                    sourceText: effSelectionText || undefined,
+                  });
+                  clearSelection();
+                }}
+              >
+                <span className="vsb-icon" aria-hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M8 6h11M8 12h11M8 18h11" />
+                    <path d="M4 6h.01M4 12h.01M4 18h.01" />
+                  </svg>
+                </span>
+                <span className="vsb-label">相关</span>
+              </button>
+            ) : null}
+            {readingMode === 'study' ? (
+              <button
+                type="button"
+                className="vsb-icon-btn"
+                onClick={() => {
+                  setMarkPaletteOpen(false);
+                  setStrongSheet({
+                    refParam: effRefParam,
+                    refLabel: effRefLabel,
+                  });
+                  clearSelection();
+                }}
+              >
+                <span className="vsb-icon" aria-hidden>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                    <path d="M8 7h8M8 11h5" />
+                  </svg>
+                </span>
+                <span className="vsb-label">{englishUI ? "Strong's" : '原文'}</span>
+              </button>
+            ) : null}
+            {readingMode !== 'focus' ? (
+              <button
+                type="button"
+                className="vsb-icon-btn"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  selectionPinRef.current = effSelectionText;
+                }}
+                onClick={() => {
+                  setMarkPaletteOpen(false);
+                  setAiSheetContext({
+                    refParam: effRefParam,
+                    refLabel: effRefLabel,
+                    selectionText: selectionPinRef.current || effSelectionText,
+                  });
+                  clearSelection();
+                  setAiSheet(true);
+                }}
+              >
+                <span className="vsb-icon" aria-hidden>✦</span>
+                <span className="vsb-label">小爱</span>
+              </button>
+            ) : null}
           </div>
         </div>
       )}
@@ -3077,7 +3256,26 @@ export default function ReaderView({
           sheetClassName="sheet card reader-settings-sheet"
         >
           <h3 style={{ marginTop: 0 }}>{ui.settings}</h3>
-            <p className="muted" style={{ fontSize: 12 }}>阅读器主题</p>
+            <p className="muted" style={{ fontSize: 12 }}>阅读模式</p>
+            <div className="font-pills">
+              {READING_MODES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className={`font-pill ${readingMode === m.id ? 'font-pill-active' : ''}`}
+                  onClick={() => {
+                    setReadingMode(m.id);
+                    persistReadingMode(m.id);
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted" style={{ fontSize: 11, marginTop: 6 }}>
+              {READING_MODES.find((m) => m.id === readingMode)?.hint}
+            </p>
+            <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>阅读器主题</p>
             <div className="reader-theme-swatches">
               {READER_THEMES.map((t) => (
                 <button
@@ -3125,6 +3323,19 @@ export default function ReaderView({
               <button type="button" className={`font-pill ${layout === 'single' ? 'font-pill-active' : ''}`} onClick={() => { setLayout('single'); setReadingLayout('single'); }}>{ui.singleLayout}</button>
               <button type="button" className={`font-pill ${layout === 'parallel' ? 'font-pill-active' : ''}`} onClick={() => { setMainVersionId(null); setMainVersion(null); setLayout('parallel'); setReadingLayout('parallel'); setParallelVersion(parallelVer); }}>{ui.parallelLayout}</button>
             </div>
+            {layout === 'parallel' && readingMode === 'study' ? (
+              <label className="reader-toggle-row" style={{ marginTop: 8 }}>
+                <span>显示措辞差异</span>
+                <input
+                  type="checkbox"
+                  checked={showParallelDiff}
+                  onChange={(e) => {
+                    setShowParallelDiff(e.target.checked);
+                    persistShowParallelDiff(e.target.checked);
+                  }}
+                />
+              </label>
+            ) : null}
             <p className="muted" style={{ fontSize: 12, marginTop: 12 }}>{ui.fontSize}</p>
             <div className="font-pills">
               {FONT_SIZES.map((f) => (
@@ -3151,6 +3362,17 @@ export default function ReaderView({
             <label className="reader-toggle-row">
               <span>显示想法</span>
               <input type="checkbox" checked={thoughtsOn} onChange={(e) => { setThoughtsOn(e.target.checked); persistThoughtsOn(e.target.checked); }} />
+            </label>
+            <label className="reader-toggle-row">
+              <span>读完提示</span>
+              <input
+                type="checkbox"
+                checked={chapterCompleteTipOn}
+                onChange={(e) => {
+                  setChapterCompleteTipOn(e.target.checked);
+                  persistChapterCompleteTipOn(e.target.checked);
+                }}
+              />
             </label>
         </ReaderSheetPortal>
       )}
@@ -3279,6 +3501,43 @@ export default function ReaderView({
           onDone={(target) =>
             flashToast(englishUI ? `Shared to ${target}` : `已分享到 ${target}`)
           }
+        />
+      )}
+
+      {verseCardOpen && (
+        <VerseCardSheet
+          refLabel={effRefLabel}
+          text={effSelectionText || ''}
+          versionLabel={versionLabel}
+          onClose={() => {
+            setVerseCardOpen(false);
+            clearSelection();
+          }}
+          onDone={(msg) => flashToast(msg)}
+        />
+      )}
+
+      {chapterCompleteVisible && !planMeta && !hasSel && (
+        <ChapterCompleteTip
+          bookName={book.name}
+          chapter={chapter}
+          englishUI={englishUI}
+          meditate={readingMode === 'meditate'}
+          onThought={() => {
+            setChapterCompleteVisible(false);
+            const v = verses[0]?.verse ?? 1;
+            const text = verses.find((x) => x.verse === v)?.text || '';
+            openThoughtWriteNew(
+              `${book.id}.${chapter}.${v}`,
+              `${book.name} ${chapter}:${v}`,
+              text || undefined,
+            );
+          }}
+          onNextChapter={() => {
+            setChapterCompleteVisible(false);
+            if (canNavNext) navChapter(1);
+          }}
+          onDismiss={() => setChapterCompleteVisible(false)}
         />
       )}
     </main>

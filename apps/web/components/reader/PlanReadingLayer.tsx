@@ -264,10 +264,10 @@ export default function PlanReadingLayer({
       {segmentNext && !dayCompleted && inPlanRange && (
         <div className="plan-segment-footer card">
           <p className="plan-segment-done-title" style={{ fontSize: 14, margin: 0 }}>
-            ✓ {currentStep?.label} 已读完
+            本段完成 · {currentStep?.label}
           </p>
           <p className="muted" style={{ fontSize: 13, margin: '6px 0 0' }}>
-            下一段：{segmentNext.label}
+            今日进度 {prog.done}/{prog.total} · 下一段：{segmentNext.label}
           </p>
           <button
             type="button"
@@ -314,9 +314,16 @@ export default function PlanReadingLayer({
       {dayCompleted && completedDayNum != null && !planAllDone
         && !celebrationDismissedRef.current.has(completedDayNum) && (
         <AppBodyPortal>
-          <div className="plan-day-complete card plan-day-complete-toast plan-day-complete-solid">
+          <div
+            className="sheet-backdrop plan-day-complete-backdrop"
+            onClick={dismissDayCelebration}
+          >
+            <div
+              className="plan-day-complete card plan-day-complete-toast plan-day-complete-solid"
+              onClick={(e) => e.stopPropagation()}
+            >
             <div className="plan-day-complete-head">
-              <p className="plan-segment-done-title">🎉 第 {completedDayNum} 天已完成</p>
+              <p className="plan-segment-done-title">第 {completedDayNum} 天已完成</p>
               <button
                 type="button"
                 className="text-link"
@@ -375,6 +382,7 @@ export default function PlanReadingLayer({
             >
               稍后再读，继续浏览经文
             </button>
+            </div>
           </div>
         </AppBodyPortal>
       )}
