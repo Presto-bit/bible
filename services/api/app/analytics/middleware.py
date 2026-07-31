@@ -45,11 +45,15 @@ class DailyUvMiddleware(BaseHTTPMiddleware):
         if not should_record_uv(request.url.path, request.method):
             return response
         user_id, device_id, user_code = _visitor_ids_from_request(request)
+        client_kind = (request.headers.get("x-client-kind") or "").strip() or None
         try:
             # UV 写入放线程池，避免卡死事件循环
             await asyncio.to_thread(
                 lambda: record_daily_visit(
-                    user_id=user_id, device_id=device_id, user_code=user_code,
+                    user_id=user_id,
+                    device_id=device_id,
+                    user_code=user_code,
+                    client_kind=client_kind,
                 )
             )
         except Exception:

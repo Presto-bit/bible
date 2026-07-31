@@ -760,6 +760,7 @@ def home_bootstrap(
     x_user_id: str | None = Header(default=None, alias="X-User-Id"),
     x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+    x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
 ) -> dict:
     """每日经文 + Hero B 活动 + 今日推荐运营卡（合并首页首屏请求）。"""
     _no_store_headers(response)
@@ -783,7 +784,12 @@ def home_bootstrap(
                 device = f"ip:{forwarded[:64]}"
             elif request.client and request.client.host:
                 device = f"ip:{request.client.host[:64]}"
-        record_daily_visit(user_id=uid, device_id=device, user_code=code)
+        record_daily_visit(
+            user_id=uid,
+            device_id=device,
+            user_code=code,
+            client_kind=x_client_kind,
+        )
     except Exception:
         pass
     payload = _daily_verse_payload(None)
@@ -814,6 +820,7 @@ def content_uv_visit(
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+    x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
 ) -> dict:
     """UV 心跳（走已反代的 /content，兼容未加 analytics 的 Nginx）。"""
     from ..analytics.uv import record_daily_visit, uv_last_error
@@ -836,7 +843,12 @@ def content_uv_visit(
             device = f"ip:{forwarded[:64]}"
         elif request.client and request.client.host:
             device = f"ip:{request.client.host[:64]}"
-    ok = record_daily_visit(user_id=uid, device_id=device, user_code=code)
+    ok = record_daily_visit(
+        user_id=uid,
+        device_id=device,
+        user_code=code,
+        client_kind=x_client_kind,
+    )
     return {
         "ok": ok,
         "day": china_today().isoformat(),
@@ -851,6 +863,7 @@ class ContentAcquisitionBody(BaseModel):
     raw_params: dict[str, Any] = Field(default_factory=dict)
     landing_path: str = Field(default="")
     referrer_host: str = Field(default="")
+    client_kind: str | None = None
     captured_at: str | None = None
 
 
@@ -861,6 +874,7 @@ def content_acquisition(
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+    x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
 ) -> dict:
     """获客绑定（/content 双路径，兼容未反代 /analytics 的 Nginx）。"""
     from ..analytics.acquisition import bind_user_acquisition
@@ -883,6 +897,7 @@ def content_acquisition(
         landing_path=body.landing_path,
         referrer_host=body.referrer_host,
         device_id=device,
+        client_kind=body.client_kind or x_client_kind,
         captured_at=body.captured_at,
     )
 

@@ -2,6 +2,7 @@
 
 import { API_BASE, authHeaders, effectiveId } from './api';
 import { getDeviceId } from './device_id';
+import { detectClientKind } from './client_kind';
 import { canonicalShareOrigin } from './share_site';
 
 const PENDING_KEY = 'presto_acq_pending';
@@ -16,6 +17,7 @@ export type AcquisitionPayload = {
   raw_params: Record<string, string>;
   landing_path: string;
   referrer_host: string;
+  client_kind?: string;
   captured_at: string;
 };
 
@@ -199,6 +201,7 @@ function organicDirect(): AcquisitionPayload {
     raw_params: {},
     landing_path: typeof location !== 'undefined' ? location.pathname : '',
     referrer_host: referrerHost(),
+    client_kind: detectClientKind(),
     captured_at: new Date().toISOString(),
   };
 }
@@ -215,14 +218,14 @@ export function resolveAcquisitionFromLocation(
     return organicDirect();
   }
   const search = url.searchParams;
-  return (
+  const base =
     fromExplicit(search) ||
     fromUtm(search) ||
     fromPath(url.pathname, search) ||
     fromReferrer() ||
     fromWechatUa() ||
-    organicDirect()
-  );
+    organicDirect();
+  return { ...base, client_kind: base.client_kind || detectClientKind() };
 }
 
 export function readPendingAcquisition(): AcquisitionPayload | null {

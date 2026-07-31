@@ -1,5 +1,6 @@
 // 后端 API 基址（与移动端共用同一 FastAPI）。
 import { chinaTodayYmd } from './daily_clock';
+import { detectClientKind } from './client_kind';
 import {
   bindDeviceGuestId,
   clearDeviceGuestBinding,
@@ -1212,6 +1213,9 @@ export function authHeaders(): Record<string, string> {
   if (code) {
     h['X-User-Code'] = code;
     h['X-User-Id'] = code;
+  }
+  if (typeof window !== 'undefined') {
+    h['X-Client-Kind'] = detectClientKind();
   }
   return h;
 }

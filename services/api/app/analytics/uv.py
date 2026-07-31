@@ -187,7 +187,15 @@ def ensure_uv_schema(conn) -> None:
               ADD COLUMN IF NOT EXISTS user_id UUID,
               ADD COLUMN IF NOT EXISTS user_bound_at TIMESTAMPTZ,
               ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-              ADD COLUMN IF NOT EXISTS user_code TEXT
+              ADD COLUMN IF NOT EXISTS user_code TEXT,
+              ADD COLUMN IF NOT EXISTS client_kind TEXT
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS daily_active_visitors_client_kind_idx
+              ON daily_active_visitors (visit_date, client_kind)
+              WHERE client_kind IS NOT NULL AND trim(client_kind) <> ''
             """
         )
         # 回填 fingerprint，再加非空与唯一索引（幂等）
@@ -314,22 +322,24 @@ def _upsert_uv_v2(
     user_id: str | None,
     legacy_key: str,
     user_code: str | None = None,
+    client_kind: str | None = None,
 ) -> None:
     conn.execute(
         """
         INSERT INTO daily_active_visitors (
           visit_date, device_fingerprint, user_id, visitor_key,
-          user_bound_at, updated_at, user_code
+          user_bound_at, updated_at, user_code, client_kind
         )
         VALUES (
           %s, %s, %s, %s,
           CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
-          now(), %s
+          now(), %s, %s
         )
         ON CONFLICT (visit_date, device_fingerprint)
         DO UPDATE SET
           user_id = COALESCE(EXCLUDED.user_id, daily_active_visitors.user_id),
           user_code = COALESCE(EXCLUDED.user_code, daily_active_visitors.user_code),
+          client_kind = COALESCE(daily_active_visitors.client_kind, EXCLUDED.client_kind),
           user_bound_at = COALESCE(
             daily_active_visitors.user_bound_at,
             CASE WHEN EXCLUDED.user_id IS NOT NULL THEN now() ELSE NULL END
@@ -340,7 +350,7 @@ def _upsert_uv_v2(
           END,
           updated_at = now()
         """,
-        (visit_day, fingerprint, user_id, legacy_key, user_id, user_code),
+        (visit_day, fingerprint, user_id, legacy_key, user_id, user_code, client_kind),
     )
 
 
@@ -352,6 +362,7 @@ def _upsert_uv_by_visitor_key(
     user_id: str | None,
     legacy_key: str,
     user_code: str | None = None,
+    client_kind: str | None = None,
 ) -> None:
     """当 (visit_date, device_fingerprint) 唯一索引缺失时，退回旧 PK 幂等。"""
     if _has_uv_v2(conn):
@@ -359,12 +370,12 @@ def _upsert_uv_by_visitor_key(
             """
             INSERT INTO daily_active_visitors (
               visit_date, device_fingerprint, user_id, visitor_key,
-              user_bound_at, updated_at, user_code
+              user_bound_at, updated_at, user_code, client_kind
             )
             VALUES (
               %s, %s, %s, %s,
               CASE WHEN %s IS NOT NULL THEN now() ELSE NULL END,
-              now(), %s
+              now(), %s, %s
             )
             ON CONFLICT (visit_date, visitor_key)
             DO UPDATE SET
@@ -373,13 +384,14 @@ def _upsert_uv_by_visitor_key(
               ),
               user_id = COALESCE(EXCLUDED.user_id, daily_active_visitors.user_id),
               user_code = COALESCE(EXCLUDED.user_code, daily_active_visitors.user_code),
+              client_kind = COALESCE(daily_active_visitors.client_kind, EXCLUDED.client_kind),
               user_bound_at = COALESCE(
                 daily_active_visitors.user_bound_at,
                 CASE WHEN EXCLUDED.user_id IS NOT NULL THEN now() ELSE NULL END
               ),
               updated_at = now()
             """,
-            (visit_day, fingerprint, user_id, legacy_key, user_id, user_code),
+            (visit_day, fingerprint, user_id, legacy_key, user_id, user_code, client_kind),
         )
         return
     conn.execute(
@@ -434,8 +446,11 @@ def record_daily_visit(
     user_id: str | None,
     device_id: str | None,
     user_code: str | None = None,
+    client_kind: str | None = None,
 ) -> bool:
-    """写入今日 UV。返回是否成功落库（或已存在幂等）。"""
+    """写入今日 UV。返回是否成功落库（或已存在幂等）。client_kind 仅首次写入。"""
+    from .client_kind import normalize_client_kind
+
     fingerprint = resolve_device_fingerprint(user_id=user_id, device_id=device_id)
     if not fingerprint:
         _set_err("missing fingerprint")
@@ -443,6 +458,7 @@ def record_daily_visit(
     visit_day = china_today()
     legacy_key = legacy_visitor_key(user_id=user_id, device_id=device_id) or f"d:{fingerprint}"
     code = (user_code or "").strip() or None
+    kind = normalize_client_kind(client_kind)
     try:
         from ..db import get_pool
 
@@ -485,6 +501,7 @@ def record_daily_visit(
                         user_id=uid,
                         legacy_key=key,
                         user_code=code,
+                        client_kind=kind,
                     )
                     if _has_device_unique(conn) and uid:
                         try:
@@ -495,6 +512,7 @@ def record_daily_visit(
                                 user_id=uid,
                                 legacy_key=key,
                                 user_code=code,
+                                client_kind=kind,
                             )
                         except Exception as exc:
                             logger.warning("UV 设备维合并失败（visitor_key 已写入）：%s", exc)

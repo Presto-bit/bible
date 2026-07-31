@@ -74,6 +74,7 @@ def record_visit(
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+    x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
 ) -> dict:
     uid, device_id, code = _authenticated_visit_ids(
         request=request,
@@ -81,7 +82,12 @@ def record_visit(
         x_device_id=x_device_id,
         x_guest_id=x_guest_id,
     )
-    ok = record_daily_visit(user_id=uid, device_id=device_id, user_code=code)
+    ok = record_daily_visit(
+        user_id=uid,
+        device_id=device_id,
+        user_code=code,
+        client_kind=x_client_kind,
+    )
     return {
         "ok": ok,
         "day": china_today().isoformat(),
@@ -96,6 +102,7 @@ class AcquisitionBody(BaseModel):
     raw_params: dict[str, Any] = Field(default_factory=dict)
     landing_path: str = Field(default="")
     referrer_host: str = Field(default="")
+    client_kind: str | None = None
     captured_at: str | None = None
 
 
@@ -106,6 +113,7 @@ def record_acquisition(
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_device_id: str | None = Header(default=None, alias="X-Device-Id"),
     x_guest_id: str | None = Header(default=None, alias="X-Guest-Id"),
+    x_client_kind: str | None = Header(default=None, alias="X-Client-Kind"),
 ) -> dict:
     """绑定获客三级渠道（First Touch，幂等，不覆盖）。"""
     user_code = _require_session_user_code(authorization)
@@ -123,6 +131,7 @@ def record_acquisition(
         landing_path=body.landing_path,
         referrer_host=body.referrer_host,
         device_id=device_id,
+        client_kind=body.client_kind or x_client_kind,
         captured_at=body.captured_at,
     )
 

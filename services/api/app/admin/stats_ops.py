@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from ..db import get_pool
 from ..time_cn import china_today
+from ..analytics.client_kind import CLIENT_KIND_LABELS, client_kind_label
 from ..analytics.uv import UV_IDENTITY_SQL, uv_identity_sql, uv_last_error
 from ..analytics.uv_stats import (
     UV_IDENTITY_A,
@@ -267,6 +268,19 @@ def _table_exists(conn, table_name: str) -> bool:
         (f"public.{table_name}",),
     ).fetchone()
     return bool(row and row[0])
+
+
+def _column_exists(conn, table_name: str, column_name: str) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = %s
+          AND column_name = %s
+        """,
+        (table_name, column_name),
+    ).fetchone()
+    return bool(row)
 
 
 def _count_active_users(conn, *, span_days: int = 7) -> tuple[int, str | None]:
@@ -749,7 +763,13 @@ def fetch_admin_stats_detail(
             ]
             labels = _user_label_sql()
             has_acq = _table_exists(conn, "user_acquisition")
+            has_acq_kind = has_acq and _column_exists(conn, "user_acquisition", "client_kind")
             if has_acq:
+                kind_sql = (
+                    "COALESCE(acq.client_kind, '')"
+                    if has_acq_kind
+                    else "''"
+                )
                 rows = conn.execute(
                     f"""
                     SELECT {labels["user_code"]},
@@ -758,7 +778,8 @@ def fetch_admin_stats_detail(
                            (a.user_code IS NOT NULL),
                            COALESCE(acq.channel_l1, ''),
                            COALESCE(acq.channel_l2, ''),
-                           COALESCE(acq.channel_l3, '')
+                           COALESCE(acq.channel_l3, ''),
+                           {kind_sql}
                     FROM users u
                     {_USER_JOINS}
                     LEFT JOIN user_acquisition acq
@@ -778,6 +799,7 @@ def fetch_admin_stats_detail(
                         "channel_l1": r[4] or "",
                         "channel_l2": r[5] or "",
                         "channel_l3": r[6] or "",
+                        "client_kind": client_kind_label(r[7]) if r[7] else "—",
                     }
                     for r in rows
                 ]
@@ -786,6 +808,7 @@ def fetch_admin_stats_detail(
                     _col("nickname", "昵称"),
                     _col("created_at", "注册时间"),
                     _col("has_account", "已绑账号"),
+                    _col("client_kind", "首次客户端"),
                     _col("channel_l1", "一级渠道"),
                     _col("channel_l2", "二级渠道"),
                     _col("channel_l3", "三级渠道"),
@@ -1184,6 +1207,8 @@ def fetch_admin_stats_detail(
             range_where = "visit_date BETWEEN %s AND %s"
             range_args = (start, end)
             if uv_schema_v2(conn):
+                has_uv_kind = _column_exists(conn, "daily_active_visitors", "client_kind")
+                kind_select = "d.client_kind AS client_kind" if has_uv_kind else "NULL::text AS client_kind"
                 deduped = _scalar(
                     conn, uv_deduped_count_sql(where=range_where), range_args,
                 )
@@ -1255,7 +1280,8 @@ def fetch_admin_stats_detail(
                       created_at,
                       bound_at,
                       identity,
-                      device_fp
+                      device_fp,
+                      client_kind
                     FROM (
                       SELECT DISTINCT ON (d.visit_date, {uv_identity_sql("d")})
                              {_v2_uv_user_code_sql()} AS user_code,
@@ -1265,7 +1291,8 @@ def fetch_admin_stats_detail(
                              {_ts_sql("d.created_at")} AS created_at,
                              {_ts_sql("d.user_bound_at")} AS bound_at,
                              {uv_identity_sql("d")} AS identity,
-                             d.device_fingerprint AS device_fp
+                             d.device_fingerprint AS device_fp,
+                             {kind_select}
                       FROM daily_active_visitors d
                       LEFT JOIN users u ON u.id = d.user_id
                       {_USER_JOINS}
@@ -1292,6 +1319,7 @@ def fetch_admin_stats_detail(
                         bound,
                         identity,
                         device_fp,
+                        kind,
                     ) = r
                     converted_today = bool(
                         bound and bound != "—" and bound[:10] == vdate
@@ -1317,6 +1345,7 @@ def fetch_admin_stats_detail(
                         "nickname": nickname,
                         "registered_at": registered_at if registered_at and registered_at != "—" else "—",
                         "converted": "是" if converted_today else "—",
+                        "client_kind": client_kind_label(kind) if kind else "—",
                         "visit_date": vdate,
                         "created_at": created,
                     })
@@ -1326,6 +1355,7 @@ def fetch_admin_stats_detail(
                     _col("nickname", "昵称"),
                     _col("registered_at", "注册时间"),
                     _col("converted", "当日转化"),
+                    _col("client_kind", "首触客户端"),
                     _col("visit_date", "日期"),
                     _col("created_at", "访问时间"),
                 ]
@@ -1443,6 +1473,53 @@ def fetch_admin_stats_detail(
                 _insight("次日留存", f"{d1}%" if d1 is not None else "—"),
                 _insight("7 日留存", f"{d7}%" if d7 is not None else "—"),
             ]
+            if uv_schema_v2(conn) and _column_exists(conn, "daily_active_visitors", "client_kind"):
+                try:
+                    kind_rows = conn.execute(
+                        f"""
+                        SELECT COALESCE(NULLIF(trim(client_kind), ''), 'unknown') AS kind,
+                               count(*) AS cnt
+                        FROM (
+                          SELECT DISTINCT ON (d.visit_date, {uv_identity_sql("d")})
+                                 d.client_kind
+                          FROM daily_active_visitors d
+                          WHERE d.visit_date BETWEEN %s AND %s
+                            AND {uv_attributed_where("d")}
+                          ORDER BY d.visit_date DESC,
+                                   {uv_identity_sql("d")},
+                                   d.created_at DESC
+                        ) v
+                        GROUP BY 1
+                        ORDER BY cnt DESC
+                        """,
+                        range_args,
+                    ).fetchall()
+                    kind_items = [
+                        {
+                            "label": CLIENT_KIND_LABELS.get(r[0], client_kind_label(r[0])),
+                            "users": int(r[1]),
+                        }
+                        for r in kind_rows
+                    ]
+                    if kind_items:
+                        sections.append(
+                            _section(
+                                "client_kind_breakdown",
+                                "首触客户端拆分（每日首次写入）",
+                                [_col("label", "客户端"), _col("users", "UV")],
+                                kind_items,
+                            )
+                        )
+                        for r in kind_rows[:4]:
+                            insights.append(
+                                _insight(
+                                    CLIENT_KIND_LABELS.get(r[0], client_kind_label(r[0])),
+                                    int(r[1]),
+                                    "区间去重 UV 的首触客户端",
+                                )
+                            )
+                except Exception:
+                    pass
             sections.append(
                 _section("visitors", "登录访客明细（非游客）", visitor_cols, items)
             )

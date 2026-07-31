@@ -36,6 +36,7 @@ def ensure_acquisition_schema(conn) -> None:
               landing_path TEXT NOT NULL DEFAULT '',
               referrer_host TEXT NOT NULL DEFAULT '',
               device_id TEXT,
+              client_kind TEXT,
               captured_at TIMESTAMPTZ,
               bound_at TIMESTAMPTZ NOT NULL DEFAULT now()
             )
@@ -43,8 +44,21 @@ def ensure_acquisition_schema(conn) -> None:
         )
         conn.execute(
             """
+            ALTER TABLE user_acquisition
+              ADD COLUMN IF NOT EXISTS client_kind TEXT
+            """
+        )
+        conn.execute(
+            """
             CREATE INDEX IF NOT EXISTS user_acquisition_l1_idx
               ON user_acquisition (channel_l1, bound_at DESC)
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS user_acquisition_client_kind_idx
+              ON user_acquisition (client_kind, bound_at DESC)
+              WHERE client_kind IS NOT NULL AND trim(client_kind) <> ''
             """
         )
         conn.commit()
@@ -101,10 +115,12 @@ def bind_user_acquisition(
     landing_path: str | None = None,
     referrer_host: str | None = None,
     device_id: str | None = None,
+    client_kind: str | None = None,
     captured_at: Any = None,
 ) -> dict[str, Any]:
     """写入 First Touch。已存在则返回 existing=True，不覆盖。"""
     from ..db import get_pool
+    from .client_kind import normalize_client_kind
 
     code = (user_code or "").strip()
     if not code:
@@ -124,6 +140,7 @@ def bind_user_acquisition(
         except Exception:
             ref_host = ref_host[:128]
     device = (device_id or "").strip()[:256] or None
+    kind = normalize_client_kind(client_kind)
     captured = _parse_captured_at(captured_at)
 
     pool = get_pool()
@@ -135,14 +152,14 @@ def bind_user_acquisition(
                 INSERT INTO user_acquisition (
                   user_code, channel_l1, channel_l2, channel_l3,
                   raw_params, landing_path, referrer_host, device_id,
-                  captured_at, bound_at
+                  client_kind, captured_at, bound_at
                 ) VALUES (
                   %s, %s, %s, %s,
                   %s::jsonb, %s, %s, %s,
-                  %s, now()
+                  %s, %s, now()
                 )
                 ON CONFLICT (user_code) DO NOTHING
-                RETURNING channel_l1, channel_l2, channel_l3, bound_at
+                RETURNING channel_l1, channel_l2, channel_l3, client_kind, bound_at
                 """,
                 (
                     code,
@@ -153,6 +170,7 @@ def bind_user_acquisition(
                     path,
                     ref_host,
                     device,
+                    kind,
                     captured,
                 ),
             ).fetchone()
@@ -165,11 +183,12 @@ def bind_user_acquisition(
                     "channel_l1": row[0],
                     "channel_l2": row[1],
                     "channel_l3": row[2],
-                    "bound_at": row[3].isoformat() if row[3] else None,
+                    "client_kind": row[3],
+                    "bound_at": row[4].isoformat() if row[4] else None,
                 }
             existing = conn.execute(
                 """
-                SELECT channel_l1, channel_l2, channel_l3, bound_at
+                SELECT channel_l1, channel_l2, channel_l3, client_kind, bound_at
                 FROM user_acquisition WHERE user_code = %s
                 """,
                 (code,),
@@ -183,7 +202,8 @@ def bind_user_acquisition(
                 "channel_l1": existing[0],
                 "channel_l2": existing[1],
                 "channel_l3": existing[2],
-                "bound_at": existing[3].isoformat() if existing[3] else None,
+                "client_kind": existing[3],
+                "bound_at": existing[4].isoformat() if existing[4] else None,
             }
     except Exception as exc:
         logger.warning("acquisition bind failed: %s", exc)
