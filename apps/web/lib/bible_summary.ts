@@ -1,7 +1,8 @@
-// 经卷/章节总结：静态种子 + localStorage 缓存 + 小爱按需生成。
+// 经卷/章节总结：静态摘要 + localStorage 缓存 + 小爱按需生成。
 
 import { chatStream } from './api';
 import { bodyText } from './assistant_format';
+import { withBasePath } from './basePath';
 
 /** v3：作废旧版逐章概述格式与截断缓存 */
 const CACHE_KEY = 'presto_bible_summaries_v3';
@@ -33,6 +34,56 @@ const CHAPTER_SEEDS: Record<string, Record<number, string>> = {
     3: '尼哥底母夜访耶稣，谈从灵生与水与圣灵重生，并出现整本圣经最著名的救恩经节。',
   },
 };
+
+let staticBooks: Record<string, string> | null = null;
+let staticChapters: Record<string, string> | null = null;
+let staticLoadPromise: Promise<void> | null = null;
+
+async function ensureStaticSummaries(): Promise<void> {
+  if (staticBooks && staticChapters) return;
+  if (staticLoadPromise) return staticLoadPromise;
+  staticLoadPromise = (async () => {
+    try {
+      const [booksRes, chaptersRes] = await Promise.all([
+        fetch(withBasePath('/content/summaries/books.json'), { cache: 'force-cache' }),
+        fetch(withBasePath('/content/summaries/chapters.json'), { cache: 'force-cache' }),
+      ]);
+      if (booksRes.ok) {
+        const data = (await booksRes.json()) as {
+          books?: { book?: string; summary?: string }[];
+        };
+        const map: Record<string, string> = {};
+        for (const row of data.books ?? []) {
+          const id = (row.book || '').toUpperCase();
+          const s = (row.summary || '').trim();
+          if (id && s) map[id] = s;
+        }
+        staticBooks = map;
+      } else {
+        staticBooks = {};
+      }
+      if (chaptersRes.ok) {
+        const data = (await chaptersRes.json()) as {
+          chapters?: { book?: string; chapter?: number; summary?: string }[];
+        };
+        const map: Record<string, string> = {};
+        for (const row of data.chapters ?? []) {
+          const id = (row.book || '').toUpperCase();
+          const ch = Number(row.chapter);
+          const s = (row.summary || '').trim();
+          if (id && ch > 0 && s) map[`${id}.${ch}`] = s;
+        }
+        staticChapters = map;
+      } else {
+        staticChapters = {};
+      }
+    } catch {
+      staticBooks = staticBooks ?? {};
+      staticChapters = staticChapters ?? {};
+    }
+  })();
+  return staticLoadPromise;
+}
 
 function purgeLegacyCaches() {
   if (typeof window === 'undefined') return;
@@ -74,15 +125,24 @@ function looksTruncated(text: string, kind: 'book' | 'chapter'): boolean {
   if (/[…⋯]$|\.\.\.$/.test(t)) return true;
   if (/第\s*\d+\s*章[：:]\s*$/.test(t)) return true;
   if (kind === 'book') {
-    if (t.length < 120) return true;
     // 旧版逐章列表格式作废
-    if (/各章概述|第\s*\d+\s*章[：:]/.test(t)) return true;
-    // 新格式应含结构标题；过短且无标题视为旧半截
-    if (!t.includes('【') && !t.includes('###') && t.length < 200) return true;
-  } else if (t.length < 36) {
+    if (/各章概述/.test(t) && /第\s*\d+\s*章[：:]/.test(t)) return true;
+    // 明显半截：极短且无句号
+    if (t.length < 24 && !/[。！？]/.test(t)) return true;
+  } else if (t.length < 8) {
     return true;
   }
   return false;
+}
+
+function resolveBookSeed(bookId: string): string | null {
+  const k = bookId.toUpperCase();
+  return staticBooks?.[k] || BOOK_SEEDS[k] || null;
+}
+
+function resolveChapterSeed(bookId: string, chapter: number): string | null {
+  const k = bookId.toUpperCase();
+  return staticChapters?.[`${k}.${chapter}`] || CHAPTER_SEEDS[k]?.[chapter] || null;
 }
 
 export function getCachedBookSummary(bookId: string): string | null {
@@ -130,33 +190,42 @@ async function streamAsk(
       },
     },
   );
-  if (err && !text.trim()) throw new Error(err);
-  return bodyText(text);
+  const body = bodyText(text).trim();
+  if (err && !body) throw new Error(err);
+  if (!body) throw new Error(err || '小爱暂时没有生成内容，请稍后重试');
+  return body;
 }
 
 export async function loadBookSummary(bookId: string, bookName: string): Promise<string> {
+  await ensureStaticSummaries();
   const key = bookKey(bookId);
   const map = readCache();
   const cached = map[key];
   if (cached && !looksTruncated(cached, 'book')) return cached;
 
-  const seed = BOOK_SEEDS[bookId.toUpperCase()];
-  if (seed && !cached) {
+  const seed = resolveBookSeed(bookId);
+  if (seed) {
     map[key] = seed;
     writeCache(map);
     return seed;
   }
 
-  const body = await streamAsk(
-    `请为《${bookName}》写整卷导读：卷概览、结构脉络（分段而非逐章）、核心主题与读经提示。不要逐章概述。务必写完整，不要中途截断。`,
-    bookId,
-    'summary_book',
-  );
-  if (!looksTruncated(body, 'book')) {
-    map[key] = body;
-    writeCache(map);
+  try {
+    const body = await streamAsk(
+      `请为《${bookName}》写整卷导读：卷概览、结构脉络（分段而非逐章）、核心主题与读经提示。不要逐章概述。务必写完整，不要中途截断。`,
+      bookId,
+      'summary_book',
+    );
+    if (!looksTruncated(body, 'book')) {
+      map[key] = body;
+      writeCache(map);
+    }
+    return body;
+  } catch (e) {
+    const fallback = resolveBookSeed(bookId);
+    if (fallback) return fallback;
+    throw e;
   }
-  return body;
 }
 
 export async function loadChapterSummary(
@@ -164,26 +233,33 @@ export async function loadChapterSummary(
   bookName: string,
   chapter: number,
 ): Promise<string> {
+  await ensureStaticSummaries();
   const key = chapterKey(bookId, chapter);
   const map = readCache();
   const cached = map[key];
   if (cached && !looksTruncated(cached, 'chapter')) return cached;
 
-  const seed = CHAPTER_SEEDS[bookId.toUpperCase()]?.[chapter];
-  if (seed && !cached) {
+  const seed = resolveChapterSeed(bookId, chapter);
+  if (seed) {
     map[key] = seed;
     writeCache(map);
     return seed;
   }
 
-  const body = await streamAsk(
-    `请概括《${bookName}》第${chapter}章的核心内容与要点。务必写完整，不要中途截断。`,
-    `${bookId}.${chapter}`,
-    'summary_chapter',
-  );
-  if (!looksTruncated(body, 'chapter')) {
-    map[key] = body;
-    writeCache(map);
+  try {
+    const body = await streamAsk(
+      `请概括《${bookName}》第${chapter}章的核心内容与要点。务必写完整，不要中途截断。`,
+      `${bookId}.${chapter}`,
+      'summary_chapter',
+    );
+    if (!looksTruncated(body, 'chapter')) {
+      map[key] = body;
+      writeCache(map);
+    }
+    return body;
+  } catch (e) {
+    const fallback = resolveChapterSeed(bookId, chapter);
+    if (fallback) return fallback;
+    throw e;
   }
-  return body;
 }

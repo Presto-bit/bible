@@ -47,6 +47,10 @@ export interface OfflinePackManifest {
   cuvs_sqlite?: string;
   cuvs_sqlite_sha256?: string;
   cuvs_sqlite_bytes?: number;
+  /** 当代译本单独直链（相对 /offline/） */
+  contemporary_sqlite?: string;
+  contemporary_sqlite_sha256?: string;
+  contemporary_sqlite_bytes?: number;
 }
 
 export interface OfflinePackMeta {
@@ -193,31 +197,45 @@ export async function listOfflineItemStatuses(): Promise<
   return out;
 }
 
-/** 和合本优先走单独 sqlite URL（~11MB），失败再回落整包 zip。 */
-async function tryDownloadCuvsSqliteDirect(
+/** 单译本优先走 `/offline/bible_*.sqlite` 直链，失败再回落整包 zip。 */
+async function tryDownloadSqliteDirect(
+  itemId: string,
   manifest: OfflinePackManifest,
   onProgress?: (p: DownloadProgress) => void,
 ): Promise<boolean> {
-  const item = getCatalogItem('cuvs');
-  const mf = item ? manifestFilesForItem(item, manifest)[0] : undefined;
-  const fileName = manifest.cuvs_sqlite || 'bible_cuvs.sqlite';
+  const item = getCatalogItem(itemId);
+  if (!item?.idbKey) return false;
+  const mf = manifestFilesForItem(item, manifest)[0];
+
+  let fileName: string | undefined;
+  let expectedSha: string | undefined;
+  let label = item.name;
+  if (itemId === 'cuvs') {
+    fileName = manifest.cuvs_sqlite || 'bible_cuvs.sqlite';
+    expectedSha = manifest.cuvs_sqlite_sha256 || mf?.sha256;
+  } else if (itemId === 'contemporary') {
+    fileName = manifest.contemporary_sqlite || 'bible_contemporary.sqlite';
+    expectedSha = manifest.contemporary_sqlite_sha256 || mf?.sha256;
+  } else {
+    return false;
+  }
+
   const url = withBasePath(`/offline/${fileName}`);
-  const expectedSha = manifest.cuvs_sqlite_sha256 || mf?.sha256;
   try {
-    onProgress?.({ phase: 'download', percent: 20, message: '下载和合本…' });
+    onProgress?.({ phase: 'download', percent: 20, message: `下载${label}…` });
     const res = await fetch(url, { cache: 'force-cache' });
     if (!res.ok) return false;
     const buf = await res.arrayBuffer();
     if (!buf.byteLength) return false;
     if (expectedSha) {
-      onProgress?.({ phase: 'verify', percent: 55, message: '校验和合本…' });
+      onProgress?.({ phase: 'verify', percent: 55, message: `校验${label}…` });
       const got = await sha256Hex(buf);
       if (got !== expectedSha) return false;
     }
-    onProgress?.({ phase: 'save', percent: 75, message: '写入和合本…' });
-    await idbSet(OFFLINE_CUVS_KEY, buf);
-    const path = mf?.path ?? 'bible/bible_cuvs.sqlite';
-    saveItemRecord('cuvs', {
+    onProgress?.({ phase: 'save', percent: 75, message: `写入${label}…` });
+    await idbSet(item.idbKey, buf);
+    const path = mf?.path ?? `bible/bible_${itemId}.sqlite`;
+    saveItemRecord(itemId, {
       manifestVersion: manifest.version,
       fileHashes: { [path]: expectedSha || (await sha256Hex(buf)) },
       installedAt: Date.now(),
@@ -246,8 +264,8 @@ export async function downloadOfflineItem(
   const manifestFiles = manifestFilesForItem(item, manifest);
   if (!manifestFiles.length) throw new Error('清单中缺少对应文件');
 
-  if (itemId === 'cuvs') {
-    if (await tryDownloadCuvsSqliteDirect(manifest, onProgress)) {
+  if (itemId === 'cuvs' || itemId === 'contemporary') {
+    if (await tryDownloadSqliteDirect(itemId, manifest, onProgress)) {
       onProgress?.({ phase: 'done', percent: 100, message: '完成' });
       return;
     }

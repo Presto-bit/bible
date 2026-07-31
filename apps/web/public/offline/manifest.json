@@ -357,6 +357,9 @@
   "cuvs_sqlite": "bible_cuvs.sqlite",
   "cuvs_sqlite_sha256": "371f108f698896fa369c9ebbd5bbba9c4130b0597caca24646bae60ed4e744b1",
   "cuvs_sqlite_bytes": 11423744,
+  "contemporary_sqlite": "bible_contemporary.sqlite",
+  "contemporary_sqlite_sha256": "54190e3bd19a03b565028333b2ce31205a6ee0418302528851ee42e484e29010",
+  "contemporary_sqlite_bytes": 11223040,
   "schema": "offline_pack@1",
   "translation": "cnv"
 }

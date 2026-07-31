@@ -126,6 +126,14 @@ def main() -> int:
         outer["cuvs_sqlite"] = "bible_cuvs.sqlite"
         outer["cuvs_sqlite_sha256"] = cuvs_entry["sha256"]
         outer["cuvs_sqlite_bytes"] = cuvs_entry["bytes"]
+    contemporary_entry = next(
+        (f for f in manifest if f["path"] == "bible/bible_contemporary.sqlite"),
+        None,
+    )
+    if contemporary_entry:
+        outer["contemporary_sqlite"] = "bible_contemporary.sqlite"
+        outer["contemporary_sqlite_sha256"] = contemporary_entry["sha256"]
+        outer["contemporary_sqlite_bytes"] = contemporary_entry["bytes"]
 
     (args.out_dir / f"manifest_{args.version}.json").write_text(
         json.dumps(outer, ensure_ascii=False, indent=2),

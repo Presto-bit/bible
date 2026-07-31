@@ -86,7 +86,10 @@ export default function VersionPickerPop({
   const primaryId = versions.find((v) => v.primary)?.id ?? 'cuvs';
 
   const canSelect = (vv: BibleVersion) => {
-    if (hasOfflineCatalog(vv.id)) return isLocalReady(localStatus[vv.id]);
+    // 有离线目录：已下载可勾选；服务端在线可用也可先勾选（边下边读）
+    if (hasOfflineCatalog(vv.id)) {
+      return isLocalReady(localStatus[vv.id]) || Boolean(vv.available);
+    }
     return vv.available;
   };
 

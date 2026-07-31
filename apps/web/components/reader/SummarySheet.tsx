@@ -57,7 +57,7 @@ export default function SummarySheet({
         if (!cancelled) setChapterBody(t);
       })
       .catch((e) => {
-        if (!cancelled) setChapterErr(String(e));
+        if (!cancelled) setChapterErr(e instanceof Error ? e.message : String(e));
       })
       .finally(() => {
         if (!cancelled) setChapterBusy(false);
@@ -76,7 +76,7 @@ export default function SummarySheet({
         if (!cancelled) setBookBody(t);
       })
       .catch((e) => {
-        if (!cancelled) setBookErr(String(e));
+        if (!cancelled) setBookErr(e instanceof Error ? e.message : String(e));
       })
       .finally(() => {
         if (!cancelled) setBookBusy(false);
@@ -146,7 +146,38 @@ export default function SummarySheet({
           </div>
           <span className="half-sheet-badge">小爱导读</span>
           {activeBusy && !activeBody && <p className="muted">小爱正在整理…</p>}
-          {activeErr && <p style={{ color: '#b1554a' }}>{activeErr}</p>}
+          {activeErr && (
+            <div className="summary-sheet-empty">
+              <p style={{ color: '#b1554a', margin: 0 }}>{activeErr}</p>
+              <button
+                type="button"
+                className="font-pill"
+                style={{ marginTop: 10 }}
+                onClick={() => {
+                  if (tab === 'chapter') {
+                    setChapterBusy(true);
+                    setChapterErr(null);
+                    void loadChapterSummary(bookId, bookName, chapter)
+                      .then((t) => setChapterBody(t))
+                      .catch((e) => setChapterErr(String(e)))
+                      .finally(() => setChapterBusy(false));
+                  } else {
+                    setBookBusy(true);
+                    setBookErr(null);
+                    void loadBookSummary(bookId, bookName)
+                      .then((t) => setBookBody(t))
+                      .catch((e) => setBookErr(String(e)))
+                      .finally(() => setBookBusy(false));
+                  }
+                }}
+              >
+                重试
+              </button>
+            </div>
+          )}
+          {!activeBusy && !activeErr && !activeBody && (
+            <p className="muted">暂无概要内容，请稍后重试或换一章。</p>
+          )}
           {activeBody && (
             <div className="summary-sheet-body">
               <AnswerText text={activeBody} dense />

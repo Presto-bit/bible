@@ -1,0 +1,191 @@
+{
+  "schema": "summaries_chapters@1",
+  "count": 37,
+  "chapters": [
+    {
+      "book": "GEN",
+      "chapter": 1,
+      "summary": "起初　神创造天地；第一日：光；第二日：穹苍；第三日：陆地与植物"
+    },
+    {
+      "book": "GEN",
+      "chapter": 2,
+      "summary": "第七日安息；伊甸园；造女人"
+    },
+    {
+      "book": "GEN",
+      "chapter": 3,
+      "summary": "人的堕落；神的审判；逐出伊甸园"
+    },
+    {
+      "book": "EXO",
+      "chapter": 20,
+      "summary": "十诫；百姓战兢远立"
+    },
+    {
+      "book": "PSA",
+      "chapter": 1,
+      "summary": "义人与恶人"
+    },
+    {
+      "book": "PSA",
+      "chapter": 19,
+      "summary": "诸天述说神的荣耀；耶和华的律法全备"
+    },
+    {
+      "book": "PSA",
+      "chapter": 23,
+      "summary": "耶和华是我的牧者"
+    },
+    {
+      "book": "PSA",
+      "chapter": 91,
+      "summary": "住在至高者隐密处"
+    },
+    {
+      "book": "PSA",
+      "chapter": 121,
+      "summary": "耶和华是保护你的"
+    },
+    {
+      "book": "PSA",
+      "chapter": 139,
+      "summary": "神无所不知无所不在；神奇妙的创造；鉴察我的心思"
+    },
+    {
+      "book": "PRO",
+      "chapter": 3,
+      "summary": "专心仰赖耶和华；得智慧的有福"
+    },
+    {
+      "book": "PRO",
+      "chapter": 31,
+      "summary": "利慕伊勒王的言语；才德的妇人"
+    },
+    {
+      "book": "ISA",
+      "chapter": 40,
+      "summary": "安慰我的百姓；无可比拟的神；主赐力量给疲乏的"
+    },
+    {
+      "book": "ISA",
+      "chapter": 53,
+      "summary": "受苦的仆人"
+    },
+    {
+      "book": "MAT",
+      "chapter": 5,
+      "summary": "登山宝训：八福；盐与光；论律法；论动怒"
+    },
+    {
+      "book": "MAT",
+      "chapter": 6,
+      "summary": "论施舍；论祷告：主祷文；论禁食；论财宝在天"
+    },
+    {
+      "book": "MAT",
+      "chapter": 7,
+      "summary": "不要论断人；祈求、寻找、叩门；窄门；凭果子认出树"
+    },
+    {
+      "book": "MAT",
+      "chapter": 28,
+      "summary": "主复活了；大使命"
+    },
+    {
+      "book": "MRK",
+      "chapter": 1,
+      "summary": "施洗约翰预备道路；耶稣受洗与受试探；呼召门徒；赶鬼医病"
+    },
+    {
+      "book": "LUK",
+      "chapter": 2,
+      "summary": "耶稣降生；牧羊人与天使；献于圣殿；少年耶稣在圣殿"
+    },
+    {
+      "book": "LUK",
+      "chapter": 15,
+      "summary": "迷失的羊；失落的钱币；浪子回头"
+    },
+    {
+      "book": "JHN",
+      "chapter": 1,
+      "summary": "道成了肉身；施洗约翰的见证；最初的门徒"
+    },
+    {
+      "book": "JHN",
+      "chapter": 3,
+      "summary": "尼哥德慕夜访耶稣；神爱世人；施洗约翰再次见证基督"
+    },
+    {
+      "book": "JHN",
+      "chapter": 14,
+      "summary": "我就是道路真理生命；应许赐下圣灵"
+    },
+    {
+      "book": "JHN",
+      "chapter": 15,
+      "summary": "我是真葡萄树；彼此相爱；世界的恨"
+    },
+    {
+      "book": "ACT",
+      "chapter": 2,
+      "summary": "圣灵降临；彼得的讲道；初代教会的生活"
+    },
+    {
+      "book": "ROM",
+      "chapter": 8,
+      "summary": "随从圣灵而行的生命；将来的荣耀；神的爱永不隔绝"
+    },
+    {
+      "book": "ROM",
+      "chapter": 12,
+      "summary": "将身体献上当作活祭；爱人的真诚"
+    },
+    {
+      "book": "1CO",
+      "chapter": 13,
+      "summary": "爱的真谛"
+    },
+    {
+      "book": "1CO",
+      "chapter": 15,
+      "summary": "基督复活的福音；死人复活；复活的身体"
+    },
+    {
+      "book": "GAL",
+      "chapter": 5,
+      "summary": "在自由里站立得稳；顺着圣灵而行；圣灵的果子"
+    },
+    {
+      "book": "EPH",
+      "chapter": 6,
+      "summary": "儿女与父母；仆人与主人；神所赐的全副军装"
+    },
+    {
+      "book": "PHP",
+      "chapter": 4,
+      "summary": "靠主常常喜乐；一无挂虑；知足的秘诀"
+    },
+    {
+      "book": "HEB",
+      "chapter": 11,
+      "summary": "信心的见证人"
+    },
+    {
+      "book": "JAS",
+      "chapter": 1,
+      "summary": "试炼与忍耐；行道与听道"
+    },
+    {
+      "book": "1PE",
+      "chapter": 1,
+      "summary": "活泼的盼望；要圣洁"
+    },
+    {
+      "book": "REV",
+      "chapter": 21,
+      "summary": "新天新地；新耶路撒冷"
+    }
+  ]
+}
