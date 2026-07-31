@@ -172,7 +172,17 @@ async function getJson<T>(
       headers: { ...authHeaders(), ...headers },
       signal: ac.signal,
     });
-    if (!res.ok) throw new Error(`请求失败 ${res.status}: ${path}`);
+    if (!res.ok) {
+      let detail = `请求失败 ${res.status}`;
+      try {
+        const d = (await res.json()) as { detail?: unknown; error?: string };
+        if (typeof d.detail === 'string' && d.detail.trim()) detail = d.detail;
+        else if (typeof d.error === 'string' && d.error.trim()) detail = d.error;
+      } catch {
+        detail = `${detail}: ${path}`;
+      }
+      throw new Error(detail);
+    }
     return res.json() as Promise<T>;
   } catch (e) {
     if (e instanceof DOMException && e.name === 'AbortError') {
@@ -1136,7 +1146,15 @@ export async function chatStream(
     return;
   }
   if (!res.ok || !res.body) {
-    cb.onError?.(`请求失败 ${res.status}`);
+    let detail = `请求失败 ${res.status}`;
+    try {
+      const d = (await res.json()) as { detail?: unknown; error?: string };
+      if (typeof d.detail === 'string' && d.detail.trim()) detail = d.detail;
+      else if (typeof d.error === 'string' && d.error.trim()) detail = d.error;
+    } catch {
+      /* ignore */
+    }
+    cb.onError?.(detail);
     return;
   }
 

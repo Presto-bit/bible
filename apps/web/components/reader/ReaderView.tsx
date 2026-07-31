@@ -331,7 +331,11 @@ export default function ReaderView({
     refParam: string;
     refLabel: string;
   }>(null);
-  const [verseCompareOpen, setVerseCompareOpen] = useState(false);
+  const [verseCompareCtx, setVerseCompareCtx] = useState<null | {
+    refParam: string;
+    refLabel: string;
+    selectionText?: string;
+  }>(null);
   const [versePreview, setVersePreview] = useState<null | { osis: string; label: string }>(null);
   const [parallelLoading, setParallelLoading] = useState(false);
   const [parallelError, setParallelError] = useState<string | null>(null);
@@ -436,7 +440,7 @@ export default function ReaderView({
     || locPopoverOpen
     || thoughtHub
     || thoughtWrite
-    || verseCompareOpen
+    || verseCompareCtx
     || strongSheet
     || groupCheckinOpen
     || bookCelebrate,
@@ -1882,7 +1886,7 @@ export default function ReaderView({
         else if (showSettings) setShowSettings(false);
         else if (showVersions) setShowVersions(false);
         else if (aiSheet) setAiSheet(false);
-        else if (verseCompareOpen) setVerseCompareOpen(false);
+        else if (verseCompareCtx) setVerseCompareCtx(null);
         else if (strongSheet) setStrongSheet(null);
         else if (thoughtWrite) setThoughtWrite(null);
         else if (thoughtHub) setThoughtHub(null);
@@ -1911,7 +1915,7 @@ export default function ReaderView({
     showSettings,
     showVersions,
     aiSheet,
-    verseCompareOpen,
+    verseCompareCtx,
     strongSheet,
     thoughtWrite,
     thoughtHub,
@@ -3105,7 +3109,20 @@ export default function ReaderView({
                 }}
                 onClick={() => {
                   setMarkPaletteOpen(false);
-                  setVerseCompareOpen(true);
+                  // 必须在 clearSelection 前锁定到节 ref；否则会变成「卷.章」触发 compare 400
+                  const pinnedRef = hasSel
+                    ? `${book.id}.${chapter}.${minV}`
+                    : effRefParam;
+                  const pinnedLabel = hasSel
+                    ? (minV === maxV
+                      ? `${bookAbbr(book.name)} ${chapter}:${minV}`
+                      : `${bookAbbr(book.name)} ${chapter}:${minV}-${maxV}`)
+                    : effRefLabel;
+                  setVerseCompareCtx({
+                    refParam: pinnedRef,
+                    refLabel: pinnedLabel,
+                    selectionText: selectionPinRef.current || effSelectionText || undefined,
+                  });
                   clearSelection();
                 }}
               >
@@ -3354,23 +3371,24 @@ export default function ReaderView({
         />
       )}
 
-      {verseCompareOpen && (
+      {verseCompareCtx && (
         <VerseCompareSheet
-          refParam={effRefParam}
-          refLabel={effRefLabel}
-          selectionText={selectionPinRef.current || effSelectionText || undefined}
+          key={`compare-${verseCompareCtx.refParam}`}
+          refParam={verseCompareCtx.refParam}
+          refLabel={verseCompareCtx.refLabel}
+          selectionText={verseCompareCtx.selectionText}
           mainVersionId={mainVersionId || FALLBACK_PRIMARY_VERSION}
-          onClose={() => setVerseCompareOpen(false)}
+          onClose={() => setVerseCompareCtx(null)}
           onOpenStrongs={() => {
             setStrongSheet({
-              refParam: effRefParam,
-              refLabel: effRefLabel,
+              refParam: verseCompareCtx.refParam,
+              refLabel: verseCompareCtx.refLabel,
             });
           }}
           onOpenChapterParallel={(secondaryVersionId) => {
             const topId = mainVersionId || FALLBACK_PRIMARY_VERSION;
             applyVersionSelection([topId, secondaryVersionId]);
-            setVerseCompareOpen(false);
+            setVerseCompareCtx(null);
           }}
         />
       )}

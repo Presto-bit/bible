@@ -93,6 +93,15 @@ export default function VerseCompareSheet({
     let cancelled = false;
     setLoadingCompare(true);
     setLoadErr(null);
+    // 对照 API 要求精确到节；缺节时不发请求，避免 400
+    if (!/\.\d+\.\d+/.test(refParam) && !/:\d+\s*$/.test(refParam) && !/:\d+[-–]/.test(refParam)) {
+      setLoadErr('请选中具体经节后再打开对照');
+      setLoadingCompare(false);
+      setRows([]);
+      return () => {
+        cancelled = true;
+      };
+    }
     void api
       .compare(refParam)
       .then((d) => {
@@ -100,7 +109,14 @@ export default function VerseCompareSheet({
         setRows(d.versions ?? []);
       })
       .catch((e) => {
-        if (!cancelled) setLoadErr(e instanceof Error ? e.message : String(e));
+        if (!cancelled) {
+          const msg = e instanceof Error ? e.message : String(e);
+          setLoadErr(
+            /400|需指定到节|经节/.test(msg)
+              ? '请选中具体经节后再打开对照'
+              : msg,
+          );
+        }
       })
       .finally(() => {
         if (!cancelled) setLoadingCompare(false);
@@ -143,6 +159,21 @@ export default function VerseCompareSheet({
     setAiText('');
     setAiErr(null);
     setAiDone(false);
+
+    const refOk =
+      /\.\d+\.\d+/.test(refParam)
+      || /:\d+\s*$/.test(refParam)
+      || /:\d+[-–]/.test(refParam);
+    if (!refOk) {
+      setAiBusy(false);
+      setAiErr(null);
+      setAiDone(true);
+      return () => {
+        cancelled = true;
+        ac.abort();
+      };
+    }
+
     setAiBusy(true);
 
     const timer = window.setTimeout(() => {
