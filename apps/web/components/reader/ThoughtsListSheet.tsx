@@ -11,6 +11,7 @@ import {
   toggleThoughtLike,
   type ThoughtRow,
 } from '@/lib/reader_thoughts';
+import ThoughtBody from '@/components/ThoughtBody';
 
 function timeLabel(ms: number) {
   const d = new Date(ms);
@@ -87,7 +88,7 @@ export default function ThoughtsListSheet({
                     <strong>{t.authorName}{mine ? ' · 我' : ''}</strong>
                     <span className="muted">{timeLabel(t.createdAtMs)}</span>
                   </div>
-                  <p className="thought-item-body">{t.body}</p>
+                  <ThoughtBody text={t.body} className="thought-item-body-md" />
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                     <button
                       type="button"

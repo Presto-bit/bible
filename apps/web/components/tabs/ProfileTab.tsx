@@ -98,6 +98,7 @@ import {
 } from '@/lib/profile_settings';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
+import { plainThoughtPreview } from '@/lib/thought_display';
 import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
 import { shareInviteProduct, inviteShareUrl } from '@/lib/invite_share';
@@ -673,7 +674,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const refreshFootprintLocal = (names: Record<string, string>) => {
     const thoughts = listAllThoughts();
     setThoughtCount(thoughts.length);
-    setThoughtPreview(clipPreview(thoughts[0]?.body || ''));
+    setThoughtPreview(plainThoughtPreview(thoughts[0]?.body || '', 28));
 
     const marks = listMarksDetailed();
     setMarkCount(highlightCount());

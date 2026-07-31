@@ -32,6 +32,8 @@ import { noteForMarkRef, upsertMarkNote } from '@/lib/mark_notes';
 import { listMarksDetailed } from '@/lib/mark_stats';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import type { HighlightColor } from '@/lib/reader_highlights';
+import ThoughtBody from '@/components/ThoughtBody';
+import { plainThoughtPreview, thoughtTitleLine } from '@/lib/thought_display';
 
 /** 无经文关联的自定义想法 */
 const FREE_THOUGHT_REF = 'FREE';
@@ -379,7 +381,7 @@ function NotesInner() {
                   </span>
                 ) : null}
               </div>
-              <p style={{ lineHeight: 1.65, marginBottom: 14 }}>{thoughtDetail.body}</p>
+              <ThoughtBody text={thoughtDetail.body} />
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <button
                   type="button"
@@ -451,10 +453,10 @@ function NotesInner() {
                       ) : null}
                     </span>
                     <strong className="notes-drill-title">
-                      {t.body.trim().split(/\n/)[0].slice(0, 40) || '（空）'}
+                      {thoughtTitleLine(t.body, 40)}
                     </strong>
                     <span className="muted notes-drill-preview">
-                      {t.body.length > 80 ? `${t.body.slice(0, 80)}…` : t.body}
+                      {plainThoughtPreview(t.body, 100)}
                     </span>
                   </button>
                 ))
@@ -477,8 +479,7 @@ function NotesInner() {
                 <span className="notes-group-main">
                   <strong>{g.label}</strong>
                   <span className="muted" style={{ fontSize: 12 }}>
-                    {g.items[0]?.body.trim().slice(0, 28) || '查看想法'}
-                    {(g.items[0]?.body.length || 0) > 28 ? '…' : ''}
+                    {plainThoughtPreview(g.items[0]?.body || '', 28) || '查看想法'}
                   </span>
                   {formatDateTimeMs(g.items[0]?.createdAtMs || 0) ? (
                     <span className="muted notes-item-time">

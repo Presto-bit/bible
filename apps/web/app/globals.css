@@ -15223,6 +15223,33 @@ a.license-row-name:hover {
   white-space: pre-wrap;
 }
 
+.thought-body-md {
+  margin: 0 0 14px;
+  min-width: 0;
+}
+
+.thought-body-md .answer-rich-md {
+  font-size: 15px;
+}
+
+.thought-body-md .answer-rich-dense .ans-md-p {
+  margin: 0 0 0.7em;
+}
+
+.thought-body-md .ans-md-p:last-child,
+.thought-body-md .ans-md-list:last-child,
+.thought-body-md .ans-md-quote:last-child {
+  margin-bottom: 0;
+}
+
+.thought-item-body-md {
+  margin: 0 0 8px;
+}
+
+.thought-item-body-md .answer-rich-md {
+  font-size: 14px;
+}
+
 .thought-item-foot {
   display: flex;
   align-items: center;

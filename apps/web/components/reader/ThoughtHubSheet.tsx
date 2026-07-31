@@ -15,6 +15,7 @@ import {
 } from '@/lib/reader_thoughts';
 import { deleteThoughtAndClearMark } from '@/lib/thought_mark_cleanup';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
+import ThoughtBody from '@/components/ThoughtBody';
 
 function timeLabel(ms: number) {
   const d = new Date(ms);
@@ -115,7 +116,7 @@ export default function ThoughtHubSheet({
                     <strong>{t.authorName}{mine ? ' · 我' : ''}</strong>
                     <span className="muted">{timeLabel(t.createdAtMs)}</span>
                   </div>
-                  <p className="thought-item-body">{t.body}</p>
+                  <ThoughtBody text={t.body} className="thought-item-body-md" />
                   <div className="thought-item-foot">
                     <div className="thought-item-actions">
                       <button
