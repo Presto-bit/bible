@@ -37,7 +37,7 @@ export default function ExodusSeriesCoverPage() {
   const ctaLabel = progress?.seriesDone
     ? '再看一遍'
     : hasProgress
-      ? `继续 · 第 ${resume.episodeIndex + 1} 章`
+      ? `继续 · 第 ${resume.episodeIndex + 1} 幕`
       : '开始故事';
 
   const start = () => {
@@ -68,7 +68,7 @@ export default function ExodusSeriesCoverPage() {
       </section>
 
       <section className="story-album-chapters">
-        <h2 className="story-album-chapters-title">三章</h2>
+        <h2 className="story-album-chapters-title">三幕</h2>
         <ol className="story-album-chapter-list">
           {series.episodes.map((ep, idx) => {
             const done = Boolean(progress?.episodeDone?.[ep.id]);
@@ -80,7 +80,7 @@ export default function ExodusSeriesCoverPage() {
                   className={`story-album-chapter-card${done ? ' is-done' : ''}${current ? ' is-current' : ''}`}
                   onClick={() => markRouteNavigation()}
                 >
-                  <span className="story-album-chapter-idx">第 {idx + 1} 章</span>
+                  <span className="story-album-chapter-idx">第 {idx + 1} 幕</span>
                   <strong className="story-album-chapter-name">{ep.title}</strong>
                   <p className="story-album-chapter-hook">{ep.hook}</p>
                   <span className="story-album-chapter-status">

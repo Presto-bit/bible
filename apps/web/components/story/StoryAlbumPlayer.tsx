@@ -29,6 +29,15 @@ import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 const SWIPE_MIN = 48;
 
+const MEDIA_LABEL: Record<StoryBeat['media'], string> = {
+  cover: '开篇',
+  map: '地图',
+  diagram: '示意',
+  portrait: '人物',
+  quote: '经文',
+  fin: '收束',
+};
+
 type PlacePreview = {
   placeId: string;
   title: string;
@@ -265,7 +274,8 @@ export function StoryAlbumPlayer({
     ref: beat.ref,
   });
 
-  const progressLabel = `${beatIndex + 1}/${beats.length}`;
+  const progressLabel = `${beatIndex + 1} / ${beats.length}`;
+  const progressPct = beats.length > 0 ? ((beatIndex + 1) / beats.length) * 100 : 0;
 
   return (
     <main className="story-album-player">
@@ -283,7 +293,11 @@ export function StoryAlbumPlayer({
           关闭
         </Link>
         <p className="story-album-player-bar-mid">
-          第 {epIndex + 1} 幕 · {episode.title}
+          <span className="story-album-player-ep">第 {epIndex + 1} 幕</span>
+          <span className="story-album-player-ep-sep" aria-hidden>
+            ·
+          </span>
+          <span className="story-album-player-ep-title">{episode.title}</span>
         </p>
         <button type="button" className="story-album-player-toc" onClick={() => setTocOpen(true)}>
           目录
@@ -304,6 +318,7 @@ export function StoryAlbumPlayer({
           </p>
         ) : null}
         <article
+          key={beat.id}
           className="story-beat-frame"
           style={
             pullDy > 0
@@ -335,6 +350,7 @@ export function StoryAlbumPlayer({
             />
           </div>
           <div className="story-beat-caption">
+            <p className="story-beat-caption-eyebrow">{MEDIA_LABEL[beat.media]}</p>
             <h2 className="story-beat-caption-title">{beat.title}</h2>
             <p className="story-beat-caption-narration">{beat.narration}</p>
             {beat.insight ? (
@@ -346,46 +362,50 @@ export function StoryAlbumPlayer({
                   onClick={() => setInsightOpen((v) => !v)}
                 >
                   {insightOpen ? '收起洞察' : '再想一层'}
+                  <span aria-hidden>{insightOpen ? ' ⌃' : ' ›'}</span>
                 </button>
                 {insightOpen ? (
                   <p className="story-beat-caption-insight">{beat.insight}</p>
                 ) : null}
               </div>
             ) : null}
-            <div className="story-beat-caption-links">
-              {beat.ref ? (
-                <button type="button" className="story-beat-caption-link" onClick={openRef}>
-                  {formatGroupRefLabel(beat.ref) || beat.ref}
-                </button>
-              ) : null}
-              {beat.ask_seed || beat.media === 'map' || beat.media === 'diagram' || beat.media === 'portrait' ? (
-                <button type="button" className="story-beat-caption-link" onClick={() => setAskOpen(true)}>
-                  问小爱
-                </button>
-              ) : null}
-              {beat.media === 'map' ? (
-                <button type="button" className="story-beat-caption-link" onClick={() => setOverviewOpen(true)}>
-                  全程
-                </button>
-              ) : null}
-            </div>
+            {(beat.ref ||
+              beat.ask_seed ||
+              beat.media === 'map' ||
+              beat.media === 'diagram' ||
+              beat.media === 'portrait') ? (
+              <div className="story-beat-caption-links">
+                {beat.ref ? (
+                  <button type="button" className="story-beat-caption-link" onClick={openRef}>
+                    {formatGroupRefLabel(beat.ref) || beat.ref}
+                  </button>
+                ) : null}
+                {beat.ask_seed ||
+                beat.media === 'map' ||
+                beat.media === 'diagram' ||
+                beat.media === 'portrait' ? (
+                  <button type="button" className="story-beat-caption-link" onClick={() => setAskOpen(true)}>
+                    问小爱
+                  </button>
+                ) : null}
+                {beat.media === 'map' ? (
+                  <button type="button" className="story-beat-caption-link" onClick={() => setOverviewOpen(true)}>
+                    全程
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </article>
       </div>
 
       <footer className="story-album-footer">
-        <div className="story-album-dots" aria-label={`进度 ${progressLabel}`}>
-          {beats.map((b, i) => (
-            <button
-              key={b.id}
-              type="button"
-              className={`story-album-dot${i === beatIndex ? ' is-active' : ''}${i < beatIndex ? ' is-done' : ''}`}
-              aria-label={`第 ${i + 1} 拍`}
-              onClick={() => goBeat(i)}
-            />
-          ))}
+        <div className="story-album-progress" aria-label={`进度 ${progressLabel}`}>
+          <div className="story-album-progress-track">
+            <div className="story-album-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+          <span className="story-album-progress-label">{progressLabel}</span>
         </div>
-        <p className="story-album-progress-label">{progressLabel}</p>
         {beat.media === 'fin' ? (
           <div className="story-album-footer-actions">
             {beat.fin_kind === 'series' ? (
@@ -463,7 +483,7 @@ export function StoryAlbumPlayer({
                       }}
                     >
                       <span>{i + 1}. {b.title}</span>
-                      <span className="muted">{b.media}</span>
+                      <span className="muted">{MEDIA_LABEL[b.media]}</span>
                     </button>
                   </li>
                 ))}
@@ -549,7 +569,12 @@ function BeatVisual({
   if (beat.media === 'quote') {
     return (
       <div className="story-beat-quote">
-        <p className="story-beat-quote-mark" aria-hidden>“</p>
+        <p className="story-beat-quote-mark" aria-hidden>
+          “
+        </p>
+        {beat.ref ? (
+          <p className="story-beat-quote-ref">{formatGroupRefLabel(beat.ref) || beat.ref}</p>
+        ) : null}
       </div>
     );
   }
