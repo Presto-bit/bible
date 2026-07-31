@@ -354,21 +354,35 @@ if [[ "$social_anon" != "401" && "$social_anon" != "000" ]]; then
 fi
 
 smoke_device="release-smoke-$(hostname 2>/dev/null || echo host)-$$"
-smoke_code="$(printf '%08d' "$((RANDOM % 90000000 + 10000000))")"
-reg_body="$(curl -sS -X POST "${api_base_local}/auth/register" \
-  -H "Content-Type: application/json" \
-  -H "X-Device-Id: ${smoke_device}" \
-  -d "{\"user_code\":\"${smoke_code}\"}" 2>/dev/null || true)"
+# 注意：bash $RANDOM 仅 0–32767，拼出的「8 位码」实际落在 ~3 万个值，易撞历史冒烟账号 → 403 无权恢复
+gen_smoke_user_code() {
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -c 'import secrets; print(f"{secrets.randbelow(90_000_000) + 10_000_000:08d}")'
+  else
+    od -An -N4 -tu4 /dev/urandom | tr -d ' \n' | awk '{ printf "%08d\n", ($1 % 90000000) + 10000000 }'
+  fi
+}
+
 smoke_token=""
-if command -v python3 >/dev/null 2>&1; then
-  smoke_token="$(printf '%s' "$reg_body" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("session_token") or "")' 2>/dev/null || true)"
-elif command -v jq >/dev/null 2>&1; then
-  smoke_token="$(printf '%s' "$reg_body" | jq -r '.session_token // empty' 2>/dev/null || true)"
-fi
+reg_body=""
+smoke_code=""
+for _smoke_try in 1 2 3 4 5; do
+  smoke_code="$(gen_smoke_user_code)"
+  reg_body="$(curl -sS -X POST "${api_base_local}/auth/register" \
+    -H "Content-Type: application/json" \
+    -H "X-Device-Id: ${smoke_device}" \
+    -d "{\"user_code\":\"${smoke_code}\"}" 2>/dev/null || true)"
+  if command -v python3 >/dev/null 2>&1; then
+    smoke_token="$(printf '%s' "$reg_body" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d.get("session_token") or "")' 2>/dev/null || true)"
+  elif command -v jq >/dev/null 2>&1; then
+    smoke_token="$(printf '%s' "$reg_body" | jq -r '.session_token // empty' 2>/dev/null || true)"
+  fi
+  [[ -n "$smoke_token" ]] && break
+done
 
 if [[ -z "$smoke_token" ]]; then
   log "register 响应片段: $(printf '%s' "$reg_body" | head -c 300)"
-  die "无法签发冒烟会话（register 未返回 session_token）。检查 SESSION_TOKEN_SECRET 与 AUTH_DEV_ALLOW_USER_HEADER=0"
+  die "无法签发冒烟会话（register 未返回 session_token）。若为「无权恢复此账号」多为 user_code 碰撞；否则检查 SESSION_TOKEN_SECRET"
 fi
 
 # 负向：对已存在账号、无设备绑定、无会话的静默 register 不得签发（防接管）
