@@ -1221,6 +1221,9 @@ export default function ReaderView({
       prefetchVicinity();
       scheduleChapterProgress(book.id, chapter, false, () => {
         maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+        void import('@/lib/pwa_after_read').then((m) => {
+          m.maybePromptInstallAfterRead({ bookName: book.name, chapter });
+        });
       });
       setLastRead(book.id, chapter);
       return () => {
@@ -1274,6 +1277,9 @@ export default function ReaderView({
         setChapterLoading(false);
         scheduleChapterProgress(book.id, chapter, false, () => {
           maybeNotifyBookComplete(book.id, book.name, book.chapter_count);
+          void import('@/lib/pwa_after_read').then((m) => {
+            m.maybePromptInstallAfterRead({ bookName: book.name, chapter });
+          });
         });
         setLastRead(book.id, chapter);
 

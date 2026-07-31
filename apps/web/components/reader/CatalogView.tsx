@@ -145,6 +145,20 @@ function CatalogView({
           </span>
           <span className="muted home-list-chevron">›</span>
         </button>
+      ) : !planSteps?.length && tab === 'books' ? (
+        <div className="catalog-start-block">
+          <button
+            type="button"
+            className="btn catalog-start-primary"
+            onClick={() => {
+              const jhn = books.find((b) => b.id === 'JHN');
+              if (jhn) tryPickChapter(jhn, 1);
+            }}
+          >
+            从约翰福音开始
+          </button>
+          <p className="muted catalog-start-hint">新手友好 · 也可在下方自由选卷</p>
+        </div>
       ) : null}
 
       {pickWarn && (

@@ -878,6 +878,25 @@ html:not([data-app-theme]) .card {
   background: var(--surface);
 }
 
+.catalog-start-block {
+  margin: 0 0 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.catalog-start-primary {
+  width: 100%;
+  justify-content: center;
+}
+
+.catalog-start-hint {
+  margin: 0;
+  font-size: 12px;
+  text-align: center;
+}
+
 .reader-catalog-page .catalog-section-label {
   margin: 16px 0 8px;
   font-size: 13px;
@@ -2049,6 +2068,22 @@ html:not([data-app-theme]) .card {
   font-size: 13px;
   margin: 6px 0 12px;
   line-height: 1.55;
+}
+
+.home-onboarding-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.home-onboarding-actions .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.home-onboarding-secondary {
+  font-size: 13px;
 }
 
 .home-page .home-hero-carousel-dots {

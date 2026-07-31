@@ -39,6 +39,11 @@ import {
   noteInstallPromptShown,
   PWA_INSTALL_DISMISS_KEY,
 } from '@/lib/pwa_install_prompt';
+import {
+  readPwaInstallContext,
+  writePwaInstallContext,
+  type PwaInstallContext,
+} from '@/lib/pwa_after_read';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -48,8 +53,11 @@ interface BIPEvent extends Event {
 export { PWA_INSTALL_DISMISS_KEY };
 export const PWA_INSTALL_SHEET_EVENT = 'presto-pwa-install-open';
 
-export function openPwaInstallSheet() {
-  window.dispatchEvent(new Event(PWA_INSTALL_SHEET_EVENT));
+export function openPwaInstallSheet(ctx?: PwaInstallContext) {
+  if (ctx) writePwaInstallContext(ctx);
+  window.dispatchEvent(
+    new CustomEvent(PWA_INSTALL_SHEET_EVENT, { detail: ctx ?? null }),
+  );
 }
 
 /** 安装前尽量把本机阅读数据推到云端；失败时返回 false */
@@ -73,16 +81,21 @@ export function InstallPwaSheet({
   open,
   onClose,
   platform: platformProp,
+  context,
 }: {
   open: boolean;
   onClose: () => void;
   platform?: InstallPlatform;
+  /** 有效读经后等场景：带续读经节 */
+  context?: PwaInstallContext | null;
 }) {
   const router = useRouter();
   const toast = useToast();
   const [platform, setPlatform] = useState<InstallPlatform>(() => detectInstallPlatform());
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [busy, setBusy] = useState(false);
+  const installCtx = context ?? readPwaInstallContext();
+  const resumeLabel = installCtx?.resumeLabel?.trim() || '';
 
   useEffect(() => {
     if (platformProp) setPlatform(platformProp);
@@ -184,8 +197,17 @@ export function InstallPwaSheet({
           </div>
         </div>
 
-        <p className="install-pwa-headline">{installHeadline(platform)}</p>
+        <p className="install-pwa-headline">
+          {resumeLabel && !isDesktop
+            ? `下次从主屏幕一键续读 · ${resumeLabel}`
+            : installHeadline(platform)}
+        </p>
 
+        {resumeLabel && !isDesktop ? (
+          <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
+            保存到主屏幕后，打开图标即可回到刚才读的地方。
+          </p>
+        ) : null}
         {isDesktop && !loggedIn ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
             未设置密码时，本机读经记录只留在当前浏览器。重装或清除网站数据后将无法找回，请先设置密码（建议绑定手机）。
@@ -302,6 +324,7 @@ export default function InstallBanner() {
   const onHome = pathname === '/';
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetCtx, setSheetCtx] = useState<PwaInstallContext | null>(null);
   const [hidden, setHidden] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [homeClear, setHomeClear] = useState(false);
@@ -340,7 +363,10 @@ export default function InstallBanner() {
     if (typeof window === 'undefined') return;
     const sync = () => setPlatform(detectInstallPlatform());
     sync();
-    const onOpen = () => {
+    const onOpen = (e: Event) => {
+      const detail = (e as CustomEvent<PwaInstallContext | null>).detail;
+      if (detail) setSheetCtx(detail);
+      else setSheetCtx(readPwaInstallContext());
       setSheetOpen(true);
     };
     window.addEventListener(PWA_INSTALL_SHEET_EVENT, onOpen);
@@ -371,27 +397,47 @@ export default function InstallBanner() {
 
   const closeSheet = () => {
     setSheetOpen(false);
+    setSheetCtx(null);
+    writePwaInstallContext(null);
     // 「暂不」写了冷却后隐藏 Banner；主动打开再 softClose 不写冷却则保持
     if (isInstallPromptSuppressed()) setHidden(true);
   };
 
+  const afterReadLabel = sheetCtx?.resumeLabel || readPwaInstallContext()?.resumeLabel;
+
   // 分享落地仍可响应 openPwaInstallSheet()；standalone 永不自动引导
   if (onShareLanding) {
-    return <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform ?? undefined} />;
+    return (
+      <InstallPwaSheet
+        open={sheetOpen}
+        onClose={closeSheet}
+        platform={platform ?? undefined}
+        context={sheetCtx}
+      />
+    );
   }
 
   if (hidden || !platform || platform === 'standalone' || !onboardingDone || !slotFree) {
-    return <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform ?? undefined} />;
+    return (
+      <InstallPwaSheet
+        open={sheetOpen}
+        onClose={closeSheet}
+        platform={platform ?? undefined}
+        context={sheetCtx}
+      />
+    );
   }
 
   const shortMsg =
-    platform === 'inapp'
-      ? '微信内无法安装，请用浏览器打开'
-      : platform === 'ios-safari' || platform === 'ios-other'
-        ? '添加到主屏幕，像 App 一样读经'
-        : platform === 'desktop'
-          ? '登录后，把读经数据保存到桌面 App'
-          : '添加到主屏幕，离线也能打开';
+    afterReadLabel && platform !== 'desktop'
+      ? `下次一键续读 · ${afterReadLabel}`
+      : platform === 'inapp'
+        ? '微信内无法安装，请用浏览器打开'
+        : platform === 'ios-safari' || platform === 'ios-other'
+          ? '添加到主屏幕，像 App 一样读经'
+          : platform === 'desktop'
+            ? '登录后，把读经数据保存到桌面 App'
+            : '添加到主屏幕，离线也能打开';
 
   return (
     <>
@@ -405,6 +451,7 @@ export default function InstallBanner() {
           className="install-banner-close"
           onClick={() => {
             dismissInstallPrompt();
+            writePwaInstallContext(null);
             setHidden(true);
           }}
           aria-label="关闭"
@@ -412,7 +459,12 @@ export default function InstallBanner() {
           ✕
         </button>
       </div>
-      <InstallPwaSheet open={sheetOpen} onClose={closeSheet} platform={platform} />
+      <InstallPwaSheet
+        open={sheetOpen}
+        onClose={closeSheet}
+        platform={platform}
+        context={sheetCtx}
+      />
     </>
   );
 }

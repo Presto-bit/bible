@@ -185,7 +185,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       id: 'resume',
       tag: readToday ? '已读' : '继续',
       title: trimRailTitle(input.resume.title),
-      sub: readToday ? '今日已读 · 可继续' : '',
+      sub: readToday ? '今日已读 · 可继续' : '圣经 Tab 也可随时续读',
       href: input.resume.href,
       icon: 'resume',
       bookId: input.resume.bookId,
@@ -197,15 +197,27 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
     suggest?.bookId ||
     (suggest ? bookIdFromReaderHref(suggest.href)?.bookId : undefined) ||
     'JHN';
+  const freeHref =
+    suggest?.href?.startsWith('/reader')
+      ? suggest.href
+      : '/reader?book=JHN&chapter=1';
   return {
     id: 'suggest',
-    tag: '开始',
-    title: trimRailTitle(suggest?.title || '选一个计划开始'),
-    sub: suggest?.sub ? trimRailSub(suggest.sub) : '从一段经文开始今天',
-    href: suggest?.href || '/plans',
+    tag: '自由读',
+    title: trimRailTitle(
+      suggest?.href?.startsWith('/reader')
+        ? suggest.title
+        : '从约翰福音开始',
+    ),
+    sub: trimRailSub(
+      suggest?.href?.startsWith('/reader')
+        ? suggest.sub || '打开圣经自由选读'
+        : '想按日程再去选计划',
+    ),
+    href: freeHref,
     icon: 'suggest',
     bookId,
-    cta: suggest?.href?.startsWith('/reader') ? '去读' : '去选',
+    cta: '去读',
   };
 }
 
@@ -366,12 +378,40 @@ function prayerSlot(input: HomeTodayPanelInput): HomeTodayPanelSlot {
 /**
  * 固定三坑：主行动 | 共读 | 祷告。
  * 活动运营曝光走这三张卡（不占每日经文 Hero）；有活动时按顺序优先占位。
+ * 首页主卡=今日计划（有则）；自由续读留给圣经 Tab，有计划时侧卡露出「自由读」。
  */
 export function buildHomeTodayPanel(input: HomeTodayPanelInput): HomeTodayPanelModel {
   const camps = (input.campaigns || []).slice(0, 3);
-  return {
-    primary: camps[0] ? campaignPrimary(camps[0]) : primaryFromInput(input),
-    group: camps[1] ? campaignSide(camps[1]) : groupSlot(input),
-    prayer: camps[2] ? campaignSide(camps[2]) : prayerSlot(input),
-  };
+  const primary = camps[0] ? campaignPrimary(camps[0]) : primaryFromInput(input);
+  let group = camps[1] ? campaignSide(camps[1]) : groupSlot(input);
+  let prayer = camps[2] ? campaignSide(camps[2]) : prayerSlot(input);
+
+  const resume = input.resume;
+  const planBook = input.plan?.bookId;
+  const planCh = input.plan?.chapter;
+  const resumeDiffers =
+    Boolean(resume) &&
+    (resume!.bookId !== planBook || resume!.chapter !== planCh);
+
+  // 主卡已是计划：把「自由续读」塞进空的祷告侧卡，避免计划抢走圣经 Tab 的注意力
+  if (
+    !camps[2] &&
+    primary.id === 'plan' &&
+    resume &&
+    resumeDiffers &&
+    !input.prayer
+  ) {
+    prayer = {
+      id: 'resume',
+      tag: '自由读',
+      title: trimRailTitle(resume.title, SIDE_TITLE_MAX),
+      sub: '',
+      href: resume.href,
+      icon: 'resume',
+      bookId: resume.bookId,
+      cta: '续读',
+    };
+  }
+
+  return { primary, group, prayer };
 }

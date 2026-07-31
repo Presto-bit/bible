@@ -10,6 +10,7 @@ import {
   type HomeOnboardingStage,
 } from '@/lib/home_onboarding';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 const OFFLINE_PACK_READY = 'presto-offline-pack-ready';
 
@@ -31,10 +32,12 @@ export default function HomeOnboardingBanner() {
     refresh();
     const onData = () => refresh();
     window.addEventListener(OFFLINE_PACK_READY, onData);
+    window.addEventListener('online', onData);
     const unsub = subscribeLocalDataChanged(onData);
     return () => {
       cancelled = true;
       window.removeEventListener(OFFLINE_PACK_READY, onData);
+      window.removeEventListener('online', onData);
       unsub();
     };
   }, []);
@@ -65,9 +68,24 @@ export default function HomeOnboardingBanner() {
         </button>
       </div>
       <p className="muted home-onboarding-body">{cta.body}</p>
-      <Link className="btn" href={cta.href}>
-        {cta.label}
-      </Link>
+      <div className="home-onboarding-actions">
+        <Link
+          className="btn"
+          href={cta.href}
+          onClick={() => markRouteNavigation()}
+        >
+          {cta.label}
+        </Link>
+        {cta.secondaryHref && cta.secondaryLabel ? (
+          <Link
+            className="text-link home-onboarding-secondary"
+            href={cta.secondaryHref}
+            onClick={() => markRouteNavigation()}
+          >
+            {cta.secondaryLabel}
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }

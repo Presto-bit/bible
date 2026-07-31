@@ -25,7 +25,7 @@ import { buildPlanReadingMeta, readerHref, resumeStepIndex } from '@/lib/plan_re
 import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
 import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
-import { nextReadingSuggestion } from '@/lib/suggestions';
+import { nextFreeReadingSuggestion } from '@/lib/suggestions';
 import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { heroThemeClass } from '@/lib/home_rail';
@@ -392,15 +392,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       };
 
       const report = buildReport();
-      const suggest = nextReadingSuggestion();
-      const suggestInput = suggest
-        ? {
-            title: suggest.title,
-            sub: suggest.reason,
-            href: suggest.href,
-            bookId: bookIdFromReaderHref(suggest.href)?.bookId,
-          }
-        : undefined;
+      const suggest = nextFreeReadingSuggestion();
+      const suggestInput = {
+        title: suggest.title,
+        sub: suggest.reason,
+        href: suggest.href,
+        bookId: bookIdFromReaderHref(suggest.href)?.bookId,
+      };
 
       let prayerCard: { title: string; sub: string; href: string } | undefined;
       let planCard: PlanCard | undefined;
