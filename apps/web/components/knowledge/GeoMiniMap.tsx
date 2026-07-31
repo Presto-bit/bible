@@ -120,6 +120,8 @@ export function GeoMiniMap({
   hideActiveCard = false,
   /** region=黎凡特大图；route=只贴合路线点（图册默认） */
   fitMode,
+  /** 铺满父容器高度（图册上半区） */
+  fill = false,
 }: {
   places: GeoPlace[];
   activeId?: string | null;
@@ -129,10 +131,12 @@ export function GeoMiniMap({
   lockView?: boolean;
   hideActiveCard?: boolean;
   fitMode?: 'region' | 'route';
+  fill?: boolean;
 }) {
   const resolvedFit = fitMode ?? (lockView ? 'route' : 'region');
-  const w = 360;
-  const h = height;
+  const [fillSize, setFillSize] = useState({ w: 360, h: height });
+  const w = fill ? fillSize.w : 360;
+  const h = fill ? fillSize.h : height;
   const pad = resolvedFit === 'route' ? 28 : 16;
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -140,6 +144,24 @@ export function GeoMiniMap({
   const pinchRef = useRef<{ dist: number; zoom: number } | null>(null);
   const zoomRef = useRef(1);
   const mapRef = useRef<HTMLDivElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!fill) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const apply = () => {
+      const nextW = Math.max(280, Math.floor(el.clientWidth));
+      const nextH = Math.max(160, Math.floor(el.clientHeight));
+      setFillSize((prev) =>
+        prev.w === nextW && prev.h === nextH ? prev : { w: nextW, h: nextH },
+      );
+    };
+    apply();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(apply) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, [fill]);
 
   const touchDistance = (touches: TouchList | React.TouchList) => {
     if (touches.length < 2) return 0;
@@ -270,7 +292,10 @@ export function GeoMiniMap({
   const activePlace = activeId ? byId.get(activeId) : null;
 
   return (
-    <div className={`geo-mini-map-wrap${lockView ? ' is-locked' : ''}`}>
+    <div
+      ref={wrapRef}
+      className={`geo-mini-map-wrap${lockView ? ' is-locked' : ''}${fill ? ' is-fill' : ''}`}
+    >
       {!lockView ? (
         <div className="geo-mini-map-toolbar">
           <button type="button" className="font-pill" onClick={zoomOut} aria-label="缩小">−</button>
@@ -282,7 +307,7 @@ export function GeoMiniMap({
       <div
         ref={mapRef}
         className="geo-mini-map"
-        style={{ height, touchAction: lockView ? 'pan-y' : 'none' }}
+        style={{ height: h, touchAction: lockView ? 'none' : 'none' }}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -293,7 +318,7 @@ export function GeoMiniMap({
         onTouchCancel={onTouchEnd}
       >
         <svg viewBox={viewBox} className="geo-mini-map-svg" role="img" aria-label="地图">
-          <rect width={w} height={h} fill="var(--paper-2, #ebe4d6)" rx="8" />
+          <rect width={w} height={h} fill="var(--paper-2, #ebe4d6)" rx={fill ? 0 : 8} />
           <path d={COAST_SILHOUETTE} fill="var(--paper-3, #e0d8cc)" opacity="0.85" />
           {resolvedFit === 'region' ? REGION_LABELS.map((r) => (
             <text

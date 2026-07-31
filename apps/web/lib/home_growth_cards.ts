@@ -136,7 +136,7 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
       tag: '主题',
       title: theme?.title || '探索经文主题',
       detail: theme?.detail || '按主题找经文',
-      href: theme?.href || '/discover',
+      href: theme?.href || '/search',
       mediaTone: 'theme',
       icon: homeMediaIconForTone('theme'),
       imageUrl: homeMediaSceneUrl('theme'),

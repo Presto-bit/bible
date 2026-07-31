@@ -7194,14 +7194,26 @@ body.verse-full-open .tabbar {
 }
 
 .story-album-player {
-  min-height: 100dvh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   background: #fff;
   padding:
     env(safe-area-inset-top, 0)
     0
-    calc(10px + env(safe-area-inset-bottom, 0));
+    calc(8px + env(safe-area-inset-bottom, 0));
+  box-sizing: border-box;
+  overscroll-behavior: none;
+  touch-action: pan-x;
+}
+
+html.story-album-lock,
+html.story-album-lock body {
+  overflow: hidden;
+  overscroll-behavior: none;
+  height: 100%;
 }
 
 .story-album-player-bar {
@@ -7211,6 +7223,7 @@ body.verse-full-open .tabbar {
   padding: 4px 10px;
   position: relative;
   z-index: 5;
+  flex-shrink: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
   background: #fff;
 }
@@ -7278,21 +7291,7 @@ body.verse-full-open .tabbar {
   min-height: 0;
   display: flex;
   align-items: stretch;
-}
-
-.story-album-pull-hint {
-  position: absolute;
-  top: 10px;
-  left: 0;
-  right: 0;
-  z-index: 6;
-  margin: 0;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--ink-soft);
-  pointer-events: none;
+  overflow: hidden;
 }
 
 @keyframes story-beat-enter {
@@ -7306,10 +7305,11 @@ body.verse-full-open .tabbar {
   }
 }
 
-/* 杂志页：上图 / 下文固定白底 */
+/* 杂志页：整页锁高，上图下文，禁止整页下拉 */
 .story-beat-frame {
   flex: 1;
   width: 100%;
+  height: 100%;
   min-height: 0;
   position: relative;
   display: flex;
@@ -7320,12 +7320,11 @@ body.verse-full-open .tabbar {
   border: none;
   box-shadow: none;
   animation: story-beat-enter 0.32s ease;
-  transition: transform 0.05s linear, opacity 0.05s linear;
 }
 
 .story-beat-visual {
-  flex: 0 0 50%;
-  min-height: 188px;
+  flex: 1 1 52%;
+  min-height: 0;
   display: flex;
   align-items: stretch;
   position: relative;
@@ -7341,15 +7340,19 @@ body.verse-full-open .tabbar {
 }
 
 .story-beat-caption {
-  flex: 1 1 0;
+  flex: 0 1 42%;
+  max-height: 48%;
   min-height: 0;
   position: relative;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 16px 22px 12px;
+  overscroll-behavior: contain;
+  padding: 14px 20px 10px;
   background: #fff;
   color: var(--ink);
   z-index: 3;
+  touch-action: pan-y;
 }
 
 .story-beat-caption-eyebrow {
@@ -7381,19 +7384,8 @@ body.verse-full-open .tabbar {
   margin-top: 12px;
 }
 
-.story-beat-caption-insight-toggle {
-  border: none;
-  background: transparent;
-  padding: 4px 0;
-  font-size: 12px;
-  font-weight: 650;
-  color: var(--accent-deep);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
 .story-beat-caption-insight {
-  margin: 8px 0 0;
+  margin: 12px 0 0;
   padding: 10px 12px;
   border-radius: 8px;
   background: color-mix(in srgb, var(--accent) 8%, #fff);
@@ -7456,6 +7448,7 @@ body.verse-full-open .tabbar {
 
 .story-album-footer {
   margin-top: 0;
+  flex-shrink: 0;
   padding: 8px 18px 6px;
   border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
   background: #fff;
@@ -7525,18 +7518,34 @@ body.verse-full-open .tabbar {
   display: flex;
   flex-direction: column;
   justify-content: stretch;
-  padding: 12px 14px;
+  padding: 0;
   box-sizing: border-box;
+  min-height: 0;
+}
+
+.story-beat-map .geo-mini-map-wrap {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.story-beat-map .geo-mini-map-wrap.is-fill {
+  flex: 1;
+  min-height: 0;
 }
 
 .story-beat-map .geo-mini-map {
   flex: 1;
-  min-height: 168px;
-  border-radius: 12px;
+  width: 100%;
+  min-height: 0;
+  border-radius: 0;
   overflow: hidden;
-  background: #fff;
-  border: 1px solid color-mix(in srgb, var(--line) 88%, transparent);
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--ink) 3%, transparent);
+  background: var(--paper-2, #ebe4d6);
+  border: none;
+  box-shadow: none;
 }
 
 .story-beat-map .geo-mini-map-wrap.is-locked {
@@ -7545,6 +7554,11 @@ body.verse-full-open .tabbar {
 
 .story-beat-map .geo-mini-map-hint {
   display: none;
+}
+
+.geo-mini-map-wrap.is-fill {
+  height: 100%;
+  min-height: 0;
 }
 
 .story-beat-diagram {

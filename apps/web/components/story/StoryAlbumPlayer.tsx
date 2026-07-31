@@ -60,13 +60,10 @@ export function StoryAlbumPlayer({
   const [askOpen, setAskOpen] = useState(false);
   const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
   const [tocOpen, setTocOpen] = useState(false);
-  const [overviewOpen, setOverviewOpen] = useState(false);
   const [placePreview, setPlacePreview] = useState<PlacePreview | null>(null);
   const [shareHint, setShareHint] = useState<string | null>(null);
-  const [insightOpen, setInsightOpen] = useState(false);
-  const touchStart = useRef<{ x: number; y: number; inCaption: boolean } | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const ignoreSwipe = useRef(false);
-  const [pullDy, setPullDy] = useState(0);
 
   const episode: StoryEpisode | null = series.episodes[epIndex] ?? null;
   const beats = episode?.beats ?? [];
@@ -95,8 +92,9 @@ export function StoryAlbumPlayer({
   }, [episode, beats]);
 
   useEffect(() => {
-    setInsightOpen(false);
-  }, [epIndex, beatIndex]);
+    document.documentElement.classList.add('story-album-lock');
+    return () => document.documentElement.classList.remove('story-album-lock');
+  }, []);
 
   useEffect(() => {
     if (!episode || !beat) return;
@@ -162,42 +160,28 @@ export function StoryAlbumPlayer({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (placePreview || askOpen || tocOpen || overviewOpen) return;
+      if (placePreview || askOpen || tocOpen) return;
       if (e.key === 'ArrowRight') goNext();
       if (e.key === 'ArrowLeft') goPrev();
       if (e.key === 'Escape') exitToCover();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [placePreview, askOpen, tocOpen, overviewOpen, goNext, goPrev, exitToCover]);
+  }, [placePreview, askOpen, tocOpen, goNext, goPrev, exitToCover]);
 
-  const onSwipeStart = (clientX: number, clientY: number, target: EventTarget | null) => {
-    if (ignoreSwipe.current || placePreview || askOpen || tocOpen || overviewOpen) return;
-    const inCaption = target instanceof Element && Boolean(target.closest('.story-beat-caption'));
-    touchStart.current = { x: clientX, y: clientY, inCaption };
-    setPullDy(0);
-  };
-
-  const onSwipeMove = (clientY: number) => {
-    const start = touchStart.current;
-    if (!start || start.inCaption) return;
-    const dy = clientY - start.y;
-    setPullDy(dy > 0 ? Math.min(dy, 120) : 0);
+  const onSwipeStart = (clientX: number, clientY: number) => {
+    if (ignoreSwipe.current || placePreview || askOpen || tocOpen) return;
+    touchStart.current = { x: clientX, y: clientY };
   };
 
   const onSwipeEnd = (clientX: number, clientY: number) => {
     const start = touchStart.current;
     touchStart.current = null;
-    setPullDy(0);
     if (!start) return;
     const dx = clientX - start.x;
     const dy = clientY - start.y;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
-    if (!start.inCaption && dy > 72 && absY > absX * 1.15) {
-      exitToCover();
-      return;
-    }
     if (absX < SWIPE_MIN || absX < absY) return;
     if (dx < 0) goNext();
     else goPrev();
@@ -307,25 +291,11 @@ export function StoryAlbumPlayer({
       <div
         className="story-album-stage"
         onTouchStart={(e) =>
-          onSwipeStart(e.touches[0]?.clientX ?? 0, e.touches[0]?.clientY ?? 0, e.target)
+          onSwipeStart(e.touches[0]?.clientX ?? 0, e.touches[0]?.clientY ?? 0)
         }
-        onTouchMove={(e) => onSwipeMove(e.touches[0]?.clientY ?? 0)}
         onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0, e.changedTouches[0]?.clientY ?? 0)}
       >
-        {pullDy > 8 ? (
-          <p className="story-album-pull-hint" style={{ opacity: Math.min(1, pullDy / 72) }}>
-            下拉退出
-          </p>
-        ) : null}
-        <article
-          key={beat.id}
-          className="story-beat-frame"
-          style={
-            pullDy > 0
-              ? { transform: `translateY(${pullDy * 0.35}px)`, opacity: Math.max(0.55, 1 - pullDy / 220) }
-              : undefined
-          }
-        >
+        <article key={beat.id} className="story-beat-frame">
           <div className="story-beat-visual">
             <button
               type="button"
@@ -354,26 +324,9 @@ export function StoryAlbumPlayer({
             <h2 className="story-beat-caption-title">{beat.title}</h2>
             <p className="story-beat-caption-narration">{beat.narration}</p>
             {beat.insight ? (
-              <div className="story-beat-caption-insight-block">
-                <button
-                  type="button"
-                  className="story-beat-caption-insight-toggle"
-                  aria-expanded={insightOpen}
-                  onClick={() => setInsightOpen((v) => !v)}
-                >
-                  {insightOpen ? '收起洞察' : '再想一层'}
-                  <span aria-hidden>{insightOpen ? ' ⌃' : ' ›'}</span>
-                </button>
-                {insightOpen ? (
-                  <p className="story-beat-caption-insight">{beat.insight}</p>
-                ) : null}
-              </div>
+              <p className="story-beat-caption-insight">{beat.insight}</p>
             ) : null}
-            {(beat.ref ||
-              beat.ask_seed ||
-              beat.media === 'map' ||
-              beat.media === 'diagram' ||
-              beat.media === 'portrait') ? (
+            {beat.ref || beat.ask_seed || beat.media === 'map' || beat.media === 'diagram' || beat.media === 'portrait' ? (
               <div className="story-beat-caption-links">
                 {beat.ref ? (
                   <button type="button" className="story-beat-caption-link" onClick={openRef}>
@@ -386,11 +339,6 @@ export function StoryAlbumPlayer({
                 beat.media === 'portrait' ? (
                   <button type="button" className="story-beat-caption-link" onClick={() => setAskOpen(true)}>
                     问小爱
-                  </button>
-                ) : null}
-                {beat.media === 'map' ? (
-                  <button type="button" className="story-beat-caption-link" onClick={() => setOverviewOpen(true)}>
-                    全程
                   </button>
                 ) : null}
               </div>
@@ -493,32 +441,6 @@ export function StoryAlbumPlayer({
         </div>
       ) : null}
 
-      {overviewOpen && tour ? (
-        <div className="sheet-backdrop" onClick={() => setOverviewOpen(false)}>
-          <div className="sheet card half-sheet" onClick={(e) => e.stopPropagation()}>
-            <div className="half-sheet-title">
-              <strong>路线总览</strong>
-              <SheetCloseButton onClick={() => setOverviewOpen(false)} />
-            </div>
-            <div className="half-sheet-body">
-              <GeoMiniMap
-                places={mapPlaces}
-                activeId={beat.place_id}
-                height={220}
-                routeStops={routeStops}
-                onPlaceClick={(p) => {
-                  setOverviewOpen(false);
-                  onPlaceClick(p);
-                }}
-              />
-              <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                点站点可预览并跳到对应拍。此处可缩放拖动。
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {askOpen ? (
         <KnowledgeAskSheet
           title={`${episode.title} · ${beat.title}`}
@@ -607,12 +529,12 @@ function BeatVisual({
           <GeoMiniMap
             places={mapPlaces}
             activeId={beat.place_id}
-            height={240}
             routeStops={routeStops}
             onPlaceClick={onPlaceClick}
             lockView
             hideActiveCard
             fitMode="route"
+            fill
           />
         ) : (
           <p className="muted story-beat-map-loading">地图载入中…</p>

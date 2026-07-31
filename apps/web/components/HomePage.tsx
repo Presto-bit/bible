@@ -356,9 +356,9 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         title: '探索经文主题',
         detail:
           idx.themes.length > 0
-            ? `${idx.themes.length} 个主题 · 去探索`
+            ? `${idx.themes.length} 个主题 · 去搜索`
             : '按主题找经文',
-        href: '/discover',
+        href: '/search',
       };
       themeFeatureRef.current = next;
       setThemeFeature(next);
