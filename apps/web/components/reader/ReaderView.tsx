@@ -15,7 +15,6 @@ import PageBackBar from '@/components/PageBackBar';
 import SummarySheet from '@/components/reader/SummarySheet';
 import { ChapterGuideTip } from '@/components/reader/ChapterGuideTip';
 import VerseCompareSheet from '@/components/reader/VerseCompareSheet';
-import { StrongSheet } from '@/components/reader/StrongSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import {
   CHAPTER_GUIDE_DWELL_MS,
@@ -327,10 +326,6 @@ export default function ReaderView({
   const [markPaletteOpen, setMarkPaletteOpen] = useState(false);
   const [bookDone, setBookDone] = useState(false);
   const [aiSheet, setAiSheet] = useState(false);
-  const [strongSheet, setStrongSheet] = useState<null | {
-    refParam: string;
-    refLabel: string;
-  }>(null);
   const [verseCompareCtx, setVerseCompareCtx] = useState<null | {
     refParam: string;
     refLabel: string;
@@ -441,7 +436,6 @@ export default function ReaderView({
     || thoughtHub
     || thoughtWrite
     || verseCompareCtx
-    || strongSheet
     || groupCheckinOpen
     || bookCelebrate,
   );
@@ -1887,7 +1881,6 @@ export default function ReaderView({
         else if (showVersions) setShowVersions(false);
         else if (aiSheet) setAiSheet(false);
         else if (verseCompareCtx) setVerseCompareCtx(null);
-        else if (strongSheet) setStrongSheet(null);
         else if (thoughtWrite) setThoughtWrite(null);
         else if (thoughtHub) setThoughtHub(null);
         else if (groupCheckinOpen) setGroupCheckinOpen(false);
@@ -1916,7 +1909,6 @@ export default function ReaderView({
     showVersions,
     aiSheet,
     verseCompareCtx,
-    strongSheet,
     thoughtWrite,
     thoughtHub,
     groupCheckinOpen,
@@ -3379,25 +3371,11 @@ export default function ReaderView({
           selectionText={verseCompareCtx.selectionText}
           mainVersionId={mainVersionId || FALLBACK_PRIMARY_VERSION}
           onClose={() => setVerseCompareCtx(null)}
-          onOpenStrongs={() => {
-            setStrongSheet({
-              refParam: verseCompareCtx.refParam,
-              refLabel: verseCompareCtx.refLabel,
-            });
-          }}
           onOpenChapterParallel={(secondaryVersionId) => {
             const topId = mainVersionId || FALLBACK_PRIMARY_VERSION;
             applyVersionSelection([topId, secondaryVersionId]);
             setVerseCompareCtx(null);
           }}
-        />
-      )}
-
-      {strongSheet && (
-        <StrongSheet
-          refParam={strongSheet.refParam}
-          refLabel={strongSheet.refLabel}
-          onClose={() => setStrongSheet(null)}
         />
       )}
 

@@ -26,7 +26,6 @@ type Props = {
   /** 当前主读译本 */
   mainVersionId: string;
   onClose: () => void;
-  onOpenStrongs: () => void;
   /** 进入整章上下对照 */
   onOpenChapterParallel: (secondaryVersionId: string) => void;
 };
@@ -45,7 +44,6 @@ export default function VerseCompareSheet({
   selectionText,
   mainVersionId,
   onClose,
-  onOpenStrongs,
   onOpenChapterParallel,
 }: Props) {
   const primaryId = (mainVersionId || FALLBACK_PRIMARY_VERSION).trim() || FALLBACK_PRIMARY_VERSION;
@@ -307,9 +305,6 @@ export default function VerseCompareSheet({
           </div>
 
           <div className="verse-compare-actions">
-            <button type="button" className="font-pill font-pill-muted" onClick={onOpenStrongs}>
-              逐词原文
-            </button>
             {secondary ? (
               <button
                 type="button"
