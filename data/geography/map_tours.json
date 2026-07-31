@@ -8,13 +8,53 @@
       "subtitle": "从兰塞到西奈山（传统示意路线）",
       "era": "约公元前 15 世纪",
       "confidence": "traditional",
-      "description": "以色列人出埃及、过红海、在玛拉与以琳，至西奈山领受律法。路线为传统示意，非考古定论。",
+      "description": "以色列人离开为奴之地，过红海、经历旷野试炼，至西奈山与神立约。路线为传统示意，非考古定论；可搭配会幕图鉴与核心人物关系一起看。",
+      "related": [
+        { "kind": "diagram", "id": "red-sea-crossing", "label": "过红海示意" },
+        { "kind": "diagram", "id": "tabernacle-layout", "label": "会幕平面图" },
+        { "kind": "graph", "id": "exodus-core", "label": "出埃及核心人物" }
+      ],
       "stops": [
-        {"order": 1, "place_id": "egypt", "label": "埃及", "ref": "EXO 1:11", "note": "为奴之地"},
-        {"order": 2, "place_id": "red-sea", "label": "红海", "ref": "EXO 14:21", "note": "过海神迹"},
-        {"order": 3, "place_id": "marah", "label": "玛拉", "ref": "EXO 15:23", "note": "苦水变甜"},
-        {"order": 4, "place_id": "wilderness-of-sinai", "label": "西奈旷野", "ref": "EXO 19:1", "note": "至山前安营"},
-        {"order": 5, "place_id": "mount-sinai", "label": "西奈山", "ref": "EXO 19:20", "note": "颁布律法"}
+        {
+          "order": 1,
+          "place_id": "egypt",
+          "label": "埃及",
+          "ref": "EXO 1:11",
+          "note": "百姓在法老的苦役下呻吟，神听见他们的哀声，开始拯救的故事。",
+          "ask_seed": "以色列人为何在埃及为奴？神如何预备拯救？"
+        },
+        {
+          "order": 2,
+          "place_id": "red-sea",
+          "label": "红海",
+          "ref": "EXO 14:21",
+          "note": "前有大海、后有追兵，神分开海水，让百姓走干地过去——这是出埃及的标志性神迹。",
+          "ask_seed": "过红海这件事，在后来的圣经里常如何被记念？"
+        },
+        {
+          "order": 3,
+          "place_id": "marah",
+          "label": "玛拉",
+          "ref": "EXO 15:23",
+          "note": "三日行路后水苦不能喝；神指示摩西把树丢在水里，水就变甜，也立下顺服的试验。",
+          "ask_seed": "玛拉苦水变甜说明神怎样对待抱怨中的百姓？"
+        },
+        {
+          "order": 4,
+          "place_id": "wilderness-of-sinai",
+          "label": "西奈旷野",
+          "ref": "EXO 19:1",
+          "note": "出埃及后第三个月，百姓来到西奈的旷野，在山前安营，准备朝见神。",
+          "ask_seed": "来到西奈山前，神对以色列人的呼召是什么？"
+        },
+        {
+          "order": 5,
+          "place_id": "mount-sinai",
+          "label": "西奈山",
+          "ref": "EXO 19:20",
+          "note": "耶和华降临在山上，颁布十诫与约法；百姓自此成为「祭司的国度」。随后神也启示建造会幕。",
+          "ask_seed": "西奈之约与后来的会幕敬拜有何关系？"
+        }
       ]
     },
     {
@@ -23,14 +63,17 @@
       "subtitle": "从安提阿出发，经小亚细亚到马其顿",
       "era": "公元 46–48 年",
       "description": "保罗与巴拿巴受圣灵差遣，在塞浦路斯、小亚细亚传道，并在特庇、路司得、以哥念建立教会。",
+      "related": [
+        { "kind": "graph", "id": "paul-companions", "label": "保罗与同工" }
+      ],
       "stops": [
-        {"order": 1, "place_id": "antioch-syria", "label": "安提阿（叙利亚）", "ref": "ACT 13:1", "note": "差遣出发地"},
-        {"order": 2, "place_id": "cyprus", "label": "塞浦路斯", "ref": "ACT 13:4", "note": "在撒拉米与帕弗传道"},
-        {"order": 3, "place_id": "antioch-pisidia", "label": "彼西底的安提阿", "ref": "ACT 13:14", "note": "在会堂讲道"},
-        {"order": 4, "place_id": "iconium", "label": "以哥念", "ref": "ACT 14:1", "note": "犹太人、外邦人信主"},
-        {"order": 5, "place_id": "lystra", "label": "路司得", "ref": "ACT 14:8", "note": "医治瘸腿，几乎被当神"},
-        {"order": 6, "place_id": "derbe", "label": "特庇", "ref": "ACT 14:20", "note": "坚固门徒，选立长老"},
-        {"order": 7, "place_id": "antioch-syria", "label": "安提阿（叙利亚）", "ref": "ACT 14:26", "note": "回报教会，述说神所行"}
+        {"order": 1, "place_id": "antioch-syria", "label": "安提阿（叙利亚）", "ref": "ACT 13:1", "note": "教会禁食祷告，圣灵差遣保罗与巴拿巴出发。", "ask_seed": "安提阿教会在宣教史上有何独特地位？"},
+        {"order": 2, "place_id": "cyprus", "label": "塞浦路斯", "ref": "ACT 13:4", "note": "在撒拉米会堂传道，并在帕弗遇见方伯与术士。", "ask_seed": "塞浦路斯这一站显出宣教面对哪些拦阻？"},
+        {"order": 3, "place_id": "antioch-pisidia", "label": "彼西底的安提阿", "ref": "ACT 13:14", "note": "保罗在会堂讲述救恩历史，外邦人欢喜，也引起嫉妒逼迫。", "ask_seed": "保罗在彼西底安提阿的讲章核心信息是什么？"},
+        {"order": 4, "place_id": "iconium", "label": "以哥念", "ref": "ACT 14:1", "note": "犹太人和希腊人中有许多人信主，却也有人要凌辱使徒。", "ask_seed": "以哥念的经历如何体现福音的双刃回应？"},
+        {"order": 5, "place_id": "lystra", "label": "路司得", "ref": "ACT 14:8", "note": "医治瘸腿者后几乎被当作神；随后又遭石头攻击，显出外邦城市的复杂。", "ask_seed": "路司得事件对理解外邦宣教有何提醒？"},
+        {"order": 6, "place_id": "derbe", "label": "特庇", "ref": "ACT 14:20", "note": "在特庇传福音、教导门徒，再回头坚固各城的教会。", "ask_seed": "为何保罗受伤后仍返回原先的城？"},
+        {"order": 7, "place_id": "antioch-syria", "label": "安提阿（叙利亚）", "ref": "ACT 14:26", "note": "回到差遣他们的教会，述说神怎样为外邦人开了信道的门。", "ask_seed": "宣教报告对差遣教会有什么意义？"}
       ]
     },
     {
@@ -39,14 +82,18 @@
       "subtitle": "呼召门徒、传道、神迹与训练",
       "era": "约公元 27–30 年",
       "description": "耶稣在加利利地区公开传道，呼召门徒，在会堂与户外教导，并行神迹，显明天国已临。",
+      "related": [
+        { "kind": "timeline", "id": "life-of-jesus", "label": "耶稣生平纲要" },
+        { "kind": "graph", "id": "jesus-ministry-places", "label": "耶稣事工地" }
+      ],
       "stops": [
-        {"order": 1, "place_id": "nazareth", "label": "拿撒勒", "ref": "LUK 4:16", "note": "在会堂读以赛亚书"},
-        {"order": 2, "place_id": "capernaum", "label": "迦百农", "ref": "MAT 4:13", "note": "以迦百农为事工中心"},
-        {"order": 3, "place_id": "sea-of-galilee", "label": "加利利海", "ref": "MAT 4:18", "note": "呼召彼得、安得烈等渔夫"},
-        {"order": 4, "place_id": "bethsaida", "label": "伯赛大", "ref": "LUK 9:10", "note": "五饼二鱼喂饱五千"},
-        {"order": 5, "place_id": "caesarea-philippi", "label": "该撒利亚腓立比", "ref": "MAT 16:13", "note": "彼得认耶稣为基督"},
-        {"order": 6, "place_id": "mount-of-olives-2", "label": "橄榄山", "ref": "MAT 24:3", "note": "橄榄山讲论末后的事"},
-        {"order": 7, "place_id": "jerusalem", "label": "耶路撒冷", "ref": "MAT 21:1", "note": "荣入圣城、受难与复活"}
+        {"order": 1, "place_id": "nazareth", "label": "拿撒勒", "ref": "LUK 4:16", "note": "在家乡会堂读以赛亚书，宣告恩年已到，却也被拒绝。", "ask_seed": "耶稣在拿撒勒被弃对理解祂的使命有何意义？"},
+        {"order": 2, "place_id": "capernaum", "label": "迦百农", "ref": "MAT 4:13", "note": "以迦百农为加利利事工中心，多方教导与医治。", "ask_seed": "为何福音书特别强调迦百农？"},
+        {"order": 3, "place_id": "sea-of-galilee", "label": "加利利海", "ref": "MAT 4:18", "note": "在海边呼召渔夫作得人的渔夫，门徒训练由此展开。", "ask_seed": "呼召渔夫作门徒说明天国优先怎样的人？"},
+        {"order": 4, "place_id": "bethsaida", "label": "伯赛大", "ref": "LUK 9:10", "note": "五饼二鱼喂饱众人，显明供应与怜悯。", "ask_seed": "五饼二鱼神迹主要启示什么？"},
+        {"order": 5, "place_id": "caesarea-philippi", "label": "该撒利亚腓立比", "ref": "MAT 16:13", "note": "彼得认耶稣为基督，也首次清楚听见受难预言。", "ask_seed": "彼得的认信与随后的受难宣告如何并列？"},
+        {"order": 6, "place_id": "mount-of-olives-2", "label": "橄榄山", "ref": "MAT 24:3", "note": "面向圣城讲论末后的事，提醒门徒儆醒等候。", "ask_seed": "橄榄山讲论对今日信徒的核心劝勉是什么？"},
+        {"order": 7, "place_id": "jerusalem", "label": "耶路撒冷", "ref": "MAT 21:1", "note": "荣入圣城，走向受难与复活——救恩故事的高峰。", "ask_seed": "从加利利到耶路撒冷，事工重心如何转移？"}
       ]
     }
   ]

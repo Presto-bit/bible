@@ -50,7 +50,9 @@ function DiagramTourPageContent() {
       {!loading && !diagram ? <p className="muted">未找到该图鉴</p> : null}
 
       <div className="story-mode-footer-links">
-        <Link href="/search/diagrams" className="text-link">切换图鉴</Link>
+        {!diagram ? (
+          <Link href="/search/diagrams" className="text-link">切换图鉴</Link>
+        ) : null}
       </div>
 
       {preview ? (

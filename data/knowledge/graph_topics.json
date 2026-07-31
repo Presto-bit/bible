@@ -5,37 +5,89 @@
       "id": "exodus-core",
       "title": "出埃及核心人物",
       "subtitle": "摩西、亚伦与行程地标",
-      "entity_ids": ["moses", "aaron", "红海", "西奈山", "会幕", "约柜"]
+      "description": "以摩西为中心，串联亚伦、红海、西奈山、会幕与约柜，帮助理清出埃及叙事里的人、地、圣物关系。",
+      "entity_ids": ["moses", "aaron", "红海", "西奈山", "会幕", "约柜"],
+      "related": [
+        { "kind": "map", "id": "exodus-wilderness", "label": "旷野行程" },
+        { "kind": "diagram", "id": "tabernacle-layout", "label": "会幕平面图" },
+        { "kind": "diagram", "id": "ark-of-covenant", "label": "约柜示意" }
+      ],
+      "beats": [
+        {
+          "label": "摩西蒙召",
+          "note": "神在荆棘火焰中呼召摩西，差他去见法老，领百姓出埃及。",
+          "ref": "EXO 3:10",
+          "ask_seed": "摩西为何多次推辞？神如何回应他的软弱？"
+        },
+        {
+          "label": "亚伦同工",
+          "note": "亚伦作摩西的口，一同面对法老，也在敬拜中服事。",
+          "ref": "EXO 4:14",
+          "ask_seed": "亚伦在出埃及故事里扮演哪些关键角色？"
+        },
+        {
+          "label": "过红海",
+          "note": "神开路拯救，埃及军兵倾覆；百姓开始学习信靠与敬拜。",
+          "ref": "EXO 14:29",
+          "ask_seed": "红海事件如何塑造以色列人对神的认识？"
+        },
+        {
+          "label": "西奈立约",
+          "note": "在西奈山颁布律法，百姓答应「凡耶和华所说的，我们都要遵行」。",
+          "ref": "EXO 19:8",
+          "ask_seed": "西奈之约怎样定义以色列与神的关系？"
+        },
+        {
+          "label": "会幕与约柜",
+          "note": "神要住在百姓中间；约柜成为至圣所的中心，象征同在与约。",
+          "ref": "EXO 25:8",
+          "ask_seed": "会幕与约柜如何指向神愿意与人同住？"
+        }
+      ]
     },
     {
       "id": "twelve-disciples",
       "title": "十二门徒（节选）",
       "subtitle": "耶稣与彼得、多马",
-      "entity_ids": ["jesus", "peter", "thomas"]
+      "description": "从认信到怀疑，看见门徒在跟随里的真实起伏。",
+      "entity_ids": ["jesus", "peter", "thomas"],
+      "related": [
+        { "kind": "timeline", "id": "life-of-jesus", "label": "耶稣生平纲要" }
+      ]
     },
     {
       "id": "david-line",
       "title": "大卫家系",
       "subtitle": "从大卫到所罗门",
+      "description": "君王谱系与圣殿敬拜的起点。",
       "entity_ids": ["david", "solomon", "圣殿"]
     },
     {
       "id": "paul-companions",
       "title": "保罗与同工",
       "subtitle": "第一次宣教旅程",
-      "entity_ids": ["paul", "barnabas", "提摩太"]
+      "description": "宣教不是独行：巴拿巴、提摩太等与保罗同行。",
+      "entity_ids": ["paul", "barnabas", "提摩太"],
+      "related": [
+        { "kind": "map", "id": "paul-first-journey", "label": "保罗第一次宣教旅程" }
+      ]
     },
     {
       "id": "patriarchs",
       "title": "先祖族谱（节选）",
       "subtitle": "亚伯拉罕—约瑟",
+      "description": "应许如何在家族故事中一代代传递。",
       "entity_ids": ["abraham", "isaac", "jacob_patriarch", "joseph-son-of-jacob"]
     },
     {
       "id": "jesus-ministry-places",
       "title": "耶稣事工地",
       "subtitle": "迦百农与耶路撒冷",
-      "entity_ids": ["jesus", "迦百农", "jerusalem"]
+      "description": "从加利利到圣城，看事工地理焦点的转移。",
+      "entity_ids": ["jesus", "迦百农", "jerusalem"],
+      "related": [
+        { "kind": "map", "id": "jesus-ministry-galilee", "label": "耶稣加利利事工" }
+      ]
     }
   ]
 }

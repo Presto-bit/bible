@@ -409,8 +409,74 @@ body.reader-immersive .tabbar {
 
 .story-mode-stop-note {
   margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink, #1a1a1a);
+}
+
+.knowledge-story-end {
+  margin-top: 16px;
+  padding: 14px 16px;
+}
+
+.knowledge-story-end-title {
+  display: block;
+  font-size: 15px;
+}
+
+.knowledge-story-end-lead {
+  margin: 6px 0 12px;
   font-size: 13px;
+  line-height: 1.5;
+}
+
+.knowledge-story-end-actions {
+  margin-top: 0;
+}
+
+.knowledge-story-related {
+  margin-top: 14px;
+}
+
+.knowledge-story-related-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+
+.knowledge-story-related-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knowledge-story-end-list {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.knowledge-story-end-pill-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.story-mode-hook {
+  margin: 8px 0 0;
+  font-size: 14px;
   line-height: 1.55;
+  color: var(--ink, #1a1a1a);
+  font-weight: 500;
+}
+
+.story-mode-resume {
+  margin: 6px 0 0;
+  font-size: 12px;
 }
 
 .story-mode-lead {
@@ -474,9 +540,19 @@ body.reader-immersive .tabbar {
 
 .topic-picker-card {
   display: block;
-  padding: 14px 16px;
+  padding: 16px 16px 14px;
   text-decoration: none;
   color: inherit;
+}
+
+.topic-picker-card .story-tour-title {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.topic-picker-card .story-tour-hook {
+  margin-top: 6px;
 }
 
 .topic-nav-card {
@@ -6691,6 +6767,14 @@ body.verse-full-open .tabbar {
   background: color-mix(in srgb, var(--accent, #3d6b8e) 15%, transparent);
 }
 
+.story-tour-badge-series {
+  background: color-mix(in srgb, var(--ink, #1a1a1a) 12%, transparent);
+}
+
+.knowledge-ask-sheet {
+  max-height: min(78vh, 640px);
+}
+
 .story-card-grid-pair:has(.story-tour-card.is-open) {
   grid-template-columns: 1fr;
 }
@@ -6770,18 +6854,65 @@ body.verse-full-open .tabbar {
   line-height: 1.35;
 }
 
+.story-tour-hook {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink, #1a1a1a);
+}
+
 .story-tour-meta {
   margin: 4px 0 0;
-  font-size: var(--font-sm);
+  font-size: 12px;
   line-height: 1.4;
+}
+
+.story-tour-progress {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--accent-deep, var(--accent));
 }
 
 .story-tour-toggle {
   display: inline-block;
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: var(--font-sm);
   font-weight: 600;
   color: var(--accent-deep);
+}
+
+.story-series-card {
+  flex-basis: min(86vw, 248px) !important;
+  border-left: 3px solid color-mix(in srgb, var(--accent, #3d6b8e) 55%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent, #3d6b8e) 6%, transparent),
+      transparent 42%
+    ),
+    var(--card, #fff);
+}
+
+.story-series-card .story-tour-title {
+  font-size: 16px;
+}
+
+.knowledge-story-share-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+
+.knowledge-story-end-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.knowledge-empty .text-link {
+  margin-left: 2px;
 }
 
 .story-tour-body {

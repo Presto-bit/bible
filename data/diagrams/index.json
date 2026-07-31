@@ -14,12 +14,49 @@
       "file": "tabernacle.svg",
       "entity_ids": ["会幕"],
       "refs": ["EXO 25:8", "EXO 40:34", "HEB 9:2"],
-      "summary": "外院、圣所与至圣所分区示意；尺寸非按比例。",
+      "summary": "外院、圣所与至圣所分区示意；尺寸非按比例。可对照旷野行程与约柜示意一起读。",
+      "related": [
+        { "kind": "map", "id": "exodus-wilderness", "label": "旷野行程" },
+        { "kind": "diagram", "id": "ark-of-covenant", "label": "约柜示意" },
+        { "kind": "graph", "id": "exodus-core", "label": "出埃及核心人物" }
+      ],
       "hotspots": [
-        { "id": "court", "label": "外院", "x": 0.5, "y": 0.82, "ref": "EXO 27:9" },
-        { "id": "holy", "label": "圣所", "x": 0.5, "y": 0.48, "ref": "EXO 26:33" },
-        { "id": "most-holy", "label": "至圣所", "x": 0.5, "y": 0.22, "ref": "EXO 26:34" },
-        { "id": "ark", "label": "约柜", "x": 0.5, "y": 0.18, "ref": "EXO 25:10" }
+        {
+          "id": "court",
+          "label": "外院",
+          "x": 0.5,
+          "y": 0.82,
+          "ref": "EXO 27:9",
+          "note": "百姓可进入的区域，设有燔祭坛与洗濯盆，是献祭与洁净的入口。",
+          "ask_seed": "外院的祭坛与洗濯盆各自指向什么属灵意义？"
+        },
+        {
+          "id": "holy",
+          "label": "圣所",
+          "x": 0.5,
+          "y": 0.48,
+          "ref": "EXO 26:33",
+          "note": "祭司日常事奉之处：金灯台、陈设饼桌与香坛，象征光照、供应与代求。",
+          "ask_seed": "圣所里的三件器物如何互相补充？"
+        },
+        {
+          "id": "most-holy",
+          "label": "至圣所",
+          "x": 0.5,
+          "y": 0.22,
+          "ref": "EXO 26:34",
+          "note": "帷幔隔开的最深处，唯大祭司一年一次可入，表明神的圣洁与同在。",
+          "ask_seed": "至圣所与新约「幔子裂开」有何关联？"
+        },
+        {
+          "id": "ark",
+          "label": "约柜",
+          "x": 0.5,
+          "y": 0.18,
+          "ref": "EXO 25:10",
+          "note": "约柜安放在至圣所，上有施恩座，是约与赦免的记号。",
+          "ask_seed": "约柜为何成为会幕敬拜的中心？"
+        }
       ]
     },
     {
@@ -30,9 +67,29 @@
       "entity_ids": ["约柜"],
       "refs": ["EXO 25:10", "HEB 9:4"],
       "summary": "法版、施恩座与护卫基路伯的示意结构。",
+      "related": [
+        { "kind": "diagram", "id": "tabernacle-layout", "label": "会幕平面图" },
+        { "kind": "graph", "id": "exodus-core", "label": "出埃及核心人物" }
+      ],
       "hotspots": [
-        { "id": "tablets", "label": "法版", "x": 0.5, "y": 0.42, "ref": "EXO 25:16" },
-        { "id": "mercy-seat", "label": "施恩座", "x": 0.5, "y": 0.28, "ref": "EXO 25:17" }
+        {
+          "id": "tablets",
+          "label": "法版",
+          "x": 0.5,
+          "y": 0.42,
+          "ref": "EXO 25:16",
+          "note": "柜中存放神亲手写的法版，提醒约的条款常在眼前。",
+          "ask_seed": "法版放在约柜中意味着什么？"
+        },
+        {
+          "id": "mercy-seat",
+          "label": "施恩座",
+          "x": 0.5,
+          "y": 0.28,
+          "ref": "EXO 25:17",
+          "note": "施恩座是赎罪血弹上之处，显明圣洁之神也赐下赦免。",
+          "ask_seed": "施恩座如何同时显明公义与怜悯？"
+        }
       ]
     },
     {
@@ -44,8 +101,24 @@
       "refs": ["1KI 6:1", "MAT 21:12"],
       "summary": "所罗门圣殿庭院、圣所与至圣所示意。",
       "hotspots": [
-        { "id": "court", "label": "外院", "x": 0.5, "y": 0.78, "ref": "2CH 4:9" },
-        { "id": "holy", "label": "圣所", "x": 0.5, "y": 0.45, "ref": "1KI 6:17" }
+        {
+          "id": "court",
+          "label": "外院",
+          "x": 0.5,
+          "y": 0.78,
+          "ref": "2CH 4:9",
+          "note": "百姓聚集献祭、祷告的公共空间。",
+          "ask_seed": "圣殿外院在以色列敬拜生活中扮演什么角色？"
+        },
+        {
+          "id": "holy",
+          "label": "圣所",
+          "x": 0.5,
+          "y": 0.45,
+          "ref": "1KI 6:17",
+          "note": "祭司事奉的内厅，延续会幕圣所的格局。",
+          "ask_seed": "圣殿圣所与会幕圣所有何异同？"
+        }
       ]
     },
     {
@@ -56,8 +129,20 @@
       "entity_ids": ["逾越节"],
       "refs": ["EXO 12:7", "EXO 12:13"],
       "summary": "门楣与门框涂血，使灭命者越过的示意。",
+      "related": [
+        { "kind": "map", "id": "exodus-wilderness", "label": "旷野行程" },
+        { "kind": "diagram", "id": "red-sea-crossing", "label": "过红海示意" }
+      ],
       "hotspots": [
-        { "id": "lintel", "label": "门楣", "x": 0.5, "y": 0.35, "ref": "EXO 12:7" }
+        {
+          "id": "lintel",
+          "label": "门楣",
+          "x": 0.5,
+          "y": 0.35,
+          "ref": "EXO 12:7",
+          "note": "羊羔的血涂在门楣和门框，作为「越过」的记号，拯救临到信而遵行的家。",
+          "ask_seed": "逾越节的血如何预表后来的救赎？"
+        }
       ]
     },
     {
@@ -68,9 +153,29 @@
       "entity_ids": ["红海"],
       "refs": ["EXO 14:21", "EXO 15:1"],
       "summary": "神分开海水、以色列人走干地过的示意场景。",
+      "related": [
+        { "kind": "map", "id": "exodus-wilderness", "label": "旷野行程" },
+        { "kind": "graph", "id": "exodus-core", "label": "出埃及核心人物" }
+      ],
       "hotspots": [
-        { "id": "sea-parted", "label": "分开的海水", "x": 0.35, "y": 0.45, "ref": "EXO 14:21" },
-        { "id": "dry-ground", "label": "干地之路", "x": 0.55, "y": 0.55, "ref": "EXO 14:22" }
+        {
+          "id": "sea-parted",
+          "label": "分开的海水",
+          "x": 0.35,
+          "y": 0.45,
+          "ref": "EXO 14:21",
+          "note": "东风整夜刮海，水分开成墙——人无法开的路，神亲自开。",
+          "ask_seed": "红海分开如何显明神的权能与拯救？"
+        },
+        {
+          "id": "dry-ground",
+          "label": "干地之路",
+          "x": 0.55,
+          "y": 0.55,
+          "ref": "EXO 14:22",
+          "note": "百姓走在干地上过海；信心是回应神已经开的路。",
+          "ask_seed": "「走干地过海」对今日跟随有何提醒？"
+        }
       ]
     },
     {
@@ -81,9 +186,28 @@
       "entity_ids": [],
       "refs": ["EXO 25:23", "LEV 24:5"],
       "summary": "圣所内陈设饼桌与灯台位置示意（会幕内）。",
+      "related": [
+        { "kind": "diagram", "id": "tabernacle-layout", "label": "会幕平面图" }
+      ],
       "hotspots": [
-        { "id": "bread", "label": "陈设饼", "x": 0.38, "y": 0.5, "ref": "LEV 24:6" },
-        { "id": "lampstand", "label": "灯台", "x": 0.62, "y": 0.5, "ref": "EXO 25:31" }
+        {
+          "id": "bread",
+          "label": "陈设饼",
+          "x": 0.38,
+          "y": 0.5,
+          "ref": "LEV 24:6",
+          "note": "十二个饼常摆在耶和华面前，象征十二支派在神面前蒙记念。",
+          "ask_seed": "陈设饼如何指向神与百姓的持续关系？"
+        },
+        {
+          "id": "lampstand",
+          "label": "灯台",
+          "x": 0.62,
+          "y": 0.5,
+          "ref": "EXO 25:31",
+          "note": "精金灯台照明圣所，提醒神的同在与光照。",
+          "ask_seed": "灯台在会幕敬拜中象征什么？"
+        }
       ]
     }
   ]

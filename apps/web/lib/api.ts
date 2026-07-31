@@ -1676,7 +1676,14 @@ export interface MapTourStop {
   label: string;
   ref: string;
   note?: string;
+  ask_seed?: string;
   place?: GeoPlace | null;
+}
+
+export interface KnowledgeRelatedRef {
+  kind: 'map' | 'timeline' | 'graph' | 'diagram';
+  id: string;
+  label: string;
 }
 
 export interface MapTour {
@@ -1687,6 +1694,7 @@ export interface MapTour {
   description?: string;
   /** traditional = 传统示意路线，非考古定论 */
   confidence?: 'traditional' | 'approximate';
+  related?: KnowledgeRelatedRef[];
   stops: MapTourStop[];
 }
 
@@ -1699,6 +1707,7 @@ export interface TimelineTourEvent {
   year_display?: string;
   label: string;
   note?: string;
+  ask_seed?: string;
 }
 
 export interface TimelineTour {
@@ -1706,6 +1715,7 @@ export interface TimelineTour {
   title: string;
   subtitle?: string;
   description?: string;
+  related?: KnowledgeRelatedRef[];
   events: TimelineTourEvent[];
 }
 
@@ -1752,6 +1762,8 @@ export interface DiagramHotspot {
   x: number;
   y: number;
   ref?: string;
+  note?: string;
+  ask_seed?: string;
 }
 
 export interface BibleDiagram {
@@ -1762,6 +1774,7 @@ export interface BibleDiagram {
   entity_ids?: string[];
   refs?: string[];
   summary?: string;
+  related?: KnowledgeRelatedRef[];
   hotspots?: DiagramHotspot[];
 }
 
@@ -1773,11 +1786,21 @@ export interface EntityKnowledge {
   diagrams: BibleDiagram[];
 }
 
+export interface GraphTopicBeat {
+  label: string;
+  note?: string;
+  ref?: string;
+  ask_seed?: string;
+}
+
 export interface GraphTopic {
   id: string;
   title: string;
   subtitle?: string;
+  description?: string;
   entity_ids?: string[];
+  related?: KnowledgeRelatedRef[];
+  beats?: GraphTopicBeat[];
 }
 
 export interface BibleSearchHit {

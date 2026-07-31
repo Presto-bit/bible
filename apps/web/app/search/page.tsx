@@ -22,6 +22,10 @@ import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import {
   diagramTourHref,
+  FEATURED_DIAGRAM,
+  FEATURED_GRAPH_TOPIC,
+  FEATURED_MAP_TOUR,
+  FEATURED_TIMELINE_TOUR,
   graphTopicHref,
   mapStoryHref,
   SEARCH_HOT_KEYWORDS,
@@ -29,6 +33,18 @@ import {
 } from '@/lib/topic_routes';
 import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { getMainVersion } from '@/lib/reader_settings';
+import {
+  EXODUS_SERIES,
+  knowledgeCountMeta,
+  knowledgeKindCta,
+  seriesStepHref,
+  tourHook,
+} from '@/lib/knowledge_story';
+import {
+  getKnowledgeProgress,
+  knowledgeProgressLabel,
+} from '@/lib/knowledge_progress';
+import { KnowledgeTopicCardBody } from '@/components/search/KnowledgeTopicCardBody';
 
 const HISTORY_KEY = 'search_history';
 const SEARCH_PAGE_SIZE = 40;
@@ -134,6 +150,8 @@ export default function SearchPage() {
   const [totalNt, setTotalNt] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [seriesProgressHint, setSeriesProgressHint] = useState('');
+  const [seriesHref, setSeriesHref] = useState(seriesStepHref(EXODUS_SERIES.steps[0]));
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -147,6 +165,31 @@ export default function SearchPage() {
       setQuery(q);
       const next = saveHistory(q);
       if (next) setHistory(next);
+    }
+    const incomplete = EXODUS_SERIES.steps.find((s) => {
+      const row = getKnowledgeProgress(s.kind, s.id);
+      return row && !row.completed && row.step > 0;
+    });
+    if (incomplete) {
+      const row = getKnowledgeProgress(incomplete.kind, incomplete.id)!;
+      setSeriesProgressHint(
+        `${incomplete.label} · ${knowledgeProgressLabel(row, incomplete.unit)}`,
+      );
+      setSeriesHref(seriesStepHref(incomplete));
+    } else {
+      const allDone = EXODUS_SERIES.steps.every(
+        (s) => getKnowledgeProgress(s.kind, s.id)?.completed,
+      );
+      // 若地图已完成但后续未做完，跳到下一件
+      const nextStep =
+        EXODUS_SERIES.steps.find((s) => !getKnowledgeProgress(s.kind, s.id)?.completed)
+        ?? EXODUS_SERIES.steps[0];
+      setSeriesHref(seriesStepHref(nextStep));
+      setSeriesProgressHint(
+        allDone
+          ? '系列已走完 · 可再走一遍'
+          : `${EXODUS_SERIES.steps.length} 件 · 约 ${EXODUS_SERIES.minutes} 分钟`,
+      );
     }
     void Promise.all([
       api.mapTours().then((d) => setMapTours(d.tours ?? [])).catch(() => setMapTours([])),
@@ -350,64 +393,149 @@ export default function SearchPage() {
       {!hasQuery && (
         <section className="story-card-rail" style={{ marginTop: 14 }}>
           <div className="section-row" style={{ marginBottom: 8 }}>
-            <span>专题</span>
+            <span>圣经知识</span>
+            <Link href="/search/map" className="text-link" style={{ fontSize: 13 }}>
+              全部 ›
+            </Link>
           </div>
           <div className="story-entry-scroll rail">
             <TopicNavCard
-              href={mapStoryHref(mapTours[0]?.id)}
-              className="rail-card card card-2 story-tour-card story-entry-card"
-              ariaLabel={mapTours[0]?.title ?? '地图故事'}
+              href={seriesHref}
+              className="rail-card card card-2 story-tour-card story-entry-card story-series-card"
+              ariaLabel={EXODUS_SERIES.title}
             >
-              <span className="story-tour-badge">地图故事</span>
-              <strong className="story-tour-title">{mapTours[0]?.title ?? '圣经地理路线'}</strong>
-              <p className="muted story-tour-meta">
-                {toursReady
-                  ? (mapTours[0]
-                    ? `${mapTours[0].stops?.length ?? 0} 站 · 点击开始`
-                    : '暂无专题，稍后再来')
-                  : '正在载入专题…'}
-              </p>
-              <span className="story-tour-toggle">开始游览 ›</span>
+              <KnowledgeTopicCardBody
+                badge="旗舰系列"
+                badgeClassName="story-tour-badge-series"
+                title={EXODUS_SERIES.title}
+                hook={EXODUS_SERIES.hook}
+                meta={seriesProgressHint || `约 ${EXODUS_SERIES.minutes} 分钟`}
+                cta={
+                  seriesProgressHint.includes('已走') && !seriesProgressHint.includes('已走完')
+                    ? '继续系列 ›'
+                    : seriesProgressHint.includes('已走完')
+                      ? '再走系列 ›'
+                      : '开始系列 ›'
+                }
+              />
             </TopicNavCard>
 
+            {(() => {
+              const featuredMap =
+                mapTours.find((t) => t.id === FEATURED_MAP_TOUR) ?? mapTours[0];
+              const mapStops = featuredMap?.stops?.length ?? 0;
+              const row = featuredMap
+                ? getKnowledgeProgress('map', featuredMap.id)
+                : null;
+              const progress =
+                row && (row.completed || row.step > 0)
+                  ? knowledgeProgressLabel(row, '站')
+                  : null;
+              return (
+                <TopicNavCard
+                  href={mapStoryHref(featuredMap?.id)}
+                  className="rail-card card card-2 story-tour-card story-entry-card"
+                  ariaLabel={featuredMap?.title ?? '地图故事'}
+                >
+                  <KnowledgeTopicCardBody
+                    badge="地图故事"
+                    title={featuredMap?.title ?? '圣经地理路线'}
+                    hook={
+                      toursReady
+                        ? (tourHook(featuredMap?.id) || featuredMap?.subtitle)
+                        : null
+                    }
+                    meta={
+                      toursReady
+                        ? (featuredMap
+                          ? knowledgeCountMeta(mapStops, 'map')
+                          : '暂无内容，稍后再来')
+                        : '正在载入…'
+                    }
+                    progress={progress}
+                    cta={
+                      progress && !row?.completed
+                        ? '继续走 ›'
+                        : knowledgeKindCta('map')
+                    }
+                  />
+                </TopicNavCard>
+              );
+            })()}
+
             <TopicNavCard
-              href={diagramTourHref()}
+              href={diagramTourHref(FEATURED_DIAGRAM)}
               className="rail-card card card-2 story-tour-card story-entry-card"
               ariaLabel="会幕平面图"
             >
-              <span className="story-tour-badge story-tour-badge-diagram">图鉴馆</span>
-              <strong className="story-tour-title">会幕平面图</strong>
-              <p className="muted story-tour-meta">引导式热区 · 4 处起</p>
-              <span className="story-tour-toggle">开始游览 ›</span>
+              <KnowledgeTopicCardBody
+                badge="图鉴馆"
+                badgeClassName="story-tour-badge-diagram"
+                title="会幕平面图"
+                hook={tourHook(FEATURED_DIAGRAM)}
+                meta={knowledgeCountMeta(4, 'diagram')}
+                cta={knowledgeKindCta('diagram')}
+              />
             </TopicNavCard>
 
             <TopicNavCard
-              href={graphTopicHref()}
+              href={graphTopicHref(FEATURED_GRAPH_TOPIC)}
               className="rail-card card card-2 story-tour-card story-entry-card"
               ariaLabel="出埃及核心人物"
             >
-              <span className="story-tour-badge story-tour-badge-graph">关系专题</span>
-              <strong className="story-tour-title">出埃及核心人物</strong>
-              <p className="muted story-tour-meta">人物关系 · 附经文</p>
-              <span className="story-tour-toggle">查看专题 ›</span>
+              <KnowledgeTopicCardBody
+                badge="关系专题"
+                badgeClassName="story-tour-badge-graph"
+                title="出埃及核心人物"
+                hook={tourHook(FEATURED_GRAPH_TOPIC)}
+                meta={knowledgeCountMeta(5, 'graph')}
+                cta={knowledgeKindCta('graph')}
+              />
             </TopicNavCard>
 
-            <TopicNavCard
-              href={timelineStoryHref(timelineTours[0]?.id)}
-              className="rail-card card card-2 story-tour-card story-entry-card"
-              ariaLabel={timelineTours[0]?.title ?? '时间线专题'}
-            >
-              <span className="story-tour-badge story-tour-badge-time">时间故事</span>
-              <strong className="story-tour-title">{timelineTours[0]?.title ?? '时间线专题'}</strong>
-              <p className="muted story-tour-meta">
-                {toursReady
-                  ? (timelineTours[0]
-                    ? `${timelineTours[0].events?.length ?? 0} 个节点 · 点击开始`
-                    : '暂无专题，稍后再来')
-                  : '正在载入专题…'}
-              </p>
-              <span className="story-tour-toggle">开始游览 ›</span>
-            </TopicNavCard>
+            {(() => {
+              const featuredTl =
+                timelineTours.find((t) => t.id === FEATURED_TIMELINE_TOUR) ?? timelineTours[0];
+              const n = featuredTl?.events?.length ?? 0;
+              const row = featuredTl
+                ? getKnowledgeProgress('timeline', featuredTl.id)
+                : null;
+              const progress =
+                row && (row.completed || row.step > 0)
+                  ? knowledgeProgressLabel(row, '个节点')
+                  : null;
+              return (
+                <TopicNavCard
+                  href={timelineStoryHref(featuredTl?.id)}
+                  className="rail-card card card-2 story-tour-card story-entry-card"
+                  ariaLabel={featuredTl?.title ?? '时间线'}
+                >
+                  <KnowledgeTopicCardBody
+                    badge="时间故事"
+                    badgeClassName="story-tour-badge-time"
+                    title={featuredTl?.title ?? '时间线'}
+                    hook={
+                      toursReady
+                        ? (tourHook(featuredTl?.id) || featuredTl?.subtitle)
+                        : null
+                    }
+                    meta={
+                      toursReady
+                        ? (featuredTl
+                          ? knowledgeCountMeta(n, 'timeline')
+                          : '暂无内容，稍后再来')
+                        : '正在载入…'
+                    }
+                    progress={progress}
+                    cta={
+                      progress && !row?.completed
+                        ? '继续走 ›'
+                        : knowledgeKindCta('timeline')
+                    }
+                  />
+                </TopicNavCard>
+              );
+            })()}
           </div>
         </section>
       )}
