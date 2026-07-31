@@ -460,6 +460,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [badgeOpen, setBadgeOpen] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement | null>(null);
+  const shortcutPanelRef = useRef<HTMLDivElement | null>(null);
   const [adminEligible, setAdminEligible] = useState(false);
   const [installedPwa, setInstalledPwa] = useState(
     () => typeof window !== 'undefined' && isStandalonePwa(),
@@ -967,12 +968,39 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   };
 
   const selectShortcut = (next: ShortcutTone) => {
+    if (next === 'challenge') {
+      setShortcut('challenge');
+      try {
+        sessionStorage.setItem(SHORTCUT_KEY, 'challenge');
+      } catch {
+        /* ignore */
+      }
+      // 规格：常用「今日温习」进 /challenge，避免面板 CTA 落在底栏下
+      markRouteNavigation();
+      router.push('/challenge');
+      return;
+    }
     setShortcut(next);
     try {
       sessionStorage.setItem(SHORTCUT_KEY, next);
     } catch {
       /* ignore */
     }
+    requestAnimationFrame(() => {
+      const panel = shortcutPanelRef.current;
+      const tabbar = document.querySelector<HTMLElement>('.tabbar');
+      if (!panel || !tabbar) return;
+      const panelBottom = panel.getBoundingClientRect().bottom;
+      const tabTop = tabbar.getBoundingClientRect().top;
+      if (panelBottom > tabTop - 12) {
+        panel.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+  };
+
+  const openWarmupHub = () => {
+    markRouteNavigation();
+    router.push('/challenge');
   };
 
   const startDailyQuiz = () => {
@@ -1391,6 +1419,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         </div>
 
         <div
+          ref={shortcutPanelRef}
           className={`card profile-shortcut-panel tone-${shortcut}`}
           role="tabpanel"
           aria-label={
@@ -1402,23 +1431,25 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
           }
         >
           {shortcut === 'challenge' ? (
-            <>
-              <div className="profile-shortcut-panel-head">
-                <p className="profile-shortcut-panel-title">
+            <button
+              type="button"
+              className="profile-shortcut-go"
+              onClick={dailyDone ? openWarmupHub : startDailyQuiz}
+            >
+              <span className="profile-shortcut-go-copy">
+                <strong className="profile-shortcut-panel-title">
                   {dailyWarmupSubtitle(dailyDone)}
-                </p>
-                <p className="profile-shortcut-panel-sub">
+                </strong>
+                <span className="profile-shortcut-panel-sub">
                   {quizStats.total > 0
                     ? `曾温习 ${quizStats.total} 题 · 错题会优先出现`
                     : '五道轻问，巩固读过的经文；不是考试'}
-                </p>
-              </div>
-              <div className="profile-shortcut-panel-actions">
-                <button type="button" className="btn" onClick={startDailyQuiz}>
-                  {dailyWarmupCta(dailyDone)}
-                </button>
-              </div>
-            </>
+                </span>
+              </span>
+              <span className="profile-shortcut-go-cta">
+                {dailyWarmupCta(dailyDone)}
+              </span>
+            </button>
           ) : null}
 
           {shortcut === 'remind' ? (
