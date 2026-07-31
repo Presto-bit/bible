@@ -1060,6 +1060,8 @@ export interface ChatReaderContext {
   today_reading_minutes?: number;
   recent_note_snippets?: string[];
   active_plan_title?: string;
+  /** 节级对照：注入可供比较的译本正文，避免 AI 杜撰措辞 */
+  compare_versions?: { label: string; text: string; version?: string }[];
 }
 
 export interface ChatStreamBody {

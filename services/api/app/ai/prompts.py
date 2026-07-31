@@ -114,16 +114,18 @@ _MODE_GUIDE = {
         "本次模式：生活应用。请基于经文本意，给出今日可实践的具体方向，贴近日常处境。"
     ),
     "compare": (
-        "本次模式：译本对照与原文释义。请先说明所选经文在希伯来文/希腊文中的"
-        "整体表达与字面含义，再比较不同译本的措辞差异。"
-        "重点解释整句/短语级原意，不要逐词拆解或堆砌 Strong 编号。"
-        "若无确切译本或原文信息，说明常见译法差异，避免臆造。"
+        "本次模式：译本对照（白话）。先用一句话说清这节在讲什么，"
+        "再对比已提供的两本译本措辞差异（摘短句即可），"
+        "然后用最多1～2个原文关键词帮助理解（中文意思优先，可附音译；不要堆 Strong 编号），"
+        "最后给简短读经提示。不要大段抄写经文，不要用表格。"
+        "若未提供译本正文，只谈常见译法差异，避免臆造引文。"
     ),
     "original": (
-        "本次模式：译本对照与原文释义。请先说明所选经文在希伯来文/希腊文中的"
-        "整体表达与字面含义，再比较不同译本的措辞差异。"
-        "重点解释整句/短语级原意，不要逐词拆解或堆砌 Strong 编号。"
-        "若无确切译本或原文信息，说明常见译法差异，避免臆造。"
+        "本次模式：译本对照（白话）。先用一句话说清这节在讲什么，"
+        "再对比已提供的两本译本措辞差异（摘短句即可），"
+        "然后用最多1～2个原文关键词帮助理解（中文意思优先，可附音译；不要堆 Strong 编号），"
+        "最后给简短读经提示。不要大段抄写经文，不要用表格。"
+        "若未提供译本正文，只谈常见译法差异，避免臆造引文。"
     ),
     "preach": (
         "本次模式：讲道大纲。请生成可宣讲的中心信息与分段大纲，"
@@ -152,6 +154,16 @@ def format_reader_context(ctx: dict | None) -> str:
             text = str(s).strip()
             if text:
                 lines.append(f"近期笔记 {i}：{text}")
+    versions = ctx.get("compare_versions")
+    if isinstance(versions, list) and versions:
+        lines.append("【可供对照的译本正文】（请据此比较，勿杜撰译本措辞）")
+        for item in versions[:4]:
+            if not isinstance(item, dict):
+                continue
+            label = str(item.get("label") or item.get("version") or "译本").strip()
+            text = str(item.get("text") or "").strip()
+            if label and text:
+                lines.append(f"{label}：{text}")
     return "\n".join(lines)
 
 

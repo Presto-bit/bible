@@ -11,17 +11,12 @@ import {
 } from '@/lib/api';
 import { chipUserQuestion } from '@/lib/assistant_scenes';
 import { bodyText } from '@/lib/assistant_format';
+import { buildAssistantReaderContext } from '@/lib/assistant_reader_context';
 import { FALLBACK_PARALLEL_VERSION, FALLBACK_PRIMARY_VERSION } from '@/lib/bible_version';
-import { pickStrongsHighlights, type StrongsHighlight } from '@/lib/strongs_highlights';
 import {
   getCompareSecondaryVersion,
   setCompareSecondaryVersion,
 } from '@/lib/verse_compare_pref';
-import {
-  diffVerseTexts,
-  renderTextWithDiffSpans,
-  sameScriptRoughly,
-} from '@/lib/verse_diff';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 
 type Props = {
@@ -36,17 +31,11 @@ type Props = {
   onOpenChapterParallel: (secondaryVersionId: string) => void;
 };
 
-function DiffText({ spans }: { spans: ReturnType<typeof renderTextWithDiffSpans> }) {
+function hasVerseRef(refParam: string): boolean {
   return (
-    <>
-      {spans.map((p) =>
-        p.diff ? (
-          <mark key={p.key} className="verse-diff-mark">{p.text}</mark>
-        ) : (
-          <span key={p.key}>{p.text}</span>
-        ),
-      )}
-    </>
+    /\.\d+\.\d+/.test(refParam)
+    || /:\d+\s*$/.test(refParam)
+    || /:\d+[-–]/.test(refParam)
   );
 }
 
@@ -66,9 +55,7 @@ export default function VerseCompareSheet({
   const [secondaryId, setSecondaryId] = useState(() =>
     getCompareSecondaryVersion(FALLBACK_PARALLEL_VERSION),
   );
-  const [highlights, setHighlights] = useState<StrongsHighlight[]>([]);
-  const [strongsLoading, setStrongsLoading] = useState(true);
-  const [hasStrongsData, setHasStrongsData] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const [aiText, setAiText] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiErr, setAiErr] = useState<string | null>(null);
@@ -93,8 +80,7 @@ export default function VerseCompareSheet({
     let cancelled = false;
     setLoadingCompare(true);
     setLoadErr(null);
-    // 对照 API 要求精确到节；缺节时不发请求，避免 400
-    if (!/\.\d+\.\d+/.test(refParam) && !/:\d+\s*$/.test(refParam) && !/:\d+[-–]/.test(refParam)) {
+    if (!hasVerseRef(refParam)) {
       setLoadErr('请选中具体经节后再打开对照');
       setLoadingCompare(false);
       setRows([]);
@@ -126,31 +112,7 @@ export default function VerseCompareSheet({
     };
   }, [refParam]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setStrongsLoading(true);
-    void api
-      .strongs(refParam)
-      .then((d) => {
-        if (cancelled) return;
-        const words = d.words ?? [];
-        setHasStrongsData(words.length > 0);
-        setHighlights(pickStrongsHighlights(words, 4));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setHasStrongsData(false);
-          setHighlights([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setStrongsLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [refParam]);
-
+  // 等译本就绪后再问小爱，把两本正文注入 reader_context
   useEffect(() => {
     abortRef.current?.abort();
     const ac = new AbortController();
@@ -160,34 +122,40 @@ export default function VerseCompareSheet({
     setAiErr(null);
     setAiDone(false);
 
-    const refOk =
-      /\.\d+\.\d+/.test(refParam)
-      || /:\d+\s*$/.test(refParam)
-      || /:\d+[-–]/.test(refParam);
-    if (!refOk) {
+    if (!hasVerseRef(refParam) || loadingCompare || loadErr) {
       setAiBusy(false);
-      setAiErr(null);
-      setAiDone(true);
+      if (!loadingCompare) setAiDone(true);
       return () => {
         cancelled = true;
         ac.abort();
       };
     }
 
-    setAiBusy(true);
+    const compareVersions = [primary, secondary]
+      .filter((v): v is VerseRendition => Boolean(v?.text?.trim()))
+      .map((v) => ({ label: v.label, text: v.text.trim(), version: v.version }));
 
+    // 译本还在加载完但 rows 空：仍可问，只是无对照正文
+    setAiBusy(true);
     const timer = window.setTimeout(() => {
       const q = chipUserQuestion('译本对照', refLabel);
       const question =
         selectionText && selectionText.trim().length <= 300
           ? `${q}\n\n选中文本：${selectionText.trim()}`
           : q;
+      const baseCtx = buildAssistantReaderContext() || {};
       void chatStream(
         {
           ref: refParam,
           question,
           mode: 'compare',
           scene: 'chat_compare',
+          reader_context: {
+            ...baseCtx,
+            ...(compareVersions.length
+              ? { compare_versions: compareVersions }
+              : {}),
+          },
         },
         {
           onDelta: (t) => {
@@ -209,35 +177,34 @@ export default function VerseCompareSheet({
       ).finally(() => {
         if (!cancelled) setAiBusy(false);
       });
-    }, 200);
+    }, 180);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
       ac.abort();
     };
-  }, [refParam, refLabel, selectionText, aiRetry]);
+    // secondary.version：换对照本后重新解读
+  }, [
+    refParam,
+    refLabel,
+    selectionText,
+    aiRetry,
+    loadingCompare,
+    loadErr,
+    primary?.version,
+    primary?.text,
+    secondary?.version,
+    secondary?.text,
+  ]);
 
   const pickSecondary = (id: string) => {
     setSecondaryId(id);
     setCompareSecondaryVersion(id);
   };
 
-  const primaryText = primary?.text ?? '';
-  const secondaryText = secondary?.text ?? '';
-  const canDiff =
-    Boolean(primaryText && secondaryText)
-    && sameScriptRoughly(primaryText, secondaryText);
-  const diff = canDiff ? diffVerseTexts(primaryText, secondaryText) : null;
-  const primaryParts = diff
-    ? renderTextWithDiffSpans(primaryText, diff.main)
-    : [{ key: 'all', text: primaryText, diff: false }];
-  const secondaryParts = diff
-    ? renderTextWithDiffSpans(secondaryText, diff.parallel)
-    : [{ key: 'all', text: secondaryText, diff: false }];
-
   const aiBody = bodyText(aiText).trim();
-  const versionOptions = others;
+  const primaryText = primary?.text?.trim() || selectionText?.trim() || '';
 
   return (
     <AppBodyPortal>
@@ -255,120 +222,94 @@ export default function VerseCompareSheet({
 
           <div className="verse-compare-scroll">
             {loadingCompare ? (
-              <p className="muted">加载译本…</p>
+              <p className="muted">加载经文…</p>
             ) : loadErr ? (
               <p className="verse-compare-err">{loadErr}</p>
-            ) : !primary ? (
-              <p className="muted">暂无对照经文</p>
+            ) : primaryText ? (
+              <section className="verse-compare-block">
+                <p className="verse-compare-ver-label">
+                  {primary?.label || '当前译本'}
+                </p>
+                <p className="verse-compare-text">{primaryText}</p>
+              </section>
             ) : (
-              <>
-                <section className="verse-compare-block">
-                  <p className="verse-compare-ver-label">
-                    {primary.label}
-                    <span className="muted"> · 当前</span>
-                  </p>
-                  <p className="verse-compare-text">
-                    {diff?.heavy ? (
-                      <span className="verse-diff-heavy">{primaryText}</span>
-                    ) : (
-                      <DiffText spans={primaryParts} />
-                    )}
-                  </p>
-                </section>
+              <p className="muted">暂无经文</p>
+            )}
 
-                {secondary ? (
-                  <section className="verse-compare-block">
-                    <p className="verse-compare-ver-label">{secondary.label}</p>
-                    <p className="verse-compare-text verse-compare-text-secondary">
-                      {diff?.heavy ? (
-                        <span className="verse-diff-heavy">{secondaryText}</span>
-                      ) : (
-                        <DiffText spans={secondaryParts} />
-                      )}
-                    </p>
-                  </section>
+            {!loadErr ? (
+              <section className="verse-compare-block">
+                <p className="verse-compare-section-title">小爱解读</p>
+                {aiBusy && !aiBody ? (
+                  <p className="muted" style={{ fontSize: 13 }}>小爱正在整理白话对照…</p>
                 ) : null}
+                {aiErr && !aiBody ? (
+                  <div>
+                    <p className="verse-compare-err">{aiErr}</p>
+                    <button
+                      type="button"
+                      className="font-pill"
+                      style={{ marginTop: 8 }}
+                      onClick={() => setAiRetry((n) => n + 1)}
+                    >
+                      重试
+                    </button>
+                  </div>
+                ) : null}
+                {aiBody ? (
+                  <div className="verse-compare-ai">
+                    <AnswerText text={aiBody} dense />
+                  </div>
+                ) : null}
+                {!aiBusy && !aiErr && !aiBody && aiDone && !loadingCompare ? (
+                  <p className="muted" style={{ fontSize: 13 }}>暂无解读，请稍后重试。</p>
+                ) : null}
+              </section>
+            ) : null}
 
-                {versionOptions.length > 1 ? (
-                  <div className="verse-compare-ver-chips" role="listbox" aria-label="换对照译本">
-                    {versionOptions.map((v) => (
-                      <button
-                        key={v.version}
-                        type="button"
-                        role="option"
-                        aria-selected={secondary?.version === v.version}
-                        className={`mode-chip${secondary?.version === v.version ? ' mode-chip-active' : ''}`}
-                        onClick={() => pickSecondary(v.version)}
-                      >
-                        {v.label}
-                      </button>
+            {!loadErr && rows.length > 0 ? (
+              <section className="verse-compare-block">
+                <button
+                  type="button"
+                  className="verse-compare-fold-toggle"
+                  aria-expanded={versionsOpen}
+                  onClick={() => setVersionsOpen((v) => !v)}
+                >
+                  {versionsOpen ? '收起各译本全文' : '查看各译本全文'}
+                </button>
+                {versionsOpen ? (
+                  <div className="verse-compare-fold-body">
+                    {others.length > 1 ? (
+                      <div className="verse-compare-ver-chips" role="listbox" aria-label="换对照译本">
+                        {others.map((v) => (
+                          <button
+                            key={v.version}
+                            type="button"
+                            role="option"
+                            aria-selected={secondary?.version === v.version}
+                            className={`mode-chip${secondary?.version === v.version ? ' mode-chip-active' : ''}`}
+                            onClick={() => pickSecondary(v.version)}
+                          >
+                            {v.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                    {rows.map((v) => (
+                      <div key={v.version} className="verse-compare-fold-row">
+                        <p className="verse-compare-ver-label">{v.label}</p>
+                        <p className="verse-compare-text verse-compare-text-secondary">{v.text}</p>
+                      </div>
                     ))}
                   </div>
                 ) : null}
-              </>
-            )}
-
-            <section className="verse-compare-block">
-              <p className="verse-compare-section-title">原文要点</p>
-              {strongsLoading ? (
-                <p className="muted" style={{ fontSize: 13 }}>加载原文…</p>
-              ) : highlights.length > 0 ? (
-                <ul className="verse-compare-strongs">
-                  {highlights.map((h) => (
-                    <li key={`${h.position}-${h.strongs || h.word}`}>
-                      <strong className={/[\u0590-\u05FF]/.test(h.word) ? 'strongs-lemma-he' : undefined}>
-                        {h.word}
-                      </strong>
-                      {h.transliteration ? (
-                        <span className="muted"> {h.transliteration}</span>
-                      ) : null}
-                      {h.strongs ? <span className="muted"> · {h.strongs}</span> : null}
-                      {h.gloss ? <span className="verse-compare-gloss"> — {h.gloss}</span> : null}
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="muted" style={{ fontSize: 13 }}>
-                  {hasStrongsData
-                    ? '暂无可提炼的关键词，可查看逐词。'
-                    : '本节暂无逐词原文数据'}
-                </p>
-              )}
-              {(hasStrongsData || highlights.length > 0) && (
-                <button type="button" className="text-link" style={{ marginTop: 8, fontSize: 13 }} onClick={onOpenStrongs}>
-                  查看逐词
-                </button>
-              )}
-            </section>
-
-            <section className="verse-compare-block">
-              <p className="verse-compare-section-title">小爱解读</p>
-              {aiBusy && !aiBody ? <p className="muted" style={{ fontSize: 13 }}>小爱正在整理…</p> : null}
-              {aiErr && !aiBody ? (
-                <div>
-                  <p className="verse-compare-err">{aiErr}</p>
-                  <button
-                    type="button"
-                    className="font-pill"
-                    style={{ marginTop: 8 }}
-                    onClick={() => setAiRetry((n) => n + 1)}
-                  >
-                    重试
-                  </button>
-                </div>
-              ) : null}
-              {aiBody ? (
-                <div className="verse-compare-ai">
-                  <AnswerText text={aiBody} dense />
-                </div>
-              ) : null}
-              {!aiBusy && !aiErr && !aiBody && aiDone ? (
-                <p className="muted" style={{ fontSize: 13 }}>暂无解读，请稍后重试。</p>
-              ) : null}
-            </section>
+              </section>
+            ) : null}
           </div>
 
           <div className="verse-compare-actions">
+            <button type="button" className="font-pill font-pill-muted" onClick={onOpenStrongs}>
+              逐词原文
+            </button>
             {secondary ? (
               <button
                 type="button"
@@ -409,7 +350,7 @@ export default function VerseCompareSheet({
               继续问小爱
             </button>
           </div>
-          <p className="muted verse-compare-disclaimer">AI 释义，请以圣经与原文为准</p>
+          <p className="muted verse-compare-disclaimer">AI 释义，请以圣经正文为准</p>
         </div>
       </div>
     </AppBodyPortal>

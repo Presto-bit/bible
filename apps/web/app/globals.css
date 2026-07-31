@@ -12746,6 +12746,36 @@ a.license-row-name:hover {
   text-align: center;
 }
 
+.verse-compare-fold-toggle {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-deep, #3d6b5a);
+  cursor: pointer;
+}
+
+.verse-compare-fold-body {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verse-compare-fold-row {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.verse-compare-fold-row:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
 .verse-card-sheet {
   max-width: 420px;
   margin: 0 auto;

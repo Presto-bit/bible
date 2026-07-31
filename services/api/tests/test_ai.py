@@ -75,6 +75,27 @@ def test_build_messages_reader_context_and_continuity():
     assert "上文已有" in msgs[0]["content"] or "接续前文" in msgs[0]["content"]
 
 
+def test_format_reader_context_compare_versions():
+    from app.ai.prompts import format_reader_context
+
+    ctx = format_reader_context(
+        {
+            "compare_versions": [
+                {"label": "和合本", "text": "神爱世人"},
+                {"label": "新译本", "text": "神那么爱世人"},
+            ]
+        }
+    )
+    assert "可供对照的译本正文" in ctx
+    assert "和合本：神爱世人" in ctx
+    assert "新译本：神那么爱世人" in ctx
+    guide = SCENES["chat_compare"].format_guide
+    assert "一句话" in guide
+    assert "读起来哪里不一样" in guide
+    assert "不要用表格" in guide
+    assert "Strong" in guide or "strong" in guide.lower()
+
+
 def test_build_messages_scene_without_followups():
     msgs = build_messages(
         scene=SCENES["verse_quick"],
