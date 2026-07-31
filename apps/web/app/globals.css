@@ -7200,10 +7200,8 @@ body.verse-full-open .tabbar {
   display: flex;
   flex-direction: column;
   background: #fff;
-  padding:
-    env(safe-area-inset-top, 0)
-    0
-    calc(8px + env(safe-area-inset-bottom, 0));
+  /* 安全区由 html.story-album-lock 接管，避免与 .app-body 双重留白 */
+  padding: 0;
   box-sizing: border-box;
   overscroll-behavior: none;
   touch-action: pan-x;
@@ -7216,15 +7214,28 @@ html.story-album-lock body {
   height: 100%;
 }
 
+/* 图册全屏：去掉壳层为底栏预留的 padding，隐藏底栏，贴齐顶底 */
+html.story-album-lock .app-body {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  overflow: hidden !important;
+}
+
+html.story-album-lock .tabbar {
+  display: none !important;
+}
+
 .story-album-player-bar {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 10px;
+  padding: max(4px, env(safe-area-inset-top, 0)) 10px 4px;
   position: relative;
   z-index: 5;
   flex-shrink: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  border-bottom: none;
   background: #fff;
 }
 
@@ -7284,6 +7295,39 @@ html.story-album-lock body {
   color: var(--ink);
 }
 
+.story-album-progress-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px 6px;
+  background: #fff;
+}
+
+.story-album-progress-bar .story-album-progress-track {
+  flex: 1;
+  height: 2px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  overflow: hidden;
+}
+
+.story-album-progress-bar .story-album-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent-deep);
+  transition: width 0.28s ease;
+}
+
+.story-album-progress-bar .story-album-progress-label {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+  min-width: 2.8em;
+  text-align: right;
+}
+
 .story-album-stage {
   flex: 1 1 auto;
   position: relative;
@@ -7323,14 +7367,13 @@ html.story-album-lock body {
 }
 
 .story-beat-visual {
-  flex: 1 1 52%;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   align-items: stretch;
   position: relative;
   background:
     radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--accent) 10%, #fff) 0%, #fafaf8 55%, #f7f5f2 100%);
-  border-bottom: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
 }
 
 .story-beat-visual > :not(.story-album-edge) {
@@ -7340,19 +7383,25 @@ html.story-album-lock body {
 }
 
 .story-beat-caption {
-  flex: 0 1 42%;
-  max-height: 48%;
+  flex: 0 0 auto;
+  max-height: 46%;
   min-height: 0;
   position: relative;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
-  padding: 14px 20px 10px;
+  padding: 12px 18px 10px;
   background: #fff;
   color: var(--ink);
   z-index: 3;
   touch-action: pan-y;
+  border-top: none;
+  box-shadow: none;
+}
+
+.story-beat-caption.is-safe-bottom {
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
 }
 
 .story-beat-caption-eyebrow {
@@ -7449,47 +7498,16 @@ html.story-album-lock body {
 .story-album-footer {
   margin-top: 0;
   flex-shrink: 0;
-  padding: 8px 18px 6px;
-  border-top: 1px solid color-mix(in srgb, var(--line) 85%, transparent);
+  padding: 8px 16px calc(10px + env(safe-area-inset-bottom, 0px));
   background: #fff;
-}
-
-.story-album-progress {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.story-album-progress-track {
-  flex: 1;
-  height: 3px;
-  border-radius: 99px;
-  background: color-mix(in srgb, var(--ink) 8%, transparent);
-  overflow: hidden;
-}
-
-.story-album-progress-fill {
-  height: 100%;
-  border-radius: inherit;
-  background: var(--accent-deep);
-  transition: width 0.28s ease;
-}
-
-.story-album-progress-label {
-  flex-shrink: 0;
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  color: var(--ink-faint);
-  min-width: 2.8em;
-  text-align: right;
+  border-top: none;
 }
 
 .story-album-footer-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 0;
 }
 
 .story-album-share-hint {
@@ -7597,20 +7615,102 @@ html.story-album-lock body {
   font-family: Georgia, 'Songti SC', 'Noto Serif SC', 'Times New Roman', serif;
 }
 
+.story-beat-quote {
+  justify-content: flex-end;
+  gap: 0;
+  padding: 20px 22px 24px;
+}
+
 .story-beat-quote-mark {
   margin: 0;
-  font-size: 72px;
+  font-size: 56px;
   line-height: 0.85;
   color: color-mix(in srgb, var(--accent-deep) 28%, transparent);
   font-family: Georgia, 'Times New Roman', serif;
 }
 
+.story-beat-quote-body {
+  margin: 8px 0 0;
+  font-size: 17px;
+  line-height: 1.7;
+  color: var(--ink);
+  font-family: Georgia, 'Songti SC', 'Noto Serif SC', 'Times New Roman', serif;
+  max-height: 100%;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.story-beat-quote-line {
+  margin: 0 0 0.55em;
+}
+
+.story-beat-quote-line:last-child {
+  margin-bottom: 0;
+}
+
+.story-beat-quote-num {
+  margin-right: 0.28em;
+  font-size: 0.72em;
+  font-weight: 650;
+  color: var(--accent-deep);
+  vertical-align: super;
+  font-family: system-ui, sans-serif;
+}
+
 .story-beat-quote-ref {
-  margin: 10px 0 0;
+  margin: 14px 0 0;
   font-size: 13px;
   font-weight: 650;
   color: var(--ink-soft);
   letter-spacing: 0.02em;
+}
+
+.story-beat-quote-loading,
+.story-beat-quote-err {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--ink-faint);
+}
+
+.story-beat-fin {
+  justify-content: center;
+  gap: 0;
+  padding: 28px 24px;
+}
+
+.story-beat-fin-title {
+  margin: 12px 0 0;
+  font-size: 22px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: Georgia, 'Songti SC', 'Noto Serif SC', 'Times New Roman', serif;
+}
+
+.story-beat-fin-path {
+  margin: 14px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.story-beat-fin-next {
+  margin: 16px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.story-beat-fin-next strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  color: var(--accent-deep);
 }
 
 .story-beat-portrait-entity {

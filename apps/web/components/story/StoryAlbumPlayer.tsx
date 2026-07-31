@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { api, type BibleDiagram, type GeoPlace, type MapTour } from '@/lib/api';
+import { api, type BibleDiagram, type GeoPlace, type MapTour, type Verse } from '@/lib/api';
 import {
   EXODUS_STORY,
   exodusCoverHref,
@@ -155,8 +155,20 @@ export function StoryAlbumPlayer({
   }, []);
 
   const goPrev = useCallback(() => {
-    if (beatIndex > 0) goBeat(beatIndex - 1);
-  }, [beatIndex, goBeat]);
+    if (beatIndex > 0) {
+      goBeat(beatIndex - 1);
+      return;
+    }
+    // 章首右滑：回到同系列上一幕的最后一拍
+    if (epIndex > 0) {
+      const prevEp = series.episodes[epIndex - 1];
+      if (!prevEp) return;
+      setEpIndex(epIndex - 1);
+      setBeatIndex(Math.max(0, prevEp.beats.length - 1));
+      setPlacePreview(null);
+      setAskOpen(false);
+    }
+  }, [beatIndex, goBeat, epIndex, series.episodes]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -183,8 +195,9 @@ export function StoryAlbumPlayer({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     if (absX < SWIPE_MIN || absX < absY) return;
-    if (dx < 0) goNext();
-    else goPrev();
+    // 左滑 / ← ：上一拍（含跨幕）；右滑 / → ：下一拍
+    if (dx < 0) goPrev();
+    else goNext();
   };
 
   const openRef = () => {
@@ -260,6 +273,8 @@ export function StoryAlbumPlayer({
 
   const progressLabel = `${beatIndex + 1} / ${beats.length}`;
   const progressPct = beats.length > 0 ? ((beatIndex + 1) / beats.length) * 100 : 0;
+  const nextEpisode = series.episodes[epIndex + 1] ?? null;
+  const showFinActions = beat.media === 'fin';
 
   return (
     <main className="story-album-player">
@@ -289,13 +304,25 @@ export function StoryAlbumPlayer({
       </header>
 
       <div
+        className="story-album-progress-bar"
+        aria-label={`进度 ${progressLabel}`}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
+        <div className="story-album-progress-track">
+          <div className="story-album-progress-fill" style={{ width: `${progressPct}%` }} />
+        </div>
+        <span className="story-album-progress-label">{progressLabel}</span>
+      </div>
+
+      <div
         className="story-album-stage"
         onTouchStart={(e) =>
           onSwipeStart(e.touches[0]?.clientX ?? 0, e.touches[0]?.clientY ?? 0)
         }
         onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0, e.changedTouches[0]?.clientY ?? 0)}
       >
-        <article key={beat.id} className="story-beat-frame">
+        <article key={`${epIndex}-${beat.id}`} className="story-beat-frame">
           <div className="story-beat-visual">
             <button
               type="button"
@@ -306,6 +333,7 @@ export function StoryAlbumPlayer({
             <BeatVisual
               beat={beat}
               episode={episode}
+              nextEpisode={nextEpisode}
               mapPlaces={mapPlaces}
               routeStops={routeStops}
               diagram={diagram}
@@ -319,7 +347,7 @@ export function StoryAlbumPlayer({
               onClick={goNext}
             />
           </div>
-          <div className="story-beat-caption">
+          <div className={`story-beat-caption${showFinActions ? '' : ' is-safe-bottom'}`}>
             <p className="story-beat-caption-eyebrow">{MEDIA_LABEL[beat.media]}</p>
             <h2 className="story-beat-caption-title">{beat.title}</h2>
             <p className="story-beat-caption-narration">{beat.narration}</p>
@@ -347,37 +375,33 @@ export function StoryAlbumPlayer({
         </article>
       </div>
 
-      <footer className="story-album-footer">
-        <div className="story-album-progress" aria-label={`进度 ${progressLabel}`}>
-          <div className="story-album-progress-track">
-            <div className="story-album-progress-fill" style={{ width: `${progressPct}%` }} />
-          </div>
-          <span className="story-album-progress-label">{progressLabel}</span>
-        </div>
-        {beat.media === 'fin' ? (
-          <div className="story-album-footer-actions">
-            {beat.fin_kind === 'series' ? (
-              <>
-                <button type="button" className="font-pill accent" onClick={() => void shareSeries()}>
-                  分享这程
+      {showFinActions || shareHint ? (
+        <footer className="story-album-footer">
+          {showFinActions ? (
+            <div className="story-album-footer-actions">
+              {beat.fin_kind === 'series' ? (
+                <>
+                  <button type="button" className="font-pill accent" onClick={() => void shareSeries()}>
+                    分享这程
+                  </button>
+                  <Link
+                    href={exodusCoverHref()}
+                    className="font-pill knowledge-story-end-pill-link"
+                    onClick={() => markRouteNavigation()}
+                  >
+                    回封面
+                  </Link>
+                </>
+              ) : (
+                <button type="button" className="font-pill accent" onClick={goNext}>
+                  下一幕：{nextEpisode?.title ?? ''} ›
                 </button>
-                <Link
-                  href={exodusCoverHref()}
-                  className="font-pill knowledge-story-end-pill-link"
-                  onClick={() => markRouteNavigation()}
-                >
-                  回封面
-                </Link>
-              </>
-            ) : (
-              <button type="button" className="font-pill accent" onClick={goNext}>
-                下一幕：{series.episodes[epIndex + 1]?.title ?? ''} ›
-              </button>
-            )}
-          </div>
-        ) : null}
-        {shareHint ? <p className="muted story-album-share-hint">{shareHint}</p> : null}
-      </footer>
+              )}
+            </div>
+          ) : null}
+          {shareHint ? <p className="muted story-album-share-hint">{shareHint}</p> : null}
+        </footer>
+      ) : null}
 
       {placePreview ? (
         <div className="sheet-backdrop" onClick={() => setPlacePreview(null)}>
@@ -461,9 +485,14 @@ export function StoryAlbumPlayer({
   );
 }
 
+function beatRefParam(ref: string): string {
+  return refSpaceToOsis(ref.replace(/\./g, ' '));
+}
+
 function BeatVisual({
   beat,
   episode,
+  nextEpisode,
   mapPlaces,
   routeStops,
   diagram,
@@ -472,12 +501,12 @@ function BeatVisual({
 }: {
   beat: StoryBeat;
   episode: StoryEpisode;
+  nextEpisode: StoryEpisode | null;
   mapPlaces: GeoPlace[];
   routeStops: { placeId: string; order: number; label?: string }[];
   diagram: BibleDiagram | null;
   onPlaceClick: (p: GeoPlace) => void;
   onHotspotClick: (id: string) => void;
-  onOpenOverview?: () => void;
 }) {
   if (beat.media === 'cover') {
     return (
@@ -489,24 +518,35 @@ function BeatVisual({
   }
 
   if (beat.media === 'quote') {
-    return (
-      <div className="story-beat-quote">
-        <p className="story-beat-quote-mark" aria-hidden>
-          “
-        </p>
-        {beat.ref ? (
-          <p className="story-beat-quote-ref">{formatGroupRefLabel(beat.ref) || beat.ref}</p>
-        ) : null}
-      </div>
-    );
+    return <QuoteBeatVisual refRaw={beat.ref} />;
   }
 
   if (beat.media === 'fin') {
     return (
       <div className="story-beat-fin">
         <p className="story-beat-fin-badge">
-          {beat.fin_kind === 'series' ? '系列完成' : '本章完成'}
+          {beat.fin_kind === 'series' ? '系列完成' : '本幕收束'}
         </p>
+        <p className="story-beat-fin-title">
+          {beat.fin_kind === 'series' ? '你已走完出埃及三幕' : `${episode.title} · 已完成`}
+        </p>
+        {beat.insight ? <p className="story-beat-fin-path">{beat.insight}</p> : null}
+        {beat.fin_kind === 'series' ? (
+          <p className="story-beat-fin-next">
+            <strong>接下来</strong>
+            {episode.closing || beat.narration}
+          </p>
+        ) : nextEpisode ? (
+          <p className="story-beat-fin-next">
+            <strong>下一幕预告</strong>
+            {nextEpisode.hook}
+          </p>
+        ) : (
+          <p className="story-beat-fin-next">
+            <strong>本幕结语</strong>
+            {episode.closing || beat.narration}
+          </p>
+        )}
       </div>
     );
   }
@@ -569,4 +609,65 @@ function BeatVisual({
   }
 
   return <div className="story-beat-fallback muted">本拍视觉准备中</div>;
+}
+
+function QuoteBeatVisual({ refRaw }: { refRaw?: string }) {
+  const [verses, setVerses] = useState<Verse[]>([]);
+  const [loading, setLoading] = useState(Boolean(refRaw));
+  const [err, setErr] = useState<string | null>(null);
+  const label = refRaw ? formatGroupRefLabel(refRaw) || refRaw : null;
+
+  useEffect(() => {
+    if (!refRaw) {
+      setVerses([]);
+      setLoading(false);
+      setErr(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setErr(null);
+    void api
+      .scriptureRef(beatRefParam(refRaw))
+      .then((d) => {
+        if (cancelled) return;
+        setVerses(d.verses ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErr('经文暂未载入');
+          setVerses([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refRaw]);
+
+  return (
+    <div className="story-beat-quote">
+      <p className="story-beat-quote-mark" aria-hidden>
+        “
+      </p>
+      {loading ? <p className="story-beat-quote-loading">经文载入中…</p> : null}
+      {err ? <p className="story-beat-quote-err">{err}</p> : null}
+      {!loading && !err && verses.length > 0 ? (
+        <div className="story-beat-quote-body">
+          {verses.map((v) => (
+            <p key={v.verse} className="story-beat-quote-line">
+              <sup className="story-beat-quote-num">{v.verse}</sup>
+              {v.text}
+            </p>
+          ))}
+        </div>
+      ) : null}
+      {!loading && !err && verses.length === 0 && refRaw ? (
+        <p className="story-beat-quote-err">暂无经文正文</p>
+      ) : null}
+      {label ? <p className="story-beat-quote-ref">{label}</p> : null}
+    </div>
+  );
 }
