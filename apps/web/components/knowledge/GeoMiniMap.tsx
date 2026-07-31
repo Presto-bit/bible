@@ -76,12 +76,17 @@ export function GeoMiniMap({
   height = 200,
   routeStops,
   onPlaceClick,
+  /** 图册播放器：禁止拖/缩放，只保留点选 */
+  lockView = false,
+  hideActiveCard = false,
 }: {
   places: GeoPlace[];
   activeId?: string | null;
   height?: number;
   routeStops?: RouteStop[];
   onPlaceClick?: (place: GeoPlace) => void;
+  lockView?: boolean;
+  hideActiveCard?: boolean;
 }) {
   const w = 360;
   const h = height;
@@ -139,6 +144,7 @@ export function GeoMiniMap({
   }, [zoom]);
 
   useEffect(() => {
+    if (lockView) return;
     const el = mapRef.current;
     if (!el) return;
     const onMove = (e: TouchEvent) => {
@@ -151,21 +157,23 @@ export function GeoMiniMap({
     };
     el.addEventListener('touchmove', onMove, { passive: false });
     return () => el.removeEventListener('touchmove', onMove);
-  }, []);
+  }, [lockView]);
 
   const onWheel = useCallback((e: React.WheelEvent) => {
+    if (lockView) return;
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setZoom((z) => Math.min(4, Math.max(0.6, z * delta)));
-  }, []);
+  }, [lockView]);
 
   const onPointerDown = (e: React.PointerEvent) => {
-    if (e.button !== 0 || pinchRef.current) return;
+    if (lockView || e.button !== 0 || pinchRef.current) return;
     dragRef.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (lockView) return;
     const d = dragRef.current;
     if (!d) return;
     setPan({
@@ -179,6 +187,7 @@ export function GeoMiniMap({
   };
 
   const onTouchStart = (e: React.TouchEvent) => {
+    if (lockView) return;
     if (e.touches.length === 2) {
       dragRef.current = null;
       pinchRef.current = { dist: touchDistance(e.touches), zoom: zoomRef.current };
@@ -188,6 +197,12 @@ export function GeoMiniMap({
   const onTouchEnd = () => {
     pinchRef.current = null;
   };
+
+  useEffect(() => {
+    if (!lockView) return;
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  }, [lockView, activeId]);
 
   const valid = [...byId.values()];
   if (!valid.length) {
@@ -201,17 +216,19 @@ export function GeoMiniMap({
   const activePlace = activeId ? byId.get(activeId) : null;
 
   return (
-    <div className="geo-mini-map-wrap">
-      <div className="geo-mini-map-toolbar">
-        <button type="button" className="font-pill" onClick={zoomOut} aria-label="缩小">−</button>
-        <button type="button" className="font-pill" onClick={resetView}>重置</button>
-        <button type="button" className="font-pill" onClick={zoomIn} aria-label="放大">+</button>
-        <span className="muted geo-mini-map-scale">双指/滚轮缩放 · 拖动平移</span>
-      </div>
+    <div className={`geo-mini-map-wrap${lockView ? ' is-locked' : ''}`}>
+      {!lockView ? (
+        <div className="geo-mini-map-toolbar">
+          <button type="button" className="font-pill" onClick={zoomOut} aria-label="缩小">−</button>
+          <button type="button" className="font-pill" onClick={resetView}>重置</button>
+          <button type="button" className="font-pill" onClick={zoomIn} aria-label="放大">+</button>
+          <span className="muted geo-mini-map-scale">双指/滚轮缩放 · 拖动平移</span>
+        </div>
+      ) : null}
       <div
         ref={mapRef}
         className="geo-mini-map"
-        style={{ height, touchAction: 'none' }}
+        style={{ height, touchAction: lockView ? 'pan-y' : 'none' }}
         onWheel={onWheel}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -265,10 +282,11 @@ export function GeoMiniMap({
                 <circle
                   cx={x}
                   cy={y}
-                  r={active ? 8 : 6}
+                  r={active ? 9 : 6}
                   fill={active ? 'var(--accent, #3d6b8e)' : 'var(--gold, #b8956a)'}
                   stroke="#fff"
                   strokeWidth="1.5"
+                  opacity={active || !lockView ? 1 : 0.55}
                 />
                 {onRoute ? (
                   <text
@@ -288,6 +306,7 @@ export function GeoMiniMap({
                   textAnchor="middle"
                   fontSize="9"
                   fill="var(--ink-muted, #6b6358)"
+                  fontWeight={active ? 700 : 400}
                 >
                   {(p.name || p.id).length > 10
                     ? `${(p.name || p.id).slice(0, 10)}…`
@@ -298,7 +317,7 @@ export function GeoMiniMap({
           })}
         </svg>
       </div>
-      {activePlace ? (
+      {!hideActiveCard && activePlace ? (
         <div className="geo-mini-map-active card card-2">
           <strong>{activePlace.name || activePlace.id}</strong>
           <p className="muted" style={{ fontSize: 12, margin: '4px 0 0' }}>
@@ -312,7 +331,9 @@ export function GeoMiniMap({
           {missingRoute} 个站点暂无坐标，路线为示意
         </p>
       ) : (
-        <p className="muted geo-mini-map-hint">示意图 · 离线渲染 · 可缩放查看周边</p>
+        <p className="muted geo-mini-map-hint">
+          {lockView ? '点地点可看简介 · 左右滑翻页' : '示意图 · 离线渲染 · 可缩放查看周边'}
+        </p>
       )}
     </div>
   );

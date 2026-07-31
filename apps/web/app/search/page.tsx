@@ -34,16 +34,19 @@ import {
 import { TopicNavCard } from '@/components/search/TopicNavCard';
 import { getMainVersion } from '@/lib/reader_settings';
 import {
-  EXODUS_SERIES,
   knowledgeCountMeta,
   knowledgeKindCta,
-  seriesStepHref,
   tourHook,
 } from '@/lib/knowledge_story';
+import { EXODUS_STORY, exodusCoverHref } from '@/lib/exodus_series';
 import {
   getKnowledgeProgress,
   knowledgeProgressLabel,
 } from '@/lib/knowledge_progress';
+import {
+  getStoryAlbumProgress,
+  resumeStoryAlbum,
+} from '@/lib/story_album_progress';
 import { KnowledgeTopicCardBody } from '@/components/search/KnowledgeTopicCardBody';
 
 const HISTORY_KEY = 'search_history';
@@ -151,7 +154,7 @@ export default function SearchPage() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [seriesProgressHint, setSeriesProgressHint] = useState('');
-  const [seriesHref, setSeriesHref] = useState(seriesStepHref(EXODUS_SERIES.steps[0]));
+  const [seriesHref, setSeriesHref] = useState(exodusCoverHref());
 
   useEffect(() => {
     setHistory(loadHistory());
@@ -166,29 +169,21 @@ export default function SearchPage() {
       const next = saveHistory(q);
       if (next) setHistory(next);
     }
-    const incomplete = EXODUS_SERIES.steps.find((s) => {
-      const row = getKnowledgeProgress(s.kind, s.id);
-      return row && !row.completed && row.step > 0;
-    });
-    if (incomplete) {
-      const row = getKnowledgeProgress(incomplete.kind, incomplete.id)!;
+    setSeriesHref(exodusCoverHref());
+    const album = getStoryAlbumProgress(EXODUS_STORY.id);
+    if (album?.seriesDone) {
+      setSeriesProgressHint('系列已走完 · 可再看一遍');
+    } else if (album && (album.episodeIndex > 0 || album.beatIndex > 0)) {
+      const resume = resumeStoryAlbum(EXODUS_STORY.id, EXODUS_STORY.episodes.length);
+      const ep = EXODUS_STORY.episodes[resume.episodeIndex];
       setSeriesProgressHint(
-        `${incomplete.label} · ${knowledgeProgressLabel(row, incomplete.unit)}`,
+        ep
+          ? `继续第 ${resume.episodeIndex + 1} 章 · ${ep.title}`
+          : `约 ${EXODUS_STORY.minutes} 分钟`,
       );
-      setSeriesHref(seriesStepHref(incomplete));
     } else {
-      const allDone = EXODUS_SERIES.steps.every(
-        (s) => getKnowledgeProgress(s.kind, s.id)?.completed,
-      );
-      // 若地图已完成但后续未做完，跳到下一件
-      const nextStep =
-        EXODUS_SERIES.steps.find((s) => !getKnowledgeProgress(s.kind, s.id)?.completed)
-        ?? EXODUS_SERIES.steps[0];
-      setSeriesHref(seriesStepHref(nextStep));
       setSeriesProgressHint(
-        allDone
-          ? '系列已走完 · 可再走一遍'
-          : `${EXODUS_SERIES.steps.length} 件 · 约 ${EXODUS_SERIES.minutes} 分钟`,
+        `${EXODUS_STORY.episodes.length} 章 · 约 ${EXODUS_STORY.minutes} 分钟`,
       );
     }
     void Promise.all([
@@ -402,20 +397,20 @@ export default function SearchPage() {
             <TopicNavCard
               href={seriesHref}
               className="rail-card card card-2 story-tour-card story-entry-card story-series-card"
-              ariaLabel={EXODUS_SERIES.title}
+              ariaLabel={EXODUS_STORY.title}
             >
               <KnowledgeTopicCardBody
                 badge="旗舰系列"
                 badgeClassName="story-tour-badge-series"
-                title={EXODUS_SERIES.title}
-                hook={EXODUS_SERIES.hook}
-                meta={seriesProgressHint || `约 ${EXODUS_SERIES.minutes} 分钟`}
+                title={EXODUS_STORY.title}
+                hook={EXODUS_STORY.hook}
+                meta={seriesProgressHint || `约 ${EXODUS_STORY.minutes} 分钟`}
                 cta={
-                  seriesProgressHint.includes('已走') && !seriesProgressHint.includes('已走完')
-                    ? '继续系列 ›'
+                  seriesProgressHint.includes('继续')
+                    ? '继续故事 ›'
                     : seriesProgressHint.includes('已走完')
-                      ? '再走系列 ›'
-                      : '开始系列 ›'
+                      ? '再看一遍 ›'
+                      : '开始故事 ›'
                 }
               />
             </TopicNavCard>

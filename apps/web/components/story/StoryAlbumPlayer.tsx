@@ -1,0 +1,560 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { api, type BibleDiagram, type GeoPlace, type MapTour } from '@/lib/api';
+import {
+  EXODUS_STORY,
+  exodusCoverHref,
+  exodusPlayHref,
+  findBeatIndexByHotspot,
+  findBeatIndexByPlace,
+  type StoryBeat,
+  type StoryEpisode,
+} from '@/lib/exodus_series';
+import {
+  markEpisodeDone,
+  markSeriesDone,
+  saveStoryAlbumProgress,
+} from '@/lib/story_album_progress';
+import { knowledgeAskQuestion } from '@/lib/knowledge_story';
+import { shareKnowledgeTour } from '@/lib/knowledge_share';
+import { formatGroupRefLabel } from '@/lib/ref_label';
+import { refSpaceToOsis } from '@/lib/inline_ref';
+import { GeoMiniMap } from '@/components/knowledge/GeoMiniMap';
+import { KnowledgeAskSheet } from '@/components/search/KnowledgeAskSheet';
+import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
+import { SheetCloseButton } from '@/components/PageBackBar';
+import { markRouteNavigation } from '@/lib/pwa_tab_nav';
+
+const SWIPE_MIN = 48;
+
+type PlacePreview = {
+  placeId: string;
+  title: string;
+  narration: string;
+  beatIndex: number;
+};
+
+export function StoryAlbumPlayer({
+  episodeIndex: initialEp,
+  beatIndex: initialBeat,
+}: {
+  episodeIndex: number;
+  beatIndex: number;
+}) {
+  const router = useRouter();
+  const series = EXODUS_STORY;
+  const [epIndex, setEpIndex] = useState(initialEp);
+  const [beatIndex, setBeatIndex] = useState(initialBeat);
+  const [tour, setTour] = useState<MapTour | null>(null);
+  const [diagram, setDiagram] = useState<BibleDiagram | null>(null);
+  const [askOpen, setAskOpen] = useState(false);
+  const [preview, setPreview] = useState<{ osis: string; label: string } | null>(null);
+  const [tocOpen, setTocOpen] = useState(false);
+  const [overviewOpen, setOverviewOpen] = useState(false);
+  const [placePreview, setPlacePreview] = useState<PlacePreview | null>(null);
+  const [shareHint, setShareHint] = useState<string | null>(null);
+  const touchX = useRef<number | null>(null);
+  const ignoreSwipe = useRef(false);
+
+  const episode: StoryEpisode | null = series.episodes[epIndex] ?? null;
+  const beats = episode?.beats ?? [];
+  const beat: StoryBeat | null = beats[beatIndex] ?? null;
+  const isLastBeat = beatIndex >= beats.length - 1;
+
+  useEffect(() => {
+    setEpIndex(initialEp);
+    setBeatIndex(initialBeat);
+  }, [initialEp, initialBeat]);
+
+  useEffect(() => {
+    if (!episode) return;
+    const src = episode.source;
+    if (src?.kind === 'map') {
+      void api.mapTour(src.id).then((d) => setTour(d.tour)).catch(() => setTour(null));
+    } else {
+      setTour(null);
+    }
+    if (src?.kind === 'diagram' || beats.some((b) => b.media === 'diagram')) {
+      const id = src?.kind === 'diagram' ? src.id : 'tabernacle-layout';
+      void api.diagram(id).then((d) => setDiagram(d.diagram)).catch(() => setDiagram(null));
+    } else {
+      setDiagram(null);
+    }
+  }, [episode, beats]);
+
+  useEffect(() => {
+    if (!episode || !beat) return;
+    saveStoryAlbumProgress(series.id, {
+      episodeIndex: epIndex,
+      beatIndex,
+    });
+    if (beat.media === 'fin') {
+      markEpisodeDone(series.id, episode.id, true);
+      if (beat.fin_kind === 'series') markSeriesDone(series.id, true);
+    }
+    const url = exodusPlayHref(epIndex, beatIndex);
+    window.history.replaceState(null, '', url);
+  }, [series.id, episode, epIndex, beatIndex, beat]);
+
+  const mapPlaces = useMemo(() => {
+    const stops = tour?.stops ?? [];
+    return stops
+      .map((s) => s.place)
+      .filter((p): p is GeoPlace => Boolean(p && Number.isFinite(p.latitude) && Number.isFinite(p.longitude)));
+  }, [tour]);
+
+  const routeStops = useMemo(
+    () => (tour?.stops ?? []).map((s) => ({ placeId: s.place_id, order: s.order, label: s.label })),
+    [tour],
+  );
+
+  const goBeat = useCallback((next: number) => {
+    if (!episode) return;
+    const clamped = Math.max(0, Math.min(beats.length - 1, next));
+    setBeatIndex(clamped);
+    setPlacePreview(null);
+    setAskOpen(false);
+  }, [episode, beats.length]);
+
+  const goNext = useCallback(() => {
+    if (!episode || !beat) return;
+    if (beat.media === 'fin') {
+      if (beat.fin_kind === 'series') {
+        markSeriesDone(series.id, true);
+        markEpisodeDone(series.id, episode.id, true);
+        return;
+      }
+      markEpisodeDone(series.id, episode.id, true);
+      if (epIndex < series.episodes.length - 1) {
+        setEpIndex(epIndex + 1);
+        setBeatIndex(0);
+        setPlacePreview(null);
+      }
+      return;
+    }
+    if (!isLastBeat) goBeat(beatIndex + 1);
+  }, [episode, beat, series, epIndex, isLastBeat, beatIndex, goBeat]);
+
+  const goPrev = useCallback(() => {
+    if (beatIndex > 0) goBeat(beatIndex - 1);
+  }, [beatIndex, goBeat]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (placePreview || askOpen || tocOpen || overviewOpen) return;
+      if (e.key === 'ArrowRight') goNext();
+      if (e.key === 'ArrowLeft') goPrev();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [placePreview, askOpen, tocOpen, overviewOpen, goNext, goPrev]);
+
+  const onSwipeStart = (clientX: number) => {
+    if (ignoreSwipe.current || placePreview || askOpen || tocOpen || overviewOpen) return;
+    touchX.current = clientX;
+  };
+
+  const onSwipeEnd = (clientX: number) => {
+    if (touchX.current == null) return;
+    const dx = clientX - touchX.current;
+    touchX.current = null;
+    if (Math.abs(dx) < SWIPE_MIN) return;
+    if (dx < 0) goNext();
+    else goPrev();
+  };
+
+  const openRef = () => {
+    if (!beat?.ref) return;
+    setPreview({
+      osis: refSpaceToOsis(beat.ref.replace(/\./g, ' ')),
+      label: formatGroupRefLabel(beat.ref) || beat.ref,
+    });
+  };
+
+  const onPlaceClick = (place: GeoPlace) => {
+    if (!episode) return;
+    ignoreSwipe.current = true;
+    window.setTimeout(() => {
+      ignoreSwipe.current = false;
+    }, 300);
+    const idx = findBeatIndexByPlace(episode, place.id);
+    const target = idx >= 0 ? episode.beats[idx] : null;
+    setPlacePreview({
+      placeId: place.id,
+      title: target?.title || place.name || place.id,
+      narration: target?.narration || '路线上的一站（传统示意位置）。',
+      beatIndex: idx,
+    });
+  };
+
+  const onHotspotClick = (hotspotId: string) => {
+    if (!episode) return;
+    const idx = findBeatIndexByHotspot(episode, hotspotId);
+    if (idx >= 0 && idx !== beatIndex) {
+      setPlacePreview({
+        placeId: hotspotId,
+        title: episode.beats[idx]!.title,
+        narration: episode.beats[idx]!.narration,
+        beatIndex: idx,
+      });
+    }
+  };
+
+  const shareSeries = async () => {
+    setShareHint(null);
+    try {
+      const result = await shareKnowledgeTour({
+        kind: 'map',
+        id: 'exodus-wilderness',
+        title: series.title,
+        body: series.closing,
+        footer: `三章 · 约 ${series.minutes} 分钟 · 彼爱`,
+        badge: '出埃及系列',
+      });
+      if (result === 'cancelled') return;
+      setShareHint(result === 'copied' ? '已复制链接与摘要' : '已调起分享');
+    } catch {
+      setShareHint('分享未完成');
+    }
+  };
+
+  if (!episode || !beat) {
+    return (
+      <main className="container">
+        <p className="muted">未找到该章。</p>
+        <Link href={exodusCoverHref()} className="text-link">返回系列封面 ›</Link>
+      </main>
+    );
+  }
+
+  const askQ = knowledgeAskQuestion({
+    title: `${series.title} · ${episode.title}`,
+    stopLabel: beat.title,
+    askSeed: beat.ask_seed,
+    ref: beat.ref,
+  });
+
+  const progressLabel = `${beatIndex + 1}/${beats.length}`;
+
+  return (
+    <main
+      className="story-album-player"
+      onTouchStart={(e) => onSwipeStart(e.touches[0]?.clientX ?? 0)}
+      onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0)}
+    >
+      <header className="story-album-player-bar">
+        <button
+          type="button"
+          className="text-link story-album-player-back"
+          onClick={() => {
+            markRouteNavigation();
+            router.push(exodusCoverHref());
+          }}
+        >
+          ‹ 封面
+        </button>
+        <div className="story-album-player-bar-mid">
+          <span className="story-album-player-ep">
+            出埃及 · 第 {epIndex + 1}/{series.episodes.length} 章
+          </span>
+          <strong className="story-album-player-ep-title">{episode.title}</strong>
+        </div>
+        <button type="button" className="text-link" onClick={() => setTocOpen(true)}>
+          目录
+        </button>
+      </header>
+
+      <div className="story-album-stage">
+        <BeatVisual
+          beat={beat}
+          episode={episode}
+          mapPlaces={mapPlaces}
+          routeStops={routeStops}
+          diagram={diagram}
+          onPlaceClick={onPlaceClick}
+          onHotspotClick={onHotspotClick}
+          onOpenOverview={() => setOverviewOpen(true)}
+        />
+      </div>
+
+      <section className="story-album-copy">
+        <h2 className="story-album-copy-title">{beat.title}</h2>
+        <p className="story-album-copy-narration">{beat.narration}</p>
+        <div className="story-album-copy-links">
+          {beat.ref ? (
+            <button type="button" className="text-link" onClick={openRef}>
+              {formatGroupRefLabel(beat.ref) || beat.ref}
+            </button>
+          ) : null}
+          {beat.ask_seed || beat.media === 'map' || beat.media === 'diagram' || beat.media === 'portrait' ? (
+            <button type="button" className="text-link" onClick={() => setAskOpen(true)}>
+              问小爱
+            </button>
+          ) : null}
+        </div>
+      </section>
+
+      <footer className="story-album-footer">
+        <div className="story-album-dots" aria-label="进度">
+          {beats.map((b, i) => (
+            <button
+              key={b.id}
+              type="button"
+              className={`story-album-dot${i === beatIndex ? ' is-active' : ''}${i < beatIndex ? ' is-done' : ''}`}
+              aria-label={`第 ${i + 1} 拍`}
+              onClick={() => goBeat(i)}
+            />
+          ))}
+        </div>
+        <p className="muted story-album-progress-label">{progressLabel}</p>
+        <div className="story-album-footer-actions">
+          <button type="button" className="font-pill" disabled={beatIndex <= 0} onClick={goPrev}>
+            上一拍
+          </button>
+          {beat.media === 'fin' && beat.fin_kind === 'series' ? (
+            <>
+              <button type="button" className="font-pill accent" onClick={() => void shareSeries()}>
+                分享这程
+              </button>
+              <Link href={exodusCoverHref()} className="font-pill knowledge-story-end-pill-link" onClick={() => markRouteNavigation()}>
+                回封面
+              </Link>
+            </>
+          ) : beat.media === 'fin' ? (
+            <button type="button" className="font-pill accent" onClick={goNext}>
+              下一章：{series.episodes[epIndex + 1]?.title ?? ''} ›
+            </button>
+          ) : (
+            <button type="button" className="font-pill accent" onClick={goNext}>
+              下一拍 ›
+            </button>
+          )}
+        </div>
+        {shareHint ? <p className="muted story-album-share-hint">{shareHint}</p> : null}
+      </footer>
+
+      {placePreview ? (
+        <div className="sheet-backdrop" onClick={() => setPlacePreview(null)}>
+          <div className="sheet card half-sheet story-album-place-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="half-sheet-title">
+              <strong>{placePreview.title}</strong>
+              <SheetCloseButton onClick={() => setPlacePreview(null)} />
+            </div>
+            <div className="half-sheet-body">
+              <p className="story-album-place-note">{placePreview.narration}</p>
+              <div className="half-sheet-actions">
+                {placePreview.beatIndex >= 0 && placePreview.beatIndex !== beatIndex ? (
+                  <button
+                    type="button"
+                    className="font-pill accent"
+                    onClick={() => {
+                      goBeat(placePreview.beatIndex);
+                      setPlacePreview(null);
+                    }}
+                  >
+                    跳到这一拍 ›
+                  </button>
+                ) : (
+                  <button type="button" className="font-pill" onClick={() => setPlacePreview(null)}>
+                    收起
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {tocOpen ? (
+        <div className="sheet-backdrop" onClick={() => setTocOpen(false)}>
+          <div className="sheet card half-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="half-sheet-title">
+              <strong>本章目录 · {episode.title}</strong>
+              <SheetCloseButton onClick={() => setTocOpen(false)} />
+            </div>
+            <div className="half-sheet-body">
+              <ul className="story-album-toc-list">
+                {beats.map((b, i) => (
+                  <li key={b.id}>
+                    <button
+                      type="button"
+                      className={`story-album-toc-item${i === beatIndex ? ' is-active' : ''}`}
+                      onClick={() => {
+                        goBeat(i);
+                        setTocOpen(false);
+                      }}
+                    >
+                      <span>{i + 1}. {b.title}</span>
+                      <span className="muted">{b.media}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {overviewOpen && tour ? (
+        <div className="sheet-backdrop" onClick={() => setOverviewOpen(false)}>
+          <div className="sheet card half-sheet" onClick={(e) => e.stopPropagation()}>
+            <div className="half-sheet-title">
+              <strong>路线总览</strong>
+              <SheetCloseButton onClick={() => setOverviewOpen(false)} />
+            </div>
+            <div className="half-sheet-body">
+              <GeoMiniMap
+                places={mapPlaces}
+                activeId={beat.place_id}
+                height={220}
+                routeStops={routeStops}
+                onPlaceClick={(p) => {
+                  setOverviewOpen(false);
+                  onPlaceClick(p);
+                }}
+              />
+              <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                点站点可预览并跳到对应拍。此处可缩放拖动。
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {askOpen ? (
+        <KnowledgeAskSheet
+          title={`${episode.title} · ${beat.title}`}
+          question={askQ}
+          refParam={beat.ref}
+          onClose={() => setAskOpen(false)}
+        />
+      ) : null}
+
+      {preview ? (
+        <VersePreviewSheet
+          refParam={preview.osis}
+          refLabel={preview.label}
+          onClose={() => setPreview(null)}
+        />
+      ) : null}
+    </main>
+  );
+}
+
+function BeatVisual({
+  beat,
+  episode,
+  mapPlaces,
+  routeStops,
+  diagram,
+  onPlaceClick,
+  onHotspotClick,
+  onOpenOverview,
+}: {
+  beat: StoryBeat;
+  episode: StoryEpisode;
+  mapPlaces: GeoPlace[];
+  routeStops: { placeId: string; order: number; label?: string }[];
+  diagram: BibleDiagram | null;
+  onPlaceClick: (p: GeoPlace) => void;
+  onHotspotClick: (id: string) => void;
+  onOpenOverview: () => void;
+}) {
+  if (beat.media === 'cover') {
+    return (
+      <div className="story-beat-cover">
+        <p className="story-beat-cover-badge">出埃及故事</p>
+        <strong className="story-beat-cover-title">{beat.title}</strong>
+        <p className="story-beat-cover-hook">{episode.hook}</p>
+      </div>
+    );
+  }
+
+  if (beat.media === 'quote') {
+    return (
+      <div className="story-beat-quote">
+        <p className="story-beat-quote-text">{beat.narration}</p>
+        {beat.ref ? (
+          <p className="story-beat-quote-ref">{formatGroupRefLabel(beat.ref) || beat.ref}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (beat.media === 'fin') {
+    return (
+      <div className="story-beat-fin">
+        <p className="story-beat-fin-badge">
+          {beat.fin_kind === 'series' ? '系列完成' : '本章完成'}
+        </p>
+        <strong className="story-beat-fin-title">{beat.title}</strong>
+      </div>
+    );
+  }
+
+  if (beat.media === 'portrait') {
+    return (
+      <div className="story-beat-portrait">
+        <span className="story-beat-portrait-entity">{beat.entity_label}</span>
+        {beat.relation ? (
+          <span className="story-beat-portrait-rel">{beat.relation}</span>
+        ) : null}
+      </div>
+    );
+  }
+
+  if (beat.media === 'map') {
+    return (
+      <div className="story-beat-map">
+        {mapPlaces.length > 0 ? (
+          <>
+            <GeoMiniMap
+              places={mapPlaces}
+              activeId={beat.place_id}
+              height={260}
+              routeStops={routeStops}
+              onPlaceClick={onPlaceClick}
+              lockView
+              hideActiveCard
+            />
+            <button type="button" className="text-link story-beat-map-overview" onClick={onOpenOverview}>
+              查看全程 ›
+            </button>
+          </>
+        ) : (
+          <p className="muted story-beat-map-loading">地图载入中…</p>
+        )}
+      </div>
+    );
+  }
+
+  if (beat.media === 'diagram' && diagram) {
+    const src = api.diagramFileUrl(diagram.id);
+    const hotspots = diagram.hotspots ?? [];
+    return (
+      <div className="story-beat-diagram">
+        <div className="diagram-viewer-frame story-beat-diagram-frame">
+          <img src={src} alt={diagram.title} className="diagram-viewer-img" />
+          {hotspots.map((h) => (
+            <button
+              key={h.id}
+              type="button"
+              className={`diagram-hotspot${beat.hotspot_id === h.id ? ' is-active' : ''}`}
+              style={{ left: `${h.x * 100}%`, top: `${h.y * 100}%` }}
+              aria-label={h.label}
+              onClick={(e) => {
+                e.stopPropagation();
+                onHotspotClick(h.id);
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return <div className="story-beat-fallback muted">本拍视觉准备中</div>;
+}
