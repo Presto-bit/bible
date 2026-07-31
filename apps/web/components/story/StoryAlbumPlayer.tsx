@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { api, type BibleDiagram, type GeoPlace, type MapTour } from '@/lib/api';
 import {
   EXODUS_STORY,
@@ -44,7 +43,6 @@ export function StoryAlbumPlayer({
   episodeIndex: number;
   beatIndex: number;
 }) {
-  const router = useRouter();
   const series = EXODUS_STORY;
   const [epIndex, setEpIndex] = useState(initialEp);
   const [beatIndex, setBeatIndex] = useState(initialBeat);
@@ -240,34 +238,42 @@ export function StoryAlbumPlayer({
   const progressLabel = `${beatIndex + 1}/${beats.length}`;
 
   return (
-    <main
-      className="story-album-player"
-      onTouchStart={(e) => onSwipeStart(e.touches[0]?.clientX ?? 0)}
-      onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0)}
-    >
-      <header className="story-album-player-bar">
-        <button
-          type="button"
-          className="text-link story-album-player-back"
-          onClick={() => {
-            markRouteNavigation();
-            router.push(exodusCoverHref());
-          }}
+    <main className="story-album-player">
+      <header
+        className="story-album-player-bar"
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
+        <Link
+          href={exodusCoverHref()}
+          className="story-album-player-close"
+          aria-label="关闭并返回封面"
+          onClick={() => markRouteNavigation()}
         >
-          ‹ 封面
-        </button>
+          关闭
+        </Link>
         <div className="story-album-player-bar-mid">
           <span className="story-album-player-ep">
             出埃及 · 第 {epIndex + 1}/{series.episodes.length} 章
           </span>
           <strong className="story-album-player-ep-title">{episode.title}</strong>
         </div>
-        <button type="button" className="text-link" onClick={() => setTocOpen(true)}>
+        <button type="button" className="text-link story-album-player-toc" onClick={() => setTocOpen(true)}>
           目录
         </button>
       </header>
 
-      <div className="story-album-stage">
+      <div
+        className="story-album-stage"
+        onTouchStart={(e) => onSwipeStart(e.touches[0]?.clientX ?? 0)}
+        onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0)}
+      >
+        <button
+          type="button"
+          className="story-album-edge story-album-edge-left"
+          aria-label="上一拍"
+          onClick={goPrev}
+        />
         <BeatVisual
           beat={beat}
           episode={episode}
@@ -278,11 +284,20 @@ export function StoryAlbumPlayer({
           onHotspotClick={onHotspotClick}
           onOpenOverview={() => setOverviewOpen(true)}
         />
+        <button
+          type="button"
+          className="story-album-edge story-album-edge-right"
+          aria-label="下一拍"
+          onClick={goNext}
+        />
       </div>
 
       <section className="story-album-copy">
         <h2 className="story-album-copy-title">{beat.title}</h2>
         <p className="story-album-copy-narration">{beat.narration}</p>
+        {beat.insight ? (
+          <p className="story-album-copy-insight">{beat.insight}</p>
+        ) : null}
         <div className="story-album-copy-links">
           {beat.ref ? (
             <button type="button" className="text-link" onClick={openRef}>
@@ -309,30 +324,31 @@ export function StoryAlbumPlayer({
             />
           ))}
         </div>
-        <p className="muted story-album-progress-label">{progressLabel}</p>
-        <div className="story-album-footer-actions">
-          <button type="button" className="font-pill" disabled={beatIndex <= 0} onClick={goPrev}>
-            上一拍
-          </button>
-          {beat.media === 'fin' && beat.fin_kind === 'series' ? (
-            <>
-              <button type="button" className="font-pill accent" onClick={() => void shareSeries()}>
-                分享这程
+        <p className="muted story-album-progress-label">
+          {progressLabel} · 左右滑翻页
+        </p>
+        {beat.media === 'fin' ? (
+          <div className="story-album-footer-actions">
+            {beat.fin_kind === 'series' ? (
+              <>
+                <button type="button" className="font-pill accent" onClick={() => void shareSeries()}>
+                  分享这程
+                </button>
+                <Link
+                  href={exodusCoverHref()}
+                  className="font-pill knowledge-story-end-pill-link"
+                  onClick={() => markRouteNavigation()}
+                >
+                  回封面
+                </Link>
+              </>
+            ) : (
+              <button type="button" className="font-pill accent" onClick={goNext}>
+                下一章：{series.episodes[epIndex + 1]?.title ?? ''} ›
               </button>
-              <Link href={exodusCoverHref()} className="font-pill knowledge-story-end-pill-link" onClick={() => markRouteNavigation()}>
-                回封面
-              </Link>
-            </>
-          ) : beat.media === 'fin' ? (
-            <button type="button" className="font-pill accent" onClick={goNext}>
-              下一章：{series.episodes[epIndex + 1]?.title ?? ''} ›
-            </button>
-          ) : (
-            <button type="button" className="font-pill accent" onClick={goNext}>
-              下一拍 ›
-            </button>
-          )}
-        </div>
+            )}
+          </div>
+        ) : null}
         {shareHint ? <p className="muted story-album-share-hint">{shareHint}</p> : null}
       </footer>
 
@@ -514,11 +530,12 @@ function BeatVisual({
             <GeoMiniMap
               places={mapPlaces}
               activeId={beat.place_id}
-              height={260}
+              height={320}
               routeStops={routeStops}
               onPlaceClick={onPlaceClick}
               lockView
               hideActiveCard
+              fitMode="route"
             />
             <button type="button" className="text-link story-beat-map-overview" onClick={onOpenOverview}>
               查看全程 ›

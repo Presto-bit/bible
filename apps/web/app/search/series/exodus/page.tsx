@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import PageBackBar from '@/components/PageBackBar';
-import { useFlowBack } from '@/lib/use_edge_swipe_back';
 import {
   EXODUS_STORY,
   exodusPlayHref,
@@ -17,7 +16,6 @@ import { markRouteNavigation } from '@/lib/pwa_tab_nav';
 
 export default function ExodusSeriesCoverPage() {
   const router = useRouter();
-  const goBack = useFlowBack('/search');
   const series = EXODUS_STORY;
   const [ready, setReady] = useState(false);
   const [progress, setProgress] = useState(() => getStoryAlbumProgress(series.id));
@@ -54,7 +52,7 @@ export default function ExodusSeriesCoverPage() {
   return (
     <main className="container story-album-cover-page">
       <header className="page-head">
-        <PageBackBar onClick={goBack} label="搜索" />
+        <PageBackBar href="/search" label="搜索" onClick={() => markRouteNavigation()} />
       </header>
 
       <section className="story-album-hero">

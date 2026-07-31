@@ -41,14 +41,22 @@
         },
         {
           "order": 4,
-          "place_id": "wilderness-of-sinai",
-          "label": "西奈旷野",
-          "ref": "EXO 19:1",
-          "note": "出埃及后第三个月，百姓来到西奈的旷野，在山前安营，准备朝见神。",
-          "ask_seed": "来到西奈山前，神对以色列人的呼召是什么？"
+          "place_id": "elim",
+          "label": "以琳",
+          "ref": "EXO 15:27",
+          "note": "十二股水泉、七十棵棕树：苦水之后，神也赐下休息与供应的绿洲。",
+          "ask_seed": "以琳的水泉与棕树，在叙事里起什么作用？"
         },
         {
           "order": 5,
+          "place_id": "rephidim",
+          "label": "利非订",
+          "ref": "EXO 17:6",
+          "note": "百姓又缺水争闹；神吩咐摩西击打磐石，水就流出。随后也在此抵挡亚玛力人。",
+          "ask_seed": "利非订的磐石出水与争战，显明神怎样与百姓同在？"
+        },
+        {
+          "order": 6,
           "place_id": "mount-sinai",
           "label": "西奈山",
           "ref": "EXO 19:20",

@@ -39,7 +39,10 @@ function project(
   return { x, y };
 }
 
-function boundsForPlaces(places: GeoPlace[]) {
+function boundsForPlaces(
+  places: GeoPlace[],
+  fitMode: 'region' | 'route' = 'region',
+) {
   const valid = places.filter((p) => Number.isFinite(p.latitude) && Number.isFinite(p.longitude));
   if (!valid.length) {
     return { minLat: 28, maxLat: 36, minLng: 30, maxLng: 40, valid };
@@ -54,13 +57,26 @@ function boundsForPlaces(places: GeoPlace[]) {
     minLng = Math.min(minLng, p.longitude);
     maxLng = Math.max(maxLng, p.longitude);
   }
-  // 至少展示黎凡特区域，避免单点缩成「一个点」
-  minLat = Math.min(minLat, 28);
-  maxLat = Math.max(maxLat, 36);
-  minLng = Math.min(minLng, 30);
-  maxLng = Math.max(maxLng, 40);
-  const latPad = Math.max((maxLat - minLat) * 0.12, 0.4);
-  const lngPad = Math.max((maxLng - minLng) * 0.12, 0.4);
+  if (fitMode === 'region') {
+    // 至少展示黎凡特区域，避免单点缩成「一个点」
+    minLat = Math.min(minLat, 28);
+    maxLat = Math.max(maxLat, 36);
+    minLng = Math.min(minLng, 30);
+    maxLng = Math.max(maxLng, 40);
+  }
+  const latSpan0 = Math.max(maxLat - minLat, fitMode === 'route' ? 0.35 : 0.8);
+  const lngSpan0 = Math.max(maxLng - minLng, fitMode === 'route' ? 0.45 : 0.8);
+  // 路线模式：收紧视野，避免点挤在角落
+  if (fitMode === 'route') {
+    const latMid = (minLat + maxLat) / 2;
+    const lngMid = (minLng + maxLng) / 2;
+    minLat = latMid - latSpan0 / 2;
+    maxLat = latMid + latSpan0 / 2;
+    minLng = lngMid - lngSpan0 / 2;
+    maxLng = lngMid + lngSpan0 / 2;
+  }
+  const latPad = Math.max((maxLat - minLat) * (fitMode === 'route' ? 0.22 : 0.12), fitMode === 'route' ? 0.25 : 0.4);
+  const lngPad = Math.max((maxLng - minLng) * (fitMode === 'route' ? 0.22 : 0.12), fitMode === 'route' ? 0.3 : 0.4);
   return {
     minLat: minLat - latPad,
     maxLat: maxLat + latPad,
@@ -68,6 +84,29 @@ function boundsForPlaces(places: GeoPlace[]) {
     maxLng: maxLng + lngPad,
     valid,
   };
+}
+
+/** 近距标签上下错开，减轻重叠 */
+function labelOffsets(
+  pts: { id: string; x: number; y: number }[],
+  minDist = 28,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  const sorted = [...pts].sort((a, b) => a.x - b.x || a.y - b.y);
+  for (let i = 0; i < sorted.length; i++) {
+    const cur = sorted[i]!;
+    let dy = 0;
+    for (let j = 0; j < i; j++) {
+      const prev = sorted[j]!;
+      const dist = Math.hypot(cur.x - prev.x, cur.y - prev.y);
+      if (dist < minDist) {
+        const prevDy = out.get(prev.id) ?? 0;
+        dy = prevDy <= 0 ? 14 : -14;
+      }
+    }
+    out.set(cur.id, dy);
+  }
+  return out;
 }
 
 export function GeoMiniMap({
@@ -79,6 +118,8 @@ export function GeoMiniMap({
   /** 图册播放器：禁止拖/缩放，只保留点选 */
   lockView = false,
   hideActiveCard = false,
+  /** region=黎凡特大图；route=只贴合路线点（图册默认） */
+  fitMode,
 }: {
   places: GeoPlace[];
   activeId?: string | null;
@@ -87,10 +128,12 @@ export function GeoMiniMap({
   onPlaceClick?: (place: GeoPlace) => void;
   lockView?: boolean;
   hideActiveCard?: boolean;
+  fitMode?: 'region' | 'route';
 }) {
+  const resolvedFit = fitMode ?? (lockView ? 'route' : 'region');
   const w = 360;
   const h = height;
-  const pad = 16;
+  const pad = resolvedFit === 'route' ? 28 : 16;
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
@@ -106,9 +149,19 @@ export function GeoMiniMap({
     return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
   };
 
-  const { bounds, byId, routePoints, missingRoute } = useMemo(() => {
-    const { valid, ...b } = boundsForPlaces(places);
+  const { bounds, byId, routePoints, missingRoute, labelDy } = useMemo(() => {
+    const routeIds = new Set((routeStops ?? []).map((s) => s.placeId));
+    const scoped = resolvedFit === 'route' && routeIds.size
+      ? places.filter((p) => routeIds.has(p.id))
+      : places;
+    const { valid, ...b } = boundsForPlaces(scoped.length ? scoped : places, resolvedFit);
     const idMap = new Map(valid.map((p) => [p.id, p]));
+    // 仍挂上路线里有坐标的点
+    for (const p of places) {
+      if (Number.isFinite(p.latitude) && Number.isFinite(p.longitude) && !idMap.has(p.id)) {
+        if (resolvedFit !== 'route' || routeIds.has(p.id)) idMap.set(p.id, p);
+      }
+    }
     const ordered = (routeStops ?? []).slice().sort((a, b) => a.order - b.order);
     const pts: { x: number; y: number; placeId: string; order: number }[] = [];
     let missing = 0;
@@ -121,8 +174,9 @@ export function GeoMiniMap({
       const { x, y } = project(p.latitude, p.longitude, b, w, h, pad);
       pts.push({ x, y, placeId: stop.placeId, order: stop.order });
     }
-    return { bounds: b, byId: idMap, routePoints: pts, missingRoute: missing };
-  }, [places, routeStops, w, h]);
+    const dy = labelOffsets(pts.map((p) => ({ id: p.placeId, x: p.x, y: p.y })));
+    return { bounds: b, byId: idMap, routePoints: pts, missingRoute: missing, labelDy: dy };
+  }, [places, routeStops, w, h, pad, resolvedFit]);
 
   const viewBox = useMemo(() => {
     const vbW = w / zoom;
@@ -241,7 +295,7 @@ export function GeoMiniMap({
         <svg viewBox={viewBox} className="geo-mini-map-svg" role="img" aria-label="地图">
           <rect width={w} height={h} fill="var(--paper-2, #ebe4d6)" rx="8" />
           <path d={COAST_SILHOUETTE} fill="var(--paper-3, #e0d8cc)" opacity="0.85" />
-          {REGION_LABELS.map((r) => (
+          {resolvedFit === 'region' ? REGION_LABELS.map((r) => (
             <text
               key={r.text}
               x={r.x}
@@ -252,7 +306,7 @@ export function GeoMiniMap({
             >
               {r.text}
             </text>
-          ))}
+          )) : null}
           {routeLine ? (
             <polyline
               points={routeLine}
@@ -270,6 +324,8 @@ export function GeoMiniMap({
             const active = activeId && p.id === activeId;
             const onRoute = routePoints.find((r) => r.placeId === p.id);
             const clickable = Boolean(onPlaceClick);
+            const dy = labelDy.get(p.id) ?? 0;
+            const showLabel = !lockView || active;
             return (
               <g
                 key={p.id}
@@ -282,11 +338,11 @@ export function GeoMiniMap({
                 <circle
                   cx={x}
                   cy={y}
-                  r={active ? 9 : 6}
+                  r={active ? 10 : 6}
                   fill={active ? 'var(--accent, #3d6b8e)' : 'var(--gold, #b8956a)'}
                   stroke="#fff"
                   strokeWidth="1.5"
-                  opacity={active || !lockView ? 1 : 0.55}
+                  opacity={active || !lockView ? 1 : 0.5}
                 />
                 {onRoute ? (
                   <text
@@ -300,18 +356,20 @@ export function GeoMiniMap({
                     {routePoints.findIndex((r) => r.placeId === p.id) + 1}
                   </text>
                 ) : null}
-                <text
-                  x={x}
-                  y={y - 12}
-                  textAnchor="middle"
-                  fontSize="9"
-                  fill="var(--ink-muted, #6b6358)"
-                  fontWeight={active ? 700 : 400}
-                >
-                  {(p.name || p.id).length > 10
-                    ? `${(p.name || p.id).slice(0, 10)}…`
-                    : (p.name || p.id)}
-                </text>
+                {showLabel ? (
+                  <text
+                    x={x}
+                    y={y - 12 + dy}
+                    textAnchor="middle"
+                    fontSize={active ? 11 : 9}
+                    fill="var(--ink, #1a1a1a)"
+                    fontWeight={active ? 700 : 400}
+                  >
+                    {(p.name || p.id).length > 10
+                      ? `${(p.name || p.id).slice(0, 10)}…`
+                      : (p.name || p.id)}
+                  </text>
+                ) : null}
               </g>
             );
           })}
