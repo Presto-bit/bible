@@ -17,7 +17,7 @@ export function useNativeVerseSelection(): boolean {
 
 /**
  * 原生划选落定后是否自动收起系统选区。
- * - 触控 / PWA standalone：必须收起，否则会弹出系统「拷贝 / 查询」栏
+ * - 触控 / PWA standalone：必须收起，否则会弹出系统「拷贝 / 翻译」栏
  * - 桌面精细指针：保留浏览器选区高亮
  */
 export function shouldAutoCollapseNativeSelection(): boolean {
@@ -29,5 +29,7 @@ export function shouldAutoCollapseNativeSelection(): boolean {
   ) {
     return true;
   }
+  // 任意粗指针（手机/多数平板）都收起系统栏
+  if (window.matchMedia('(pointer: coarse)').matches) return true;
   return !isFinePointerUI();
 }

@@ -2020,10 +2020,15 @@ export default function ReaderView({
       }
     };
 
-    const collapseSystemSelection = () => {
-      if (nativeSelectingRef.current || nativePinSuppressRef.current) return;
+    const collapseSystemSelection = (opts?: { force?: boolean }) => {
+      if (!opts?.force && nativeSelectingRef.current) return;
+      if (nativePinSuppressRef.current) return;
       if (Date.now() < dismissUntilRef.current) return;
-      const pinned = readNativePinnedHighlight(root);
+      const pinned = readNativePinnedHighlight(root)
+        ?? (() => {
+          const basic = readNativeVerseSelection(root);
+          return basic ? { ...basic, spans: [] as NativePinnedHighlight['spans'] } : null;
+        })();
       if (pinned?.text) {
         nativePinnedHighlightRef.current = pinned;
         flushSync(() => {
@@ -2046,10 +2051,9 @@ export default function ReaderView({
         wordRangeRef.current = null;
         lastSelectAt.current = Date.now();
         swipeIgnoreUntilRef.current = Date.now() + 320;
-        // 同步绘蓝底，避免等 effect 时空一帧
         applyNativePinnedHighlight(root, pinned);
       }
-      // 清系统选区（藏拷贝/查询栏）；应用蓝底与工具条保持到点工具或空白
+      // 清系统选区（藏拷贝/翻译栏）；应用蓝底与工具条保持到点工具或空白
       pinningRef.current = true;
       clearBrowserSelection();
       root.classList.add('reader-sel-locked');
@@ -2057,17 +2061,19 @@ export default function ReaderView({
         clearBrowserSelection();
         window.setTimeout(clearBrowserSelection, 30);
         window.setTimeout(clearBrowserSelection, 120);
+        window.setTimeout(clearBrowserSelection, 280);
         pinningRef.current = false;
       });
     };
 
     const scheduleCollapse = (delayMs: number) => {
-      if (nativeSelectingRef.current || nativePinSuppressRef.current) return;
+      if (nativePinSuppressRef.current) return;
       if (Date.now() < dismissUntilRef.current) return;
       window.clearTimeout(nativeCollapseTimerRef.current);
       nativeCollapseTimerRef.current = window.setTimeout(() => {
         nativeCollapseTimerRef.current = 0;
-        collapseSystemSelection();
+        // 定时器触发时 selecting 应已结束
+        collapseSystemSelection({ force: true });
       }, delayMs);
     };
 
@@ -2112,12 +2118,17 @@ export default function ReaderView({
           setNativeSelection(next);
           setWholeVerseSel([]);
           setWordRange(null);
+          // 先结束 selecting，否则 collapse 会被 nativeSelectingRef 挡掉
+          nativeSelectingRef.current = false;
+          setNativeSelecting(false);
         });
         nativeSelectionRef.current = next;
         wordRangeRef.current = null;
         markNativeSelectionCommitted();
         /* 立刻收起系统选区：应用内 pin + 蓝底/工具条保留到点工具或空白 */
-        if (autoCollapseNativeSel) collapseSystemSelection();
+        if (autoCollapseNativeSel) {
+          collapseSystemSelection({ force: true });
+        }
         return;
       }
       setLiveNativeSelection(null);
@@ -2137,7 +2148,7 @@ export default function ReaderView({
           clearBrowserSelection();
           return;
         }
-        // 已 pin：若系统又拉起选区（PWA 常见），立刻清掉，避免拷贝/查询栏
+        // 已 pin：若系统又拉起选区（PWA 常见），立刻清掉，避免拷贝/翻译栏
         if (
           autoCollapseNativeSel
           && !nativeSelectingRef.current
@@ -2170,6 +2181,7 @@ export default function ReaderView({
           }
           return next;
         });
+        nativeSelectionRef.current = next;
         markNativeSelectionCommitted();
         if (autoCollapseNativeSel) scheduleCollapse(0);
       });
@@ -2186,12 +2198,11 @@ export default function ReaderView({
     };
 
     const onPointerUp = (e: PointerEvent | TouchEvent) => {
-      // 先提交选区再结束 selecting，避免 hasSel 空一帧导致蓝底/工具条闪灭
+      // 先提交选区（内部会结束 selecting 并收起系统栏）
       commitLiveSelection();
-      setSelecting(false);
+      if (nativeSelectingRef.current) setSelecting(false);
       if (e instanceof PointerEvent && e.pointerType === 'mouse' && isFinePointerUI()) {
-        const next = readNativeVerseSelection(root) || nativeSelectionRef.current;
-        if (next) {
+        if (nativeSelectionRef.current) {
           suppressGhostClickUntil = Date.now() + 400;
           root.addEventListener('click', blockGhostClick, true);
           window.setTimeout(() => {
@@ -2428,10 +2439,11 @@ export default function ReaderView({
     (e: React.MouseEvent) => {
       if (focusBarRef.current?.contains(e.target as Node)) return;
       const t = e.target as HTMLElement;
-      if (t.closest('.verse-inline') || t.closest('.reader-focus-bar')) return;
-      const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
+      if (t.closest('.reader-focus-bar')) return;
+      const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
       if (hasSel || hasPinned) {
-        if (Date.now() - lastSelectAt.current < 500) return;
+        // 松手后极短窗口忽略，避免抬手余波立刻关掉；之后点经文/空白均可收起
+        if (Date.now() - lastSelectAt.current < 280) return;
         dismissNativeSelection();
       }
     },
@@ -2473,8 +2485,9 @@ export default function ReaderView({
   const handleVerseClick = useCallback(
     (e: React.MouseEvent, verse: number, text: string) => {
       e.stopPropagation();
-      const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
+      const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
       if (hasSel || hasPinned) {
+        if (Date.now() - lastSelectAt.current < 280) return;
         dismissNativeSelection();
         return;
       }
@@ -2519,6 +2532,22 @@ export default function ReaderView({
     document.addEventListener('copy', onCopy);
     return () => document.removeEventListener('copy', onCopy);
   }, [hasSel, dismissNativeSelection]);
+
+  // 触控上 click 偶发不触发：用 pointerdown 收起应用工具条（点空白/经文均可）
+  useEffect(() => {
+    if (!hasSel || !autoCollapseNativeSel) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (Date.now() - lastSelectAt.current < 280) return;
+      const t = e.target;
+      if (!(t instanceof Element)) return;
+      if (focusBarRef.current?.contains(t)) return;
+      if (t.closest('.reader-focus-bar')) return;
+      if (t.closest('.reader-mark-wrap') || t.closest('.reader-mark-popover')) return;
+      dismissNativeSelection();
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [hasSel, autoCollapseNativeSel, dismissNativeSelection]);
 
   const prevHasSelRef = useRef(false);
   useEffect(() => {
@@ -2813,14 +2842,14 @@ export default function ReaderView({
       className={`container reader-page reader-theme-${theme} ${poetry ? 'reader-poetry' : 'reader-prose'}${chromeHidden ? ' reader-chrome-hidden' : ''}`}
       onClick={(e) => {
         if (focusBarRef.current?.contains(e.target as Node)) return;
-        const hasPinned = Boolean(nativePinnedHighlightRef.current?.spans.length);
+        const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
         if (hasSel || hasPinned) {
-          if (Date.now() - lastSelectAt.current < 500) return;
+          if (Date.now() - lastSelectAt.current < 280) return;
           dismissNativeSelection();
           return;
         }
         // 忽略长按/双击后的余波点击，避免立即取消选中。
-        if (Date.now() - lastSelectAt.current < 500) return;
+        if (Date.now() - lastSelectAt.current < 280) return;
         if (overlayOpen) return;
         toggleChrome();
       }}
