@@ -11,6 +11,7 @@ import {
   resolvePwaPathname,
   subscribePwaTabNav,
 } from '@/lib/pwa_tab_nav';
+import { isAssistantStreamBusy } from '@/lib/assistant_stream_busy';
 import { TabKeepAliveProvider } from './TabKeepAliveContext';
 
 function subscribeKeepAlive(onChange: () => void) {
@@ -24,8 +25,10 @@ function getKeepAliveSnapshot() {
 }
 
 const paneLoading = (
-  <main className="container">
-    <p className="muted">加载中…</p>
+  <main className="container tab-pane-skeleton" aria-busy="true" aria-label="加载中">
+    <div className="tab-skel-block tab-skel-hero" />
+    <div className="tab-skel-block" />
+    <div className="tab-skel-block tab-skel-short" />
   </main>
 );
 
@@ -78,8 +81,8 @@ const TAB_COMPONENTS: Record<KeepAliveTabId, React.ComponentType<{ paneActive?: 
 };
 
 const ALL_TABS: KeepAliveTabId[] = ['home', 'reader', 'assistant', 'discover', 'profile'];
-/** 同时保活上限：home + 当前 + 1 个最近访问，降低阅读器/小爱常驻内存 */
-const MAX_MOUNTED_TABS = 3;
+/** 同时保活上限：home + reader + 当前（或再加 1 个最近），降低阅读器被踢后重拉目录 */
+const MAX_MOUNTED_TABS = 4;
 
 function emptyMounted(): Record<KeepAliveTabId, boolean> {
   return {
@@ -126,7 +129,9 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       let mountedIds = ALL_TABS.filter((t) => next[t]);
       if (mountedIds.length <= MAX_MOUNTED_TABS) return next;
 
-      const protectedTabs = new Set<KeepAliveTabId>(['home', activeTab]);
+      const protectedTabs = new Set<KeepAliveTabId>(['home', 'reader', activeTab]);
+      // 流式生成中勿驱逐小爱，避免切 Tab 后信息流中断
+      if (isAssistantStreamBusy()) protectedTabs.add('assistant');
       const victims = mountedIds
         .filter((t) => !protectedTabs.has(t))
         .sort(

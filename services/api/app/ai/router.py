@@ -607,7 +607,7 @@ def chat(
                 yield _sse("delta", {"text": piece})
             # 动态续写：max_tokens 触顶时再请求一次，避免概要等场景半截结束
             if meta.finish_reason == "length" and full:
-                cont_budget = min(max(max_tokens // 2, 256), 800)
+                cont_budget = min(max(max_tokens // 2, 400), 1200)
                 cont_msgs = messages + [
                     {"role": "assistant", "content": "".join(full)},
                     {

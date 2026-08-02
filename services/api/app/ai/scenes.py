@@ -8,10 +8,11 @@ _MD = (
     "使用标准 Markdown：小节用 ### 中文标题（如 ### 摘要），"
     "列表用 - 或 1. ，不要用【】包裹标题。"
 )
-# 方案 D：篇幅为建议值；要点未讲完须写完整，避免硬截断
+# 方案 D：篇幅为建议区间；要点未讲完须写完整，避免硬截断或过早收束
 _LEN_HINT = (
     "建议控制篇幅，但若各小节要点未讲完须写完整、句子收束自然，"
-    "不要为凑短而省略关键内容，也不要中途截断。"
+    "不要为凑短而省略关键内容，也不要中途截断；"
+    "宁可写到建议区间上沿，也不要在约 200 字处提前结束。"
 )
 
 
@@ -31,7 +32,7 @@ SCENES: dict[str, SceneSpec] = {
         id="verse_quick",
         mode="explain",
         label="快读解释",
-        max_tokens=768,
+        max_tokens=1000,
         wants_followups=False,
         format_guide=(
             f"{_MD}\n"
@@ -40,14 +41,14 @@ SCENES: dict[str, SceneSpec] = {
             "1 句（≤40 字），概括本节要旨。\n"
             "### 经文解释\n"
             "3–5 句，说清原意与关键词，口语自然，避免术语堆砌。\n"
-            f"建议篇幅约 120–220 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
+            f"建议篇幅约 180–320 字。不要输出「相关追问」或「应用」。{_LEN_HINT}"
         ),
     ),
     "verse_full": SceneSpec(
         id="verse_full",
         mode="explain",
         label="综合解读",
-        max_tokens=1200,
+        max_tokens=1400,
         wants_followups=False,
         format_guide=(
             f"{_MD}\n"
@@ -197,7 +198,7 @@ SCENES: dict[str, SceneSpec] = {
         id="chat_general",
         mode="explain",
         label="主题问答",
-        max_tokens=1100,
+        max_tokens=1600,
         wants_followups=True,
         format_guide=(
             f"{_MD}\n"
@@ -209,14 +210,14 @@ SCENES: dict[str, SceneSpec] = {
             "不要套用「经文要旨」「默想引导」「经文解释」等面向单段经文的栏目。\n"
             "### 相关经节\n"
             "2–3 条（- 列表），格式「书卷名 章:节 — 为何值得读」。\n"
-            f"建议篇幅约 200–420 字。{_LEN_HINT}"
+            f"建议篇幅约 380–720 字。{_LEN_HINT}"
         ),
     ),
     "chat_viewpoints": SceneSpec(
         id="chat_viewpoints",
         mode="explain",
         label="并列观点",
-        max_tokens=1400,
+        max_tokens=1800,
         wants_followups=True,
         format_guide=(
             f"{_MD}\n"
@@ -237,7 +238,7 @@ SCENES: dict[str, SceneSpec] = {
             "约束：每个观点尽量挂脚注；资料不足时写「本次资料不足，仅作常见分类说明」，"
             "禁止伪造注释来源。可用「传统上较多教会持 A」这类描述性表述（需有据）。\n"
             "相关追问优先给：「只展开观点 A」「双方经文对照」「这对今日应用意味着什么」。\n"
-            f"建议篇幅约 260–480 字。{_LEN_HINT}"
+            f"建议篇幅约 360–640 字。{_LEN_HINT}"
         ),
     ),
     "summary_chapter": SceneSpec(

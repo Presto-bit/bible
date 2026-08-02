@@ -146,7 +146,7 @@ export function parseAnswer(text: string, serverFollowups?: string[]): ParsedAns
   return { body, followups };
 }
 
-/** 流式未完成时，隐藏半截标题行或【标签行 */
+/** 流式未完成时，仅隐藏半截【标签 / 裸 ###，完整标题照常显示 */
 export function streamingSafeBody(text: string): string {
   const t = stripFollowups(text);
   const lines = t.split('\n');
@@ -154,8 +154,7 @@ export function streamingSafeBody(text: string): string {
   const trimmed = last.trim();
   if (
     /^【[^】]*$/.test(trimmed)
-    || (trimmed.includes('【') && !trimmed.includes('】'))
-    || /^###\s+[^\n]*$/.test(trimmed)
+    || /^###\s*$/.test(trimmed)
   ) {
     return lines.slice(0, -1).join('\n').trimEnd();
   }

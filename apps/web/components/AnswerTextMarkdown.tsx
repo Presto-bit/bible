@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import type { Components } from 'react-markdown';
+import { streamingSafeBody } from '@/lib/assistant_format';
 import { prepareAssistantMarkdown, parseCitationHref } from '@/lib/assistant_markdown';
 
 type Props = {
@@ -48,7 +49,7 @@ export default function AnswerText({
   onCitationClick,
 }: Props) {
   const markdown = useMemo(
-    () => prepareAssistantMarkdown(text, streaming),
+    () => (streaming ? '' : prepareAssistantMarkdown(text, false)),
     [text, streaming],
   );
 
@@ -118,17 +119,36 @@ export default function AnswerText({
     td: ({ children }) => <td className="ans-md-td">{children}</td>,
   }), [onCitationClick]);
 
-  if (streaming && !markdown.trim()) {
+  if (streaming) {
+    const safe = streamingSafeBody(text);
+    if (!safe.trim()) {
+      return (
+        <div className="answer-rich answer-rich-md answer-rich-streaming">
+          <p className="ans-md-p muted">小爱正在组织回答…</p>
+        </div>
+      );
+    }
+    // 流式阶段用纯文本，避免每帧 ReactMarkdown 重解析导致卡顿
     return (
       <div className="answer-rich answer-rich-md answer-rich-streaming">
-        <p className="ans-md-p muted">小爱正在组织回答…</p>
+        <p className="ans-md-p" style={{ whiteSpace: 'pre-wrap' }}>
+          {safe}
+        </p>
+      </div>
+    );
+  }
+
+  if (!markdown.trim()) {
+    return (
+      <div className="answer-rich answer-rich-md">
+        <p className="ans-md-p muted">…</p>
       </div>
     );
   }
 
   return (
     <div
-      className={`answer-rich answer-rich-md${streaming ? ' answer-rich-streaming' : ''}${dense ? ' answer-rich-dense' : ''}`}
+      className={`answer-rich answer-rich-md${dense ? ' answer-rich-dense' : ''}`}
     >
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {markdown}

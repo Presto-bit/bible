@@ -11,6 +11,8 @@ import { useToast } from '@/components/ui/ToastProvider';
 import { CitationBar } from '@/components/CitationBar';
 import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
 import { AssistantNextSteps } from '@/components/assistant/AssistantNextSteps';
+import { AssistantUserBubble } from '@/components/assistant/AssistantUserBubble';
+import { setAssistantStreamBusy } from '@/lib/assistant_stream_busy';
 import { addThought } from '@/lib/reader_thoughts';
 import {
   recordCitationClick,
@@ -512,13 +514,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     const el = scrollRef.current;
     if (!el) return;
     if (isNearBottom(el)) {
-      if (streamFollowLockedRef.current) {
-        streamFollowLockedRef.current = false;
-      }
+      streamFollowLockedRef.current = false;
       setShowJumpToBottom(false);
       return;
     }
-    if (busy && streamFollowLockedRef.current) {
+    // 用户上滑离开底部：暂停跟滚，保留「跟随最新 / 查看全文」
+    if (busy) {
+      streamFollowLockedRef.current = true;
       setShowJumpToBottom(true);
     }
   };
@@ -614,7 +616,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   const cancelStream = () => {
     abortRef.current?.abort();
     abortRef.current = null;
+    if (rafRef.current != null) {
+      window.clearTimeout(rafRef.current);
+      rafRef.current = null;
+    }
     setBusy(false);
+    setAssistantStreamBusy(false);
     setSlowHint(false);
     setStreamPhase('understanding');
     setStreamCiteCount(0);
@@ -627,6 +634,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       return copy;
     });
   };
+
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      setAssistantStreamBusy(false);
+    };
+  }, []);
 
   const send = async (
     question?: string,
@@ -667,11 +681,12 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     setMode(m);
     replaceComposerValue('');
     const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
-    const assistantMsgIdx = base.length - 1;
     sessionScrollRef.current = false;
-    streamFollowLockedRef.current = true;
+    // 默认跟滚看全文；用户上滑后才锁滚并出现「跟随最新」
+    streamFollowLockedRef.current = false;
     setMsgs(base);
     setBusy(true);
+    setAssistantStreamBusy(true);
     setPendingQuestion(shown);
     setStreamPhase('understanding');
     setStreamCiteCount(0);
@@ -680,7 +695,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     abortRef.current = new AbortController();
     const slowTimer = window.setTimeout(() => setSlowHint(true), 15000);
     requestAnimationFrame(() => {
-      requestAnimationFrame(() => scrollToMsgStart(assistantMsgIdx));
+      requestAnimationFrame(() => scrollThreadToLatest());
     });
     let acc = '';
     let cites: Citation[] = [];
@@ -694,8 +709,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     const applyAcc = () => {
       rafRef.current = null;
       setMsgs((prev) => {
-        const copy = [...prev];
+        if (!prev.length || prev[prev.length - 1]?.role !== 'assistant') return prev;
+        const copy = prev.slice();
+        const last = prev[prev.length - 1]!;
         copy[copy.length - 1] = {
+          ...last,
           role: 'assistant',
           text: acc,
           citations: citationsUsedInText(acc, cites),
@@ -711,85 +729,90 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       });
       maybeFollowStreamScroll();
     };
+    /** 节流：约 12–15fps，减轻整表重渲染卡顿 */
     const scheduleApply = () => {
       if (rafRef.current != null) return;
-      rafRef.current = requestAnimationFrame(applyAcc);
+      rafRef.current = window.setTimeout(applyAcc, 72) as unknown as number;
     };
-    await chatStream(
-      {
-        ref: refForApi,
-        question: q,
-        mode: m,
-        scene,
-        history,
-        surface,
-        reader_context: buildAssistantReaderContext(),
-        knowledge_base_id: undefined,
-      },
-      {
-        onMeta: (meta) => {
-          if (meta.quota && meta.quota.limit > 0) {
-            setAiQuota({
-              used: meta.quota.used,
-              limit: meta.quota.limit,
-              unlimited: false,
-            });
-          } else if (meta.quota) {
-            setAiQuota({ used: 0, limit: 0, unlimited: true });
-          }
-          const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
-          cites = localizeCitations(meta.citations || [], book || undefined);
-          if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
-          if (meta.scene_label) sceneLabel = meta.scene_label;
-          if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
-          if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
-          if (meta.cache_hit || meta.instant) {
-            instantHint =
-              meta.cache_source === 'prewarm' ? '已预读这节 · 秒回' : '缓存 · 秒回';
-          }
-          setStreamCiteCount(cites.length);
-          setStreamPhase('refs');
+    try {
+      await chatStream(
+        {
+          ref: refForApi,
+          question: q,
+          mode: m,
+          scene,
+          history,
+          surface,
+          reader_context: buildAssistantReaderContext(),
+          knowledge_base_id: undefined,
         },
-        onDelta: (t) => {
-          if (!gotDelta) {
-            gotDelta = true;
-            setStreamPhase('writing');
-          }
-          acc += t;
-          scheduleApply();
+        {
+          onMeta: (meta) => {
+            if (meta.quota && meta.quota.limit > 0) {
+              setAiQuota({
+                used: meta.quota.used,
+                limit: meta.quota.limit,
+                unlimited: false,
+              });
+            } else if (meta.quota) {
+              setAiQuota({ used: 0, limit: 0, unlimited: true });
+            }
+            const book = refToChineseLabel(anchor)?.replace(/\s*\d+.*$/, '').trim();
+            cites = localizeCitations(meta.citations || [], book || undefined);
+            if (typeof meta.use_rag === 'boolean') useRag = meta.use_rag;
+            if (meta.scene_label) sceneLabel = meta.scene_label;
+            if (meta.knowledge_base_id) kbId = meta.knowledge_base_id;
+            if (meta.knowledge_base_name) kbName = meta.knowledge_base_name;
+            if (meta.cache_hit || meta.instant) {
+              instantHint =
+                meta.cache_source === 'prewarm' ? '已预读这节 · 秒回' : '缓存 · 秒回';
+            }
+            setStreamCiteCount(cites.length);
+            setStreamPhase('refs');
+          },
+          onDelta: (t) => {
+            if (!gotDelta) {
+              gotDelta = true;
+              setStreamPhase('writing');
+            }
+            acc += t;
+            scheduleApply();
+          },
+          onFollowups: (items) => {
+            serverFollowups = items;
+          },
+          onError: (msg) => {
+            acc = `⚠️ ${msg}`;
+            applyAcc();
+          },
+          onDone: (payload) => {
+            if (payload?.followups?.length) serverFollowups = payload.followups;
+          },
         },
-        onFollowups: (items) => {
-          serverFollowups = items;
-        },
-        onError: (msg) => {
-          acc = `⚠️ ${msg}`;
-          applyAcc();
-        },
-        onDone: (payload) => {
-          if (payload?.followups?.length) serverFollowups = payload.followups;
-        },
-      },
-      { signal: abortRef.current.signal },
-    );
-    window.clearTimeout(slowTimer);
-    abortRef.current = null;
-    if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
+        { signal: abortRef.current.signal },
+      );
+    } finally {
+      window.clearTimeout(slowTimer);
+      abortRef.current = null;
+      if (rafRef.current != null) {
+        window.clearTimeout(rafRef.current);
+        rafRef.current = null;
+      }
+      applyAcc();
+      setBusy(false);
+      setAssistantStreamBusy(false);
+      setSlowHint(false);
+      const el = scrollRef.current;
+      if (streamFollowLockedRef.current && el && !isNearBottom(el)) {
+        setShowJumpToBottom(true);
+      } else {
+        setShowJumpToBottom(false);
+      }
+      setMsgs((prev) => {
+        persist(prev, anchor ?? ref);
+        return prev;
+      });
     }
-    applyAcc();
-    setBusy(false);
-    setSlowHint(false);
-    const el = scrollRef.current;
-    if (streamFollowLockedRef.current && el && !isNearBottom(el)) {
-      setShowJumpToBottom(true);
-    } else {
-      setShowJumpToBottom(false);
-    }
-    setMsgs((prev) => {
-      persist(prev, anchor ?? ref);
-      return prev;
-    });
   };
 
   const sendRef = useRef(send);
@@ -1225,16 +1248,18 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }
                         />
                       )}
-                      <AnswerText
-                        text={m.text}
-                        streaming={isStreaming}
-                        dense={Boolean(m.scene?.startsWith('summary_'))}
-                        onCitationClick={(n) => {
-                          recordCitationClick();
-                          setCitationMsgIdx(i);
-                          setCitationOpen(n);
-                        }}
-                      />
+                      <div className="allow-text-select">
+                        <AnswerText
+                          text={m.text}
+                          streaming={isStreaming}
+                          dense={Boolean(m.scene?.startsWith('summary_'))}
+                          onCitationClick={(n) => {
+                            recordCitationClick();
+                            setCitationMsgIdx(i);
+                            setCitationOpen(n);
+                          }}
+                        />
+                      </div>
                     </div>
                   ) : (
                     <AssistantThinkingState
@@ -1244,11 +1269,23 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                     />
                   )
                 ) : (
-                  <div className="assistant-user-block">
-                    <div className="assistant-user-text">
-                      {m.text || '…'}
-                    </div>
-                  </div>
+                  <AssistantUserBubble
+                    text={m.text || '…'}
+                    disabled={busy}
+                    onCopy={() => {
+                      void copyText(m.text);
+                    }}
+                    onEdit={() => {
+                      replaceComposerValue(m.text);
+                      requestAnimationFrame(() => {
+                        inputRef.current?.focus();
+                        adjustInputHeight();
+                      });
+                    }}
+                    onResend={() => {
+                      void send(m.text, mode, ref || undefined, m.text);
+                    }}
+                  />
                 )}
                 {showActions && (
                   <>

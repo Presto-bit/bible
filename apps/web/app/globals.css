@@ -6321,6 +6321,17 @@ body.assistant-active .assistant-page {
   background: color-mix(in srgb, var(--accent-deep) 7%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--accent-deep) 12%, var(--line));
   color: var(--ink);
+  cursor: pointer;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+.assistant-answer .allow-text-select,
+.assistant-answer .answer-rich {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 .assistant-answer {
