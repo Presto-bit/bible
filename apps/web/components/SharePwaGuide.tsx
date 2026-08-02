@@ -165,7 +165,7 @@ export function SharePwaGuide({
         <span className="share-pwa-bar-desc">{desc}</span>
       </button>
       <button type="button" className="btn share-pwa-bar-cta" onClick={() => openPwaInstallSheet()}>
-        {android ? '去安装' : '去保存'}
+        {android ? '去安装' : '看怎么保存'}
       </button>
       <button type="button" className="share-pwa-bar-x" onClick={softDismiss} aria-label="关闭">
         ✕

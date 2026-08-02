@@ -37,10 +37,14 @@ import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
 import {
   clearInstallPromptDismiss,
+  dismissAndroidAutoInstallThisLoad,
   dismissInstallPrompt,
+  getAndroidAutoSheetOpen,
+  isAndroidAutoInstallDismissedThisLoad,
   isInstallPromptSuppressed,
   noteInstallPromptShown,
   PWA_INSTALL_DISMISS_KEY,
+  setAndroidAutoSheetOpen,
 } from '@/lib/pwa_install_prompt';
 import {
   readPwaInstallContext,
@@ -52,6 +56,7 @@ import {
   detectAndroidTwaInstalled,
 } from '@/lib/android_twa';
 import { wechatInstallPrimaryLabel } from '@/lib/wechat_open_browser';
+import { IosSafariInstallCoach } from '@/components/IosSafariInstallCoach';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -141,14 +146,16 @@ export function InstallPwaSheet({
   const isDesktop = platform === 'desktop';
   const isAndroid = platform === 'android-chrome' || platform === 'android-other';
   const isInApp = platform === 'inapp';
+  const isIosSafari = platform === 'ios-safari';
   const sheetTitle = isDesktop
     ? '保存到桌面 App'
     : isAndroid || (isInApp && !isIOS())
       ? '安装彼爱'
       : '添加到主屏幕';
 
-  /** 分享落地 / 微信内：点关闭或「暂不」只关 Sheet，不写全站冷却（分享条自有冷却） */
+  /** 分享落地 / 微信 / 安卓自动安装：关闭只关本页，不写 2 天冷却（刷新后可再出） */
   const softCloseOnly =
+    isAndroid ||
     platform === 'inapp' ||
     isShareLandingPath(
       typeof window !== 'undefined' ? window.location.pathname : '',
@@ -162,6 +169,17 @@ export function InstallPwaSheet({
   const softClose = () => {
     onClose();
   };
+
+  if (isIosSafari) {
+    return (
+      <IosSafariInstallCoach
+        resumeLabel={resumeLabel}
+        softCloseOnly={softCloseOnly}
+        onDismissPassive={dismissPassive}
+        onSoftClose={softClose}
+      />
+    );
+  }
 
   const goSetAccount = () => {
     dismissInstallPrompt();
@@ -367,7 +385,7 @@ export default function InstallBanner() {
     : normalizeAppPath(routerPath || '/');
   const onHome = pathname === '/';
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(() => getAndroidAutoSheetOpen());
   const [sheetCtx, setSheetCtx] = useState<PwaInstallContext | null>(null);
   const [hidden, setHidden] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
@@ -411,6 +429,7 @@ export default function InstallBanner() {
       const detail = (e as CustomEvent<PwaInstallContext | null>).detail;
       if (detail) setSheetCtx(detail);
       else setSheetCtx(readPwaInstallContext());
+      setAndroidAutoSheetOpen(true);
       setSheetOpen(true);
     };
     window.addEventListener(PWA_INSTALL_SHEET_EVENT, onOpen);
@@ -420,26 +439,40 @@ export default function InstallBanner() {
   // 首页有任务横幅时让路；分享落地页改用 SharePwaGuide，隐藏全站 Banner
   const onShareLanding = isShareLandingPath(pathname);
   const slotFree = (homeClear || !onHome) && !onShareLanding;
+  const isAndroidBrowser =
+    platform === 'android-chrome' || platform === 'android-other';
+  /** 安卓系统浏览器 + 微信等内置浏览器（安卓微信走 APK 引导） */
   const isAndroidPlatform =
-    platform === 'android-chrome' || platform === 'android-other' || platform === 'inapp';
+    isAndroidBrowser || (platform === 'inapp' && !isIOS());
 
-  // 安卓：尽快自动弹出安装 Sheet（不依赖新手引导结束）；iOS/桌面仍用 Banner 节奏
+  // 安卓：尽快自动弹出安装 Sheet（含首页）；切 Tab 保持；仅用户关闭后本页消失；刷新再出
   useEffect(() => {
     if (platform === null) return;
-    if (platform === 'standalone' || isInstallPromptSuppressed()) {
+    if (platform === 'standalone') {
       setHidden(true);
+      setSheetOpen(false);
       return;
     }
     if (isAndroidPlatform) {
-      // 微信内 / 系统浏览器：尽快出安装引导；不挡在 onboarding / 首页任务后
+      // 已打开：立刻恢复（切 Tab / remount），不被 dismiss 以外的逻辑关掉
+      if (getAndroidAutoSheetOpen()) {
+        setHidden(false);
+        setSheetOpen(true);
+        return;
+      }
+      if (isAndroidAutoInstallDismissedThisLoad()) {
+        setHidden(true);
+        return;
+      }
       const t = window.setTimeout(() => {
-        noteInstallPromptShown();
+        if (isAndroidAutoInstallDismissedThisLoad()) return;
+        setAndroidAutoSheetOpen(true);
         setHidden(false);
         setSheetOpen(true);
       }, platform === 'inapp' ? 200 : 320);
       return () => window.clearTimeout(t);
     }
-    if (!onboardingDone || !slotFree) {
+    if (isInstallPromptSuppressed() || !onboardingDone || !slotFree) {
       setHidden(true);
       return;
     }
@@ -451,11 +484,14 @@ export default function InstallBanner() {
   }, [platform, onboardingDone, slotFree, isAndroidPlatform]);
 
   const closeSheet = () => {
+    if (isAndroidPlatform) {
+      dismissAndroidAutoInstallThisLoad();
+    }
     setSheetOpen(false);
     setSheetCtx(null);
     writePwaInstallContext(null);
     // 「暂不」写了冷却后隐藏 Banner；主动打开再 softClose 不写冷却则保持
-    if (isInstallPromptSuppressed()) setHidden(true);
+    if (isAndroidPlatform || isInstallPromptSuppressed()) setHidden(true);
   };
 
   const afterReadLabel = sheetCtx?.resumeLabel || readPwaInstallContext()?.resumeLabel;
@@ -501,7 +537,7 @@ export default function InstallBanner() {
       : platform === 'inapp'
         ? '微信内无法安装，请用浏览器打开'
         : platform === 'ios-safari' || platform === 'ios-other'
-          ? '添加到主屏幕，像 App 一样读经'
+          ? '保存到主屏幕，约 10 秒'
           : platform === 'desktop'
             ? '登录后，把读经数据保存到桌面 App'
             : '安装彼爱 App，从桌面打开';
@@ -511,7 +547,13 @@ export default function InstallBanner() {
       <div className="install-banner" role="region" aria-label={platform === 'desktop' ? '保存到桌面 App' : '安装彼爱'}>
         <button type="button" className="install-banner-main" onClick={() => setSheetOpen(true)}>
           <span>{shortMsg}</span>
-          <span className="install-banner-cta">{platform === 'desktop' ? '去保存' : '去安装'}</span>
+          <span className="install-banner-cta">
+            {platform === 'desktop'
+              ? '去保存'
+              : platform === 'ios-safari' || platform === 'ios-other'
+                ? '看怎么保存'
+                : '去安装'}
+          </span>
         </button>
         <button
           type="button"

@@ -145,3 +145,233 @@
   font-size: 13px;
 }
 
+/* ── iOS Safari 一屏指尖引导 ── */
+.ios-install-coach {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.ios-install-coach-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(20, 28, 24, 0.52);
+  pointer-events: auto;
+  cursor: pointer;
+  animation: ios-install-coach-fade 0.28s ease;
+}
+
+.ios-install-coach-body {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 0 18px calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+  animation: ios-install-coach-rise 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.ios-install-coach-card {
+  position: relative;
+  width: 100%;
+  padding: 18px 16px 16px;
+  border-radius: 18px;
+  background: var(--surface, #fff);
+  box-shadow: 0 10px 36px rgba(20, 28, 24, 0.22);
+  pointer-events: auto;
+}
+
+.ios-install-coach-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted, #7a867f);
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.ios-install-coach-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 28px;
+  margin-bottom: 12px;
+}
+
+.ios-install-coach-icon {
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(79, 107, 93, 0.14);
+}
+
+.ios-install-coach-name {
+  display: block;
+  font-size: 17px;
+  color: var(--pwa-ink, #4f6b5d);
+}
+
+.ios-install-coach-sub {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.ios-install-coach-headline {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--ink, #243028);
+}
+
+.ios-install-coach-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-deep, #4f6b5d);
+}
+
+.ios-install-coach-path > span:not(.ios-install-coach-path-sep) {
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-deep, #4f6b5d) 10%, transparent);
+}
+
+.ios-install-coach-path-sep {
+  font-weight: 500;
+  opacity: 0.55;
+}
+
+.ios-install-coach-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.ios-install-coach-point {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  color: #fff;
+  pointer-events: none;
+}
+
+.ios-install-coach-arrow {
+  display: block;
+  animation: ios-install-coach-bob 1.35s ease-in-out infinite;
+}
+
+.ios-install-coach-target {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ios-install-coach-share {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.96);
+  color: var(--accent-deep, #4f6b5d);
+  box-shadow:
+    0 0 0 0 rgba(255, 255, 255, 0.55),
+    0 4px 16px rgba(0, 0, 0, 0.18);
+  animation: ios-install-coach-pulse 1.6s ease-out infinite;
+}
+
+.ios-install-coach-target-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.ios-install-coach-dismiss {
+  pointer-events: auto;
+  margin: 2px 0 4px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+
+@keyframes ios-install-coach-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes ios-install-coach-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes ios-install-coach-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes ios-install-coach-pulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0.55),
+      0 4px 16px rgba(0, 0, 0, 0.18);
+  }
+  70% {
+    box-shadow:
+      0 0 0 14px rgba(255, 255, 255, 0),
+      0 4px 16px rgba(0, 0, 0, 0.18);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      0 4px 16px rgba(0, 0, 0, 0.18);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-install-coach-scrim,
+  .ios-install-coach-body,
+  .ios-install-coach-arrow,
+  .ios-install-coach-share {
+    animation: none;
+  }
+}
+

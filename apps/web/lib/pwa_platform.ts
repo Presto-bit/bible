@@ -65,13 +65,16 @@ export interface InstallStep {
 export function installSteps(platform: InstallPlatform): InstallStep[] {
   switch (platform) {
     case 'ios-safari':
+      // UI 主路径为 IosSafariInstallCoach；此处供分享页等纯文案兜底
       return [
         {
-          title: '点底部「共享」',
-          detail: 'Safari 底栏中间的 ↑，系统叫「共享」（不是发给朋友）',
+          title: '点底栏「共享」↑',
+          detail: 'Safari 底栏中间，不是发给朋友',
         },
-        { title: '添加到主屏幕', detail: '在弹出菜单里向下滑，点「添加到主屏幕」' },
-        { title: '确认名称「彼爱」', detail: '主屏幕将显示与 iOS 一致的图标与名称' },
+        {
+          title: '添加到主屏幕 → 添加',
+          detail: '菜单里向下滑找到，确认名称「彼爱」即可',
+        },
       ];
     case 'ios-other':
       return [
@@ -131,9 +134,9 @@ export function installHeadline(platform: InstallPlatform): string {
         ? '请先用 Safari 打开，再添加到主屏幕'
         : '请先用系统浏览器打开，再安装彼爱';
     case 'ios-safari':
-      return '添加到主屏幕，像 App 一样打开';
+      return '保存到主屏幕，像打开 App 一样读经';
     case 'ios-other':
-      return '建议在 Safari 中安装';
+      return '建议在 Safari 中保存到主屏幕';
     case 'android-chrome':
       return '安装彼爱 App，从桌面打开更稳定';
     case 'android-other':

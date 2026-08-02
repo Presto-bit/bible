@@ -5,6 +5,32 @@ export const PWA_INSTALL_SESSION_KEY = 'pwa-install-prompt-session';
 /** 关掉后约 2 天可再被动提醒（主动入口不受限） */
 export const PWA_INSTALL_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
 
+/**
+ * 安卓自动安装 Sheet：仅本页内存态。
+ * - 切换 Tab / remount 不丢打开态
+ * - 用户关闭后本页不再出；刷新页面后重置再出
+ * - 不走 localStorage / sessionStorage 冷却
+ */
+let androidAutoSheetOpen = false;
+let androidAutoDismissedThisLoad = false;
+
+export function getAndroidAutoSheetOpen(): boolean {
+  return androidAutoSheetOpen;
+}
+
+export function setAndroidAutoSheetOpen(open: boolean): void {
+  androidAutoSheetOpen = open;
+}
+
+export function isAndroidAutoInstallDismissedThisLoad(): boolean {
+  return androidAutoDismissedThisLoad;
+}
+
+export function dismissAndroidAutoInstallThisLoad(): void {
+  androidAutoDismissedThisLoad = true;
+  androidAutoSheetOpen = false;
+}
+
 function migrateLegacyDismiss(): void {
   try {
     const raw = localStorage.getItem(PWA_INSTALL_DISMISS_KEY);
