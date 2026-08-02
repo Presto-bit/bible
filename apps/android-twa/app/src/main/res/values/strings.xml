@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">彼爱</string>
+    <string name="launcherName">彼爱</string>
+    <string name="providerAuthority">cn.prestoai.peiai.fileprovider</string>
+    <!-- 与 /.well-known/assetlinks.json 对应；包内声明便于部分校验路径 -->
+    <string name="asset_statements">
+      [{
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+          \"namespace\": \"web\",
+          \"site\": \"https://2sc.prestoai.cn\"
+        }
+      }]
+    </string>
+</resources>

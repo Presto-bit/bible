@@ -1,5 +1,7 @@
 /** 低端/省流判定与 Tab 保活策略 */
 
+import { isAndroid } from '@/lib/pwa_platform';
+
 export function isStandalonePwa(): boolean {
   if (typeof window === 'undefined') return false;
   const nav = navigator as Navigator & { standalone?: boolean };
@@ -71,6 +73,9 @@ export function platformAccountHint(): string {
   }
   if (isFinePointerDesktop()) {
     return '电脑浏览器：建议设置密码后再保存到桌面。未设密时数据仅本机，重装后可能丢失。';
+  }
+  if (isAndroid()) {
+    return '安卓建议安装彼爱 App（下载安装包）；设置密码后换机可用手机号或用户 ID + 密码登录同步。';
   }
   return '浏览器临时访问：建议设置密码并添加到主屏幕；换机请用手机号或用户 ID + 密码登录后等待同步完成。';
 }

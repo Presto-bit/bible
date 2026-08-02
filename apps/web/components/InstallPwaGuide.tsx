@@ -10,6 +10,7 @@ import {
   detectInstallPlatform,
   installHeadline,
   installSteps,
+  isIOS,
   type InstallPlatform,
 } from '@/lib/pwa_platform';
 import { BASE_PATH } from '@/lib/basePath';
@@ -46,6 +47,11 @@ import {
   writePwaInstallContext,
   type PwaInstallContext,
 } from '@/lib/pwa_after_read';
+import {
+  androidTwaApkUrl,
+  detectAndroidTwaInstalled,
+} from '@/lib/android_twa';
+import { wechatInstallPrimaryLabel } from '@/lib/wechat_open_browser';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -96,6 +102,7 @@ export function InstallPwaSheet({
   const [platform, setPlatform] = useState<InstallPlatform>(() => detectInstallPlatform());
   const [deferred, setDeferred] = useState<BIPEvent | null>(null);
   const [busy, setBusy] = useState(false);
+  const [androidInstalled, setAndroidInstalled] = useState(false);
   const installCtx = context ?? readPwaInstallContext();
   const resumeLabel = installCtx?.resumeLabel?.trim() || '';
 
@@ -103,6 +110,16 @@ export function InstallPwaSheet({
     if (platformProp) setPlatform(platformProp);
     else setPlatform(detectInstallPlatform());
   }, [platformProp, open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const p = platformProp ?? detectInstallPlatform();
+    if (p === 'android-chrome' || p === 'android-other') {
+      void detectAndroidTwaInstalled().then(setAndroidInstalled);
+    } else {
+      setAndroidInstalled(false);
+    }
+  }, [open, platformProp]);
 
   useEffect(() => {
     if (!open) return;
@@ -122,6 +139,13 @@ export function InstallPwaSheet({
   const iconSrc = `${BASE_PATH || ''}/apple-touch-icon.png`;
   const loggedIn = Boolean(currentUserId() && hasPassword());
   const isDesktop = platform === 'desktop';
+  const isAndroid = platform === 'android-chrome' || platform === 'android-other';
+  const isInApp = platform === 'inapp';
+  const sheetTitle = isDesktop
+    ? '保存到桌面 App'
+    : isAndroid || (isInApp && !isIOS())
+      ? '安装彼爱'
+      : '添加到主屏幕';
 
   /** 分享落地 / 微信内：点关闭或「暂不」只关 Sheet，不写全站冷却（分享条自有冷却） */
   const softCloseOnly =
@@ -183,11 +207,23 @@ export function InstallPwaSheet({
     }
   };
 
+  const runAndroidApkInstall = async () => {
+    setBusy(true);
+    try {
+      await backupBeforeInstall();
+      toast('开始下载安装包…');
+      window.location.href = androidTwaApkUrl(BASE_PATH || '');
+      await onInstallAccepted();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="sheet-backdrop" onClick={softClose}>
       <div className="sheet card install-pwa-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
-          <strong>{isDesktop ? '保存到桌面 App' : '添加到主屏幕'}</strong>
+          <strong>{sheetTitle}</strong>
           <SheetCloseButton onClick={softClose} />
         </div>
 
@@ -201,13 +237,22 @@ export function InstallPwaSheet({
 
         <p className="install-pwa-headline">
           {resumeLabel && !isDesktop
-            ? `下次从主屏幕一键续读 · ${resumeLabel}`
+            ? isAndroid
+              ? `安装后一键续读 · ${resumeLabel}`
+              : `下次从主屏幕一键续读 · ${resumeLabel}`
             : installHeadline(platform)}
         </p>
 
         {resumeLabel && !isDesktop ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
-            保存到主屏幕后，打开图标即可回到刚才读的地方。
+            {isAndroid
+              ? '安装完成后从桌面打开彼爱，即可回到刚才读的地方。'
+              : '保存到主屏幕后，打开图标即可回到刚才读的地方。'}
+          </p>
+        ) : null}
+        {isAndroid ? (
+          <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
+            安装前会尽量把读经记录保存到账号。从官方站点直接下载安装包，不跳应用商店。
           </p>
         ) : null}
         {isDesktop && !loggedIn ? (
@@ -234,26 +279,22 @@ export function InstallPwaSheet({
           ))}
         </ol>
 
-        {platform === 'android-chrome' && deferred ? (
+        {isAndroid ? (
+          androidInstalled ? (
+            <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, margin: '8px 0 0' }}>
+              检测到本机可能已安装彼爱，请从桌面打开。若图标不见了，仍可重新下载安装。
+            </p>
+          ) : null
+        ) : null}
+
+        {isAndroid ? (
           <button
             type="button"
             className="btn btn-block"
             disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await backupBeforeInstall();
-                await deferred.prompt();
-                await deferred.userChoice;
-                setDeferred(null);
-                clearDeferredInstallPrompt();
-                await onInstallAccepted();
-              } finally {
-                setBusy(false);
-              }
-            }}
+            onClick={() => void runAndroidApkInstall()}
           >
-            {busy ? '正在保存…' : '立即添加'}
+            {busy ? '正在保存读经记录…' : androidInstalled ? '重新下载安装包' : '下载并安装'}
           </button>
         ) : null}
 
@@ -290,7 +331,7 @@ export function InstallPwaSheet({
               toast(wechatOpenBrowserToast(ok));
             }}
           >
-            复制链接，用浏览器打开
+            {wechatInstallPrimaryLabel()}
           </button>
         ) : null}
 
@@ -305,7 +346,7 @@ export function InstallPwaSheet({
             dismissPassive();
           }}
         >
-          暂不保存
+          {isAndroid || (platform === 'inapp' && !isIOS()) ? '暂不安装' : '暂不保存'}
         </button>
       </div>
     </div>

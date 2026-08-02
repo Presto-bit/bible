@@ -1,0 +1,31 @@
+{
+  "packageId": "cn.prestoai.peiai",
+  "host": "2sc.prestoai.cn",
+  "name": "彼爱",
+  "launcherName": "彼爱",
+  "display": "standalone",
+  "themeColor": "#FFFCFA",
+  "themeColorDark": "#E32626",
+  "navigationColor": "#FFFCFA",
+  "backgroundColor": "#E32626",
+  "startUrl": "/",
+  "iconUrl": "https://2sc.prestoai.cn/icon-512.png",
+  "maskableIconUrl": "https://2sc.prestoai.cn/icon-maskable-512.png",
+  "appVersionName": "1.0.0",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "manual-twa",
+  "webManifestUrl": "https://2sc.prestoai.cn/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {},
+  "enableNotifications": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://2sc.prestoai.cn/",
+  "minSdkVersion": 26,
+  "orientation": "portrait-primary",
+  "fingerprints": [
+    "80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16"
+  ]
+}

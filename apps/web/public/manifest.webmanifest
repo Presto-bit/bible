@@ -12,6 +12,14 @@
   "lang": "zh-CN",
   "orientation": "portrait-primary",
   "categories": ["books", "lifestyle"],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "id": "cn.prestoai.peiai",
+      "url": "https://2sc.prestoai.cn/downloads/peiai-android.apk"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

@@ -83,21 +83,35 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
       ];
     case 'android-chrome':
       return [
-        { title: '点「添加」或菜单', detail: '本页可能弹出「添加到主屏幕」，或点右上角 ⋮' },
-        { title: '确认安装', detail: '图标与 iOS 同源，不会另做 Android 风格' },
-        { title: '从主屏幕打开', detail: '全屏竖屏，与 iOS 同款体验' },
+        { title: '点「下载并安装」', detail: '将下载彼爱安装包（不跳应用商店）' },
+        {
+          title: '允许安装',
+          detail: '若系统提示「未知来源 / 允许从此来源安装」，请允许后继续',
+        },
+        { title: '从桌面打开「彼爱」', detail: '安装完成后从主屏幕打开，无浏览器地址栏' },
       ];
     case 'android-other':
       return [
-        { title: '打开浏览器菜单 ⋮', detail: '小米 / 华为 / OPPO 等通常在右上角' },
-        { title: '添加到主屏幕 / 桌面', detail: '文案因浏览器而异（菜单里找「主屏幕 / 桌面」）' },
-        { title: '确认名称「彼爱」', detail: '图标与 iPhone 主屏幕一致' },
+        { title: '点「下载并安装」', detail: '将下载彼爱安装包（不跳应用商店）' },
+        {
+          title: '允许安装',
+          detail: '小米 / 华为 / OPPO 等可能提示「未知应用」，按提示允许即可',
+        },
+        { title: '从桌面打开「彼爱」', detail: '安装完成后从主屏幕打开，体验更稳定' },
       ];
     case 'inapp':
+      // 微信 / QQ：按系统分流（安卓只推 TWA，iOS 只推 PWA）
+      if (typeof navigator !== 'undefined' && isIOS()) {
+        return [
+          { title: '点右上角 ···', detail: '选「在 Safari 打开」或「在默认浏览器中打开」' },
+          { title: '用 Safari 打开本页', detail: '微信内无法直接添加到主屏幕' },
+          { title: '共享 → 添加到主屏幕', detail: 'Safari 底栏 ↑，再选「添加到主屏幕」' },
+        ];
+      }
       return [
-        { title: '点右上角 ···', detail: '微信菜单里选「在浏览器打开」或「用 Safari 打开」' },
-        { title: '复制链接备用', detail: '也可先复制本页链接，粘贴到 Safari / Chrome' },
-        { title: '在浏览器里保存', detail: '系统浏览器里按「共享 / 菜单 → 添加到主屏幕」' },
+        { title: '点右上角 ···', detail: '选「在浏览器打开」或「用默认浏览器打开」' },
+        { title: '用系统浏览器打开本页', detail: '微信 / QQ 内无法直接下载安装包' },
+        { title: '点「下载并安装」', detail: '允许未知来源后安装，再从桌面打开「彼爱」' },
       ];
     case 'desktop':
       return [
@@ -113,15 +127,17 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
 export function installHeadline(platform: InstallPlatform): string {
   switch (platform) {
     case 'inapp':
-      return '请先用 Safari 或 Chrome 打开';
+      return isIOS()
+        ? '请先用 Safari 打开，再添加到主屏幕'
+        : '请先用系统浏览器打开，再安装彼爱';
     case 'ios-safari':
       return '添加到主屏幕，像 App 一样打开';
     case 'ios-other':
       return '建议在 Safari 中安装';
     case 'android-chrome':
-      return '添加到主屏幕，离线也能打开';
+      return '安装彼爱 App，从桌面打开更稳定';
     case 'android-other':
-      return '从浏览器菜单添加到主屏幕';
+      return '安装彼爱 App（直接下载安装包）';
     case 'desktop':
       return '把读经记录保存到桌面 App，重装后也能找回';
     default:

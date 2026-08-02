@@ -64,3 +64,12 @@ venv/
 
 # Offline pack output
 build/offline_pack/
+
+# Android TWA secrets & local SDK
+apps/android-twa/keystore/*.jks
+apps/android-twa/keystore/keystore.properties
+apps/android-twa/local.properties
+apps/android-twa/.gradle/
+apps/android-twa/**/build/
+apps/android-twa/app/build/
+

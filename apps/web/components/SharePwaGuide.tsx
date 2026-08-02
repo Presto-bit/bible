@@ -12,14 +12,17 @@ import { BRAND_NAME } from '@/lib/brand';
 import {
   copyCurrentPageUrl,
   wechatInstallPrimaryLabel,
+  wechatMaskDesc,
+  wechatMaskTitle,
   wechatOpenBrowserToast,
 } from '@/lib/wechat_open_browser';
 import { useToast } from '@/components/ui/ToastProvider';
+import { isAndroid } from '@/lib/pwa_platform';
 
 /**
- * 分享落地页专用 PWA 引导：
- * - 微信等内置浏览器：右上角示意遮罩 + 复制链接
- * - 系统浏览器：读完后底栏「保存到主屏幕」→ 打开 InstallPwaSheet
+ * 分享落地页安装引导：
+ * - 微信等内置浏览器：右上角示意遮罩 + 复制链接（iOS→PWA / 安卓→TWA）
+ * - 系统浏览器：底栏打开 InstallPwaSheet
  */
 export function SharePwaGuide({
   variant = 'analysis',
@@ -96,12 +99,9 @@ export function SharePwaGuide({
         </div>
         <div className="share-wechat-card">
           <p id="share-wechat-title" className="share-wechat-title">
-            在浏览器打开，才能保存成 App
+            {wechatMaskTitle()}
           </p>
-          <p className="share-wechat-desc">
-            微信里无法添加到主屏幕。点右上角 ··· →「在浏览器打开」，再保存
-            {BRAND_NAME}，下次一点就开。
-          </p>
+          <p className="share-wechat-desc">{wechatMaskDesc()}</p>
           <button
             type="button"
             className="btn btn-primary share-wechat-cta"
@@ -118,8 +118,18 @@ export function SharePwaGuide({
     );
   }
 
-  const title =
-    variant === 'invite'
+  const android = isAndroid();
+  const title = android
+    ? variant === 'invite'
+      ? `安装${BRAND_NAME}，一起读`
+      : variant === 'daily'
+        ? `喜欢这节？安装${BRAND_NAME}`
+        : variant === 'campaign'
+          ? `想参加？先安装${BRAND_NAME}`
+          : variant === 'wrapped'
+            ? `留下足迹？安装${BRAND_NAME}`
+            : `喜欢这段？安装${BRAND_NAME}`
+    : variant === 'invite'
       ? `保存${BRAND_NAME}到主屏幕`
       : variant === 'daily'
         ? `喜欢这节经文？保存${BRAND_NAME}到主屏幕`
@@ -128,8 +138,9 @@ export function SharePwaGuide({
           : variant === 'wrapped'
             ? `留下足迹？保存${BRAND_NAME}到主屏幕`
             : `喜欢这段？保存${BRAND_NAME}到主屏幕`;
-  const desc =
-    variant === 'invite'
+  const desc = android
+    ? '下载安装包 · 从桌面打开，不跳应用商店'
+    : variant === 'invite'
       ? '陪你读经，也帮你读懂 · 下次一点就开'
       : variant === 'daily'
         ? '每天一节经文 · 下次一点就开'
@@ -140,7 +151,7 @@ export function SharePwaGuide({
             : '下次一点就开 · 离线也能读经';
 
   return (
-    <div className="share-pwa-bar share-pwa-bar-bottom" role="region" aria-label="保存到主屏幕">
+    <div className="share-pwa-bar share-pwa-bar-bottom" role="region" aria-label={android ? '安装彼爱' : '保存到主屏幕'}>
       <button
         type="button"
         className="share-pwa-bar-main"
@@ -152,7 +163,7 @@ export function SharePwaGuide({
         <span className="share-pwa-bar-desc">{desc}</span>
       </button>
       <button type="button" className="btn share-pwa-bar-cta" onClick={() => openPwaInstallSheet()}>
-        去保存
+        {android ? '去安装' : '去保存'}
       </button>
       <button type="button" className="share-pwa-bar-x" onClick={softDismiss} aria-label="关闭">
         ✕

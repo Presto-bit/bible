@@ -1668,8 +1668,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   />
                   {!installedPwa ? (
                     <SettingsNavRow
-                      title="保存到桌面 App"
-                      hint="像打开 App 一样读"
+                      title="安装彼爱"
+                      hint="安卓下载安装包；iOS 加到主屏幕"
                       onClick={() => {
                         setSettingsOpen(false);
                         openPwaInstallSheet();

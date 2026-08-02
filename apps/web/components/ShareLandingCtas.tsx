@@ -25,10 +25,11 @@ type Props = {
 };
 
 /**
- * 分享落地页统一 CTA：微信内主推「复制并用浏览器打开」；系统浏览器主推保存 PWA。
+ * 分享落地页统一 CTA：微信内主推「复制并用浏览器打开」；
+ * 系统浏览器：安卓主推安装 TWA，iOS 主推加主屏幕。
  */
 export function ShareLandingCtas({
-  installLabel = '保存到主屏幕',
+  installLabel,
   secondary = [{ href: '/', label: `打开${BRAND_NAME}首页` }],
   preferContentPrimary = false,
   contentPrimary,
@@ -42,6 +43,12 @@ export function ShareLandingCtas({
   }, []);
 
   if (!platform) return null;
+
+  const resolvedInstallLabel =
+    installLabel ??
+    (platform === 'android-chrome' || platform === 'android-other'
+      ? '下载并安装彼爱'
+      : '保存到主屏幕');
 
   if (platform === 'standalone') {
     return (
@@ -109,7 +116,7 @@ export function ShareLandingCtas({
           {contentPrimary.label}
         </button>
         <button type="button" className="btn" onClick={() => openPwaInstallSheet()}>
-          {installLabel}
+          {resolvedInstallLabel}
         </button>
         {secondary.map((s) => (
           <Link key={s.href + s.label} className="btn btn-ghost" href={s.href}>
@@ -123,7 +130,7 @@ export function ShareLandingCtas({
   return (
     <div className="share-landing-ctas">
       <button type="button" className="btn btn-primary" onClick={() => openPwaInstallSheet()}>
-        {installLabel}
+        {resolvedInstallLabel}
       </button>
       {contentPrimary ? (
         <button type="button" className="btn" onClick={contentPrimary.onClick}>

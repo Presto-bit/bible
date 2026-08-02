@@ -17,6 +17,17 @@ const nextConfig = {
     // 避免首页等 HTML 被 CDN/Nginx 按 s-maxage=31536000 缓存导致发版后仍显示旧版
     return [
       {
+        source: '/.well-known/assetlinks.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/json; charset=utf-8' },
+          { key: 'Cache-Control', value: 'public, max-age=300' },
+        ],
+      },
+      {
+        source: '/downloads/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=300' }],
+      },
+      {
         source: '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js).*)',
         headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }],
       },
