@@ -199,9 +199,9 @@ export function StoryAlbumPlayer({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     if (absX < SWIPE_MIN || absX < absY) return;
-    // 产品约定：手指右滑 → 下一页；手指左滑 → 上一页（含跨幕回上一幕）
+    // 产品约定：手指左滑 → 下一页；手指右滑 → 上一页（含跨幕回上一幕）
     suppressEdgeClickUntil.current = Date.now() + 450;
-    if (dx > 0) {
+    if (dx < 0) {
       goNext();
     } else {
       goPrev();

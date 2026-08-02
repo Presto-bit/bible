@@ -552,7 +552,10 @@ export default function ReaderView({
     [verses],
   );
 
-  const activeNativeSelection = nativeSelecting ? liveNativeSelection : nativeSelection;
+  const activeNativeSelection =
+    nativeSelecting
+      ? liveNativeSelection
+      : (nativeSelection ?? liveNativeSelection);
 
   const sortedSel = useMemo(() => {
     if (wordRange) return [...wordRangeToSpan(wordRange).verses].sort((a, b) => a - b);
@@ -563,9 +566,11 @@ export default function ReaderView({
   }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
   const nativeSelVerses = useMemo(() => {
     if (!nativeTouchSelect || nativeSelecting) return new Set<number>();
-    // 无 CSS Highlight 时用行级蓝底兜底（绝不能靠保留系统选区，否则 PWA 会弹出拷贝/查询栏）
-    if (nativePinnedHighlight?.verses.length && !supportsCssCustomHighlight()) {
-      return new Set(nativePinnedHighlight.verses);
+    // pin 后保留蓝底：Highlight 不可用或 spans 不完整时用行级兜底
+    if (nativePinnedHighlight?.verses.length) {
+      if (!supportsCssCustomHighlight() || !nativePinnedHighlight.spans.length) {
+        return new Set(nativePinnedHighlight.verses);
+      }
     }
     if (nativePinnedHighlight?.spans.length) return new Set<number>();
     return versesForNativeLineHighlight(verses, nativeSelection);
@@ -2021,28 +2026,35 @@ export default function ReaderView({
       const pinned = readNativePinnedHighlight(root);
       if (pinned?.text) {
         nativePinnedHighlightRef.current = pinned;
-        setNativeSelection({
+        flushSync(() => {
+          setNativeSelection({
+            verses: pinned.verses,
+            text: pinned.text,
+          });
+          setLiveNativeSelection({
+            verses: pinned.verses,
+            text: pinned.text,
+          });
+          setNativePinnedHighlight(pinned);
+          setWholeVerseSel([]);
+          setWordRange(null);
+        });
+        nativeSelectionRef.current = {
           verses: pinned.verses,
           text: pinned.text,
-        });
-        setLiveNativeSelection({
-          verses: pinned.verses,
-          text: pinned.text,
-        });
-        setNativePinnedHighlight(pinned);
-        setWholeVerseSel([]);
-        setWordRange(null);
+        };
         wordRangeRef.current = null;
         lastSelectAt.current = Date.now();
         swipeIgnoreUntilRef.current = Date.now() + 320;
+        // 同步绘蓝底，避免等 effect 时空一帧
+        applyNativePinnedHighlight(root, pinned);
       }
-      // 始终清掉系统选区：蓝底改由 Highlight / verse-sel-active 承担
+      // 清系统选区（藏拷贝/查询栏）；应用蓝底与工具条保持到点工具或空白
       pinningRef.current = true;
       clearBrowserSelection();
       root.classList.add('reader-sel-locked');
       requestAnimationFrame(() => {
         clearBrowserSelection();
-        // iOS PWA 偶发会在下一帧又拉起选区/工具栏
         window.setTimeout(clearBrowserSelection, 30);
         window.setTimeout(clearBrowserSelection, 120);
         pinningRef.current = false;
@@ -2075,11 +2087,11 @@ export default function ReaderView({
       return (
         pinningRef.current
         || nativeSelectingRef.current
-        || Boolean(nativePinnedHighlightRef.current?.spans.length)
+        || Boolean(nativePinnedHighlightRef.current?.verses.length)
+        || Boolean(nativeSelectionRef.current?.verses.length)
         || (
           !autoCollapseNativeSel
           && browserHasNativeSelection()
-          && Boolean(nativeSelectionRef.current?.verses.length)
         )
       );
     };
@@ -2090,33 +2102,29 @@ export default function ReaderView({
     const commitLiveSelection = () => {
       if (selectionLocked()) {
         setLiveNativeSelection(null);
-        window.getSelection()?.removeAllRanges();
+        clearBrowserSelection();
         return;
       }
       const next = readNativeVerseSelection(root);
-      setLiveNativeSelection(next);
-      setNativeSelection((prev) => {
-        if (!next) {
-          if (keepSelectionState()) return prev;
-          return null;
-        }
-        if (
-          prev &&
-          next.text === prev.text &&
-          next.verses.join(',') === prev.verses.join(',')
-        ) {
-          return prev;
-        }
-        return next;
-      });
       if (next) {
-        setWholeVerseSel([]);
-        setWordRange(null);
+        flushSync(() => {
+          setLiveNativeSelection(next);
+          setNativeSelection(next);
+          setWholeVerseSel([]);
+          setWordRange(null);
+        });
+        nativeSelectionRef.current = next;
         wordRangeRef.current = null;
         markNativeSelectionCommitted();
-        /* 立刻收起系统选区：应用内 pin + 工具条保留，系统菜单尽量不出现 */
+        /* 立刻收起系统选区：应用内 pin + 蓝底/工具条保留到点工具或空白 */
         if (autoCollapseNativeSel) collapseSystemSelection();
+        return;
       }
+      setLiveNativeSelection(null);
+      setNativeSelection((prev) => {
+        if (keepSelectionState()) return prev;
+        return null;
+      });
     };
 
     const sync = () => {
@@ -2133,7 +2141,7 @@ export default function ReaderView({
         if (
           autoCollapseNativeSel
           && !nativeSelectingRef.current
-          && Boolean(nativePinnedHighlightRef.current?.spans.length || nativeSelectionRef.current?.verses.length)
+          && Boolean(nativePinnedHighlightRef.current?.verses.length || nativeSelectionRef.current?.verses.length)
           && browserHasNativeSelection()
         ) {
           clearBrowserSelection();
@@ -2145,12 +2153,14 @@ export default function ReaderView({
           setLiveNativeSelection(next);
           return;
         }
+        if (!next) {
+          // 已有应用内选区时，系统选区清空不代表取消选中
+          if (keepSelectionState()) return;
+          setLiveNativeSelection(null);
+          return;
+        }
         setLiveNativeSelection(next);
         setNativeSelection((prev) => {
-          if (!next) {
-            if (keepSelectionState()) return prev;
-            return null;
-          }
           if (
             prev &&
             next.text === prev.text &&
@@ -2160,13 +2170,8 @@ export default function ReaderView({
           }
           return next;
         });
-        if (next) {
-          setWholeVerseSel([]);
-          setWordRange(null);
-          wordRangeRef.current = null;
-          markNativeSelectionCommitted();
-          if (autoCollapseNativeSel) scheduleCollapse(0);
-        }
+        markNativeSelectionCommitted();
+        if (autoCollapseNativeSel) scheduleCollapse(0);
       });
     };
 
@@ -2181,10 +2186,11 @@ export default function ReaderView({
     };
 
     const onPointerUp = (e: PointerEvent | TouchEvent) => {
-      setSelecting(false);
+      // 先提交选区再结束 selecting，避免 hasSel 空一帧导致蓝底/工具条闪灭
       commitLiveSelection();
+      setSelecting(false);
       if (e instanceof PointerEvent && e.pointerType === 'mouse' && isFinePointerUI()) {
-        const next = readNativeVerseSelection(root);
+        const next = readNativeVerseSelection(root) || nativeSelectionRef.current;
         if (next) {
           suppressGhostClickUntil = Date.now() + 400;
           root.addEventListener('click', blockGhostClick, true);
@@ -2231,7 +2237,10 @@ export default function ReaderView({
       || nativePinSuppressRef.current
       || !nativePinnedHighlight?.spans.length
     ) {
-      clearNativePinnedHighlight();
+      // 仅在无选区时清掉；选区仍在时保留已绘蓝底，避免 effect 重跑闪灭
+      if (!hasSel || nativePinSuppressRef.current) {
+        clearNativePinnedHighlight();
+      }
       return;
     }
     const gen = nativePinGenRef.current;
@@ -2242,19 +2251,20 @@ export default function ReaderView({
         || nativePinSuppressRef.current
         || Date.now() < dismissUntilRef.current
       ) {
-        clearNativePinnedHighlight();
+        if (nativePinSuppressRef.current || !hasSelRef.current) {
+          clearNativePinnedHighlight();
+        }
         return;
       }
       const pin = nativePinnedHighlightRef.current;
       if (!pin?.spans.length) {
-        clearNativePinnedHighlight();
+        if (!hasSelRef.current) clearNativePinnedHighlight();
         return;
       }
       applyNativePinnedHighlight(root, pin);
     });
     return () => {
       cancelAnimationFrame(id);
-      clearNativePinnedHighlight();
     };
   }, [
     hasSel,
@@ -2430,6 +2440,9 @@ export default function ReaderView({
 
   useEffect(() => {
     if (hasSel || nativeSelecting) return;
+    // 提交瞬间可能空一帧：有 pin / 刚选中时不要清蓝底
+    if (nativePinnedHighlightRef.current?.verses.length) return;
+    if (Date.now() - lastSelectAt.current < 600) return;
     const root = contentRef.current;
     if (!autoCollapseNativeSel && root) {
       const live = readNativeVerseSelection(root);
