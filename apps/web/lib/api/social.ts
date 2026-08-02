@@ -1,6 +1,6 @@
 /**
- * 社交 / IM API 类型与调用（E7 拆分入口）
- * 实现仍集中在 api.ts；此处供新代码按域导入。
+ * 社交 / IM API 类型与调用（域入口）
+ * 实现仍在 api.ts 聚合对象上；此处供新代码按域导入类型。
  */
 export type {
   ConversationItem,
@@ -9,4 +9,7 @@ export type {
   GroupDetail,
   GroupMessage,
   DmMessage,
+  DiscoverSummary,
+  FriendRequestItem,
+  GroupInviteInboxItem,
 } from '../api';

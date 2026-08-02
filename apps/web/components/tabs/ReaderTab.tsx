@@ -1,11 +1,15 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import '@/styles/reader.css';
+import '@/styles/reader_catalog.css';
+import '@/styles/plans.css';
+
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
 import { bibleBooks } from '@/lib/bible_client';
-import CatalogView from '@/components/reader/CatalogView';
-import ReaderView from '@/components/reader/ReaderView';
+import { seededBooks } from '@/lib/bible_local';
 import { getLastRead, setLastRead } from '@/lib/reading';
 import { hydratePlanFromUrl, type PlanReadingMeta } from '@/lib/plan_reading';
 import { clearReaderChrome } from '@/lib/reader_chrome';
@@ -21,8 +25,6 @@ import {
   type DictContext,
 } from '@/lib/dictionary_match';
 import { recordDictEntity } from '@/lib/badge_events';
-import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
-import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
 import { refSpaceToOsis } from '@/lib/inline_ref';
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { preloadSectionTitles } from '@/lib/section_titles';
@@ -30,6 +32,18 @@ import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import { OfflineInlineNotice } from '@/components/OfflineInlineNotice';
 import { bookAbbr } from '@/lib/book_abbr';
 import { useOnline } from '@/lib/use_online';
+
+
+const CatalogView = dynamic(() => import('@/components/reader/CatalogView'), { ssr: false });
+const ReaderView = dynamic(() => import('@/components/reader/ReaderView'), { ssr: false });
+const EntityKnowledgeSheet = dynamic(
+  () => import('@/components/knowledge/EntityKnowledgeSheet').then((m) => m.EntityKnowledgeSheet),
+  { ssr: false },
+);
+const VersePreviewSheet = dynamic(
+  () => import('@/components/reader/VersePreviewSheet').then((m) => m.VersePreviewSheet),
+  { ssr: false },
+);
 
 type ReaderTabProps = {
   /** PWA 保活：非当前 Tab 时为 false，用于收起阅读器壳层样式 */
@@ -51,7 +65,13 @@ export default function ReaderTab({ paneActive = true }: ReaderTabProps) {
 function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const searchParams = useSearchParams();
   const online = useOnline();
-  const [books, setBooks] = useState<BibleBook[]>([]);
+  const [books, setBooks] = useState<BibleBook[]>(() => {
+    try {
+      return seededBooks();
+    } catch {
+      return [];
+    }
+  });
   const [book, setBook] = useState<BibleBook | null>(null);
   const [chapter, setChapter] = useState(1);
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -203,14 +223,12 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   }, [paneActive, book?.id]);
 
   useEffect(() => {
-    preloadSectionTitles();
-    api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
-
     let idleId: number | undefined;
     let timeoutId: number | undefined;
 
     if (paneActive) {
-      if (booksLenRef.current === 0 || errRef.current) loadBooks(false);
+      // 已有 seed 时静默刷新；无目录才显示 loading
+      loadBooks(booksLenRef.current > 0);
     } else if (typeof navigator !== 'undefined' && navigator.onLine) {
       const run = () => loadBooks(true);
       if (typeof window.requestIdleCallback === 'function') {
@@ -237,6 +255,28 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       window.removeEventListener('online', onOnline);
     };
   }, [paneActive, loadBooks]);
+
+  // 词典 / 大纲：等进入经文阅读后再拉，避免与目录/首章抢带宽
+  useEffect(() => {
+    if (!paneActive || !book || catalogOpen) return;
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+    const run = () => {
+      preloadSectionTitles();
+      void api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(run, { timeout: 2500 });
+    } else {
+      timeoutId = window.setTimeout(run, 400);
+    }
+    return () => {
+      if (idleId != null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) window.clearTimeout(timeoutId);
+    };
+  }, [paneActive, book, catalogOpen]);
 
   const bookRef = useRef(book);
   bookRef.current = book;

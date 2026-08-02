@@ -1,5 +1,7 @@
 'use client';
 
+import '@/styles/assistant.css';
+
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { chatStream, currentUserId, type Citation } from '@/lib/api';

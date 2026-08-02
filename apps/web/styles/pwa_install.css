@@ -1,0 +1,147 @@
+/* Extracted from globals.css — styles/pwa_install.css */
+
+/* lines 21976-22119 */
+/* ── PWA 安装引导 ── */
+.install-banner {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--tabbar-h) + 12px);
+  max-width: 688px;
+  margin: 0 auto;
+  z-index: 50;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: var(--accent-deep);
+  color: #fff;
+}
+
+.install-banner-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+  text-align: left;
+  cursor: pointer;
+}
+
+.install-banner-cta {
+  flex-shrink: 0;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--accent-deep);
+}
+
+.install-banner-close {
+  flex-shrink: 0;
+  width: 44px;
+  border: none;
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.install-pwa-sheet {
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.install-pwa-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--pwa-bg, #fffcfa);
+}
+
+.install-pwa-icon {
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(79, 107, 93, 0.12);
+}
+
+.install-pwa-name {
+  display: block;
+  font-size: 18px;
+  color: var(--pwa-ink, #4f6b5d);
+}
+
+.install-pwa-sub {
+  display: block;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.install-pwa-headline {
+  font-size: 15px;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.install-pwa-steps {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.install-pwa-steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.install-pwa-step-num {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.install-pwa-steps strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.install-pwa-steps .muted {
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.install-pwa-dismiss {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
+}
+

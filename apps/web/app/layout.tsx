@@ -5,19 +5,14 @@ import { AppThemeShell } from '@/components/AppThemeShell';
 import PwaRegister from '@/components/PwaRegister';
 import PwaStandaloneShell from '@/components/PwaStandaloneShell';
 import StaleShellGuard from '@/components/StaleShellGuard';
-import InstallBanner from '@/components/InstallPwaGuide';
-import InviteFriendNudge from '@/components/InviteFriendNudge';
 import IdentityShell from '@/components/IdentityShell';
 import { ConfirmProvider } from '@/components/ui/ConfirmProvider';
 import { ToastProvider } from '@/components/ui/ToastProvider';
 import { PasswordSheetProvider } from '@/components/ui/PasswordSheetProvider';
 import OfflineBar from '@/components/OfflineBar';
-import WebOnboardingSheet from '@/components/WebOnboardingSheet';
-import ExternalBrowserSheet from '@/components/ExternalBrowserSheet';
 import BottomTabs from '@/components/BottomTabs';
 import TabKeepAlive from '@/components/shell/TabKeepAlive';
-import ShareFunnelBootstrap from '@/components/ShareFunnelBootstrap';
-import PwaFirstOpenGuide from '@/components/PwaFirstOpenGuide';
+import DeferredShellOverlays from '@/components/shell/DeferredShellOverlays';
 
 import { BASE_PATH } from '@/lib/basePath';
 import { BRAND_FULL } from '@/lib/brand';
@@ -118,12 +113,7 @@ export default function RootLayout({
               <StaleShellGuard />
               <PwaRegister />
               <PwaStandaloneShell />
-              <InstallBanner />
-              <InviteFriendNudge />
-              <WebOnboardingSheet />
-              <PwaFirstOpenGuide />
-              <ShareFunnelBootstrap />
-              <ExternalBrowserSheet />
+              <DeferredShellOverlays />
             </IdentityShell>
           </PasswordSheetProvider>
           </ToastProvider>

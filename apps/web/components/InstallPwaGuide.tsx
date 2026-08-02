@@ -1,5 +1,7 @@
 'use client';
 
+import '@/styles/pwa_install.css';
+
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { SheetCloseButton } from '@/components/PageBackBar';

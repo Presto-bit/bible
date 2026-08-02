@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useMemo, useRef, useState, Fragment } from 'react';
 import { flushSync } from 'react-dom';
 import Link from 'next/link';
@@ -9,12 +10,9 @@ import {
   type BibleVersion,
   type Verse,
 } from '@/lib/api';
-import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
 import { useToast } from '@/components/ui/ToastProvider';
 import PageBackBar from '@/components/PageBackBar';
-import SummarySheet from '@/components/reader/SummarySheet';
 import { ChapterGuideTip } from '@/components/reader/ChapterGuideTip';
-import VerseCompareSheet from '@/components/reader/VerseCompareSheet';
 import { SectionTitle } from '@/components/reader/SectionTitle';
 import {
   CHAPTER_GUIDE_DWELL_MS,
@@ -25,14 +23,8 @@ import {
   skipChapterGuideThisSession,
 } from '@/lib/chapter_guide_tip';
 import { loadChapterSummary } from '@/lib/bible_summary';
-import { VersePreviewSheet } from '@/components/reader/VersePreviewSheet';
-import ThoughtHubSheet from '@/components/reader/ThoughtHubSheet';
 import ReaderSheetPortal from '@/components/reader/ReaderSheetPortal';
 import AppBodyPortal from '@/components/AppBodyPortal';
-import VersionPickerPop from '@/components/reader/VersionPickerPop';
-import ThoughtWriteSheet from '@/components/reader/ThoughtWriteSheet';
-import GroupCheckinSheet from '@/components/group/GroupCheckinSheet';
-import { ShareToSocialSheet } from '@/components/ShareToSocialSheet';
 import { getCachedChapter, setCachedChapter } from '@/lib/chapter_cache';
 import {
   chapterCacheVersion,
@@ -158,9 +150,7 @@ import {
   getReaderFollowApp,
   setReaderFollowApp,
 } from '@/lib/app_theme';
-import PlanReadingLayer from '@/components/reader/PlanReadingLayer';
 import ReaderChapterPeek from '@/components/reader/ReaderChapterPeek';
-import { ReaderLocPopover } from '@/components/reader/ReaderLocPopover';
 import { useReaderPageTurn } from '@/components/reader/useReaderPageTurn';
 import { buildPlanReadingMeta, type PlanReadingMeta } from '@/lib/plan_reading';
 import { getActivePlan } from '@/lib/plan_progress';
@@ -213,8 +203,33 @@ import {
   sameScriptRoughly,
   type VerseDiffResult,
 } from '@/lib/verse_diff';
-import { ChapterCompleteTip } from '@/components/reader/ChapterCompleteTip';
-import VerseCardSheet from '@/components/reader/VerseCardSheet';
+
+
+const XiaoAiSheet = dynamic(() => import('@/components/reader/XiaoAiSheet'), { ssr: false });
+const SummarySheet = dynamic(() => import('@/components/reader/SummarySheet'), { ssr: false });
+const VerseCompareSheet = dynamic(() => import('@/components/reader/VerseCompareSheet'), { ssr: false });
+const ThoughtHubSheet = dynamic(() => import('@/components/reader/ThoughtHubSheet'), { ssr: false });
+const ThoughtWriteSheet = dynamic(() => import('@/components/reader/ThoughtWriteSheet'), { ssr: false });
+const GroupCheckinSheet = dynamic(() => import('@/components/group/GroupCheckinSheet'), { ssr: false });
+const VerseCardSheet = dynamic(() => import('@/components/reader/VerseCardSheet'), { ssr: false });
+const VersionPickerPop = dynamic(() => import('@/components/reader/VersionPickerPop'), { ssr: false });
+const PlanReadingLayer = dynamic(() => import('@/components/reader/PlanReadingLayer'), { ssr: false });
+const VersePreviewSheet = dynamic(
+  () => import('@/components/reader/VersePreviewSheet').then((m) => m.VersePreviewSheet),
+  { ssr: false },
+);
+const ShareToSocialSheet = dynamic(
+  () => import('@/components/ShareToSocialSheet').then((m) => m.ShareToSocialSheet),
+  { ssr: false },
+);
+const ChapterCompleteTip = dynamic(
+  () => import('@/components/reader/ChapterCompleteTip').then((m) => m.ChapterCompleteTip),
+  { ssr: false },
+);
+const ReaderLocPopover = dynamic(
+  () => import('@/components/reader/ReaderLocPopover').then((m) => m.ReaderLocPopover),
+  { ssr: false },
+);
 
 const FONT_SIZES = [
   { label: '中', px: 18 },

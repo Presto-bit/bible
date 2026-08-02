@@ -1,5 +1,7 @@
 'use client';
 
+import '@/styles/verse_fullscreen.css';
+
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { DailyVerse, DailyVerseReactPreset } from '@/lib/api';

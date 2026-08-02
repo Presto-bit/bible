@@ -115,8 +115,17 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
       forceMarkSyncIdle();
       initializeCloudSyncQueue();
 
-      // 显式 UV 打点（有设备头），避免仅靠中间件静默失败导致看板为 0
-      void api.analyticsVisit().catch(() => {});
+      // UV / 轻量后台：idle 后再跑，避免抢首屏带宽
+      const runLightBackground = () => {
+        void api.analyticsVisit().catch(() => {});
+        void flushCheckinQueue().catch(() => {});
+        rescheduleGroupEveningReminder();
+      };
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(runLightBackground, { timeout: 6_000 });
+      } else {
+        window.setTimeout(runLightBackground, 1500);
+      }
 
       const uid = currentUserId() || effectiveId();
       const loggedInWithPwd = Boolean(currentUserId() && hasPassword());
@@ -159,8 +168,6 @@ export default function IdentityShell({ children }: { children: React.ReactNode 
         setRestoreSheet(true);
       }
 
-      void flushCheckinQueue().catch(() => {});
-      rescheduleGroupEveningReminder();
       void import('@/lib/bible_warmup').then((m) => m.scheduleBibleWarmup());
       // 经包：首页就绪后只下和合本直链（~11MB）
       scheduleOfflinePackAutoDownload();

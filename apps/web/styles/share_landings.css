@@ -1,0 +1,756 @@
+/* Extracted from globals.css — styles/share_landings.css */
+
+/* lines 25069-25821 */
+/* —— 解读分享落地页 —— */
+.analysis-share-page {
+  /* 与 share-landing-page 对齐 */
+  padding-top: 20px;
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  max-width: 520px;
+}
+
+.analysis-share-page .eyebrow {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--muted, #6b6b6b);
+}
+
+.analysis-share-title {
+  margin: 0 0 12px;
+  font-size: clamp(24px, 6vw, 30px);
+  line-height: 1.35;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.analysis-share-lead {
+  margin: 0 0 10px;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink, #1a1a1a);
+}
+
+.analysis-share-more-block {
+  margin: 0 0 16px;
+}
+
+.analysis-share-more {
+  margin: 0 0 8px;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: color-mix(in srgb, var(--ink, #1a1a1a) 88%, transparent);
+}
+
+.analysis-share-expand {
+  font-size: 13px;
+}
+
+.analysis-share-disclaimer {
+  font-size: 13px;
+  margin-top: 20px;
+  margin-bottom: 0;
+  line-height: 1.5;
+}
+
+.analysis-share-ctas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-share-answer {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--accent, #7d9b8a) 8%, var(--surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--accent, #7d9b8a) 16%, transparent);
+}
+
+.analysis-share-compact-hint {
+  margin: 0 0 10px;
+  font-size: 12px;
+}
+
+.analysis-share-snap-meta {
+  margin: 12px 0 0;
+  font-size: 11px;
+}
+
+/* 分享回流 PWA 引导 */
+.share-pwa-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 95;
+  background: color-mix(in srgb, var(--surface, #fffcfa) 92%, #5f7d66);
+  border: 1px solid color-mix(in srgb, #5f7d66 22%, transparent);
+  box-shadow: 0 8px 28px rgba(44, 36, 22, 0.12);
+  padding: 12px 12px 12px 14px;
+}
+
+.share-pwa-bar-top {
+  position: sticky;
+  top: 0;
+  margin: 0 0 16px;
+  border-radius: 12px;
+}
+
+.share-pwa-bar-bottom {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  border-radius: 14px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.share-pwa-bar-body,
+.share-pwa-bar-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.share-pwa-bar-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink, #2c2416);
+}
+
+.share-pwa-bar-desc {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--ink, #2c2416) 62%, transparent);
+}
+
+.share-pwa-bar-cta {
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.share-pwa-bar-x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink, #2c2416) 45%, transparent);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+}
+
+/* 微信内：分享落地 → 系统浏览器遮罩 */
+.share-wechat-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+}
+
+.share-wechat-mask-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(28, 22, 14, 0.52);
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.share-wechat-arrow {
+  position: absolute;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  color: #f7f1e6;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  animation: share-wechat-pulse 1.6s ease-in-out infinite;
+}
+
+.share-wechat-arrow-tip {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+.share-wechat-arrow-svg {
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+@keyframes share-wechat-pulse {
+  0%, 100% { transform: translateY(0); opacity: 1; }
+  50% { transform: translateY(4px); opacity: 0.85; }
+}
+
+.share-wechat-card {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 18px 16px 14px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--surface, #fffcfa) 96%, #5f7d66);
+  border: 1px solid color-mix(in srgb, #5f7d66 18%, transparent);
+  box-shadow: 0 16px 40px rgba(20, 14, 8, 0.28);
+  pointer-events: auto;
+  text-align: left;
+}
+
+.share-wechat-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--ink, #2c2416);
+}
+
+.share-wechat-desc {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: color-mix(in srgb, var(--ink, #2c2416) 68%, transparent);
+}
+
+.share-wechat-cta {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.share-wechat-skip {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.share-landing-wechat-hint {
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body.share-landing-active {
+  --tabbar-space: 0px;
+}
+
+body.share-landing-active .tabbar {
+  display: none !important;
+}
+
+.pwa-first-open-sheet {
+  max-width: 420px;
+  margin: 0 auto;
+  padding-bottom: 18px;
+}
+
+.pwa-first-open-sheet .btn-block {
+  width: 100%;
+}
+
+.pwa-first-open-sheet .account-security-card {
+  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--ink, #2c2416) 10%, transparent);
+}
+
+/* —— 产品邀请落地 / 轻触达 —— */
+.invite-app-page {
+  padding-top: 28px;
+  padding-bottom: 96px;
+  max-width: 560px;
+}
+
+.invite-app-page .eyebrow {
+  margin: 0;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep, #5f7d66);
+}
+
+.invite-app-title {
+  margin: 10px 0 0;
+  font-size: 1.65rem;
+  line-height: 1.35;
+  font-family: "Songti SC", "STSong", serif;
+}
+
+.invite-app-support {
+  margin: 14px 0 8px;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--ink, #2c2416);
+}
+
+.invite-app-tagline {
+  margin: 0 0 20px;
+  font-size: 13px;
+}
+
+.invite-app-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.invite-app-section {
+  margin-top: 28px;
+}
+
+.invite-app-section-title {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ink, #2c2416);
+}
+
+.invite-app-caps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.invite-app-cap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface, #fffcfa) 88%, #5f7d66);
+  border: 1px solid color-mix(in srgb, #5f7d66 12%, transparent);
+}
+
+.invite-app-cap strong {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.invite-app-cap .muted {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.invite-app-save-lead {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.invite-app-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: invite-step;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.invite-app-step {
+  counter-increment: invite-step;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  column-gap: 10px;
+  row-gap: 2px;
+  align-items: start;
+}
+
+.invite-app-step::before {
+  content: counter(invite-step);
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--accent-deep, #5f7d66);
+  background: color-mix(in srgb, #5f7d66 12%, transparent);
+  grid-row: 1 / span 2;
+}
+
+.invite-app-step strong {
+  font-size: 14px;
+  grid-column: 2;
+}
+
+.invite-app-step .muted {
+  font-size: 13px;
+  line-height: 1.45;
+  grid-column: 2;
+}
+
+.invite-app-steps-more {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+/* 出站分享落地：一屏内容 + 主 CTA（无底栏） */
+.share-landing-page {
+  padding-top: 20px;
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+  max-width: 520px;
+}
+.share-landing-page .eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  color: var(--muted, #6b6b6b);
+}
+.share-landing-kicker {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.share-landing-title {
+  margin: 0 0 12px;
+  font-size: clamp(24px, 6vw, 30px);
+  line-height: 1.35;
+  font-weight: 700;
+}
+.share-landing-lead {
+  margin: 0 0 10px;
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink, #1a1a1a);
+}
+.share-landing-support {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.share-landing-ctas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.share-landing-ctas .btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.daily-verse-share-page {
+  /* 继承 share-landing-page；仅保留轻微差异 */
+  padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px));
+}
+
+.daily-verse-share-page .eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.06em;
+  font-size: 12px;
+  color: var(--muted, #6b6b6b);
+}
+
+.daily-verse-share-title {
+  margin: 0 0 12px;
+  font-size: clamp(24px, 6vw, 30px);
+  line-height: 1.35;
+  font-weight: 700;
+}
+
+.daily-verse-share-support {
+  margin: 0 0 20px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.daily-verse-share-ref {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--ink);
+}
+
+.daily-verse-share-quote {
+  margin: 0;
+  padding: 0;
+  border: none;
+  font-family: "Noto Serif SC", "Songti SC", "Source Han Serif SC", Georgia, serif;
+  font-size: 22px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.daily-verse-share-meta {
+  margin: 14px 0 0;
+  font-size: 13px;
+}
+
+.daily-verse-share-ctas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.invite-nudge-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 96;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 12px 12px 12px 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface, #fffcfa) 94%, #5f7d66);
+  border: 1px solid color-mix(in srgb, #5f7d66 22%, transparent);
+  box-shadow: 0 8px 28px rgba(44, 36, 22, 0.14);
+}
+
+.invite-nudge-bar-pwa {
+  bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+}
+
+.invite-nudge-main {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+}
+
+.invite-nudge-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink, #2c2416);
+}
+
+.invite-nudge-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: color-mix(in srgb, var(--ink, #2c2416) 62%, transparent);
+}
+
+.invite-nudge-cta {
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.invite-nudge-x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: color-mix(in srgb, var(--ink, #2c2416) 45%, transparent);
+  font-size: 14px;
+  line-height: 1;
+  padding: 4px;
+  cursor: pointer;
+}
+
+
+/* group prayer + daily verse share */
+.group-prayer-sheet,
+.daily-verse-share-sheet {
+  max-height: min(86vh, 720px);
+  overflow: auto;
+  padding-bottom: 24px;
+}
+.group-prayer-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0 12px;
+}
+.group-prayer-tab {
+  flex: 1;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+}
+.group-prayer-tab.active {
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+  border-color: transparent;
+}
+.group-prayer-compose {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  width: 100%;
+}
+.group-prayer-compose .input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--surface, #fff);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1.45;
+}
+.group-prayer-compose textarea.input {
+  resize: vertical;
+  min-height: 96px;
+  line-height: 1.55;
+}
+.group-prayer-compose .input:focus {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent-deep, #2f4a3a) 45%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-deep, #2f4a3a) 12%, transparent);
+}
+.group-prayer-compose .input::placeholder {
+  color: var(--muted, #6b6b6b);
+}
+.group-prayer-compose-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 13px;
+}
+.group-prayer-compose .btn-block {
+  margin-top: 4px;
+}
+.group-prayer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.group-prayer-item {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--surface);
+}
+.group-prayer-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.group-prayer-body {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+.group-prayer-answered {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+.group-prayer-item-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 10px;
+  align-items: center;
+}
+.group-prayer-item-actions .text-link.is-active {
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+.group-prayer-empty {
+  margin: 24px 0;
+  text-align: center;
+}
+
+.group-prayer-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--accent, #3d5c4a) 20%, var(--line));
+  background: color-mix(in srgb, var(--accent-wash, #e8efe9) 70%, var(--surface));
+}
+.group-prayer-banner-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+}
+.group-prayer-banner-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-deep, #2f4a3a);
+}
+.group-prayer-banner-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-prayer-banner-desc {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.group-prayer-banner-x {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.daily-verse-share-preview {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+.daily-verse-share-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  align-items: stretch;
+}
+

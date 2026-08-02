@@ -1,6 +1,7 @@
-/** 经文客户端：在线优先 API；离线或 API 失败再走本地 sql.js。 */
+/** 经文客户端：本地目录优先秒开；在线 API 后台刷新。离线或 API 失败再走本地 sql.js。 */
 
-import { api, type BibleBook, type BibleSearchHit, type Verse } from './api';
+import type { BibleBook, Verse } from './api_core';
+import { bibleApi, type BibleSearchHit } from './api/bible';
 import {
   getLocalChapter,
   listLocalBooksFromDb,
@@ -12,16 +13,32 @@ import {
 } from './bible_local';
 import { isCuvsOfflineReady, isKjvOfflineReady, isContemporaryOfflineReady, isOfflinePackReady } from './offline_pack';
 
+function refreshBooksFromApi() {
+  void bibleApi
+    .books()
+    .then((remote) => {
+      if (remote?.books?.length) writeBooksLsCache(remote.books);
+    })
+    .catch(() => {});
+}
+
 export async function bibleBooks(): Promise<BibleBook[]> {
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-  // 始终尝试 API（PWA 下 navigator.onLine 可能短暂误报离线）
-  const [jsonBooks, remote] = await Promise.all([
-    loadBooksJson(),
-    api.books().catch(() => null),
-  ]);
+  // 本地优先：mem / LS / seed / books.json，绝不被 API 拖住首屏
+  const jsonBooks = await loadBooksJson();
+  if (jsonBooks?.length) {
+    if (!offline) refreshBooksFromApi();
+    return jsonBooks;
+  }
 
-  if (jsonBooks?.length) return jsonBooks;
+  const seed = seededBooks();
+  if (seed.length) {
+    if (!offline) refreshBooksFromApi();
+    return seed;
+  }
+
+  const remote = await bibleApi.books().catch(() => null);
   if (remote?.books?.length) {
     writeBooksLsCache(remote.books);
     return remote.books;
@@ -32,8 +49,8 @@ export async function bibleBooks(): Promise<BibleBook[]> {
 
   // 在线时不走 SQLite/sql.js，避免经包半下载或 wasm 失败拖垮目录
   if (!offline) {
-    const seed = seededBooks();
-    if (seed.length) return seed;
+    const again = seededBooks();
+    if (again.length) return again;
   }
 
   const dbBooks = await listLocalBooksFromDb();
@@ -42,8 +59,8 @@ export async function bibleBooks(): Promise<BibleBook[]> {
   const retryJson = await loadBooksJson({ fresh: true });
   if (retryJson?.length) return retryJson;
 
-  const seed = seededBooks();
-  if (seed.length) return seed;
+  const lastSeed = seededBooks();
+  if (lastSeed.length) return lastSeed;
 
   if (offline) {
     throw new Error('离线经包未就绪，请在「我的 → 设置」下载离线圣经');
@@ -82,8 +99,8 @@ export async function bibleChapter(
   if (!offline) {
     try {
       const data = version
-        ? await api.chapter(bookId, chapter, version)
-        : await api.chapter(bookId, chapter);
+        ? await bibleApi.chapter(bookId, chapter, version)
+        : await bibleApi.chapter(bookId, chapter);
       return data.verses;
     } catch {
       if (!translation) return null;
@@ -147,7 +164,7 @@ export async function bibleSearch(
   const offline = typeof navigator !== 'undefined' && !navigator.onLine;
 
   const fromRemote = async (): Promise<BibleSearchPage> => {
-    const remote = await api.search(q, {
+    const remote = await bibleApi.search(q, {
       version,
       testament: testament ?? undefined,
       limit,

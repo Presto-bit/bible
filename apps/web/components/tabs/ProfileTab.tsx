@@ -1,5 +1,9 @@
 'use client';
 
+import dynamic from 'next/dynamic';
+import '@/styles/profile.css';
+import '@/styles/avatar_picker.css';
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef, type ReactNode } from 'react';
@@ -27,10 +31,6 @@ import {
   subscribeOfflineDownload,
 } from '@/lib/offline_download_job';
 import Avatar, { PRESET_AVATARS, defaultAvatarId } from '@/components/Avatar';
-import AccountSettingsSection from '@/components/AccountSettingsSection';
-import OfflineDownloadSheet from '@/components/OfflineDownloadSheet';
-import ReadingProgress from '@/components/ReadingProgress';
-import BadgeGallery from '@/components/BadgeGallery';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { todayMinutes, dailyMinutes, bookProgressMap } from '@/lib/reading';
 import { readingStreak } from '@/lib/gamification';
@@ -395,6 +395,12 @@ function settingsGlyph(path: ReactNode) {
     </svg>
   );
 }
+
+
+const AccountSettingsSection = dynamic(() => import('@/components/AccountSettingsSection'), { ssr: false });
+const OfflineDownloadSheet = dynamic(() => import('@/components/OfflineDownloadSheet'), { ssr: false });
+const ReadingProgress = dynamic(() => import('@/components/ReadingProgress'), { ssr: false });
+const BadgeGallery = dynamic(() => import('@/components/BadgeGallery'), { ssr: false });
 
 export default function ProfileTab({ paneActive = true }: { paneActive?: boolean }) {
   const confirm = useConfirm();

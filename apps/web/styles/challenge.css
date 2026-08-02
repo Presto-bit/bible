@@ -1,0 +1,433 @@
+/* Extracted from globals.css — styles/challenge.css */
+
+/* lines 24251-24680 */
+/* ── 创世记 50 次同行 ── */
+.devotional-page {
+  padding-bottom: calc(var(--tabbar-h) + 72px);
+}
+.devotional-page.is-immersive {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+}
+.devotional-end-sentinel {
+  height: 1px;
+  margin-top: 8px;
+}
+.devotional-sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding-bottom: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+.devotional-sticky-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.devotional-sticky-bar .nav-back {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+.devotional-day-picker {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ink);
+  flex-shrink: 0;
+}
+.devotional-header {
+  margin-top: 14px;
+}
+.devotional-header h1 {
+  font-size: 20px;
+  margin: 0 0 4px;
+  line-height: 1.35;
+}
+.devotional-stats-line {
+  font-size: 12px;
+  margin: 6px 0 0;
+  line-height: 1.4;
+}
+.devotional-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.devotional-tab {
+  flex: 1;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 10px 6px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+}
+.devotional-tab.active {
+  color: var(--accent-deep);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+.devotional-panel {
+  margin-top: 14px;
+  color: var(--ink);
+}
+.devotional-verses {
+  display: flex;
+  flex-direction: column;
+  gap: 0.72em;
+  line-height: 2;
+  font-size: 19px;
+}
+.devotional-verse sup {
+  color: var(--ink-soft);
+  margin-right: 6px;
+  font-size: 12px;
+}
+.devotional-letter > p {
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 2;
+  margin: 0 0 1.05em;
+  letter-spacing: 0.01em;
+}
+.devotional-letter > .devotional-reading-meta {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+.devotional-workbook section > p {
+  color: var(--ink);
+  font-size: 19px;
+  line-height: 1.85;
+  margin: 0 0 1em;
+}
+.devotional-workbook h3 {
+  color: var(--accent-deep);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 28px 0 10px;
+}
+.devotional-workbook section:first-of-type h3 {
+  margin-top: 12px;
+}
+.devotional-q {
+  margin: 0 0 24px;
+}
+.devotional-workbook .devotional-question {
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.75;
+  margin-bottom: 10px;
+}
+.devotional-workbook .devotional-meditation-hint {
+  color: var(--ink-soft);
+  font-size: 17px;
+  line-height: 1.8;
+  margin: 0;
+  padding-left: 13px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.devotional-prayer-box {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.devotional-prayer-box > strong {
+  color: var(--accent-deep);
+  font-size: 16px;
+}
+.devotional-prayer-box > p,
+.devotional-letter .devotional-prayer-box > p,
+.devotional-workbook .devotional-prayer-box > p {
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.85;
+  margin: 10px 0 0;
+}
+.devotional-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1.65;
+  background: var(--surface);
+  color: var(--ink);
+  resize: vertical;
+  margin: 6px 0;
+}
+.devotional-practices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.devotional-practice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 1.65;
+}
+.devotional-practice.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.devotional-hint {
+  font-size: 13px;
+  margin-top: 6px;
+}
+.devotional-bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--tabbar-h) + 10px);
+  z-index: 30;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  max-width: 560px;
+  margin: 0 auto;
+  pointer-events: none;
+}
+.devotional-bottom-bar .devotional-cta {
+  pointer-events: auto;
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 999px;
+  line-height: 1.2;
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.devotional-bottom-bar .devotional-cta.secondary {
+  box-shadow: none;
+}
+.devotional-bottom-bar.is-immersive {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+}
+body.devotional-immersive .tabbar {
+  transform: translate3d(
+    -50%,
+    calc(100% + var(--tabbar-float-gap) + var(--tabbar-safe) + 16px),
+    0
+  );
+  opacity: 0;
+  pointer-events: none;
+}
+body.devotional-immersive .app-body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.devotional-feed {
+  margin-top: 28px;
+}
+.devotional-feed-toggle {
+  appearance: none;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.devotional-feed-item {
+  margin-bottom: 10px;
+  margin-top: 10px;
+  padding: 12px;
+}
+.devotional-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 0;
+}
+.devotional-emoji-option {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-size: 20px;
+  color: var(--ink);
+}
+.devotional-emoji-option small {
+  font-size: 10px;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+.devotional-emoji-option.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+.devotional-feed-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.devotional-feed-emoji {
+  font-size: 20px;
+}
+.devotional-react-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-top: 8px;
+}
+.devotional-comments {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.devotional-comment {
+  font-size: 13px;
+  margin: 0 0 6px;
+  line-height: 1.45;
+}
+.devotional-comment-compose {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.devotional-comment-compose input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font: inherit;
+  background: var(--bg);
+}
+.devotional-day-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 42vh;
+  overflow: auto;
+  margin-top: 12px;
+}
+.devotional-day-cell {
+  appearance: none;
+  position: relative;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 12px;
+  min-height: 44px;
+  padding: 8px 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+}
+.devotional-day-cell span {
+  font-weight: 700;
+}
+.devotional-day-cell small {
+  position: absolute;
+  right: 4px;
+  top: 2px;
+  color: var(--accent-deep);
+  font-size: 9px;
+}
+.devotional-day-cell.done {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+.devotional-day-cell.current {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.devotional-day-cell.selected {
+  color: var(--accent-deep);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.devotional-picker-summary {
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+.devotional-picker-today {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent-deep);
+  padding: 10px 12px;
+  margin-top: 10px;
+  font: inherit;
+  font-weight: 600;
+}
+.devotional-day-filters {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+.devotional-day-filters button {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.devotional-day-filters button.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  color: var(--accent-deep);
+}
+.devotional-day-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 58px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.devotional-day-preview > div {
+  min-width: 0;
+}
+.devotional-day-preview p {
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.35;
+  margin: 3px 0 0;
+}
+.devotional-day-preview .btn {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px 16px;
+}
+

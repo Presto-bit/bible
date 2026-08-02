@@ -1,22 +1,23 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   api,
-  type DailyVerse,
-  type DailyVerseReactPreset,
-  type DailyVerseReactTopPreset,
   currentUserId,
   ensureAccountReady,
   getDisplayName,
 } from '@/lib/api';
+import {
+  homeApi,
+  type DailyVerse,
+  type DailyVerseReactPreset,
+  type DailyVerseReactTopPreset,
+} from '@/lib/api/home';
 import { getAdminToken } from '@/lib/admin_rag';
-import DailyVerseWallpaper from '@/components/DailyVerseWallpaper';
-import DailyVerseReactSheet from '@/components/DailyVerseReactSheet';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
-import { shareDailyVerseCard } from '@/lib/daily_verse_share';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
 import { getActivePlan, getPlanDay } from '@/lib/plan_progress';
@@ -26,7 +27,6 @@ import { getPlanSession } from '@/lib/plan_session';
 import { sessionProgress } from '@/lib/plan_steps';
 import { buildReport, getLastRead, todayMinutes } from '@/lib/reading';
 import { nextFreeReadingSuggestion } from '@/lib/suggestions';
-import PlusMenu from '@/components/PlusMenu';
 import ErrorBanner, { errorMessage } from '@/components/ErrorBanner';
 import { heroThemeClass } from '@/lib/home_rail';
 import { bookIdFromReaderHref } from '@/lib/book_cover';
@@ -89,6 +89,11 @@ import {
   usePrefersReducedMotion,
 } from '@/lib/use_home_pull_refresh';
 import { hapticLight, hapticSuccess } from '@/lib/haptic';
+
+
+const DailyVerseWallpaper = dynamic(() => import('@/components/DailyVerseWallpaper'), { ssr: false });
+const DailyVerseReactSheet = dynamic(() => import('@/components/DailyVerseReactSheet'), { ssr: false });
+const PlusMenu = dynamic(() => import('@/components/PlusMenu'), { ssr: false });
 
 export default function HomePageClient({ paneActive = true }: { paneActive?: boolean }) {
   const [dv, setDv] = useState<DailyVerse | null>(() => readCachedDailyVerse());
@@ -201,7 +206,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
 
     // 账号建档与 bootstrap 并行：每日经文不阻塞在 ensureAccountReady 上
     void ensureAccountReady().catch(() => {});
-    void api
+      void homeApi
       .homeBootstrap()
       .then((boot) => {
         if (gen !== bootstrapGenRef.current) return;
@@ -762,7 +767,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       hapticLight();
     }
     try {
-      const r = await api.toggleDailyVerseLike(verseDay);
+      const r = await homeApi.toggleDailyVerseLike(verseDay);
       // 以 toggle 响应为准；若字段缺失则保留乐观更新
       const syncedLiked = typeof r.liked === 'boolean' ? r.liked : nextLiked;
       const syncedCount =
@@ -858,7 +863,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const shareDailyVerse = useCallback(async () => {
     if (!dv?.text) return;
     try {
-      const result = await shareDailyVerseCard({
+      const result = await (await import('@/lib/daily_verse_share')).shareDailyVerseCard({
         ref: dv.ref || '每日经文',
         text: dv.text,
         day: dv.day,
@@ -872,7 +877,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       }
       if (result === 'shared' || result === 'copied' || result === 'downloaded') {
         try {
-          const r = await api.recordDailyVerseShare(dv.day);
+          const r = await homeApi.recordDailyVerseShare(dv.day);
           if (typeof r.shares_count === 'number') {
             setDv((prev) => (prev ? { ...prev, shares_count: r.shares_count } : prev));
             const snap = readCachedDailyVerse();

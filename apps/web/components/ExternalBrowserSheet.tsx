@@ -1,5 +1,7 @@
 'use client';
 
+import '@/styles/external_browser.css';
+
 import { useCallback, useEffect, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import {

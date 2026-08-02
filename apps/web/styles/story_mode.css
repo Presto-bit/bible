@@ -1,0 +1,378 @@
+/* Extracted from globals.css — styles/story_mode.css */
+
+/* lines 373-747 */
+/* ── 知识专题 · 故事模式 ── */
+.story-mode-page {
+  padding-bottom: 32px;
+}
+
+.story-mode-head {
+  margin-bottom: 4px;
+}
+
+.story-mode-sub {
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 4px 0 0;
+}
+
+.story-mode-progress {
+  margin: 14px 0 10px;
+  font-size: 13px;
+  color: var(--ink-muted, var(--ink-faint));
+}
+
+.story-mode-map {
+  margin-bottom: 12px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.story-mode-card {
+  padding: 14px 16px;
+}
+
+.story-mode-stop-title {
+  display: block;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.story-mode-stop-note {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink, #1a1a1a);
+}
+
+.knowledge-story-end {
+  margin-top: 16px;
+  padding: 14px 16px;
+}
+
+.knowledge-story-end-title {
+  display: block;
+  font-size: 15px;
+}
+
+.knowledge-story-end-lead {
+  margin: 6px 0 12px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.knowledge-story-end-actions {
+  margin-top: 0;
+}
+
+.knowledge-story-related {
+  margin-top: 14px;
+}
+
+.knowledge-story-related-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+}
+
+.knowledge-story-related-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.knowledge-story-end-list {
+  display: inline-block;
+  margin-top: 12px;
+  font-size: 13px;
+}
+
+.knowledge-story-end-pill-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.story-mode-hook {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink, #1a1a1a);
+  font-weight: 500;
+}
+
+.story-mode-resume {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+
+.story-mode-lead {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-muted, var(--ink-faint));
+}
+
+.story-mode-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.story-mode-back-step {
+  align-self: flex-start;
+  font-size: 13px;
+}
+
+.story-mode-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 18px;
+  font-size: 13px;
+}
+
+.story-mode-timeline-rail {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0 10px;
+  margin-top: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.story-mode-timeline-chip {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.story-mode-timeline-chip.is-active {
+  border-color: var(--accent-deep);
+  color: var(--accent-deep);
+  background: var(--accent-wash, rgba(184, 134, 11, 0.08));
+}
+
+.topic-picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.topic-picker-card {
+  display: block;
+  padding: 16px 16px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.topic-picker-card .story-tour-title {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.topic-picker-card .story-tour-hook {
+  margin-top: 6px;
+}
+
+.topic-nav-card {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+
+.topic-nav-card:active {
+  background: var(--accent-wash);
+}
+
+.relation-narrative-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.relation-narrative-card {
+  padding: 12px 14px;
+}
+
+.relation-narrative-line {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.relation-narrative-mid {
+  color: var(--ink-faint);
+}
+
+.diagram-viewer-summary {
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+
+.diagram-viewer-placeholder {
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.diagram-guided-progress {
+  margin-bottom: 10px;
+}
+
+.diagram-guided-actions {
+  margin-top: 12px;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 0;
+  margin: 0 1px;
+  padding: 4px 0 2px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: var(--ink-faint);
+  font-size: 11px;
+  font-family: inherit;
+  line-height: 1.2;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.12s ease, color 0.12s ease, background 0.12s ease;
+  overflow: visible;
+  position: relative;
+  z-index: 0;
+}
+
+.tab:has(.tab-unread-badge) {
+  z-index: 2;
+}
+
+.tab svg {
+  flex-shrink: 0;
+  display: block;
+}
+
+.tab-icon-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  max-width: none;
+  padding: 0;
+}
+
+.tab-unread-badge {
+  position: absolute;
+  top: -5px;
+  right: -10px;
+  z-index: 2;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e54d42;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-sizing: border-box;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  max-width: none;
+  white-space: nowrap;
+}
+
+.tab > span:not(.tab-icon-wrap) {
+  display: block;
+  max-width: 100%;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.tab:active {
+  transform: scale(0.94);
+}
+
+.tab-active {
+  color: var(--ink);
+  background: transparent;
+}
+
+.tab-active svg {
+  color: var(--ink);
+}
+
+.tab-active > span:not(.tab-icon-wrap) {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.page-title {
+  font-size: var(--app-heading-size);
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 14px;
+  line-height: 1.35;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 600;
+  font-size: var(--font-xl);
+}
+
+.nav {
+  margin-left: auto;
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--ink-soft);
+}
+

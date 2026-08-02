@@ -1,5 +1,7 @@
 'use client';
 
+import '@/styles/story_album.css';
+
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api, type BibleDiagram, type GeoPlace, type MapTour, type Verse } from '@/lib/api';

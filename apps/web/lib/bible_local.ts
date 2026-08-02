@@ -168,6 +168,24 @@ export function seededBooks(): BibleBook[] {
   return BIBLE_BOOKS_SEED;
 }
 
+function fetchBooksJsonNetwork(): Promise<BibleBook[] | null> {
+  const online = typeof navigator !== 'undefined' && navigator.onLine;
+  return fetch(booksJsonUrl(), {
+    cache: online ? 'no-cache' : 'force-cache',
+  })
+    .then(async (res) => {
+      if (!res.ok) return null;
+      const data = (await res.json()) as { books: BibleBook[] };
+      if (data.books?.length) {
+        booksCache = data.books;
+        writeBooksLsCache(data.books);
+        return data.books;
+      }
+      return null;
+    })
+    .catch(() => null);
+}
+
 export async function loadBooksJson(opts?: { fresh?: boolean }): Promise<BibleBook[] | null> {
   if (!opts?.fresh) {
     if (booksCache?.length) return booksCache;
@@ -177,23 +195,17 @@ export async function loadBooksJson(opts?: { fresh?: boolean }): Promise<BibleBo
       booksCache = ls;
       return ls;
     }
+
+    // 冷路径：打包 seed 同步可用，后台再拉 books.json（避免首屏等网络）
+    if (BIBLE_BOOKS_SEED.length) {
+      booksCache = BIBLE_BOOKS_SEED;
+      void fetchBooksJsonNetwork();
+      return BIBLE_BOOKS_SEED;
+    }
   }
 
-  try {
-    const online = typeof navigator !== 'undefined' && navigator.onLine;
-    const res = await fetch(booksJsonUrl(), {
-      cache: online ? 'no-cache' : 'force-cache',
-    });
-    if (!res.ok) return null;
-    const data = (await res.json()) as { books: BibleBook[] };
-    if (data.books?.length) {
-      booksCache = data.books;
-      writeBooksLsCache(data.books);
-      return booksCache;
-    }
-  } catch {
-    /* network */
-  }
+  const networked = await fetchBooksJsonNetwork();
+  if (networked?.length) return networked;
 
   if (BIBLE_BOOKS_SEED.length) {
     booksCache = BIBLE_BOOKS_SEED;

@@ -1,5 +1,7 @@
 'use client';
 
+import '@/styles/verse_fullscreen.css';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   api,

@@ -1,5 +1,8 @@
 'use client';
 
+import '@/styles/discover.css';
+import '@/styles/discover_list.css';
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

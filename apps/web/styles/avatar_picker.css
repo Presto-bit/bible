@@ -1,0 +1,216 @@
+/* Extracted from globals.css — styles/avatar_picker.css */
+
+/* lines 8730-8942 */
+/* ─── 头像选择 ─── */
+.profile-avatar-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  line-height: 0;
+}
+
+.profile-bio-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.profile-bio-edit-wrap {
+  margin-top: 2px;
+}
+
+.profile-bio-input {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  padding: 2px 8px;
+  min-height: 0;
+  font-size: 12px;
+}
+
+/* iOS：小号输入聚焦会放大视口，签名编辑保持 16px */
+@media (hover: none) and (pointer: coarse) {
+  .profile-bio-input {
+    font-size: 16px;
+  }
+}
+
+.profile-bio-edit:hover .muted {
+  color: var(--ink-soft);
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  max-height: min(42vh, 320px);
+  overflow-y: auto;
+  margin-top: 12px;
+  padding: 4px 2px 8px;
+}
+
+.avatar-cell {
+  border: none;
+  background: none;
+  padding: 0;
+  border-radius: 16px;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.avatar-cell-frame {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--ink-faint) 8%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink-faint) 16%, transparent);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.avatar-cell-active .avatar-cell-frame {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  box-shadow: inset 0 0 0 2px var(--accent-deep);
+}
+
+.avatar-cell-check {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--accent-deep);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+}
+
+.sheet-backdrop-above-tab {
+  z-index: 120;
+  padding-bottom: calc(var(--tabbar-h) + 8px);
+  box-sizing: border-box;
+}
+
+.avatar-picker-sheet {
+  margin-bottom: 0;
+  max-height: min(78vh, 580px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.avatar-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 4px 0 10px;
+}
+
+.avatar-picker-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 2px 0 12px;
+}
+
+.avatar-picker-current-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 13px;
+}
+
+.avatar-picker-current-text strong {
+  font-size: 14px;
+}
+
+.avatar-picker-upload-btn {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
+.avatar-picker-presets-label {
+  font-size: 12px;
+  margin: 0 0 8px;
+}
+
+.profile-page .profile-avatar-btn {
+  position: relative;
+  flex-shrink: 0;
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  line-height: 0;
+  cursor: pointer;
+}
+
+.profile-page .profile-avatar-btn.is-uploading {
+  opacity: 0.72;
+}
+
+.profile-page .profile-avatar-spin {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--surface) 40%, transparent);
+  border-top-color: var(--accent, #07c160);
+  animation: profile-spin 0.7s linear infinite;
+}
+
+@keyframes profile-spin {
+  to { transform: rotate(360deg); }
+}
+
+.profile-page .profile-footprint-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent, #07c160);
+  box-shadow: 0 0 0 2px var(--surface);
+  pointer-events: none;
+}
+
+.profile-page .profile-footprint-cell.has-new {
+  box-shadow:
+    var(--home-shadow),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent, #07c160) 28%, transparent);
+}
+
+.profile-page .profile-brand-foot {
+  margin: 24px 0 8px;
+  text-align: center;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  scroll-margin-bottom: calc(var(--tabbar-h) + 8px);
+}
+
+.avatar-picker-sheet .avatar-grid {
+  flex: 1;
+  min-height: 0;
+}
+
