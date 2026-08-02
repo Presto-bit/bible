@@ -66,6 +66,8 @@ export function StoryAlbumPlayer({
   const [shareHint, setShareHint] = useState<string | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const ignoreSwipe = useRef(false);
+  /** 横滑翻页后短暂吞掉边缘热区 click，避免幽灵点击把方向顶反 */
+  const suppressEdgeClickUntil = useRef(0);
 
   const episode: StoryEpisode | null = series.episodes[epIndex] ?? null;
   const beats = episode?.beats ?? [];
@@ -161,7 +163,7 @@ export function StoryAlbumPlayer({
       goBeat(beatIndex - 1);
       return;
     }
-    // 章首右滑：回到同系列上一幕的最后一拍
+    // 章首再往回：回到同系列上一幕的最后一拍
     if (epIndex > 0) {
       const prevEp = series.episodes[epIndex - 1];
       if (!prevEp) return;
@@ -197,8 +199,19 @@ export function StoryAlbumPlayer({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     if (absX < SWIPE_MIN || absX < absY) return;
-    // 左滑 / ← ：上一拍（含跨幕）；右滑 / → ：下一拍
-    if (dx < 0) goPrev();
+    // 右滑 → 下一页；左滑 → 上一页（含跨幕）
+    suppressEdgeClickUntil.current = Date.now() + 450;
+    if (dx > 0) goNext();
+    else goPrev();
+  };
+
+  const onEdgeNav = (dir: 'prev' | 'next') => (e: React.MouseEvent) => {
+    if (Date.now() < suppressEdgeClickUntil.current) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (dir === 'prev') goPrev();
     else goNext();
   };
 
@@ -330,7 +343,7 @@ export function StoryAlbumPlayer({
               type="button"
               className="story-album-edge story-album-edge-left"
               aria-label="上一拍"
-              onClick={goPrev}
+              onClick={onEdgeNav('prev')}
             />
             <BeatVisual
               beat={beat}
@@ -346,7 +359,7 @@ export function StoryAlbumPlayer({
               type="button"
               className="story-album-edge story-album-edge-right"
               aria-label="下一拍"
-              onClick={goNext}
+              onClick={onEdgeNav('next')}
             />
           </div>
           <div className={`story-beat-caption${showFinActions ? '' : ' is-safe-bottom'}`}>
