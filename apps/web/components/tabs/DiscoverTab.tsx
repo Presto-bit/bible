@@ -2,6 +2,7 @@
 
 import '@/styles/discover.css';
 import '@/styles/discover_list.css';
+import '@/styles/group_chat.css';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';

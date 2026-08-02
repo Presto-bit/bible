@@ -1,5 +1,4 @@
 /* Extracted from globals.css — styles/assistant.css */
-
 /* lines 5726-6469 */
 /* ─── 小爱页 ─── */
 .assistant-page {
@@ -17,13 +16,11 @@
   touch-action: none;
   position: relative;
 }
-
 /* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高） */
 body.assistant-active {
   overflow: hidden;
   overscroll-behavior: none;
 }
-
 body.assistant-active .app-body {
   overflow: hidden;
   overscroll-behavior: none;
@@ -31,46 +28,38 @@ body.assistant-active .app-body {
   padding-bottom: 0;
   touch-action: none;
 }
-
 /* 键盘：只在聚焦时加强锁滚动/高度，平时底栏与其他 Tab 同位 */
 body.assistant-keyboard.assistant-active {
   overflow: hidden !important;
   overscroll-behavior: none;
   touch-action: none;
 }
-
 html:has(body.assistant-keyboard.assistant-active) {
   overflow: hidden !important;
   overscroll-behavior: none;
 }
-
 body.assistant-keyboard.assistant-active .app-body {
   overflow: hidden !important;
   overscroll-behavior: none;
   touch-action: none;
 }
-
 body.assistant-keyboard.assistant-active .assistant-page {
   padding-bottom: var(--assistant-kb-inset, 20px);
 }
-
 /* layout 未随键盘收缩时，用 visualViewport 高度兜底（已含 lift） */
 body.assistant-keyboard-vv.assistant-active .assistant-page {
   height: var(--assistant-vv-h, 100%);
   max-height: var(--assistant-vv-h, 100%);
 }
-
 body.assistant-keyboard.assistant-active .assistant-body.is-empty {
   justify-content: flex-end;
 }
-
 /* 打字时藏底栏，避免与键盘叠层；失焦后恢复常驻 */
 body.assistant-keyboard.assistant-active .tabbar {
   opacity: 0 !important;
   visibility: hidden;
   pointer-events: none !important;
 }
-
 .assistant-body {
   flex: 1;
   min-height: 0;
@@ -78,7 +67,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   flex-direction: column;
   position: relative;
 }
-
 .assistant-head {
   display: flex;
   align-items: center;
@@ -86,24 +74,20 @@ body.assistant-keyboard.assistant-active .tabbar {
   margin-bottom: 8px;
   flex-shrink: 0;
 }
-
 .assistant-page > .assistant-body {
   flex: 1;
   min-height: 0;
 }
-
 .assistant-head-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
 }
-
 .assistant-new-session {
   font-size: 13px;
   white-space: nowrap;
 }
-
 .assistant-thread-wrap {
   flex: 1;
   min-height: 0;
@@ -111,7 +95,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   display: flex;
   flex-direction: column;
 }
-
 .assistant-thread {
   flex: 1;
   min-height: 0;
@@ -123,7 +106,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   margin-bottom: 10px;
   padding-right: 2px;
 }
-
 .assistant-scroll-jump {
   position: absolute;
   left: 50%;
@@ -140,7 +122,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   color: var(--accent-deep);
   cursor: pointer;
 }
-
 .assistant-empty {
   display: flex;
   flex-direction: column;
@@ -150,7 +131,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   min-height: 260px;
   text-align: center;
 }
-
 /* 空态：提示居中，输入区（含 chip 行）随之居中显示 */
 .assistant-empty-fill {
   flex: 1;
@@ -159,7 +139,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   justify-content: center;
   gap: 16px;
 }
-
 .assistant-empty-hint {
   display: flex;
   flex-direction: column;
@@ -167,7 +146,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   padding: 12px 4px 24px;
   text-align: center;
 }
-
 .assistant-empty-scene {
   position: relative;
   width: min(100%, 320px);
@@ -180,14 +158,12 @@ body.assistant-keyboard.assistant-active .tabbar {
     linear-gradient(180deg, color-mix(in srgb, var(--accent) 10%, var(--surface)) 0%, var(--surface) 100%);
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.1);
 }
-
 .assistant-empty-scene-glow {
   position: absolute;
   inset: 0;
   background: radial-gradient(ellipse 70% 55% at 50% 20%, rgba(255, 248, 240, 0.55) 0%, transparent 70%);
   pointer-events: none;
 }
-
 .assistant-empty-scene-kicker {
   position: relative;
   margin: 0 0 6px;
@@ -196,7 +172,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   letter-spacing: 0.06em;
   color: var(--ink-soft);
 }
-
 .assistant-empty-scene-title {
   position: relative;
   margin: 0;
@@ -205,7 +180,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   color: var(--ink);
   line-height: 1.35;
 }
-
 .assistant-empty-desc {
   font-size: 13px;
   line-height: 1.65;
@@ -213,27 +187,23 @@ body.assistant-keyboard.assistant-active .tabbar {
   padding: 0 8px;
   max-width: 28em;
 }
-
 .assistant-rag-status {
   font-size: 12px;
   line-height: 1.45;
   margin: 0 0 8px;
   color: var(--muted, #64748b);
 }
-
 .assistant-rag-status-row {
   display: flex;
   flex-direction: column;
   gap: 2px;
   margin: 0 0 10px;
 }
-
 .assistant-rag-status-text {
   margin: 0;
   font-size: 12px;
   line-height: 1.45;
 }
-
 .assistant-instant-hint {
   display: inline-flex;
   align-items: center;
@@ -242,18 +212,15 @@ body.assistant-keyboard.assistant-active .tabbar {
   letter-spacing: 0.02em;
   color: color-mix(in srgb, var(--accent, #7d9b8a) 85%, var(--ink, #1a1a1a));
 }
-
 .assistant-rag-disclaimer {
   margin: 0;
   font-size: 11px;
   line-height: 1.4;
   color: var(--ink-faint, #94a3b8);
 }
-
 .citation-evidence-rail {
   margin-top: 12px;
 }
-
 .citation-evidence-rail-label {
   margin: 0 0 8px;
   font-size: 11px;
@@ -261,7 +228,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   letter-spacing: 0.06em;
   color: var(--ink-soft, #6b7280);
 }
-
 .citation-evidence-rail-track {
   display: flex;
   gap: 8px;
@@ -270,7 +236,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
 }
-
 .citation-evidence-card {
   flex: 0 0 min(72%, 220px);
   display: flex;
@@ -285,13 +250,11 @@ body.assistant-keyboard.assistant-active .tabbar {
   cursor: pointer;
   color: inherit;
 }
-
 .citation-evidence-n {
   font-size: 11px;
   font-weight: 700;
   color: var(--accent-deep, #3d6b5a);
 }
-
 .citation-evidence-title {
   font-size: 13px;
   font-weight: 600;
@@ -301,7 +264,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .citation-evidence-snip {
   font-size: 11px;
   line-height: 1.4;
@@ -311,7 +273,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .citation-evidence-tag {
   margin-top: 2px;
   font-size: 10px;
@@ -319,7 +280,6 @@ body.assistant-keyboard.assistant-active .tabbar {
   color: var(--ink-faint);
   letter-spacing: 0.04em;
 }
-
 .xiaoai-cite-host {
   position: absolute;
   width: 1px;
@@ -328,67 +288,54 @@ body.assistant-keyboard.assistant-active .tabbar {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
-
 .xiaoai-cite-host-trigger {
   pointer-events: none;
 }
-
 .hero-xiaoai {
   color: var(--ink-faint);
 }
-
 .assistant-empty-primary {
   margin-bottom: 12px;
   min-width: 180px;
 }
-
 .assistant-page .history-item {
   border: none;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.08);
   padding: 12px 14px;
 }
-
 .assistant-page .history-item-more {
   border: none;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
-
 /* 无对话：欢迎语 + 输入区作为一组垂直居中（非贴顶/贴底） */
 .assistant-body.is-empty {
   justify-content: center;
   gap: 20px;
 }
-
 .assistant-body.is-empty .assistant-thread-wrap {
   flex: 0 0 auto;
 }
-
 .assistant-body.is-empty .assistant-thread {
   flex: 0 0 auto;
   overflow: visible;
   margin-bottom: 0;
 }
-
 .assistant-body.is-empty .assistant-composer {
   border-top: none;
   padding-top: 0;
   box-shadow: none;
   background: transparent;
 }
-
 /* 空态 empty-hint 已有推荐 pill，composer 内 chip 行去重 */
 .assistant-body.is-empty .assistant-composer .chip-swipe {
   display: none;
 }
-
 body.assistant-active .assistant-page {
   /* height / padding overridden by keyboard state when focused */
 }
-
 /* 键盘态见上方 body.assistant-keyboard 规则 */
-
 .assistant-composer {
   display: flex;
   flex-direction: column;
@@ -403,7 +350,6 @@ body.assistant-active .assistant-page {
   box-shadow: 0 -8px 24px color-mix(in srgb, var(--paper) 82%, transparent);
   touch-action: none;
 }
-
 .empty-pills {
   display: flex;
   flex-wrap: wrap;
@@ -412,11 +358,9 @@ body.assistant-active .assistant-page {
   margin-top: 4px;
   max-width: 340px;
 }
-
 .empty-pills .font-pill {
   flex: 0 0 auto;
 }
-
 .assistant-title-btn {
   display: inline-flex;
   align-items: center;
@@ -427,20 +371,17 @@ body.assistant-active .assistant-page {
   cursor: pointer;
   color: var(--ink);
 }
-
 .assistant-title-btn strong {
   font-size: 22px;
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.2;
 }
-
 .assistant-title-btn svg {
   width: 18px;
   height: 18px;
   color: var(--ink-faint);
 }
-
 /* 输入框上方的可右滑 chip 行 */
 .chip-swipe {
   display: flex;
@@ -451,11 +392,9 @@ body.assistant-active .assistant-page {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }
-
 .chip-swipe::-webkit-scrollbar {
   display: none;
 }
-
 .chip-swipe-item {
   flex-shrink: 0;
   font-size: 12px;
@@ -467,11 +406,9 @@ body.assistant-active .assistant-page {
   cursor: pointer;
   white-space: nowrap;
 }
-
 .chip-swipe-item:disabled {
   opacity: 0.5;
 }
-
 /* 历史会话项 */
 .history-item-row {
   display: flex;
@@ -479,7 +416,6 @@ body.assistant-active .assistant-page {
   gap: 6px;
   margin-bottom: 8px;
 }
-
 .history-item {
   display: block;
   flex: 1;
@@ -491,12 +427,10 @@ body.assistant-active .assistant-page {
   padding: 10px 12px;
   cursor: pointer;
 }
-
 .history-item-menu {
   position: relative;
   flex-shrink: 0;
 }
-
 .history-item-more {
   width: 36px;
   height: 100%;
@@ -509,7 +443,6 @@ body.assistant-active .assistant-page {
   font-size: 18px;
   line-height: 1;
 }
-
 .history-item-dropdown {
   position: absolute;
   top: calc(100% + 4px);
@@ -522,7 +455,6 @@ body.assistant-active .assistant-page {
   background: var(--surface);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
-
 .history-item-dropdown button {
   display: block;
   width: 100%;
@@ -535,28 +467,23 @@ body.assistant-active .assistant-page {
   color: var(--ink);
   cursor: pointer;
 }
-
 .history-item-dropdown button:hover {
   background: var(--wash);
 }
-
 .history-item-dropdown-danger {
   color: #c0392b !important;
 }
-
 .history-item-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
-
 .history-item-title {
   font-weight: 600;
   color: var(--ink);
   font-size: 14px;
 }
-
 .history-item-preview {
   display: block;
   margin-top: 4px;
@@ -566,23 +493,19 @@ body.assistant-active .assistant-page {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .assistant-msg {
   margin-bottom: 20px;
   width: 100%;
 }
-
 .assistant-msg-user {
   text-align: right;
 }
-
 .assistant-user-block {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   width: 100%;
 }
-
 .assistant-user-text {
   white-space: pre-wrap;
   word-break: break-word;
@@ -604,14 +527,12 @@ body.assistant-active .assistant-page {
   user-select: text;
   -webkit-touch-callout: default;
 }
-
 .assistant-answer .allow-text-select,
 .assistant-answer .answer-rich {
   -webkit-user-select: text;
   user-select: text;
   -webkit-touch-callout: default;
 }
-
 .assistant-answer {
   display: block;
   width: 100%;
@@ -623,7 +544,6 @@ body.assistant-active .assistant-page {
   border: none;
   box-shadow: none;
 }
-
 .assistant-pending-bar {
   display: flex;
   align-items: center;
@@ -636,7 +556,6 @@ body.assistant-active .assistant-page {
   background: color-mix(in srgb, var(--accent-wash) 55%, var(--surface));
   font-size: 12px;
 }
-
 .assistant-pending-label {
   flex: 1;
   min-width: 0;
@@ -645,7 +564,6 @@ body.assistant-active .assistant-page {
   white-space: nowrap;
   color: var(--ink-soft);
 }
-
 .assistant-pending-stop {
   flex-shrink: 0;
   border: none;
@@ -656,18 +574,15 @@ body.assistant-active .assistant-page {
   cursor: pointer;
   padding: 4px 6px;
 }
-
 .assistant-thinking {
   padding: 4px 0 8px;
 }
-
 .assistant-thinking-skeleton {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-bottom: 10px;
 }
-
 .assistant-thinking-line {
   display: block;
   height: 10px;
@@ -681,35 +596,28 @@ body.assistant-active .assistant-page {
   background-size: 200% 100%;
   animation: assistant-shimmer 1.2s ease-in-out infinite;
 }
-
 .assistant-thinking-line-short {
   width: 72%;
 }
-
 .assistant-thinking-line-mid {
   width: 88%;
 }
-
 .assistant-thinking-label {
   font-size: 13px;
   margin: 0;
 }
-
 .assistant-thinking-slow {
   font-size: 12px;
   margin: 6px 0 0;
 }
-
 @keyframes assistant-shimmer {
   0% { background-position: 100% 0; }
   100% { background-position: -100% 0; }
 }
-
 .answer-rich-streaming .assistant-thinking-line,
 .answer-rich-streaming .assistant-thinking-label {
   margin: 0;
 }
-
 .intent-row {
   display: flex;
   gap: 6px;
@@ -717,15 +625,6 @@ body.assistant-active .assistant-page {
   margin-bottom: 8px;
   padding-bottom: 2px;
 }
-
-.mode-row {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  margin-bottom: 8px;
-  padding-bottom: 2px;
-}
-
 .mode-chip {
   flex-shrink: 0;
   font-size: 12px;
@@ -737,29 +636,24 @@ body.assistant-active .assistant-page {
   cursor: pointer;
   white-space: nowrap;
 }
-
 .mode-chip-active {
   border-color: var(--accent-deep);
   color: var(--accent-deep);
   background: var(--accent-wash);
   font-weight: 600;
 }
-
-
 /* lines 8330-8540 */
 .assistant-compose {
   display: flex;
   gap: 8px;
   align-items: center;
 }
-
 .compose-input-wrap {
   position: relative;
   flex: 1;
   display: flex;
   align-items: flex-end;
 }
-
 .compose-input {
   width: 100%;
   box-sizing: border-box;
@@ -770,7 +664,6 @@ body.assistant-active .assistant-page {
   font-size: var(--assistant-answer-font-size);
   color: var(--ink);
 }
-
 .compose-textarea {
   resize: none;
   overflow-y: auto;
@@ -779,7 +672,6 @@ body.assistant-active .assistant-page {
   line-height: 1.45;
   font-family: inherit;
 }
-
 /* 输入框内左侧：知识库选源图标 */
 .kb-picker-embed {
   position: absolute;
@@ -788,7 +680,6 @@ body.assistant-active .assistant-page {
   transform: translateY(-50%);
   z-index: 2;
 }
-
 .compose-kb-inner {
   width: 32px;
   height: 32px;
@@ -802,22 +693,18 @@ body.assistant-active .assistant-page {
   cursor: pointer;
   padding: 0;
 }
-
 .compose-kb-inner.is-active {
   color: var(--accent-deep);
   background: var(--accent-wash, rgba(180, 140, 80, 0.12));
 }
-
 .compose-kb-inner:disabled {
   opacity: 0.4;
   cursor: default;
 }
-
 .kb-picker-embed .kb-picker-menu {
   left: 0;
   right: auto;
 }
-
 /* 输入框内右侧的「键盘/语音」切换按钮 */
 .compose-mode-inner {
   position: absolute;
@@ -835,7 +722,6 @@ body.assistant-active .assistant-page {
   justify-content: center;
   cursor: pointer;
 }
-
 .compose-stop-inner {
   position: absolute;
   right: 6px;
@@ -852,16 +738,13 @@ body.assistant-active .assistant-page {
   justify-content: center;
   cursor: pointer;
 }
-
 .compose-textarea-busy {
   padding-right: 44px;
 }
-
 .compose-mode-inner:disabled {
   opacity: 0.4;
   cursor: default;
 }
-
 .voice-hold {
   width: 100%;
   height: 40px;
@@ -876,26 +759,22 @@ body.assistant-active .assistant-page {
   touch-action: none;
   cursor: pointer;
 }
-
 .voice-hold.voice-active {
   background: var(--accent-wash, #f3ead2);
   border-color: var(--accent, #b8860b);
   color: var(--accent, #b8860b);
 }
-
 .voice-hold.voice-cancel {
   background: #fdecec;
   border-color: #d9534f;
   color: #d9534f;
 }
-
 .followup-row {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
 }
-
 .followup-chip {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -909,7 +788,6 @@ body.assistant-active .assistant-page {
   white-space: normal;
   word-break: break-word;
 }
-
 .msg-actions {
   display: flex;
   flex-wrap: wrap;
@@ -917,7 +795,6 @@ body.assistant-active .assistant-page {
   gap: 14px;
   margin-top: 8px;
 }
-
 .msg-action {
   border: none;
   background: none;
@@ -926,19 +803,16 @@ body.assistant-active .assistant-page {
   padding: 0;
   cursor: pointer;
 }
-
 .msg-action-accent {
   color: var(--accent-deep, #3d6b5a);
   font-weight: 600;
 }
-
 .analysis-share-sheet-preview {
   margin: 12px 0 0;
   font-size: 14px;
   line-height: 1.55;
   color: var(--ink);
 }
-
 .toast {
   position: fixed;
   left: 50%;
@@ -951,14 +825,11 @@ body.assistant-active .assistant-page {
   font-size: 13px;
   z-index: 1000;
 }
-
 /* 仅在有对话（docked）时给输入区加分隔线 */
 .assistant-body .assistant-composer {
   border-top: 1px solid var(--line);
   padding-top: 8px;
 }
-
-
 /* lines 9018-9425 */
 /* ─── 小爱富文本输出（可读性 / 视觉增强，字号与读经默认一致） ─── */
 .answer-rich {
@@ -1046,25 +917,21 @@ body.assistant-active .assistant-page {
   color: var(--ink-soft);
   line-height: 1.85;
 }
-
 /* ─── 小爱完整 Markdown 输出 ─── */
 .answer-rich-md {
   overflow-wrap: anywhere;
 }
-
 .answer-rich-md .ans-md-p {
   margin: 0 0 14px;
   line-height: 1.82;
   max-width: 42em;
 }
-
 .answer-rich-md .ans-md-h-section + .ans-md-p {
   padding: 10px 12px;
   border-radius: 12px;
   background: var(--surface);
   line-height: 1.78;
 }
-
 .answer-rich-md .ans-md-h {
   margin: 16px 0 8px;
   font-size: calc(var(--assistant-answer-font-size, var(--font-base)) + 1px);
@@ -1072,7 +939,6 @@ body.assistant-active .assistant-page {
   color: var(--accent-deep);
   line-height: 1.5;
 }
-
 .answer-rich-md .ans-md-h-section {
   display: inline-block;
   margin: 14px 0 8px;
@@ -1081,31 +947,25 @@ body.assistant-active .assistant-page {
   background: var(--surface);
   font-size: calc(var(--assistant-answer-font-size, var(--font-base)) - 1px);
 }
-
 .answer-rich-md .ans-md-h4 {
   margin: 12px 0 6px;
   font-size: var(--assistant-answer-font-size, var(--font-base));
   font-weight: 700;
   color: var(--ink);
 }
-
 .answer-rich-md .ans-md-list {
   margin: 6px 0 12px;
   padding-left: 1.35em;
 }
-
 .answer-rich-md .ans-md-ol {
   padding-left: 1.5em;
 }
-
 .answer-rich-md .ans-md-li {
   margin: 6px 0;
 }
-
 .answer-rich-md .ans-md-li > p {
   margin: 0;
 }
-
 .answer-rich-md .ans-md-quote {
   margin: 10px 0;
   padding: 10px 14px;
@@ -1114,13 +974,11 @@ body.assistant-active .assistant-page {
   border-radius: 0 12px 12px 0;
   color: var(--ink-soft);
 }
-
 .answer-rich-md .ans-md-link {
   color: var(--accent-deep);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-
 .answer-rich-md .ans-md-code-inline {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.92em;
@@ -1128,7 +986,6 @@ body.assistant-active .assistant-page {
   border-radius: 6px;
   background: var(--wash);
 }
-
 .answer-rich-md .ans-md-pre {
   margin: 10px 0 12px;
   padding: 12px 14px;
@@ -1137,20 +994,17 @@ body.assistant-active .assistant-page {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-
 .answer-rich-md .ans-md-pre .ans-md-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.9em;
   line-height: 1.55;
   white-space: pre;
 }
-
 .answer-rich-md .ans-md-hr {
   border: none;
   border-top: 1px solid var(--line);
   margin: 14px 0;
 }
-
 .answer-rich-md .ans-md-table-wrap {
   margin: 10px 0 14px;
   overflow-x: auto;
@@ -1158,14 +1012,12 @@ body.assistant-active .assistant-page {
   border: 1px solid var(--line);
   border-radius: 12px;
 }
-
 .answer-rich-md .ans-md-table {
   width: 100%;
   min-width: 280px;
   border-collapse: collapse;
   font-size: calc(var(--assistant-answer-font-size, var(--font-base)) - 1px);
 }
-
 .answer-rich-md .ans-md-th,
 .answer-rich-md .ans-md-td {
   padding: 8px 10px;
@@ -1173,27 +1025,22 @@ body.assistant-active .assistant-page {
   text-align: left;
   vertical-align: top;
 }
-
 .answer-rich-md .ans-md-thead .ans-md-th {
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-weight: 700;
 }
-
 .answer-rich-md .ans-md-tr:last-child .ans-md-td {
   border-bottom: none;
 }
-
 .answer-rich-dense .ans-md-p {
   margin-bottom: 8px;
 }
-
 .assistant-answer .answer-rich,
 .half-sheet-answer-rich .answer-rich {
   font-size: var(--assistant-answer-font-size);
   line-height: 1.85;
 }
-
 .ans-footnote {
   display: inline;
   border: none;
@@ -1209,7 +1056,6 @@ body.assistant-active .assistant-page {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
-
 .assistant-citations {
   margin-top: 12px;
   border: 1px solid var(--line);
@@ -1217,7 +1063,6 @@ body.assistant-active .assistant-page {
   background: var(--paper);
   overflow: hidden;
 }
-
 .assistant-evidence-note {
   margin: 10px 0 0;
   padding: 8px 10px;
@@ -1228,21 +1073,17 @@ body.assistant-active .assistant-page {
   border-radius: 8px;
   border-left: 3px solid var(--gold, #b8956a);
 }
-
 .citation-popup-backdrop {
   z-index: 200;
 }
-
 .citation-action-btn {
   white-space: nowrap;
 }
-
 .citation-popup-sheet {
   max-height: min(70vh, 420px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
-
 .citation-popup-body {
   margin: 10px 0 0;
   font-size: 14px;
@@ -1250,7 +1091,6 @@ body.assistant-active .assistant-page {
   color: var(--ink);
   white-space: pre-wrap;
 }
-
 .assistant-citations-toggle {
   width: 100%;
   display: flex;
@@ -1264,16 +1104,13 @@ body.assistant-active .assistant-page {
   color: var(--ink);
   cursor: pointer;
 }
-
 .assistant-citations-list {
   border-top: 1px solid var(--line);
   padding: 6px 0;
 }
-
 .assistant-citation-item.active .assistant-citation-head {
   color: var(--accent-deep);
 }
-
 .assistant-citation-head {
   width: 100%;
   display: flex;
@@ -1287,20 +1124,17 @@ body.assistant-active .assistant-page {
   color: var(--ink-soft);
   cursor: pointer;
 }
-
 .assistant-citation-n {
   flex-shrink: 0;
   font-weight: 700;
   color: var(--accent-deep);
 }
-
 .assistant-citation-snippet {
   margin: 0 12px 8px 28px;
   font-size: 12px;
   line-height: 1.6;
   color: var(--muted);
 }
-
 .assistant-scene-tag {
   margin-left: 8px;
   font-size: 11px;
@@ -1309,13 +1143,11 @@ body.assistant-active .assistant-page {
   background: var(--accent-wash);
   color: var(--accent-deep);
 }
-
 .assistant-viewpoints-hint {
   margin-left: 6px;
   font-size: 11px;
   color: var(--ink-faint);
 }
-
 .answer-rich-md .ans-md-h-viewpoint {
   display: block;
   margin: 14px 0 8px;
@@ -1327,19 +1159,16 @@ body.assistant-active .assistant-page {
   font-weight: 700;
   color: var(--accent-deep);
 }
-
 .answer-rich-md .ans-md-h-viewpoint-b {
   border-left-color: color-mix(in srgb, var(--gold) 80%, var(--accent-deep));
   background: color-mix(in srgb, var(--wash) 55%, var(--surface));
 }
-
 .followup-row-label {
   width: 100%;
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 2px;
 }
-
 .xiaoai-summary-lead {
   margin: 0 0 8px;
   font-size: calc(var(--assistant-answer-font-size, var(--font-base)) + 1px);
@@ -1347,17 +1176,14 @@ body.assistant-active .assistant-page {
   line-height: 1.7;
   color: var(--ink);
 }
-
 .xiaoai-expand-btn {
   font-size: 13px;
   padding: 0;
 }
-
 .xiaoai-disclaimer {
   margin-top: 12px;
   font-size: 11px;
 }
-
 .half-sheet-verse {
   margin-bottom: 10px;
   padding: 10px 12px;
@@ -1367,8 +1193,6 @@ body.assistant-active .assistant-page {
   font-size: 14px;
   line-height: 1.7;
 }
-
-
 /* lines 9646-9699 */
 /* ─── 左侧抽屉（小爱历史，覆盖 30%） ─── */
 .drawer-backdrop {
@@ -1380,7 +1204,6 @@ body.assistant-active .assistant-page {
   justify-content: flex-start;
   z-index: 120;
 }
-
 .drawer-left {
   width: 30%;
   min-width: 240px;
@@ -1393,19 +1216,16 @@ body.assistant-active .assistant-page {
   overflow-y: auto;
   animation: drawer-in 0.22s ease;
 }
-
 .assistant-history-drawer {
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
-
 .assistant-history-body {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
 }
-
 .assistant-history-retention-hint {
   margin: 12px 0 0;
   padding-top: 10px;
@@ -1414,7 +1234,6 @@ body.assistant-active .assistant-page {
   flex-shrink: 0;
   border-top: 1px solid var(--line);
 }
-
 @keyframes drawer-in {
   from {
     transform: translateX(-100%);
@@ -1423,4 +1242,3 @@ body.assistant-active .assistant-page {
     transform: translateX(0);
   }
 }
-

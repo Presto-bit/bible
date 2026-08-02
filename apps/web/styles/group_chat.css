@@ -1269,70 +1269,6 @@
   font-size: 10px;
   padding: 2px 8px;
 }
-.plan-invite-btn {
-  font-size: 11px !important;
-  padding: 4px 10px !important;
-  line-height: 1.3;
-}
-.plan-active-share-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-.plan-custom-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 12px;
-}
-.plan-custom-card {
-  padding: 14px 16px;
-}
-.plan-custom-card-active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-wash, rgba(180, 140, 60, 0.15));
-}
-.plan-custom-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-}
-.plan-custom-active-tag {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--accent-deep);
-  background: var(--accent-wash, #faf6ee);
-  padding: 2px 8px;
-  border-radius: 999px;
-  margin-bottom: 6px;
-}
-.plan-custom-title {
-  display: block;
-  font-size: 15px;
-}
-.plan-custom-meta {
-  font-size: 12px;
-  margin: 4px 0 0;
-}
-.plan-custom-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-.plan-custom-btn-main {
-  flex: 1;
-  padding: 10px 12px;
-  font-size: 14px;
-}
-.plan-custom-add {
-  display: block;
-  width: 100%;
-  text-align: center;
-  padding: 10px;
-}
 .plan-gen-scope-chip.active {
   background: var(--accent-wash);
   border-color: var(--accent);
@@ -1569,11 +1505,6 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.settings-version-line {
-  margin: 12px 0 0;
-  font-size: 12px;
-  text-align: center;
-}
 .challenge-stats-card {
   display: flex;
   align-items: center;
@@ -1587,11 +1518,6 @@
   width: 52px;
   height: 52px;
   flex-shrink: 0;
-}
-.plans-customize-link,
-.plans-customize-btn {
-  font-size: 14px !important;
-  font-weight: 700 !important;
 }
 .reader-settings-sheet h3 {
   font-size: 16px;
@@ -5239,3 +5165,52 @@ body.im-search-keyboard .im-chat-search-sheet{
 .reminder-more{margin-bottom:8px;}
 .reminder-more .card{padding:14px 16px;}
 .reminder-page-foot{margin:20px 0 32px;font-size:12px;line-height:1.55;}
+/* group composer/emoji from verse_fullscreen */
+.group-emoji-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.group-emoji-btn {
+  border: none;
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 2px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.group-emoji-btn.active {
+  background: rgba(200, 80, 80, 0.12);
+}
+.group-composer-wrap {
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0));
+}
+.group-composer-label {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--ink-faint);
+}
+.group-composer-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.group-composer-label-row .group-composer-label {
+  margin-bottom: 0;
+}
+.group-composer-text {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 14px;
+  resize: vertical;
+  margin-bottom: 8px;
+  font-family: inherit;
+}

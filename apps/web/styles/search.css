@@ -483,3 +483,66 @@
   box-shadow: 0 0 0 2px var(--accent-deep);
 }
 
+/* restored: story entries from verse_fullscreen */
+
+.story-entry-scroll {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+
+.story-entry-scroll .story-entry-card {
+  flex: 0 0 min(78vw, 220px);
+  scroll-snap-align: start;
+}
+
+.story-tour-card {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.story-entry-card {
+  display: block;
+  padding: 12px 14px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.story-entry-card.topic-nav-card:active {
+  background: var(--accent-wash);
+}
+
+.story-tour-card.is-open {
+  grid-column: 1 / -1;
+  box-shadow: var(--card-elev-hero, var(--elev-2));
+  border-color: var(--accent-deep);
+}
+
+.story-series-card {
+  flex-basis: min(86vw, 248px) !important;
+  border-left: 3px solid color-mix(in srgb, var(--accent, #3d6b8e) 55%, transparent);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent, #3d6b8e) 6%, transparent),
+      transparent 42%
+    ),
+    var(--card, #fff);
+}
+
+.story-series-card .story-tour-title {
+  font-size: 16px;
+}
+
+.knowledge-empty .text-link {
+  margin-left: 2px;
+}
+
