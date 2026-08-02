@@ -375,6 +375,12 @@ html.story-album-lock .tabbar {
 .story-album-edge-right {
   right: 0;
 }
+/* 触控端只用滑动翻页，关掉边缘点击，避免幽灵 click 把左右方向顶反 */
+@media (hover: none) and (pointer: coarse) {
+  .story-album-edge {
+    pointer-events: none;
+  }
+}
 .story-album-footer {
   margin-top: 0;
   flex-shrink: 0;

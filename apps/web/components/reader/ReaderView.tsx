@@ -561,14 +561,15 @@ export default function ReaderView({
     }
     return [...wholeVerseSel].sort((a, b) => a - b);
   }, [wordRange, wholeVerseSel, nativeTouchSelect, activeNativeSelection]);
-  const nativeSelVerses = useMemo(
-    () => (
-      nativeTouchSelect && !nativeSelecting && !nativePinnedHighlight?.spans.length
-        ? versesForNativeLineHighlight(verses, nativeSelection)
-        : new Set<number>()
-    ),
-    [nativeTouchSelect, nativeSelection, nativeSelecting, nativePinnedHighlight, verses],
-  );
+  const nativeSelVerses = useMemo(() => {
+    if (!nativeTouchSelect || nativeSelecting) return new Set<number>();
+    // 无 CSS Highlight 时用行级蓝底兜底（绝不能靠保留系统选区，否则 PWA 会弹出拷贝/查询栏）
+    if (nativePinnedHighlight?.verses.length && !supportsCssCustomHighlight()) {
+      return new Set(nativePinnedHighlight.verses);
+    }
+    if (nativePinnedHighlight?.spans.length) return new Set<number>();
+    return versesForNativeLineHighlight(verses, nativeSelection);
+  }, [nativeTouchSelect, nativeSelection, nativeSelecting, nativePinnedHighlight, verses]);
   const verseSelClass = useCallback(
     (verse: number) => (wholeVerseSel.includes(verse) || nativeSelVerses.has(verse) ? ' verse-sel-active' : ''),
     [wholeVerseSel, nativeSelVerses],
@@ -1848,6 +1849,7 @@ export default function ReaderView({
     nativePinSuppressRef.current = true;
     nativePinGenRef.current += 1;
     nativePinnedHighlightRef.current = null;
+    contentRef.current?.classList.remove('reader-sel-locked');
     clearSelectionVisual();
     flushSync(() => {
       setNativePinnedHighlight(null);
@@ -2001,6 +2003,15 @@ export default function ReaderView({
         nativePinnedHighlightRef.current = null;
         clearNativePinnedHighlight();
         setNativePinnedHighlight(null);
+        root.classList.remove('reader-sel-locked');
+      }
+    };
+
+    const clearBrowserSelection = () => {
+      try {
+        window.getSelection()?.removeAllRanges();
+      } catch {
+        /* ignore */
       }
     };
 
@@ -2025,26 +2036,15 @@ export default function ReaderView({
         lastSelectAt.current = Date.now();
         swipeIgnoreUntilRef.current = Date.now() + 320;
       }
-      // 同步收起系统选区，避免 iOS/Android 弹出系统复制工具栏
+      // 始终清掉系统选区：蓝底改由 Highlight / verse-sel-active 承担
       pinningRef.current = true;
-      const keepNativeSel = Boolean(
-        pinned?.spans.length && !supportsCssCustomHighlight(),
-      );
-      if (!keepNativeSel) {
-        try {
-          window.getSelection()?.removeAllRanges();
-        } catch {
-          /* ignore */
-        }
-      }
+      clearBrowserSelection();
+      root.classList.add('reader-sel-locked');
       requestAnimationFrame(() => {
-        if (!keepNativeSel) {
-          try {
-            window.getSelection()?.removeAllRanges();
-          } catch {
-            /* ignore */
-          }
-        }
+        clearBrowserSelection();
+        // iOS PWA 偶发会在下一帧又拉起选区/工具栏
+        window.setTimeout(clearBrowserSelection, 30);
+        window.setTimeout(clearBrowserSelection, 120);
         pinningRef.current = false;
       });
     };
@@ -2126,7 +2126,18 @@ export default function ReaderView({
         raf = 0;
         if (selectionLocked()) {
           setLiveNativeSelection(null);
-          window.getSelection()?.removeAllRanges();
+          clearBrowserSelection();
+          return;
+        }
+        // 已 pin：若系统又拉起选区（PWA 常见），立刻清掉，避免拷贝/查询栏
+        if (
+          autoCollapseNativeSel
+          && !nativeSelectingRef.current
+          && Boolean(nativePinnedHighlightRef.current?.spans.length || nativeSelectionRef.current?.verses.length)
+          && browserHasNativeSelection()
+        ) {
+          clearBrowserSelection();
+          root.classList.add('reader-sel-locked');
           return;
         }
         const next = readNativeVerseSelection(root);
@@ -2910,7 +2921,7 @@ export default function ReaderView({
         {renderChapterHead()}
 
         <div
-          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}${!hasSel ? ' reader-sel-cleared' : ''}`}
+          className={`reader-content ${chapterAnim}${swipeTurn ? ' reader-content-turn' : ''}${verseTransitionOff || turn.animating || turn.dragSide ? ' verse-transition-off' : ''}${!hasSel ? ' reader-sel-cleared' : ''}${hasSel && !nativeSelecting && autoCollapseNativeSel ? ' reader-sel-locked' : ''}`}
           onContextMenu={(e) => e.preventDefault()}
           onClick={handleReaderContentClick}
         >

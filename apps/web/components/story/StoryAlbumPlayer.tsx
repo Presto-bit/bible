@@ -199,10 +199,13 @@ export function StoryAlbumPlayer({
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     if (absX < SWIPE_MIN || absX < absY) return;
-    // 右滑 → 下一页；左滑 → 上一页（含跨幕）
+    // 产品约定：手指右滑 → 下一页；手指左滑 → 上一页（含跨幕回上一幕）
     suppressEdgeClickUntil.current = Date.now() + 450;
-    if (dx > 0) goNext();
-    else goPrev();
+    if (dx > 0) {
+      goNext();
+    } else {
+      goPrev();
+    }
   };
 
   const onEdgeNav = (dir: 'prev' | 'next') => (e: React.MouseEvent) => {
@@ -336,6 +339,15 @@ export function StoryAlbumPlayer({
           onSwipeStart(e.touches[0]?.clientX ?? 0, e.touches[0]?.clientY ?? 0)
         }
         onTouchEnd={(e) => onSwipeEnd(e.changedTouches[0]?.clientX ?? 0, e.changedTouches[0]?.clientY ?? 0)}
+        onPointerDown={(e) => {
+          if (e.pointerType === 'touch') return;
+          if (e.button !== 0) return;
+          onSwipeStart(e.clientX, e.clientY);
+        }}
+        onPointerUp={(e) => {
+          if (e.pointerType === 'touch') return;
+          onSwipeEnd(e.clientX, e.clientY);
+        }}
       >
         <article key={`${epIndex}-${beat.id}`} className="story-beat-frame">
           <div className="story-beat-visual">

@@ -938,7 +938,7 @@ a.license-row-name:hover {
   -webkit-user-select: text;
   user-select: text;
 }
-/* 触控/PWA 原生划选：user-select 保留放大镜+蓝底；touch-callout:none 隐藏系统复制菜单 */
+/* 触控/PWA 原生划选：user-select 保留放大镜+蓝底；touch-callout:none 隐藏长按菜单 */
 @media (hover: none) and (pointer: coarse), (display-mode: standalone) {
   .reader-page .verse-token,
   .reader-page .verse-inline,
@@ -962,6 +962,16 @@ a.license-row-name:hover {
   .reader-page .reader-turn-panel-active .reader-turn-peek,
   .reader-page .reader-turn-panel-peek .reader-turn-peek {
     touch-action: pan-y;
+  }
+
+  /* 选区已 pin：禁止系统再拉起选区 → 拷贝/查询工具栏 */
+  .reader-content.reader-sel-locked .verse-token,
+  .reader-content.reader-sel-locked .verse-inline,
+  .reader-content.reader-sel-locked .verse-text-body,
+  .reader-content.reader-sel-locked .verse-text-body * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
   }
 }
 .verse-word.is-active {
