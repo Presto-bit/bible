@@ -1242,3 +1242,10 @@ body.assistant-active .assistant-page {
     transform: translateX(0);
   }
 }
+
+/* relocated: half-sheet-user-bubble from discover_list */
+.half-sheet-user-bubble {
+  margin: 0 0 12px auto;
+  max-width: 92%;
+}
+

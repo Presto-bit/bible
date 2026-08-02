@@ -1059,3 +1059,17 @@ body.pwa-standalone .profile-page .profile-shortcut-panel {
   margin-top: 4px;
 }
 
+
+/* relocated: reminder-slot from reading_review */
+.reminder-slot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+.reminder-slot-active {
+  border-color: var(--accent-deep);
+  background: var(--accent-wash);
+}

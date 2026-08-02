@@ -4827,3 +4827,19 @@ html.app-theme-dark body {
   width: 62%;
   height: 40px;
 }
+
+/* relocated: home daily-devotional / theme-explore from verse_fullscreen */
+.daily-devotional-card {
+  border-left: 3px solid var(--accent);
+}
+.daily-devotional-prayer {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+.theme-explore-rail .theme-chip-card {
+  min-width: auto;
+  padding: 8px 14px;
+  font-size: 13px;
+  white-space: nowrap;
+}

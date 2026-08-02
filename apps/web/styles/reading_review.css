@@ -560,45 +560,6 @@ a.report-tile-link .muted {
   color: rgba(244, 247, 245, 0.58);
   text-align: center;
 }
-.share-landing-cite {
-  margin: 8px 0 0;
-  font-size: 15px;
-  color: var(--ink-soft);
-  font-style: normal;
-}
-.share-landing-verse {
-  margin: 8px 0 0;
-  padding: 18px 18px 16px;
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--accent, #7d9b8a) 10%, var(--surface, #fff));
-  border: 1px solid color-mix(in srgb, var(--accent, #7d9b8a) 18%, transparent);
-}
-.share-landing-verse-text {
-  margin: 0;
-  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
-  font-size: clamp(22px, 5.5vw, 30px);
-  line-height: 1.45;
-  font-weight: 650;
-  color: var(--ink);
-  text-wrap: pretty;
-}
-.share-landing-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 14px 0 4px;
-}
-.share-landing-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--accent, #7d9b8a) 12%, var(--surface, #fff));
-  border: 1px solid color-mix(in srgb, var(--accent, #7d9b8a) 16%, transparent);
-}
 .wrapped-slide-tap {
   margin-top: 28px;
   align-self: flex-start;
@@ -645,89 +606,6 @@ a.report-tile-link .muted {
 body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-shell)) .tabbar,
 body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-shell)) .tabbar-compact-nav {
   display: none !important;
-}
-.share-landing-wrapped .share-landing-title {
-  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
-  font-size: clamp(26px, 6vw, 34px);
-  line-height: 1.3;
-}
-.share-landing-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  margin: 18px 0 8px;
-}
-.share-landing-metric {
-  padding: 14px 14px 12px;
-  border-radius: 14px;
-  background: rgba(125, 155, 138, 0.12);
-  border: 1px solid rgba(125, 155, 138, 0.18);
-}
-.share-landing-metric strong {
-  display: block;
-  font-size: 22px;
-  font-weight: 750;
-  color: var(--ink);
-}
-.share-landing-metric span {
-  font-size: 12px;
-  color: var(--ink-soft);
-}
-.reminder-slot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-}
-.reminder-slot-active {
-  border-color: var(--accent-deep);
-  background: var(--accent-wash);
-}
-.book-complete-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: rgba(0, 0, 0, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-.book-complete-card {
-  background: var(--surface);
-  border-radius: 16px;
-  padding: 28px 24px;
-  text-align: center;
-  animation: book-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.16);
-}
-.book-complete-icon {
-  font-size: 48px;
-  display: block;
-  margin-bottom: 8px;
-  animation: book-icon-pop 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-}
-@keyframes book-pop {
-  from { transform: scale(0.88); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
-}
-@keyframes book-icon-pop {
-  0% { transform: scale(0.7); opacity: 0; }
-  55% { transform: scale(1.08); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .book-complete-card,
-  .book-complete-icon {
-    animation: none;
-  }
-}
-.group-task-done {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent-deep);
 }
 /* restored: verse-rank from reader */
 .verse-rank-title {
@@ -789,3 +667,20 @@ body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-
   color: var(--ink);
   font-style: italic;
 }
+
+/* relocated: wrapped bits from verse_fullscreen */
+.wrapped-page .wrapped-hero { margin-top: 12px; text-align: center; }
+.wrapped-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+.wrapped-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.wrapped-tabs { display: flex; gap: 10px; font-size: 13px; }
+.wrapped-tabs a { color: var(--ink-soft); text-decoration: none; }
+.wrapped-tabs a.active { color: var(--accent-deep); font-weight: 600; }

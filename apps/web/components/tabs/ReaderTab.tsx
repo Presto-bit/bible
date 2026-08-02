@@ -4,6 +4,8 @@ import dynamic from 'next/dynamic';
 import '@/styles/reader.css';
 import '@/styles/reader_catalog.css';
 import '@/styles/plans.css';
+import '@/styles/group_chat.css';
+import '@/styles/assistant.css';
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -32,10 +34,10 @@ import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import { OfflineInlineNotice } from '@/components/OfflineInlineNotice';
 import { bookAbbr } from '@/lib/book_abbr';
 import { useOnline } from '@/lib/use_online';
+import CatalogView from '@/components/reader/CatalogView';
+import ReaderView from '@/components/reader/ReaderView';
 
-
-const CatalogView = dynamic(() => import('@/components/reader/CatalogView'), { ssr: false });
-const ReaderView = dynamic(() => import('@/components/reader/ReaderView'), { ssr: false });
+/** Sheet 仍动态加载；目录/阅读器恢复静态导入，避免选章时空档闪跳 */
 const EntityKnowledgeSheet = dynamic(
   () => import('@/components/knowledge/EntityKnowledgeSheet').then((m) => m.EntityKnowledgeSheet),
   { ssr: false },

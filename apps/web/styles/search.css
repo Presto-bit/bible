@@ -546,3 +546,148 @@
   margin-left: 2px;
 }
 
+
+/* relocated: search story cards / topic from verse_fullscreen */
+.search-section-title {
+  font-size: var(--app-heading-size);
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+/* 搜索：地图/时间线故事卡片（默认两张并排） */
+.story-card-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.story-card-grid-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+.story-card-grid-quad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+@media (max-width: 520px) {
+  .story-card-grid-quad {
+    grid-template-columns: 1fr;
+  }
+}
+.story-tour-badge-diagram {
+  background: color-mix(in srgb, var(--gold, #b8956a) 18%, transparent);
+}
+.story-tour-badge-graph {
+  background: color-mix(in srgb, var(--accent, #3d6b8e) 15%, transparent);
+}
+.story-tour-badge-series {
+  background: color-mix(in srgb, var(--ink, #1a1a1a) 12%, transparent);
+}
+.knowledge-ask-sheet {
+  max-height: min(78vh, 640px);
+}
+.story-card-grid-pair:has(.story-tour-card.is-open) {
+  grid-template-columns: 1fr;
+}
+.story-detail-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.story-tour-block + .story-tour-block {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.story-tour-block-title {
+  display: block;
+  font-size: var(--font-md);
+  margin-bottom: 2px;
+}
+.story-tour-head {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  padding: 12px 14px;
+  cursor: pointer;
+  color: inherit;
+}
+.story-tour-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-deep);
+  background: var(--accent-wash);
+  border-radius: 999px;
+  padding: 2px 8px;
+  margin-bottom: 6px;
+}
+.story-tour-badge-time {
+  color: var(--dawn-gold-deep);
+  background: var(--dawn-gold-wash);
+}
+.story-tour-title {
+  display: block;
+  font-size: var(--font-base);
+  line-height: 1.35;
+}
+.story-tour-hook {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink, #1a1a1a);
+}
+.story-tour-meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.story-tour-progress {
+  margin: 2px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--accent-deep, var(--accent));
+}
+.story-tour-toggle {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: var(--font-sm);
+  font-weight: 600;
+  color: var(--accent-deep);
+}
+.knowledge-story-share-hint {
+  margin: 8px 0 0;
+  font-size: 12px;
+}
+.knowledge-story-end-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  margin-top: 12px;
+  font-size: 13px;
+}
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+.topic-tile {
+  border-left: 3px solid var(--accent);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+}
+.topic-disclaimer {
+  font-size: 12px;
+  margin-top: 10px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+.topic-hero { border-left: 4px solid var(--accent); }

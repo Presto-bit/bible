@@ -2097,7 +2097,8 @@ export default function ReaderView({
         setWordRange(null);
         wordRangeRef.current = null;
         markNativeSelectionCommitted();
-        if (autoCollapseNativeSel) scheduleCollapse(120);
+        /* 略延后收起系统选区，减少工具条刚出现就被 pin/清空造成的闪跳感 */
+        if (autoCollapseNativeSel) scheduleCollapse(360);
       }
     };
 
@@ -2136,7 +2137,7 @@ export default function ReaderView({
           setWordRange(null);
           wordRangeRef.current = null;
           markNativeSelectionCommitted();
-          if (autoCollapseNativeSel) scheduleCollapse(160);
+          if (autoCollapseNativeSel) scheduleCollapse(400);
         }
       });
     };
