@@ -523,25 +523,23 @@ body.assistant-active .assistant-page {
   border: 1px solid color-mix(in srgb, var(--accent-deep) 12%, var(--line));
   color: var(--ink);
   cursor: pointer;
-  /* 触控默认禁选，避免长按弹出系统拷贝/翻译栏；桌面仍可划选 */
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
-.assistant-answer-body,
-.assistant-answer .answer-rich {
+  /* 触控禁选，避免与长按菜单抢系统拷贝栏；桌面可划选 */
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
 }
 @media (hover: hover) and (pointer: fine) {
-  .assistant-user-text,
-  .assistant-answer-body,
-  .assistant-answer .answer-rich {
+  .assistant-user-text {
     -webkit-user-select: text;
     user-select: text;
     -webkit-touch-callout: default;
   }
+}
+.assistant-answer .allow-text-select,
+.assistant-answer .answer-rich {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 .assistant-answer {
   display: block;

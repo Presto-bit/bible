@@ -14,7 +14,6 @@ import { CitationBar } from '@/components/CitationBar';
 import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
 import { AssistantNextSteps } from '@/components/assistant/AssistantNextSteps';
 import { AssistantUserBubble } from '@/components/assistant/AssistantUserBubble';
-import { AssistantAnswerBubble } from '@/components/assistant/AssistantAnswerBubble';
 import { setAssistantStreamBusy } from '@/lib/assistant_stream_busy';
 import { addThought } from '@/lib/reader_thoughts';
 import {
@@ -1251,13 +1250,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }
                         />
                       )}
-                      <AssistantAnswerBubble
-                        disabled={busy}
-                        paneActive={paneActive}
-                        onCopy={() => {
-                          void copyText(m.text);
-                        }}
-                      >
+                      <div className="allow-text-select">
                         <AnswerText
                           text={m.text}
                           streaming={isStreaming}
@@ -1268,7 +1261,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             setCitationOpen(n);
                           }}
                         />
-                      </AssistantAnswerBubble>
+                      </div>
                     </div>
                   ) : (
                     <AssistantThinkingState
