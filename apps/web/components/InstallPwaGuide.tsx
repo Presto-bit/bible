@@ -503,8 +503,8 @@ export default function InstallBanner() {
     );
   }
 
-  // 安卓自动 Sheet：不依赖 Banner 槽位
-  if (isAndroidPlatform && platform !== 'standalone') {
+  // 安卓自动 Sheet：不依赖 Banner 槽位（isAndroidPlatform 已排除 standalone）
+  if (isAndroidPlatform) {
     return (
       <InstallPwaSheet
         open={sheetOpen}
