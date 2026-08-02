@@ -253,6 +253,7 @@ export function InstallPwaSheet({
         {isAndroid ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
             安装前会尽量把读经记录保存到账号。从官方站点直接下载安装包，不跳应用商店。
+            装好后请点桌面「彼爱」图标打开（不要从浏览器地址栏再进），才会是无地址栏的 App 形态。
           </p>
         ) : null}
         {isDesktop && !loggedIn ? (
@@ -419,15 +420,26 @@ export default function InstallBanner() {
   // 首页有任务横幅时让路；分享落地页改用 SharePwaGuide，隐藏全站 Banner
   const onShareLanding = isShareLandingPath(pathname);
   const slotFree = (homeClear || !onHome) && !onShareLanding;
+  const isAndroidPlatform =
+    platform === 'android-chrome' || platform === 'android-other' || platform === 'inapp';
 
+  // 安卓：尽快自动弹出安装 Sheet（不依赖新手引导结束）；iOS/桌面仍用 Banner 节奏
   useEffect(() => {
     if (platform === null) return;
-    if (
-      platform === 'standalone' ||
-      isInstallPromptSuppressed() ||
-      !onboardingDone ||
-      !slotFree
-    ) {
+    if (platform === 'standalone' || isInstallPromptSuppressed()) {
+      setHidden(true);
+      return;
+    }
+    if (isAndroidPlatform) {
+      // 微信内 / 系统浏览器：尽快出安装引导；不挡在 onboarding / 首页任务后
+      const t = window.setTimeout(() => {
+        noteInstallPromptShown();
+        setHidden(false);
+        setSheetOpen(true);
+      }, platform === 'inapp' ? 200 : 320);
+      return () => window.clearTimeout(t);
+    }
+    if (!onboardingDone || !slotFree) {
       setHidden(true);
       return;
     }
@@ -436,7 +448,7 @@ export default function InstallBanner() {
       setHidden(false);
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [platform, onboardingDone, slotFree]);
+  }, [platform, onboardingDone, slotFree, isAndroidPlatform]);
 
   const closeSheet = () => {
     setSheetOpen(false);
@@ -450,6 +462,18 @@ export default function InstallBanner() {
 
   // 分享落地仍可响应 openPwaInstallSheet()；standalone 永不自动引导
   if (onShareLanding) {
+    return (
+      <InstallPwaSheet
+        open={sheetOpen}
+        onClose={closeSheet}
+        platform={platform ?? undefined}
+        context={sheetCtx}
+      />
+    );
+  }
+
+  // 安卓自动 Sheet：不依赖 Banner 槽位
+  if (isAndroidPlatform && platform !== 'standalone') {
     return (
       <InstallPwaSheet
         open={sheetOpen}
@@ -480,14 +504,14 @@ export default function InstallBanner() {
           ? '添加到主屏幕，像 App 一样读经'
           : platform === 'desktop'
             ? '登录后，把读经数据保存到桌面 App'
-            : '添加到主屏幕，离线也能打开';
+            : '安装彼爱 App，从桌面打开';
 
   return (
     <>
-      <div className="install-banner" role="region" aria-label={platform === 'desktop' ? '保存到桌面 App' : '安装到主屏幕'}>
+      <div className="install-banner" role="region" aria-label={platform === 'desktop' ? '保存到桌面 App' : '安装彼爱'}>
         <button type="button" className="install-banner-main" onClick={() => setSheetOpen(true)}>
           <span>{shortMsg}</span>
-          <span className="install-banner-cta">{platform === 'desktop' ? '去保存' : '查看步骤'}</span>
+          <span className="install-banner-cta">{platform === 'desktop' ? '去保存' : '去安装'}</span>
         </button>
         <button
           type="button"

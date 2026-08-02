@@ -27,6 +27,19 @@
 - [ ] 已登录用户点击下载前会出现「正在保存读经记录…」
 - [ ] 重装后同账号可恢复进度（与既有同步一致）
 
-## 降级
+## 仍看到浏览器地址栏？
 
-- [ ] 「仅添加浏览器快捷方式」仅在 Chrome 有 beforeinstallprompt 时出现，为次要入口
+Google 已能校验本站 `assetlinks`（`linked: true`）。若安装后仍有地址栏，通常不是站点未配置，而是：
+
+1. **从浏览器打开了链接**，而不是点桌面「彼爱」图标  
+2. **在 assetlinks 上线之前装的旧包**：请卸载后重新下载安装  
+3. **应用链接未验证**：系统设置 → 应用 → 彼爱 → 打开方式 / 支持的链接 → 确认 `2sc.prestoai.cn` 为「始终允许」  
+4. 用 Chrome 打开：`chrome://install-errors` 或开发者选项里查看 App Links 校验状态  
+
+验证命令（电脑）：
+
+```bash
+curl -s "https://digitalassetlinks.googleapis.com/v1/assetlinks:check?source.web.site=https://2sc.prestoai.cn&relation=delegate_permission/common.handle_all_urls&target.android_app.package_name=cn.prestoai.peiai&target.android_app.certificate.sha256_fingerprint=80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16"
+```
+
+应返回 `"linked": true`。

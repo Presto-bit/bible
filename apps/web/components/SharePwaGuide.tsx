@@ -45,10 +45,12 @@ export function SharePwaGuide({
     }
     const delay =
       p === 'inapp'
-        ? 280
-        : variant === 'invite' || variant === 'daily' || variant === 'campaign' || variant === 'wrapped'
-          ? 900
-          : 2800;
+        ? 180
+        : p === 'android-chrome' || p === 'android-other'
+          ? 280
+          : variant === 'invite' || variant === 'daily' || variant === 'campaign' || variant === 'wrapped'
+            ? 900
+            : 2800;
     const t = window.setTimeout(() => {
       noteSharePwaShown();
       setHidden(false);
