@@ -1695,10 +1695,19 @@ a.license-row-name:hover {
 }
 .reader-content.reader-sel-cleared .verse-inline::selection,
 .reader-content.reader-sel-cleared .verse-text-body::selection,
+.reader-content.reader-sel-cleared .verse-text-body *::selection,
+.reader-content.reader-sel-cleared .verse-token::selection,
+.reader-content.reader-sel-cleared .verse-token *::selection,
 .reader-content.reader-sel-cleared .verse-word::selection,
 .reader-content.reader-sel-cleared .verse-word *::selection {
   background: transparent !important;
-  color: inherit;
+  color: inherit !important;
+}
+.reader-page:has(.reader-content.reader-sel-cleared) .verse-inline::selection,
+.reader-page:has(.reader-content.reader-sel-cleared) .verse-text-body::selection,
+.reader-page:has(.reader-content.reader-sel-cleared) .verse-text-body *::selection {
+  background: transparent !important;
+  color: inherit !important;
 }
 .verse-preview-list {
   display: flex;

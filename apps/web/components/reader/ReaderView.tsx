@@ -1834,7 +1834,11 @@ export default function ReaderView({
 
   const clearSelectionVisual = useCallback(() => {
     clearNativePinnedHighlight();
-    window.getSelection()?.removeAllRanges();
+    try {
+      window.getSelection()?.removeAllRanges();
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const dismissNativeSelection = useCallback(() => {
@@ -1866,6 +1870,9 @@ export default function ReaderView({
       clearSelectionVisual();
       requestAnimationFrame(clearSelectionVisual);
     });
+    // WebKit 偶发在下一帧又绘回 Highlight / ::selection
+    window.setTimeout(clearSelectionVisual, 50);
+    window.setTimeout(clearSelectionVisual, 200);
     window.setTimeout(() => {
       nativePinSuppressRef.current = false;
     }, 3000);
@@ -2018,17 +2025,27 @@ export default function ReaderView({
         lastSelectAt.current = Date.now();
         swipeIgnoreUntilRef.current = Date.now() + 320;
       }
+      // 同步收起系统选区，避免 iOS/Android 弹出系统复制工具栏
       pinningRef.current = true;
-      requestAnimationFrame(() => {
-        const keepNativeSel = Boolean(
-          pinned?.spans.length && !supportsCssCustomHighlight(),
-        );
-        if (!keepNativeSel) {
+      const keepNativeSel = Boolean(
+        pinned?.spans.length && !supportsCssCustomHighlight(),
+      );
+      if (!keepNativeSel) {
+        try {
           window.getSelection()?.removeAllRanges();
+        } catch {
+          /* ignore */
         }
-        requestAnimationFrame(() => {
-          pinningRef.current = false;
-        });
+      }
+      requestAnimationFrame(() => {
+        if (!keepNativeSel) {
+          try {
+            window.getSelection()?.removeAllRanges();
+          } catch {
+            /* ignore */
+          }
+        }
+        pinningRef.current = false;
       });
     };
 
@@ -2097,8 +2114,8 @@ export default function ReaderView({
         setWordRange(null);
         wordRangeRef.current = null;
         markNativeSelectionCommitted();
-        /* 略延后收起系统选区，减少工具条刚出现就被 pin/清空造成的闪跳感 */
-        if (autoCollapseNativeSel) scheduleCollapse(360);
+        /* 立刻收起系统选区：应用内 pin + 工具条保留，系统菜单尽量不出现 */
+        if (autoCollapseNativeSel) collapseSystemSelection();
       }
     };
 
@@ -2137,7 +2154,7 @@ export default function ReaderView({
           setWordRange(null);
           wordRangeRef.current = null;
           markNativeSelectionCommitted();
-          if (autoCollapseNativeSel) scheduleCollapse(400);
+          if (autoCollapseNativeSel) scheduleCollapse(0);
         }
       });
     };
@@ -2468,6 +2485,16 @@ export default function ReaderView({
       setMarkPaletteOpen(false);
     }
   }, [hasSel]);
+
+  // 系统「复制」也会走 document copy；复制后收起应用选区蓝底
+  useEffect(() => {
+    if (!hasSel) return;
+    const onCopy = () => {
+      window.setTimeout(() => dismissNativeSelection(), 0);
+    };
+    document.addEventListener('copy', onCopy);
+    return () => document.removeEventListener('copy', onCopy);
+  }, [hasSel, dismissNativeSelection]);
 
   const prevHasSelRef = useRef(false);
   useEffect(() => {
@@ -3081,9 +3108,12 @@ export default function ReaderView({
               onClick={() => {
                 setMarkPaletteOpen(false);
                 const text = `${effRefLabel} ${effSelectionText}`;
-                finishToolbarAction();
-                void navigator.clipboard.writeText(text);
-                flashToast(englishUI ? 'Copied' : '已复制');
+                const done = () => {
+                  finishToolbarAction();
+                  flashToast(englishUI ? 'Copied' : '已复制');
+                };
+                // 先写入剪贴板，再清选区，避免蓝底残留；失败也收起选区
+                void navigator.clipboard.writeText(text).then(done, done);
               }}
             >
               <span className="vsb-icon" aria-hidden>

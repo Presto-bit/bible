@@ -63,7 +63,11 @@ export function clearNativePinnedHighlight(): void {
   } catch {
     /* ignore */
   }
-  CSS.highlights.delete(HIGHLIGHT_NAME);
+  try {
+    CSS.highlights.delete(HIGHLIGHT_NAME);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function applyNativePinnedHighlight(
