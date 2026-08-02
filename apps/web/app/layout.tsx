@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import '../styles/design_tokens.css';
 import './globals.css';
+import '../styles/shared_chrome.css';
 import { AppThemeShell } from '@/components/AppThemeShell';
 import PwaRegister from '@/components/PwaRegister';
 import PwaStandaloneShell from '@/components/PwaStandaloneShell';

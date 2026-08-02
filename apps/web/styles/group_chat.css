@@ -6,14 +6,12 @@
   overflow: hidden;
   padding-bottom: 0;
 }
-
 .group-wechat-top {
   flex-shrink: 0;
   background: var(--bg);
   border-bottom: 1px solid var(--line);
   z-index: 5;
 }
-
 .group-wechat-nav {
   display: flex;
   align-items: center;
@@ -21,7 +19,6 @@
   padding: 8px 12px;
   min-height: 44px;
 }
-
 .group-wechat-back {
   flex-shrink: 0;
   display: inline-flex;
@@ -33,18 +30,15 @@
   color: var(--accent-deep);
   font-size: 16px;
 }
-
 .group-wechat-back-icon {
   font-size: 22px;
   line-height: 1;
   margin-top: -1px;
 }
-
 .group-wechat-back-label {
   font-size: 15px;
   font-weight: 500;
 }
-
 .group-wechat-nav-center {
   flex: 1;
   min-width: 0;
@@ -59,7 +53,6 @@
   gap: 2px;
   overflow: hidden;
 }
-
 .group-wechat-name {
   font-size: 17px;
   font-weight: 700;
@@ -68,37 +61,31 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .group-wechat-count {
   font-size: 14px;
   font-weight: 400;
   color: var(--ink-faint);
   margin-left: 2px;
 }
-
 .group-wechat-settings {
   flex-shrink: 0;
   font-size: 20px;
   line-height: 1;
 }
-
 .group-wechat-nav-actions {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   gap: 2px;
 }
-
 .group-wechat-tasks {
   padding: 10px 14px 12px;
   background: var(--surface);
   border-top: 1px solid var(--line);
 }
-
 .group-wechat-tasks-compact {
   padding: 8px 14px 10px;
 }
-
 .group-wechat-tasks-head {
   display: flex;
   align-items: center;
@@ -106,31 +93,25 @@
   gap: 8px;
   margin-bottom: 8px;
 }
-
 .group-wechat-zone-label {
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
 }
-
 .group-wechat-tasks-meta {
   font-size: 11px;
 }
-
 .group-wechat-tasks-progress {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
-
 .group-wechat-tasks-progress .progress-bar {
   margin: 0;
 }
-
 .group-wechat-tasks-progress span {
   font-size: 11px;
 }
-
 .group-wechat-announce {
   display: flex;
   gap: 8px;
@@ -141,7 +122,6 @@
   background: var(--bg);
   border: 1px solid var(--line);
 }
-
 .group-wechat-announce-tag {
   flex-shrink: 0;
   font-size: 10px;
@@ -151,14 +131,12 @@
   background: var(--accent-wash);
   color: var(--accent-deep);
 }
-
 .group-wechat-announce p {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink);
 }
-
 .group-wechat-task-row {
   padding: 10px 10px;
   margin-bottom: 6px;
@@ -166,12 +144,10 @@
   background: var(--bg);
   border: 1px solid var(--line);
 }
-
 .group-wechat-task-row.pinned {
   border-color: var(--accent);
   background: var(--accent-wash);
 }
-
 .group-wechat-task-main {
   display: flex;
   align-items: center;
@@ -179,11 +155,9 @@
   gap: 6px;
   font-size: 14px;
 }
-
 .group-wechat-task-pin {
   font-size: 12px;
 }
-
 .group-wechat-task-actions {
   display: flex;
   flex-wrap: wrap;
@@ -191,13 +165,11 @@
   margin-top: 8px;
   align-items: center;
 }
-
 .group-wechat-feed {
   flex: 1;
   min-height: 0;
   padding-bottom: calc(64px + env(safe-area-inset-bottom, 0));
 }
-
 .group-wechat-composer {
   position: relative;
   flex-shrink: 0;
@@ -209,7 +181,6 @@
   border-top: 1px solid var(--line);
   box-shadow: none;
 }
-
 .group-wechat-input {
   width: 100%;
   border: 1px solid var(--line);
@@ -219,51 +190,42 @@
   text-align: left;
   cursor: pointer;
 }
-
 .group-wechat-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
-
 .group-wechat-input-placeholder {
   font-size: 15px;
   color: var(--ink-faint);
 }
-
 .group-settings-backdrop {
   z-index: 110;
 }
-
 .group-settings-sheet {
   max-height: 88dvh;
   overflow-y: auto;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
 }
-
 .group-settings-sheet-head {
   margin-top: 0;
   margin-bottom: 4px;
 }
-
 .group-settings-section {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--line);
 }
-
 .group-settings-section:first-of-type {
   margin-top: 8px;
   padding-top: 0;
   border-top: none;
 }
-
 .group-settings-section-title {
   margin: 0 0 10px;
   font-size: 13px;
   font-weight: 700;
   color: var(--ink-faint);
 }
-
 .group-settings-section .group-members-panel {
   margin: 0;
   padding: 0;
@@ -271,7 +233,6 @@
   background: transparent;
   box-shadow: none;
 }
-
 .group-settings-row-btn {
   display: flex;
   width: 100%;
@@ -286,30 +247,25 @@
   text-align: left;
   transition: opacity 0.12s ease;
 }
-
 .group-settings-row-btn:active:not(:disabled) {
   opacity: 0.65;
 }
-
 .group-settings-block {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--line);
 }
-
 .group-settings-block:first-of-type {
   margin-top: 10px;
   padding-top: 0;
   border-top: none;
 }
-
 .group-settings-info-card,
 .group-settings-me-card,
 .group-settings-admin-card {
   padding: 14px 16px;
   margin-top: 8px;
 }
-
 .group-settings-info-row {
   display: flex;
   flex-direction: column;
@@ -317,32 +273,26 @@
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
-
 .group-settings-info-row:last-child {
   border-bottom: none;
   padding-bottom: 0;
 }
-
 .group-settings-info-row:first-child {
   padding-top: 0;
 }
-
 .group-settings-info-label {
   font-size: 11px;
   letter-spacing: 0.02em;
 }
-
 .group-settings-info-value {
   font-size: 14px;
   line-height: 1.5;
   color: var(--ink);
   word-break: break-word;
 }
-
 .group-settings-members-wrap {
   margin-top: 12px;
 }
-
 .group-settings-members-wrap .group-members-panel {
   margin: 0;
   padding: 0;
@@ -350,26 +300,22 @@
   background: transparent;
   box-shadow: none;
 }
-
 .group-settings-hint {
   font-size: 12px;
   line-height: 1.5;
   margin: 0;
 }
-
 .group-settings-expand-btn {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }
-
 .group-custom-plan-collapsible .group-custom-plan-box {
   margin-top: 10px;
   padding-top: 0;
   border: none;
   background: transparent;
 }
-
 .group-settings-tabs {
   display: flex;
   gap: 6px;
@@ -378,7 +324,6 @@
   background: var(--surface-sunken);
   border-radius: 12px;
 }
-
 .group-settings-tab {
   flex: 1;
   min-height: 36px;
@@ -392,21 +337,17 @@
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
-
 .group-settings-tab.active {
   background: var(--surface);
   color: var(--accent-deep);
   box-shadow: var(--elev-1);
 }
-
 .group-settings-tab:active {
   transform: scale(0.97);
 }
-
 .group-settings-panel {
   animation: groupSettingsPanelIn 0.18s ease;
 }
-
 @keyframes groupSettingsPanelIn {
   from {
     opacity: 0;
@@ -417,11 +358,9 @@
     transform: translateY(0);
   }
 }
-
 .group-settings-danger-block {
   padding-bottom: 4px;
 }
-
 .group-settings-danger-block .danger-pill {
   width: 100%;
   text-align: center;
@@ -432,8 +371,6 @@
   min-height: 48px;
   border-radius: 12px;
 }
-
-
 /* lines 17130-17316 */
 .group-page {
   display: flex;
@@ -441,7 +378,6 @@
   min-height: 100dvh;
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
-
 .group-header {
   display: flex;
   align-items: center;
@@ -453,12 +389,10 @@
   top: 0;
   z-index: 5;
 }
-
 .group-header-main {
   flex: 1;
   min-width: 0;
 }
-
 .group-header-main h1 {
   margin: 0;
   font-size: 17px;
@@ -466,17 +400,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .group-header-main p {
   margin: 2px 0 0;
   font-size: 12px;
 }
-
 .group-members-panel {
   margin: 8px 16px 0;
   padding: 10px 12px;
 }
-
 .group-member-row {
   display: flex;
   justify-content: space-between;
@@ -486,16 +417,13 @@
   gap: 8px;
   border-bottom: 1px solid var(--line);
 }
-
 .group-member-row:last-of-type {
   border-bottom: none;
 }
-
 .group-member-info {
   flex: 1;
   min-width: 0;
 }
-
 .group-member-actions {
   display: flex;
   flex-wrap: wrap;
@@ -503,44 +431,36 @@
   align-items: center;
   flex-shrink: 0;
 }
-
 .danger-pill {
   color: #b1554a !important;
   border-color: rgba(177, 85, 74, 0.35) !important;
 }
-
 .group-progress-strip {
   padding: 8px 16px 10px;
   border-bottom: 1px solid var(--line);
 }
-
 .group-progress-strip .progress-bar {
   margin-bottom: 6px;
 }
-
 .group-feed-wrap {
   flex: 1;
   overflow-y: auto;
   padding: 12px 12px 8px;
   background: var(--bg-soft);
 }
-
 .group-chat-empty {
   text-align: center;
   padding: 32px 16px;
 }
-
 .group-chat-feed {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
 .group-chat-day {
   text-align: center;
   margin: 8px 0;
 }
-
 .group-chat-day span {
   font-size: 11px;
   color: var(--ink-faint);
@@ -548,19 +468,15 @@
   padding: 2px 10px;
   border-radius: 999px;
 }
-
 .group-bubble-row {
   display: flex;
 }
-
 .group-bubble-row.mine {
   justify-content: flex-end;
 }
-
 .group-bubble-row.theirs {
   justify-content: flex-start;
 }
-
 .group-bubble {
   max-width: 86%;
   padding: 10px 12px;
@@ -569,60 +485,48 @@
   border: 1px solid var(--line);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
-
 .group-bubble-row.mine .group-bubble {
   background: var(--accent-tint, #ebe4d8);
   border-color: transparent;
 }
-
 .group-bubble.task {
   border-left: 3px solid var(--gold, #c9a227);
 }
-
 .group-bubble-author {
   font-size: 12px;
   font-weight: 700;
   margin-bottom: 4px;
 }
-
 .group-bubble-kind {
   font-size: 12px;
   color: var(--ink-faint);
   margin-bottom: 4px;
 }
-
 .group-ref-link {
   color: var(--accent-deep);
   text-decoration: underline;
 }
-
 .group-bubble-body {
   font-size: 15px;
   line-height: 1.55;
   white-space: pre-wrap;
 }
-
 .group-task-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: 8px;
 }
-
 .group-task-actions .font-pill.accent {
   background: var(--accent);
   color: #fff;
 }
-
 .group-task-done {
   font-size: 13px;
   font-weight: 600;
   color: var(--accent-deep);
 }
-
 .share-social-sheet { max-height: 75vh; overflow: auto; }
-
-
 /* lines 18278-21094 */
 /* ─── 群页 P0/P1 增强 ─── */
 .group-nav-bar {
@@ -631,32 +535,27 @@
   padding: 8px 12px 0;
   background: var(--bg);
 }
-
 .group-header-v2 {
   flex-direction: column;
   align-items: stretch;
   gap: 0;
   padding-top: 4px;
 }
-
 .group-header-top {
   display: flex;
   align-items: flex-start;
   gap: 10px;
   width: 100%;
 }
-
 .group-header-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-
 .group-header-title-row h1 {
   margin: 0;
   font-size: 18px;
 }
-
 .group-owner-badge {
   font-size: 10px;
   font-weight: 700;
@@ -665,7 +564,6 @@
   background: var(--accent-wash);
   color: var(--accent-deep);
 }
-
 .group-header-sub {
   margin: 4px 0 0;
   font-size: 12px;
@@ -674,12 +572,10 @@
   flex-wrap: wrap;
   gap: 6px 10px;
 }
-
 .group-header-my {
   font-weight: 600;
   color: var(--accent-deep);
 }
-
 .group-header-actions {
   display: flex;
   flex-direction: column;
@@ -687,7 +583,6 @@
   gap: 4px;
   flex-shrink: 0;
 }
-
 .group-members-link {
   border: none;
   background: transparent;
@@ -696,49 +591,41 @@
   cursor: pointer;
   padding: 0;
 }
-
 .group-invite-hint {
   margin: 6px 0 0;
   font-size: 11px;
   width: 100%;
 }
-
 .group-page-sections {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 0 12px 8px;
 }
-
 .group-zone-header {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 10px 4px 4px;
 }
-
 .group-zone-header-feed {
   padding: 12px 16px 6px;
   background: var(--bg-soft);
   border-top: 1px solid var(--line);
 }
-
 .group-zone-label {
   font-size: 13px;
   font-weight: 700;
   color: var(--ink);
 }
-
 .group-zone-hint {
   font-size: 11px;
   line-height: 1.4;
 }
-
 .group-pinned-task {
   margin: 0;
   padding: 10px 12px;
 }
-
 .group-pinned-actions {
   display: flex;
   flex-wrap: wrap;
@@ -746,12 +633,10 @@
   margin-top: 8px;
   align-items: center;
 }
-
 .group-weekly-summary {
   margin: 0;
   padding: 10px 12px;
 }
-
 .group-mute-toggle {
   align-self: flex-start;
   font-size: 12px;
@@ -760,26 +645,22 @@
   background: transparent;
   cursor: pointer;
 }
-
 .group-icebreaker-rules {
   margin: 0;
   padding-left: 18px;
   font-size: 12px;
   line-height: 1.6;
 }
-
 .group-quick-checkin {
   margin: 0;
   padding: 10px 12px;
 }
-
 .group-pin-list {
   display: flex;
   flex-direction: column;
   gap: 6px;
   margin-top: 6px;
 }
-
 .group-pin-item {
   text-align: left;
   border: 1px solid var(--line);
@@ -789,31 +670,25 @@
   font-size: 13px;
   cursor: pointer;
 }
-
 .group-pin-item.active {
   border-color: var(--accent);
   background: var(--accent-wash);
 }
-
 .group-card-clickable {
   cursor: pointer;
 }
-
 .group-card-clickable:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-
 .group-card-cta {
   font-size: 11px !important;
   padding: 4px 10px !important;
 }
-
 .group-system-bubble {
   text-align: center;
   margin: 6px 0 10px;
 }
-
 .group-system-bubble span {
   display: inline-block;
   font-size: 12px;
@@ -823,18 +698,15 @@
   border-radius: 999px;
   line-height: 1.45;
 }
-
 .group-bubble.task-done {
   border-left: 3px solid var(--accent);
 }
-
 .group-canned-row {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
 }
-
 .group-canned-btn {
   border: 1px solid var(--line);
   background: var(--bg);
@@ -844,20 +716,16 @@
   color: var(--ink-faint);
   cursor: pointer;
 }
-
 .group-canned-btn.active {
   border-color: var(--accent);
   color: var(--accent-deep);
   background: var(--accent-wash);
 }
-
 .icebreaker-card {
   margin: 0;
   padding: 12px;
 }
-
 /* ─── 群页 P2 增强 ─── */
-
 .group-sticky-zone {
   position: sticky;
   top: 0;
@@ -865,7 +733,6 @@
   background: var(--bg);
   transition: box-shadow 0.2s ease;
 }
-
 .group-coread-sticky {
   display: flex;
   align-items: center;
@@ -876,7 +743,6 @@
   background: color-mix(in srgb, var(--bg) 92%, var(--surface));
   backdrop-filter: blur(8px);
 }
-
 .group-coread-sticky-main {
   flex: 1;
   min-width: 0;
@@ -892,7 +758,6 @@
   font: inherit;
   cursor: pointer;
 }
-
 .group-coread-sticky-collapsed {
   width: 100%;
   justify-content: center;
@@ -903,7 +768,6 @@
   color: inherit;
   font: inherit;
 }
-
 .group-coread-sticky-plan {
   font-size: 13px;
   font-weight: 600;
@@ -911,11 +775,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .group-coread-sticky-meta {
   font-size: 12px;
 }
-
 .group-coread-sticky-cta {
   flex-shrink: 0;
   border: none;
@@ -926,7 +788,6 @@
   background: var(--accent, #3d5c4a);
   color: #fff;
 }
-
 .group-coread-sticky-done {
   flex-shrink: 0;
   width: 28px;
@@ -938,35 +799,28 @@
   color: var(--accent-deep, #2f4a3a);
   font-size: 14px;
 }
-
 .group-sticky-zone.scrolled {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
 }
-
 .group-header-sticky {
   border-bottom: 1px solid var(--line);
 }
-
 .group-header-sticky.scrolled {
   border-bottom-color: transparent;
 }
-
 .group-mute-icon {
   font-size: 14px;
 }
-
 .group-member-avatars-wrap {
   padding: 0 16px 10px;
   border-bottom: 1px solid var(--line);
 }
-
 .group-member-avatars {
   display: flex;
   gap: 8px;
   overflow-x: auto;
   padding-bottom: 4px;
 }
-
 .group-member-avatar {
   position: relative;
   flex: 0 0 auto;
@@ -981,35 +835,28 @@
   align-items: center;
   justify-content: center;
 }
-
 .group-member-avatar.pending {
   opacity: 0.72;
 }
-
 .group-member-avatar.checked {
   border-color: #2d7a4f;
   background: rgba(60, 140, 90, 0.12);
 }
-
 .group-member-avatar.me {
   box-shadow: 0 0 0 2px var(--accent-wash);
 }
-
 .group-member-avatar.pulse {
   animation: group-avatar-pulse 2s ease-in-out infinite;
 }
-
 @keyframes group-avatar-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(180, 120, 60, 0.35); }
   50% { box-shadow: 0 0 0 4px rgba(180, 120, 60, 0.15); }
 }
-
 .group-member-avatar-letter {
   font-size: 13px;
   font-weight: 700;
   color: var(--accent-deep);
 }
-
 .group-member-avatar-check {
   position: absolute;
   right: -2px;
@@ -1023,7 +870,6 @@
   line-height: 14px;
   text-align: center;
 }
-
 .group-member-avatars-link {
   margin-top: 6px;
   font-size: 11px;
@@ -1032,13 +878,11 @@
   cursor: pointer;
   padding: 0;
 }
-
 .group-today-action {
   margin: 0;
   padding: 12px;
   border-left: 4px solid var(--accent);
 }
-
 .group-today-action-head {
   display: flex;
   justify-content: space-between;
@@ -1046,53 +890,43 @@
   gap: 8px;
   margin-bottom: 8px;
 }
-
 .group-today-my-status {
   font-size: 12px;
   font-weight: 700;
   color: var(--accent-deep);
 }
-
 .group-today-my-status.done {
   color: #2d7a4f;
 }
-
 .group-today-pinned {
   margin-bottom: 10px;
   padding-bottom: 10px;
   border-bottom: 1px dashed var(--line);
 }
-
 .group-today-pinned-row {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
-
 .group-today-pin-icon {
   flex-shrink: 0;
 }
-
 .group-today-progress-label {
   font-size: 12px;
   margin: 6px 0 0;
 }
-
 .group-today-ctas {
   display: flex;
   gap: 8px;
   margin-top: 10px;
 }
-
 .group-today-ctas .btn {
   flex: 1;
 }
-
 .group-collapsible-meta {
   margin: 0;
 }
-
 .group-collapsible-toggle {
   width: 100%;
   display: flex;
@@ -1106,25 +940,21 @@
   cursor: pointer;
   text-align: left;
 }
-
 .group-collapsible-summary {
   font-size: 12px;
   line-height: 1.45;
   flex: 1;
 }
-
 .group-collapsible-chevron {
   color: var(--ink-faint);
   font-size: 12px;
 }
-
 .group-collapsible-body {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
 }
-
 .group-weekly-badge {
   font-size: 10px;
   font-weight: 700;
@@ -1133,29 +963,24 @@
   background: linear-gradient(135deg, var(--accent-wash), rgba(200, 160, 60, 0.2));
   color: var(--accent-deep);
 }
-
 .icebreaker-wizard {
   margin: 0;
   padding: 12px;
 }
-
 .icebreaker-wizard-steps {
   display: flex;
   gap: 6px;
   margin-bottom: 10px;
 }
-
 .icebreaker-step-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--line);
 }
-
 .icebreaker-step-dot.active {
   background: var(--accent);
 }
-
 .group-composer-fab {
   position: fixed;
   right: 16px;
@@ -1171,21 +996,17 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
   cursor: pointer;
 }
-
 .group-composer-sheet {
   max-height: 88dvh;
   overflow-y: auto;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
 }
-
 .group-composer-sheet .group-composer-section-compose {
   margin-top: 18px;
 }
-
 .group-composer-backdrop {
   z-index: 110;
 }
-
 .group-toast {
   position: fixed;
   left: 50%;
@@ -1201,16 +1022,13 @@
   pointer-events: none;
   animation: group-toast-in 0.25s ease;
 }
-
 @keyframes group-toast-in {
   from { opacity: 0; transform: translateX(-50%) translateY(8px); }
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
-
 .group-footprint-group {
   margin-bottom: 8px;
 }
-
 .group-footprint-source {
   display: block;
   font-size: 10px;
@@ -1220,7 +1038,6 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
-
 .group-load-more {
   display: block;
   width: 100%;
@@ -1233,21 +1050,17 @@
   color: var(--ink-faint);
   cursor: pointer;
 }
-
 .group-empty-icon {
   font-size: 40px;
   margin-bottom: 8px;
 }
-
 .group-chat-empty strong {
   display: block;
   margin-bottom: 4px;
 }
-
 .group-chat-empty .btn {
   margin-top: 12px;
 }
-
 .group-ref-card {
   display: block;
   margin: 8px 0;
@@ -1257,11 +1070,9 @@
   text-decoration: none;
   color: inherit;
 }
-
 .group-ref-card.static {
   background: var(--surface-sunken);
 }
-
 .group-ref-card-label {
   display: block;
   font-size: 10px;
@@ -1269,12 +1080,10 @@
   color: var(--ink-faint);
   margin-bottom: 2px;
 }
-
 .group-ref-card strong {
   font-size: 14px;
   color: var(--accent-deep);
 }
-
 .group-task-due-badge {
   display: inline-block;
   margin-left: 6px;
@@ -1285,13 +1094,11 @@
   background: rgba(200, 160, 60, 0.2);
   color: #9a6b12;
 }
-
 .group-task-complete-prefix {
   margin: 6px 0;
   font-size: 13px;
   color: var(--accent-deep);
 }
-
 .group-respond-toggle {
   border: none;
   background: transparent;
@@ -1300,15 +1107,12 @@
   cursor: pointer;
   padding: 0;
 }
-
 .group-bubble.checkin {
   border-left: 3px solid var(--accent);
 }
-
 .group-bubble.task {
   border-left: 3px solid #c8a03c;
 }
-
 .group-system-bubble span.milestone {
   background: linear-gradient(135deg, #fff9ec 0%, #f3e4bc 45%, rgba(200, 160, 60, 0.22) 100%);
   color: #7a5c18;
@@ -1317,34 +1121,27 @@
   box-shadow: 0 2px 14px rgba(200, 160, 60, 0.18);
   animation: group-milestone-in 0.45s ease;
 }
-
 .group-timeline-item.center .group-system-bubble span.milestone {
   font-size: 13px;
   padding: 8px 16px;
 }
-
 @keyframes group-milestone-in {
   from { opacity: 0; transform: scale(0.96); }
   to { opacity: 1; transform: scale(1); }
 }
-
 .group-card {
   position: relative;
   overflow: hidden;
 }
-
 .group-card-pending {
   border-left: 4px solid var(--accent);
 }
-
 .group-card-done {
   opacity: 0.88;
 }
-
 .group-card-has-tasks {
   box-shadow: inset 0 0 0 1px rgba(200, 160, 60, 0.25);
 }
-
 .group-card-task-badge {
   position: absolute;
   top: 8px;
@@ -1360,7 +1157,6 @@
   line-height: 18px;
   text-align: center;
 }
-
 /* ─── UX 批次优化 ─── */
 .thought-verse-card {
   margin-top: 10px;
@@ -1369,7 +1165,6 @@
   background: var(--accent-wash);
   border-left: 3px solid var(--accent);
 }
-
 .thought-verse-label {
   display: block;
   font-size: 10px;
@@ -1377,27 +1172,23 @@
   color: var(--ink-faint);
   margin-bottom: 4px;
 }
-
 .thought-verse-ref {
   display: block;
   font-size: 14px;
   color: var(--accent-deep);
 }
-
 .thought-verse-text {
   margin: 8px 0 0;
   font-size: 13px;
   line-height: 1.55;
   color: var(--ink);
 }
-
 .plan-day-complete {
   margin: 8px 12px;
   padding: 12px;
   border: 1px solid rgba(45, 122, 79, 0.25);
   background: rgba(60, 140, 90, 0.08);
 }
-
 .plan-day-complete-toast {
   position: fixed;
   left: 50%;
@@ -1408,7 +1199,6 @@
   box-shadow: var(--elev-2, 0 8px 24px rgba(0, 0, 0, 0.12));
   animation: plan-celebrate-in 0.28s ease;
 }
-
 @keyframes plan-celebrate-in {
   from {
     opacity: 0;
@@ -1419,14 +1209,12 @@
     transform: translateX(-50%) translateY(0);
   }
 }
-
 .plan-segment-hint {
   margin: 8px 12px;
   padding: 10px 12px;
   border: 1px dashed var(--line);
   background: var(--accent-wash);
 }
-
 .plan-category-scroll {
   display: flex;
   flex-wrap: nowrap;
@@ -1437,7 +1225,6 @@
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
 }
-
 .plan-category-card {
   scroll-snap-align: start;
   flex: 0 0 calc((100% - 16px) / 3);
@@ -1456,19 +1243,16 @@
   text-align: left;
   cursor: pointer;
 }
-
 .plan-category-card-active {
   border-color: color-mix(in srgb, var(--accent) 45%, var(--line));
   background: var(--accent-wash, color-mix(in srgb, var(--accent) 8%, var(--surface)));
 }
-
 .plan-category-active-tag {
   font-size: 10px;
   font-weight: 600;
   color: var(--accent-deep);
   letter-spacing: 0.02em;
 }
-
 .plan-category-title {
   font-size: 12px;
   line-height: 1.35;
@@ -1477,53 +1261,44 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .plan-category-days {
   font-size: 11px;
   margin-top: auto;
 }
-
 .plan-category-tag {
   font-size: 10px;
   padding: 2px 8px;
 }
-
 .plan-invite-btn {
   font-size: 11px !important;
   padding: 4px 10px !important;
   line-height: 1.3;
 }
-
 .plan-active-share-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
 }
-
 .plan-custom-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 12px;
 }
-
 .plan-custom-card {
   padding: 14px 16px;
 }
-
 .plan-custom-card-active {
   border-color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent-wash, rgba(180, 140, 60, 0.15));
 }
-
 .plan-custom-card-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
   gap: 10px;
 }
-
 .plan-custom-active-tag {
   display: inline-block;
   font-size: 10px;
@@ -1534,70 +1309,58 @@
   border-radius: 999px;
   margin-bottom: 6px;
 }
-
 .plan-custom-title {
   display: block;
   font-size: 15px;
 }
-
 .plan-custom-meta {
   font-size: 12px;
   margin: 4px 0 0;
 }
-
 .plan-custom-actions {
   display: flex;
   gap: 8px;
   margin-top: 12px;
 }
-
 .plan-custom-btn-main {
   flex: 1;
   padding: 10px 12px;
   font-size: 14px;
 }
-
 .plan-custom-add {
   display: block;
   width: 100%;
   text-align: center;
   padding: 10px;
 }
-
 .plan-gen-scope-chip.active {
   background: var(--accent-wash);
   border-color: var(--accent);
 }
-
 .plan-gen-preview {
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid var(--line);
 }
-
 .plan-gen-preview-actions {
   display: flex;
   gap: 8px;
   margin-top: 12px;
   min-width: 0;
 }
-
 .plan-share-group-sheet {
   max-height: 85vh;
   overflow-y: auto;
 }
-
 .plan-share-bound-block {
   margin-bottom: 14px;
 }
-
 .plan-share-group-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin-top: 8px;
 }
-
 .plan-share-group-row {
   display: flex;
   align-items: center;
@@ -1608,24 +1371,20 @@
   background: var(--surface);
   border: 1px solid var(--line);
 }
-
 .plan-share-group-pick {
   width: 100%;
   text-align: left;
   cursor: pointer;
   background: var(--bg);
 }
-
 .plan-share-group-pick.bound {
   border-color: var(--accent);
 }
-
 .plan-complete-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .plan-plan-complete-sheet {
   position: fixed;
   left: 50%;
@@ -1636,14 +1395,12 @@
   padding: 16px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.14);
 }
-
 .chip-swipe-item.selected {
   background: var(--accent-wash);
   border-color: var(--accent);
   color: var(--accent-deep);
   font-weight: 600;
 }
-
 .notes-seg-tabs {
   display: flex;
   flex-wrap: nowrap;
@@ -1651,12 +1408,10 @@
   gap: 6px;
   -webkit-overflow-scrolling: touch;
 }
-
 .notes-seg-tabs .seg-tab {
   flex-shrink: 0;
   white-space: nowrap;
 }
-
 .mark-color-filter {
   display: flex;
   flex-wrap: wrap;
@@ -1664,7 +1419,6 @@
   gap: 8px;
   margin-bottom: 14px;
 }
-
 .mark-color-filter-all {
   border: 1px solid var(--line);
   background: var(--surface);
@@ -1674,14 +1428,12 @@
   font-size: 12px;
   cursor: pointer;
 }
-
 .mark-color-filter-all.is-active {
   border-color: var(--accent);
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-weight: 600;
 }
-
 .mark-color-dot {
   display: inline-flex;
   align-items: center;
@@ -1694,14 +1446,12 @@
   color: var(--ink-soft);
   font-size: 11px;
 }
-
 .mark-color-dot.is-active {
   border-color: var(--accent);
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-weight: 600;
 }
-
 .mark-color-dot-core {
   width: 16px;
   height: 16px;
@@ -1710,11 +1460,9 @@
   border: 1.5px solid color-mix(in srgb, var(--mark-dot, #e6c84a) 55%, #000);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.35);
 }
-
 .mark-color-dot-label {
   white-space: nowrap;
 }
-
 .mark-color-dot-inline {
   width: 10px;
   height: 10px;
@@ -1722,7 +1470,6 @@
   flex-shrink: 0;
   display: inline-block;
 }
-
 .notes-group-row {
   display: flex;
   align-items: center;
@@ -1733,7 +1480,6 @@
   padding: 14px;
   cursor: pointer;
 }
-
 .notes-group-main {
   flex: 1;
   min-width: 0;
@@ -1741,7 +1487,6 @@
   flex-direction: column;
   gap: 4px;
 }
-
 .notes-drill-row {
   display: flex;
   flex-direction: column;
@@ -1753,12 +1498,10 @@
   padding: 14px;
   cursor: pointer;
 }
-
 .notes-drill-title {
   font-size: 14px;
   line-height: 1.4;
 }
-
 .notes-drill-preview {
   font-size: 12px;
   line-height: 1.45;
@@ -1767,7 +1510,6 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .note-editor-title {
   width: 100%;
   margin-bottom: 10px;
@@ -1780,19 +1522,16 @@
   background: var(--surface);
   color: var(--ink);
 }
-
 .thought-inline-composer {
   margin-bottom: 12px;
   padding: 14px;
 }
-
 .thought-inline-composer-meta {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 10px;
 }
-
 .thought-inline-input {
   width: 100%;
   min-height: 96px;
@@ -1806,12 +1545,10 @@
   background: var(--surface-sunken, var(--surface));
   color: var(--ink);
 }
-
 .thought-inline-input:focus {
   outline: none;
   border-color: var(--accent);
 }
-
 .thought-inline-actions {
   display: flex;
   align-items: center;
@@ -1819,7 +1556,6 @@
   gap: 16px;
   margin-top: 10px;
 }
-
 .notes-item-meta {
   display: flex;
   align-items: center;
@@ -1827,49 +1563,17 @@
   gap: 8px;
   width: 100%;
 }
-
 .notes-item-time {
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   flex-shrink: 0;
 }
-
 .settings-version-line {
   margin: 12px 0 0;
   font-size: 12px;
   text-align: center;
 }
-
-.challenge-mode-row-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.challenge-daily-compact {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  min-height: 72px;
-}
-
-.challenge-mode-card-compact {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  min-height: 72px;
-  width: 100%;
-}
-
 .challenge-stats-card {
   display: flex;
   align-items: center;
@@ -1879,42 +1583,30 @@
   cursor: pointer;
   text-align: left;
 }
-
 .challenge-stats-ring {
   width: 52px;
   height: 52px;
   flex-shrink: 0;
 }
-
-.challenge-q-ref {
-  font-size: 12px;
-  margin: 4px 0 0;
-}
-
 .plans-customize-link,
 .plans-customize-btn {
   font-size: 14px !important;
   font-weight: 700 !important;
 }
-
 .reader-settings-sheet h3 {
   font-size: 16px;
 }
-
 .reader-settings-sheet .muted {
   margin-bottom: 6px;
 }
-
 .verse-mark-span.verse-mark-flash,
 .verse-inline.verse-mark-color.verse-mark-flash {
   animation: verse-mark-flash 2.4s ease-out 1;
 }
-
 @keyframes verse-mark-flash {
   0%, 100% { box-shadow: none; }
   15%, 45% { box-shadow: 0 0 0 3px rgba(79, 107, 93, 0.45); }
 }
-
 /* ─── 打卡型共读群（P0–P2）── */
 body:has(.group-page-checkin) .app-body,
 body:has(.dm-page) .app-body {
@@ -1922,7 +1614,6 @@ body:has(.dm-page) .app-body {
   padding-top: 0;
   padding-bottom: 0;
 }
-
 .group-page-checkin {
   position: fixed;
   /* 贴满视口；顶安全区用 padding，底栏才能画到物理底边（含 Home 条） */
@@ -1943,7 +1634,6 @@ body:has(.dm-page) .app-body {
   box-sizing: border-box;
   z-index: 2;
 }
-
 .group-checkin-nav-fixed {
   flex-shrink: 0;
   position: sticky;
@@ -1953,7 +1643,6 @@ body:has(.dm-page) .app-body {
   border-bottom: 1px solid var(--line);
   padding: 0 16px;
 }
-
 .group-checkin-scroll {
   flex: 1;
   min-height: 0;
@@ -1968,7 +1657,6 @@ body:has(.dm-page) .app-body {
   gap: 10px;
   touch-action: pan-y;
 }
-
 .group-checkin-feed-inner {
   flex: 1;
   min-height: 0;
@@ -1976,21 +1664,18 @@ body:has(.dm-page) .app-body {
   padding: 0;
   background: transparent;
 }
-
 .group-today-focus {
   margin: 0;
   padding: 14px 16px;
   border-radius: 16px;
   background: linear-gradient(145deg, var(--surface) 0%, rgba(7, 193, 96, 0.06) 100%);
 }
-
 .group-today-cards-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   align-items: stretch;
 }
-
 .group-today-cards-row > .group-today-focus,
 .group-today-cards-row > .group-today-checkin-card {
   min-width: 0;
@@ -1998,7 +1683,6 @@ body:has(.dm-page) .app-body {
   height: 100%;
   box-sizing: border-box;
 }
-
 .group-today-checkin-card {
   display: flex;
   flex-direction: column;
@@ -2015,11 +1699,9 @@ body:has(.dm-page) .app-body {
   font: inherit;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-
 .group-today-checkin-card:active {
   transform: scale(0.98);
 }
-
 .group-today-focus-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(118px, 132px);
@@ -2027,24 +1709,20 @@ body:has(.dm-page) .app-body {
   margin-top: 10px;
   align-items: start;
 }
-
 .group-today-focus-main {
   min-width: 0;
   margin-top: 10px;
 }
-
 .group-today-plan-detail,
 .group-today-plan-progress {
   font-size: 12px;
   margin: 4px 0 0;
   line-height: 1.5;
 }
-
 .group-today-plan-detail {
   font-size: 13px;
   margin-top: 6px;
 }
-
 .group-today-stats-card {
   display: flex;
   flex-direction: column;
@@ -2060,11 +1738,9 @@ body:has(.dm-page) .app-body {
   font: inherit;
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-
 .group-today-stats-card:active {
   transform: scale(0.98);
 }
-
 .group-today-stats-ring {
   --pct: 0;
   width: 52px;
@@ -2080,7 +1756,6 @@ body:has(.dm-page) .app-body {
   );
   position: relative;
 }
-
 .group-today-stats-ring::before {
   content: '';
   position: absolute;
@@ -2088,7 +1763,6 @@ body:has(.dm-page) .app-body {
   border-radius: 50%;
   background: var(--surface);
 }
-
 .group-today-stats-pct {
   position: relative;
   z-index: 1;
@@ -2096,46 +1770,38 @@ body:has(.dm-page) .app-body {
   font-weight: 700;
   color: var(--accent-deep);
 }
-
 .group-today-stats-title {
   font-size: var(--font-md);
   font-weight: 600;
   margin-top: 2px;
 }
-
 .group-today-stats-sub {
   font-size: var(--font-xs);
   margin: 0;
 }
-
 .group-today-stats-bar {
   width: 100%;
   margin-top: 4px !important;
   height: 4px;
 }
-
 .group-today-stats-hint {
   font-size: 10px;
   color: #b86b00;
 }
-
 .group-today-stats-link {
   font-size: 11px;
   color: var(--accent-deep);
   margin-top: 2px;
 }
-
 .group-checkin-stats-sheet {
   max-height: 70dvh;
   overflow-y: auto;
 }
-
 .group-checkin-stats-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-
 .group-checkin-stats-row {
   display: flex;
   align-items: center;
@@ -2143,11 +1809,9 @@ body:has(.dm-page) .app-body {
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
 }
-
 .group-checkin-stats-row:last-child {
   border-bottom: none;
 }
-
 .group-checkin-stats-name {
   flex: 1;
   font-size: 14px;
@@ -2157,7 +1821,6 @@ body:has(.dm-page) .app-body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .group-checkin-stats-badge {
   font-size: 11px;
   padding: 2px 8px;
@@ -2165,20 +1828,17 @@ body:has(.dm-page) .app-body {
   background: var(--paper);
   color: var(--muted);
 }
-
 .group-checkin-stats-badge.done {
   background: var(--accent-wash);
   color: var(--accent-deep);
   font-weight: 600;
 }
-
 .group-member-avatar-inline.sm {
   width: 32px;
   height: 32px;
   font-size: 13px;
   flex-shrink: 0;
 }
-
 @media (max-width: 360px) {
   .group-today-cards-row {
     grid-template-columns: 1fr 1fr;
@@ -2195,14 +1855,12 @@ body:has(.dm-page) .app-body {
     font-size: 13px;
   }
 }
-
 .group-today-focus-head {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
 }
-
 .group-today-focus-label {
   font-size: var(--font-sm);
   font-weight: 600;
@@ -2210,7 +1868,6 @@ body:has(.dm-page) .app-body {
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
-
 .group-today-focus-meta {
   font-size: 11px;
   line-height: 1.3;
@@ -2219,11 +1876,9 @@ body:has(.dm-page) .app-body {
   text-overflow: ellipsis;
   max-width: 100%;
 }
-
 .group-today-focus-status {
   margin-top: 8px;
 }
-
 .group-today-pill {
   display: inline-block;
   font-size: 12px;
@@ -2231,18 +1886,15 @@ body:has(.dm-page) .app-body {
   padding: 3px 10px;
   border-radius: 999px;
 }
-
 .group-today-pill-checked {
   background: var(--accent-wash);
   color: var(--accent-deep);
 }
-
 .group-today-pill-pending_checkin,
 .group-today-pill-has_tasks {
   background: #fff5eb;
   color: #b86b00;
 }
-
 .group-today-announce {
   margin-top: 10px;
   padding: 8px 10px;
@@ -2251,24 +1903,20 @@ body:has(.dm-page) .app-body {
   font-size: 13px;
   line-height: 1.5;
 }
-
 .group-today-announce p {
   margin: 4px 0 0;
 }
-
 .group-today-plan strong {
   display: block;
   margin-top: 10px;
   font-size: 16px;
 }
-
 .group-today-actions {
   display: flex;
   gap: 10px;
   margin-top: 12px;
   flex-wrap: wrap;
 }
-
 .group-today-btn-read,
 .group-today-btn-checkin {
   flex: 1;
@@ -2277,42 +1925,35 @@ body:has(.dm-page) .app-body {
   text-align: center;
   text-decoration: none;
 }
-
 .group-today-btn-checkin {
   background: var(--accent-deep);
   border-color: var(--accent-deep);
   color: #fff;
 }
-
 .group-today-done-note {
   font-size: 13px;
   font-weight: 600;
   color: var(--accent-deep);
   align-self: center;
 }
-
 .group-today-tasks {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--line);
 }
-
 .group-today-tasks-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
 }
-
 .group-today-task-row {
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
 }
-
 .group-today-task-row:last-child {
   border-bottom: none;
 }
-
 .group-today-task-row.pinned {
   background: var(--accent-wash);
   margin: 0 -8px;
@@ -2320,7 +1961,6 @@ body:has(.dm-page) .app-body {
   border-radius: 10px;
   border-bottom: none;
 }
-
 .group-today-task-main {
   display: flex;
   align-items: center;
@@ -2328,14 +1968,12 @@ body:has(.dm-page) .app-body {
   flex-wrap: wrap;
   font-size: 14px;
 }
-
 .group-today-task-actions {
   display: flex;
   gap: 8px;
   margin-top: 8px;
   flex-wrap: wrap;
 }
-
 .group-checkin-wall {
   margin: 0;
   padding: 12px 14px 14px;
@@ -2346,7 +1984,6 @@ body:has(.dm-page) .app-body {
     var(--surface);
   border: 1px solid rgba(79, 107, 93, 0.1);
 }
-
 .group-checkin-wall-head {
   display: flex;
   align-items: center;
@@ -2354,7 +1991,6 @@ body:has(.dm-page) .app-body {
   gap: 8px;
   margin-bottom: 10px;
 }
-
 .group-checkin-wall-badge {
   font-size: 12px;
   font-weight: 700;
@@ -2364,7 +2000,6 @@ body:has(.dm-page) .app-body {
   padding: 4px 10px;
   flex-shrink: 0;
 }
-
 .group-poster-scroll {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -2372,11 +2007,9 @@ body:has(.dm-page) .app-body {
   padding: 2px 4px 6px;
   scrollbar-width: none;
 }
-
 .group-poster-scroll::-webkit-scrollbar {
   display: none;
 }
-
 .group-poster-grid {
   display: flex;
   gap: 10px;
@@ -2384,7 +2017,6 @@ body:has(.dm-page) .app-body {
   min-width: 100%;
   padding: 2px 0 4px;
 }
-
 .group-poster-card {
   position: relative;
   border-radius: 14px;
@@ -2394,12 +2026,10 @@ body:has(.dm-page) .app-body {
   display: flex;
   flex-direction: column;
 }
-
 .group-poster-card.pending {
   border: 1.5px dashed rgba(79, 107, 93, 0.25);
   background: rgba(255, 252, 250, 0.85);
 }
-
 .group-poster-card.pinned {
   border: 1px solid rgba(79, 107, 93, 0.14);
   background: linear-gradient(
@@ -2410,7 +2040,6 @@ body:has(.dm-page) .app-body {
   box-shadow: 0 4px 14px rgba(79, 107, 93, calc(0.04 + (var(--pin-intensity, 1) * 0.06)));
   opacity: calc(0.9 + (var(--pin-intensity, 1) * 0.1));
 }
-
 .group-checkin-wall.is-complete {
   border-color: rgba(125, 155, 138, 0.35);
   box-shadow:
@@ -2418,12 +2047,10 @@ body:has(.dm-page) .app-body {
     0 8px 28px rgba(79, 107, 93, 0.12);
   animation: group-wall-complete-glow 2.4s ease-in-out infinite;
 }
-
 @keyframes group-wall-complete-glow {
   0%, 100% { box-shadow: 0 0 0 1px rgba(125, 155, 138, 0.2), 0 8px 28px rgba(79, 107, 93, 0.1); }
   50% { box-shadow: 0 0 0 2px rgba(125, 155, 138, 0.35), 0 12px 36px rgba(125, 155, 138, 0.18); }
 }
-
 .group-checkin-wall-celebrate {
   display: flex;
   align-items: center;
@@ -2438,11 +2065,9 @@ body:has(.dm-page) .app-body {
   background: linear-gradient(90deg, rgba(125, 155, 138, 0.08), rgba(255, 248, 232, 0.9), rgba(125, 155, 138, 0.08));
   animation: group-milestone-in 0.5s ease;
 }
-
 .group-checkin-wall-celebrate-spark {
   font-size: 14px;
 }
-
 .group-poster-empty-state {
   display: flex;
   flex-direction: column;
@@ -2451,18 +2076,15 @@ body:has(.dm-page) .app-body {
   padding: 20px 16px 12px;
   gap: 6px;
 }
-
 .group-poster-empty-icon {
   border-radius: 22%;
   box-shadow: 0 6px 20px rgba(79, 107, 93, 0.12);
   margin-bottom: 4px;
   object-fit: cover;
 }
-
 .group-poster-empty-state strong {
   font-size: 15px;
 }
-
 .member-avatar-wrap {
   display: inline-flex;
   border-radius: 50%;
@@ -2470,17 +2092,14 @@ body:has(.dm-page) .app-body {
   flex-shrink: 0;
   line-height: 0;
 }
-
 .member-avatar-wrap.member-avatar-dimmed {
   opacity: 0.5;
   filter: grayscale(0.35);
 }
-
 .group-poster-avatar-slot {
   border-radius: 50%;
   box-shadow: 0 2px 8px rgba(79, 107, 93, 0.12);
 }
-
 .group-member-grid-avatar {
   position: relative;
   width: 48px;
@@ -2493,15 +2112,12 @@ body:has(.dm-page) .app-body {
   padding: 0;
   background: none;
 }
-
 .group-member-grid-avatar.checked {
   border-color: var(--accent-deep);
 }
-
 .group-member-grid-avatar.owner {
   box-shadow: 0 0 0 1px var(--accent-wash);
 }
-
 .group-member-avatar-inline {
   display: inline-flex;
   align-items: center;
@@ -2513,32 +2129,26 @@ body:has(.dm-page) .app-body {
   flex-shrink: 0;
   border: 2px solid transparent;
 }
-
 .group-member-avatar-inline.checked {
   border-color: var(--accent-deep);
 }
-
 .group-member-avatar-inline.sm {
   width: 32px;
   height: 32px;
 }
-
 .group-member-avatar .member-avatar-wrap {
   width: 100% !important;
   height: 100% !important;
 }
-
 /* 群页 · 应用深色主题 */
 html.group-reader-night .group-page-checkin,
 html.app-theme-dark .group-page-checkin {
   background: #12181c;
 }
-
 html.group-reader-night .group-feed-wrap,
 html.app-theme-dark .group-feed-wrap {
   background: #0f1418;
 }
-
 html.group-reader-night .group-today-focus,
 html.app-theme-dark .group-today-focus,
 html.group-reader-night .group-checkin-wall,
@@ -2549,12 +2159,10 @@ html.app-theme-dark .group-activity-card {
   border-color: rgba(255, 255, 255, 0.08);
   color: #e8ecef;
 }
-
 html.group-reader-night .group-today-focus,
 html.app-theme-dark .group-today-focus {
   background: linear-gradient(145deg, #1a2228 0%, rgba(7, 193, 96, 0.12) 100%);
 }
-
 html.group-reader-night .group-checkin-wall,
 html.app-theme-dark .group-checkin-wall {
   background:
@@ -2562,67 +2170,55 @@ html.app-theme-dark .group-checkin-wall {
     radial-gradient(ellipse 70% 50% at 95% 100%, rgba(7, 193, 96, 0.06), transparent 50%),
     #1a2228;
 }
-
 html.group-reader-night .group-activity-feed,
 html.app-theme-dark .group-activity-feed {
   background:
     radial-gradient(ellipse 90% 40% at 50% 0%, rgba(7, 193, 96, 0.06), transparent 60%),
     linear-gradient(180deg, rgba(26, 34, 40, 0.8) 0%, transparent 100%);
 }
-
 html.group-reader-night .group-today-stats-card,
 html.app-theme-dark .group-today-stats-card {
   background: linear-gradient(165deg, #1e282e 0%, rgba(7, 193, 96, 0.15) 120%);
   border-color: rgba(255, 255, 255, 0.1);
 }
-
 html.group-reader-night .group-poster-card.pinned,
 html.app-theme-dark .group-poster-card.pinned {
   background: linear-gradient(165deg, #1e282e 0%, rgba(7, 193, 96, 0.14) 130%);
   border-color: rgba(255, 255, 255, 0.1);
 }
-
 html.group-reader-night .group-poster-card.pending,
 html.app-theme-dark .group-poster-card.pending {
   background: rgba(18, 24, 28, 0.85);
   border-color: rgba(255, 255, 255, 0.12);
 }
-
 html.group-reader-night .group-timeline-line,
 html.app-theme-dark .group-timeline-line {
   background: linear-gradient(180deg, rgba(7, 193, 96, 0.4), rgba(7, 193, 96, 0.08));
 }
-
 html.group-reader-night .muted,
 html.app-theme-dark .muted {
   color: #9aa8b0;
 }
-
 .group-poster-card.unread {
   border-color: var(--accent-deep);
   box-shadow: 0 0 0 1px var(--accent-wash), 0 4px 14px rgba(79, 107, 93, 0.1);
 }
-
 .group-poster-card.me.pinned {
   border-color: var(--accent-deep);
 }
-
 .group-poster-card.expanded {
   width: 200px;
 }
-
 .group-poster-top {
   display: flex;
   align-items: flex-start;
   gap: 8px;
   margin-bottom: 8px;
 }
-
 .group-poster-head-text {
   flex: 1;
   min-width: 0;
 }
-
 .group-poster-name {
   display: block;
   font-size: 13px;
@@ -2631,7 +2227,6 @@ html.app-theme-dark .muted {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .group-poster-meta-line {
   display: flex;
   align-items: center;
@@ -2639,7 +2234,6 @@ html.app-theme-dark .muted {
   margin-top: 3px;
   flex-wrap: wrap;
 }
-
 .group-poster-pin-tag {
   font-size: 10px;
   font-weight: 700;
@@ -2647,39 +2241,32 @@ html.app-theme-dark .muted {
   padding: 2px 7px;
   letter-spacing: 0.02em;
 }
-
 .group-poster-pin-tag.pinned-tag {
   color: var(--accent-deep);
   background: var(--accent-wash);
 }
-
 .group-poster-pin-tag.pending-tag {
   color: #9a938a;
   background: var(--paper);
   border: 1px dashed var(--line);
 }
-
 .group-poster-foot {
   padding: 0 10px 8px;
 }
-
 .group-poster-respond-btn {
   font-size: 11px !important;
 }
-
 .group-poster-respond {
   padding: 0 8px 10px;
   border-top: 1px solid rgba(79, 107, 93, 0.1);
   margin-top: -2px;
 }
-
 .group-poster-reactions-preview {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
 }
-
 .group-poster-reaction-chip {
   font-size: 10px;
   padding: 2px 6px;
@@ -2687,7 +2274,6 @@ html.app-theme-dark .muted {
   background: var(--surface);
   border: 1px solid var(--line);
 }
-
 .group-poster-inner {
   width: 100%;
   height: 100%;
@@ -2699,11 +2285,9 @@ html.app-theme-dark .muted {
   color: inherit;
   font: inherit;
 }
-
 .group-poster-inner.pending-inner {
   cursor: default;
 }
-
 .group-poster-new {
   position: absolute;
   top: 8px;
@@ -2715,20 +2299,17 @@ html.app-theme-dark .muted {
   border-radius: 999px;
   padding: 2px 7px;
 }
-
 .group-checkin-wall-sub {
   display: block;
   font-size: 12px;
   margin-top: 2px;
 }
-
 .group-page-checkin .group-wechat-composer {
   z-index: 45;
   padding: 6px 10px 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
   background: var(--surface, #fff);
 }
-
 .group-poster-avatar {
   width: 32px;
   height: 32px;
@@ -2742,28 +2323,23 @@ html.app-theme-dark .muted {
   background: var(--accent-wash);
   flex-shrink: 0;
 }
-
 .group-poster-avatar.muted-avatar {
   opacity: 0.45;
   background: var(--paper);
   color: var(--muted);
 }
-
 .group-poster-meta {
   display: flex;
   align-items: baseline;
   gap: 8px;
   margin-bottom: 6px;
 }
-
 .group-poster-meta strong {
   font-size: 14px;
 }
-
 .group-poster-time {
   font-size: 11px;
 }
-
 .group-poster-tag {
   font-size: 11px;
   color: var(--muted);
@@ -2771,7 +2347,6 @@ html.app-theme-dark .muted {
   border-radius: 999px;
   padding: 2px 8px;
 }
-
 .group-poster-ref {
   display: inline-block;
   font-size: 12px;
@@ -2782,7 +2357,6 @@ html.app-theme-dark .muted {
   padding: 3px 8px;
   margin-bottom: 6px;
 }
-
 .group-poster-body {
   margin: 0;
   font-size: 13px;
@@ -2793,30 +2367,25 @@ html.app-theme-dark .muted {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
 .group-poster-card.expanded .group-poster-body {
   -webkit-line-clamp: unset;
   overflow: visible;
 }
-
 .group-poster-placeholder {
   margin: 0;
   font-size: 12px;
 }
-
 .group-poster-link {
   display: inline-block;
   margin-top: 8px;
   font-size: 12px;
   color: var(--accent-deep);
 }
-
 .group-poster-empty {
   margin: 8px 0 0;
   font-size: 13px;
   text-align: center;
 }
-
 .group-poster-pulse {
   position: absolute;
   inset: -2px;
@@ -2826,16 +2395,13 @@ html.app-theme-dark .muted {
   animation: group-poster-pulse 2s ease-in-out infinite;
   pointer-events: none;
 }
-
 @keyframes group-poster-pulse {
   0%, 100% { opacity: 0.15; transform: scale(1); }
   50% { opacity: 0.45; transform: scale(1.01); }
 }
-
 .offline-bible-card {
   margin-bottom: 10px;
 }
-
 .group-activity-feed {
   padding: 12px 10px 16px;
   border-radius: 16px;
@@ -2843,11 +2409,9 @@ html.app-theme-dark .muted {
     radial-gradient(ellipse 90% 40% at 50% 0%, rgba(125, 155, 138, 0.07), transparent 60%),
     linear-gradient(180deg, rgba(255, 252, 250, 0.6) 0%, transparent 100%);
 }
-
 .group-activity-feed-hint {
   font-size: 12px;
 }
-
 .group-activity-day.is-today .group-activity-day-label {
   display: flex;
   align-items: center;
@@ -2857,12 +2421,10 @@ html.app-theme-dark .muted {
   font-weight: 700;
   color: var(--accent-deep);
 }
-
 .group-timeline {
   position: relative;
   padding: 4px 0 8px;
 }
-
 .group-timeline-line {
   position: absolute;
   left: 50%;
@@ -2874,13 +2436,11 @@ html.app-theme-dark .muted {
   border-radius: 2px;
   opacity: 0.35;
 }
-
 .group-timeline-items {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
-
 .group-timeline-item {
   position: relative;
   display: grid;
@@ -2889,29 +2449,24 @@ html.app-theme-dark .muted {
   gap: 0;
   min-height: 40px;
 }
-
 .group-timeline-item.left .group-timeline-card-wrap {
   grid-column: 1;
   grid-row: 1;
   padding-right: 8px;
 }
-
 .group-timeline-item.right .group-timeline-card-wrap {
   grid-column: 3;
   grid-row: 1;
   padding-left: 8px;
 }
-
 .group-timeline-item.center {
   grid-template-columns: 1fr;
   justify-items: center;
 }
-
 .group-timeline-item.center .group-system-bubble {
   max-width: 88%;
   margin-top: 4px;
 }
-
 .group-timeline-dot {
   grid-column: 2;
   grid-row: 1;
@@ -2925,22 +2480,18 @@ html.app-theme-dark .muted {
   box-shadow: 0 0 0 2px var(--accent-wash);
   z-index: 1;
 }
-
 .group-timeline-dot.system {
   background: var(--muted);
   box-shadow: none;
 }
-
 .group-timeline-card-wrap .group-activity-card {
   margin: 0;
 }
-
 .group-member-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px 6px;
 }
-
 .group-member-grid-cell {
   display: flex;
   flex-direction: column;
@@ -2948,7 +2499,6 @@ html.app-theme-dark .muted {
   gap: 4px;
   min-width: 0;
 }
-
 .group-member-invite-btn {
   width: 44px;
   height: 44px;
@@ -2962,18 +2512,15 @@ html.app-theme-dark .muted {
   cursor: pointer;
   padding: 0;
 }
-
 .group-member-invite-btn:active {
   transform: scale(0.96);
 }
-
 .group-member-invite-plus {
   font-size: 28px;
   font-weight: 300;
   line-height: 1;
   margin-top: -2px;
 }
-
 .group-member-invite-plus.sm {
   font-size: 22px;
   width: 28px;
@@ -2987,7 +2534,6 @@ html.app-theme-dark .muted {
   justify-content: center;
   margin-top: 0;
 }
-
 .group-members-invite-row {
   display: flex;
   align-items: center;
@@ -3003,7 +2549,6 @@ html.app-theme-dark .muted {
   font-weight: 600;
   cursor: pointer;
 }
-
 .group-invite-sheet {
   display: flex;
   flex-direction: column;
@@ -3127,7 +2672,6 @@ html.app-theme-dark .muted {
   color: var(--accent-deep);
   font-size: 11px;
 }
-
 .group-invite-friend-row {
   display: flex;
   align-items: center;
@@ -3142,43 +2686,36 @@ html.app-theme-dark .muted {
   font: inherit;
   color: inherit;
 }
-
 .group-invite-friend-row.selected {
   border-color: var(--accent-deep);
   background: var(--accent-wash);
 }
-
 .group-invite-friend-row:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
-
 .group-invite-tabs {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
 }
-
 .group-invite-inbox {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 16px;
 }
-
 .group-invite-inbox-card {
   padding: 12px 14px;
   border-radius: 12px;
   border: 1px solid var(--line);
   background: var(--surface);
 }
-
 .group-invite-inbox-actions {
   display: flex;
   gap: 8px;
   margin-top: 10px;
 }
-
 .group-invite-code {
   display: block;
   margin-top: 6px;
@@ -3188,25 +2725,21 @@ html.app-theme-dark .muted {
   color: var(--accent-deep);
   font-variant-numeric: tabular-nums;
 }
-
 .join-group-page .join-group-hero {
   padding: 14px 16px;
   margin-bottom: 18px;
 }
-
 .join-group-kicker {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
   color: var(--ink);
 }
-
 .join-group-desc {
   margin: 6px 0 0;
   font-size: 13px;
   line-height: 1.5;
 }
-
 .join-group-label {
   display: block;
   font-size: 13px;
@@ -3214,13 +2747,11 @@ html.app-theme-dark .muted {
   color: var(--ink-soft);
   margin-bottom: 8px;
 }
-
 .join-group-input-row {
   display: flex;
   gap: 8px;
   align-items: stretch;
 }
-
 .join-group-input {
   flex: 1;
   letter-spacing: 0.16em;
@@ -3228,7 +2759,6 @@ html.app-theme-dark .muted {
   font-weight: 700;
   text-align: center;
 }
-
 .join-group-paste {
   flex-shrink: 0;
   border: 1px solid var(--line);
@@ -3240,25 +2770,21 @@ html.app-theme-dark .muted {
   font-weight: 600;
   cursor: pointer;
 }
-
 .join-group-submit {
   width: 100%;
   margin-top: 16px;
 }
-
 .join-group-error {
   margin-top: 12px;
   color: #b1554a;
   font-size: 13px;
   line-height: 1.45;
 }
-
 .join-group-foot {
   margin-top: 20px;
   font-size: 13px;
   text-align: center;
 }
-
 .group-member-grid-crown {
   position: absolute;
   right: -2px;
@@ -3272,7 +2798,6 @@ html.app-theme-dark .muted {
   padding: 1px 4px;
   line-height: 1.2;
 }
-
 .group-member-grid-name {
   font-size: 11px;
   text-align: center;
@@ -3282,12 +2807,10 @@ html.app-theme-dark .muted {
   white-space: nowrap;
   color: var(--ink-soft);
 }
-
 .group-member-grid-cell.me .group-member-grid-name {
   font-weight: 700;
   color: var(--accent-deep);
 }
-
 .group-member-grid-expand,
 .group-member-manage-toggle {
   display: block;
@@ -3296,28 +2819,23 @@ html.app-theme-dark .muted {
   margin-top: 12px;
   font-size: 13px;
 }
-
 .group-member-manage-list {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
-
 .group-member-leave-btn {
   margin-top: 14px;
   width: 100%;
 }
-
 .group-members-invite {
   font-size: 12px;
   margin: 0 0 10px;
   text-align: center;
 }
-
 .group-settings-section-members {
   margin-top: 4px;
 }
-
 .group-activity-feed-title {
   display: flex;
   align-items: baseline;
@@ -3325,7 +2843,6 @@ html.app-theme-dark .muted {
   margin-bottom: 10px;
   padding: 0 2px;
 }
-
 .group-feed-filters {
   display: flex;
   flex-wrap: wrap;
@@ -3333,16 +2850,13 @@ html.app-theme-dark .muted {
   margin: 0 0 12px;
   padding: 0 2px;
 }
-
 .group-activity-empty {
   text-align: center;
   padding: 32px 16px;
 }
-
 .group-activity-day {
   margin-bottom: 12px;
 }
-
 .group-activity-day-toggle {
   width: 100%;
   display: flex;
@@ -3356,53 +2870,44 @@ html.app-theme-dark .muted {
   font-weight: 600;
   cursor: pointer;
 }
-
 .group-activity-day-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-top: 8px;
 }
-
 .group-activity-card {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 12px 14px;
   background: var(--bg);
 }
-
 .group-activity-checkin {
   border-left: 3px solid var(--accent-deep);
 }
-
 .group-activity-chat {
   border-left: 3px solid color-mix(in srgb, var(--line) 40%, var(--accent, #5b7c6a));
   background: color-mix(in srgb, var(--surface, #fff) 88%, var(--accent-wash, #e8efe9));
 }
-
 .group-activity-task {
   border-left: 3px solid #b86b00;
 }
-
 .group-activity-task-done {
   border-left: 3px solid var(--accent);
   background: var(--accent-wash);
 }
-
 .group-activity-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
 }
-
 .group-activity-card-meta {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
 }
-
 .group-activity-kind {
   font-size: 11px;
   font-weight: 700;
@@ -3411,37 +2916,29 @@ html.app-theme-dark .muted {
   padding: 2px 8px;
   border-radius: 999px;
 }
-
 .group-activity-author {
   font-size: 13px;
   font-weight: 600;
 }
-
 .group-activity-time {
   font-size: 11px;
 }
-
 .group-activity-body {
   margin: 8px 0 0;
   font-size: 15px;
   line-height: 1.65;
   color: var(--ink);
 }
-
 .group-activity-task-done {
   margin: 6px 0 0;
   font-size: 14px;
 }
-
 .group-activity-foot {
   display: flex;
   gap: 12px;
   margin-top: 10px;
   flex-wrap: wrap;
 }
-
-
-
 /* lines 22120-24250 */
 /* discover IM v1.2 */
 .discover-im-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 12px;}
@@ -3996,7 +3493,6 @@ body.im-keyboard .group-prayer-banner {
   font-weight:600;
   cursor:pointer;
 }
-
 /* 飞书式贴气泡操作条 */
 .im-msg-popover-root{
   position:fixed;
@@ -4080,7 +3576,6 @@ body.im-keyboard .group-prayer-banner {
   text-align:center;
   white-space:nowrap;
 }
-
 /* 图片缩略图 + Lightbox */
 .im-attach-image-btn{
   appearance:none;
@@ -4205,7 +3700,6 @@ html.perf-lite .group-chat-feed .group-chat-bubble {
   -webkit-backdrop-filter: none !important;
   box-shadow: none !important;
 }
-
 html.perf-lite .im-msg-popover {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
@@ -4214,7 +3708,6 @@ html.perf-lite .im-msg-popover {
 .report-sheet-backdrop{position:absolute;inset:0;border:0;background:rgba(0,0,0,.35);cursor:pointer;}
 .report-sheet-panel{position:relative;width:min(480px,100%);background:var(--surface,#fff);border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));}
 .report-sheet-reasons{display:flex;flex-direction:column;gap:6px;}
-
 /* —— IM 输入栏 / 气泡增强 —— */
 .im-composer-bar{
   display:flex;
@@ -4692,7 +4185,6 @@ html.perf-lite .im-msg-popover {
 }
 .im-msg-check.is-on{background:var(--accent,#3d5c4a);border-color:var(--accent,#3d5c4a);box-shadow:inset 0 0 0 3px var(--surface);}
 .im-attach-dl{font-size:12px;margin-left:6px;}
-
 /* —— 群聊微信式气泡 —— */
 .group-chat-feed-wrap{
   padding: 4px 0 12px;
@@ -4783,7 +4275,6 @@ html.perf-lite .im-msg-popover {
   background: color-mix(in srgb, var(--line) 35%, transparent);
   border-radius: 8px;
 }
-
 /* 视频气泡：缩略 + 播放钮 */
 .im-video-bubble{
   position: relative;
@@ -4873,7 +4364,6 @@ html.perf-lite .im-msg-popover {
   padding: 8px 18px;
   font-size: 14px;
 }
-
 /* 语音气泡：仿微信，按时长伸缩 */
 .im-audio-bubble{
   display: inline-flex;
@@ -5205,7 +4695,6 @@ html.perf-lite .im-msg-popover {
   text-align: center;
   width: 100%;
 }
-
 .group-announce-bar{
   display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;border:0;border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--accent-wash,#e8efe9) 50%,var(--bg));font:inherit;text-align:left;cursor:pointer;
 }
@@ -5266,7 +4755,6 @@ body.im-search-keyboard .im-chat-search-sheet{
 .im-rich-kind-chip{font-size:11px;font-weight:600;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--accent,#5b7c6a) 14%,transparent);color:var(--accent-deep,#2f4a3a);}
 .im-msg-popover-phrase{appearance:none;border:0;background:rgba(255,255,255,.1);color:#fff;padding:6px 10px;border-radius:10px;font-size:12px;cursor:pointer;white-space:nowrap;}
 .im-msg-popover-emojis.is-extra{flex-wrap:wrap;padding-top:4px;border-bottom:1px solid rgba(255,255,255,.12);padding-bottom:6px;margin-bottom:2px;}
-
 /* —— 共读群 ABCD：名片 / 打卡墙 / 任务钉 / 邀请卡 / 设置目录 —— */
 .group-coread-sticky-cta.is-soft {
   background: color-mix(in srgb, var(--accent, #3d5c4a) 14%, var(--surface));
@@ -5312,7 +4800,6 @@ body.im-search-keyboard .im-chat-search-sheet{
 .group-coread-sticky-collapsed .group-coread-sticky-main {
   flex: 1;
 }
-
 .group-my-task-pin {
   display: flex;
   align-items: center;
@@ -5350,7 +4837,6 @@ body.im-search-keyboard .im-chat-search-sheet{
   gap: 6px;
   flex-shrink: 0;
 }
-
 .group-profile-card {
   max-height: min(88dvh, 720px);
   overflow-y: auto;
@@ -5449,7 +4935,6 @@ body.im-search-keyboard .im-chat-search-sheet{
   gap: 10px;
   margin-top: 18px;
 }
-
 .group-wall-sheet {
   max-height: min(78dvh, 640px);
   display: flex;
@@ -5467,7 +4952,6 @@ body.im-search-keyboard .im-chat-search-sheet{
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
-
 .group-settings-nav {
   display: flex;
   flex-direction: column;
@@ -5491,7 +4975,6 @@ body.im-search-keyboard .im-chat-search-sheet{
 }
 .group-settings-nav-row:last-child { border-bottom: 0; }
 .group-settings-nav-row.is-danger { color: var(--danger, #b42318); }
-
 .group-invite-preview-card {
   padding: 14px 16px;
   border-radius: 16px;
@@ -5538,7 +5021,6 @@ body.im-search-keyboard .im-chat-search-sheet{
   font-size: 18px;
   color: var(--accent-deep);
 }
-
 .group-chat-bubble.is-checkin {
   box-shadow: 0 1px 0 color-mix(in srgb, var(--accent) 8%, transparent);
 }
@@ -5573,8 +5055,6 @@ body.im-search-keyboard .im-chat-search-sheet{
   flex-shrink: 0;
   font-size: 13px;
 }
-
-
 /* lines 26007-26321 */
 /* ── IM ContactPicker（转发/分享共用） ── */
 .im-contact-picker-backdrop{z-index:90;}
@@ -5646,7 +5126,6 @@ body.im-search-keyboard .im-chat-search-sheet{
 }
 .im-contact-leave{flex:1;min-width:0;font-size:14px;}
 .im-contact-send{flex-shrink:0;min-width:88px;}
-
 /* 语音全屏 HUD */
 .im-voice-hud{
   position:fixed;inset:0;z-index:95;display:flex;align-items:flex-end;justify-content:center;
@@ -5667,14 +5146,12 @@ body.im-search-keyboard .im-chat-search-sheet{
 @keyframes im-voice-bar{from{height:8px}to{height:28px}}
 .im-voice-hud-time{display:block;font-size:28px;font-weight:600;letter-spacing:.02em;}
 .im-voice-hud-tip{margin:8px 0 0;font-size:13px;opacity:.88;}
-
 /* 回到底部未读角标 */
 .im-jump-bottom.has-unread{padding-right:12px;display:inline-flex;align-items:center;gap:6px;}
 .im-jump-badge{
   min-width:18px;height:18px;padding:0 5px;border-radius:999px;
   background:var(--accent,#2f6fed);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:600;
 }
-
 /* 多选底栏 */
 .im-select-dock{display:flex;gap:10px;width:100%;justify-content:center;padding:4px 0;}
 .im-select-dock .btn{min-width:96px;}
@@ -5682,7 +5159,6 @@ body.im-search-keyboard .im-chat-search-sheet{
 .im-select-dock-danger{
   background:transparent;border:1px solid color-mix(in srgb,#c0392b 55%,transparent);color:#c0392b;
 }
-
 /* 长按菜单图标宫格 */
 .im-msg-popover-actions{display:grid;grid-template-columns:repeat(4,minmax(56px,1fr));gap:4px;padding:4px 2px 2px;}
 .im-msg-popover-item{
@@ -5690,17 +5166,14 @@ body.im-search-keyboard .im-chat-search-sheet{
 }
 .im-msg-popover-icon{font-size:18px;line-height:1;opacity:.95;}
 .im-msg-popover-label{font-size:11px;white-space:nowrap;}
-
 /* @ 选人头像 */
 .im-mention-suggest-item{display:flex;align-items:center;gap:10px;}
 .im-mention-suggest-avatar{flex-shrink:0;}
 .im-mention-suggest-text{display:flex;flex-direction:column;align-items:flex-start;min-width:0;}
 .im-mention-empty{padding:10px 12px;font-size:13px;}
-
 /* 举报确认 */
 .im-report-note{width:100%;min-height:64px;margin:8px 0 12px;resize:vertical;font-size:14px;}
 .im-report-confirm{width:100%;margin-top:8px;}
-
 /* 看图底栏 */
 .im-lightbox-actions{
   position:absolute;left:0;right:0;bottom:0;z-index:2;
@@ -5713,114 +5186,17 @@ body.im-search-keyboard .im-chat-search-sheet{
   padding:10px 18px;border-radius:999px;font-size:14px;cursor:pointer;
 }
 .im-lightbox-action:disabled{opacity:.4;cursor:default;}
-
 /* 搜索高亮 */
 .im-chat-search-snip mark,
 .im-search-mark{
   background:color-mix(in srgb,#f5c542 55%,transparent);color:inherit;border-radius:2px;padding:0 1px;
 }
-
 /* 发图附言 */
 .im-attach-caption{
   width:100%;margin-top:8px;font-size:14px;min-height:36px;
 }
-
 /* 今日温习 / 提醒页（彼爱习惯能力） */
-.challenge-warmup-page{
-  padding-bottom:28px;
-}
-.challenge-warmup-head{
-  position:sticky;
-  top:0;
-  z-index:20;
-  margin:0 -4px 8px;
-  padding:4px 4px 8px;
-  background:color-mix(in srgb, var(--paper, #fffcfa) 92%, transparent);
-  backdrop-filter:blur(8px);
-}
-.challenge-warmup-hero{
-  width:100%;
-  text-align:left;
-  padding:20px 18px 18px;
-  margin-top:8px;
-  border-radius:16px;
-  background:var(--surface, #fff);
-  box-shadow:var(--home-shadow, 0 1px 3px rgba(40,36,30,.06));
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:6px;
-}
-.challenge-warmup-hero-kicker{margin:0;font-size:12px;}
-.challenge-warmup-hero-title{
-  margin:0;
-  font-size:18px;
-  font-weight:600;
-  line-height:1.35;
-}
-.challenge-warmup-hero-sub{margin:0;font-size:13px;line-height:1.45;}
-.challenge-warmup-start{margin-top:14px;min-width:140px;}
-.challenge-warmup-secondary{
-  width:100%;margin-top:10px;padding:14px 16px;text-align:left;border:0;cursor:pointer;
-  display:flex;flex-direction:column;align-items:flex-start;gap:4px;
-}
-.challenge-warmup-stats{margin:14px 0 6px;font-size:12px;}
-.challenge-warmup-more-toggle{display:inline-block;margin:4px 0 12px;font-size:13px;}
-.challenge-warmup-more{margin-bottom:24px;}
-
 /* 答题页：安全区顶栏 + 底栏，取消翻卡 */
-.challenge-play{
-  display:flex;
-  flex-direction:column;
-  min-height:calc(100dvh - 24px);
-  margin-top:calc(0px - env(safe-area-inset-top, 0px));
-  padding-top:0 !important;
-  padding-bottom:0 !important;
-  box-sizing:border-box;
-}
-.challenge-play-head{
-  position:sticky;
-  top:0;
-  z-index:30;
-  display:grid;
-  grid-template-columns:auto 1fr auto;
-  align-items:center;
-  gap:8px;
-  min-height:44px;
-  margin:0 -4px;
-  padding:max(10px, env(safe-area-inset-top, 0px)) 4px 10px;
-  background:var(--paper, #fffcfa);
-  border-bottom:1px solid color-mix(in srgb, var(--ink, #2a2620) 6%, transparent);
-}
-.challenge-play-head-title{
-  justify-self:center;
-  font-size:14px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  max-width:100%;
-}
-.challenge-play-head-step{
-  justify-self:end;
-  font-size:12px;
-  min-width:2.5em;
-  text-align:right;
-}
-.challenge-play-body{
-  flex:1 1 auto;
-  min-height:0;
-  overflow:auto;
-  -webkit-overflow-scrolling:touch;
-  padding:12px 0 16px;
-}
-.challenge-q-card-static{
-  gap:10px;
-}
-.challenge-q-ref{
-  display:inline-block;
-  margin:0;
-  font-size:13px;
-}
 .challenge-reveal{
   display:flex;
   flex-direction:column;
@@ -5833,35 +5209,7 @@ body.im-search-keyboard .im-chat-search-sheet{
 .quiz-opt-dim{
   opacity:.45;
 }
-.challenge-play-footer{
-  position:sticky;
-  bottom:0;
-  z-index:30;
-  display:flex;
-  flex-direction:column;
-  align-items:stretch;
-  gap:10px;
-  padding:12px 0 calc(16px + env(safe-area-inset-bottom, 0px));
-  background:linear-gradient(
-    to top,
-    var(--paper, #fffcfa) 70%,
-    color-mix(in srgb, var(--paper, #fffcfa) 0%, transparent)
-  );
-}
-.challenge-play-next{width:100%;}
-.challenge-play-read{
-  text-align:center;
-  font-size:13px;
-  padding:4px 0 2px;
-}
-
 .challenge-soft-step{text-align:center;font-size:12px;margin:4px 0 8px;}
-.challenge-finish-soft{padding:22px 18px;}
-.challenge-finish-kicker{margin:0 0 8px;font-size:12px;}
-.challenge-finish-title{display:block;font-size:17px;line-height:1.45;font-weight:600;}
-.challenge-finish-score{margin:10px 0 0;font-size:13px;}
-.challenge-finish-actions{display:flex;align-items:center;gap:14px;margin-top:16px;}
-
 .reminder-page-msg{margin-top:8px;font-size:13px;}
 .reminder-page-hint{margin-top:8px;font-size:12px;line-height:1.55;color:var(--warn,#b45309);}
 .reminder-hero{margin-top:14px;padding:16px;}

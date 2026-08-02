@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import '@/styles/profile.css';
 import '@/styles/avatar_picker.css';
+import '@/styles/reader_catalog.css';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
