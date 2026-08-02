@@ -1,11 +1,13 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 
 type Props = {
   text: string;
   disabled?: boolean;
+  /** Tab 保活：离开小爱时关掉挂到 body 的操作菜单 */
+  paneActive?: boolean;
   onCopy: () => void;
   onEdit: () => void;
   onResend: () => void;
@@ -17,6 +19,7 @@ type Props = {
 export function AssistantUserBubble({
   text,
   disabled = false,
+  paneActive = true,
   onCopy,
   onEdit,
   onResend,
@@ -36,7 +39,7 @@ export function AssistantUserBubble({
   };
 
   const openActions = (el?: HTMLElement | null) => {
-    if (disabled || !text.trim()) return;
+    if (disabled || !paneActive || !text.trim()) return;
     longPressFired.current = true;
     try {
       navigator.vibrate?.(12);
@@ -52,8 +55,14 @@ export function AssistantUserBubble({
     setAnchorEl(null);
   };
 
+  useEffect(() => {
+    if (paneActive) return;
+    clearLongPress();
+    closeActions();
+  }, [paneActive]);
+
   const startLongPress = (el: HTMLElement, x: number, y: number) => {
-    if (disabled) return;
+    if (disabled || !paneActive) return;
     longPressFired.current = false;
     clearLongPress();
     longPressStart.current = { x, y };

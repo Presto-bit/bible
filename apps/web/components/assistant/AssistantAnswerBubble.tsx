@@ -1,11 +1,13 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 
 type Props = {
   children: ReactNode;
   disabled?: boolean;
+  /** Tab 保活：离开小爱时关掉挂到 body 的复制菜单 */
+  paneActive?: boolean;
   onCopy: () => void;
 };
 
@@ -15,6 +17,7 @@ type Props = {
 export function AssistantAnswerBubble({
   children,
   disabled = false,
+  paneActive = true,
   onCopy,
 }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -32,7 +35,7 @@ export function AssistantAnswerBubble({
   };
 
   const openActions = (el?: HTMLElement | null) => {
-    if (disabled) return;
+    if (disabled || !paneActive) return;
     longPressFired.current = true;
     try {
       navigator.vibrate?.(12);
@@ -48,8 +51,14 @@ export function AssistantAnswerBubble({
     setAnchorEl(null);
   };
 
+  useEffect(() => {
+    if (paneActive) return;
+    clearLongPress();
+    closeActions();
+  }, [paneActive]);
+
   const startLongPress = (el: HTMLElement, x: number, y: number) => {
-    if (disabled) return;
+    if (disabled || !paneActive) return;
     longPressFired.current = false;
     clearLongPress();
     longPressStart.current = { x, y };

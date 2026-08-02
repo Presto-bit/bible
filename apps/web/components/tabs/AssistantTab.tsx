@@ -1253,6 +1253,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       )}
                       <AssistantAnswerBubble
                         disabled={busy}
+                        paneActive={paneActive}
                         onCopy={() => {
                           void copyText(m.text);
                         }}
@@ -1280,6 +1281,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   <AssistantUserBubble
                     text={m.text || '…'}
                     disabled={busy}
+                    paneActive={paneActive}
                     onCopy={() => {
                       void copyText(m.text);
                     }}

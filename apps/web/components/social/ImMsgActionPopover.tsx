@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import AppBodyPortal from '@/components/AppBodyPortal';
 
 export type ImPopoverAction = {
@@ -98,6 +98,31 @@ export function ImMsgActionPopover({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+
+  // 挂到 body 后不受 tab-keep-pane[hidden] 影响；切 Tab 必须关掉，否则会盖住圣经等其它 Tab
+  useEffect(() => {
+    if (!open) return;
+    const close = () => onClose();
+    window.addEventListener('presto-tab-nav', close);
+    window.addEventListener('popstate', close);
+    return () => {
+      window.removeEventListener('presto-tab-nav', close);
+      window.removeEventListener('popstate', close);
+    };
+  }, [open, onClose]);
+
+  // 锚点所在 pane 被 hidden（保活切 Tab）时同步关闭
+  useEffect(() => {
+    if (!open || !anchorEl) return;
+    const closeIfOrphaned = () => {
+      if (!anchorEl.isConnected || anchorEl.closest('[hidden]')) onClose();
+    };
+    closeIfOrphaned();
+    const obs = new MutationObserver(closeIfOrphaned);
+    const pane = anchorEl.closest('.tab-keep-pane');
+    if (pane) obs.observe(pane, { attributes: true, attributeFilter: ['hidden'] });
+    return () => obs.disconnect();
+  }, [open, anchorEl, onClose]);
 
   if (!open || !actions.length) return null;
 
