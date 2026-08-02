@@ -55,8 +55,8 @@ import {
   androidTwaApkUrl,
   detectAndroidTwaInstalled,
 } from '@/lib/android_twa';
-import { wechatInstallPrimaryLabel } from '@/lib/wechat_open_browser';
 import { IosSafariInstallCoach } from '@/components/IosSafariInstallCoach';
+import { WechatEscapeCoach } from '@/components/WechatEscapeCoach';
 
 interface BIPEvent extends Event {
   prompt: () => Promise<void>;
@@ -175,6 +175,17 @@ export function InstallPwaSheet({
       <IosSafariInstallCoach
         resumeLabel={resumeLabel}
         softCloseOnly={softCloseOnly}
+        onDismissPassive={dismissPassive}
+        onSoftClose={softClose}
+      />
+    );
+  }
+
+  if (isInApp) {
+    return (
+      <WechatEscapeCoach
+        softCloseOnly={softCloseOnly}
+        skipLabel={softCloseOnly ? '先看看内容' : '暂不打开'}
         onDismissPassive={dismissPassive}
         onSoftClose={softClose}
       />
@@ -338,22 +349,6 @@ export function InstallPwaSheet({
           )
         ) : null}
 
-        {platform === 'inapp' ? (
-          <button
-            type="button"
-            className="btn btn-block"
-            onClick={async () => {
-              const { copyCurrentPageUrl, wechatOpenBrowserToast } = await import(
-                '@/lib/wechat_open_browser'
-              );
-              const ok = await copyCurrentPageUrl();
-              toast(wechatOpenBrowserToast(ok));
-            }}
-          >
-            {wechatInstallPrimaryLabel()}
-          </button>
-        ) : null}
-
         <button
           type="button"
           className="text-link install-pwa-dismiss"
@@ -365,7 +360,7 @@ export function InstallPwaSheet({
             dismissPassive();
           }}
         >
-          {isAndroid || (platform === 'inapp' && !isIOS()) ? '暂不安装' : '暂不保存'}
+          {isAndroid ? '暂不安装' : '暂不保存'}
         </button>
       </div>
     </div>
@@ -535,7 +530,7 @@ export default function InstallBanner() {
     afterReadLabel && platform !== 'desktop'
       ? `下次一键续读 · ${afterReadLabel}`
       : platform === 'inapp'
-        ? '微信内无法安装，请用浏览器打开'
+        ? '微信里装不了 · 先用浏览器打开'
         : platform === 'ios-safari' || platform === 'ios-other'
           ? '保存到主屏幕，约 10 秒'
           : platform === 'desktop'

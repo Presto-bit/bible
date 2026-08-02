@@ -33,7 +33,8 @@ function ShareFunnelBootstrapInner() {
     }
 
     if (result.shouldBoostInstall && platform !== 'inapp' && platform !== 'standalone') {
-      const t = window.setTimeout(() => openPwaInstallSheet(), 700);
+      // 从微信逃出后尽快接上安装引导（iOS 指尖 / 安卓下载）
+      const t = window.setTimeout(() => openPwaInstallSheet(), 380);
       return () => window.clearTimeout(t);
     }
   }, [pathname, searchParams, router]);

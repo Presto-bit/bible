@@ -103,18 +103,28 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
         { title: '从桌面打开「彼爱」', detail: '安装完成后从主屏幕打开，体验更稳定' },
       ];
     case 'inapp':
-      // 微信 / QQ：按系统分流（安卓只推 TWA，iOS 只推 PWA）
+      // 只催逃逸；安装细节等出微信后再讲
       if (typeof navigator !== 'undefined' && isIOS()) {
         return [
-          { title: '点右上角 ···', detail: '选「在 Safari 打开」或「在默认浏览器中打开」' },
-          { title: '用 Safari 打开本页', detail: '微信内无法直接添加到主屏幕' },
-          { title: '共享 → 添加到主屏幕', detail: 'Safari 底栏 ↑，再选「添加到主屏幕」' },
+          {
+            title: '点右上角 ···',
+            detail: '选「在 Safari 打开」或「在默认浏览器中打开」',
+          },
+          {
+            title: '用 Safari 打开本页',
+            detail: '打开后会再教你保存到主屏幕',
+          },
         ];
       }
       return [
-        { title: '点右上角 ···', detail: '选「在浏览器打开」或「用默认浏览器打开」' },
-        { title: '用系统浏览器打开本页', detail: '微信 / QQ 内无法直接下载安装包' },
-        { title: '点「下载并安装」', detail: '允许未知来源后安装，再从桌面打开「彼爱」' },
+        {
+          title: '点右上角 ···',
+          detail: '选「在浏览器打开」或「用默认浏览器打开」',
+        },
+        {
+          title: '用系统浏览器打开本页',
+          detail: '打开后即可下载安装彼爱',
+        },
       ];
     case 'desktop':
       return [
@@ -131,8 +141,8 @@ export function installHeadline(platform: InstallPlatform): string {
   switch (platform) {
     case 'inapp':
       return isIOS()
-        ? '请先用 Safari 打开，再添加到主屏幕'
-        : '请先用系统浏览器打开，再安装彼爱';
+        ? '先在 Safari 打开'
+        : '先在浏览器打开';
     case 'ios-safari':
       return '保存到主屏幕，像打开 App 一样读经';
     case 'ios-other':

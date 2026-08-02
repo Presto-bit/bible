@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
+import { WechatEscapeCoach } from '@/components/WechatEscapeCoach';
 import {
   dismissSharePwaGuide,
   isSharePwaDismissed,
@@ -9,20 +10,12 @@ import {
 } from '@/lib/share_pwa_guide';
 import { detectInstallPlatform, type InstallPlatform } from '@/lib/pwa_platform';
 import { BRAND_NAME } from '@/lib/brand';
-import {
-  copyCurrentPageUrl,
-  wechatInstallPrimaryLabel,
-  wechatMaskDesc,
-  wechatMaskTitle,
-  wechatOpenBrowserToast,
-} from '@/lib/wechat_open_browser';
-import { useToast } from '@/components/ui/ToastProvider';
 import { isAndroid } from '@/lib/pwa_platform';
 
 /**
  * 分享落地页安装引导：
- * - 微信等内置浏览器：右上角示意遮罩 + 复制链接（iOS→PWA / 安卓→TWA）
- * - 系统浏览器：底栏打开 InstallPwaSheet
+ * - 微信等内置浏览器：只催逃逸（WechatEscapeCoach）
+ * - 系统浏览器：底栏打开 InstallPwaSheet / iOS 指尖引导
  */
 export function SharePwaGuide({
   variant = 'analysis',
@@ -30,11 +23,9 @@ export function SharePwaGuide({
   /** analysis：解读；invite：邀请；daily：每日经文；campaign：活动；wrapped：回顾 */
   variant?: 'analysis' | 'invite' | 'daily' | 'campaign' | 'wrapped';
 }) {
-  const toast = useToast();
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [hidden, setHidden] = useState(true);
   const [ready, setReady] = useState(false);
-  const [copyBusy, setCopyBusy] = useState(false);
 
   useEffect(() => {
     const p = detectInstallPlatform();
@@ -45,7 +36,7 @@ export function SharePwaGuide({
     }
     const delay =
       p === 'inapp'
-        ? 180
+        ? 160
         : p === 'android-chrome' || p === 'android-other'
           ? 280
           : variant === 'invite' || variant === 'daily' || variant === 'campaign' || variant === 'wrapped'
@@ -66,57 +57,14 @@ export function SharePwaGuide({
     setHidden(true);
   };
 
-  const copyAndHint = async () => {
-    if (copyBusy) return;
-    setCopyBusy(true);
-    try {
-      const ok = await copyCurrentPageUrl();
-      toast(wechatOpenBrowserToast(ok));
-    } finally {
-      setCopyBusy(false);
-    }
-  };
-
   if (platform === 'inapp') {
     return (
-      <div className="share-wechat-mask" role="dialog" aria-modal="true" aria-labelledby="share-wechat-title">
-        <button
-          type="button"
-          className="share-wechat-mask-scrim"
-          aria-label="先看看内容"
-          onClick={softDismiss}
-        />
-        <div className="share-wechat-arrow" aria-hidden>
-          <span className="share-wechat-arrow-tip">右上角 ···</span>
-          <svg className="share-wechat-arrow-svg" viewBox="0 0 80 96" width="72" height="86">
-            <path
-              d="M48 8c18 10 26 28 22 52"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="3.5"
-              strokeLinecap="round"
-            />
-            <path d="M58 52l12 4-8 10" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <div className="share-wechat-card">
-          <p id="share-wechat-title" className="share-wechat-title">
-            {wechatMaskTitle()}
-          </p>
-          <p className="share-wechat-desc">{wechatMaskDesc()}</p>
-          <button
-            type="button"
-            className="btn btn-primary share-wechat-cta"
-            disabled={copyBusy}
-            onClick={() => void copyAndHint()}
-          >
-            {copyBusy ? '复制中…' : wechatInstallPrimaryLabel()}
-          </button>
-          <button type="button" className="text-link share-wechat-skip" onClick={softDismiss}>
-            先看看内容
-          </button>
-        </div>
-      </div>
+      <WechatEscapeCoach
+        softCloseOnly
+        skipLabel="先看看内容"
+        onDismissPassive={softDismiss}
+        onSoftClose={softDismiss}
+      />
     );
   }
 

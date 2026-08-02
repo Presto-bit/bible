@@ -375,3 +375,188 @@
   }
 }
 
+/* ── 微信 / QQ 逃逸一屏引导 ── */
+.wechat-escape-coach {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  pointer-events: none;
+}
+
+.wechat-escape-scrim {
+  position: absolute;
+  inset: 0;
+  border: none;
+  margin: 0;
+  padding: 0;
+  background: rgba(20, 28, 24, 0.55);
+  pointer-events: auto;
+  cursor: pointer;
+  animation: wechat-escape-fade 0.28s ease;
+}
+
+.wechat-escape-arrow {
+  position: absolute;
+  top: calc(6px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  z-index: 1;
+  color: #fff;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  animation: wechat-escape-bob 1.45s ease-in-out infinite;
+}
+
+.wechat-escape-arrow-tip {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+
+.wechat-escape-arrow-svg {
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+}
+
+.wechat-escape-body {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  padding: 0 16px calc(20px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  animation: wechat-escape-rise 0.34s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.wechat-escape-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 18px 16px 12px;
+  border-radius: 18px;
+  background: var(--surface, #fff);
+  box-shadow: 0 12px 40px rgba(20, 28, 24, 0.28);
+  pointer-events: auto;
+}
+
+.wechat-escape-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.wechat-escape-icon {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(79, 107, 93, 0.14);
+}
+
+.wechat-escape-name {
+  display: block;
+  font-size: 16px;
+  color: var(--pwa-ink, #4f6b5d);
+}
+
+.wechat-escape-sub {
+  display: block;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.wechat-escape-headline {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.4;
+  color: var(--ink, #243028);
+}
+
+.wechat-escape-path {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent-deep, #4f6b5d);
+}
+
+.wechat-escape-path > span:not(.wechat-escape-path-sep) {
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent-deep, #4f6b5d) 10%, transparent);
+}
+
+.wechat-escape-path-sep {
+  font-weight: 500;
+  opacity: 0.55;
+}
+
+.wechat-escape-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.wechat-escape-cta {
+  margin-top: 14px;
+}
+
+.wechat-escape-cta-done {
+  background: color-mix(in srgb, var(--accent-deep, #4f6b5d) 14%, var(--surface, #fff));
+  color: var(--accent-deep, #4f6b5d);
+  border-color: color-mix(in srgb, var(--accent-deep, #4f6b5d) 28%, transparent);
+}
+
+.wechat-escape-skip {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+  font-size: 13px;
+}
+
+@keyframes wechat-escape-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes wechat-escape-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wechat-escape-bob {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(3px, -4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wechat-escape-scrim,
+  .wechat-escape-body,
+  .wechat-escape-arrow {
+    animation: none;
+  }
+}
+
