@@ -3,7 +3,7 @@
 import { isStandalonePwa } from './platform';
 
 const SKIP_TOUCH_TARGET =
-  'input, textarea, select, [contenteditable="true"], .allow-text-select, .assistant-user-text, .assistant-msg';
+  'input, textarea, select, [contenteditable="true"], .allow-text-select';
 
 function markAnchorNoDrag(anchor: HTMLAnchorElement) {
   anchor.setAttribute('draggable', 'false');

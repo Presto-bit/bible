@@ -71,7 +71,7 @@ export function AssistantUserBubble({
       <div
         role="button"
         tabIndex={0}
-        className="assistant-user-text allow-text-select"
+        className="assistant-user-text"
         aria-label="用户消息，长按可复制或编辑重发"
         onPointerDown={(e) => {
           if (e.pointerType === 'mouse' && e.button !== 0) return;
