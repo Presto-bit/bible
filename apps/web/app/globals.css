@@ -1862,38 +1862,54 @@ html:not([data-app-theme]) .card {
   -webkit-touch-callout: none;
 }
 
-.home-page .hero-verse .hero-scene {
-  /* 无图/加载中：可读写暖灰底（对齐 PWA 纸感，不全透明） */
+/*
+ * 每日经文 hero：永远盖住 .card 的 --surface 白底。
+ * 无图/加载/失败 → 墨色渐变（对齐全屏兜底）；有图 → 仍保留墨色垫底防 WebView 露白。
+ */
+html[data-app-theme='classic'] .home-page .hero-verse.card,
+html:not([data-app-theme]) .home-page .hero-verse.card,
+.home-page .hero-verse.card,
+.home-page .hero-verse {
   background:
-    radial-gradient(180px 140px at 88% 12%, rgba(255, 200, 140, 0.35), transparent 72%),
-    radial-gradient(140px 110px at 8% 88%, rgba(07, 193, 96, 0.1), transparent 70%),
-    linear-gradient(165deg, #eceae6 0%, #e4e2dd 42%, #f2f0eb 100%);
+    linear-gradient(175deg, #2a2420 0%, #161412 42%, #0f1418 100%) !important;
+  background-size: 100% 100% !important;
 }
 
-/* 有风景图时：默认清掉主题渐变，但允许 WallpaperBg 在父层写 inline backgroundImage（WebView 双保险） */
+.home-page .hero-verse .hero-scene {
+  background: linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
+}
+
+/* 有风景图时：允许 WallpaperBg 在父层写 inline backgroundImage（WebView 双保险） */
 .home-page .hero-verse .hero-scene.hero-scene-has-art {
-  background-color: transparent;
+  background-color: #0f1418;
   /* 勿用 background-image:none !important —— 会废掉 img onLoad 写入的父层铺底 */
 }
 .home-page .hero-verse .hero-scene.hero-scene-has-art:not([style*='background-image']) {
-  background-image: none;
+  background-image: linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
 }
 
-/* 卡面本身也给底，防止 scene 透明后露白 */
-.home-page .hero-verse.hero-verse-plain,
-.home-page .hero-verse.hero-verse-art-loading {
-  background:
-    linear-gradient(165deg, #ebe9e4 0%, #e0ded9 50%, #f0eee9 100%);
-}
-
+/* 无图 / 加载中：白字 + 轻阴影（与有图态一致，避免灰底墨字像白板） */
 .home-page .hero-verse.hero-verse-plain .verse-text,
 .home-page .hero-verse.hero-verse-art-loading .verse-text,
 .home-page .hero-verse.hero-verse-plain .hero-ref,
 .home-page .hero-verse.hero-verse-art-loading .hero-ref,
 .home-page .hero-verse.hero-verse-plain .hero-kicker,
 .home-page .hero-verse.hero-verse-art-loading .hero-kicker {
-  color: var(--ink, #1c1b19);
-  text-shadow: none;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.home-page .hero-verse.hero-verse-plain .hero-like,
+.home-page .hero-verse.hero-verse-art-loading .hero-like,
+.home-page .hero-verse.hero-verse-plain .hero-react,
+.home-page .hero-verse.hero-verse-art-loading .hero-react,
+.home-page .hero-verse.hero-verse-plain .hero-xiaoai,
+.home-page .hero-verse.hero-verse-art-loading .hero-xiaoai,
+.home-page .hero-verse.hero-verse-plain .hero-share,
+.home-page .hero-verse.hero-verse-art-loading .hero-share {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
 }
 
 .home-page .hero-verse.hero-verse-has-art .hero-scene-img {
@@ -3412,10 +3428,8 @@ button.hero-b-campaign {
   inset: 0;
   pointer-events: none;
   overflow: hidden;
-  background:
-    radial-gradient(160px 130px at 88% 18%, rgba(255, 200, 140, 0.35), transparent 72%),
-    radial-gradient(120px 100px at 12% 85%, rgba(232, 160, 144, 0.18), transparent 70%),
-    linear-gradient(165deg, #eceae6 0%, #e4e2dd 45%, #f2f0eb 100%);
+  /* 默认墨色垫底；有图时由 WallpaperBg 覆盖 background-image */
+  background: linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
   background-size: cover;
   background-position: center;
 }
@@ -3475,32 +3489,33 @@ button.hero-b-campaign {
   );
 }
 
+/* 主题仅在墨色底上加薄雾，避免无图时落回浅色/白底 */
 .hero-verse-theme-creation .hero-scene {
   background:
-    radial-gradient(150px 120px at 80% 20%, rgba(212, 160, 96, 0.5), transparent 70%),
-    linear-gradient(175deg, rgba(245, 230, 210, 0.8), transparent 65%);
+    radial-gradient(150px 120px at 80% 20%, rgba(212, 160, 96, 0.28), transparent 70%),
+    linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
 }
 
 .hero-verse-theme-psalm .hero-scene {
   background:
-    radial-gradient(140px 110px at 85% 22%, rgba(168, 196, 212, 0.45), transparent 70%),
-    linear-gradient(175deg, rgba(232, 240, 248, 0.7), transparent 62%);
+    radial-gradient(140px 110px at 85% 22%, rgba(168, 196, 212, 0.22), transparent 70%),
+    linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
 }
 
 .hero-verse-theme-gospel .hero-scene {
   background:
-    radial-gradient(150px 120px at 82% 18%, rgba(255, 210, 150, 0.55), transparent 70%),
-    linear-gradient(175deg, rgba(255, 245, 230, 0.75), transparent 65%);
+    radial-gradient(150px 120px at 82% 18%, rgba(255, 210, 150, 0.22), transparent 70%),
+    linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
 }
 
 .hero-verse-theme-faith .hero-scene {
   background:
-    radial-gradient(130px 100px at 78% 24%, rgba(232, 160, 144, 0.4), transparent 68%),
-    linear-gradient(175deg, rgba(255, 232, 214, 0.65), transparent 60%);
+    radial-gradient(130px 100px at 78% 24%, rgba(232, 160, 144, 0.2), transparent 68%),
+    linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
 }
 
 .hero-verse-theme-dawn .hero-scene {
-  /* default — see above */
+  /* default — ink base above */
 }
 
 .hero-inner {

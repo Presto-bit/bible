@@ -37,6 +37,28 @@ body.verse-full-open .tabbar {
   bottom: 0;
   left: 0;
 }
+.verse-full-bg-gradient {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(175deg, #2a2420 0%, #161412 42%, #0f1418 100%);
+}
+.verse-full-bg-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+  /* WallpaperBg 会把图也写到本层 background-image（壳双保险） */
+  background-color: transparent;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.verse-full-bg-layer.is-ready {
+  opacity: 1;
+}
 .verse-full-photo-only .verse-full-bg-photo {
   position: absolute;
   inset: 0;
@@ -50,8 +72,9 @@ body.verse-full-open .tabbar {
   filter: none;
   display: block;
   pointer-events: none;
-  transform: translateZ(0);
-  -webkit-transform: translateZ(0);
+  /* 禁止合成层 hack：部分壳内 translateZ 导致图解码成功却不绘制 */
+  transform: none;
+  -webkit-transform: none;
 }
 .verse-full-scrim-top {
   position: absolute;
@@ -59,13 +82,13 @@ body.verse-full-open .tabbar {
   left: 0;
   right: 0;
   height: calc(max(var(--safe-top, 0px), var(--shell-inset-top, 0px), env(safe-area-inset-top, 0px)) + 56px);
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, transparent 100%);
 }
 .verse-full-photo-only .verse-full-inner {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   width: min(520px, calc(100% - 40px));
   margin: 0 auto;
   padding:
@@ -134,13 +157,6 @@ body.verse-full-open .tabbar {
   display: block;
   flex-shrink: 0;
 }
-.verse-full-bg-gradient {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(175deg, #2a2420 0%, #0f1418 68%);
-}
-
 /* lines 17317-17756 */
 /* ── 每日经文回应抽屉 ── */
 .dv-react-backdrop {

@@ -8,6 +8,7 @@ import type { DailyVerse, DailyVerseReactPreset } from '@/lib/api';
 import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
 import { formatDailyVerseQuote } from '@/lib/daily_verse_display';
 import { applyAppTheme } from '@/lib/app_theme';
+import WallpaperBg from '@/components/home/WallpaperBg';
 
 type Props = {
   dv: DailyVerse;
@@ -41,7 +42,7 @@ export default function DailyVerseWallpaper({
   shareBusy,
 }: Props) {
   const [mounted, setMounted] = useState(false);
-  const [bgOk, setBgOk] = useState(true);
+  const [artReady, setArtReady] = useState(false);
 
   const fullUrl = backgroundUrl ?? dailyVerseWallpaperUrl(dv.day, 'full');
   const shareCount = dv.shares_count ?? 0;
@@ -51,7 +52,7 @@ export default function DailyVerseWallpaper({
   }, []);
 
   useEffect(() => {
-    setBgOk(true);
+    setArtReady(false);
   }, [fullUrl]);
 
   useEffect(() => {
@@ -76,29 +77,27 @@ export default function DailyVerseWallpaper({
 
   if (!mounted) return null;
 
-  const showPhoto = Boolean(fullUrl && bgOk);
-
   return createPortal(
     <div
-      className="verse-full verse-full-photo-only"
+      className={`verse-full verse-full-photo-only${artReady ? ' verse-full-has-art' : ''}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={dv.ref ? `每日经文 ${dv.ref}` : '每日经文'}
     >
-      {showPhoto ? (
-        <img
-          className="verse-full-bg verse-full-bg-photo"
-          src={fullUrl}
-          alt=""
-          aria-hidden
-          decoding="async"
-          fetchPriority="high"
-          onError={() => setBgOk(false)}
-        />
-      ) : (
-        <div className="verse-full-bg verse-full-bg-gradient" aria-hidden />
-      )}
+      {/* 墨色兜底始终在；WallpaperBg 成功后叠风景（与首页同保险） */}
+      <div className="verse-full-bg verse-full-bg-gradient" aria-hidden />
+      {fullUrl ? (
+        <div className={`verse-full-bg-layer${artReady ? ' is-ready' : ''}`} aria-hidden>
+          <WallpaperBg
+            src={fullUrl}
+            className="verse-full-bg verse-full-bg-photo"
+            fetchPriority="high"
+            onReady={() => setArtReady(true)}
+            onFail={() => setArtReady(false)}
+          />
+        </div>
+      ) : null}
       <div className="verse-full-scrim-top" aria-hidden />
       <div className="verse-full-inner" onClick={(e) => e.stopPropagation()}>
         <div className="verse-full-copy">

@@ -43,20 +43,25 @@ function toCandidates(src: string): string[] {
 }
 
 async function fetchAsBlobUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      credentials: 'same-origin',
-      cache: 'force-cache',
-      mode: 'same-origin',
-    });
-    if (!res.ok) return null;
-    const blob = await res.blob();
-    if (blob.size < 200) return null;
-    if (blob.type && !blob.type.startsWith('image/')) return null;
-    return URL.createObjectURL(blob);
-  } catch {
-    return null;
+  // 生产壁纸常见 no-store；force-cache 在安卓 WebView 上可能直接失败，两档都试。
+  const modes: RequestCache[] = ['no-store', 'force-cache'];
+  for (const cache of modes) {
+    try {
+      const res = await fetch(url, {
+        credentials: 'same-origin',
+        cache,
+        mode: 'same-origin',
+      });
+      if (!res.ok) continue;
+      const blob = await res.blob();
+      if (blob.size < 200) continue;
+      if (blob.type && !blob.type.startsWith('image/') && blob.size < 800) continue;
+      return URL.createObjectURL(blob);
+    } catch {
+      /* try next */
+    }
   }
+  return null;
 }
 
 /**
