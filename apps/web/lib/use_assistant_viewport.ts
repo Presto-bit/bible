@@ -68,6 +68,7 @@ export function useAssistantViewport(
 
   useEffect(() => {
     if (!paneActive) {
+      focusedRef.current = false;
       setComposerFocused(false);
       clearAssistantViewportChrome();
       return;
@@ -164,8 +165,10 @@ export function useAssistantViewport(
       if (!(t instanceof HTMLElement)) return;
       if (!t.closest('.assistant-composer')) return;
       if (t.tagName !== 'TEXTAREA' && t.tagName !== 'INPUT') return;
+      focusedRef.current = true;
       setComposerFocused(true);
       pinDocScroll();
+      syncViewport();
     };
 
     const onFocusOut = (e: FocusEvent) => {
@@ -173,7 +176,9 @@ export function useAssistantViewport(
       if (!(t instanceof HTMLElement) || !t.closest('.assistant-composer')) return;
       const next = e.relatedTarget;
       if (next instanceof HTMLElement && next.closest('.assistant-composer')) return;
+      focusedRef.current = false;
       setComposerFocused(false);
+      syncViewport();
     };
 
     const onWindowScroll = () => {
@@ -200,11 +205,6 @@ export function useAssistantViewport(
       window.removeEventListener('focusin', onFocusIn);
       window.removeEventListener('focusout', onFocusOut);
       window.removeEventListener('scroll', onWindowScroll);
-      body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
-      root.style.removeProperty('--assistant-vv-h');
-      root.style.removeProperty('--assistant-kb-inset');
-      root.style.removeProperty('--assistant-page-h');
-      root.style.removeProperty('--assistant-overlay-h');
     };
-  }, [paneActive, composerFocused, setComposerFocused]);
+  }, [paneActive, setComposerFocused]);
 }
