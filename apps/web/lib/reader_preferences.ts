@@ -7,6 +7,8 @@ export type ReadingMode = 'focus' | 'meditate' | 'study';
 
 const FONT_FAMILY_KEY = 'reader_font_family';
 const PAGE_TURN_KEY = 'reader_page_turn';
+/** 安卓（浏览器/壳）：一次性把历史「滚动」默认迁到跟手翻页 */
+const PAGE_TURN_ANDROID_SWIPE_MIGRATE = 'reader_page_turn_android_swipe_v1';
 const UNDERLINES_OFF_KEY = 'reader_underlines_off';
 const THOUGHTS_OFF_KEY = 'reader_thoughts_off';
 const READING_MODE_KEY = 'reader_reading_mode';
@@ -16,6 +18,11 @@ const CHAPTER_COMPLETE_TIP_OFF_KEY = 'reader_chapter_complete_tip_off';
 function read(key: string, fallback: string): string {
   if (typeof window === 'undefined') return fallback;
   return localStorage.getItem(key) ?? fallback;
+}
+
+function isAndroidUa(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
 }
 
 export const FONT_FAMILIES: { id: ReaderFontFamily; label: string; css: string }[] = [
@@ -43,13 +50,32 @@ export function fontFamilyCss(f: ReaderFontFamily): string {
 
 function defaultPageTurn(): PageTurnMode {
   if (typeof window === 'undefined') return 'swipe';
-  // 安卓壳务必横滑翻页（部分机报 fine pointer，勿默认 scroll）
-  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) return 'swipe';
+  // 安卓（浏览器 / 壳 / PWA）：默认跟手翻页；左右滑换章
+  if (isAndroidUa()) return 'swipe';
+  // 桌面细指针：默认上下滚动更自然
   if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return 'scroll';
   return 'swipe';
 }
 
+/**
+ * 安卓用户若曾被标成「上下滚动」（含 fine pointer 误判、旧默认），
+ * 一次性迁到跟手翻页；迁完后用户仍可在设置里改回滚动。
+ */
+function migrateAndroidPageTurnToSwipeOnce(): void {
+  if (typeof window === 'undefined' || !isAndroidUa()) return;
+  try {
+    if (localStorage.getItem(PAGE_TURN_ANDROID_SWIPE_MIGRATE) === '1') return;
+    localStorage.setItem(PAGE_TURN_ANDROID_SWIPE_MIGRATE, '1');
+    if (localStorage.getItem(PAGE_TURN_KEY) !== 'swipe') {
+      localStorage.setItem(PAGE_TURN_KEY, 'swipe');
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
 export function getPageTurn(): PageTurnMode {
+  migrateAndroidPageTurnToSwipeOnce();
   const saved = read(PAGE_TURN_KEY, '');
   if (saved === 'scroll' || saved === 'swipe') return saved;
   return defaultPageTurn();
@@ -57,6 +83,12 @@ export function getPageTurn(): PageTurnMode {
 
 export function setPageTurn(p: PageTurnMode) {
   localStorage.setItem(PAGE_TURN_KEY, p);
+  try {
+    // 用户显式选择后不再被迁移覆盖
+    if (isAndroidUa()) localStorage.setItem(PAGE_TURN_ANDROID_SWIPE_MIGRATE, '1');
+  } catch {
+    /* ignore */
+  }
 }
 
 export function getUnderlinesOn(): boolean {
