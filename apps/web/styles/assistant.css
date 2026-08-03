@@ -21,7 +21,7 @@
   position: relative;
 }
 
-/* 主栏：头 + 消息/空态 + 输入，纵向铺满（与 iOS 结构一致） */
+/* 主栏：头 + 消息/空态 + 输入贴底，纵向铺满（PWA / 安卓壳同一套） */
 .assistant-page > .assistant-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -29,14 +29,15 @@
   flex-direction: column;
 }
 
-.assistant-body:not(.is-empty) .assistant-thread-wrap {
+.assistant-body .assistant-thread-wrap {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-.assistant-body:not(.is-empty) .assistant-composer {
+/* 空态 / 有会话：输入一律贴底（底 Tab 上方）；勿再空态居中 */
+.assistant-body .assistant-composer {
   flex-shrink: 0;
-  margin-top: 0;
+  margin-top: auto;
 }
 /* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高）
  * 勿对 .app-body 设 touch-action:none：assistant-active 残留时会锁死「我的」等 Tab 点击。 */
@@ -79,9 +80,6 @@ body.assistant-keyboard.assistant-active .assistant-page {
 body.assistant-keyboard-vv.assistant-active .assistant-page {
   height: var(--assistant-vv-h, 100%);
   max-height: var(--assistant-vv-h, 100%);
-}
-body.assistant-keyboard.assistant-active .assistant-body.is-empty {
-  justify-content: flex-end;
 }
 /* 打字时藏底栏，避免与键盘叠层；失焦后恢复常驻 */
 body.assistant-keyboard.assistant-active .tabbar {
@@ -156,19 +154,23 @@ body.assistant-keyboard.assistant-active .tabbar {
   min-height: 260px;
   text-align: center;
 }
-/* 空态：提示居中，输入区（含 chip 行）随之居中显示 */
+/* 空态填充区：欢迎内容在上半区居中，输入已贴底 */
 .assistant-empty-fill {
   flex: 1;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 16px;
+  min-height: 0;
 }
 .assistant-empty-hint {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 4px 24px;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: 12px 4px 20px;
   text-align: center;
 }
 .assistant-empty-scene {
@@ -334,42 +336,31 @@ body.assistant-keyboard.assistant-active .tabbar {
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
-/* 无对话：欢迎语 + 输入区垂直居中；有对话：输入区贴底（tab 上方） */
-.assistant-body.is-empty {
-  justify-content: center;
-  gap: 20px;
-}
-.assistant-body.is-empty .assistant-thread-wrap {
-  flex: 0 0 auto;
+/* 无对话 / 有对话：欢迎或消息在上可滚，输入贴底（Tab 上方）；对齐 PWA 键盘态落点 */
+.assistant-body.is-empty,
+.assistant-body:not(.is-empty) {
+  justify-content: flex-start;
 }
 .assistant-body.is-empty .assistant-thread {
-  flex: 0 0 auto;
-  overflow: visible;
   margin-bottom: 0;
 }
 .assistant-body.is-empty .assistant-composer {
-  border-top: none;
-  padding-top: 0;
-  box-shadow: none;
-  background: transparent;
-  /* 空态不 sticky，跟欢迎语一起居中 */
+  /* 勿依赖 sticky：安卓 WebView flex + overflow 下 sticky 常失效 */
   position: relative;
   bottom: auto;
+  border-top: none;
+  box-shadow: none;
+  background: var(--paper);
+  padding-top: 4px;
 }
-/* 覆盖下方通用 `.assistant-body .assistant-composer` 的顶部分隔线，避免空态仍留一条线 */
+/* 覆盖通用顶部分隔线，空态更干净 */
 .assistant-body.is-empty .assistant-composer.assistant-composer {
   border-top: none;
   box-shadow: none;
 }
-.assistant-body:not(.is-empty) {
-  justify-content: flex-start;
-}
 .assistant-body:not(.is-empty) .assistant-composer {
-  /* 勿依赖 sticky：安卓 WebView flex + overflow 下 sticky 常失效，输入像「挂半屏」 */
   position: relative;
   bottom: auto;
-  margin-top: auto;
-  flex-shrink: 0;
 }
 /* 空态 empty-hint 已有推荐 pill，composer 内 chip 行去重 */
 .assistant-body.is-empty .assistant-composer .chip-swipe {
@@ -1273,19 +1264,29 @@ body.assistant-active .assistant-page {
 }
 /* lines 9646-9699 */
 /* ─── 左侧抽屉（小爱历史） ─── */
-/* 挂到 app-body-portal-layer 内：用绝对铺满，勿再写 z-index 120（会相对层叠混乱） */
+/* 挂到 app-body-portal-layer 内：侧栏高度钳在可视区 + 安全区，避免 TWA 铺满异常长条 */
 .app-body-portal-layer .drawer-backdrop {
   position: absolute;
   inset: 0;
   z-index: 1;
+  width: 100%;
+  height: 100%;
+  max-height: 100dvh;
+  max-height: 100svh;
   background: rgba(0, 0, 0, 0.4);
   display: flex;
   align-items: stretch;
   justify-content: flex-start;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .drawer-backdrop {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 100dvh;
+  max-height: 100svh;
   background: rgba(0, 0, 0, 0.35);
   display: flex;
   align-items: stretch;
@@ -1296,30 +1297,39 @@ body.assistant-active .assistant-page {
   width: min(86vw, 360px);
   min-width: 260px;
   max-width: 360px;
-  /* 100dvh 在部分 WebView 键盘态会半截；在 portal 内用 100% 填父层 */
   height: 100%;
   max-height: 100%;
   box-sizing: border-box;
   background: var(--surface);
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.12);
-  padding: calc(18px + var(--safe-top)) 16px calc(18px + max(var(--safe-bottom), 12px));
+  padding: calc(14px + var(--safe-top)) 16px calc(12px + max(var(--safe-bottom), 12px));
   overflow: hidden;
   animation: drawer-in 0.22s ease;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 .assistant-history-drawer {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+}
+.assistant-history-drawer .section-row {
+  flex-shrink: 0;
 }
 .assistant-history-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 .assistant-history-retention-hint {
-  margin: 12px 0 0;
+  margin: 10px 0 0;
   padding-top: 10px;
   font-size: 11px;
   text-align: center;

@@ -405,19 +405,20 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       const vvH = vv?.height ?? layoutH;
       const offsetTop = vv?.offsetTop ?? 0;
       const gap = Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
-      // 壳 WebView 系统栏/手势变化也会带来 40–60px 缺口，阈值抬高避免「假半屏」
-      const gapFloor = isPeiaiAndroidShell() ? 96 : 48;
+      // 壳 WebView 系统栏也会带来缺口；阈值须低于真键盘（常 ≥180），又高于手势条抖动
+      const gapFloor = isPeiaiAndroidShell() ? 72 : 48;
       if (gap > gapFloor) {
-        root.style.setProperty(
-          '--assistant-vv-h',
-          `${Math.max(160, Math.round(vvH + offsetTop) - LIFT_PX)}px`,
-        );
+        // 键盘态底栏已藏：高度对齐可视区底沿，输入贴在键盘上方
+        const pageH = Math.max(160, Math.round(vvH + offsetTop) - LIFT_PX);
+        root.style.setProperty('--assistant-vv-h', `${pageH}px`);
         body.classList.add('assistant-keyboard-vv');
+        root.style.setProperty('--assistant-kb-inset', `${LIFT_PX}px`);
       } else {
         root.style.removeProperty('--assistant-vv-h');
         body.classList.remove('assistant-keyboard-vv');
+        // 未检出键盘时勿加大底 padding，避免输入悬在 Tab 与纸色之间
+        root.style.setProperty('--assistant-kb-inset', '8px');
       }
-      root.style.setProperty('--assistant-kb-inset', `${LIFT_PX}px`);
     };
 
     const onViewport = () => {
