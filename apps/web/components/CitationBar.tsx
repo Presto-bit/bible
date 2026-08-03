@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { explainCitation, type Citation } from '@/lib/api';
 import { formatCitationTitle } from '@/lib/citation_display';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 type Props = {
   citations: Citation[];
@@ -123,106 +123,106 @@ export function CitationBar({
     );
 
   const modal =
-    sheetOpen && mounted
-      ? createPortal(
+    sheetOpen && mounted ? (
+      <AppBodyPortal onTabAway={closeSheet}>
+        <div
+          className="sheet-backdrop citation-popup-backdrop"
+          data-dismiss-on-tab-nav
+          onClick={closeSheet}
+          role="presentation"
+        >
           <div
-            className="sheet-backdrop citation-popup-backdrop"
-            onClick={closeSheet}
-            role="presentation"
+            className="sheet card citation-popup-sheet"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="参考来源"
           >
-            <div
-              className="sheet card citation-popup-sheet"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label="参考来源"
-            >
-              {detail ? (
-                <>
-                  <div className="section-row" style={{ marginTop: 0 }}>
-                    <strong>
-                      [{detail.n}] {displayTitle(detail)}
-                    </strong>
-                    <button type="button" className="text-link" onClick={() => setDetailN(null)}>
-                      返回列表
-                    </button>
-                  </div>
-                  <div className="citation-bilingual" style={{ marginTop: 12 }}>
-                    <p className="citation-bilingual-label muted" style={{ margin: '0 0 6px', fontSize: 12 }}>
-                      中文释义
+            {detail ? (
+              <>
+                <div className="section-row" style={{ marginTop: 0 }}>
+                  <strong>
+                    [{detail.n}] {displayTitle(detail)}
+                  </strong>
+                  <button type="button" className="text-link" onClick={() => setDetailN(null)}>
+                    返回列表
+                  </button>
+                </div>
+                <div className="citation-bilingual" style={{ marginTop: 12 }}>
+                  <p className="citation-bilingual-label muted" style={{ margin: '0 0 6px', fontSize: 12 }}>
+                    中文释义
+                  </p>
+                  {explainLoading ? (
+                    <p className="muted">正在生成释义…</p>
+                  ) : explainZh ? (
+                    <p className="citation-popup-body citation-explain-zh" style={{ marginTop: 0 }}>
+                      {explainZh}
                     </p>
-                    {explainLoading ? (
-                      <p className="muted">正在生成释义…</p>
-                    ) : explainZh ? (
-                      <p className="citation-popup-body citation-explain-zh" style={{ marginTop: 0 }}>
-                        {explainZh}
-                      </p>
-                    ) : (
-                      <p className="muted">{explainErr || '暂无法生成中文释义'}</p>
-                    )}
-                    <p className="citation-bilingual-label muted" style={{ margin: '14px 0 6px', fontSize: 12 }}>
-                      原文摘录
-                    </p>
-                    {snip ? (
-                      <>
-                        <p
-                          className="citation-popup-body citation-snippet-orig"
-                          style={{
-                            marginTop: 0,
-                            maxHeight: snippetExpanded ? undefined : '5.2em',
-                            overflow: snippetExpanded ? undefined : 'hidden',
-                          }}
-                        >
-                          {snip}
-                        </p>
-                        {snipLong && (
-                          <button
-                            type="button"
-                            className="text-link"
-                            style={{ marginTop: 4 }}
-                            onClick={() => setSnippetExpanded((v) => !v)}
-                          >
-                            {snippetExpanded ? '收起' : '展开更多'}
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <p className="muted">暂无摘录内容</p>
-                    )}
-                    <p className="muted" style={{ marginTop: 14, fontSize: 11, lineHeight: 1.5 }}>
-                      {disclaimer}
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="section-row" style={{ marginTop: 0 }}>
-                    <strong>参考来源（{citations.length}）</strong>
-                    <button type="button" className="text-link" onClick={closeSheet}>
-                      关闭
-                    </button>
-                  </div>
-                  <div className="assistant-citations-list" style={{ marginTop: 10 }}>
-                    {citations.map((c) => (
-                      <button
-                        key={c.n}
-                        type="button"
-                        className="assistant-citation-head"
-                        style={{ width: '100%', textAlign: 'left' }}
-                        onClick={() => openDetail(c.n)}
+                  ) : (
+                    <p className="muted">{explainErr || '暂无法生成中文释义'}</p>
+                  )}
+                  <p className="citation-bilingual-label muted" style={{ margin: '14px 0 6px', fontSize: 12 }}>
+                    原文摘录
+                  </p>
+                  {snip ? (
+                    <>
+                      <p
+                        className="citation-popup-body citation-snippet-orig"
+                        style={{
+                          marginTop: 0,
+                          maxHeight: snippetExpanded ? undefined : '5.2em',
+                          overflow: snippetExpanded ? undefined : 'hidden',
+                        }}
                       >
-                        <span className="assistant-citation-n">[{c.n}]</span>
-                        <span className="assistant-citation-title">{displayTitle(c)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>,
-          document.body,
-        )
-      : null;
+                        {snip}
+                      </p>
+                      {snipLong && (
+                        <button
+                          type="button"
+                          className="text-link"
+                          style={{ marginTop: 4 }}
+                          onClick={() => setSnippetExpanded((v) => !v)}
+                        >
+                          {snippetExpanded ? '收起' : '展开更多'}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="muted">暂无摘录内容</p>
+                  )}
+                  <p className="muted" style={{ marginTop: 14, fontSize: 11, lineHeight: 1.5 }}>
+                    {disclaimer}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="section-row" style={{ marginTop: 0 }}>
+                  <strong>参考来源（{citations.length}）</strong>
+                  <button type="button" className="text-link" onClick={closeSheet}>
+                    关闭
+                  </button>
+                </div>
+                <div className="assistant-citations-list" style={{ marginTop: 10 }}>
+                  {citations.map((c) => (
+                    <button
+                      key={c.n}
+                      type="button"
+                      className="assistant-citation-head"
+                      style={{ width: '100%', textAlign: 'left' }}
+                      onClick={() => openDetail(c.n)}
+                    >
+                      <span className="assistant-citation-n">[{c.n}]</span>
+                      <span className="assistant-citation-title">{displayTitle(c)}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </AppBodyPortal>
+    ) : null;
 
   return (
     <>

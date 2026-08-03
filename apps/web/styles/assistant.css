@@ -1,11 +1,13 @@
 /* Extracted from globals.css — styles/assistant.css */
 /* lines 5726-6469 */
 /* ─── 小爱页 ─── */
-/* iOS 主屏幕 PWA 与安卓壳共用：勿再对 android-shell 另搞高度公式 */
+/* iOS 主屏幕 PWA 与安卓壳共用：勿再对 android-shell 另搞高度公式
+ * 高度只减一次 tabbar；body.assistant-active 会把 .app-body 的 tabbar padding 清零，避免双扣「半屏」 */
 .assistant-page {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+  /* 100dvh 扣掉浮动底栏；顶/底安全区用内边距，勿再减一次 */
   height: calc(100dvh - var(--tabbar-h));
   max-height: calc(100dvh - var(--tabbar-h));
   min-height: 0;
@@ -15,7 +17,7 @@
   padding-left: 14px;
   padding-right: 14px;
   overflow: hidden;
-  touch-action: none;
+  touch-action: pan-y;
   position: relative;
 }
 
@@ -72,7 +74,8 @@ body.assistant-keyboard.assistant-active .assistant-page {
 body.assistant-keyboard.assistant-active .assistant-page {
   padding-bottom: var(--assistant-kb-inset, 20px);
 }
-/* layout 未随键盘收缩时，用 visualViewport 高度兜底（已含 lift） */
+/* layout 未随键盘收缩时，用 visualViewport 高度兜底（已含 lift）
+ * 注意：仅 composer 聚焦时生效，避免系统栏变化把整页压成「半屏」 */
 body.assistant-keyboard-vv.assistant-active .assistant-page {
   height: var(--assistant-vv-h, 100%);
   max-height: var(--assistant-vv-h, 100%);
@@ -353,12 +356,18 @@ body.assistant-keyboard.assistant-active .tabbar {
   position: relative;
   bottom: auto;
 }
+/* 覆盖下方通用 `.assistant-body .assistant-composer` 的顶部分隔线，避免空态仍留一条线 */
+.assistant-body.is-empty .assistant-composer.assistant-composer {
+  border-top: none;
+  box-shadow: none;
+}
 .assistant-body:not(.is-empty) {
   justify-content: flex-start;
 }
 .assistant-body:not(.is-empty) .assistant-composer {
-  position: sticky;
-  bottom: 0;
+  /* 勿依赖 sticky：安卓 WebView flex + overflow 下 sticky 常失效，输入像「挂半屏」 */
+  position: relative;
+  bottom: auto;
   margin-top: auto;
   flex-shrink: 0;
 }
@@ -375,14 +384,11 @@ body.assistant-active .assistant-page {
   flex-direction: column;
   gap: 8px;
   flex-shrink: 0;
-  position: sticky;
-  bottom: 0;
   z-index: 4;
   background: var(--paper);
-  /* 已在浮动 Tab 上方，不再预留 home indicator */
   padding-bottom: 0;
   box-shadow: 0 -8px 24px color-mix(in srgb, var(--paper) 82%, transparent);
-  touch-action: none;
+  touch-action: manipulation;
 }
 .empty-pills {
   display: flex;
@@ -894,8 +900,8 @@ body.assistant-active .assistant-page {
   font-size: 13px;
   z-index: 1000;
 }
-/* 仅在有对话（docked）时给输入区加分隔线 */
-.assistant-body .assistant-composer {
+/* 仅在有对话（docked）时给输入区加分隔线；空态除外 */
+.assistant-body:not(.is-empty) .assistant-composer {
   border-top: 1px solid var(--line);
   padding-top: 8px;
 }
@@ -1143,15 +1149,18 @@ body.assistant-active .assistant-page {
   border-left: 3px solid var(--gold, #b8956a);
 }
 .citation-popup-backdrop {
-  z-index: 200;
+  /* 在 portal-layer 内；勿压低全局 z-index（曾用 200 被其它层盖住） */
+  z-index: auto;
 }
 .citation-action-btn {
   white-space: nowrap;
 }
 .citation-popup-sheet {
-  max-height: min(70vh, 420px);
+  max-height: min(72dvh, 480px);
+  width: min(100%, 480px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: max(16px, var(--safe-bottom));
 }
 .citation-popup-body {
   margin: 10px 0 0;
@@ -1263,7 +1272,17 @@ body.assistant-active .assistant-page {
   line-height: 1.7;
 }
 /* lines 9646-9699 */
-/* ─── 左侧抽屉（小爱历史，覆盖 30%） ─── */
+/* ─── 左侧抽屉（小爱历史） ─── */
+/* 挂到 app-body-portal-layer 内：用绝对铺满，勿再写 z-index 120（会相对层叠混乱） */
+.app-body-portal-layer .drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-start;
+}
 .drawer-backdrop {
   position: fixed;
   inset: 0;
@@ -1271,19 +1290,23 @@ body.assistant-active .assistant-page {
   display: flex;
   align-items: stretch;
   justify-content: flex-start;
-  z-index: 120;
+  z-index: 310;
 }
 .drawer-left {
-  width: 30%;
-  min-width: 240px;
+  width: min(86vw, 360px);
+  min-width: 260px;
   max-width: 360px;
+  /* 100dvh 在部分 WebView 键盘态会半截；在 portal 内用 100% 填父层 */
   height: 100%;
+  max-height: 100%;
   box-sizing: border-box;
   background: var(--surface);
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.12);
-  padding: calc(18px + var(--safe-top)) 16px calc(18px + var(--safe-bottom));
-  overflow-y: auto;
+  padding: calc(18px + var(--safe-top)) 16px calc(18px + max(var(--safe-bottom), 12px));
+  overflow: hidden;
   animation: drawer-in 0.22s ease;
+  display: flex;
+  flex-direction: column;
 }
 .assistant-history-drawer {
   display: flex;

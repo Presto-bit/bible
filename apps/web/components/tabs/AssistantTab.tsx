@@ -33,7 +33,7 @@ import {
   loadAssistantDraft,
   saveAssistantDraft,
 } from '@/lib/assistant_session_draft';
-import { scheduleTabChrome } from '@/lib/tab_chrome';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import {
   findResumableSession,
   formatSessionUpdatedLabel,
@@ -354,23 +354,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       clearAssistantChrome();
       return;
     }
-    let cancelled = false;
-    const apply = () => {
-      if (cancelled) return;
-      // 防 schedule 延迟：已切到「我的」等 Tab 时勿再挂 assistant-active（会 touch-action:none 锁全页）
-      const activePane = document.querySelector('.tab-keep-pane-active');
-      if (activePane && !activePane.querySelector('.assistant-page')) return;
-      document.body.classList.add('assistant-active');
-      document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
-    };
-    if (assistantWasActiveRef.current || document.body.classList.contains('assistant-active')) {
-      apply();
-    } else {
-      scheduleTabChrome(apply);
-    }
+    // 必须同步挂上 assistant-active：延后时 .app-body 仍带 tabbar padding，
+    // 而 .assistant-page 已减 tabbar-h → 首帧/TWA 像「只剩半屏」。
+    // paneActive 为真时直接挂：勿再查 DOM 门控（KeepAlive 切换瞬间可能误判）。
+    document.body.classList.add('assistant-active');
+    document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
     assistantWasActiveRef.current = true;
     return () => {
-      cancelled = true;
       clearAssistantChrome();
     };
   }, [paneActive]);
@@ -395,23 +385,32 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
 
     const syncViewport = () => {
-      body.classList.toggle('assistant-keyboard', composerFocused);
-      if (!composerFocused) {
-        body.classList.remove('assistant-keyboard-vv');
+      const ae = document.activeElement;
+      const inComposer =
+        ae instanceof HTMLElement
+        && Boolean(ae.closest('.assistant-composer'))
+        && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT');
+
+      // 未真正聚焦输入：绝不锁 half-height，防系统栏/手势条误判
+      if (!composerFocused || !inComposer) {
+        body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
         root.style.removeProperty('--assistant-vv-h');
         root.style.removeProperty('--assistant-kb-inset');
         return;
       }
+
+      body.classList.add('assistant-keyboard');
       pinScroll();
       const layoutH = window.innerHeight || root.clientHeight || 0;
       const vvH = vv?.height ?? layoutH;
       const offsetTop = vv?.offsetTop ?? 0;
       const gap = Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
-      // layout 未随键盘收缩时，用 vv 高度压到键盘上方并留出 lift
-      if (gap > 40) {
+      // 壳 WebView 系统栏/手势变化也会带来 40–60px 缺口，阈值抬高避免「假半屏」
+      const gapFloor = isPeiaiAndroidShell() ? 96 : 48;
+      if (gap > gapFloor) {
         root.style.setProperty(
           '--assistant-vv-h',
-          `${Math.max(120, Math.round(vvH) - LIFT_PX)}px`,
+          `${Math.max(160, Math.round(vvH + offsetTop) - LIFT_PX)}px`,
         );
         body.classList.add('assistant-keyboard-vv');
       } else {
@@ -476,6 +475,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     inputRef.current?.blur();
     const el = document.activeElement;
     if (el instanceof HTMLElement && el.closest('.assistant-page')) el.blur();
+    setHistoryOpen(false);
+    setShareTarget(null);
+    setCitationOpen(null);
+    setCitationMsgIdx(null);
   }, [paneActive]);
 
   useEffect(() => {
@@ -1455,9 +1458,20 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       </div>
 
       {historyOpen && (
-        <AppBodyPortal>
-          <div className="drawer-backdrop" onClick={() => setHistoryOpen(false)}>
-            <div className="drawer-left assistant-history-drawer" onClick={(e) => e.stopPropagation()}>
+        <AppBodyPortal onTabAway={() => setHistoryOpen(false)}>
+          <div
+            className="drawer-backdrop"
+            data-dismiss-on-tab-nav
+            onClick={() => setHistoryOpen(false)}
+            role="presentation"
+          >
+            <div
+              className="drawer-left assistant-history-drawer"
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="历史会话"
+            >
               <div className="section-row" style={{ marginTop: 0 }}>
                 <strong>历史会话</strong>
                 <button type="button" className="btn" style={{ marginTop: 0 }} onClick={startNewSession}>
@@ -1530,7 +1544,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
       )}
 
       {shareTarget ? (
-        <AppBodyPortal>
+        <AppBodyPortal onTabAway={() => setShareTarget(null)}>
           <AnalysisShareSheet
             refLabel={refToChineseLabel(ref) || ref || '小爱的解读'}
             refParam={ref || undefined}
