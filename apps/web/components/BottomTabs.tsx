@@ -131,7 +131,13 @@ export default function BottomTabs() {
     bar.style.pointerEvents = '';
     // 仍在小爱页时保留其键盘态 class / CSS 变量，离开后再清
     if (pathname === '/assistant' || pathname.startsWith('/assistant/')) return;
-    document.body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
+    document.body.classList.remove(
+      'assistant-keyboard',
+      'assistant-keyboard-vv',
+      'assistant-active',
+      'assistant-immersive',
+      'assistant-tabbar-peek',
+    );
     document.documentElement.style.removeProperty('--assistant-vv-h');
     document.documentElement.style.removeProperty('--assistant-kb-inset');
   }, [compact, pathname]);

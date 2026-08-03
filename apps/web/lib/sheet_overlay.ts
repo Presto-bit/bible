@@ -1,11 +1,12 @@
 /**
  * 全屏半屏遮罩统一策略（TWA / PWA 通用）：
  * 1) 遮罩必须可点关（onClick → onClose）
- * 2) 切主 Tab 可关（data-dismiss-on-tab-nav + presto-tab-nav）
+ * 2) 切主 Tab 可关（data-dismiss-on-tab-nav + presto-tab-nav / onTabAway）
  * 3) 优先挂 AppBodyPortal，避免 KeepAlive 隐页后 fixed 遮罩仍吞点击
+ * 4) 切 Tab / 壳 resume 时 purge，避免透明层永久吞全站点击
  */
 
-/** dismissPortaledOverlays / 进「我的」兜底共用选择器 */
+/** dismiss / hard-remove 共用选择器（含透明吞点击层） */
 export const SHEET_OVERLAY_DISMISS_SELECTORS = [
   '.sheet-backdrop',
   '.reader-sheet-backdrop',
@@ -14,7 +15,15 @@ export const SHEET_OVERLAY_DISMISS_SELECTORS = [
   '.reader-loc-backdrop',
   '.reader-ai-backdrop',
   '.book-complete-overlay',
+  '.plus-menu-backdrop',
+  '.drawer-backdrop',
+  '.im-chat-search-backdrop',
+  '.im-lightbox-backdrop',
+  '.im-file-preview-backdrop',
+  '.im-video-player-backdrop',
+  '.admin-cmd-backdrop',
   '[data-dismiss-on-tab-nav]',
+  '[data-shell-touch-blocker]',
 ] as const;
 
 /** 派发 Tab 切换关闭事件（各 sheet 的 useCloseOnTabNav 会听） */
@@ -66,7 +75,8 @@ export function dismissOrphanBodySheetBackdrops(): void {
       const isBackdrop =
         node.classList.contains('sheet-backdrop')
         || node.classList.contains('reader-sheet-backdrop')
-        || node.classList.contains('book-complete-overlay');
+        || node.classList.contains('book-complete-overlay')
+        || node.classList.contains('plus-menu-backdrop');
       if (!isBackdrop) return;
       try {
         node.click();
@@ -94,7 +104,131 @@ export function clearAssistantTouchLocks(): void {
     'assistant-keyboard',
     'assistant-keyboard-vv',
     'assistant-active',
+    'assistant-immersive',
+    'assistant-tabbar-peek',
   );
   document.documentElement.style.removeProperty('--assistant-vv-h');
   document.documentElement.style.removeProperty('--assistant-kb-inset');
+}
+
+/** 非读经场景下可能残留的 body 键盘/IM 锁（整站 pointer-events / 滚动） */
+export function clearStrandedBodyTouchLocks(opts?: {
+  /** true=尝试关闭内嵌外链浏览器；false=仅在 class 孤悬时剥锁 */
+  forceExternal?: boolean;
+}): void {
+  if (typeof document === 'undefined') return;
+  const forceExternal = opts?.forceExternal !== false;
+
+  document.body.classList.remove(
+    'im-keyboard',
+    'im-keyboard-overlay',
+    'im-plus-sheet',
+    'im-mention-sheet',
+    'im-vv-shell',
+  );
+  document.documentElement.style.removeProperty('--im-kb-inset');
+  document.documentElement.style.removeProperty('--im-composer-h');
+
+  clearAssistantTouchLocks();
+
+  if (forceExternal) {
+    try {
+      const closeBtn = document.querySelector<HTMLElement>(
+        '.external-browser .external-browser-close',
+      );
+      if (closeBtn) closeBtn.click();
+    } catch {
+      /* ignore */
+    }
+  }
+  // class 孤悬（无 DOM）会永久 pointer-events:none 整站 → 必须剥
+  if (!document.querySelector('.external-browser')) {
+    document.documentElement.classList.remove('external-browser-open');
+    document.body.classList.remove('external-browser-open');
+  }
+}
+
+/**
+ * click / tab-nav 仍挂在 DOM 上的「隐蔽」吞点击层：硬卸掉。
+ * 只动透明/无业务壳层；标准 .sheet-backdrop 交给 React onClick（避免 resume 误杀）。
+ */
+export function hardRemoveBlockingOverlays(): void {
+  if (typeof document === 'undefined') return;
+  const hardSelectors = [
+    '.plus-menu-backdrop',
+    '.admin-cmd-backdrop',
+    '[data-shell-touch-blocker]:not(.external-browser)',
+  ].join(',');
+
+  try {
+    document.querySelectorAll(hardSelectors).forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      // external-browser 走 close 按钮，不硬卸
+      if (node.classList.contains('external-browser')) return;
+      try {
+        node.remove();
+      } catch {
+        /* ignore */
+      }
+    });
+
+    // 卸空 portal 层：残留空 fixed 层在部分 WebView 仍会参与命中测试
+    document.querySelectorAll('[data-app-body-portal]').forEach((layer) => {
+      if (!(layer instanceof HTMLElement)) return;
+      if (layer.childElementCount === 0) {
+        try {
+          layer.remove();
+        } catch {
+          /* ignore */
+        }
+      }
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * 壳 / 保活 Tab：一键卸除「点了没反应」类触摸锁。
+ * - 先走 React 契约（tab-nav + click）
+ * - 再 hard remove 残留
+ * - 最后清 body class（含 external-browser-open）
+ */
+export function purgeShellTouchBlockers(): void {
+  if (typeof document === 'undefined') return;
+  dismissPortaledOverlays();
+  dismissOrphanBodySheetBackdrops();
+  hardRemoveBlockingOverlays();
+  clearStrandedBodyTouchLocks({ forceExternal: true });
+  if (!document.querySelector('.external-browser')) {
+    document.documentElement.classList.remove('external-browser-open');
+    document.body.classList.remove('external-browser-open');
+  }
+}
+
+/** 多任务回前台：只卸透明吞点击层 + 孤悬 class，不强关用户半屏/外链页 */
+export function softRecoverShellTouch(): void {
+  if (typeof document === 'undefined') return;
+  try {
+    document.querySelectorAll('.plus-menu-backdrop').forEach((node) => {
+      if (node instanceof HTMLElement) {
+        try {
+          node.click();
+        } catch {
+          /* ignore */
+        }
+        if (node.isConnected) {
+          try {
+            node.remove();
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    });
+  } catch {
+    /* ignore */
+  }
+  hardRemoveBlockingOverlays();
+  clearStrandedBodyTouchLocks({ forceExternal: false });
 }

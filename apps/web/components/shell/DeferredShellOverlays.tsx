@@ -12,10 +12,12 @@ const AndroidShellHealthGuide = dynamic(() => import('@/components/AndroidShellH
 });
 const ShareFunnelBootstrap = dynamic(() => import('@/components/ShareFunnelBootstrap'), { ssr: false });
 const ExternalBrowserSheet = dynamic(() => import('@/components/ExternalBrowserSheet'), { ssr: false });
+const ShellTouchGuard = dynamic(() => import('@/components/ShellTouchGuard'), { ssr: false });
 
 export default function DeferredShellOverlays() {
   return (
     <>
+      <ShellTouchGuard />
       <InstallBanner />
       <InviteFriendNudge />
       <WebOnboardingSheet />

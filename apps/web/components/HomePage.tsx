@@ -309,6 +309,12 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
   const seasonal = currentSeasonalEvents();
   const homeAwake = paneActive && (activeTab == null || activeTab === 'home');
   const reducedMotion = usePrefersReducedMotion();
+
+  // 离开首页时关掉「+」菜单，避免透明全屏 backdrop 挂在 body 上吞其它 Tab 点击
+  useEffect(() => {
+    if (!homeAwake) setPlusOpen(false);
+  }, [homeAwake]);
+
   const showHomeSkeleton = !dv && dvLoading && !todayPanel;
   const hideSeasonalForCampaign = Boolean(
     todayPanel?.primary?.id?.startsWith('campaign-'),

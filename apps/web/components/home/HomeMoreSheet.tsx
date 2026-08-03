@@ -15,8 +15,8 @@ export function HomeMoreSheet({ open, items, onClose }: Props) {
   if (!open) return null;
 
   return (
-    <AppBodyPortal>
-      <div className="sheet-backdrop" onClick={onClose}>
+    <AppBodyPortal onTabAway={onClose}>
+      <div className="sheet-backdrop" data-dismiss-on-tab-nav onClick={onClose}>
         <div className="sheet card home-more-sheet" onClick={(e) => e.stopPropagation()}>
           <div className="half-sheet-grab" aria-hidden />
           <div className="section-row">

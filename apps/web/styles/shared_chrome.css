@@ -600,7 +600,10 @@ body.pwa-standalone .settings-group-list {
   position: fixed;
   inset: 0;
   z-index: 100;
-  background: transparent;
+  /* 极淡可见度 + 明确可点，避免「看不见却吞全屏点击」被当成 App 坏了 */
+  background: rgba(0, 0, 0, 0.01);
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .plus-menu-pop {

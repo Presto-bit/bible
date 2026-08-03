@@ -16,8 +16,11 @@ export default function AppBodyPortal({
   children: ReactNode;
   onTabAway?: () => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // 客户端首帧即可 portal，避免半屏晚一拍、安卓点开像「没反应」
+  const [mounted, setMounted] = useState(() => typeof document !== 'undefined');
+  useEffect(() => {
+    if (!mounted) setMounted(true);
+  }, [mounted]);
   useCloseOnTabNav(onTabAway ?? (() => {}), Boolean(onTabAway));
   if (!mounted) return null;
   return createPortal(

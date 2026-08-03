@@ -48,8 +48,13 @@ export default function PlusMenu({
   if (!open) return null;
 
   return (
-    <AppBodyPortal>
-      <div className="plus-menu-backdrop" onClick={onClose} />
+    <AppBodyPortal onTabAway={onClose}>
+      <div
+        className="plus-menu-backdrop"
+        data-dismiss-on-tab-nav
+        data-shell-touch-blocker
+        onClick={onClose}
+      />
       <div
         ref={menuRef}
         className="plus-menu-pop"

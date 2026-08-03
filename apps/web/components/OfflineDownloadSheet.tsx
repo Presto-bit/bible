@@ -146,8 +146,8 @@ export default function OfflineDownloadSheet({ onClose }: Props) {
   const anyBusy = Boolean(busyId) || queuedIds.length > 0 || Boolean(deletingId);
 
   return (
-    <AppBodyPortal>
-      <div className="sheet-backdrop" onClick={handleClose}>
+    <AppBodyPortal onTabAway={handleClose}>
+      <div className="sheet-backdrop" data-dismiss-on-tab-nav onClick={handleClose}>
         <div
           className="sheet card offline-download-sheet"
           onClick={(e) => e.stopPropagation()}

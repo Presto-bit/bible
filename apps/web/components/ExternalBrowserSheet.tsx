@@ -90,6 +90,13 @@ export default function ExternalBrowserSheet() {
   const close = useCallback(() => {
     setState(CLOSED);
     setFrameBlocked(false);
+    // 同步剥 class，避免门户卸载帧差期间 pointer-events:none 锁死整页
+    try {
+      document.documentElement.classList.remove('external-browser-open');
+      document.body.classList.remove('external-browser-open');
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   useEffect(() => {
@@ -99,6 +106,14 @@ export default function ExternalBrowserSheet() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, [state.open, close]);
+
+  // 切主 Tab / 壳返回路径：卸掉会锁死 .app-body 点击的内嵌浏览器
+  useEffect(() => {
+    if (!state.open) return;
+    const onAway = () => close();
+    window.addEventListener('presto-tab-nav', onAway);
+    return () => window.removeEventListener('presto-tab-nav', onAway);
   }, [state.open, close]);
 
   if (!state.open) return null;
@@ -114,9 +129,10 @@ export default function ExternalBrowserSheet() {
   })();
 
   return (
-    <AppBodyPortal>
+    <AppBodyPortal onTabAway={close}>
       <div
         className={`external-browser${appChrome ? ' external-browser--app' : ''}`}
+        data-shell-touch-blocker
         role="dialog"
         aria-modal="true"
         aria-label={state.title}

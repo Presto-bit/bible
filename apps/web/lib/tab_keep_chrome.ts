@@ -6,10 +6,11 @@ import {
   clearAssistantTouchLocks,
   dismissOrphanBodySheetBackdrops,
   dismissPortaledOverlays,
+  purgeShellTouchBlockers,
 } from '@/lib/sheet_overlay';
 import type { KeepAliveTabId } from '@/lib/tab_keep_alive';
 
-export { dismissPortaledOverlays };
+export { dismissPortaledOverlays, purgeShellTouchBlockers };
 
 const scrollByTab: Partial<Record<KeepAliveTabId, number>> = {};
 
@@ -82,8 +83,8 @@ export function cleanupTabBodyChrome(leaving: KeepAliveTabId | null, entering: K
   if (leaving === 'assistant' && entering !== 'assistant') {
     clearAssistantTouchLocks();
   }
-  // 进入「我的」：清小爱触摸锁 + 卸掉 body 直挂僵尸遮罩
-  if (entering === 'profile') {
+  // 进入首页 / 我的：清小爱锁 + 僵尸遮罩（双保险，主清理在 purge）
+  if (entering === 'profile' || entering === 'home') {
     clearAssistantTouchLocks();
     dismissOrphanBodySheetBackdrops();
   }
@@ -98,8 +99,8 @@ export function onKeepAliveTabChange(
 ): void {
   if (prev) saveTabScroll(prev);
   if (prev && prev !== next) {
-    // 先关 portal overlay，再清 chrome，避免残影
-    dismissPortaledOverlays();
+    // 先关 portal / 透明吞点击层 / body 锁，再清 chrome
+    purgeShellTouchBlockers();
   }
   cleanupTabBodyChrome(prev, next);
   clearInteractiveFocusArtifacts();
