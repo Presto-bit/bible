@@ -6,6 +6,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'reac
 import { isTabKeepAliveEnabled } from '@/lib/platform';
 import {
   DISCOVER_SECONDARY_PREFIXES,
+  PROFILE_SECONDARY_PATHS,
   keepAliveTabId,
   normalizeAppPath,
   type KeepAliveTabId,
@@ -149,16 +150,21 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     const onDiscoverSecondary = DISCOVER_SECONDARY_PREFIXES.some(
       (p) => routerPath === p || routerPath.startsWith(p),
     );
-    // 二级页（如 IM）时 activeTab 为 null，仍需保护 discover 列表保活
-    if (!activeTab && !onDiscoverSecondary) return;
+    const onProfileSecondary = PROFILE_SECONDARY_PATHS.some(
+      (p) => routerPath === p || routerPath.startsWith(`${p}/`),
+    );
+    // 二级页（设置 / IM）时 activeTab 为 null，仍需保护对应主 Tab 列表保活
+    if (!activeTab && !onDiscoverSecondary && !onProfileSecondary) return;
     if (activeTab) lastActiveAtRef.current[activeTab] = Date.now();
     if (onDiscoverSecondary) lastActiveAtRef.current.discover = Date.now();
+    if (onProfileSecondary) lastActiveAtRef.current.profile = Date.now();
     const maxTabs =
       isPeiaiAndroidShell() ? MAX_MOUNTED_TABS_SHELL : MAX_MOUNTED_TABS;
     setMounted((prev) => {
       const next: Record<KeepAliveTabId, boolean> = { ...prev };
       if (activeTab) next[activeTab] = true;
       if (onDiscoverSecondary) next.discover = true;
+      if (onProfileSecondary) next.profile = true;
       let mountedIds = ALL_TABS.filter((t) => next[t]);
       if (mountedIds.length <= maxTabs) return next;
 
@@ -166,6 +172,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
       if (activeTab) protectedTabs.add(activeTab);
       if (isAssistantStreamBusy()) protectedTabs.add('assistant');
       if (onDiscoverSecondary || activeTab === 'discover') protectedTabs.add('discover');
+      if (onProfileSecondary || activeTab === 'profile') protectedTabs.add('profile');
       const victims = mountedIds
         .filter((t) => !protectedTabs.has(t))
         .sort(

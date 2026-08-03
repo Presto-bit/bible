@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 export type ConfirmOptions = {
   title: string;
@@ -43,24 +44,32 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       {state ? (
-        <div className="sheet-backdrop" onClick={() => close(false)}>
-          <div className="sheet card confirm-sheet" onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginTop: 0 }}>{state.title}</h3>
-            <p className="muted" style={{ fontSize: 14, lineHeight: 1.6 }}>{state.message}</p>
-            <div className="confirm-sheet-actions">
-              <button type="button" className="font-pill" onClick={() => close(false)}>
-                {state.cancelLabel ?? '取消'}
-              </button>
-              <button
-                type="button"
-                className={`btn${state.danger ? ' btn-danger' : ''}`}
-                onClick={() => close(true)}
-              >
-                {state.confirmLabel ?? '确定'}
-              </button>
+        <AppBodyPortal onTabAway={() => close(false)}>
+          <div
+            className="sheet-backdrop"
+            data-dismiss-on-tab-nav
+            onClick={() => close(false)}
+          >
+            <div className="sheet card confirm-sheet" onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ marginTop: 0 }}>{state.title}</h3>
+              <p className="muted" style={{ fontSize: 14, lineHeight: 1.6 }}>
+                {state.message}
+              </p>
+              <div className="confirm-sheet-actions">
+                <button type="button" className="font-pill" onClick={() => close(false)}>
+                  {state.cancelLabel ?? '取消'}
+                </button>
+                <button
+                  type="button"
+                  className={`btn${state.danger ? ' btn-danger' : ''}`}
+                  onClick={() => close(true)}
+                >
+                  {state.confirmLabel ?? '确定'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </AppBodyPortal>
       ) : null}
     </ConfirmContext.Provider>
   );

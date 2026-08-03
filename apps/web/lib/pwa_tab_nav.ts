@@ -63,6 +63,10 @@ export function navigateAppHref(
 /**
  * PWA 下合并 Next router 与 pushState Tab 路径。
  * 二级页走 router；底栏 Tab 走 pwaPath，避免 /admin 被旧 Tab 路径盖住。
+ *
+ * 设置 / IM 等二级页 keepAliveTabId 为 null。若在 route 模式下仍优先
+ * lastNavSource=tab 的旧路径（如 /discover），TabKeepAlive 会 suppress 设置页
+ * 并亮发现 pane，确认框就会叠在「发现」上。
  */
 export function resolvePwaPathname(routerPathname: string, pwaPathname: string): string {
   const r = normalizeAppPath(routerPathname);
@@ -72,10 +76,14 @@ export function resolvePwaPathname(routerPathname: string, pwaPathname: string):
   const routerTab = keepAliveTabId(r);
   const pwaTab = keepAliveTabId(p);
 
+  // 二级页：route 模式跟 router；若已 pushState 回主 Tab 则跟 pwa
+  if (routerTab === null) {
+    if (lastNavSource === 'tab' && pwaTab !== null) return p;
+    return r;
+  }
+
   if (lastNavSource === 'tab' && pwaTab !== null) return p;
-  if (lastNavSource === 'route' && routerTab === null) return r;
-  if (lastNavSource === 'route' && routerTab !== null) return r;
-  if (routerTab === null && pwaTab !== null) return r;
+  if (lastNavSource === 'route') return r;
   if (pwaTab !== null) return p;
   return r;
 }
