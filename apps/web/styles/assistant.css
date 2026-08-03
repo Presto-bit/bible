@@ -5,17 +5,22 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /* 满屏高 + 底部一次垫 tabbar；勿 height 再减 tabbar-h 造成输入框下大块空白 */
-  height: 100dvh;
+  /* 填满 keep-alive / 视口；底栏只垫一次，避免输入框下大块空白 */
+  height: 100%;
   max-height: 100dvh;
   min-height: 0;
   padding-top: max(10px, var(--safe-top));
-  padding-bottom: calc(var(--tabbar-h) + 4px);
+  padding-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 4px);
   padding-left: 14px;
   padding-right: 14px;
   overflow: hidden;
   touch-action: none;
   position: relative;
+}
+html.pwa-standalone .assistant-page,
+html.android-shell .assistant-page {
+  height: 100dvh;
+  max-height: 100dvh;
 }
 /* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高） */
 body.assistant-active {

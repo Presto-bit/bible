@@ -141,7 +141,16 @@ export function HomeTodayPanel({
           onContextMenu={(e) => e.preventDefault()}
         >
           {coverSrc ? (
-            <div className="home-today-primary-bg" aria-hidden>
+            <div
+              className="home-today-primary-bg"
+              aria-hidden
+              style={{
+                backgroundImage: `url("${coverSrc}")`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center 28%',
+                backgroundRepeat: 'no-repeat',
+              }}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={coverSrc}
@@ -151,14 +160,6 @@ export function HomeTodayPanel({
                 height={220}
                 decoding="async"
                 fetchPriority="high"
-                onLoad={(e) => {
-                  const wrap = e.currentTarget.parentElement;
-                  if (wrap instanceof HTMLElement) {
-                    wrap.style.backgroundImage = `url("${e.currentTarget.currentSrc || coverSrc}")`;
-                    wrap.style.backgroundSize = 'cover';
-                    wrap.style.backgroundPosition = 'center 28%';
-                  }
-                }}
                 onError={(e) => {
                   const img = e.currentTarget;
                   if (img.dataset.retry === '1') {

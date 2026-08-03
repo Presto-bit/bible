@@ -98,10 +98,27 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
   const go = (i: number) => {
     const el = scrollerRef.current;
     if (!el) return;
+    const h = el.clientHeight || window.innerHeight;
+    if (!h) return;
     const clamped = Math.max(0, Math.min(total - 1, i));
-    el.scrollTo({ top: clamped * el.clientHeight, behavior: 'smooth' });
+    el.scrollTo({ top: clamped * h, behavior: 'smooth' });
     setIndex(clamped);
   };
+
+  // 布局确定后校准一次 index（WebView 首帧 clientHeight 可能为 0）
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => syncIndex())
+      : null;
+    ro?.observe(el);
+    const t = window.setTimeout(syncIndex, 60);
+    return () => {
+      ro?.disconnect();
+      window.clearTimeout(t);
+    };
+  }, [syncIndex, total, stats.period]);
 
   return (
     <div className={`wrapped-story wrapped-story--${stats.period}`}>

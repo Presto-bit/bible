@@ -69,6 +69,15 @@ export function clearInteractiveFocusArtifacts(): void {
  */
 export function dismissPortaledOverlays(): void {
   if (typeof document === 'undefined') return;
+  const fireClose = () => {
+    try {
+      window.dispatchEvent(new Event('presto-tab-nav'));
+    } catch {
+      /* ignore */
+    }
+  };
+  // 优先走 React onClose；再点一次 backdrop 作兜底（勿硬 remove，避免 React 状态与 DOM 脱节）
+  fireClose();
   const selectors = [
     '.sheet-backdrop',
     '.reader-sheet-backdrop',
@@ -76,16 +85,42 @@ export function dismissPortaledOverlays(): void {
     '.version-pop-backdrop',
     '.reader-loc-backdrop',
     '.reader-ai-backdrop',
+    '.book-complete-overlay',
     '[data-dismiss-on-tab-nav]',
   ];
+  const clickBackdrops = () => {
+    try {
+      document.querySelectorAll(selectors.join(',')).forEach((node) => {
+        if (!(node instanceof HTMLElement)) return;
+        try {
+          node.click();
+        } catch {
+          /* ignore */
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  };
+  clickBackdrops();
+  // 部分 WebView 同一帧里状态未提交：再发一轮事件 + 把残留遮罩卸掉交互
   try {
-    document.querySelectorAll(selectors.join(',')).forEach((node) => {
-      if (!(node instanceof HTMLElement)) return;
-      try {
-        node.click();
-      } catch {
-        /* ignore */
-      }
+    requestAnimationFrame(() => {
+      fireClose();
+      clickBackdrops();
+      document.querySelectorAll(selectors.join(',')).forEach((node) => {
+        if (!(node instanceof HTMLElement) || !node.isConnected) return;
+        const fixed =
+          getComputedStyle(node).position === 'fixed'
+          || node.classList.contains('sheet-backdrop')
+          || node.classList.contains('version-pop-backdrop')
+          || node.classList.contains('reader-loc-backdrop')
+          || node.classList.contains('reader-sheet-backdrop');
+        if (!fixed) return;
+        node.style.pointerEvents = 'none';
+        node.style.visibility = 'hidden';
+        node.setAttribute('aria-hidden', 'true');
+      });
     });
   } catch {
     /* ignore */

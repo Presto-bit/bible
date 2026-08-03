@@ -10,35 +10,21 @@ import {
 /**
  * 跟手翻页：Pointer 为主，Touch 为兜底（小米等 WebView 上 pointer 捕获不可靠）。
  * 提交：大位移 OR 够快；「上一页」(右滑) 阈值更低——易被系统返回手势抢。
- * 安卓壳略松轴判定与提交阈值（系统竖滚/边缘手势更容易抢触摸）。
+ * iOS PWA 与安卓壳同一套常量，避免两端手感分叉。
  */
-const THRESHOLD_NEXT = 0.16;
-const THRESHOLD_PREV = 0.11;
-const VELOCITY_MIN = 0.15;
-const VELOCITY_MIN_PREV = 0.1;
+const THRESHOLD_NEXT = 0.13;
+const THRESHOLD_PREV = 0.09;
+const VELOCITY_MIN = 0.12;
+const VELOCITY_MIN_PREV = 0.09;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO_NEXT = 0.28;
-const FORCE_RATIO_PREV = 0.2;
-const AXIS_RATIO = 1.25;
-const AXIS_MIN_PX = 12;
-/** 安卓壳：更快认横轴，否则 pan-y 竞争后难成页 */
-const SHELL_THRESHOLD_NEXT = 0.11;
-const SHELL_THRESHOLD_PREV = 0.08;
-const SHELL_FORCE_RATIO_NEXT = 0.22;
-const SHELL_FORCE_RATIO_PREV = 0.16;
-const SHELL_VELOCITY_MIN = 0.11;
-const SHELL_VELOCITY_MIN_PREV = 0.07;
-const SHELL_AXIS_RATIO = 1.08;
-const SHELL_AXIS_MIN_PX = 6;
+const FORCE_RATIO_NEXT = 0.24;
+const FORCE_RATIO_PREV = 0.18;
+const AXIS_RATIO = 1.15;
+const AXIS_MIN_PX = 8;
 const EDGE_RESIST = 0.28;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
-
-function isAndroidShell(): boolean {
-  return typeof navigator !== 'undefined'
-    && /PeiaiAndroidShell\//i.test(navigator.userAgent);
-}
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
@@ -149,18 +135,11 @@ export function useReaderPageTurn({
 
     const w = viewportRef.current?.clientWidth ?? window.innerWidth;
     const ratio = Math.abs(finalOffset) / w;
-    const shell = isAndroidShell();
     const goingPrev = finalOffset > 0;
-    // 右滑上一页：阈值更低；安卓壳再略松
-    const threshold = goingPrev
-      ? (shell ? SHELL_THRESHOLD_PREV : THRESHOLD_PREV)
-      : (shell ? SHELL_THRESHOLD_NEXT : THRESHOLD_NEXT);
-    const forceRatio = goingPrev
-      ? (shell ? SHELL_FORCE_RATIO_PREV : FORCE_RATIO_PREV)
-      : (shell ? SHELL_FORCE_RATIO_NEXT : FORCE_RATIO_NEXT);
-    const velMin = goingPrev
-      ? (shell ? SHELL_VELOCITY_MIN_PREV : VELOCITY_MIN_PREV)
-      : (shell ? SHELL_VELOCITY_MIN : VELOCITY_MIN);
+    // 右滑上一页：阈值更低（系统边缘返回易吞手势）
+    const threshold = goingPrev ? THRESHOLD_PREV : THRESHOLD_NEXT;
+    const forceRatio = goingPrev ? FORCE_RATIO_PREV : FORCE_RATIO_NEXT;
+    const velMin = goingPrev ? VELOCITY_MIN_PREV : VELOCITY_MIN;
     const commit =
       ratio >= forceRatio
       || ratio >= threshold
@@ -248,16 +227,13 @@ export function useReaderPageTurn({
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
-        const shell = isAndroidShell();
-        const minPx = shell ? SHELL_AXIS_MIN_PX : AXIS_MIN_PX;
-        const axisRatio = shell ? SHELL_AXIS_RATIO : AXIS_RATIO;
-        if (adx < minPx && ady < minPx) return;
-        if (adx >= minPx && adx > ady * axisRatio) {
+        if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
+        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
           drag.current.axis = 'x';
           setTurning(true);
-        } else if (ady >= minPx && ady >= adx * axisRatio) {
+        } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
           drag.current.axis = 'y';
-        } else if (adx >= minPx * 1.2 && adx > ady) {
+        } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady) {
           // 横略大于竖也认 X（右滑上一页更容易抢走竖滚）
           drag.current.axis = 'x';
           setTurning(true);

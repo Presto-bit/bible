@@ -979,6 +979,27 @@ export default function ReaderView({
 
   const readerWasActiveRef = useRef(false);
 
+  // 保活切走时强制收口所有 body 级 portal，避免遮罩串到小爱/我的并挡住点击
+  useEffect(() => {
+    if (paneActive) return;
+    setShowVersions(false);
+    setShowSettings(false);
+    setLocPopoverOpen(false);
+    setSummaryOpen(false);
+    setAiSheet(false);
+    setAiSheetContext(null);
+    setVerseCompareCtx(null);
+    setVersePreview(null);
+    setThoughtHub(null);
+    setThoughtWrite(null);
+    setGroupCheckinOpen(false);
+    setBookCelebrate(false);
+    setVerseShareOpen(false);
+    setVerseCardOpen(false);
+    setMarkPaletteOpen(false);
+    setPlanOverlayOpen(false);
+  }, [paneActive]);
+
   useEffect(() => {
     if (!paneActive) {
       readerWasActiveRef.current = false;

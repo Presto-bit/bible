@@ -94,8 +94,8 @@ export function buildHomeGrowthModel(opts?: BuildHomeGrowthOpts): HomeGrowthMode
     href: '/report',
     mediaTone: 'summary',
     icon: homeMediaIconForTone('summary'),
-    // 与功能卡同一套「风景底 + 角标图标」，避免 PWA/壳仅大图标样式不一致
-    imageUrl: homeMediaSceneUrl('summary'),
+    // 今日时长卡：仅钟表图标，不要风景底（与主端 PWA 期望一致）
+    imageUrl: null,
     progressPct: homeMediaMonthProgressPct(monthDays, now),
   });
 

@@ -1,6 +1,6 @@
 // 发版后须 bump CACHE（或运行 scripts/bump_sw_cache.sh），否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v40';
+const CACHE = 'presto-bible-v41';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -334,9 +334,20 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // 每日经文 / 书卷封面风景图：网络优先，坏响应不写缓存
+  // 每日经文 / 书卷封面风景图：纯网络，不经 Cache（避免坏缓存挡主卡背景）
   if (isDailyWallpaper(url)) {
-    e.respondWith(networkFirstCache(e.request));
+    e.respondWith(
+      fetch(e.request, { cache: 'no-store' })
+        .then((res) => {
+          const ct = (res.headers.get('content-type') || '').toLowerCase();
+          if (res.ok && ct.includes('image')) return res;
+          // 非图：让浏览器直接失败，不要塞 Offline 文本当图
+          return res.ok ? new Response('', { status: 502, statusText: 'Bad wallpaper' }) : res;
+        })
+        .catch(
+          () => new Response('', { status: 504, statusText: 'Offline' }),
+        ),
+    );
     return;
   }
 

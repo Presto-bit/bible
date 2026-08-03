@@ -258,7 +258,7 @@ function ReportInner() {
 
       <div
         className="cal-grid"
-        style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+        style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
       >
         {cells.map((c, i) => {
           if (c.blank) return <span key={`b${i}`} />;

@@ -175,16 +175,19 @@
 }
 
 .profile-page .profile-head-actions {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  pointer-events: auto;
 }
 
 .profile-page .profile-head-icon-btn,
 .profile-page .profile-settings-btn {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
   border: none;
   border-radius: 999px;
@@ -193,6 +196,11 @@
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+  position: relative;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .profile-page .profile-head-icon-btn:active,
@@ -382,27 +390,37 @@
 }
 
 .profile-page .profile-companion-ring {
-  --pct: 0;
   flex-shrink: 0;
+  position: relative;
   width: 74px;
   height: 74px;
-  border-radius: 50%;
   display: flex;
-  flex-direction: row;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
-  gap: 0;
-  background:
-    radial-gradient(closest-side, var(--surface) 68%, transparent 69%),
-    conic-gradient(
-      var(--accent, #07c160) calc(var(--pct) * 1%),
-      color-mix(in srgb, var(--ink-faint) 28%, transparent) 0
-    );
   color: var(--ink);
   line-height: 1;
 }
 
+.profile-page .profile-companion-ring-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.profile-page .profile-companion-ring-track {
+  stroke: color-mix(in srgb, var(--ink-faint, #c8c4bc) 42%, transparent);
+}
+
+.profile-page .profile-companion-ring-arc {
+  stroke: var(--accent, #07c160);
+  transition: stroke-dasharray 0.35s ease;
+}
+
 .profile-page .profile-companion-ring-pct {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   flex-direction: row;
   align-items: baseline;

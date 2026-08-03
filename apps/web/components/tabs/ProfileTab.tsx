@@ -497,6 +497,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     markRouteNavigation();
   };
 
+  // 切走「我的」时收起设置，避免 portal 遮罩卡住其它 Tab 的点击
+  useEffect(() => {
+    if (!paneActive) setSettingsOpen(false);
+  }, [paneActive]);
+
   const openHelpFeedback = async () => {
     if (helpBusy) return;
     setHelpBusy(true);
@@ -1161,6 +1166,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               type="button"
               className="icon-btn profile-head-icon-btn"
               aria-label="设置"
+              onPointerDown={(e) => e.stopPropagation()}
               onPointerUp={(e) => {
                 try {
                   (e.currentTarget as HTMLElement).blur();
@@ -1168,7 +1174,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   /* ignore */
                 }
               }}
-              onClick={() => setSettingsOpen(true)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setSettingsOpen(true);
+              }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="12" cy="12" r="3" />
@@ -1325,11 +1335,34 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               今日 {mins} 分钟 · 本周 {weekMins} 分钟
             </span>
           </div>
-          <div
-            className="profile-companion-ring"
-            style={{ ['--pct' as string]: journeyPct }}
-            aria-hidden
-          >
+          <div className="profile-companion-ring" aria-hidden>
+            {/* SVG 圆环：WebView 对 conic-gradient/color-mix 支持不稳 */}
+            <svg
+              className="profile-companion-ring-svg"
+              viewBox="0 0 36 36"
+              width="74"
+              height="74"
+            >
+              <circle
+                className="profile-companion-ring-track"
+                cx="18"
+                cy="18"
+                r="15.5"
+                fill="none"
+                strokeWidth="3.2"
+              />
+              <circle
+                className="profile-companion-ring-arc"
+                cx="18"
+                cy="18"
+                r="15.5"
+                fill="none"
+                strokeWidth="3.2"
+                strokeLinecap="round"
+                strokeDasharray={`${Math.max(0, Math.min(100, journeyPct)) * 0.973}, 100`}
+                transform="rotate(-90 18 18)"
+              />
+            </svg>
             <span className="profile-companion-ring-pct">
               <span className="profile-companion-ring-num">{journeyPct}</span>
               <span className="profile-companion-ring-unit">%</span>

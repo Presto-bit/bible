@@ -24,15 +24,16 @@
 }
 .cal-grid {
   display: grid;
-  gap: 5px;
+  gap: 6px;
   width: 100%;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 .cal-cell {
   position: relative;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 10px;
-  padding: 8px 2px;
+  padding: 8px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -45,25 +46,30 @@
   box-sizing: border-box;
 }
 .cal-cell-day {
-  aspect-ratio: 1 / 1;
-  min-height: 0;
-  padding: 0;
+  /* 去掉 1:1 强制压缩；在窄屏上保证日期数字可读 */
+  aspect-ratio: auto;
+  min-height: 46px;
+  padding: 6px 2px 4px;
 }
 .cal-cell-active {
   border-color: var(--accent-deep);
   box-shadow: 0 0 0 2px var(--accent-wash) inset;
 }
 .cal-cell-label {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 650;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1.15;
+  letter-spacing: 0;
 }
 .cal-cell-sub {
   font-size: 10px;
   color: var(--ink-faint);
   white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .cal-cell-min {
   font-size: 10px;
@@ -345,9 +351,12 @@ a.report-tile-link .muted {
   font-weight: 650;
 }
 .wrapped-story {
-  flex: 1;
+  flex: 1 1 auto;
   min-height: 0;
+  /* flex 子项高度塌缩时用 height:0 + grow 保证可滑切页 */
+  height: 0;
   position: relative;
+  width: 100%;
 }
 .wrapped-story-progress {
   position: absolute;
@@ -357,6 +366,7 @@ a.report-tile-link .muted {
   z-index: 4;
   display: flex;
   gap: 5px;
+  pointer-events: auto;
 }
 .wrapped-story-pip {
   flex: 1;
@@ -366,6 +376,7 @@ a.report-tile-link .muted {
   padding: 0;
   background: rgba(255, 255, 255, 0.22);
   cursor: pointer;
+  touch-action: manipulation;
 }
 .wrapped-story-pip.is-done {
   background: rgba(255, 255, 255, 0.55);
@@ -374,15 +385,21 @@ a.report-tile-link .muted {
   background: #f4f7f5;
 }
 .wrapped-story-scroller {
-  height: 100%;
+  position: absolute;
+  inset: 0;
+  height: auto;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-snap-type: y mandatory;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 .wrapped-slide {
   height: 100%;
   min-height: 100%;
+  max-height: 100%;
   scroll-snap-align: start;
   scroll-snap-stop: always;
   display: flex;

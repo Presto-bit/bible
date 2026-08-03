@@ -103,6 +103,20 @@ body.reader-active .proper-noun--artifact {
   border-bottom: 1px solid rgba(43, 42, 39, 0.08);
   transform: translateX(-50%) translateY(0);
   transition: transform 0.28s ease, opacity 0.28s ease;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.reader-topbar button,
+.reader-topbar a,
+.reader-topbar .reader-loc,
+.reader-topbar .reader-version,
+.reader-topbar .reader-summary-btn,
+.reader-topbar .reader-more,
+.reader-topbar .reader-icon-btn {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 .reader-page.reader-chrome-hidden .reader-topbar {
   transform: translateX(-50%) translateY(-110%);
@@ -423,12 +437,18 @@ body.reader-active .proper-noun--artifact {
   right: 16px;
   /* tabbar-h 已含 safe-bottom，只再垫 8px 呼吸 */
   bottom: calc(var(--tabbar-h) + 8px);
-  z-index: 80;
+  z-index: 88;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 10px;
   transition: transform 0.28s ease, opacity 0.28s ease;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.reader-fab-stack .reader-fab {
+  pointer-events: auto;
+  touch-action: manipulation;
 }
 .reader-fab-stack.is-hidden {
   transform: translateY(120%);
@@ -658,8 +678,8 @@ a.license-row-name:hover {
 }
 .reader-page {
   --reader-sel-bg: rgba(51, 144, 255, 0.28);
-  /* 与浮动 Tab 一次对齐：勿用已含 safe 的 tabbar-h 再叠一层，底白会过厚 */
-  --reader-scroll-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + 12px);
+  /* 与浮动 Tab 一次对齐（勿叠安全区两遍），底白与 PWA 一致 */
+  --reader-scroll-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + 4px);
   position: relative;
   display: flex;
   flex-direction: column;

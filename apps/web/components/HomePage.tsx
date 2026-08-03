@@ -972,6 +972,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         <div
           className={`hero-scene${heroIllustration ? ' hero-scene-has-art' : ''}`}
           aria-hidden
+          style={
+            heroIllustration
+              ? {
+                  backgroundImage: `url("${heroIllustration}")`,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                }
+              : undefined
+          }
         >
           {heroIllustration ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -983,23 +993,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               height={400}
               decoding="async"
               fetchPriority="high"
-              onLoad={(e) => {
-                const scene = e.currentTarget.parentElement;
-                if (scene instanceof HTMLElement) {
-                  scene.style.backgroundImage = `url("${e.currentTarget.currentSrc || heroIllustration}")`;
-                  scene.style.backgroundSize = 'cover';
-                  scene.style.backgroundPosition = 'center';
-                }
-              }}
               onError={(e) => {
                 const img = e.currentTarget;
-                // 仅一次 cache-bust 重试；失败保留主题渐变底，勿永久清掉 URL
                 if (img.dataset.retry !== '1' && heroIllustration) {
                   img.dataset.retry = '1';
                   const sep = heroIllustration.includes('?') ? '&' : '?';
                   img.src = `${heroIllustration}${sep}r=1`;
                   return;
                 }
+                // 图彻底失败：保留父级 style 背景（可能也失效）则退回主题渐变
+                img.style.display = 'none';
               }}
             />
           ) : null}
