@@ -152,6 +152,8 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
   }
 
   if (input.plan) {
+    const planBookId =
+      input.plan.bookId || bookIdFromReaderHref(input.plan.href)?.bookId;
     if (planDone) {
       return {
         id: 'plan',
@@ -160,7 +162,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
         sub: '今日已完成 · 可回顾',
         href: input.plan.href,
         icon: 'plan',
-        bookId: input.plan.bookId,
+        bookId: planBookId,
         cta: '看看',
         done: true,
         progressPct: 100,
@@ -175,7 +177,7 @@ function primaryFromInput(input: HomeTodayPanelInput): HomeTodayPanelSlot {
       sub: trimRailSub(input.plan.sub || ''),
       href: input.plan.href,
       icon: 'plan',
-      bookId: input.plan.bookId,
+      bookId: planBookId,
       cta: inProgress ? '继续' : '开始',
       progressPct: pct,
     };

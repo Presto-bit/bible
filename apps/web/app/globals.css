@@ -1230,20 +1230,16 @@ html:not([data-app-theme]) .card {
   min-height: 168px;
   padding: 14px;
   margin: 0;
-  border: 1px solid color-mix(in srgb, var(--ink) 9%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink) 14%, transparent);
   border-radius: 16px;
   overflow: hidden;
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
-    0 8px 20px rgba(15, 23, 42, 0.06);
-  background:
-    linear-gradient(
-      145deg,
-      color-mix(in srgb, var(--gold-wash, #f3ead2) 40%, #fff) 0%,
-      color-mix(in srgb, var(--accent) 8%, #fff) 100%
-    );
+    0 8px 20px rgba(15, 23, 42, 0.1);
+  /* 禁白底：墨橄榄垫底；WallpaperBg 成功后叠风景 */
+  background: linear-gradient(155deg, #2a322c 0%, #1a221e 48%, #121816 100%);
   text-align: left;
-  color: inherit;
+  color: #fff;
   cursor: pointer;
   transition: transform 0.12s ease, filter 0.12s ease;
   -webkit-tap-highlight-color: transparent;
@@ -1254,12 +1250,16 @@ html:not([data-app-theme]) .card {
   filter: brightness(0.98);
 }
 
-/* 书封全幅：蒙层更薄，文字区左下轻雾 */
+/* 书封全幅；父层可被 WallpaperBg 写入 background-image（壳双保险） */
 .home-today-primary-bg {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
+  background: linear-gradient(155deg, #2a322c 0%, #121816 100%);
+  background-size: cover;
+  background-position: center 28%;
+  background-repeat: no-repeat;
 }
 
 .home-today-primary-bg-img {
@@ -1288,34 +1288,23 @@ html:not([data-app-theme]) .card {
   z-index: 1;
   background:
     linear-gradient(
-      165deg,
-      color-mix(in srgb, #fff 22%, transparent) 0%,
-      transparent 42%
-    ),
-    linear-gradient(
-      105deg,
-      color-mix(in srgb, var(--gold-wash, #f3ead2) 62%, #fff) 0%,
-      color-mix(in srgb, #fff 28%, transparent) 38%,
-      transparent 68%
+      115deg,
+      rgba(12, 16, 14, 0.72) 0%,
+      rgba(12, 16, 14, 0.28) 46%,
+      rgba(12, 16, 14, 0.12) 100%
     ),
     linear-gradient(
       0deg,
-      color-mix(in srgb, var(--gold-wash, #f3ead2) 35%, transparent) 0%,
-      transparent 34%
+      rgba(12, 16, 14, 0.45) 0%,
+      transparent 42%
     );
+  opacity: 0.88;
+  transition: opacity 0.22s ease;
 }
 
-.home-today-primary-bg-fallback {
-  display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  padding: 16px;
-  color: color-mix(in srgb, var(--accent-deep) 40%, transparent);
-  background: linear-gradient(
-    145deg,
-    transparent 40%,
-    color-mix(in srgb, var(--accent) 10%, transparent) 100%
-  );
+.home-today-primary.has-cover .home-today-primary-bg-veil.is-ready,
+.home-today-primary-bg-veil.is-ready {
+  opacity: 1;
 }
 
 .home-today-primary-main {
@@ -1339,8 +1328,9 @@ html:not([data-app-theme]) .card {
   font-weight: 600;
   letter-spacing: 0.02em;
   color: #fff;
-  background: color-mix(in srgb, var(--ink) 68%, transparent);
+  background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .home-today-primary-title {
@@ -1348,22 +1338,23 @@ html:not([data-app-theme]) .card {
   font-size: 16px;
   font-weight: 700;
   line-height: 1.28;
-  color: var(--ink);
+  color: #fff;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-shadow: 0 1px 10px color-mix(in srgb, #fff 75%, transparent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 .home-today-primary-sub {
   font-size: 12px;
   line-height: 1.4;
-  color: var(--ink-soft);
+  color: rgba(255, 255, 255, 0.82);
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .home-today-primary-cta {
@@ -1376,8 +1367,8 @@ html:not([data-app-theme]) .card {
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  background: var(--accent-deep);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-deep) 28%, transparent);
+  background: color-mix(in srgb, var(--accent-deep) 88%, #000);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.28);
 }
 
 .home-today-primary-ring {
@@ -1402,7 +1393,13 @@ html:not([data-app-theme]) .card {
 }
 
 .home-today-primary.is-done .home-today-primary-cta {
-  background: color-mix(in srgb, var(--accent-deep) 72%, #fff);
+  background: color-mix(in srgb, var(--accent-deep) 70%, #1a221e);
+}
+
+.home-today-primary.has-cover .home-today-primary-bg-img {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
 }
 
 .home-today-side.is-checkin-flash {
@@ -1570,6 +1567,9 @@ html:not([data-app-theme]) .card {
   position: absolute;
   inset: 0;
   z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 .home-today-side-bg-img {
   position: absolute;
@@ -1587,9 +1587,9 @@ html:not([data-app-theme]) .card {
   inset: 0;
   background: linear-gradient(
     120deg,
-    rgba(20, 24, 28, 0.55) 0%,
-    rgba(20, 24, 28, 0.28) 55%,
-    rgba(20, 24, 28, 0.4) 100%
+    rgba(20, 24, 28, 0.58) 0%,
+    rgba(20, 24, 28, 0.3) 55%,
+    rgba(20, 24, 28, 0.42) 100%
   );
 }
 .home-today-side.has-cover .home-today-side-text,
@@ -1617,19 +1617,26 @@ html:not([data-app-theme]) .card {
 }
 
 .home-today-side-group {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--accent) 10%, #fff) 0%,
-    color-mix(in srgb, #d8ebe2 40%, #fff) 100%
-  );
+  /* 加载中/失败：墨绿垫底，勿落白 */
+  background: linear-gradient(145deg, #243028 0%, #1a221e 100%);
+  color: #fff;
 }
 
 .home-today-side-prayer {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--dawn-rose, #e8b4b8) 12%, #fff) 0%,
-    color-mix(in srgb, #f5e6e2 42%, #fff) 100%
-  );
+  background: linear-gradient(145deg, #2a2426 0%, #1c181a 100%);
+  color: #fff;
+}
+
+.home-today-side-group .home-today-side-label,
+.home-today-side-prayer .home-today-side-label,
+.home-today-side-group .home-today-side-cta,
+.home-today-side-prayer .home-today-side-cta {
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.home-today-side-group .home-today-side-title,
+.home-today-side-prayer .home-today-side-title {
+  color: #fff;
 }
 
 .home-today-side-text {
