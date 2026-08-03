@@ -9,17 +9,20 @@ import {
 
 /**
  * 跟手翻页：Pointer 为主，Touch 为兜底（小米等 WebView 上 pointer 捕获不可靠）。
- * 提交：大位移 OR 够快；比原先「位移且速度」更易在真机触发。
+ * 提交：大位移 OR 够快；「上一页」(右滑) 阈值更低——易被系统返回手势抢。
  */
-const THRESHOLD = 0.18;
-const VELOCITY_MIN = 0.18;
+const THRESHOLD_NEXT = 0.16;
+const THRESHOLD_PREV = 0.11;
+const VELOCITY_MIN = 0.15;
+const VELOCITY_MIN_PREV = 0.1;
 /** 大滑动：忽略速度强制翻页 */
-const FORCE_RATIO = 0.32;
+const FORCE_RATIO_NEXT = 0.28;
+const FORCE_RATIO_PREV = 0.2;
 const AXIS_RATIO = 1.25;
 const AXIS_MIN_PX = 12;
 /** 安卓壳：更快认横轴，避免 pan-y 竞争后永远认不成 X */
-const SHELL_AXIS_RATIO = 1.12;
-const SHELL_AXIS_MIN_PX = 8;
+const SHELL_AXIS_RATIO = 1.08;
+const SHELL_AXIS_MIN_PX = 6;
 const EDGE_RESIST = 0.28;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
@@ -139,10 +142,22 @@ export function useReaderPageTurn({
 
     const w = viewportRef.current?.clientWidth ?? window.innerWidth;
     const ratio = Math.abs(finalOffset) / w;
+    const shell = isAndroidShell();
+    const goingPrev = finalOffset > 0;
+    // 右滑上一页：阈值更低（系统边缘返回易吞手势）；壳内再略松
+    const threshold = goingPrev
+      ? (shell ? 0.09 : THRESHOLD_PREV)
+      : (shell ? 0.13 : THRESHOLD_NEXT);
+    const forceRatio = goingPrev
+      ? (shell ? 0.16 : FORCE_RATIO_PREV)
+      : (shell ? 0.24 : FORCE_RATIO_NEXT);
+    const velMin = goingPrev
+      ? (shell ? 0.08 : VELOCITY_MIN_PREV)
+      : (shell ? 0.12 : VELOCITY_MIN);
     const commit =
-      ratio >= FORCE_RATIO
-      || ratio >= THRESHOLD
-      || (ratio >= 0.1 && velocity >= VELOCITY_MIN);
+      ratio >= forceRatio
+      || ratio >= threshold
+      || (ratio >= (goingPrev ? 0.07 : 0.09) && velocity >= velMin);
 
     if (finalOffset < 0 && commit && canNext) {
       clearDragHint();
@@ -234,8 +249,8 @@ export function useReaderPageTurn({
           setTurning(true);
         } else if (ady >= minPx && ady >= adx * ratio) {
           drag.current.axis = 'y';
-        } else if (adx >= minPx * 1.5 && adx > ady) {
-          // 壳：横略大于竖也认 X，贴近 PWA 跟手感
+        } else if (adx >= minPx * 1.2 && adx > ady) {
+          // 横略大于竖也认 X（右滑上一页更容易抢走竖滚）
           drag.current.axis = 'x';
           setTurning(true);
         } else {

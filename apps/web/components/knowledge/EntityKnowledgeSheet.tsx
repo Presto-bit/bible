@@ -96,8 +96,8 @@ export function EntityKnowledgeSheet({
   };
 
   return (
-    <AppBodyPortal>
-      <div className="sheet-backdrop" onClick={onClose}>
+    <AppBodyPortal onTabAway={onClose}>
+      <div className="sheet-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
         <div className="sheet card entity-knowledge-sheet" onClick={(e) => e.stopPropagation()}>
           <EntityKnowledgeHeader entity={entity} trailing={<SheetCloseButton onClick={onClose} />} />
 

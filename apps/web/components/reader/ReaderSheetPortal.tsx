@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useCloseOnTabNav } from '@/lib/use_close_on_tab_nav';
 
 /** 阅读器内底部/居中 Sheet：挂 body + 阻断触控穿透到经文层。 */
 export default function ReaderSheetPortal({
@@ -17,6 +18,7 @@ export default function ReaderSheetPortal({
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useCloseOnTabNav(onClose);
 
   if (!mounted) return null;
 
@@ -25,6 +27,7 @@ export default function ReaderSheetPortal({
       className={['sheet-backdrop', 'reader-sheet-backdrop', backdropClassName].filter(Boolean).join(' ')}
       onClick={onClose}
       onTouchMove={(e) => e.stopPropagation()}
+      data-dismiss-on-tab-nav
     >
       <div
         className={sheetClassName}

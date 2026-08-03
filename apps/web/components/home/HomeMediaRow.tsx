@@ -133,11 +133,11 @@ export function HomeMediaRow({
           />
         ) : null}
         <span className={`home-media-thumb-fallback${showImage ? ' is-behind' : ''}`}>
-          <HomeMediaIcon id={icon} size={26} />
+          <HomeMediaIcon id={icon} size={26} className="home-media-icon" />
         </span>
         {showImage ? (
           <span className="home-media-thumb-chip">
-            <HomeMediaIcon id={icon} size={14} />
+            <HomeMediaIcon id={icon} size={14} className="home-media-icon" />
           </span>
         ) : null}
         {showProgress ? <ProgressBadge pct={progressPct!} /> : null}

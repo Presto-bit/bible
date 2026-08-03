@@ -74,6 +74,16 @@ function SideCard({
             loading="lazy"
             decoding="async"
             fetchPriority="low"
+            onError={(e) => {
+              const img = e.currentTarget;
+              if (img.dataset.retry === '1') {
+                img.style.display = 'none';
+                return;
+              }
+              img.dataset.retry = '1';
+              const sep = coverSrc.includes('?') ? '&' : '?';
+              img.src = `${coverSrc}${sep}r=1`;
+            }}
           />
           <span className="home-today-side-bg-veil" />
         </span>
@@ -141,6 +151,16 @@ export function HomeTodayPanel({
                 height={220}
                 decoding="async"
                 fetchPriority="high"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (img.dataset.retry === '1') {
+                    img.style.display = 'none';
+                    return;
+                  }
+                  img.dataset.retry = '1';
+                  const sep = coverSrc.includes('?') ? '&' : '?';
+                  img.src = `${coverSrc}${sep}r=1`;
+                }}
               />
               <div className="home-today-primary-bg-veil" />
             </div>

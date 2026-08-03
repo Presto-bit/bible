@@ -1,6 +1,6 @@
 // 发版后须 bump CACHE（或运行 scripts/bump_sw_cache.sh），否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v39';
+const CACHE = 'presto-bible-v40';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -133,14 +133,19 @@ function isAndroidPackageAsset(url) {
     || p === '/downloads/peiai-android.apk';
 }
 
+function isDailyWallpaper(url) {
+  return relPath(url.pathname).startsWith('/daily-wallpapers/');
+}
+
 function isStaticAsset(url) {
   if (isOfflineHeavyAsset(url)) return false;
   if (isOfflineManifest(url)) return false;
   if (isAndroidPackageAsset(url)) return false;
+  // 风景壁纸走网络优先：避免曾缓存的 403/Offline 文本永远挡住首页主卡背景
+  if (isDailyWallpaper(url)) return false;
   const p = url.pathname;
   if (p.includes('/_next/static/')) return true;
   if (p.startsWith(bp('/illustrations/'))) return true;
-  if (p.startsWith(bp('/daily-wallpapers/'))) return true;
   // offline 仅允许小清单类进缓存；sqlite/zip / manifest 已在上方排除
   if (p.startsWith(bp('/offline/'))) return true;
   if (p.startsWith(bp('/sql-wasm/'))) return true;
@@ -189,12 +194,16 @@ async function networkFirstCache(request) {
     if (res.ok) {
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(request, copy));
+      return res;
     }
+    // 非 2xx：优先用旧缓存好的图，绝不以 Offline 文本充当图片
+    const hit = await caches.match(request);
+    if (hit && hit.ok) return hit;
     return res;
   } catch {
     const hit = await caches.match(request);
-    if (hit) return hit;
-    throw new Error('offline');
+    if (hit && hit.ok) return hit;
+    return new Response('', { status: 504, statusText: 'Offline' });
   }
 }
 
@@ -294,6 +303,12 @@ self.addEventListener('fetch', (e) => {
 
   // 离线包清单：网络优先（可短暂回退旧缓存，避免离线完全打不开下载页）
   if (isOfflineManifest(url)) {
+    e.respondWith(networkFirstCache(e.request));
+    return;
+  }
+
+  // 每日经文 / 书卷封面风景图：网络优先，坏响应不写缓存
+  if (isDailyWallpaper(url)) {
     e.respondWith(networkFirstCache(e.request));
     return;
   }

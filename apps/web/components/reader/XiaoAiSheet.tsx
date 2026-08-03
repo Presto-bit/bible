@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { chatStream } from '@/lib/api';
+import { useCloseOnTabNav } from '@/lib/use_close_on_tab_nav';
 import AnswerText from '@/components/AnswerText';
 import { CitationBar } from '@/components/CitationBar';
 import { CitationEvidenceRail } from '@/components/assistant/CitationEvidenceRail';
@@ -67,6 +68,7 @@ export default function XiaoAiSheet({
   const [saved, setSaved] = useState(false);
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
+  useCloseOnTabNav(onClose);
   const [retryKey, setRetryKey] = useState(0);
   const [expanded, setExpanded] = useState(true);
   const [citationOpen, setCitationOpen] = useState<number | null>(null);
@@ -274,7 +276,7 @@ export default function XiaoAiSheet({
   const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
 
   const sheet = (
-    <div className="sheet-backdrop reader-ai-backdrop" onClick={onClose}>
+    <div className="sheet-backdrop reader-ai-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
       <div
         className="half-sheet"
         onClick={stopBubble}

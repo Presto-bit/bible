@@ -64,6 +64,32 @@ export function clearInteractiveFocusArtifacts(): void {
 }
 
 /**
+ * 关掉挂到 document.body 的半屏/操作条。
+ * Tab 保活只 hidden 原 pane，portal 仍留在 body 上，会「串」到小爱/发现等 Tab。
+ */
+export function dismissPortaledOverlays(): void {
+  if (typeof document === 'undefined') return;
+  const selectors = [
+    '.sheet-backdrop',
+    '.reader-sheet-backdrop',
+    '.im-msg-popover-backdrop',
+    '[data-dismiss-on-tab-nav]',
+  ];
+  try {
+    document.querySelectorAll(selectors.join(',')).forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      try {
+        node.click();
+      } catch {
+        /* ignore */
+      }
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * 离开某 Tab 时清掉全局 body class，避免圣经/小爱的壳层样式串到其它 Tab。
  */
 export function cleanupTabBodyChrome(leaving: KeepAliveTabId | null, entering: KeepAliveTabId | null): void {
@@ -87,6 +113,10 @@ export function onKeepAliveTabChange(
   next: KeepAliveTabId | null,
 ): void {
   if (prev) saveTabScroll(prev);
+  if (prev && prev !== next) {
+    // 先关 portal overlay，再清 chrome，避免残影
+    dismissPortaledOverlays();
+  }
   cleanupTabBodyChrome(prev, next);
   clearInteractiveFocusArtifacts();
   if (next) restoreTabScroll(next);

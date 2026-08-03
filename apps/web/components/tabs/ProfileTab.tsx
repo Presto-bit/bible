@@ -553,8 +553,9 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     if (packageRow.action === 'download_apk') {
       setPackageBusy(true);
       try {
-        markAndroidTwaInstallClaimed();
         const inShell = /PeiaiAndroidShell\//i.test(navigator.userAgent);
+        // 壳内更新可硬认领无关自动 Sheet；浏览器下载勿认领（未装完刷新仍应催装）
+        if (inShell) markAndroidTwaInstallClaimed();
         toast(
           inShell
             ? (packageRow.updateAvailable ? '正在下载更新包…' : '正在下载安装包…')
@@ -1828,10 +1829,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       ) : null}
 
       {pickerOpen && (
-        <AppBodyPortal>
+        <AppBodyPortal onTabAway={() => !avatarUploading && setPickerOpen(false)}>
           <div
             className="sheet-backdrop"
             onClick={() => !avatarUploading && setPickerOpen(false)}
+            data-dismiss-on-tab-nav
           >
             <div
               className="sheet card avatar-picker-sheet"

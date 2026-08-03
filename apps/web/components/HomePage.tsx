@@ -983,7 +983,16 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               height={400}
               decoding="async"
               fetchPriority="high"
-              onError={() => setHeroIllustration(null)}
+              onError={(e) => {
+                const img = e.currentTarget;
+                // 仅一次 cache-bust 重试；失败保留主题渐变底，勿永久清掉 URL
+                if (img.dataset.retry !== '1' && heroIllustration) {
+                  img.dataset.retry = '1';
+                  const sep = heroIllustration.includes('?') ? '&' : '?';
+                  img.src = `${heroIllustration}${sep}r=1`;
+                  return;
+                }
+              }}
             />
           ) : null}
         </div>

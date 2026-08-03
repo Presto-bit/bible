@@ -13,10 +13,11 @@ const STROKE = 1.75;
 function IconPaths({ id }: { id: HomeMediaIconId }) {
   switch (id) {
     case 'clock':
+      // 与功能卡角标同一套线性钟表（表盘 + 针）
       return (
         <>
-          <circle cx="12" cy="12" r="7.5" />
-          <path d="M12 8.5v4l2.5 1.5" />
+          <circle cx="12" cy="12" r="8" />
+          <path d="M12 7.5v5.2l3.2 1.8" />
         </>
       );
     case 'compass':

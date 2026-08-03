@@ -2479,6 +2479,7 @@ html.android-shell .home-page .home-growth-stack {
 .home-page .home-media-row {
   display: flex;
   align-items: center;
+  /* 左媒与文案间距：浏览器 / PWA / 安卓壳统一 */
   gap: 14px;
   width: 100%;
   box-sizing: border-box;
@@ -2535,6 +2536,20 @@ html.android-shell .home-page .home-growth-stack {
   justify-content: center;
   color: var(--accent-deep, #4a6b52);
   z-index: 0;
+}
+
+.home-page .home-media-thumb-fallback svg {
+  display: block;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.home-page .home-media-thumb-chip svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .home-page .home-media-thumb-fallback.is-behind {
@@ -2601,8 +2616,8 @@ html.perf-lite .home-page .home-media-thumb-chip {
   flex-direction: column;
   gap: 3px;
   justify-content: center;
-  /* 与左侧图标拉开，避免贴边 */
-  padding-left: 2px;
+  /* 与左侧媒体固定间距仅来自 row gap，避免再垫 padding 把 PWA/壳拉不一致 */
+  padding-left: 0;
   padding-right: 2px;
 }
 
@@ -4093,33 +4108,32 @@ html.android-shell .home-page {
   padding-bottom: 12px;
 }
 
-/* ─── 安卓壳 / 触控：成长区疏密度与可读性（对齐主屏幕 PWA 观感） ─── */
+/* ─── 安卓壳 / 主屏幕：成长区字号稍放大，间距与网页基线一致（不另拉开图标-文案） ─── */
 html.android-shell .home-page .home-growth-stack,
 html.pwa-standalone .home-page .home-growth-stack {
-  gap: 14px;
+  gap: 10px;
 }
 html.android-shell .home-page .home-media-row,
 html.pwa-standalone .home-page .home-media-row {
-  min-height: 90px;
-  padding: 14px 16px 14px 12px;
-  /* 图标与文案更疏一点，解决贴边感 */
-  gap: 18px;
+  min-height: 82px;
+  padding: 11px 14px 11px 11px;
+  gap: 14px;
 }
 html.android-shell .home-page .home-media-body,
 html.pwa-standalone .home-page .home-media-body {
-  padding-left: 4px;
+  padding-left: 0;
 }
 html.android-shell .home-page .home-media-title,
 html.pwa-standalone .home-page .home-media-title {
   font-size: 15px;
-  line-height: 1.45;
+  line-height: 1.35;
   letter-spacing: 0.01em;
 }
 html.android-shell .home-page .home-media-detail,
 html.pwa-standalone .home-page .home-media-detail {
-  font-size: 13px;
-  line-height: 1.5;
-  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 0;
 }
 html.android-shell .home-page .section-label {
   margin-top: 22px;
