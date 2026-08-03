@@ -53,9 +53,9 @@ import {
   type PwaInstallContext,
 } from '@/lib/pwa_after_read';
 import {
-  androidTwaApkUrl,
   detectAndroidTwaInstalled,
 } from '@/lib/android_twa';
+import { androidPackageDownloadHref } from '@/lib/app_package_settings';
 import { IosSafariInstallCoach } from '@/components/IosSafariInstallCoach';
 import { WechatEscapeCoach } from '@/components/WechatEscapeCoach';
 
@@ -248,7 +248,7 @@ export function InstallPwaSheet({
       await backupBeforeInstall();
       markAndroidTwaInstallClaimed();
       toast('开始下载安装包…装好后请打开桌面「彼爱」');
-      window.location.href = androidTwaApkUrl(BASE_PATH || '');
+      window.location.href = androidPackageDownloadHref();
       await onInstallAccepted();
     } finally {
       setBusy(false);
