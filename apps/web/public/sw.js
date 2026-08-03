@@ -276,14 +276,32 @@ self.addEventListener('activate', (e) => {
 });
 
 async function networkFirstHtml(request) {
-  const cacheLookup = () =>
-    caches.match(request).then((hit) => hit || offlineNavigationFallback(request));
+  const reqUrl = new URL(request.url);
+  // 硬刷 / 清缓存后的导航：禁止 4.5s 回落旧壳（否则 TWA 会永远卡在旧 H5）
+  const bustCache = reqUrl.searchParams.has('_nc');
 
-  const fromNetwork = fetch(request)
+  const cacheLookup = () =>
+    bustCache
+      ? Promise.resolve(null)
+      : caches.match(request).then((hit) => hit || offlineNavigationFallback(request));
+
+  const fromNetwork = fetch(request, bustCache ? { cache: 'no-store' } : undefined)
     .then(async (res) => {
       if (res.ok) {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(request, copy));
+        // 带 _nc 的响应用于当前导航，但不写入 Cache（避免污染干净首页键）
+        if (!bustCache) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(request, copy));
+        } else {
+          // 同步写入干净的 / 键，供后续无 _nc 冷启动
+          try {
+            const cleanUrl = `${reqUrl.origin}${reqUrl.pathname}`;
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(cleanUrl, copy));
+          } catch {
+            /* ignore */
+          }
+        }
         return res;
       }
       // 502/504 等网关错误：优先回退已缓存壳，避免 PWA 白屏卡住
@@ -295,6 +313,19 @@ async function networkFirstHtml(request) {
       const cached = await cacheLookup();
       return asResponse(cached);
     });
+
+  // 硬刷：等网络（更长超时），绝不抢先吐旧 HTML
+  if (bustCache) {
+    const timeoutMs = 12_000;
+    const timed = await Promise.race([
+      fromNetwork,
+      new Promise((resolve) => {
+        setTimeout(() => resolve(null), timeoutMs);
+      }),
+    ]);
+    if (timed) return timed;
+    return fromNetwork;
+  }
 
   // 弱网/上游卡住时不要干等 Nginx 60s 504
   const timeoutMs = 4500;

@@ -79,6 +79,11 @@ import {
 import { BRAND_NAME, BRAND_TAGLINE } from '@/lib/brand';
 import { shareCardOutbound } from '@/lib/share_card';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
+import {
+  clearAssistantTouchLocks,
+  clickSheetOverlayNodes,
+  dismissOrphanBodySheetBackdrops,
+} from '@/lib/sheet_overlay';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -505,10 +510,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setBadgeOpen(false);
       return;
     }
-    void import('@/lib/sheet_overlay').then((m) => {
-      m.clearAssistantTouchLocks();
-      m.dismissOrphanBodySheetBackdrops();
-    });
+    clearAssistantTouchLocks();
+    dismissOrphanBodySheetBackdrops();
   }, [paneActive]);
 
   const openHelpFeedback = async () => {
@@ -1051,7 +1054,15 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     navigateAppHref('/notes?tab=highlights', router);
   };
 
+  /** 点设置/成就前同步清僵尸遮罩，避免 TWA 上「点了没反应」 */
+  const clearBlockingOverlays = () => {
+    clearAssistantTouchLocks();
+    dismissOrphanBodySheetBackdrops();
+    clickSheetOverlayNodes(document);
+  };
+
   const openBadges = () => {
+    clearBlockingOverlays();
     markFootprintSeen('badges', badgeDoneCount);
     setFootprintSeen(readFootprintSeen());
     setBadgeOpen(true);
@@ -1203,6 +1214,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
+                clearBlockingOverlays();
                 setSettingsOpen(true);
               }}
             >

@@ -4,10 +4,14 @@ import { useEffect } from 'react';
 import { BASE_PATH } from '@/lib/basePath';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { shouldDeferShellInterrupt } from '@/lib/im_session_gate';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 const RELOAD_GUARD_KEY = 'presto_shell_version_reload';
+const RELOAD_ATTEMPTS_KEY = 'presto_shell_version_reload_n';
 const PENDING_RELOAD_KEY = 'presto_shell_reload_pending';
+/** 同一 from→to 最多硬刷次数（防死循环；失败后仍可再试） */
+const MAX_RELOAD_ATTEMPTS = 3;
 
 function isLegacyHomeHtml(html: string): boolean {
   return (
@@ -22,6 +26,21 @@ function parseAppVersion(html: string): string | null {
     html.match(/name=["']app-version["']\s+content=["']([^"']+)["']/i) ||
     html.match(/content=["']([^"']+)["']\s+name=["']app-version["']/i);
   return m?.[1] ?? null;
+}
+
+function parseSwCacheVersion(swText: string): string | null {
+  const m = swText.match(/const\s+CACHE\s*=\s*['"]presto-bible-([^'"]+)['"]/);
+  return m?.[1] ?? null;
+}
+
+function clearReloadGuards() {
+  try {
+    sessionStorage.removeItem(RELOAD_GUARD_KEY);
+    sessionStorage.removeItem(RELOAD_ATTEMPTS_KEY);
+    sessionStorage.removeItem(PENDING_RELOAD_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
@@ -40,6 +59,7 @@ export default function StaleShellGuard() {
 
     const base = BASE_PATH || '';
     const home = `${base}/`;
+    const swPath = `${base}/sw.js`;
 
     let cancelled = false;
     let probing = false;
@@ -47,8 +67,14 @@ export default function StaleShellGuard() {
     const runReload = async (from: string, to: string) => {
       const guard = `${from}->${to}`;
       try {
-        if (sessionStorage.getItem(RELOAD_GUARD_KEY) === guard) return;
+        const prev = sessionStorage.getItem(RELOAD_GUARD_KEY);
+        const attempts = Number(sessionStorage.getItem(RELOAD_ATTEMPTS_KEY) || '0');
+        if (prev === guard && attempts >= MAX_RELOAD_ATTEMPTS) return;
         sessionStorage.setItem(RELOAD_GUARD_KEY, guard);
+        sessionStorage.setItem(
+          RELOAD_ATTEMPTS_KEY,
+          String(prev === guard ? attempts + 1 : 1),
+        );
         sessionStorage.removeItem(PENDING_RELOAD_KEY);
       } catch {
         /* ignore */
@@ -94,18 +120,58 @@ export default function StaleShellGuard() {
       }
 
       probing = true;
-      const probeUrl = `${window.location.origin}${home}?_nc=${Date.now()}`;
-      fetch(probeUrl, { cache: 'no-store', credentials: 'same-origin' })
-        .then((r) => (r.ok ? r.text() : ''))
-        .then((fresh) => {
-          if (cancelled || !fresh) return;
-          const remote = parseAppVersion(fresh);
-          if (!remote || remote === 'dev') return;
-          if (remote !== embedded) {
+      const nc = Date.now();
+      const probeUrl = `${window.location.origin}${home}?_nc=${nc}`;
+      const swUrl = `${window.location.origin}${swPath}?_nc=${nc}`;
+
+      Promise.all([
+        fetch(probeUrl, { cache: 'no-store', credentials: 'same-origin' })
+          .then((r) => (r.ok ? r.text() : ''))
+          .catch(() => ''),
+        fetch(swUrl, { cache: 'no-store', credentials: 'same-origin' })
+          .then((r) => (r.ok ? r.text() : ''))
+          .catch(() => ''),
+      ])
+        .then(([fresh, swText]) => {
+          if (cancelled) return;
+
+          const remote = fresh ? parseAppVersion(fresh) : null;
+          const swVer = swText ? parseSwCacheVersion(swText) : null;
+
+          // 本页已与线上一致：清掉失败重试计数
+          if (remote && remote !== 'dev' && remote === embedded) {
+            if (!swVer || swVer === embedded || swVer === 'v45') {
+              clearReloadGuards();
+            }
+          }
+
+          if (remote && remote !== 'dev' && remote !== embedded) {
             void markAndReload(embedded, remote);
+            return;
+          }
+
+          // HTML meta 已新，但 SW CACHE 仍是旧烙印 → 强制清缓存换控制器
+          if (
+            swVer
+            && swVer !== 'v45'
+            && swVer !== embedded
+            && remote
+            && remote !== 'dev'
+          ) {
+            void markAndReload(embedded, `sw-${swVer}`);
+            return;
+          }
+
+          // 安卓壳：SW CACHE 与页面 meta 不一致时更积极
+          if (
+            isPeiaiAndroidShell()
+            && swVer
+            && swVer !== 'v45'
+            && swVer !== embedded
+          ) {
+            void markAndReload(embedded, `sw-${swVer}`);
           }
         })
-        .catch(() => {})
         .finally(() => {
           probing = false;
         });
