@@ -13,6 +13,11 @@
   cursor: pointer;
   text-underline-offset: 3px;
   text-decoration-skip-ink: none;
+  /* 高于翻页层，WebView 上更容易点中；勿交给横滑 capture */
+  position: relative;
+  z-index: 2;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .proper-noun--person {
   text-decoration: underline dotted;
@@ -105,6 +110,8 @@ body.reader-active .proper-noun--artifact {
   transition: transform 0.28s ease, opacity 0.28s ease;
   pointer-events: auto;
   touch-action: manipulation;
+  /* 独立 stacking，避免被经文 isolation 面板挡住 */
+  isolation: isolate;
 }
 .reader-topbar button,
 .reader-topbar a,

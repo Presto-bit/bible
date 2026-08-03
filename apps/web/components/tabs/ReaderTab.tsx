@@ -7,7 +7,7 @@ import '@/styles/plans.css';
 import '@/styles/group_chat.css';
 import '@/styles/assistant.css';
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api, type BibleBook, type DictEntity } from '@/lib/api';
 import { bibleBooks } from '@/lib/bible_client';
@@ -127,6 +127,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   ) => {
     if (remember) writeDictChoice(name, ctx.bookId, entity.id ?? entity.name, ctx.chapter);
     recordDictEntity(entity.id ?? entity.name);
+    // 立刻挂 sheet，不等整页经文重绘队列
     setDictPopup({ entity, name, candidates, ctx });
   }, []);
 
@@ -154,10 +155,23 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
             <span
               key={`${keyBase}-pn${i}`}
               className={properNounClass(picked)}
-              title={candidates.length > 1 ? '点击查看（可能有多义）' : undefined}
+              role="button"
+              tabIndex={0}
+              title={candidates.length > 1 ? '点击查看（可能有多义）' : '查看词典'}
+              onPointerDown={(e) => {
+                // 阻止冒泡到翻页 viewport，避免 setPointerCapture 抢手
+                e.stopPropagation();
+              }}
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 handleNameClick(part, verse);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleNameClick(part, verse);
+                }
               }}
             >
               {part}
@@ -265,19 +279,24 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
     };
   }, [paneActive, loadBooks]);
 
-  // 词典 / 大纲：等进入经文阅读后再拉，避免与目录/首章抢带宽
+  // 词典尽早预热：进入圣经 Tab 即拉（不限已进章节），避免「点了没下划线 / 像卡死」
   useEffect(() => {
-    if (!paneActive || !book || catalogOpen) return;
+    if (!paneActive) return;
+    if (dict.length > 0) return;
     let idleId: number | undefined;
     let timeoutId: number | undefined;
     const run = () => {
-      preloadSectionTitles();
-      void api.dictionary().then((d) => setDict(d.entities || [])).catch(() => setDict([]));
+      void api.dictionary().then((d) => {
+        // 词典回填重绘整章：低优先级，避免挡设置/翻页
+        startTransition(() => {
+          setDict(d.entities || []);
+        });
+      }).catch(() => {});
     };
     if (typeof window.requestIdleCallback === 'function') {
-      idleId = window.requestIdleCallback(run, { timeout: 2500 });
+      idleId = window.requestIdleCallback(run, { timeout: 1200 });
     } else {
-      timeoutId = window.setTimeout(run, 400);
+      timeoutId = window.setTimeout(run, 200);
     }
     return () => {
       if (idleId != null && typeof window.cancelIdleCallback === 'function') {
@@ -285,7 +304,33 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
       }
       if (timeoutId != null) window.clearTimeout(timeoutId);
     };
-  }, [paneActive, book, catalogOpen]);
+  }, [paneActive, dict.length]);
+
+  // 大纲：等进入经文阅读后再拉，避免与目录/首章抢带宽
+  useEffect(() => {
+    if (!paneActive || !book || catalogOpen) return;
+    let idleId: number | undefined;
+    let timeoutId: number | undefined;
+    const run = () => {
+      preloadSectionTitles();
+      if (dict.length === 0) {
+        void api.dictionary().then((d) => {
+          startTransition(() => setDict(d.entities || []));
+        }).catch(() => {});
+      }
+    };
+    if (typeof window.requestIdleCallback === 'function') {
+      idleId = window.requestIdleCallback(run, { timeout: 1800 });
+    } else {
+      timeoutId = window.setTimeout(run, 300);
+    }
+    return () => {
+      if (idleId != null && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) window.clearTimeout(timeoutId);
+    };
+  }, [paneActive, book, catalogOpen, dict.length]);
 
   const bookRef = useRef(book);
   bookRef.current = book;

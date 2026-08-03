@@ -2976,7 +2976,9 @@ export default function ReaderView({
             onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               setChromeHidden(false);
+              // 同步打开：TWA 上排队在经文重绘后会导致「点了半秒才出」
               setShowSettings(true);
             }}
             aria-label="阅读设置"

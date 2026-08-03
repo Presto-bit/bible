@@ -7,11 +7,20 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react';
 
+const INTERACTIVE_TURN_SEL =
+  'a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.proper-noun,.reader-focus-bar';
+
+function isInteractiveTurnTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  return Boolean(target.closest(INTERACTIVE_TURN_SEL));
+}
+
 /**
  * 跟手翻页（与 iOS/Android 已安装 PWA 同一套）：
  * - Pointer 走 window 级 move/up（不依赖 setPointerCapture；壳 WebView 捕获常失败）
  * - Touch 兜底；pointer 已激活但尚无轴时 touch 可接手
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
+ * - 专有名词/按钮等交互控件不抢 capture，避免「点词典没反应」
  */
 const THRESHOLD_NEXT = 0.13;
 const THRESHOLD_PREV = 0.09;
@@ -294,6 +303,8 @@ export function useReaderPageTurn({
   const onPointerDown = useCallback(
     (e: ReactPointerEvent) => {
       if (e.button !== 0) return;
+      // 勿对词典专名 / 按钮等开 capture：否则 click 在安卓 WebView 上经常被吃掉
+      if (isInteractiveTurnTarget(e.target)) return;
       if (!beginDrag(e.clientX, e.clientY, e.pointerId, 'pointer')) return;
       // 仍尝试 capture（iOS 无妨）；主要靠 window 监听保证壳端可用
       try {
@@ -344,6 +355,7 @@ export function useReaderPageTurn({
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
+      if (isInteractiveTurnTarget(e.target)) return;
       // pointer 已占坑但还没认轴时，touch 接手（壳上 pointer move 常丢）
       if (drag.current.active) {
         if (drag.current.source === 'pointer' && drag.current.axis === null) {
