@@ -1,6 +1,6 @@
 /** 经卷封面：风景图 + 完整书名（横滑卡顶部） */
 
-import { clientWithBasePath } from './basePath';
+import { clientAssetUrl } from './basePath';
 import { DAILY_WALLPAPER_FILES } from './daily_verse_wallpaper';
 import { bookIdToChineseName, CANON_BOOK_IDS } from './ref_label';
 
@@ -14,7 +14,7 @@ function bookSeed(bookId: string): number {
 /** 按书卷稳定映射风景壁纸（与每日经文同源资源） */
 export function bookCoverImageUrl(bookId: string): string {
   const file = DAILY_WALLPAPER_FILES[bookSeed(bookId) % DAILY_WALLPAPER_FILES.length];
-  return clientWithBasePath(`/daily-wallpapers/${file}`);
+  return clientAssetUrl(`/daily-wallpapers/${file}`);
 }
 
 export function bookCoverLabel(bookId: string): string {

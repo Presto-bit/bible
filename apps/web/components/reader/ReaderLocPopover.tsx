@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import type { BibleBook } from '@/lib/api';
 import { allowedChaptersForBook, isChapterInPlan, planBooksInSteps } from '@/lib/plan_navigation';
 import type { PlanStep } from '@/lib/plan_steps';
+import { useCloseOnTabNav } from '@/lib/use_close_on_tab_nav';
 
 type LocTab = 'chapters' | 'books';
 
@@ -31,6 +32,7 @@ export function ReaderLocPopover({
   onPickChapter,
   onClose,
 }: Props) {
+  useCloseOnTabNav(onClose, open);
   const [tab, setTab] = useState<LocTab>('chapters');
   const [selectedBookId, setSelectedBookId] = useState(book.id);
   const [pickWarn, setPickWarn] = useState<string | null>(null);
@@ -136,7 +138,12 @@ export function ReaderLocPopover({
 
   const popover = (
     <>
-      <div className="reader-loc-backdrop" onClick={onClose} aria-hidden />
+      <div
+        className="reader-loc-backdrop"
+        data-dismiss-on-tab-nav
+        onClick={onClose}
+        aria-hidden
+      />
       <div
         ref={panelRef}
         className="reader-loc-popover"

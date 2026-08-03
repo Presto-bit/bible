@@ -3517,7 +3517,7 @@ export default function ReaderView({
       )}
 
       {showVersions && (
-        <AppBodyPortal>
+        <AppBodyPortal onTabAway={() => setShowVersions(false)}>
           <VersionPickerPop
             versions={versions ?? []}
             checkedIds={checkedVers}

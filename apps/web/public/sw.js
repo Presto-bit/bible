@@ -192,17 +192,44 @@ async function networkFirstCache(request) {
   try {
     const res = await fetch(request);
     if (res.ok) {
+      // 壁纸：非 image 响应不缓存，避免 200 文本/HTML 永久挡主卡背景
+      const url = new URL(request.url);
+      if (isDailyWallpaper(url)) {
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if (!ct.includes('image')) {
+          const hit = await caches.match(request);
+          if (hit && hit.ok) {
+            const hitCt = (hit.headers.get('content-type') || '').toLowerCase();
+            if (hitCt.includes('image')) return hit;
+          }
+          return res;
+        }
+      }
       const copy = res.clone();
       caches.open(CACHE).then((c) => c.put(request, copy));
       return res;
     }
     // 非 2xx：优先用旧缓存好的图，绝不以 Offline 文本充当图片
     const hit = await caches.match(request);
-    if (hit && hit.ok) return hit;
+    if (hit && hit.ok) {
+      if (isDailyWallpaper(new URL(request.url))) {
+        const hitCt = (hit.headers.get('content-type') || '').toLowerCase();
+        if (!hitCt.includes('image')) return res;
+      }
+      return hit;
+    }
     return res;
   } catch {
     const hit = await caches.match(request);
-    if (hit && hit.ok) return hit;
+    if (hit && hit.ok) {
+      if (isDailyWallpaper(new URL(request.url))) {
+        const hitCt = (hit.headers.get('content-type') || '').toLowerCase();
+        if (!hitCt.includes('image')) {
+          return new Response('', { status: 504, statusText: 'Offline' });
+        }
+      }
+      return hit;
+    }
     return new Response('', { status: 504, statusText: 'Offline' });
   }
 }

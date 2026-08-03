@@ -16,6 +16,7 @@ import {
   type OfflineItemStatus,
 } from '@/lib/offline_pack';
 import { resetLocalBibleDb } from '@/lib/bible_local';
+import { useCloseOnTabNav } from '@/lib/use_close_on_tab_nav';
 
 export type VersionPickerCopy = {
   title: string;
@@ -52,6 +53,7 @@ export default function VersionPickerPop({
   onApplySelection,
   onClose,
 }: Props) {
+  useCloseOnTabNav(onClose);
   const [localStatus, setLocalStatus] = useState<Record<string, OfflineItemStatus>>({});
   const [failedIds, setFailedIds] = useState<Record<string, true>>({});
   const [snap, setSnap] = useState<OfflineDownloadSnapshot>(() =>
@@ -134,7 +136,7 @@ export default function VersionPickerPop({
   };
 
   return (
-    <div className="version-pop-backdrop" onClick={onClose}>
+    <div className="version-pop-backdrop" data-dismiss-on-tab-nav onClick={onClose}>
       <div className="version-pop card" onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginTop: 0 }}>{copy.title}</h3>
         <p className="muted" style={{ fontSize: 12, marginBottom: 10 }}>

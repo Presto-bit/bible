@@ -206,7 +206,7 @@ function ReportInner() {
   const cols = mode === 'day' ? 7 : mode === 'week' ? 3 : 4;
 
   return (
-    <main className="container">
+    <main className="container report-page">
       <header className="page-head">
         <PageBackBar href="/profile" label="我的" onClick={() => markRouteNavigation()} />
         <h2 className="page-head-title">读经回顾</h2>

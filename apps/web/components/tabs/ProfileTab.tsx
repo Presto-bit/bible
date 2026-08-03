@@ -1161,6 +1161,13 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               type="button"
               className="icon-btn profile-head-icon-btn"
               aria-label="设置"
+              onPointerUp={(e) => {
+                try {
+                  (e.currentTarget as HTMLElement).blur();
+                } catch {
+                  /* ignore */
+                }
+              }}
               onClick={() => setSettingsOpen(true)}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1323,8 +1330,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
             style={{ ['--pct' as string]: journeyPct }}
             aria-hidden
           >
-            <span className="profile-companion-ring-num">{journeyPct}</span>
-            <span className="profile-companion-ring-unit">%</span>
+            <span className="profile-companion-ring-pct">
+              <span className="profile-companion-ring-num">{journeyPct}</span>
+              <span className="profile-companion-ring-unit">%</span>
+            </span>
           </div>
         </Link>
 
@@ -1605,8 +1614,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       )}
 
       {settingsOpen && (
-        <AppBodyPortal>
-          <div className="sheet-backdrop" onClick={() => setSettingsOpen(false)}>
+        <AppBodyPortal onTabAway={() => setSettingsOpen(false)}>
+          <div
+            className="sheet-backdrop"
+            data-dismiss-on-tab-nav
+            onClick={() => setSettingsOpen(false)}
+          >
             <div
               className="sheet card settings-sheet"
               onClick={(e) => e.stopPropagation()}

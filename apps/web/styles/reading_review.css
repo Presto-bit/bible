@@ -1,10 +1,21 @@
 /* Extracted from globals.css — styles/reading_review.css */
 /* lines 6470-6587 */
 /* ─── 读经回顾 · 日历 / 排行 ─── */
+.report-page.container {
+  width: 100%;
+  max-width: min(720px, 100%);
+  box-sizing: border-box;
+  padding-left: max(14px, var(--safe-left, 0px));
+  padding-right: max(14px, var(--safe-right, 0px));
+}
+.report-page .year-switch {
+  width: 100%;
+}
 .cal-weekhead {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   margin-bottom: 6px;
+  width: 100%;
 }
 .cal-weekhead span {
   text-align: center;
@@ -13,21 +24,25 @@
 }
 .cal-grid {
   display: grid;
-  gap: 6px;
+  gap: 5px;
+  width: 100%;
 }
 .cal-cell {
   position: relative;
   border: 1px solid var(--line);
   background: var(--surface);
   border-radius: 10px;
-  padding: 8px 4px;
+  padding: 8px 2px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 2px;
   cursor: pointer;
-  min-height: 46px;
+  min-height: 48px;
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 .cal-cell-day {
   aspect-ratio: 1 / 1;
@@ -42,10 +57,13 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 .cal-cell-sub {
   font-size: 10px;
   color: var(--ink-faint);
+  white-space: nowrap;
 }
 .cal-cell-min {
   font-size: 10px;
@@ -282,7 +300,7 @@ a.report-tile-link .muted {
 .wrapped-page-shell {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: 110;
   display: flex;
   flex-direction: column;
   background: #12201b;
@@ -290,6 +308,10 @@ a.report-tile-link .muted {
   overflow: hidden;
   padding: 0;
   max-width: none;
+  width: 100%;
+  width: 100vw;
+  left: 0;
+  right: 0;
 }
 .wrapped-page-head {
   position: absolute;
@@ -604,8 +626,22 @@ a.report-tile-link .muted {
   }
 }
 body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-shell)) .tabbar,
-body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-shell)) .tabbar-compact-nav {
+body:has(.wrapped-page-shell):not(:has(.tab-keep-route-suppressed .wrapped-page-shell)) .tabbar-compact-nav,
+html.wrapped-open .tabbar,
+html.wrapped-open .tabbar-compact-nav {
   display: none !important;
+  pointer-events: none !important;
+}
+html.wrapped-open,
+html.wrapped-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+html.wrapped-open .app-body {
+  padding: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+  overflow: hidden !important;
 }
 /* restored: verse-rank from reader */
 .verse-rank-title {

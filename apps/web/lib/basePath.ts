@@ -23,3 +23,17 @@ export function clientWithBasePath(path: string): string {
   if (!base) return path;
   return `${base}${path}`;
 }
+
+/**
+ * 可展示资源 URL：浏览器/壳均用绝对地址，避免 WebView 相对路径/Service Worker 解析异常导致图片空白。
+ */
+export function clientAssetUrl(path: string): string {
+  const rel = clientWithBasePath(path);
+  if (typeof window === 'undefined') return rel;
+  if (/^https?:\/\//i.test(rel) || rel.startsWith('data:') || rel.startsWith('blob:')) return rel;
+  try {
+    return new URL(rel, window.location.origin).href;
+  } catch {
+    return rel;
+  }
+}

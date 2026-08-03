@@ -73,6 +73,9 @@ export function dismissPortaledOverlays(): void {
     '.sheet-backdrop',
     '.reader-sheet-backdrop',
     '.im-msg-popover-backdrop',
+    '.version-pop-backdrop',
+    '.reader-loc-backdrop',
+    '.reader-ai-backdrop',
     '[data-dismiss-on-tab-nav]',
   ];
   try {

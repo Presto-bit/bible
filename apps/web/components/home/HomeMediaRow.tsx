@@ -127,8 +127,17 @@ export function HomeMediaRow({
             className="home-media-thumb-img"
             width={64}
             height={64}
-            loading="lazy"
+            loading={metric ? 'eager' : 'lazy'}
             decoding="async"
+            onLoad={(e) => {
+              // 部分 WebView object-fit 失效时用父级 background 作双保险
+              const thumb = e.currentTarget.parentElement;
+              if (thumb instanceof HTMLElement) {
+                thumb.style.backgroundImage = `url("${e.currentTarget.currentSrc || imageUrl!}")`;
+                thumb.style.backgroundSize = 'cover';
+                thumb.style.backgroundPosition = 'center';
+              }
+            }}
             onError={() => setImgFailed(true)}
           />
         ) : null}

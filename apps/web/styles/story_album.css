@@ -129,12 +129,22 @@ html.story-album-lock body {
 html.story-album-lock .app-body {
   padding-top: 0 !important;
   padding-bottom: 0 !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
   height: 100dvh !important;
   max-height: 100dvh !important;
+  max-width: none !important;
+  width: 100% !important;
   overflow: hidden !important;
 }
-html.story-album-lock .tabbar {
+html.story-album-lock .tabbar,
+html.story-album-lock .tabbar-compact-nav {
   display: none !important;
+  pointer-events: none !important;
+}
+.story-album-player {
+  width: 100%;
+  max-width: none;
 }
 .story-album-player-bar {
   display: flex;

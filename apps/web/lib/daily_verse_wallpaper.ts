@@ -1,6 +1,6 @@
 /** 每日经文壁纸：本地风景图按 day 轮换（public/daily-wallpapers；SW 不预拉，首次使用再 runtime cache）。 */
 
-import { clientWithBasePath, withBasePath } from './basePath';
+import { clientAssetUrl, clientWithBasePath, withBasePath } from './basePath';
 
 /** 与 public/daily-wallpapers/ 文件名一致（源自 Unsplash，已打包离线使用） */
 export const DAILY_WALLPAPER_FILES = [
@@ -49,7 +49,7 @@ export function dailyVerseWallpaperUrl(
   day?: number,
   _variant: DailyVerseWallpaperVariant = 'card',
 ): string {
-  return clientWithBasePath(`/daily-wallpapers/${wallpaperFile(day)}`);
+  return clientAssetUrl(`/daily-wallpapers/${wallpaperFile(day)}`);
 }
 
 /** SSR / OG 用相对站点路径（含 basePath） */
@@ -74,7 +74,7 @@ export function systemCoverOptions(): SystemCoverOption[] {
       id: file.replace(/\.jpg$/i, ''),
       file,
       path,
-      url: clientWithBasePath(path),
+      url: clientAssetUrl(path),
     };
   });
 }
@@ -86,12 +86,12 @@ export function resolveCampaignCoverUrl(coverUrl?: string | null): string | null
   if (/^https?:\/\//i.test(raw) || raw.startsWith('data:')) return raw;
   const path = raw.startsWith('/') ? raw : `/${raw}`;
   if (path.includes('/daily-wallpapers/') || path.startsWith('/rail-scenes/')) {
-    return clientWithBasePath(path);
+    return clientAssetUrl(path);
   }
   if (/^scenery-\d+\.jpg$/i.test(raw)) {
-    return clientWithBasePath(`/daily-wallpapers/${raw}`);
+    return clientAssetUrl(`/daily-wallpapers/${raw}`);
   }
-  return clientWithBasePath(path);
+  return clientAssetUrl(path);
 }
 
 /** 规范化写入：尽量存 /daily-wallpapers/xxx.jpg */

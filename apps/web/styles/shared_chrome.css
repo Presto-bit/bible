@@ -91,8 +91,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+  gap: 12px;
   margin-top: 10px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .year-switch button {
@@ -101,6 +104,7 @@
   border-radius: 8px;
   width: 32px;
   height: 30px;
+  flex: 0 0 32px;
   font-size: 16px;
   cursor: pointer;
 }
@@ -110,7 +114,14 @@
 }
 
 .year-switch span {
+  flex: 1 1 auto;
+  min-width: 0;
   font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .logout-btn {

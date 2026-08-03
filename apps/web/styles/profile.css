@@ -388,8 +388,8 @@
   height: 74px;
   border-radius: 50%;
   display: flex;
-  flex-direction: column;
-  align-items: center;
+  flex-direction: row;
+  align-items: baseline;
   justify-content: center;
   gap: 0;
   background:
@@ -402,17 +402,29 @@
   line-height: 1;
 }
 
+.profile-page .profile-companion-ring-pct {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1px;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
 .profile-page .profile-companion-ring-num {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 750;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
 .profile-page .profile-companion-ring-unit {
   font-size: 11px;
   font-weight: 600;
   color: var(--ink-soft, #666);
-  margin-top: 1px;
+  margin-top: 0;
+  line-height: 1;
 }
 
 .profile-page .profile-milestone-strip {

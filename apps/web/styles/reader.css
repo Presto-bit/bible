@@ -658,7 +658,8 @@ a.license-row-name:hover {
 }
 .reader-page {
   --reader-sel-bg: rgba(51, 144, 255, 0.28);
-  --reader-scroll-bottom: calc(var(--tabbar-h) + 4px);
+  /* 与浮动 Tab 一次对齐：勿用已含 safe 的 tabbar-h 再叠一层，底白会过厚 */
+  --reader-scroll-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + 12px);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -852,7 +853,7 @@ body.reader-active .reader-page {
   flex: 0 0 33.3333%;
   width: 33.3333%;
   box-sizing: border-box;
-  padding: 0 2px 12px;
+  padding: 0 2px 0;
 }
 .reader-turn-panel-active {
   overflow: hidden;
@@ -904,7 +905,7 @@ body.reader-active .reader-page {
   min-height: 0;
   max-height: none;
   overflow: hidden;
-  padding: 0 2px 12px;
+  padding: 0 2px 0;
   scrollbar-width: none;
   -ms-overflow-style: none;
   -webkit-touch-callout: none;

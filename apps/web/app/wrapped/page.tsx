@@ -40,6 +40,15 @@ function WrappedInner() {
     };
   }, [base]);
 
+  useEffect(() => {
+    document.documentElement.classList.add('wrapped-open');
+    document.body.classList.add('wrapped-open');
+    return () => {
+      document.documentElement.classList.remove('wrapped-open');
+      document.body.classList.remove('wrapped-open');
+    };
+  }, []);
+
   const share = async () => {
     setHint(null);
     setSharing(true);
