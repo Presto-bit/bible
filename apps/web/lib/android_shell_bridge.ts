@@ -32,16 +32,7 @@ function getShell(): PeiaiShellBridge | null {
   return w.PeiaiShell ?? null;
 }
 
-const THEME_BG: Record<string, string> = {
-  classic: '#ffffff',
-  dawn: '#fff8f3',
-  sepia: '#f5f0e1',
-  dark: '#12181c',
-  night: '#12181c',
-  morning: '#fff8f3',
-};
-
-/** 深色 UI（全站 dark / 阅读夜色） */
+/** 深色 UI（全站 dark / 阅读夜色）— 控制状态栏图标深浅，对齐 iOS 内容下沉 */
 function isShellNightUi(): boolean {
   if (typeof document === 'undefined') return false;
   const root = document.documentElement;
@@ -75,15 +66,10 @@ function isShellNightUi(): boolean {
   return false;
 }
 
-function resolveStatusBarColor(): string {
-  const root = document.documentElement;
-  const appTheme = root.dataset.appTheme || '';
-  if (appTheme && THEME_BG[appTheme]) return THEME_BG[appTheme];
-  const meta = document.querySelector('meta[name="theme-color"]')?.getAttribute('content');
-  if (meta && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(meta.trim())) return meta.trim();
-  return isShellNightUi() ? '#12181c' : '#FFFCFA';
-}
-
+/**
+ * 与 iOS PWA black-translucent 一致：系统栏透明，页面自画背景；
+ * 仅同步浅/深图标，避免再刷成实色与 H5 顶区色差。
+ */
 function applyShellChrome() {
   const shell = getShell();
   if (!shell) return;
@@ -93,8 +79,9 @@ function applyShellChrome() {
   } catch {
     /* bridge 可能尚未就绪 */
   }
+  // 复位为透明（edge-to-edge）；#AARRGGBB 全透明
   try {
-    shell.setStatusBarColor?.(resolveStatusBarColor());
+    shell.setStatusBarColor?.('#00000000');
   } catch {
     /* optional */
   }
@@ -259,10 +246,19 @@ export function initAndroidShellBridge(): () => void {
   if (typeof window === 'undefined') return () => {};
   if (!isPeiaiAndroidShell()) return () => {};
 
+  let raf = 0;
+  const scheduleChrome = () => {
+    if (raf) return;
+    raf = window.requestAnimationFrame(() => {
+      raf = 0;
+      applyShellChrome();
+    });
+  };
+
   applyShellChrome();
   void syncAndroidShellAlarms();
 
-  const obs = new MutationObserver(() => applyShellChrome());
+  const obs = new MutationObserver(() => scheduleChrome());
   obs.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['class', 'data-theme', 'data-color-scheme', 'data-app-theme'],
@@ -272,11 +268,16 @@ export function initAndroidShellBridge(): () => void {
     obs.observe(document.body, {
       attributes: true,
       attributeFilter: ['class'],
-      subtree: true,
+      // 读经页 class 在子树；浅层观测即可覆盖 reader-* 
+      subtree: false,
     });
   }
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) {
+    obs.observe(themeMeta, { attributes: true, attributeFilter: ['content'] });
+  }
 
-  const onTheme = () => applyShellChrome();
+  const onTheme = () => scheduleChrome();
   window.addEventListener('app-theme-change', onTheme);
   window.addEventListener('presto-theme-change', onTheme);
   window.addEventListener('focus', onTheme);
@@ -290,6 +291,7 @@ export function initAndroidShellBridge(): () => void {
   return () => {
     window.clearTimeout(t);
     window.clearTimeout(t2);
+    if (raf) window.cancelAnimationFrame(raf);
     obs.disconnect();
     window.removeEventListener('app-theme-change', onTheme);
     window.removeEventListener('presto-theme-change', onTheme);

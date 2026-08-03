@@ -10,6 +10,7 @@ import {
 /**
  * 跟手翻页：Pointer 为主，Touch 为兜底（小米等 WebView 上 pointer 捕获不可靠）。
  * 提交：大位移 OR 够快；「上一页」(右滑) 阈值更低——易被系统返回手势抢。
+ * 安卓壳与 iOS PWA 共用同一套阈值（纵横向靠 CSS touch-action 分担）。
  */
 const THRESHOLD_NEXT = 0.16;
 const THRESHOLD_PREV = 0.11;
@@ -20,18 +21,10 @@ const FORCE_RATIO_NEXT = 0.28;
 const FORCE_RATIO_PREV = 0.2;
 const AXIS_RATIO = 1.25;
 const AXIS_MIN_PX = 12;
-/** 安卓壳：更快认横轴，避免 pan-y 竞争后永远认不成 X */
-const SHELL_AXIS_RATIO = 1.08;
-const SHELL_AXIS_MIN_PX = 6;
 const EDGE_RESIST = 0.28;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
-
-function isAndroidShell(): boolean {
-  return typeof navigator !== 'undefined'
-    && /PeiaiAndroidShell\//i.test(navigator.userAgent);
-}
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
@@ -142,18 +135,11 @@ export function useReaderPageTurn({
 
     const w = viewportRef.current?.clientWidth ?? window.innerWidth;
     const ratio = Math.abs(finalOffset) / w;
-    const shell = isAndroidShell();
     const goingPrev = finalOffset > 0;
-    // 右滑上一页：阈值更低（系统边缘返回易吞手势）；壳内再略松
-    const threshold = goingPrev
-      ? (shell ? 0.09 : THRESHOLD_PREV)
-      : (shell ? 0.13 : THRESHOLD_NEXT);
-    const forceRatio = goingPrev
-      ? (shell ? 0.16 : FORCE_RATIO_PREV)
-      : (shell ? 0.24 : FORCE_RATIO_NEXT);
-    const velMin = goingPrev
-      ? (shell ? 0.08 : VELOCITY_MIN_PREV)
-      : (shell ? 0.12 : VELOCITY_MIN);
+    // 右滑上一页：阈值更低（系统边缘返回易吞手势）
+    const threshold = goingPrev ? THRESHOLD_PREV : THRESHOLD_NEXT;
+    const forceRatio = goingPrev ? FORCE_RATIO_PREV : FORCE_RATIO_NEXT;
+    const velMin = goingPrev ? VELOCITY_MIN_PREV : VELOCITY_MIN;
     const commit =
       ratio >= forceRatio
       || ratio >= threshold
@@ -241,15 +227,13 @@ export function useReaderPageTurn({
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
-        const minPx = isAndroidShell() ? SHELL_AXIS_MIN_PX : AXIS_MIN_PX;
-        const ratio = isAndroidShell() ? SHELL_AXIS_RATIO : AXIS_RATIO;
-        if (adx < minPx && ady < minPx) return;
-        if (adx >= minPx && adx > ady * ratio) {
+        if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
+        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
           drag.current.axis = 'x';
           setTurning(true);
-        } else if (ady >= minPx && ady >= adx * ratio) {
+        } else if (ady >= AXIS_MIN_PX && ady >= adx * AXIS_RATIO) {
           drag.current.axis = 'y';
-        } else if (adx >= minPx * 1.2 && adx > ady) {
+        } else if (adx >= AXIS_MIN_PX * 1.2 && adx > ady) {
           // 横略大于竖也认 X（右滑上一页更容易抢走竖滚）
           drag.current.axis = 'x';
           setTurning(true);

@@ -23,6 +23,7 @@
   /*
    * 安全区 token：env() 与安卓壳注入的 --shell-inset-* 取更大值，
    * 避免 WebView 不报 safe-area / 仅原生有 inset 时顶底穿帮或双重留白。
+   * 安卓壳 document-start 必挂 pwa-standalone；底栏 chrome 不再另走 android-shell 分叉。
    */
   --shell-inset-top: 0px;
   --shell-inset-right: 0px;
@@ -33,7 +34,7 @@
   --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--shell-inset-bottom));
   --safe-left: max(env(safe-area-inset-left, 0px), var(--shell-inset-left));
 
-  /* 底部 Tab：内容区高度 + 安全区（PWA 主屏幕与 app-body 留白共用） */
+  /* 底部 Tab：iOS 主屏幕 PWA 与安卓壳共用同一公式（无 shell 专属 +8 保底） */
   --tabbar-inner: 58px;
   --tabbar-float-gap: 12px;
   --tabbar-safe: var(--safe-bottom);
@@ -75,8 +76,8 @@ html,
 body {
   background: var(--paper);
   color: var(--ink);
-  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui,
-    sans-serif;
+  /* P2：自托管 Noto（--font-peiai-sans）优先，两端字形一致 */
+  font-family: var(--font-ui);
   font-size: var(--app-font-size);
   -webkit-font-smoothing: antialiased;
   line-height: var(--app-line-height);
@@ -198,17 +199,8 @@ a {
   user-select: none;
 }
 
+/* 主屏幕 PWA / 安卓壳（均挂 pwa-standalone）共用顶栏最小顶距 */
 body.pwa-standalone .app-body {
-  padding-top: max(var(--safe-top), 4px);
-}
-
-html.android-shell {
-  --tabbar-safe: max(var(--safe-bottom), 8px);
-}
-
-/* 壳与主屏幕 PWA 共用顶栏最小顶距 */
-html.android-shell body.pwa-standalone .app-body,
-html.android-shell .app-body {
   padding-top: max(var(--safe-top), 4px);
 }
 
@@ -251,50 +243,37 @@ html.android-shell .app-body {
   }
 }
 
+/* 壳 document-start 会挂 pwa-standalone；与 iOS 主屏幕同一套 chrome */
 html.pwa-standalone,
-html.android-shell,
-html.pwa-standalone body,
-html.android-shell body {
+html.pwa-standalone body {
   background: var(--pwa-bg, #fffcfa);
   -webkit-touch-callout: none;
 }
 
-html.pwa-standalone .app-body,
-html.android-shell .app-body {
+html.pwa-standalone .app-body {
   -webkit-touch-callout: none;
 }
 
 html.pwa-standalone .app-body a,
-html.pwa-standalone .app-body button,
-html.android-shell .app-body a,
-html.android-shell .app-body button {
+html.pwa-standalone .app-body button {
   -webkit-touch-callout: none;
-}
-
-/* 安卓壳底 inset 与真 PWA 一致：真 0 时保底 8 已够；不再额外放大 tabbar */
-html.android-shell.pwa-standalone {
-  /* 标记位：行为由 document-start 与原生 inset 驱动 */
 }
 
 /* display-mode 在 WebView 常为 false；靠 class + matchMedia 伪装，保留 media 与 class 双路径 */
 @media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
   html.pwa-standalone a[href],
-  html.pwa-standalone a[href] *,
-  html.android-shell a[href],
-  html.android-shell a[href] * {
+  html.pwa-standalone a[href] * {
     -webkit-touch-callout: none !important;
   }
 
-  html.pwa-standalone a[href],
-  html.android-shell a[href] {
+  html.pwa-standalone a[href] {
     -webkit-user-drag: none !important;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
   }
 }
 
-html.pwa-standalone a[href],
-html.android-shell a[href] {
+html.pwa-standalone a[href] {
   -webkit-touch-callout: none !important;
   -webkit-user-drag: none !important;
   -webkit-tap-highlight-color: transparent;
@@ -366,27 +345,16 @@ html.android-shell a[href] {
   to { opacity: 1; }
 }
 
-/* 安卓壳 / 主屏幕：去掉点击后的系统焦点方框（WebView focus ring） */
-html.android-shell,
+/* 主屏幕 / 安卓壳：去掉点击后的系统焦点方框 */
 html.pwa-standalone {
   -webkit-tap-highlight-color: transparent;
 }
 
-html.android-shell *:focus,
-html.android-shell *:focus-visible,
 html.pwa-standalone *:focus,
 html.pwa-standalone *:focus-visible {
   outline: none !important;
 }
 
-html.android-shell button,
-html.android-shell a,
-html.android-shell .tab,
-html.android-shell .reader-fab,
-html.android-shell [role='button'],
-html.android-shell input,
-html.android-shell textarea,
-html.android-shell select,
 html.pwa-standalone button,
 html.pwa-standalone a,
 html.pwa-standalone .tab,
@@ -397,9 +365,6 @@ html.pwa-standalone [role='button'] {
 }
 
 /* 表单仍可有轻态聚焦，避免完全无感；仅描边极淡 */
-html.android-shell input:focus,
-html.android-shell textarea:focus,
-html.android-shell select:focus,
 html.pwa-standalone input:focus,
 html.pwa-standalone textarea:focus,
 html.pwa-standalone select:focus {
@@ -478,13 +443,6 @@ nav.tabbar,
   user-select: none;
   isolation: isolate;
   overflow: visible;
-}
-
-html.android-shell nav.tabbar,
-html.android-shell .tabbar {
-  /* 壳内优先稳妥底，避免半透+scroll 重绘闪烁；实色兜底增强选中对比 */
-  background: rgba(255, 255, 255, 0.96);
-  background: color-mix(in srgb, var(--surface, #fff) 96%, transparent);
 }
 
 .tab-offline-hint {
@@ -590,30 +548,6 @@ html.android-shell .tabbar {
 .tab-active > span:not(.tab-icon-wrap) {
   font-weight: 600;
   color: var(--ink);
-}
-
-/* 安卓壳：选中态与 PWA 一致（深色文字+图标；实心底防止半透漂白） */
-html.android-shell nav.tabbar,
-html.android-shell .tabbar {
-  background: rgba(255, 255, 255, 0.96);
-  background: color-mix(in srgb, var(--surface, #fff) 96%, transparent);
-}
-
-html.android-shell .tab {
-  color: var(--ink-faint, #8e8e93);
-}
-
-html.android-shell .tab-active {
-  color: var(--ink, #1c1c1e);
-}
-
-html.android-shell .tab-active svg {
-  color: var(--ink, #1c1c1e);
-}
-
-html.android-shell .tab-active > span:not(.tab-icon-wrap) {
-  font-weight: 700;
-  color: var(--ink, #1c1c1e);
 }
 
 .page-title {
@@ -2466,8 +2400,7 @@ html:not([data-app-theme]) .card {
   width: 100%;
 }
 
-html.pwa-standalone .home-page .home-growth-stack,
-html.android-shell .home-page .home-growth-stack {
+html.pwa-standalone .home-page .home-growth-stack {
   margin-bottom: 8px;
 }
 
@@ -2876,9 +2809,7 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 html.pwa-standalone .discover-page.is-ptr-pulling,
-html.pwa-standalone .discover-page.is-ptr-refreshing,
-html.android-shell .discover-page.is-ptr-pulling,
-html.android-shell .discover-page.is-ptr-refreshing {
+html.pwa-standalone .discover-page.is-ptr-refreshing {
   overscroll-behavior-y: none;
 }
 
@@ -2890,15 +2821,11 @@ html.android-shell .discover-page.is-ptr-refreshing {
 }
 
 html.pwa-standalone .home-page.is-ptr-pulling,
-html.pwa-standalone .home-page.is-ptr-refreshing,
-html.android-shell .home-page.is-ptr-pulling,
-html.android-shell .home-page.is-ptr-refreshing {
+html.pwa-standalone .home-page.is-ptr-refreshing {
   overscroll-behavior-y: contain;
 }
 
-/* 壳与 PWA：下拉过程禁止页面本身橡皮筋，优先自定义 PTR */
-html.android-shell .home-page,
-html.android-shell .discover-page,
+/* 主屏幕 / 壳：下拉过程禁止页面本身橡皮筋，优先自定义 PTR */
 html.pwa-standalone .home-page,
 html.pwa-standalone .discover-page {
   overscroll-behavior-y: contain;
@@ -3387,18 +3314,6 @@ button.hero-b-campaign {
   min-height: 100%;
 }
 
-/* 壳内：场景图显式铺满，避免父层百分比高度为 0 */
-html.android-shell .hero-scene.hero-scene-has-art {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  opacity: 1;
-}
-html.android-shell .hero-scene-img {
-  opacity: 1;
-  visibility: visible;
-}
-
 .hero-verse .hero-scene[style*='background-image'],
 .hero-scene.hero-scene-has-art {
   background-size: cover;
@@ -3406,6 +3321,13 @@ html.android-shell .hero-scene-img {
   background-repeat: no-repeat;
   background-blend-mode: normal;
   opacity: 1;
+  visibility: visible;
+  z-index: 0;
+}
+
+.hero-scene.hero-scene-has-art .hero-scene-img {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* 风景图上压一层暗渐变，保证白字可读 */
@@ -3581,8 +3503,7 @@ html.android-shell .hero-scene-img {
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--ink);
-  font-family: "Noto Serif SC", "Songti SC", "Source Han Serif SC", Georgia,
-    "Times New Roman", serif;
+  font-family: var(--font-reader);
 }
 
 .hero-actions {
@@ -4091,86 +4012,47 @@ button.rail-card {
 /* styles/plans.css → extracted */
 /* styles/discover_list.css + group_chat.css → extracted */
 
-body.pwa-standalone .tabbar,
-body.android-shell .tabbar {
+body.pwa-standalone .tabbar {
   z-index: 95;
   padding-bottom: 8px;
 }
 
-body.pwa-standalone .tab,
-body.android-shell .tab {
+body.pwa-standalone .tab {
   padding-bottom: 6px;
 }
 
-/* 首页 PWA：底栏前多一点呼吸；触控高亮关掉（顶安全区已由 .app-body 承担） */
-html.pwa-standalone .home-page,
-html.android-shell .home-page {
+/* 首页：底栏前多一点呼吸（顶安全区已由 .app-body 承担） */
+html.pwa-standalone .home-page {
   padding-bottom: 12px;
 }
 
-/* ─── 安卓壳 / 主屏幕：成长区字号稍放大，间距与网页基线一致（不另拉开图标-文案） ─── */
-html.android-shell .home-page .home-growth-stack,
-html.pwa-standalone .home-page .home-growth-stack {
-  gap: 10px;
-}
-html.android-shell .home-page .home-media-row,
-html.pwa-standalone .home-page .home-media-row {
-  min-height: 82px;
-  padding: 11px 14px 11px 11px;
-  gap: 14px;
-}
-html.android-shell .home-page .home-media-body,
-html.pwa-standalone .home-page .home-media-body {
-  padding-left: 0;
-}
-html.android-shell .home-page .home-media-title,
+/* 主屏幕：成长区标题细调（壳与 iOS 同一选择器，不再单独加高/加粗） */
 html.pwa-standalone .home-page .home-media-title {
   font-size: 15px;
   line-height: 1.35;
   letter-spacing: 0.01em;
 }
-html.android-shell .home-page .home-media-detail,
 html.pwa-standalone .home-page .home-media-detail {
   font-size: 12px;
   line-height: 1.4;
   margin-top: 0;
 }
-html.android-shell .home-page .section-label {
-  margin-top: 22px;
-  margin-bottom: 2px;
-}
 
-/* 壳内首页今日主卡固定最小高度，避免封面层塌缩 */
-html.android-shell .home-today-primary {
-  min-height: 176px;
-}
-html.android-shell .home-today-primary-bg {
-  z-index: 0;
-}
-html.android-shell .home-today-primary-main {
-  z-index: 1;
-}
-
-/* 读经 FAB：跟安全区，少写死像素（壳/PWA 共用） */
-html.android-shell .reader-fab-stack,
+/* 读经 FAB：跟安全区，少写死像素 */
+/* tabbar-h 已含 safe-bottom，勿再叠 safe 以免 iOS/壳双算抬高 FAB */
 html.pwa-standalone .reader-fab-stack {
-  bottom: calc(var(--tabbar-h) + max(8px, var(--safe-bottom))) !important;
+  bottom: calc(var(--tabbar-h) + 8px) !important;
 }
 
 html.pwa-standalone .home-page .home-list-row,
 html.pwa-standalone .home-page .home-growth-memory,
 html.pwa-standalone .home-page .home-reading-summary,
-html.pwa-standalone .home-page .home-media-row,
-html.android-shell .home-page .home-list-row,
-html.android-shell .home-page .home-growth-memory,
-html.android-shell .home-page .home-reading-summary,
-html.android-shell .home-page .home-media-row {
+html.pwa-standalone .home-page .home-media-row {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-body.pwa-standalone .card,
-body.android-shell .card {
+body.pwa-standalone .card {
   box-shadow: var(--elev-1);
 }
 

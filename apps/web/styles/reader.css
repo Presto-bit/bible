@@ -421,7 +421,8 @@ body.reader-active .proper-noun--artifact {
 .reader-fab-stack {
   position: fixed;
   right: 16px;
-  bottom: calc(var(--tabbar-h) + max(8px, var(--safe-bottom)));
+  /* tabbar-h 已含 safe-bottom，只再垫 8px 呼吸 */
+  bottom: calc(var(--tabbar-h) + 8px);
   z-index: 80;
   display: flex;
   flex-direction: column;
@@ -667,7 +668,7 @@ a.license-row-name:hover {
   height: 100dvh;
   min-height: 100dvh;
   padding-bottom: 0;
-  font-family: Georgia, 'Songti SC', 'STSong', serif;
+  font-family: var(--font-reader);
   font-size: var(--reader-font-size);
   line-height: 1.7;
   transition: background 0.35s ease, color 0.35s ease;
@@ -676,7 +677,6 @@ a.license-row-name:hover {
   box-sizing: border-box;
 }
 /* 仅约束阅读页自身；勿锁 html/body height，否则 KeepAlive 挂着阅读器时首页滚不动 */
-html.android-shell .reader-page,
 html.pwa-standalone .reader-page {
   height: 100%;
   height: 100dvh;
@@ -684,7 +684,6 @@ html.pwa-standalone .reader-page {
   min-height: -webkit-fill-available;
   min-height: 100dvh;
 }
-html.android-shell .app-body,
 html.pwa-standalone .app-body {
   min-height: 100%;
   min-height: 100dvh;
@@ -838,12 +837,6 @@ body.reader-active .reader-page {
 .reader-turn-viewport.is-turning {
   touch-action: none;
 }
-html.android-shell .reader-turn-viewport {
-  touch-action: pan-x pan-y;
-}
-html.android-shell .reader-turn-viewport.is-turning {
-  touch-action: none;
-}
 .reader-turn-viewport.is-turning .reader-turn-panel-active .reader-turn-peek {
   overflow-y: hidden;
   touch-action: none;
@@ -943,14 +936,6 @@ html.android-shell .reader-turn-viewport.is-turning {
   user-select: text;
 }
 .verse-token {
-  -webkit-user-select: text;
-  user-select: text;
-  -webkit-touch-callout: none;
-}
-html.android-shell .reader-page .verse-token,
-html.android-shell .reader-page .verse-inline,
-html.android-shell .reader-page .verse-text-body,
-html.android-shell .reader-page .verse-text-body * {
   -webkit-user-select: text;
   user-select: text;
   -webkit-touch-callout: none;
@@ -1389,7 +1374,7 @@ html.android-shell .reader-page .verse-text-body * {
   font-size: 15px;
   line-height: 1.65;
   color: var(--ink);
-  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+  font-family: var(--font-reader);
 }
 .verse-compare-text-secondary {
   color: var(--ink-soft);
@@ -1535,7 +1520,7 @@ html.android-shell .reader-page .verse-text-body * {
   margin: 0;
   font-size: 16px;
   line-height: 1.55;
-  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+  font-family: var(--font-reader);
   display: -webkit-box;
   -webkit-line-clamp: 8;
   -webkit-box-orient: vertical;

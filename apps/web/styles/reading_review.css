@@ -419,7 +419,7 @@ a.report-tile-link .muted {
 }
 .wrapped-slide-title {
   margin: 0;
-  font-family: "Noto Serif SC", "Songti SC", "Source Han Serif SC", Georgia, serif;
+  font-family: var(--font-reader);
   font-size: clamp(28px, 7.2vw, 40px);
   line-height: 1.25;
   font-weight: 700;
@@ -459,7 +459,7 @@ a.report-tile-link .muted {
 }
 .wrapped-quote-text {
   margin: 0;
-  font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+  font-family: var(--font-reader);
   font-size: 15px;
   line-height: 1.5;
   color: #f7faf8;

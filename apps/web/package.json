@@ -10,7 +10,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "generate-pwa": "node scripts/generate_pwa_assets.mjs"
+    "generate-pwa": "node scripts/generate_pwa_assets.mjs",
+    "test:chrome-parity": "node scripts/chrome_parity_check.mjs",
+    "test:chrome-screens": "node scripts/chrome_parity_screens.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.3",

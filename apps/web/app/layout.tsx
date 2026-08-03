@@ -24,6 +24,7 @@ import {
   PWA_MANIFEST_DESCRIPTION,
   PWA_SHELL_BG_COLOR,
 } from '@/lib/pwa_brand';
+import { peiaiFontClassNames } from '@/lib/fonts';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://2sc.prestoai.cn'),
@@ -83,7 +84,11 @@ export default function RootLayout({
   const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 
   return (
-    <html lang="zh-CN" style={{ backgroundColor: PWA_SHELL_BG_COLOR }}>
+    <html
+      lang="zh-CN"
+      className={peiaiFontClassNames}
+      style={{ backgroundColor: PWA_SHELL_BG_COLOR }}
+    >
       <head>
         <meta name="app-version" content={appVersion} />
         {IOS_STARTUP_IMAGES.map(({ file, media }) => (

@@ -534,7 +534,7 @@ a.feed-verse-mid:active {
   font-size: 15px;
   line-height: 1.45;
   color: var(--ink);
-  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  font-family: var(--font-reader);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -975,7 +975,7 @@ a.feed-verse-hero:active {
   font-size: 17px;
   line-height: 1.72;
   color: var(--ink);
-  font-family: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+  font-family: var(--font-reader);
   display: -webkit-box;
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;

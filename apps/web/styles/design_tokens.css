@@ -6,6 +6,16 @@
   --pwa-bg: #fffcfa;
   --pwa-ink: #4f6b5d;
   --pwa-ink-soft: #7d9b8a;
+
+  /*
+   * 字体（P2 字形级接近）：--font-peiai-* 由 next/font 注入；
+   * 未加载时回退系统栈。iOS / 安卓壳共用同一 token。
+   */
+  --font-ui: var(--font-peiai-sans), -apple-system, "PingFang SC", "Hiragino Sans GB",
+    "Noto Sans SC", "Noto Sans CJK SC", "Source Han Sans SC", "Microsoft YaHei",
+    system-ui, sans-serif;
+  --font-reader: var(--font-peiai-serif), "Songti SC", "STSong", "Noto Serif SC",
+    "Source Han Serif SC", Georgia, "Times New Roman", serif;
 }
 
 /* 默认：典雅白（微信读书风） */

@@ -198,7 +198,11 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   const inScriptureReading = Boolean(book && !catalogOpen);
 
   useEffect(() => {
-    if (!inScriptureReading) clearReaderChrome();
+    if (!inScriptureReading) {
+      clearReaderChrome();
+      // 离开章节时同步恢复 theme-color（目录/选书与 iOS 主屏幕一致）
+      void import('@/lib/app_theme').then((m) => m.applyAppTheme());
+    }
   }, [inScriptureReading]);
 
   useEffect(() => {

@@ -491,8 +491,7 @@
   color: color-mix(in srgb, #c0392b 45%, var(--muted, #6b6b6b));
 }
 
-body.pwa-standalone .settings-group-list,
-body.android-shell .settings-group-list {
+body.pwa-standalone .settings-group-list {
   box-shadow: var(--home-shadow);
 }
 

@@ -996,6 +996,8 @@ export default function ReaderView({
       document.documentElement.style.background = bg;
       const meta = document.querySelector('meta[name="theme-color"]');
       meta?.setAttribute('content', theme === 'night' ? '#12181c' : bg);
+      // 触发安卓壳状态栏图标深浅，与 iOS theme-color 行为对齐
+      window.dispatchEvent(new Event('app-theme-change'));
     };
     // 切进阅读 Tab 时延后改 body；同 Tab 内改主题则立刻应用，避免闪一下。
     if (readerWasActiveRef.current || document.body.classList.contains('reader-active')) {

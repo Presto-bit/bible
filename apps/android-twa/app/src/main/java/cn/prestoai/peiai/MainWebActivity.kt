@@ -421,17 +421,26 @@ class MainWebActivity : AppCompatActivity() {
       }
     }
 
-    /** 可选：H5 传入状态栏背景色（#RRGGBB），深色主题时与页面一致 */
+    /**
+     * 系统栏底色。默认 edge-to-edge 为透明，与 iOS PWA 内容下沉一致；
+     * 支持 #RGB / #RRGGBB / #AARRGGBB（H5 传 #00000000 可复位透明）。
+     */
     @JavascriptInterface
     fun setStatusBarColor(colorHex: String?) {
       if (colorHex.isNullOrBlank()) return
       runOnUiThread {
         try {
-          val c = Color.parseColor(colorHex.trim())
+          val raw = colorHex.trim()
+          val c = Color.parseColor(raw)
           @Suppress("DEPRECATION")
           window.statusBarColor = c
           @Suppress("DEPRECATION")
-          window.navigationBarColor = c
+          // 导航栏保持透明，让浮动 Tab 下透出页面底（对齐 iOS home indicator 区域）
+          if (Color.alpha(c) == 0) {
+            window.navigationBarColor = Color.TRANSPARENT
+          } else {
+            window.navigationBarColor = c
+          }
         } catch (_: Exception) {
           /* ignore bad color */
         }
