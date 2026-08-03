@@ -14,7 +14,7 @@
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true">
 
-        <!-- 主入口：全屏 WebView（不依赖 Chrome TWA，避免地址栏 / 多标签） -->
+        <!-- 唯一用户入口：全屏 WebView（不再用 TWA/Custom Tabs） -->
         <activity
             android:name=".MainWebActivity"
             android:exported="true"
@@ -28,7 +28,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- 深度链接仍可落到壳内 -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -40,56 +39,6 @@
             </intent-filter>
         </activity>
 
-        <!-- 保留旧 TWA 入口供调试；不进桌面图标 -->
-        <activity
-            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
-            android:exported="false"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.PeiaiTwa.Launcher">
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.DEFAULT_URL"
-                android:value="https://2sc.prestoai.cn/" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
-                android:resource="@color/colorPrimary" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR_DARK"
-                android:resource="@color/colorPrimaryDark" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR"
-                android:resource="@color/navigationColor" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR_DARK"
-                android:resource="@color/navigationColorDark" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.SPLASH_IMAGE_DRAWABLE"
-                android:resource="@drawable/splash" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.SPLASH_SCREEN_BACKGROUND_COLOR"
-                android:resource="@color/backgroundColor" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.SPLASH_SCREEN_FADE_OUT_DURATION"
-                android:value="300" />
-
-            <meta-data
-                android:name="android.support.customtabs.trusted.FILE_PROVIDER_AUTHORITY"
-                android:value="@string/providerAuthority" />
-        </activity>
-
-        <activity android:name="com.google.androidbrowserhelper.trusted.FocusActivity" />
-
-        <activity
-            android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
-            android:exported="false" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="@string/providerAuthority"
@@ -99,19 +48,5 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/filepaths" />
         </provider>
-
-        <service
-            android:name="com.google.androidbrowserhelper.trusted.DelegationService"
-            android:enabled="@bool/enableNotification"
-            android:exported="@bool/enableNotification">
-            <intent-filter>
-                <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </service>
-
-        <meta-data
-            android:name="asset_statements"
-            android:resource="@string/asset_statements" />
     </application>
 </manifest>

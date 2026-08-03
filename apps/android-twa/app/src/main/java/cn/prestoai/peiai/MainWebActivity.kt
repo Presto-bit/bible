@@ -20,7 +20,7 @@ import androidx.core.view.WindowCompat
 
 /**
  * 彼爱安卓壳：全屏 WebView，不依赖 Chrome TWA / Custom Tabs。
- * 避免校验失败时出现地址栏与浏览器多标签。
+ * 避免校验失败时出现地址栏与浏览器多标签（小米自带浏览器场景尤其明显）。
  */
 class MainWebActivity : AppCompatActivity() {
 
@@ -47,7 +47,10 @@ class MainWebActivity : AppCompatActivity() {
       settings.setSupportZoom(false)
       settings.builtInZoomControls = false
       settings.displayZoomControls = false
-      // 供站点识别为「独立 App 壳」，抑制安装引导、走 standalone 逻辑
+      // 禁止多窗口抛到系统浏览器（小米 WebView 易把 _blank 或外链做成整页跳转）
+      settings.setSupportMultipleWindows(false)
+      settings.javaScriptCanOpenWindowsAutomatically = false
+      // 供站点识别为「独立 App 壳」
       settings.userAgentString =
         settings.userAgentString + " PeiaiAndroidShell/" + BuildConfig.VERSION_NAME
 
@@ -60,13 +63,13 @@ class MainWebActivity : AppCompatActivity() {
           request: WebResourceRequest?,
         ): Boolean {
           val url = request?.url ?: return false
-          return handleExternalNav(url)
+          return handleNav(view, url)
         }
 
         @Deprecated("Deprecated in Java")
         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
           if (url.isNullOrBlank()) return false
-          return handleExternalNav(Uri.parse(url))
+          return handleNav(view, Uri.parse(url))
         }
 
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
@@ -74,7 +77,9 @@ class MainWebActivity : AppCompatActivity() {
         }
       }
 
-      webChromeClient = WebChromeClient()
+      webChromeClient = object : WebChromeClient() {
+        // 不实现 onCreateWindow → 多窗口不会开系统浏览器
+      }
     }
 
     setContentView(webView)
@@ -102,26 +107,42 @@ class MainWebActivity : AppCompatActivity() {
     }
   }
 
+  override fun onNewIntent(intent: Intent) {
+    super.onNewIntent(intent)
+    setIntent(intent)
+    resolveStartUrl(intent)?.let { url ->
+      if (::webView.isInitialized) webView.loadUrl(url)
+    }
+  }
+
   private fun resolveStartUrl(intent: Intent?): String? {
     val data = intent?.data ?: return null
-    if (data.scheme == "https" && data.host == HOST) {
+    if (isOwnHost(data.host) && (data.scheme == "https" || data.scheme == "http")) {
       return data.toString()
     }
     return null
   }
 
-  /** 本站内：WebView；外链：系统浏览器 / 外部 App */
-  private fun handleExternalNav(uri: Uri): Boolean {
-    val host = uri.host ?: return false
-    val scheme = uri.scheme ?: return false
+  private fun isOwnHost(host: String?): Boolean {
+    if (host.isNullOrBlank()) return false
+    return host.equals(HOST, ignoreCase = true)
+      || host.endsWith(".$HOST", ignoreCase = true)
+  }
+
+  /**
+   * @return true = 已拦截（外开或已在 WebView 加载）；false = 交给 WebView 默认加载
+   */
+  private fun handleNav(view: WebView?, uri: Uri): Boolean {
+    val scheme = (uri.scheme ?: "").lowercase()
     if (scheme == "https" || scheme == "http") {
-      if (host == HOST || host.endsWith(".$HOST")) {
+      if (isOwnHost(uri.host)) {
+        // 站内交给 WebView，绝不抛出系统浏览器
         return false
       }
       openInExternalBrowser(uri)
       return true
     }
-    // tel: / mailto: / intent: 等
+    // tel: / mailto: / market: 等
     return try {
       startActivity(Intent(Intent.ACTION_VIEW, uri))
       true
@@ -132,7 +153,7 @@ class MainWebActivity : AppCompatActivity() {
 
   private fun openInExternalBrowser(uri: Uri) {
     try {
-      startActivity(Intent(Intent.ACTION_VIEW, uri))
+      startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
     } catch (_: ActivityNotFoundException) {
       /* ignore */
     }
@@ -140,22 +161,24 @@ class MainWebActivity : AppCompatActivity() {
 
   override fun onSaveInstanceState(outState: Bundle) {
     super.onSaveInstanceState(outState)
-    webView.saveState(outState)
+    if (::webView.isInitialized) webView.saveState(outState)
   }
 
   override fun onPause() {
-    webView.onPause()
+    if (::webView.isInitialized) webView.onPause()
     super.onPause()
   }
 
   override fun onResume() {
     super.onResume()
-    webView.onResume()
+    if (::webView.isInitialized) webView.onResume()
   }
 
   override fun onDestroy() {
-    (webView.parent as? ViewGroup)?.removeView(webView)
-    webView.destroy()
+    if (::webView.isInitialized) {
+      (webView.parent as? ViewGroup)?.removeView(webView)
+      webView.destroy()
+    }
     super.onDestroy()
   }
 

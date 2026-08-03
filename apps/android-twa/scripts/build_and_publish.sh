@@ -47,8 +47,12 @@ run_gradle :app:assembleRelease --no-daemon
 mkdir -p "$WEB_DL" "$WELL"
 cp -f "$APK_OUT" "$WEB_DL/biai-android.apk"
 
-VERSION_CODE="$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | sed -E 's/.*versionCode\s*=\s*([0-9]+).*/\1/')"
-VERSION_NAME="$(grep -E 'versionName\s*=' app/build.gradle.kts | head -1 | sed -E 's/.*versionName\s*=\s*"([^"]+)".*/\1/')"
+VERSION_CODE="$(awk -F'=' '/versionCode[[:space:]]*=/ { gsub(/[^0-9]/, "", $2); if ($2!="") { print $2; exit } }' app/build.gradle.kts)"
+VERSION_NAME="$(awk -F'"' '/versionName[[:space:]]*=/ { if ($2!="") { print $2; exit } }' app/build.gradle.kts)"
+if [[ -z "$VERSION_CODE" || -z "$VERSION_NAME" ]]; then
+  echo "无法从 app/build.gradle.kts 解析 versionCode/versionName" >&2
+  exit 1
+fi
 BYTES="$(wc -c < "$WEB_DL/biai-android.apk" | tr -d ' ')"
 SHA256="$(shasum -a 256 "$WEB_DL/biai-android.apk" | awk '{print $1}')"
 STORE_PASS="$(grep '^storePassword=' keystore/keystore.properties | cut -d= -f2-)"

@@ -4,7 +4,7 @@
 安装包由站点同域直装，不走应用商店。
 
 > 说明：旧版为 Chrome TWA；国内机常校验失败会降级成 Custom Tabs（有地址栏）。  
-> 自 **1.0.1 / versionCode 2** 起改为原生 WebView 独立壳。
+> 自 **1.0.2 / versionCode 3** 起：纯 WebView 壳（去掉 TWA 依赖），主入口不再打开系统浏览器。
 
 ## 包信息
 

@@ -5,7 +5,7 @@
 ## 资源可达
 
 - [ ] `https://2sc.prestoai.cn/downloads/biai-android.apk` 可下载
-- [ ] `https://2sc.prestoai.cn/downloads/biai-android.json` 版本 ≥ **1.0.1 / versionCode 2**
+- [ ] `https://2sc.prestoai.cn/downloads/biai-android.json` 版本 ≥ **1.0.2 / versionCode 3**
 - [ ] `https://2sc.prestoai.cn/.well-known/assetlinks.json` 返回 JSON（App Links）
 
 ## 系统浏览器
