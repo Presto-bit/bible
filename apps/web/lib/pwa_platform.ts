@@ -27,7 +27,6 @@ export function isInAppBrowser(): boolean {
   return /MicroMessenger|QQ\//i.test(navigator.userAgent);
 }
 
-/** 彼爱安卓安装包 WebView 壳（UA 含 PeiaiAndroidShell） */
 export function isPeiaiAndroidShell(): boolean {
   if (typeof navigator === 'undefined') return false;
   return /PeiaiAndroidShell\//i.test(navigator.userAgent);

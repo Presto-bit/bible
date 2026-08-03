@@ -93,7 +93,6 @@ import {
   isAccountComplete,
 } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
-import { isStandalonePwa } from '@/lib/platform';
 import { markRouteNavigation, navigateAppHref } from '@/lib/pwa_tab_nav';
 import {
   PROFILE_SETTINGS_BACK_LABEL,
@@ -104,6 +103,13 @@ import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { plainThoughtPreview } from '@/lib/thought_display';
 import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
+import {
+  androidPackageDownloadHref,
+  fetchAndroidPackageMeta,
+  resolveAppPackageRow,
+  type AppPackageRow,
+} from '@/lib/app_package_settings';
+import { markAndroidTwaInstallClaimed } from '@/lib/pwa_install_prompt';
 import { shareInviteProduct, inviteShareUrl } from '@/lib/invite_share';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
@@ -472,9 +478,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const avatarFileRef = useRef<HTMLInputElement | null>(null);
   const shortcutPanelRef = useRef<HTMLDivElement | null>(null);
   const [adminEligible, setAdminEligible] = useState(false);
-  const [installedPwa, setInstalledPwa] = useState(
-    () => typeof window !== 'undefined' && isStandalonePwa(),
+  const [packageRow, setPackageRow] = useState<AppPackageRow>(() =>
+    typeof window !== 'undefined'
+      ? resolveAppPackageRow()
+      : { title: '彼爱安装包', hint: '官网安装包', action: 'install_sheet' },
   );
+  const [packageBusy, setPackageBusy] = useState(false);
   const bookNamesRef = useRef(bookNames);
   bookNamesRef.current = bookNames;
 
@@ -522,6 +531,37 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     if (consumeProfileQueryFlag('settings')) setSettingsOpen(true);
     if (consumeProfileQueryFlag('badges')) setBadgeOpen(true);
   }, [enabled, activeTab, pathname]);
+
+  // 设置 → 彼爱安装包：打开时拉官网版本，按端态常驻展示
+  useEffect(() => {
+    if (!settingsOpen) return;
+    let cancelled = false;
+    setPackageRow(resolveAppPackageRow());
+    void fetchAndroidPackageMeta().then((meta) => {
+      if (cancelled) return;
+      setPackageRow(resolveAppPackageRow({ meta }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [settingsOpen]);
+
+  const handleAppPackageClick = () => {
+    if (packageBusy || packageRow.action === 'noop') return;
+    if (packageRow.action === 'download_apk') {
+      setPackageBusy(true);
+      try {
+        markAndroidTwaInstallClaimed();
+        toast('开始下载安装包…装好后请点桌面「彼爱」打开');
+        window.location.href = androidPackageDownloadHref();
+      } finally {
+        setPackageBusy(false);
+      }
+      return;
+    }
+    setSettingsOpen(false);
+    openPwaInstallSheet();
+  };
 
   useEffect(() => {
     if (!profileAwake) return;
@@ -1666,22 +1706,26 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                       </>,
                     )}
                   />
-                  {!installedPwa ? (
-                    <SettingsNavRow
-                      title="安装彼爱"
-                      hint="安卓下载安装包；iOS 加到主屏幕"
-                      onClick={() => {
-                        setSettingsOpen(false);
-                        openPwaInstallSheet();
-                      }}
-                      glyph={settingsGlyph(
+                  <SettingsNavRow
+                    title={packageBusy ? '准备下载…' : packageRow.title}
+                    hint={packageRow.hint}
+                    disabled={packageBusy || packageRow.action === 'noop'}
+                    onClick={handleAppPackageClick}
+                    glyph={settingsGlyph(
+                      packageRow.updateAvailable ? (
+                        <>
+                          <path d="M12 3v12" />
+                          <path d="m7 10 5 5 5-5" />
+                          <path d="M5 19h14" />
+                        </>
+                      ) : (
                         <>
                           <rect x="6" y="3" width="12" height="18" rx="2" />
                           <path d="M12 17h.01" />
-                        </>,
-                      )}
-                    />
-                  ) : null}
+                        </>
+                      ),
+                    )}
+                  />
                   <div className="settings-version-row">
                     <span className="muted">版本 {appVersion}</span>
                     {adminEligible ? (
