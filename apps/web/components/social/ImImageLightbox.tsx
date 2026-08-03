@@ -15,6 +15,7 @@ type Props = {
   onIndexChange?: (index: number) => void;
   onSave?: (image: ImLightboxImage) => void;
   onForward?: (image: ImLightboxImage) => void;
+  onShare?: (image: ImLightboxImage) => void;
 };
 
 const MIN_SCALE = 1;
@@ -30,6 +31,7 @@ export function ImImageLightbox({
   onIndexChange,
   onSave,
   onForward,
+  onShare,
 }: Props) {
   const safeIndex = Math.max(0, Math.min(index, images.length - 1));
   const [scale, setScale] = useState(1);
@@ -265,7 +267,7 @@ export function ImImageLightbox({
             </button>
           </div>
         ) : null}
-        {(onSave || onForward) && !broken ? (
+        {(onSave || onForward || onShare) && !broken ? (
           <div className="im-lightbox-actions">
             {onSave ? (
               <button
@@ -274,6 +276,15 @@ export function ImImageLightbox({
                 onClick={() => onSave(current)}
               >
                 保存
+              </button>
+            ) : null}
+            {onShare ? (
+              <button
+                type="button"
+                className="im-lightbox-action"
+                onClick={() => onShare(current)}
+              >
+                分享
               </button>
             ) : null}
             {onForward ? (

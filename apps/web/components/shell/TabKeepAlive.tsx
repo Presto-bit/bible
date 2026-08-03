@@ -4,7 +4,13 @@ import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { isTabKeepAliveEnabled } from '@/lib/platform';
-import { keepAliveTabId, normalizeAppPath, type KeepAliveTabId } from '@/lib/tab_keep_alive';
+import {
+  DISCOVER_SECONDARY_PREFIXES,
+  keepAliveTabId,
+  normalizeAppPath,
+  type KeepAliveTabId,
+} from '@/lib/tab_keep_alive';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import {
   getPwaTabPathname,
   markRouteNavigation,
@@ -82,8 +88,9 @@ const TAB_COMPONENTS: Record<KeepAliveTabId, React.ComponentType<{ paneActive?: 
 };
 
 const ALL_TABS: KeepAliveTabId[] = ['home', 'reader', 'assistant', 'discover', 'profile'];
-/** 同时保活上限：home + reader + 当前（或再加 1 个最近），降低阅读器被踢后重拉目录 */
+/** 同时保活上限：home + reader + 当前（或再加 1 个最近）；安卓壳五 Tab 全保，避免发现被踢 */
 const MAX_MOUNTED_TABS = 4;
+const MAX_MOUNTED_TABS_SHELL = 5;
 
 function emptyMounted(): Record<KeepAliveTabId, boolean> {
   return {
@@ -137,16 +144,28 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
 
   // 按需挂载 + LRU 驱逐：访问过的 Tab 保持实例，超出上限卸掉最久未用（保护 home/当前）
   useEffect(() => {
-    if (!enabled || !activeTab) return;
-    lastActiveAtRef.current[activeTab] = Date.now();
+    if (!enabled) return;
+    const routerPath = normalizeAppPath(routerPathname);
+    const onDiscoverSecondary = DISCOVER_SECONDARY_PREFIXES.some(
+      (p) => routerPath === p || routerPath.startsWith(p),
+    );
+    // 二级页（如 IM）时 activeTab 为 null，仍需保护 discover 列表保活
+    if (!activeTab && !onDiscoverSecondary) return;
+    if (activeTab) lastActiveAtRef.current[activeTab] = Date.now();
+    if (onDiscoverSecondary) lastActiveAtRef.current.discover = Date.now();
+    const maxTabs =
+      isPeiaiAndroidShell() ? MAX_MOUNTED_TABS_SHELL : MAX_MOUNTED_TABS;
     setMounted((prev) => {
-      const next: Record<KeepAliveTabId, boolean> = { ...prev, [activeTab]: true };
+      const next: Record<KeepAliveTabId, boolean> = { ...prev };
+      if (activeTab) next[activeTab] = true;
+      if (onDiscoverSecondary) next.discover = true;
       let mountedIds = ALL_TABS.filter((t) => next[t]);
-      if (mountedIds.length <= MAX_MOUNTED_TABS) return next;
+      if (mountedIds.length <= maxTabs) return next;
 
-      const protectedTabs = new Set<KeepAliveTabId>(['home', 'reader', activeTab]);
-      // 流式生成中勿驱逐小爱，避免切 Tab 后信息流中断
+      const protectedTabs = new Set<KeepAliveTabId>(['home', 'reader']);
+      if (activeTab) protectedTabs.add(activeTab);
       if (isAssistantStreamBusy()) protectedTabs.add('assistant');
+      if (onDiscoverSecondary || activeTab === 'discover') protectedTabs.add('discover');
       const victims = mountedIds
         .filter((t) => !protectedTabs.has(t))
         .sort(
@@ -155,12 +174,12 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
         );
       for (const v of victims) {
         mountedIds = ALL_TABS.filter((t) => next[t]);
-        if (mountedIds.length <= MAX_MOUNTED_TABS) break;
+        if (mountedIds.length <= maxTabs) break;
         next[v] = false;
       }
       return next;
     });
-  }, [enabled, activeTab]);
+  }, [enabled, activeTab, routerPathname]);
 
   useEffect(() => {
     if (enabled) return;

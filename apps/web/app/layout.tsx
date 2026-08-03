@@ -14,6 +14,7 @@ import OfflineBar from '@/components/OfflineBar';
 import BottomTabs from '@/components/BottomTabs';
 import TabKeepAlive from '@/components/shell/TabKeepAlive';
 import DeferredShellOverlays from '@/components/shell/DeferredShellOverlays';
+import ShellNavBridge from '@/components/ShellNavBridge';
 
 import { BASE_PATH } from '@/lib/basePath';
 import { BRAND_FULL } from '@/lib/brand';
@@ -123,6 +124,7 @@ export default function RootLayout({
               </div>
               <BottomTabs />
               <StaleShellGuard />
+              <ShellNavBridge />
               <PwaRegister />
               <PwaStandaloneShell />
               <DeferredShellOverlays />

@@ -13,7 +13,6 @@ import {
 } from '@/lib/pwa_tab_nav';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useOnline } from '@/lib/use_online';
-import { useDiscoverUnread } from '@/lib/use_discover_unread';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
@@ -85,7 +84,6 @@ const GROUP_COMPACT_RE = /^\/discover\/(group\/|join|dm\/|invites|friends)/;
 export default function BottomTabs() {
   const pathname = normalizeAppPath(useRouterPathname());
   const router = useRouter();
-  const discoverUnread = useDiscoverUnread(true);
   const online = useOnline();
   const onShareLanding = isShareLandingPath(pathname);
   const compact =
@@ -178,23 +176,13 @@ export default function BottomTabs() {
         const active =
           t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);
         const needsNet = (t.href === '/discover' || t.href === '/assistant') && !online;
-        const badge =
-          t.href === '/discover' && discoverUnread > 0
-            ? (discoverUnread > 99 ? '99+' : String(discoverUnread))
-            : null;
         return (
           <button
             key={t.href}
             type="button"
             className={`tab ${active ? 'tab-active' : ''}${needsNet ? ' tab-offline-hint' : ''}`}
             aria-current={active ? 'page' : undefined}
-            aria-label={
-              needsNet
-                ? `${t.label}，当前离线需联网`
-                : badge
-                  ? `${t.label}，${badge}条未读`
-                  : t.label
-            }
+            aria-label={needsNet ? `${t.label}，当前离线需联网` : t.label}
             title={needsNet ? '当前离线，此功能需联网' : undefined}
             onClick={(e) => {
               (e.currentTarget as HTMLButtonElement).blur();
@@ -205,12 +193,14 @@ export default function BottomTabs() {
               // 安卓 WebView 松手后仍画焦点方框：立刻 blur
               (e.currentTarget as HTMLButtonElement).blur();
             }}
+            onPointerCancel={(e) => {
+              (e.currentTarget as HTMLButtonElement).blur();
+            }}
           >
             <span className="tab-icon-wrap">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <path d={active ? t.filled : t.outline} />
               </svg>
-              {badge ? <span className="tab-unread-badge">{badge}</span> : null}
             </span>
             <span>{t.label}</span>
           </button>

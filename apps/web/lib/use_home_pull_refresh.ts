@@ -35,12 +35,15 @@ function scrollTop(): number {
   if (typeof window === 'undefined') return 0;
   const se = document.scrollingElement;
   const seTop = se instanceof HTMLElement ? se.scrollTop : 0;
+  const app = document.querySelector('.app-body');
+  const appTop = app instanceof HTMLElement ? app.scrollTop : 0;
   return Math.max(
     window.scrollY || 0,
     window.pageYOffset || 0,
     document.documentElement?.scrollTop || 0,
     document.body?.scrollTop || 0,
     seTop,
+    appTop,
   );
 }
 

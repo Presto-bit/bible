@@ -1,5 +1,6 @@
 import { contentAssetUrl } from '@/lib/api';
 import { detectImMediaKind } from '@/lib/im_av';
+import type { ShareOutboundResult } from './share_outbound';
 
 /** 从消息附件中取出可预览的图片 URL 列表。 */
 export function collectMessageImages(
@@ -50,5 +51,28 @@ export async function downloadImAsset(url: string, fileName?: string | null) {
     }
     window.open(url, '_blank', 'noopener,noreferrer');
     return false;
+  }
+}
+
+/** 系统分享图片附件（壳走原生面板） */
+export async function shareImAsset(
+  url: string,
+  fileName?: string | null,
+): Promise<ShareOutboundResult> {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    const name = fileName || 'image.jpg';
+    const file = new File([blob], name, { type: blob.type || 'image/jpeg' });
+    const { shareOutbound } = await import('./share_outbound');
+    return shareOutbound({
+      title: '彼爱',
+      text: '',
+      url: '',
+      file,
+      allowDownload: false,
+    });
+  } catch {
+    return 'failed';
   }
 }

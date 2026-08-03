@@ -35,7 +35,7 @@ import { ImFilePreviewSheet } from '@/components/social/ImFilePreviewSheet';
 import { ImMediaAttachment, parseVoiceDurationHint } from '@/components/social/ImMediaAttachment';
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
-import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
+import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
 import { useImVirtualList } from '@/lib/use_im_virtual_list';
 import { MemberAvatar } from './MemberAvatar';
@@ -971,6 +971,7 @@ export function GroupActivityFeed({
           onClose={() => setLightbox(null)}
           onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
           onSave={(img) => void downloadImAsset(img.src, img.alt)}
+          onShare={(img) => void shareImAsset(img.src, img.alt)}
           onForward={
             onForward
               ? (img) => {

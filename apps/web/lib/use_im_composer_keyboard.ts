@@ -247,6 +247,12 @@ export function useImComposerKeyboard(
           setInset(0);
           return;
         }
+        // 未聚焦时刷新 baseline，避免旋屏/分屏后键盘抬升偏高
+        if (!focusedRef.current) {
+          openBaselineRef.current = Math.round(
+            Math.max(window.innerHeight || 0, vv?.height ?? 0),
+          );
+        }
         applyShell(computeShellMetrics(focusedRef.current, openBaselineRef.current));
       });
     };
@@ -278,6 +284,12 @@ export function useImComposerKeyboard(
 
     if (!composerFocused) {
       body.classList.remove('im-keyboard', 'im-keyboard-overlay');
+      openBaselineRef.current = Math.round(
+        Math.max(
+          window.innerHeight || 0,
+          window.visualViewport?.height ?? 0,
+        ),
+      );
       pinDocScroll();
       setInset(0);
       return;

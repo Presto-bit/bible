@@ -3,9 +3,11 @@
 import { useEffect } from 'react';
 import { BASE_PATH } from '@/lib/basePath';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
+import { shouldDeferShellInterrupt } from '@/lib/im_session_gate';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
 const RELOAD_GUARD_KEY = 'presto_shell_version_reload';
+const PENDING_RELOAD_KEY = 'presto_shell_reload_pending';
 
 function isLegacyHomeHtml(html: string): boolean {
   return (
@@ -26,6 +28,7 @@ function parseAppVersion(html: string): string | null {
  * 检测到线上已是更新构建，但本会话仍跑旧壳（SW / Nginx 缓存）时清 SW 并硬刷。
  * TWA 长驻 WebView 比 Safari PWA 更常出现「服务器已新、界面仍旧」；
  * 因此在 visibility / 壳 resume 时也会再探一次。
+ * IM 会话中推迟硬刷，离开聊天后再执行。
  */
 export default function StaleShellGuard() {
   useEffect(() => {
@@ -41,15 +44,43 @@ export default function StaleShellGuard() {
     let cancelled = false;
     let probing = false;
 
-    const markAndReload = async (from: string, to: string) => {
+    const runReload = async (from: string, to: string) => {
       const guard = `${from}->${to}`;
       try {
         if (sessionStorage.getItem(RELOAD_GUARD_KEY) === guard) return;
         sessionStorage.setItem(RELOAD_GUARD_KEY, guard);
+        sessionStorage.removeItem(PENDING_RELOAD_KEY);
       } catch {
         /* ignore */
       }
       await clearAppCacheAndReload();
+    };
+
+    const markAndReload = async (from: string, to: string) => {
+      if (shouldDeferShellInterrupt()) {
+        try {
+          sessionStorage.setItem(PENDING_RELOAD_KEY, `${from}->${to}`);
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
+      await runReload(from, to);
+    };
+
+    const flushPendingReload = () => {
+      if (cancelled || shouldDeferShellInterrupt()) return;
+      let pending: string | null = null;
+      try {
+        pending = sessionStorage.getItem(PENDING_RELOAD_KEY);
+      } catch {
+        return;
+      }
+      if (!pending) return;
+      const parts = pending.split('->');
+      const from = parts[0] || embedded;
+      const to = parts[1] || 'pending';
+      void runReload(from, to);
     };
 
     const probe = () => {
@@ -83,14 +114,25 @@ export default function StaleShellGuard() {
     probe();
 
     const onVisible = () => {
-      if (document.visibilityState === 'visible') probe();
+      if (document.visibilityState === 'visible') {
+        flushPendingReload();
+        probe();
+      }
     };
-    const onShellResume = () => probe();
+    const onShellResume = () => {
+      flushPendingReload();
+      probe();
+    };
+    const onNav = () => {
+      window.setTimeout(flushPendingReload, 80);
+    };
 
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('pageshow', onVisible);
     window.addEventListener('focus', onVisible);
     window.addEventListener('peiai-shell-resume', onShellResume);
+    window.addEventListener('presto-tab-nav', onNav);
+    window.addEventListener('popstate', onNav);
 
     return () => {
       cancelled = true;
@@ -98,6 +140,8 @@ export default function StaleShellGuard() {
       window.removeEventListener('pageshow', onVisible);
       window.removeEventListener('focus', onVisible);
       window.removeEventListener('peiai-shell-resume', onShellResume);
+      window.removeEventListener('presto-tab-nav', onNav);
+      window.removeEventListener('popstate', onNav);
     };
   }, []);
 

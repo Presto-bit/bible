@@ -50,7 +50,7 @@ export async function checkPushReadiness(): Promise<PushReadiness> {
 export function pushReadinessHint(r: PushReadiness): string {
   if (r.ok) {
     if (r.path === 'android_shell_alarm' && isPeiaiAndroidShell()) {
-      return '已通过 App 本地闹钟准时提醒，即使完全退出后也能收到。';
+      return '读经与群打卡由 App 本地闹钟准时提醒；消息摘要在 App 进程存活时也会弹出系统通知。';
     }
     return '';
   }

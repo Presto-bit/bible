@@ -2,6 +2,7 @@
 
 import { API_BASE, authHeaders, api } from './api';
 import { whenHomeBootstrapReady } from './offline_bootstrap';
+import { isPeiaiAndroidShell } from './pwa_platform';
 
 export type SocialCursor = {
   group_max?: string | null;
@@ -22,6 +23,7 @@ let lastDm = '';
 const listeners = new Set<Listener>();
 let stopFn: (() => void) | null = null;
 let started = false;
+let loopAbort: AbortController | null = null;
 
 function emit(c: SocialCursor) {
   const g = c.group_max || '';
@@ -80,7 +82,12 @@ async function readSseStream(signal: AbortSignal): Promise<void> {
 function startSseLoop(signal: AbortSignal): void {
   void (async () => {
     while (!signal.aborted) {
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      // 普通 PWA：后台休眠省电；安卓壳保持读流以便本地社交摘要
+      if (
+        typeof document !== 'undefined'
+        && document.visibilityState === 'hidden'
+        && !isPeiaiAndroidShell()
+      ) {
         await new Promise((r) => setTimeout(r, 1500));
         continue;
       }
@@ -100,22 +107,49 @@ function startSseLoop(signal: AbortSignal): void {
   })();
 }
 
+/** 拉 cursor；可选 abort 旧 SSE 并重建（壳回前台半死连接） */
+function kickRealtime(rebuild: boolean) {
+  void api.realtimeCursor().then(emit).catch(() => {});
+  if (!rebuild || !started) return;
+  try {
+    loopAbort?.abort();
+  } catch {
+    /* ignore */
+  }
+  const ac = new AbortController();
+  loopAbort = ac;
+  startSseLoop(ac.signal);
+}
+
 let startScheduled = false;
 
 function ensureStarted() {
   if (started || typeof window === 'undefined') return;
   started = true;
   const ac = new AbortController();
+  loopAbort = ac;
   startSseLoop(ac.signal);
+
   const onVis = () => {
-    if (document.visibilityState === 'visible') {
-      void api.realtimeCursor().then(emit).catch(() => {});
-    }
+    if (document.visibilityState === 'visible') kickRealtime(true);
   };
+  const onResume = () => kickRealtime(true);
+  const onOnline = () => kickRealtime(true);
+
   document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('peiai-shell-resume', onResume);
+  window.addEventListener('online', onOnline);
+
   stopFn = () => {
-    ac.abort();
+    try {
+      loopAbort?.abort();
+    } catch {
+      /* ignore */
+    }
+    loopAbort = null;
     document.removeEventListener('visibilitychange', onVis);
+    window.removeEventListener('peiai-shell-resume', onResume);
+    window.removeEventListener('online', onOnline);
     started = false;
     stopFn = null;
     startScheduled = false;

@@ -29,6 +29,7 @@ import { reminderHeroSub, reminderHeroTitle } from '@/lib/beiai_habit_copy';
 import { clearSharePwaDismiss } from '@/lib/share_pwa_guide';
 import { markProfilePasswordNudge } from '@/lib/account_guide';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import { shouldDeferShellInterrupt } from '@/lib/im_session_gate';
 
 function skipGenericOnboarding(): void {
   try {
@@ -65,8 +66,16 @@ export default function PwaFirstOpenGuide() {
     consumePostInstallPath();
   };
 
+  const deferTimer = useRef<number | null>(null);
+
   const openHabitSheet = (reason: string) => {
     if (sheetShown.current || isPwaFirstOpenDone()) return;
+    // IM 中不挡输入；稍后再试（不置 sheetShown，避免永久跳过）
+    if (shouldDeferShellInterrupt()) {
+      if (deferTimer.current != null) window.clearTimeout(deferTimer.current);
+      deferTimer.current = window.setTimeout(() => openHabitSheet(reason), 4_000);
+      return;
+    }
     sheetShown.current = true;
     clearSharePwaDismiss();
 
@@ -108,6 +117,7 @@ export default function PwaFirstOpenGuide() {
     return () => {
       window.removeEventListener(PWA_VALUE_EVENT, onValue);
       window.clearTimeout(t);
+      if (deferTimer.current != null) window.clearTimeout(deferTimer.current);
     };
     // 仅 standalone 首启跑一次
     // eslint-disable-next-line react-hooks/exhaustive-deps

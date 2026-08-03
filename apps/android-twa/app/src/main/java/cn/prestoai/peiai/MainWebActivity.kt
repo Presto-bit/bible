@@ -404,12 +404,23 @@ class MainWebActivity : AppCompatActivity() {
       this,
       object : OnBackPressedCallback(true) {
         override fun handleOnBackPressed() {
-          if (webView.canGoBack()) {
-            webView.goBack()
-          } else {
-            isEnabled = false
-            onBackPressedDispatcher.onBackPressed()
-            isEnabled = true
+          if (!::webView.isInitialized || !isOwnPageUrl(webView.url)) {
+            finishAffinity()
+            return
+          }
+          // 发现二级页（私信/群聊等）：交给 H5 回消息列表，避免 WebView 历史乱跳
+          webView.evaluateJavascript(SHELL_BACK_JS) { result ->
+            val handled = result != null && result.contains("ok")
+            if (handled) return@evaluateJavascript
+            runOnUiThread {
+              if (webView.canGoBack()) {
+                webView.goBack()
+              } else {
+                isEnabled = false
+                onBackPressedDispatcher.onBackPressed()
+                isEnabled = true
+              }
+            }
           }
         }
       },
@@ -635,6 +646,44 @@ class MainWebActivity : AppCompatActivity() {
         notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
       }
     }
+
+    /**
+     * 即时社交/摘要通知（进程存活时由 H5 调用）。
+     * @return "ok" | "denied" | "fail"
+     */
+    @JavascriptInterface
+    fun showNotification(
+      title: String?,
+      body: String?,
+      openPath: String?,
+      tag: String?,
+    ): String {
+      if (Build.VERSION.SDK_INT >= 33) {
+        val granted = ContextCompat.checkSelfPermission(
+          this@MainWebActivity,
+          Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+          runOnUiThread { requestNotificationsIfNeeded() }
+          return "denied"
+        }
+      }
+      return try {
+        val ok = ShellNotifier.showSocial(
+          this@MainWebActivity,
+          title = title?.trim().orEmpty(),
+          body = body?.trim().orEmpty(),
+          openPath = openPath?.trim().orEmpty().ifBlank { "/discover" },
+          tag = tag?.trim(),
+        )
+        if (ok) "ok" else "fail"
+      } catch (_: Exception) {
+        "fail"
+      }
+    }
+
+    @JavascriptInterface
+    fun hasNotificationBridge(): Boolean = true
 
     /**
      * 系统分享面板（可选 data URL / base64 图片）。
@@ -1137,7 +1186,51 @@ class MainWebActivity : AppCompatActivity() {
     super.onNewIntent(intent)
     setIntent(intent)
     resolveStartUrl(intent)?.let { url ->
-      if (::webView.isInitialized) webView.loadUrl(url)
+      navigateOwnUrl(url)
+    }
+  }
+
+  /**
+   * 本域深链：已加载同源页时派发 peiai-shell-navigate（SPA），避免 loadUrl 冲掉 KeepAlive/IM。
+   * 冷启动 / 非本域 / 桥未就绪 → 仍 loadUrl。
+   */
+  private fun navigateOwnUrl(url: String) {
+    if (!::webView.isInitialized) return
+    if (!isOwnPageUrl(url)) {
+      openInExternalBrowser(Uri.parse(url))
+      return
+    }
+    val current = webView.url
+    if (!isOwnPageUrl(current)) {
+      webView.loadUrl(url)
+      return
+    }
+    val quoted = org.json.JSONObject.quote(url)
+    val js = """
+      (function(){
+        try {
+          var u = $quoted;
+          var path = u;
+          try {
+            var a = document.createElement('a');
+            a.href = u;
+            path = (a.pathname || '/') + (a.search || '') + (a.hash || '');
+          } catch (e) {}
+          if (window.__peiaiShellNavReady) {
+            window.dispatchEvent(new CustomEvent('peiai-shell-navigate', {
+              detail: { href: path, url: u }
+            }));
+            return 'ok';
+          }
+          return 'fallback';
+        } catch (e) { return 'fallback'; }
+      })();
+    """.trimIndent()
+    webView.evaluateJavascript(js) { result ->
+      val ok = result != null && result.contains("ok")
+      if (!ok) {
+        runOnUiThread { webView.loadUrl(url) }
+      }
     }
   }
 
@@ -1187,6 +1280,18 @@ class MainWebActivity : AppCompatActivity() {
           }
           window.dispatchEvent(new Event('peiai-shell-resume'));
         } catch (e) {}
+      })();
+    """.trimIndent()
+
+    /** 发现二级页系统返回：H5 __peiaiShellBack → /discover */
+    private val SHELL_BACK_JS = """
+      (function(){
+        try {
+          if (typeof window.__peiaiShellBack === 'function' && window.__peiaiShellBack()) {
+            return 'ok';
+          }
+          return '';
+        } catch (e) { return ''; }
       })();
     """.trimIndent()
 

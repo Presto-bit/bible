@@ -24,6 +24,7 @@ import { markAndroidTwaInstallClaimed } from '@/lib/pwa_install_prompt';
 import { getReminder } from '@/lib/reminder';
 import { getGroupEveningReminder } from '@/lib/group_reminder';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import { shouldDeferShellInterrupt } from '@/lib/im_session_gate';
 import { useToast } from '@/components/ui/ToastProvider';
 
 type SheetState = AndroidShellHealth | { kind: 'battery' } | null;
@@ -39,10 +40,15 @@ export default function AndroidShellHealthGuide() {
     probed.current = true;
     let cancelled = false;
 
-    const run = async () => {
+    const run = async (attempt = 0) => {
       // 让首屏内容先出来
-      await new Promise((r) => window.setTimeout(r, 1_600));
+      await new Promise((r) => window.setTimeout(r, attempt === 0 ? 1_600 : 2_400));
       if (cancelled) return;
+      // IM 会话中不弹半屏，离开后再探（最多再试几次）
+      if (shouldDeferShellInterrupt()) {
+        if (attempt < 8) void run(attempt + 1);
+        return;
+      }
 
       const health = await probeAndroidShellHealth();
       if (cancelled) return;
@@ -59,7 +65,10 @@ export default function AndroidShellHealthGuide() {
       try {
         const { isAndroidShellBatteryExempt } = await import('@/lib/android_shell_bridge');
         if (isAndroidShellBatteryExempt()) return;
-        if (cancelled) return;
+        if (cancelled || shouldDeferShellInterrupt()) {
+          if (attempt < 8) void run(attempt + 1);
+          return;
+        }
         setSheet({ kind: 'battery' });
       } catch {
         /* ignore */
@@ -71,6 +80,21 @@ export default function AndroidShellHealthGuide() {
       cancelled = true;
     };
   }, []);
+
+  // 进入聊天时收起半屏，避免挡输入
+  useEffect(() => {
+    if (!sheet) return;
+    const hideIfIm = () => {
+      if (shouldDeferShellInterrupt()) setSheet(null);
+    };
+    hideIfIm();
+    window.addEventListener('presto-tab-nav', hideIfIm);
+    window.addEventListener('popstate', hideIfIm);
+    return () => {
+      window.removeEventListener('presto-tab-nav', hideIfIm);
+      window.removeEventListener('popstate', hideIfIm);
+    };
+  }, [sheet]);
 
   const close = (kind: NonNullable<SheetState>['kind']) => {
     dismissAndroidShellHealth(kind);

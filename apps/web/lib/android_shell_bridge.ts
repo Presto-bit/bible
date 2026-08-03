@@ -8,6 +8,13 @@ type PeiaiShellBridge = {
   retry?: () => void;
   openExternal?: (url: string) => void;
   requestNotifications?: () => void;
+  showNotification?: (
+    title: string,
+    body: string,
+    openPath: string,
+    tag: string,
+  ) => string;
+  hasNotificationBridge?: () => boolean;
   share?: (title: string, text: string, url: string, imageDataUrl: string) => void;
   scheduleReminder?: (
     kind: string,
@@ -111,6 +118,43 @@ export function hasAndroidShellReminder(): boolean {
   if (!isPeiaiAndroidShell()) return false;
   const shell = getShell();
   return typeof shell?.scheduleReminder === 'function';
+}
+
+export function hasAndroidShellNotification(): boolean {
+  if (!isPeiaiAndroidShell()) return false;
+  const shell = getShell();
+  if (typeof shell?.hasNotificationBridge === 'function') {
+    try {
+      return Boolean(shell.hasNotificationBridge());
+    } catch {
+      /* fall through */
+    }
+  }
+  return typeof shell?.showNotification === 'function';
+}
+
+/**
+ * 壳本地即时通知（社交摘要等）。进程被杀后不可达，需后续 FCM。
+ * @returns true 已投递
+ */
+export function showAndroidShellNotification(opts: {
+  title: string;
+  body: string;
+  openPath?: string;
+  tag?: string;
+}): boolean {
+  if (!hasAndroidShellNotification()) return false;
+  try {
+    const r = getShell()?.showNotification?.(
+      opts.title || '',
+      opts.body || '',
+      opts.openPath || '/discover',
+      opts.tag || '',
+    );
+    return r === 'ok';
+  } catch {
+    return false;
+  }
 }
 
 /**

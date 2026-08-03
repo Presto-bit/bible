@@ -34,7 +34,7 @@ import { ImMediaAttachment, parseVoiceDurationHint } from '@/components/social/I
 import { ImMsgActionPopover, type ImPopoverAction } from '@/components/social/ImMsgActionPopover';
 import { ImSendFailBadge } from '@/components/social/ImSendFailBadge';
 import { autosizeTextarea, type PendingAttach } from '@/lib/im_composer';
-import { collectMessageImages, downloadImAsset } from '@/lib/im_media';
+import { collectMessageImages, downloadImAsset, shareImAsset } from '@/lib/im_media';
 import { detectImMediaKind } from '@/lib/im_av';
 import { useImComposerKeyboard, useImComposerHeightSync, scrollImChatToBottom, clearImKeyboardLift } from '@/lib/use_im_composer_keyboard';
 import { useHoldToTalk } from '@/lib/use_hold_to_talk';
@@ -1812,6 +1812,7 @@ function DmThreadPageInner() {
           onClose={() => setLightbox(null)}
           onIndexChange={(i) => setLightbox((prev) => (prev ? { ...prev, index: i } : prev))}
           onSave={(img) => void downloadImAsset(img.src, img.alt)}
+          onShare={(img) => void shareImAsset(img.src, img.alt)}
           onForward={(img) => {
             openForward([
               {

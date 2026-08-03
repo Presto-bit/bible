@@ -1,4 +1,4 @@
-/** 发现 Tab / 底栏未读角标跨组件同步 */
+/** 发现页内未读同步（会话列表 / 通讯录角标）。底栏发现永不显示未读角标。 */
 
 export const DISCOVER_UNREAD_CHANGED = 'presto-discover-unread-changed';
 
