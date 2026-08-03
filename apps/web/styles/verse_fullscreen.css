@@ -47,7 +47,7 @@ body.verse-full-open .tabbar {
   top: 0;
   left: 0;
   right: 0;
-  height: calc(env(safe-area-inset-top, 0px) + 56px);
+  height: calc(var(--safe-top) + 56px);
   z-index: 1;
   pointer-events: none;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, transparent 100%);
@@ -57,7 +57,7 @@ body.verse-full-open .tabbar {
   z-index: 2;
   width: min(520px, calc(100% - 40px));
   margin: 0 auto;
-  padding: calc(20px + env(safe-area-inset-top, 0px)) 24px calc(88px + env(safe-area-inset-bottom, 0px));
+  padding: calc(20px + var(--safe-top)) 24px calc(88px + var(--safe-bottom));
   color: #fff;
   cursor: default;
 }
@@ -82,7 +82,7 @@ body.verse-full-open .tabbar {
   align-items: center;
   justify-content: center;
   gap: 28px;
-  padding: 14px 20px calc(14px + env(safe-area-inset-bottom, 0px));
+  padding: 14px 20px calc(14px + var(--safe-bottom));
   background: transparent;
   pointer-events: none;
 }
@@ -248,7 +248,7 @@ body.verse-full-open .tabbar {
 .dv-react-picker {
   flex-shrink: 0;
   margin: 0 -20px;
-  padding: 8px 20px calc(12px + env(safe-area-inset-bottom, 0));
+  padding: 8px 20px calc(12px + var(--safe-bottom));
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--card, #fff) 94%, white);
   box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.05);

@@ -4,9 +4,12 @@ import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
@@ -16,20 +19,27 @@ import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import java.util.Locale
 
 /**
  * 彼爱安卓壳：全屏 WebView，不依赖 Chrome TWA / Custom Tabs。
- * 避免校验失败时出现地址栏与浏览器多标签（小米自带浏览器场景尤其明显）。
+ * 边到边绘制并将系统栏 inset 注入 H5 CSS 变量，统一各机型安全区。
  */
 class MainWebActivity : AppCompatActivity() {
 
   private lateinit var webView: WebView
 
+  /** 最近一次注入的 CSS px inset：top, right, bottom, left */
+  private var shellInsetsCss = floatArrayOf(0f, 0f, 0f, 0f)
+
   @SuppressLint("SetJavaScriptEnabled")
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    WindowCompat.setDecorFitsSystemWindows(window, true)
+    setupEdgeToEdge()
 
     webView = WebView(this).apply {
       layoutParams = FrameLayout.LayoutParams(
@@ -74,6 +84,12 @@ class MainWebActivity : AppCompatActivity() {
 
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
           super.onPageStarted(view, url, favicon)
+          injectShellInsetsJs()
+        }
+
+        override fun onPageFinished(view: WebView?, url: String?) {
+          super.onPageFinished(view, url)
+          injectShellInsetsJs()
         }
       }
 
@@ -83,6 +99,14 @@ class MainWebActivity : AppCompatActivity() {
     }
 
     setContentView(webView)
+    ViewCompat.setOnApplyWindowInsetsListener(webView) { _, insets ->
+      val bars = insets.getInsets(
+        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+      )
+      updateShellInsets(bars.top, bars.right, bars.bottom, bars.left)
+      insets
+    }
+    ViewCompat.requestApplyInsets(webView)
 
     onBackPressedDispatcher.addCallback(
       this,
@@ -105,6 +129,67 @@ class MainWebActivity : AppCompatActivity() {
     } else {
       webView.loadUrl(startUrl)
     }
+  }
+
+  private fun setupEdgeToEdge() {
+    WindowCompat.setDecorFitsSystemWindows(window, false)
+    @Suppress("DEPRECATION")
+    window.statusBarColor = Color.TRANSPARENT
+    @Suppress("DEPRECATION")
+    window.navigationBarColor = Color.TRANSPARENT
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      @Suppress("DEPRECATION")
+      window.isStatusBarContrastEnforced = false
+      @Suppress("DEPRECATION")
+      window.isNavigationBarContrastEnforced = false
+    }
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      val attrs = window.attributes
+      attrs.layoutInDisplayCutoutMode =
+        WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+      window.attributes = attrs
+    }
+    val controller = WindowInsetsControllerCompat(window, window.decorView)
+    controller.isAppearanceLightStatusBars = true
+    controller.isAppearanceLightNavigationBars = true
+  }
+
+  /** 将系统栏像素 inset 转成 CSS px 并注入页面。 */
+  private fun updateShellInsets(topPx: Int, rightPx: Int, bottomPx: Int, leftPx: Int) {
+    val density = resources.displayMetrics.density.coerceAtLeast(0.01f)
+    shellInsetsCss[0] = topPx / density
+    shellInsetsCss[1] = rightPx / density
+    shellInsetsCss[2] = bottomPx / density
+    shellInsetsCss[3] = leftPx / density
+    injectShellInsetsJs()
+  }
+
+  private fun injectShellInsetsJs() {
+    if (!::webView.isInitialized) return
+    val t = formatCssPx(shellInsetsCss[0])
+    val r = formatCssPx(shellInsetsCss[1])
+    val b = formatCssPx(shellInsetsCss[2])
+    val l = formatCssPx(shellInsetsCss[3])
+    val js = """
+      (function(){
+        try {
+          var d = document.documentElement;
+          if (!d) return;
+          d.style.setProperty('--shell-inset-top', '$t');
+          d.style.setProperty('--shell-inset-right', '$r');
+          d.style.setProperty('--shell-inset-bottom', '$b');
+          d.style.setProperty('--shell-inset-left', '$l');
+          d.classList.add('android-shell');
+          if (document.body) document.body.classList.add('android-shell');
+        } catch (e) {}
+      })();
+    """.trimIndent()
+    webView.evaluateJavascript(js, null)
+  }
+
+  private fun formatCssPx(value: Float): String {
+    val rounded = (value * 100f).toInt() / 100f
+    return String.format(Locale.US, "%.2fpx", rounded)
   }
 
   override fun onNewIntent(intent: Intent) {

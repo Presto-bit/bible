@@ -168,7 +168,7 @@
 .group-wechat-feed {
   flex: 1;
   min-height: 0;
-  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(64px + var(--safe-bottom));
 }
 .group-wechat-composer {
   position: relative;
@@ -176,7 +176,7 @@
   width: 100%;
   z-index: 40;
   padding: 6px 10px 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bottom);
   background: var(--surface, #fff);
   border-top: 1px solid var(--line);
   box-shadow: none;
@@ -204,7 +204,7 @@
 .group-settings-sheet {
   max-height: 88dvh;
   overflow-y: auto;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(16px + var(--safe-bottom));
 }
 .group-settings-sheet-head {
   margin-top: 0;
@@ -376,7 +376,7 @@
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: var(--safe-bottom);
 }
 .group-header {
   display: flex;
@@ -984,7 +984,7 @@
 .group-composer-fab {
   position: fixed;
   right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  bottom: calc(16px + var(--safe-bottom));
   z-index: 50;
   border: none;
   border-radius: 999px;
@@ -999,7 +999,7 @@
 .group-composer-sheet {
   max-height: 88dvh;
   overflow-y: auto;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(16px + var(--safe-bottom));
 }
 .group-composer-sheet .group-composer-section-compose {
   margin-top: 18px;
@@ -1010,7 +1010,7 @@
 .group-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(80px + env(safe-area-inset-bottom, 0));
+  bottom: calc(80px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 80;
   background: rgba(40, 40, 40, 0.92);
@@ -1555,7 +1555,7 @@ body:has(.dm-page) .app-body {
   min-height: 0;
   overflow: hidden;
   padding: 0;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-top);
   padding-bottom: 0;
   box-sizing: border-box;
   z-index: 2;
@@ -2233,7 +2233,7 @@ html.app-theme-dark .muted {
 .group-page-checkin .group-wechat-composer {
   z-index: 45;
   padding: 6px 10px 0;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bottom);
   background: var(--surface, #fff);
 }
 .group-poster-avatar {
@@ -2505,7 +2505,7 @@ html.app-theme-dark .muted {
 }
 .group-invite-sheet-foot {
   flex-shrink: 0;
-  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 16px calc(12px + var(--safe-bottom));
   border-top: 1px solid var(--line);
   background: var(--surface, #fff);
 }
@@ -3212,7 +3212,7 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
   min-height:0;
   overflow:hidden;
   padding:0;
-  padding-top:env(safe-area-inset-top, 0px);
+  padding-top:var(--safe-top);
   box-sizing:border-box;
   z-index:2;
 }
@@ -3295,7 +3295,7 @@ body:has(.tabbar-compact-nav) .im-jump-bottom{bottom:calc(var(--im-composer-h, 6
   margin-top:auto;
   margin-bottom:0;
   padding:6px 10px 0;
-  padding-bottom:env(safe-area-inset-bottom, 0px);
+  padding-bottom:var(--safe-bottom);
   background:var(--surface, #fff);
   border-top:1px solid var(--line);
   box-shadow:none;
@@ -3387,7 +3387,7 @@ body.im-keyboard .group-prayer-banner {
   width:min(480px,100%);
   background:var(--surface,#fff);
   border-radius:16px 16px 0 0;
-  padding:14px 14px calc(12px + env(safe-area-inset-bottom));
+  padding:14px 14px calc(12px + var(--safe-bottom));
   display:flex;
   flex-direction:column;
   gap:10px;
@@ -3548,7 +3548,7 @@ body.im-keyboard .group-prayer-banner {
   display:flex;
   align-items:center;
   justify-content:space-between;
-  padding:calc(8px + env(safe-area-inset-top, 0px)) 14px 8px;
+  padding:calc(8px + var(--safe-top)) 14px 8px;
   color:#fff;
 }
 .im-lightbox-count{font-size:14px;opacity:.85;}
@@ -3607,7 +3607,7 @@ body.im-keyboard .group-prayer-banner {
   display:flex;
   justify-content:space-between;
   gap:12px;
-  padding:8px 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding:8px 14px calc(12px + var(--safe-bottom));
 }
 .im-lightbox-nav-btn{
   appearance:none;
@@ -3632,7 +3632,7 @@ html.perf-lite .im-msg-popover {
 }
 .report-sheet-root{position:fixed;inset:0;z-index:80;display:flex;align-items:flex-end;justify-content:center;}
 .report-sheet-backdrop{position:absolute;inset:0;border:0;background:rgba(0,0,0,.35);cursor:pointer;}
-.report-sheet-panel{position:relative;width:min(480px,100%);background:var(--surface,#fff);border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom));}
+.report-sheet-panel{position:relative;width:min(480px,100%);background:var(--surface,#fff);border-radius:16px 16px 0 0;padding:16px 16px calc(16px + var(--safe-bottom));}
 .report-sheet-reasons{display:flex;flex-direction:column;gap:6px;}
 /* —— IM 输入栏 / 气泡增强 —— */
 .im-composer-bar{
@@ -4084,7 +4084,7 @@ html.perf-lite .im-msg-popover {
   justify-content:center;
   width:100%;
   padding:10px 16px;
-  padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-bottom:calc(10px + var(--safe-bottom));
   box-sizing:border-box;
 }
 .im-select-dock .btn{
@@ -4385,7 +4385,7 @@ html.perf-lite .im-msg-popover {
   position: relative;
   width: min(100%, 520px);
   max-height: min(88vh, 720px);
-  margin: 0 0 max(8px, env(safe-area-inset-bottom, 0px));
+  margin: 0 0 max(8px, var(--safe-bottom));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -4637,7 +4637,7 @@ html.perf-lite .im-msg-popover {
   display:flex;
   align-items:flex-start;
   justify-content:center;
-  padding:calc(8px + env(safe-area-inset-top, 0px)) 12px calc(12px + var(--im-search-kb, 0px) + env(safe-area-inset-bottom, 0px));
+  padding:calc(8px + var(--safe-top)) 12px calc(12px + var(--im-search-kb, 0px) + var(--safe-bottom));
   box-sizing:border-box;
 }
 .im-chat-search-sheet{
@@ -4653,7 +4653,7 @@ html.perf-lite .im-msg-popover {
   box-sizing:border-box;
 }
 body.im-search-keyboard .im-chat-search-sheet{
-  max-height:calc(100dvh - var(--im-search-kb, 0px) - env(safe-area-inset-top, 0px) - 24px);
+  max-height:calc(100dvh - var(--im-search-kb, 0px) - var(--safe-top) - 24px);
 }
 .im-chat-search-head{
   display:flex;
@@ -4766,7 +4766,7 @@ body.im-search-keyboard .im-chat-search-sheet{
 .group-profile-card {
   max-height: min(88dvh, 720px);
   overflow-y: auto;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(16px + var(--safe-bottom));
 }
 .group-profile-wall-block .group-checkin-wall {
   margin: 0;
@@ -4865,7 +4865,7 @@ body.im-search-keyboard .im-chat-search-sheet{
   max-height: min(78dvh, 640px);
   display: flex;
   flex-direction: column;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0));
+  padding-bottom: calc(12px + var(--safe-bottom));
 }
 .group-wall-sheet-body {
   flex: 1;
@@ -4986,7 +4986,7 @@ body.im-search-keyboard .im-chat-search-sheet{
 .im-contact-picker-backdrop{z-index:90;}
 .im-contact-picker{
   display:flex;flex-direction:column;gap:0;
-  max-height:min(88vh,720px);padding:12px 14px calc(12px + env(safe-area-inset-bottom));
+  max-height:min(88vh,720px);padding:12px 14px calc(12px + var(--safe-bottom));
   width:min(480px,100%);
 }
 .im-contact-picker-head{
@@ -5055,7 +5055,7 @@ body.im-search-keyboard .im-chat-search-sheet{
 /* 语音全屏 HUD */
 .im-voice-hud{
   position:fixed;inset:0;z-index:95;display:flex;align-items:flex-end;justify-content:center;
-  padding:0 24px calc(120px + env(safe-area-inset-bottom));
+  padding:0 24px calc(120px + var(--safe-bottom));
   background:rgba(0,0,0,.42);pointer-events:none;
 }
 .im-voice-hud-card{
@@ -5104,7 +5104,7 @@ body.im-search-keyboard .im-chat-search-sheet{
 .im-lightbox-actions{
   position:absolute;left:0;right:0;bottom:0;z-index:2;
   display:flex;justify-content:center;gap:16px;
-  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding:12px 16px calc(12px + var(--safe-bottom));
   background:linear-gradient(transparent,rgba(0,0,0,.55));
 }
 .im-lightbox-action{
@@ -5186,7 +5186,7 @@ body.im-search-keyboard .im-chat-search-sheet{
 .group-composer-wrap {
   border-top: 1px solid var(--line);
   background: var(--bg);
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0));
+  padding: 10px 12px calc(10px + var(--safe-bottom));
 }
 .group-composer-label {
   font-size: 12px;

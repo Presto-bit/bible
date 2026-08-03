@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { isLowEndDevice, isStandalonePwa } from '@/lib/platform';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import {
   initPwaContextMenuGuard,
   initPwaLinkPreviewGuard,
@@ -9,13 +10,16 @@ import {
 } from '@/lib/pwa_nav';
 import { initIosTypingUndoGuard } from '@/lib/ios_typing_undo_guard';
 
-/** 为 PWA standalone 模式添加 body 类，启用质感专项样式。 */
+/** 为 PWA standalone / 安卓壳添加类与安全区回退，启用质感专项样式。 */
 export default function PwaStandaloneShell() {
   useEffect(() => {
     const apply = () => {
       const standalone = isStandalonePwa();
       document.body.classList.toggle('pwa-standalone', standalone);
       document.documentElement.classList.toggle('pwa-standalone', standalone);
+      const androidShell = isPeiaiAndroidShell();
+      document.documentElement.classList.toggle('android-shell', androidShell);
+      document.body.classList.toggle('android-shell', androidShell);
       const perfLite = isLowEndDevice();
       document.documentElement.classList.toggle('perf-lite', perfLite);
       document.body.classList.toggle('perf-lite', perfLite);
@@ -25,10 +29,11 @@ export default function PwaStandaloneShell() {
     initPwaContextMenuGuard();
     initPwaLinkPreviewGuard();
     const stopUndoGuard = initIosTypingUndoGuard();
-    window.matchMedia('(display-mode: standalone)').addEventListener('change', apply);
+    const mq = window.matchMedia('(display-mode: standalone)');
+    mq.addEventListener('change', apply);
     return () => {
       stopUndoGuard();
-      window.matchMedia('(display-mode: standalone)').removeEventListener('change', apply);
+      mq.removeEventListener('change', apply);
     };
   }, []);
   return null;

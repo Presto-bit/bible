@@ -20,10 +20,23 @@
   --dawn-rose: var(--brand-dawn-rose, #e8a090);
   --dawn-sky: var(--brand-dawn-sky, #a8c4d4);
 
+  /*
+   * 安全区 token：env() 与安卓壳注入的 --shell-inset-* 取更大值，
+   * 避免 WebView 不报 safe-area / 仅原生有 inset 时顶底穿帮或双重留白。
+   */
+  --shell-inset-top: 0px;
+  --shell-inset-right: 0px;
+  --shell-inset-bottom: 0px;
+  --shell-inset-left: 0px;
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--shell-inset-top));
+  --safe-right: max(env(safe-area-inset-right, 0px), var(--shell-inset-right));
+  --safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--shell-inset-bottom));
+  --safe-left: max(env(safe-area-inset-left, 0px), var(--shell-inset-left));
+
   /* 底部 Tab：内容区高度 + 安全区（PWA 主屏幕与 app-body 留白共用） */
   --tabbar-inner: 58px;
   --tabbar-float-gap: 12px;
-  --tabbar-safe: env(safe-area-inset-bottom, 0px);
+  --tabbar-safe: var(--safe-bottom);
   --tabbar-h: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 4px);
 
   /* 字体体系：UI 与阅读区分开
@@ -169,7 +182,9 @@ a {
   min-height: 100dvh;
   width: 100%;
   max-width: 100%;
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: var(--safe-top);
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
   padding-bottom: calc(var(--tabbar-h) + 12px);
   overflow-x: clip;
   overflow-y: visible;
@@ -184,7 +199,51 @@ a {
 }
 
 body.pwa-standalone .app-body {
-  padding-top: max(env(safe-area-inset-top, 0px), 4px);
+  padding-top: max(var(--safe-top), 4px);
+}
+
+/* 安卓 WebView 壳：底栏手势区偶发 0 时给最低呼吸空间 */
+html.android-shell {
+  --tabbar-safe: max(var(--safe-bottom), 8px);
+}
+
+/* 窄屏：压缩 Tab 与触控文案，避免五栏挤爆 */
+@media (max-width: 359px) {
+  :root {
+    --tabbar-inner: 52px;
+    --tabbar-float-gap: 8px;
+    --font-base: 14px;
+    --font-md: 12px;
+    --font-sm: 11px;
+  }
+
+  nav.tabbar,
+  .tabbar {
+    width: min(720px, calc(100vw - 16px));
+    border-radius: 22px;
+  }
+
+  .tab {
+    font-size: 10px;
+    gap: 2px;
+    margin: 0;
+  }
+}
+
+/* 宽屏 / 小平板：底栏不横向拉满，内容更聚焦 */
+@media (min-width: 600px) {
+  nav.tabbar,
+  .tabbar {
+    width: min(520px, calc(100vw - 48px));
+  }
+}
+
+/* 矮屏 / 横屏：少留浮层呼吸，优先可视内容 */
+@media (max-height: 520px), (orientation: landscape) and (max-height: 480px) {
+  :root {
+    --tabbar-inner: 50px;
+    --tabbar-float-gap: 6px;
+  }
 }
 
 html.pwa-standalone,
@@ -490,7 +549,7 @@ body.reader-body-night .tabbar {
 }
 
 body.reader-active.reader-immersive .app-body {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bottom);
 }
 
 /* 沉浸阅读：阅读器顶栏隐藏时，底部浮动 Tab 完全滑出视口。 */
@@ -3840,7 +3899,7 @@ html.pwa-standalone .home-page .home-list-row,
 html.pwa-standalone .home-page .home-growth-memory,
 html.pwa-standalone .home-page .home-reading-summary,
 html.pwa-standalone .home-page .home-media-row {
-  -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 

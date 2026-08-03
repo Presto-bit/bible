@@ -140,7 +140,7 @@ html.story-album-lock .tabbar {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: max(4px, env(safe-area-inset-top, 0)) 10px 4px;
+  padding: max(4px, var(--safe-top)) 10px 4px;
   position: relative;
   z-index: 5;
   flex-shrink: 0;
@@ -293,7 +293,7 @@ html.story-album-lock .tabbar {
   box-shadow: none;
 }
 .story-beat-caption.is-safe-bottom {
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(10px + var(--safe-bottom));
 }
 .story-beat-caption-eyebrow {
   margin: 0 0 6px;
@@ -384,7 +384,7 @@ html.story-album-lock .tabbar {
 .story-album-footer {
   margin-top: 0;
   flex-shrink: 0;
-  padding: 8px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 16px calc(10px + var(--safe-bottom));
   background: #fff;
   border-top: none;
 }
@@ -879,7 +879,7 @@ html.story-album-lock .tabbar {
 .badge-unlock-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(72px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 9999;
   display: flex;

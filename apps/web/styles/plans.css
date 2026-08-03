@@ -1146,7 +1146,7 @@
 .thought-hub-footer {
   flex-shrink: 0;
   padding-top: 10px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(12px + var(--safe-bottom));
   background: var(--surface);
   border-top: 1px solid var(--line);
 }
@@ -1204,7 +1204,7 @@
 .thought-write-actions {
   flex-shrink: 0;
   padding-top: 10px;
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(12px + var(--safe-bottom));
   background: var(--surface);
 }
 
@@ -1337,7 +1337,7 @@
 
 .plan-day-complete-backdrop .plan-day-complete {
   width: min(420px, 100%);
-  margin-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  margin-bottom: calc(24px + var(--safe-bottom));
 }
 
 .plans-page-head {

@@ -98,7 +98,7 @@ body.reader-active .proper-noun--artifact {
   width: min(720px, 100vw);
   max-width: 100%;
   box-sizing: border-box;
-  padding: max(10px, env(safe-area-inset-top, 0px)) 14px 10px;
+  padding: max(10px, var(--safe-top)) 14px 10px;
   background: var(--reader-bg, #ffffff);
   border-bottom: 1px solid rgba(43, 42, 39, 0.08);
   transform: translateX(-50%) translateY(0);
@@ -710,7 +710,7 @@ a.license-row-name:hover {
   flex-direction: column;
 }
 .reader-page.reader-chrome-hidden {
-  --reader-scroll-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  --reader-scroll-bottom: max(16px, var(--safe-bottom));
 }
 .reader-page.reader-chrome-hidden .reader-body {
   padding-bottom: 0;
@@ -1242,7 +1242,7 @@ a.license-row-name:hover {
 .chapter-complete-tip {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(72px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 40;
   display: flex;
@@ -1301,7 +1301,7 @@ a.license-row-name:hover {
   display: flex;
   flex-direction: column;
   max-height: min(86vh, 720px);
-  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(12px + var(--safe-bottom));
 }
 .verse-compare-scroll {
   flex: 1 1 auto;

@@ -5,7 +5,7 @@
   padding-bottom: calc(var(--tabbar-h) + 72px);
 }
 .devotional-page.is-immersive {
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  padding-bottom: calc(var(--safe-bottom) + 24px);
 }
 .devotional-end-sentinel {
   height: 1px;
@@ -223,7 +223,7 @@
   box-shadow: none;
 }
 .devotional-bottom-bar.is-immersive {
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  bottom: calc(var(--safe-bottom) + 14px);
 }
 body.devotional-immersive .tabbar {
   transform: translate3d(
@@ -235,7 +235,7 @@ body.devotional-immersive .tabbar {
   pointer-events: none;
 }
 body.devotional-immersive .app-body {
-  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-bottom: var(--safe-bottom);
 }
 .devotional-feed {
   margin-top: 28px;
@@ -761,7 +761,7 @@ body.devotional-immersive .app-body {
   display:flex;
   flex-direction:column;
   min-height:calc(100dvh - 24px);
-  margin-top:calc(0px - env(safe-area-inset-top, 0px));
+  margin-top:calc(0px - var(--safe-top));
   padding-top:0 !important;
   padding-bottom:0 !important;
   box-sizing:border-box;
@@ -776,7 +776,7 @@ body.devotional-immersive .app-body {
   gap:8px;
   min-height:44px;
   margin:0 -4px;
-  padding:max(10px, env(safe-area-inset-top, 0px)) 4px 10px;
+  padding:max(10px, var(--safe-top)) 4px 10px;
   background:var(--paper, #fffcfa);
   border-bottom:1px solid color-mix(in srgb, var(--ink, #2a2620) 6%, transparent);
 }
@@ -817,7 +817,7 @@ body.devotional-immersive .app-body {
   flex-direction:column;
   align-items:stretch;
   gap:10px;
-  padding:12px 0 calc(16px + env(safe-area-inset-bottom, 0px));
+  padding:12px 0 calc(16px + var(--safe-bottom));
   background:linear-gradient(
     to top,
     var(--paper, #fffcfa) 70%,

@@ -301,7 +301,7 @@ a.report-tile-link .muted {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: max(10px, env(safe-area-inset-top, 0px)) 14px 8px;
+  padding: max(10px, var(--safe-top)) 14px 8px;
   background: linear-gradient(180deg, rgba(18, 32, 27, 0.92), rgba(18, 32, 27, 0));
   pointer-events: none;
 }
@@ -329,7 +329,7 @@ a.report-tile-link .muted {
 }
 .wrapped-story-progress {
   position: absolute;
-  top: calc(52px + env(safe-area-inset-top, 0px));
+  top: calc(52px + var(--safe-top));
   left: 16px;
   right: 16px;
   z-index: 4;
@@ -367,9 +367,9 @@ a.report-tile-link .muted {
   align-items: flex-end;
   justify-content: stretch;
   padding:
-    calc(88px + env(safe-area-inset-top, 0px))
+    calc(88px + var(--safe-top))
     22px
-    calc(100px + env(safe-area-inset-bottom, 0px));
+    calc(100px + var(--safe-bottom));
   box-sizing: border-box;
   position: relative;
   overflow: hidden;
@@ -574,7 +574,7 @@ a.report-tile-link .muted {
 .wrapped-story-next {
   position: absolute;
   left: 50%;
-  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(18px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 4;
   border: none;

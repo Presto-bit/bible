@@ -8,7 +8,7 @@
   height: calc(100dvh - var(--tabbar-h) - 8px);
   max-height: calc(100dvh - var(--tabbar-h) - 8px);
   min-height: 0;
-  padding-top: max(10px, env(safe-area-inset-top, 0px));
+  padding-top: max(10px, var(--safe-top));
   padding-bottom: 8px;
   padding-left: 14px;
   padding-right: 14px;
@@ -1247,7 +1247,7 @@ body.assistant-active .assistant-page {
   box-sizing: border-box;
   background: var(--surface);
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.12);
-  padding: calc(18px + env(safe-area-inset-top, 0px)) 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  padding: calc(18px + var(--safe-top)) 16px calc(18px + var(--safe-bottom));
   overflow-y: auto;
   animation: drawer-in 0.22s ease;
 }

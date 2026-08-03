@@ -40,7 +40,7 @@ body.external-browser-open .app-body {
   grid-template-columns: minmax(64px, auto) 1fr minmax(64px, auto);
   align-items: center;
   gap: 8px;
-  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px;
+  padding: calc(8px + var(--safe-top)) 12px 8px;
   border-bottom: 1px solid color-mix(in srgb, var(--ink, #222) 10%, transparent);
   background: color-mix(in srgb, var(--bg, #fff) 92%, transparent);
   backdrop-filter: blur(10px);

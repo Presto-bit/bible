@@ -1,7 +1,7 @@
 /* Extracted from globals.css — campaign ops / landing */
 /* ——— 活动运营 / 落地页 ——— */
 .ops-page {
-  padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(88px + var(--safe-bottom));
 }
 .ops-page-head {
   display: flex;
@@ -1552,7 +1552,7 @@ body.ops-canvas-resizing iframe {
   bottom: 0;
   z-index: 20;
   margin: 20px -4px 0;
-  padding: 10px 4px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 10px 4px calc(10px + var(--safe-bottom));
   background: color-mix(in srgb, var(--bg, var(--surface)) 88%, transparent);
   backdrop-filter: blur(10px);
   border-top: 1px solid color-mix(in srgb, var(--line, var(--border)) 80%, transparent);
@@ -1584,7 +1584,7 @@ body.ops-canvas-resizing iframe {
 .ops-toast {
   position: fixed;
   left: 50%;
-  bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  bottom: calc(72px + var(--safe-bottom));
   transform: translateX(-50%);
   z-index: 40;
   max-width: min(90vw, 360px);

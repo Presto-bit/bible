@@ -67,7 +67,7 @@ body.pray-session-open .app-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px;
+  padding: calc(12px + var(--safe-top)) 16px 8px;
 }
 
 .pray-session-close {
@@ -328,7 +328,7 @@ body.pray-session-open .app-body {
   flex-direction: column;
   align-items: stretch;
   gap: 14px;
-  padding: 12px 24px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 12px 24px calc(12px + var(--safe-bottom));
 }
 
 .pray-session-amen {
