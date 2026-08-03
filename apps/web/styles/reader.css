@@ -842,17 +842,24 @@ body.reader-active .reader-page {
   padding: 0;
   flex: 1;
   min-height: 0;
+  /* 与 viewport / peek 一致，避免祖先 touch-action:pan-y 交集会掉横轴 */
+  touch-action: pan-x pan-y;
 }
 .reader-turn-viewport {
   position: relative;
   height: 100%;
   overflow: hidden;
-  /* pan-x pan-y：允许声明横向，壳/WebView 才能把左右滑交给翻页（纯 pan-y 时部分机几乎无横轴） */
+  /* 横+竖：手势脚本认轴；横滑翻页 / 竖滑滚经文 */
   touch-action: pan-x pan-y;
   overscroll-behavior-x: none;
   overscroll-behavior-y: contain;
   -webkit-user-select: none;
   user-select: none;
+}
+.reader-turn-panel-active .reader-turn-peek,
+.reader-turn-panel-peek .reader-turn-peek {
+  /* 默认也声明横轴，勿被全局 pan-y 盖掉（媒体查询内再强化 content-turn） */
+  touch-action: pan-x pan-y;
 }
 /* 确认横滑后锁死手势，小米 WebView 否则会把触摸交给内外层竖滚 */
 .reader-turn-viewport.is-turning {
@@ -981,11 +988,20 @@ body.reader-active .reader-page {
     color: inherit;
   }
 
-  .reader-page .reader-content,
-  .reader-page .reader-scroll-panel,
-  .reader-page .reader-turn-panel-active .reader-turn-peek,
-  .reader-page .reader-turn-panel-peek .reader-turn-peek {
+  /* 上下滚模式：内容区仅竖滚 */
+  .reader-page .reader-content:not(.reader-content-turn),
+  .reader-page .reader-scroll-panel {
     touch-action: pan-y;
+  }
+  /*
+   * 跟手翻页：hit 目标在 .reader-turn-peek 内，须与 viewport 同声明 pan-x pan-y。
+   * 纯 pan-y 时 Chromium/壳 WebView 会把横滑当「无轴」吞掉，PWA 与壳两端都不跟手。
+   */
+  .reader-page .reader-content-turn,
+  .reader-page .reader-content-turn .reader-turn-viewport,
+  .reader-page .reader-content-turn .reader-turn-panel-active .reader-turn-peek,
+  .reader-page .reader-content-turn .reader-turn-panel-peek .reader-turn-peek {
+    touch-action: pan-x pan-y;
   }
 
   /* 选区已 pin：禁止系统再拉起选区 → 拷贝/查询工具栏 */

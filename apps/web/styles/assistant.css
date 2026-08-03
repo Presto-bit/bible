@@ -5,22 +5,20 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /* 填满 keep-alive / 视口；底栏只垫一次，避免输入框下大块空白 */
-  height: 100%;
-  max-height: 100dvh;
+  /*
+   * iOS 主屏幕 PWA 同一套：页面高度直接让出 tabbar，底部只留 8px 呼吸。
+   * 勿再 height:100dvh + padding-bottom≈tabbar-h —— 壳上 --safe-bottom 偏大时会叠出大块空白。
+   */
+  height: calc(100dvh - var(--tabbar-h) - 8px);
+  max-height: calc(100dvh - var(--tabbar-h) - 8px);
   min-height: 0;
   padding-top: max(10px, var(--safe-top));
-  padding-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + var(--tabbar-safe) + 4px);
+  padding-bottom: 8px;
   padding-left: 14px;
   padding-right: 14px;
   overflow: hidden;
   touch-action: none;
   position: relative;
-}
-html.pwa-standalone .assistant-page,
-html.android-shell .assistant-page {
-  height: 100dvh;
-  max-height: 100dvh;
 }
 /* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高） */
 body.assistant-active {

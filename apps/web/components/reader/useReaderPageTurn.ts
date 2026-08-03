@@ -8,9 +8,10 @@ import {
 } from 'react';
 
 /**
- * 跟手翻页：Pointer 为主，Touch 为兜底（小米等 WebView 上 pointer 捕获不可靠）。
- * 提交：大位移 OR 够快；「上一页」(右滑) 阈值更低——易被系统返回手势抢。
- * iOS PWA 与安卓壳同一套常量，避免两端手感分叉。
+ * 跟手翻页（与 iOS/Android 已安装 PWA 同一套）：
+ * - Pointer 走 window 级 move/up（不依赖 setPointerCapture；壳 WebView 捕获常失败）
+ * - Touch 兜底；pointer 已激活但尚无轴时 touch 可接手
+ * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
  */
 const THRESHOLD_NEXT = 0.13;
 const THRESHOLD_PREV = 0.09;
@@ -73,7 +74,6 @@ export function useReaderPageTurn({
     prefetched: false,
     source: 'pointer' as 'pointer' | 'touch',
   });
-
   const applyOffset = useCallback((px: number, withAnim: boolean) => {
     offsetRef.current = px;
     setOffCenter(Math.abs(px) > 0.5);
@@ -259,21 +259,56 @@ export function useReaderPageTurn({
     [enabled, isIgnored, clampOffset, applyOffset, updateDragHint, onDragApproach],
   );
 
+  // window 级 pointer 跟踪：与 Chrome 已安装 PWA 一致，不依赖元素上的 capture
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onWinPointerMove = (e: PointerEvent) => {
+      if (!drag.current.active || drag.current.source !== 'pointer') return;
+      if (e.pointerId !== drag.current.pointerId) return;
+      moveDrag(e.clientX, e.clientY, e.pointerId, () => {
+        if (drag.current.axis === 'x') e.preventDefault();
+      });
+    };
+    const onWinPointerUp = (e: PointerEvent) => {
+      if (!drag.current.active || drag.current.source !== 'pointer') return;
+      if (e.pointerId !== drag.current.pointerId) return;
+      void finishDrag();
+    };
+    const onWinPointerCancel = (e: PointerEvent) => {
+      if (!drag.current.active || drag.current.source !== 'pointer') return;
+      if (e.pointerId !== drag.current.pointerId) return;
+      void finishDrag();
+    };
+
+    window.addEventListener('pointermove', onWinPointerMove, { passive: false });
+    window.addEventListener('pointerup', onWinPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onWinPointerCancel, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', onWinPointerMove);
+      window.removeEventListener('pointerup', onWinPointerUp);
+      window.removeEventListener('pointercancel', onWinPointerCancel);
+    };
+  }, [enabled, moveDrag, finishDrag]);
+
   const onPointerDown = useCallback(
     (e: ReactPointerEvent) => {
       if (e.button !== 0) return;
       if (!beginDrag(e.clientX, e.clientY, e.pointerId, 'pointer')) return;
+      // 仍尝试 capture（iOS 无妨）；主要靠 window 监听保证壳端可用
       try {
-        e.currentTarget.setPointerCapture(e.pointerId);
+        e.currentTarget.setPointerCapture?.(e.pointerId);
       } catch {
-        /* 部分 WebView 捕获失败 */
+        /* ignore */
       }
     },
     [beginDrag],
   );
 
+  // 保留 React 路径作桌面/回退；window 已 listen 时 move 可能双触发，id 一致且幂等
   const onPointerMove = useCallback(
     (e: ReactPointerEvent) => {
+      if (drag.current.source !== 'pointer') return;
       moveDrag(e.clientX, e.clientY, e.pointerId, () => e.preventDefault());
     },
     [moveDrag],
@@ -281,9 +316,10 @@ export function useReaderPageTurn({
 
   const onPointerUp = useCallback(
     (e: ReactPointerEvent) => {
-      if (!drag.current.active || e.pointerId !== drag.current.pointerId) return;
+      if (!drag.current.active || drag.current.source !== 'pointer') return;
+      if (e.pointerId !== drag.current.pointerId) return;
       try {
-        e.currentTarget.releasePointerCapture(e.pointerId);
+        e.currentTarget.releasePointerCapture?.(e.pointerId);
       } catch {
         /* ignore */
       }
@@ -294,7 +330,8 @@ export function useReaderPageTurn({
 
   const onPointerCancel = useCallback(
     (e: ReactPointerEvent) => {
-      if (!drag.current.active || e.pointerId !== drag.current.pointerId) return;
+      if (!drag.current.active || drag.current.source !== 'pointer') return;
+      if (e.pointerId !== drag.current.pointerId) return;
       void finishDrag();
     },
     [finishDrag],
@@ -306,9 +343,15 @@ export function useReaderPageTurn({
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
-      // pointer 已启动则跳过，避免 dual 路径互相 reset
-      if (drag.current.active) return;
       const t = e.touches[0];
+      // pointer 已占坑但还没认轴时，touch 接手（壳上 pointer move 常丢）
+      if (drag.current.active) {
+        if (drag.current.source === 'pointer' && drag.current.axis === null) {
+          drag.current.source = 'touch';
+          drag.current.pointerId = t.identifier;
+        }
+        return;
+      }
       beginDrag(t.clientX, t.clientY, t.identifier, 'touch');
     };
     const onTouchMove = (e: TouchEvent) => {
