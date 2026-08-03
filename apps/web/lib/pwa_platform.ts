@@ -29,9 +29,13 @@ export function isInAppBrowser(): boolean {
 
 export function isStandalone(): boolean {
   if (typeof window === 'undefined') return false;
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  // TWA / 主屏幕：standalone；部分环境会报 fullscreen / minimal-ui
   return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+    window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.matchMedia('(display-mode: minimal-ui)').matches
+    || nav.standalone === true
   );
 }
 

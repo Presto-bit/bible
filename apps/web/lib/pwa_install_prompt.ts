@@ -2,14 +2,16 @@
 
 export const PWA_INSTALL_DISMISS_KEY = 'pwa-install-dismissed';
 export const PWA_INSTALL_SESSION_KEY = 'pwa-install-prompt-session';
+/** 安卓点过「下载并安装」后长期不再自动弹（直装包无法靠 Play 可靠探测） */
+export const ANDROID_TWA_CLAIMED_KEY = 'peiai_android_twa_claimed';
 /** 关掉后约 2 天可再被动提醒（主动入口不受限） */
 export const PWA_INSTALL_COOLDOWN_MS = 2 * 24 * 60 * 60 * 1000;
 
 /**
- * 安卓自动安装 Sheet：仅本页内存态。
- * - 切换 Tab / remount 不丢打开态
- * - 用户关闭后本页不再出；刷新页面后重置再出
- * - 不走 localStorage / sessionStorage 冷却
+ * 安卓自动安装 Sheet：本页内存态 + 本地 claimed / 短冷却。
+ * - 切换 Tab / remount 可保持打开态
+ * - 用户关闭 / 已点下载 → 不再自动弹出（刷新也不再弹）
+ * - 主动 openPwaInstallSheet 仍可打开
  */
 let androidAutoSheetOpen = false;
 let androidAutoDismissedThisLoad = false;
@@ -29,6 +31,37 @@ export function isAndroidAutoInstallDismissedThisLoad(): boolean {
 export function dismissAndroidAutoInstallThisLoad(): void {
   androidAutoDismissedThisLoad = true;
   androidAutoSheetOpen = false;
+}
+
+/** Banner 已展示：本会话不再自动出现 */
+export function noteInstallPromptShown(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(PWA_INSTALL_SESSION_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 用户已触发 APK 下载：长期抑制自动安装引导 */
+export function markAndroidTwaInstallClaimed(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(ANDROID_TWA_CLAIMED_KEY, String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+  dismissAndroidAutoInstallThisLoad();
+  noteInstallPromptShown();
+}
+
+export function isAndroidTwaInstallClaimed(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return Boolean(localStorage.getItem(ANDROID_TWA_CLAIMED_KEY));
+  } catch {
+    return false;
+  }
 }
 
 function migrateLegacyDismiss(): void {
@@ -71,14 +104,13 @@ export function isInstallPromptSuppressed(): boolean {
   return isInCooldown() || isSessionConsumed();
 }
 
-/** Banner 已展示：本会话不再自动出现 */
-export function noteInstallPromptShown(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    sessionStorage.setItem(PWA_INSTALL_SESSION_KEY, '1');
-  } catch {
-    /* ignore */
-  }
+/** 安卓自动 Sheet：已认领 / 短冷却 / 本会话已出过 / 本页已关 */
+export function isAndroidInstallAutoSuppressed(): boolean {
+  return (
+    isAndroidTwaInstallClaimed()
+    || isInstallPromptSuppressed()
+    || isAndroidAutoInstallDismissedThisLoad()
+  );
 }
 
 /** 用户点「暂不」/关闭：短冷却 + 本会话不再出 */
@@ -90,9 +122,10 @@ export function dismissInstallPrompt(): void {
   } catch {
     /* ignore */
   }
+  dismissAndroidAutoInstallThisLoad();
 }
 
-/** 安装成功后清冷却，避免已装用户被历史状态挡住主动入口以外的逻辑 */
+/** 安装成功后清冷却（桌面 PWA 等）；安卓 TWA 请用 markAndroidTwaInstallClaimed */
 export function clearInstallPromptDismiss(): void {
   if (typeof window === 'undefined') return;
   try {

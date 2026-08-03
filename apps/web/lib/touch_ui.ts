@@ -25,6 +25,8 @@ export function shouldAutoCollapseNativeSelection(): boolean {
   const nav = navigator as Navigator & { standalone?: boolean };
   if (
     window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.matchMedia('(display-mode: minimal-ui)').matches
     || nav.standalone === true
   ) {
     return true;

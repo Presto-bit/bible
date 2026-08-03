@@ -70,7 +70,8 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="https"
-                    android:host="2sc.prestoai.cn" />
+                    android:host="2sc.prestoai.cn"
+                    android:pathPrefix="/" />
             </intent-filter>
         </activity>
 

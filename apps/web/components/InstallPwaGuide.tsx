@@ -37,11 +37,12 @@ import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
 import {
   clearInstallPromptDismiss,
-  dismissAndroidAutoInstallThisLoad,
   dismissInstallPrompt,
   getAndroidAutoSheetOpen,
-  isAndroidAutoInstallDismissedThisLoad,
+  isAndroidInstallAutoSuppressed,
+  isAndroidTwaInstallClaimed,
   isInstallPromptSuppressed,
+  markAndroidTwaInstallClaimed,
   noteInstallPromptShown,
   PWA_INSTALL_DISMISS_KEY,
   setAndroidAutoSheetOpen,
@@ -205,7 +206,12 @@ export function InstallPwaSheet({
     } catch {
       /* ignore */
     }
-    clearInstallPromptDismiss();
+    if (isAndroid) {
+      // 直装 APK 探测不可靠：点下载即视为已引导完成，永久不再自动弹
+      markAndroidTwaInstallClaimed();
+    } else {
+      clearInstallPromptDismiss();
+    }
     onClose();
   };
 
@@ -240,7 +246,8 @@ export function InstallPwaSheet({
     setBusy(true);
     try {
       await backupBeforeInstall();
-      toast('开始下载安装包…');
+      markAndroidTwaInstallClaimed();
+      toast('开始下载安装包…装好后请点桌面「彼爱」打开');
       window.location.href = androidTwaApkUrl(BASE_PATH || '');
       await onInstallAccepted();
     } finally {
@@ -282,7 +289,8 @@ export function InstallPwaSheet({
         {isAndroid ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
             安装前会尽量把读经记录保存到账号。从官方站点直接下载安装包，不跳应用商店。
-            装好后请点桌面「彼爱」图标打开（不要从浏览器地址栏再进），才会是无地址栏的 App 形态。
+            装好后请点桌面「彼爱」图标打开（不要从浏览器地址栏再进）。
+            若顶部仍有地址栏，请卸载后重装，并在系统设置里允许彼爱打开 2sc.prestoai.cn。
           </p>
         ) : null}
         {isDesktop && !loggedIn ? (
@@ -380,11 +388,19 @@ export default function InstallBanner() {
     : normalizeAppPath(routerPath || '/');
   const onHome = pathname === '/';
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(() => getAndroidAutoSheetOpen());
+  const [sheetOpen, setSheetOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    if (isAndroidTwaInstallClaimed() || isInstallPromptSuppressed()) return false;
+    return getAndroidAutoSheetOpen();
+  });
   const [sheetCtx, setSheetCtx] = useState<PwaInstallContext | null>(null);
   const [hidden, setHidden] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [homeClear, setHomeClear] = useState(false);
+  /** 探测到已装 / claimed 后禁止安卓自动 Sheet */
+  const [androidInstalled, setAndroidInstalled] = useState(
+    () => (typeof window !== 'undefined' ? isAndroidTwaInstallClaimed() : false),
+  );
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -424,7 +440,8 @@ export default function InstallBanner() {
       const detail = (e as CustomEvent<PwaInstallContext | null>).detail;
       if (detail) setSheetCtx(detail);
       else setSheetCtx(readPwaInstallContext());
-      setAndroidAutoSheetOpen(true);
+      // 主动打开：不走 auto 态，claimed 后仍可进引导
+      setAndroidAutoSheetOpen(false);
       setSheetOpen(true);
     };
     window.addEventListener(PWA_INSTALL_SHEET_EVENT, onOpen);
@@ -440,28 +457,35 @@ export default function InstallBanner() {
   const isAndroidPlatform =
     isAndroidBrowser || (platform === 'inapp' && !isIOS());
 
-  // 安卓：尽快自动弹出安装 Sheet（含首页）；切 Tab 保持；仅用户关闭后本页消失；刷新再出
+  // 安卓：尽快自动弹出安装 Sheet（含首页）；已下载/关闭冷却后刷新也不再弹
   useEffect(() => {
     if (platform === null) return;
     if (platform === 'standalone') {
       setHidden(true);
       setSheetOpen(false);
+      setAndroidAutoSheetOpen(false);
       return;
     }
     if (isAndroidPlatform) {
-      // 已打开：立刻恢复（切 Tab / remount），不被 dismiss 以外的逻辑关掉
+      if (androidInstalled || isAndroidInstallAutoSuppressed()) {
+        setHidden(true);
+        // 仅关掉「自动」Sheet，不挡主动 openPwaInstallSheet
+        if (getAndroidAutoSheetOpen()) {
+          setAndroidAutoSheetOpen(false);
+          setSheetOpen(false);
+        }
+        return;
+      }
+      // 切 Tab 时若本会话仍保持「打开中」则恢复
       if (getAndroidAutoSheetOpen()) {
         setHidden(false);
         setSheetOpen(true);
         return;
       }
-      if (isAndroidAutoInstallDismissedThisLoad()) {
-        setHidden(true);
-        return;
-      }
       const t = window.setTimeout(() => {
-        if (isAndroidAutoInstallDismissedThisLoad()) return;
+        if (androidInstalled || isAndroidInstallAutoSuppressed()) return;
         setAndroidAutoSheetOpen(true);
+        noteInstallPromptShown();
         setHidden(false);
         setSheetOpen(true);
       }, platform === 'inapp' ? 200 : 320);
@@ -476,16 +500,37 @@ export default function InstallBanner() {
       setHidden(false);
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [platform, onboardingDone, slotFree, isAndroidPlatform]);
+  }, [platform, onboardingDone, slotFree, isAndroidPlatform, androidInstalled]);
+
+  // 已装 TWA / 点过下载：标记 claimed，永久关掉自动 Sheet
+  useEffect(() => {
+    if (!isAndroidPlatform) return;
+    let cancelled = false;
+    if (isAndroidTwaInstallClaimed()) {
+      setAndroidInstalled(true);
+      return;
+    }
+    void detectAndroidTwaInstalled().then((ok) => {
+      if (cancelled || !ok) return;
+      markAndroidTwaInstallClaimed();
+      setAndroidInstalled(true);
+      setSheetOpen(false);
+      setAndroidAutoSheetOpen(false);
+      setHidden(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAndroidPlatform]);
 
   const closeSheet = () => {
     if (isAndroidPlatform) {
-      dismissAndroidAutoInstallThisLoad();
+      // 关掉 = 短冷却 + 本会话不再自动弹（不再「刷新即再弹」）
+      dismissInstallPrompt();
     }
     setSheetOpen(false);
     setSheetCtx(null);
     writePwaInstallContext(null);
-    // 「暂不」写了冷却后隐藏 Banner；主动打开再 softClose 不写冷却则保持
     if (isAndroidPlatform || isInstallPromptSuppressed()) setHidden(true);
   };
 
