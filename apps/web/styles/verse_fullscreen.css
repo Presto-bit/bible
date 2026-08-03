@@ -41,7 +41,8 @@ body.verse-full-open .tabbar {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background: linear-gradient(175deg, #2a2420 0%, #161412 42%, #0f1418 100%);
+  /* 全屏无图：深灰渐变（仍非纯白）；有图后由 WallpaperBg 盖住 */
+  background: linear-gradient(175deg, #4a4742 0%, #2e2c28 48%, #1c1b19 100%);
 }
 .verse-full-bg-layer {
   position: absolute;

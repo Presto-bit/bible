@@ -137,7 +137,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     const cached = readCachedDailyVerse();
     return cached?.day ? dailyVerseWallpaperUrl(cached.day) : null;
   });
-  /** 风景图真正解码成功后才亮 has-art（否则保留墨色垫底，绝不露 .card 白底） */
+  /** 风景图真正解码成功后才亮 has-art（否则暖灰渐变垫底，绝不露 .card 白底） */
   const [heroArtReady, setHeroArtReady] = useState(false);
   const [heroBCampaign, setHeroBCampaign] = useState<HeroBCampaign | null>(() => readCachedHeroBCampaign());
   const [heroBCampaignReady, setHeroBCampaignReady] = useState(false);
