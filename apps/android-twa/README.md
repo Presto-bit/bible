@@ -1,6 +1,10 @@
-# 彼爱 Android TWA
+# 彼爱 Android 安装壳
 
-薄壳打开 `https://2sc.prestoai.cn`，无浏览器地址栏。安装包由站点同域直装，不走应用商店。
+全屏 **WebView** 打开 `https://2sc.prestoai.cn`，**无浏览器地址栏、无其它标签页**。  
+安装包由站点同域直装，不走应用商店。
+
+> 说明：旧版为 Chrome TWA；国内机常校验失败会降级成 Custom Tabs（有地址栏）。  
+> 自 **1.0.1 / versionCode 2** 起改为原生 WebView 独立壳。
 
 ## 包信息
 
@@ -8,7 +12,9 @@
 |----|-----|
 | applicationId | `cn.prestoai.peiai` |
 | 应用名 | 彼爱 |
+| 主入口 | `MainWebActivity` |
 | startUrl | `https://2sc.prestoai.cn/` |
+| User-Agent 标记 | `PeiaiAndroidShell/…`（站点据此识别为 standalone） |
 
 ## 本地构建
 
@@ -28,12 +34,16 @@ cp keystore/keystore.properties.example keystore/keystore.properties
 - `app/build/outputs/apk/release/app-release.apk`
 - 复制为 `apps/web/public/downloads/peiai-android.apk`
 - 更新 `apps/web/public/downloads/peiai-android.json`
-- Digital Asset Links：`apps/web/public/.well-known/assetlinks.json`（SHA-256 须与签名证书一致）
+- Digital Asset Links：`apps/web/public/.well-known/assetlinks.json`（用于 App Links）
 
 ## 密钥
 
-- `keystore/*.jks` 与 `keystore/keystore.properties` **不进 git**
+- `keystore/*.jks` 与 `keystore.properties` **不进 git**
 - 换签后必须更新 `assetlinks.json` 中的 `sha256_cert_fingerprints`
+
+## 已装旧版（TWA 有地址栏）
+
+请 **卸载** 后从官网重新下载安装 1.0.1+，才会切换到 WebView 壳。
 
 ## 发版与更新
 

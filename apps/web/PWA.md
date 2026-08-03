@@ -49,12 +49,12 @@ cd apps/web && npm run generate-pwa
 ## 安装引导
 
 - 组件：`components/InstallPwaGuide.tsx`
-- **Android 主路径：TWA 直装**（`/downloads/peiai-android.apk`，不跳应用商店）；「添加到主屏幕」降为次要
+- **Android 主路径：安装包直装**（`/downloads/peiai-android.apk`，WebView 全屏壳，不跳应用商店）；「添加到主屏幕」降为次要
 - iOS：仍为 Safari「添加到主屏幕」
 - 微信 / QQ：引导「用浏览器打开再安装」
 - 入口：底部 Banner、「我的 → 设置 → 安装彼爱」、新手/读后引导
-- 壳工程与冒烟：`apps/android-twa/`（见 README / SMOKE.md）
-- Digital Asset Links：`public/.well-known/assetlinks.json`
+- 壳工程与冒烟：`apps/android-twa/`（见 README / SMOKE.md；主入口为 WebView 壳）
+- Digital Asset Links：`public/.well-known/assetlinks.json`（App Links）
 
 ## Standalone 对齐
 
@@ -64,4 +64,4 @@ cd apps/web && npm run generate-pwa
 
 ## 生效
 
-替换 `icon.svg` 后运行 `npm run generate-pwa`，构建部署。已安装用户需**删除旧快捷方式后重新添加**才能更新图标。Android TWA 用户业务更新随 Web 部署生效，无需重装 APK（换签除外）。
+替换 `icon.svg` 后运行 `npm run generate-pwa`，构建部署。已安装用户需**删除旧快捷方式后重新添加**才能更新图标。Android 安装包用户业务更新随 Web 部署生效，无需重装 APK（壳改动 / 换签除外）。

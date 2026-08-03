@@ -4,6 +4,7 @@ import { isAndroid } from '@/lib/pwa_platform';
 
 export function isStandalonePwa(): boolean {
   if (typeof window === 'undefined') return false;
+  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) return true;
   const nav = navigator as Navigator & { standalone?: boolean };
   return (
     window.matchMedia('(display-mode: standalone)').matches

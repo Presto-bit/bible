@@ -1,60 +1,39 @@
-# 彼爱 Android TWA：发版与同步更新
+# 彼爱 Android 壳：发版与同步更新
 
-业务代码在 Web；多数迭代**不用重打 APK**。只有壳/签名/版本元数据变更时才走本流程。
+## 壳 vs 站点
 
-## 何时需要重打 APK
+| 变更类型 | 是否需重建 APK | 是否需卸载重装 |
+|----------|----------------|----------------|
+| 站点功能 / Web UI | 否 | 否（打开即新站） |
+| 壳 WebView / 启动逻辑 / 权限 | 是 | 建议卸载后装新包，或 `versionCode` 递增覆盖安装 |
+| 签名证书变更 | 是（并更新 assetlinks.json） | 必须卸载重装 |
 
-| 变更 | 要不要打 APK |
-|------|----------------|
-| 读经 / 小爱 / UI / 文案（纯 Web） | 否，发 Web 即可 |
-| 换图标、开屏、包名、签名证书 | 是 |
-| 升 `versionCode` 提示用户覆盖安装 | 是 |
-| Digital Asset Links 证书指纹变更 | 是（并更新 assetlinks.json） |
-
-## 标准打包同步（推荐）
-
-在仓库根目录：
+## 发版壳包
 
 ```bash
-# 1. 升版本（每次要用户覆盖安装时 +1）
-# 编辑 apps/android-twa/app/build.gradle.kts
-#   versionCode += 1
-#   versionName = "1.0.x"
-
-# 2. 打 release 并同步到 Web 静态目录
+# 先 bump apps/android-twa/app/build.gradle.kts 的 versionCode / versionName
 cd apps/android-twa && ./scripts/build_and_publish.sh
 
-# 3. 提交产物（apk / peiai-android.json / assetlinks.json）与代码一起发版
+# 提交产物（apk / peiai-android.json / assetlinks.json）与代码一起发版
 git add apps/web/public/downloads apps/web/public/.well-known \
   apps/android-twa/app/build.gradle.kts apps/android-twa/twa-manifest.json
-git commit -m "Bump Peiai Android TWA to x.y.z"
-bash scripts/publish.sh
+git commit -m "Bump Peiai Android shell to x.y.z"
 ```
 
-`build_and_publish.sh` 会：
+## 无地址栏验收
 
-1. `assembleRelease` 签名打包  
-2. 复制到 `apps/web/public/downloads/peiai-android.apk`  
-3. 写 `peiai-android.json`（versionCode / sha256 / bytes）  
-4. 按当前证书刷新 `/.well-known/assetlinks.json`
+- [ ] 从桌面「彼爱」图标打开，**无**顶部网址栏  
+- [ ] **无**浏览器其它标签 / 多标签切换条  
+- [ ] 系统任务卡片显示「彼爱」而非「Chrome」  
+- [ ] Web 侧不再自动弹出「安装彼爱」（UA 含 `PeiaiAndroidShell`）
 
 ## 密钥
 
-- `apps/android-twa/keystore/*.jks` 与 `keystore.properties` **不进 git**，服务器/本机需保留同一上传密钥  
-- 换签后必须：新 APK + 新 assetlinks 指纹，旧包用户无法用新签覆盖时需卸载重装
+- `apps/android-twa/keystore/*.jks` 与 `keystore.properties` **不进 git**  
+- 换签后必须：新 APK + 新 assetlinks 指纹
 
-## 用户侧更新体验
-
-- **Web 功能**：已装 TWA 用户打开 App 即拿最新站，无需重装  
-- **壳更新**：同 URL 下载新 APK 覆盖安装（同签名）；引导文案可提示「有新安装包」  
-- 可选二期：读 `peiai-android.json` 的 `versionCode`，大于本机则出「更新彼爱」按钮
-
-## 发版后自检
-
-见 [SMOKE.md](./SMOKE.md)。至少确认：
+## 校验 assetlinks（App Links 可选）
 
 ```bash
 curl -sI https://2sc.prestoai.cn/.well-known/assetlinks.json | head -5
-curl -sI https://2sc.prestoai.cn/downloads/peiai-android.apk | head -8
-curl -s https://2sc.prestoai.cn/downloads/peiai-android.json
 ```

@@ -27,8 +27,15 @@ export function isInAppBrowser(): boolean {
   return /MicroMessenger|QQ\//i.test(navigator.userAgent);
 }
 
+/** 彼爱安卓安装包 WebView 壳（UA 含 PeiaiAndroidShell） */
+export function isPeiaiAndroidShell(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /PeiaiAndroidShell\//i.test(navigator.userAgent);
+}
+
 export function isStandalone(): boolean {
   if (typeof window === 'undefined') return false;
+  if (isPeiaiAndroidShell()) return true;
   const nav = window.navigator as Navigator & { standalone?: boolean };
   // TWA / 主屏幕：standalone；部分环境会报 fullscreen / minimal-ui
   return (
