@@ -36,7 +36,8 @@
   flex-shrink: 0;
   margin-top: 0;
 }
-/* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高） */
+/* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高）
+ * 勿对 .app-body 设 touch-action:none：assistant-active 残留时会锁死「我的」等 Tab 点击。 */
 body.assistant-active {
   overflow: hidden;
   overscroll-behavior: none;
@@ -46,13 +47,15 @@ body.assistant-active .app-body {
   overscroll-behavior: none;
   padding-top: 0;
   padding-bottom: 0;
+}
+body.assistant-active .tab-keep-pane-active .assistant-page,
+body.assistant-active .assistant-page {
   touch-action: none;
 }
 /* 键盘：只在聚焦时加强锁滚动/高度，平时底栏与其他 Tab 同位 */
 body.assistant-keyboard.assistant-active {
   overflow: hidden !important;
   overscroll-behavior: none;
-  touch-action: none;
 }
 html:has(body.assistant-keyboard.assistant-active) {
   overflow: hidden !important;
@@ -61,6 +64,9 @@ html:has(body.assistant-keyboard.assistant-active) {
 body.assistant-keyboard.assistant-active .app-body {
   overflow: hidden !important;
   overscroll-behavior: none;
+}
+body.assistant-keyboard.assistant-active .tab-keep-pane-active .assistant-page,
+body.assistant-keyboard.assistant-active .assistant-page {
   touch-action: none;
 }
 body.assistant-keyboard.assistant-active .assistant-page {

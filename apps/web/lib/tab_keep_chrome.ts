@@ -117,6 +117,12 @@ export function cleanupTabBodyChrome(leaving: KeepAliveTabId | null, entering: K
     document.documentElement.style.removeProperty('--assistant-vv-h');
     document.documentElement.style.removeProperty('--assistant-kb-inset');
   }
+  // 进入「我的」：再扫一遍小爱键盘壳，避免残留 touch-action:none 把整页点死
+  if (entering === 'profile') {
+    document.body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv', 'assistant-active');
+    document.documentElement.style.removeProperty('--assistant-vv-h');
+    document.documentElement.style.removeProperty('--assistant-kb-inset');
+  }
   if (leaving && leaving !== entering) {
     document.body.classList.remove('im-keyboard', 'im-keyboard-overlay', 'im-plus-sheet', 'im-mention-sheet');
   }

@@ -5,6 +5,9 @@
  * 1) 恢复装前深链 / 留在首页今日
  * 2) 等有效读经（或短兜底）后再问「读经提醒」
  * 3) 设密不在此全屏弹：归「我的」账号区软催（避免挡圣经/发现等 Tab）
+ *
+ * 半屏必须可关：遮罩曾无 onClick，TWA 上点「先继续」外的区域等于吞点击，
+ * 「我的」设置/头像/成就会像完全没反应。
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -25,6 +28,7 @@ import { hasPassword } from '@/lib/api';
 import { reminderHeroSub, reminderHeroTitle } from '@/lib/beiai_habit_copy';
 import { clearSharePwaDismiss } from '@/lib/share_pwa_guide';
 import { markProfilePasswordNudge } from '@/lib/account_guide';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 function skipGenericOnboarding(): void {
   try {
@@ -127,42 +131,49 @@ export default function PwaFirstOpenGuide() {
   if (!open) return null;
 
   return (
-    <div className="sheet-backdrop pwa-first-open-backdrop" style={{ zIndex: 145 }}>
+    <AppBodyPortal onTabAway={() => finish('reminder_skip_tab')}>
       <div
-        className="sheet card pwa-first-open-sheet"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="pwa-first-open-title"
+        className="sheet-backdrop pwa-first-open-backdrop"
+        data-dismiss-on-tab-nav
+        role="presentation"
+        onClick={() => finish('reminder_skip_backdrop')}
       >
-        <p className="eyebrow">{BRAND_NAME}</p>
-        <h2 id="pwa-first-open-title" style={{ marginTop: 4 }}>
-          {reminderHeroTitle(false)}
-        </h2>
-        <p className="muted" style={{ lineHeight: 1.65 }}>
-          {reminderHeroSub(false)}
-          。留一个轻提醒，明天更容易从主屏幕回来。
-        </p>
-        <p className="muted" style={{ fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>
-          换机找回可到「我的」设置密码，不挡继续读经。
-        </p>
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          disabled={busy}
-          onClick={() => void enableReminder()}
+        <div
+          className="sheet card pwa-first-open-sheet"
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pwa-first-open-title"
         >
-          {busy ? '开启中…' : '开启读经提醒'}
-        </button>
-        <button
-          type="button"
-          className="text-link"
-          style={{ marginTop: 10 }}
-          onClick={() => finish('reminder_skip')}
-        >
-          先继续读经
-        </button>
+          <p className="eyebrow">{BRAND_NAME}</p>
+          <h2 id="pwa-first-open-title" style={{ marginTop: 4 }}>
+            {reminderHeroTitle(false)}
+          </h2>
+          <p className="muted" style={{ lineHeight: 1.65 }}>
+            {reminderHeroSub(false)}
+            。留一个轻提醒，明天更容易从主屏幕回来。
+          </p>
+          <p className="muted" style={{ fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>
+            换机找回可到「我的」设置密码，不挡继续读经。
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            disabled={busy}
+            onClick={() => void enableReminder()}
+          >
+            {busy ? '开启中…' : '开启读经提醒'}
+          </button>
+          <button
+            type="button"
+            className="text-link"
+            style={{ marginTop: 10 }}
+            onClick={() => finish('reminder_skip')}
+          >
+            先继续读经
+          </button>
+        </div>
       </div>
-    </div>
+    </AppBodyPortal>
   );
 }

@@ -183,8 +183,8 @@ export default function ReadingProgress({
       )}
 
       {open && (
-        <AppBodyPortal>
-          <div className="sheet-backdrop" onClick={() => setOpen(false)}>
+        <AppBodyPortal onTabAway={() => setOpen(false)}>
+          <div className="sheet-backdrop" data-dismiss-on-tab-nav onClick={() => setOpen(false)}>
             <div
               className="sheet card"
               style={{ maxHeight: '88vh', overflowY: 'auto' }}

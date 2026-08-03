@@ -357,6 +357,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     let cancelled = false;
     const apply = () => {
       if (cancelled) return;
+      // 防 schedule 延迟：已切到「我的」等 Tab 时勿再挂 assistant-active（会 touch-action:none 锁全页）
+      const activePane = document.querySelector('.tab-keep-pane-active');
+      if (activePane && !activePane.querySelector('.assistant-page')) return;
       document.body.classList.add('assistant-active');
       document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
     };
@@ -368,6 +371,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     assistantWasActiveRef.current = true;
     return () => {
       cancelled = true;
+      clearAssistantChrome();
     };
   }, [paneActive]);
 

@@ -497,9 +497,16 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     markRouteNavigation();
   };
 
-  // 切走「我的」时收起设置，避免 portal 遮罩卡住其它 Tab 的点击
+  // 切走「我的」时收起全部 portal，避免遮罩卡住其它 Tab；切回时清掉小爱壳残留
   useEffect(() => {
-    if (!paneActive) setSettingsOpen(false);
+    if (!paneActive) {
+      setSettingsOpen(false);
+      setPickerOpen(false);
+      setBadgeOpen(false);
+      return;
+    }
+    if (typeof document === 'undefined') return;
+    document.body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv', 'assistant-active');
   }, [paneActive]);
 
   const openHelpFeedback = async () => {

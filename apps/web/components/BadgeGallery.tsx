@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   BADGE_CATEGORY_LABELS,
   BADGE_CATEGORY_ORDER,
@@ -25,8 +25,8 @@ export default function BadgeGallery({
   const earned = badges.filter((b) => b.done).length;
 
   return (
-    <AppBodyPortal>
-      <div className="sheet-backdrop" onClick={onClose}>
+    <AppBodyPortal onTabAway={onClose}>
+      <div className="sheet-backdrop" data-dismiss-on-tab-nav onClick={onClose}>
         <div className="sheet card badge-gallery" onClick={(e) => e.stopPropagation()}>
           <div className="section-row" style={{ marginTop: 0 }}>
             <h3 style={{ margin: 0 }}>成就徽章</h3>
