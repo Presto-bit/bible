@@ -3015,8 +3015,8 @@ export default function ReaderView({
       </div>
 
       <div
-        className={`reader-fab-stack${chromeHidden || hasSel ? ' is-hidden' : ''}`}
-        aria-hidden={chromeHidden || hasSel}
+        className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}`}
+        aria-hidden={hasSel}
       >
         {planMeta && onPlanExit && (
           <button
@@ -3054,7 +3054,13 @@ export default function ReaderView({
         <button
           type="button"
           className="reader-fab"
-          onClick={(e) => { e.stopPropagation(); openAiSheet(); }}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            openAiSheet();
+          }}
           aria-label="问小爱"
         >
           ✦ 小爱
@@ -3214,17 +3220,17 @@ export default function ReaderView({
                 className="vsb-icon-btn"
                 onPointerDown={(e) => {
                   e.stopPropagation();
+                  e.preventDefault();
                   selectionPinRef.current = effSelectionText;
-                }}
-                onClick={() => {
+                  // 必须在 selection 被 WebView 收起、工具条卸载前打开；不要等 click
                   setMarkPaletteOpen(false);
                   setAiSheetContext({
                     refParam: effRefParam,
                     refLabel: effRefLabel,
                     selectionText: selectionPinRef.current || effSelectionText,
                   });
-                  clearSelection();
                   setAiSheet(true);
+                  clearSelection();
                 }}
               >
                 <span className="vsb-icon" aria-hidden>✦</span>

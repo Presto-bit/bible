@@ -414,8 +414,9 @@ nav.tabbar,
 
 html.android-shell nav.tabbar,
 html.android-shell .tabbar {
-  /* 壳内优先稳妥底，避免半透+scroll 重绘闪烁 */
-  background: color-mix(in srgb, var(--surface, #fff) 94%, transparent);
+  /* 壳内优先稳妥底，避免半透+scroll 重绘闪烁；实色兜底增强选中对比 */
+  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--surface, #fff) 96%, transparent);
 }
 
 .tab-offline-hint {
@@ -521,6 +522,30 @@ html.android-shell .tabbar {
 .tab-active > span:not(.tab-icon-wrap) {
   font-weight: 600;
   color: var(--ink);
+}
+
+/* 安卓壳：选中态与 PWA 一致（深色文字+图标；实心底防止半透漂白） */
+html.android-shell nav.tabbar,
+html.android-shell .tabbar {
+  background: rgba(255, 255, 255, 0.96);
+  background: color-mix(in srgb, var(--surface, #fff) 96%, transparent);
+}
+
+html.android-shell .tab {
+  color: var(--ink-faint, #8e8e93);
+}
+
+html.android-shell .tab-active {
+  color: var(--ink, #1c1c1e);
+}
+
+html.android-shell .tab-active svg {
+  color: var(--ink, #1c1c1e);
+}
+
+html.android-shell .tab-active > span:not(.tab-icon-wrap) {
+  font-weight: 700;
+  color: var(--ink, #1c1c1e);
 }
 
 .page-title {
@@ -2502,12 +2527,14 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 .home-page .home-media-body {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 3px;
   justify-content: center;
+  /* 与左侧图标拉开，避免贴边 */
+  padding-left: 2px;
   padding-right: 2px;
 }
 
@@ -3262,13 +3289,31 @@ button.hero-b-campaign {
 .hero-scene-img {
   position: absolute;
   inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center;
   display: block;
   border: 0;
+  /* 合成层，避免部分 WebView 不绘制 absolute 子图 */
   transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+/* 壳内：场景图显式铺满，避免父层百分比高度为 0 */
+html.android-shell .hero-scene.hero-scene-has-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 1;
+}
+html.android-shell .hero-scene-img {
+  opacity: 1;
+  visibility: visible;
 }
 
 .hero-verse .hero-scene[style*='background-image'],
@@ -3467,7 +3512,8 @@ button.hero-b-campaign {
   padding-top: 8px;
   flex-shrink: 0;
   position: relative;
-  z-index: 2;
+  z-index: 3;
+  pointer-events: auto;
 }
 
 .hero-actions-err {
@@ -3496,6 +3542,11 @@ button.hero-b-campaign {
   font-size: 12px;
   font-weight: 600;
   line-height: 1;
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .hero-action:disabled {
@@ -3517,6 +3568,10 @@ button.hero-b-campaign {
 }
 
 .hero-share {
+  color: var(--ink-faint);
+}
+
+.hero-xiaoai {
   color: var(--ink-faint);
 }
 
@@ -3979,7 +4034,12 @@ html.android-shell .home-page .home-media-row,
 html.pwa-standalone .home-page .home-media-row {
   min-height: 90px;
   padding: 14px 16px 14px 12px;
-  gap: 16px;
+  /* 图标与文案更疏一点，解决贴边感 */
+  gap: 18px;
+}
+html.android-shell .home-page .home-media-body,
+html.pwa-standalone .home-page .home-media-body {
+  padding-left: 4px;
 }
 html.android-shell .home-page .home-media-title,
 html.pwa-standalone .home-page .home-media-title {

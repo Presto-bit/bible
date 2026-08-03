@@ -17,10 +17,18 @@ const VELOCITY_MIN = 0.18;
 const FORCE_RATIO = 0.32;
 const AXIS_RATIO = 1.25;
 const AXIS_MIN_PX = 12;
+/** 安卓壳：更快认横轴，避免 pan-y 竞争后永远认不成 X */
+const SHELL_AXIS_RATIO = 1.12;
+const SHELL_AXIS_MIN_PX = 8;
 const EDGE_RESIST = 0.28;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
+
+function isAndroidShell(): boolean {
+  return typeof navigator !== 'undefined'
+    && /PeiaiAndroidShell\//i.test(navigator.userAgent);
+}
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
@@ -218,8 +226,16 @@ export function useReaderPageTurn({
       if (!drag.current.axis) {
         const adx = Math.abs(dx);
         const ady = Math.abs(dy);
-        if (adx < AXIS_MIN_PX && ady < AXIS_MIN_PX) return;
-        if (adx >= AXIS_MIN_PX && adx > ady * AXIS_RATIO) {
+        const minPx = isAndroidShell() ? SHELL_AXIS_MIN_PX : AXIS_MIN_PX;
+        const ratio = isAndroidShell() ? SHELL_AXIS_RATIO : AXIS_RATIO;
+        if (adx < minPx && ady < minPx) return;
+        if (adx >= minPx && adx > ady * ratio) {
+          drag.current.axis = 'x';
+          setTurning(true);
+        } else if (ady >= minPx && ady >= adx * ratio) {
+          drag.current.axis = 'y';
+        } else if (adx >= minPx * 1.5 && adx > ady) {
+          // 壳：横略大于竖也认 X，贴近 PWA 跟手感
           drag.current.axis = 'x';
           setTurning(true);
         } else {

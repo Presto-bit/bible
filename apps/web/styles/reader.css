@@ -669,6 +669,7 @@ a.license-row-name:hover {
   max-width: 100vw;
   box-sizing: border-box;
 }
+/* 仅约束阅读页自身；勿锁 html/body height，否则 KeepAlive 挂着阅读器时首页滚不动 */
 html.android-shell .reader-page,
 html.pwa-standalone .reader-page {
   height: 100%;
@@ -677,18 +678,18 @@ html.pwa-standalone .reader-page {
   min-height: -webkit-fill-available;
   min-height: 100dvh;
 }
-html.android-shell,
-html.android-shell body,
-html.pwa-standalone,
-html.pwa-standalone body {
-  height: 100%;
-  min-height: 100%;
-  min-height: 100dvh;
-}
 html.android-shell .app-body,
 html.pwa-standalone .app-body {
   min-height: 100%;
   min-height: 100dvh;
+}
+/* 读经时放开横滑：根节点 touch-action:pan-y 与祖先取交集会挡掉跟手翻页 */
+body.reader-active,
+body.reader-active .app-body {
+  touch-action: auto;
+}
+body.reader-active .reader-page {
+  touch-action: pan-x pan-y;
 }
 /* PC：左右点击热区翻章（触控端隐藏，避免挡划选） */
 .reader-edge-nav {
@@ -820,7 +821,8 @@ html.pwa-standalone .app-body {
   position: relative;
   height: 100%;
   overflow: hidden;
-  touch-action: pan-y;
+  /* pan-x pan-y：允许声明横向，壳/WebView 才能把左右滑交给翻页（纯 pan-y 时部分机几乎无横轴） */
+  touch-action: pan-x pan-y;
   overscroll-behavior-x: none;
   overscroll-behavior-y: contain;
   -webkit-user-select: none;
@@ -828,6 +830,12 @@ html.pwa-standalone .app-body {
 }
 /* 确认横滑后锁死手势，小米 WebView 否则会把触摸交给内外层竖滚 */
 .reader-turn-viewport.is-turning {
+  touch-action: none;
+}
+html.android-shell .reader-turn-viewport {
+  touch-action: pan-x pan-y;
+}
+html.android-shell .reader-turn-viewport.is-turning {
   touch-action: none;
 }
 .reader-turn-viewport.is-turning .reader-turn-panel-active .reader-turn-peek {

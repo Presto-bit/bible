@@ -964,7 +964,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       <HomeHeroCarousel
         verseSlide={(
       <div
-        className={`card card-3 hero-verse hero-verse-has-art ${heroThemeClass(dv?.theme)}`}
+        className={`card card-3 hero-verse${heroIllustration ? ' hero-verse-has-art' : ''} ${heroThemeClass(dv?.theme)}`}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
         onClick={openVerseWallpaper}
         onContextMenu={(e) => e.preventDefault()}
@@ -983,6 +983,7 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               height={400}
               decoding="async"
               fetchPriority="high"
+              onError={() => setHeroIllustration(null)}
             />
           ) : null}
         </div>

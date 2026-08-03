@@ -27,16 +27,37 @@ type Opts = {
   enableBottomStretch?: boolean;
 };
 
+/**
+ * 文档/壳滚动位置。安卓 WebView 在 html/body 均 overflow 时可把 body 当滚动器，
+ * 仅读 window.scrollY / documentElement 会一直是 0 → 下拉刷新误抢手势、首页无法下滑。
+ */
 function scrollTop(): number {
   if (typeof window === 'undefined') return 0;
-  return window.scrollY || document.documentElement.scrollTop || 0;
+  const se = document.scrollingElement;
+  const seTop = se instanceof HTMLElement ? se.scrollTop : 0;
+  return Math.max(
+    window.scrollY || 0,
+    window.pageYOffset || 0,
+    document.documentElement?.scrollTop || 0,
+    document.body?.scrollTop || 0,
+    seTop,
+  );
+}
+
+function documentScrollHeight(): number {
+  if (typeof document === 'undefined') return 0;
+  const se = document.scrollingElement;
+  return Math.max(
+    document.documentElement?.scrollHeight || 0,
+    document.body?.scrollHeight || 0,
+    se instanceof HTMLElement ? se.scrollHeight : 0,
+  );
 }
 
 function atDocumentBottom(slack = 8): boolean {
   if (typeof window === 'undefined') return true;
-  const doc = document.documentElement;
   const bottom = window.innerHeight + scrollTop();
-  return bottom >= doc.scrollHeight - slack;
+  return bottom >= documentScrollHeight() - slack;
 }
 
 /** 橡胶阻尼：跟手但不线性顶死，减轻「顿一下」感 */
@@ -232,15 +253,31 @@ export function useHomePullRefresh({
       // 边缘手势保护：横向为主时不进 PTR
       if (modeRef.current === 'none') {
         if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 0.85) return;
-        // 下拉阈值略提高，减轻与系统过滚/状态栏下拉的冲突
-        if (dy > 10 && scrollTop() <= 0) modeRef.current = 'top';
-        else if (enableBottomRef.current && dy < -6 && atDocumentBottom()) {
+        // 只有「真·到顶」且竖向明确主导时才下拉；避免误 preventDefault 锁死页面滚动
+        if (
+          dy > 12
+          && Math.abs(dy) > Math.abs(dx) * 1.15
+          && scrollTop() <= 1
+        ) {
+          modeRef.current = 'top';
+        } else if (
+          enableBottomRef.current
+          && dy < -8
+          && Math.abs(dy) > Math.abs(dx) * 1.15
+          && atDocumentBottom()
+        ) {
           modeRef.current = 'bottom';
         } else return;
       }
 
       if (modeRef.current === 'top') {
-        if (scrollTop() > 0) {
+        if (scrollTop() > 1) {
+          modeRef.current = 'none';
+          resetTop(false);
+          return;
+        }
+        // 已松手式回拉但仍非明确下拉时交还原生滚动
+        if (dy <= 0 && pullRef.current <= 0.5) {
           modeRef.current = 'none';
           resetTop(false);
           return;
@@ -251,7 +288,8 @@ export function useHomePullRefresh({
           : dampPull(Math.max(0, dy), HOME_PTR_MAX_PX, 0.55);
         schedulePaintTop(next);
         if (bottomRef.current) paintBottom(0, false);
-        if (next > 0 && e.cancelable) e.preventDefault();
+        // 仅在已真正开始下拉时拦默认，绝不在 0 位移时 preventDefault
+        if (next > 0.5 && e.cancelable) e.preventDefault();
         return;
       }
 
