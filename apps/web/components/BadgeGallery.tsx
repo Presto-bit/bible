@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import '@/styles/badges.css';
 import {
   BADGE_CATEGORY_LABELS,
   BADGE_CATEGORY_ORDER,

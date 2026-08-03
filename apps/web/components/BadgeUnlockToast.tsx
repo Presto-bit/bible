@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import '@/styles/badges.css';
 import { BADGE_UNLOCK_EVENT } from '@/lib/badge_unlock';
 
 type Toast = { id: string; label: string; icon: string };

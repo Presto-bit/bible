@@ -1,0 +1,88 @@
+/* 成就徽章 Sheet / 解锁 toast — 由 BadgeGallery、BadgeUnlockToast 自引 */
+/* 曾误拆到 story_album.css，我的 Tab 未加载 → 网格/分类 Tab 丢失 */
+
+.badge-gallery {
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.badge-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+.badge-gallery-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.55;
+}
+.badge-gallery-item.badge-gallery-done {
+  opacity: 1;
+}
+.badge-gallery-item strong {
+  font-size: 12px;
+}
+.badge-gallery-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.badge-gallery-tab {
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line, var(--border));
+  background: transparent;
+  font-size: 12px;
+  color: var(--ink-faint, var(--muted));
+  cursor: pointer;
+}
+.badge-gallery-tab.active {
+  background: var(--accent-wash, var(--accent-soft));
+  border-color: var(--accent);
+  color: var(--accent-deep, var(--ink));
+  font-weight: 600;
+}
+.badge-gallery-hint {
+  font-size: 10px;
+  color: var(--ink-faint, var(--muted));
+  line-height: 1.35;
+  margin-top: 2px;
+}
+.badge-gallery-progress {
+  font-size: 10px;
+}
+.badge-unlock-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + var(--safe-bottom, env(safe-area-inset-bottom, 0px)));
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(30, 30, 30, 0.92);
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  animation: badge-toast-in 0.28s ease;
+}
+.badge-unlock-icon {
+  font-size: 18px;
+}
+@keyframes badge-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
