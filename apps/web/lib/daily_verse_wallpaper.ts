@@ -101,7 +101,8 @@ export function resolveCampaignCoverUrl(coverUrl?: string | null): string | null
 export function preloadWallpaperObjectUrl(url: string): Promise<string> {
   if (typeof window === 'undefined' || !url) return Promise.resolve(url);
   if (url.startsWith('blob:') || url.startsWith('data:')) return Promise.resolve(url);
-  return fetch(url, { credentials: 'same-origin', cache: 'force-cache' })
+  // 生产壁纸常见 no-store；force-cache 在 WebView 上可能失败。用 no-store + blob 更稳。
+  return fetch(url, { credentials: 'same-origin', cache: 'no-store' })
     .then(async (res) => {
       if (!res.ok) throw new Error(String(res.status));
       const blob = await res.blob();

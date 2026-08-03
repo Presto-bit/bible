@@ -396,6 +396,18 @@ a.report-tile-link .muted {
   overscroll-behavior-y: contain;
   touch-action: pan-y;
 }
+html.android-shell .wrapped-story-scroller,
+body.android-shell .wrapped-story-scroller {
+  scroll-behavior: auto;
+}
+.wrapped-story-loading {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40vh;
+  padding: 32px 16px;
+}
 .wrapped-slide {
   height: 100%;
   min-height: 100%;
@@ -414,18 +426,33 @@ a.report-tile-link .muted {
   overflow: hidden;
   background: linear-gradient(165deg, #1a2e28 0%, #12201b 48%, #0d1713 100%);
 }
+.wrapped-slide-bg-img {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border: 0;
+  transform: none;
+  -webkit-transform: none;
+  pointer-events: none;
+}
 .wrapped-slide-bg {
   position: absolute;
   inset: 0;
-  background-image: var(--wrapped-bg);
-  background-size: cover;
-  background-position: center;
-  transform: scale(1.04);
-  transition: transform 8s ease-out;
+  /* 背景以 img 为准；保留淡色膜避免无图时空白 */
+  background-image: none;
+  background: transparent;
+  transform: none;
+  transition: none;
   z-index: 0;
+  pointer-events: none;
 }
 .wrapped-slide.is-active .wrapped-slide-bg {
-  transform: scale(1);
+  transform: none;
 }
 .wrapped-slide-scrim {
   position: absolute;

@@ -673,7 +673,7 @@ export default function ReaderView({
   const openAiSheet = useCallback(() => {
     setChromeHidden(false);
     setAiSheetContext(resolveAiSheetContext());
-    setAiSheet(true);
+    window.setTimeout(() => setAiSheet(true), 0);
   }, [resolveAiSheetContext]);
 
   const openVersionPicker = useCallback(() => {
@@ -687,7 +687,8 @@ export default function ReaderView({
     } else {
       setCheckedVers([primaryId]);
     }
-    setShowVersions(true);
+    // 同帧 setState + 可能的 dismiss 事件时序：延后一拍打开
+    window.setTimeout(() => setShowVersions(true), 0);
     if (!versions) {
       api.versions()
         .then((d) => setVersions((d.versions ?? []).filter((v) => v.available !== false)))
@@ -2938,7 +2939,7 @@ export default function ReaderView({
                 e.stopPropagation();
                 e.preventDefault();
                 setChromeHidden(false);
-                setLocPopoverOpen((v) => !v);
+                window.setTimeout(() => setLocPopoverOpen((v) => !v), 0);
               }}
             >
               {bookAbbr(book.name)} {chapter}
@@ -2952,7 +2953,7 @@ export default function ReaderView({
             onClick={(e) => {
               e.stopPropagation();
               setChromeHidden(false);
-              setSummaryOpen(true);
+              window.setTimeout(() => setSummaryOpen(true), 0);
             }}
           >
             概要
@@ -2977,7 +2978,7 @@ export default function ReaderView({
             onClick={(e) => {
               e.stopPropagation();
               setChromeHidden(false);
-              setShowSettings(true);
+              window.setTimeout(() => setShowSettings(true), 0);
             }}
             aria-label="阅读设置"
           >

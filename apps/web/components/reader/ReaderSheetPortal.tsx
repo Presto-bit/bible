@@ -1,8 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { useCloseOnTabNav } from '@/lib/use_close_on_tab_nav';
+import type { ReactNode } from 'react';
+import AppBodyPortal from '@/components/AppBodyPortal';
 
 /** 阅读器内底部/居中 Sheet：挂 body + 阻断触控穿透到经文层。 */
 export default function ReaderSheetPortal({
@@ -14,30 +13,24 @@ export default function ReaderSheetPortal({
   onClose: () => void;
   backdropClassName?: string;
   sheetClassName?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-  useCloseOnTabNav(onClose);
-
-  if (!mounted) return null;
-
-  return createPortal(
-    <div
-      className={['sheet-backdrop', 'reader-sheet-backdrop', backdropClassName].filter(Boolean).join(' ')}
-      onClick={onClose}
-      onTouchMove={(e) => e.stopPropagation()}
-      data-dismiss-on-tab-nav
-      style={{ zIndex: 240 }}
-    >
+  return (
+    <AppBodyPortal onTabAway={onClose}>
       <div
-        className={sheetClassName}
-        onClick={(e) => e.stopPropagation()}
+        className={['sheet-backdrop', 'reader-sheet-backdrop', backdropClassName].filter(Boolean).join(' ')}
+        onClick={onClose}
         onTouchMove={(e) => e.stopPropagation()}
+        data-dismiss-on-tab-nav
       >
-        {children}
+        <div
+          className={sheetClassName}
+          onClick={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
       </div>
-    </div>,
-    document.body,
+    </AppBodyPortal>
   );
 }

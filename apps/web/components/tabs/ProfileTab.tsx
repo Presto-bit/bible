@@ -1177,7 +1177,8 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setSettingsOpen(true);
+                // 下一帧打开，避开部分 WebView 同时处理 pointerup/click 时吞掉 setState
+                window.setTimeout(() => setSettingsOpen(true), 0);
               }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>

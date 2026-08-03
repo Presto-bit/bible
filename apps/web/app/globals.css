@@ -334,10 +334,25 @@ html.pwa-standalone a[href] {
   background: var(--paper, #fffcfa);
 }
 
-/* body 级 portal：恒在 tabbar(90) / 保活 pane 之上；子树自带 fixed 遮罩 */
+/* body 级 portal：全屏 fixed 层，外壳不接事件，子树全接；压过 tabbar(90) 与保活 pane */
 .app-body-portal-layer {
-  position: relative;
-  z-index: 240;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  pointer-events: none;
+  isolation: isolate;
+}
+.app-body-portal-layer > * {
+  pointer-events: auto;
+}
+/* fixed 子遮罩在 Android WebView 上常需显式 touch-action，否则「点了没弹层」 */
+.app-body-portal-layer .sheet-backdrop,
+.app-body-portal-layer .reader-sheet-backdrop,
+.app-body-portal-layer .version-pop-backdrop,
+.app-body-portal-layer .reader-loc-backdrop,
+.app-body-portal-layer .reader-ai-backdrop {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -1558,7 +1573,8 @@ html:not([data-app-theme]) .card {
   object-fit: cover;
   display: block;
   filter: none;
-  transform: translateZ(0);
+  transform: none;
+  -webkit-transform: none;
 }
 .home-today-side-bg-veil {
   position: absolute;
@@ -1843,8 +1859,21 @@ html:not([data-app-theme]) .card {
 .home-page .hero-verse .hero-scene {
   background:
     radial-gradient(180px 140px at 88% 12%, rgba(255, 200, 140, 0.62), transparent 72%),
-    radial-gradient(140px 110px at 8% 88%, rgba(7, 193, 96, 0.14), transparent 70%),
+    radial-gradient(140px 110px at 8% 88%, rgba(07, 193, 96, 0.14), transparent 70%),
     linear-gradient(175deg, rgba(255, 236, 220, 0.82) 0%, rgba(255, 248, 243, 0) 68%);
+}
+
+/* 有风景图时：禁止上面的径向渐变 shorthand 盖掉/冲掉 img 铺底 */
+.home-page .hero-verse .hero-scene.hero-scene-has-art {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+.home-page .hero-verse.hero-verse-has-art .hero-scene-img {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+  z-index: 1;
 }
 
 .home-page .hero-like,
@@ -2461,6 +2490,17 @@ html.android-shell .home-page .home-growth-stack > * + * {
   transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
 }
 
+/* 安卓 WebView 常忽略 flex gap */
+.home-page .home-media-row > .home-media-body {
+  margin-left: 0;
+}
+html.android-shell .home-page .home-media-row {
+  gap: 0;
+}
+html.android-shell .home-page .home-media-row > .home-media-body {
+  margin-left: 22px;
+}
+
 .home-page .home-media-row:active {
   opacity: 0.94;
   transform: scale(0.99);
@@ -2656,16 +2696,33 @@ html.perf-lite .home-page .home-media-thumb-chip {
   display: block;
 }
 
+/* 成长区「今日 N 分钟」：图标底色 + 边框（对齐 iOS PWA，安卓 WebView 也要显式边框） */
 .home-page .home-media-row.tone-summary .home-media-thumb {
   background:
     radial-gradient(
       120% 120% at 30% 20%,
-      color-mix(in srgb, var(--accent, #8fa88a) 28%, #fff) 0%,
-      color-mix(in srgb, var(--accent-deep, #4a6b52) 12%, var(--surface)) 100%
-    );
+      color-mix(in srgb, var(--accent, #8fa88a) 32%, #fff) 0%,
+      color-mix(in srgb, var(--accent-deep, #4a6b52) 14%, var(--surface, #fff)) 100%
+    ) !important;
+  border: 1.5px solid color-mix(in srgb, var(--accent-deep, #4a6b52) 32%, transparent) !important;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, #fff 60%, transparent),
+    0 1px 3px rgba(15, 23, 42, 0.07);
 }
+
 .home-page .home-media-row.tone-summary .home-media-thumb-fallback {
   color: var(--accent-deep, #4a6b52);
+  opacity: 1;
+}
+
+/* 钟表图标可见底：略放大描边 */
+.home-page .home-media-row.tone-summary.is-icon .home-media-thumb-fallback svg {
+  width: 28px;
+  height: 28px;
+}
+
+.home-page .home-media-row.tone-summary.is-icon .home-media-thumb {
+  background-image: none !important;
 }
 
 .home-page .home-media-row.tone-discover .home-media-thumb {

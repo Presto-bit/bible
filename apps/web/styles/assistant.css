@@ -1,19 +1,17 @@
 /* Extracted from globals.css — styles/assistant.css */
 /* lines 5726-6469 */
 /* ─── 小爱页 ─── */
+/* iOS 主屏幕 PWA 与安卓壳共用：勿再对 android-shell 另搞高度公式 */
 .assistant-page {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  /*
-   * 与 iOS 主屏幕 PWA 一致：整页占满视口高度，底部只一次让出浮动 Tab。
-   * 安卓壳 --safe-bottom 可能偏大时，勿再用 height:100dvh 与 padding-bottom≈tabbar-h 叠两层。
-   */
   height: calc(100dvh - var(--tabbar-h));
   max-height: calc(100dvh - var(--tabbar-h));
   min-height: 0;
   padding-top: max(10px, var(--safe-top));
-  padding-bottom: 10px;
+  /* 与浮动 Tab 间距：呼吸 8px，勿再叠一层 tabbar 占位 */
+  padding-bottom: 8px;
   padding-left: 14px;
   padding-right: 14px;
   overflow: hidden;
@@ -21,14 +19,7 @@
   position: relative;
 }
 
-/* 安卓壳：tabbar-h 若被系统导航栏放大，避免再叠 padding 导致输入区被压扁、整体上移 */
-html.android-shell .assistant-page {
-  height: calc(100dvh - var(--tabbar-inner) - var(--tabbar-float-gap) - var(--tabbar-safe) - 12px);
-  max-height: calc(100dvh - var(--tabbar-inner) - var(--tabbar-float-gap) - var(--tabbar-safe) - 12px);
-  padding-bottom: 10px;
-}
-
-/* 有消息时对话区吃满剩余高度，输入条贴底（与 iOS 观感一致） */
+/* 主栏：头 + 消息/空态 + 输入，纵向铺满（与 iOS 结构一致） */
 .assistant-page > .assistant-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -43,7 +34,7 @@ html.android-shell .assistant-page {
 
 .assistant-body:not(.is-empty) .assistant-composer {
   flex-shrink: 0;
-  margin-top: auto;
+  margin-top: 0;
 }
 /* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高） */
 body.assistant-active {

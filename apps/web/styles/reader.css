@@ -354,7 +354,8 @@ body.reader-active .proper-noun--artifact {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  z-index: 240;
+  /* 在 app-body-portal-layer(300) 内局部抬高，保证压过 topbar/fab */
+  z-index: 1;
 }
 .version-pop {
   margin: 56px 0 0 12px;

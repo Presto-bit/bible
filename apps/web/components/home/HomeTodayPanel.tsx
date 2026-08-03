@@ -1,17 +1,14 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { bookCoverImageUrl } from '@/lib/book_cover';
-import {
-  preloadWallpaperObjectUrl,
-  resolveCampaignCoverUrl,
-} from '@/lib/daily_verse_wallpaper';
+import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import type { HomeTodayPanelModel, HomeTodayPanelSlot } from '@/lib/home_today_panel';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
 import { HomeTodayProgressRing } from '@/components/home/HomeTodayProgressRing';
 import { navigateAppHref } from '@/lib/pwa_tab_nav';
+import WallpaperBg from '@/components/home/WallpaperBg';
 
 type Props = {
   panel: HomeTodayPanelModel;
@@ -35,32 +32,6 @@ function slotCoverSrc(slot: HomeTodayPanelSlot): string | null {
   if (custom) return custom;
   if (slot.bookId) return bookCoverImageUrl(slot.bookId);
   return null;
-}
-
-function usePaintUrl(src: string | null): string | null {
-  const [paint, setPaint] = useState(src);
-  useEffect(() => {
-    if (!src) {
-      setPaint(null);
-      return;
-    }
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    setPaint(src);
-    void preloadWallpaperObjectUrl(src).then((next) => {
-      if (cancelled) {
-        if (next.startsWith('blob:') && next !== src) URL.revokeObjectURL(next);
-        return;
-      }
-      if (next.startsWith('blob:')) objectUrl = next;
-      setPaint(next);
-    });
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [src]);
-  return paint;
 }
 
 function SideCard({
@@ -94,27 +65,7 @@ function SideCard({
     >
       {coverSrc ? (
         <span className="home-today-side-bg" aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={coverSrc}
-            alt=""
-            className="home-today-side-bg-img"
-            width={160}
-            height={120}
-            loading="lazy"
-            decoding="async"
-            fetchPriority="low"
-            onError={(e) => {
-              const img = e.currentTarget;
-              if (img.dataset.retry === '1') {
-                img.style.display = 'none';
-                return;
-              }
-              img.dataset.retry = '1';
-              const sep = coverSrc.includes('?') ? '&' : '?';
-              img.src = `${coverSrc}${sep}r=1`;
-            }}
-          />
+          <WallpaperBg src={coverSrc} className="home-today-side-bg-img" fetchPriority="low" />
           <span className="home-today-side-bg-veil" />
         </span>
       ) : null}
@@ -145,7 +96,6 @@ export function HomeTodayPanel({
   const router = useRouter();
   const { primary, group, prayer } = panel;
   const coverSrc = slotCoverSrc(primary);
-  const paintCover = usePaintUrl(coverSrc);
   const showRing =
     typeof primary.progressPct === 'number' && primary.progressPct > 0;
 
@@ -162,7 +112,7 @@ export function HomeTodayPanel({
           type="button"
           className={[
             'home-today-primary',
-            paintCover || coverSrc ? 'has-cover' : '',
+            coverSrc ? 'has-cover' : '',
             primary.done ? 'is-done' : '',
             staggerEnter ? 'home-stagger-item home-stagger-1' : '',
           ]
@@ -171,36 +121,13 @@ export function HomeTodayPanel({
           onClick={() => navigate(primary.href, router)}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {(paintCover || coverSrc) ? (
-            <div
-              className="home-today-primary-bg"
-              aria-hidden
-              style={{
-                backgroundImage: `url("${paintCover || coverSrc}")`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center 28%',
-                backgroundRepeat: 'no-repeat',
-              }}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={paintCover || coverSrc || ''}
-                alt=""
+          {coverSrc ? (
+            <div className="home-today-primary-bg" aria-hidden>
+              <WallpaperBg
+                src={coverSrc}
                 className="home-today-primary-bg-img"
-                width={360}
-                height={220}
-                decoding="async"
+                objectPosition="center 28%"
                 fetchPriority="high"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  if (img.dataset.retry === '1' || !coverSrc || coverSrc.startsWith('blob:')) {
-                    img.style.display = 'none';
-                    return;
-                  }
-                  img.dataset.retry = '1';
-                  const sep = coverSrc.includes('?') ? '&' : '?';
-                  img.src = `${coverSrc}${sep}r=1`;
-                }}
               />
               <div className="home-today-primary-bg-veil" />
             </div>

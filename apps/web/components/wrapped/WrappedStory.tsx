@@ -51,8 +51,10 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
       return;
     }
     setPreviewing(true);
+    // 分享图延后：安卓壳上 canvas 很容易卡滑动
+    const delay = /PeiaiAndroidShell\//i.test(navigator.userAgent) ? 700 : 180;
     const timer = window.setTimeout(() => {
-      void renderWrappedSharePng(stats, { scale: 0.35 }).then((blob) => {
+      void renderWrappedSharePng(stats, { scale: 0.3 }).then((blob) => {
         if (cancelled) return;
         if (!blob) {
           setPreviewing(false);
@@ -65,7 +67,7 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
         });
         setPreviewing(false);
       });
-    }, 120);
+    }, delay);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -101,7 +103,9 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     const h = el.clientHeight || window.innerHeight;
     if (!h) return;
     const clamped = Math.max(0, Math.min(total - 1, i));
-    el.scrollTo({ top: clamped * h, behavior: 'smooth' });
+    // 安卓 WebView 上 smooth 滚动易导致卡顿/无法翻页
+    const smooth = !/PeiaiAndroidShell\//i.test(navigator.userAgent);
+    el.scrollTo({ top: clamped * h, behavior: smooth ? 'smooth' : 'auto' });
     setIndex(clamped);
   };
 
@@ -196,8 +200,9 @@ function WrappedSlideView({
       className={`wrapped-slide wrapped-slide--${slide.kind}${active ? ' is-active' : ''}`}
       data-period={period}
       aria-hidden={!active}
-      style={{ ['--wrapped-bg' as string]: `url(${bg})` }}
     >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className="wrapped-slide-bg-img" src={bg} alt="" aria-hidden decoding="async" loading={active ? 'eager' : 'lazy'} />
       <div className="wrapped-slide-bg" aria-hidden />
       <div className="wrapped-slide-scrim" aria-hidden />
       <div className="wrapped-slide-inner">

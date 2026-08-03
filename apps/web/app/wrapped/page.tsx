@@ -5,7 +5,7 @@ import PageBackBar from '@/components/PageBackBar';
 import WrappedStory from '@/components/wrapped/WrappedStory';
 import { useSuppressKeepAliveRoute } from '@/components/shell/TabKeepAliveContext';
 import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { BRAND_NAME } from '@/lib/brand';
@@ -16,29 +16,56 @@ import {
   enrichWrappedTexts,
   wrappedShareStatsLine,
   wrappedShareText,
+  type WrappedPeriod,
   type WrappedStats,
 } from '@/lib/wrapped';
 import { renderWrappedSharePng } from '@/lib/wrapped_share';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
 function WrappedInner() {
   useEdgeSwipeBack({ href: '/report' });
   const sp = useSearchParams();
-  const period = sp.get('period') === 'year' ? 'year' : 'month';
-  const base = useMemo(() => buildWrapped(period), [period]);
-  const [w, setW] = useState<WrappedStats>(base);
+  const period: WrappedPeriod = sp.get('period') === 'year' ? 'year' : 'month';
+  const [w, setW] = useState<WrappedStats | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
+  // 延迟重算：先让路由切页动画/layout 落定，避免安卓壳首屏卡死
   useEffect(() => {
-    setW(base);
     let cancelled = false;
-    void enrichWrappedTexts(base).then((enriched) => {
-      if (!cancelled) setW(enriched);
-    });
+    let idleId: number | null = null;
+    const run = () => {
+      if (cancelled) return;
+      const base = buildWrapped(period);
+      if (cancelled) return;
+      setW(base);
+      void enrichWrappedTexts(base).then((enriched) => {
+        if (!cancelled) setW(enriched);
+      });
+    };
+    const timer = window.setTimeout(() => {
+      const ric = (
+        window as Window & {
+          requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        }
+      ).requestIdleCallback;
+      if (typeof ric === 'function') {
+        idleId = ric(run, { timeout: 220 });
+      } else {
+        run();
+      }
+    }, isPeiaiAndroidShell() ? 80 : 0);
     return () => {
       cancelled = true;
+      window.clearTimeout(timer);
+      if (idleId != null) {
+        const cic = (
+          window as Window & { cancelIdleCallback?: (id: number) => void }
+        ).cancelIdleCallback;
+        cic?.(idleId);
+      }
     };
-  }, [base]);
+  }, [period]);
 
   useEffect(() => {
     document.documentElement.classList.add('wrapped-open');
@@ -50,6 +77,7 @@ function WrappedInner() {
   }, []);
 
   const share = async () => {
+    if (!w) return;
     setHint(null);
     setSharing(true);
     try {
@@ -111,12 +139,18 @@ function WrappedInner() {
           </Link>
         </div>
       </header>
-      <WrappedStory
-        stats={w}
-        onShare={() => void share()}
-        shareHint={hint}
-        sharing={sharing}
-      />
+      {w ? (
+        <WrappedStory
+          stats={w}
+          onShare={() => void share()}
+          shareHint={hint}
+          sharing={sharing}
+        />
+      ) : (
+        <div className="wrapped-story-loading" aria-busy="true">
+          <p className="muted">正在整理你的足迹…</p>
+        </div>
+      )}
     </main>
   );
 }
