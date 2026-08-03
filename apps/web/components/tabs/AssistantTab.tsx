@@ -100,6 +100,15 @@ function newSessionId(): string {
     : `s-${Date.now()}`;
 }
 
+/** 失败 / 中断等待用户重试的回复（与 send 里 ⚠️ · cancel 文案对齐） */
+function isAssistantRegenCandidate(text: string): boolean {
+  const t = text.trim();
+  if (!t) return true;
+  if (t.startsWith('⚠️')) return true;
+  if (t === '（已停止生成）' || t.includes('已停止生成')) return true;
+  return false;
+}
+
 export default function AssistantTab({ paneActive = true }: { paneActive?: boolean }) {
   return (
     <Suspense fallback={(
@@ -652,13 +661,16 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     displayText?: string,
     nextScene?: AssistantScene,
     surface?: string,
+    /** 重新生成：以该历史为前缀（不含本轮 user/assistant） */
+    opts?: { historyBase?: Msg[] },
   ) => {
     const q = (question ?? input).trim();
     if (!q || busy) return;
     const shown = (displayText ?? q).trim() || q;
     const m = nextMode ?? mode;
     const anchor = (refOverride ?? ref).trim() || null;
-    const history = msgs
+    const thread = opts?.historyBase ?? msgs;
+    const history = thread
       .filter((msg) => msg.text.trim())
       .map((msg) => ({
         role: msg.role,
@@ -672,7 +684,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     if (!nextScene && detectsViewpointsIntent(q)) {
       scene = 'chat_viewpoints';
     }
-    const userMsgsInSession = msgs.filter((msg) => msg.role === 'user').length + 1;
+    const userMsgsInSession = thread.filter((msg) => msg.role === 'user').length + 1;
     recordXiaoAiQuestion({ scene, ref: refForApi ?? undefined });
     recordXiaoAiFollowup(userMsgsInSession);
     void import('@/lib/product_events').then((m) =>
@@ -682,7 +694,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     );
     setMode(m);
     replaceComposerValue('');
-    const base: Msg[] = [...msgs, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
+    const base: Msg[] = [...thread, { role: 'user', text: shown }, { role: 'assistant', text: '' }];
     sessionScrollRef.current = false;
     // 默认跟滚看全文；用户上滑后才锁滚并出现「跟随最新」
     streamFollowLockedRef.current = false;
@@ -815,6 +827,30 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         return prev;
       });
     }
+  };
+
+  /** 失败 / 中断：丢掉本轮，用上一条用户问题再生成一次 */
+  const regenerateAssistantAt = (assistantIdx: number) => {
+    if (busy) return;
+    let userIdx = assistantIdx - 1;
+    while (userIdx >= 0 && msgs[userIdx]?.role !== 'user') userIdx -= 1;
+    if (userIdx < 0) return;
+    const userMsg = msgs[userIdx];
+    const asst = msgs[assistantIdx];
+    if (!userMsg?.text.trim()) return;
+    const scene = asst?.scene && asst.scene in SCENES
+      ? (asst.scene as AssistantScene)
+      : undefined;
+    const nextMode = scene ? SCENES[scene].mode : mode;
+    void send(
+      userMsg.text,
+      nextMode,
+      ref || undefined,
+      userMsg.text,
+      scene,
+      undefined,
+      { historyBase: msgs.slice(0, userIdx) },
+    );
   };
 
   const sendRef = useRef(send);
@@ -1197,12 +1233,43 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               const displayFollowups = showFollowups
                 ? (m.followups?.length ? m.followups : followups)
                 : [];
-              const showActions = m.role === 'assistant' && m.text && !busy;
+              const canRegen =
+                m.role === 'assistant' &&
+                isLastAssistant &&
+                !busy &&
+                isAssistantRegenCandidate(m.text);
+              const showActions =
+                m.role === 'assistant' && m.text && !busy && !canRegen;
               const isStreaming = isLastAssistant && busy;
               const usedCitations =
                 m.role === 'assistant' && m.citations?.length
                   ? citationsUsedInText(m.text, m.citations)
                   : [];
+              const regenBtn = canRegen ? (
+                <button
+                  type="button"
+                  className="assistant-regen-btn"
+                  aria-label="重新生成"
+                  onClick={() => regenerateAssistantAt(i)}
+                >
+                  <svg
+                    className="assistant-regen-icon"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden
+                  >
+                    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                    <polyline points="21 3 21 9 15 9" />
+                  </svg>
+                  <span>重新生成</span>
+                </button>
+              ) : null;
               return (
               <div
                 key={i}
@@ -1262,13 +1329,19 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           }}
                         />
                       </div>
+                      {regenBtn}
                     </div>
-                  ) : (
+                  ) : isStreaming ? (
                     <AssistantThinkingState
-                      phase={isStreaming ? streamPhase : 'understanding'}
+                      phase={streamPhase}
                       citeCount={streamCiteCount}
-                      slow={isStreaming && slowHint}
+                      slow={slowHint}
                     />
+                  ) : (
+                    <div className="assistant-answer">
+                      <p className="assistant-regen-empty muted">生成未完成</p>
+                      {regenBtn}
+                    </div>
                   )
                 ) : (
                   <AssistantUserBubble
