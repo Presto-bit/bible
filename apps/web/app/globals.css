@@ -309,23 +309,50 @@ html.android-shell a[href] {
 
 .tab-keep-route-suppressed {
   display: none !important;
+  /* 强制卸掉下层，避免与 KeepAlive 叠字/串影 */
+  visibility: hidden !important;
+  pointer-events: none !important;
+  height: 0 !important;
+  overflow: hidden !important;
+  content-visibility: hidden;
 }
 
-.tab-keep-pane[hidden] {
+.tab-keep-pane[hidden],
+.tab-keep-pane[aria-hidden='true']:not(.tab-keep-pane-active) {
   display: none !important;
+  visibility: hidden !important;
   pointer-events: none !important;
+  content-visibility: hidden;
+  /* 部分 WebView 里 fixed 子项会逃出 hidden；再锁一层 */
+  position: absolute !important;
+  inset: 0;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0);
+  z-index: -1 !important;
 }
 
 .tab-keep-pane[hidden] input,
 .tab-keep-pane[hidden] textarea,
-.tab-keep-pane[hidden] [contenteditable='true'] {
+.tab-keep-pane[hidden] [contenteditable='true'],
+.tab-keep-pane[hidden] .reader-fab-stack,
+.tab-keep-pane[hidden] .reader-topbar,
+.tab-keep-pane[hidden] .reader-focus-bar,
+.tab-keep-pane[hidden] .reader-book-progress {
   pointer-events: none !important;
+  visibility: hidden !important;
 }
 
 .tab-keep-pane-active {
   display: block;
   position: relative;
   z-index: 1;
+  /* 铺底防止下层残留透出；隔离 stacking 与 fixed 子树 */
+  isolation: isolate;
+  min-height: 100%;
+  min-height: 100dvh;
+  background: var(--paper, #fffcfa);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -337,6 +364,47 @@ html.android-shell a[href] {
 @keyframes tab-pane-fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* 安卓壳 / 主屏幕：去掉点击后的系统焦点方框（WebView focus ring） */
+html.android-shell,
+html.pwa-standalone {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.android-shell *:focus,
+html.android-shell *:focus-visible,
+html.pwa-standalone *:focus,
+html.pwa-standalone *:focus-visible {
+  outline: none !important;
+}
+
+html.android-shell button,
+html.android-shell a,
+html.android-shell .tab,
+html.android-shell .reader-fab,
+html.android-shell [role='button'],
+html.android-shell input,
+html.android-shell textarea,
+html.android-shell select,
+html.pwa-standalone button,
+html.pwa-standalone a,
+html.pwa-standalone .tab,
+html.pwa-standalone .reader-fab,
+html.pwa-standalone [role='button'] {
+  -webkit-tap-highlight-color: transparent !important;
+  outline: none !important;
+}
+
+/* 表单仍可有轻态聚焦，避免完全无感；仅描边极淡 */
+html.android-shell input:focus,
+html.android-shell textarea:focus,
+html.android-shell select:focus,
+html.pwa-standalone input:focus,
+html.pwa-standalone textarea:focus,
+html.pwa-standalone select:focus {
+  outline: none !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #8fa88a) 45%, transparent);
 }
 
 .container {

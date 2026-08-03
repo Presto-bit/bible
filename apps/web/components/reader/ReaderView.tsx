@@ -3059,7 +3059,11 @@ export default function ReaderView({
           }}
           onClick={(e) => {
             e.stopPropagation();
+            (e.currentTarget as HTMLButtonElement).blur();
             openAiSheet();
+          }}
+          onPointerUp={(e) => {
+            (e.currentTarget as HTMLButtonElement).blur();
           }}
           aria-label="问小爱"
         >

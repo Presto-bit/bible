@@ -4,7 +4,7 @@
  * Standalone 首启黄金链路（内容优先）：
  * 1) 恢复装前深链 / 留在首页今日
  * 2) 等有效读经（或短兜底）后再问「读经提醒」
- * 3) 开了提醒再软设密；均可跳过，不挡读经
+ * 3) 设密不在此全屏弹：归「我的」账号区软催（避免挡圣经/发现等 Tab）
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -23,10 +23,8 @@ import { consumePostInstallPath, peekPostInstallPath } from '@/lib/wechat_escape
 import { ensurePermission, getReminder, setReminder } from '@/lib/reminder';
 import { hasPassword } from '@/lib/api';
 import { reminderHeroSub, reminderHeroTitle } from '@/lib/beiai_habit_copy';
-import AccountSecurityCard from '@/components/AccountSecurityCard';
 import { clearSharePwaDismiss } from '@/lib/share_pwa_guide';
-
-type Step = 'reminder' | 'account';
+import { markProfilePasswordNudge } from '@/lib/account_guide';
 
 function skipGenericOnboarding(): void {
   try {
@@ -49,14 +47,16 @@ function trackFirstOpen(props: Record<string, unknown>): void {
 
 export default function PwaFirstOpenGuide() {
   const router = useRouter();
-  const [step, setStep] = useState<Step | null>(null);
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const started = useRef(false);
   const sheetShown = useRef(false);
 
   const finish = (outcome: string) => {
+    // 未设密时只在「我的」软催，不在其它 Tab 再弹设密半屏
+    if (!hasPassword()) markProfilePasswordNudge();
     markPwaFirstOpenDone();
-    setStep(null);
+    setOpen(false);
     trackFirstOpen({ step: 'done', outcome });
     consumePostInstallPath();
   };
@@ -66,17 +66,13 @@ export default function PwaFirstOpenGuide() {
     sheetShown.current = true;
     clearSharePwaDismiss();
 
+    // 已开提醒：首启流程结束，设密改「我的」
     if (getReminder().enabled) {
-      if (hasPassword()) {
-        finish(`skip_habit_${reason}`);
-        return;
-      }
-      setStep('account');
-      trackFirstOpen({ step: 'account', reason });
+      finish(`skip_reminder_${reason}`);
       return;
     }
 
-    setStep('reminder');
+    setOpen(true);
     trackFirstOpen({ step: 'reminder', reason });
   };
 
@@ -124,16 +120,11 @@ export default function PwaFirstOpenGuide() {
       }
     } finally {
       setBusy(false);
-      if (hasPassword()) {
-        finish(granted ? 'reminder_on' : 'reminder_denied');
-      } else {
-        setStep('account');
-        trackFirstOpen({ step: 'account', reason: granted ? 'after_reminder' : 'after_denied' });
-      }
+      finish(granted ? 'reminder_on' : 'reminder_denied');
     }
   };
 
-  if (!step) return null;
+  if (!open) return null;
 
   return (
     <div className="sheet-backdrop pwa-first-open-backdrop" style={{ zIndex: 145 }}>
@@ -144,54 +135,33 @@ export default function PwaFirstOpenGuide() {
         aria-modal="true"
         aria-labelledby="pwa-first-open-title"
       >
-        {step === 'reminder' ? (
-          <>
-            <p className="eyebrow">{BRAND_NAME}</p>
-            <h2 id="pwa-first-open-title" style={{ marginTop: 4 }}>
-              {reminderHeroTitle(false)}
-            </h2>
-            <p className="muted" style={{ lineHeight: 1.65 }}>
-              {reminderHeroSub(false)}
-              。留一个轻提醒，明天更容易从主屏幕回来。
-            </p>
-            <button
-              type="button"
-              className="btn btn-primary btn-block"
-              disabled={busy}
-              onClick={() => void enableReminder()}
-            >
-              {busy ? '开启中…' : '开启读经提醒'}
-            </button>
-            <button
-              type="button"
-              className="text-link"
-              style={{ marginTop: 10 }}
-              onClick={() => finish('reminder_skip')}
-            >
-              先继续读经
-            </button>
-          </>
-        ) : null}
-
-        {step === 'account' ? (
-          <>
-            <h2 id="pwa-first-open-title" style={{ marginTop: 0 }}>
-              可选：设个密码，换机也能找回
-            </h2>
-            <p className="muted" style={{ lineHeight: 1.55, marginBottom: 8 }}>
-              不设也能用。删掉主屏幕重装时，有密码更安心。
-            </p>
-            <AccountSecurityCard onComplete={() => finish('password_set')} />
-            <button
-              type="button"
-              className="text-link"
-              style={{ marginTop: 4 }}
-              onClick={() => finish('password_skip')}
-            >
-              跳过，继续读经
-            </button>
-          </>
-        ) : null}
+        <p className="eyebrow">{BRAND_NAME}</p>
+        <h2 id="pwa-first-open-title" style={{ marginTop: 4 }}>
+          {reminderHeroTitle(false)}
+        </h2>
+        <p className="muted" style={{ lineHeight: 1.65 }}>
+          {reminderHeroSub(false)}
+          。留一个轻提醒，明天更容易从主屏幕回来。
+        </p>
+        <p className="muted" style={{ fontSize: 12, lineHeight: 1.5, margin: '0 0 12px' }}>
+          换机找回可到「我的」设置密码，不挡继续读经。
+        </p>
+        <button
+          type="button"
+          className="btn btn-primary btn-block"
+          disabled={busy}
+          onClick={() => void enableReminder()}
+        >
+          {busy ? '开启中…' : '开启读经提醒'}
+        </button>
+        <button
+          type="button"
+          className="text-link"
+          style={{ marginTop: 10 }}
+          onClick={() => finish('reminder_skip')}
+        >
+          先继续读经
+        </button>
       </div>
     </div>
   );

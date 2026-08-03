@@ -449,6 +449,12 @@ body.reader-active .proper-noun--artifact {
   font-weight: 600;
   cursor: pointer;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+.reader-fab:focus,
+.reader-fab:focus-visible {
+  outline: none;
 }
 .reader-fab-dim {
   opacity: 0.45;

@@ -16,9 +16,10 @@ type Props = {
 };
 
 /**
- * 软催卡片：一屏一事。
+ * 软催卡片：仅挂「我的」页。
  * - 未设密 → 只设密码（可顺带填手机）
  * - 已设密未绑手机 → 只绑手机
+ * 勿再挂全局半屏（PwaFirstOpen 等）拦截其它 Tab。
  */
 export default function AccountSecurityCard({ onComplete, focus = 'auto' }: Props) {
   const a = useAccountSecurity(onComplete);

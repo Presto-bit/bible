@@ -196,8 +196,15 @@ export default function BottomTabs() {
                   : t.label
             }
             title={needsNet ? '当前离线，此功能需联网' : undefined}
-            onClick={() => go(t.href)}
+            onClick={(e) => {
+              (e.currentTarget as HTMLButtonElement).blur();
+              go(t.href);
+            }}
             onContextMenu={(e) => e.preventDefault()}
+            onPointerUp={(e) => {
+              // 安卓 WebView 松手后仍画焦点方框：立刻 blur
+              (e.currentTarget as HTMLButtonElement).blur();
+            }}
           >
             <span className="tab-icon-wrap">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>

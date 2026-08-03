@@ -1,4 +1,4 @@
-/** PWA standalone 首启：内容优先 → 读后再问提醒 → 软设密 */
+/** PWA standalone 首启：内容优先 → 读后再问提醒；设密归「我的」不堵其它 Tab */
 
 export const PWA_FIRST_OPEN_KEY = 'presto_pwa_first_open_done';
 /** 已落地内容、等待有效读经后再出提醒 */

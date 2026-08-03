@@ -12,6 +12,7 @@ import {
   subscribePwaTabNav,
 } from '@/lib/pwa_tab_nav';
 import { isAssistantStreamBusy } from '@/lib/assistant_stream_busy';
+import { onKeepAliveTabChange, clearInteractiveFocusArtifacts } from '@/lib/tab_keep_chrome';
 import { TabKeepAliveProvider } from './TabKeepAliveContext';
 
 function subscribeKeepAlive(onChange: () => void) {
@@ -112,6 +113,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
     : normalizeAppPath(routerPathname);
   const activeTab = keepAliveTabId(pathname);
   const [mounted, setMounted] = useState<Record<KeepAliveTabId, boolean>>(emptyMounted);
+  const prevActiveTabRef = useRef<KeepAliveTabId | null>(null);
 
   // 当前 Tab 首帧就要挂载：不可等 useEffect，否则 suppress 后无 pane → 白屏
   const paneVisible = (tab: KeepAliveTabId) =>
@@ -119,6 +121,19 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
 
   // 仅在 KeepAlive pane 已可见时隐藏路由 children，避免空窗期
   const suppressRoute = enabled && activeTab !== null && paneVisible(activeTab);
+
+  // 切 Tab：滚轮隔离 + 清 body 壳 class + 去焦点方框，避免「页面串行」
+  useEffect(() => {
+    if (!enabled) {
+      prevActiveTabRef.current = null;
+      return;
+    }
+    const prev = prevActiveTabRef.current;
+    if (prev !== activeTab) {
+      onKeepAliveTabChange(prev, activeTab);
+      prevActiveTabRef.current = activeTab;
+    }
+  }, [enabled, activeTab]);
 
   // 按需挂载 + LRU 驱逐：访问过的 Tab 保持实例，超出上限卸掉最久未用（保护 home/当前）
   useEffect(() => {
@@ -154,6 +169,7 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (!enabled) return;
+    clearInteractiveFocusArtifacts();
     const el = document.activeElement;
     if (!(el instanceof HTMLElement)) return;
     const pane = el.closest('.tab-keep-pane');
@@ -184,6 +200,8 @@ export default function TabKeepAlive({ children }: { children: React.ReactNode }
             className={`tab-keep-pane${active ? ' tab-keep-pane-active' : ''}`}
             hidden={!active}
             aria-hidden={!active}
+            // inert 禁用失活 Tab 的焦点与点击（减少焦点方框/串击）
+            {...(!active ? ({ inert: true } as object) : null)}
           >
             {tab === 'reader' ? <ReaderTab paneActive={active} /> : <Pane paneActive={active} />}
           </div>

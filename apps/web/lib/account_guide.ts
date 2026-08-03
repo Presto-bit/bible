@@ -1,4 +1,4 @@
-/** 账号引导：称呼归 Hero；密码+手机归找回；未设密不同步 */
+/** 账号引导：称呼归 Hero；密码+手机归「我的」；未设密不同步；勿在其它 Tab 全屏催设密 */
 
 import { getBoundPhone, hasPassword } from './api';
 
@@ -6,6 +6,8 @@ const DISMISSED_KEY = 'presto_username_guide_dismissed';
 const DATA_KEY = 'presto_has_local_data';
 const GATE_SEEN_KEY = 'presto_account_gate_seen';
 const GUEST_RISK_KEY = 'presto_guest_risk_accepted';
+/** 首启跳过设密后，在「我的」高亮软催一次 */
+const PROFILE_PASSWORD_NUDGE_KEY = 'presto_profile_password_nudge';
 
 export const ACCOUNT_GATE_DONE_EVENT = 'presto-account-gate-done';
 
@@ -47,11 +49,42 @@ export function acceptGuestRisk() {
 }
 
 export function shouldPromptAccountGate(): boolean {
+  // 已废弃首访全屏门闸；设密只在「我的」
   return false;
 }
 
 export function shouldPromptUsername(): boolean {
   return false;
+}
+
+/** standalone 首启结束后：未设密时在「我的」轻提示（非遮罩） */
+export function markProfilePasswordNudge() {
+  if (typeof window === 'undefined') return;
+  if (hasPassword()) return;
+  try {
+    localStorage.setItem(PROFILE_PASSWORD_NUDGE_KEY, '1');
+  } catch {
+    /* ignore */
+  }
+}
+
+export function hasProfilePasswordNudge(): boolean {
+  if (typeof window === 'undefined') return false;
+  if (hasPassword()) return false;
+  try {
+    return localStorage.getItem(PROFILE_PASSWORD_NUDGE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function clearProfilePasswordNudge() {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(PROFILE_PASSWORD_NUDGE_KEY);
+  } catch {
+    /* ignore */
+  }
 }
 
 export function hasBoundPhone(): boolean {

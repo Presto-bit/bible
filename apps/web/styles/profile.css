@@ -224,8 +224,23 @@
 }
 
 .profile-page .profile-greet-head + .profile-companion-wrap,
-.profile-page .profile-account-tip + .profile-companion-wrap {
+.profile-page .profile-account-tip + .profile-companion-wrap,
+.profile-page .profile-account-secure + .profile-companion-wrap {
   margin-top: 4px;
+}
+
+.profile-page .profile-account-secure {
+  margin: 0 0 10px;
+}
+
+.profile-page .profile-account-secure .account-security-card {
+  margin-bottom: 0;
+}
+
+.profile-page .profile-account-secure.is-nudge .account-security-card {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-deep, #4a6b52) 28%, transparent),
+    var(--home-shadow, 0 2px 8px rgba(15, 23, 42, 0.06));
 }
 
 .profile-page .profile-account-tip {
@@ -254,7 +269,8 @@
   opacity: 0.88;
 }
 
-.profile-page .profile-greet-head + .profile-account-tip {
+.profile-page .profile-greet-head + .profile-account-tip,
+.profile-page .profile-greet-head + .profile-account-secure {
   margin-top: 0;
 }
 

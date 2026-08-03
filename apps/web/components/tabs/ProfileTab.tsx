@@ -88,8 +88,9 @@ import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
 import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
 import {
   accountDataStatus,
-  accountRecoveryHint,
   canCloudSync,
+  clearProfilePasswordNudge,
+  hasProfilePasswordNudge,
   isAccountComplete,
 } from '@/lib/account_guide';
 import { fetchAdminEligible } from '@/lib/admin_rag';
@@ -407,6 +408,7 @@ function settingsGlyph(path: ReactNode) {
 
 
 const AccountSettingsSection = dynamic(() => import('@/components/AccountSettingsSection'), { ssr: false });
+const AccountSecurityCard = dynamic(() => import('@/components/AccountSecurityCard'), { ssr: false });
 const OfflineDownloadSheet = dynamic(() => import('@/components/OfflineDownloadSheet'), { ssr: false });
 const ReadingProgress = dynamic(() => import('@/components/ReadingProgress'), { ssr: false });
 const BadgeGallery = dynamic(() => import('@/components/BadgeGallery'), { ssr: false });
@@ -804,6 +806,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     setSyncLabel(
       canCloudSync() ? syncStateLabel(getSyncState()) : '需先设置密码',
     );
+    if (hasPassword()) clearProfilePasswordNudge();
   };
   const saveBio = (v: string) => {
     const t = v.slice(0, 15);
@@ -1272,16 +1275,18 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         </div>
       </header>
 
-      {accountRecoveryHint() ? (
-        <button
-          type="button"
-          className="profile-account-tip"
-          onClick={() => setSettingsOpen(true)}
+      {accountComplete ? null : (
+        <div
+          className={`profile-account-secure${hasProfilePasswordNudge() ? ' is-nudge' : ''}`}
         >
-          <span>{accountRecoveryHint()}</span>
-          <span className="muted" aria-hidden>›</span>
-        </button>
-      ) : null}
+          <AccountSecurityCard
+            onComplete={() => {
+              clearProfilePasswordNudge();
+              refreshAccount();
+            }}
+          />
+        </div>
+      )}
 
       <div className="profile-companion-wrap">
         <Link
