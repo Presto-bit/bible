@@ -11,7 +11,7 @@ import { useEdgeSwipeBack } from '@/lib/use_edge_swipe_back';
 
 /** 知识库入口：仅展示平台知识库，点入主页看文件夹 */
 export default function KnowledgeBasesPage() {
-  useEdgeSwipeBack({ href: '/profile?settings=1' });
+  useEdgeSwipeBack({ href: '/profile/settings' });
   const [platform, setPlatform] = useState<KnowledgeBaseBrowsePlatform | null>(null);
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(true);
@@ -35,7 +35,7 @@ export default function KnowledgeBasesPage() {
 
   return (
     <main className="container" style={{ paddingBottom: 40 }}>
-      <PageBackBar href="/profile?settings=1" label="我的" />
+      <PageBackBar href="/profile/settings" label="设置" />
       <h1 style={{ fontSize: 22, margin: '12px 0 8px' }}>知识库</h1>
       <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
         浏览平台资料；小爱默认使用平台知识库检索。

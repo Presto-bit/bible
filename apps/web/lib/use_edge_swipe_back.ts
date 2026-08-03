@@ -108,6 +108,7 @@ export function useEdgeSwipeBack({
 export const BACK_PATH_LABELS: Record<string, string> = {
   '/': '首页',
   '/profile': '我的',
+  '/profile/settings': '设置',
   '/profile?settings=1': '设置',
   '/reader': '圣经',
   '/discover': '消息',

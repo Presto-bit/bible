@@ -40,7 +40,7 @@ export function OfflineBibleCard() {
           联网时可直接读经。下载经包后，离线也能打开。
           {' '}
           <Link
-            href="/profile?settings=1"
+            href="/profile/settings"
             className="text-link"
             onClick={() => markRouteNavigation()}
           >

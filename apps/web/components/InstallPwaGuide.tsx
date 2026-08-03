@@ -198,7 +198,7 @@ export function InstallPwaSheet({
   const goSetAccount = () => {
     dismissInstallPrompt();
     onClose();
-    router.push('/profile?settings=1');
+    router.push('/profile/settings');
   };
 
   const onInstallAccepted = async () => {

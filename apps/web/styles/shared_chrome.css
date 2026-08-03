@@ -315,6 +315,14 @@
   margin: 0;
 }
 
+.profile-settings-page .page-head {
+  margin-bottom: 8px;
+}
+
+.profile-settings-page .settings-group:first-of-type {
+  margin-top: 6px;
+}
+
 .settings-card {
   border: 1px solid var(--line);
   border-radius: 14px;

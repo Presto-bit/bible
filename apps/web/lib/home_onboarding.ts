@@ -109,7 +109,7 @@ export function onboardingCta(stage: HomeOnboardingStage): HomeOnboardingCta {
         body: '当前无网络且本机尚无经文。连上网络可直接读；或下载经包后离线也能打开。',
         href: '/reader?book=JHN&chapter=1',
         label: '试试打开圣经',
-        secondaryHref: '/profile?settings=1',
+        secondaryHref: '/profile/settings',
         secondaryLabel: '去下载经包',
       };
     case 'S1':

@@ -12,6 +12,7 @@ const KEEP_ALIVE_PATHS: Record<KeepAliveTabId, string> = {
 
 /** 我的 Tab 下的二级页，不走 Tab 保活（须走 Next 路由）。 */
 export const PROFILE_SECONDARY_PATHS = [
+  '/profile/settings',
   '/profile/reminders',
   '/profile/appearance',
   '/profile/licenses',

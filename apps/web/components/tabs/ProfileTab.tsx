@@ -20,13 +20,11 @@ import {
   getUserName,
   guestId,
   hasPassword,
-  logout,
 } from '@/lib/api';
 import {
   displayNameHint,
   isSystemGeneratedUsername,
 } from '@/lib/system_username';
-import { OFFICIAL_SUPPORT_USER_CODE } from '@/lib/official_support';
 import {
   getOfflineDownloadSnapshot,
   isOfflineDownloadActive,
@@ -84,12 +82,11 @@ import {
   dismissOrphanBodySheetBackdrops,
 } from '@/lib/sheet_overlay';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
-import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
-import { isSyncRequiresPasswordError, syncNow } from '@/lib/sync';
+import { syncNow } from '@/lib/sync';
 import { pushProfileAvatar, pushProfileBio } from '@/lib/profile_sync';
 import {
   accountDataStatus,
@@ -98,24 +95,14 @@ import {
   hasProfilePasswordNudge,
   isAccountComplete,
 } from '@/lib/account_guide';
-import { fetchAdminEligible } from '@/lib/admin_rag';
-import { markRouteNavigation, navigateAppHref } from '@/lib/pwa_tab_nav';
+import { markRouteNavigation, navigateAppHref, subscribePwaTabNav } from '@/lib/pwa_tab_nav';
 import {
-  PROFILE_SETTINGS_BACK_LABEL,
   PROFILE_SETTINGS_HREF,
+  PROFILE_SETTINGS_LEGACY_QUERY,
 } from '@/lib/profile_settings';
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useTabKeepAlive } from '@/components/shell/TabKeepAliveContext';
 import { plainThoughtPreview } from '@/lib/thought_display';
-import { subscribePwaTabNav } from '@/lib/pwa_tab_nav';
-import { openPwaInstallSheet } from '@/components/InstallPwaGuide';
-import {
-  androidPackageDownloadHref,
-  fetchAndroidPackageMeta,
-  resolveAppPackageRow,
-  type AppPackageRow,
-} from '@/lib/app_package_settings';
-import { markAndroidTwaInstallClaimed } from '@/lib/pwa_install_prompt';
 import { shareInviteProduct, inviteShareUrl } from '@/lib/invite_share';
 import { buildTrackedUrl } from '@/lib/acquisition';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
@@ -363,64 +350,6 @@ function FootprintCell({
   );
 }
 
-function SettingsNavRow({
-  title,
-  hint,
-  href,
-  onClick,
-  disabled,
-  glyph,
-  danger,
-}: {
-  title: string;
-  hint?: string;
-  href?: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  glyph?: ReactNode;
-  danger?: boolean;
-}) {
-  const className = `settings-nav-row${danger ? ' is-danger' : ''}${disabled ? ' is-disabled' : ''}`;
-  const body = (
-    <>
-      {glyph ? (
-        <span className="settings-nav-glyph" aria-hidden>
-          {glyph}
-        </span>
-      ) : null}
-      <span className="settings-nav-main">
-        <strong>{title}</strong>
-        {hint ? <span className="muted">{hint}</span> : null}
-      </span>
-      <span className="muted settings-nav-chevron" aria-hidden>
-        ›
-      </span>
-    </>
-  );
-  if (href) {
-    return (
-      <Link href={href} className={className} onClick={onClick}>
-        {body}
-      </Link>
-    );
-  }
-  return (
-    <button type="button" className={className} disabled={disabled} onClick={onClick}>
-      {body}
-    </button>
-  );
-}
-
-function settingsGlyph(path: ReactNode) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      {path}
-    </svg>
-  );
-}
-
-
-const AccountSettingsSection = dynamic(() => import('@/components/AccountSettingsSection'), { ssr: false });
 const AccountSecurityCard = dynamic(() => import('@/components/AccountSecurityCard'), { ssr: false });
 const OfflineDownloadSheet = dynamic(() => import('@/components/OfflineDownloadSheet'), { ssr: false });
 const ReadingProgress = dynamic(() => import('@/components/ReadingProgress'), { ssr: false });
@@ -431,13 +360,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const toast = useToast();
   const router = useRouter();
   const [uid, setUid] = useState<string | null>(null);
-  const [helpBusy, setHelpBusy] = useState(false);
   const [gid, setGid] = useState<string>('');
   const [mins, setMins] = useState(0);
   const [idCopied, setIdCopied] = useState(false);
   const [avatarId, setAvatarId] = useState('a1');
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [downloadOpen, setDownloadOpen] = useState(false);
   const [downloadHint, setDownloadHint] = useState<string | null>(null);
   const [name, setName] = useState('');
@@ -482,7 +409,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   });
   const [milestone, setMilestone] = useState<number | null>(null);
   const [milestoneBusy, setMilestoneBusy] = useState(false);
-  const [syncBusy, setSyncBusy] = useState(false);
   const [syncLabel, setSyncLabel] = useState(() =>
     typeof window !== 'undefined' ? syncStateLabel(getSyncState()) : '已同步到云端',
   );
@@ -492,13 +418,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarFileRef = useRef<HTMLInputElement | null>(null);
   const shortcutPanelRef = useRef<HTMLDivElement | null>(null);
-  const [adminEligible, setAdminEligible] = useState(false);
-  const [packageRow, setPackageRow] = useState<AppPackageRow>(() =>
-    typeof window !== 'undefined'
-      ? resolveAppPackageRow()
-      : { title: '彼爱安装包', hint: '官网安装包', action: 'install_sheet' },
-  );
-  const [packageBusy, setPackageBusy] = useState(false);
   const bookNamesRef = useRef(bookNames);
   bookNamesRef.current = bookNames;
 
@@ -506,14 +425,9 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   const { enabled, activeTab } = useTabKeepAlive();
   const profileAwake = paneActive && (activeTab == null || activeTab === 'profile');
 
-  const openSettingsRoute = () => {
-    markRouteNavigation();
-  };
-
   // 切走「我的」时收起全部 portal；切回时清小爱触摸锁 + 僵尸遮罩
   useEffect(() => {
     if (!paneActive) {
-      setSettingsOpen(false);
       setPickerOpen(false);
       setBadgeOpen(false);
       return;
@@ -533,23 +447,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     }
   }, [shortcut]);
 
-  const openHelpFeedback = async () => {
-    if (helpBusy) return;
-    setHelpBusy(true);
-    try {
-      await ensureAccountReady();
-      const dm = await api.openDm(OFFICIAL_SUPPORT_USER_CODE);
-      setSettingsOpen(false);
-      markRouteNavigation();
-      router.push(`/discover/dm/${dm.thread_id}`);
-    } catch (e) {
-      const detail = e instanceof Error ? e.message : String(e);
-      toast(detail.includes('自己') ? '不能联系自己' : detail || '暂时无法联系官方，请稍后重试');
-    } finally {
-      setHelpBusy(false);
-    }
-  };
-
   const consumeProfileQueryFlag = (flag: string): boolean => {
     if (typeof window === 'undefined') return false;
     const params = new URLSearchParams(window.location.search);
@@ -566,63 +463,12 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       ? activeTab === 'profile'
       : normalizeAppPath(pathname) === '/profile';
     if (!onProfile) return;
-    if (consumeProfileQueryFlag('settings')) setSettingsOpen(true);
-    if (consumeProfileQueryFlag('badges')) setBadgeOpen(true);
-  }, [enabled, activeTab, pathname]);
-
-  // 设置 → 彼爱安装包：打开时拉官网版本 + 壳 versionCode（桥优先）
-  useEffect(() => {
-    if (!settingsOpen) return;
-    let cancelled = false;
-    setPackageRow(resolveAppPackageRow());
-    void (async () => {
-      const meta = await fetchAndroidPackageMeta();
-      let shellVersion: string | null | undefined;
-      let shellVersionCode: number | null | undefined;
-      try {
-        const { readAndroidShellVersion } = await import('@/lib/android_shell_bridge');
-        const local = readAndroidShellVersion();
-        shellVersion = local.versionName;
-        shellVersionCode = local.versionCode;
-      } catch {
-        /* ignore */
-      }
-      if (cancelled) return;
-      setPackageRow(
-        resolveAppPackageRow({
-          meta,
-          shellVersion,
-          shellVersionCode,
-        }),
-      );
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [settingsOpen]);
-
-  const handleAppPackageClick = () => {
-    if (packageBusy || packageRow.action === 'noop') return;
-    if (packageRow.action === 'download_apk') {
-      setPackageBusy(true);
-      try {
-        const inShell = /PeiaiAndroidShell\//i.test(navigator.userAgent);
-        // 壳内更新可硬认领无关自动 Sheet；浏览器下载勿认领（未装完刷新仍应催装）
-        if (inShell) markAndroidTwaInstallClaimed();
-        toast(
-          inShell
-            ? (packageRow.updateAvailable ? '正在下载更新包…' : '正在下载安装包…')
-            : '开始下载安装包…装好后请打开桌面「彼爱」',
-        );
-        window.location.href = androidPackageDownloadHref();
-      } finally {
-        setPackageBusy(false);
-      }
+    if (consumeProfileQueryFlag(PROFILE_SETTINGS_LEGACY_QUERY) || consumeProfileQueryFlag('settings')) {
+      navigateAppHref(PROFILE_SETTINGS_HREF, router);
       return;
     }
-    setSettingsOpen(false);
-    openPwaInstallSheet();
-  };
+    if (consumeProfileQueryFlag('badges')) setBadgeOpen(true);
+  }, [enabled, activeTab, pathname, router]);
 
   useEffect(() => {
     if (!profileAwake) return;
@@ -659,13 +505,11 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
   useEffect(() => {
     if (enabled) {
       if (activeTab !== 'profile') {
-        setSettingsOpen(false);
         setBadgeOpen(false);
       }
       return;
     }
     if (normalizeAppPath(pathname) !== '/profile') {
-      setSettingsOpen(false);
       setBadgeOpen(false);
     }
   }, [enabled, activeTab, pathname]);
@@ -678,14 +522,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     if (!enabled || !profileAwake) return;
     return subscribePwaTabNav(() => applyProfileDeepLinks());
   }, [enabled, profileAwake, applyProfileDeepLinks]);
-
-  useEffect(() => {
-    if (!uid || !profileAwake) {
-      if (!uid) setAdminEligible(false);
-      return;
-    }
-    void fetchAdminEligible().then(setAdminEligible);
-  }, [uid, settingsOpen, profileAwake]);
 
   useEffect(() => {
     if (currentUserId() && canCloudSync()) {
@@ -1034,33 +870,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     setMilestone(null);
   };
 
-  const handleSyncNow = async () => {
-    if (syncBusy) return;
-    if (!canCloudSync()) {
-      toast('请先设置密码，设置后才会云同步');
-      setSettingsOpen(true);
-      return;
-    }
-    setSyncBusy(true);
-    try {
-      await syncNow();
-      setSyncLabel(syncStateLabel(getSyncState()));
-      toast('已同步');
-    } catch (e) {
-      if (isSyncRequiresPasswordError(e)) {
-        toast('请先设置密码，设置后才会云同步');
-        setSettingsOpen(true);
-      } else {
-        toast('同步失败，请检查网络后重试');
-      }
-    } finally {
-      setSyncBusy(false);
-      setSyncLabel(
-        canCloudSync() ? syncStateLabel(getSyncState()) : '需先设置密码',
-      );
-    }
-  };
-
   const openThoughts = () => {
     markFootprintSeen('thoughts', thoughtCount);
     setFootprintSeen(readFootprintSeen());
@@ -1073,10 +882,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     navigateAppHref('/notes?tab=highlights', router);
   };
 
-  /**
-   * 点设置/成就前只清「僵尸」遮罩与小爱触摸锁。
-   * 勿 click 全部 backdrop：会误点刚打开的设置半屏，或触发连锁关闭。
-   */
+  /** 点成就前清僵尸遮罩，避免 TWA 上「点了没反应」 */
   const clearBlockingOverlays = () => {
     clearAssistantTouchLocks();
     dismissOrphanBodySheetBackdrops();
@@ -1084,7 +890,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
 
   const openSettings = () => {
     clearBlockingOverlays();
-    setSettingsOpen(true);
+    navigateAppHref(PROFILE_SETTINGS_HREF, router);
   };
 
   const openBadges = () => {
@@ -1229,19 +1035,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               type="button"
               className="icon-btn profile-head-icon-btn"
               aria-label="设置"
-              onPointerDown={(e) => e.stopPropagation()}
-              onPointerUp={(e) => {
-                try {
-                  (e.currentTarget as HTMLElement).blur();
-                } catch {
-                  /* ignore */
-                }
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                openSettings();
-              }}
+              onClick={() => openSettings()}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="12" cy="12" r="3" />
@@ -1739,229 +1533,6 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
         <BadgeGallery badges={badges} onClose={() => setBadgeOpen(false)} />
       )}
 
-      {settingsOpen && (
-        <AppBodyPortal onTabAway={() => setSettingsOpen(false)}>
-          <div
-            className="sheet-backdrop"
-            data-dismiss-on-tab-nav
-            onClick={() => setSettingsOpen(false)}
-          >
-            <div
-              className="sheet card settings-sheet"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-labelledby="settings-sheet-title"
-            >
-              <div className="section-row settings-sheet-head">
-                <h3 id="settings-sheet-title">设置</h3>
-                <SheetCloseButton onClick={() => setSettingsOpen(false)} />
-              </div>
-
-              <section className="settings-group">
-                <h4 className="settings-group-label">账号与安全</h4>
-                <div className="settings-group-list">
-                  <AccountSettingsSection collapsible onAccountChange={refreshAccount} />
-                  <SettingsNavRow
-                    title="在其他设备恢复"
-                    hint="登录或恢复账号"
-                    href="/login"
-                    glyph={settingsGlyph(
-                      <>
-                        <rect x="5" y="2" width="14" height="20" rx="2" />
-                        <path d="M12 17h.01" />
-                      </>,
-                    )}
-                  />
-                </div>
-              </section>
-
-              <section className="settings-group">
-                <h4 className="settings-group-label">读经与体验</h4>
-                <div className="settings-group-list">
-                  <SettingsNavRow
-                    title="外观"
-                    hint="主题与阅读器"
-                    href="/profile/appearance"
-                    onClick={openSettingsRoute}
-                    glyph={settingsGlyph(
-                      <>
-                        <circle cx="12" cy="12" r="4" />
-                        <path d="M12 3v2M12 19v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M3 12h2M19 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" />
-                      </>,
-                    )}
-                  />
-                  <SettingsNavRow
-                    title="提醒与勿扰"
-                    hint="读经提醒 · 圣经勿扰"
-                    href="/profile/reminders"
-                    onClick={openSettingsRoute}
-                    glyph={settingsGlyph(
-                      <>
-                        <path d="M6 16h12l-1.2-1.2A6 6 0 0 1 15 10V9a3 3 0 1 0-6 0v1a6 6 0 0 1-1.8 4.8L6 16Z" />
-                        <path d="M10 19a2 2 0 0 0 4 0" />
-                      </>,
-                    )}
-                  />
-                  <SettingsNavRow
-                    title="离线下载"
-                    hint={downloadHint || '圣经与资料'}
-                    onClick={() => setDownloadOpen(true)}
-                    glyph={settingsGlyph(
-                      <>
-                        <path d="M12 4v10" />
-                        <path d="m8 10 4 4 4-4" />
-                        <path d="M5 18h14" />
-                      </>,
-                    )}
-                  />
-                  <SettingsNavRow
-                    title="知识库"
-                    hint="知识库与专题"
-                    href="/knowledge-bases"
-                    onClick={openSettingsRoute}
-                    glyph={settingsGlyph(
-                      <>
-                        <path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H20v15.5" />
-                        <path d="M6.5 19.5A2.5 2.5 0 0 0 9 17h11" />
-                      </>,
-                    )}
-                  />
-                </div>
-              </section>
-
-              <section className="settings-group">
-                <h4 className="settings-group-label">支持与关于</h4>
-                <div className="settings-group-list">
-                  <SettingsNavRow
-                    title="帮助与反馈"
-                    hint={helpBusy ? '打开中…' : '帮助与反馈'}
-                    disabled={helpBusy}
-                    onClick={() => void openHelpFeedback()}
-                    glyph={settingsGlyph(
-                      <>
-                        <circle cx="12" cy="12" r="9" />
-                        <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4" />
-                        <path d="M12 17h.01" />
-                      </>,
-                    )}
-                  />
-                  <SettingsNavRow
-                    title="数据来源与许可"
-                    href="/profile/licenses"
-                    onClick={openSettingsRoute}
-                    glyph={settingsGlyph(
-                      <>
-                        <path d="M7 4h10v16H7z" />
-                        <path d="M10 8h4M10 12h4M10 16h3" />
-                      </>,
-                    )}
-                  />
-                  <SettingsNavRow
-                    title={packageBusy ? '准备下载…' : packageRow.title}
-                    hint={packageRow.hint}
-                    disabled={packageBusy || packageRow.action === 'noop'}
-                    onClick={handleAppPackageClick}
-                    glyph={settingsGlyph(
-                      packageRow.updateAvailable ? (
-                        <>
-                          <path d="M12 3v12" />
-                          <path d="m7 10 5 5 5-5" />
-                          <path d="M5 19h14" />
-                        </>
-                      ) : (
-                        <>
-                          <rect x="6" y="3" width="12" height="18" rx="2" />
-                          <path d="M12 17h.01" />
-                        </>
-                      ),
-                    )}
-                  />
-                  <div className="settings-version-row">
-                    <span className="muted">版本 {appVersion}</span>
-                    {adminEligible ? (
-                      <Link
-                        href="/admin?tab=ops"
-                        className="text-link settings-admin-link"
-                        onClick={openSettingsRoute}
-                      >
-                        管理后台
-                      </Link>
-                    ) : null}
-                  </div>
-                </div>
-              </section>
-
-              <section className="settings-group settings-group-danger">
-                <h4 className="settings-group-label">数据</h4>
-                <div className="settings-group-list">
-                  <button
-                    type="button"
-                    className="settings-nav-row"
-                    disabled={syncBusy}
-                    onClick={() => void handleSyncNow()}
-                  >
-                    <span className="settings-nav-glyph" aria-hidden>
-                      {settingsGlyph(
-                        <>
-                          <path d="M21 12a9 9 0 1 1-2.6-6.3" />
-                          <path d="M21 3v6h-6" />
-                        </>,
-                      )}
-                    </span>
-                    <span className="settings-nav-main">
-                      <strong>{syncBusy ? '同步中…' : '同步到云端'}</strong>
-                      <span className="muted">{syncLabel}</span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="settings-nav-row"
-                    disabled={clearCacheBusy}
-                    onClick={() => void handleClearCache()}
-                  >
-                    <span className="settings-nav-glyph" aria-hidden>
-                      {settingsGlyph(
-                        <>
-                          <path d="M4 7h16" />
-                          <path d="M9 7V5h6v2" />
-                          <path d="M8 7l1 12h6l1-12" />
-                        </>,
-                      )}
-                    </span>
-                    <span className="settings-nav-main">
-                      <strong>{clearCacheBusy ? '清除中…' : '清除缓存'}</strong>
-                      <span className="muted">不删除读经记录</span>
-                    </span>
-                  </button>
-                  {uid ? (
-                    <button
-                      type="button"
-                      className="settings-nav-row is-danger"
-                      onClick={() => {
-                        logout();
-                        setUid(null);
-                        setSettingsOpen(false);
-                      }}
-                    >
-                      <span className="settings-nav-glyph" aria-hidden>
-                        {settingsGlyph(
-                          <>
-                            <path d="M10 7V5a2 2 0 0 1 2-2h7v18h-7a2 2 0 0 1-2-2v-2" />
-                            <path d="M15 12H3m0 0 3-3m-3 3 3 3" />
-                          </>,
-                        )}
-                      </span>
-                      <span className="settings-nav-main">
-                        <strong>退出登录</strong>
-                      </span>
-                    </button>
-                  ) : null}
-                </div>
-              </section>
-            </div>
-          </div>
-        </AppBodyPortal>
-      )}
 
       {downloadOpen ? (
         <OfflineDownloadSheet onClose={() => setDownloadOpen(false)} />
