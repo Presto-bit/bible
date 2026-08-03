@@ -176,7 +176,7 @@
 
 .profile-page .profile-head-actions {
   position: relative;
-  z-index: 2;
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -197,7 +197,7 @@
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   position: relative;
-  z-index: 2;
+  z-index: 6;
   pointer-events: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -737,6 +737,10 @@
   border: var(--soft-card-edge);
 }
 
+.profile-page .profile-shortcut-block.has-cache-tab .profile-shortcut-tabs {
+  grid-template-columns: repeat(4, 1fr);
+}
+
 .profile-page .profile-shortcut-tab {
   display: flex;
   flex-direction: column;
@@ -783,6 +787,23 @@
 
 .profile-page .profile-shortcut-tab.tone-offline .profile-shortcut-tab-glyph {
   color: color-mix(in srgb, #666 70%, var(--ink));
+}
+
+.profile-page .profile-shortcut-tab.tone-cache .profile-shortcut-tab-glyph {
+  color: color-mix(in srgb, #8a6a4a 72%, var(--ink));
+}
+
+.profile-page .profile-shortcut-panel.tone-cache {
+  background: color-mix(in srgb, #8a6a4a 6%, var(--surface));
+}
+
+.profile-page .profile-shortcut-block.has-cache-tab .profile-shortcut-tab {
+  min-height: 52px;
+  padding: 7px 4px;
+}
+
+.profile-page .profile-shortcut-block.has-cache-tab .profile-shortcut-tab strong {
+  font-size: 11px;
 }
 
 .profile-page .profile-shortcut-tab strong {

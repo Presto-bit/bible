@@ -81,9 +81,9 @@ import { shareCardOutbound } from '@/lib/share_card';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import {
   clearAssistantTouchLocks,
-  clickSheetOverlayNodes,
   dismissOrphanBodySheetBackdrops,
 } from '@/lib/sheet_overlay';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import { SheetCloseButton } from '@/components/PageBackBar';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
@@ -126,7 +126,7 @@ const AVATAR_KEY = 'profile_avatar';
 const BIO_KEY = 'profile_bio';
 const SHORTCUT_KEY = 'presto_profile_shortcut';
 
-type ShortcutTone = 'challenge' | 'remind' | 'offline';
+type ShortcutTone = 'challenge' | 'remind' | 'offline' | 'cache';
 
 const REMIND_SLOTS = [
   { key: 'morning', label: '晨读', hour: 7, minute: 0 },
@@ -138,7 +138,7 @@ function readStoredShortcut(): ShortcutTone {
   if (typeof window === 'undefined') return 'challenge';
   try {
     const v = sessionStorage.getItem(SHORTCUT_KEY);
-    if (v === 'challenge' || v === 'remind' || v === 'offline') return v;
+    if (v === 'challenge' || v === 'remind' || v === 'offline' || v === 'cache') return v;
   } catch {
     /* ignore */
   }
@@ -243,6 +243,14 @@ function ProfileGlyph({
         <svg {...common}>
           <path d="M7 7h10v12H7z" />
           <path d="M10 4h4v3h-4zM9.5 11h5M9.5 14.5h5" />
+        </svg>
+      );
+    case 'cache':
+      return (
+        <svg {...common}>
+          <path d="M4 7h16" />
+          <path d="M9 7V5h6v2" />
+          <path d="M8 7l1 12h6l1-12" />
         </svg>
       );
     default:
@@ -513,6 +521,17 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     clearAssistantTouchLocks();
     dismissOrphanBodySheetBackdrops();
   }, [paneActive]);
+
+  // 非安卓壳没有「缓存」Tab：若会话残留选中则回落离线
+  useEffect(() => {
+    if (shortcut !== 'cache' || isPeiaiAndroidShell()) return;
+    setShortcut('offline');
+    try {
+      sessionStorage.setItem(SHORTCUT_KEY, 'offline');
+    } catch {
+      /* ignore */
+    }
+  }, [shortcut]);
 
   const openHelpFeedback = async () => {
     if (helpBusy) return;
@@ -1054,11 +1073,18 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     navigateAppHref('/notes?tab=highlights', router);
   };
 
-  /** 点设置/成就前同步清僵尸遮罩，避免 TWA 上「点了没反应」 */
+  /**
+   * 点设置/成就前只清「僵尸」遮罩与小爱触摸锁。
+   * 勿 click 全部 backdrop：会误点刚打开的设置半屏，或触发连锁关闭。
+   */
   const clearBlockingOverlays = () => {
     clearAssistantTouchLocks();
     dismissOrphanBodySheetBackdrops();
-    clickSheetOverlayNodes(document);
+  };
+
+  const openSettings = () => {
+    clearBlockingOverlays();
+    setSettingsOpen(true);
   };
 
   const openBadges = () => {
@@ -1214,8 +1240,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                clearBlockingOverlays();
-                setSettingsOpen(true);
+                openSettings();
               }}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1522,13 +1547,18 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       </div>
 
       <p className="section-label tab-section-label profile-block-label">常用</p>
-      <div className="profile-shortcut-block">
+      <div
+        className={`profile-shortcut-block${isPeiaiAndroidShell() ? ' has-cache-tab' : ''}`}
+      >
         <div className="profile-shortcut-tabs" role="tablist" aria-label="常用">
           {(
             [
               { id: 'challenge' as const, label: dailyWarmupTitle() },
               { id: 'remind' as const, label: '提醒' },
               { id: 'offline' as const, label: '离线' },
+              ...(isPeiaiAndroidShell()
+                ? [{ id: 'cache' as const, label: '缓存' }]
+                : []),
             ] as const
           ).map((tab) => (
             <button
@@ -1556,7 +1586,9 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
               ? dailyWarmupTitle()
               : shortcut === 'remind'
                 ? '提醒'
-                : '离线'
+                : shortcut === 'cache'
+                  ? '清除缓存'
+                  : '离线'
           }
         >
           {shortcut === 'challenge' ? (
@@ -1669,6 +1701,29 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                   onClick={() => setDownloadOpen(true)}
                 >
                   {downloadHint ? '查看进度' : offlineReady ? '管理离线包' : '下载离线包'}
+                </button>
+              </div>
+            </>
+          ) : null}
+
+          {shortcut === 'cache' && isPeiaiAndroidShell() ? (
+            <>
+              <div className="profile-shortcut-panel-head">
+                <p className="profile-shortcut-panel-title">
+                  {clearCacheBusy ? '正在清除…' : '页面异常时可清除缓存'}
+                </p>
+                <p className="profile-shortcut-panel-sub">
+                  清除页面与离线缓存并刷新；读经记录、笔记与账号登录不会删除。壁纸不显示、点击无反应时优先试这个。
+                </p>
+              </div>
+              <div className="profile-shortcut-panel-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={clearCacheBusy}
+                  onClick={() => void handleClearCache()}
+                >
+                  {clearCacheBusy ? '清除中…' : '清除缓存并刷新'}
                 </button>
               </div>
             </>
