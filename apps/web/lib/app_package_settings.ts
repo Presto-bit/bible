@@ -32,8 +32,12 @@ export type AppPackageRow = {
 export async function fetchAndroidPackageMeta(): Promise<AndroidTwaMeta | null> {
   if (typeof window === 'undefined') return null;
   try {
-    const res = await fetch(androidTwaMetaUrl(BASE_PATH || ''), {
+    // cache-bust：绕过 SW 曾 cache-first 的旧 json（与 Cache-Control no-store 双保险）
+    const base = androidTwaMetaUrl(BASE_PATH || '');
+    const url = `${base}${base.includes('?') ? '&' : '?'}_=${Date.now()}`;
+    const res = await fetch(url, {
       cache: 'no-store',
+      headers: { Accept: 'application/json' },
     });
     if (!res.ok) return null;
     const data = (await res.json()) as AndroidTwaMeta;
@@ -184,5 +188,7 @@ export function resolveAppPackageRow(opts?: {
 }
 
 export function androidPackageDownloadHref(): string {
-  return androidTwaApkUrl(BASE_PATH || '');
+  const base = androidTwaApkUrl(BASE_PATH || '');
+  // 避免中间层长期缓存旧 APK
+  return `${base}${base.includes('?') ? '&' : '?'}v=${Date.now()}`;
 }

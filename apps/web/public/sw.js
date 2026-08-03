@@ -1,6 +1,6 @@
 // 发版后须 bump CACHE（或运行 scripts/bump_sw_cache.sh），否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v38';
+const CACHE = 'presto-bible-v39';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -123,9 +123,20 @@ function isOfflineManifest(url) {
   return relPath(url.pathname) === '/offline/manifest.json';
 }
 
+/** 安装包元数据 / APK：禁止 SW 缓存，否则版本号会卡在旧包 */
+function isAndroidPackageAsset(url) {
+  const p = relPath(url.pathname);
+  return p === '/downloads/biai-android.json'
+    || p === '/downloads/biai-android.apk'
+    || p.startsWith('/downloads/biai-android')
+    || p === '/downloads/peiai-android.json'
+    || p === '/downloads/peiai-android.apk';
+}
+
 function isStaticAsset(url) {
   if (isOfflineHeavyAsset(url)) return false;
   if (isOfflineManifest(url)) return false;
+  if (isAndroidPackageAsset(url)) return false;
   const p = url.pathname;
   if (p.includes('/_next/static/')) return true;
   if (p.startsWith(bp('/illustrations/'))) return true;
@@ -271,6 +282,12 @@ self.addEventListener('fetch', (e) => {
 
   // 大离线包：仅网络，禁止读写 Cache Storage
   if (isOfflineHeavyAsset(url)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // 安卓安装包 meta / APK：仅网络，禁止 SW 把 version 卡在旧包
+  if (isAndroidPackageAsset(url)) {
     e.respondWith(fetch(e.request));
     return;
   }
