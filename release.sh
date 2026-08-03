@@ -17,14 +17,17 @@
 #   FORCE_FULL=1           强制重建 api+web（忽略变更检测）；可与 WEB_BUILD_NO_CACHE=1 联用
 #   BUILD_API=0|1          强制跳过/强制构建 api（默认按变更自动）
 #   BUILD_WEB=0|1          强制跳过/强制构建 web（默认按变更自动）
+#   STRICT_PUBLIC=0|1      默认 1：重建 web 后公网 app-version/sw 必须与本机一致，否则失败
+#   RECREATE_WEB=0|1       默认 1：重建 web 镜像后 --force-recreate 容器（避免旧进程挂着）
 #   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测+自愈 cron（默认 0）
 #   SKIP_SW_CHECK=1        跳过 SW 烙印 / Cache-Control 门禁（默认 0；紧急回滚时可开）
 #
 # SW / TWA 立刻吃新包（本脚本 + Dockerfile + 客户端共同保证）：
 #   1) 构建把 public/sw.js 的 CACHE 重写为 presto-bible-${NEXT_PUBLIC_APP_VERSION}
 #   2) 发版后校验本机/公网 sw.js 含该 CACHE，且响应头 no-cache|no-store
-#   3) 首页 meta app-version 必须等于本次构建 SHA（本机硬失败；公网可提示反代）
+#   3) 首页 meta app-version 必须等于本次构建 SHA（本机硬失败；公网默认 STRICT_PUBLIC）
 #   4) 客户端 PwaRegister updateViaCache:none + 可见时 reg.update + controllerchange 刷新
+#   5) 重建 web 时强制 recreate 容器 + 本机/公网版本对账（减少「发了但前端没变」）
 #
 # 适合放进本脚本：干净 git、按变更增量构建、启动命令/容器内扫描、外域跳转拦截、可选 cron。
 # 不适合：改宝塔/SSH 密码、安全组、同机其它项目排查——仍需人工。
@@ -40,6 +43,8 @@ GIT_PULL="${GIT_PULL:-1}"
 ALLOW_DIRTY="${ALLOW_DIRTY:-0}"
 WEB_BUILD_NO_CACHE="${WEB_BUILD_NO_CACHE:-0}"
 FORCE_FULL="${FORCE_FULL:-0}"
+STRICT_PUBLIC="${STRICT_PUBLIC:-1}"
+RECREATE_WEB="${RECREATE_WEB:-1}"
 INSTALL_HIJACK_CRON="${INSTALL_HIJACK_CRON:-0}"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.production"
@@ -71,7 +76,7 @@ assert_sw_fresh() {
   local label="$2"
   local expect_tok="$3"
   local strict="${4:-1}"
-  local sw_url body headers code cache_h fail_msg
+  local sw_url body headers code cache_h fail_msg bust
 
   if [[ "${SKIP_SW_CHECK:-0}" == "1" ]]; then
     log "  ⊘ SKIP_SW_CHECK=1，跳过 $label SW 检查"
@@ -85,11 +90,22 @@ assert_sw_fresh() {
     return 0
   fi
 
-  sw_url="${base}/sw.js"
+  # 绕过中间层精确路径缓存：带 _nc 再取一份对照
+  bust="_nc=$(date +%s)"
+  sw_url="${base}/sw.js?${bust}"
   headers="$(curl -sSI --connect-timeout 5 --max-time 20 --max-redirs 0 "$sw_url" 2>/dev/null || true)"
   code="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'toupper($1) ~ /^HTTP\//{print $2; exit}')"
   cache_h="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="cache-control:"{print; exit}')"
   body="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 "$sw_url" 2>/dev/null || true)"
+
+  if [[ "$code" != "200" && "$code" != "304" ]]; then
+    # 回退无 query（部分反代对查询串异常）
+    sw_url="${base}/sw.js"
+    headers="$(curl -sSI --connect-timeout 5 --max-time 20 --max-redirs 0 "$sw_url" 2>/dev/null || true)"
+    code="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'toupper($1) ~ /^HTTP\//{print $2; exit}')"
+    cache_h="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="cache-control:"{print; exit}')"
+    body="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 "$sw_url" 2>/dev/null || true)"
+  fi
 
   if [[ "$code" != "200" && "$code" != "304" ]]; then
     fail_msg="$label sw.js HTTP ${code:-?}（期望 200）"
@@ -119,6 +135,38 @@ assert_sw_fresh() {
   fi
   log "  ✓ $label sw.js CACHE=presto-bible-${expect_tok}，${cache_h:-Cache-Control ok}"
   return 0
+}
+
+# 轮询本机首页直到 app-version 就绪（Next 冷启 / 容器 recreate 后短暂空窗）
+# $1=期望版本  $2=最大秒数  打印最新 HTML 到 stdout（仅最后成功那次的 body 由全局变量带回不方便 → 用文件）
+wait_local_app_version() {
+  local expect="$1"
+  local max_s="${2:-40}"
+  local i html ver
+  local out="/tmp/bible-release-home-$$.html"
+  for i in $(seq 1 "$max_s"); do
+    html="$(curl -fsS --connect-timeout 2 --max-time 8 --max-redirs 0 \
+      -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+      "http://127.0.0.1:${WEB_HOST_PORT}/?_nc=${i}$(date +%s)" 2>/dev/null || true)"
+    if [[ -n "$html" ]]; then
+      printf '%s' "$html" > "$out"
+      ver="$(html_app_version "$html")"
+      if [[ -n "$ver" && ( -z "$expect" || "$ver" == "$expect" ) ]]; then
+        HOME_HTML_FILE="$out"
+        SERVED_APP_VERSION_WAIT="$ver"
+        return 0
+      fi
+      if [[ -n "$ver" && -n "$expect" && "$ver" != "$expect" ]]; then
+        [[ $((i % 5)) -eq 0 ]] && log "  本机 app-version=$ver，等待 $expect… (${i}/${max_s})"
+      fi
+    else
+      [[ $((i % 5)) -eq 0 ]] && log "  本机首页未就绪 (${i}/${max_s})…"
+    fi
+    sleep 1
+  done
+  HOME_HTML_FILE="$out"
+  SERVED_APP_VERSION_WAIT="$(html_app_version "$(cat "$out" 2>/dev/null || true)")"
+  return 1
 }
 
 # 检查 URL 响应头：禁止外域劫持跳转；允许同域跳转或无 Location 的成功响应
@@ -232,6 +280,7 @@ if [[ "${RELEASE_BOOTSTRAPPED:-0}" != "1" && "$(id -un)" != "$DEPLOY_USER" ]]; t
      GIT_PULL='$inner_git_pull' COMPOSE_BUILD_PULL='${COMPOSE_BUILD_PULL:-0}' \
      ALLOW_DIRTY='$ALLOW_DIRTY' WEB_BUILD_NO_CACHE='$WEB_BUILD_NO_CACHE' \
      FORCE_FULL='$FORCE_FULL' BUILD_API='${BUILD_API:-}' BUILD_WEB='${BUILD_WEB:-}' \
+     STRICT_PUBLIC='${STRICT_PUBLIC:-1}' RECREATE_WEB='${RECREATE_WEB:-1}' \
      INSTALL_HIJACK_CRON='$INSTALL_HIJACK_CRON' SKIP_SW_CHECK='${SKIP_SW_CHECK:-0}' \
      NEXT_PUBLIC_APP_VERSION='${NEXT_PUBLIC_APP_VERSION:-}' RELEASE_BOOTSTRAPPED=1 \
      bash '$release_script'"
@@ -325,7 +374,12 @@ elif [[ -f "$RELEASE_SHA_FILE" ]]; then
           need_api=1
         fi
         if echo "$changed" | grep -qE \
-          '^(apps/web/|apps/web/Dockerfile|package\.json|pnpm-lock\.yaml|yarn\.lock|package-lock\.json|docker-compose\.prod\.yml)'; then
+          '^(apps/web/|apps/web/Dockerfile|shared/|data/illustrations/|package\.json|pnpm-lock\.yaml|yarn\.lock|package-lock\.json|docker-compose\.prod\.yml)'; then
+          need_web=1
+        fi
+        # 壳 APK / downloads 静态资源进 web public：须随站点发
+        if echo "$changed" | grep -qE \
+          '^(apps/web/public/|apps/android-twa/(app/build\.gradle\.kts|twa-manifest\.json)$)'; then
           need_web=1
         fi
         # 根级脚本/配置变更：保守重建两侧
@@ -366,7 +420,14 @@ else
 fi
 
 log "启动容器"
-"${compose[@]}" up -d || die "docker compose up 失败"
+if [[ "$need_web" == "1" && "$RECREATE_WEB" == "1" ]]; then
+  # 仅 up -d 时，compose 若认为 config 未变可能不换进程；强制 recreate 保证新镜像运行
+  log "重建 web 镜像后 force-recreate web（RECREATE_WEB=1）"
+  "${compose[@]}" up -d || die "docker compose up 失败"
+  "${compose[@]}" up -d --force-recreate --no-deps web || die "docker compose force-recreate web 失败"
+else
+  "${compose[@]}" up -d || die "docker compose up 失败"
+fi
 
 log "容器完整性：web 启动命令与入口扫描"
 web_clean_ok=0
@@ -556,7 +617,25 @@ for svc in postgres api web; do
 done
 
 # 首页 HTML 须为新版本（旧版含假数据「3,842 人点赞」）
-home_html="$(curl -fsS --max-redirs 0 "http://127.0.0.1:${WEB_HOST_PORT}/" 2>/dev/null || true)"
+HOME_HTML_FILE=""
+SERVED_APP_VERSION_WAIT=""
+log "等待本机首页 app-version（避免 recreate 后立刻 curl 仍命中旧进程空窗）"
+if [[ "$need_web" == "1" ]]; then
+  if ! wait_local_app_version "$NEXT_PUBLIC_APP_VERSION" 45; then
+    die "本机首页在 45s 内未变为 app-version=$NEXT_PUBLIC_APP_VERSION（当前 ${SERVED_APP_VERSION_WAIT:-空}）。web 未换新镜像？试 WEB_BUILD_NO_CACHE=1 FORCE_FULL=1"
+  fi
+else
+  wait_local_app_version "" 20 || true
+fi
+
+home_html=""
+if [[ -n "${HOME_HTML_FILE:-}" && -f "$HOME_HTML_FILE" ]]; then
+  home_html="$(cat "$HOME_HTML_FILE" 2>/dev/null || true)"
+fi
+if [[ -z "$home_html" ]]; then
+  home_html="$(curl -fsS --max-redirs 0 -H 'Cache-Control: no-cache' \
+    "http://127.0.0.1:${WEB_HOST_PORT}/?_nc=$(date +%s)" 2>/dev/null || true)"
+fi
 if [[ -z "$home_html" ]]; then
   die "无法拉取首页 HTML"
 fi
@@ -571,12 +650,14 @@ if ! echo "$home_html" | grep -q '每日问答'; then
 fi
 
 served_app_version="$(html_app_version "$home_html")"
+served_app_version="${served_app_version:-$SERVED_APP_VERSION_WAIT}"
 served_sw_tok="$(sw_cache_version_token "${served_app_version:-}")"
 
 if [[ "$need_web" == "1" ]]; then
   if [[ -z "$served_app_version" || "$served_app_version" != "$NEXT_PUBLIC_APP_VERSION" ]]; then
     die "本机首页 app-version=${served_app_version:-?} ≠ 本次构建 $NEXT_PUBLIC_APP_VERSION（web 未按该版本重建？设 WEB_BUILD_NO_CACHE=1 FORCE_FULL=1）"
   fi
+  log "  ✓ 本机 app-version=$served_app_version（与本次构建一致）"
 elif [[ -n "$served_app_version" && "$served_app_version" != "$NEXT_PUBLIC_APP_VERSION" ]]; then
   log "  ℹ 本次未重建 web：容器仍为 app-version=$served_app_version（git HEAD=$NEXT_PUBLIC_APP_VERSION）"
 fi
@@ -593,38 +674,88 @@ if [[ -n "$pub_url" ]]; then
   assert_web_not_hijacked "${pub_url%/}/" "公网 /"
   assert_web_not_hijacked "${pub_url%/}/login" "公网 /login"
 
-  pub_home="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 "${pub_url%/}/" 2>/dev/null || true)"
-  pub_home_bust="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 "${pub_url%/}/?_nc=$(date +%s)" 2>/dev/null || true)"
-  if [[ -n "$pub_home" ]]; then
-    if echo "$pub_home" | grep -qiE "$WEB_HIJACK_DENY_RE"; then
+  # 公网对账：无缓存 + 带 _nc；重建 web 时默认 STRICT_PUBLIC 硬失败
+  pub_strict=0
+  if [[ "$need_web" == "1" && "$STRICT_PUBLIC" == "1" ]]; then
+    pub_strict=1
+  fi
+
+  pub_ver=""
+  pub_bust_ver=""
+  pub_ok=0
+  for i in 1 2 3 4 5 6; do
+    pub_home="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 \
+      -H 'Cache-Control: no-cache' -H 'Pragma: no-cache' \
+      "${pub_url%/}/" 2>/dev/null || true)"
+    pub_home_bust="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 \
+      -H 'Cache-Control: no-cache' \
+      "${pub_url%/}/?_nc=$(date +%s)${i}" 2>/dev/null || true)"
+    pub_ver="$(html_app_version "$pub_home")"
+    pub_bust_ver="$(html_app_version "$pub_home_bust")"
+
+    if [[ -n "$pub_home" ]] && echo "$pub_home" | grep -qiE "$WEB_HIJACK_DENY_RE"; then
       die "公网首页 HTML 含劫持特征串"
     fi
-    if echo "$pub_home" | grep -q '3,842'; then
-      log "⚠️  公网 / 仍是旧版（含 3,842）"
+    if [[ -n "$pub_home" ]] && echo "$pub_home" | grep -q '3,842'; then
       if [[ -n "$pub_home_bust" ]] && ! echo "$pub_home_bust" | grep -q '3,842'; then
-        log "   但 /?_nc=… 已是新版 → 宝塔/Nginx 仅缓存了精确路径 /"
-        log "   处理：① 宝塔关闭全站缓存 ② 加入 location = /（见 deploy/nginx-baota-2sc.full-server.conf）③ nginx -s reload"
-      fi
-    elif ! echo "$pub_home" | grep -q '每日问答'; then
-      log "⚠️  公网首页未含「每日问答」，请检查宝塔反代是否指向 ${WEB_HOST_PORT}"
-    else
-      pub_ver="$(html_app_version "$pub_home")"
-      if [[ -n "$pub_ver" && "$pub_ver" != "$served_app_version" ]]; then
-        log "⚠️  公网 app-version=$pub_ver ≠ 本机容器 $served_app_version（Nginx 缓存或反代指错端口）"
-        if [[ -n "$pub_home_bust" ]]; then
-          bust_ver="$(html_app_version "$pub_home_bust")"
-          if [[ "$bust_ver" == "$served_app_version" ]]; then
-            log "   /?_nc=… 已是本机版本 → 请 purge 精确路径 / 缓存"
-          fi
+        msg="公网 / 仍旧版，但 /?_nc= 已是新版 → 宝塔/Nginx 缓存了精确路径 /"
+        if [[ "$pub_strict" == "1" ]]; then
+          die "$msg（STRICT_PUBLIC=1）。处理：关全站缓存 + location = / no-cache + nginx -s reload"
         fi
+        log "⚠️  $msg"
       else
-        log "公网首页版本校验通过（app-version=${pub_ver:-$served_app_version}）"
+        msg="公网 / 仍是旧版（含 3,842）"
+        if [[ "$pub_strict" == "1" ]]; then die "$msg"; fi
+        log "⚠️  $msg"
       fi
+    fi
+
+    # 重建 web 时期望公网至少 _nc 一致；裸 / 也应尽快一致
+    if [[ -n "$served_app_version" ]]; then
+      if [[ "$pub_bust_ver" == "$served_app_version" ]]; then
+        if [[ "$pub_ver" == "$served_app_version" || -z "$pub_ver" ]]; then
+          pub_ok=1
+          break
+        fi
+        # 裸 / 仍旧但 _nc 已新：反代缓存 /，严格模式失败
+        if [[ -n "$pub_ver" && "$pub_ver" != "$served_app_version" ]]; then
+          log "  公网 / =$pub_ver，/?_nc= =$pub_bust_ver（等反代失效 ${i}/6）…"
+        else
+          pub_ok=1
+          break
+        fi
+      elif [[ "$pub_ver" == "$served_app_version" ]]; then
+        pub_ok=1
+        break
+      else
+        log "  公网版本对账中：/=$pub_ver _nc=$pub_bust_ver 期望=$served_app_version（${i}/6）…"
+      fi
+    fi
+    sleep 2
+  done
+
+  if [[ "$need_web" == "1" ]]; then
+    if [[ "$pub_ok" != "1" ]]; then
+      msg="公网未同步到 app-version=$served_app_version（/=${pub_ver:-?} _nc=${pub_bust_ver:-?}）。检查反代端口 ${WEB_HOST_PORT} / 缓存；或 STRICT_PUBLIC=0 临时跳过"
+      if [[ "$pub_strict" == "1" ]]; then die "$msg"; fi
+      log "⚠️  $msg"
+    elif [[ -n "$pub_ver" && "$pub_ver" != "$served_app_version" && "$pub_bust_ver" == "$served_app_version" ]]; then
+      msg="公网裸 / 仍缓存旧 HTML（$pub_ver），但 /?_nc 已是 $served_app_version → 必须清 Nginx 对 / 的缓存，否则 TWA 冷启仍旧"
+      if [[ "$pub_strict" == "1" ]]; then die "$msg"; fi
+      log "⚠️  $msg"
+    else
+      log "公网首页版本校验通过（app-version=${pub_ver:-$pub_bust_ver}）"
+    fi
+  else
+    if [[ -n "$pub_ver" && "$pub_ver" != "$served_app_version" ]]; then
+      log "⚠️  公网 app-version=$pub_ver ≠ 本机容器 $served_app_version（本次未重建 web 时可忽略）"
+    elif [[ -n "$pub_ver" ]]; then
+      log "公网首页版本校验通过（app-version=$pub_ver）"
     fi
   fi
 
   log "SW 新鲜度：公网 sw.js（应对齐本机容器烙印）"
-  assert_sw_fresh "${pub_url}" "公网" "$served_sw_tok" 0 || true
+  assert_sw_fresh "${pub_url}" "公网" "$served_sw_tok" "$pub_strict" || true
 fi
 
 log "发布成功（耗时 $((SECONDS - RELEASE_T0))s）"
@@ -634,10 +765,10 @@ log "  app-version(容器): $served_app_version"
 log "  SW CACHE: presto-bible-${served_sw_tok}"
 if [[ "$need_web" == "1" ]]; then
   log "  本次已重建 web → 客户端应能扫到新 SW（PwaRegister update + controllerchange）"
+  log "  TWA 仍旧时：我的→常用→缓存→清除缓存并刷新；或系统清除应用存储"
 else
-  log "  本次未重建 web → TWA 前端/S W 与上次相同（仅 API 等变更）"
+  log "  本次未重建 web → TWA 前端/SW 与上次相同（仅 API 等变更）"
 fi
-log "  TWA: 切回前台或约 60s 内 reg.update()；用户仍旧可强停 App 后重开"
 log "若前有 Nginx/CDN，请确认 / 与 /sw.js 不缓存（见 DEPLOYMENT.md §SW）"
 # 记录成功发版 SHA，供下次增量构建
 git rev-parse HEAD > "$RELEASE_SHA_FILE" || true
