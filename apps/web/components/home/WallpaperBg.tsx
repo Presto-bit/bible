@@ -170,10 +170,13 @@ export function WallpaperBg({
         try {
           const parent = img.parentElement;
           if (parent instanceof HTMLElement) {
-            parent.style.backgroundImage = `url("${img.currentSrc || displaySrc}")`;
-            parent.style.backgroundSize = 'cover';
-            parent.style.backgroundPosition = objectPosition;
-            parent.style.backgroundRepeat = 'no-repeat';
+            const paint = `url("${img.currentSrc || displaySrc}")`;
+            // 用 setProperty 避免与主题渐变 shorthand 冲突；供 img 不合成时的 WebView 后备
+            parent.style.setProperty('background-image', paint);
+            parent.style.setProperty('background-size', 'cover');
+            parent.style.setProperty('background-position', objectPosition);
+            parent.style.setProperty('background-repeat', 'no-repeat');
+            parent.dataset.wallpaperPaint = '1';
           }
         } catch {
           /* ignore */

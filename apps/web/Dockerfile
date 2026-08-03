@@ -18,6 +18,13 @@ ARG NEXT_PUBLIC_BASE_PATH=
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
 ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+# 每次发版把 SW CACHE 绑到构建版本：旧客户端 activate 时删除陈旧 Cache Storage
+RUN set -eux; \
+  V="${NEXT_PUBLIC_APP_VERSION:-dev}"; \
+  SAFE="$(printf '%s' "$V" | tr -c 'A-Za-z0-9._-' '-' | sed 's/-\+/-/g;s/^-//;s/-$//')"; \
+  SAFE="${SAFE:-dev}"; \
+  sed -i "s|const CACHE = 'presto-bible-[^']*'|const CACHE = 'presto-bible-${SAFE}'|" public/sw.js; \
+  grep -F "const CACHE = 'presto-bible-${SAFE}'" public/sw.js
 RUN npm run build
 
 FROM ${NODE_BASE_IMAGE} AS runner

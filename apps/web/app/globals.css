@@ -1872,10 +1872,13 @@ html:not([data-app-theme]) .card {
     linear-gradient(165deg, #eceae6 0%, #e4e2dd 42%, #f2f0eb 100%);
 }
 
-/* 有风景图时：禁止上面的径向渐变 shorthand 盖掉/冲掉 img 铺底 */
+/* 有风景图时：默认清掉主题渐变，但允许 WallpaperBg 在父层写 inline backgroundImage（WebView 双保险） */
 .home-page .hero-verse .hero-scene.hero-scene-has-art {
-  background: transparent !important;
-  background-image: none !important;
+  background-color: transparent;
+  /* 勿用 background-image:none !important —— 会废掉 img onLoad 写入的父层铺底 */
+}
+.home-page .hero-verse .hero-scene.hero-scene-has-art:not([style*='background-image']) {
+  background-image: none;
 }
 
 /* 卡面本身也给底，防止 scene 透明后露白 */
@@ -3451,7 +3454,6 @@ button.hero-b-campaign {
   visibility: visible;
 }
 
-.hero-verse .hero-scene[style*='background-image'],
 .hero-scene.hero-scene-has-art {
   background-size: cover;
   background-position: center;
@@ -3460,6 +3462,10 @@ button.hero-b-campaign {
   opacity: 1;
   visibility: visible;
   z-index: 0;
+}
+/* 无 inline 图时清渐变，有 inline 时保留（安卓 img 层不画时靠 CSS background） */
+.hero-scene.hero-scene-has-art:not([style*='background-image']) {
+  background-image: none;
 }
 
 .hero-scene.hero-scene-has-art .hero-scene-img {

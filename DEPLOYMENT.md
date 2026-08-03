@@ -222,3 +222,29 @@ curl -s "https://2sc.prestoai.cn/?nocache=$(date +%s)" | grep -E '3,842|每日�
 **长期**：仓库已把首页改为 `force-dynamic` + `next.config` HTML `no-cache`；发版后新构建不再写入一年期 `s-maxage`。
 
 旧版 `www.prestoai.cn/2sc` 路径已弃用；H5 现部署在独立子域根路径。
+
+### SW / TWA 发版后立刻吃新包
+
+**目标**：`bash release.sh` 后，本机与公网的 `sw.js` 必须带上本次构建的 CACHE 烙印；TWA/PWA 再打开或切回前台时会 `reg.update()` 并自动刷新。
+
+| 层次 | 做什么 |
+|------|--------|
+| Docker web 构建 | 把 `const CACHE = 'presto-bible-…'` 改成 `presto-bible-${NEXT_PUBLIC_APP_VERSION}`（git short SHA） |
+| `release.sh` | 校验本机 `/sw.js` 含该 CACHE，且 `Cache-Control` 含 `no-store`/`no-cache`；公网同查（失败告警） |
+| Next / Nginx | `location = /sw.js` → `no-store`；勿让宝塔 `\.js$` 规则长缓存 |
+| 客户端 | `PwaRegister`：`updateViaCache: 'none'` + 可见时 `update()` + `controllerchange` 带 `_nc` 刷新；`StaleShellGuard` 比对线上 `app-version` |
+
+**发版后自检**（服务器）：
+
+```bash
+V=$(git -C /opt/bible rev-parse --short HEAD)
+curl -sI "http://127.0.0.1:3002/sw.js" | grep -i cache-control
+curl -s "http://127.0.0.1:3002/sw.js" | grep "const CACHE"
+curl -sI "https://2sc.prestoai.cn/sw.js" | grep -i cache-control
+curl -s "https://2sc.prestoai.cn/sw.js" | grep "const CACHE"
+# 期望 CACHE 含 $V，且 Cache-Control 含 no-store 或 no-cache
+```
+
+**TWA 仍旧**：强制停止 App → 再开；或等前台 `visibilitychange` 触发 update（约 1 分钟内）。仍不行：站点数据/应用存储清 SW。
+
+**误配回退**：`SKIP_SW_CHECK=1 bash release.sh`（勿常态使用）。

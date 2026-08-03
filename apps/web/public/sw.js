@@ -1,6 +1,7 @@
-// 发版后须 bump CACHE（或运行 scripts/bump_sw_cache.sh），否则旧 SW 会继续 cache-first 返回陈旧首页 HTML / API
+// CACHE 名须在每次 web 发版时变化，否则 activate 不会清空旧 Cache Storage。
+// 生产镜像在 Dockerfile 内按 NEXT_PUBLIC_APP_VERSION 重写；本地可 scripts/bump_sw_cache.sh。
 // E10：推送处理见下方 push 段；静态资源列表见 SHELL / SHELL_WARM
-const CACHE = 'presto-bible-v44';
+const CACHE = 'presto-bible-v45';
 const IDENTITY_CACHE = 'presto-identity-v1';
 const IDENTITY_KEY = '/__presto_identity__';
 
@@ -315,6 +316,11 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   if (url.origin !== self.location.origin) return;
+
+  // 绝不可 cache-first sw.js 自身——否则会永远装不上新 SW（TWA 长驻页更明显）
+  if (relPath(url.pathname) === '/sw.js' || url.pathname.endsWith('/sw.js')) {
+    return;
+  }
 
   // 大离线包：仅网络，禁止读写 Cache Storage
   if (isOfflineHeavyAsset(url)) {

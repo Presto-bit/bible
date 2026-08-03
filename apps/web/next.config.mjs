@@ -15,7 +15,19 @@ const nextConfig = {
   },
   async headers() {
     // 避免首页等 HTML 被 CDN/Nginx 按 s-maxage=31536000 缓存导致发版后仍显示旧版
+    // sw.js 必须 no-store：否则浏览器/反代延迟发现新 SW，TWA 长驻 WebView 吃旧壳
     return [
+      {
+        source: '/sw.js',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate, max-age=0',
+          },
+          { key: 'Pragma', value: 'no-cache' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
       {
         source: '/.well-known/assetlinks.json',
         headers: [

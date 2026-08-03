@@ -18,6 +18,13 @@
 #   BUILD_API=0|1          强制跳过/强制构建 api（默认按变更自动）
 #   BUILD_WEB=0|1          强制跳过/强制构建 web（默认按变更自动）
 #   INSTALL_HIJACK_CRON=1  安装每分钟劫持探测+自愈 cron（默认 0）
+#   SKIP_SW_CHECK=1        跳过 SW 烙印 / Cache-Control 门禁（默认 0；紧急回滚时可开）
+#
+# SW / TWA 立刻吃新包（本脚本 + Dockerfile + 客户端共同保证）：
+#   1) 构建把 public/sw.js 的 CACHE 重写为 presto-bible-${NEXT_PUBLIC_APP_VERSION}
+#   2) 发版后校验本机/公网 sw.js 含该 CACHE，且响应头 no-cache|no-store
+#   3) 首页 meta app-version 必须等于本次构建 SHA（本机硬失败；公网可提示反代）
+#   4) 客户端 PwaRegister updateViaCache:none + 可见时 reg.update + controllerchange 刷新
 #
 # 适合放进本脚本：干净 git、按变更增量构建、启动命令/容器内扫描、外域跳转拦截、可选 cron。
 # 不适合：改宝塔/SSH 密码、安全组、同机其它项目排查——仍需人工。
@@ -44,6 +51,75 @@ die() { echo "❌ $*" >&2; exit 1; }
 
 # 允许的跳转目标主机（与 PUBLIC_WEB_URL / 本机一致）；其它外域 Location 视为劫持
 WEB_HIJACK_DENY_RE='rebirthstress|stresser|booter|register\?ref='
+
+# SW CACHE 名中的版本片段（与 Dockerfile 内 tr -c 'A-Za-z0-9._-' 对齐）
+sw_cache_version_token() {
+  printf '%s' "${1:-}" | tr -c 'A-Za-z0-9._-' '-' | sed 's/-\+/-/g;s/^-//;s/-$//'
+}
+
+# 从 HTML 抽出 meta app-version
+html_app_version() {
+  printf '%s' "${1:-}" | grep -oE 'name=["'\'']app-version["'\''] content=["'\''][^"'\'']+["'\'']|content=["'\''][^"'\'']+["'\''] name=["'\'']app-version["'\'']' \
+    | head -1 \
+    | sed -E 's/.*content=["'\'']([^"'\'']+)["'\''].*/\1/'
+}
+
+# 校验已部署的 sw.js：CACHE 与某版本烙印一致 + 响应禁止长期缓存
+# $1=基址  $2=标签  $3=期望版本 token（git short 等）  $4=strict
+assert_sw_fresh() {
+  local base="${1%/}"
+  local label="$2"
+  local expect_tok="$3"
+  local strict="${4:-1}"
+  local sw_url body headers code cache_h fail_msg
+
+  if [[ "${SKIP_SW_CHECK:-0}" == "1" ]]; then
+    log "  ⊘ SKIP_SW_CHECK=1，跳过 $label SW 检查"
+    return 0
+  fi
+
+  if [[ -z "$expect_tok" || "$expect_tok" == "dev" || "$expect_tok" == "unknown" ]]; then
+    fail_msg="$label 期望 SW 版本 token 无效（${expect_tok:-empty}）"
+    if [[ "$strict" == "1" ]]; then die "$fail_msg"; fi
+    log "⚠️  $fail_msg"
+    return 0
+  fi
+
+  sw_url="${base}/sw.js"
+  headers="$(curl -sSI --connect-timeout 5 --max-time 20 --max-redirs 0 "$sw_url" 2>/dev/null || true)"
+  code="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'toupper($1) ~ /^HTTP\//{print $2; exit}')"
+  cache_h="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="cache-control:"{print; exit}')"
+  body="$(curl -fsS --connect-timeout 5 --max-time 20 --max-redirs 0 "$sw_url" 2>/dev/null || true)"
+
+  if [[ "$code" != "200" && "$code" != "304" ]]; then
+    fail_msg="$label sw.js HTTP ${code:-?}（期望 200）"
+    if [[ "$strict" == "1" ]]; then die "$fail_msg"; fi
+    log "⚠️  $fail_msg"
+    return 1
+  fi
+  if [[ -z "$body" ]]; then
+    fail_msg="$label 无法拉取 sw.js 正文"
+    if [[ "$strict" == "1" ]]; then die "$fail_msg"; fi
+    log "⚠️  $fail_msg"
+    return 1
+  fi
+  if ! printf '%s' "$body" | grep -qF "const CACHE = 'presto-bible-${expect_tok}'"; then
+    local got
+    got="$(printf '%s' "$body" | grep -oE "const CACHE = 'presto-bible-[^']+'" | head -1 || true)"
+    fail_msg="$label sw.js CACHE 烙印不符（期望 presto-bible-${expect_tok}，实际 ${got:-未解析}）"
+    if [[ "$strict" == "1" ]]; then die "$fail_msg"; fi
+    log "⚠️  $fail_msg"
+    return 1
+  fi
+  if ! printf '%s' "$cache_h" | tr '[:upper:]' '[:lower:]' | grep -qE 'no-store|no-cache|max-age=0|must-revalidate'; then
+    fail_msg="$label sw.js Cache-Control 过宽（${cache_h:-缺失}）。浏览器会迟迟不下新 SW；应 no-store/no-cache（见 next.config + nginx location = /sw.js）"
+    if [[ "$strict" == "1" ]]; then die "$fail_msg"; fi
+    log "⚠️  $fail_msg"
+    return 1
+  fi
+  log "  ✓ $label sw.js CACHE=presto-bible-${expect_tok}，${cache_h:-Cache-Control ok}"
+  return 0
+}
 
 # 检查 URL 响应头：禁止外域劫持跳转；允许同域跳转或无 Location 的成功响应
 assert_web_not_hijacked() {
@@ -156,7 +232,7 @@ if [[ "${RELEASE_BOOTSTRAPPED:-0}" != "1" && "$(id -un)" != "$DEPLOY_USER" ]]; t
      GIT_PULL='$inner_git_pull' COMPOSE_BUILD_PULL='${COMPOSE_BUILD_PULL:-0}' \
      ALLOW_DIRTY='$ALLOW_DIRTY' WEB_BUILD_NO_CACHE='$WEB_BUILD_NO_CACHE' \
      FORCE_FULL='$FORCE_FULL' BUILD_API='${BUILD_API:-}' BUILD_WEB='${BUILD_WEB:-}' \
-     INSTALL_HIJACK_CRON='$INSTALL_HIJACK_CRON' \
+     INSTALL_HIJACK_CRON='$INSTALL_HIJACK_CRON' SKIP_SW_CHECK='${SKIP_SW_CHECK:-0}' \
      NEXT_PUBLIC_APP_VERSION='${NEXT_PUBLIC_APP_VERSION:-}' RELEASE_BOOTSTRAPPED=1 \
      bash '$release_script'"
 fi
@@ -211,8 +287,9 @@ if git rev-parse "$REMOTE/$BRANCH" >/dev/null 2>&1; then
   log "  ✓ HEAD 对齐 $REMOTE/$BRANCH ($local_sha)"
 fi
 
+# 必须 export：docker compose 把 ${NEXT_PUBLIC_APP_VERSION} 注入 web 镜像（Dockerfile 烙 SW CACHE）
 export NEXT_PUBLIC_APP_VERSION="${NEXT_PUBLIC_APP_VERSION:-$(git rev-parse --short HEAD 2>/dev/null || echo unknown)}"
-log "Web 构建版本: $NEXT_PUBLIC_APP_VERSION"
+log "Web 构建版本: $NEXT_PUBLIC_APP_VERSION（SW CACHE → presto-bible-$(sw_cache_version_token "$NEXT_PUBLIC_APP_VERSION")）"
 
 COMPOSE_BUILD_PULL="${COMPOSE_BUILD_PULL:-0}"
 compose=(docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
@@ -492,9 +569,24 @@ fi
 if ! echo "$home_html" | grep -q '每日问答'; then
   die "首页未含「每日问答」，可能构建未更新，请检查 git pull 与 web 镜像"
 fi
-if ! echo "$home_html" | grep -q "$NEXT_PUBLIC_APP_VERSION"; then
-  log "⚠️  本机首页 meta app-version 与构建 $NEXT_PUBLIC_APP_VERSION 不一致"
+
+served_app_version="$(html_app_version "$home_html")"
+served_sw_tok="$(sw_cache_version_token "${served_app_version:-}")"
+
+if [[ "$need_web" == "1" ]]; then
+  if [[ -z "$served_app_version" || "$served_app_version" != "$NEXT_PUBLIC_APP_VERSION" ]]; then
+    die "本机首页 app-version=${served_app_version:-?} ≠ 本次构建 $NEXT_PUBLIC_APP_VERSION（web 未按该版本重建？设 WEB_BUILD_NO_CACHE=1 FORCE_FULL=1）"
+  fi
+elif [[ -n "$served_app_version" && "$served_app_version" != "$NEXT_PUBLIC_APP_VERSION" ]]; then
+  log "  ℹ 本次未重建 web：容器仍为 app-version=$served_app_version（git HEAD=$NEXT_PUBLIC_APP_VERSION）"
 fi
+
+if [[ -z "$served_app_version" || -z "$served_sw_tok" ]]; then
+  die "本机首页缺少 meta app-version，无法校验 SW 烙印"
+fi
+
+log "SW 新鲜度：本机 sw.js 与容器 app-version=$served_app_version 一致"
+assert_sw_fresh "http://127.0.0.1:${WEB_HOST_PORT}" "本机" "$served_sw_tok" 1
 
 if [[ -n "$pub_url" ]]; then
   log "劫持检查：公网 Web"
@@ -516,15 +608,37 @@ if [[ -n "$pub_url" ]]; then
     elif ! echo "$pub_home" | grep -q '每日问答'; then
       log "⚠️  公网首页未含「每日问答」，请检查宝塔反代是否指向 ${WEB_HOST_PORT}"
     else
-      log "公网首页版本校验通过"
+      pub_ver="$(html_app_version "$pub_home")"
+      if [[ -n "$pub_ver" && "$pub_ver" != "$served_app_version" ]]; then
+        log "⚠️  公网 app-version=$pub_ver ≠ 本机容器 $served_app_version（Nginx 缓存或反代指错端口）"
+        if [[ -n "$pub_home_bust" ]]; then
+          bust_ver="$(html_app_version "$pub_home_bust")"
+          if [[ "$bust_ver" == "$served_app_version" ]]; then
+            log "   /?_nc=… 已是本机版本 → 请 purge 精确路径 / 缓存"
+          fi
+        fi
+      else
+        log "公网首页版本校验通过（app-version=${pub_ver:-$served_app_version}）"
+      fi
     fi
   fi
+
+  log "SW 新鲜度：公网 sw.js（应对齐本机容器烙印）"
+  assert_sw_fresh "${pub_url}" "公网" "$served_sw_tok" 0 || true
 fi
 
 log "发布成功（耗时 $((SECONDS - RELEASE_T0))s）"
 log "  API: http://127.0.0.1:8011/health"
 log "  Web: http://127.0.0.1:${WEB_HOST_PORT}/  →  https://2sc.prestoai.cn/"
-log "若前有 Nginx/CDN，请确认反代与缓存策略（见 DEPLOYMENT.md）"
+log "  app-version(容器): $served_app_version"
+log "  SW CACHE: presto-bible-${served_sw_tok}"
+if [[ "$need_web" == "1" ]]; then
+  log "  本次已重建 web → 客户端应能扫到新 SW（PwaRegister update + controllerchange）"
+else
+  log "  本次未重建 web → TWA 前端/S W 与上次相同（仅 API 等变更）"
+fi
+log "  TWA: 切回前台或约 60s 内 reg.update()；用户仍旧可强停 App 后重开"
+log "若前有 Nginx/CDN，请确认 / 与 /sw.js 不缓存（见 DEPLOYMENT.md §SW）"
 # 记录成功发版 SHA，供下次增量构建
 git rev-parse HEAD > "$RELEASE_SHA_FILE" || true
 log "  ✓ 已写入 $RELEASE_SHA_FILE=$(git rev-parse --short HEAD 2>/dev/null || echo '?')"
