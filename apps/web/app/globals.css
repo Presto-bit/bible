@@ -252,17 +252,22 @@ html.android-shell .app-body {
 }
 
 html.pwa-standalone,
-html.pwa-standalone body {
+html.android-shell,
+html.pwa-standalone body,
+html.android-shell body {
   background: var(--pwa-bg, #fffcfa);
   -webkit-touch-callout: none;
 }
 
-html.pwa-standalone .app-body {
+html.pwa-standalone .app-body,
+html.android-shell .app-body {
   -webkit-touch-callout: none;
 }
 
 html.pwa-standalone .app-body a,
-html.pwa-standalone .app-body button {
+html.pwa-standalone .app-body button,
+html.android-shell .app-body a,
+html.android-shell .app-body button {
   -webkit-touch-callout: none;
 }
 
@@ -288,7 +293,8 @@ html.android-shell.pwa-standalone {
   }
 }
 
-html.pwa-standalone a[href] {
+html.pwa-standalone a[href],
+html.android-shell a[href] {
   -webkit-touch-callout: none !important;
   -webkit-user-drag: none !important;
   -webkit-tap-highlight-color: transparent;
@@ -365,6 +371,14 @@ html.pwa-standalone a[href] {
   box-sizing: border-box;
 }
 
+/* 老 WebView：毛玻璃不可用时用实体底，避免半透叠色发脏 */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  nav.tabbar,
+  .tabbar {
+    background: var(--surface, #fffcfa);
+  }
+}
+
 /* 底部 5-Tab 导航：浮动胶囊 */
 nav.tabbar,
 .tabbar {
@@ -382,6 +396,7 @@ nav.tabbar,
   border: none;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.88);
+  background: color-mix(in srgb, var(--surface, #fff) 88%, transparent);
   backdrop-filter: blur(20px) saturate(1.2);
   -webkit-backdrop-filter: blur(20px) saturate(1.2);
   box-shadow:
@@ -395,6 +410,12 @@ nav.tabbar,
   user-select: none;
   isolation: isolate;
   overflow: visible;
+}
+
+html.android-shell nav.tabbar,
+html.android-shell .tabbar {
+  /* 壳内优先稳妥底，避免半透+scroll 重绘闪烁 */
+  background: color-mix(in srgb, var(--surface, #fff) 94%, transparent);
 }
 
 .tab-offline-hint {
@@ -1185,12 +1206,18 @@ html:not([data-app-theme]) .card {
 
 .home-today-primary-bg-img {
   display: block;
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
+  min-width: 100%;
+  min-height: 100%;
   object-fit: cover;
   object-position: center 28%;
-  transform: scale(1.04);
-  filter: saturate(0.9) brightness(1.04);
+  border: 0;
+  /* 去掉 filter/scale：部分 WebView 滤镜层空白、铺不满 */
+  filter: none;
+  transform: translateZ(0);
 }
 
 .home-today-primary-bg-veil {
@@ -1482,10 +1509,14 @@ html:not([data-app-theme]) .card {
   z-index: 0;
 }
 .home-today-side-bg-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+  filter: none;
+  transform: translateZ(0);
 }
 .home-today-side-bg-veil {
   position: absolute;
@@ -2342,6 +2373,11 @@ html:not([data-app-theme]) .card {
   width: 100%;
 }
 
+html.pwa-standalone .home-page .home-growth-stack,
+html.android-shell .home-page .home-growth-stack {
+  margin-bottom: 8px;
+}
+
 .home-onboarding-banner + .home-growth-stack {
   margin-top: 10px;
 }
@@ -2730,7 +2766,9 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 html.pwa-standalone .discover-page.is-ptr-pulling,
-html.pwa-standalone .discover-page.is-ptr-refreshing {
+html.pwa-standalone .discover-page.is-ptr-refreshing,
+html.android-shell .discover-page.is-ptr-pulling,
+html.android-shell .discover-page.is-ptr-refreshing {
   overscroll-behavior-y: none;
 }
 
@@ -2742,7 +2780,17 @@ html.pwa-standalone .discover-page.is-ptr-refreshing {
 }
 
 html.pwa-standalone .home-page.is-ptr-pulling,
-html.pwa-standalone .home-page.is-ptr-refreshing {
+html.pwa-standalone .home-page.is-ptr-refreshing,
+html.android-shell .home-page.is-ptr-pulling,
+html.android-shell .home-page.is-ptr-refreshing {
+  overscroll-behavior-y: contain;
+}
+
+/* 壳与 PWA：下拉过程禁止页面本身橡皮筋，优先自定义 PTR */
+html.android-shell .home-page,
+html.android-shell .discover-page,
+html.pwa-standalone .home-page,
+html.pwa-standalone .discover-page {
   overscroll-behavior-y: contain;
 }
 
@@ -3201,12 +3249,26 @@ button.hero-b-campaign {
   position: absolute;
   inset: 0;
   pointer-events: none;
+  overflow: hidden;
   background:
     radial-gradient(160px 130px at 88% 18%, rgba(255, 200, 140, 0.55), transparent 72%),
     radial-gradient(120px 100px at 12% 85%, rgba(232, 160, 144, 0.25), transparent 70%),
     linear-gradient(175deg, rgba(255, 236, 220, 0.75) 0%, rgba(255, 248, 243, 0) 68%);
   background-size: cover;
   background-position: center;
+}
+
+/* img 铺底比 CSS background-image 在小米 WebView 上更稳 */
+.hero-scene-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  border: 0;
+  transform: translateZ(0);
 }
 
 .hero-verse .hero-scene[style*='background-image'],
@@ -3891,33 +3953,82 @@ button.rail-card {
 /* styles/plans.css → extracted */
 /* styles/discover_list.css + group_chat.css → extracted */
 
-body.pwa-standalone .tabbar {
+body.pwa-standalone .tabbar,
+body.android-shell .tabbar {
   z-index: 95;
   padding-bottom: 8px;
 }
 
-body.pwa-standalone .tab {
+body.pwa-standalone .tab,
+body.android-shell .tab {
   padding-bottom: 6px;
 }
 
 /* 首页 PWA：底栏前多一点呼吸；触控高亮关掉（顶安全区已由 .app-body 承担） */
-html.pwa-standalone .home-page {
+html.pwa-standalone .home-page,
+html.android-shell .home-page {
   padding-bottom: 12px;
 }
 
+/* ─── 安卓壳 / 触控：成长区疏密度与可读性（对齐主屏幕 PWA 观感） ─── */
+html.android-shell .home-page .home-growth-stack,
 html.pwa-standalone .home-page .home-growth-stack {
-  margin-bottom: 8px;
+  gap: 14px;
+}
+html.android-shell .home-page .home-media-row,
+html.pwa-standalone .home-page .home-media-row {
+  min-height: 90px;
+  padding: 14px 16px 14px 12px;
+  gap: 16px;
+}
+html.android-shell .home-page .home-media-title,
+html.pwa-standalone .home-page .home-media-title {
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+}
+html.android-shell .home-page .home-media-detail,
+html.pwa-standalone .home-page .home-media-detail {
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: 3px;
+}
+html.android-shell .home-page .section-label {
+  margin-top: 22px;
+  margin-bottom: 2px;
+}
+
+/* 壳内首页今日主卡固定最小高度，避免封面层塌缩 */
+html.android-shell .home-today-primary {
+  min-height: 176px;
+}
+html.android-shell .home-today-primary-bg {
+  z-index: 0;
+}
+html.android-shell .home-today-primary-main {
+  z-index: 1;
+}
+
+/* 读经 FAB：跟安全区，少写死像素（壳/PWA 共用） */
+html.android-shell .reader-fab-stack,
+html.pwa-standalone .reader-fab-stack {
+  bottom: calc(var(--tabbar-h) + max(8px, var(--safe-bottom))) !important;
 }
 
 html.pwa-standalone .home-page .home-list-row,
 html.pwa-standalone .home-page .home-growth-memory,
 html.pwa-standalone .home-page .home-reading-summary,
-html.pwa-standalone .home-page .home-media-row {
-    -webkit-tap-highlight-color: transparent;
+html.pwa-standalone .home-page .home-media-row,
+html.android-shell .home-page .home-list-row,
+html.android-shell .home-page .home-growth-memory,
+html.android-shell .home-page .home-reading-summary,
+html.android-shell .home-page .home-media-row {
+  -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
-body.pwa-standalone .card {
+body.pwa-standalone .card,
+body.android-shell .card {
   box-shadow: var(--elev-1);
 }
 

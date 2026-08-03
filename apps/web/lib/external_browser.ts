@@ -32,5 +32,17 @@ export function openExternalBrowser(detail: ExternalBrowserOpenDetail): void {
 export function openInSystemBrowser(url: string): void {
   const raw = (url || '').trim();
   if (!raw || typeof window === 'undefined') return;
+  try {
+    // 动态 import 避免 SSR；同步路径优先壳桥
+    const w = window as Window & {
+      PeiaiShell?: { openExternal?: (u: string) => void };
+    };
+    if (typeof w.PeiaiShell?.openExternal === 'function') {
+      w.PeiaiShell.openExternal(raw);
+      return;
+    }
+  } catch {
+    /* fallthrough */
+  }
   window.open(raw, '_blank', 'noopener,noreferrer');
 }

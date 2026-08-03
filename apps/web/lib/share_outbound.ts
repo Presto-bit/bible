@@ -1,5 +1,11 @@
 /** PWA 出站分享契约：系统分享 → 失败只复制；取消不下载 */
 
+import {
+  hasAndroidShellShare,
+  shareViaAndroidShell,
+} from './android_shell_bridge';
+import { isPeiaiAndroidShell } from './pwa_platform';
+
 export type ShareOutboundResult =
   | 'shared'
   | 'copied'
@@ -44,8 +50,22 @@ type ShareNav = Navigator & {
   }) => boolean;
 };
 
+async function fileToDataUrl(file: File): Promise<string | null> {
+  try {
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 统一出站：
+ * 0) 安卓壳 → 优先原生系统分享面板（含图）
  * 1) 有图且可分享文件 → 系统分享（图+文）
  * 2) 否则文字+链接系统分享
  * 3) 用户取消 → cancelled（不下图、不复制）
@@ -65,6 +85,24 @@ export async function shareOutbound(opts: {
   const clipboard = url ? `${text}\n${url}`.trim() : text;
   const nav = navigator as ShareNav;
   const file = opts.file || null;
+
+  // 安卓独立壳：系统分享面板为主路径
+  if (isPeiaiAndroidShell() && hasAndroidShellShare()) {
+    let imageDataUrl = '';
+    if (file && file.type.startsWith('image/')) {
+      imageDataUrl = (await fileToDataUrl(file)) || '';
+    }
+    if (
+      shareViaAndroidShell({
+        title,
+        text,
+        url,
+        imageDataUrl: imageDataUrl || undefined,
+      })
+    ) {
+      return 'shared';
+    }
+  }
 
   if (nav.share) {
     if (file) {

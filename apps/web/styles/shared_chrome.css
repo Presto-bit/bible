@@ -491,7 +491,8 @@
   color: color-mix(in srgb, #c0392b 45%, var(--muted, #6b6b6b));
 }
 
-body.pwa-standalone .settings-group-list {
+body.pwa-standalone .settings-group-list,
+body.android-shell .settings-group-list {
   box-shadow: var(--home-shadow);
 }
 
@@ -786,12 +787,65 @@ body.pwa-standalone .settings-group-list {
 .input {
   width: 100%;
   box-sizing: border-box;
-  padding: 10px 12px;
+  padding: 12px 14px;
+  min-height: 48px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--surface, #fff);
   color: var(--ink);
-  font: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+/*
+ * 全站搜索/表单主输入（发现页、管理后台、各 sheet 等）。
+ * 勿再仅放在 route-scoped search.css：Tab/后台路由否则会丢高度与字号。
+ */
+.search-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  min-height: 48px;
+  background: var(--surface);
+  color: var(--ink);
+  /* ≥16px：避免 iOS/部分 WebView 聚焦时自动放大页面 */
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.search-input::placeholder {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+
+/* book-chip 作按钮时保持紧凑；作文本输入/下拉时与 search-input 同规格 */
+input.book-chip,
+textarea.book-chip,
+select.book-chip {
+  width: 100%;
+  box-sizing: border-box;
+  display: block;
+  text-align: left;
+  cursor: text;
+  font-size: 16px;
+  line-height: 1.4;
+  padding: 12px 14px;
+  min-height: 48px;
+  border-radius: 12px;
+}
+
+select.book-chip {
+  cursor: pointer;
+  appearance: auto;
+}
+
+textarea.book-chip,
+textarea.search-input,
+textarea.input {
+  min-height: 96px;
+  resize: vertical;
 }
 
 /* font pills */

@@ -20,9 +20,15 @@ export function initNotificationServices(): void {
   rescheduleDaily();
   rescheduleGroupEveningReminder();
   startDigestPoller();
+  void import('./android_shell_bridge').then((m) => {
+    void m.syncAndroidShellAlarms();
+  });
   whenHomeBootstrapReady(
     () => {
       void syncPushSubscription();
+      void import('./android_shell_bridge').then((m) => {
+        void m.syncAndroidShellAlarms();
+      });
     },
     { afterMs: 8_000, fallbackMs: 28_000 },
   );
@@ -50,4 +56,7 @@ export function rescheduleAllNotifications(): void {
   rescheduleDaily();
   rescheduleGroupEveningReminder();
   void syncPushSubscription();
+  void import('./android_shell_bridge').then((m) => {
+    void m.syncAndroidShellAlarms();
+  });
 }

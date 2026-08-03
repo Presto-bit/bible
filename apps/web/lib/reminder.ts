@@ -30,6 +30,17 @@ export function setReminder(p: ReminderPref, opts?: { source?: string }) {
   localStorage.setItem(KEY, JSON.stringify(p));
   reschedule();
   void import('./notifications').then((m) => m.syncPushSubscription().catch(() => {}));
+  void import('./android_shell_bridge').then((m) => {
+    m.scheduleAndroidShellReminder({
+      kind: 'daily',
+      enabled: p.enabled,
+      hour: p.hour,
+      minute: p.minute,
+      title: '彼爱 · 今日读经',
+      body: '愿话语成为你脚前的灯，点开继续今天的阅读。',
+      openPath: '/',
+    });
+  });
   if (p.enabled && !prev.enabled) {
     void import('./product_events').then((m) =>
       m.trackProductEvent('reminder_enable', {
@@ -90,6 +101,19 @@ export function reschedule() {
     timer = null;
   }
   const p = getReminder();
+  // 安卓壳主路径：原生 AlarmManager；仍保留前台 setTimeout 作打开页时的二次提示
+  void import('./android_shell_bridge').then((m) => {
+    if (!m.hasAndroidShellReminder()) return;
+    m.scheduleAndroidShellReminder({
+      kind: 'daily',
+      enabled: p.enabled,
+      hour: p.hour,
+      minute: p.minute,
+      title: '彼爱 · 今日读经',
+      body: '愿话语成为你脚前的灯，点开继续今天的阅读。',
+      openPath: '/',
+    });
+  });
   if (!p.enabled || !('Notification' in window)) return;
   timer = setTimeout(() => {
     void fireReminder();

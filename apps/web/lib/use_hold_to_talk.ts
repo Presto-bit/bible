@@ -62,7 +62,11 @@ export function useHoldToTalk({ onResult, onUnsupported }: Options) {
       for (let i = 0; i < ev.results.length; i++) t += ev.results[i]![0].transcript;
       transcriptRef.current = t;
     };
-    rec.onerror = () => {};
+    rec.onerror = () => {
+      setRecording(false);
+      recRef.current = null;
+      onUnsupported?.();
+    };
     recRef.current = { stop: () => rec.stop(), abort: () => rec.abort() };
     try {
       rec.start();

@@ -18,6 +18,9 @@ body.verse-full-open .tabbar {
   inset: 0;
   z-index: 1200;
   width: 100%;
+  height: 100%;
+  min-height: 100%;
+  min-height: 100vh;
   min-height: 100dvh;
   min-height: 100svh;
   margin: 0;
@@ -28,6 +31,11 @@ body.verse-full-open .tabbar {
   display: flex;
   align-items: center;
   justify-content: center;
+  /* 防 WebView 高度塌缩 */
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
 }
 .verse-full-photo-only .verse-full-bg-photo {
   position: absolute;
@@ -35,19 +43,22 @@ body.verse-full-open .tabbar {
   z-index: 0;
   width: 100%;
   height: 100%;
+  min-width: 100%;
+  min-height: 100%;
   object-fit: cover;
   object-position: center;
   filter: none;
   display: block;
   pointer-events: none;
   transform: translateZ(0);
+  -webkit-transform: translateZ(0);
 }
 .verse-full-scrim-top {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: calc(var(--safe-top) + 56px);
+  height: calc(max(var(--safe-top, 0px), var(--shell-inset-top, 0px), env(safe-area-inset-top, 0px)) + 56px);
   z-index: 1;
   pointer-events: none;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.42) 0%, transparent 100%);
@@ -57,9 +68,50 @@ body.verse-full-open .tabbar {
   z-index: 2;
   width: min(520px, calc(100% - 40px));
   margin: 0 auto;
-  padding: calc(20px + var(--safe-top)) 24px calc(88px + var(--safe-bottom));
+  padding:
+    calc(20px + max(var(--safe-top, 0px), var(--shell-inset-top, 0px), env(safe-area-inset-top, 0px)))
+    24px
+    calc(100px + max(var(--safe-bottom, 0px), var(--shell-inset-bottom, 0px), env(safe-area-inset-bottom, 0px)));
   color: #fff;
   cursor: default;
+}
+/* 全屏贴底互动条：白字透明，无阴影 */
+.verse-full-dock {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding:
+    14px 20px
+    calc(16px + max(var(--safe-bottom, 0px), var(--shell-inset-bottom, 0px), env(safe-area-inset-bottom, 0px), 12px));
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.45) 0%, transparent 100%);
+  pointer-events: none;
+}
+.verse-full-dock-btn {
+  pointer-events: auto;
+  appearance: none;
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  min-height: 48px;
+  min-width: 48px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+  filter: none;
 }
 .verse-full-copy {
   width: 100%;
@@ -70,39 +122,6 @@ body.verse-full-open .tabbar {
 .verse-full-copy .verse-full-ref {
   text-align: right;
   margin-top: 12px;
-}
-/* 全屏贴底互动条：白字透明，无阴影 */
-.verse-full-dock {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 28px;
-  padding: 14px 20px calc(14px + var(--safe-bottom));
-  background: transparent;
-  pointer-events: none;
-}
-.verse-full-dock-btn {
-  pointer-events: auto;
-  appearance: none;
-  border: none;
-  background: transparent;
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 4px;
-  min-height: 44px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
-  filter: none;
 }
 .verse-full-dock-btn:disabled {
   opacity: 0.45;

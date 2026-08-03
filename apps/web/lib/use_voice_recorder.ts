@@ -147,10 +147,28 @@ export function useVoiceRecorder({ onRecorded, onUnsupported, onError }: Options
         finish(false);
       }, MAX_MS);
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    } catch {
+    } catch (err) {
       cleanupStream();
       setRecording(false);
-      onError?.('无法使用麦克风，请在系统设置中允许');
+      const denied =
+        err
+        && typeof err === 'object'
+        && 'name' in err
+        && (err as { name?: string }).name === 'NotAllowedError';
+      if (denied) {
+        onError?.('麦克风权限被拒绝，请在系统设置中允许后重试');
+        try {
+          const { openAndroidShellAppSettings } = await import('./android_shell_bridge');
+          const { isPeiaiAndroidShell } = await import('./pwa_platform');
+          if (isPeiaiAndroidShell()) {
+            window.setTimeout(() => openAndroidShellAppSettings(), 600);
+          }
+        } catch {
+          /* ignore */
+        }
+      } else {
+        onError?.('无法使用麦克风，请改用键盘输入');
+      }
     }
   };
 

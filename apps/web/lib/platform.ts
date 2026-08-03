@@ -21,10 +21,26 @@ type NavHints = Navigator & {
 
 /**
  * 低端/省流机：少特效、降毛玻璃。
- * 阈值刻意比「关 KeepAlive」更宽：4GB/4 核仍可保活，但走 perf-lite。
+ * 安卓安装包 WebView 若误判为「低端」会砍掉过多 UI，改为更宽松。
  */
 export function isLowEndDevice(): boolean {
   if (typeof window === 'undefined') return false;
+  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) {
+    const nav = navigator as NavHints;
+    if (nav.connection?.saveData) return true;
+    // 壳内仅 2GB/2 核及以下算 lite
+    if (typeof nav.deviceMemory === 'number' && nav.deviceMemory > 0 && nav.deviceMemory <= 2) {
+      return true;
+    }
+    if (
+      typeof nav.hardwareConcurrency === 'number'
+      && nav.hardwareConcurrency > 0
+      && nav.hardwareConcurrency <= 2
+    ) {
+      return true;
+    }
+    return false;
+  }
   const nav = navigator as NavHints;
   if (nav.connection?.saveData) return true;
   const et = nav.connection?.effectiveType;

@@ -44,7 +44,6 @@ export default function DailyVerseWallpaper({
   const [bgOk, setBgOk] = useState(true);
 
   const fullUrl = backgroundUrl ?? dailyVerseWallpaperUrl(dv.day, 'full');
-  const cardUrl = dailyVerseWallpaperUrl(dv.day, 'card');
   const shareCount = dv.shares_count ?? 0;
 
   useEffect(() => {
@@ -91,8 +90,6 @@ export default function DailyVerseWallpaper({
         <img
           className="verse-full-bg verse-full-bg-photo"
           src={fullUrl}
-          srcSet={`${cardUrl} 1200w, ${fullUrl} 2400w`}
-          sizes="100vw"
           alt=""
           aria-hidden
           decoding="async"

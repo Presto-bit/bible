@@ -96,5 +96,16 @@ export function parseCsvRows(text: string): string[][] {
 }
 
 export function openInSystemBrowser(url: string) {
+  try {
+    const w = window as Window & {
+      PeiaiShell?: { openExternal?: (u: string) => void };
+    };
+    if (typeof w.PeiaiShell?.openExternal === 'function') {
+      w.PeiaiShell.openExternal(url);
+      return;
+    }
+  } catch {
+    /* fallthrough */
+  }
   window.open(url, '_blank', 'noopener,noreferrer');
 }

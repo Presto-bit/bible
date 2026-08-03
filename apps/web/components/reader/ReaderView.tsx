@@ -2949,7 +2949,7 @@ export default function ReaderView({
         >
           {swipeTurn ? (
             <div
-              className="reader-turn-viewport"
+              className={`reader-turn-viewport${turn.turning ? ' is-turning' : ''}`}
               ref={turn.viewportRef}
               onPointerDown={turn.onPointerDown}
               onPointerMove={turn.onPointerMove}
@@ -3028,7 +3028,7 @@ export default function ReaderView({
             退出计划
           </button>
         )}
-        {hasGroups && (
+        {hasGroups ? (
           <button
             type="button"
             className="reader-fab reader-fab-group reader-fab-sm"
@@ -3036,6 +3036,19 @@ export default function ReaderView({
             aria-label="打卡到共读群"
           >
             {groupCtx.groupId ? '打卡到群' : '打卡'}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="reader-fab reader-fab-group reader-fab-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              flashToast('加入共读群后可在读经页打卡');
+              window.location.assign('/discover');
+            }}
+            aria-label="打卡（需加入共读群）"
+          >
+            打卡
           </button>
         )}
         <button

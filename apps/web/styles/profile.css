@@ -951,7 +951,12 @@ body.pwa-standalone .profile-page .profile-badge-card,
 body.pwa-standalone .profile-page .profile-soft-row.card,
 body.pwa-standalone .profile-page .profile-companion-card,
 body.pwa-standalone .profile-page .profile-footprint-cell,
-body.pwa-standalone .profile-page .profile-shortcut-panel {
+body.pwa-standalone .profile-page .profile-shortcut-panel,
+body.android-shell .profile-page .profile-badge-card,
+body.android-shell .profile-page .profile-soft-row.card,
+body.android-shell .profile-page .profile-companion-card,
+body.android-shell .profile-page .profile-footprint-cell,
+body.android-shell .profile-page .profile-shortcut-panel {
   box-shadow: var(--home-shadow);
 }
 

@@ -24,6 +24,17 @@ export function getGroupEveningReminder(): GroupEveningReminder {
 export function setGroupEveningReminder(p: GroupEveningReminder) {
   localStorage.setItem(GROUP_KEY, JSON.stringify(p));
   rescheduleGroupEveningReminder();
+  void import('./android_shell_bridge').then((m) => {
+    m.scheduleAndroidShellReminder({
+      kind: 'group',
+      enabled: p.enabled,
+      hour: p.hour,
+      minute: p.minute,
+      title: '群打卡提醒',
+      body: '还在等你轻轻完成今天的打卡。',
+      openPath: '/discover',
+    });
+  });
 }
 
 let groupTimer: ReturnType<typeof setTimeout> | null = null;
@@ -64,6 +75,18 @@ export function rescheduleGroupEveningReminder() {
     groupTimer = null;
   }
   const p = getGroupEveningReminder();
+  void import('./android_shell_bridge').then((m) => {
+    if (!m.hasAndroidShellReminder()) return;
+    m.scheduleAndroidShellReminder({
+      kind: 'group',
+      enabled: p.enabled,
+      hour: p.hour,
+      minute: p.minute,
+      title: '群打卡提醒',
+      body: '还在等你轻轻完成今天的打卡。',
+      openPath: '/discover',
+    });
+  });
   if (!p.enabled || !('Notification' in window)) return;
   groupTimer = setTimeout(() => {
     void fireGroupEveningReminder();

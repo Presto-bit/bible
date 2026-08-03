@@ -3,6 +3,7 @@ package cn.prestoai.peiai
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.DownloadManager
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -11,14 +12,17 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.Message
 import android.provider.Settings
+import android.util.Base64
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
+import android.webkit.URLUtil
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -54,6 +58,7 @@ import java.util.concurrent.atomic.AtomicReference
  * - early 注入：display-mode 语义、pwa-standalone 类（与主屏幕 PWA 一致）
  * - 外链留在 WebView 内（与 pwa_nav 一致）
  * - 站点 APK 下载并安装、文件选择、麦/相机/通知权限
+ * - 系统分享面板、DownloadManager 另存、本地 Alarm 准点提醒
  */
 class MainWebActivity : AppCompatActivity() {
 
@@ -103,7 +108,33 @@ class MainWebActivity : AppCompatActivity() {
           else -> true
         }
       }
-      if (allGranted) req.grant(req.resources) else req.deny()
+      if (allGranted) req.grant(req.resources)
+      else {
+        req.deny()
+        val denied = mutableListOf<String>()
+        for (res in req.resources) {
+          when (res) {
+            PermissionRequest.RESOURCE_AUDIO_CAPTURE -> denied.add("麦克风")
+            PermissionRequest.RESOURCE_VIDEO_CAPTURE -> denied.add("相机")
+          }
+        }
+        if (denied.isNotEmpty()) {
+          toast("${denied.joinToString("、")}权限未开启，可在系统设置中允许")
+          // 二次拒权后引导系统设置
+          if (grants.values.any { !it }) {
+            webView.postDelayed({
+              try {
+                startActivity(
+                  Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.parse("package:$packageName"),
+                  ),
+                )
+              } catch (_: Exception) { /* ignore */ }
+            }, 900)
+          }
+        }
+      }
     }
 
   private val notifPermissionLauncher =
@@ -123,6 +154,9 @@ class MainWebActivity : AppCompatActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     setupEdgeToEdge()
+    ShellNotifier.ensureChannel(this)
+    // 冷启动补挂闹钟（H5 也会在偏好加载后再 sync）
+    ReminderScheduler.rescheduleAll(this)
 
     webView = WebView(this).apply {
       layoutParams = FrameLayout.LayoutParams(
@@ -307,15 +341,16 @@ class MainWebActivity : AppCompatActivity() {
         }
       }
 
-      setDownloadListener { url, _, contentDisposition, mimeType, _ ->
+      setDownloadListener { url, userAgent, contentDisposition, mimeType, _ ->
         if (looksLikeApk(url, contentDisposition, mimeType)) {
           startApkDownload(url)
-        } else {
-          try {
-            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-          } catch (_: ActivityNotFoundException) {
-            toast("无法打开下载链接")
-          }
+        } else if (!url.isNullOrBlank()) {
+          enqueueSystemDownload(
+            url = url,
+            userAgent = userAgent,
+            contentDisposition = contentDisposition,
+            mimeType = mimeType,
+          )
         }
       }
     }
@@ -429,6 +464,239 @@ class MainWebActivity : AppCompatActivity() {
           return@runOnUiThread
         }
         notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+      }
+    }
+
+    /**
+     * 系统分享面板（可选 data URL / base64 图片）。
+     * imageDataUrl: `data:image/png;base64,...` 或空。
+     */
+    @JavascriptInterface
+    fun share(title: String?, text: String?, url: String?, imageDataUrl: String?) {
+      runOnUiThread {
+        try {
+          shareOutbound(
+            title = title?.trim().orEmpty(),
+            text = text?.trim().orEmpty(),
+            url = url?.trim().orEmpty(),
+            imageDataUrl = imageDataUrl?.trim().orEmpty(),
+          )
+        } catch (_: Exception) {
+          toast("暂时无法打开分享")
+        }
+      }
+    }
+
+    /**
+     * 本地准点提醒。kind: daily | group
+     * enabled 用 0/1，避免部分 WebView boolean 桥接问题。
+     */
+    @JavascriptInterface
+    fun scheduleReminder(
+      kind: String?,
+      enabled: Int,
+      hour: Int,
+      minute: Int,
+      title: String?,
+      body: String?,
+      openPath: String?,
+    ) {
+      val k = when (kind?.trim()?.lowercase(Locale.US)) {
+        ReminderScheduler.KIND_GROUP, "group_evening", "group-evening" ->
+          ReminderScheduler.KIND_GROUP
+        else -> ReminderScheduler.KIND_DAILY
+      }
+      ReminderScheduler.schedule(
+        this@MainWebActivity,
+        kind = k,
+        enabled = enabled != 0,
+        hour = hour,
+        minute = minute,
+        title = title ?: "",
+        body = body ?: "",
+        openPath = openPath ?: if (k == ReminderScheduler.KIND_GROUP) "/discover" else "/",
+      )
+      if (enabled != 0) {
+        runOnUiThread { requestNotificationsIfNeeded() }
+      }
+    }
+
+    @JavascriptInterface
+    fun cancelReminder(kind: String?) {
+      val k = when (kind?.trim()?.lowercase(Locale.US)) {
+        ReminderScheduler.KIND_GROUP, "group_evening", "group-evening" ->
+          ReminderScheduler.KIND_GROUP
+        else -> ReminderScheduler.KIND_DAILY
+      }
+      ReminderScheduler.cancel(this@MainWebActivity, k)
+    }
+
+    /** 拒权后引导用户去系统设置 */
+    @JavascriptInterface
+    fun openAppSettings() {
+      runOnUiThread {
+        try {
+          val intent = Intent(
+            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+            Uri.parse("package:$packageName"),
+          )
+          startActivity(intent)
+        } catch (_: Exception) {
+          try {
+            startActivity(Intent(Settings.ACTION_SETTINGS))
+          } catch (_: Exception) {
+            toast("请到系统设置中找到「彼爱」")
+          }
+        }
+      }
+    }
+
+    /** 精确闹钟权限设置（Android 12+ 部分机型） */
+    @JavascriptInterface
+    fun openExactAlarmSettings() {
+      runOnUiThread {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return@runOnUiThread
+        try {
+          startActivity(
+            Intent(
+              Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+              Uri.parse("package:$packageName"),
+            ),
+          )
+        } catch (_: Exception) {
+          openAppSettings()
+        }
+      }
+    }
+
+    /**
+     * 用系统 DownloadManager 另存到「下载」目录（非 APK）。
+     * @return "ok" | "fail"
+     */
+    @JavascriptInterface
+    fun downloadUrl(url: String?, fileName: String?): String {
+      if (url.isNullOrBlank()) return "fail"
+      return try {
+        enqueueSystemDownload(
+          url = url,
+          userAgent = null,
+          contentDisposition = null,
+          mimeType = null,
+          preferredName = fileName,
+        )
+        "ok"
+      } catch (_: Exception) {
+        "fail"
+      }
+    }
+
+    /** 是否具备原生分享桥（H5 探测用，恒为 true） */
+    @JavascriptInterface
+    fun hasShareBridge(): Boolean = true
+
+    /** 是否具备本地闹钟桥 */
+    @JavascriptInterface
+    fun hasReminderBridge(): Boolean = true
+  }
+
+  private fun requestNotificationsIfNeeded() {
+    if (Build.VERSION.SDK_INT < 33) return
+    if (
+      ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+      == PackageManager.PERMISSION_GRANTED
+    ) {
+      return
+    }
+    notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+  }
+
+  private fun shareOutbound(title: String, text: String, url: String, imageDataUrl: String) {
+    val body = buildString {
+      if (text.isNotBlank()) append(text)
+      if (url.isNotBlank()) {
+        if (isNotEmpty()) append('\n')
+        append(url)
+      }
+    }
+    val imageUri = writeShareImageIfNeeded(imageDataUrl)
+    val send = Intent(Intent.ACTION_SEND).apply {
+      if (imageUri != null) {
+        type = "image/*"
+        putExtra(Intent.EXTRA_STREAM, imageUri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        clipData = android.content.ClipData.newUri(contentResolver, "share", imageUri)
+        if (body.isNotBlank()) putExtra(Intent.EXTRA_TEXT, body)
+        if (title.isNotBlank()) putExtra(Intent.EXTRA_SUBJECT, title)
+      } else {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, body.ifBlank { title.ifBlank { HOST_ORIGIN } })
+        if (title.isNotBlank()) putExtra(Intent.EXTRA_SUBJECT, title)
+      }
+    }
+    val chooser = Intent.createChooser(send, if (title.isNotBlank()) title else "分享到")
+    try {
+      startActivity(chooser)
+    } catch (_: ActivityNotFoundException) {
+      toast("没有可用的分享应用")
+    }
+  }
+
+  private fun writeShareImageIfNeeded(imageDataUrl: String): Uri? {
+    if (imageDataUrl.isBlank()) return null
+    return try {
+      val comma = imageDataUrl.indexOf(',')
+      val raw = if (imageDataUrl.startsWith("data:", ignoreCase = true) && comma > 0) {
+        imageDataUrl.substring(comma + 1)
+      } else {
+        imageDataUrl
+      }
+      val bytes = Base64.decode(raw, Base64.DEFAULT)
+      if (bytes.isEmpty() || bytes.size > 12 * 1024 * 1024) return null
+      val dir = File(cacheDir, "share").apply { mkdirs() }
+      val ext = when {
+        imageDataUrl.contains("image/jpeg") || imageDataUrl.contains("image/jpg") -> "jpg"
+        imageDataUrl.contains("image/webp") -> "webp"
+        else -> "png"
+      }
+      val out = File(dir, "share-${System.currentTimeMillis()}.$ext")
+      FileOutputStream(out).use { it.write(bytes) }
+      FileProvider.getUriForFile(this, getString(R.string.providerAuthority), out)
+    } catch (_: Exception) {
+      null
+    }
+  }
+
+  private fun enqueueSystemDownload(
+    url: String,
+    userAgent: String?,
+    contentDisposition: String?,
+    mimeType: String?,
+    preferredName: String? = null,
+  ) {
+    try {
+      val name = preferredName?.takeIf { it.isNotBlank() }
+        ?: URLUtil.guessFileName(url, contentDisposition, mimeType)
+      val request = DownloadManager.Request(Uri.parse(url)).apply {
+        setTitle(name)
+        setDescription("彼爱下载")
+        setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+        setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, name)
+        if (!mimeType.isNullOrBlank()) setMimeType(mimeType)
+        val cookie = CookieManager.getInstance().getCookie(url)
+        if (!cookie.isNullOrBlank()) addRequestHeader("Cookie", cookie)
+        val ua = userAgent ?: ("PeiaiAndroidShell/" + BuildConfig.VERSION_NAME)
+        addRequestHeader("User-Agent", ua)
+        @Suppress("DEPRECATION")
+        allowScanningByMediaScanner()
+      }
+      val dm = getSystemService(DownloadManager::class.java)
+      dm?.enqueue(request)
+      toast("已加入下载：$name")
+    } catch (_: Exception) {
+      try {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+      } catch (_: ActivityNotFoundException) {
+        toast("无法下载此文件")
       }
     }
   }

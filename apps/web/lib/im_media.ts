@@ -21,6 +21,14 @@ export function collectMessageImages(
 
 export async function downloadImAsset(url: string, fileName?: string | null) {
   try {
+    const { downloadViaAndroidShell } = await import('./android_shell_bridge');
+    if (downloadViaAndroidShell(url, fileName || undefined)) {
+      return true;
+    }
+  } catch {
+    /* fall through */
+  }
+  try {
     const res = await fetch(url);
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);
@@ -34,6 +42,12 @@ export async function downloadImAsset(url: string, fileName?: string | null) {
     URL.revokeObjectURL(objectUrl);
     return true;
   } catch {
+    try {
+      const { openViaAndroidShellExternal } = await import('./android_shell_bridge');
+      if (openViaAndroidShellExternal(url)) return false;
+    } catch {
+      /* ignore */
+    }
     window.open(url, '_blank', 'noopener,noreferrer');
     return false;
   }

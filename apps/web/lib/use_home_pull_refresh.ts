@@ -210,6 +210,14 @@ export function useHomePullRefresh({
     const onTouchStart = (e: TouchEvent) => {
       if (refreshingRef.current || e.touches.length !== 1) return;
       const t = e.touches[0];
+      // 避开左右边缘，少与小米全面屏返回手势打架
+      const edge = Math.min(28, Math.max(16, window.innerWidth * 0.05));
+      if (t.clientX < edge || t.clientX > window.innerWidth - edge) {
+        modeRef.current = 'none';
+        startYRef.current = t.clientY;
+        startXRef.current = t.clientX;
+        return;
+      }
       startYRef.current = t.clientY;
       startXRef.current = t.clientX;
       modeRef.current = 'none';
@@ -221,9 +229,11 @@ export function useHomePullRefresh({
       const dy = t.clientY - startYRef.current;
       const dx = t.clientX - startXRef.current;
 
+      // 边缘手势保护：横向为主时不进 PTR
       if (modeRef.current === 'none') {
-        if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.1) return;
-        if (dy > 6 && scrollTop() <= 0) modeRef.current = 'top';
+        if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 0.85) return;
+        // 下拉阈值略提高，减轻与系统过滚/状态栏下拉的冲突
+        if (dy > 10 && scrollTop() <= 0) modeRef.current = 'top';
         else if (enableBottomRef.current && dy < -6 && atDocumentBottom()) {
           modeRef.current = 'bottom';
         } else return;

@@ -43,6 +43,8 @@ export function fontFamilyCss(f: ReaderFontFamily): string {
 
 function defaultPageTurn(): PageTurnMode {
   if (typeof window === 'undefined') return 'swipe';
+  // 安卓壳务必横滑翻页（部分机报 fine pointer，勿默认 scroll）
+  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) return 'swipe';
   if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) return 'scroll';
   return 'swipe';
 }

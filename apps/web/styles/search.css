@@ -2,16 +2,7 @@
 
 /* lines 8541-8729 */
 /* ─── 搜索页 ─── */
-.search-input {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 12px 14px;
-  background: var(--surface);
-  /* ≥16px：避免 iOS 聚焦输入框时自动放大页面 */
-  font-size: 16px;
-}
+/* 基类 .search-input / 触控 ≥16px 已回 shared_chrome（根 layout），此处仅补搜索页专属 */
 
 /* iOS Safari：book-chip 等小号输入框聚焦会放大视口，返回后 Tab 栏可能错位 */
 @media (hover: none) and (pointer: coarse) {

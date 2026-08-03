@@ -92,7 +92,7 @@ export default function RemindersPage() {
     setNotif(next);
     if (next.socialDigest || next.streakRecall) {
       const ok = await ensurePermission();
-      if (!ok) setMsg('请在浏览器或系统设置中允许通知');
+      if (!ok) setMsg('请在系统设置中允许通知');
       void syncPushSubscription();
     } else {
       void syncPushSubscription();
@@ -110,7 +110,7 @@ export default function RemindersPage() {
     if (enabled && !pref.enabled) {
       const ok = await ensurePermission();
       if (!ok) {
-        setMsg('请在浏览器或系统设置中允许通知');
+        setMsg('请在系统设置中允许「彼爱」发送通知');
         return;
       }
     }
@@ -126,7 +126,7 @@ export default function RemindersPage() {
     if (enabled) {
       const ok = await ensurePermission();
       if (!ok) {
-        setMsg('请在浏览器或系统设置中允许通知');
+        setMsg('请在系统设置中允许「彼爱」发送通知');
         return;
       }
     }
@@ -140,7 +140,7 @@ export default function RemindersPage() {
     if (enabled) {
       const ok = await ensurePermission();
       if (!ok) {
-        setMsg('请在浏览器或系统设置中允许通知');
+        setMsg('请在系统设置中允许「彼爱」发送通知');
         return;
       }
     }
@@ -157,7 +157,7 @@ export default function RemindersPage() {
     if (!groupPref.enabled) {
       const ok = await ensurePermission();
       if (!ok) {
-        setMsg('请在浏览器或系统设置中允许通知');
+        setMsg('请在系统设置中允许「彼爱」发送通知');
         return;
       }
     }

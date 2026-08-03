@@ -972,14 +972,20 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
         <div
           className={`hero-scene${heroIllustration ? ' hero-scene-has-art' : ''}`}
           aria-hidden
-          style={
-            heroIllustration
-              ? {
-                  backgroundImage: `url(${heroIllustration})`,
-                }
-              : undefined
-          }
-        />
+        >
+          {heroIllustration ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              className="hero-scene-img"
+              src={heroIllustration}
+              alt=""
+              width={720}
+              height={400}
+              decoding="async"
+              fetchPriority="high"
+            />
+          ) : null}
+        </div>
         <div className="hero-inner hero-inner-split">
           <span className="hero-kicker hero-kicker-corner">每日经文</span>
           <div className="hero-main">
