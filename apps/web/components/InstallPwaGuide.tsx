@@ -37,6 +37,7 @@ import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
 import {
   clearInstallPromptDismiss,
+  dismissAndroidAutoInstallThisLoad,
   dismissInstallPrompt,
   getAndroidAutoSheetOpen,
   isAndroidInstallAutoSuppressed,
@@ -207,8 +208,8 @@ export function InstallPwaSheet({
       /* ignore */
     }
     if (isAndroid) {
-      // 直装 APK 探测不可靠：点下载即视为已引导完成，永久不再自动弹
-      markAndroidTwaInstallClaimed();
+      // 仅关本页自动层；下载 ≠ 已安装，刷新后未装仍弹
+      dismissAndroidAutoInstallThisLoad();
     } else {
       clearInstallPromptDismiss();
     }
@@ -246,13 +247,19 @@ export function InstallPwaSheet({
     setBusy(true);
     try {
       await backupBeforeInstall();
-      markAndroidTwaInstallClaimed();
-      toast('开始下载安装包…装好后请打开桌面「彼爱」');
+      toast('开始下载安装包…装好后请打开桌面「彼爱」；若未安装完成，刷新页面会再次提醒。');
       window.location.href = androidPackageDownloadHref();
+      // 不 hard-claim：用户可能只下了文件没装完
       await onInstallAccepted();
     } finally {
       setBusy(false);
     }
+  };
+
+  const markAlreadyInstalled = () => {
+    markAndroidTwaInstallClaimed();
+    toast('已标记为本机已安装，不再自动提醒');
+    onClose();
   };
 
   return (
@@ -304,7 +311,7 @@ export function InstallPwaSheet({
         {isAndroid ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
             安装前会尽量把读经记录保存到账号。请下载官方安装包（不跳应用商店），装好后用桌面「彼爱」打开。
-            安卓上不推荐「添加到主屏幕」或浏览器书签，主推安装包体验最稳。
+            暂不安装可继续浏览；未装完关闭本提示后，刷新页面会再次提醒。
           </p>
         ) : null}
         {isDesktop && !loggedIn ? (
@@ -347,6 +354,17 @@ export function InstallPwaSheet({
             onClick={() => void runAndroidApkInstall()}
           >
             {busy ? '正在保存读经记录…' : androidInstalled ? '重新下载安装包' : '下载并安装'}
+          </button>
+        ) : null}
+
+        {isAndroid && !androidInstalled ? (
+          <button
+            type="button"
+            className="text-link install-pwa-dismiss"
+            style={{ marginTop: 8 }}
+            onClick={markAlreadyInstalled}
+          >
+            我已安装，不再提示
           </button>
         ) : null}
 
@@ -404,14 +422,15 @@ export default function InstallBanner() {
   const [platform, setPlatform] = useState<InstallPlatform | null>(null);
   const [sheetOpen, setSheetOpen] = useState(() => {
     if (typeof window === 'undefined') return false;
-    if (isAndroidTwaInstallClaimed() || isInstallPromptSuppressed()) return false;
+    // 仅硬认领阻止首帧自动层；2 天冷却 / session 不挡安卓
+    if (isAndroidTwaInstallClaimed()) return false;
     return getAndroidAutoSheetOpen();
   });
   const [sheetCtx, setSheetCtx] = useState<PwaInstallContext | null>(null);
   const [hidden, setHidden] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [homeClear, setHomeClear] = useState(false);
-  /** 探测到已装 / claimed 后禁止安卓自动 Sheet */
+  /** 探测/硬认领已装 → 禁止安卓自动 Sheet */
   const [androidInstalled, setAndroidInstalled] = useState(
     () => (typeof window !== 'undefined' ? isAndroidTwaInstallClaimed() : false),
   );
@@ -471,7 +490,7 @@ export default function InstallBanner() {
   const isAndroidPlatform =
     isAndroidBrowser || (platform === 'inapp' && !isIOS());
 
-  // 安卓：尽快自动弹出安装 Sheet（含首页）；已下载/关闭冷却后刷新也不再弹
+  // 安卓浏览器/微信：进入即弹装包；关只本页；未硬认领则刷新再弹
   useEffect(() => {
     if (platform === null) return;
     if (platform === 'standalone') {
@@ -490,7 +509,7 @@ export default function InstallBanner() {
         }
         return;
       }
-      // 切 Tab 时若本会话仍保持「打开中」则恢复
+      // 切 Tab 时若本页仍保持「打开中」则恢复
       if (getAndroidAutoSheetOpen()) {
         setHidden(false);
         setSheetOpen(true);
@@ -498,11 +517,11 @@ export default function InstallBanner() {
       }
       const t = window.setTimeout(() => {
         if (androidInstalled || isAndroidInstallAutoSuppressed()) return;
-        // 仅标记自动 sheet 打开；不要 noteInstallPromptShown()（会 session 抑制并二次 effect 关掉 sheet）
+        // 不写 session / 2 天冷却，保证刷新可再弹
         setAndroidAutoSheetOpen(true);
         setHidden(false);
         setSheetOpen(true);
-      }, platform === 'inapp' ? 200 : 320);
+      }, platform === 'inapp' ? 180 : 250);
       return () => window.clearTimeout(t);
     }
     if (isInstallPromptSuppressed() || !onboardingDone || !slotFree) {
@@ -516,7 +535,7 @@ export default function InstallBanner() {
     return () => window.clearTimeout(t);
   }, [platform, onboardingDone, slotFree, isAndroidPlatform, androidInstalled]);
 
-  // 已装 TWA / 点过下载：标记 claimed，永久关掉自动 Sheet
+  // 探测到已装 → 硬认领，永久关掉自动 Sheet
   useEffect(() => {
     if (!isAndroidPlatform) return;
     let cancelled = false;
@@ -539,13 +558,14 @@ export default function InstallBanner() {
 
   const closeSheet = () => {
     if (isAndroidPlatform) {
-      // 关掉 = 短冷却 + 本会话不再自动弹（不再「刷新即再弹」）
-      dismissInstallPrompt();
+      // 只关本页自动弹；不写 2 天冷却 → 刷新仍可再弹
+      dismissAndroidAutoInstallThisLoad();
     }
     setSheetOpen(false);
     setSheetCtx(null);
     writePwaInstallContext(null);
-    if (isAndroidPlatform || isInstallPromptSuppressed()) setHidden(true);
+    if (isAndroidPlatform) setHidden(true);
+    else if (isInstallPromptSuppressed()) setHidden(true);
   };
 
   const afterReadLabel = sheetCtx?.resumeLabel || readPwaInstallContext()?.resumeLabel;
