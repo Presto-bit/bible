@@ -73,10 +73,12 @@ export function initPwaNavGuard() {
 
 /** Standalone 与浏览器对齐 QA 清单（发版前人工勾选） */
 export const PWA_STANDALONE_QA = [
-  '主屏幕名称为「彼爱」，图标与 icon.svg 一致',
+  '主屏幕 / 安卓安装包名称为「彼爱」，图标一致',
   '启动图极简品牌屏（彼爱 + 安静读经），背景 #FFFCFA',
   '竖屏锁定，无地址栏，底栏 Tab safe-area 正常',
-  '外链在同一 WebView 内打开，不跳 Safari/Chrome',
+  '外链在同一 WebView 内打开，不跳系统浏览器（PWA / 壳一致）',
+  '深色主题时状态栏图标与底色与页面一致',
+  '读经提醒能弹出系统通知权限（Android 13+）',
   '清除缓存提示不误导（读经/笔记保留）',
   '发版后 SW bump，旧壳可提示刷新',
 ] as const;

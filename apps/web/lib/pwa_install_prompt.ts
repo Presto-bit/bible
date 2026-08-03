@@ -104,11 +104,11 @@ export function isInstallPromptSuppressed(): boolean {
   return isInCooldown() || isSessionConsumed();
 }
 
-/** 安卓自动 Sheet：已认领 / 短冷却 / 本会话已出过 / 本页已关 */
+/** 安卓自动 Sheet：已认领 / 短冷却 / 本页已关（不含「本 session 已展示」以免打开瞬间误关） */
 export function isAndroidInstallAutoSuppressed(): boolean {
   return (
     isAndroidTwaInstallClaimed()
-    || isInstallPromptSuppressed()
+    || isInCooldown()
     || isAndroidAutoInstallDismissedThisLoad()
   );
 }

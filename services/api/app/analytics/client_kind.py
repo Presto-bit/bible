@@ -4,6 +4,7 @@ from __future__ import annotations
 CLIENT_KINDS = frozenset(
     {
         "pwa",  # 已保存到主屏幕 / 桌面 App（standalone）
+        "android_shell",  # 彼爱安卓安装包 WebView 壳
         "browser",  # 系统浏览器临时访问
         "inapp",  # 微信等内置浏览器
         "ios",  # 原生 iOS
@@ -14,6 +15,7 @@ CLIENT_KINDS = frozenset(
 
 CLIENT_KIND_LABELS: dict[str, str] = {
     "pwa": "PWA",
+    "android_shell": "安卓安装包",
     "browser": "浏览器",
     "inapp": "内置浏览器",
     "ios": "iOS App",
@@ -29,6 +31,8 @@ def normalize_client_kind(value: str | None) -> str | None:
     # 兼容细分类
     if raw in ("standalone", "desktop_pwa", "ios_pwa", "android_pwa"):
         return "pwa"
+    if raw in ("android_shell", "peiai_shell", "webview_shell", "native_android_shell"):
+        return "android_shell"
     if raw in ("web", "mobile_web", "desktop"):
         return "browser"
     if raw in ("wechat", "micromessenger", "in-app"):

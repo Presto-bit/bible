@@ -202,9 +202,14 @@ body.pwa-standalone .app-body {
   padding-top: max(var(--safe-top), 4px);
 }
 
-/* 安卓 WebView 壳：底栏手势区偶发 0 时给最低呼吸空间 */
 html.android-shell {
   --tabbar-safe: max(var(--safe-bottom), 8px);
+}
+
+/* 壳与主屏幕 PWA 共用顶栏最小顶距 */
+html.android-shell body.pwa-standalone .app-body,
+html.android-shell .app-body {
+  padding-top: max(var(--safe-top), 4px);
 }
 
 /* 窄屏：压缩 Tab 与触控文案，避免五栏挤爆 */
@@ -261,13 +266,22 @@ html.pwa-standalone .app-body button {
   -webkit-touch-callout: none;
 }
 
-@media (display-mode: standalone) {
+/* 安卓壳底 inset 与真 PWA 一致：真 0 时保底 8 已够；不再额外放大 tabbar */
+html.android-shell.pwa-standalone {
+  /* 标记位：行为由 document-start 与原生 inset 驱动 */
+}
+
+/* display-mode 在 WebView 常为 false；靠 class + matchMedia 伪装，保留 media 与 class 双路径 */
+@media (display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui) {
   html.pwa-standalone a[href],
-  html.pwa-standalone a[href] * {
+  html.pwa-standalone a[href] *,
+  html.android-shell a[href],
+  html.android-shell a[href] * {
     -webkit-touch-callout: none !important;
   }
 
-  html.pwa-standalone a[href] {
+  html.pwa-standalone a[href],
+  html.android-shell a[href] {
     -webkit-user-drag: none !important;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;

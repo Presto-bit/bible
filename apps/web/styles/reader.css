@@ -898,7 +898,8 @@ a.license-row-name:hover {
   user-select: text;
 }
 /* 触控/PWA 原生划选：user-select 保留放大镜+蓝底；touch-callout:none 隐藏长按菜单 */
-@media (hover: none) and (pointer: coarse), (display-mode: standalone) {
+@media (hover: none) and (pointer: coarse), (display-mode: standalone), (display-mode: fullscreen) {
+  /* 壳 document-start 会伪装 display-mode；粗指针手机亦命中 */
   .reader-page .verse-token,
   .reader-page .verse-inline,
   .reader-page .verse-text-body,

@@ -46,6 +46,13 @@ export function setReminder(p: ReminderPref, opts?: { source?: string }) {
 
 export async function ensurePermission(): Promise<boolean> {
   if (typeof window === 'undefined' || !('Notification' in window)) return false;
+  // 安卓壳：先申请系统 POST_NOTIFICATIONS（Android 13+），再走浏览器 Notification
+  try {
+    const { requestAndroidShellNotifications } = await import('./android_shell_bridge');
+    requestAndroidShellNotifications();
+  } catch {
+    /* ignore */
+  }
   if (Notification.permission === 'granted') return true;
   if (Notification.permission === 'denied') return false;
   const res = await Notification.requestPermission();

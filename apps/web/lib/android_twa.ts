@@ -16,6 +16,9 @@ export type AndroidTwaMeta = {
   sha256: string;
   downloadUrl: string;
   certSha256?: string;
+  /** 安装包配套图标（站点 /downloads） */
+  iconUrl?: string;
+  icon192Url?: string;
 };
 
 export function androidTwaApkUrl(basePath = ''): string {

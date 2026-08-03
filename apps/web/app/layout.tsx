@@ -95,6 +95,12 @@ export default function RootLayout({
           />
         ))}
         <link rel="apple-touch-startup-image" href={`${base}/${IOS_STARTUP_FALLBACK}`} />
+        {/* 安卓：尽早拦截浏览器「添加主屏幕」mini-infobar，改由 H5 推 APK */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var ua=navigator.userAgent||'';if(!/Android/i.test(ua))return;window.addEventListener('beforeinstallprompt',function(e){try{e.preventDefault();}catch(_){}},true);}catch(_){}})();`,
+          }}
+        />
       </head>
       <body>
         {/* release.sh 健康检查锚点（须出现在 SSR HTML，勿删） */}

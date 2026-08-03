@@ -11,10 +11,12 @@ import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Message
 import android.provider.Settings
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.CookieManager
+import android.webkit.GeolocationPermissions
 import android.webkit.JavascriptInterface
 import android.webkit.PermissionRequest
 import android.webkit.ValueCallback
@@ -35,29 +37,34 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Locale
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 
 /**
- * 彼爱安卓壳：全屏 WebView（非 Chrome TWA）。
- * - 边到边 + 系统栏 inset 注入 H5
- * - 站内 APK 下载并拉起安装
- * - 加载失败重试、文件选择、媒体权限
+ * 彼爱安卓壳：全屏 WebView，尽量对齐站点 PWA standalone 行为。
+ *
+ * - 边到边 + 安全区注入
+ * - early 注入：display-mode 语义、pwa-standalone 类（与主屏幕 PWA 一致）
+ * - 外链留在 WebView 内（与 pwa_nav 一致）
+ * - 站点 APK 下载并安装、文件选择、麦/相机/通知权限
  */
 class MainWebActivity : AppCompatActivity() {
 
   private lateinit var webView: WebView
 
-  /** top, right, bottom, left（CSS px） */
   private var shellInsetsCss = floatArrayOf(0f, 0f, 0f, 0f)
-
   private var lastGoodUrl: String = DEFAULT_URL
   private var downloading = false
   private var filePathCallback: ValueCallback<Array<Uri>>? = null
+  private var pendingWebPermission: PermissionRequest? = null
+  private val pendingApkFile = AtomicReference<File?>(null)
 
   private val fileChooserLauncher =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -72,10 +79,35 @@ class MainWebActivity : AppCompatActivity() {
       cb.onReceiveValue(uris)
     }
 
-  private val permissionLauncher =
-    registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { /* granted via WebPermission */ }
+  private val webPermissionLauncher =
+    registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+      val req = pendingWebPermission
+      pendingWebPermission = null
+      if (req == null) return@registerForActivityResult
+      val allGranted = req.resources.all { res ->
+        when (res) {
+          PermissionRequest.RESOURCE_AUDIO_CAPTURE -> {
+            grants[Manifest.permission.RECORD_AUDIO] == true
+              || ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.RECORD_AUDIO,
+              ) == PackageManager.PERMISSION_GRANTED
+          }
+          PermissionRequest.RESOURCE_VIDEO_CAPTURE -> {
+            grants[Manifest.permission.CAMERA] == true
+              || ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA,
+              ) == PackageManager.PERMISSION_GRANTED
+          }
+          else -> true
+        }
+      }
+      if (allGranted) req.grant(req.resources) else req.deny()
+    }
 
-  private val pendingApkFile = java.util.concurrent.atomic.AtomicReference<File?>(null)
+  private val notifPermissionLauncher =
+    registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* H5 再读 Notification.permission */ }
 
   private val installPermissionLauncher =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -108,16 +140,21 @@ class MainWebActivity : AppCompatActivity() {
       settings.setSupportZoom(false)
       settings.builtInZoomControls = false
       settings.displayZoomControls = false
-      settings.setSupportMultipleWindows(false)
-      settings.javaScriptCanOpenWindowsAutomatically = false
+      // 支持 window.open / target=_blank，在 onCreateWindow 中接回同一 WebView（对齐 PWA 同页感）
+      settings.setSupportMultipleWindows(true)
+      settings.javaScriptCanOpenWindowsAutomatically = true
       settings.allowFileAccess = true
+      // 避免系统「显示大小」把布局放大到与 PWA 不一致
+      settings.textZoom = 100
       settings.userAgentString =
         settings.userAgentString + " PeiaiAndroidShell/" + BuildConfig.VERSION_NAME
+      settings.setGeolocationEnabled(true)
 
       CookieManager.getInstance().setAcceptCookie(true)
       CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
 
       addJavascriptInterface(ShellBridge(), JS_BRIDGE)
+      installDocumentStartScripts(this)
 
       webViewClient = object : WebViewClient() {
         override fun shouldOverrideUrlLoading(
@@ -125,18 +162,18 @@ class MainWebActivity : AppCompatActivity() {
           request: WebResourceRequest?,
         ): Boolean {
           val url = request?.url ?: return false
-          return handleNav(view, url)
+          return handleNav(url)
         }
 
         @Deprecated("Deprecated in Java")
         override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
           if (url.isNullOrBlank()) return false
-          return handleNav(view, Uri.parse(url))
+          return handleNav(Uri.parse(url))
         }
 
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
           super.onPageStarted(view, url, favicon)
-          injectShellInsetsJs()
+          injectShellChromeJs()
         }
 
         override fun onPageFinished(view: WebView?, url: String?) {
@@ -144,7 +181,7 @@ class MainWebActivity : AppCompatActivity() {
           if (!url.isNullOrBlank() && !url.startsWith("data:")) {
             lastGoodUrl = url
           }
-          injectShellInsetsJs()
+          injectShellChromeJs()
         }
 
         override fun onReceivedError(
@@ -171,6 +208,34 @@ class MainWebActivity : AppCompatActivity() {
       }
 
       webChromeClient = object : WebChromeClient() {
+        override fun onCreateWindow(
+          view: WebView?,
+          isDialog: Boolean,
+          isUserGesture: Boolean,
+          resultMsg: Message?,
+        ): Boolean {
+          // 把多窗口导航接回主 WebView，避免外抛浏览器
+          val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
+          val temp = WebView(this@MainWebActivity).apply {
+            settings.javaScriptEnabled = true
+            webViewClient = object : WebViewClient() {
+              override fun shouldOverrideUrlLoading(
+                v: WebView?,
+                request: WebResourceRequest?,
+              ): Boolean {
+                val u = request?.url ?: return true
+                if (!handleNav(u)) {
+                  webView.loadUrl(u.toString())
+                }
+                return true
+              }
+            }
+          }
+          transport.webView = temp
+          resultMsg.sendToTarget()
+          return true
+        }
+
         override fun onShowFileChooser(
           webView: WebView?,
           filePathCallback: ValueCallback<Array<Uri>>?,
@@ -202,34 +267,43 @@ class MainWebActivity : AppCompatActivity() {
 
         override fun onPermissionRequest(request: PermissionRequest?) {
           if (request == null) return
-          val needed = mutableListOf<String>()
-          for (res in request.resources) {
-            when (res) {
-              PermissionRequest.RESOURCE_AUDIO_CAPTURE ->
-                if (ContextCompat.checkSelfPermission(
-                    this@MainWebActivity,
-                    Manifest.permission.RECORD_AUDIO,
-                  ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                  needed.add(Manifest.permission.RECORD_AUDIO)
-                }
-              PermissionRequest.RESOURCE_VIDEO_CAPTURE ->
-                if (ContextCompat.checkSelfPermission(
-                    this@MainWebActivity,
-                    Manifest.permission.CAMERA,
-                  ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                  needed.add(Manifest.permission.CAMERA)
-                }
+          runOnUiThread {
+            val needed = mutableListOf<String>()
+            for (res in request.resources) {
+              when (res) {
+                PermissionRequest.RESOURCE_AUDIO_CAPTURE ->
+                  if (ContextCompat.checkSelfPermission(
+                      this@MainWebActivity,
+                      Manifest.permission.RECORD_AUDIO,
+                    ) != PackageManager.PERMISSION_GRANTED
+                  ) {
+                    needed.add(Manifest.permission.RECORD_AUDIO)
+                  }
+                PermissionRequest.RESOURCE_VIDEO_CAPTURE ->
+                  if (ContextCompat.checkSelfPermission(
+                      this@MainWebActivity,
+                      Manifest.permission.CAMERA,
+                    ) != PackageManager.PERMISSION_GRANTED
+                  ) {
+                    needed.add(Manifest.permission.CAMERA)
+                  }
+              }
+            }
+            if (needed.isEmpty()) {
+              request.grant(request.resources)
+            } else {
+              pendingWebPermission?.deny()
+              pendingWebPermission = request
+              webPermissionLauncher.launch(needed.toTypedArray())
             }
           }
-          if (needed.isEmpty()) {
-            request.grant(request.resources)
-          } else {
-            // 先申请系统权限，再尽量 grant（用户拒绝时 Web 自行降级）
-            permissionLauncher.launch(needed.toTypedArray())
-            request.grant(request.resources)
-          }
+        }
+
+        override fun onGeolocationPermissionsShowPrompt(
+          origin: String?,
+          callback: GeolocationPermissions.Callback?,
+        ) {
+          callback?.invoke(origin, true, false)
         }
       }
 
@@ -237,7 +311,6 @@ class MainWebActivity : AppCompatActivity() {
         if (looksLikeApk(url, contentDisposition, mimeType)) {
           startApkDownload(url)
         } else {
-          // 其它下载用系统浏览器 / 下载器处理
           try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
           } catch (_: ActivityNotFoundException) {
@@ -281,16 +354,26 @@ class MainWebActivity : AppCompatActivity() {
     }
   }
 
+  /**
+   * 文档最早阶段注入：伪装 display-mode standalone + pwa-standalone 类，
+   * 使 CSS / JS 与主屏幕 PWA 同路径。
+   */
+  private fun installDocumentStartScripts(target: WebView) {
+    if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return
+    WebViewCompat.addDocumentStartJavaScript(
+      target,
+      DOCUMENT_START_JS,
+      setOf("*"),
+    )
+  }
+
   private inner class ShellBridge {
     @JavascriptInterface
     fun retry() {
       runOnUiThread {
         val target = lastGoodUrl.ifBlank { DEFAULT_URL }
-        if (target.startsWith("data:")) {
-          webView.loadUrl(DEFAULT_URL)
-        } else {
-          webView.loadUrl(target)
-        }
+        if (target.startsWith("data:")) webView.loadUrl(DEFAULT_URL)
+        else webView.loadUrl(target)
       }
     }
 
@@ -303,6 +386,23 @@ class MainWebActivity : AppCompatActivity() {
       }
     }
 
+    /** 可选：H5 传入状态栏背景色（#RRGGBB），深色主题时与页面一致 */
+    @JavascriptInterface
+    fun setStatusBarColor(colorHex: String?) {
+      if (colorHex.isNullOrBlank()) return
+      runOnUiThread {
+        try {
+          val c = Color.parseColor(colorHex.trim())
+          @Suppress("DEPRECATION")
+          window.statusBarColor = c
+          @Suppress("DEPRECATION")
+          window.navigationBarColor = c
+        } catch (_: Exception) {
+          /* ignore bad color */
+        }
+      }
+    }
+
     @JavascriptInterface
     fun openExternal(url: String?) {
       if (url.isNullOrBlank()) return
@@ -312,6 +412,23 @@ class MainWebActivity : AppCompatActivity() {
         } catch (_: Exception) {
           /* ignore */
         }
+      }
+    }
+
+    /** Android 13+：在用户打开提醒等时由 H5 调用 */
+    @JavascriptInterface
+    fun requestNotifications() {
+      runOnUiThread {
+        if (Build.VERSION.SDK_INT < 33) return@runOnUiThread
+        if (
+          ContextCompat.checkSelfPermission(
+            this@MainWebActivity,
+            Manifest.permission.POST_NOTIFICATIONS,
+          ) == PackageManager.PERMISSION_GRANTED
+        ) {
+          return@runOnUiThread
+        }
+        notifPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
       }
     }
   }
@@ -345,10 +462,11 @@ class MainWebActivity : AppCompatActivity() {
     shellInsetsCss[1] = rightPx / density
     shellInsetsCss[2] = bottomPx / density
     shellInsetsCss[3] = leftPx / density
-    injectShellInsetsJs()
+    injectShellChromeJs()
   }
 
-  private fun injectShellInsetsJs() {
+  /** 安全区 + PWA 类标记（document-start 之后仍刷新，保证 body 也有类） */
+  private fun injectShellChromeJs() {
     if (!::webView.isInitialized) return
     val t = formatCssPx(shellInsetsCss[0])
     val r = formatCssPx(shellInsetsCss[1])
@@ -363,8 +481,10 @@ class MainWebActivity : AppCompatActivity() {
           d.style.setProperty('--shell-inset-right', '$r');
           d.style.setProperty('--shell-inset-bottom', '$b');
           d.style.setProperty('--shell-inset-left', '$l');
-          d.classList.add('android-shell');
-          if (document.body) document.body.classList.add('android-shell');
+          d.classList.add('android-shell', 'pwa-standalone');
+          if (document.body) {
+            document.body.classList.add('android-shell', 'pwa-standalone');
+          }
         } catch (e) {}
       })();
     """.trimIndent()
@@ -380,13 +500,7 @@ class MainWebActivity : AppCompatActivity() {
     if (!failingUrl.isNullOrBlank() && !failingUrl.startsWith("data:")) {
       lastGoodUrl = failingUrl
     }
-    webView.loadDataWithBaseURL(
-      HOST_ORIGIN,
-      ERROR_HTML,
-      "text/html",
-      "UTF-8",
-      null,
-    )
+    webView.loadDataWithBaseURL(HOST_ORIGIN, ERROR_HTML, "text/html", "UTF-8", null)
   }
 
   private fun resolveStartUrl(intent: Intent?): String? {
@@ -403,16 +517,18 @@ class MainWebActivity : AppCompatActivity() {
       || host.endsWith(".$HOST", ignoreCase = true)
   }
 
-  private fun handleNav(view: WebView?, uri: Uri): Boolean {
+  /**
+   * @return true = 已拦截；false = WebView 默认加载（保持与 PWA 同 WebView 导航）
+   */
+  private fun handleNav(uri: Uri): Boolean {
     val scheme = (uri.scheme ?: "").lowercase()
     if (scheme == "https" || scheme == "http") {
-      if (looksLikeApk(uri.toString(), null, null) && isOwnHost(uri.host)) {
+      // 本站 APK 走壳内安装；其余 http(s)（含外链）均在 WebView 内打开，对齐 pwa_nav
+      if (looksLikeApk(uri.toString(), null, null)) {
         startApkDownload(uri.toString())
         return true
       }
-      if (isOwnHost(uri.host)) return false
-      openInExternalBrowser(uri)
-      return true
+      return false
     }
     return try {
       startActivity(Intent(Intent.ACTION_VIEW, uri))
@@ -455,29 +571,21 @@ class MainWebActivity : AppCompatActivity() {
           readTimeout = 60_000
           setRequestProperty("User-Agent", "PeiaiAndroidShell/" + BuildConfig.VERSION_NAME)
           val cookie = CookieManager.getInstance().getCookie(url)
-          if (!cookie.isNullOrBlank()) {
-            setRequestProperty("Cookie", cookie)
-          }
+          if (!cookie.isNullOrBlank()) setRequestProperty("Cookie", cookie)
         }
         conn.connect()
         val code = conn.responseCode
-        if (code !in 200..299) {
-          throw IllegalStateException("HTTP $code")
-        }
+        if (code !in 200..299) throw IllegalStateException("HTTP $code")
         conn.inputStream.use { input ->
-          FileOutputStream(outFile).use { output ->
-            input.copyTo(output)
-          }
+          FileOutputStream(outFile).use { output -> input.copyTo(output) }
         }
         conn.disconnect()
-        if (outFile.length() < 50_000L) {
-          throw IllegalStateException("文件过小")
-        }
+        if (outFile.length() < 50_000L) throw IllegalStateException("文件过小")
         runOnUiThread {
           downloading = false
           promptInstall(outFile)
         }
-      } catch (e: Exception) {
+      } catch (_: Exception) {
         runOnUiThread {
           downloading = false
           toast("下载失败，请检查网络后重试")
@@ -489,9 +597,7 @@ class MainWebActivity : AppCompatActivity() {
   private fun canInstallPackages(): Boolean {
     return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       packageManager.canRequestPackageInstalls()
-    } else {
-      true
-    }
+    } else true
   }
 
   private fun promptInstall(file: File) {
@@ -581,6 +687,34 @@ class MainWebActivity : AppCompatActivity() {
     const val DEFAULT_URL = "https://2sc.prestoai.cn/"
     const val JS_BRIDGE = "PeiaiShell"
 
+    /** 与主屏幕 PWA 对齐：最早伪装 display-mode 与类名 */
+    private val DOCUMENT_START_JS = """
+      (function(){
+        try {
+          var ORIG = window.matchMedia.bind(window);
+          window.matchMedia = function(q) {
+            try {
+              if (typeof q === 'string' && /display-mode\s*:\s*(standalone|fullscreen|minimal-ui)/i.test(q)) {
+                return {
+                  matches: true,
+                  media: q,
+                  onchange: null,
+                  addListener: function(){},
+                  removeListener: function(){},
+                  addEventListener: function(){},
+                  removeEventListener: function(){},
+                  dispatchEvent: function(){ return false; }
+                };
+              }
+            } catch (e) {}
+            return ORIG(q);
+          };
+          var d = document.documentElement;
+          if (d) d.classList.add('android-shell', 'pwa-standalone');
+        } catch (e) {}
+      })();
+    """.trimIndent()
+
     private val ERROR_HTML = """
       <!DOCTYPE html>
       <html lang="zh-CN">
@@ -593,8 +727,8 @@ class MainWebActivity : AppCompatActivity() {
             min-height:100vh;display:flex;align-items:center;justify-content:center;
             font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;
             background:#FFFCFA;color:#1c1c1e;padding:24px;
-            padding-top:max(24px, env(safe-area-inset-top));
-            padding-bottom:max(24px, env(safe-area-inset-bottom));
+            padding-top:max(24px, env(safe-area-inset-top, 0px));
+            padding-bottom:max(24px, env(safe-area-inset-bottom, 0px));
           }
           .box{max-width:320px;text-align:center}
           h1{font-size:18px;font-weight:600;margin-bottom:8px}

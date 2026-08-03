@@ -47,6 +47,15 @@ run_gradle :app:assembleRelease --no-daemon
 mkdir -p "$WEB_DL" "$WELL"
 cp -f "$APK_OUT" "$WEB_DL/biai-android.apk"
 
+# 安装包配套图标（站点下载区 / 设置页可用）
+ICON_SRC="$REPO/apps/web/public/icon-512.png"
+if [[ -f "$ICON_SRC" ]]; then
+  cp -f "$ICON_SRC" "$WEB_DL/biai-android-icon.png"
+  if command -v sips >/dev/null 2>&1; then
+    sips -z 192 192 "$ICON_SRC" --out "$WEB_DL/biai-android-icon-192.png" >/dev/null 2>&1 || true
+  fi
+fi
+
 VERSION_CODE="$(awk -F'=' '/versionCode[[:space:]]*=/ { gsub(/[^0-9]/, "", $2); if ($2!="") { print $2; exit } }' app/build.gradle.kts)"
 VERSION_NAME="$(awk -F'"' '/versionName[[:space:]]*=/ { if ($2!="") { print $2; exit } }' app/build.gradle.kts)"
 if [[ -z "$VERSION_CODE" || -z "$VERSION_NAME" ]]; then
@@ -70,6 +79,8 @@ cat > "$WEB_DL/biai-android.json" <<EOF
   "bytes": ${BYTES},
   "sha256": "${SHA256}",
   "downloadUrl": "/downloads/biai-android.apk",
+  "iconUrl": "/downloads/biai-android-icon.png",
+  "icon192Url": "/downloads/biai-android-icon-192.png",
   "certSha256": "${CERT_SHA}"
 }
 EOF

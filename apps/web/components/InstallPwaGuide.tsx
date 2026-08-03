@@ -151,7 +151,7 @@ export function InstallPwaSheet({
   const sheetTitle = isDesktop
     ? '保存到桌面 App'
     : isAndroid || (isInApp && !isIOS())
-      ? '安装彼爱'
+      ? '下载安装包'
       : '添加到主屏幕';
 
   /** 分享落地 / 微信 / 安卓自动安装：关闭只关本页，不写 2 天冷却（刷新后可再出） */
@@ -264,10 +264,25 @@ export function InstallPwaSheet({
         </div>
 
         <div className="install-pwa-brand">
-          <img src={iconSrc} alt="" width={72} height={72} className="install-pwa-icon" />
+          <img
+            src={
+              isAndroid
+                ? `${BASE_PATH || ''}/downloads/biai-android-icon-192.png`
+                : iconSrc
+            }
+            alt=""
+            width={72}
+            height={72}
+            className="install-pwa-icon"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = iconSrc;
+            }}
+          />
           <div>
             <strong className="install-pwa-name">{PWA_HOME_NAME}</strong>
-            <span className="muted install-pwa-sub">{PWA_HOME_SUBTITLE}</span>
+            <span className="muted install-pwa-sub">
+              {isAndroid ? '官方安装包 · 不跳应用商店' : PWA_HOME_SUBTITLE}
+            </span>
           </div>
         </div>
 
@@ -483,8 +498,8 @@ export default function InstallBanner() {
       }
       const t = window.setTimeout(() => {
         if (androidInstalled || isAndroidInstallAutoSuppressed()) return;
+        // 仅标记自动 sheet 打开；不要 noteInstallPromptShown()（会 session 抑制并二次 effect 关掉 sheet）
         setAndroidAutoSheetOpen(true);
-        noteInstallPromptShown();
         setHidden(false);
         setSheetOpen(true);
       }, platform === 'inapp' ? 200 : 320);
