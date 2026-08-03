@@ -45,12 +45,12 @@ run_gradle() {
 run_gradle :app:assembleRelease --no-daemon
 
 mkdir -p "$WEB_DL" "$WELL"
-cp -f "$APK_OUT" "$WEB_DL/peiai-android.apk"
+cp -f "$APK_OUT" "$WEB_DL/biai-android.apk"
 
 VERSION_CODE="$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | sed -E 's/.*versionCode\s*=\s*([0-9]+).*/\1/')"
 VERSION_NAME="$(grep -E 'versionName\s*=' app/build.gradle.kts | head -1 | sed -E 's/.*versionName\s*=\s*"([^"]+)".*/\1/')"
-BYTES="$(wc -c < "$WEB_DL/peiai-android.apk" | tr -d ' ')"
-SHA256="$(shasum -a 256 "$WEB_DL/peiai-android.apk" | awk '{print $1}')"
+BYTES="$(wc -c < "$WEB_DL/biai-android.apk" | tr -d ' ')"
+SHA256="$(shasum -a 256 "$WEB_DL/biai-android.apk" | awk '{print $1}')"
 STORE_PASS="$(grep '^storePassword=' keystore/keystore.properties | cut -d= -f2-)"
 CERT_SHA="$(keytool -list -v \
   -keystore keystore/peiai-upload.jks \
@@ -58,14 +58,14 @@ CERT_SHA="$(keytool -list -v \
   -storepass "$STORE_PASS" \
   2>/dev/null | awk '/SHA256:/{print $2; exit}')"
 
-cat > "$WEB_DL/peiai-android.json" <<EOF
+cat > "$WEB_DL/biai-android.json" <<EOF
 {
   "packageId": "cn.prestoai.peiai",
   "versionCode": ${VERSION_CODE},
   "versionName": "${VERSION_NAME}",
   "bytes": ${BYTES},
   "sha256": "${SHA256}",
-  "downloadUrl": "/downloads/peiai-android.apk",
+  "downloadUrl": "/downloads/biai-android.apk",
   "certSha256": "${CERT_SHA}"
 }
 EOF
@@ -85,7 +85,7 @@ cat > "$WELL/assetlinks.json" <<EOF
 ]
 EOF
 
-echo "OK: $WEB_DL/peiai-android.apk (${BYTES} bytes)"
-echo "meta: $WEB_DL/peiai-android.json"
+echo "OK: $WEB_DL/biai-android.apk (${BYTES} bytes)"
+echo "meta: $WEB_DL/biai-android.json"
 echo "DAL: $WELL/assetlinks.json"
 echo "cert SHA-256: ${CERT_SHA}"

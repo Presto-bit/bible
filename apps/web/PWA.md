@@ -49,7 +49,7 @@ cd apps/web && npm run generate-pwa
 ## 安装引导
 
 - 组件：`components/InstallPwaGuide.tsx`
-- **Android 主路径：安装包直装**（`/downloads/peiai-android.apk`，WebView 全屏壳，不跳应用商店）；「添加到主屏幕」降为次要
+- **Android 主路径：安装包直装**（`/downloads/biai-android.apk`，WebView 全屏壳，不跳应用商店）；「添加到主屏幕」降为次要
 - iOS：仍为 Safari「添加到主屏幕」
 - 微信 / QQ：引导「用浏览器打开再安装」
 - 入口：底部 Banner、「我的 → 设置 → 安装彼爱」、新手/读后引导

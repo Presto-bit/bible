@@ -3,10 +3,10 @@
 export const ANDROID_TWA_PACKAGE_ID = 'cn.prestoai.peiai';
 
 /** 同域 APK */
-export const ANDROID_TWA_APK_PATH = '/downloads/peiai-android.apk';
+export const ANDROID_TWA_APK_PATH = '/downloads/biai-android.apk';
 
 /** 版本元数据 */
-export const ANDROID_TWA_META_PATH = '/downloads/peiai-android.json';
+export const ANDROID_TWA_META_PATH = '/downloads/biai-android.json';
 
 export type AndroidTwaMeta = {
   packageId: string;
@@ -49,6 +49,7 @@ export async function detectAndroidTwaInstalled(): Promise<boolean> {
         id === ANDROID_TWA_PACKAGE_ID
         || id.includes(ANDROID_TWA_PACKAGE_ID)
         || url.includes(ANDROID_TWA_PACKAGE_ID)
+        || url.includes('biai-android.apk')
         || url.includes('peiai-android.apk')
       );
     });

@@ -14,7 +14,7 @@
 # 先 bump apps/android-twa/app/build.gradle.kts 的 versionCode / versionName
 cd apps/android-twa && ./scripts/build_and_publish.sh
 
-# 提交产物（apk / peiai-android.json / assetlinks.json）与代码一起发版
+# 提交产物（apk / biai-android.json / assetlinks.json）与代码一起发版
 git add apps/web/public/downloads apps/web/public/.well-known \
   apps/android-twa/app/build.gradle.kts apps/android-twa/twa-manifest.json
 git commit -m "Bump Peiai Android shell to x.y.z"

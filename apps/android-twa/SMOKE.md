@@ -4,8 +4,8 @@
 
 ## 资源可达
 
-- [ ] `https://2sc.prestoai.cn/downloads/peiai-android.apk` 可下载
-- [ ] `https://2sc.prestoai.cn/downloads/peiai-android.json` 版本 ≥ **1.0.1 / versionCode 2**
+- [ ] `https://2sc.prestoai.cn/downloads/biai-android.apk` 可下载
+- [ ] `https://2sc.prestoai.cn/downloads/biai-android.json` 版本 ≥ **1.0.1 / versionCode 2**
 - [ ] `https://2sc.prestoai.cn/.well-known/assetlinks.json` 返回 JSON（App Links）
 
 ## 系统浏览器
@@ -25,4 +25,4 @@
 
 1. 是否装的是 **1.0.1 以前的旧 TWA 包** → 卸载后重装官网当前 APK  
 2. 是否从 **Chrome 书签 / 浏览器** 打开站点，而不是桌面「彼爱」图标  
-3. 确认下载文件字节与 `peiai-android.json` 的 `bytes` / `sha256` 一致
+3. 确认下载文件字节与 `biai-android.json` 的 `bytes` / `sha256` 一致

@@ -32,8 +32,8 @@ cp keystore/keystore.properties.example keystore/keystore.properties
 产物：
 
 - `app/build/outputs/apk/release/app-release.apk`
-- 复制为 `apps/web/public/downloads/peiai-android.apk`
-- 更新 `apps/web/public/downloads/peiai-android.json`
+- 复制为 `apps/web/public/downloads/biai-android.apk`
+- 更新 `apps/web/public/downloads/biai-android.json`
 - Digital Asset Links：`apps/web/public/.well-known/assetlinks.json`（用于 App Links）
 
 ## 密钥
