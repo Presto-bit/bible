@@ -89,7 +89,7 @@ export function SharePwaGuide({
             ? `留下足迹？保存${BRAND_NAME}到主屏幕`
             : `喜欢这段？保存${BRAND_NAME}到主屏幕`;
   const desc = android
-    ? '下载安装包 · 从桌面打开，不跳应用商店'
+    ? '下载安装包安装 · 比「添加到主屏幕」更稳'
     : variant === 'invite'
       ? '陪你读经，也帮你读懂 · 下次一点就开'
       : variant === 'daily'

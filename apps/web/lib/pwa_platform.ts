@@ -96,21 +96,27 @@ export function installSteps(platform: InstallPlatform): InstallStep[] {
       ];
     case 'android-chrome':
       return [
-        { title: '点「下载并安装」', detail: '将下载彼爱安装包（不跳应用商店）' },
+        { title: '点「下载并安装」', detail: '直接下载彼爱安装包，不跳应用商店' },
         {
           title: '允许安装',
           detail: '若系统提示「未知来源 / 允许从此来源安装」，请允许后继续',
         },
-        { title: '从桌面打开「彼爱」', detail: '安装完成后从主屏幕打开，无浏览器地址栏' },
+        {
+          title: '打开桌面「彼爱」',
+          detail: '安装完成后请点桌面图标进入（App 内置，不是浏览器书签）',
+        },
       ];
     case 'android-other':
       return [
-        { title: '点「下载并安装」', detail: '将下载彼爱安装包（不跳应用商店）' },
+        { title: '点「下载并安装」', detail: '直接下载彼爱安装包，不跳应用商店' },
         {
           title: '允许安装',
           detail: '小米 / 华为 / OPPO 等可能提示「未知应用」，按提示允许即可',
         },
-        { title: '从桌面打开「彼爱」', detail: '安装完成后从主屏幕打开，体验更稳定' },
+        {
+          title: '打开桌面「彼爱」',
+          detail: '安装完成后请点桌面图标进入（App 内置，不是浏览器书签）',
+        },
       ];
     case 'inapp':
       // 只催逃逸；安装细节等出微信后再讲
@@ -158,9 +164,9 @@ export function installHeadline(platform: InstallPlatform): string {
     case 'ios-other':
       return '建议在 Safari 中保存到主屏幕';
     case 'android-chrome':
-      return '安装彼爱 App，从桌面打开更稳定';
+      return '安装彼爱 App（下载安装包），像独立 App 一样用';
     case 'android-other':
-      return '安装彼爱 App（直接下载安装包）';
+      return '安装彼爱 App：直接下载安装包，不跳应用商店';
     case 'desktop':
       return '把读经记录保存到桌面 App，重装后也能找回';
     default:

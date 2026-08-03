@@ -72,13 +72,16 @@ export function isFinePointerDesktop(): boolean {
 
 export function platformAccountHint(): string {
   if (isStandalonePwa()) {
+    if (/PeiaiAndroidShell\//i.test(navigator.userAgent) || isAndroid()) {
+      return '已安装彼爱 App：请用手机号或用户 ID + 密码登录并等待同步完成。重装前务必已设密码；卸载重装后需重新登录才能拉回进度与成就。';
+    }
     return '已保存到主屏幕：请用手机号或用户 ID + 密码登录并等待同步完成。重装前务必已设密码；删掉重装后需重新登录才能拉回进度与成就。';
   }
   if (isFinePointerDesktop()) {
     return '电脑浏览器：建议设置密码后再保存到桌面。未设密时数据仅本机，重装后可能丢失。';
   }
   if (isAndroid()) {
-    return '安卓建议安装彼爱 App（下载安装包）；设置密码后换机可用手机号或用户 ID + 密码登录同步。';
+    return '安卓请下载安装彼爱 App（安装包）；设置密码后换机可用手机号或用户 ID + 密码登录同步。不推荐用「添加到主屏幕」。';
   }
   return '浏览器临时访问：建议设置密码并添加到主屏幕；换机请用手机号或用户 ID + 密码登录后等待同步完成。';
 }

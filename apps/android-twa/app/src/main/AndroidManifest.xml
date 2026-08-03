@@ -2,6 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- 仅在后续做系统推送时再申请；保留声明避免旧构建残留，实际不自动弹窗 -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application

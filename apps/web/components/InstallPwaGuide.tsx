@@ -247,7 +247,7 @@ export function InstallPwaSheet({
     try {
       await backupBeforeInstall();
       markAndroidTwaInstallClaimed();
-      toast('开始下载安装包…装好后请点桌面「彼爱」打开');
+      toast('开始下载安装包…装好后请打开桌面「彼爱」');
       window.location.href = androidTwaApkUrl(BASE_PATH || '');
       await onInstallAccepted();
     } finally {
@@ -282,15 +282,14 @@ export function InstallPwaSheet({
         {resumeLabel && !isDesktop ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
             {isAndroid
-              ? '安装完成后从桌面打开彼爱，即可回到刚才读的地方。'
+              ? '安装完成后打开桌面「彼爱」图标，即可回到刚才读的地方。'
               : '保存到主屏幕后，打开图标即可回到刚才读的地方。'}
           </p>
         ) : null}
         {isAndroid ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
-            安装前会尽量把读经记录保存到账号。从官方站点直接下载安装包，不跳应用商店。
-            装好后请点桌面「彼爱」图标打开（不要从浏览器地址栏再进）。
-            若顶部仍有地址栏，请卸载后重装，并在系统设置里允许彼爱打开 2sc.prestoai.cn。
+            安装前会尽量把读经记录保存到账号。请下载官方安装包（不跳应用商店），装好后用桌面「彼爱」打开。
+            安卓上不推荐「添加到主屏幕」或浏览器书签，主推安装包体验最稳。
           </p>
         ) : null}
         {isDesktop && !loggedIn ? (
@@ -320,7 +319,7 @@ export function InstallPwaSheet({
         {isAndroid ? (
           androidInstalled ? (
             <p className="muted" style={{ fontSize: 13, lineHeight: 1.5, margin: '8px 0 0' }}>
-              检测到本机可能已安装彼爱，请从桌面打开。若图标不见了，仍可重新下载安装。
+              本机可能已安装彼爱。请优先打开桌面「彼爱」；若需重装可再下载安装包。
             </p>
           ) : null
         ) : null}
@@ -580,7 +579,7 @@ export default function InstallBanner() {
           ? '保存到主屏幕，约 10 秒'
           : platform === 'desktop'
             ? '登录后，把读经数据保存到桌面 App'
-            : '安装彼爱 App，从桌面打开';
+            : '下载安装包，装好更稳';
 
   return (
     <>

@@ -8,6 +8,7 @@ import {
 } from '@/lib/android_twa';
 import {
   detectInstallPlatform,
+  isAndroid,
   isPeiaiAndroidShell,
   type InstallPlatform,
 } from '@/lib/pwa_platform';
@@ -114,11 +115,25 @@ export function resolveAppPackageRow(opts?: {
   }
 
   if (platform === 'standalone') {
+    // 安卓若只是「添加到主屏幕」的 PWA，仍引导安装真正的 App 包
+    if (isAndroid() && !isPeiaiAndroidShell()) {
+      return {
+        title: '下载彼爱 App',
+        hint: latest
+          ? `推荐安装包 ${latest}（比主屏幕快捷方式更稳）`
+          : '推荐安装包，比主屏幕快捷方式更稳',
+        action: 'download_apk',
+        latestVersion: latest,
+      };
+    }
     return {
       title: '应用形态',
-      hint: '已从主屏幕 / 桌面打开',
+      hint: isPeiaiAndroidShell()
+        ? `已安装彼爱 App${shellVersion ? ` · ${shellVersion}` : ''}`
+        : '已从主屏幕打开',
       action: 'noop',
       latestVersion: latest,
+      shellVersion,
     };
   }
 

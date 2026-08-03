@@ -26,7 +26,7 @@ type Props = {
 
 /**
  * 分享落地页统一 CTA：微信内主推「复制并用浏览器打开」；
- * 系统浏览器：安卓主推安装 TWA，iOS 主推加主屏幕。
+ * 系统浏览器：安卓主推下载安装包（APK），iOS 主推加主屏幕。
  */
 export function ShareLandingCtas({
   installLabel,

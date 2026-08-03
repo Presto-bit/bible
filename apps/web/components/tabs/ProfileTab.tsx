@@ -552,7 +552,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setPackageBusy(true);
       try {
         markAndroidTwaInstallClaimed();
-        toast('开始下载安装包…装好后请点桌面「彼爱」打开');
+        toast('开始下载安装包…装好后请打开桌面「彼爱」');
         window.location.href = androidPackageDownloadHref();
       } finally {
         setPackageBusy(false);

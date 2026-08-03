@@ -118,7 +118,9 @@ export function WechatEscapeCoach({
           <p className="muted wechat-escape-hint">
             {copied
               ? `选「${openLabel}」即可；打开后会继续下一步`
-              : '只做这一步。打开后再教你安装 / 保存到主屏幕'}
+              : android
+                ? '只做这一步。打开浏览器后再下载安装包'
+                : '只做这一步。打开后再教你保存到主屏幕'}
           </p>
 
           <button
