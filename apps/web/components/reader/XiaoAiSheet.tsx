@@ -278,7 +278,9 @@ export default function XiaoAiSheet({
   const sheet = (
     <div className="sheet-backdrop reader-ai-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
       <div
-        className="half-sheet"
+        className="half-sheet reader-ai-half-sheet"
+        role="dialog"
+        aria-modal="true"
         onClick={stopBubble}
         onMouseDown={stopBubble}
         onMouseUp={stopBubble}

@@ -562,8 +562,20 @@ body.reader-active .proper-noun--artifact {
   color: var(--accent-deep);
   font-weight: 500;
 }
-/* 小爱半屏弹窗：覆盖 80% */
-/* 小爱半屏底栏：窄屏保底可见，避免第三钮被挤没或空白占位 */
+/* 小爱半屏弹窗：覆盖约 80% 视口 */
+.reader-ai-backdrop {
+  z-index: 240;
+  --assistant-answer-font-size: 16px;
+  align-items: flex-end;
+}
+.reader-ai-backdrop .reader-ai-half-sheet,
+.reader-ai-backdrop .half-sheet {
+  /* 明确相对视口，避免 % 在 portal 内塌成半截 */
+  height: min(80dvh, 80svh);
+  max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)));
+  width: 100%;
+  max-width: 480px;
+}
 .reader-ai-actions {
   gap: 8px;
 }
@@ -580,10 +592,6 @@ body.reader-active .proper-noun--artifact {
 .reader-ai-actions .citation-action-btn {
   color: var(--ink);
   opacity: 1;
-}
-.reader-ai-backdrop {
-  z-index: 240;
-  --assistant-answer-font-size: 16px;
 }
 .reader-ai-backdrop .half-sheet-verse,
 .reader-ai-backdrop .half-sheet-answer-body,
