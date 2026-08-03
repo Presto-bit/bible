@@ -1813,26 +1813,6 @@ export default function ReaderView({
     resetPeekPanelsScroll,
   ]);
 
-  const turnHintLabel = (() => {
-    if (!turn.dragSide) return '';
-    if (turn.dragSide === 'next') {
-      if (!peekNextBook || peekNextChapter < 1) return englishUI ? 'End' : '已是末章';
-      if (peekNextBook.id !== book.id) {
-        return englishUI
-          ? `${peekNextBook.name} ${peekNextChapter}`
-          : `${peekNextBook.name} 第 ${peekNextChapter} 章`;
-      }
-      return englishUI ? `Ch. ${peekNextChapter}` : `第 ${peekNextChapter} 章`;
-    }
-    if (!peekPrevBook || peekPrevChapter < 1) return englishUI ? 'Start' : '已是首章';
-    if (peekPrevBook.id !== book.id) {
-      return englishUI
-        ? `${peekPrevBook.name} ${peekPrevChapter}`
-        : `${peekPrevBook.name} 第 ${peekPrevChapter} 章`;
-    }
-    return englishUI ? `Ch. ${peekPrevChapter}` : `第 ${peekPrevChapter} 章`;
-  })();
-
   const markNativeSelectionCommitted = useCallback(() => {
     lastSelectAt.current = Date.now();
     swipeIgnoreUntilRef.current = Date.now() + 320;
@@ -2976,17 +2956,6 @@ export default function ReaderView({
               onPointerUp={turn.onPointerUp}
               onPointerCancel={turn.onPointerCancel}
             >
-              {turn.dragSide && (
-                <div
-                  className={`reader-turn-hint reader-turn-hint-${turn.dragSide}${turn.dragProgress >= 0.25 ? ' is-ready' : ''}`}
-                  aria-live="polite"
-                >
-                  <span className="reader-turn-hint-arrow">
-                    {turn.dragSide === 'next' ? '›' : '‹'}
-                  </span>
-                  <span className="reader-turn-hint-label">{turnHintLabel}</span>
-                </div>
-              )}
               <div
                 className="reader-turn-track"
                 ref={turn.trackRef}
