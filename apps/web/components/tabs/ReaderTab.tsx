@@ -203,6 +203,12 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
   }, [inScriptureReading]);
 
   useEffect(() => {
+    if (paneActive) return;
+    setDictPopup(null);
+    setDictRefPreview(null);
+  }, [paneActive]);
+
+  useEffect(() => {
     if (!paneActive || !book) return;
     const openedAt = Date.now();
     const bookId = book.id;

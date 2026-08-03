@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { bookCoverImageUrl } from '@/lib/book_cover';
 import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
@@ -45,10 +46,11 @@ function SideCard({
 }) {
   const router = useRouter();
   const coverSrc = slotCoverSrc(slot);
+  const [artReady, setArtReady] = useState(false);
   const classes = [
     'home-today-side',
     toneClass,
-    coverSrc ? 'has-cover' : '',
+    artReady ? 'has-cover' : '',
     slot.pending ? 'is-pending' : '',
     slot.done ? 'is-done' : '',
     flash ? 'is-checkin-flash' : '',
@@ -65,7 +67,14 @@ function SideCard({
     >
       {coverSrc ? (
         <span className="home-today-side-bg" aria-hidden>
-          <WallpaperBg src={coverSrc} className="home-today-side-bg-img" fetchPriority="low" />
+          <WallpaperBg
+            key={coverSrc}
+            src={coverSrc}
+            className="home-today-side-bg-img"
+            fetchPriority="low"
+            onReady={() => setArtReady(true)}
+            onFail={() => setArtReady(false)}
+          />
           <span className="home-today-side-bg-veil" />
         </span>
       ) : null}
@@ -78,7 +87,7 @@ function SideCard({
         <span className="home-today-side-badge" aria-label={slot.badge}>
           {slot.badge}
         </span>
-      ) : coverSrc ? null : (
+      ) : coverSrc && artReady ? null : (
         <span className="home-today-side-icon" aria-hidden>
           <RailLineIcon id={slot.icon || 'group'} size={20} />
         </span>
@@ -96,6 +105,10 @@ export function HomeTodayPanel({
   const router = useRouter();
   const { primary, group, prayer } = panel;
   const coverSrc = slotCoverSrc(primary);
+  const [coverReady, setCoverReady] = useState(false);
+  useEffect(() => {
+    setCoverReady(false);
+  }, [coverSrc]);
   const showRing =
     typeof primary.progressPct === 'number' && primary.progressPct > 0;
 
@@ -112,7 +125,7 @@ export function HomeTodayPanel({
           type="button"
           className={[
             'home-today-primary',
-            coverSrc ? 'has-cover' : '',
+            coverReady ? 'has-cover' : '',
             primary.done ? 'is-done' : '',
             staggerEnter ? 'home-stagger-item home-stagger-1' : '',
           ]
@@ -124,18 +137,26 @@ export function HomeTodayPanel({
           {coverSrc ? (
             <div className="home-today-primary-bg" aria-hidden>
               <WallpaperBg
+                key={coverSrc}
                 src={coverSrc}
                 className="home-today-primary-bg-img"
                 objectPosition="center 28%"
                 fetchPriority="high"
+                onReady={() => setCoverReady(true)}
+                onFail={() => setCoverReady(false)}
               />
-              <div className="home-today-primary-bg-veil" />
+              {coverReady ? <div className="home-today-primary-bg-veil" /> : null}
             </div>
           ) : (
             <div className="home-today-primary-bg home-today-primary-bg-fallback" aria-hidden>
               <RailLineIcon id={primary.icon} size={28} />
             </div>
           )}
+          {!coverSrc ? null : !coverReady ? (
+            <div className="home-today-primary-bg home-today-primary-bg-fallback" aria-hidden>
+              <RailLineIcon id={primary.icon} size={28} />
+            </div>
+          ) : null}
           <div className="home-today-primary-main">
             <span className="home-today-primary-badge">{primary.tag}</span>
             <strong className="home-today-primary-title">{primary.title}</strong>

@@ -137,11 +137,17 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     const cached = readCachedDailyVerse();
     return cached?.day ? dailyVerseWallpaperUrl(cached.day) : null;
   });
+  /** 风景图真正解码成功后才亮 has-art（否则保留可读灰/暖底） */
+  const [heroArtReady, setHeroArtReady] = useState(false);
   const [heroBCampaign, setHeroBCampaign] = useState<HeroBCampaign | null>(() => readCachedHeroBCampaign());
   const [heroBCampaignReady, setHeroBCampaignReady] = useState(false);
   const [bootstrapReady, setBootstrapReady] = useState(false);
   const [groupErr, setGroupErr] = useState<string | null>(null);
   const [heroResetNonce, setHeroResetNonce] = useState(0);
+
+  useEffect(() => {
+    setHeroArtReady(false);
+  }, [heroIllustration]);
 
   const applyHeroBCampaign = useCallback(async (campaign: HeroBCampaign | null) => {
     if (!campaign) {
@@ -950,20 +956,24 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       <HomeHeroCarousel
         verseSlide={(
       <div
-        className={`card card-3 hero-verse${heroIllustration ? ' hero-verse-has-art' : ''} ${heroThemeClass(dv?.theme)}`}
+        className={`card card-3 hero-verse${heroArtReady ? ' hero-verse-has-art' : ' hero-verse-plain'}${heroIllustration && !heroArtReady ? ' hero-verse-art-loading' : ''} ${heroThemeClass(dv?.theme)}`}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
         onClick={openVerseWallpaper}
         onContextMenu={(e) => e.preventDefault()}
       >
         <div
-          className={`hero-scene${heroIllustration ? ' hero-scene-has-art' : ''}`}
+          className={`hero-scene${heroArtReady ? ' hero-scene-has-art' : ''}`}
           aria-hidden
         >
-          <WallpaperBg
-            src={heroIllustration}
-            className="hero-scene-img"
-            fetchPriority="high"
-          />
+          {heroIllustration ? (
+            <WallpaperBg
+              src={heroIllustration}
+              className="hero-scene-img"
+              fetchPriority="high"
+              onReady={() => setHeroArtReady(true)}
+              onFail={() => setHeroArtReady(false)}
+            />
+          ) : null}
         </div>
         <div className="hero-inner hero-inner-split">
           <span className="hero-kicker hero-kicker-corner">每日经文</span>

@@ -11,7 +11,6 @@ import {
 } from '@/lib/dictionary_match';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import {
-  defaultEntityKnowledgeTab,
   entityAnchorRef,
   entityAssistantQuestion,
   entityDictionaryHref,
@@ -21,6 +20,23 @@ import {
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { EntityKnowledgeHeader, EntityKnowledgePanel } from './EntityKnowledgePanel';
 import AppBodyPortal from '@/components/AppBodyPortal';
+
+/** 打开词典时复用，避免反复打 knowledge / graphTopics */
+const knowledgeCache = new Map<string, EntityKnowledge>();
+let graphTopicsPromise: Promise<{ id: string; entity_ids?: string[] }[] | null> | null = null;
+
+function loadGraphTopics() {
+  if (!graphTopicsPromise) {
+    graphTopicsPromise = api
+      .graphTopics()
+      .then((d) => d.topics ?? [])
+      .catch(() => {
+        graphTopicsPromise = null;
+        return null;
+      });
+  }
+  return graphTopicsPromise;
+}
 
 export function EntityKnowledgeSheet({
   entity,
@@ -41,41 +57,52 @@ export function EntityKnowledgeSheet({
   onRefPreview: (osis: string, label: string) => void;
   onNodeClick?: (entityId: string) => void;
 }) {
-  const [knowledge, setKnowledge] = useState<EntityKnowledge | null>(null);
-  const [graphTopicId, setGraphTopicId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<EntityKnowledgeTab>('refs');
-
   const entityId = entity.id ?? entity.name;
+  const cached = knowledgeCache.get(entityId) ?? null;
+  const [knowledge, setKnowledge] = useState<EntityKnowledge | null>(cached);
+  const [graphTopicId, setGraphTopicId] = useState<string | null>(null);
+  // 首开永远先出本地经节列表，不挂关系图（关系图重绘在安卓很卡）
+  const [loading, setLoading] = useState(!cached);
+  const [tab, setTab] = useState<EntityKnowledgeTab>('refs');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    const hit = knowledgeCache.get(entityId);
+    if (hit) {
+      setKnowledge(hit);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+    setTab('refs');
+
     void api
       .entityKnowledge(entityId)
       .then((data) => {
         if (cancelled) return;
+        knowledgeCache.set(entityId, data);
         setKnowledge(data);
-        setTab(defaultEntityKnowledgeTab(entity, data));
       })
       .catch(() => {
-        if (!cancelled) setKnowledge(null);
+        if (!cancelled && !knowledgeCache.has(entityId)) setKnowledge(null);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-  }, [entityId, entity]);
 
-  useEffect(() => {
-    void api
-      .graphTopics()
-      .then((d) => {
-        const hit = (d.topics ?? []).find((t) =>
-          (t.entity_ids ?? []).includes(entityId),
-        );
-        setGraphTopicId(hit?.id ?? null);
-      })
-      .catch(() => setGraphTopicId(null));
+    // 专题链接次要：延后拉，且缓存全表
+    const t = window.setTimeout(() => {
+      void loadGraphTopics().then((topics) => {
+        if (cancelled || !topics) return;
+        const found = topics.find((topic) => (topic.entity_ids ?? []).includes(entityId));
+        setGraphTopicId(found?.id ?? null);
+      });
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
   }, [entityId]);
 
   const tabs = useMemo(

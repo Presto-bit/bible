@@ -325,7 +325,7 @@ body.assistant-keyboard.assistant-active .tabbar {
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
-/* 无对话：欢迎语 + 输入区作为一组垂直居中（非贴顶/贴底） */
+/* 无对话：欢迎语 + 输入区垂直居中；有对话：输入区贴底（tab 上方） */
 .assistant-body.is-empty {
   justify-content: center;
   gap: 20px;
@@ -343,6 +343,18 @@ body.assistant-keyboard.assistant-active .tabbar {
   padding-top: 0;
   box-shadow: none;
   background: transparent;
+  /* 空态不 sticky，跟欢迎语一起居中 */
+  position: relative;
+  bottom: auto;
+}
+.assistant-body:not(.is-empty) {
+  justify-content: flex-start;
+}
+.assistant-body:not(.is-empty) .assistant-composer {
+  position: sticky;
+  bottom: 0;
+  margin-top: auto;
+  flex-shrink: 0;
 }
 /* 空态 empty-hint 已有推荐 pill，composer 内 chip 行去重 */
 .assistant-body.is-empty .assistant-composer .chip-swipe {

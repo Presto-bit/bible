@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { clientAssetUrl } from '@/lib/basePath';
+import { isAndroid, isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
 type Props = {
   /** 站点相对路径或绝对 URL，如 /daily-wallpapers/scenery-01.jpg */
@@ -11,6 +12,10 @@ type Props = {
   objectPosition?: string;
   fetchPriority?: 'high' | 'low' | 'auto';
   alt?: string;
+  /** 实际解码成功（可用 naturalWidth 校验） */
+  onReady?: () => void;
+  /** 全部候选失败 */
+  onFail?: () => void;
 };
 
 function toCandidates(src: string): string[] {
@@ -28,15 +33,35 @@ function toCandidates(src: string): string[] {
     relative = `/${src}`;
   }
   const out: string[] = [];
-  // 同源相对路径更稳（SW 旁路 + 原生缓存）；绝对路径作备用
-  if (relative) out.push(relative);
-  if (absolute && absolute !== relative) out.push(absolute);
-  return out;
+  // 绝对 URL 在 TWA WebView 更稳
+  if (absolute) out.push(absolute);
+  if (relative && relative !== absolute) out.push(relative);
+  // 缓存破除 query（生产若 304 坏缓存时的最后手段）
+  if (absolute && !absolute.includes('?')) {
+    out.push(`${absolute}?v=1`);
+  }
+  return out.filter(Boolean);
+}
+
+async function fetchAsBlobUrl(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      credentials: 'same-origin',
+      cache: 'no-store',
+      mode: 'same-origin',
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (blob.size < 200) return null;
+    if (blob.type && !blob.type.startsWith('image/')) return null;
+    return URL.createObjectURL(blob);
+  } catch {
+    return null;
+  }
 }
 
 /**
- * 安卓 WebView 可靠铺底：只用 <img>，避免 CSS background / force-cache blob 黑洞。
- * 失败链路：relative → absolute → blob(no-store)。
+ * 卡面风景铺底。TWA/安卓：blob 优先 + 真实 img onLoad 校验。
  */
 export function WallpaperBg({
   src,
@@ -44,80 +69,87 @@ export function WallpaperBg({
   objectPosition = 'center',
   fetchPriority = 'auto',
   alt = '',
+  onReady,
+  onFail,
 }: Props) {
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const candidatesRef = useRef<string[]>([]);
+  const blobRef = useRef<string | null>(null);
+  const readyRef = useRef(false);
+  const onReadyRef = useRef(onReady);
+  const onFailRef = useRef(onFail);
+  onReadyRef.current = onReady;
+  onFailRef.current = onFail;
 
   useEffect(() => {
+    readyRef.current = false;
     if (!src) {
+      candidatesRef.current = [];
       setDisplaySrc(null);
-      setFailed(false);
+      setAttempt(0);
+      onFailRef.current?.();
       return;
     }
+
     let cancelled = false;
-    let blobUrl: string | null = null;
+    const shellish =
+      typeof navigator !== 'undefined' && (isPeiaiAndroidShell() || isAndroid());
     const candidates = toCandidates(src);
+    candidatesRef.current = candidates;
 
-    setFailed(false);
-    setDisplaySrc(candidates[0] || null);
-
-    const tryBlob = async (url: string) => {
-      try {
-        const res = await fetch(url, { credentials: 'same-origin', cache: 'no-store' });
-        if (!res.ok) return null;
-        const blob = await res.blob();
-        if (blob.size < 200) return null;
-        if (blob.type && !blob.type.startsWith('image/') && blob.size < 800) return null;
-        return URL.createObjectURL(blob);
-      } catch {
-        return null;
+    const revokeBlob = () => {
+      if (blobRef.current) {
+        URL.revokeObjectURL(blobRef.current);
+        blobRef.current = null;
       }
     };
-
-    const probe = (url: string) =>
-      new Promise<boolean>((resolve) => {
-        const img = new Image();
-        img.decoding = 'async';
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
-        img.src = url;
-      });
+    revokeBlob();
+    setAttempt(0);
 
     void (async () => {
-      for (const url of candidates) {
-        if (cancelled) return;
-        setDisplaySrc(url);
-        const ok = await probe(url);
-        if (cancelled) return;
-        if (ok) {
-          setFailed(false);
-          return;
+      if (shellish) {
+        for (const url of candidates) {
+          if (cancelled) return;
+          const b = await fetchAsBlobUrl(url);
+          if (cancelled) {
+            if (b) URL.revokeObjectURL(b);
+            return;
+          }
+          if (b) {
+            revokeBlob();
+            blobRef.current = b;
+            candidatesRef.current = [b];
+            setDisplaySrc(b);
+            setAttempt(0);
+            return;
+          }
         }
       }
-      for (const url of candidates) {
-        if (cancelled) return;
-        const b = await tryBlob(url);
-        if (cancelled) {
-          if (b) URL.revokeObjectURL(b);
-          return;
-        }
-        if (b) {
-          blobUrl = b;
-          setDisplaySrc(b);
-          setFailed(false);
-          return;
-        }
-      }
-      if (!cancelled) setFailed(true);
+      if (cancelled) return;
+      setDisplaySrc(candidates[0] || null);
+      setAttempt(0);
     })();
 
     return () => {
       cancelled = true;
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      revokeBlob();
     };
   }, [src]);
 
-  if (!displaySrc || failed) return null;
+  if (!displaySrc) return null;
+
+  const tryNextOrFail = () => {
+    if (readyRef.current) return;
+    const list = candidatesRef.current;
+    const next = attempt + 1;
+    if (next < list.length) {
+      setAttempt(next);
+      setDisplaySrc(list[next]);
+      return;
+    }
+    onFailRef.current?.();
+  };
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -129,6 +161,31 @@ export function WallpaperBg({
       fetchPriority={fetchPriority}
       draggable={false}
       style={{ objectPosition }}
+      onLoad={(e) => {
+        const img = e.currentTarget;
+        if (img.naturalWidth < 2 || img.naturalHeight < 2) {
+          tryNextOrFail();
+          return;
+        }
+        try {
+          const parent = img.parentElement;
+          if (parent instanceof HTMLElement) {
+            parent.style.backgroundImage = `url("${img.currentSrc || displaySrc}")`;
+            parent.style.backgroundSize = 'cover';
+            parent.style.backgroundPosition = objectPosition;
+            parent.style.backgroundRepeat = 'no-repeat';
+          }
+        } catch {
+          /* ignore */
+        }
+        if (!readyRef.current) {
+          readyRef.current = true;
+          onReadyRef.current?.();
+        }
+      }}
+      onError={() => {
+        tryNextOrFail();
+      }}
     />
   );
 }

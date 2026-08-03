@@ -334,7 +334,15 @@ html.pwa-standalone a[href] {
   background: var(--paper, #fffcfa);
 }
 
-/* body 级 portal：全屏 fixed 层，外壳不接事件，子树全接；压过 tabbar(90) 与保活 pane */
+html.android-shell .tab-keep-pane:not(.tab-keep-pane-active) .reader-fab-stack,
+html.android-shell .tab-keep-pane[hidden] .reader-fab-stack,
+html.pwa-standalone .tab-keep-pane:not(.tab-keep-pane-active) .reader-fab-stack,
+html.pwa-standalone .tab-keep-pane[hidden] .reader-fab-stack {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+}
 .app-body-portal-layer {
   position: fixed;
   inset: 0;
@@ -1857,16 +1865,34 @@ html:not([data-app-theme]) .card {
 }
 
 .home-page .hero-verse .hero-scene {
+  /* 无图/加载中：可读写暖灰底（对齐 PWA 纸感，不全透明） */
   background:
-    radial-gradient(180px 140px at 88% 12%, rgba(255, 200, 140, 0.62), transparent 72%),
-    radial-gradient(140px 110px at 8% 88%, rgba(07, 193, 96, 0.14), transparent 70%),
-    linear-gradient(175deg, rgba(255, 236, 220, 0.82) 0%, rgba(255, 248, 243, 0) 68%);
+    radial-gradient(180px 140px at 88% 12%, rgba(255, 200, 140, 0.35), transparent 72%),
+    radial-gradient(140px 110px at 8% 88%, rgba(07, 193, 96, 0.1), transparent 70%),
+    linear-gradient(165deg, #eceae6 0%, #e4e2dd 42%, #f2f0eb 100%);
 }
 
 /* 有风景图时：禁止上面的径向渐变 shorthand 盖掉/冲掉 img 铺底 */
 .home-page .hero-verse .hero-scene.hero-scene-has-art {
   background: transparent !important;
   background-image: none !important;
+}
+
+/* 卡面本身也给底，防止 scene 透明后露白 */
+.home-page .hero-verse.hero-verse-plain,
+.home-page .hero-verse.hero-verse-art-loading {
+  background:
+    linear-gradient(165deg, #ebe9e4 0%, #e0ded9 50%, #f0eee9 100%);
+}
+
+.home-page .hero-verse.hero-verse-plain .verse-text,
+.home-page .hero-verse.hero-verse-art-loading .verse-text,
+.home-page .hero-verse.hero-verse-plain .hero-ref,
+.home-page .hero-verse.hero-verse-art-loading .hero-ref,
+.home-page .hero-verse.hero-verse-plain .hero-kicker,
+.home-page .hero-verse.hero-verse-art-loading .hero-kicker {
+  color: var(--ink, #1c1b19);
+  text-shadow: none;
 }
 
 .home-page .hero-verse.hero-verse-has-art .hero-scene-img {
@@ -3397,9 +3423,9 @@ button.hero-b-campaign {
   pointer-events: none;
   overflow: hidden;
   background:
-    radial-gradient(160px 130px at 88% 18%, rgba(255, 200, 140, 0.55), transparent 72%),
-    radial-gradient(120px 100px at 12% 85%, rgba(232, 160, 144, 0.25), transparent 70%),
-    linear-gradient(175deg, rgba(255, 236, 220, 0.75) 0%, rgba(255, 248, 243, 0) 68%);
+    radial-gradient(160px 130px at 88% 18%, rgba(255, 200, 140, 0.35), transparent 72%),
+    radial-gradient(120px 100px at 12% 85%, rgba(232, 160, 144, 0.18), transparent 70%),
+    linear-gradient(165deg, #eceae6 0%, #e4e2dd 45%, #f2f0eb 100%);
   background-size: cover;
   background-position: center;
 }

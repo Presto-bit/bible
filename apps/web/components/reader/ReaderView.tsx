@@ -673,7 +673,7 @@ export default function ReaderView({
   const openAiSheet = useCallback(() => {
     setChromeHidden(false);
     setAiSheetContext(resolveAiSheetContext());
-    window.setTimeout(() => setAiSheet(true), 0);
+    setAiSheet(true);
   }, [resolveAiSheetContext]);
 
   const openVersionPicker = useCallback(() => {
@@ -687,8 +687,7 @@ export default function ReaderView({
     } else {
       setCheckedVers([primaryId]);
     }
-    // 同帧 setState + 可能的 dismiss 事件时序：延后一拍打开
-    window.setTimeout(() => setShowVersions(true), 0);
+    setShowVersions(true);
     if (!versions) {
       api.versions()
         .then((d) => setVersions((d.versions ?? []).filter((v) => v.available !== false)))
@@ -2939,7 +2938,7 @@ export default function ReaderView({
                 e.stopPropagation();
                 e.preventDefault();
                 setChromeHidden(false);
-                window.setTimeout(() => setLocPopoverOpen((v) => !v), 0);
+                setLocPopoverOpen((v) => !v);
               }}
             >
               {bookAbbr(book.name)} {chapter}
@@ -2953,7 +2952,7 @@ export default function ReaderView({
             onClick={(e) => {
               e.stopPropagation();
               setChromeHidden(false);
-              window.setTimeout(() => setSummaryOpen(true), 0);
+              setSummaryOpen(true);
             }}
           >
             概要
@@ -2978,7 +2977,7 @@ export default function ReaderView({
             onClick={(e) => {
               e.stopPropagation();
               setChromeHidden(false);
-              window.setTimeout(() => setShowSettings(true), 0);
+              setShowSettings(true);
             }}
             aria-label="阅读设置"
           >
@@ -3063,6 +3062,7 @@ export default function ReaderView({
         </div>
       </div>
 
+      {paneActive ? (
       <div
         className={`reader-fab-stack${hasSel ? ' is-hidden' : ''}`}
         aria-hidden={hasSel}
@@ -3119,6 +3119,7 @@ export default function ReaderView({
           ✦ 小爱
         </button>
       </div>
+      ) : null}
 
       {hasSel && !overlayOpen && (
         <div

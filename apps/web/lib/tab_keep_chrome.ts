@@ -76,8 +76,8 @@ export function dismissPortaledOverlays(): void {
       /* ignore */
     }
   };
-  // 优先 React onClose；再点一次 backdrop。勿硬 remove / 盲关 pointer-events，
-  // 否则会与 React 状态脱节，后续打开版本/小爱 sheet 表现为「完全没反应」。
+  // 优先 React onClose；再点一次 backdrop。
+  // 禁止 rAF 二次 fire：用户切到「我的」后立刻点设置会被下一帧 dismiss 秒关。
   fireClose();
   const selectors = [
     '.sheet-backdrop',
@@ -89,25 +89,14 @@ export function dismissPortaledOverlays(): void {
     '.book-complete-overlay',
     '[data-dismiss-on-tab-nav]',
   ];
-  const clickBackdrops = () => {
-    try {
-      document.querySelectorAll(selectors.join(',')).forEach((node) => {
-        if (!(node instanceof HTMLElement)) return;
-        try {
-          node.click();
-        } catch {
-          /* ignore */
-        }
-      });
-    } catch {
-      /* ignore */
-    }
-  };
-  clickBackdrops();
   try {
-    requestAnimationFrame(() => {
-      fireClose();
-      clickBackdrops();
+    document.querySelectorAll(selectors.join(',')).forEach((node) => {
+      if (!(node instanceof HTMLElement)) return;
+      try {
+        node.click();
+      } catch {
+        /* ignore */
+      }
     });
   } catch {
     /* ignore */

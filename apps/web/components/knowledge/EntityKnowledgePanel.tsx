@@ -1,6 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import type { DictEntity, EntityKnowledge } from '@/lib/api';
 import { entityDisplayName, entitySummaryText, entityTypeLabel } from '@/lib/dictionary_match';
@@ -12,9 +13,23 @@ import {
   type EntityKnowledgeTab,
 } from '@/lib/entity_knowledge';
 import { mapStoryHref } from '@/lib/topic_routes';
-import { GeoMiniMap } from './GeoMiniMap';
-import { LocalRelationGraph } from './LocalRelationGraph';
 import { DiagramViewer } from './DiagramViewer';
+
+const LocalRelationGraph = dynamic(
+  () => import('./LocalRelationGraph').then((m) => m.LocalRelationGraph),
+  {
+    ssr: false,
+    loading: () => <p className="muted" style={{ fontSize: 13 }}>关系图加载中…</p>,
+  },
+);
+
+const GeoMiniMap = dynamic(
+  () => import('./GeoMiniMap').then((m) => m.GeoMiniMap),
+  {
+    ssr: false,
+    loading: () => <p className="muted" style={{ fontSize: 13 }}>地图加载中…</p>,
+  },
+);
 
 export function EntityKnowledgePanel({
   entity,
