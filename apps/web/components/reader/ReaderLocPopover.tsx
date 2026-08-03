@@ -214,5 +214,10 @@ export function ReaderLocPopover({
     </>
   );
 
-  return createPortal(popover, document.body);
+  return createPortal(
+    <div className="app-body-portal-layer" data-app-body-portal>
+      {popover}
+    </div>,
+    document.body,
+  );
 }

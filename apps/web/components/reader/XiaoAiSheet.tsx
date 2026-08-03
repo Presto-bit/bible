@@ -439,5 +439,10 @@ export default function XiaoAiSheet({
   );
 
   if (!mounted) return null;
-  return createPortal(sheet, document.body);
+  return createPortal(
+    <div className="app-body-portal-layer" data-app-body-portal>
+      {sheet}
+    </div>,
+    document.body,
+  );
 }

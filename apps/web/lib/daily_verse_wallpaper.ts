@@ -94,6 +94,27 @@ export function resolveCampaignCoverUrl(coverUrl?: string | null): string | null
   return clientAssetUrl(path);
 }
 
+/**
+ * 用 XHR/blob 预取本地壁纸，避开部分 WebView 对 img+SW 的绘制黑洞。
+ * 成功返回 object URL（调用方应 revoke）；失败返回原 url。
+ */
+export function preloadWallpaperObjectUrl(url: string): Promise<string> {
+  if (typeof window === 'undefined' || !url) return Promise.resolve(url);
+  if (url.startsWith('blob:') || url.startsWith('data:')) return Promise.resolve(url);
+  return fetch(url, { credentials: 'same-origin', cache: 'force-cache' })
+    .then(async (res) => {
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      // 部分 CDN 不写 content-type，靠 volume 判断
+      if (blob.type && !blob.type.startsWith('image/') && blob.size < 800) {
+        throw new Error('not-image');
+      }
+      if (blob.size < 200) throw new Error('empty');
+      return URL.createObjectURL(blob);
+    })
+    .catch(() => url);
+}
+
 /** 规范化写入：尽量存 /daily-wallpapers/xxx.jpg */
 export function normalizeCampaignCoverPath(coverUrl?: string | null): string {
   const raw = (coverUrl || '').trim();

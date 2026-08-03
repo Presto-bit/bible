@@ -168,12 +168,12 @@ body.reader-active .proper-noun--artifact {
 .reader-loc-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 96;
+  z-index: 240;
   background: transparent;
 }
 .reader-loc-popover {
   position: fixed;
-  z-index: 100;
+  z-index: 241;
   max-height: min(52vh, 420px);
   display: flex;
   flex-direction: column;
@@ -354,7 +354,7 @@ body.reader-active .proper-noun--artifact {
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  z-index: 110;
+  z-index: 240;
 }
 .version-pop {
   margin: 56px 0 0 12px;
@@ -365,6 +365,8 @@ body.reader-active .proper-noun--artifact {
   padding: 16px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
   animation: version-pop-in 0.16s ease;
+  z-index: 241;
+  position: relative;
 }
 @keyframes version-pop-in {
   from {
@@ -572,7 +574,7 @@ body.reader-active .proper-noun--artifact {
   opacity: 1;
 }
 .reader-ai-backdrop {
-  z-index: 120;
+  z-index: 240;
   --assistant-answer-font-size: 16px;
 }
 .reader-ai-backdrop .half-sheet-verse,

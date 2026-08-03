@@ -60,10 +60,11 @@ export function isLowEndDevice(): boolean {
 
 /**
  * 仅在真正受限设备上关闭五 Tab 保活（≤2GB 或 ≤2 核 / 省流 / 2g）。
- * 中端机保留 KeepAlive，由各 Tab 的 paneActive 停刷。
+ * 安卓安装包壳强制开启保活：反复卸载阅读器会卡顿且 portal 弹层更易丢状态。
  */
 export function isTabKeepAliveEnabled(): boolean {
   if (typeof window === 'undefined') return false;
+  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) return true;
   const nav = navigator as NavHints;
   if (nav.connection?.saveData) return false;
   const et = nav.connection?.effectiveType;

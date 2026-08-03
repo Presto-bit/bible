@@ -1,8 +1,12 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { bookCoverImageUrl } from '@/lib/book_cover';
-import { resolveCampaignCoverUrl } from '@/lib/daily_verse_wallpaper';
+import {
+  preloadWallpaperObjectUrl,
+  resolveCampaignCoverUrl,
+} from '@/lib/daily_verse_wallpaper';
 import { openCampaignHref, toInternalAppPath } from '@/lib/campaign_nav';
 import type { HomeTodayPanelModel, HomeTodayPanelSlot } from '@/lib/home_today_panel';
 import { RailLineIcon } from '@/components/home/RailLineIcon';
@@ -31,6 +35,32 @@ function slotCoverSrc(slot: HomeTodayPanelSlot): string | null {
   if (custom) return custom;
   if (slot.bookId) return bookCoverImageUrl(slot.bookId);
   return null;
+}
+
+function usePaintUrl(src: string | null): string | null {
+  const [paint, setPaint] = useState(src);
+  useEffect(() => {
+    if (!src) {
+      setPaint(null);
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setPaint(src);
+    void preloadWallpaperObjectUrl(src).then((next) => {
+      if (cancelled) {
+        if (next.startsWith('blob:') && next !== src) URL.revokeObjectURL(next);
+        return;
+      }
+      if (next.startsWith('blob:')) objectUrl = next;
+      setPaint(next);
+    });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
+  return paint;
 }
 
 function SideCard({
@@ -115,6 +145,7 @@ export function HomeTodayPanel({
   const router = useRouter();
   const { primary, group, prayer } = panel;
   const coverSrc = slotCoverSrc(primary);
+  const paintCover = usePaintUrl(coverSrc);
   const showRing =
     typeof primary.progressPct === 'number' && primary.progressPct > 0;
 
@@ -131,7 +162,7 @@ export function HomeTodayPanel({
           type="button"
           className={[
             'home-today-primary',
-            coverSrc ? 'has-cover' : '',
+            paintCover || coverSrc ? 'has-cover' : '',
             primary.done ? 'is-done' : '',
             staggerEnter ? 'home-stagger-item home-stagger-1' : '',
           ]
@@ -140,12 +171,12 @@ export function HomeTodayPanel({
           onClick={() => navigate(primary.href, router)}
           onContextMenu={(e) => e.preventDefault()}
         >
-          {coverSrc ? (
+          {(paintCover || coverSrc) ? (
             <div
               className="home-today-primary-bg"
               aria-hidden
               style={{
-                backgroundImage: `url("${coverSrc}")`,
+                backgroundImage: `url("${paintCover || coverSrc}")`,
                 backgroundSize: 'cover',
                 backgroundPosition: 'center 28%',
                 backgroundRepeat: 'no-repeat',
@@ -153,7 +184,7 @@ export function HomeTodayPanel({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={coverSrc}
+                src={paintCover || coverSrc || ''}
                 alt=""
                 className="home-today-primary-bg-img"
                 width={360}
@@ -162,7 +193,7 @@ export function HomeTodayPanel({
                 fetchPriority="high"
                 onError={(e) => {
                   const img = e.currentTarget;
-                  if (img.dataset.retry === '1') {
+                  if (img.dataset.retry === '1' || !coverSrc || coverSrc.startsWith('blob:')) {
                     img.style.display = 'none';
                     return;
                   }

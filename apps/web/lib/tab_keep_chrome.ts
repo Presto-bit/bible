@@ -76,7 +76,8 @@ export function dismissPortaledOverlays(): void {
       /* ignore */
     }
   };
-  // 优先走 React onClose；再点一次 backdrop 作兜底（勿硬 remove，避免 React 状态与 DOM 脱节）
+  // 优先 React onClose；再点一次 backdrop。勿硬 remove / 盲关 pointer-events，
+  // 否则会与 React 状态脱节，后续打开版本/小爱 sheet 表现为「完全没反应」。
   fireClose();
   const selectors = [
     '.sheet-backdrop',
@@ -103,24 +104,10 @@ export function dismissPortaledOverlays(): void {
     }
   };
   clickBackdrops();
-  // 部分 WebView 同一帧里状态未提交：再发一轮事件 + 把残留遮罩卸掉交互
   try {
     requestAnimationFrame(() => {
       fireClose();
       clickBackdrops();
-      document.querySelectorAll(selectors.join(',')).forEach((node) => {
-        if (!(node instanceof HTMLElement) || !node.isConnected) return;
-        const fixed =
-          getComputedStyle(node).position === 'fixed'
-          || node.classList.contains('sheet-backdrop')
-          || node.classList.contains('version-pop-backdrop')
-          || node.classList.contains('reader-loc-backdrop')
-          || node.classList.contains('reader-sheet-backdrop');
-        if (!fixed) return;
-        node.style.pointerEvents = 'none';
-        node.style.visibility = 'hidden';
-        node.setAttribute('aria-hidden', 'true');
-      });
     });
   } catch {
     /* ignore */

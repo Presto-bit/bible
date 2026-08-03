@@ -334,6 +334,12 @@ html.pwa-standalone a[href] {
   background: var(--paper, #fffcfa);
 }
 
+/* body 级 portal：恒在 tabbar(90) / 保活 pane 之上；子树自带 fixed 遮罩 */
+.app-body-portal-layer {
+  position: relative;
+  z-index: 240;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .tab-keep-pane.tab-keep-pane-active {
     animation: tab-pane-fade-in 150ms ease;
@@ -1203,9 +1209,12 @@ html:not([data-app-theme]) .card {
   min-height: 168px;
   padding: 14px;
   margin: 0;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--ink) 9%, transparent);
   border-radius: 16px;
   overflow: hidden;
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 20px rgba(15, 23, 42, 0.06);
   background:
     linear-gradient(
       145deg,
@@ -1807,9 +1816,11 @@ html:not([data-app-theme]) .card {
 
 .home-page .hero-verse,
 .home-page .hero-b-campaign {
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
   border-radius: var(--home-hero-radius);
-  box-shadow: var(--home-shadow-lift);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 28px rgba(15, 23, 42, 0.08);
 }
 
 .home-page .hero-verse {
@@ -2402,18 +2413,22 @@ html:not([data-app-theme]) .card {
   margin-bottom: 4px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  /* 部分安卓 WebView flex gap 失效，间距用 margin 实现 */
+  gap: 0;
   width: 100%;
 }
 
-/* flex gap 不稳时后备 */
+/* 卡间距离：margin 后备（勿为 0） */
 .home-page .home-growth-stack > * + * {
-  margin-top: 0;
+  margin-top: 22px;
 }
 
 html.pwa-standalone .home-page .home-growth-stack {
   margin-bottom: 10px;
-  gap: 18px;
+}
+
+html.android-shell .home-page .home-growth-stack > * + * {
+  margin-top: 24px;
 }
 
 .home-onboarding-banner + .home-growth-stack {
@@ -2425,13 +2440,13 @@ html.pwa-standalone .home-page .home-growth-stack {
   display: flex;
   align-items: center;
   /* 左媒与文案间距 */
-  gap: 18px;
+  gap: 22px;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
   padding: 14px 16px 14px 14px;
   min-height: 88px;
-  border: none;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
   border-radius: 18px;
   box-shadow: var(--home-shadow);
   background: var(--surface);
@@ -2565,7 +2580,7 @@ html.perf-lite .home-page .home-media-thumb-chip {
   flex-direction: column;
   gap: 4px;
   justify-content: center;
-  padding-left: 4px;
+  padding-left: 8px;
   padding-right: 2px;
 }
 
@@ -2710,7 +2725,16 @@ html.perf-lite .home-page .home-media-thumb-chip {
 }
 
 .home-page .home-growth-summary {
-  background: var(--surface);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent, #8fa88a) 12%, var(--surface)) 0%,
+      var(--surface) 72%
+    );
+  border: 1px solid color-mix(in srgb, var(--accent-deep, #4a6b52) 22%, transparent);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 6px 18px rgba(15, 23, 42, 0.07);
 }
 
 .home-page .home-growth-summary .home-media-detail {
@@ -2736,9 +2760,13 @@ html.perf-lite .home-page .home-media-thumb-chip {
   }
 
   .home-page .home-media-row {
-    gap: 12px;
+    gap: 16px;
     padding: 10px 12px 10px 10px;
     min-height: 76px;
+  }
+
+  .home-page .home-growth-stack > * + * {
+    margin-top: 18px;
   }
 
   .home-page .home-media-metric-value {
@@ -3295,6 +3323,15 @@ button.hero-b-campaign {
   display: flex;
   flex-direction: column;
   cursor: pointer;
+  /* 轻边：纸上分区，勿用深 line 压死风景卡 */
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 10px 28px rgba(15, 23, 42, 0.08);
+}
+
+.home-page .hero-verse {
+  border-color: color-mix(in srgb, var(--ink) 8%, transparent);
 }
 
 .hero-scene {
@@ -3960,7 +3997,7 @@ button.rail-card {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 100;
+  z-index: 240;
   overflow: hidden;
   animation: sheetBackdropIn 0.22s ease;
 }

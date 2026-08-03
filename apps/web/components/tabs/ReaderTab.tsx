@@ -36,12 +36,9 @@ import { bookAbbr } from '@/lib/book_abbr';
 import { useOnline } from '@/lib/use_online';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
+import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
 
-/** Sheet 仍动态加载；目录/阅读器恢复静态导入，避免选章时空档闪跳 */
-const EntityKnowledgeSheet = dynamic(
-  () => import('@/components/knowledge/EntityKnowledgeSheet').then((m) => m.EntityKnowledgeSheet),
-  { ssr: false },
-);
+/** Sheet 仍动态加载；目录/阅读器、词典弹层静态导入，避免慢网/WebView 下 chunk 不到位时点了没反应 */
 const VersePreviewSheet = dynamic(
   () => import('@/components/reader/VersePreviewSheet').then((m) => m.VersePreviewSheet),
   { ssr: false },

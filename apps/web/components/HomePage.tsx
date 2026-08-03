@@ -16,7 +16,7 @@ import {
   type DailyVerseReactTopPreset,
 } from '@/lib/api/home';
 import { getAdminToken } from '@/lib/admin_rag';
-import { dailyVerseWallpaperUrl } from '@/lib/daily_verse_wallpaper';
+import { dailyVerseWallpaperUrl, preloadWallpaperObjectUrl } from '@/lib/daily_verse_wallpaper';
 import { writeLocalDailyVerseLike, readLocalDailyVerseLike } from '@/lib/daily_verse_engagement';
 import { navigateToAssistant } from '@/lib/assistant_prefill';
 import { currentSeasonalEvents } from '@/lib/gamification';
@@ -136,15 +136,20 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
     const cached = readCachedDailyVerse();
     return cached?.day ? dailyVerseWallpaperUrl(cached.day) : null;
   });
+  /** 安卓 WebView 绘制用 blob/原 URL（与 day 源 URL 分离，避免 revoke 时机搞乱状态） */
+  const [heroPaintUrl, setHeroPaintUrl] = useState<string | null>(heroIllustration);
   const [heroBCampaign, setHeroBCampaign] = useState<HeroBCampaign | null>(() => readCachedHeroBCampaign());
   const [heroBCampaignReady, setHeroBCampaignReady] = useState(false);
   const [bootstrapReady, setBootstrapReady] = useState(false);
   const [groupErr, setGroupErr] = useState<string | null>(null);
   const [heroResetNonce, setHeroResetNonce] = useState(0);
 
-  // 加速 Hero LCP：尽早 preload 当日壁纸（体积已压缩，且不再由 SW install 预拉）
+  // preload + blob 铺底（部分安卓 WebView 对 https 静态图解码不绘制，blob 更稳）
   useEffect(() => {
-    if (!heroIllustration || typeof document === 'undefined') return;
+    if (!heroIllustration || typeof document === 'undefined') {
+      setHeroPaintUrl(heroIllustration);
+      return;
+    }
     const id = 'presto-hero-wallpaper-preload';
     let link = document.getElementById(id) as HTMLLinkElement | null;
     if (!link) {
@@ -154,7 +159,25 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       link.as = 'image';
       document.head.appendChild(link);
     }
-    if (link.href !== heroIllustration) link.href = heroIllustration;
+    if (!heroIllustration.startsWith('blob:')) {
+      if (link.href !== heroIllustration) link.href = heroIllustration;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setHeroPaintUrl(heroIllustration);
+    void preloadWallpaperObjectUrl(heroIllustration).then((next) => {
+      if (cancelled) {
+        if (next.startsWith('blob:') && next !== heroIllustration) URL.revokeObjectURL(next);
+        return;
+      }
+      if (next.startsWith('blob:')) objectUrl = next;
+      setHeroPaintUrl(next);
+    });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
   }, [heroIllustration]);
 
   const applyHeroBCampaign = useCallback(async (campaign: HeroBCampaign | null) => {
@@ -964,18 +987,18 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
       <HomeHeroCarousel
         verseSlide={(
       <div
-        className={`card card-3 hero-verse${heroIllustration ? ' hero-verse-has-art' : ''} ${heroThemeClass(dv?.theme)}`}
+        className={`card card-3 hero-verse${heroPaintUrl || heroIllustration ? ' hero-verse-has-art' : ''} ${heroThemeClass(dv?.theme)}`}
         aria-label={dv?.ref ? `欣赏 ${dv.ref}` : '每日经文'}
         onClick={openVerseWallpaper}
         onContextMenu={(e) => e.preventDefault()}
       >
         <div
-          className={`hero-scene${heroIllustration ? ' hero-scene-has-art' : ''}`}
+          className={`hero-scene${heroPaintUrl || heroIllustration ? ' hero-scene-has-art' : ''}`}
           aria-hidden
           style={
-            heroIllustration
+            (heroPaintUrl || heroIllustration)
               ? {
-                  backgroundImage: `url("${heroIllustration}")`,
+                  backgroundImage: `url("${heroPaintUrl || heroIllustration}")`,
                   backgroundSize: 'cover',
                   backgroundPosition: 'center',
                   backgroundRepeat: 'no-repeat',
@@ -983,11 +1006,11 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               : undefined
           }
         >
-          {heroIllustration ? (
+          {(heroPaintUrl || heroIllustration) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               className="hero-scene-img"
-              src={heroIllustration}
+              src={heroPaintUrl || heroIllustration || ''}
               alt=""
               width={720}
               height={400}
@@ -995,13 +1018,13 @@ export default function HomePageClient({ paneActive = true }: { paneActive?: boo
               fetchPriority="high"
               onError={(e) => {
                 const img = e.currentTarget;
-                if (img.dataset.retry !== '1' && heroIllustration) {
+                const fallback = heroIllustration;
+                if (img.dataset.retry !== '1' && fallback && !fallback.startsWith('blob:')) {
                   img.dataset.retry = '1';
-                  const sep = heroIllustration.includes('?') ? '&' : '?';
-                  img.src = `${heroIllustration}${sep}r=1`;
+                  const sep = fallback.includes('?') ? '&' : '?';
+                  img.src = `${fallback}${sep}r=1`;
                   return;
                 }
-                // 图彻底失败：保留父级 style 背景（可能也失效）则退回主题渐变
                 img.style.display = 'none';
               }}
             />

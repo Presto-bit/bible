@@ -204,15 +204,17 @@ import {
   type VerseDiffResult,
 } from '@/lib/verse_diff';
 
+// 关键弹层：静态导入，避免 WebView 动态 chunk 迟迟不就绪导致「点了没反应」
+import XiaoAiSheet from '@/components/reader/XiaoAiSheet';
+import VersionPickerPop from '@/components/reader/VersionPickerPop';
+import { ReaderLocPopover } from '@/components/reader/ReaderLocPopover';
 
-const XiaoAiSheet = dynamic(() => import('@/components/reader/XiaoAiSheet'), { ssr: false });
 const SummarySheet = dynamic(() => import('@/components/reader/SummarySheet'), { ssr: false });
 const VerseCompareSheet = dynamic(() => import('@/components/reader/VerseCompareSheet'), { ssr: false });
 const ThoughtHubSheet = dynamic(() => import('@/components/reader/ThoughtHubSheet'), { ssr: false });
 const ThoughtWriteSheet = dynamic(() => import('@/components/reader/ThoughtWriteSheet'), { ssr: false });
 const GroupCheckinSheet = dynamic(() => import('@/components/group/GroupCheckinSheet'), { ssr: false });
 const VerseCardSheet = dynamic(() => import('@/components/reader/VerseCardSheet'), { ssr: false });
-const VersionPickerPop = dynamic(() => import('@/components/reader/VersionPickerPop'), { ssr: false });
 const PlanReadingLayer = dynamic(() => import('@/components/reader/PlanReadingLayer'), { ssr: false });
 const VersePreviewSheet = dynamic(
   () => import('@/components/reader/VersePreviewSheet').then((m) => m.VersePreviewSheet),
@@ -224,10 +226,6 @@ const ShareToSocialSheet = dynamic(
 );
 const ChapterCompleteTip = dynamic(
   () => import('@/components/reader/ChapterCompleteTip').then((m) => m.ChapterCompleteTip),
-  { ssr: false },
-);
-const ReaderLocPopover = dynamic(
-  () => import('@/components/reader/ReaderLocPopover').then((m) => m.ReaderLocPopover),
   { ssr: false },
 );
 
@@ -673,9 +671,29 @@ export default function ReaderView({
   ]);
 
   const openAiSheet = useCallback(() => {
+    setChromeHidden(false);
     setAiSheetContext(resolveAiSheetContext());
     setAiSheet(true);
   }, [resolveAiSheetContext]);
+
+  const openVersionPicker = useCallback(() => {
+    setChromeHidden(false);
+    const primaryId = versions?.find((v) => v.primary)?.id ?? FALLBACK_PRIMARY_VERSION;
+    if (layout === 'parallel') {
+      const topId = mainVersionId || primaryId;
+      setCheckedVers([topId, parallelVer].filter(Boolean));
+    } else if (mainVersionId) {
+      setCheckedVers([mainVersionId]);
+    } else {
+      setCheckedVers([primaryId]);
+    }
+    setShowVersions(true);
+    if (!versions) {
+      api.versions()
+        .then((d) => setVersions((d.versions ?? []).filter((v) => v.available !== false)))
+        .catch(() => setVersions([]));
+    }
+  }, [versions, layout, mainVersionId, parallelVer]);
 
   const chapterThoughts = useMemo(
     () => (thoughtsOn ? thoughtsForChapter(book.id, chapter) : {}),
@@ -2896,24 +2914,16 @@ export default function ReaderView({
               }}
             />
           )}
-          <button type="button" className="reader-version" onClick={(e) => {
-            e.stopPropagation();
-            const primaryId = versions?.find((v) => v.primary)?.id ?? FALLBACK_PRIMARY_VERSION;
-            if (layout === 'parallel') {
-              const topId = mainVersionId || primaryId;
-              setCheckedVers([topId, parallelVer].filter(Boolean));
-            } else if (mainVersionId) {
-              setCheckedVers([mainVersionId]);
-            } else {
-              setCheckedVers([primaryId]);
-            }
-            setShowVersions(true);
-            if (!versions) {
-              api.versions()
-                .then((d) => setVersions((d.versions ?? []).filter((v) => v.available !== false)))
-                .catch(() => setVersions([]));
-            }
-          }}>
+          <button
+            type="button"
+            className="reader-version"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              openVersionPicker();
+            }}
+          >
             {versionLabel}
           </button>
           <div className="reader-loc-wrap">
@@ -2923,8 +2933,11 @@ export default function ReaderView({
               className={`reader-loc${locPopoverOpen ? ' is-open' : ''}`}
               aria-expanded={locPopoverOpen}
               aria-haspopup="dialog"
+              onPointerDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
+                setChromeHidden(false);
                 setLocPopoverOpen((v) => !v);
               }}
             >
@@ -2935,8 +2948,10 @@ export default function ReaderView({
           <button
             type="button"
             className="reader-summary-btn"
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
+              setChromeHidden(false);
               setSummaryOpen(true);
             }}
           >
@@ -2955,7 +2970,17 @@ export default function ReaderView({
               <path d="M21 21l-4-4" />
             </svg>
           </Link>
-          <button type="button" className="reader-more" onClick={(e) => { e.stopPropagation(); setShowSettings(true); }} aria-label="阅读设置">
+          <button
+            type="button"
+            className="reader-more"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setChromeHidden(false);
+              setShowSettings(true);
+            }}
+            aria-label="阅读设置"
+          >
             ⋮
           </button>
         </div>

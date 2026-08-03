@@ -5,8 +5,7 @@ import { createPortal } from 'react-dom';
 import { useCloseOnTabNav } from '@/lib/use_close_on_tab_nav';
 
 /**
- * 将弹层挂到 document.body，避免被 Tab 保活层（z-index:1）压在 tabbar 下。
- * 不改动子树结构，仅做 portal；各 sheet 自带 backdrop / z-index。
+ * 将弹层挂到 document.body，并用固定高层 stacking 保证在保活 pane / tabbar 之上。
  *
  * @param onTabAway 切主 Tab 时关闭（强烈建议传入 onClose，防止串到其它 Tab）
  */
@@ -21,5 +20,10 @@ export default function AppBodyPortal({
   useEffect(() => setMounted(true), []);
   useCloseOnTabNav(onTabAway ?? (() => {}), Boolean(onTabAway));
   if (!mounted) return null;
-  return createPortal(children, document.body);
+  return createPortal(
+    <div className="app-body-portal-layer" data-app-body-portal>
+      {children}
+    </div>,
+    document.body,
+  );
 }

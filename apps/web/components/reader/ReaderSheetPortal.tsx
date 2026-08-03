@@ -28,6 +28,7 @@ export default function ReaderSheetPortal({
       onClick={onClose}
       onTouchMove={(e) => e.stopPropagation()}
       data-dismiss-on-tab-nav
+      style={{ zIndex: 240 }}
     >
       <div
         className={sheetClassName}
