@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import { refToChineseLabel } from '@/lib/ref_label';
 import {
   clearThoughtDraft,
@@ -142,6 +142,7 @@ export default function ThoughtWriteSheet({
   const sheet = (
     <div
       className="sheet-backdrop thought-write-backdrop thought-write-backdrop-tall"
+      data-dismiss-on-tab-nav
       onClick={handleBackdropClose}
       onTouchMove={(e) => e.stopPropagation()}
       style={{ paddingBottom: kbInset }}
@@ -247,5 +248,9 @@ export default function ThoughtWriteSheet({
   );
 
   if (!mounted) return null;
-  return createPortal(sheet, document.body);
+  return (
+    <AppBodyPortal onTabAway={handleBackdropClose}>
+      {sheet}
+    </AppBodyPortal>
+  );
 }

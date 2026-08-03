@@ -313,9 +313,10 @@ export default function PlanReadingLayer({
 
       {dayCompleted && completedDayNum != null && !planAllDone
         && !celebrationDismissedRef.current.has(completedDayNum) && (
-        <AppBodyPortal>
+        <AppBodyPortal onTabAway={dismissDayCelebration}>
           <div
             className="sheet-backdrop plan-day-complete-backdrop"
+            data-dismiss-on-tab-nav
             onClick={dismissDayCelebration}
           >
             <div
@@ -388,8 +389,13 @@ export default function PlanReadingLayer({
       )}
 
       {reflectionOpen && (
-        <AppBodyPortal>
-          <div className="sheet-backdrop plan-reflection-backdrop">
+        <AppBodyPortal onTabAway={() => setReflectionOpen(false)}>
+          <div
+            className="sheet-backdrop plan-reflection-backdrop"
+            data-dismiss-on-tab-nav
+            role="presentation"
+            onClick={() => setReflectionOpen(false)}
+          >
             <div className="sheet card plan-reflection-sheet" onClick={(e) => e.stopPropagation()}>
               <div className="section-row" style={{ marginTop: 0 }}>
                 <strong>今日反思（可选）</strong>

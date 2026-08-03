@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import DismissibleSheetBackdrop from '@/components/ui/DismissibleSheetBackdrop';
 import {
   acceptGuestRisk,
   markAccountGateSeen,
@@ -27,6 +28,12 @@ export default function AccountGateSheet({ onDone }: Props) {
 
   const finish = () => {
     onDone();
+  };
+
+  /** 点遮罩：软关，等同走过门闸，避免僵尸遮罩吞全站点击 */
+  const softDismiss = () => {
+    markAccountGateSeen();
+    finish();
   };
 
   const save = async () => {
@@ -57,7 +64,7 @@ export default function AccountGateSheet({ onDone }: Props) {
   };
 
   return (
-    <div className="sheet-backdrop" style={{ alignItems: 'center', zIndex: 145 }}>
+    <DismissibleSheetBackdrop onClose={softDismiss} align="center" style={{ zIndex: 145 }}>
       <div
         className="sheet card account-gate-sheet"
         style={{ borderRadius: 18, maxWidth: 360 }}
@@ -156,6 +163,6 @@ export default function AccountGateSheet({ onDone }: Props) {
           </>
         )}
       </div>
-    </div>
+    </DismissibleSheetBackdrop>
   );
 }

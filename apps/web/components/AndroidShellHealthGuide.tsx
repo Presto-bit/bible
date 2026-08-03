@@ -44,8 +44,11 @@ export default function AndroidShellHealthGuide() {
       // 让首屏内容先出来
       await new Promise((r) => window.setTimeout(r, attempt === 0 ? 1_600 : 2_400));
       if (cancelled) return;
-      // IM 会话中不弹半屏，离开后再探（最多再试几次）
-      if (shouldDeferShellInterrupt()) {
+      // IM / 已有全屏遮罩时不叠层，避免挡「我的」点击
+      if (
+        shouldDeferShellInterrupt()
+        || document.querySelector('.sheet-backdrop')
+      ) {
         if (attempt < 8) void run(attempt + 1);
         return;
       }

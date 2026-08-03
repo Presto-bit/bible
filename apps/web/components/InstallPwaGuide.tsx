@@ -5,6 +5,7 @@ import '@/styles/pwa_install.css';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { SheetCloseButton } from '@/components/PageBackBar';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import { PWA_HOME_NAME, PWA_HOME_SUBTITLE } from '@/lib/pwa_brand';
 import {
   detectInstallPlatform,
@@ -263,7 +264,8 @@ export function InstallPwaSheet({
   };
 
   return (
-    <div className="sheet-backdrop" onClick={softClose}>
+    <AppBodyPortal onTabAway={softClose}>
+    <div className="sheet-backdrop" data-dismiss-on-tab-nav onClick={softClose}>
       <div className="sheet card install-pwa-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="section-row" style={{ marginTop: 0 }}>
           <strong>{sheetTitle}</strong>
@@ -404,6 +406,7 @@ export function InstallPwaSheet({
         </button>
       </div>
     </div>
+    </AppBodyPortal>
   );
 }
 

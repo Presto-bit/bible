@@ -2,7 +2,14 @@
 
 import { applyAppTheme } from '@/lib/app_theme';
 import { clearReaderChrome } from '@/lib/reader_chrome';
+import {
+  clearAssistantTouchLocks,
+  dismissOrphanBodySheetBackdrops,
+  dismissPortaledOverlays,
+} from '@/lib/sheet_overlay';
 import type { KeepAliveTabId } from '@/lib/tab_keep_alive';
+
+export { dismissPortaledOverlays };
 
 const scrollByTab: Partial<Record<KeepAliveTabId, number>> = {};
 
@@ -64,46 +71,6 @@ export function clearInteractiveFocusArtifacts(): void {
 }
 
 /**
- * 关掉挂到 document.body 的半屏/操作条。
- * Tab 保活只 hidden 原 pane，portal 仍留在 body 上，会「串」到小爱/发现等 Tab。
- */
-export function dismissPortaledOverlays(): void {
-  if (typeof document === 'undefined') return;
-  const fireClose = () => {
-    try {
-      window.dispatchEvent(new Event('presto-tab-nav'));
-    } catch {
-      /* ignore */
-    }
-  };
-  // 优先 React onClose；再点一次 backdrop。
-  // 禁止 rAF 二次 fire：用户切到「我的」后立刻点设置会被下一帧 dismiss 秒关。
-  fireClose();
-  const selectors = [
-    '.sheet-backdrop',
-    '.reader-sheet-backdrop',
-    '.im-msg-popover-backdrop',
-    '.version-pop-backdrop',
-    '.reader-loc-backdrop',
-    '.reader-ai-backdrop',
-    '.book-complete-overlay',
-    '[data-dismiss-on-tab-nav]',
-  ];
-  try {
-    document.querySelectorAll(selectors.join(',')).forEach((node) => {
-      if (!(node instanceof HTMLElement)) return;
-      try {
-        node.click();
-      } catch {
-        /* ignore */
-      }
-    });
-  } catch {
-    /* ignore */
-  }
-}
-
-/**
  * 离开某 Tab 时清掉全局 body class，避免圣经/小爱的壳层样式串到其它 Tab。
  */
 export function cleanupTabBodyChrome(leaving: KeepAliveTabId | null, entering: KeepAliveTabId | null): void {
@@ -113,15 +80,12 @@ export function cleanupTabBodyChrome(leaving: KeepAliveTabId | null, entering: K
     applyAppTheme();
   }
   if (leaving === 'assistant' && entering !== 'assistant') {
-    document.body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv', 'assistant-active');
-    document.documentElement.style.removeProperty('--assistant-vv-h');
-    document.documentElement.style.removeProperty('--assistant-kb-inset');
+    clearAssistantTouchLocks();
   }
-  // 进入「我的」：再扫一遍小爱键盘壳，避免残留 touch-action:none 把整页点死
+  // 进入「我的」：清小爱触摸锁 + 卸掉 body 直挂僵尸遮罩
   if (entering === 'profile') {
-    document.body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv', 'assistant-active');
-    document.documentElement.style.removeProperty('--assistant-vv-h');
-    document.documentElement.style.removeProperty('--assistant-kb-inset');
+    clearAssistantTouchLocks();
+    dismissOrphanBodySheetBackdrops();
   }
   if (leaving && leaving !== entering) {
     document.body.classList.remove('im-keyboard', 'im-keyboard-overlay', 'im-plus-sheet', 'im-mention-sheet');

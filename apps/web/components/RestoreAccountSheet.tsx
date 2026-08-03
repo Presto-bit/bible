@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import DismissibleSheetBackdrop from '@/components/ui/DismissibleSheetBackdrop';
 
 type Props = {
   onDismiss: () => void;
@@ -12,7 +13,7 @@ type Props = {
  */
 export default function RestoreAccountSheet({ onDismiss }: Props) {
   return (
-    <div className="sheet-backdrop" role="presentation" onClick={onDismiss}>
+    <DismissibleSheetBackdrop onClose={onDismiss}>
       <div
         className="sheet sync-migrate-sheet"
         role="dialog"
@@ -32,6 +33,6 @@ export default function RestoreAccountSheet({ onDismiss }: Props) {
           </button>
         </div>
       </div>
-    </div>
+    </DismissibleSheetBackdrop>
   );
 }

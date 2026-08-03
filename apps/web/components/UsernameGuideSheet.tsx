@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import DismissibleSheetBackdrop from '@/components/ui/DismissibleSheetBackdrop';
 import { dismissUsernameGuide } from '@/lib/account_guide';
 import { bindPhone, getUserName, setCredentials } from '@/lib/api';
 
@@ -38,7 +39,7 @@ export default function UsernameGuideSheet({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <div className="sheet-backdrop" style={{ alignItems: 'center', zIndex: 130 }}>
+    <DismissibleSheetBackdrop onClose={skip} align="center" style={{ zIndex: 130 }}>
       <div className="sheet card" style={{ borderRadius: 18, maxWidth: 360 }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginTop: 0 }}>设置密码，换机可找回</h3>
         <p className="muted" style={{ fontSize: 12, lineHeight: 1.5 }}>
@@ -69,6 +70,6 @@ export default function UsernameGuideSheet({ onDone }: { onDone: () => void }) {
           以后再说
         </button>
       </div>
-    </div>
+    </DismissibleSheetBackdrop>
   );
 }

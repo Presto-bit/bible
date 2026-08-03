@@ -35,9 +35,10 @@ export default function MarkNoteWriteSheet({
   }, []);
 
   return (
-    <AppBodyPortal>
+    <AppBodyPortal onTabAway={onClose}>
       <div
         className="sheet-backdrop thought-write-backdrop"
+        data-dismiss-on-tab-nav
         onClick={onClose}
         style={{ paddingBottom: kbInset }}
       >

@@ -497,7 +497,7 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     markRouteNavigation();
   };
 
-  // 切走「我的」时收起全部 portal，避免遮罩卡住其它 Tab；切回时清掉小爱壳残留
+  // 切走「我的」时收起全部 portal；切回时清小爱触摸锁 + 僵尸遮罩
   useEffect(() => {
     if (!paneActive) {
       setSettingsOpen(false);
@@ -505,8 +505,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       setBadgeOpen(false);
       return;
     }
-    if (typeof document === 'undefined') return;
-    document.body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv', 'assistant-active');
+    void import('@/lib/sheet_overlay').then((m) => {
+      m.clearAssistantTouchLocks();
+      m.dismissOrphanBodySheetBackdrops();
+    });
   }, [paneActive]);
 
   const openHelpFeedback = async () => {
