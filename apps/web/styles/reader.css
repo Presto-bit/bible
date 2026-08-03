@@ -570,9 +570,9 @@ body.reader-active .proper-noun--artifact {
 }
 .reader-ai-backdrop .reader-ai-half-sheet,
 .reader-ai-backdrop .half-sheet {
-  /* 明确相对视口，避免 % 在 portal 内塌成半截 */
+  /* 明确相对视口；顶距统一 --safe-top（含壳 inset） */
   height: min(80dvh, 80svh);
-  max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)));
+  max-height: calc(100dvh - max(12px, var(--safe-top, 0px)) - 8px);
   width: 100%;
   max-width: 480px;
 }

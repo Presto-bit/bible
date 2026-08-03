@@ -2,8 +2,9 @@
 /* 曾误拆到 story_album.css，我的 Tab 未加载 → 网格/分类 Tab 丢失 */
 
 .badge-gallery {
-  max-height: 80vh;
+  max-height: min(80dvh, calc(100dvh - var(--safe-top, 0px) - 8px));
   overflow-y: auto;
+  padding-bottom: max(12px, var(--safe-bottom, 0px));
 }
 .badge-gallery-grid {
   display: grid;

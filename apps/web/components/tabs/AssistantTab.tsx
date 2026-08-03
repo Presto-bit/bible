@@ -33,7 +33,7 @@ import {
   loadAssistantDraft,
   saveAssistantDraft,
 } from '@/lib/assistant_session_draft';
-import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import { useAssistantViewport } from '@/lib/use_assistant_viewport';
 import {
   findResumableSession,
   formatSessionUpdatedLabel,
@@ -332,144 +332,8 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     };
   }, []);
 
-  const assistantWasActiveRef = useRef(false);
-
-  const clearAssistantChrome = () => {
-    document.body.classList.remove(
-      'assistant-active',
-      'assistant-immersive',
-      'assistant-tabbar-peek',
-      'assistant-keyboard',
-      'assistant-keyboard-vv',
-    );
-    document.documentElement.style.removeProperty('--assistant-vv-h');
-    document.documentElement.style.removeProperty('--assistant-kb-inset');
-  };
-
-  /** 底栏常驻；仅输入聚焦时进入键盘态并略上抬输入区 */
-  useEffect(() => {
-    if (!paneActive) {
-      assistantWasActiveRef.current = false;
-      setComposerFocused(false);
-      clearAssistantChrome();
-      return;
-    }
-    // 必须同步挂上 assistant-active：延后时 .app-body 仍带 tabbar padding，
-    // 而 .assistant-page 已减 tabbar-h → 首帧/TWA 像「只剩半屏」。
-    // paneActive 为真时直接挂：勿再查 DOM 门控（KeepAlive 切换瞬间可能误判）。
-    document.body.classList.add('assistant-active');
-    document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
-    assistantWasActiveRef.current = true;
-    return () => {
-      clearAssistantChrome();
-    };
-  }, [paneActive]);
-
-  useEffect(() => () => clearAssistantChrome(), []);
-
-  useEffect(() => {
-    if (!paneActive) return;
-    const root = document.documentElement;
-    const body = document.body;
-    const vv = window.visualViewport;
-    let raf = 0;
-    /** 相对键盘顶再上抬，避免输入框被挡 */
-    const LIFT_PX = 20;
-
-    const pinScroll = () => {
-      window.scrollTo(0, 0);
-      root.scrollTop = 0;
-      body.scrollTop = 0;
-      const app = document.querySelector('.app-body');
-      if (app instanceof HTMLElement) app.scrollTop = 0;
-    };
-
-    const syncViewport = () => {
-      const ae = document.activeElement;
-      const inComposer =
-        ae instanceof HTMLElement
-        && Boolean(ae.closest('.assistant-composer'))
-        && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT');
-
-      // 未真正聚焦输入：绝不锁 half-height，防系统栏/手势条误判
-      if (!composerFocused || !inComposer) {
-        body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
-        root.style.removeProperty('--assistant-vv-h');
-        root.style.removeProperty('--assistant-kb-inset');
-        return;
-      }
-
-      body.classList.add('assistant-keyboard');
-      pinScroll();
-      const layoutH = window.innerHeight || root.clientHeight || 0;
-      const vvH = vv?.height ?? layoutH;
-      const offsetTop = vv?.offsetTop ?? 0;
-      const gap = Math.max(0, Math.round(layoutH - (vvH + offsetTop)));
-      // 壳 WebView 系统栏也会带来缺口；阈值须低于真键盘（常 ≥180），又高于手势条抖动
-      const gapFloor = isPeiaiAndroidShell() ? 72 : 48;
-      if (gap > gapFloor) {
-        // 键盘态底栏已藏：高度对齐可视区底沿，输入贴在键盘上方
-        const pageH = Math.max(160, Math.round(vvH + offsetTop) - LIFT_PX);
-        root.style.setProperty('--assistant-vv-h', `${pageH}px`);
-        body.classList.add('assistant-keyboard-vv');
-        root.style.setProperty('--assistant-kb-inset', `${LIFT_PX}px`);
-      } else {
-        root.style.removeProperty('--assistant-vv-h');
-        body.classList.remove('assistant-keyboard-vv');
-        // 未检出键盘时勿加大底 padding，避免输入悬在 Tab 与纸色之间
-        root.style.setProperty('--assistant-kb-inset', '8px');
-      }
-    };
-
-    const onViewport = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(syncViewport);
-    };
-
-    const onFocusIn = (e: FocusEvent) => {
-      const t = e.target;
-      if (!(t instanceof HTMLElement)) return;
-      if (!t.closest('.assistant-composer')) return;
-      if (t.tagName !== 'TEXTAREA' && t.tagName !== 'INPUT') return;
-      setComposerFocused(true);
-      pinScroll();
-    };
-
-    const onFocusOut = (e: FocusEvent) => {
-      const t = e.target;
-      if (!(t instanceof HTMLElement) || !t.closest('.assistant-composer')) return;
-      const next = e.relatedTarget;
-      if (next instanceof HTMLElement && next.closest('.assistant-composer')) return;
-      setComposerFocused(false);
-    };
-
-    const onWindowScroll = () => {
-      if (composerFocused) pinScroll();
-    };
-
-    syncViewport();
-    vv?.addEventListener('resize', onViewport);
-    vv?.addEventListener('scroll', onViewport);
-    window.addEventListener('resize', onViewport);
-    window.addEventListener('orientationchange', onViewport);
-    window.addEventListener('focusin', onFocusIn);
-    window.addEventListener('focusout', onFocusOut);
-    window.addEventListener('scroll', onWindowScroll, { passive: true });
-
-    return () => {
-      cancelAnimationFrame(raf);
-      vv?.removeEventListener('resize', onViewport);
-      vv?.removeEventListener('scroll', onViewport);
-      window.removeEventListener('resize', onViewport);
-      window.removeEventListener('orientationchange', onViewport);
-      window.removeEventListener('focusin', onFocusIn);
-      window.removeEventListener('focusout', onFocusOut);
-      window.removeEventListener('scroll', onWindowScroll);
-      body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
-      root.style.removeProperty('--assistant-vv-h');
-      root.style.removeProperty('--assistant-kb-inset');
-    };
-  }, [paneActive, composerFocused]);
+  /** 底栏常驻；高度 / 键盘与 PWA·IM 同源（见 use_assistant_viewport） */
+  useAssistantViewport(paneActive, composerFocused, setComposerFocused);
 
   useEffect(() => {
     if (paneActive) return;

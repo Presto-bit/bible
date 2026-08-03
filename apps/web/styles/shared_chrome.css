@@ -182,16 +182,15 @@
 .half-sheet {
   width: 100%;
   max-width: 480px;
-  /* 相对视口，不用百分比：安卓 WebView 在 flex 父级上 % 高度偶发按错误参照算出「半截」 */
+  /* 相对视口；顶距用 --safe-top（含壳 --shell-inset），勿裸 env() */
   height: min(80dvh, 80svh);
-  max-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - 8px);
+  max-height: calc(100dvh - max(12px, var(--safe-top, 0px)) - 8px);
   display: flex;
   flex-direction: column;
   border-radius: 18px 18px 0 0;
   background: var(--surface);
   overflow: hidden;
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.14);
-  /* 壳上 safe-bottom 已进 --safe-bottom */
   padding-bottom: 0;
 }
 
@@ -301,7 +300,7 @@
 }
 
 .settings-sheet {
-  max-height: min(84dvh, 100dvh);
+  max-height: min(84dvh, calc(100dvh - var(--safe-top, 0px) - 8px));
   overflow-y: auto;
   padding-bottom: calc(16px + var(--safe-bottom));
   -webkit-overflow-scrolling: touch;

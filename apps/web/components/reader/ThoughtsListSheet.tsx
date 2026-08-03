@@ -1,8 +1,8 @@
 'use client';
 
 import { SheetCloseButton } from '@/components/PageBackBar';
-import { useCallback, useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import AppBodyPortal from '@/components/AppBodyPortal';
+import { useCallback, useState } from 'react';
 import { effectiveId } from '@/lib/api';
 import {
   isThoughtLiked,
@@ -38,9 +38,6 @@ export default function ThoughtsListSheet({
   onChanged?: () => void;
   onClose: () => void;
 }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
-
   const loadThoughts = useCallback(() => {
     if (bookId != null && chapter != null && verse != null) {
       return sortedThoughtsForVerse(bookId, chapter, verse);
@@ -56,8 +53,9 @@ export default function ThoughtsListSheet({
     onChanged?.();
   }, [loadThoughts, onChanged]);
 
-  const sheet = (
-    <div className="sheet-backdrop" onClick={onClose}>
+  return (
+    <AppBodyPortal onTabAway={onClose}>
+    <div className="sheet-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
       <div
         className="sheet card thoughts-list-sheet"
         onClick={(e) => e.stopPropagation()}
@@ -108,8 +106,6 @@ export default function ThoughtsListSheet({
         </div>
       </div>
     </div>
+    </AppBodyPortal>
   );
-
-  if (!mounted) return null;
-  return createPortal(sheet, document.body);
 }

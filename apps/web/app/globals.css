@@ -341,22 +341,37 @@ html.pwa-standalone .tab-keep-pane[hidden] .reader-fab-stack {
   pointer-events: none !important;
   opacity: 0 !important;
 }
+/*
+ * 全站弹层唯一高层：tabbar≤100 · portal-layer=300 · 层内子遮罩局部 z=1。
+ * 层内遮罩一律 absolute 填满本层（勿再各自 fixed + 抢 110/240/310），
+ * 高度吃 100% / --safe-*，避免 TWA 上 100dvh 与壳 inset 错位导致「半截/穿帮」。
+ */
 .app-body-portal-layer {
   position: fixed;
   inset: 0;
   z-index: 300;
+  width: 100%;
+  height: 100%;
+  max-height: 100dvh;
+  max-height: 100svh;
   pointer-events: none;
   isolation: isolate;
 }
 .app-body-portal-layer > * {
   pointer-events: auto;
 }
-/* fixed 子遮罩在 Android WebView 上常需显式 touch-action，否则「点了没弹层」 */
 .app-body-portal-layer .sheet-backdrop,
 .app-body-portal-layer .reader-sheet-backdrop,
 .app-body-portal-layer .version-pop-backdrop,
 .app-body-portal-layer .reader-loc-backdrop,
-.app-body-portal-layer .reader-ai-backdrop {
+.app-body-portal-layer .reader-ai-backdrop,
+.app-body-portal-layer .drawer-backdrop {
+  position: absolute !important;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  z-index: 1 !important;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -4109,7 +4124,7 @@ button.rail-card {
 /* styles/avatar_picker.css → extracted */
 
 /* ─── 底部 sheet ─── */
-/* 层级：tabbar 90 · focus/fab 80 · sheet-backdrop 100 · reader-sheet 110 · citation 200 */
+/* 层级：tabbar ≤100 · 非 portal 兜底 sheet-backdrop 240 · portal-layer 300（层内 absolute z=1） */
 .sheet-backdrop {
   position: fixed;
   inset: 0;

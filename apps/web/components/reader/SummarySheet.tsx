@@ -2,8 +2,8 @@
 
 import { SheetCloseButton } from '@/components/PageBackBar';
 import AnswerText from '@/components/AnswerText';
+import AppBodyPortal from '@/components/AppBodyPortal';
 import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { api, type GeoPlace, type TimelineChapter } from '@/lib/api';
 import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
 
@@ -42,11 +42,8 @@ export default function SummarySheet({
   const [bookBusy, setBookBusy] = useState(true);
   const [chapterErr, setChapterErr] = useState<string | null>(null);
   const [bookErr, setBookErr] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
   const [timeline, setTimeline] = useState<TimelineChapter | null>(null);
   const [places, setPlaces] = useState<GeoPlace[]>([]);
-
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,8 +110,9 @@ export default function SummarySheet({
   const activeErr = tab === 'chapter' ? chapterErr : bookErr;
   const activeBody = tab === 'chapter' ? chapterBody : bookBody;
 
-  const sheet = (
-    <div className="sheet-backdrop" onClick={onClose}>
+  return (
+    <AppBodyPortal onTabAway={onClose}>
+    <div className="sheet-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
       <div className="half-sheet summary-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="half-sheet-head">
           <div className="half-sheet-grab" />
@@ -209,8 +207,6 @@ export default function SummarySheet({
         </div>
       </div>
     </div>
+    </AppBodyPortal>
   );
-
-  if (!mounted) return null;
-  return createPortal(sheet, document.body);
 }

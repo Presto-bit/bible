@@ -142,6 +142,8 @@ export default function BottomTabs() {
     );
     document.documentElement.style.removeProperty('--assistant-vv-h');
     document.documentElement.style.removeProperty('--assistant-kb-inset');
+    document.documentElement.style.removeProperty('--assistant-page-h');
+    document.documentElement.style.removeProperty('--assistant-overlay-h');
   }, [compact, pathname]);
 
   // PWA：首页就绪后再轻预取「圣经」Tab，避免冷启动五路 prefetch 抢带宽

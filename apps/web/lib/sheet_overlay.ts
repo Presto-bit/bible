@@ -2,8 +2,9 @@
  * 全屏半屏遮罩统一策略（TWA / PWA 通用）：
  * 1) 遮罩必须可点关（onClick → onClose）
  * 2) 切主 Tab 可关（data-dismiss-on-tab-nav + presto-tab-nav / onTabAway）
- * 3) 优先挂 AppBodyPortal，避免 KeepAlive 隐页后 fixed 遮罩仍吞点击
- * 4) 切 Tab / 壳 resume 时 purge，避免透明层永久吞全站点击
+ * 3) 必须挂 AppBodyPortal（层内 backdrop = absolute 填满，勿裸 createPortal 到 body）
+ * 4) 高度/安全区用 --safe-top/bottom（含壳 --shell-inset），勿裸 env()/80vh
+ * 5) 切 Tab / 壳 resume 时 purge，避免透明层永久吞全站点击
  */
 
 /** dismiss / hard-remove 共用选择器（含透明吞点击层） */
@@ -109,6 +110,8 @@ export function clearAssistantTouchLocks(): void {
   );
   document.documentElement.style.removeProperty('--assistant-vv-h');
   document.documentElement.style.removeProperty('--assistant-kb-inset');
+  document.documentElement.style.removeProperty('--assistant-page-h');
+  document.documentElement.style.removeProperty('--assistant-overlay-h');
 }
 
 /** 非读经场景下可能残留的 body 键盘/IM 锁（整站 pointer-events / 滚动） */

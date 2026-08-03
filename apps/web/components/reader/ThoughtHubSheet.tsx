@@ -1,8 +1,8 @@
 'use client';
 
 import { SheetCloseButton } from '@/components/PageBackBar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
+import AppBodyPortal from '@/components/AppBodyPortal';
+import { useCallback, useMemo, useState } from 'react';
 import { effectiveId } from '@/lib/api';
 import {
   isThoughtLiked,
@@ -47,8 +47,6 @@ export default function ThoughtHubSheet({
   onEdit: (thought: ThoughtRow) => void;
 }) {
   const confirm = useConfirm();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
 
   const loadThoughts = useCallback(() => {
     if (bookId != null && chapter != null && verse != null) {
@@ -81,8 +79,14 @@ export default function ThoughtHubSheet({
     refresh();
   };
 
-  const sheet = (
-    <div className="sheet-backdrop thought-hub-backdrop" onClick={onClose} onTouchMove={(e) => e.stopPropagation()}>
+  return (
+    <AppBodyPortal onTabAway={onClose}>
+    <div
+      className="sheet-backdrop thought-hub-backdrop"
+      onClick={onClose}
+      onTouchMove={(e) => e.stopPropagation()}
+      data-dismiss-on-tab-nav
+    >
       <div
         className={`sheet card thoughts-list-sheet thought-hub-sheet${thoughts.length > 0 ? ' thought-hub-sheet-tall' : ''}`}
         onClick={(e) => e.stopPropagation()}
@@ -162,8 +166,6 @@ export default function ThoughtHubSheet({
         </div>
       </div>
     </div>
+    </AppBodyPortal>
   );
-
-  if (!mounted) return null;
-  return createPortal(sheet, document.body);
 }

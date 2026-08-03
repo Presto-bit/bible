@@ -848,16 +848,17 @@
 }
 
 .reader-settings-sheet {
-  max-height: min(85dvh, 85vh);
+  max-height: min(85dvh, calc(100dvh - var(--safe-top, 0px) - 8px));
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
+  padding-bottom: max(12px, var(--safe-bottom, 0px));
 }
 
+/* z-index 由 portal 层内 absolute 规则接管，勿再压到 110 */
 .reader-sheet-backdrop {
-  z-index: 110;
   touch-action: none;
 }
 
@@ -1133,8 +1134,8 @@
 }
 
 .thought-hub-sheet-tall {
-  min-height: 80dvh;
-  max-height: 80dvh;
+  min-height: min(80dvh, 80svh);
+  max-height: min(80dvh, calc(100dvh - var(--safe-top, 0px) - 8px));
 }
 
 .thought-hub-list {
@@ -1186,11 +1187,12 @@
 
 .thought-write-sheet,
 .thoughts-list-sheet {
-  max-height: min(88dvh, 88vh);
+  max-height: min(88dvh, calc(100dvh - var(--safe-top, 0px) - 8px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
   transition: max-height 0.12s ease;
+  padding-bottom: max(8px, var(--safe-bottom, 0px));
 }
 
 .thought-write-scroll {
