@@ -119,6 +119,23 @@ export function useReaderPageTurn({
     return false;
   }, [blocked, ignoreUntilRef]);
 
+  /** 打开 sheet / 打断手势时强制复位，避免 is-turning + touch-action:none 粘死 */
+  const cancelDrag = useCallback(() => {
+    drag.current.active = false;
+    drag.current.pointerId = -1;
+    drag.current.axis = null;
+    drag.current.prefetched = false;
+    setTurning(false);
+    setDragSide(null);
+    setDragProgress(0);
+    applyOffset(0, false);
+  }, [applyOffset]);
+
+  // blocked 变 true（半屏打开）或关回 false：清拖拽态，恢复横滑能力
+  useEffect(() => {
+    cancelDrag();
+  }, [blocked, cancelDrag]);
+
   const finishDrag = useCallback(async () => {
     if (!enabled || !drag.current.active) return;
     const wasHorizontal = drag.current.axis === 'x';
@@ -356,14 +373,13 @@ export function useReaderPageTurn({
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       if (isInteractiveTurnTarget(e.target)) return;
-      // pointer 已占坑但还没认轴时，touch 接手（壳上 pointer move 常丢）
-      if (drag.current.active) {
-        if (drag.current.source === 'pointer' && drag.current.axis === null) {
-          drag.current.source = 'touch';
-          drag.current.pointerId = t.identifier;
-        }
+      // pointer 已占坑但 move 丢失（安卓壳常见）：touch 随时可接手
+      if (drag.current.active && drag.current.source === 'pointer') {
+        drag.current.source = 'touch';
+        drag.current.pointerId = t.identifier;
         return;
       }
+      if (drag.current.active) return;
       beginDrag(t.clientX, t.clientY, t.identifier, 'touch');
     };
     const onTouchMove = (e: TouchEvent) => {

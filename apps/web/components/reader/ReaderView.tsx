@@ -1906,6 +1906,12 @@ export default function ReaderView({
     }, 3000);
   }, [clearSelectionVisual]);
 
+  // 开半屏前清选区，避免 hasSel 一直 blocked → 关 sheet 后不能横滑
+  useEffect(() => {
+    if (!overlayOpen) return;
+    dismissNativeSelection();
+  }, [overlayOpen, dismissNativeSelection]);
+
   const finishToolbarAction = dismissNativeSelection;
 
   const clearSelection = dismissNativeSelection;
@@ -2518,22 +2524,17 @@ export default function ReaderView({
   );
 
   useEffect(() => {
-    if (!overlayOpen) return;
-    const el = contentRef.current;
+    if (!overlayOpen) {
+      document.body.classList.remove('reader-overlay-open');
+      return;
+    }
+    // 仅 body class 锁页级滚动；勿对 content 写 touch-action:none
+    //（会与横滑 pan-x pan-y 取交集，壳上关半屏后常只剩竖滚）
+    document.body.classList.add('reader-overlay-open');
     const prevBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    if (!el) {
-      return () => {
-        document.body.style.overflow = prevBodyOverflow;
-      };
-    }
-    const prevOverflow = el.style.overflow;
-    const prevTouchAction = el.style.touchAction;
-    el.style.overflow = 'hidden';
-    el.style.touchAction = 'none';
     return () => {
-      el.style.overflow = prevOverflow;
-      el.style.touchAction = prevTouchAction;
+      document.body.classList.remove('reader-overlay-open');
       document.body.style.overflow = prevBodyOverflow;
     };
   }, [overlayOpen]);
@@ -2979,6 +2980,11 @@ export default function ReaderView({
               e.preventDefault();
               setChromeHidden(false);
               // 同步打开：TWA 上排队在经文重绘后会导致「点了半秒才出」
+              try {
+                dismissNativeSelection();
+              } catch {
+                /* ignore */
+              }
               setShowSettings(true);
             }}
             aria-label="阅读设置"

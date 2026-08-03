@@ -728,11 +728,21 @@ html.pwa-standalone .app-body {
   min-height: 100dvh;
 }
 /* 读经时放开横滑：根节点 touch-action:pan-y 与祖先取交集会挡掉跟手翻页 */
+html:has(body.reader-active),
 body.reader-active,
 body.reader-active .app-body {
   touch-action: auto;
 }
-body.reader-active .reader-page {
+body.reader-active .reader-page,
+body.reader-active .reader-page.container {
+  touch-action: pan-x pan-y;
+}
+/* 半屏打开：只锁文档滚动，勿伤 touch-action（遮罩自身挡手势） */
+body.reader-overlay-open {
+  overflow: hidden;
+}
+body.reader-overlay-open .reader-page {
+  /* 保持翻页轴声明；真实阻挡靠 portal backdrop */
   touch-action: pan-x pan-y;
 }
 /* PC：左右点击热区翻章（触控端隐藏，避免挡划选） */
