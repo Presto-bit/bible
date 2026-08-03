@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Message
+import android.os.PowerManager
 import android.provider.Settings
 import android.util.Base64
 import android.view.ViewGroup
@@ -37,6 +38,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -54,9 +56,10 @@ import java.util.concurrent.atomic.AtomicReference
 /**
  * 彼爱安卓壳：全屏 WebView，尽量对齐站点 PWA standalone 行为。
  *
- * - 边到边 + 安全区注入
- * - early 注入：display-mode 语义、pwa-standalone 类（与主屏幕 PWA 一致）
- * - 外链留在 WebView 内（与 pwa_nav 一致）
+ * - 品牌开屏（红底 + 图标，对齐 iOS PWA）
+ * - 边到边 + 安全区最早注入（document-start 烘焙 insets）
+ * - early 注入：仅本域 display-mode / pwa-standalone（外站不注入）
+ * - PeiaiShell 仅本域挂载；外链可同 WebView 打开但无 bridge
  * - 站点 APK 下载并安装、文件选择、麦/相机/通知权限
  * - 系统分享面板、DownloadManager 另存、本地 Alarm 准点提醒
  */
@@ -70,6 +73,11 @@ class MainWebActivity : AppCompatActivity() {
   private var filePathCallback: ValueCallback<Array<Uri>>? = null
   private var pendingWebPermission: PermissionRequest? = null
   private val pendingApkFile = AtomicReference<File?>(null)
+  /** JS Bridge 仅本域；外站必须卸掉，防任意页调用 PeiaiShell */
+  private var bridgeAttached = false
+  /** 冷启动开屏：首屏完成或超时后再撤 */
+  private var keepSplash = true
+  private val orphanTempWebViews = mutableListOf<WebView>()
 
   private val fileChooserLauncher =
     registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -152,8 +160,11 @@ class MainWebActivity : AppCompatActivity() {
 
   @SuppressLint("SetJavaScriptEnabled")
   override fun onCreate(savedInstanceState: Bundle?) {
+    val splashScreen = installSplashScreen()
+    splashScreen.setKeepOnScreenCondition { keepSplash }
     super.onCreate(savedInstanceState)
     setupEdgeToEdge()
+    seedInsetsFromSystem()
     ShellNotifier.ensureChannel(this)
     // 冷启动补挂闹钟（H5 也会在偏好加载后再 sync）
     ReminderScheduler.rescheduleAll(this)
@@ -165,10 +176,10 @@ class MainWebActivity : AppCompatActivity() {
       )
       settings.javaScriptEnabled = true
       settings.domStorageEnabled = true
-      settings.databaseEnabled = true
       settings.cacheMode = WebSettings.LOAD_DEFAULT
       settings.mediaPlaybackRequiresUserGesture = false
-      settings.mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
+      // HTTPS 站点：禁止混合内容；第三方 Cookie 关闭（同站 Cookie 仍可用）
+      settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
       settings.useWideViewPort = true
       settings.loadWithOverviewMode = true
       settings.setSupportZoom(false)
@@ -180,14 +191,18 @@ class MainWebActivity : AppCompatActivity() {
       settings.allowFileAccess = true
       // 避免系统「显示大小」把布局放大到与 PWA 不一致
       settings.textZoom = 100
+      // H5 可解析 versionName + versionCode：PeiaiAndroidShell/1.0.9 (vc10)
       settings.userAgentString =
-        settings.userAgentString + " PeiaiAndroidShell/" + BuildConfig.VERSION_NAME
-      settings.setGeolocationEnabled(true)
+        settings.userAgentString +
+          " PeiaiAndroidShell/" + BuildConfig.VERSION_NAME +
+          " (vc" + BuildConfig.VERSION_CODE + ")"
+      // 壳不提供定位；Geolocation 回调亦一律拒绝
+      settings.setGeolocationEnabled(false)
 
       CookieManager.getInstance().setAcceptCookie(true)
-      CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+      CookieManager.getInstance().setAcceptThirdPartyCookies(this, false)
 
-      addJavascriptInterface(ShellBridge(), JS_BRIDGE)
+      attachShellBridge()
       installDocumentStartScripts(this)
 
       webViewClient = object : WebViewClient() {
@@ -207,15 +222,20 @@ class MainWebActivity : AppCompatActivity() {
 
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
           super.onPageStarted(view, url, favicon)
-          injectShellChromeJs()
+          syncBridgeForUrl(url)
+          if (isOwnPageUrl(url)) injectShellChromeJs()
         }
 
         override fun onPageFinished(view: WebView?, url: String?) {
           super.onPageFinished(view, url)
-          if (!url.isNullOrBlank() && !url.startsWith("data:")) {
+          syncBridgeForUrl(url)
+          if (!url.isNullOrBlank() && !url.startsWith("data:") && isOwnPageUrl(url)) {
             lastGoodUrl = url
           }
-          injectShellChromeJs()
+          if (isOwnPageUrl(url)) {
+            injectShellChromeJs()
+            dismissSplash()
+          }
         }
 
         override fun onReceivedError(
@@ -248,25 +268,39 @@ class MainWebActivity : AppCompatActivity() {
           isUserGesture: Boolean,
           resultMsg: Message?,
         ): Boolean {
-          // 把多窗口导航接回主 WebView，避免外抛浏览器
+          // 把多窗口导航接回主 WebView，并销毁临时 WebView，避免泄漏
           val transport = resultMsg?.obj as? WebView.WebViewTransport ?: return false
-          val temp = WebView(this@MainWebActivity).apply {
-            settings.javaScriptEnabled = true
-            webViewClient = object : WebViewClient() {
-              override fun shouldOverrideUrlLoading(
-                v: WebView?,
-                request: WebResourceRequest?,
-              ): Boolean {
-                val u = request?.url ?: return true
-                if (!handleNav(u)) {
-                  webView.loadUrl(u.toString())
-                }
-                return true
+          val temp = WebView(this@MainWebActivity)
+          orphanTempWebViews.add(temp)
+          temp.settings.javaScriptEnabled = true
+          temp.webViewClient = object : WebViewClient() {
+            private fun handoff(u: Uri) {
+              if (!handleNav(u)) {
+                webView.loadUrl(u.toString())
               }
+              destroyTempWebView(temp)
+            }
+
+            override fun shouldOverrideUrlLoading(
+              v: WebView?,
+              request: WebResourceRequest?,
+            ): Boolean {
+              val u = request?.url ?: return true
+              handoff(u)
+              return true
+            }
+
+            @Deprecated("Deprecated in Java")
+            override fun shouldOverrideUrlLoading(v: WebView?, url: String?): Boolean {
+              if (url.isNullOrBlank()) return true
+              handoff(Uri.parse(url))
+              return true
             }
           }
           transport.webView = temp
           resultMsg.sendToTarget()
+          // 兜底：未触发导航也回收
+          webView.postDelayed({ destroyTempWebView(temp) }, 8_000L)
           return true
         }
 
@@ -337,7 +371,8 @@ class MainWebActivity : AppCompatActivity() {
           origin: String?,
           callback: GeolocationPermissions.Callback?,
         ) {
-          callback?.invoke(origin, true, false)
+          // 读经壳不申请定位权限；拒绝避免空放行或未声明权限的不确定行为
+          callback?.invoke(origin, false, false)
         }
       }
 
@@ -384,22 +419,147 @@ class MainWebActivity : AppCompatActivity() {
     lastGoodUrl = startUrl
     if (savedInstanceState != null) {
       webView.restoreState(savedInstanceState)
+      dismissSplash()
     } else {
       webView.loadUrl(startUrl)
     }
+    // 兜底：弱网也不永久挡住开屏
+    webView.postDelayed({ dismissSplash() }, SPLASH_MAX_MS)
   }
 
   /**
-   * 文档最早阶段注入：伪装 display-mode standalone + pwa-standalone 类，
-   * 使 CSS / JS 与主屏幕 PWA 同路径。
+   * 文档最早阶段注入：伪装 display-mode、挂 pwa-standalone，并烘焙当前安全区。
+   * 仅本域，避免外站被注入壳语义。
    */
   private fun installDocumentStartScripts(target: WebView) {
     if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) return
     WebViewCompat.addDocumentStartJavaScript(
       target,
-      DOCUMENT_START_JS,
-      setOf("*"),
+      buildDocumentStartJs(),
+      setOf(HOST_ORIGIN.trimEnd('/')),
     )
+  }
+
+  /** 冷启动时系统资源估算 insets，避免首帧 --shell-inset 仍为 0 */
+  private fun seedInsetsFromSystem() {
+    val density = resources.displayMetrics.density.coerceAtLeast(0.01f)
+    val root = ViewCompat.getRootWindowInsets(window.decorView)
+    if (root != null) {
+      val bars = root.getInsets(
+        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
+      )
+      shellInsetsCss[0] = bars.top / density
+      shellInsetsCss[1] = bars.right / density
+      shellInsetsCss[2] = bars.bottom / density
+      shellInsetsCss[3] = bars.left / density
+      return
+    }
+    fun sysDimenDp(name: String, fallbackDp: Float): Float {
+      val id = resources.getIdentifier(name, "dimen", "android")
+      val px = if (id > 0) resources.getDimensionPixelSize(id) else (fallbackDp * density).toInt()
+      return px / density
+    }
+    shellInsetsCss[0] = sysDimenDp("status_bar_height", 28f)
+    shellInsetsCss[1] = 0f
+    shellInsetsCss[2] = sysDimenDp("navigation_bar_height", 24f)
+    shellInsetsCss[3] = 0f
+  }
+
+  private fun dismissSplash() {
+    keepSplash = false
+  }
+
+  private fun buildDocumentStartJs(): String {
+    val t = formatCssPx(shellInsetsCss[0])
+    val r = formatCssPx(shellInsetsCss[1])
+    val b = formatCssPx(shellInsetsCss[2])
+    val l = formatCssPx(shellInsetsCss[3])
+    return """
+      (function(){
+        try {
+          var ORIG = window.matchMedia.bind(window);
+          window.matchMedia = function(q) {
+            try {
+              if (typeof q === 'string' && /display-mode\s*:\s*(standalone|fullscreen|minimal-ui)/i.test(q)) {
+                return {
+                  matches: true,
+                  media: q,
+                  onchange: null,
+                  addListener: function(){},
+                  removeListener: function(){},
+                  addEventListener: function(){},
+                  removeEventListener: function(){},
+                  dispatchEvent: function(){ return false; }
+                };
+              }
+            } catch (e) {}
+            return ORIG(q);
+          };
+          var d = document.documentElement;
+          if (d) {
+            d.classList.add('android-shell', 'pwa-standalone');
+            d.style.setProperty('--shell-inset-top', '$t');
+            d.style.setProperty('--shell-inset-right', '$r');
+            d.style.setProperty('--shell-inset-bottom', '$b');
+            d.style.setProperty('--shell-inset-left', '$l');
+          }
+        } catch (e) {}
+      })();
+    """.trimIndent()
+  }
+
+  private fun isOwnPageUrl(url: String?): Boolean {
+    if (url.isNullOrBlank() || url.startsWith("data:")) return false
+    return try {
+      isOwnHost(Uri.parse(url).host)
+    } catch (_: Exception) {
+      false
+    }
+  }
+
+  private fun syncBridgeForUrl(url: String?) {
+    if (isOwnPageUrl(url)) attachShellBridge()
+    else detachShellBridge()
+  }
+
+  private fun attachShellBridge() {
+    if (!::webView.isInitialized || bridgeAttached) return
+    webView.addJavascriptInterface(ShellBridge(), JS_BRIDGE)
+    bridgeAttached = true
+  }
+
+  private fun detachShellBridge() {
+    if (!::webView.isInitialized || !bridgeAttached) return
+    try {
+      webView.removeJavascriptInterface(JS_BRIDGE)
+    } catch (_: Exception) {
+      /* ignore */
+    }
+    bridgeAttached = false
+  }
+
+  private fun destroyTempWebView(temp: WebView) {
+    if (!orphanTempWebViews.remove(temp)) return
+    try {
+      (temp.parent as? ViewGroup)?.removeView(temp)
+      temp.stopLoading()
+      temp.loadUrl("about:blank")
+      temp.webViewClient = WebViewClient()
+      temp.destroy()
+    } catch (_: Exception) {
+      /* ignore */
+    }
+  }
+
+  /**
+   * 回到前台：仅催 SW 更新 + 派发 peiai-shell-resume（StaleShellGuard 探测）。
+   * 不再硬刷整页，避免首页态（滚动/表单/弹层）被清空。
+   */
+  private fun onShellForeground() {
+    if (!::webView.isInitialized) return
+    val url = webView.url
+    if (!isOwnPageUrl(url)) return
+    webView.evaluateJavascript(RESUME_REFRESH_JS, null)
   }
 
   private inner class ShellBridge {
@@ -606,6 +766,51 @@ class MainWebActivity : AppCompatActivity() {
     /** 是否具备本地闹钟桥 */
     @JavascriptInterface
     fun hasReminderBridge(): Boolean = true
+
+    /** 壳 versionName（与 UA / BuildConfig 一致） */
+    @JavascriptInterface
+    fun getVersionName(): String = BuildConfig.VERSION_NAME
+
+    /** 壳 versionCode；H5 优先用此判断更新，避免只 bump code 时漏提示 */
+    @JavascriptInterface
+    fun getVersionCode(): Int = BuildConfig.VERSION_CODE
+
+    /** 是否已忽略电池优化（提醒准点相关） */
+    @JavascriptInterface
+    fun isBatteryOptimizationExempt(): Boolean {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
+      return try {
+        val pm = getSystemService(PowerManager::class.java) ?: return true
+        pm.isIgnoringBatteryOptimizations(packageName)
+      } catch (_: Exception) {
+        true
+      }
+    }
+
+    /** 引导关闭电池优化；失败则打开应用详情 */
+    @JavascriptInterface
+    fun openBatteryOptimizationSettings() {
+      runOnUiThread {
+        try {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            startActivity(
+              Intent(
+                Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                Uri.parse("package:$packageName"),
+              ),
+            )
+            return@runOnUiThread
+          }
+        } catch (_: Exception) {
+          /* fallthrough */
+        }
+        try {
+          startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+        } catch (_: Exception) {
+          openAppSettings()
+        }
+      }
+    }
   }
 
   private fun requestNotificationsIfNeeded() {
@@ -745,6 +950,7 @@ class MainWebActivity : AppCompatActivity() {
   /** 安全区 + PWA 类标记（document-start 之后仍刷新，保证 body 也有类） */
   private fun injectShellChromeJs() {
     if (!::webView.isInitialized) return
+    if (!isOwnPageUrl(webView.url) && !isOwnPageUrl(lastGoodUrl)) return
     val t = formatCssPx(shellInsetsCss[0])
     val r = formatCssPx(shellInsetsCss[1])
     val b = formatCssPx(shellInsetsCss[2])
@@ -774,6 +980,7 @@ class MainWebActivity : AppCompatActivity() {
   }
 
   private fun showErrorPage(failingUrl: String?) {
+    dismissSplash()
     if (!failingUrl.isNullOrBlank() && !failingUrl.startsWith("data:")) {
       lastGoodUrl = failingUrl
     }
@@ -947,11 +1154,15 @@ class MainWebActivity : AppCompatActivity() {
   override fun onResume() {
     super.onResume()
     if (::webView.isInitialized) webView.onResume()
+    onShellForeground()
   }
 
   override fun onDestroy() {
     io.shutdownNow()
+    ArrayList(orphanTempWebViews).forEach { destroyTempWebView(it) }
+    orphanTempWebViews.clear()
     if (::webView.isInitialized) {
+      detachShellBridge()
       (webView.parent as? ViewGroup)?.removeView(webView)
       webView.destroy()
     }
@@ -963,31 +1174,18 @@ class MainWebActivity : AppCompatActivity() {
     const val HOST_ORIGIN = "https://2sc.prestoai.cn/"
     const val DEFAULT_URL = "https://2sc.prestoai.cn/"
     const val JS_BRIDGE = "PeiaiShell"
+    /** 开屏最长停留，避免弱网永久挡住 */
+    private const val SPLASH_MAX_MS = 4_000L
 
-    /** 与主屏幕 PWA 对齐：最早伪装 display-mode 与类名 */
-    private val DOCUMENT_START_JS = """
+    private val RESUME_REFRESH_JS = """
       (function(){
         try {
-          var ORIG = window.matchMedia.bind(window);
-          window.matchMedia = function(q) {
-            try {
-              if (typeof q === 'string' && /display-mode\s*:\s*(standalone|fullscreen|minimal-ui)/i.test(q)) {
-                return {
-                  matches: true,
-                  media: q,
-                  onchange: null,
-                  addListener: function(){},
-                  removeListener: function(){},
-                  addEventListener: function(){},
-                  removeEventListener: function(){},
-                  dispatchEvent: function(){ return false; }
-                };
-              }
-            } catch (e) {}
-            return ORIG(q);
-          };
-          var d = document.documentElement;
-          if (d) d.classList.add('android-shell', 'pwa-standalone');
+          if (navigator.serviceWorker) {
+            navigator.serviceWorker.getRegistration().then(function(r){
+              if (r) r.update();
+            });
+          }
+          window.dispatchEvent(new Event('peiai-shell-resume'));
         } catch (e) {}
       })();
     """.trimIndent()

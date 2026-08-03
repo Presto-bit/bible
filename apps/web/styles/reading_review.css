@@ -396,8 +396,8 @@ a.report-tile-link .muted {
   overscroll-behavior-y: contain;
   touch-action: pan-y;
 }
-html.android-shell .wrapped-story-scroller,
-body.android-shell .wrapped-story-scroller {
+/* 安卓壳 / standalone：关 smooth，避免 WebView 卡顿；标识类 android-shell 仅作 JS 诊断 */
+html.pwa-standalone .wrapped-story-scroller {
   scroll-behavior: auto;
 }
 .wrapped-story-loading {

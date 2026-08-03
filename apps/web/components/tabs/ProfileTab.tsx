@@ -546,15 +546,32 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
     if (consumeProfileQueryFlag('badges')) setBadgeOpen(true);
   }, [enabled, activeTab, pathname]);
 
-  // 设置 → 彼爱安装包：打开时拉官网版本，按端态常驻展示
+  // 设置 → 彼爱安装包：打开时拉官网版本 + 壳 versionCode（桥优先）
   useEffect(() => {
     if (!settingsOpen) return;
     let cancelled = false;
     setPackageRow(resolveAppPackageRow());
-    void fetchAndroidPackageMeta().then((meta) => {
+    void (async () => {
+      const meta = await fetchAndroidPackageMeta();
+      let shellVersion: string | null | undefined;
+      let shellVersionCode: number | null | undefined;
+      try {
+        const { readAndroidShellVersion } = await import('@/lib/android_shell_bridge');
+        const local = readAndroidShellVersion();
+        shellVersion = local.versionName;
+        shellVersionCode = local.versionCode;
+      } catch {
+        /* ignore */
+      }
       if (cancelled) return;
-      setPackageRow(resolveAppPackageRow({ meta }));
-    });
+      setPackageRow(
+        resolveAppPackageRow({
+          meta,
+          shellVersion,
+          shellVersionCode,
+        }),
+      );
+    })();
     return () => {
       cancelled = true;
     };

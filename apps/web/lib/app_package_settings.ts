@@ -26,6 +26,10 @@ export type AppPackageRow = {
   latestVersion?: string;
   /** 壳内本地 versionName */
   shellVersion?: string;
+  /** 官网 versionCode */
+  latestVersionCode?: number;
+  /** 壳内 versionCode（桥或 UA） */
+  shellVersionCode?: number;
   updateAvailable?: boolean;
 };
 
@@ -48,10 +52,32 @@ export async function fetchAndroidPackageMeta(): Promise<AndroidTwaMeta | null> 
   }
 }
 
-/** 从 UA 解析 PeiaiAndroidShell/1.0.1 */
-export function parseAndroidShellVersionName(ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''): string | null {
-  const m = ua.match(/PeiaiAndroidShell\/([0-9A-Za-z.+-]+)/i);
-  return m?.[1] || null;
+export type AndroidShellLocalVersion = {
+  versionName: string | null;
+  versionCode: number | null;
+};
+
+/**
+ * 从 UA 解析壳版本。
+ * 新格式：`PeiaiAndroidShell/1.0.9 (vc10)`；旧格式仅 versionName。
+ */
+export function parseAndroidShellVersion(
+  ua = typeof navigator !== 'undefined' ? navigator.userAgent : '',
+): AndroidShellLocalVersion {
+  const m = ua.match(/PeiaiAndroidShell\/([0-9A-Za-z.+-]+)(?:\s*\(vc(\d+)\))?/i);
+  if (!m) return { versionName: null, versionCode: null };
+  const code = m[2] ? parseInt(m[2], 10) : NaN;
+  return {
+    versionName: m[1] || null,
+    versionCode: Number.isFinite(code) ? code : null,
+  };
+}
+
+/** @deprecated 使用 parseAndroidShellVersion().versionName */
+export function parseAndroidShellVersionName(
+  ua = typeof navigator !== 'undefined' ? navigator.userAgent : '',
+): string | null {
+  return parseAndroidShellVersion(ua).versionName;
 }
 
 function versionParts(v: string): number[] {
@@ -75,34 +101,69 @@ export function isPackageVersionNewer(remote: string, local: string): boolean {
   return false;
 }
 
+/**
+ * 是否有新壳可更新。优先 versionCode（只 bump code 也能发现）；
+ * 无 code 时回退 versionName 比较。
+ */
+export function isAndroidShellUpdateAvailable(opts: {
+  latestName?: string | null;
+  latestCode?: number | null;
+  localName?: string | null;
+  localCode?: number | null;
+}): boolean {
+  const latestCode = opts.latestCode;
+  const localCode = opts.localCode;
+  if (
+    typeof latestCode === 'number'
+    && Number.isFinite(latestCode)
+    && typeof localCode === 'number'
+    && Number.isFinite(localCode)
+  ) {
+    return latestCode > localCode;
+  }
+  const latest = (opts.latestName || '').trim();
+  const local = (opts.localName || '').trim();
+  if (!latest || !local) return false;
+  return isPackageVersionNewer(latest, local);
+}
+
 export function resolveAppPackageRow(opts?: {
   platform?: InstallPlatform;
   meta?: AndroidTwaMeta | null;
   shellVersion?: string | null;
+  shellVersionCode?: number | null;
 }): AppPackageRow {
   const platform = opts?.platform ?? detectInstallPlatform();
   const meta = opts?.meta ?? null;
+  const parsed = isPeiaiAndroidShell() ? parseAndroidShellVersion() : { versionName: null, versionCode: null };
   const shellFromUa = opts?.shellVersion !== undefined
     ? opts.shellVersion
-    : isPeiaiAndroidShell()
-      ? parseAndroidShellVersionName()
-      : null;
+    : parsed.versionName;
   const shellVersion = shellFromUa || undefined;
+  const shellVersionCode = opts?.shellVersionCode !== undefined
+    ? opts.shellVersionCode ?? undefined
+    : parsed.versionCode ?? undefined;
   const latest = meta?.versionName?.trim() || undefined;
+  const latestCode = typeof meta?.versionCode === 'number' ? meta.versionCode : undefined;
   const latestLabel = latest ? `官网 ${latest}` : '官网安装包';
 
   // 安卓 WebView 壳
   if (isPeiaiAndroidShell() || shellVersion) {
-    const updateAvailable = Boolean(
-      latest && shellVersion && isPackageVersionNewer(latest, shellVersion),
-    );
+    const updateAvailable = isAndroidShellUpdateAvailable({
+      latestName: latest,
+      latestCode,
+      localName: shellVersion,
+      localCode: shellVersionCode ?? null,
+    });
     if (updateAvailable) {
       return {
         title: '更新安装包',
-        hint: `当前 ${shellVersion} → 可升到 ${latest}`,
+        hint: `当前 ${shellVersion || '?'}${shellVersionCode != null ? ` (${shellVersionCode})` : ''} → 可升到 ${latest || '?'}${latestCode != null ? ` (${latestCode})` : ''}`,
         action: 'download_apk',
         latestVersion: latest,
         shellVersion,
+        latestVersionCode: latestCode,
+        shellVersionCode,
         updateAvailable: true,
       };
     }
@@ -114,6 +175,8 @@ export function resolveAppPackageRow(opts?: {
       action: 'download_apk',
       latestVersion: latest,
       shellVersion,
+      latestVersionCode: latestCode,
+      shellVersionCode,
       updateAvailable: false,
     };
   }

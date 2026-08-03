@@ -5,18 +5,18 @@
   "launcherName": "彼爱",
   "display": "standalone",
   "themeColor": "#FFFCFA",
-  "themeColorDark": "#E32626",
+  "themeColorDark": "#FFFCFA",
   "navigationColor": "#FFFCFA",
   "backgroundColor": "#E32626",
   "startUrl": "/",
   "iconUrl": "https://2sc.prestoai.cn/icon-512.png",
   "maskableIconUrl": "https://2sc.prestoai.cn/icon-maskable-512.png",
-  "appVersionName": "1.0.7",
-  "appVersionCode": 8,
+  "appVersionName": "1.0.9",
+  "appVersionCode": 10,
   "shortcuts": [],
-  "generatorApp": "manual-twa",
+  "generatorApp": "manual-webview-shell",
   "webManifestUrl": "https://2sc.prestoai.cn/manifest.webmanifest",
-  "fallbackType": "customtabs",
+  "fallbackType": "webview",
   "features": {},
   "alphaDependencies": {},
   "enableNotifications": true,
@@ -27,5 +27,6 @@
   "orientation": "portrait-primary",
   "fingerprints": [
     "80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16"
-  ]
+  ],
+  "notes": "目录名 android-twa 为历史遗留；实现为 WebView 壳。backgroundColor=冷启动红底，themeColor=纸色壳层。"
 }

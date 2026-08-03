@@ -82,9 +82,15 @@ export default function PwaRegister() {
         if (reg) tryUpdate(reg);
       });
     };
+    const onShellResume = () => {
+      navigator.serviceWorker.getRegistration(scope).then((reg) => {
+        if (reg) tryUpdate(reg);
+      });
+    };
     document.addEventListener('visibilitychange', onVisible);
     window.addEventListener('pageshow', onVisible);
     window.addEventListener('focus', onVisible);
+    window.addEventListener('peiai-shell-resume', onShellResume);
 
     initNotificationServices();
 
@@ -94,6 +100,7 @@ export default function PwaRegister() {
       document.removeEventListener('visibilitychange', onVisible);
       window.removeEventListener('pageshow', onVisible);
       window.removeEventListener('focus', onVisible);
+      window.removeEventListener('peiai-shell-resume', onShellResume);
       navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
     };
   }, []);

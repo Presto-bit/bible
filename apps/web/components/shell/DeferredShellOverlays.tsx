@@ -7,6 +7,9 @@ const InstallBanner = dynamic(() => import('@/components/InstallPwaGuide'), { ss
 const InviteFriendNudge = dynamic(() => import('@/components/InviteFriendNudge'), { ssr: false });
 const WebOnboardingSheet = dynamic(() => import('@/components/WebOnboardingSheet'), { ssr: false });
 const PwaFirstOpenGuide = dynamic(() => import('@/components/PwaFirstOpenGuide'), { ssr: false });
+const AndroidShellHealthGuide = dynamic(() => import('@/components/AndroidShellHealthGuide'), {
+  ssr: false,
+});
 const ShareFunnelBootstrap = dynamic(() => import('@/components/ShareFunnelBootstrap'), { ssr: false });
 const ExternalBrowserSheet = dynamic(() => import('@/components/ExternalBrowserSheet'), { ssr: false });
 
@@ -17,6 +20,7 @@ export default function DeferredShellOverlays() {
       <InviteFriendNudge />
       <WebOnboardingSheet />
       <PwaFirstOpenGuide />
+      <AndroidShellHealthGuide />
       <ShareFunnelBootstrap />
       <ExternalBrowserSheet />
     </>

@@ -10,13 +10,17 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- 提醒准点：引导用户关闭电池优化（国产机常见） -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- API 28 及以下 DownloadManager 落盘到公共下载目录 -->
     <uses-permission
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
     <application
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
@@ -31,7 +35,7 @@
             android:exported="true"
             android:configChanges="orientation|screenSize|keyboardHidden|screenLayout|smallestScreenSize"
             android:launchMode="singleTask"
-            android:theme="@style/Theme.PeiaiTwa"
+            android:theme="@style/Theme.PeiaiTwa.Splash"
             android:windowSoftInputMode="adjustResize">
 
             <intent-filter>
@@ -62,8 +66,8 @@
             android:name=".BootReceiver"
             android:exported="false">
             <intent-filter>
+                <!-- 无 directBootAware：不听 LOCKED_BOOT_COMPLETED，避免未解密存储上空跑 -->
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>

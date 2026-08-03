@@ -334,8 +334,6 @@ html.pwa-standalone a[href] {
   background: var(--paper, #fffcfa);
 }
 
-html.android-shell .tab-keep-pane:not(.tab-keep-pane-active) .reader-fab-stack,
-html.android-shell .tab-keep-pane[hidden] .reader-fab-stack,
 html.pwa-standalone .tab-keep-pane:not(.tab-keep-pane-active) .reader-fab-stack,
 html.pwa-standalone .tab-keep-pane[hidden] .reader-fab-stack {
   display: none !important;
@@ -2476,17 +2474,13 @@ html:not([data-app-theme]) .card {
   width: 100%;
 }
 
-/* 卡间距离：margin 后备（勿为 0） */
+/* 卡间距离：margin 后备（勿为 0；WebView 常忽略 flex gap） */
 .home-page .home-growth-stack > * + * {
-  margin-top: 22px;
+  margin-top: 24px;
 }
 
 html.pwa-standalone .home-page .home-growth-stack {
   margin-bottom: 10px;
-}
-
-html.android-shell .home-page .home-growth-stack > * + * {
-  margin-top: 24px;
 }
 
 .home-onboarding-banner + .home-growth-stack {
@@ -2497,8 +2491,8 @@ html.android-shell .home-page .home-growth-stack > * + * {
 .home-page .home-media-row {
   display: flex;
   align-items: center;
-  /* 左媒与文案间距 */
-  gap: 22px;
+  /* gap 在部分 WebView 失效；间距用子项 margin */
+  gap: 0;
   width: 100%;
   box-sizing: border-box;
   margin: 0;
@@ -2519,14 +2513,7 @@ html.android-shell .home-page .home-growth-stack > * + * {
   transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
 }
 
-/* 安卓 WebView 常忽略 flex gap */
 .home-page .home-media-row > .home-media-body {
-  margin-left: 0;
-}
-html.android-shell .home-page .home-media-row {
-  gap: 0;
-}
-html.android-shell .home-page .home-media-row > .home-media-body {
   margin-left: 22px;
 }
 

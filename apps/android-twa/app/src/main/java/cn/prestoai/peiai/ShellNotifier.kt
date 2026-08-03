@@ -54,7 +54,7 @@ object ShellNotifier {
     val pi = PendingIntent.getActivity(context, notificationId, intent, flags)
 
     val notif = NotificationCompat.Builder(context, CHANNEL_REMINDER)
-      .setSmallIcon(R.mipmap.ic_launcher)
+      .setSmallIcon(R.drawable.ic_stat_notify)
       .setContentTitle(title.ifBlank { "彼爱" })
       .setContentText(body.ifBlank { "点开继续今天的阅读" })
       .setStyle(NotificationCompat.BigTextStyle().bigText(body.ifBlank { "点开继续今天的阅读" }))

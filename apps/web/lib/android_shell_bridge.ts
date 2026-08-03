@@ -24,6 +24,10 @@ type PeiaiShellBridge = {
   downloadUrl?: (url: string, fileName: string) => string;
   hasShareBridge?: () => boolean;
   hasReminderBridge?: () => boolean;
+  isBatteryOptimizationExempt?: () => boolean;
+  openBatteryOptimizationSettings?: () => void;
+  getVersionName?: () => string;
+  getVersionCode?: () => number;
 };
 
 function getShell(): PeiaiShellBridge | null {
@@ -216,6 +220,60 @@ export function openAndroidShellAppSettings(): void {
   } catch {
     /* ignore */
   }
+}
+
+/** 是否已忽略电池优化（旧壳无此桥时视为已免除，避免误弹） */
+export function isAndroidShellBatteryExempt(): boolean {
+  if (!isPeiaiAndroidShell()) return true;
+  const shell = getShell();
+  if (typeof shell?.isBatteryOptimizationExempt !== 'function') return true;
+  try {
+    return Boolean(shell.isBatteryOptimizationExempt());
+  } catch {
+    return true;
+  }
+}
+
+export function openAndroidShellBatterySettings(): void {
+  if (!isPeiaiAndroidShell()) return;
+  try {
+    const shell = getShell();
+    if (typeof shell?.openBatteryOptimizationSettings === 'function') {
+      shell.openBatteryOptimizationSettings();
+      return;
+    }
+    shell?.openAppSettings?.();
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 优先桥接读取壳版本；旧壳回退 UA（见 parseAndroidShellVersion） */
+export function readAndroidShellVersion(): {
+  versionName: string | null;
+  versionCode: number | null;
+} {
+  if (!isPeiaiAndroidShell()) return { versionName: null, versionCode: null };
+  const shell = getShell();
+  let versionName: string | null = null;
+  let versionCode: number | null = null;
+  try {
+    if (typeof shell?.getVersionName === 'function') {
+      const n = String(shell.getVersionName() || '').trim();
+      if (n) versionName = n;
+    }
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (typeof shell?.getVersionCode === 'function') {
+      const c = Number(shell.getVersionCode());
+      if (Number.isFinite(c) && c > 0) versionCode = Math.floor(c);
+    }
+  } catch {
+    /* ignore */
+  }
+  return { versionName, versionCode };
 }
 
 export function downloadViaAndroidShell(url: string, fileName?: string): boolean {

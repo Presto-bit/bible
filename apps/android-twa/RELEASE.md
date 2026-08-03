@@ -4,9 +4,12 @@
 
 | 变更类型 | 是否需重建 APK | 是否需卸载重装 |
 |----------|----------------|----------------|
-| 站点功能 / Web UI | 否 | 否（打开即新站） |
-| 壳 WebView / 启动逻辑 / 权限 | 是 | 建议卸载后装新包，或 `versionCode` 递增覆盖安装 |
+| 站点功能 / Web UI | 否 | 否（打开即新站；壳回前台会催 SW） |
+| 壳 WebView / 启动逻辑 / 权限 | 是 | `versionCode` 递增后覆盖安装即可；H5 会半屏提示 |
 | 签名证书变更 | 是（并更新 assetlinks.json） | 必须卸载重装 |
+
+当前壳版本见 `app/build.gradle.kts`。  
+`./scripts/build_and_publish.sh` 会同步：`downloads/biai-android.json`、`assetlinks.json`、`twa-manifest.json`。
 
 ## 发版壳包
 

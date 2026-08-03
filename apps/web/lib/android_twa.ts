@@ -1,4 +1,4 @@
-/** 彼爱 Android TWA 直装（不跳应用商店） */
+/** 彼爱 Android WebView 壳直装（目录/历史名常称 TWA；不跳应用商店） */
 
 export const ANDROID_TWA_PACKAGE_ID = 'cn.prestoai.peiai';
 

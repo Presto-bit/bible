@@ -11,7 +11,6 @@ class BootReceiver : BroadcastReceiver() {
     if (
       action == Intent.ACTION_BOOT_COMPLETED
       || action == Intent.ACTION_MY_PACKAGE_REPLACED
-      || action == Intent.ACTION_LOCKED_BOOT_COMPLETED
     ) {
       ReminderScheduler.rescheduleAll(context.applicationContext)
     }

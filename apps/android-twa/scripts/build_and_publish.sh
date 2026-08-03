@@ -100,7 +100,41 @@ cat > "$WELL/assetlinks.json" <<EOF
 ]
 EOF
 
+# 同步历史文件名 twa-manifest.json（实为 WebView 壳元数据）
+python3 - <<PY
+import json
+from pathlib import Path
+p = Path("twa-manifest.json")
+data = json.loads(p.read_text(encoding="utf-8")) if p.exists() else {}
+data.update({
+  "packageId": "cn.prestoai.peiai",
+  "host": "2sc.prestoai.cn",
+  "name": "彼爱",
+  "launcherName": "彼爱",
+  "display": "standalone",
+  "themeColor": "#FFFCFA",
+  "themeColorDark": "#FFFCFA",
+  "navigationColor": "#FFFCFA",
+  "backgroundColor": "#E32626",
+  "startUrl": "/",
+  "iconUrl": "https://2sc.prestoai.cn/icon-512.png",
+  "maskableIconUrl": "https://2sc.prestoai.cn/icon-maskable-512.png",
+  "appVersionName": "${VERSION_NAME}",
+  "appVersionCode": int("${VERSION_CODE}"),
+  "generatorApp": "manual-webview-shell",
+  "webManifestUrl": "https://2sc.prestoai.cn/manifest.webmanifest",
+  "fallbackType": "webview",
+  "fullScopeUrl": "https://2sc.prestoai.cn/",
+  "minSdkVersion": 26,
+  "orientation": "portrait-primary",
+  "fingerprints": ["${CERT_SHA}"],
+  "notes": "目录名 android-twa 为历史遗留；实现为 WebView 壳。backgroundColor=冷启动红底，themeColor=纸色壳层。",
+})
+p.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+PY
+
 echo "OK: $WEB_DL/biai-android.apk (${BYTES} bytes)"
 echo "meta: $WEB_DL/biai-android.json"
 echo "DAL: $WELL/assetlinks.json"
+echo "manifest: $ROOT/twa-manifest.json → ${VERSION_NAME} (${VERSION_CODE})"
 echo "cert SHA-256: ${CERT_SHA}"

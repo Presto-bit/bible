@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { clientAssetUrl } from '@/lib/basePath';
-import { isAndroid, isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
 type Props = {
   /** 站点相对路径或绝对 URL，如 /daily-wallpapers/scenery-01.jpg */
@@ -33,10 +33,9 @@ function toCandidates(src: string): string[] {
     relative = `/${src}`;
   }
   const out: string[] = [];
-  // 绝对 URL 在 TWA WebView 更稳
+  // 绝对 URL 在壳 WebView 更稳，优先直出以加快首屏
   if (absolute) out.push(absolute);
   if (relative && relative !== absolute) out.push(relative);
-  // 缓存破除 query（生产若 304 坏缓存时的最后手段）
   if (absolute && !absolute.includes('?')) {
     out.push(`${absolute}?v=1`);
   }
@@ -47,7 +46,7 @@ async function fetchAsBlobUrl(url: string): Promise<string | null> {
   try {
     const res = await fetch(url, {
       credentials: 'same-origin',
-      cache: 'no-store',
+      cache: 'force-cache',
       mode: 'same-origin',
     });
     if (!res.ok) return null;
@@ -61,7 +60,8 @@ async function fetchAsBlobUrl(url: string): Promise<string | null> {
 }
 
 /**
- * 卡面风景铺底。TWA/安卓：blob 优先 + 真实 img onLoad 校验。
+ * 卡面风景铺底。
+ * 直出 URL 抢首帧；壳内若直链失败再走 blob 兜底（旧 WebView 缓存异常）。
  */
 export function WallpaperBg({
   src,
@@ -77,6 +77,7 @@ export function WallpaperBg({
   const candidatesRef = useRef<string[]>([]);
   const blobRef = useRef<string | null>(null);
   const readyRef = useRef(false);
+  const blobTriedRef = useRef(false);
   const onReadyRef = useRef(onReady);
   const onFailRef = useRef(onFail);
   onReadyRef.current = onReady;
@@ -84,6 +85,7 @@ export function WallpaperBg({
 
   useEffect(() => {
     readyRef.current = false;
+    blobTriedRef.current = false;
     if (!src) {
       candidatesRef.current = [];
       setDisplaySrc(null);
@@ -92,52 +94,45 @@ export function WallpaperBg({
       return;
     }
 
-    let cancelled = false;
-    const shellish =
-      typeof navigator !== 'undefined' && (isPeiaiAndroidShell() || isAndroid());
     const candidates = toCandidates(src);
     candidatesRef.current = candidates;
+    if (blobRef.current) {
+      URL.revokeObjectURL(blobRef.current);
+      blobRef.current = null;
+    }
+    setDisplaySrc(candidates[0] || null);
+    setAttempt(0);
 
-    const revokeBlob = () => {
+    return () => {
       if (blobRef.current) {
         URL.revokeObjectURL(blobRef.current);
         blobRef.current = null;
       }
     };
-    revokeBlob();
-    setAttempt(0);
-
-    void (async () => {
-      if (shellish) {
-        for (const url of candidates) {
-          if (cancelled) return;
-          const b = await fetchAsBlobUrl(url);
-          if (cancelled) {
-            if (b) URL.revokeObjectURL(b);
-            return;
-          }
-          if (b) {
-            revokeBlob();
-            blobRef.current = b;
-            candidatesRef.current = [b];
-            setDisplaySrc(b);
-            setAttempt(0);
-            return;
-          }
-        }
-      }
-      if (cancelled) return;
-      setDisplaySrc(candidates[0] || null);
-      setAttempt(0);
-    })();
-
-    return () => {
-      cancelled = true;
-      revokeBlob();
-    };
   }, [src]);
 
   if (!displaySrc) return null;
+
+  const tryBlobFallback = () => {
+    if (blobTriedRef.current || !isPeiaiAndroidShell()) return false;
+    blobTriedRef.current = true;
+    const urls = candidatesRef.current.filter((u) => !u.startsWith('blob:'));
+    void (async () => {
+      for (const url of urls) {
+        const b = await fetchAsBlobUrl(url);
+        if (b) {
+          if (blobRef.current) URL.revokeObjectURL(blobRef.current);
+          blobRef.current = b;
+          candidatesRef.current = [b];
+          setDisplaySrc(b);
+          setAttempt(0);
+          return;
+        }
+      }
+      onFailRef.current?.();
+    })();
+    return true;
+  };
 
   const tryNextOrFail = () => {
     if (readyRef.current) return;
@@ -148,6 +143,7 @@ export function WallpaperBg({
       setDisplaySrc(list[next]);
       return;
     }
+    if (tryBlobFallback()) return;
     onFailRef.current?.();
   };
 
@@ -171,7 +167,6 @@ export function WallpaperBg({
           const parent = img.parentElement;
           if (parent instanceof HTMLElement) {
             const paint = `url("${img.currentSrc || displaySrc}")`;
-            // 用 setProperty 避免与主题渐变 shorthand 冲突；供 img 不合成时的 WebView 后备
             parent.style.setProperty('background-image', paint);
             parent.style.setProperty('background-size', 'cover');
             parent.style.setProperty('background-position', objectPosition);

@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 应用壳层 / 页面纸色 -->
     <color name="colorPrimary">#FFFCFA</color>
-    <color name="colorPrimaryDark">#E32626</color>
+    <color name="colorPrimaryDark">#FFFCFA</color>
     <color name="navigationColor">#FFFCFA</color>
     <color name="navigationColorDark">#FFFCFA</color>
-    <color name="backgroundColor">#E32626</color>
+    <color name="backgroundColor">#FFFCFA</color>
+    <!-- 冷启动品牌开屏（对齐 iOS PWA / icon.png 红底） -->
+    <color name="splashBackground">#E32626</color>
 </resources>
