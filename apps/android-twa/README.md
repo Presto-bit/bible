@@ -14,6 +14,7 @@
 | 1.0.8 | Bridge 仅本域、拒定位空放行、临时 WebView 回收、回前台催 SW、电池优化引导、H5 更新半屏 |
 | 1.0.9 | 品牌开屏；首帧安全区烘焙；回前台不再硬刷首页；禁 Auto Backup / 混合内容；UA 暴露 versionCode |
 | **1.0.10** | 社交摘要本地通知桥；深链/返回走 SPA；发现 Tab 体验对齐 |
+| **1.0.11** | `clearWebViewCache` / `hardReloadFromOrigin`；应用内清缓存 + 版本对齐更彻底 |
 
 ## 包信息
 

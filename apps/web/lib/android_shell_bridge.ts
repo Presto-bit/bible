@@ -35,6 +35,10 @@ type PeiaiShellBridge = {
   openBatteryOptimizationSettings?: () => void;
   getVersionName?: () => string;
   getVersionCode?: () => number;
+  /** 清 WebView HTTP 缓存（1.0.11+）；不动 Cookie / localStorage */
+  clearWebViewCache?: () => string;
+  /** 清缓存后从官网硬进（1.0.11+） */
+  hardReloadFromOrigin?: () => string;
 };
 
 function getShell(): PeiaiShellBridge | null {
@@ -327,6 +331,33 @@ export function downloadViaAndroidShell(url: string, fileName?: string): boolean
   try {
     const r = shell.downloadUrl(url, fileName || '');
     return r === 'ok';
+  } catch {
+    return false;
+  }
+}
+
+/** 清系统 WebView HTTP 缓存；旧壳无桥时返回 false */
+export function clearAndroidShellWebViewCache(): boolean {
+  if (!isPeiaiAndroidShell()) return false;
+  const shell = getShell();
+  if (typeof shell?.clearWebViewCache !== 'function') return false;
+  try {
+    return shell.clearWebViewCache() === 'ok';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 壳内硬刷：清 HTTP 缓存并 load 官网 `/?_nc=`。
+ * 旧壳无桥时返回 false，调用方回退 location.replace。
+ */
+export function hardReloadAndroidShellFromOrigin(): boolean {
+  if (!isPeiaiAndroidShell()) return false;
+  const shell = getShell();
+  if (typeof shell?.hardReloadFromOrigin !== 'function') return false;
+  try {
+    return shell.hardReloadFromOrigin() === 'ok';
   } catch {
     return false;
   }

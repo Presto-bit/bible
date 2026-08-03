@@ -824,6 +824,58 @@ class MainWebActivity : AppCompatActivity() {
     @JavascriptInterface
     fun getVersionCode(): Int = BuildConfig.VERSION_CODE
 
+    /**
+     * 清 WebView HTTP 磁盘/内存缓存（不动 Cookie/localStorage）。
+     * H5 应用内「清除缓存」在卸 SW 前调用，否则只清 Cache API 仍会命中系统 HTTP 缓存。
+     * @return "ok"
+     */
+    @JavascriptInterface
+    fun clearWebViewCache(): String {
+      runOnUiThread {
+        try {
+          if (::webView.isInitialized) {
+            webView.clearCache(true)
+            webView.clearFormData()
+          }
+        } catch (_: Exception) {
+          /* ignore */
+        }
+      }
+      return "ok"
+    }
+
+    /**
+     * 清 HTTP 缓存后从官网首页硬进（带 _nc），绕开 SW/系统缓存旧壳。
+     * 比 location.reload 更彻底；完成后 15s 内 LOAD_NO_CACHE。
+     * @return "ok"
+     */
+    @JavascriptInterface
+    fun hardReloadFromOrigin(): String {
+      runOnUiThread {
+        try {
+          if (!::webView.isInitialized) return@runOnUiThread
+          webView.clearCache(true)
+          webView.clearFormData()
+          webView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+          val bust = System.currentTimeMillis()
+          webView.loadUrl("${DEFAULT_URL}?_nc=$bust")
+          lastGoodUrl = DEFAULT_URL
+          webView.postDelayed({
+            try {
+              if (::webView.isInitialized) {
+                webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
+              }
+            } catch (_: Exception) {
+              /* ignore */
+            }
+          }, 15_000L)
+        } catch (_: Exception) {
+          /* ignore */
+        }
+      }
+      return "ok"
+    }
+
     /** 是否已忽略电池优化（提醒准点相关） */
     @JavascriptInterface
     fun isBatteryOptimizationExempt(): Boolean {

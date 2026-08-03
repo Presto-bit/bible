@@ -5,7 +5,7 @@
 ## 资源可达
 
 - [ ] `https://2sc.prestoai.cn/downloads/biai-android.apk` 可下载
-- [ ] `https://2sc.prestoai.cn/downloads/biai-android.json` 版本 ≥ **1.0.10 / versionCode 11**
+- [ ] `https://2sc.prestoai.cn/downloads/biai-android.json` 版本 ≥ **1.0.11 / versionCode 12**
 - [ ] 壳内 `meta[name=app-version]` 与线上一致（壁纸/圣经点击/我的设置属 H5，不靠 APK 版本）
 - [ ] `https://2sc.prestoai.cn/.well-known/assetlinks.json` 返回 JSON（App Links）
 - [ ] UA 含 `PeiaiAndroidShell/… (vc…)`；`PeiaiShell.getVersionCode()` 与 meta 对齐
