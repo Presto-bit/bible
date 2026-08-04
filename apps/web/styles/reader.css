@@ -343,7 +343,7 @@ body.reader-active .proper-noun--artifact {
   display: flex;
   align-items: baseline;
   gap: 10px;
-  margin: 6px 0 14px;
+  margin: 4px 0 12px;
 }
 .reader-select-hint {
   font-size: 11px;
@@ -701,8 +701,14 @@ a.license-row-name:hover {
 }
 .reader-page {
   --reader-sel-bg: rgba(51, 144, 255, 0.28);
-  /* 与浮动 Tab 一次对齐（勿叠安全区两遍），底白与 PWA 一致 */
-  --reader-scroll-bottom: calc(var(--tabbar-inner) + var(--tabbar-float-gap) + 4px);
+  /*
+   * 顶/底 chrome 成对 token（P0/P1）
+   * - chrome-top：fixed 顶栏占位，防「约翰福音 · 第 N 章」被挡
+   *   ≈ safe-top + 顶栏内容行（~44）+ 上下内边 10
+   * - scroll-bottom：章末呼吸，只清 FAB/底栏边缘，勿用整颗 tabbar-h 撑半屏空纸
+   */
+  --reader-chrome-top: calc(max(10px, var(--safe-top)) + 54px);
+  --reader-scroll-bottom: calc(48px + max(8px, var(--safe-bottom)));
   position: relative;
   display: flex;
   flex-direction: column;
@@ -792,9 +798,15 @@ body.reader-overlay-open .reader-page {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* 内容从顶栏下起画；勿与 app-body safe-top 叠两遍（reader-active 已清零） */
+  padding-top: var(--reader-chrome-top);
+  box-sizing: border-box;
+  transition: padding-top 0.28s ease;
 }
+/* 沉浸：顶栏滑出 → 成对收顶/底，只留安全区呼吸 */
 .reader-page.reader-chrome-hidden {
-  --reader-scroll-bottom: max(16px, var(--safe-bottom));
+  --reader-chrome-top: max(12px, var(--safe-top));
+  --reader-scroll-bottom: max(20px, var(--safe-bottom));
 }
 .reader-page.reader-chrome-hidden .reader-body {
   padding-bottom: 0;
@@ -934,12 +946,15 @@ body.reader-overlay-open .reader-page {
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  /* 防顶/底橡皮筋拉出过量纸色空白（壳 WebView） */
+  overscroll-behavior-y: contain;
 }
 .reader-turn-panel-peek .reader-turn-peek {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  overscroll-behavior-y: contain;
 }
 .reader-turn-panel-active .reader-turn-peek::-webkit-scrollbar,
 .reader-turn-panel-peek .reader-turn-peek::-webkit-scrollbar {
@@ -949,8 +964,10 @@ body.reader-overlay-open .reader-page {
 .reader-scroll-panel::after {
   content: '';
   display: block;
+  /* 章末仅一段呼吸，勿 min-height 撑满视口 */
   height: var(--reader-scroll-bottom);
   flex-shrink: 0;
+  pointer-events: none;
 }
 .reader-turn-peek-empty {
   display: flex;
@@ -977,6 +994,7 @@ body.reader-overlay-open .reader-page {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overscroll-behavior-y: contain;
 }
 .reader-scroll-panel::-webkit-scrollbar {
   display: none;
@@ -1267,6 +1285,9 @@ body.reader-overlay-open .reader-page {
   margin-bottom: 8px;
   padding-bottom: 0;
   border-bottom: none;
+  /* 顶栏避让已由 --reader-chrome-top 承担 */
+  position: relative;
+  z-index: 1;
 }
 .chapter-guide-tip {
   flex-basis: 100%;

@@ -822,8 +822,8 @@ export default function ReaderView({
     const barH = focusBarRef.current?.offsetHeight ?? 56;
     const margin = 16;
     const systemMenuReserve = 0;
-    const topReserve = chromeHidden ? 12 : 58;
-    const bottomReserve = chromeHidden ? 24 : 76;
+    const topReserve = chromeHidden ? 12 : 64;
+    const bottomReserve = chromeHidden ? 24 : 56;
     // 应用条优先在选区下方，与 iOS 系统菜单（多在上方）错开
     let top = selBottom + margin;
     if (top + barH > window.innerHeight - bottomReserve) {
