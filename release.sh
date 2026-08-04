@@ -119,15 +119,22 @@ assert_sw_fresh() {
     log "⚠️  $fail_msg"
     return 1
   fi
-  if ! printf '%s' "$body" | grep -qF "const CACHE = 'presto-bible-${expect_tok}'"; then
-    local got
-    got="$(printf '%s' "$body" | grep -oE "const CACHE = 'presto-bible-[^']+'" | head -1 || true)"
-    fail_msg="$label sw.js CACHE 烙印不符（期望 presto-bible-${expect_tok}，实际 ${got:-未解析}）"
+  # 勿用 `printf | grep -q`：pipefail 下 grep -q 早退会让 printf 吃 SIGPIPE(141)，误报烙印不符
+  local expect_cache="presto-bible-${expect_tok}"
+  local expect_assign="const CACHE = '${expect_cache}'"
+  if [[ "$body" != *"$expect_assign"* ]]; then
+    local got=""
+    if [[ "$body" =~ const[[:space:]]+CACHE[[:space:]]*=[[:space:]]*[\'\"]presto-bible-([^\'\"]+)[\'\"] ]]; then
+      got="presto-bible-${BASH_REMATCH[1]}"
+    fi
+    fail_msg="$label sw.js CACHE 烙印不符（期望 ${expect_cache}，实际 ${got:-未解析}）"
     if [[ "$strict" == "1" ]]; then die "$fail_msg"; fi
     log "⚠️  $fail_msg"
     return 1
   fi
-  if ! printf '%s' "$cache_h" | tr '[:upper:]' '[:lower:]' | grep -qE 'no-store|no-cache|max-age=0|must-revalidate'; then
+  local cache_lc
+  cache_lc="$(printf '%s' "$cache_h" | tr '[:upper:]' '[:lower:]')"
+  if [[ ! "$cache_lc" =~ (no-store|no-cache|max-age=0|must-revalidate) ]]; then
     fail_msg="$label sw.js Cache-Control 过宽（${cache_h:-缺失}）。浏览器会迟迟不下新 SW；应 no-store/no-cache（见 next.config + nginx location = /sw.js）"
     if [[ "$strict" == "1" ]]; then die "$fail_msg"; fi
     log "⚠️  $fail_msg"
