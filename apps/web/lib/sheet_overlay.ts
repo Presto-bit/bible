@@ -1,10 +1,11 @@
 /**
  * 全屏半屏遮罩统一策略（TWA / PWA 通用）：
- * 1) 遮罩必须可点关（onClick → onClose）
+ * 1) 遮罩必须可点关（Pressable/shellTap 或 onClick → onClose）
  * 2) 切主 Tab 可关（data-dismiss-on-tab-nav + presto-tab-nav / onTabAway）
  * 3) 必须挂 AppBodyPortal（层内 backdrop = absolute 填满，勿裸 createPortal 到 body）
  * 4) 高度/安全区用 --safe-top/bottom（含壳 --shell-inset），勿裸 env()/80vh
  * 5) 切 Tab / 壳 resume 时 purge，避免透明层永久吞全站点击
+ * 6) 五 Tab chrome / 开层主 CTA 用 Pressable（见 components/ui/Pressable），勿裸 onClick 指望安卓合成
  */
 
 /** dismiss / hard-remove 共用选择器（含透明吞点击层） */

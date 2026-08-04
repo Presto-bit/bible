@@ -14,6 +14,7 @@ import {
 import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useOnline } from '@/lib/use_online';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
+import { shellTapProps } from '@/lib/shell_tap';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
 // outline 为未选中态，filled 为选中态（与 App 的 NavigationDestination 行为一致）。
@@ -194,18 +195,11 @@ export default function BottomTabs() {
             aria-current={active ? 'page' : undefined}
             aria-label={needsNet ? `${t.label}，当前离线需联网` : t.label}
             title={needsNet ? '当前离线，此功能需联网' : undefined}
-            onClick={(e) => {
-              (e.currentTarget as HTMLButtonElement).blur();
-              go(t.href);
-            }}
             onContextMenu={(e) => e.preventDefault()}
-            onPointerUp={(e) => {
-              // 安卓 WebView 松手后仍画焦点方框：立刻 blur
-              (e.currentTarget as HTMLButtonElement).blur();
-            }}
-            onPointerCancel={(e) => {
-              (e.currentTarget as HTMLButtonElement).blur();
-            }}
+            {...shellTapProps({
+              onTap: () => go(t.href),
+              blurOnClick: true,
+            })}
           >
             <span className="tab-icon-wrap">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden>

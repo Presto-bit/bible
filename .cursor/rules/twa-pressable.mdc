@@ -1,0 +1,30 @@
+---
+description: TWA/安卓 WebView 可靠点击——Pressable / shellTap，禁止裸 onClick 指望合成
+globs: apps/web/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# TWA 点击韧性（Pressable）
+
+安卓 WebView / 彼爱壳上 `click` 常不触发或合成失败。这是系统性问题，不是个别按钮。
+
+## 必须
+
+- 五 Tab chrome、开 sheet/半屏、底栏、主 CTA：用 `Pressable`（`components/ui/Pressable`）或 `shellTapProps`（`lib/shell_tap`）。
+- 主动作在 pointer；`click` 仅桌面兜底；同按压 450ms 去重（防 toggle 开了又关）。
+- 开层前若需清透明吞点击层：`softRecover: true`（**仅 pointer 路径**，勿在 click 再跑）。
+- 左滑行内容区用 `phase: 'up'`，避免拖动被当成点击。
+- 新遮罩：`AppBodyPortal` + `DismissibleSheetBackdrop` / `data-dismiss-on-tab-nav`；高度吃 `--safe-*`。
+
+## 禁止
+
+- 五 Tab / 开层主路径裸 `onClick` 当唯一主动作。
+- 全局 `document` pointerdown 委托（易双触发、坏横滑/长按、伤 iOS PWA）。
+- 空闲态整页或 `.app-body` 上 `touch-action: none`（锁死其它 Tab、拖垮 click 合成）。
+- 读经层 `setPointerCapture`（壳上吞邻域词典/工具条点击）。
+- 开层后立刻对 click 跑 `softRecover` / purge（会清掉刚挂上的层）。
+
+## 与清锁管线的分工
+
+- **单点可靠**：`Pressable` / `shellTapProps`。
+- **整站死锁**（僵尸遮罩 / body class）：`purgeShellTouchBlockers` / `softRecoverShellTouch` / `ShellTouchGuard`——不能替代 Pressable。

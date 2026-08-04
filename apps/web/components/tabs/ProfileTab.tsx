@@ -84,6 +84,7 @@ import {
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 import { useConfirm } from '@/components/ui/ConfirmProvider';
 import { useToast } from '@/components/ui/ToastProvider';
+import { Pressable } from '@/components/ui/Pressable';
 import { subscribeLocalDataChanged } from '@/lib/local_data_events';
 import { getSyncState, subscribeSyncState, syncStateLabel } from '@/lib/sync_status';
 import { syncNow } from '@/lib/sync';
@@ -271,6 +272,7 @@ function FootprintCell({
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressFired = useRef(false);
   const startXY = useRef<{ x: number; y: number } | null>(null);
+  const openedAt = useRef(0);
   const label = count && count > 0 ? `${kind} · ${count}` : kind;
 
   const clearTimer = () => {
@@ -279,6 +281,13 @@ function FootprintCell({
       longPressTimer.current = null;
     }
     startXY.current = null;
+  };
+
+  const openOnce = () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - openedAt.current < 450) return;
+    openedAt.current = now;
+    onOpen();
   };
 
   return (
@@ -290,10 +299,10 @@ function FootprintCell({
       aria-label={isNew ? `${label}，有新内容` : label}
       onPointerDown={(e) => {
         if (e.pointerType === 'mouse' && e.button !== 0) return;
-        if (!onShare) return;
         longPressFired.current = false;
         clearTimer();
         startXY.current = { x: e.clientX, y: e.clientY };
+        if (!onShare) return;
         longPressTimer.current = setTimeout(() => {
           longPressTimer.current = null;
           longPressFired.current = true;
@@ -311,7 +320,18 @@ function FootprintCell({
         const dy = Math.abs(e.clientY - startXY.current.y);
         if (dx > 12 || dy > 12) clearTimer();
       }}
-      onPointerUp={clearTimer}
+      onPointerUp={(e) => {
+        const start = startXY.current;
+        const fired = longPressFired.current;
+        clearTimer();
+        if (fired) {
+          longPressFired.current = false;
+          return;
+        }
+        if (!start) return;
+        if (Math.abs(e.clientX - start.x) > 12 || Math.abs(e.clientY - start.y) > 12) return;
+        openOnce();
+      }}
       onPointerCancel={clearTimer}
       onPointerLeave={clearTimer}
       onContextMenu={(e) => {
@@ -325,7 +345,7 @@ function FootprintCell({
           longPressFired.current = false;
           return;
         }
-        onOpen();
+        openOnce();
       }}
     >
       {isNew ? <span className="profile-footprint-dot" aria-hidden /> : null}
@@ -1017,11 +1037,10 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
       <header className="profile-head profile-greet-head">
         <div className="profile-head-top">
           <div className="profile-head-actions">
-            <button
-              type="button"
+            <Pressable
               className="icon-btn profile-head-icon-btn"
               aria-label="分享 App，邀请朋友一起读"
-              onClick={() => void inviteFriends()}
+              onTap={() => void inviteFriends()}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="18" cy="5" r="3" />
@@ -1030,32 +1049,30 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 <path d="M8.59 13.51 15.42 17.49" />
                 <path d="M15.41 6.51 8.59 10.49" />
               </svg>
-            </button>
-            <button
-              type="button"
+            </Pressable>
+            <Pressable
               className="icon-btn profile-head-icon-btn"
               aria-label="设置"
-              onClick={() => openSettings()}
+              onTap={() => openSettings()}
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="12" cy="12" r="3" />
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
-            </button>
+            </Pressable>
           </div>
         </div>
 
         <div className="profile-identity">
-          <button
-            type="button"
+          <Pressable
             className={`profile-avatar-btn${avatarUploading ? ' is-uploading' : ''}`}
-            onClick={() => setPickerOpen(true)}
+            onTap={() => setPickerOpen(true)}
             aria-label="更换头像"
             disabled={avatarUploading}
           >
             <Avatar id={avatarId} size={68} />
             {avatarUploading ? <span className="profile-avatar-spin" aria-hidden /> : null}
-          </button>
+          </Pressable>
           <div className="profile-meta">
             {nameEditing ? (
               <div className="profile-name-edit-wrap">
@@ -1355,19 +1372,18 @@ export default function ProfileTab({ paneActive = true }: { paneActive?: boolean
                 : []),
             ] as const
           ).map((tab) => (
-            <button
+            <Pressable
               key={tab.id}
-              type="button"
               role="tab"
               aria-selected={shortcut === tab.id}
               className={`profile-shortcut-tab tone-${tab.id}${shortcut === tab.id ? ' is-active' : ''}`}
-              onClick={() => selectShortcut(tab.id)}
+              onTap={() => selectShortcut(tab.id)}
             >
               <span className="profile-shortcut-tab-glyph" aria-hidden>
                 <ProfileGlyph name={tab.id} size={18} />
               </span>
               <strong>{tab.label}</strong>
-            </button>
+            </Pressable>
           ))}
         </div>
 

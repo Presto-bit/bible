@@ -53,6 +53,7 @@ import { refToChineseLabel } from '@/lib/ref_label';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { HistorySessionSwipeRow } from '@/components/assistant/HistorySessionSwipeRow';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import { Pressable } from '@/components/ui/Pressable';
 import {
   AssistantThinkingState,
   type ThinkingPhase,
@@ -922,15 +923,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
     <div className="assistant-composer">
       <div className="chip-swipe">
         {composerChips.map((c) => (
-          <button
+          <Pressable
             key={c.label}
-            type="button"
             className="chip-swipe-item"
             disabled={busy}
-            onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
+            onTap={() => send(c.q, c.mode, undefined, c.label, c.scene)}
           >
             {c.label}
-          </button>
+          </Pressable>
         ))}
       </div>
       <div className="assistant-compose">
@@ -967,22 +967,20 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             />
           )}
           {busy ? (
-            <button
-              type="button"
+            <Pressable
               className="compose-stop-inner is-active"
               aria-label="停止生成"
-              onClick={cancelStream}
+              onTap={cancelStream}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
                 <rect x="7" y="7" width="10" height="10" rx="1.5" />
               </svg>
-            </button>
+            </Pressable>
           ) : (
-            <button
-              type="button"
+            <Pressable
               className="compose-mode-inner"
               aria-label={voiceMode ? '切换键盘' : '切换语音'}
-              onClick={() => setVoiceMode((v) => !v)}
+              onTap={() => setVoiceMode((v) => !v)}
             >
               {voiceMode ? (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -995,7 +993,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   <path d="M5 11a7 7 0 0 0 14 0M12 18v3" />
                 </svg>
               )}
-            </button>
+            </Pressable>
           )}
         </div>
       </div>
@@ -1005,12 +1003,11 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   return (
     <main className="container assistant-page" aria-hidden={!paneActive}>
       <header className="assistant-head">
-        <button
-          type="button"
+        <Pressable
           className="assistant-title-btn"
           aria-label="打开历史会话"
           aria-expanded={historyOpen}
-          onClick={() => setHistoryOpen(true)}
+          onTap={() => setHistoryOpen(true)}
         >
           <strong>小爱</strong>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1018,16 +1015,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             <path d="M3 4v4h4" />
             <path d="M12 8v4l3 2" />
           </svg>
-        </button>
+        </Pressable>
         <div className="assistant-head-actions">
           {ref && readerHref ? (
-            <button
-              type="button"
+            <Pressable
               className="rail-cta"
-              onClick={() => navigateToReaderHref(readerHref, router)}
+              onTap={() => navigateToReaderHref(readerHref, router)}
             >
               {refToChineseLabel(ref) ?? ref} ›
-            </button>
+            </Pressable>
           ) : (
             <span />
           )}
@@ -1083,15 +1079,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 </p>
                 <div className="empty-pills">
                   {ASSISTANT_EMPTY_DEMOS.map((c) => (
-                    <button
+                    <Pressable
                       key={c.label}
-                      type="button"
                       className="font-pill"
                       disabled={busy}
-                      onClick={() => send(c.q, c.mode, undefined, c.label, c.scene)}
+                      onTap={() => send(c.q, c.mode, undefined, c.label, c.scene)}
                     >
                       {c.label}
-                    </button>
+                    </Pressable>
                   ))}
                 </div>
               </div>
@@ -1124,11 +1119,10 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                   ? citationsUsedInText(m.text, m.citations)
                   : [];
               const regenBtn = canRegen ? (
-                <button
-                  type="button"
+                <Pressable
                   className="assistant-regen-btn"
                   aria-label="重新生成"
-                  onClick={() => regenerateAssistantAt(i)}
+                  onTap={() => regenerateAssistantAt(i)}
                 >
                   <svg
                     className="assistant-regen-icon"
@@ -1146,7 +1140,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                     <polyline points="21 3 21 9 15 9" />
                   </svg>
                   <span>重新生成</span>
-                </button>
+                </Pressable>
               ) : null;
               return (
               <div
@@ -1281,15 +1275,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                       <div className="followup-row">
                         <span className="followup-row-label">相关追问</span>
                         {displayFollowups.map((q) => (
-                          <button
+                          <Pressable
                             key={q}
-                            type="button"
                             className="followup-chip"
                             disabled={busy}
-                            onClick={() => send(q, m.scene ? SCENES[resolveScene(m.scene, mode)].mode : 'explain', undefined, q, resolveScene(m.scene, mode))}
+                            onTap={() => send(q, m.scene ? SCENES[resolveScene(m.scene, mode)].mode : 'explain', undefined, q, resolveScene(m.scene, mode))}
                           >
                             {q}
-                          </button>
+                          </Pressable>
                         ))}
                       </div>
                     )}
@@ -1315,14 +1308,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             })}
           </div>
           {showJumpToBottom ? (
-            <button
-              type="button"
+            <Pressable
               className="assistant-scroll-jump"
               aria-label="滚动到最新输出"
-              onClick={() => unlockStreamFollow(true)}
+              onTap={() => unlockStreamFollow(true)}
             >
               {busy ? '↓ 跟随最新' : '↓ 查看全文'}
-            </button>
+            </Pressable>
           ) : null}
         </div>
         {composer}
@@ -1345,17 +1337,16 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
             >
               <div className="section-row" style={{ marginTop: 0 }}>
                 <strong>历史会话</strong>
-                <button type="button" className="btn" style={{ marginTop: 0 }} onClick={startNewSession}>
+                <Pressable className="btn" style={{ marginTop: 0 }} onTap={startNewSession}>
                   + 新会话
-                </button>
-                <button
-                  type="button"
+                </Pressable>
+                <Pressable
                   className="assistant-history-head-close"
                   aria-label="关闭历史会话"
-                  onClick={() => setHistoryOpen(false)}
+                  onTap={() => setHistoryOpen(false)}
                 >
                   ×
-                </button>
+                </Pressable>
               </div>
               <div className="assistant-history-body">
                 {sessions.length === 0 ? (
@@ -1370,10 +1361,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                           : (refToChineseLabel(group.label) ?? group.label);
                       return (
                         <div key={group.label} className="history-date-group">
-                          <button
-                            type="button"
+                          <Pressable
                             className="history-date-head"
-                            onClick={() =>
+                            onTap={() =>
                               setCollapsedGroups((prev) => ({
                                 ...prev,
                                 [group.label]: !collapsed,
@@ -1384,7 +1374,7 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                             <span className="muted" style={{ fontSize: 11 }}>
                               {group.items.length} 条 · {collapsed ? '展开' : '收起'}
                             </span>
-                          </button>
+                          </Pressable>
                           {!collapsed && group.items.map((s) => (
                             <HistorySessionSwipeRow
                               key={s.id}

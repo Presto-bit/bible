@@ -3,11 +3,11 @@
 import { useEffect, useRef } from 'react';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
-/** 相对键盘顶再上抬，避免输入框贴死键盘 */
-const LIFT_PX = 12;
-/** 壳上系统栏/手势条抖动常见 <100；真键盘多 ≥180 */
-const SHELL_GAP_FLOOR = 128;
-const PWA_GAP_FLOOR = 48;
+/** 相对键盘顶再上抬，确保能看见正在输入的文字 */
+const LIFT_PX = 20;
+/** 壳上系统栏/手势条抖动常见 <80；真键盘多 ≥120。门槛过高会误判「无键盘」→ 输入沉底被挡 */
+const SHELL_GAP_FLOOR = 96;
+const PWA_GAP_FLOOR = 40;
 const LAYOUT_SHRINK_FLOOR = 40;
 
 function pinDocScroll() {
@@ -44,8 +44,8 @@ function readTabbarReservePx(): number {
   return 84;
 }
 
-/** 输入区与底栏之间的呼吸间距 */
-const TAB_BREATH_PX = 10;
+/** 输入区底边与浮动 Tab 顶之间的呼吸间距（再叠 composer padding） */
+const TAB_BREATH_PX = 18;
 
 function isComposerFieldFocused(): boolean {
   const ae = document.activeElement;
@@ -120,15 +120,37 @@ export function useAssistantViewport(
       body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
     };
 
+    const ensureComposerVisible = () => {
+      const field = document.querySelector(
+        '.assistant-composer textarea, .assistant-composer input',
+      );
+      if (!(field instanceof HTMLElement)) return;
+      try {
+        field.scrollIntoView({ block: 'end', inline: 'nearest' });
+      } catch {
+        try {
+          field.scrollIntoView(false);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+
     const writeKeyboardHeight = (pageH: number, withVvLock: boolean) => {
       const h = Math.max(160, Math.round(pageH));
       root.style.setProperty('--assistant-page-h', `${h}px`);
-      root.style.setProperty('--assistant-overlay-h', `${h + LIFT_PX}px`);
+      // 历史抽屉等全屏层：始终用稳定壳高，勿跟键盘矮窗走，避免「点了没弹层」
+      root.style.setProperty(
+        '--assistant-overlay-h',
+        `${Math.max(h, baselineRef.current || h, Math.round(window.innerHeight || h))}px`,
+      );
       body.classList.add('assistant-keyboard');
       if (withVvLock) {
         root.style.setProperty('--assistant-vv-h', `${h}px`);
         body.classList.add('assistant-keyboard-vv');
-        root.style.setProperty('--assistant-kb-inset', `${LIFT_PX}px`);
+        // 高度已按 vv 收过；底距只留少量，避免双扣把输入再顶出视口
+        root.style.setProperty('--assistant-kb-inset', '10px');
+        ensureComposerVisible();
       } else {
         root.style.removeProperty('--assistant-vv-h');
         body.classList.remove('assistant-keyboard-vv');

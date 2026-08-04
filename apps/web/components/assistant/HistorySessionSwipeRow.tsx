@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from 'react';
 import { isFinePointerUI } from '@/lib/touch_ui';
+import { shellTapProps } from '@/lib/shell_tap';
 
 type Props = {
   children: ReactNode;
@@ -66,7 +67,7 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
     setOffsetSafe(cur < -OPEN_THRESHOLD ? -REVEAL_PX : 0);
   };
 
-  const handleContentClick = () => {
+  const handleContentTap = () => {
     if (offsetRef.current < -10) {
       setOffsetSafe(0);
       return;
@@ -82,11 +83,12 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
           className={`swipe-reveal-rename${revealed ? ' is-revealed' : ''}`}
           aria-label="改名"
           tabIndex={revealed ? 0 : -1}
-          onClick={(e) => {
-            e.stopPropagation();
-            setOffsetSafe(0);
-            onRename();
-          }}
+          {...shellTapProps({
+            onTap: () => {
+              setOffsetSafe(0);
+              onRename();
+            },
+          })}
         >
           <RenameIcon />
         </button>
@@ -95,11 +97,12 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
           className={`swipe-reveal-delete swipe-reveal-delete-icon${revealed ? ' is-revealed' : ''}`}
           aria-label="删除"
           tabIndex={revealed ? 0 : -1}
-          onClick={(e) => {
-            e.stopPropagation();
-            setOffsetSafe(0);
-            onDelete();
-          }}
+          {...shellTapProps({
+            onTap: () => {
+              setOffsetSafe(0);
+              onDelete();
+            },
+          })}
         >
           <DeleteIcon />
         </button>
@@ -110,10 +113,7 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
             type="button"
             className="swipe-reveal-desktop-btn"
             aria-label="改名"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRename();
-            }}
+            {...shellTapProps({ onTap: onRename })}
           >
             改名
           </button>
@@ -121,10 +121,7 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
             type="button"
             className="swipe-reveal-desktop-btn swipe-reveal-desktop-btn-delete"
             aria-label="删除"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
+            {...shellTapProps({ onTap: onDelete })}
           >
             删除
           </button>
@@ -137,7 +134,10 @@ export function HistorySessionSwipeRow({ children, onRename, onDelete, onOpen }:
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
         onTouchCancel={onTouchEnd}
-        onClick={handleContentClick}
+        {...shellTapProps({
+          onTap: handleContentTap,
+          phase: 'up',
+        })}
       >
         {children}
       </div>

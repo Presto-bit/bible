@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import { Pressable } from '@/components/ui/Pressable';
+import { shellTapProps } from '@/lib/shell_tap';
 
 const ITEMS = [
   { id: 'friend', label: '加好友', sub: '搜索 ID / 用户名', href: '/friend/add', icon: '👤' },
@@ -53,7 +55,7 @@ export default function PlusMenu({
         className="plus-menu-backdrop"
         data-dismiss-on-tab-nav
         data-shell-touch-blocker
-        onClick={onClose}
+        {...shellTapProps({ onTap: onClose })}
       />
       <div
         ref={menuRef}
@@ -63,12 +65,11 @@ export default function PlusMenu({
       >
         <div className="plus-menu-arrow" />
         {ITEMS.map((it) => (
-          <button
+          <Pressable
             key={it.id}
-            type="button"
             className="plus-menu-item"
             role="menuitem"
-            onClick={() => {
+            onTap={() => {
               onClose();
               router.push(it.href);
             }}
@@ -78,7 +79,7 @@ export default function PlusMenu({
               <strong>{it.label}</strong>
               <span className="muted">{it.sub}</span>
             </span>
-          </button>
+          </Pressable>
         ))}
       </div>
     </AppBodyPortal>

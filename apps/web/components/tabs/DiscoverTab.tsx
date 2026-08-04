@@ -33,6 +33,7 @@ import {
 import { useToast } from '@/components/ui/ToastProvider';
 import { userLsGet, userLsSet } from '@/lib/user_storage';
 import { notifyDiscoverUnreadChanged } from '@/lib/discover_unread';
+import { Pressable } from '@/components/ui/Pressable';
 
 const CONV_CACHE_KEY = 'presto_discover_conv_cache_v1';
 
@@ -469,11 +470,10 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
       <div className="discover-im-top">
         <h1 className="discover-im-title">消息</h1>
         <div className="discover-im-actions" ref={plusRef}>
-          <button
-            type="button"
+          <Pressable
             className="discover-im-contacts"
             aria-label="通讯录"
-            onClick={() => go('/discover/contacts')}
+            onTap={() => go('/discover/contacts')}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
               <circle cx="9" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.8" />
@@ -496,48 +496,44 @@ export default function DiscoverTab({ paneActive = true }: { paneActive?: boolea
                 {contactsBadge > 99 ? '99+' : contactsBadge}
               </span>
             ) : null}
-          </button>
-          <button
-            type="button"
+          </Pressable>
+          <Pressable
             className={`discover-im-plus${plusOpen ? ' is-open' : ''}`}
             aria-label="更多"
             aria-expanded={plusOpen}
-            onClick={() => setPlusOpen((v) => !v)}
+            onTap={() => setPlusOpen((v) => !v)}
           >
             ＋
-          </button>
+          </Pressable>
           {plusOpen ? (
             <div className="discover-im-plus-menu" role="menu">
-              <button
-                type="button"
+              <Pressable
                 role="menuitem"
-                onClick={() => {
+                onTap={() => {
                   setPlusOpen(false);
                   go('/group/create');
                 }}
               >
                 新建群
-              </button>
-                      <button
-                        type="button"
+              </Pressable>
+              <Pressable
                 role="menuitem"
-                onClick={() => {
+                onTap={() => {
                   setPlusOpen(false);
                   go('/discover/join');
                 }}
               >
                 加入群
-                      </button>
-                      <button
-                        type="button"
+              </Pressable>
+              <Pressable
                 role="menuitem"
-                onClick={() => {
+                onTap={() => {
                   setPlusOpen(false);
                   go('/friend/add');
                 }}
               >
                 加好友
-              </button>
+              </Pressable>
             </div>
           ) : null}
         </div>
