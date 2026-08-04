@@ -18,14 +18,34 @@ function pinDocScroll() {
   if (app instanceof HTMLElement) app.scrollTop = 0;
 }
 
-function readTabbarOuterH(): number {
+/** 底栏真正占位：视口底 → 浮动胶囊顶（含 float-gap），勿只用 pill 自身 height */
+function readTabbarReservePx(): number {
+  const layoutH = Math.round(window.innerHeight || 0);
   const el = document.querySelector('.tabbar');
-  if (el instanceof HTMLElement) {
-    const h = el.getBoundingClientRect().height;
-    if (h > 24) return Math.round(h);
+  if (el instanceof HTMLElement && layoutH > 80) {
+    const top = el.getBoundingClientRect().top;
+    if (top > 40 && top < layoutH) {
+      return Math.max(56, Math.round(layoutH - top));
+    }
   }
-  return 72;
+  // fallback：解析 --tabbar-h（含 float-gap + safe）
+  try {
+    const probe = document.createElement('div');
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText =
+      'position:absolute;left:0;top:0;visibility:hidden;pointer-events:none;height:var(--tabbar-h)';
+    document.documentElement.appendChild(probe);
+    const h = Math.round(probe.getBoundingClientRect().height);
+    probe.remove();
+    if (h > 40) return h;
+  } catch {
+    /* ignore */
+  }
+  return 84;
 }
+
+/** 输入区与底栏之间的呼吸间距 */
+const TAB_BREATH_PX = 10;
 
 function isComposerFieldFocused(): boolean {
   const ae = document.activeElement;
@@ -91,8 +111,8 @@ export function useAssistantViewport(
     let raf = 0;
 
     const writeIdleHeight = (shellH: number) => {
-      const tabH = readTabbarOuterH();
-      const pageH = Math.max(200, Math.round(shellH) - tabH);
+      const reserve = readTabbarReservePx();
+      const pageH = Math.max(200, Math.round(shellH) - reserve - TAB_BREATH_PX);
       root.style.setProperty('--assistant-page-h', `${pageH}px`);
       root.style.setProperty('--assistant-overlay-h', `${Math.round(shellH)}px`);
       root.style.removeProperty('--assistant-vv-h');

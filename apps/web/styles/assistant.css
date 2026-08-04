@@ -2,23 +2,29 @@
 /* lines 5726-6469 */
 /* ─── 小爱页 ─── */
 /* iOS 主屏幕 PWA 与安卓壳共用：勿再对 android-shell 另搞高度公式。
- * 高度优先 --assistant-page-h（JS 实测可视高 − 底栏）；fallback 才用 dvh。
- * body.assistant-active 清零 .app-body 的 tabbar padding，避免双扣「半屏」。 */
-.assistant-page {
+ * 高度优先 --assistant-page-h（JS：可视高 − 底栏顶占位 − 呼吸）；fallback 才用 dvh。
+ * body.assistant-active 清零 .app-body 的 tabbar padding，避免双扣「半屏」。
+ * 必须覆盖 .container 的 20/24 padding，否则输出区被吃掉、输入易沉入底栏下。 */
+.assistant-page.container,
+.container.assistant-page {
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
-  height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h)));
-  max-height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h)));
+  height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h) - 10px));
+  max-height: var(--assistant-page-h, calc(100dvh - var(--tabbar-h) - 10px));
   min-height: 0;
-  padding-top: max(10px, var(--safe-top));
-  /* 与浮动 Tab 间距：呼吸 8px，勿再叠一层 tabbar 占位 */
-  padding-bottom: 8px;
-  padding-left: 14px;
-  padding-right: 14px;
+  margin: 0 auto;
+  padding: max(10px, var(--safe-top)) 14px 0;
   overflow: hidden;
   touch-action: pan-y;
   position: relative;
+}
+
+/* 顶栏 / 提示条：不挤占对话 flex 份额 */
+.assistant-page > .assistant-head,
+.assistant-page > .offline-page-hint,
+.assistant-page > .assistant-quota-bar {
+  flex-shrink: 0;
 }
 
 /* 主栏：头 + 消息/空态 + 输入贴底，纵向铺满（PWA / 安卓壳同一套） */
@@ -38,6 +44,7 @@
 .assistant-body .assistant-composer {
   flex-shrink: 0;
   margin-top: auto;
+  padding-bottom: 10px;
 }
 /* 仅防内容区滚动；不要锁 html/body 高度（100svh 会让 fixed 底栏在 iOS 上偏高）
  * 勿对 .app-body 设 touch-action:none：assistant-active 残留时会锁死「我的」等 Tab 点击。 */
@@ -154,7 +161,7 @@ body.assistant-keyboard.assistant-active .tabbar {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  min-height: 260px;
+  min-height: 0;
   text-align: center;
 }
 /* 空态填充区：欢迎内容在上半区居中，输入已贴底 */
@@ -173,15 +180,15 @@ body.assistant-keyboard.assistant-active .tabbar {
   justify-content: center;
   box-sizing: border-box;
   min-height: 100%;
-  padding: 12px 4px 20px;
+  padding: 8px 4px 12px;
   text-align: center;
 }
 .assistant-empty-scene {
   position: relative;
-  width: min(100%, 320px);
-  margin: 0 auto 14px;
-  padding: 28px 20px 24px;
-  border-radius: 24px;
+  width: min(100%, 300px);
+  margin: 0 auto 10px;
+  padding: 20px 18px 18px;
+  border-radius: 20px;
   overflow: hidden;
   background:
     linear-gradient(165deg, color-mix(in srgb, var(--dawn-rose, #c45c6a) 12%, transparent) 0%, transparent 55%),
@@ -1266,7 +1273,7 @@ body.assistant-active .assistant-page {
   line-height: 1.7;
 }
 /* lines 9646-9699 */
-/* ─── 左侧抽屉（小爱历史） ─── */
+/* ─── 左侧抽屉（小爱历史会话） ─── */
 /* portal 内 absolute 由 globals.css 统一；此处只定义非 portal 兜底与侧栏内容 */
 .drawer-backdrop {
   position: fixed;
@@ -1284,15 +1291,15 @@ body.assistant-active .assistant-page {
   background: rgba(0, 0, 0, 0.4);
 }
 .drawer-left {
-  width: min(86vw, 360px);
+  width: min(82vw, 340px);
   min-width: 260px;
-  max-width: 360px;
+  max-width: 340px;
   height: 100%;
   max-height: 100%;
   box-sizing: border-box;
   background: var(--surface);
   box-shadow: 2px 0 16px rgba(0, 0, 0, 0.12);
-  padding: calc(14px + var(--safe-top)) 16px calc(12px + max(var(--safe-bottom), 12px));
+  padding: calc(14px + var(--safe-top)) 14px calc(12px + max(var(--safe-bottom), 12px));
   overflow: hidden;
   animation: drawer-in 0.22s ease;
   display: flex;
@@ -1309,6 +1316,23 @@ body.assistant-active .assistant-page {
 }
 .assistant-history-drawer .section-row {
   flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.assistant-history-head-close {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.assistant-history-head-close:active {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 .assistant-history-body {
   flex: 1 1 auto;
@@ -1317,6 +1341,10 @@ body.assistant-active .assistant-page {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   touch-action: pan-y;
+}
+.assistant-history-drawer .history-item.is-active {
+  outline: 1.5px solid color-mix(in srgb, var(--accent) 55%, var(--line));
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 .assistant-history-retention-hint {
   margin: 10px 0 0;

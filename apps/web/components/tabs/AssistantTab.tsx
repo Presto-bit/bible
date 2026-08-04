@@ -1005,9 +1005,15 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   return (
     <main className="container assistant-page" aria-hidden={!paneActive}>
       <header className="assistant-head">
-        <button type="button" className="assistant-title-btn" onClick={() => setHistoryOpen(true)}>
+        <button
+          type="button"
+          className="assistant-title-btn"
+          aria-label="打开历史会话"
+          aria-expanded={historyOpen}
+          onClick={() => setHistoryOpen(true)}
+        >
           <strong>小爱</strong>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-7 3.3" />
             <path d="M3 4v4h4" />
             <path d="M12 8v4l3 2" />
@@ -1342,6 +1348,14 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                 <button type="button" className="btn" style={{ marginTop: 0 }} onClick={startNewSession}>
                   + 新会话
                 </button>
+                <button
+                  type="button"
+                  className="assistant-history-head-close"
+                  aria-label="关闭历史会话"
+                  onClick={() => setHistoryOpen(false)}
+                >
+                  ×
+                </button>
               </div>
               <div className="assistant-history-body">
                 {sessions.length === 0 ? (
@@ -1378,7 +1392,9 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
                               onRename={() => handleRenameSession(s as Session)}
                               onDelete={() => handleDeleteSession(s as Session)}
                             >
-                              <div className="history-item">
+                              <div
+                                className={`history-item${s.id === activeId ? ' is-active' : ''}`}
+                              >
                                 <div className="history-item-top">
                                   <span className="history-item-title">{s.title}</span>
                                   <span className="muted" style={{ fontSize: 11 }}>
