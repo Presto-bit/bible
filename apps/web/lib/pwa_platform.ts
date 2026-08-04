@@ -1,5 +1,12 @@
 /** PWA 安装环境检测 */
 
+import {
+  isPeiaiAndroidCapabilityHost,
+  isPeiaiAndroidChromeHost,
+  isPeiaiAndroidShell as isPeiaiAndroidShellFromHost,
+  isPeiaiAndroidWebViewShell,
+} from '@/lib/android_host';
+
 export type InstallPlatform =
   | 'ios-safari'
   | 'ios-other'
@@ -8,6 +15,17 @@ export type InstallPlatform =
   | 'inapp'
   | 'desktop'
   | 'standalone';
+
+export {
+  isPeiaiAndroidChromeHost,
+  isPeiaiAndroidWebViewShell,
+  isPeiaiAndroidCapabilityHost,
+};
+
+/** 能力宿主（Chrome Host 2.0+ 或旧 WebView 壳） */
+export function isPeiaiAndroidShell(): boolean {
+  return isPeiaiAndroidShellFromHost();
+}
 
 export function isIOS(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -27,16 +45,11 @@ export function isInAppBrowser(): boolean {
   return /MicroMessenger|QQ\//i.test(navigator.userAgent);
 }
 
-export function isPeiaiAndroidShell(): boolean {
-  if (typeof navigator === 'undefined') return false;
-  return /PeiaiAndroidShell\//i.test(navigator.userAgent);
-}
-
 export function isStandalone(): boolean {
   if (typeof window === 'undefined') return false;
-  if (isPeiaiAndroidShell()) return true;
+  // 安装包宿主（Chrome TWA / 旧壳）视为已安装 standalone
+  if (isPeiaiAndroidCapabilityHost()) return true;
   const nav = window.navigator as Navigator & { standalone?: boolean };
-  // TWA / 主屏幕：standalone；部分环境会报 fullscreen / minimal-ui
   return (
     window.matchMedia('(display-mode: standalone)').matches
     || window.matchMedia('(display-mode: fullscreen)').matches

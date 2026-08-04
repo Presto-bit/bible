@@ -1,21 +1,21 @@
-/** 彼爱安卓 WebView 壳与 H5 桥接：状态栏、通知、分享、本地闹钟、下载 */
+/**
+ * 安卓安装包能力桥（白名单）：
+ * - Chrome Host 2.0+：peiai://host/v1/...
+ * - 旧 WebView 壳：window.PeiaiShell（只读兼容，不再扩展）
+ *
+ * 不做：社交原生通知中心、分享面板、状态栏染色、WebView 清缓存（Chrome 不需要）。
+ */
 
-import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import {
+  getAndroidHostVersion,
+  invokeAndroidCapability,
+  isPeiaiAndroidCapabilityHost,
+  isPeiaiAndroidChromeHost,
+  isPeiaiAndroidWebViewShell,
+} from '@/lib/android_host';
 
 type PeiaiShellBridge = {
-  setLightStatusBars?: (light: boolean) => void;
-  setStatusBarColor?: (colorHex: string) => void;
-  retry?: () => void;
-  openExternal?: (url: string) => void;
   requestNotifications?: () => void;
-  showNotification?: (
-    title: string,
-    body: string,
-    openPath: string,
-    tag: string,
-  ) => string;
-  hasNotificationBridge?: () => boolean;
-  share?: (title: string, text: string, url: string, imageDataUrl: string) => void;
   scheduleReminder?: (
     kind: string,
     enabled: number,
@@ -28,83 +28,47 @@ type PeiaiShellBridge = {
   cancelReminder?: (kind: string) => void;
   openAppSettings?: () => void;
   openExactAlarmSettings?: () => void;
-  downloadUrl?: (url: string, fileName: string) => string;
-  hasShareBridge?: () => boolean;
-  hasReminderBridge?: () => boolean;
-  isBatteryOptimizationExempt?: () => boolean;
   openBatteryOptimizationSettings?: () => void;
+  isBatteryOptimizationExempt?: () => boolean;
   getVersionName?: () => string;
   getVersionCode?: () => number;
-  /** 清 WebView HTTP 缓存（1.0.11+）；不动 Cookie / localStorage */
+  downloadUrl?: (url: string, fileName: string) => string;
+  openExternal?: (url: string) => void;
   clearWebViewCache?: () => string;
-  /** 清缓存后从官网硬进（1.0.11+） */
   hardReloadFromOrigin?: () => string;
+  /** 以下为旧壳遗留，新宿主不提供 */
+  showNotification?: (
+    title: string,
+    body: string,
+    openPath: string,
+    tag: string,
+  ) => string;
+  hasNotificationBridge?: () => boolean;
+  share?: (title: string, text: string, url: string, imageDataUrl: string) => void;
+  hasShareBridge?: () => boolean;
+  hasReminderBridge?: () => boolean;
+  setLightStatusBars?: (light: boolean) => void;
+  setStatusBarColor?: (colorHex: string) => void;
 };
 
 function getShell(): PeiaiShellBridge | null {
   if (typeof window === 'undefined') return null;
+  if (!isPeiaiAndroidWebViewShell()) return null;
   const w = window as Window & { PeiaiShell?: PeiaiShellBridge };
   return w.PeiaiShell ?? null;
 }
 
-/** 深色 UI（全站 dark / 阅读夜色）— 控制状态栏图标深浅，对齐 iOS 内容下沉 */
-function isShellNightUi(): boolean {
-  if (typeof document === 'undefined') return false;
-  const root = document.documentElement;
-  const body = document.body;
-  if (!body) return false;
-
-  if (
-    root.classList.contains('app-theme-dark')
-    || root.classList.contains('app-reader-night')
-    || root.classList.contains('group-reader-night')
-    || root.dataset.appTheme === 'dark'
-    || root.dataset.theme === 'dark'
-    || root.dataset.colorScheme === 'dark'
-    || body.classList.contains('reader-body-night')
-    || body.classList.contains('reader-theme-night')
-  ) {
-    return true;
-  }
-
-  if (
-    document.querySelector(
-      '.reader-page.reader-theme-night, .reader-page[data-reader-theme="night"]',
-    )
-  ) {
-    return true;
-  }
-
-  const meta = document.querySelector('meta[name="theme-color"]')?.getAttribute('content') || '';
-  if (/#0|#1[0-3]|#12|#12181c/i.test(meta)) return true;
-
-  return false;
-}
-
-/**
- * 与 iOS PWA black-translucent 一致：系统栏透明，页面自画背景；
- * 仅同步浅/深图标，避免再刷成实色与 H5 顶区色差。
- */
-function applyShellChrome() {
-  const shell = getShell();
-  if (!shell) return;
-  const night = isShellNightUi();
-  try {
-    shell.setLightStatusBars?.(!night);
-  } catch {
-    /* bridge 可能尚未就绪 */
-  }
-  // 复位为透明（edge-to-edge）；#AARRGGBB 全透明
-  try {
-    shell.setStatusBarColor?.('#00000000');
-  } catch {
-    /* optional */
-  }
+function enc(v: string): string {
+  return encodeURIComponent(v || '');
 }
 
 /** 打开提醒等场景：先申请系统通知权限（Android 13+） */
 export function requestAndroidShellNotifications(): void {
-  if (!isPeiaiAndroidShell()) return;
+  if (!isPeiaiAndroidCapabilityHost()) return;
+  if (isPeiaiAndroidChromeHost()) {
+    invokeAndroidCapability('v1/requestNotifications');
+    return;
+  }
   try {
     getShell()?.requestNotifications?.();
   } catch {
@@ -112,20 +76,24 @@ export function requestAndroidShellNotifications(): void {
   }
 }
 
+/** Chrome Host 不提供分享桥；旧壳若有则保留 */
 export function hasAndroidShellShare(): boolean {
-  if (!isPeiaiAndroidShell()) return false;
+  if (!isPeiaiAndroidWebViewShell()) return false;
   const shell = getShell();
   return typeof shell?.share === 'function';
 }
 
 export function hasAndroidShellReminder(): boolean {
-  if (!isPeiaiAndroidShell()) return false;
+  if (isPeiaiAndroidChromeHost()) return true;
+  if (!isPeiaiAndroidWebViewShell()) return false;
   const shell = getShell();
   return typeof shell?.scheduleReminder === 'function';
 }
 
+/** 社交摘要：新宿主走 Web Push；旧壳仍可读桥 */
 export function hasAndroidShellNotification(): boolean {
-  if (!isPeiaiAndroidShell()) return false;
+  if (isPeiaiAndroidChromeHost()) return false;
+  if (!isPeiaiAndroidWebViewShell()) return false;
   const shell = getShell();
   if (typeof shell?.hasNotificationBridge === 'function') {
     try {
@@ -137,10 +105,6 @@ export function hasAndroidShellNotification(): boolean {
   return typeof shell?.showNotification === 'function';
 }
 
-/**
- * 壳本地即时通知（社交摘要等）。进程被杀后不可达，需后续 FCM。
- * @returns true 已投递
- */
 export function showAndroidShellNotification(opts: {
   title: string;
   body: string;
@@ -161,10 +125,6 @@ export function showAndroidShellNotification(opts: {
   }
 }
 
-/**
- * 系统分享面板。imageDataUrl 可为 data URL 或空。
- * @returns true 已拉起面板；false 不可用
- */
 export function shareViaAndroidShell(opts: {
   title: string;
   text: string;
@@ -196,15 +156,28 @@ export function scheduleAndroidShellReminder(opts: {
   openPath?: string;
 }): boolean {
   if (!hasAndroidShellReminder()) return false;
+  const path =
+    opts.openPath
+    || (opts.kind === 'group' ? '/discover' : '/');
+  const hour = Math.max(0, Math.min(23, Math.floor(opts.hour)));
+  const minute = Math.max(0, Math.min(59, Math.floor(opts.minute)));
+
+  if (isPeiaiAndroidChromeHost()) {
+    return invokeAndroidCapability(
+      `v1/scheduleReminder?kind=${enc(opts.kind)}`
+        + `&enabled=${opts.enabled ? 1 : 0}`
+        + `&hour=${hour}&minute=${minute}`
+        + `&title=${enc(opts.title || '')}`
+        + `&body=${enc(opts.body || '')}`
+        + `&path=${enc(path)}`,
+    );
+  }
   try {
-    const path =
-      opts.openPath
-      || (opts.kind === 'group' ? '/discover' : '/');
     getShell()?.scheduleReminder?.(
       opts.kind,
       opts.enabled ? 1 : 0,
-      Math.max(0, Math.min(23, Math.floor(opts.hour))),
-      Math.max(0, Math.min(59, Math.floor(opts.minute))),
+      hour,
+      minute,
       opts.title || '',
       opts.body || '',
       path,
@@ -216,7 +189,11 @@ export function scheduleAndroidShellReminder(opts: {
 }
 
 export function cancelAndroidShellReminder(kind: 'daily' | 'group'): void {
-  if (!isPeiaiAndroidShell()) return;
+  if (!isPeiaiAndroidCapabilityHost()) return;
+  if (isPeiaiAndroidChromeHost()) {
+    invokeAndroidCapability(`v1/cancelReminder?kind=${enc(kind)}`);
+    return;
+  }
   try {
     getShell()?.cancelReminder?.(kind);
   } catch {
@@ -224,7 +201,7 @@ export function cancelAndroidShellReminder(kind: 'daily' | 'group'): void {
   }
 }
 
-/** 同步日读经 + 群晚间本地闹钟（壳内主路径，关 App 仍准点） */
+/** 同步日读经 + 群晚间本地闹钟（关 App 仍准点） */
 export async function syncAndroidShellAlarms(): Promise<void> {
   if (!hasAndroidShellReminder()) return;
   requestAndroidShellNotifications();
@@ -260,9 +237,12 @@ export async function syncAndroidShellAlarms(): Promise<void> {
   }
 }
 
-/** 打开应用详情设置（权限被拒绝时） */
 export function openAndroidShellAppSettings(): void {
-  if (!isPeiaiAndroidShell()) return;
+  if (!isPeiaiAndroidCapabilityHost()) return;
+  if (isPeiaiAndroidChromeHost()) {
+    invokeAndroidCapability('v1/openAppSettings');
+    return;
+  }
   try {
     getShell()?.openAppSettings?.();
   } catch {
@@ -270,9 +250,10 @@ export function openAndroidShellAppSettings(): void {
   }
 }
 
-/** 是否已忽略电池优化（旧壳无此桥时视为已免除，避免误弹） */
+/** Chrome Host 无法同步读电池状态：默认 false 以便引导一次；用户关掉半屏后冷却 */
 export function isAndroidShellBatteryExempt(): boolean {
-  if (!isPeiaiAndroidShell()) return true;
+  if (isPeiaiAndroidChromeHost()) return false;
+  if (!isPeiaiAndroidWebViewShell()) return true;
   const shell = getShell();
   if (typeof shell?.isBatteryOptimizationExempt !== 'function') return true;
   try {
@@ -283,7 +264,11 @@ export function isAndroidShellBatteryExempt(): boolean {
 }
 
 export function openAndroidShellBatterySettings(): void {
-  if (!isPeiaiAndroidShell()) return;
+  if (!isPeiaiAndroidCapabilityHost()) return;
+  if (isPeiaiAndroidChromeHost()) {
+    invokeAndroidCapability('v1/openBatterySettings');
+    return;
+  }
   try {
     const shell = getShell();
     if (typeof shell?.openBatteryOptimizationSettings === 'function') {
@@ -296,12 +281,20 @@ export function openAndroidShellBatterySettings(): void {
   }
 }
 
-/** 优先桥接读取壳版本；旧壳回退 UA（见 parseAndroidShellVersion） */
 export function readAndroidShellVersion(): {
   versionName: string | null;
   versionCode: number | null;
 } {
-  if (!isPeiaiAndroidShell()) return { versionName: null, versionCode: null };
+  const fromHost = getAndroidHostVersion();
+  if (fromHost.versionName || fromHost.versionCode != null) {
+    return {
+      versionName: fromHost.versionName,
+      versionCode: fromHost.versionCode,
+    };
+  }
+  if (!isPeiaiAndroidWebViewShell()) {
+    return { versionName: null, versionCode: null };
+  }
   const shell = getShell();
   let versionName: string | null = null;
   let versionCode: number | null = null;
@@ -324,21 +317,37 @@ export function readAndroidShellVersion(): {
   return { versionName, versionCode };
 }
 
+/** 壳内下载：Chrome Host 走系统/Chrome 下载；旧壳走 bridge */
 export function downloadViaAndroidShell(url: string, fileName?: string): boolean {
-  if (!isPeiaiAndroidShell()) return false;
+  if (isPeiaiAndroidChromeHost()) {
+    try {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName || '';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return true;
+    } catch {
+      window.location.href = url;
+      return true;
+    }
+  }
+  if (!isPeiaiAndroidWebViewShell()) return false;
   const shell = getShell();
   if (typeof shell?.downloadUrl !== 'function') return false;
   try {
-    const r = shell.downloadUrl(url, fileName || '');
-    return r === 'ok';
+    return shell.downloadUrl(url, fileName || '') === 'ok';
   } catch {
     return false;
   }
 }
 
-/** 清系统 WebView HTTP 缓存；旧壳无桥时返回 false */
+/** Chrome 托管缓存：无 WebView 缓存可清 */
 export function clearAndroidShellWebViewCache(): boolean {
-  if (!isPeiaiAndroidShell()) return false;
+  if (isPeiaiAndroidChromeHost()) return false;
+  if (!isPeiaiAndroidWebViewShell()) return false;
   const shell = getShell();
   if (typeof shell?.clearWebViewCache !== 'function') return false;
   try {
@@ -348,12 +357,18 @@ export function clearAndroidShellWebViewCache(): boolean {
   }
 }
 
-/**
- * 壳内硬刷：清 HTTP 缓存并 load 官网 `/?_nc=`。
- * 旧壳无桥时返回 false，调用方回退 location.replace。
- */
+/** 硬刷：Chrome Host 用标准 reload；旧壳可走 bridge */
 export function hardReloadAndroidShellFromOrigin(): boolean {
-  if (!isPeiaiAndroidShell()) return false;
+  if (isPeiaiAndroidChromeHost()) {
+    try {
+      const origin = `${window.location.origin}/?_nc=${Date.now()}`;
+      window.location.replace(origin);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (!isPeiaiAndroidWebViewShell()) return false;
   const shell = getShell();
   if (typeof shell?.hardReloadFromOrigin !== 'function') return false;
   try {
@@ -363,9 +378,18 @@ export function hardReloadAndroidShellFromOrigin(): boolean {
   }
 }
 
-/** 在系统浏览器打开外链 */
+/** 外链：Chrome Host 让浏览器处理；旧壳可 openExternal */
 export function openViaAndroidShellExternal(url: string): boolean {
-  if (!isPeiaiAndroidShell() || !url) return false;
+  if (!url) return false;
+  if (isPeiaiAndroidChromeHost()) {
+    try {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (!isPeiaiAndroidWebViewShell()) return false;
   try {
     getShell()?.openExternal?.(url);
     return true;
@@ -374,61 +398,25 @@ export function openViaAndroidShellExternal(url: string): boolean {
   }
 }
 
-/** 同步系统栏与主题；返回 cleanup */
+/** 通过能力宿主安装/更新 APK（仅 Chrome Host） */
+export function installAndroidPackageViaHost(apkUrl: string): boolean {
+  if (!isPeiaiAndroidChromeHost() || !apkUrl) return false;
+  return invokeAndroidCapability(`v1/installApk?url=${enc(apkUrl)}`);
+}
+
+/**
+ * 初始化：同步闹钟。Chrome Host 无需状态栏桥（由 Chrome / CSS 处理）。
+ */
 export function initAndroidShellBridge(): () => void {
   if (typeof window === 'undefined') return () => {};
-  if (!isPeiaiAndroidShell()) return () => {};
+  if (!isPeiaiAndroidCapabilityHost()) return () => {};
 
-  let raf = 0;
-  const scheduleChrome = () => {
-    if (raf) return;
-    raf = window.requestAnimationFrame(() => {
-      raf = 0;
-      applyShellChrome();
-    });
-  };
-
-  applyShellChrome();
   void syncAndroidShellAlarms();
-
-  const obs = new MutationObserver(() => scheduleChrome());
-  obs.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['class', 'data-theme', 'data-color-scheme', 'data-app-theme'],
-    subtree: false,
-  });
-  if (document.body) {
-    obs.observe(document.body, {
-      attributes: true,
-      attributeFilter: ['class'],
-      // 读经页 class 在子树；浅层观测即可覆盖 reader-* 
-      subtree: false,
-    });
-  }
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) {
-    obs.observe(themeMeta, { attributes: true, attributeFilter: ['content'] });
-  }
-
-  const onTheme = () => scheduleChrome();
-  window.addEventListener('app-theme-change', onTheme);
-  window.addEventListener('presto-theme-change', onTheme);
-  window.addEventListener('focus', onTheme);
-  window.addEventListener('storage', onTheme);
-
-  const t = window.setTimeout(applyShellChrome, 80);
   const t2 = window.setTimeout(() => {
     void syncAndroidShellAlarms();
   }, 1_200);
 
   return () => {
-    window.clearTimeout(t);
     window.clearTimeout(t2);
-    if (raf) window.cancelAnimationFrame(raf);
-    obs.disconnect();
-    window.removeEventListener('app-theme-change', onTheme);
-    window.removeEventListener('presto-theme-change', onTheme);
-    window.removeEventListener('focus', onTheme);
-    window.removeEventListener('storage', onTheme);
   };
 }

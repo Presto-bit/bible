@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- androidbrowserhelper：无 Chrome 时不回落 WebView -->
+    <bool name="provideFallback">false</bool>
+    <!-- Web Push 通知委托给系统托盘 -->
+    <bool name="enableNotificationDelegation">true</bool>
+</resources>

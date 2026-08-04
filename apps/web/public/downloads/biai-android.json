@@ -1,11 +1,13 @@
 {
   "packageId": "cn.prestoai.peiai",
-  "versionCode": 12,
-  "versionName": "1.0.11",
-  "bytes": 2657094,
-  "sha256": "2f3a101fd09e24d9cbcb5b029f3edcb9b8cf6ad9df6e4b0435e12d3b1daffd0b",
+  "versionCode": 20,
+  "versionName": "2.0.0",
+  "bytes": 2695536,
+  "sha256": "37cfd1eefe0a8829c4747fcf615558cf9a8117a4c4feed9c75be056bbc74e049",
   "downloadUrl": "/downloads/biai-android.apk",
   "iconUrl": "/downloads/biai-android-icon.png",
   "icon192Url": "/downloads/biai-android-icon-192.png",
-  "certSha256": "80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16"
+  "certSha256": "80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16",
+  "runtime": "chrome-twa",
+  "generatorApp": "android-pwa-host"
 }

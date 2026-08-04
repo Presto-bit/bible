@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { BASE_PATH } from '@/lib/basePath';
 import { clearAppCacheAndReload } from '@/lib/clear_app_cache';
 import { shouldDeferShellInterrupt } from '@/lib/im_session_gate';
-import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import { isPeiaiAndroidWebViewShell } from '@/lib/pwa_platform';
 import { purgeShellTouchBlockers } from '@/lib/sheet_overlay';
 
 const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
@@ -68,7 +68,8 @@ export default function StaleShellGuard() {
     const base = BASE_PATH || '';
     const home = `${base}/`;
     const swPath = `${base}/sw.js`;
-    const inShell = isPeiaiAndroidShell();
+    // 仅旧 WebView 壳需要激进 resume 对齐；Chrome Host 由浏览器托管 SW
+    const inShell = isPeiaiAndroidWebViewShell();
 
     let cancelled = false;
     let probing = false;

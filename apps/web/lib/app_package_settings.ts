@@ -58,12 +58,35 @@ export type AndroidShellLocalVersion = {
 };
 
 /**
- * 从 UA 解析壳版本。
- * 新格式：`PeiaiAndroidShell/1.0.9 (vc10)`；旧格式仅 versionName。
+ * 解析安装包版本：优先 Chrome Host 持久化标记，其次旧 WebView UA。
+ * 旧格式：`PeiaiAndroidShell/1.0.9 (vc10)`。
  */
 export function parseAndroidShellVersion(
   ua = typeof navigator !== 'undefined' ? navigator.userAgent : '',
 ): AndroidShellLocalVersion {
+  try {
+    // 避免循环依赖：动态读 localStorage 键（与 android_host 一致）
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem('peiai_android_host_v1');
+      if (raw) {
+        const data = JSON.parse(raw) as {
+          versionName?: string;
+          versionCode?: number;
+        };
+        if (data?.versionName) {
+          return {
+            versionName: data.versionName,
+            versionCode:
+              typeof data.versionCode === 'number' && data.versionCode > 0
+                ? data.versionCode
+                : null,
+          };
+        }
+      }
+    }
+  } catch {
+    /* fall through */
+  }
   const m = ua.match(/PeiaiAndroidShell\/([0-9A-Za-z.+-]+)(?:\s*\(vc(\d+)\))?/i);
   if (!m) return { versionName: null, versionCode: null };
   const code = m[2] ? parseInt(m[2], 10) : NaN;

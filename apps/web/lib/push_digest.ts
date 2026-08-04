@@ -72,23 +72,29 @@ export async function notifyDigestIfAllowed(): Promise<boolean> {
       ? `presto-group-${openPath}`
       : 'presto-digest';
 
+  // 仅旧 WebView 壳走原生社交摘要；Chrome Host / iOS 走 Web Notification / Web Push
   if (isPeiaiAndroidShell()) {
     try {
-      const { showAndroidShellNotification, requestAndroidShellNotifications } =
-        await import('./android_shell_bridge');
-      requestAndroidShellNotifications();
-      const key = `${tag}|${digest.body}|${digest.unread ?? 0}`;
-      if (key === lastShellDigestKey) return false;
-      const ok = showAndroidShellNotification({
-        title: digest.title || '彼爱',
-        body: digest.body,
-        openPath,
-        tag,
-      });
-      if (ok) lastShellDigestKey = key;
-      return ok;
+      const {
+        showAndroidShellNotification,
+        requestAndroidShellNotifications,
+        hasAndroidShellNotification,
+      } = await import('./android_shell_bridge');
+      if (hasAndroidShellNotification()) {
+        requestAndroidShellNotifications();
+        const key = `${tag}|${digest.body}|${digest.unread ?? 0}`;
+        if (key === lastShellDigestKey) return false;
+        const ok = showAndroidShellNotification({
+          title: digest.title || '彼爱',
+          body: digest.body,
+          openPath,
+          tag,
+        });
+        if (ok) lastShellDigestKey = key;
+        return ok;
+      }
     } catch {
-      return false;
+      /* fall through to Web Notification */
     }
   }
 

@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * 安卓壳健康引导（可关、零 guilt）：
- * - 壳有新版本 → 半屏更新
- * - 过旧壳（低于 1.0.4）→ 建议重装官网包
- * - 旧 TWA / 主屏幕快捷方式 → 引导装真正 App
- * - 已开提醒但未关电池优化 → 轻提示（国产机准点）
+ * 安卓安装包健康引导（可关、零 guilt）：
+ * - Chrome Host 有新版本 → 半屏更新
+ * - 旧 WebView 壳 → 引导覆盖安装 2.0+
+ * - 浏览器主屏幕快捷方式 → 引导装官网包
+ * - 已开提醒但未关电池优化 → 轻提示
  */
 
 import { useEffect, useRef, useState } from 'react';
@@ -23,7 +23,10 @@ import {
 import { markAndroidTwaInstallClaimed } from '@/lib/pwa_install_prompt';
 import { getReminder } from '@/lib/reminder';
 import { getGroupEveningReminder } from '@/lib/group_reminder';
-import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
+import {
+  isPeiaiAndroidCapabilityHost,
+  isPeiaiAndroidChromeHost,
+} from '@/lib/pwa_platform';
 import { shouldDeferShellInterrupt } from '@/lib/im_session_gate';
 import { useToast } from '@/components/ui/ToastProvider';
 
@@ -41,10 +44,8 @@ export default function AndroidShellHealthGuide() {
     let cancelled = false;
 
     const run = async (attempt = 0) => {
-      // 让首屏内容先出来
       await new Promise((r) => window.setTimeout(r, attempt === 0 ? 1_600 : 2_400));
       if (cancelled) return;
-      // IM / 已有全屏遮罩时不叠层，避免挡「我的」点击
       if (
         shouldDeferShellInterrupt()
         || document.querySelector('.sheet-backdrop')
@@ -60,7 +61,7 @@ export default function AndroidShellHealthGuide() {
         return;
       }
 
-      if (!isPeiaiAndroidShell() || isAndroidShellBatteryDismissed()) return;
+      if (!isPeiaiAndroidCapabilityHost() || isAndroidShellBatteryDismissed()) return;
       const dailyOn = getReminder().enabled;
       const groupOn = getGroupEveningReminder().enabled;
       if (!dailyOn && !groupOn) return;
@@ -84,7 +85,6 @@ export default function AndroidShellHealthGuide() {
     };
   }, []);
 
-  // 进入聊天时收起半屏，避免挡输入
   useEffect(() => {
     if (!sheet) return;
     const hideIfIm = () => {
@@ -104,18 +104,28 @@ export default function AndroidShellHealthGuide() {
     setSheet(null);
   };
 
-  const downloadUpdate = () => {
+  const downloadUpdate = async () => {
     if (!sheet || sheet.kind === 'battery') return;
     setBusy(true);
     try {
-      if (isPeiaiAndroidShell()) markAndroidTwaInstallClaimed();
+      if (isPeiaiAndroidCapabilityHost()) markAndroidTwaInstallClaimed();
+      const href = androidPackageDownloadHref();
       toast(
-        sheet.kind === 'legacy_standalone'
+        sheet.kind === 'legacy_standalone' || sheet.kind === 'legacy_webview'
           ? '开始下载安装包…装好后请打开桌面「彼爱」'
           : '正在下载更新包…',
       );
       dismissAndroidShellHealth(sheet.kind);
-      window.location.href = androidPackageDownloadHref();
+
+      if (isPeiaiAndroidChromeHost() && (sheet.kind === 'update' || sheet.kind === 'critical')) {
+        const { installAndroidPackageViaHost } = await import('@/lib/android_shell_bridge');
+        const absolute = new URL(href, window.location.origin).href;
+        if (installAndroidPackageViaHost(absolute)) {
+          setSheet(null);
+          return;
+        }
+      }
+      window.location.href = href;
     } finally {
       setBusy(false);
       setSheet(null);
@@ -142,23 +152,27 @@ export default function AndroidShellHealthGuide() {
       ? '让读经提醒更准时'
       : sheet.kind === 'legacy_standalone'
         ? '建议安装彼爱 App'
-        : sheet.kind === 'critical'
+        : sheet.kind === 'legacy_webview'
           ? '请更新彼爱安装包'
-          : '有新的安装包可用';
+          : sheet.kind === 'critical'
+            ? '请更新彼爱安装包'
+            : '有新的安装包可用';
 
   const body =
     sheet.kind === 'battery'
       ? '部分手机省电会推迟本地提醒。允许彼爱不受电池限制后，关 App 也能准点轻响一声。'
       : sheet.kind === 'legacy_standalone'
         ? '当前像浏览器快捷方式。安装官网包后无地址栏、提醒更稳，读经记录仍在账号里。'
-        : sheet.kind === 'critical'
-          ? `当前 ${'localVersion' in sheet ? sheet.localVersion : ''} 偏旧，安全区与壳内更新不完整。请下载官网包覆盖安装（不必卸载）。`
-          : `当前 ${'localVersion' in sheet ? sheet.localVersion : ''}，可升到 ${'latestVersion' in sheet ? sheet.latestVersion : ''}。覆盖安装即可，读经记录仍在。`;
+        : sheet.kind === 'legacy_webview'
+          ? `当前 ${'localVersion' in sheet ? sheet.localVersion : ''} 为旧版内核。请下载官网新包装盖安装（不必卸载），体验将与 iOS 主屏幕一致，读经记录仍在。`
+          : sheet.kind === 'critical'
+            ? `当前 ${'localVersion' in sheet ? sheet.localVersion : ''} 偏旧。请下载官网包覆盖安装（不必卸载）。`
+            : `当前 ${'localVersion' in sheet ? sheet.localVersion : ''}，可升到 ${'latestVersion' in sheet ? sheet.latestVersion : ''}。覆盖安装即可，读经记录仍在。`;
 
   const primary =
     sheet.kind === 'battery'
       ? '去系统设置'
-      : sheet.kind === 'legacy_standalone'
+      : sheet.kind === 'legacy_standalone' || sheet.kind === 'legacy_webview'
         ? '下载并安装'
         : '下载更新';
 
@@ -190,7 +204,7 @@ export default function AndroidShellHealthGuide() {
             disabled={busy}
             onClick={() => {
               if (sheet.kind === 'battery') void openBattery();
-              else downloadUpdate();
+              else void downloadUpdate();
             }}
           >
             {busy ? '请稍候…' : primary}

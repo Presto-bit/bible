@@ -2,7 +2,7 @@
 
 import { API_BASE, authHeaders, api } from './api';
 import { whenHomeBootstrapReady } from './offline_bootstrap';
-import { isPeiaiAndroidShell } from './pwa_platform';
+import { isPeiaiAndroidWebViewShell } from './pwa_platform';
 
 export type SocialCursor = {
   group_max?: string | null;
@@ -82,11 +82,11 @@ async function readSseStream(signal: AbortSignal): Promise<void> {
 function startSseLoop(signal: AbortSignal): void {
   void (async () => {
     while (!signal.aborted) {
-      // 普通 PWA：后台休眠省电；安卓壳保持读流以便本地社交摘要
+      // 普通 PWA / Chrome Host：后台休眠省电；仅旧 WebView 壳保持读流
       if (
         typeof document !== 'undefined'
         && document.visibilityState === 'hidden'
-        && !isPeiaiAndroidShell()
+        && !isPeiaiAndroidWebViewShell()
       ) {
         await new Promise((r) => setTimeout(r, 1500));
         continue;

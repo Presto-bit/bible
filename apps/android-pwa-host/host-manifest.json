@@ -1,0 +1,30 @@
+{
+  "packageId": "cn.prestoai.peiai",
+  "host": "2sc.prestoai.cn",
+  "name": "彼爱",
+  "launcherName": "彼爱",
+  "display": "standalone",
+  "themeColor": "#FFFCFA",
+  "themeColorDark": "#FFFCFA",
+  "navigationColor": "#FFFCFA",
+  "backgroundColor": "#E32626",
+  "startUrl": "/",
+  "iconUrl": "https://2sc.prestoai.cn/icon-512.png",
+  "maskableIconUrl": "https://2sc.prestoai.cn/icon-maskable-512.png",
+  "appVersionName": "2.0.0",
+  "appVersionCode": 20,
+  "shortcuts": [],
+  "generatorApp": "android-pwa-host",
+  "webManifestUrl": "https://2sc.prestoai.cn/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "runtime": "chrome-twa",
+  "features": {},
+  "enableNotifications": true,
+  "fullScopeUrl": "https://2sc.prestoai.cn/",
+  "minSdkVersion": 26,
+  "orientation": "portrait-primary",
+  "fingerprints": [
+    "80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16"
+  ],
+  "notes": "Chrome-hosted PWA 安装包：分发用 APK，渲染用 Chrome TWA；非 System WebView。"
+}

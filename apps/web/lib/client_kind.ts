@@ -1,7 +1,11 @@
 /** 首次触达客户端类型（与服务端 analytics.client_kind 对齐） */
 
 import { isStandalonePwa } from './platform';
-import { detectInstallPlatform, isPeiaiAndroidShell } from './pwa_platform';
+import {
+  detectInstallPlatform,
+  isPeiaiAndroidCapabilityHost,
+  isPeiaiAndroidChromeHost,
+} from './pwa_platform';
 
 export type ClientKind =
   | 'pwa'
@@ -12,10 +16,11 @@ export type ClientKind =
   | 'android'
   | 'unknown';
 
-/** 当前会话客户端：安卓壳 / PWA 优先；微信等内置浏览器；其余记为浏览器 */
+/** 当前会话客户端：安卓安装包 / PWA 优先；微信等内置浏览器；其余记为浏览器 */
 export function detectClientKind(): ClientKind {
   if (typeof window === 'undefined') return 'unknown';
-  if (isPeiaiAndroidShell()) return 'android_shell';
+  // Chrome Host 与 iOS PWA 同属浏览器 runtime，仍记 android_shell 以便分析安装包用户
+  if (isPeiaiAndroidCapabilityHost() || isPeiaiAndroidChromeHost()) return 'android_shell';
   if (isStandalonePwa()) return 'pwa';
   try {
     if (detectInstallPlatform() === 'inapp') return 'inapp';

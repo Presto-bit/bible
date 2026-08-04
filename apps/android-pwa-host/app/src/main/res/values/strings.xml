@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">彼爱</string>
+    <string name="launcherName">彼爱</string>
+    <string name="providerAuthority">cn.prestoai.peiai.fileprovider</string>
+    <string name="asset_statements">
+      [{
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+          \"namespace\": \"web\",
+          \"site\": \"https://2sc.prestoai.cn\"
+        }
+      }]
+    </string>
+    <string name="chromeRequired">请安装或启用 Chrome 后打开彼爱</string>
+    <string name="webDescription">安静读经，在话语中相遇</string>
+</resources>

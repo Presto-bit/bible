@@ -1,4 +1,4 @@
-/** 彼爱 Android WebView 壳直装（目录/历史名常称 TWA；不跳应用商店） */
+/** 彼爱 Android 官网安装包直装（Chrome-hosted；历史名常称 TWA） */
 
 export const ANDROID_TWA_PACKAGE_ID = 'cn.prestoai.peiai';
 
@@ -19,6 +19,9 @@ export type AndroidTwaMeta = {
   /** 安装包配套图标（站点 /downloads） */
   iconUrl?: string;
   icon192Url?: string;
+  /** chrome-twa = Chrome Host；缺省视为历史包 */
+  runtime?: string;
+  generatorApp?: string;
 };
 
 export function androidTwaApkUrl(basePath = ''): string {

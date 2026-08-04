@@ -52,6 +52,7 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     }
     setPreviewing(true);
     // 分享图延后：安卓壳上 canvas 很容易卡滑动
+    // 仅旧 WebView 壳延后画布；Chrome Host 与 Safari 同级
     const delay = /PeiaiAndroidShell\//i.test(navigator.userAgent) ? 700 : 180;
     const timer = window.setTimeout(() => {
       void renderWrappedSharePng(stats, { scale: 0.3 }).then((blob) => {
@@ -103,7 +104,7 @@ export default function WrappedStory({ stats, onShare, shareHint, sharing }: Pro
     const h = el.clientHeight || window.innerHeight;
     if (!h) return;
     const clamped = Math.max(0, Math.min(total - 1, i));
-    // 安卓 WebView 上 smooth 滚动易导致卡顿/无法翻页
+    // 仅旧 WebView 壳禁用 smooth；Chrome Host 可用
     const smooth = !/PeiaiAndroidShell\//i.test(navigator.userAgent);
     el.scrollTo({ top: clamped * h, behavior: smooth ? 'smooth' : 'auto' });
     setIndex(clamped);

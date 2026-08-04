@@ -235,7 +235,8 @@ sequenceDiagram
 |------|------|------|------|
 | **Flutter Web** | 与移动端 100% 同源、零重写 | CanvasKit 包体大（首屏慢）、**经文文本不可被 SEO 收录**、文本选择/复制体验差、PWA/SW 可控性弱 | ❌ 不选 |
 | **独立 Web（Next.js + React）** | 首屏/SEO 优、PWA 完全可控、与现有 **React canvas demo 同源**（组件可直接迁移）、包体小 | 需维护一套 Web UI | ✅ **采用** |
-| Capacitor 包壳 | 复用 Web | 仍是 WebView，移动端体验不及 Flutter | 仅作为 Web 上架补充（可选） |
+| Capacitor 包壳 | 复用 Web | 仍是 WebView，移动端体验不及 Flutter | ❌ 不采用 |
+| **官网 APK（Chrome Host）** | 分发可控、与 iOS PWA 同浏览器运行时 | 需 Digital Asset Links；无 Chrome 时降级提示 | ✅ 安卓安装主路径（`apps/android-pwa-host`） |
 
 **关键依据：** 圣经经文页是天然的 **SEO / 可分享内容**（每节经文一个可索引 URL），且 PWA 离线与本项目 **本地优先（§6）** 高度契合 —— 独立 Web 才能两者兼得。canvas demo 已是 React/TSX，可作为 Web UI 的起点，降低重写成本。
 

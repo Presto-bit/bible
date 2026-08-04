@@ -1,10 +1,10 @@
 /** 低端/省流判定与 Tab 保活策略 */
 
-import { isAndroid } from '@/lib/pwa_platform';
+import { isAndroid, isPeiaiAndroidCapabilityHost } from '@/lib/pwa_platform';
 
 export function isStandalonePwa(): boolean {
   if (typeof window === 'undefined') return false;
-  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) return true;
+  if (isPeiaiAndroidCapabilityHost()) return true;
   const nav = navigator as Navigator & { standalone?: boolean };
   return (
     window.matchMedia('(display-mode: standalone)').matches
@@ -25,10 +25,10 @@ type NavHints = Navigator & {
  */
 export function isLowEndDevice(): boolean {
   if (typeof window === 'undefined') return false;
-  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) {
+  // 已安装包：更宽松，避免误砍 UI（Chrome Host 与旧壳同策略）
+  if (isPeiaiAndroidCapabilityHost()) {
     const nav = navigator as NavHints;
     if (nav.connection?.saveData) return true;
-    // 壳内仅 2GB/2 核及以下算 lite
     if (typeof nav.deviceMemory === 'number' && nav.deviceMemory > 0 && nav.deviceMemory <= 2) {
       return true;
     }
@@ -64,7 +64,7 @@ export function isLowEndDevice(): boolean {
  */
 export function isTabKeepAliveEnabled(): boolean {
   if (typeof window === 'undefined') return false;
-  if (/PeiaiAndroidShell\//i.test(navigator.userAgent)) return true;
+  if (isPeiaiAndroidCapabilityHost()) return true;
   const nav = navigator as NavHints;
   if (nav.connection?.saveData) return false;
   const et = nav.connection?.effectiveType;
@@ -89,7 +89,7 @@ export function isFinePointerDesktop(): boolean {
 
 export function platformAccountHint(): string {
   if (isStandalonePwa()) {
-    if (/PeiaiAndroidShell\//i.test(navigator.userAgent) || isAndroid()) {
+    if (isPeiaiAndroidCapabilityHost() || isAndroid()) {
       return '已安装彼爱 App：请用手机号或用户 ID + 密码登录并等待同步完成。重装前务必已设密码；卸载重装后需重新登录才能拉回进度与成就。';
     }
     return '已保存到主屏幕：请用手机号或用户 ID + 密码登录并等待同步完成。重装前务必已设密码；删掉重装后需重新登录才能拉回进度与成就。';

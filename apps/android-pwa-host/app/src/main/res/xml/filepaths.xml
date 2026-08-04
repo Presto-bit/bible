@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <cache-path path="apk/" name="apk_cache" />
+    <cache-path path="share/" name="share_cache" />
+    <cache-path path="." name="cache_root" />
+    <files-path path="twa_splash/" name="twa_splash" />
+</paths>

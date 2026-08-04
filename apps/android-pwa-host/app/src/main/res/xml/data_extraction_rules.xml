@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 禁止云备份 / 换机传输 WebView 登录态与本地偏好 -->
+<data-extraction-rules>
+    <cloud-backup disabled="true" />
+    <device-transfer disabled="true" />
+</data-extraction-rules>

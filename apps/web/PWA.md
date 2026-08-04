@@ -49,19 +49,22 @@ cd apps/web && npm run generate-pwa
 ## 安装引导
 
 - 组件：`components/InstallPwaGuide.tsx`
-- **Android 主路径：安装包直装**（`/downloads/biai-android.apk`，WebView 全屏壳，不跳应用商店）；「添加到主屏幕」降为次要
+- **Android 主路径：官网安装包**（`/downloads/biai-android.apk`）  
+  - 工程：[`apps/android-pwa-host`](../android-pwa-host)（Chrome Trusted Web Activity）  
+  - **分发用 APK，渲染用 Chrome**；与 iOS Safari standalone 对齐  
+  - 旧 System WebView 壳（`apps/android-twa`）已冻结，引导覆盖安装 2.0+
 - iOS：仍为 Safari「添加到主屏幕」
 - 微信 / QQ：引导「用浏览器打开再安装」
 - 入口：底部 Banner、「我的 → 设置 → 安装彼爱」、新手/读后引导
-- 壳工程与冒烟：`apps/android-twa/`（见 README / SMOKE.md；主入口为 WebView 壳）
-- Digital Asset Links：`public/.well-known/assetlinks.json`（App Links）
+- Digital Asset Links：`public/.well-known/assetlinks.json`（无地址栏红线）
 
 ## Standalone 对齐
 
 - 竖屏：`manifest orientation: portrait-primary`
 - 外链：`lib/pwa_nav.ts` 同 tab 打开
+- 安卓能力宿主：`lib/android_host.ts` + `peiai://host/v1/*`（提醒 / APK 更新）
 - 发版 QA：`PWA_STANDALONE_QA` 清单（`lib/pwa_nav.ts`）
 
 ## 生效
 
-替换 `icon.svg` 后运行 `npm run generate-pwa`，构建部署。已安装用户需**删除旧快捷方式后重新添加**才能更新图标。Android 安装包用户业务更新随 Web 部署生效，无需重装 APK（壳改动 / 换签除外）。
+替换 `icon.svg` 后运行 `npm run generate-pwa`，构建部署。已安装用户需**删除旧快捷方式后重新添加**才能更新图标。Android 安装包用户业务更新随 Web 部署生效，无需重装 APK（容器 / 提醒宿主 / 换签除外）。

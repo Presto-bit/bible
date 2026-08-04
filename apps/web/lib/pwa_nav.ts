@@ -75,11 +75,11 @@ export function initPwaNavGuard() {
 export const PWA_STANDALONE_QA = [
   '主屏幕 / 安卓安装包名称为「彼爱」，图标一致',
   '启动图品牌屏（彼爱 + 安静读经），背景 #E32626；进站后壳层 #FFFCFA',
-  '竖屏锁定，无地址栏，底栏 Tab safe-area 正常',
-  '外链可在同一 WebView 内打开（PWA / 壳一致）；壳内 PeiaiShell 仅本域可用',
+  '竖屏锁定，无地址栏（assetlinks 校验通过），底栏 Tab safe-area 正常',
+  '安卓官网包以 Chrome 渲染（与 iOS Safari standalone 同级）；半屏/手势无需 WebView 特判',
   '深色主题时状态栏图标与底色与页面一致',
-  '读经提醒能弹出系统通知权限（Android 13+）；壳内可引导关闭电池优化',
-  '清除缓存提示不误导（读经/笔记保留）',
-  '发版后 SW bump；壳回前台 peiai-shell-resume / StaleShellGuard 可吃新包',
-  '壳有新 versionName 时半屏提示更新；旧 TWA/主屏幕可引导装官网包',
+  '读经提醒：Chrome Host 经 peiai:// 调度本地闹钟；可引导关闭电池优化',
+  '清除缓存提示不误导（读经/笔记保留）；Chrome Host 不依赖 clearWebViewCache',
+  '发版后 SW bump；Chrome 标准更新即可，无需壳内硬清 HTTP 缓存',
+  '安装包有新 versionName 时半屏提示更新；旧 WebView 壳 / 主屏幕快捷方式引导装 2.0+',
 ] as const;
