@@ -447,7 +447,8 @@ body.reader-active .proper-noun--artifact {
   right: 16px;
   /* tabbar-h 已含 safe-bottom，只再垫 8px 呼吸 */
   bottom: calc(var(--tabbar-h) + 8px);
-  z-index: 88;
+  /* 高于底栏（~90/95），避免 TWA 上命中落到 tabbar */
+  z-index: 96;
   display: flex;
   flex-direction: column;
   align-items: flex-end;

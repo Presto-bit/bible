@@ -143,6 +143,8 @@ import {
   readerBackHref,
 } from '@/lib/reader_return';
 import { clearReaderChrome } from '@/lib/reader_chrome';
+import { softRecoverShellTouch } from '@/lib/sheet_overlay';
+import { shellTapProps } from '@/lib/shell_tap';
 import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
   applyAppTheme,
@@ -2918,12 +2920,10 @@ export default function ReaderView({
           <button
             type="button"
             className="reader-version"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              openVersionPicker();
-            }}
+            {...shellTapProps({
+              preventDefault: true,
+              onTap: () => openVersionPicker(),
+            })}
           >
             {versionLabel}
           </button>
@@ -2934,13 +2934,13 @@ export default function ReaderView({
               className={`reader-loc${locPopoverOpen ? ' is-open' : ''}`}
               aria-expanded={locPopoverOpen}
               aria-haspopup="dialog"
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                setChromeHidden(false);
-                setLocPopoverOpen((v) => !v);
-              }}
+              {...shellTapProps({
+                preventDefault: true,
+                onTap: () => {
+                  setChromeHidden(false);
+                  setLocPopoverOpen((v) => !v);
+                },
+              })}
             >
               {bookAbbr(book.name)} {chapter}
               <span className="reader-loc-chevron" aria-hidden>▾</span>
@@ -2949,12 +2949,12 @@ export default function ReaderView({
           <button
             type="button"
             className="reader-summary-btn"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              setChromeHidden(false);
-              setSummaryOpen(true);
-            }}
+            {...shellTapProps({
+              onTap: () => {
+                setChromeHidden(false);
+                setSummaryOpen(true);
+              },
+            })}
           >
             概要
           </button>
@@ -2965,6 +2965,7 @@ export default function ReaderView({
             className="reader-icon-btn"
             aria-label="搜索"
             onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <circle cx="11" cy="11" r="7" />
@@ -2974,19 +2975,19 @@ export default function ReaderView({
           <button
             type="button"
             className="reader-more"
-            onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              setChromeHidden(false);
-              // 同步打开：TWA 上排队在经文重绘后会导致「点了半秒才出」
-              try {
-                dismissNativeSelection();
-              } catch {
-                /* ignore */
-              }
-              setShowSettings(true);
-            }}
+            {...shellTapProps({
+              preventDefault: true,
+              onTap: () => {
+                setChromeHidden(false);
+                // 同步打开：TWA 上排队在经文重绘后会导致「点了半秒才出」
+                try {
+                  dismissNativeSelection();
+                } catch {
+                  /* ignore */
+                }
+                setShowSettings(true);
+              },
+            })}
             aria-label="阅读设置"
           >
             ⋮
@@ -3079,7 +3080,7 @@ export default function ReaderView({
           <button
             type="button"
             className="reader-fab reader-fab-plan-exit reader-fab-sm"
-            onClick={(e) => { e.stopPropagation(); onPlanExit(); }}
+            {...shellTapProps({ onTap: () => onPlanExit() })}
             aria-label="退出计划模式"
           >
             退出计划
@@ -3089,7 +3090,7 @@ export default function ReaderView({
           <button
             type="button"
             className="reader-fab reader-fab-group reader-fab-sm"
-            onClick={(e) => { e.stopPropagation(); setGroupCheckinOpen(true); }}
+            {...shellTapProps({ onTap: () => setGroupCheckinOpen(true) })}
             aria-label="打卡到共读群"
           >
             {groupCtx.groupId ? '打卡到群' : '打卡'}
@@ -3098,11 +3099,12 @@ export default function ReaderView({
           <button
             type="button"
             className="reader-fab reader-fab-group reader-fab-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              flashToast('加入共读群后可在读经页打卡');
-              window.location.assign('/discover');
-            }}
+            {...shellTapProps({
+              onTap: () => {
+                flashToast('加入共读群后可在读经页打卡');
+                window.location.assign('/discover');
+              },
+            })}
             aria-label="打卡（需加入共读群）"
           >
             打卡
@@ -3111,17 +3113,11 @@ export default function ReaderView({
         <button
           type="button"
           className="reader-fab"
-          onPointerDown={(e) => {
-            e.stopPropagation();
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            (e.currentTarget as HTMLButtonElement).blur();
-            openAiSheet();
-          }}
-          onPointerUp={(e) => {
-            (e.currentTarget as HTMLButtonElement).blur();
-          }}
+          {...shellTapProps({
+            blurOnClick: true,
+            beforePointerTap: () => softRecoverShellTouch(),
+            onTap: () => openAiSheet(),
+          })}
           aria-label="问小爱"
         >
           ✦ 小爱
@@ -3208,16 +3204,18 @@ export default function ReaderView({
             <button
               type="button"
               className="vsb-icon-btn"
-              onClick={() => {
-                setMarkPaletteOpen(false);
-                const text = `${effRefLabel} ${effSelectionText}`;
-                const done = () => {
-                  finishToolbarAction();
-                  flashToast(englishUI ? 'Copied' : '已复制');
-                };
-                // 先写入剪贴板，再清选区，避免蓝底残留；失败也收起选区
-                void navigator.clipboard.writeText(text).then(done, done);
-              }}
+              {...shellTapProps({
+                onTap: () => {
+                  setMarkPaletteOpen(false);
+                  const text = `${effRefLabel} ${effSelectionText}`;
+                  const done = () => {
+                    finishToolbarAction();
+                    flashToast(englishUI ? 'Copied' : '已复制');
+                  };
+                  // 先写入剪贴板，再清选区，避免蓝底残留；失败也收起选区
+                  void navigator.clipboard.writeText(text).then(done, done);
+                },
+              })}
             >
               <span className="vsb-icon" aria-hidden>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -3231,10 +3229,12 @@ export default function ReaderView({
               <button
                 type="button"
                 className="vsb-icon-btn"
-                onClick={() => {
-                  setMarkPaletteOpen(false);
-                  setVerseCardOpen(true);
-                }}
+                {...shellTapProps({
+                  onTap: () => {
+                    setMarkPaletteOpen(false);
+                    setVerseCardOpen(true);
+                  },
+                })}
               >
                 <span className="vsb-icon" aria-hidden>▣</span>
                 <span className="vsb-label">金句卡</span>
@@ -3244,28 +3244,32 @@ export default function ReaderView({
               <button
                 type="button"
                 className="vsb-icon-btn"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  selectionPinRef.current = effSelectionText;
-                }}
-                onClick={() => {
-                  setMarkPaletteOpen(false);
-                  // 必须在 clearSelection 前锁定到节 ref；否则会变成「卷.章」触发 compare 400
-                  const pinnedRef = hasSel
-                    ? `${book.id}.${chapter}.${minV}`
-                    : effRefParam;
-                  const pinnedLabel = hasSel
-                    ? (minV === maxV
-                      ? `${bookAbbr(book.name)} ${chapter}:${minV}`
-                      : `${bookAbbr(book.name)} ${chapter}:${minV}-${maxV}`)
-                    : effRefLabel;
-                  setVerseCompareCtx({
-                    refParam: pinnedRef,
-                    refLabel: pinnedLabel,
-                    selectionText: selectionPinRef.current || effSelectionText || undefined,
-                  });
-                  clearSelection();
-                }}
+                {...shellTapProps({
+                  preventDefault: true,
+                  beforePointerTap: () => {
+                    selectionPinRef.current = effSelectionText;
+                  },
+                  onTap: () => {
+                    const pinnedText = selectionPinRef.current || effSelectionText;
+                    selectionPinRef.current = pinnedText;
+                    setMarkPaletteOpen(false);
+                    // 必须在 clearSelection 前锁定到节 ref；否则会变成「卷.章」触发 compare 400
+                    const pinnedRef = hasSel
+                      ? `${book.id}.${chapter}.${minV}`
+                      : effRefParam;
+                    const pinnedLabel = hasSel
+                      ? (minV === maxV
+                        ? `${bookAbbr(book.name)} ${chapter}:${minV}`
+                        : `${bookAbbr(book.name)} ${chapter}:${minV}-${maxV}`)
+                      : effRefLabel;
+                    setVerseCompareCtx({
+                      refParam: pinnedRef,
+                      refLabel: pinnedLabel,
+                      selectionText: pinnedText || undefined,
+                    });
+                    clearSelection();
+                  },
+                })}
               >
                 <span className="vsb-icon" aria-hidden>
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
@@ -3280,20 +3284,25 @@ export default function ReaderView({
               <button
                 type="button"
                 className="vsb-icon-btn"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  selectionPinRef.current = effSelectionText;
-                  // 必须在 selection 被 WebView 收起、工具条卸载前打开；不要等 click
-                  setMarkPaletteOpen(false);
-                  setAiSheetContext({
-                    refParam: effRefParam,
-                    refLabel: effRefLabel,
-                    selectionText: selectionPinRef.current || effSelectionText,
-                  });
-                  setAiSheet(true);
-                  clearSelection();
-                }}
+                {...shellTapProps({
+                  preventDefault: true,
+                  beforePointerTap: () => {
+                    selectionPinRef.current = effSelectionText;
+                  },
+                  onTap: () => {
+                    // 必须在 selection 被 WebView 收起、工具条卸载前打开
+                    const pinnedText = selectionPinRef.current || effSelectionText;
+                    selectionPinRef.current = pinnedText;
+                    setMarkPaletteOpen(false);
+                    setAiSheetContext({
+                      refParam: effRefParam,
+                      refLabel: effRefLabel,
+                      selectionText: pinnedText,
+                    });
+                    setAiSheet(true);
+                    clearSelection();
+                  },
+                })}
               >
                 <span className="vsb-icon" aria-hidden>✦</span>
                 <span className="vsb-label">小爱</span>

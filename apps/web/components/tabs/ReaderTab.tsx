@@ -34,6 +34,7 @@ import { OfflineBibleCard } from '@/components/OfflineBibleCard';
 import { OfflineInlineNotice } from '@/components/OfflineInlineNotice';
 import { bookAbbr } from '@/lib/book_abbr';
 import { useOnline } from '@/lib/use_online';
+import { shellTapProps } from '@/lib/shell_tap';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
 import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
@@ -158,15 +159,10 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
               role="button"
               tabIndex={0}
               title={candidates.length > 1 ? '点击查看（可能有多义）' : '查看词典'}
-              onPointerDown={(e) => {
-                // 阻止冒泡到翻页 viewport，避免 setPointerCapture 抢手
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                handleNameClick(part, verse);
-              }}
+              {...shellTapProps({
+                preventDefault: true,
+                onTap: () => handleNameClick(part, verse),
+              })}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                   e.preventDefault();
