@@ -142,7 +142,7 @@ import {
   getReaderReturnHref,
   readerBackHref,
 } from '@/lib/reader_return';
-import { clearReaderChrome } from '@/lib/reader_chrome';
+import { clearReaderChrome, unlockReaderSurface } from '@/lib/reader_chrome';
 import { shellTapProps } from '@/lib/shell_tap';
 import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
@@ -2529,18 +2529,31 @@ export default function ReaderView({
   useEffect(() => {
     if (!overlayOpen) {
       document.body.classList.remove('reader-overlay-open');
-      return;
+      // 勿残留 inline overflow:hidden（关层时若 prev 已被污染会永远 hidden）
+      document.body.style.removeProperty('overflow');
+      // 关词典/半屏：剥 is-turning、空 portal、恢复横滑（壳上常见「只能竖滚」）
+      unlockReaderSurface();
+      const t0 = window.setTimeout(() => unlockReaderSurface(), 0);
+      const t1 = window.setTimeout(() => unlockReaderSurface(), 160);
+      return () => {
+        window.clearTimeout(t0);
+        window.clearTimeout(t1);
+      };
     }
-    // 仅 body class 锁页级滚动；勿对 content 写 touch-action:none
+    // 仅 body class + overflow；勿对 content 写 touch-action:none
     //（会与横滑 pan-x pan-y 取交集，壳上关半屏后常只剩竖滚）
     document.body.classList.add('reader-overlay-open');
-    const prevBodyOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    turn.cancelDrag();
     return () => {
       document.body.classList.remove('reader-overlay-open');
-      document.body.style.overflow = prevBodyOverflow;
+      document.body.style.removeProperty('overflow');
+      turn.cancelDrag();
+      // 半屏节点卸载后再卸一次空 portal / is-turning
+      requestAnimationFrame(() => unlockReaderSurface());
+      window.setTimeout(() => unlockReaderSurface(), 120);
     };
-  }, [overlayOpen]);
+  }, [overlayOpen, turn.cancelDrag]);
 
   useEffect(() => {
     if (!hasSel) {

@@ -117,6 +117,8 @@ export function useReaderPageTurn({
 
   /** 打开 sheet / 打断手势时强制复位，避免 is-turning + touch-action:none 粘死 */
   const cancelDrag = useCallback(() => {
+    const pid = drag.current.pointerId;
+    const vp = viewportRef.current;
     drag.current.active = false;
     drag.current.pointerId = -1;
     drag.current.axis = null;
@@ -125,6 +127,24 @@ export function useReaderPageTurn({
     setDragSide(null);
     setDragProgress(0);
     applyOffset(0, false);
+    // 释放 capture + 强制剥 is-turning（React 一帧迟滞时壳上仍只剩竖滚）
+    if (vp) {
+      if (pid >= 0) {
+        try {
+          vp.releasePointerCapture?.(pid);
+        } catch {
+          /* ignore */
+        }
+      }
+      vp.classList.remove('is-turning');
+    }
+    try {
+      document
+        .querySelectorAll('.reader-turn-viewport.is-turning')
+        .forEach((el) => el.classList.remove('is-turning'));
+    } catch {
+      /* ignore */
+    }
   }, [applyOffset]);
 
   // blocked 变 true（半屏打开）或关回 false：清拖拽态，恢复横滑能力
@@ -136,22 +156,24 @@ export function useReaderPageTurn({
   useEffect(() => {
     if (!turning) return;
     const t = window.setTimeout(() => {
-      if (!drag.current.active) setTurning(false);
-      else cancelDrag();
+      cancelDrag();
     }, TURNING_STUCK_MS);
     return () => window.clearTimeout(t);
   }, [turning, cancelDrag]);
 
-  // 回前台 / 可见时清粘连
+  // 回前台 / 可见 / 词典半屏关闭后的 resume：清粘连
   useEffect(() => {
     const onVis = () => {
       if (document.visibilityState === 'visible') cancelDrag();
     };
+    const onUnlock = () => cancelDrag();
     document.addEventListener('visibilitychange', onVis);
     window.addEventListener('peiai-shell-resume', onVis as EventListener);
+    window.addEventListener('peiai-reader-unlock', onUnlock as EventListener);
     return () => {
       document.removeEventListener('visibilitychange', onVis);
       window.removeEventListener('peiai-shell-resume', onVis as EventListener);
+      window.removeEventListener('peiai-reader-unlock', onUnlock as EventListener);
     };
   }, [cancelDrag]);
 

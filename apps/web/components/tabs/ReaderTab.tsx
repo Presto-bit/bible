@@ -35,6 +35,7 @@ import { OfflineInlineNotice } from '@/components/OfflineInlineNotice';
 import { bookAbbr } from '@/lib/book_abbr';
 import { useOnline } from '@/lib/use_online';
 import { shellTapProps } from '@/lib/shell_tap';
+import { unlockReaderSurface } from '@/lib/reader_chrome';
 import CatalogView from '@/components/reader/CatalogView';
 import ReaderView from '@/components/reader/ReaderView';
 import { EntityKnowledgeSheet } from '@/components/knowledge/EntityKnowledgeSheet';
@@ -566,7 +567,11 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
           name={dictPopup.name}
           candidates={dictPopup.candidates}
           ctx={dictPopup.ctx}
-          onClose={() => setDictPopup(null)}
+          onClose={() => {
+            setDictPopup(null);
+            unlockReaderSurface();
+            window.setTimeout(() => unlockReaderSurface(), 100);
+          }}
           onPickEntity={(e, remember) => openEntity(e, dictPopup.name, dictPopup.ctx, dictPopup.candidates, remember)}
           onRefPreview={(osis, label) => setDictRefPreview({ osis, label })}
           onNodeClick={handleNodeClick}

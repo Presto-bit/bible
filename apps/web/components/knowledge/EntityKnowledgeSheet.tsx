@@ -22,6 +22,7 @@ import { EntityKnowledgeHeader, EntityKnowledgePanel } from './EntityKnowledgePa
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
 import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
+import { unlockReaderSurface } from '@/lib/reader_chrome';
 
 /** 打开词典时复用，避免反复打 knowledge / graphTopics */
 const knowledgeCache = new Map<string, EntityKnowledge>();
@@ -106,6 +107,13 @@ export function EntityKnowledgeSheet({
       window.clearTimeout(t);
     };
   }, [entityId]);
+
+  // 卸载时必须解锁读经手势（防 is-turning / 空 portal 残留 → 只能竖滚）
+  useEffect(() => () => {
+    unlockReaderSurface();
+    // 半屏 DOM 卸完后再补一枪
+    window.setTimeout(() => unlockReaderSurface(), 80);
+  }, []);
 
   const tabs = useMemo(
     () => entityKnowledgeTabs(entity, knowledge),
