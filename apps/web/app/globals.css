@@ -1572,65 +1572,27 @@ html:not([data-app-theme]) .card {
   background: transparent;
 }
 
+/* 副卡：主题色静态浅底（不铺风景、不刷新）；字色跟全站 ink token */
 .home-today-side {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-height: 0;
   margin: 0;
-  padding: 12px 12px 12px 14px;
-  border: none;
+  padding: 11px 12px 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--ink) 7%, var(--line, transparent));
   border-radius: 16px;
   text-align: left;
-  color: inherit;
+  color: var(--ink);
   cursor: pointer;
   transition: transform 0.12s ease, filter 0.12s ease;
   animation: home-today-side-in 0.28s ease;
   -webkit-tap-highlight-color: transparent;
   position: relative;
   overflow: hidden;
-}
-.home-today-side.has-cover {
-  color: #fff;
-}
-.home-today-side-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-.home-today-side-bg-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-  filter: none;
-  transform: none;
-  -webkit-transform: none;
-}
-.home-today-side-bg-veil {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    120deg,
-    rgba(20, 24, 28, 0.58) 0%,
-    rgba(20, 24, 28, 0.3) 55%,
-    rgba(20, 24, 28, 0.42) 100%
-  );
-}
-.home-today-side.has-cover .home-today-side-text,
-.home-today-side.has-cover .home-today-side-badge {
-  position: relative;
-  z-index: 1;
-}
-.home-today-side.has-cover .home-today-side-label,
-.home-today-side.has-cover .home-today-side-cta {
-  color: rgba(255, 255, 255, 0.88);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 4%, transparent);
+  background: var(--surface);
 }
 
 @keyframes home-today-side-in {
@@ -1647,27 +1609,23 @@ html:not([data-app-theme]) .card {
   filter: brightness(0.98);
 }
 
+/* 共读：accent 轻染；祷告：玫瑰轻染 —— 随 data-app-theme token 变，固定不轮换 */
 .home-today-side-group {
-  /* 加载中/失败：暖灰渐变，勿落纯白 */
-  background: linear-gradient(145deg, #e4ebe6 0%, #d4ddd7 100%);
-  color: var(--ink, #1c1b19);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--accent-wash, var(--accent)) 72%, var(--surface)) 0%,
+      color-mix(in srgb, var(--accent) 8%, var(--surface)) 100%
+    );
 }
 
 .home-today-side-prayer {
-  background: linear-gradient(145deg, #ebe4e2 0%, #ddd4d1 100%);
-  color: var(--ink, #1c1b19);
-}
-
-.home-today-side-group .home-today-side-label,
-.home-today-side-prayer .home-today-side-label,
-.home-today-side-group .home-today-side-cta,
-.home-today-side-prayer .home-today-side-cta {
-  color: var(--ink-soft, #5c5852);
-}
-
-.home-today-side-group .home-today-side-title,
-.home-today-side-prayer .home-today-side-title {
-  color: var(--ink, #1c1b19);
+  background:
+    linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--dawn-rose, #c45c6a) 10%, var(--surface)) 0%,
+      color-mix(in srgb, var(--dawn-peach, var(--surface-sunken)) 55%, var(--surface)) 100%
+    );
 }
 
 .home-today-side-text {
@@ -1676,13 +1634,14 @@ html:not([data-app-theme]) .card {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .home-today-side-label {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.02em;
+  line-height: 1.2;
   color: var(--ink-faint);
 }
 
@@ -1692,13 +1651,13 @@ html:not([data-app-theme]) .card {
   line-height: 1.35;
   color: var(--ink);
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 
 .home-today-side-cta {
-  margin-top: 1px;
+  margin-top: 0;
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
@@ -1706,7 +1665,7 @@ html:not([data-app-theme]) .card {
 }
 
 .home-today-side-prayer .home-today-side-cta {
-  color: color-mix(in srgb, var(--dawn-rose, #c45c6a) 70%, var(--accent-deep));
+  color: color-mix(in srgb, var(--dawn-rose, #c45c6a) 55%, var(--accent-deep));
 }
 
 .home-today-side.is-done .home-today-side-cta {
@@ -1715,11 +1674,7 @@ html:not([data-app-theme]) .card {
 }
 
 .home-today-side.is-done {
-  opacity: 0.78;
-}
-
-.home-today-side.is-pending .home-today-side-title {
-  color: var(--ink);
+  opacity: 0.82;
 }
 
 .home-today-side-icon {
@@ -1727,10 +1682,11 @@ html:not([data-app-theme]) .card {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 999px;
-  background: color-mix(in srgb, #fff 45%, transparent);
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 6%, transparent);
   color: var(--ink-soft);
 }
 
@@ -1744,11 +1700,11 @@ html:not([data-app-theme]) .card {
   padding: 0 7px;
   border-radius: 999px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--accent-deep);
-  background: color-mix(in srgb, #fff 72%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-deep) 12%, transparent);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-deep) 14%, transparent);
 }
 
 .home-today-side.is-pending .home-today-side-badge {
@@ -1759,13 +1715,13 @@ html:not([data-app-theme]) .card {
 
 .home-today-side.is-done .home-today-side-badge {
   color: var(--ink-soft);
-  background: color-mix(in srgb, #fff 55%, transparent);
+  background: color-mix(in srgb, var(--surface) 65%, transparent);
   box-shadow: none;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .home-today-side-prayer .home-today-side-icon {
-  color: color-mix(in srgb, var(--dawn-rose, #c45c6a) 55%, var(--ink-soft));
+  color: color-mix(in srgb, var(--dawn-rose, #c45c6a) 45%, var(--ink-soft));
 }
 
 @media (max-width: 360px) {

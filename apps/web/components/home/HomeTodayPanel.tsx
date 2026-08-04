@@ -28,7 +28,7 @@ function navigate(href: string, router: ReturnType<typeof useRouter>) {
   navigateAppHref(internal, router);
 }
 
-/** 主/侧卡封面：运营图 → 书卷风景 → href 书卷 → 槽位稳定风景（永不空，避免白板） */
+/** 主卡封面：运营图 → 书卷风景 → href 书卷 → 槽位稳定风景（永不空，避免白板） */
 function slotCoverSrc(slot: HomeTodayPanelSlot): string {
   const custom = resolveCampaignCoverUrl(slot.coverUrl);
   if (custom) return custom;
@@ -38,6 +38,7 @@ function slotCoverSrc(slot: HomeTodayPanelSlot): string {
   return bookCoverImageUrl(slot.id || 'HOME');
 }
 
+/** 副卡：主题色静态底 + 字色跟全站 token；不铺风景图、不随封面加载刷新 */
 function SideCard({
   slot,
   toneClass,
@@ -48,15 +49,9 @@ function SideCard({
   flash?: boolean;
 }) {
   const router = useRouter();
-  const coverSrc = slotCoverSrc(slot);
-  const [artReady, setArtReady] = useState(false);
-  useEffect(() => {
-    setArtReady(false);
-  }, [coverSrc]);
   const classes = [
     'home-today-side',
     toneClass,
-    artReady ? 'has-cover' : '',
     slot.pending ? 'is-pending' : '',
     slot.done ? 'is-done' : '',
     flash ? 'is-checkin-flash' : '',
@@ -71,17 +66,6 @@ function SideCard({
       onClick={() => navigate(slot.href, router)}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <span className="home-today-side-bg" aria-hidden>
-        <WallpaperBg
-          key={coverSrc}
-          src={coverSrc}
-          className="home-today-side-bg-img"
-          fetchPriority="low"
-          onReady={() => setArtReady(true)}
-          onFail={() => setArtReady(false)}
-        />
-        <span className="home-today-side-bg-veil" />
-      </span>
       <span className="home-today-side-text">
         <span className="home-today-side-label">{slot.tag}</span>
         <strong className="home-today-side-title">{slot.title}</strong>
@@ -91,9 +75,9 @@ function SideCard({
         <span className="home-today-side-badge" aria-label={slot.badge}>
           {slot.badge}
         </span>
-      ) : artReady ? null : (
+      ) : (
         <span className="home-today-side-icon" aria-hidden>
-          <RailLineIcon id={slot.icon || 'group'} size={20} />
+          <RailLineIcon id={slot.icon || 'group'} size={18} />
         </span>
       )}
     </button>
