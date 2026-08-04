@@ -3,12 +3,18 @@
 import { useEffect, useRef } from 'react';
 import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
-/** 相对键盘顶再上抬，确保能看见正在输入的文字 */
-const LIFT_PX = 20;
-/** 壳上系统栏/手势条抖动常见 <80；真键盘多 ≥120。门槛过高会误判「无键盘」→ 输入沉底被挡 */
-const SHELL_GAP_FLOOR = 96;
-const PWA_GAP_FLOOR = 40;
+/**
+ * 与 IM（use_im_composer_keyboard）同源：
+ * - 空闲：page-h = layout − 底栏占位 − 呼吸
+ * - 聚焦+键盘：page-h = layout（若已收缩）或 vv.height（layout 卡住），固定贴顶
+ * 勿再对高度二次减 LIFT 又叠 padding，否则输入区会漂或仍被键盘挡。
+ */
+const GAP_FLOOR = 40;
 const LAYOUT_SHRINK_FLOOR = 40;
+/** 键盘确认后输入底与键盘顶的呼吸 */
+const KB_PAD_PX = 8;
+/** 输入区底边与浮动 Tab 顶之间的呼吸 */
+const TAB_BREATH_PX = 18;
 
 function pinDocScroll() {
   window.scrollTo(0, 0);
@@ -18,7 +24,7 @@ function pinDocScroll() {
   if (app instanceof HTMLElement) app.scrollTop = 0;
 }
 
-/** 底栏真正占位：视口底 → 浮动胶囊顶（含 float-gap），勿只用 pill 自身 height */
+/** 底栏真正占位：视口底 → 浮动胶囊顶（含 float-gap） */
 function readTabbarReservePx(): number {
   const layoutH = Math.round(window.innerHeight || 0);
   const el = document.querySelector('.tabbar');
@@ -28,7 +34,6 @@ function readTabbarReservePx(): number {
       return Math.max(56, Math.round(layoutH - top));
     }
   }
-  // fallback：解析 --tabbar-h（含 float-gap + safe）
   try {
     const probe = document.createElement('div');
     probe.setAttribute('aria-hidden', 'true');
@@ -43,9 +48,6 @@ function readTabbarReservePx(): number {
   }
   return 84;
 }
-
-/** 输入区底边与浮动 Tab 顶之间的呼吸间距（再叠 composer padding） */
-const TAB_BREATH_PX = 18;
 
 function isComposerFieldFocused(): boolean {
   const ae = document.activeElement;
@@ -68,14 +70,12 @@ export function clearAssistantViewportChrome() {
   root.style.removeProperty('--assistant-page-h');
   root.style.removeProperty('--assistant-overlay-h');
   root.style.removeProperty('--assistant-vv-h');
+  root.style.removeProperty('--assistant-vv-top');
   root.style.removeProperty('--assistant-kb-inset');
 }
 
 /**
- * 小爱 Tab 视口：与 IM 同源策略。
- * - 空闲：--assistant-page-h = 稳定可视高 − 实测底栏（单真相源，避免 100dvh 双扣半屏）
- * - 聚焦：先藏底栏并铺满可视高；确认键盘后再锁 vv 高度
- * - 壳上提高 gap 门槛，防手势条误判成键盘
+ * 小爱 Tab 视口：对齐 IM 壳策略，保证键盘上时输入贴在键盘顶上方。
  */
 export function useAssistantViewport(
   paneActive: boolean,
@@ -93,7 +93,6 @@ export function useAssistantViewport(
       clearAssistantViewportChrome();
       return;
     }
-    // 同步挂上：延后时 .app-body 仍带 tabbar padding → TWA 首帧半屏
     document.body.classList.add('assistant-active');
     document.body.classList.remove('assistant-immersive', 'assistant-tabbar-peek');
     return () => {
@@ -116,46 +115,29 @@ export function useAssistantViewport(
       root.style.setProperty('--assistant-page-h', `${pageH}px`);
       root.style.setProperty('--assistant-overlay-h', `${Math.round(shellH)}px`);
       root.style.removeProperty('--assistant-vv-h');
+      root.style.removeProperty('--assistant-vv-top');
       root.style.removeProperty('--assistant-kb-inset');
       body.classList.remove('assistant-keyboard', 'assistant-keyboard-vv');
     };
 
-    const ensureComposerVisible = () => {
-      const field = document.querySelector(
-        '.assistant-composer textarea, .assistant-composer input',
-      );
-      if (!(field instanceof HTMLElement)) return;
-      try {
-        field.scrollIntoView({ block: 'end', inline: 'nearest' });
-      } catch {
-        try {
-          field.scrollIntoView(false);
-        } catch {
-          /* ignore */
-        }
-      }
-    };
-
-    const writeKeyboardHeight = (pageH: number, withVvLock: boolean) => {
+    const writeKeyboardHeight = (pageH: number, keyboardConfirmed: boolean) => {
       const h = Math.max(160, Math.round(pageH));
       root.style.setProperty('--assistant-page-h', `${h}px`);
-      // 历史抽屉等全屏层：始终用稳定壳高，勿跟键盘矮窗走，避免「点了没弹层」
       root.style.setProperty(
         '--assistant-overlay-h',
         `${Math.max(h, baselineRef.current || h, Math.round(window.innerHeight || h))}px`,
       );
       body.classList.add('assistant-keyboard');
-      if (withVvLock) {
+      if (keyboardConfirmed) {
         root.style.setProperty('--assistant-vv-h', `${h}px`);
+        root.style.setProperty('--assistant-vv-top', '0px');
         body.classList.add('assistant-keyboard-vv');
-        // 高度已按 vv 收过；底距只留少量，避免双扣把输入再顶出视口
-        root.style.setProperty('--assistant-kb-inset', '10px');
-        ensureComposerVisible();
+        root.style.setProperty('--assistant-kb-inset', `${KB_PAD_PX}px`);
       } else {
         root.style.removeProperty('--assistant-vv-h');
+        root.style.removeProperty('--assistant-vv-top');
         body.classList.remove('assistant-keyboard-vv');
-        // 底栏已藏：勿再留 tabbar 空洞；轻底距即可
-        root.style.setProperty('--assistant-kb-inset', '8px');
+        root.style.setProperty('--assistant-kb-inset', `${KB_PAD_PX}px`);
       }
     };
 
@@ -179,22 +161,29 @@ export function useAssistantViewport(
       pinDocScroll();
       const base = baselineRef.current || Math.max(layoutH, vvBottom);
       const layoutShrunk = base - layoutH > LAYOUT_SHRINK_FLOOR;
-      const gap = Math.max(0, base - vvBottom, base - vvH);
-      const gapFloor = isPeiaiAndroidShell() ? SHELL_GAP_FLOOR : PWA_GAP_FLOOR;
-      const keyboardUp = layoutShrunk || gap > gapFloor;
+      const vvOccluded = base - vvBottom > GAP_FLOOR || base - vvH > GAP_FLOOR;
+      // 壳上偶发 vv 略抖；仍用同一门槛（与 IM 一致），避免误判「无键盘」导致输入沉底
+      const keyboardUp = layoutShrunk || vvOccluded;
 
       if (keyboardUp) {
-        // 底栏已藏：勿再扣 tabbar。layout 已收缩跟 layout，否则跟 vv
+        // layout 已收缩跟 layout；卡住则跟 vv（勿再减 LIFT）
         const pageH = layoutShrunk
-          ? Math.max(160, layoutH - LIFT_PX)
-          : Math.max(160, vvH - LIFT_PX);
+          ? Math.max(160, layoutH)
+          : Math.max(160, vvH);
         writeKeyboardHeight(pageH, true);
         return;
       }
 
-      // 已聚焦、键盘尚未确认：藏底栏并铺满当前壳高（消除「扣了 tabbar 却藏栏」的悬空带）
+      // 已聚焦、键盘尚未确认：藏底栏，铺满当前壳高
       const shellH = layoutH > 0 ? layoutH : Math.max(120, vvH);
-      writeKeyboardHeight(shellH - 8, false);
+      writeKeyboardHeight(shellH, false);
+
+      // 壳上延迟出现键盘：再盯一拍
+      if (isPeiaiAndroidShell()) {
+        window.setTimeout(() => {
+          if (focusedRef.current) syncViewport();
+        }, 280);
+      }
     };
 
     const onViewport = () => {
@@ -211,6 +200,9 @@ export function useAssistantViewport(
       setComposerFocused(true);
       pinDocScroll();
       syncViewport();
+      // 键盘动画中途再同步两次
+      window.setTimeout(syncViewport, 120);
+      window.setTimeout(syncViewport, 320);
     };
 
     const onFocusOut = (e: FocusEvent) => {

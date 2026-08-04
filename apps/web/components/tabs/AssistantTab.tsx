@@ -52,6 +52,7 @@ import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { refToChineseLabel } from '@/lib/ref_label';
 import { localizeCitations, citationsUsedInText } from '@/lib/citation_display';
 import { HistorySessionSwipeRow } from '@/components/assistant/HistorySessionSwipeRow';
+import AssistantHistoryDrawer from '@/components/assistant/AssistantHistoryDrawer';
 import AppBodyPortal from '@/components/AppBodyPortal';
 import { Pressable } from '@/components/ui/Pressable';
 import {
@@ -1007,7 +1008,13 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
           className="assistant-title-btn"
           aria-label="打开历史会话"
           aria-expanded={historyOpen}
-          onTap={() => setHistoryOpen(true)}
+          /* up：松手后再挂抽屉，避免 pointerdown 开层后同一次 click 打到遮罩闪关 */
+          phase="up"
+          onTap={() => {
+            inputRef.current?.blur();
+            setComposerFocused(false);
+            setHistoryOpen(true);
+          }}
         >
           <strong>小爱</strong>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -1320,99 +1327,73 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
         {composer}
       </div>
 
-      {historyOpen && (
-        <AppBodyPortal onTabAway={() => setHistoryOpen(false)}>
-          <div
-            className="drawer-backdrop"
-            data-dismiss-on-tab-nav
-            onClick={() => setHistoryOpen(false)}
-            role="presentation"
-          >
-            <div
-              className="drawer-left assistant-history-drawer"
-              onClick={(e) => e.stopPropagation()}
-              role="dialog"
-              aria-modal="true"
-              aria-label="历史会话"
-            >
-              <div className="section-row" style={{ marginTop: 0 }}>
-                <strong>历史会话</strong>
-                <Pressable className="btn" style={{ marginTop: 0 }} onTap={startNewSession}>
-                  + 新会话
-                </Pressable>
-                <Pressable
-                  className="assistant-history-head-close"
-                  aria-label="关闭历史会话"
-                  onTap={() => setHistoryOpen(false)}
-                >
-                  ×
-                </Pressable>
-              </div>
-              <div className="assistant-history-body">
-                {sessions.length === 0 ? (
-                  <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
-                ) : (
-                  <div className="history-group-list" style={{ marginTop: 8 }}>
-                    {sessionGroups.map((group, gi) => {
-                      const collapsed = collapsedGroups[group.label] ?? gi !== 0;
-                      const headLabel =
-                        group.label === '随问'
-                          ? '随问'
-                          : (refToChineseLabel(group.label) ?? group.label);
-                      return (
-                        <div key={group.label} className="history-date-group">
-                          <Pressable
-                            className="history-date-head"
-                            onTap={() =>
-                              setCollapsedGroups((prev) => ({
-                                ...prev,
-                                [group.label]: !collapsed,
-                              }))
-                            }
+      {historyOpen ? (
+        <AssistantHistoryDrawer
+          onClose={() => setHistoryOpen(false)}
+          onNewSession={startNewSession}
+        >
+          <div className="assistant-history-body">
+            {sessions.length === 0 ? (
+              <p className="muted" style={{ marginTop: 10 }}>暂无历史会话，开始提问后会自动保存。</p>
+            ) : (
+              <div className="history-group-list" style={{ marginTop: 8 }}>
+                {sessionGroups.map((group, gi) => {
+                  const collapsed = collapsedGroups[group.label] ?? gi !== 0;
+                  const headLabel =
+                    group.label === '随问'
+                      ? '随问'
+                      : (refToChineseLabel(group.label) ?? group.label);
+                  return (
+                    <div key={group.label} className="history-date-group">
+                      <Pressable
+                        className="history-date-head"
+                        onTap={() =>
+                          setCollapsedGroups((prev) => ({
+                            ...prev,
+                            [group.label]: !collapsed,
+                          }))
+                        }
+                      >
+                        <span>{headLabel}</span>
+                        <span className="muted" style={{ fontSize: 11 }}>
+                          {group.items.length} 条 · {collapsed ? '展开' : '收起'}
+                        </span>
+                      </Pressable>
+                      {!collapsed && group.items.map((s) => (
+                        <HistorySessionSwipeRow
+                          key={s.id}
+                          onOpen={() => openSession(s as Session)}
+                          onRename={() => handleRenameSession(s as Session)}
+                          onDelete={() => handleDeleteSession(s as Session)}
+                        >
+                          <div
+                            className={`history-item${s.id === activeId ? ' is-active' : ''}`}
                           >
-                            <span>{headLabel}</span>
-                            <span className="muted" style={{ fontSize: 11 }}>
-                              {group.items.length} 条 · {collapsed ? '展开' : '收起'}
-                            </span>
-                          </Pressable>
-                          {!collapsed && group.items.map((s) => (
-                            <HistorySessionSwipeRow
-                              key={s.id}
-                              onOpen={() => openSession(s as Session)}
-                              onRename={() => handleRenameSession(s as Session)}
-                              onDelete={() => handleDeleteSession(s as Session)}
-                            >
-                              <div
-                                className={`history-item${s.id === activeId ? ' is-active' : ''}`}
-                              >
-                                <div className="history-item-top">
-                                  <span className="history-item-title">{s.title}</span>
-                                  <span className="muted" style={{ fontSize: 11 }}>
-                                    {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
-                                  </span>
-                                </div>
-                                {s.ref && (
-                                  <span className="history-item-ref">
-                                    {refToChineseLabel(s.ref) ?? s.ref}
-                                  </span>
-                                )}
-                                {s.preview && (
-                                  <span className="muted history-item-preview">{s.preview}</span>
-                                )}
-                              </div>
-                            </HistorySessionSwipeRow>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                            <div className="history-item-top">
+                              <span className="history-item-title">{s.title}</span>
+                              <span className="muted" style={{ fontSize: 11 }}>
+                                {formatSessionUpdatedLabel(s.updatedAt ?? Date.now())}
+                              </span>
+                            </div>
+                            {s.ref && (
+                              <span className="history-item-ref">
+                                {refToChineseLabel(s.ref) ?? s.ref}
+                              </span>
+                            )}
+                            {s.preview && (
+                              <span className="muted history-item-preview">{s.preview}</span>
+                            )}
+                          </div>
+                        </HistorySessionSwipeRow>
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
-              <p className="muted assistant-history-retention-hint">为你保留最近30天历史</p>
-            </div>
+            )}
           </div>
-        </AppBodyPortal>
-      )}
+        </AssistantHistoryDrawer>
+      ) : null}
 
       {shareTarget ? (
         <AppBodyPortal onTabAway={() => setShareTarget(null)}>

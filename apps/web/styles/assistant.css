@@ -86,15 +86,26 @@ body.assistant-keyboard.assistant-active .assistant-page {
   max-height: var(--assistant-page-h, 100dvh);
   padding-bottom: var(--assistant-kb-inset, 8px);
 }
-/* 键盘态无底栏：收掉为空闲态预留的 composer 底垫，输入贴在键盘上方 */
+/* 键盘态无底栏：收掉为空闲态预留的 composer 底垫 */
 body.assistant-keyboard.assistant-active .assistant-body .assistant-composer {
-  padding-bottom: 8px;
+  padding-bottom: 4px;
 }
-/* layout 未随键盘收缩时，用 visualViewport 高度兜底（已含 lift）
- * 注意：仅确认键盘后生效，避免系统栏变化把整页压成「半屏」 */
+/*
+ * 确认键盘后：固定贴 visualViewport（与 IM im-vv-shell 同策略）。
+ * layout 卡住时若仍用文档流高度，输入会沉在键盘下面。
+ */
+body.assistant-keyboard-vv.assistant-active .tab-keep-pane-active .assistant-page,
 body.assistant-keyboard-vv.assistant-active .assistant-page {
+  position: fixed;
+  top: var(--assistant-vv-top, 0px);
+  left: 0;
+  right: 0;
+  width: 100%;
   height: var(--assistant-vv-h, var(--assistant-page-h, 100%));
   max-height: var(--assistant-vv-h, var(--assistant-page-h, 100%));
+  margin: 0;
+  z-index: 40;
+  box-sizing: border-box;
 }
 /* 打字时藏底栏，避免与键盘叠层；失焦后恢复常驻 */
 body.assistant-keyboard.assistant-active .tabbar {

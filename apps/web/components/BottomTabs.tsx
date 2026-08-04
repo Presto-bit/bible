@@ -142,6 +142,7 @@ export default function BottomTabs() {
       'assistant-tabbar-peek',
     );
     document.documentElement.style.removeProperty('--assistant-vv-h');
+    document.documentElement.style.removeProperty('--assistant-vv-top');
     document.documentElement.style.removeProperty('--assistant-kb-inset');
     document.documentElement.style.removeProperty('--assistant-page-h');
     document.documentElement.style.removeProperty('--assistant-overlay-h');
