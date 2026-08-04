@@ -18,7 +18,7 @@ type Props = {
   onFail?: () => void;
 };
 
-function toCandidates(src: string): string[] {
+function toCandidates(src: string, shell: boolean): string[] {
   if (src.startsWith('blob:') || src.startsWith('data:')) return [src];
   const absolute = /^https?:\/\//i.test(src) ? src : clientAssetUrl(src);
   let relative = src;
@@ -32,27 +32,40 @@ function toCandidates(src: string): string[] {
   } else if (!src.startsWith('/')) {
     relative = `/${src}`;
   }
-  // 相对路径优先：部分 WebView 对绝对 URL + SW 组合会拿空 body
+  // 壳：绝对 URL 优先（部分 WebView 相对路径 + 历史 SW 易空 body）
+  // 浏览器：相对优先（同源直出）
   const out: string[] = [];
-  if (relative) out.push(relative);
-  if (absolute && absolute !== relative) out.push(absolute);
-  if (absolute && !absolute.includes('?')) out.push(`${absolute}?v=1`);
+  if (shell) {
+    if (absolute) out.push(absolute);
+    if (relative && relative !== absolute) out.push(relative);
+  } else {
+    if (relative) out.push(relative);
+    if (absolute && absolute !== relative) out.push(absolute);
+  }
   return out.filter(Boolean);
 }
 
 async function fetchAsBlobUrl(url: string): Promise<string | null> {
-  // 生产壁纸常带 no-store；force-cache 在安卓 WebView 上可能直接失败
-  const modes: RequestCache[] = ['no-store', 'default', 'force-cache'];
+  // 生产壁纸常带 no-store；优先 default（可走磁盘）；再 no-store
+  const modes: RequestCache[] = ['default', 'no-store'];
   for (const cache of modes) {
     try {
       const res = await fetch(url, {
         credentials: 'same-origin',
         cache,
+        mode: 'same-origin',
       });
       if (!res.ok) continue;
       const blob = await res.blob();
       if (blob.size < 200) continue;
       if (blob.type && !blob.type.startsWith('image/') && blob.size < 800) continue;
+      // 无 type 也认 JPEG 魔数（部分网关缺 Content-Type）
+      if (!blob.type || blob.type === 'application/octet-stream') {
+        const head = new Uint8Array(await blob.slice(0, 3).arrayBuffer());
+        const isJpeg = head[0] === 0xff && head[1] === 0xd8;
+        const isPng = head[0] === 0x89 && head[1] === 0x50;
+        if (!isJpeg && !isPng && blob.size < 2000) continue;
+      }
       return URL.createObjectURL(blob);
     } catch {
       /* try next */
@@ -62,22 +75,29 @@ async function fetchAsBlobUrl(url: string): Promise<string | null> {
 }
 
 function paintParentBackground(
-  img: HTMLImageElement,
+  host: HTMLElement | null,
   src: string,
   objectPosition: string,
 ): void {
   try {
-    const parent = img.parentElement;
-    if (!(parent instanceof HTMLElement)) return;
-    const paint = `url("${img.currentSrc || src}")`;
-    parent.style.setProperty('background-image', paint);
-    parent.style.setProperty('background-size', 'cover');
-    parent.style.setProperty('background-position', objectPosition);
-    parent.style.setProperty('background-repeat', 'no-repeat');
-    parent.dataset.wallpaperPaint = '1';
+    if (!(host instanceof HTMLElement)) return;
+    // url() 用单引号；blob/带引号路径更稳
+    const safe = src.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    host.style.setProperty('background-image', `url('${safe}')`);
+    host.style.setProperty('background-size', 'cover');
+    host.style.setProperty('background-position', objectPosition);
+    host.style.setProperty('background-repeat', 'no-repeat');
+    host.dataset.wallpaperPaint = '1';
   } catch {
     /* ignore */
   }
+}
+
+function clearParentBackground(host: HTMLElement | null): void {
+  if (!(host instanceof HTMLElement)) return;
+  if (host.dataset.wallpaperPaint !== '1') return;
+  host.style.removeProperty('background-image');
+  delete host.dataset.wallpaperPaint;
 }
 
 /**
@@ -93,31 +113,44 @@ export function WallpaperBg({
   onReady,
   onFail,
 }: Props) {
+  const shell = isPeiaiAndroidShell();
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const candidatesRef = useRef<string[]>([]);
   const blobRef = useRef<string | null>(null);
   const readyRef = useRef(false);
-  const blobTriedRef = useRef(false);
+  const genRef = useRef(0);
   const imgRef = useRef<HTMLImageElement | null>(null);
+  const hostRef = useRef<HTMLElement | null>(null);
+  const pendingPaintRef = useRef<string | null>(null);
   const onReadyRef = useRef(onReady);
   const onFailRef = useRef(onFail);
   onReadyRef.current = onReady;
   onFailRef.current = onFail;
 
-  const markReady = (img: HTMLImageElement, url: string) => {
-    if (readyRef.current) {
-      paintParentBackground(img, url, objectPosition);
-      return;
+  const applyHostPaint = (host: HTMLElement | null, url: string) => {
+    if (host) {
+      paintParentBackground(host, url, objectPosition);
+      pendingPaintRef.current = null;
+    } else {
+      pendingPaintRef.current = url;
     }
-    paintParentBackground(img, url, objectPosition);
+  };
+
+  const markReady = (url: string, img?: HTMLImageElement | null) => {
+    const host = hostRef.current || img?.parentElement || null;
+    if (host) hostRef.current = host;
+    applyHostPaint(host, url);
+    if (readyRef.current) return;
     readyRef.current = true;
     onReadyRef.current?.();
   };
 
   useEffect(() => {
+    const gen = ++genRef.current;
     readyRef.current = false;
-    blobTriedRef.current = false;
+    clearParentBackground(hostRef.current);
+
     if (!src) {
       candidatesRef.current = [];
       setDisplaySrc(null);
@@ -126,83 +159,122 @@ export function WallpaperBg({
       return;
     }
 
-    const candidates = toCandidates(src);
+    const candidates = toCandidates(src, shell);
     candidatesRef.current = candidates;
-    if (blobRef.current) {
-      URL.revokeObjectURL(blobRef.current);
-      blobRef.current = null;
+    const oldBlob = blobRef.current;
+    blobRef.current = null;
+    // 延后 revoke，避免 React 卸旧 img 前 URL 失效
+    if (oldBlob) {
+      window.setTimeout(() => {
+        try {
+          URL.revokeObjectURL(oldBlob);
+        } catch {
+          /* ignore */
+        }
+      }, 2_000);
     }
+
     setDisplaySrc(candidates[0] || null);
     setAttempt(0);
 
-    // 壳内并行预取 blob：不等 onError，避免「解码成功但不绘制」死等
+    // 壳：用 Image 预解码 + 并行 blob，任一条先成功即 paint
     let cancelled = false;
-    if (isPeiaiAndroidShell()) {
-      blobTriedRef.current = true;
-      void (async () => {
-        for (const url of candidates) {
-          if (cancelled || readyRef.current) return;
-          const b = await fetchAsBlobUrl(url);
-          if (cancelled || !b) continue;
-          if (blobRef.current) URL.revokeObjectURL(blobRef.current);
-          blobRef.current = b;
-          candidatesRef.current = [b];
-          setDisplaySrc(b);
-          setAttempt(0);
-          return;
+    const tryPaintFromUrl = (url: string) =>
+      new Promise<boolean>((resolve) => {
+        const probe = new Image();
+        probe.decoding = 'async';
+        probe.onload = () => {
+          if (cancelled || gen !== genRef.current) {
+            resolve(false);
+            return;
+          }
+          if (probe.naturalWidth < 2) {
+            resolve(false);
+            return;
+          }
+          markReady(url);
+          // 同步切到该 URL 展示（若尚未）
+          setDisplaySrc((prev) => (prev === url ? prev : url));
+          resolve(true);
+        };
+        probe.onerror = () => resolve(false);
+        probe.src = url;
+      });
+
+    void (async () => {
+      // 先并行试所有网络候选，提升弱网成功率
+      for (const url of candidates) {
+        if (cancelled || gen !== genRef.current || readyRef.current) return;
+        const ok = await tryPaintFromUrl(url);
+        if (ok) return;
+      }
+      if (cancelled || gen !== genRef.current || readyRef.current) return;
+      // 再 blob
+      for (const url of candidates) {
+        if (cancelled || gen !== genRef.current || readyRef.current) return;
+        const b = await fetchAsBlobUrl(url);
+        if (!b || cancelled || gen !== genRef.current) continue;
+        if (blobRef.current) {
+          const prev = blobRef.current;
+          window.setTimeout(() => {
+            try {
+              URL.revokeObjectURL(prev);
+            } catch {
+              /* ignore */
+            }
+          }, 2_000);
         }
-      })();
-    }
+        blobRef.current = b;
+        candidatesRef.current = [b, ...candidates];
+        setDisplaySrc(b);
+        setAttempt(0);
+        const ok = await tryPaintFromUrl(b);
+        if (ok) return;
+      }
+      if (!cancelled && gen === genRef.current && !readyRef.current) {
+        onFailRef.current?.();
+      }
+    })();
 
     return () => {
       cancelled = true;
-      if (blobRef.current) {
-        URL.revokeObjectURL(blobRef.current);
-        blobRef.current = null;
-      }
     };
-  }, [src]);
+  }, [src, shell, objectPosition]);
+
+  useEffect(() => {
+    // 卸载时清父层 inline（仅当是我们刷的）
+    return () => {
+      clearParentBackground(hostRef.current);
+    };
+  }, []);
 
   if (!displaySrc) return null;
 
-  const tryBlobFallback = () => {
-    if (blobTriedRef.current) return false;
-    blobTriedRef.current = true;
-    const urls = candidatesRef.current.filter((u) => !u.startsWith('blob:'));
-    void (async () => {
-      for (const url of urls) {
-        const b = await fetchAsBlobUrl(url);
-        if (b) {
-          if (blobRef.current) URL.revokeObjectURL(blobRef.current);
-          blobRef.current = b;
-          candidatesRef.current = [b];
-          setDisplaySrc(b);
-          setAttempt(0);
-          return;
-        }
-      }
-      onFailRef.current?.();
-    })();
-    return true;
-  };
-
-  const tryNextOrFail = () => {
-    if (readyRef.current) return;
-    const list = candidatesRef.current;
-    const next = attempt + 1;
-    if (next < list.length) {
-      setAttempt(next);
-      setDisplaySrc(list[next]);
+  const onImgReady = (img: HTMLImageElement) => {
+    if (img.naturalWidth < 2 || img.naturalHeight < 2) {
+      // 交由 effect 里的并行路径处理失败
       return;
     }
-    if (tryBlobFallback()) return;
-    onFailRef.current?.();
+    hostRef.current = img.parentElement;
+    markReady(displaySrc, img);
   };
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
-      ref={imgRef}
+      ref={(node) => {
+        imgRef.current = node;
+        if (node?.parentElement) {
+          hostRef.current = node.parentElement;
+          if (pendingPaintRef.current) {
+            applyHostPaint(node.parentElement, pendingPaintRef.current);
+          }
+        }
+        // 已缓存解码完成时有的 WebView 不重放 onLoad
+        if (node && node.complete && node.naturalWidth > 1) {
+          onImgReady(node);
+        }
+      }}
       className={className}
       src={displaySrc}
       alt={alt}
@@ -211,16 +283,16 @@ export function WallpaperBg({
       fetchPriority={fetchPriority}
       draggable={false}
       style={{ objectPosition }}
-      onLoad={(e) => {
-        const img = e.currentTarget;
-        if (img.naturalWidth < 2 || img.naturalHeight < 2) {
-          tryNextOrFail();
-          return;
-        }
-        markReady(img, displaySrc);
-      }}
+      onLoad={(e) => onImgReady(e.currentTarget)}
       onError={() => {
-        tryNextOrFail();
+        // 切下一条候选；并行 Image/blob 路径仍会继续
+        if (readyRef.current) return;
+        const list = candidatesRef.current;
+        const next = attempt + 1;
+        if (next < list.length) {
+          setAttempt(next);
+          setDisplaySrc(list[next]);
+        }
       }}
     />
   );

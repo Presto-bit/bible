@@ -39,8 +39,29 @@ const nextConfig = {
         source: '/downloads/:path*',
         headers: [{ key: 'Cache-Control', value: 'public, max-age=300' }],
       },
+      // 风景壁纸 / 横滑场景图：文件名固定，宜强缓存，避免壳每次 no-store 重下失败
       {
-        source: '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js).*)',
+        source: '/daily-wallpapers/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
+        source: '/rail-scenes/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=2592000, stale-while-revalidate=86400, immutable',
+          },
+        ],
+      },
+      {
+        // 排除静态插画壁纸（否则会覆盖为 no-cache，壳上背景常下失败）
+        source:
+          '/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js|daily-wallpapers/|rail-scenes/).*)',
         headers: [{ key: 'Cache-Control', value: 'no-cache, must-revalidate' }],
       },
     ];
