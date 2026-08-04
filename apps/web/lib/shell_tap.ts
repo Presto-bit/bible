@@ -1,6 +1,7 @@
 'use client';
 
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
+import { softRecoverShellTouch } from '@/lib/sheet_overlay';
 
 /**
  * 安卓 WebView / TWA：click 常不触发或合成失败。
@@ -26,6 +27,11 @@ export type ShellTapOpts = {
   onTap: () => void;
   /** 仅 pointer 路径（如开半屏前 softRecover）；click 兜底不跑，避免清掉刚挂上的层 */
   beforePointerTap?: () => void;
+  /**
+   * 开半屏/sheet 前卸透明吞点击层（仅 pointer 路径）。
+   * 读经层内「词典 / 小爱 / 概要」默认建议 true。
+   */
+  softRecover?: boolean;
   preventDefault?: boolean;
   /** click 后 blur，消安卓焦点方框 */
   blurOnClick?: boolean;
@@ -33,13 +39,20 @@ export type ShellTapOpts = {
 
 /** 展开为 button / role=button 的 onPointerDown + onClick */
 export function shellTapProps(opts: ShellTapOpts) {
-  const { onTap, beforePointerTap, preventDefault = false, blurOnClick = false } = opts;
+  const {
+    onTap,
+    beforePointerTap,
+    softRecover = false,
+    preventDefault = false,
+    blurOnClick = false,
+  } = opts;
 
   return {
     onPointerDown(e: ReactPointerEvent<HTMLElement>) {
       e.stopPropagation();
       if (e.button !== 0) return;
       if (preventDefault) e.preventDefault();
+      if (softRecover) softRecoverShellTouch();
       beforePointerTap?.();
       markTap(e.currentTarget);
       onTap();

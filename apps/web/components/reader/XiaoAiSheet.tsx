@@ -33,6 +33,8 @@ import { AnalysisShareSheet } from '@/components/AnalysisShareSheet';
 import { readerHrefFromRef } from '@/lib/group_footprint';
 import { navigateToReaderHref } from '@/lib/pwa_tab_nav';
 import { useToast } from '@/components/ui/ToastProvider';
+import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
+import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
 
 function stripAnswer(raw: string): string {
   return bodyText(raw);
@@ -269,9 +271,14 @@ export default function XiaoAiSheet({
   const canContinueRead = Boolean(readerHrefFromRef(refParam));
 
   const stopBubble = (e: React.SyntheticEvent) => e.stopPropagation();
+  const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
 
   const sheet = (
-    <div className="sheet-backdrop reader-ai-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
+    <div
+      className="sheet-backdrop reader-ai-backdrop"
+      onClick={() => guardedClose(onClose)}
+      data-dismiss-on-tab-nav
+    >
       <div
         className="half-sheet reader-ai-half-sheet"
         role="dialog"

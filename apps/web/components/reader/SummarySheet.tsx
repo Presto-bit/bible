@@ -6,6 +6,8 @@ import AppBodyPortal from '@/components/AppBodyPortal';
 import { useEffect, useState } from 'react';
 import { api, type GeoPlace, type TimelineChapter } from '@/lib/api';
 import { loadBookSummary, loadChapterSummary } from '@/lib/bible_summary';
+import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
+import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
 
 type SummaryTab = 'chapter' | 'book';
 
@@ -109,10 +111,15 @@ export default function SummarySheet({
   const activeBusy = tab === 'chapter' ? chapterBusy : bookBusy;
   const activeErr = tab === 'chapter' ? chapterErr : bookErr;
   const activeBody = tab === 'chapter' ? chapterBody : bookBody;
+  const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
 
   return (
     <AppBodyPortal onTabAway={onClose}>
-    <div className="sheet-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
+    <div
+      className="sheet-backdrop"
+      onClick={() => guardedClose(onClose)}
+      data-dismiss-on-tab-nav
+    >
       <div className="half-sheet summary-sheet" onClick={(e) => e.stopPropagation()}>
         <div className="half-sheet-head">
           <div className="half-sheet-grab" />

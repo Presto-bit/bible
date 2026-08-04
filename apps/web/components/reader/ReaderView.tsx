@@ -143,7 +143,6 @@ import {
   readerBackHref,
 } from '@/lib/reader_return';
 import { clearReaderChrome } from '@/lib/reader_chrome';
-import { softRecoverShellTouch } from '@/lib/sheet_overlay';
 import { shellTapProps } from '@/lib/shell_tap';
 import { scheduleTabChrome } from '@/lib/tab_chrome';
 import {
@@ -2469,6 +2468,8 @@ export default function ReaderView({
       if (focusBarRef.current?.contains(e.target as Node)) return;
       const t = e.target as HTMLElement;
       if (t.closest('.reader-focus-bar')) return;
+      // 词典专名：勿当「点空收起选区」，避免抢开层
+      if (t.closest('.proper-noun,[role="button"]')) return;
       const hasPinned = Boolean(nativePinnedHighlightRef.current?.verses.length);
       if (hasSel || hasPinned) {
         // 松手后极短窗口忽略，避免抬手余波立刻关掉；之后点经文/空白均可收起
@@ -2567,6 +2568,8 @@ export default function ReaderView({
       if (focusBarRef.current?.contains(t)) return;
       if (t.closest('.reader-focus-bar')) return;
       if (t.closest('.reader-mark-wrap') || t.closest('.reader-mark-popover')) return;
+      // 词典 / 可点控件：让 shell_tap 开层，勿先清选区抢手势
+      if (t.closest('.proper-noun,[role="button"],.vsb-icon-btn')) return;
       dismissNativeSelection();
     };
     document.addEventListener('pointerdown', onPointerDown, true);
@@ -3115,7 +3118,7 @@ export default function ReaderView({
           className="reader-fab"
           {...shellTapProps({
             blurOnClick: true,
-            beforePointerTap: () => softRecoverShellTouch(),
+            softRecover: true,
             onTap: () => openAiSheet(),
           })}
           aria-label="问小爱"

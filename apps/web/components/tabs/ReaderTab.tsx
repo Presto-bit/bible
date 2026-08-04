@@ -161,6 +161,7 @@ function ReaderTabInner({ paneActive }: { paneActive: boolean }) {
               title={candidates.length > 1 ? '点击查看（可能有多义）' : '查看词典'}
               {...shellTapProps({
                 preventDefault: true,
+                softRecover: true,
                 onTap: () => handleNameClick(part, verse),
               })}
               onKeyDown={(e) => {

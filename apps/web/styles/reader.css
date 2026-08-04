@@ -18,6 +18,10 @@
   z-index: 2;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  /* 扩大可点盒：偏触仍落在词上，不发起翻页 begin */
+  padding: 0.12em 0.06em;
+  margin: -0.12em -0.06em;
+  border-radius: 3px;
 }
 .proper-noun--person {
   text-decoration: underline dotted;

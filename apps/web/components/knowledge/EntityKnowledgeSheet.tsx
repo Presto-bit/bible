@@ -20,6 +20,8 @@ import {
 import { formatGroupRefLabel } from '@/lib/ref_label';
 import { EntityKnowledgeHeader, EntityKnowledgePanel } from './EntityKnowledgePanel';
 import AppBodyPortal from '@/components/AppBodyPortal';
+import { useSheetOpenGuard } from '@/lib/use_sheet_open_guard';
+import { SHEET_OPEN_GUARD_MS } from '@/lib/reader_gesture';
 
 /** 打开词典时复用，避免反复打 knowledge / graphTopics */
 const knowledgeCache = new Map<string, EntityKnowledge>();
@@ -122,9 +124,15 @@ export function EntityKnowledgeSheet({
     });
   };
 
+  const { guardedClose } = useSheetOpenGuard(SHEET_OPEN_GUARD_MS);
+
   return (
     <AppBodyPortal onTabAway={onClose}>
-      <div className="sheet-backdrop" onClick={onClose} data-dismiss-on-tab-nav>
+      <div
+        className="sheet-backdrop"
+        data-dismiss-on-tab-nav
+        onClick={() => guardedClose(onClose)}
+      >
         <div className="sheet card entity-knowledge-sheet" onClick={(e) => e.stopPropagation()}>
           <EntityKnowledgeHeader entity={entity} trailing={<SheetCloseButton onClick={onClose} />} />
 

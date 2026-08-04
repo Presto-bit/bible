@@ -6,21 +6,15 @@ import {
   type MutableRefObject,
   type PointerEvent as ReactPointerEvent,
 } from 'react';
-
-const INTERACTIVE_TURN_SEL =
-  'a,button,input,textarea,select,label,summary,[role="button"],[role="link"],.proper-noun,.reader-focus-bar';
-
-function isInteractiveTurnTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof Element)) return false;
-  return Boolean(target.closest(INTERACTIVE_TURN_SEL));
-}
+import { shouldYieldPageTurn } from '@/lib/reader_gesture';
+import { isPeiaiAndroidShell } from '@/lib/pwa_platform';
 
 /**
  * 跟手翻页（与 iOS/Android 已安装 PWA 同一套）：
- * - Pointer 走 window 级 move/up（不依赖 setPointerCapture；壳 WebView 捕获常失败）
+ * - Pointer 走 window 级 move/up（不依赖 setPointerCapture；壳 WebView 捕获易抢词典）
  * - Touch 兜底；pointer 已激活但尚无轴时 touch 可接手
  * - 提交阈值：大位移 OR 够快；上一页（右滑）略松
- * - 专有名词/按钮等交互控件不抢 capture，避免「点词典没反应」
+ * - 专有名词/按钮：composedPath + 邻点让路，避免「点词典没反应」
  */
 const THRESHOLD_NEXT = 0.13;
 const THRESHOLD_PREV = 0.09;
@@ -35,6 +29,8 @@ const EDGE_RESIST = 0.28;
 const ANIM_MS = 280;
 const PREFETCH_RATIO = 0.04;
 const BOUNDARY_RATIO = 0.1;
+/** is-turning + touch-action:none 硬超时，防粘死 */
+const TURNING_STUCK_MS = 900;
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
@@ -135,6 +131,29 @@ export function useReaderPageTurn({
   useEffect(() => {
     cancelDrag();
   }, [blocked, cancelDrag]);
+
+  // 横滑锁死态硬超时（安卓中断手势后 sticky）
+  useEffect(() => {
+    if (!turning) return;
+    const t = window.setTimeout(() => {
+      if (!drag.current.active) setTurning(false);
+      else cancelDrag();
+    }, TURNING_STUCK_MS);
+    return () => window.clearTimeout(t);
+  }, [turning, cancelDrag]);
+
+  // 回前台 / 可见时清粘连
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') cancelDrag();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    window.addEventListener('peiai-shell-resume', onVis as EventListener);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      window.removeEventListener('peiai-shell-resume', onVis as EventListener);
+    };
+  }, [cancelDrag]);
 
   const finishDrag = useCallback(async () => {
     if (!enabled || !drag.current.active) return;
@@ -320,10 +339,11 @@ export function useReaderPageTurn({
   const onPointerDown = useCallback(
     (e: ReactPointerEvent) => {
       if (e.button !== 0) return;
-      // 勿对词典专名 / 按钮等开 capture：否则 click 在安卓 WebView 上经常被吃掉
-      if (isInteractiveTurnTarget(e.target)) return;
+      // 词典/按钮优先：composedPath + 邻点，勿 setPointerCapture 抢词
+      if (shouldYieldPageTurn(e.target, e.clientX, e.clientY, e.nativeEvent)) return;
       if (!beginDrag(e.clientX, e.clientY, e.pointerId, 'pointer')) return;
-      // 仍尝试 capture（iOS 无妨）；主要靠 window 监听保证壳端可用
+      // 安卓壳：capture 会吞邻域点击；靠 window pointermove/up 即可
+      if (isPeiaiAndroidShell()) return;
       try {
         e.currentTarget.setPointerCapture?.(e.pointerId);
       } catch {
@@ -372,7 +392,7 @@ export function useReaderPageTurn({
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
-      if (isInteractiveTurnTarget(e.target)) return;
+      if (shouldYieldPageTurn(e.target, t.clientX, t.clientY, e)) return;
       // pointer 已占坑但 move 丢失（安卓壳常见）：touch 随时可接手
       if (drag.current.active && drag.current.source === 'pointer') {
         drag.current.source = 'touch';
@@ -422,6 +442,7 @@ export function useReaderPageTurn({
     animating,
     offCenter,
     turning,
+    cancelDrag,
     onPointerDown,
     onPointerMove,
     onPointerUp,
