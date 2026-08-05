@@ -1,8 +1,8 @@
 # 社交 v1.2 全量实施计划（PRODUCT §23）
 
 > 依据：`PRODUCT.md` §23（含顶区约束：无问候行、无横滑卡轨、无「今日共读」顶条）  
-> 完成度：**成熟期全量交付**（分批上线，每批达正式质量）  
-> 平台优先：**Web（`apps/web`）+ API** 先齐；**Mobile** 同规格跟版  
+> 平台优先：**Web IM 唯一实现**；iOS PWA 直用；**Android Flutter 嵌 H5**（PRODUCT §24）；禁止 Flutter 再写一套 IM  
+> 非 IM 业务：首页/读经/小爱以 Flutter 原生交付，与 PWA 事对齐  
 > 日期：2026-07-15
 
 ---

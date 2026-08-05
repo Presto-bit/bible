@@ -58,6 +58,7 @@ import {
   detectAndroidTwaInstalled,
 } from '@/lib/android_twa';
 import { androidPackageDownloadHref } from '@/lib/app_package_settings';
+import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 import { IosSafariInstallCoach } from '@/components/IosSafariInstallCoach';
 import { WechatEscapeCoach } from '@/components/WechatEscapeCoach';
 
@@ -312,7 +313,7 @@ export function InstallPwaSheet({
         ) : null}
         {isAndroid ? (
           <p className="muted" style={{ fontSize: 13, lineHeight: 1.55, margin: '0 0 12px' }}>
-            安装前会尽量把读经记录保存到账号。请下载官方安装包（不跳应用商店），装好后用桌面「彼爱」打开。
+            安装前会尽量把读经记录保存到账号。请下载官方 Flutter 安装包（不跳应用商店、无需 Chrome），装好后用桌面「彼爱」打开。
             暂不安装可继续浏览；未装完关闭本提示后，刷新页面会再次提醒。
           </p>
         ) : null}
@@ -572,6 +573,11 @@ export default function InstallBanner() {
   };
 
   const afterReadLabel = sheetCtx?.resumeLabel || readPwaInstallContext()?.resumeLabel;
+
+  // Flutter 嵌 H5：已是 App 内，禁止任何安装引导
+  if (typeof window !== 'undefined' && isFlutterH5Host()) {
+    return null;
+  }
 
   // 分享落地仍可响应 openPwaInstallSheet()；standalone 永不自动引导
   if (onShareLanding) {

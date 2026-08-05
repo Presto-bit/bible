@@ -11,6 +11,7 @@ import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
 import '../../core/daily_verse_engagement.dart';
 import '../../core/gamification.dart';
+import '../../core/open_h5.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
 import '../assistant/assistant_screen.dart';
@@ -358,6 +359,8 @@ void _openHeroB(BuildContext context, WidgetRef ref, String href) {
     return;
   }
   final path = heroBRoutePath(href);
+  // 活动页 / 发现子路由等：走 H5 白名单容器
+  if (openH5IfAllowed(context, path)) return;
   if (path.startsWith('/reader')) {
     ref.read(navIndexProvider.notifier).set(1);
   }

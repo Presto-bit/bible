@@ -6,8 +6,6 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../theme.dart';
-
 class PaperCard extends StatelessWidget {
   const PaperCard({
     super.key,
@@ -37,38 +35,6 @@ class PaperCard extends StatelessWidget {
   final Widget? backgroundLayer;
   final Widget child;
 
-  static List<BoxShadow> _shadow(int tier) {
-    const ink = Color(0xFF2C2825);
-    switch (tier) {
-      case 3:
-        return [
-          BoxShadow(
-            color: ink.withValues(alpha: 0.18),
-            blurRadius: 36,
-            spreadRadius: -14,
-            offset: const Offset(0, 16),
-          ),
-        ];
-      case 2:
-        return [
-          BoxShadow(
-            color: ink.withValues(alpha: 0.12),
-            blurRadius: 16,
-            spreadRadius: -6,
-            offset: const Offset(0, 4),
-          ),
-        ];
-      default:
-        return [
-          BoxShadow(
-            color: ink.withValues(alpha: 0.05),
-            blurRadius: 2,
-            offset: const Offset(0, 1),
-          ),
-        ];
-    }
-  }
-
   double get _radius => tier == 3
       ? 18
       : tier == 2
@@ -77,14 +43,16 @@ class PaperCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final radius = BorderRadius.circular(_radius);
+    final line = theme.dividerColor;
+    final surface = theme.colorScheme.surface;
+    final primary = theme.colorScheme.primary;
     final borderColor =
-        tint != null ? tint!.withValues(alpha: 0.22) : AppColors.line;
+        tint != null ? tint!.withValues(alpha: 0.22) : line;
 
-    // 底色：tier>=2 用更亮的卡面，tier1 用常规卡面。
-    final base = AppColors.surface;
+    final base = surface;
 
-    // 顶部高光 + 可选色调染（从上到下淡出）。
     final wash = tint != null
         ? LinearGradient(
             begin: Alignment.topCenter,
@@ -96,20 +64,24 @@ class PaperCard extends StatelessWidget {
             ],
             stops: const [0, 0.6, 1],
           )
-        : const LinearGradient(
+        : LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0x66FFFFFF), Color(0x00FFFFFF)],
-            stops: [0, 0.55],
+            colors: [
+              Colors.white.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.06 : 0.4),
+              Colors.transparent,
+            ],
+            stops: const [0, 0.55],
           );
 
-    final accentColor = (tint ?? AppColors.accent).withValues(alpha: 0.7);
+    final accentColor = (tint ?? primary).withValues(alpha: 0.7);
     final content = DecoratedBox(
       decoration: BoxDecoration(
         color: base,
         borderRadius: radius,
         border: Border.all(color: borderColor),
-        boxShadow: _shadow(tier),
+        boxShadow: _shadow(tier, theme.brightness == Brightness.dark),
       ),
       child: ClipRRect(
         borderRadius: radius,
@@ -149,5 +121,37 @@ class PaperCard extends StatelessWidget {
           );
 
     return margin == null ? card : Padding(padding: margin!, child: card);
+  }
+
+  static List<BoxShadow> _shadow(int tier, bool dark) {
+    final ink = dark ? const Color(0xFF000000) : const Color(0xFF2C2825);
+    switch (tier) {
+      case 3:
+        return [
+          BoxShadow(
+            color: ink.withValues(alpha: dark ? 0.4 : 0.18),
+            blurRadius: 36,
+            spreadRadius: -14,
+            offset: const Offset(0, 16),
+          ),
+        ];
+      case 2:
+        return [
+          BoxShadow(
+            color: ink.withValues(alpha: dark ? 0.28 : 0.12),
+            blurRadius: 16,
+            spreadRadius: -6,
+            offset: const Offset(0, 4),
+          ),
+        ];
+      default:
+        return [
+          BoxShadow(
+            color: ink.withValues(alpha: dark ? 0.2 : 0.05),
+            blurRadius: 2,
+            offset: const Offset(0, 1),
+          ),
+        ];
+    }
   }
 }

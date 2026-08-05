@@ -119,7 +119,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       return;
     }
     _setChrome(false);
-    _chromeTimer = Timer(const Duration(seconds: 3), () {
+    _chromeTimer = Timer(const Duration(milliseconds: 2800), () {
       if (mounted && _book != null) _setChrome(true);
     });
   }

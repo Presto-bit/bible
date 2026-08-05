@@ -8,19 +8,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/api_client.dart';
+import '../core/h5_host_page.dart';
 import '../features/assistant/assistant_screen.dart';
 import '../features/bible/reader_screen.dart';
-import '../features/bible/reading_report_screen.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/challenge/ai_challenge_screen.dart';
 import '../features/challenge/challenge_screen.dart';
 import '../features/plans/generate_plan_screen.dart';
 import '../features/plans/plans_screen.dart';
-import '../features/social/add_friend_screen.dart';
-import '../features/social/create_group_screen.dart';
 import '../features/social/discover_screen.dart';
-import '../features/social/dm_thread_screen.dart';
-import '../features/social/group_screen.dart';
 import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/bible/wrapped_screen.dart';
@@ -56,6 +52,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           seedQuestion: state.uri.queryParameters['q'],
         ),
       ),
+      /// 通用 H5：与 PWA 同页自带顶栏，无原生 AppBar 叠层
+      GoRoute(
+        path: '/h5',
+        builder: (context, state) {
+          final path = state.uri.queryParameters['path'] ?? '/discover';
+          final title = state.uri.queryParameters['title'];
+          final forceBar = state.uri.queryParameters['bar'] == '1';
+          return H5HostPage(
+            path: path,
+            showAppBar: forceBar,
+            title: title,
+          );
+        },
+      ),
       GoRoute(
           path: '/plans', builder: (context, state) => const PlansScreen()),
       GoRoute(
@@ -63,10 +73,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (context, state) => const GeneratePlanScreen()),
       GoRoute(
           path: '/friend/add',
-          builder: (context, state) => const AddFriendScreen()),
+          builder: (context, state) => const H5HostPage(
+                path: '/friend/add',
+              )),
       GoRoute(
           path: '/group/create',
-          builder: (context, state) => const CreateGroupScreen()),
+          builder: (context, state) => const H5HostPage(
+                path: '/group/create',
+              )),
       GoRoute(
           path: '/challenge',
           builder: (context, state) => const ChallengeScreen()),
@@ -78,12 +92,51 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (context, state) => const DiscoverScreen()),
       GoRoute(
         path: '/discover/dm/:id',
-        builder: (context, state) =>
-            DmThreadScreen(threadId: state.pathParameters['id']!),
+        builder: (context, state) => H5HostPage(
+          path: '/discover/dm/${state.pathParameters['id']}',
+        ),
       ),
       GoRoute(
           path: '/report',
-          builder: (context, state) => const ReadingReportScreen()),
+          builder: (context, state) => const H5HostPage(
+                path: '/report',
+              )),
+      GoRoute(
+        path: '/help',
+        builder: (context, state) => const H5HostPage(
+              path: '/profile/licenses',
+            ),
+      ),
+      GoRoute(
+        path: '/legal',
+        builder: (context, state) => const H5HostPage(
+              path: '/profile/licenses',
+            ),
+      ),
+      GoRoute(
+        path: '/feedback',
+        builder: (context, state) => const H5HostPage(
+              path: '/discover',
+            ),
+      ),
+      GoRoute(
+        path: '/profile/licenses',
+        builder: (context, state) => const H5HostPage(
+              path: '/profile/licenses',
+            ),
+      ),
+      GoRoute(
+        path: '/profile/settings',
+        builder: (context, state) => const H5HostPage(
+              path: '/profile/settings',
+            ),
+      ),
+      GoRoute(
+        path: '/profile/reminders',
+        builder: (context, state) => const H5HostPage(
+              path: '/profile/reminders',
+            ),
+      ),
       GoRoute(
           path: '/dictionary',
           builder: (context, state) => const DictionaryScreen()),
@@ -142,8 +195,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/group/:id',
-        builder: (context, state) =>
-            GroupScreen(groupId: state.pathParameters['id']!),
+        builder: (context, state) => H5HostPage(
+          path: '/discover/group/${state.pathParameters['id']}',
+        ),
       ),
     ],
   );

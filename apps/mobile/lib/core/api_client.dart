@@ -79,6 +79,8 @@ final dioProvider = Provider<Dio>((ref) {
           options.headers['X-User-Code'] = code;
           options.headers['X-User-Id'] = code;
         }
+        // analytics / 服务端路由：Flutter 原生客户端
+        options.headers['X-Client-Kind'] = 'android_flutter';
         handler.next(options);
       },
     ),

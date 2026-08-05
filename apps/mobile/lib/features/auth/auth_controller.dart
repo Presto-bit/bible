@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/h5_session_bridge.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../core/user_storage.dart';
 import '../notes/notes_repository.dart' show dbProvider;
@@ -93,6 +94,10 @@ class AuthController extends Notifier<AuthState> {
       } catch (_) {}
     }
     await session.signOut();
+    // 发现/IM H5 与原生 session 双清，避免切 Tab 仍是旧账号
+    try {
+      await H5SessionBridge.clearWebAuth();
+    } catch (_) {}
     ref.read(activeUserCodeProvider.notifier).syncFromSession();
     ref.invalidate(dbProvider);
     try {

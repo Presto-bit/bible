@@ -1,6 +1,7 @@
 /** 发现页 / 分享卡 → 小爱预填（问题走 sid 暂存，不暴露在 URL） */
 
 import type { Citation } from './api';
+import { isFlutterH5Host, peiaiOpenNativeAssistant } from './flutter_h5_bridge';
 
 const SEED_PREFIX = 'presto_ai_seed:';
 const SEED_TTL_MS = 30 * 60 * 1000;
@@ -144,5 +145,10 @@ export function navigateToAssistant(
   },
 ) {
   if (typeof window === 'undefined') return;
+  // Flutter 嵌 H5：走原生小爱，保留经节锚点
+  if (isFlutterH5Host()) {
+    const q = opts?.question ?? (ref ? explainVerseQuestion(ref, opts?.excerpt) : '');
+    if (peiaiOpenNativeAssistant({ ref: ref || undefined, q })) return;
+  }
   window.location.href = assistantHref(ref, opts);
 }

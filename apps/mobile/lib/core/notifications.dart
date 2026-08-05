@@ -1,4 +1,4 @@
-/// 本地通知：每日读经提醒（定时重复）。
+/// 本地通知：每日读经提醒（定时重复）+ payload 深链回调。
 ///
 /// 仅在移动端（iOS/Android）生效；Web/桌面为 no-op。远程推送（APNs/FCM）
 /// 需平台凭证与原生配置，后续接入；本地通知无需服务端即可投递。
@@ -9,6 +9,8 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+typedef NotificationPayloadHandler = void Function(String? payload);
+
 class NotificationService {
   NotificationService._();
   static final NotificationService instance = NotificationService._();
@@ -17,6 +19,7 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
   static const int _dailyId = 1001;
+  NotificationPayloadHandler? onPayload;
 
   bool get _supported =>
       !kIsWeb &&
@@ -30,6 +33,9 @@ class NotificationService {
     const ios = DarwinInitializationSettings();
     await _plugin.initialize(
       const InitializationSettings(android: android, iOS: ios),
+      onDidReceiveNotificationResponse: (resp) {
+        onPayload?.call(resp.payload);
+      },
     );
     _ready = true;
   }
@@ -50,7 +56,8 @@ class NotificationService {
     return ok ?? true;
   }
 
-  Future<void> scheduleDaily(int hour, int minute) async {
+  /// [payload] 为 go_router 可用 path，如 `/reader` 或 `/discover/dm/x`。
+  Future<void> scheduleDaily(int hour, int minute, {String payload = '/reader'}) async {
     if (!_supported) return;
     await _ensureInit();
     await _plugin.cancel(_dailyId);
@@ -71,6 +78,7 @@ class NotificationService {
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
+      payload: payload,
     );
   }
 
@@ -78,6 +86,17 @@ class NotificationService {
     if (!_supported) return;
     await _ensureInit();
     await _plugin.cancel(_dailyId);
+  }
+
+  /// 冷启动时检查是否从通知点开。
+  Future<String?> consumeLaunchPayload() async {
+    if (!_supported) return null;
+    await _ensureInit();
+    final details = await _plugin.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp == true) {
+      return details!.notificationResponse?.payload;
+    }
+    return null;
   }
 
   tz.TZDateTime _nextInstance(int hour, int minute) {

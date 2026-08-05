@@ -117,6 +117,20 @@ class AppTheme {
         scrolledUnderElevation: 0,
         titleTextStyle: AppTypography.title.copyWith(color: palette.ink),
       ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: palette.surface.withValues(alpha: 0.92),
+        indicatorColor: palette.accent.withValues(alpha: 0.16),
+        elevation: 0,
+        height: 58,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final active = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 10,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+            color: active ? palette.accentDeep : palette.ink.withValues(alpha: 0.45),
+          );
+        }),
+      ),
       dividerColor: palette.line,
       cardTheme: CardThemeData(
         color: palette.surface,

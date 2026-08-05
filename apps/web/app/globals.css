@@ -204,6 +204,71 @@ body.pwa-standalone .app-body {
   padding-top: max(var(--safe-top), 4px);
 }
 
+/*
+ * Flutter 嵌 H5（安卓主包）：外层已有原生五 Tab / 可选 AppBar，
+ * 勿再渲染 Web 浮动底栏，内边距对齐 iOS PWA 内容区（勿双重 tabbar）。
+ */
+html.android-flutter-h5 {
+  --tabbar-inner: 0px;
+  --tabbar-float-gap: 0px;
+  --tabbar-safe: 0px;
+  /* 消息列表底仅留小呼吸；真正底栏高度由 Flutter 裁切 WebView */
+  --tabbar-h: 12px;
+  overscroll-behavior: none;
+}
+
+html.android-flutter-h5,
+html.android-flutter-h5 body {
+  background: var(--pwa-bg, var(--paper, #fffcfa));
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.android-flutter-h5 .tabbar,
+html.android-flutter-h5 nav.tabbar {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+/* 顶距：Flutter 若未 SafeArea，壳注入 --shell-inset-top；已 SafeArea 则 env 多为 0 */
+html.android-flutter-h5 .app-body,
+html.android-flutter-h5 body.pwa-standalone .app-body {
+  padding-top: max(var(--safe-top), 0px);
+  padding-bottom: calc(var(--tabbar-h) + 4px);
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+/* 已装在 App 内：不催安装 / 分享安装条 */
+html.android-flutter-h5 .share-pwa-bar,
+html.android-flutter-h5 [data-peiai-install-sheet],
+html.android-flutter-h5 .install-banner {
+  display: none !important;
+}
+
+/* Flutter 键盘：用壳注入的 --im-kb-inset / --peiai-vv-h 贴底输入 */
+html.android-flutter-h5 body.android-flutter-kb .im-composer-bar,
+html.android-flutter-h5 body.im-keyboard .im-composer-bar {
+  bottom: max(0px, var(--im-kb-inset, 0px)) !important;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+html.android-flutter-h5 {
+  /* 避免原生底栏之上再垫一层 Web tabbar 占位 */
+  --tabbar-h: 10px;
+}
+
+/* 暗色 H5：与 Flutter paper 对齐，减少「两个 App」感 */
+html.android-flutter-h5[data-peiai-theme='dark'],
+html.android-flutter-h5[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 /* 窄屏：压缩 Tab 与触控文案，避免五栏挤爆 */
 @media (max-width: 359px) {
   :root {

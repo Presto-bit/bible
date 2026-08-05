@@ -1,13 +1,13 @@
 {
   "packageId": "cn.prestoai.peiai",
-  "versionCode": 20,
-  "versionName": "2.0.0",
-  "bytes": 2695536,
-  "sha256": "37cfd1eefe0a8829c4747fcf615558cf9a8117a4c4feed9c75be056bbc74e049",
+  "versionCode": 30,
+  "versionName": "3.0.0",
+  "bytes": 74251710,
+  "sha256": "69411d0f53ec1038b4861086d69e86727676f80a95523a43e9244adf4ece7eee",
   "downloadUrl": "/downloads/biai-android.apk",
   "iconUrl": "/downloads/biai-android-icon.png",
   "icon192Url": "/downloads/biai-android-icon-192.png",
-  "certSha256": "80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16",
-  "runtime": "chrome-twa",
-  "generatorApp": "android-pwa-host"
+  "certSha256": "79:5F:74:9B:BD:35:12:CF:EF:3D:CA:0D:68:D3:C4:7F:16:4A:3A:2D:49:26:49:B6:C4:90:A1:66:C5:A0:12:9C",
+  "runtime": "flutter",
+  "generatorApp": "apps/mobile Flutter"
 }

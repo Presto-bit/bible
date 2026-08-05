@@ -1,70 +1,38 @@
-# PWA 图标与名称
+# PWA 与安卓分发
 
-以 **iOS Safari「添加到主屏幕」** 为视觉基准；Android / 桌面共用同一套 `icon.svg` 导出，不做单独 Android 风格。
-
-## 主视觉源文件
-
-| 文件 | 说明 |
-|------|------|
-| `../../icon.png` | **唯一主稿**（红底窄门 + BIBLE） |
-| `scripts/generate_pwa_assets.mjs` | 从 PNG 批量导出图标与启动图 |
-
-```bash
-cd apps/web && npm run generate-pwa
-```
-
-## 主屏名称
-
-| 平台 | 显示 |
-|------|------|
-| iOS 主屏幕 | **彼爱**（`appleWebApp.title`） |
-| Android / Manifest | **彼爱**（`short_name`） |
-| 副标题 | **安静读经**（启动图 + `description`） |
-
-常量：`lib/pwa_brand.ts`、`lib/brand.ts`
-
-## 导出文件
-
-| 文件 | 用途 | 尺寸 |
-|------|------|------|
-| `apple-touch-icon.png` | iOS 主屏幕 | 180×180 |
-| `apple-touch-icon-167.png` | iPad | 167×167 |
-| `icon-192.png` | PWA any | 192×192 |
-| `icon-512.png` | PWA any | 512×512 |
-| `icon-maskable-512.png` | Android 自适应（同源缩进 64%） | 512×512 |
-| `splash-iphone*.png` | iOS 启动图（极简品牌屏） | 见脚本 |
-
-## PWA 背景色
-
-全站壳层：`--pwa-bg: #FFFCFA`（应用内背景）；开屏红底 `#E32626` 仅用于 manifest `background_color` 与 iOS startup 图。
-
-同步至：`manifest.webmanifest`、`layout` viewport、启动图、Standalone 首屏。
-
-## 启动图
-
-- 策略：**品牌开屏**（icon.png 图形 + 彼爱 + 安静读经，红底 `#E32626`）
-- 设计基准：iPhone 15/16 逻辑 **393×852 @3x**
-- 其它机型：脚本等比生成 + `apple-touch-startup-image` media 查询
+以 **iOS Safari「添加到主屏幕」** 为视觉基准；安卓安装包为 **Flutter**（见产品 §24）。
 
 ## 安装引导
 
+| 平台 | 主路径 |
+|------|--------|
+| **iOS** | Safari「添加到主屏幕」 |
+| **Android** | 官网 **Flutter APK**（`apps/mobile` 构建）；发现/IM 等嵌 **H5 白名单** |
+| 微信 / QQ | 先逃逸系统浏览器再安装 |
+
 - 组件：`components/InstallPwaGuide.tsx`
-- **Android 主路径：官网安装包**（`/downloads/biai-android.apk`）  
-  - 工程：[`apps/android-pwa-host`](../android-pwa-host)（Chrome Trusted Web Activity）  
-  - **分发用 APK，渲染用 Chrome**；与 iOS Safari standalone 对齐  
-  - 旧 System WebView 壳（`apps/android-twa`）已冻结，引导覆盖安装 2.0+
-- iOS：仍为 Safari「添加到主屏幕」
-- 微信 / QQ：引导「用浏览器打开再安装」
-- 入口：底部 Banner、「我的 → 设置 → 安装彼爱」、新手/读后引导
-- Digital Asset Links：`public/.well-known/assetlinks.json`（无地址栏红线）
+- 历史壳（`android-twa` / `android-pwa-host`）：**非主分发**；用户引导覆盖装 Flutter 包
+- H5 白名单：`lib/h5_whitelist.ts`（与 `apps/mobile/lib/core/h5_whitelist.dart` 同步）
+- Flutter 壳登录桥：`lib/flutter_h5_bridge.ts`（`presto_session_token`）
 
-## Standalone 对齐
+## Shorebird（仅安卓壳）
 
-- 竖屏：`manifest orientation: portrait-primary`
-- 外链：`lib/pwa_nav.ts` 同 tab 打开
-- 安卓能力宿主：`lib/android_host.ts` + `peiai://host/v1/*`（提醒 / APK 更新）
-- 发版 QA：`PWA_STANDALONE_QA` 清单（`lib/pwa_nav.ts`）
+- **用途**：闪退、提醒、推送、桥、原生读经小修  
+- **禁止**：用热更发布 IM / 活动 / 协议等业务（业务走 Web 部署）  
+- 发版标：`web` | `shorebird` | `full_apk`
+
+## 图标与名称
+
+见下文历史字段；`npm run generate-pwa` 生成资源。常量：`lib/pwa_brand.ts`。
+
+| 平台 | 显示 |
+|------|------|
+| iOS 主屏幕 | **彼爱** |
+| Android / Manifest | **彼爱** |
+| 副标题 | **安静读经** |
+
+主稿：`../../icon.png`；脚本 `scripts/generate_pwa_assets.mjs`。
 
 ## 生效
 
-替换 `icon.svg` 后运行 `npm run generate-pwa`，构建部署。已安装用户需**删除旧快捷方式后重新添加**才能更新图标。Android 安装包用户业务更新随 Web 部署生效，无需重装 APK（容器 / 提醒宿主 / 换签除外）。
+业务热更以 **Web 部署** 为准（含嵌 H5 的安卓发现）。Flutter 壳 / Shorebird / 整包仅在壳层变更时需要。

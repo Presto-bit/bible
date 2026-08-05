@@ -2,6 +2,11 @@
 
 import { useEffect } from 'react';
 import { captureAndroidHostFromUrl } from '@/lib/android_host';
+import {
+  captureFlutterH5AuthFromUrl,
+  isFlutterH5Host,
+  markFlutterH5Chrome,
+} from '@/lib/flutter_h5_bridge';
 import { isLowEndDevice, isStandalonePwa } from '@/lib/platform';
 import {
   isPeiaiAndroidCapabilityHost,
@@ -23,9 +28,14 @@ import { initAndroidShellBridge } from '@/lib/android_shell_bridge';
 export default function PwaStandaloneShell() {
   useEffect(() => {
     captureAndroidHostFromUrl();
+    captureFlutterH5AuthFromUrl();
 
     const apply = () => {
-      const standalone = isStandalonePwa();
+      // Flutter 嵌 H5：等同 standalone chrome（无 WebView「浏览器感」）
+      if (isFlutterH5Host()) {
+        markFlutterH5Chrome();
+      }
+      const standalone = isStandalonePwa() || isFlutterH5Host();
       document.body.classList.toggle('pwa-standalone', standalone);
       document.documentElement.classList.toggle('pwa-standalone', standalone);
       const capabilityHost = isPeiaiAndroidCapabilityHost();

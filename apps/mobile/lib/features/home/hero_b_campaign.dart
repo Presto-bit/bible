@@ -93,6 +93,11 @@ int? heroBTabIndex(String href) {
 }
 
 String heroBRoutePath(String href) {
+  final u = Uri.tryParse(href);
+  if (u != null && u.hasScheme) {
+    final p = u.path.isEmpty ? '/' : u.path;
+    return u.hasQuery ? '$p?${u.query}' : p;
+  }
   if (href.startsWith('/')) return href;
   return '/';
 }

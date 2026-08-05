@@ -1,0 +1,8 @@
+# Shorebird 壳热修通道（§24.7）
+# 接入时：shorebird init 后填入 app_id；未配置前勿强依赖 patch 发布。
+#
+# 禁止：发现/IM/活动/业务能力走 Shorebird
+# 允许：闪退、H5 桥、提醒推送、安全区、原生读经/小爱小修
+
+# app_id: YOUR_SHOREBIRD_APP_ID
+# auto_update: false

@@ -1,4 +1,4 @@
-/** 彼爱 Android 官网安装包直装（Chrome-hosted；历史名常称 TWA） */
+/** 彼爱 Android 官网安装包（主推 Flutter；历史曾 Chrome Host / WebView 壳） */
 
 export const ANDROID_TWA_PACKAGE_ID = 'cn.prestoai.peiai';
 
@@ -19,7 +19,12 @@ export type AndroidTwaMeta = {
   /** 安装包配套图标（站点 /downloads） */
   iconUrl?: string;
   icon192Url?: string;
-  /** chrome-twa = Chrome Host；缺省视为历史包 */
+  /**
+   * flutter = Flutter 主包；
+   * chrome-twa = Chrome Host 实验；
+   * webview-shell = 历史整站 WebView；
+   * 缺省视为历史包
+   */
   runtime?: string;
   generatorApp?: string;
 };

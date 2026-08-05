@@ -15,6 +15,7 @@ import { normalizeAppPath } from '@/lib/tab_keep_alive';
 import { useOnline } from '@/lib/use_online';
 import { isShareLandingPath } from '@/lib/share_pwa_guide';
 import { shellTapProps } from '@/lib/shell_tap';
+import { isFlutterH5Host } from '@/lib/flutter_h5_bridge';
 
 // 图标与 App（Material Icons）保持一致：home / menu_book / auto_awesome / explore / person。
 // outline 为未选中态，filled 为选中态（与 App 的 NavigationDestination 行为一致）。
@@ -177,6 +178,8 @@ export default function BottomTabs() {
   };
 
   if (onShareLanding) return null;
+  // Flutter 安卓壳外层已有原生五 Tab，内嵌不再挂 Web 底栏
+  if (isFlutterH5Host()) return null;
 
   return (
     <nav

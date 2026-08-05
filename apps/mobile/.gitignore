@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Local SDK shim (platform-35 bootstrap for machines without android-35)
+.android-sdk-shim/

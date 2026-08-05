@@ -10,16 +10,48 @@ import {
 export type ClientKind =
   | 'pwa'
   | 'android_shell'
+  | 'android_flutter'
+  | 'android_h5_tab'
   | 'browser'
   | 'inapp'
   | 'ios'
   | 'android'
   | 'unknown';
 
-/** 当前会话客户端：安卓安装包 / PWA 优先；微信等内置浏览器；其余记为浏览器 */
+function sessionClientKind(): ClientKind | null {
+  if (typeof sessionStorage === 'undefined') return null;
+  try {
+    const k = sessionStorage.getItem('peiai_client_kind');
+    if (k === 'android_h5_tab' || k === 'android_flutter') return k;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/** 当前会话客户端 */
 export function detectClientKind(): ClientKind {
   if (typeof window === 'undefined') return 'unknown';
-  // Chrome Host 与 iOS PWA 同属浏览器 runtime，仍记 android_shell 以便分析安装包用户
+  const fromSession = sessionClientKind();
+  if (fromSession) return fromSession;
+  if (
+    typeof document !== 'undefined'
+    && document.documentElement.classList.contains('android-flutter-h5')
+  ) {
+    return 'android_h5_tab';
+  }
+  // Flutter WebView UA 注入标记
+  try {
+    const ua = navigator.userAgent || '';
+    if (/\bPeiaiFlutter\b/i.test(ua) && /\bandroid_h5_tab\b/i.test(ua)) {
+      return 'android_h5_tab';
+    }
+    if (/\bPeiaiFlutter\b/i.test(ua)) {
+      return 'android_flutter';
+    }
+  } catch {
+    /* ignore */
+  }
   if (isPeiaiAndroidCapabilityHost() || isPeiaiAndroidChromeHost()) return 'android_shell';
   if (isStandalonePwa()) return 'pwa';
   try {
@@ -33,7 +65,11 @@ export function detectClientKind(): ClientKind {
 export function clientKindLabel(kind: string | null | undefined): string {
   switch ((kind || '').trim()) {
     case 'android_shell':
-      return '安卓安装包';
+      return '安卓安装包（旧壳）';
+    case 'android_flutter':
+      return '安卓 Flutter';
+    case 'android_h5_tab':
+      return '安卓 Flutter·H5';
     case 'pwa':
       return 'PWA';
     case 'browser':

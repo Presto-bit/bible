@@ -893,22 +893,33 @@ class _SettingsSheet extends ConsumerWidget {
             ]),
             const SizedBox(height: 12),
             _section('关于', [
-              _InfoTile(label: '版本', value: '1.0.0 (P1)'),
+              const _InfoTile(label: '版本', value: '3.0.0 (Flutter)'),
               const SizedBox(height: 8),
               _InfoTile(label: '后端地址', value: AppConfig.baseUrl),
+              const SizedBox(height: 8),
+              _row('协议与开源许可', '官网页', onTap: () {
+                Navigator.pop(context);
+                context.push('/profile/licenses');
+              }),
+              const SizedBox(height: 8),
+              _row('提醒设置', '读经提醒', onTap: () {
+                Navigator.pop(context);
+                context.push('/profile/reminders');
+              }),
               const SizedBox(height: 8),
               _row('帮助与反馈', '官方客服', onTap: () async {
                 Navigator.pop(context);
                 try {
                   final tid = await ref
-                      .read(socialRepositoryProvider)
+                      .read(socialRepoProvider)
                       .openDm(kOfficialSupportUserCode);
                   if (!context.mounted) return;
                   context.push('/discover/dm/$tid');
                 } catch (_) {
                   if (!context.mounted) return;
+                  context.push('/discover');
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('暂时无法联系官方，请稍后重试')),
+                    const SnackBar(content: Text('暂时无法直达客服，已打开消息页')),
                   );
                 }
               }),

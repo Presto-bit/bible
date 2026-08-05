@@ -5,6 +5,7 @@
       "namespace": "android_app",
       "package_name": "cn.prestoai.peiai",
       "sha256_cert_fingerprints": [
+        "79:5F:74:9B:BD:35:12:CF:EF:3D:CA:0D:68:D3:C4:7F:16:4A:3A:2D:49:26:49:B6:C4:90:A1:66:C5:A0:12:9C",
         "80:E7:34:E1:36:8A:D0:26:D4:19:84:48:75:AD:8F:C7:9B:F6:48:1F:82:5A:02:6E:D3:44:9A:95:07:FE:72:16"
       ]
     }

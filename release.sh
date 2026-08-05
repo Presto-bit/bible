@@ -144,6 +144,37 @@ assert_sw_fresh() {
   return 0
 }
 
+# 风景壁纸须能被浏览器长缓存；nginx location / 若 no-cache always 会盖掉 Next headers
+# 仅告警不阻断（避免未 reload nginx 的发版全失败）
+# $1=base URL  $2=label
+assert_wallpaper_long_cache() {
+  local base="${1%/}"
+  local label="$2"
+  local url="${base}/daily-wallpapers/scenery-01.jpg"
+  local headers code cache_h cache_lc x_cache
+  headers="$(curl -sSI --connect-timeout 5 --max-time 20 --max-redirs 0 "$url" 2>/dev/null || true)"
+  code="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'toupper($1) ~ /^HTTP\//{print $2; exit}')"
+  cache_h="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="cache-control:"{print; exit}')"
+  x_cache="$(printf '%s\n' "$headers" | tr -d '\r' | awk 'tolower($1)=="x-bible-cache:"{print $2; exit}')"
+  cache_lc="$(printf '%s' "$cache_h" | tr '[:upper:]' '[:lower:]')"
+
+  if [[ "$code" != "200" && "$code" != "304" ]]; then
+    log "⚠️  $label 壁纸探测 HTTP ${code:-?}（$url）— 不校验 Cache-Control"
+    return 1
+  fi
+  # 期望 public + 较长 max-age；禁止仅有 no-store/no-cache 而无可缓存指令
+  if [[ "$cache_lc" =~ max-age=([0-9]+) ]] && [[ "${BASH_REMATCH[1]}" -ge 86400 ]]; then
+    log "  ✓ $label 壁纸 Cache-Control 可长缓存（${cache_h}${x_cache:+; X-Bible-Cache=$x_cache}）"
+    return 0
+  fi
+  if [[ "$cache_lc" =~ (no-store|no-cache) ]]; then
+    log "⚠️  $label 壁纸仍为短/无缓存（${cache_h:-缺失}）。Nginx location / 的 no-cache 可能盖住了 Next；请合并 deploy/nginx-*.conf 中 ^~ /daily-wallpapers/ 与 /rail-scenes/ 后 nginx -t && reload"
+    return 1
+  fi
+  log "⚠️  $label 壁纸 Cache-Control 过短或缺失（${cache_h:-无}）；期望 max-age≥86400（见 deploy/nginx + next.config）"
+  return 1
+}
+
 # 轮询本机首页直到 app-version 就绪（Next 冷启 / 容器 recreate 后短暂空窗）
 # $1=期望版本  $2=最大秒数  打印最新 HTML 到 stdout（仅最后成功那次的 body 由全局变量带回不方便 → 用文件）
 wait_local_app_version() {
@@ -676,6 +707,9 @@ fi
 log "SW 新鲜度：本机 sw.js 与容器 app-version=$served_app_version 一致"
 assert_sw_fresh "http://127.0.0.1:${WEB_HOST_PORT}" "本机" "$served_sw_tok" 1
 
+log "壁纸缓存：本机 daily-wallpapers 勿被反代 no-cache 盖掉"
+assert_wallpaper_long_cache "http://127.0.0.1:${WEB_HOST_PORT}" "本机" || true
+
 if [[ -n "$pub_url" ]]; then
   log "劫持检查：公网 Web"
   assert_web_not_hijacked "${pub_url%/}/" "公网 /"
@@ -763,6 +797,7 @@ if [[ -n "$pub_url" ]]; then
 
   log "SW 新鲜度：公网 sw.js（应对齐本机容器烙印）"
   assert_sw_fresh "${pub_url}" "公网" "$served_sw_tok" "$pub_strict" || true
+  assert_wallpaper_long_cache "${pub_url}" "公网" || true
 fi
 
 log "发布成功（耗时 $((SECONDS - RELEASE_T0))s）"
