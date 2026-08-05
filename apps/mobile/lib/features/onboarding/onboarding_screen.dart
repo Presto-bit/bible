@@ -34,14 +34,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     super.dispose();
   }
 
+  bool _finishing = false;
+
   Future<void> _finish() async {
+    if (_finishing) return;
+    _finishing = true;
     final prefs = ref.read(prefsProvider);
     await prefs.setBool(onboardingDoneKey, true);
     if (_name.text.trim().isNotEmpty) {
       await prefs.setString(onboardingNameKey, _name.text.trim());
     }
     if (_goal != null) await prefs.setString(onboardingGoalKey, _goal!);
-    if (mounted) context.go('/');
+    if (!mounted) return;
+    // 必须离开 /onboarding，否则同一 location 不会重建 AppShell
+    context.go('/');
   }
 
   void _next() {

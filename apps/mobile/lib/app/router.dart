@@ -29,13 +29,23 @@ final routerProvider = Provider<GoRouter>((ref) {
   final prefs = ref.read(prefsProvider);
   return GoRouter(
     initialLocation: '/',
+    redirect: (context, state) {
+      // 首启引导：prefs 写完后 go('/') 才会真正切换路由；
+      // 不能在同一 path 内用 builder 分支，否则 go('/') 无响应。
+      final done = prefs.getBool(onboardingDoneKey) ?? false;
+      final onOnboarding = state.matchedLocation == '/onboarding';
+      if (!done && !onOnboarding) return '/onboarding';
+      if (done && onOnboarding) return '/';
+      return null;
+    },
     routes: [
       GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
         path: '/',
-        builder: (context, state) {
-          final done = prefs.getBool(onboardingDoneKey) ?? false;
-          return done ? const AppShell() : const OnboardingScreen();
-        },
+        builder: (context, state) => const AppShell(),
       ),
       GoRoute(
         path: '/reader',
