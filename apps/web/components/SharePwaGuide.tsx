@@ -62,8 +62,11 @@ export function SharePwaGuide({
       <WechatEscapeCoach
         softCloseOnly
         skipLabel="先看看内容"
+        /* 收起不写 1 天冷却、不卸载；粘性条可再开全屏指引 */
         onDismissPassive={softDismiss}
-        onSoftClose={softDismiss}
+        onSoftClose={() => {
+          /* no-op：由 WechatEscapeCoach 内部最小化 */
+        }}
       />
     );
   }

@@ -86,6 +86,32 @@ export function withFromWechatParam(url: string): string {
 }
 
 /**
+ * 强化逃逸关键：把当前地址带上 fw=1（不刷新）。
+ * 微信「··· → 在浏览器打开」用的是当前 URL，带上后系统浏览器落地可直接强化安装。
+ */
+export function primeCurrentUrlForWechatEscape(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    const u = new URL(window.location.href);
+    const fw = u.searchParams.get(FROM_WECHAT_PARAM);
+    if (fw !== '1' && fw !== 'true') {
+      u.searchParams.set(FROM_WECHAT_PARAM, '1');
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${u.pathname}${u.search}${u.hash}`,
+      );
+    }
+    markWechatEscapeIntent();
+    notePostInstallPath();
+    return true;
+  } catch {
+    markWechatEscapeIntent();
+    return false;
+  }
+}
+
+/**
  * 落地时解析 fw=1：标记逃逸意图，并提示调用方去掉 query、强化安装。
  */
 export function bootstrapFromWechatParam(search: URLSearchParams | { get: (k: string) => string | null }): {

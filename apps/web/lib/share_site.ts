@@ -23,12 +23,21 @@ export function toCanonicalShareUrl(pathOrUrl: string): string {
   }
 }
 
-/** OG / 微信预览副文案：统一带安装意图 */
+/** OG / 微信预览副文案：统一带安装意图（安卓偏「浏览器里装」） */
 export function withShareInstallHint(description: string, extra?: string): string {
   const base = (description || '').trim();
-  const hint = (extra || '打开后用浏览器保存到主屏幕，下次一点就开').trim();
+  const hint = (
+    extra || '打开后点右上角用浏览器打开，再安装彼爱'
+  ).trim();
   if (!base) return hint;
-  if (base.includes('主屏幕') || base.includes('保存到')) return base;
+  if (
+    base.includes('主屏幕')
+    || base.includes('保存到')
+    || base.includes('浏览器打开')
+    || base.includes('安装')
+  ) {
+    return base;
+  }
   const clipped = base.length > 90 ? `${base.slice(0, 89)}…` : base;
   return `${clipped} · ${hint}`;
 }

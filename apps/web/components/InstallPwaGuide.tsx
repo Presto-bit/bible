@@ -191,7 +191,10 @@ export function InstallPwaSheet({
         softCloseOnly={softCloseOnly}
         skipLabel={softCloseOnly ? '先看看内容' : '暂不打开'}
         onDismissPassive={dismissPassive}
-        onSoftClose={softClose}
+        /* 收起保留引导（粘性条）；勿关 Sheet，避免卸载 */
+        onSoftClose={() => {
+          /* no-op：WechatEscapeCoach 内部最小化 */
+        }}
       />
     );
   }

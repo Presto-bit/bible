@@ -20,7 +20,12 @@ function ShareFunnelBootstrapInner() {
     const platform = detectInstallPlatform();
     const result = bootstrapFromWechatParam(searchParams);
 
-    if (result.stripQuery && typeof window !== 'undefined') {
+    // 微信内必须保留 ?fw=1，供「在浏览器打开」带参；只在系统浏览器落地再剥参
+    if (
+      result.stripQuery
+      && platform !== 'inapp'
+      && typeof window !== 'undefined'
+    ) {
       const u = new URL(window.location.href);
       if (u.searchParams.has('fw')) {
         u.searchParams.delete('fw');
@@ -33,9 +38,14 @@ function ShareFunnelBootstrapInner() {
     }
 
     if (result.shouldBoostInstall && platform !== 'inapp' && platform !== 'standalone') {
-      // 从微信逃出后尽快接上安装引导（iOS 指尖 / 安卓下载）
-      const t = window.setTimeout(() => openPwaInstallSheet(), 380);
-      return () => window.clearTimeout(t);
+      // 从微信逃出（fw=1 或会话标记）后尽快接上安装引导（iOS 指尖 / 安卓下载）
+      const t = window.setTimeout(() => openPwaInstallSheet(), 220);
+      // 再补一次，防止首帧 platform 未就绪
+      const t2 = window.setTimeout(() => openPwaInstallSheet(), 900);
+      return () => {
+        window.clearTimeout(t);
+        window.clearTimeout(t2);
+      };
     }
   }, [pathname, searchParams, router]);
 
