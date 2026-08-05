@@ -3,6 +3,16 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// FAST_BUILD=1 关闭 R8（本机快包）；属性 peiai_fast / peiai.fast 兼容 -P
+val peiaiFast = run {
+    if (System.getenv("FAST_BUILD") == "1") return@run true
+    for (key in listOf("peiai_fast", "peiai.fast")) {
+        val v = project.findProperty(key) as String? ?: continue
+        if (v.equals("true", ignoreCase = true) || v == "1") return@run true
+    }
+    false
+}
+
 android {
     namespace = "cn.prestoai.presto_bible"
     compileSdk = 36
@@ -30,12 +40,14 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            isMinifyEnabled = !peiaiFast
+            isShrinkResources = !peiaiFast
+            if (!peiaiFast) {
+                proguardFiles(
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro",
+                )
+            }
         }
     }
 }

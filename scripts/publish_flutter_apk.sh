@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 # 构建 Flutter 安卓 APK 并发布到 apps/web/public/downloads/
+#
+# 用法：
+#   ./scripts/publish_flutter_apk.sh              # 官网全量（arm64 + R8 + Dart 混淆）
+#   FAST_BUILD=1 ./scripts/publish_flutter_apk.sh # 本机快包（无混淆/无 R8，勿发官网）
+#   ORG_GRADLE_OFFLINE=1 ./scripts/…              # 依赖缓存已齐时强制离线
+#   TARGET_PLATFORM=android-arm ./scripts/…       # 32 位真机
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MOBILE="$ROOT/apps/mobile"
@@ -33,25 +39,44 @@ fi
 export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$ROOT/.gradle-home}"
 
 # P0 体积：仅 arm64 + R8（Gradle minify）+ Dart 混淆
-# 真机 32 位需另跑：--target-platform android-arm
+# 真机 32 位：TARGET_PLATFORM=android-arm
 TARGET_PLATFORM="${TARGET_PLATFORM:-android-arm64}"
 SYMBOLS_DIR="$MOBILE/build/symbols"
+FAST_BUILD="${FAST_BUILD:-0}"
+
+if [[ "${ORG_GRADLE_OFFLINE:-0}" == "1" ]]; then
+  # Gradle 识别 -Dorg.gradle.offline=true
+  export GRADLE_OPTS="${GRADLE_OPTS:-} -Dorg.gradle.offline=true"
+  echo "Gradle offline mode ON (ORG_GRADLE_OFFLINE=1)"
+fi
+
+BUILD_ARGS=(
+  build apk --release
+  --target-platform "$TARGET_PLATFORM"
+  --android-skip-build-dependency-validation
+  --dart-define="API_BASE_URL=$API_BASE"
+  --dart-define="WEB_BASE_URL=$WEB_BASE"
+)
+
+if [[ "$FAST_BUILD" == "1" ]]; then
+  echo "FAST_BUILD=1：跳过 Dart 混淆与 R8（仅本机/联调，勿当官网包）"
+  export FAST_BUILD=1
+  export ORG_GRADLE_PROJECT_peiai_fast=true
+else
+  BUILD_ARGS+=(
+    --obfuscate
+    --split-debug-info="$SYMBOLS_DIR"
+  )
+  mkdir -p "$SYMBOLS_DIR"
+fi
 
 cd "$MOBILE"
 "$FLUTTER" pub get
-mkdir -p "$SYMBOLS_DIR"
-"$FLUTTER" build apk --release \
-  --target-platform "$TARGET_PLATFORM" \
-  --obfuscate \
-  --split-debug-info="$SYMBOLS_DIR" \
-  --android-skip-build-dependency-validation \
-  --dart-define="API_BASE_URL=$API_BASE" \
-  --dart-define="WEB_BASE_URL=$WEB_BASE"
+"$FLUTTER" "${BUILD_ARGS[@]}"
 
 # fat 名仍为 app-release.apk；带 --target-platform 时亦落此路径
 APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-release.apk"
 if [[ ! -f "$APK_SRC" ]]; then
-  # split-per-abi 遗留命名兜底
   case "$TARGET_PLATFORM" in
     android-arm64) APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ;;
     android-arm)   APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ;;
@@ -61,6 +86,12 @@ fi
 if [[ ! -f "$APK_SRC" ]]; then
   echo "APK missing: $APK_SRC" >&2
   exit 1
+fi
+
+if [[ "$FAST_BUILD" == "1" ]]; then
+  echo "APK ready (fast, not published): $APK_SRC"
+  ls -lh "$APK_SRC"
+  exit 0
 fi
 
 mkdir -p "$OUT_DIR"
