@@ -337,6 +337,24 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
   /** 底栏常驻；高度 / 键盘与 PWA·IM 同源（见 use_assistant_viewport） */
   useAssistantViewport(paneActive, composerFocused, setComposerFocused);
 
+  /** 空态锁死线程滚动，避免欢迎区可滑 */
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || msgs.length > 0) return;
+    el.scrollTop = 0;
+    const pin = () => {
+      if (el.scrollTop !== 0) el.scrollTop = 0;
+    };
+    el.addEventListener('scroll', pin, { passive: true });
+    return () => el.removeEventListener('scroll', pin);
+  }, [msgs.length, paneActive]);
+
+  /** 有输出后重测一次高度，避免输入仍落在底栏下 */
+  useEffect(() => {
+    if (!paneActive || msgs.length === 0) return;
+    window.dispatchEvent(new Event('resize'));
+  }, [paneActive, msgs.length === 0]);
+
   useEffect(() => {
     if (paneActive) return;
     inputRef.current?.blur();
@@ -959,6 +977,20 @@ function AssistantPageInner({ paneActive }: { paneActive: boolean }) {
               value={input}
               disabled={busy}
               onChange={(e) => setInput(e.target.value)}
+              onFocus={() => setComposerFocused(true)}
+              onBlur={() => {
+                // focusout 里由 viewport hook 再确认；此处兜底
+                window.setTimeout(() => {
+                  const ae = document.activeElement;
+                  if (
+                    ae instanceof HTMLElement &&
+                    ae.closest('.assistant-composer')
+                  ) {
+                    return;
+                  }
+                  setComposerFocused(false);
+                }, 0);
+              }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
