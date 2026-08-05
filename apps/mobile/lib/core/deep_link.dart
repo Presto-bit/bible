@@ -14,7 +14,12 @@ class DeepLink {
   /// 将 https://host/... 或 app 内相对 path 转成 go_router location。
   static String? toLocation(Uri? uri) {
     if (uri == null) return null;
-    final path = uri.path.isEmpty ? '/' : uri.path;
+    var path = uri.path.isEmpty ? '/' : uri.path;
+    // 兼容历史 /2sc 前缀
+    if (path.startsWith('/2sc')) {
+      path = path.substring(4);
+      if (path.isEmpty) path = '/';
+    }
     final qp = Map<String, String>.from(uri.queryParameters);
 
     // Tab 根
@@ -27,46 +32,44 @@ class DeepLink {
         return Uri(path: '/reader', queryParameters: {
           if (qp['book'] != null) 'book': qp['book']!,
           if (qp['chapter'] != null) 'chapter': qp['chapter']!,
+          if (qp['verse'] != null) 'verse': qp['verse']!,
         }).toString();
       case '/assistant':
       case '/ai':
+      case '/xiaoai':
         return Uri(path: '/assistant', queryParameters: {
           if (qp['ref'] != null) 'ref': qp['ref']!,
           if (qp['q'] != null) 'q': qp['q']!,
           if (qp['seed'] != null) 'ref': qp['seed']!,
+          if (qp['anchor'] != null) 'ref': qp['anchor']!,
         }).toString();
       case '/profile':
-        return '/';
+      case '/me':
+        return 'peiai://tab/4';
       case '/discover':
-        // 发现 Tab 在壳内，深链进独立页也可用
-        if (H5Whitelist.allows(path) || path == '/discover') {
-          return _h5(uri);
-        }
-        return '/discover';
+        // 根发现用 Tab（壳底栏 + 内嵌 H5）
+        if (qp.isEmpty) return 'peiai://tab/3';
+        return _h5(uri.replace(path: path));
     }
 
-    // IM 子路由：统一走 H5
+    // 白名单 H5（IM / 活动 / 协议 / 设置）
     if (H5Whitelist.allows(path)) {
-      return _h5(uri);
+      return _h5(uri.replace(path: path));
     }
 
-    // 兼容旧路由
-    if (path.startsWith('/group/')) {
-      final id = path.split('/').last;
+    // 兼容旧群路径
+    if (path.startsWith('/group/') && !path.startsWith('/group/create')) {
+      final id = path.split('/').where((s) => s.isNotEmpty).last;
       return _h5(Uri(path: '/discover/group/$id', queryParameters: qp));
     }
-    if (path.startsWith('/discover/dm/') ||
-        path.startsWith('/discover/group/')) {
-      return _h5(uri);
+    if (path.startsWith('/campaign') || path.startsWith('/campaigns')) {
+      return _h5(uri.replace(path: path));
     }
-    if (path.startsWith('/report')) {
-      return _h5(uri);
+    if (path.startsWith('/pray')) {
+      return _h5(uri.replace(path: path));
     }
-    if (path.startsWith('/campaigns')) {
-      return _h5(uri);
-    }
-    if (path.startsWith('/friend') || path.startsWith('/group/create')) {
-      return _h5(uri);
+    if (path == '/help' || path == '/feedback') {
+      return _h5(uri.replace(path: path));
     }
 
     // 已知原生
@@ -85,6 +88,13 @@ class DeepLink {
         path.startsWith('/search/') ||
         path.startsWith('/knowledge-bases/')) {
       return uri.hasQuery ? '$path?${uri.query}' : path;
+    }
+
+    // 末兜底：白名单前缀模糊匹配后进 H5
+    for (final p in H5Whitelist.prefixes) {
+      if (path == p || path.startsWith(p)) {
+        return _h5(uri.replace(path: path));
+      }
     }
 
     return null;

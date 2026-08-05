@@ -1,4 +1,7 @@
 /// 运行期配置。基址可通过 --dart-define=API_BASE_URL / WEB_BASE_URL 覆盖。
+///
+/// 生产默认同 Web：`https://2sc.prestoai.cn`（API 与 H5 同 origin）。
+/// Debug 未传 define 时走本机 8011，便于模拟器联调。
 library;
 
 import 'package:flutter/foundation.dart';
@@ -7,17 +10,21 @@ class AppConfig {
   static const String _override = String.fromEnvironment('API_BASE_URL');
   static const String _webOverride = String.fromEnvironment('WEB_BASE_URL');
 
-  /// 生产 API 基址。
-  static const String prodBaseUrl = 'https://prestoai.cn';
+  /// 生产 API / H5 共用基址（与 apps/web `API_BASE` 默认一致）。
+  static const String prodBaseUrl = 'https://2sc.prestoai.cn';
 
-  /// H5 / PWA 入口（独立域名）。
-  static const String defaultWebBaseUrl = 'https://2sc.prestoai.cn';
+  /// H5 / PWA 入口。
+  static const String defaultWebBaseUrl = prodBaseUrl;
 
-  /// 历史路径备注（部分部署在 /2sc 子路径）。
+  /// 历史路径备注（部分部署曾在 /2sc 子路径）。
   static const String webEntryPath = '/2sc';
 
   static String get baseUrl {
-    if (_override.isNotEmpty) return _override;
+    if (_override.isNotEmpty) {
+      return _override.replaceAll(RegExp(r'/$'), '');
+    }
+    // Release / profile 默认生产；debug 指本机后端
+    if (kReleaseMode) return prodBaseUrl;
     const port = 8011;
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
       return 'http://10.0.2.2:$port';
@@ -30,6 +37,8 @@ class AppConfig {
     if (_webOverride.isNotEmpty) {
       return _webOverride.replaceAll(RegExp(r'/$'), '');
     }
+    if (kReleaseMode) return defaultWebBaseUrl;
+    // Debug：H5 仍可用生产站，或与 API 同源（define 覆盖）
     return defaultWebBaseUrl;
   }
 

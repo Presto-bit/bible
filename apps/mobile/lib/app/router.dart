@@ -29,9 +29,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   final prefs = ref.read(prefsProvider);
   return GoRouter(
     initialLocation: '/',
+    // 引导与主壳必须分路由：同路径 builder 在 go('/') 时不会重建，
+    // 导致「跳过 / 开始」写完 onboarding_done 仍停在引导页。
     redirect: (context, state) {
-      // 首启引导：prefs 写完后 go('/') 才会真正切换路由；
-      // 不能在同一 path 内用 builder 分支，否则 go('/') 无响应。
       final done = prefs.getBool(onboardingDoneKey) ?? false;
       final onOnboarding = state.matchedLocation == '/onboarding';
       if (!done && !onOnboarding) return '/onboarding';
@@ -114,7 +114,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/help',
         builder: (context, state) => const H5HostPage(
-              path: '/profile/licenses',
+              path: '/help',
             ),
       ),
       GoRoute(
@@ -126,7 +126,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/feedback',
         builder: (context, state) => const H5HostPage(
-              path: '/discover',
+              path: '/feedback',
             ),
       ),
       GoRoute(

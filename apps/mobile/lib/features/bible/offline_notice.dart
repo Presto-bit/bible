@@ -1,12 +1,38 @@
-/// 离线经库内联提示 + 顶栏离线状态。
+/// 离线经库内联提示 + 顶栏弱网/离线状态（诚实降级）。
 library;
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'offline_bible.dart';
 import 'offline_download_sheet.dart';
+
+/// 周期性轻量探测 API；失败时显示弱网条。
+final networkOkProvider = StreamProvider<bool>((ref) async* {
+  final dio = ref.watch(dioProvider);
+  Future<bool> probe() async {
+    try {
+      await dio.get(
+        '/health',
+        options: Options(
+          receiveTimeout: const Duration(seconds: 4),
+          sendTimeout: const Duration(seconds: 4),
+        ),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  yield await probe();
+  await for (final _ in Stream.periodic(const Duration(seconds: 45))) {
+    yield await probe();
+  }
+});
 
 class OfflineBibleCard extends ConsumerWidget {
   const OfflineBibleCard({super.key});
@@ -32,7 +58,7 @@ class OfflineBibleCard extends ConsumerWidget {
             children: [
               const Expanded(
                 child: Text(
-                  '离线阅读需先下载经库。我的 → 设置 → 离线圣经',
+                  '离线阅读需先下载经库。我的 → 离线 / 设置 → 离线圣经',
                   style: TextStyle(fontSize: 13, color: AppColors.inkSoft),
                 ),
               ),
@@ -53,26 +79,34 @@ class OfflineStatusBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-  // 简化：仅在未安装时提示（完整网络检测可后续接 connectivity_plus）
+    final net = ref.watch(networkOkProvider);
     final installed = ref.watch(offlineInstalledProvider);
-    return installed.maybeWhen(
-      data: (ready) => ready
-          ? const SizedBox.shrink()
-          : Material(
-              color: AppColors.goldWash,
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  child: Text(
-                    '未下载离线经库 · 弱网时可能无法阅读',
-                    style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
-                  ),
-                ),
-              ),
-            ),
-      orElse: () => const SizedBox.shrink(),
+    final offlinePack = installed.maybeWhen(data: (r) => r, orElse: () => true);
+    final online = net.maybeWhen(data: (ok) => ok, orElse: () => true);
+
+    if (online && offlinePack) return const SizedBox.shrink();
+
+    String msg;
+    if (!online && !offlinePack) {
+      msg = '当前离线，且未下载经库 · 消息与同步将稍后重试';
+    } else if (!online) {
+      msg = '网络不可用 · 已发消息可能未送达，联网后自动重试';
+    } else {
+      msg = '未下载离线经库 · 弱网时可能无法阅读';
+    }
+
+    return Material(
+      color: AppColors.goldWash,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          child: Text(
+            msg,
+            style: const TextStyle(fontSize: 12, color: AppColors.inkSoft),
+          ),
+        ),
+      ),
     );
   }
 }

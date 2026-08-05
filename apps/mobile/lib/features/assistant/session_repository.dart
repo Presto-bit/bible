@@ -101,12 +101,26 @@ final sessionRepoProvider = Provider<SessionRepository>((ref) =>
 final sessionsStreamProvider = StreamProvider<List<AiSession>>(
     (ref) => ref.read(sessionRepoProvider).watchSessions());
 
-List<Citation> citationsFromJson(String json) =>
-    (jsonDecode(json) as List)
-        .map((e) => Citation(
-              n: (e['n'] ?? 0) as int,
-              title: (e['title'] ?? '') as String,
-              score: 0,
-              snippet: e['snippet'] as String?,
-            ))
+List<Citation> citationsFromJson(String json) {
+  final raw = json.trim();
+  if (raw.isEmpty) return const [];
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! List) return const [];
+    return decoded
+        .map((e) {
+          if (e is! Map) {
+            return Citation(n: 0, title: '', score: 0);
+          }
+          return Citation(
+            n: (e['n'] ?? 0) as int,
+            title: (e['title'] ?? '') as String,
+            score: 0,
+            snippet: e['snippet'] as String?,
+          );
+        })
         .toList();
+  } catch (_) {
+    return const [];
+  }
+}

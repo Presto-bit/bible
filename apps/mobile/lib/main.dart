@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app/app_shell.dart' show navIndexProvider;
 import 'app/router.dart';
 import 'core/api_client.dart';
 import 'core/config.dart';
@@ -61,6 +62,12 @@ class _PrestoBibleAppState extends ConsumerState<PrestoBibleApp> {
 
     void go(String? loc) {
       if (loc == null || loc.isEmpty) return;
+      if (loc.startsWith('peiai://tab/')) {
+        final i = int.tryParse(loc.split('/').last) ?? 0;
+        ref.read(navIndexProvider.notifier).set(i.clamp(0, 4));
+        Future.microtask(() => router.go('/'));
+        return;
+      }
       Future.microtask(() => router.push(loc));
     }
 

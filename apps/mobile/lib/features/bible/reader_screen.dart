@@ -26,6 +26,7 @@ import '../plans/plan_steps.dart';
 import 'offline_notice.dart';
 import 'offline_bible.dart';
 import 'bible_repository.dart';
+import 'bible_summary.dart';
 import 'models.dart';
 import 'reader_experience.dart';
 import 'reader_settings_menu.dart';
@@ -164,11 +165,27 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
       appBar: _chromeHidden
           ? null
           : AppBar(
-        titleSpacing: 16,
+        titleSpacing: 8,
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // 卷/章（缩写）→ 点击弹目录
+            // 对齐 PWA：版本 | 经卷章 | 概要
+            InkWell(
+              onTap: () {
+                _onReaderInteract();
+                _pickVersions(context);
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+                child: Text(_versionLabel,
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.inkSoft)),
+              ),
+            ),
+            Container(width: 1, height: 14, color: AppColors.line),
             InkWell(
               onTap: () {
                 _onReaderInteract();
@@ -176,7 +193,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               },
               borderRadius: BorderRadius.circular(6),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 4, 8, 4),
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
                 child: Text(
                   _book == null
                       ? '选择经卷'
@@ -187,17 +204,21 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
               ),
             ),
             Container(width: 1, height: 14, color: AppColors.line),
-            // 版本 → 点击弹版本选择
             InkWell(
-              onTap: () => _pickVersions(context),
+              onTap: () {
+                _onReaderInteract();
+                _openChapterSummary();
+              },
               borderRadius: BorderRadius.circular(6),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(8, 4, 0, 4),
-                child: Text(_versionLabel,
-                    style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.inkSoft)),
+              child: const Padding(
+                padding: EdgeInsets.fromLTRB(8, 4, 4, 4),
+                child: Text(
+                  '概要',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.inkSoft),
+                ),
               ),
             ),
           ],
@@ -428,6 +449,84 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
           ),
         ),
       ),
+    );
+  }
+
+  void _openChapterSummary() {
+    final book = _book;
+    if (book == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        final bottom = MediaQuery.viewInsetsOf(ctx).bottom;
+        return Padding(
+          padding: EdgeInsets.fromLTRB(20, 12, 12, 24 + bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${book.name} · 第 $_chapter 章',
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 17,
+                          color: AppColors.ink),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: AppColors.inkFaint),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              FutureBuilder<String>(
+                future: loadChapterSummary(
+                  ref,
+                  ref.read(prefsProvider),
+                  book.id,
+                  book.name,
+                  _chapter,
+                ),
+                builder: (c, snap) {
+                  if (snap.connectionState != ConnectionState.done) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    );
+                  }
+                  if (snap.hasError) {
+                    return Text('加载失败：${snap.error}',
+                        style: const TextStyle(color: AppColors.inkSoft));
+                  }
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.sizeOf(ctx).height * 0.55,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Text(
+                        snap.data ?? '',
+                        style: const TextStyle(
+                            fontSize: 15,
+                            height: 1.75,
+                            color: AppColors.inkSoft),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 

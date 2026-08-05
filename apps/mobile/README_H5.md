@@ -17,19 +17,23 @@
 ## 构建与发布
 
 ```bash
-# 推荐一键发布到官网 downloads
+# 推荐一键发布到官网 downloads（默认 arm64 + R8 + Dart 混淆）
 ./scripts/publish_flutter_apk.sh
 
 # 或手动
 cd apps/mobile
 flutter pub get
 flutter build apk --release \
-  --dart-define=API_BASE_URL=https://prestoai.cn \
+  --target-platform android-arm64 \
+  --obfuscate \
+  --split-debug-info=build/symbols \
+  --dart-define=API_BASE_URL=https://2sc.prestoai.cn \
   --dart-define=WEB_BASE_URL=https://2sc.prestoai.cn
 ```
 
+- **体积 P0**：仅 `arm64-v8a` + Gradle minify/shrinkResources；32 位：`TARGET_PLATFORM=android-arm ./scripts/publish_flutter_apk.sh`
 - applicationId：`cn.prestoai.peiai`
-- 版本：`pubspec.yaml` 的 `version: name+code`（如 `3.0.0+30`）
+- 版本：`pubspec.yaml` 的 `version: name+code`（如 `3.0.2+32`）
 
 ## Shorebird
 

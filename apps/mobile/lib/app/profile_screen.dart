@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../core/api_client.dart';
 import '../core/config.dart';
@@ -17,14 +18,17 @@ import '../core/widgets/sync_migrate_sheet.dart';
 import '../features/auth/auth_controller.dart';
 import '../features/auth/login_screen.dart';
 import '../features/bible/reader_experience.dart' show readerFontProvider, ReaderFontSize, ReaderFontSizeX;
-import '../features/bible/reading_progress_card.dart';
-import '../features/bible/reading_report_screen.dart';
+import '../features/bible/bible_repository.dart';
+import '../features/bible/markings_repository.dart';
+import '../features/bible/thoughts_repository.dart';
+import '../features/bible/models.dart';
 import '../features/bible/reading_repository.dart';
 import '../features/notes/notes_repository.dart' show profileSyncProvider;
 import '../features/notes/notes_screen.dart';
 import '../features/bible/offline_download_sheet.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
+import '../core/notif_prefs.dart';
 import '../core/user_storage.dart';
 import '../features/social/social_repository.dart';
 
@@ -51,6 +55,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _idCopied = false;
+  String? _avatarOverride;
 
   void _showBadgeGallery(List<BadgeDef> badges) {
     showModalBottomSheet<void>(
@@ -157,6 +162,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _pickAvatar(String current) async {
+    final h = MediaQuery.of(context).size.height * 0.55;
     final picked = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: AppColors.surface,
@@ -165,13 +171,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => SafeArea(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(ctx).size.height * 0.7),
+        child: SizedBox(
+          height: h,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('选择头像',
@@ -184,9 +188,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     style: const TextStyle(
                         fontSize: 12, color: AppColors.inkFaint)),
                 const SizedBox(height: 12),
-                Flexible(
+                Expanded(
                   child: GridView.builder(
-                    shrinkWrap: true,
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 5,
@@ -223,11 +226,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         ),
       ),
     );
-    if (picked != null) {
-      await userPrefSetString(ref.read(prefsProvider), 'profile_avatar', picked);
+    if (picked == null || !mounted) return;
+    // 先本地刷新，避免 prefs 写入后闪跳
+    setState(() => _avatarOverride = picked);
+    await userPrefSetString(ref.read(prefsProvider), 'profile_avatar', picked);
+    try {
       await ref.read(profileSyncProvider).pushAvatar(picked);
-      if (mounted) setState(() {});
-    }
+    } catch (_) {/* 静默；本地已更新 */}
   }
 
   Future<void> _editField({
@@ -342,19 +347,23 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   void _openSettings() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.paper,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => _SettingsSheet(
-        onEditField: _editField,
-        onChangePassword: _changePassword,
-        onCopyId: _copyId,
-      ),
-    );
+    // §24：说明型设置走 H5，与 iOS PWA 同稿
+    context.push('/profile/settings');
+  }
+
+  Future<void> _openSupport() async {
+    try {
+      final tid =
+          await ref.read(socialRepoProvider).openDm(kOfficialSupportUserCode);
+      if (!mounted) return;
+      context.push('/discover/dm/$tid');
+    } catch (_) {
+      if (!mounted) return;
+      context.push('/discover');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('暂时无法直达客服，已打开消息页')),
+      );
+    }
   }
 
   @override
@@ -363,331 +372,431 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final auth = ref.watch(authControllerProvider);
     final prefs = ref.watch(prefsProvider);
     final todayMin = ref.watch(todayReadingProvider);
+    final review = ref.watch(reviewDataProvider);
+    final books = ref.watch(booksProvider).value ?? const <BibleBook>[];
+    final thoughts = ref.watch(myThoughtsProvider);
+    final highlights = ref.watch(highlightListProvider).maybeWhen(
+          data: (h) => h.length,
+          orElse: () => 0,
+        );
+    final badgeCount = ref.watch(badgesProvider).maybeWhen(
+          data: (b) => b.where((x) => x.done).length,
+          orElse: () => 0,
+        );
 
     final name = userPrefGetString(prefs, 'onboarding_name') ??
         auth.displayName ??
         '读经伙伴';
     final bio = userPrefGetString(prefs, 'profile_bio') ?? '愿日日亲近主话';
     final userId = session.userId ?? session.guestId;
-    final avatarId =
-        userPrefGetString(prefs, 'profile_avatar') ?? defaultAvatarId(userId);
+    final avatarId = _avatarOverride ??
+        userPrefGetString(prefs, 'profile_avatar') ??
+        defaultAvatarId(userId);
+
+    final mins = todayMin.maybeWhen(data: (m) => m, orElse: () => 0);
+    final streak = review.maybeWhen(
+      data: (d) => readingStreak(d),
+      orElse: () => 0,
+    );
+    var journeyPct = 0;
+    review.whenData((data) {
+      if (books.isEmpty) return;
+      final totals = {for (final b in books) b.id: b.chapterCount};
+      final allTime = data.bookProgress(totals);
+      final readBooks = allTime.values
+          .where((p) => p.distinctChapters > 0 || p.passes >= 1)
+          .length;
+      journeyPct = (readBooks / books.length * 100).round();
+    });
+
+    // 本周分钟
+    var weekMins = 0;
+    review.whenData((d) {
+      final now = DateTime.now();
+      final startW = now.subtract(Duration(days: now.weekday - 1));
+      final startMs = DateTime(startW.year, startW.month, startW.day)
+          .millisecondsSinceEpoch;
+      final endMs = DateTime(now.year, now.month, now.day, 23, 59)
+          .millisecondsSinceEpoch;
+      weekMins = d.rangeStats(startMs, endMs).minutes;
+    });
+
+    final thoughtPreview =
+        thoughts.isNotEmpty ? thoughts.first.body.trim() : '';
+    String markPreview = '';
+    final hl = ref.watch(highlightListProvider).maybeWhen(
+          data: (list) => list,
+          orElse: () => const [],
+        );
+    if (hl.isNotEmpty) {
+      markPreview = hl.first.ref;
+    }
+    final doneBadges = ref.watch(badgesProvider).maybeWhen(
+          data: (b) => b.where((x) => x.done).take(3).toList(),
+          orElse: () => const <BadgeDef>[],
+        );
+
+    int? milestone;
+    for (final m in const [7, 30, 100, 365]) {
+      if (streak == m) {
+        milestone = m;
+        break;
+      }
+    }
 
     return Scaffold(
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
+            // 顶栏：分享 | 设置
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => _pickAvatar(avatarId),
-                        child: ClipOval(
-                          child: AvatarBubble(id: avatarId, size: 48),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(name,
-                                style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700)),
-                            GestureDetector(
-                              onTap: () => _editField(
-                                title: '个性签名',
-                                key: 'profile_bio',
-                                current: bio == '愿日日亲近主话' ? '' : bio,
-                                maxLines: 2,
-                                maxLength: 15,
-                              ),
-                              child: Text(
-                                bio.isEmpty || bio == '愿日日亲近主话'
-                                    ? '点击添加签名'
-                                    : bio,
-                                style: TextStyle(
-                                  color: AppColors.inkFaint,
-                                  fontSize: 12,
-                                  fontStyle: bio.isEmpty ||
-                                          bio == '愿日日亲近主话'
-                                      ? FontStyle.italic
-                                      : FontStyle.normal,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            GestureDetector(
-                              onLongPress: () => _copyId(userId),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: _idCopied
-                                      ? AppColors.accentWash
-                                      : AppColors.surfaceSunken,
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  _idCopied ? '已复制 ✓' : 'ID $userId',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: _idCopied
-                                        ? AppColors.accentDeep
-                                        : AppColors.inkFaint,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Text(
-                              auth.hasPassword ? '已设密码 · 可换机登录' : '未设密码 · 建议设置',
-                              style: const TextStyle(
-                                  fontSize: 11, color: AppColors.inkFaint),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
                 IconButton(
+                  tooltip: '分享彼爱',
+                  onPressed: () {
+                    Share.share(
+                      '彼爱 · 安静读经，在话语中相遇\nhttps://2sc.prestoai.cn',
+                      subject: '彼爱',
+                    );
+                  },
+                  icon: const Icon(Icons.ios_share_outlined, size: 22),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: '设置',
                   onPressed: _openSettings,
-                  icon: const Icon(Icons.settings_outlined),
+                  icon: const Icon(Icons.settings_outlined, size: 22),
                 ),
               ],
             ),
-            PaperCard(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      auth.hasPassword
-                          ? '已设密码，换机可用 ID 或用户名登录'
-                          : '建议设置密码，换机更方便',
-                      style: const TextStyle(
-                          color: AppColors.inkSoft, fontSize: 13),
-                    ),
+            const SizedBox(height: 4),
+            // Hero
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                GestureDetector(
+                  onTap: () => _pickAvatar(avatarId),
+                  child: ClipOval(
+                    child: AvatarBubble(id: avatarId, size: 72),
                   ),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.accentDeep),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const LoginScreen()),
-                    ),
-                    child: const Text('切换账号'),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            PaperCard(
-              tier: 2,
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                builder: (_) => const ReadingReportScreen(),
-              )),
-              child: Row(
-                children: [
-                  const Text('阅读时长',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14)),
-                  const Spacer(),
-                  todayMin.when(
-                    loading: () => const Text('…',
-                        style: TextStyle(
-                            color: AppColors.inkFaint, fontSize: 12)),
-                    error: (_, __) => const Text('读经回顾 ›',
-                        style: TextStyle(
-                            color: AppColors.inkFaint, fontSize: 12)),
-                    data: (m) => Text('今日 $m 分钟 · 读经回顾 ›',
-                        style: const TextStyle(
-                            color: AppColors.inkFaint, fontSize: 12)),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            PaperCard(
-              tier: 2,
-              onTap: () => context.push('/wrapped'),
-              child: const Row(
-                children: [
-                  Text('读经 Wrapped',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14)),
-                  Spacer(),
-                  Text('月/年回顾 ›',
-                      style: TextStyle(
-                          color: AppColors.inkFaint, fontSize: 12)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            ref.watch(reviewDataProvider).maybeWhen(
-                  data: (data) {
-                    final streak = readingStreak(data);
-                    if (streak <= 0) return const SizedBox.shrink();
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 12),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            const Color(0xFFFFF5EB),
-                            AppColors.accentWash,
-                          ]),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.line),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _editField(
+                          title: '昵称',
+                          key: 'onboarding_name',
+                          current: name,
                         ),
-                        child: Row(
-                          children: [
-                            const Text('🔥', style: TextStyle(fontSize: 20)),
-                            const SizedBox(width: 8),
-                            Text('连续读经 $streak 天',
-                                style: const TextStyle(
-                                    fontWeight: FontWeight.w600)),
-                          ],
+                        child: Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                          ),
                         ),
                       ),
-                    );
-                  },
-                  orElse: () => const SizedBox.shrink(),
-                ),
-            const SizedBox(height: 12),
-            PaperCard(
-              onTap: () {
-                ref.read(badgesProvider).whenData(_showBadgeGallery);
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Text('成就徽章',
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => _editField(
+                          title: '个性签名',
+                          key: 'profile_bio',
+                          current: bio == '愿日日亲近主话' ? '' : bio,
+                          maxLines: 2,
+                          maxLength: 15,
+                        ),
+                        child: Text(
+                          bio.isEmpty || bio == '愿日日亲近主话'
+                              ? '点击添加签名'
+                              : bio,
                           style: TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14)),
-                      const Spacer(),
-                      const Text('查看全部 ›',
+                            color: AppColors.inkFaint,
+                            fontSize: 14,
+                            fontStyle: bio.isEmpty || bio == '愿日日亲近主话'
+                                ? FontStyle.italic
+                                : FontStyle.normal,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      GestureDetector(
+                        onTap: () => _copyId(userId),
+                        child: Text(
+                          _idCopied ? '已复制' : 'ID $userId',
                           style: TextStyle(
-                              color: AppColors.inkFaint, fontSize: 12)),
+                            fontSize: 12,
+                            color: _idCopied
+                                ? AppColors.accentDeep
+                                : AppColors.inkFaint,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  ref.watch(badgesProvider).when(
-                        loading: () => const SizedBox(
-                            height: 72,
-                            child: Center(child: CircularProgressIndicator())),
-                        error: (_, __) => const SizedBox.shrink(),
-                        data: (badges) {
-                          final preview = profilePreviewBadges(badges);
-                          return SizedBox(
-                          height: 72,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: preview.length,
-                            separatorBuilder: (_, __) =>
-                                const SizedBox(width: 10),
-                            itemBuilder: (_, i) {
-                              final b = preview[i];
-                              return Column(
-                                children: [
-                                  Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          AppColors.accentWash,
-                                          AppColors.goldWash,
-                                        ],
-                                      ),
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: b.done
-                                              ? AppColors.accentDeep
-                                              : AppColors.line),
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                          b.done ? b.icon : b.progress,
-                                          style: const TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w700,
-                                              color: AppColors.accentDeep)),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(b.label,
-                                      style: const TextStyle(
-                                          fontSize: 10,
-                                          color: AppColors.inkFaint)),
-                                ],
-                              );
-                            },
-                          ),
-                        );
-                        },
-                      ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
+            if (!auth.hasPassword) ...[
+              const SizedBox(height: 14),
+              PaperCard(
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '建议设置密码，换机更方便',
+                        style: TextStyle(
+                            color: AppColors.inkSoft, fontSize: 13),
+                      ),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accentDeep),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                            builder: (_) => const LoginScreen()),
+                      ),
+                      child: const Text('账号安全'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            // 同行主卡
             PaperCard(
-              onTap: () => context.push('/challenge'),
+              tier: 2,
+              padding: const EdgeInsets.fromLTRB(18, 16, 14, 16),
+              onTap: () => context.push('/report'),
               child: Row(
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppColors.accentWash,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text('每日问答',
-                        style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.accentDeep)),
-                  ),
-                  const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('圣经知识闯关',
+                      children: [
+                        if (streak > 0) ...[
+                          const Text(
+                            '已同行',
                             style: TextStyle(
-                                fontWeight: FontWeight.w700, fontSize: 14)),
-                        SizedBox(height: 2),
-                        Text('关卡制答题 · 巩固所学',
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.inkFaint,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(
+                                  text: '$streak',
+                                  style: const TextStyle(
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w700,
+                                    height: 1.05,
+                                    color: AppColors.ink,
+                                  ),
+                                ),
+                                const TextSpan(
+                                  text: ' 天',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.inkSoft,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ] else
+                          const Text(
+                            '开始同行读经',
                             style: TextStyle(
-                                fontSize: 12, color: AppColors.inkFaint)),
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        const SizedBox(height: 6),
+                        Text(
+                          '今日 $mins 分钟 · 本周 $weekMins 分钟',
+                          style: const TextStyle(
+                            color: AppColors.inkFaint,
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right, color: AppColors.inkFaint),
+                  _JourneyRing(pct: journeyPct),
                 ],
               ),
             ),
-            const SizedBox(height: 12),
-            const ReadingProgressCard(),
-            const SizedBox(height: 16),
-            _LinkCard(
-              icon: Icons.edit_note_outlined,
-              label: '我的想法',
-              subtitle: '想法 · 划线',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const NotesScreen()),
+            if (milestone != null) ...[
+              const SizedBox(height: 10),
+              PaperCard(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '同行 $milestone 天 · 可分享这一刻',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Share.share(
+                          '我在彼爱已同行读经 $milestone 天。愿话语继续同行。',
+                        );
+                      },
+                      child: const Text('分享'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            const Text(
+              '我的足迹',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkSoft,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              childAspectRatio: 1.28,
+              children: [
+                _FootprintCell(
+                  kind: '想法',
+                  count: thoughts.length,
+                  value: thoughtPreview.isEmpty ? '写下第一句' : thoughtPreview,
+                  empty: thoughtPreview.isEmpty,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NotesScreen()),
+                  ),
+                ),
+                _FootprintCell(
+                  kind: '划线',
+                  count: highlights,
+                  value: markPreview.isEmpty ? '去读经划线' : markPreview,
+                  empty: markPreview.isEmpty,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const NotesScreen()),
+                  ),
+                ),
+                _FootprintCell(
+                  kind: '成就',
+                  count: badgeCount,
+                  value: badgeCount == 0 ? '去解锁第一枚' : '',
+                  empty: badgeCount == 0,
+                  hideValue: badgeCount > 0,
+                  badgeIcons: doneBadges.map((b) => b.icon).toList(),
+                  onTap: () {
+                    ref.read(badgesProvider).whenData(_showBadgeGallery);
+                  },
+                ),
+                _FootprintCell(
+                  kind: '进行中',
+                  count: 0,
+                  value: journeyPct > 0
+                      ? '通读 $journeyPct% · 继续'
+                      : '开始通读计划',
+                  empty: journeyPct == 0,
+                  onTap: () => context.push('/plans'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              '常用',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkSoft,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(height: 10),
+            _ShortcutTabs(
+              onWarmup: () => context.push('/challenge'),
+              onRemind: () => context.push('/profile/reminders'),
+              onOffline: () => showOfflineDownloadSheet(context, ref),
+              onRemindLongPress: () {
+                showModalBottomSheet(
+                  context: context,
+                  backgroundColor: AppColors.paper,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
+                  builder: (_) => SafeArea(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('提醒与勿扰',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 16)),
+                          const SizedBox(height: 8),
+                          _ReminderRow(prefs: prefs),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 14),
+            PaperCard(
+              onTap: _openSupport,
+              child: const Row(
+                children: [
+                  Icon(Icons.support_agent_outlined,
+                      color: AppColors.accentDeep, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text('帮助与反馈',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  Text('官方客服 ›',
+                      style:
+                          TextStyle(fontSize: 12, color: AppColors.inkFaint)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            PaperCard(
+              onTap: () => context.push('/profile/licenses'),
+              child: const Row(
+                children: [
+                  Icon(Icons.gavel_outlined,
+                      color: AppColors.accentDeep, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text('协议与开源许可',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  Icon(Icons.chevron_right, color: AppColors.inkFaint),
+                ],
               ),
             ),
             if (auth.signedIn) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -702,6 +811,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ),
               ),
             ],
+            const SizedBox(height: 24),
+            const Center(
+              child: Text(
+                '彼爱 · 安静读经',
+                style: TextStyle(
+                  fontSize: 12,
+                  letterSpacing: 0.8,
+                  color: AppColors.inkFaint,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -709,41 +829,214 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
-class _LinkCard extends StatelessWidget {
-  const _LinkCard({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
+class _JourneyRing extends StatelessWidget {
+  const _JourneyRing({required this.pct});
+  final int pct;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = (pct.clamp(0, 100)) / 100.0;
+    return SizedBox(
+      width: 76,
+      height: 76,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 76,
+            height: 76,
+            child: CircularProgressIndicator(
+              value: p,
+              strokeWidth: 6,
+              backgroundColor: AppColors.line,
+              color: AppColors.accentDeep,
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$pct',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  height: 1,
+                  color: AppColors.ink,
+                ),
+              ),
+              const Text(
+                '%',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkFaint,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FootprintCell extends StatelessWidget {
+  const _FootprintCell({
+    required this.kind,
+    required this.count,
+    required this.value,
+    required this.empty,
     required this.onTap,
+    this.hideValue = false,
+    this.badgeIcons = const [],
   });
-  final IconData icon;
-  final String label;
-  final String subtitle;
+
+  final String kind;
+  final int count;
+  final String value;
+  final bool empty;
+  final bool hideValue;
+  final List<String> badgeIcons;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return PaperCard(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                kind,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkFaint,
+                ),
+              ),
+              const Spacer(),
+              if (count > 0)
+                Text(
+                  '$count',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.inkSoft,
+                  ),
+                ),
+            ],
+          ),
+          const Spacer(),
+          if (badgeIcons.isNotEmpty)
+            Row(
+              children: [
+                for (final icon in badgeIcons.take(3))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Text(icon, style: const TextStyle(fontSize: 18)),
+                  ),
+              ],
+            )
+          else if (!hideValue)
+            Text(
+              value,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: empty ? 13 : 14,
+                height: 1.35,
+                fontWeight: empty ? FontWeight.w500 : FontWeight.w600,
+                fontStyle: empty ? FontStyle.italic : FontStyle.normal,
+                color: empty ? AppColors.inkFaint : AppColors.ink,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ShortcutTabs extends StatelessWidget {
+  const _ShortcutTabs({
+    required this.onWarmup,
+    required this.onRemind,
+    required this.onOffline,
+    this.onRemindLongPress,
+  });
+
+  final VoidCallback onWarmup;
+  final VoidCallback onRemind;
+  final VoidCallback onOffline;
+  final VoidCallback? onRemindLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.line),
+      ),
       child: Row(
         children: [
-          Icon(icon, color: AppColors.accentDeep),
-          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w600, color: AppColors.ink)),
-                Text(subtitle,
-                    style: const TextStyle(
-                        color: AppColors.inkFaint, fontSize: 12)),
-              ],
+            child: _ShortcutTabItem(
+              label: '今日温习',
+              onTap: onWarmup,
             ),
           ),
-          const Icon(Icons.chevron_right, color: AppColors.inkFaint),
+          Container(width: 1, height: 36, color: AppColors.line),
+          Expanded(
+            child: _ShortcutTabItem(
+              label: '提醒',
+              onTap: onRemind,
+              onLongPress: onRemindLongPress,
+            ),
+          ),
+          Container(width: 1, height: 36, color: AppColors.line),
+          Expanded(
+            child: _ShortcutTabItem(
+              label: '离线',
+              onTap: onOffline,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _ShortcutTabItem extends StatelessWidget {
+  const _ShortcutTabItem({
+    required this.label,
+    required this.onTap,
+    this.onLongPress,
+  });
+  final String label;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      onLongPress: onLongPress,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Center(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.ink,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1000,20 +1293,18 @@ class _ReminderRow extends StatefulWidget {
 }
 
 class _ReminderRowState extends State<_ReminderRow> {
-  static const _enabledKey = 'reminder_daily_enabled';
-  static const _hourKey = 'reminder_daily_hour';
-  static const _minuteKey = 'reminder_daily_minute';
-
   late bool _enabled;
+  late bool _dnd;
   late TimeOfDay _time;
 
   @override
   void initState() {
     super.initState();
-    _enabled = widget.prefs.getBool(_enabledKey) ?? false;
+    _enabled = NotifPrefs.dailyEnabled(widget.prefs);
+    _dnd = NotifPrefs.readingDnd(widget.prefs);
     _time = TimeOfDay(
-      hour: widget.prefs.getInt(_hourKey) ?? 7,
-      minute: widget.prefs.getInt(_minuteKey) ?? 30,
+      hour: NotifPrefs.dailyHour(widget.prefs),
+      minute: NotifPrefs.dailyMinute(widget.prefs),
     );
   }
 
@@ -1028,7 +1319,7 @@ class _ReminderRowState extends State<_ReminderRow> {
       }
     }
     setState(() => _enabled = on);
-    await widget.prefs.setBool(_enabledKey, on);
+    await NotifPrefs.setDailyEnabled(widget.prefs, on);
     if (on) {
       await NotificationService.instance.scheduleDaily(_time.hour, _time.minute);
     } else {
@@ -1036,12 +1327,20 @@ class _ReminderRowState extends State<_ReminderRow> {
     }
   }
 
+  Future<void> _toggleDnd(bool on) async {
+    setState(() => _dnd = on);
+    await NotifPrefs.setReadingDnd(widget.prefs, on);
+  }
+
   Future<void> _pickTime() async {
     final picked = await showTimePicker(context: context, initialTime: _time);
     if (picked == null) return;
     setState(() => _time = picked);
-    await widget.prefs.setInt(_hourKey, picked.hour);
-    await widget.prefs.setInt(_minuteKey, picked.minute);
+    await NotifPrefs.setDailyTime(
+      widget.prefs,
+      hour: picked.hour,
+      minute: picked.minute,
+    );
     if (_enabled) {
       await NotificationService.instance.scheduleDaily(picked.hour, picked.minute);
     }
@@ -1057,7 +1356,7 @@ class _ReminderRowState extends State<_ReminderRow> {
           subtitle: Text(
             _enabled
                 ? '${_time.hour.toString().padLeft(2, '0')}:${_time.minute.toString().padLeft(2, '0')} 推送本地通知'
-                : '关闭',
+                : '默认关闭 · 安静为主',
             style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
           ),
           value: _enabled,
@@ -1073,6 +1372,16 @@ class _ReminderRowState extends State<_ReminderRow> {
             ),
             onTap: _pickTime,
           ),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('读经勿扰'),
+          subtitle: const Text(
+            '默认开启 · 圣经页不弹社交提示',
+            style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+          ),
+          value: _dnd,
+          onChanged: _toggleDnd,
+        ),
       ],
     );
   }

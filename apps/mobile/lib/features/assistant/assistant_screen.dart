@@ -90,7 +90,15 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
 
   Future<void> _loadSession(AiSession s) async {
     final repo = ref.read(sessionRepoProvider);
-    final msgs = await repo.watchMessages(s.id).first;
+    List<ChatMessage> msgs;
+    try {
+      msgs = await repo
+          .watchMessages(s.id)
+          .first
+          .timeout(const Duration(seconds: 3), onTimeout: () => const []);
+    } catch (_) {
+      msgs = const [];
+    }
     if (!mounted) return;
     setState(() {
       _sessionId = s.id;
@@ -637,7 +645,6 @@ class _SessionListSheet extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
@@ -659,50 +666,67 @@ class _SessionListSheet extends ConsumerWidget {
           const SizedBox(height: 4),
           Expanded(
             child: sessions.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('$e'),
-                data: (list) {
-                  if (list.isEmpty) {
-                    return const Padding(
-                      padding: EdgeInsets.all(20),
-                      child: Text('还没有会话',
-                          style: TextStyle(color: AppColors.inkFaint)),
-                    );
-                  }
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    itemCount: list.length,
-                    itemBuilder: (_, i) {
-                      final s = list[i];
-                      return ListTile(
-                        leading: const Icon(Icons.chat_bubble_outline,
-                            color: AppColors.accentDeep),
-                        title: Text(s.title,
-                            maxLines: 1, overflow: TextOverflow.ellipsis),
-                        subtitle: s.anchorRef != null
-                            ? Text('锚定 ${s.anchorRef}',
-                                style: const TextStyle(fontSize: 12))
-                            : null,
-                        trailing: PopupMenuButton<String>(
-                          onSelected: (v) async {
-                            if (v == 'rename') {
-                              await _rename(context, ref, s);
-                            } else if (v == 'delete') {
-                              await ref.read(sessionRepoProvider).delete(s);
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'rename', child: Text('重命名')),
-                            PopupMenuItem(value: 'delete', child: Text('删除')),
-                          ],
-                        ),
-                        onTap: () => Navigator.pop(context, s),
-                      );
-                    },
-                  );
-                },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('$e',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                              color: AppColors.inkSoft, fontSize: 13)),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: () =>
+                            ref.invalidate(sessionsStreamProvider),
+                        child: const Text('重试'),
+                      ),
+                    ],
+                  ),
+                ),
               ),
+              data: (list) {
+                if (list.isEmpty) {
+                  return const Center(
+                    child: Text('还没有会话',
+                        style: TextStyle(color: AppColors.inkFaint)),
+                  );
+                }
+                return ListView.builder(
+                  itemCount: list.length,
+                  itemBuilder: (_, i) {
+                    final s = list[i];
+                    return ListTile(
+                      leading: const Icon(Icons.chat_bubble_outline,
+                          color: AppColors.accentDeep),
+                      title: Text(s.title,
+                          maxLines: 1, overflow: TextOverflow.ellipsis),
+                      subtitle: s.anchorRef != null
+                          ? Text('锚定 ${s.anchorRef}',
+                              style: const TextStyle(fontSize: 12))
+                          : null,
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (v) async {
+                          if (v == 'rename') {
+                            await _rename(context, ref, s);
+                          } else if (v == 'delete') {
+                            await ref.read(sessionRepoProvider).delete(s);
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'rename', child: Text('重命名')),
+                          PopupMenuItem(value: 'delete', child: Text('删除')),
+                        ],
+                      ),
+                      onTap: () => Navigator.pop(context, s),
+                    );
+                  },
+                );
+              },
             ),
+          ),
           const Padding(
             padding: EdgeInsets.fromLTRB(4, 10, 4, 4),
             child: Center(
@@ -712,9 +736,9 @@ class _SessionListSheet extends ConsumerWidget {
               ),
             ),
           ),
-          ],
-        ),
-      );
+        ],
+      ),
+    );
   }
 
   Future<void> _rename(

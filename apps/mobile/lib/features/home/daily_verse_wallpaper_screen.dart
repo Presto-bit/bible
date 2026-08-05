@@ -96,17 +96,6 @@ class DailyVerseWallpaperScreen extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  if (theme.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    Text(
-                      '$theme系列',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.55),
-                        fontSize: 12,
-                        letterSpacing: 3,
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 28),
                   OutlinedButton(
                     onPressed: () async {

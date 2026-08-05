@@ -1,15 +1,17 @@
-/// 首页：问候 + 每日经文 hero + 「为你」横滑卡轨 + 今日统计 + 折叠线下渐进内容。
-/// 布局对齐 canvas demo（HomeScreen / HomeForYouRail / HomeBelowFold）。
+/// 首页：问候 + 每日经文 hero + 今日推荐（左大右双）+ 折叠线下内容。
+/// 区块对齐最新 PWA（`HomePage` / `HomeTodayPanel`）。
 library;
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../app/app_shell.dart';
 import '../../core/api_client.dart';
 import '../../core/daily_verse_engagement.dart';
+import '../../core/daily_verse_wallpaper.dart';
 import '../../core/gamification.dart';
 import '../../core/open_h5.dart';
 import '../../core/theme.dart';
@@ -20,9 +22,13 @@ import '../plans/plans_repository.dart';
 import '../bible/bible_repository.dart';
 import '../bible/models.dart';
 import '../bible/reading_repository.dart';
+import '../bible/reader_screen.dart' show readerJumpProvider;
 import 'daily_verse_wallpaper_screen.dart';
 import 'hero_b_campaign.dart';
 import 'home_hero_carousel.dart';
+import 'home_hero_metrics.dart';
+import 'home_today_builder.dart';
+import 'home_today_panel.dart';
 import '../search/search_screen.dart';
 import '../social/social_repository.dart';
 
@@ -69,9 +75,14 @@ final dailyVerseProvider = FutureProvider<DailyVerse>((ref) async {
 });
 
 class HomeBootstrap {
-  HomeBootstrap({required this.dailyVerse, this.heroBCampaign});
+  HomeBootstrap({
+    required this.dailyVerse,
+    this.heroBCampaign,
+    this.railCampaigns = const [],
+  });
   final DailyVerse dailyVerse;
   final HeroBCampaign? heroBCampaign;
+  final List<HomeTodayCampaign> railCampaigns;
 }
 
 final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
@@ -81,21 +92,47 @@ final homeBootstrapProvider = FutureProvider<HomeBootstrap>((ref) async {
   final today = DateTime.now();
   final ymd =
       '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-  final res = await dio.get('/content/home/bootstrap', queryParameters: {'_d': ymd});
-  final data = res.data as Map<String, dynamic>;
-  final v = DailyVerse.fromJson(data['dailyVerse'] as Map<String, dynamic>);
-  if (v.day > 0) {
-    await writeLocalDailyVerseLike(prefs, session, v.day, v.liked);
+  try {
+    final res =
+        await dio.get('/content/home/bootstrap', queryParameters: {'_d': ymd});
+    final data = res.data as Map<String, dynamic>;
+    final v = DailyVerse.fromJson(data['dailyVerse'] as Map<String, dynamic>);
+    if (v.day > 0) {
+      await writeLocalDailyVerseLike(prefs, session, v.day, v.liked);
+    }
+    HeroBCampaign? campaign;
+    final raw = data['heroBCampaign'];
+    if (raw is Map<String, dynamic> && '${raw['id'] ?? ''}'.isNotEmpty) {
+      campaign = HeroBCampaign.fromJson(raw);
+      await writeCachedHeroBCampaign(prefs, campaign);
+    } else {
+      await writeCachedHeroBCampaign(prefs, null);
+    }
+    final rails = <HomeTodayCampaign>[];
+    final rc = data['railCampaigns'];
+    if (rc is List) {
+      for (final e in rc) {
+        if (e is Map) {
+          final c =
+              HomeTodayCampaign.fromJson(Map<String, dynamic>.from(e));
+          if (c.id.isNotEmpty && c.title.isNotEmpty) rails.add(c);
+        }
+      }
+    }
+    return HomeBootstrap(
+      dailyVerse: v,
+      heroBCampaign: campaign,
+      railCampaigns: rails,
+    );
+  } on DioException catch (e) {
+    // 弱网诚实：向上抛，UI 展示可重试文案，不静默假数据
+    throw Exception(
+      e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout
+          ? '网络不可用，请检查连接后下拉重试'
+          : '内容加载失败，请稍后重试',
+    );
   }
-  HeroBCampaign? campaign;
-  final raw = data['heroBCampaign'];
-  if (raw is Map<String, dynamic> && '${raw['id'] ?? ''}'.isNotEmpty) {
-    campaign = HeroBCampaign.fromJson(raw);
-    await writeCachedHeroBCampaign(prefs, campaign);
-  } else {
-    await writeCachedHeroBCampaign(prefs, null);
-  }
-  return HomeBootstrap(dailyVerse: v, heroBCampaign: campaign);
 });
 
 /// 今日祷告（ACTS 计划）。
@@ -141,56 +178,65 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final boot = ref.watch(homeBootstrapProvider);
-    final dv = ref.watch(dailyVerseProvider);
     final review = ref.watch(reviewDataProvider);
     final progress = ref.watch(planProgressMapProvider).value ?? const {};
     final plansAsync = ref.watch(plansListProvider);
     final generated = ref.watch(generatedPlansProvider).value ?? const [];
+    final prayerToday = ref.watch(prayerTodayProvider);
     void goTab(int i) => ref.read(navIndexProvider.notifier).set(i);
 
-    _PlanRailData? planRail;
+    // —— 今日推荐输入 ——
+    String? planTitle;
+    String? planSub;
+    int? planPct;
+    int? planDay;
+    String? planId;
     final activeEntry = progress.entries
         .where((e) => e.value.status == 'active' && e.value.day > 0)
         .toList()
       ..sort((a, b) => b.value.updatedAtMs.compareTo(a.value.updatedAtMs));
+    VoidCallback? planOnTap;
     if (activeEntry.isNotEmpty) {
       final activeId = activeEntry.first.key;
-      final day = activeEntry.first.value.day;
+      planDay = activeEntry.first.value.day;
+      planId = activeId;
       final featured = plansAsync.maybeWhen(
         data: (list) => list.where((p) => p.planId == activeId).firstOrNull,
         orElse: () => null,
       );
       final gen = generated.where((g) => g.id == activeId).firstOrNull;
       if (featured != null && !featured.isPrayer) {
-        planRail = _PlanRailData(
-          title: featured.title,
-          sub: '第 $day 天',
-          onTap: () => openPlanReading(
-            context,
-            ref,
-            ref.read(prefsProvider),
-            planId: featured.planId,
-            planTitle: featured.title,
-            day: day,
-            totalDays: featured.days,
-            source: 'featured',
-          ),
-        );
+        planTitle = featured.title;
+        planSub = '第 $planDay 天';
+        planPct = featured.days > 0
+            ? ((planDay! / featured.days) * 100).round().clamp(0, 100)
+            : null;
+        planOnTap = () => openPlanReading(
+              context,
+              ref,
+              ref.read(prefsProvider),
+              planId: featured.planId,
+              planTitle: featured.title,
+              day: planDay!,
+              totalDays: featured.days,
+              source: 'featured',
+            );
       } else if (gen != null) {
-        planRail = _PlanRailData(
-          title: gen.title,
-          sub: '第 $day 天',
-          onTap: () => openPlanReading(
-            context,
-            ref,
-            ref.read(prefsProvider),
-            planId: gen.id,
-            planTitle: gen.title,
-            day: day,
-            totalDays: gen.daysCount,
-            source: 'generated',
-          ),
-        );
+        planTitle = gen.title;
+        planSub = '第 $planDay 天';
+        planPct = gen.daysCount > 0
+            ? ((planDay! / gen.daysCount) * 100).round().clamp(0, 100)
+            : null;
+        planOnTap = () => openPlanReading(
+              context,
+              ref,
+              ref.read(prefsProvider),
+              planId: gen.id,
+              planTitle: gen.title,
+              day: planDay!,
+              totalDays: gen.daysCount,
+              source: 'generated',
+            );
       }
     }
 
@@ -199,8 +245,9 @@ class HomeScreen extends ConsumerWidget {
           data: (b) => b,
           orElse: () => const <BibleBook>[],
         );
-    String continueTitle = '继续阅读';
-    String continueSub = '打开圣经';
+    String? resumeTitle;
+    String? resumeBookId;
+    int? resumeChapter;
     if (reading != null && books.isNotEmpty) {
       BibleBook? book;
       for (final b in books) {
@@ -210,9 +257,132 @@ class HomeScreen extends ConsumerWidget {
         }
       }
       if (book != null) {
-        continueTitle = '${book.name} ${reading.chapter} 章';
-        continueSub = '继续阅读';
+        resumeTitle = '${book.name} ${reading.chapter} 章';
+        resumeBookId = book.id;
+        resumeChapter = reading.chapter;
       }
+    }
+
+    final today = DateTime.now();
+    final ymd =
+        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+    int todayMins = 0;
+    int monthDays = 0;
+    bool readToday = false;
+    bool welcomeBack = false;
+    review.whenData((d) {
+      todayMins = d.minutesByDay[ymd] ?? 0;
+      readToday = todayMins > 0 || (d.chaptersByDay[ymd] ?? 0) > 0;
+      final monthStart = DateTime(today.year, today.month, 1);
+      final monthEnd = DateTime(today.year, today.month + 1, 1);
+      monthDays = d
+          .rangeStats(
+            monthStart.millisecondsSinceEpoch,
+            monthEnd.millisecondsSinceEpoch,
+          )
+          .days;
+      // 近 3 天无读且历史上读过 → 欢迎回来
+      var gap = 0;
+      var cursor = today;
+      for (var i = 0; i < 3; i++) {
+        final k =
+            '${cursor.year}-${cursor.month.toString().padLeft(2, '0')}-${cursor.day.toString().padLeft(2, '0')}';
+        if ((d.minutesByDay[k] ?? 0) > 0 || (d.chaptersByDay[k] ?? 0) > 0) {
+          gap = 0;
+          break;
+        }
+        gap++;
+        cursor = cursor.subtract(const Duration(days: 1));
+      }
+      final hadHistory = d.minutesByDay.values.any((m) => m > 0);
+      welcomeBack = gap >= 3 && hadHistory;
+    });
+
+    final groups = ref.watch(myGroupsProvider).maybeWhen(
+          data: (g) => g,
+          orElse: () => const <Group>[],
+        );
+    String? groupTitle;
+    String? groupSub;
+    if (groups.isEmpty) {
+      groupTitle = '创建共读';
+      groupSub = '创建或加入';
+    } else {
+      groupTitle = '${groups.length} 个群';
+      groupSub = '进入消息';
+    }
+
+    final prayerTitle = prayerToday.maybeWhen(
+      data: (p) => p.day > 0 ? '第 ${p.day} 天' : (p.title.isNotEmpty ? p.title : null),
+      orElse: () => null,
+    );
+
+    final rails = boot.maybeWhen(
+      data: (b) => b.railCampaigns,
+      orElse: () => const <HomeTodayCampaign>[],
+    );
+
+    final panel = buildHomeTodayPanel(HomeTodayInput(
+      resumeTitle: resumeTitle,
+      resumeSub: '继续阅读',
+      resumeBookId: resumeBookId,
+      resumeChapter: resumeChapter,
+      planTitle: planTitle,
+      planSub: planSub,
+      planProgressPct: planPct,
+      planBookId: planId,
+      planChapter: planDay,
+      prayerTitle: prayerTitle,
+      groupTitle: groupTitle,
+      groupSub: groupSub,
+      campaigns: rails,
+      readToday: readToday,
+      welcomeBack: welcomeBack,
+    ));
+
+    void openSlot(HomeTodaySlot s) {
+      final href = s.href;
+      if (s.id == 'plan' && planOnTap != null) {
+        planOnTap!();
+        return;
+      }
+      if (s.id == 'resume' || s.id == 'suggest' || href.startsWith('/reader')) {
+        if (resumeBookId != null && resumeChapter != null && s.id != 'suggest') {
+          ref.read(readerJumpProvider.notifier).jump(resumeBookId!, resumeChapter!);
+        } else if (s.id == 'suggest' || href.contains('book=')) {
+          final u = Uri.tryParse(href);
+          final book = u?.queryParameters['book'] ?? 'JHN';
+          final ch = int.tryParse(u?.queryParameters['chapter'] ?? '1') ?? 1;
+          ref.read(readerJumpProvider.notifier).jump(book, ch);
+        }
+        goTab(1);
+        return;
+      }
+      if (s.id == 'group' || href.startsWith('/discover')) {
+        goTab(3);
+        return;
+      }
+      if (s.id.startsWith('campaign-') ||
+          href.startsWith('/campaign') ||
+          href.startsWith('/campaigns')) {
+        final path = Uri.tryParse(href)?.path ?? href.split('?').first;
+        if (!openH5IfAllowed(context, path.startsWith('/') ? path : '/$path')) {
+          context.push(href.startsWith('/') ? href : '/$href');
+        }
+        return;
+      }
+      if (href.startsWith('/plans')) {
+        context.push('/plans');
+        return;
+      }
+      if (s.id == 'prayer' || href.startsWith('/pray')) {
+        openH5IfAllowed(context, '/pray');
+        return;
+      }
+      if (openH5IfAllowed(context, href.startsWith('/') ? href.split('?').first : '/$href')) {
+        return;
+      }
+      context.push(href.startsWith('/') ? href : '/$href');
     }
 
     return Scaffold(
@@ -220,7 +390,11 @@ class HomeScreen extends ConsumerWidget {
         child: RefreshIndicator(
           onRefresh: () async {
             ref.invalidate(homeBootstrapProvider);
-            await ref.read(homeBootstrapProvider.future);
+            ref.invalidate(prayerTodayProvider);
+            ref.invalidate(myGroupsProvider);
+            try {
+              await ref.read(homeBootstrapProvider.future);
+            } catch (_) {}
           },
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
@@ -237,7 +411,12 @@ class HomeScreen extends ConsumerWidget {
                 return Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: PaperCard(
-                    onTap: () => context.push(ev.href),
+                    onTap: () {
+                      final path = ev.href.startsWith('/') ? ev.href : '/${ev.href}';
+                      if (!openH5IfAllowed(context, path.split('?').first)) {
+                        context.push(path);
+                      }
+                    },
                     child: Row(
                       children: [
                         _Pill(ev.badge ?? '活动', active: true),
@@ -265,13 +444,21 @@ class HomeScreen extends ConsumerWidget {
               const SizedBox(height: 14),
               boot.when(
                 loading: () => const _VerseCardSkeleton(),
-                error: (e, _) => const _VerseCard(
-                  day: 0,
-                  theme: '每日经文',
-                  ref: '',
-                  text: '内容加载失败，下拉重试。',
-                  initialLiked: false,
-                  initialLikeCount: 0,
+                error: (e, _) => PaperCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        e.toString().replaceFirst('Exception: ', ''),
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () => ref.invalidate(homeBootstrapProvider),
+                        child: const Text('重试'),
+                      ),
+                    ],
+                  ),
                 ),
                 data: (b) {
                   final v = b.dailyVerse;
@@ -294,52 +481,38 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 14),
-              _ForYouRail(
-                planRail: planRail,
-                continueTitle: continueTitle,
-                continueSub: continueSub,
-                onContinueReading: () => goTab(1),
-                onAskXiaoAi: () => goTab(2),
-                meditationPrompt: dv.maybeWhen(
-                  data: _meditationPrompt,
-                  orElse: () => null,
-                ),
-                onMeditate: (q) => Navigator.of(context).push(MaterialPageRoute(
-                  builder: (_) => AssistantScreen(seedQuestion: q),
-                )),
+              HomeTodayPanel(
+                primary: panel.primary,
+                sideTop: panel.group,
+                sideBottom: panel.prayer,
+                onPrimary: () => openSlot(panel.primary),
+                onSideTop: () => openSlot(panel.group),
+                onSideBottom: () => openSlot(panel.prayer),
               ),
               const SizedBox(height: 14),
-              PaperCard(
-                onTap: () => goTab(4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        review.maybeWhen(
-                          data: (d) {
-                            final today = DateTime.now();
-                            final ymd =
-                                '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-                            final mins = d.minutesByDay[ymd] ?? 0;
-                            final monthStart = DateTime(today.year, today.month, 1);
-                            final monthEnd =
-                                DateTime(today.year, today.month + 1, 1);
-                            final stats = d.rangeStats(
-                              monthStart.millisecondsSinceEpoch,
-                              monthEnd.millisecondsSinceEpoch,
-                            );
-                            return '今日 $mins 分钟 · 本月已读 ${stats.days} 天';
-                          },
-                          orElse: () => '今日读经 · 查看回顾',
-                        ),
-                        style: AppTypography.stat,
-                      ),
-                    ),
-                    const Text('›', style: TextStyle(color: AppColors.inkFaint)),
-                  ],
-                ),
+              // 成长区：媒体行（摘要 + 功能），对齐 PWA HomeGrowthStack 节奏
+              _GrowthStack(
+                todayMins: todayMins,
+                monthDays: monthDays,
+                planTitle: planTitle,
+                planSub: planSub,
+                planOccupied: panel.primary.id == 'plan' ||
+                    panel.group.id == 'plan' ||
+                    panel.prayer.id == 'plan',
+                prayerOccupied: panel.primary.id == 'prayer' ||
+                    panel.group.id == 'prayer' ||
+                    panel.prayer.id == 'prayer',
+                prayerTitle: prayerTitle,
+                onReport: () {
+                  if (!openH5IfAllowed(context, '/report')) {
+                    context.push('/report');
+                  }
+                },
+                onPlan: planOnTap ?? () => context.push('/plans'),
+                onTheme: () => context.push('/search'),
+                onPrayer: () => openH5IfAllowed(context, '/pray'),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 12),
               _BelowFold(
                 onOpenDiscover: () => goTab(3),
                 onOpenReview: () => goTab(4),
@@ -394,6 +567,15 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
         ),
       ),
       PopupMenuItem(
+        value: 'join',
+        child: ListTile(
+          leading: Icon(Icons.group_outlined, color: AppColors.accentDeep),
+          title: Text('加入群'),
+          subtitle: Text('扫码 / 邀请', style: TextStyle(fontSize: 11)),
+          contentPadding: EdgeInsets.zero,
+        ),
+      ),
+      PopupMenuItem(
         value: 'group',
         child: ListTile(
           leading:
@@ -419,18 +601,16 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
     switch (v) {
       case 'friend':
         context.push('/friend/add');
+      case 'join':
+        if (!openH5IfAllowed(context, '/discover/join')) {
+          context.push('/discover');
+        }
       case 'group':
         context.push('/group/create');
       case 'plans':
         context.push('/plans');
     }
   });
-}
-
-String _meditationPrompt(DailyVerse v) {
-  final where = v.ref.isNotEmpty ? '《${v.ref}》' : '今天的经文';
-  return '请带我默想$where。先用一句话帮我安静下来，'
-      '再用三个循序渐进的问题，引导我思想这段经文对我此刻生活的意义。';
 }
 
 class _GreetingHeader extends ConsumerStatefulWidget {
@@ -466,51 +646,67 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
                   style:
                       const TextStyle(color: AppColors.inkSoft, fontSize: 13)),
               const SizedBox(height: 2),
-              Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 18,
-                    margin: const EdgeInsets.only(right: 8),
-                    decoration: BoxDecoration(
-                      color: AppColors.accent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                  Flexible(
-                    child: Text(
-                      (name != null && name.isNotEmpty) ? name : '读经伙伴',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTypography.title,
-                    ),
-                  ),
-                ],
+              Text(
+                (name != null && name.isNotEmpty) ? name : '读经伙伴',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.title,
               ),
             ],
           ),
         ),
-        IconButton(
-          onPressed: widget.onSearch,
-          icon: const Icon(Icons.search, color: AppColors.inkSoft),
+        _IconCircle(
+          icon: Icons.search,
           tooltip: '搜索',
+          onTap: widget.onSearch,
         ),
-        InkWell(
+        const SizedBox(width: 6),
+        _IconCircle(
           key: _plusKey,
+          icon: Icons.add,
+          filled: true,
+          tooltip: '更多',
           onTap: () => _showAnchoredPlusMenu(context, _plusKey),
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSunken,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Icon(Icons.add, size: 20, color: AppColors.ink),
-          ),
         ),
       ],
     );
+  }
+}
+
+class _IconCircle extends StatelessWidget {
+  const _IconCircle({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.filled = false,
+    this.tooltip,
+  });
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool filled;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Material(
+      color: filled ? AppColors.accentDeep : AppColors.surface,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Icon(
+            icon,
+            size: 20,
+            color: filled ? Colors.white : AppColors.inkSoft,
+          ),
+        ),
+      ),
+    );
+    if (tooltip == null) return child;
+    return Tooltip(message: tooltip!, child: child);
   }
 }
 
@@ -535,230 +731,6 @@ class _Pill extends StatelessWidget {
   }
 }
 
-class _PlanRailData {
-  const _PlanRailData({
-    required this.title,
-    required this.sub,
-    required this.onTap,
-  });
-  final String title;
-  final String sub;
-  final VoidCallback onTap;
-}
-
-class _RailCardData {
-  const _RailCardData({
-    required this.tag,
-    required this.title,
-    required this.sub,
-    required this.icon,
-    required this.iconBg,
-    required this.iconColor,
-    this.onTap,
-    this.accentPill = false,
-    this.progressPct,
-  });
-  final String tag;
-  final String title;
-  final String sub;
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final VoidCallback? onTap;
-  final bool accentPill;
-  final int? progressPct;
-}
-
-String _trimRailTitle(String text, [int max = 24]) {
-  final t = text.trim();
-  if (t.length <= max) return t;
-  return '${t.substring(0, max - 1)}…';
-}
-
-String _trimRailSub(String text, [int max = 14]) {
-  final t = text.trim();
-  if (t.isEmpty) return '';
-  if (t.length <= max) return t;
-  return '${t.substring(0, max - 1)}…';
-}
-
-class _ForYouRail extends StatefulWidget {
-  const _ForYouRail({
-    this.planRail,
-    required this.continueTitle,
-    required this.continueSub,
-    required this.onContinueReading,
-    required this.onAskXiaoAi,
-    required this.meditationPrompt,
-    required this.onMeditate,
-  });
-  final _PlanRailData? planRail;
-  final String continueTitle;
-  final String continueSub;
-  final VoidCallback onContinueReading;
-  final VoidCallback onAskXiaoAi;
-  final String? meditationPrompt;
-  final void Function(String) onMeditate;
-
-  @override
-  State<_ForYouRail> createState() => _ForYouRailState();
-}
-
-class _ForYouRailState extends State<_ForYouRail> {
-  static const _viewportFraction = 0.47;
-  final _controller = PageController(viewportFraction: _viewportFraction);
-  int _page = 0;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final plan = widget.planRail;
-    final cards = <_RailCardData>[
-      _RailCardData(
-        tag: '计划',
-        title: _trimRailTitle(plan?.title ?? '读经计划'),
-        sub: _trimRailSub(plan?.sub ?? '个性定制'),
-        icon: Icons.calendar_today_outlined,
-        iconBg: AppColors.goldWash,
-        iconColor: AppColors.gold,
-        accentPill: plan != null,
-        onTap: plan?.onTap ?? () => context.push('/plans'),
-      ),
-      _RailCardData(
-        tag: '继续',
-        title: _trimRailTitle(widget.continueTitle),
-        sub: _trimRailSub(widget.continueSub),
-        icon: Icons.menu_book_outlined,
-        iconBg: AppColors.goldWash,
-        iconColor: AppColors.gold,
-        accentPill: true,
-        onTap: widget.onContinueReading,
-      ),
-      _RailCardData(
-        tag: '小爱',
-        title: _trimRailTitle('今日经文'),
-        sub: _trimRailSub('聊聊今日经文'),
-        icon: Icons.auto_awesome_outlined,
-        iconBg: const Color(0xFFFCE8EC),
-        iconColor: const Color(0xFFC45C6A),
-        onTap: widget.meditationPrompt != null
-            ? () => widget.onMeditate(widget.meditationPrompt!)
-            : widget.onAskXiaoAi,
-      ),
-      _RailCardData(
-        tag: '问答',
-        title: _trimRailTitle('知识闯关'),
-        sub: _trimRailSub('巩固所学'),
-        icon: Icons.emoji_events_outlined,
-        iconBg: AppColors.surfaceSunken,
-        iconColor: AppColors.inkSoft,
-        onTap: () => context.push('/challenge'),
-      ),
-    ];
-
-    return Column(
-      children: [
-        SizedBox(
-          height: 140,
-          child: PageView.builder(
-            controller: _controller,
-            padEnds: false,
-            onPageChanged: (i) => setState(() => _page = i),
-            itemCount: cards.length,
-            itemBuilder: (_, i) {
-              final c = cards[i];
-              return Padding(
-                padding: EdgeInsets.only(right: i == cards.length - 1 ? 0 : 14),
-                child: PaperCard(
-                  tier: 2,
-                  onTap: c.onTap,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: c.iconBg,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: c.iconColor.withValues(alpha: 0.12),
-                          ),
-                        ),
-                        child: Icon(c.icon, size: 22, color: c.iconColor),
-                      ),
-                      const SizedBox(height: 10),
-                      _Pill(c.tag, active: c.accentPill),
-                      const SizedBox(height: 6),
-                      Text(
-                        c.title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          height: 1.35,
-                          color: AppColors.ink,
-                        ),
-                      ),
-                      if (c.progressPct != null && c.progressPct! > 0) ...[
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(999),
-                          child: LinearProgressIndicator(
-                            value: c.progressPct! / 100,
-                            minHeight: 3,
-                            backgroundColor: AppColors.line,
-                            color: AppColors.accentDeep,
-                          ),
-                        ),
-                      ],
-                      if (c.sub.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          c.sub,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: AppColors.inkSoft,
-                            fontSize: 12,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(
-            cards.length,
-            (i) => AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              width: i == _page ? 14 : 5,
-              height: 5,
-              decoration: BoxDecoration(
-                color: i == _page ? AppColors.accent : AppColors.line,
-                borderRadius: BorderRadius.circular(999),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
 
 class _BelowFold extends ConsumerWidget {
   const _BelowFold({
@@ -850,9 +822,20 @@ class _BelowFold extends ConsumerWidget {
         const SizedBox(height: 18),
         const Center(
           child: Text(
-            '· 已经到底了 ·',
+            '彼爱 · 安静读经',
             style: TextStyle(
               fontSize: 12,
+              letterSpacing: 0.8,
+              color: AppColors.inkFaint,
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        const Center(
+          child: Text(
+            '· 已经到底了 ·',
+            style: TextStyle(
+              fontSize: 11,
               letterSpacing: 0.6,
               color: AppColors.inkFaint,
             ),
@@ -864,7 +847,7 @@ class _BelowFold extends ConsumerWidget {
   }
 }
 
-/// 每日经文 hero（tier3 + 破晓场景 + 衬线经文 + 点赞/分享行），对齐 canvas DailyVerseCard。
+/// 每日经文 hero：风景底 + 四操作（赞/回应/小爱/分享），对齐 PWA hero-verse。
 class _VerseCard extends ConsumerStatefulWidget {
   const _VerseCard({
     required this.day,
@@ -889,8 +872,8 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   late bool _liked;
   late int _likeCount;
   bool _likeBusy = false;
-  /// 本地点赞后暂不接受父级 engagement，直到父级与本地一致或换日
   bool _holdLocalEngagement = false;
+  String? _myReact;
 
   @override
   void initState() {
@@ -906,14 +889,13 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       _liked = widget.initialLiked;
       _likeCount = widget.initialLikeCount;
       _holdLocalEngagement = false;
+      _myReact = null;
       return;
     }
-    // 点赞请求进行中，或本地刚改过赞：勿用父级可能过期的 initialLiked 盖掉
     if (_likeBusy || _holdLocalEngagement) {
       if (_holdLocalEngagement &&
           !_likeBusy &&
           widget.initialLiked == _liked) {
-        // 服务端已追上本地，接受人数并解除 hold
         _likeCount = widget.initialLikeCount;
         _holdLocalEngagement = false;
       }
@@ -943,8 +925,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       final session = ref.read(sessionProvider);
       final prefs = ref.read(prefsProvider);
       final day = widget.day;
-      final path = '/content/daily-verse/like?day=$day';
-      final res = await dio.post(path);
+      final res = await dio.post('/content/daily-verse/like?day=$day');
       final data = res.data is Map
           ? Map<String, dynamic>.from(res.data as Map)
           : <String, dynamic>{};
@@ -986,78 +967,524 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return PaperCard(
-      tier: 3,
-      tint: AppColors.accent,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      backgroundLayer: const _DawnScene(),
-      onTap: widget.text.isEmpty ? null : _openWallpaper,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  void _askXiaoAi() {
+    final r = widget.ref;
+    final q = r.isEmpty
+        ? '请带我默想今天的经文，用一句话安静下来，再用三个问题引导应用。'
+        : '请简要解读这节经文（$r），先抓住核心信息，再给一点今日应用。';
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AssistantScreen(
+          seedRef: r.isEmpty ? null : r,
+          seedQuestion: q,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _share() async {
+    final body = widget.ref.isEmpty
+        ? '「${widget.text}」\n—— 彼爱'
+        : '「${widget.text}」\n—— ${widget.ref}\n彼爱 · 安静读经';
+    await Share.share(body);
+  }
+
+  Future<void> _openReact() async {
+    const presets = ['阿们', '受安慰', '力量', '感恩', '平安'];
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.paper,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('每日经文',
-                  style: TextStyle(
-                      color: AppColors.inkFaint,
-                      fontSize: 12,
-                      letterSpacing: 0.7)),
-              const Spacer(),
-              if (widget.theme.isNotEmpty)
-                Text('${widget.theme}系列',
-                    style: const TextStyle(
-                        color: AppColors.inkFaint, fontSize: 12)),
-            ],
-          ),
-          if (widget.ref.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(widget.ref,
-                style: const TextStyle(
-                    color: AppColors.accentDeep,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-          ],
-          const SizedBox(height: 10),
-          Text(
-            '「${widget.text}」',
-            style: const TextStyle(
-              fontFamily: 'Songti SC',
-              fontFamilyFallback: ['STSong', 'Noto Serif SC', 'serif'],
-              fontSize: 16.5,
-              height: 1.62,
-              letterSpacing: 0.3,
-              color: AppColors.ink,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              InkWell(
-                onTap: _likeBusy ? null : _toggleLike,
-                child: Row(
-                  children: [
-                    Icon(_liked ? Icons.favorite : Icons.favorite_border,
-                        size: 18,
-                        color:
-                            _liked ? AppColors.accentDeep : AppColors.inkFaint),
-                    const SizedBox(width: 6),
-                    Text('$_likeCount 人点赞',
-                        style: const TextStyle(
-                            color: AppColors.inkFaint, fontSize: 12)),
-                  ],
-                ),
+              const Text('回应今日经文',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final p in presets)
+                    ActionChip(
+                      label: Text(p),
+                      backgroundColor: _myReact == p
+                          ? AppColors.accentWash
+                          : AppColors.surface,
+                      onPressed: () => Navigator.pop(ctx, p),
+                    ),
+                ],
               ),
             ],
           ),
-        ],
+        ),
+      ),
+    );
+    if (picked != null && mounted) setState(() => _myReact = picked);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final wall = dailyVerseWallpaperUrl(widget.day < 1 ? 1 : widget.day);
+    final h = homeHeroVerseHeight(context);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.text.isEmpty ? null : _openWallpaper,
+        borderRadius: BorderRadius.circular(18),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: SizedBox(
+            height: h,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.network(
+                  wall,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => const _DawnScene(),
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.25),
+                        Colors.black.withValues(alpha: 0.62),
+                      ],
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            '每日经文',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.78),
+                              fontSize: 12,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const Spacer(),
+                      if (widget.ref.isNotEmpty)
+                        Text(
+                          widget.ref,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.88),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        widget.text.isEmpty
+                            ? '内容加载失败，下拉重试'
+                            : '「${widget.text}」',
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontFamily: 'Songti SC',
+                          fontFamilyFallback: [
+                            'STSong',
+                            'Noto Serif SC',
+                            'serif'
+                          ],
+                          fontSize: 17,
+                          height: 1.55,
+                          letterSpacing: 0.3,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          _HeroAction(
+                            icon: _liked
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            label: _likeCount > 0 ? '$_likeCount' : null,
+                            active: _liked,
+                            onTap: _likeBusy ? null : _toggleLike,
+                          ),
+                          const SizedBox(width: 4),
+                          _HeroAction(
+                            icon: Icons.chat_bubble_outline,
+                            label: _myReact,
+                            active: _myReact != null,
+                            onTap: _openReact,
+                          ),
+                          const SizedBox(width: 4),
+                          _HeroAction(
+                            icon: Icons.auto_awesome_outlined,
+                            onTap: _askXiaoAi,
+                          ),
+                          const SizedBox(width: 4),
+                          _HeroAction(
+                            icon: Icons.ios_share_outlined,
+                            onTap: () => _share(),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
 }
 
-/// 柔和「破晓」场景背景：右上低饱和暖光晕 + 顶部色调淡出（盼望主题）。
+class _HeroAction extends StatelessWidget {
+  const _HeroAction({
+    required this.icon,
+    this.label,
+    this.active = false,
+    this.onTap,
+  });
+  final IconData icon;
+  final String? label;
+  final bool active;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: active ? 0.22 : 0.12),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 17, color: Colors.white),
+              if (label != null && label!.isNotEmpty) ...[
+                const SizedBox(width: 4),
+                Text(
+                  label!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GrowthStack extends StatelessWidget {
+  const _GrowthStack({
+    required this.todayMins,
+    required this.monthDays,
+    this.planTitle,
+    this.planSub,
+    this.prayerTitle,
+    required this.planOccupied,
+    required this.prayerOccupied,
+    required this.onReport,
+    required this.onPlan,
+    required this.onTheme,
+    required this.onPrayer,
+  });
+
+  final int todayMins;
+  final int monthDays;
+  final String? planTitle;
+  final String? planSub;
+  final String? prayerTitle;
+  final bool planOccupied;
+  final bool prayerOccupied;
+  final VoidCallback onReport;
+  final VoidCallback onPlan;
+  final VoidCallback onTheme;
+  final VoidCallback onPrayer;
+
+  @override
+  Widget build(BuildContext context) {
+    // 对齐 PWA buildHomeGrowthModel：摘要 → 计划 → 主题 → 祷告
+    final now = DateTime.now();
+    final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+    final monthPct = daysInMonth <= 0
+        ? 0
+        : ((monthDays / daysInMonth) * 100).round().clamp(0, 100);
+
+    final rows = <Widget>[
+      _MediaGrowthRow(
+        tag: '今日',
+        title: '今日 $todayMins 分钟',
+        detail: '本月已读 $monthDays 天',
+        metricValue: '$todayMins',
+        metricPrefix: '今日',
+        metricSuffix: '分钟',
+        imageUrl: null,
+        icon: Icons.schedule,
+        progressPct: monthPct > 0 ? monthPct : null,
+        onTap: onReport,
+      ),
+    ];
+    if (!planOccupied) {
+      rows.add(
+        _MediaGrowthRow(
+          tag: '计划',
+          title: planTitle ?? '选一个读经计划',
+          detail: planSub ?? '按日程读完一卷书',
+          imageUrl: dailyVerseWallpaperUrl(8),
+          icon: Icons.menu_book_outlined,
+          onTap: onPlan,
+        ),
+      );
+    }
+    rows.add(
+      _MediaGrowthRow(
+        tag: '主题',
+        title: '探索经文主题',
+        detail: '按主题找经文',
+        imageUrl: dailyVerseWallpaperUrl(21),
+        icon: Icons.explore_outlined,
+        onTap: onTheme,
+      ),
+    );
+    if (!prayerOccupied) {
+      rows.add(
+        _MediaGrowthRow(
+          tag: '祷告',
+          title: prayerTitle != null && prayerTitle!.isNotEmpty
+              ? prayerTitle!
+              : '开始祷告',
+          detail: '安静片刻，向神说话',
+          imageUrl: dailyVerseWallpaperUrl(14),
+          icon: Icons.volunteer_activism_outlined,
+          onTap: onPrayer,
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          if (i > 0) const SizedBox(height: 16),
+          rows[i],
+        ],
+      ],
+    );
+  }
+}
+
+/// 对齐 PWA HomeMediaRow：左媒右文。
+class _MediaGrowthRow extends StatelessWidget {
+  const _MediaGrowthRow({
+    required this.tag,
+    required this.title,
+    required this.detail,
+    required this.icon,
+    required this.onTap,
+    this.imageUrl,
+    this.metricValue,
+    this.metricPrefix,
+    this.metricSuffix,
+    this.progressPct,
+  });
+
+  final String tag;
+  final String title;
+  final String detail;
+  final IconData icon;
+  final VoidCallback onTap;
+  final String? imageUrl;
+  final String? metricValue;
+  final String? metricPrefix;
+  final String? metricSuffix;
+  final int? progressPct;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 88,
+          child: Row(
+            children: [
+              SizedBox(
+                width: 72,
+                height: 72,
+                child: Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: ColoredBox(
+                        color: AppColors.accentWash,
+                        child: hasImage
+                            ? Image.network(
+                                imageUrl!,
+                                width: 72,
+                                height: 72,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Icon(icon,
+                                      color: AppColors.accentDeep, size: 26),
+                                ),
+                              )
+                            : Center(
+                                child: Icon(icon,
+                                    color: AppColors.accentDeep, size: 26),
+                              ),
+                      ),
+                    ),
+                    if (hasImage)
+                      Positioned(
+                        left: 6,
+                        bottom: 6,
+                        child: Container(
+                          width: 22,
+                          height: 22,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(icon,
+                              size: 13, color: AppColors.accentDeep),
+                        ),
+                      ),
+                    if (progressPct != null && progressPct! > 0)
+                      Positioned(
+                        right: 2,
+                        top: 2,
+                        child: _MonthProgressBadge(pct: progressPct!),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      tag,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    if (metricValue != null)
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            if (metricPrefix != null)
+                              TextSpan(
+                                text: '$metricPrefix ',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSoft,
+                                ),
+                              ),
+                            TextSpan(
+                              text: metricValue,
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                height: 1.05,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                            if (metricSuffix != null)
+                              TextSpan(
+                                text: ' $metricSuffix',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSoft,
+                                ),
+                              ),
+                          ],
+                        ),
+                      )
+                    else
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
+                      ),
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.inkFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.inkFaint, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MonthProgressBadge extends StatelessWidget {
+  const _MonthProgressBadge({required this.pct});
+  final int pct;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = (pct.clamp(0, 100)) / 100.0;
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: CircularProgressIndicator(
+        value: p,
+        strokeWidth: 2.2,
+        backgroundColor: AppColors.line.withValues(alpha: 0.6),
+        color: AppColors.accentDeep,
+      ),
+    );
+  }
+}
+
+/// 柔和「破晓」场景背景（壁纸加载失败时）。
 class _DawnScene extends StatelessWidget {
   const _DawnScene();
   @override
@@ -1068,28 +1495,13 @@ class _DawnScene extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFFE8E0D2).withValues(alpha: 0.55),
-                  const Color(0xFFE8E0D2).withValues(alpha: 0),
+                  const Color(0xFF3D5A48),
+                  const Color(0xFF2C4034),
+                  AppColors.accentDeep.withValues(alpha: 0.85),
                 ],
-                stops: const [0, 0.62],
-              ),
-            ),
-          ),
-        ),
-        Positioned.fill(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: const Alignment(0.64, -0.56),
-                radius: 0.6,
-                colors: [
-                  const Color(0xFFD6BC8C).withValues(alpha: 0.45),
-                  const Color(0xFFD6BC8C).withValues(alpha: 0),
-                ],
-                stops: const [0, 0.7],
               ),
             ),
           ),
@@ -1103,12 +1515,13 @@ class _VerseCardSkeleton extends StatelessWidget {
   const _VerseCardSkeleton();
   @override
   Widget build(BuildContext context) {
-    return const PaperCard(
-      tier: 3,
-      child: SizedBox(
-        height: 150,
-        child: Center(child: CircularProgressIndicator()),
+    return Container(
+      height: homeHeroVerseHeight(context),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSunken,
+        borderRadius: BorderRadius.circular(18),
       ),
+      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
     );
   }
 }

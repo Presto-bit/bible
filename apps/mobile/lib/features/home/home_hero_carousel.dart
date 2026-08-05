@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme.dart';
 import 'hero_b_campaign.dart';
+import 'home_hero_metrics.dart';
 
 class HomeHeroCarousel extends StatefulWidget {
   const HomeHeroCarousel({
@@ -40,10 +41,11 @@ class _HomeHeroCarouselState extends State<HomeHeroCarousel> {
   Widget build(BuildContext context) {
     if (!_hasOps) return widget.verseSlide;
 
+    final h = homeHeroVerseHeight(context);
     return Column(
       children: [
         SizedBox(
-          height: 220,
+          height: h,
           child: PageView(
             controller: _page,
             onPageChanged: (i) => setState(() => _index = i),

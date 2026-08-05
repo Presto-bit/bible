@@ -21,7 +21,8 @@ if ! command -v "$FLUTTER" >/dev/null 2>&1 && [[ ! -x "$FLUTTER" ]]; then
   exit 1
 fi
 
-API_BASE="${API_BASE_URL:-https://prestoai.cn}"
+# 与 Web 默认一致：API + H5 同 origin（2sc）
+API_BASE="${API_BASE_URL:-https://2sc.prestoai.cn}"
 WEB_BASE="${WEB_BASE_URL:-https://2sc.prestoai.cn}"
 
 # 本机缺 android-35 时可用 apps/mobile/.android-sdk-shim
@@ -31,14 +32,32 @@ if [[ -d "$MOBILE/.android-sdk-shim/platforms/android-35" ]]; then
 fi
 export GRADLE_USER_HOME="${GRADLE_USER_HOME:-$ROOT/.gradle-home}"
 
+# P0 体积：仅 arm64 + R8（Gradle minify）+ Dart 混淆
+# 真机 32 位需另跑：--target-platform android-arm
+TARGET_PLATFORM="${TARGET_PLATFORM:-android-arm64}"
+SYMBOLS_DIR="$MOBILE/build/symbols"
+
 cd "$MOBILE"
 "$FLUTTER" pub get
+mkdir -p "$SYMBOLS_DIR"
 "$FLUTTER" build apk --release \
+  --target-platform "$TARGET_PLATFORM" \
+  --obfuscate \
+  --split-debug-info="$SYMBOLS_DIR" \
   --android-skip-build-dependency-validation \
   --dart-define="API_BASE_URL=$API_BASE" \
   --dart-define="WEB_BASE_URL=$WEB_BASE"
 
+# fat 名仍为 app-release.apk；带 --target-platform 时亦落此路径
 APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-release.apk"
+if [[ ! -f "$APK_SRC" ]]; then
+  # split-per-abi 遗留命名兜底
+  case "$TARGET_PLATFORM" in
+    android-arm64) APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk" ;;
+    android-arm)   APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk" ;;
+    android-x64)   APK_SRC="$MOBILE/build/app/outputs/flutter-apk/app-x86_64-release.apk" ;;
+  esac
+fi
 if [[ ! -f "$APK_SRC" ]]; then
   echo "APK missing: $APK_SRC" >&2
   exit 1

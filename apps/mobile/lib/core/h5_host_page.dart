@@ -374,6 +374,14 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
 
   @override
   Widget build(BuildContext context) {
+    // 主题切换时重注入 H5 CSS vars（建议对齐：减「两个 App」感）
+    ref.listen(appThemeProvider, (prev, next) {
+      if (prev == next) return;
+      final c = _controller;
+      if (c == null) return;
+      unawaited(ref.read(sessionProvider).token().then((t) => _runBridgeJs(c, t)));
+    });
+
     final themeId = ref.watch(appThemeProvider);
     final bg = peiaiPaperFor(themeId);
     final inkFaint = context.peiaiInkFaint;
