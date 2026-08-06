@@ -232,7 +232,7 @@ curl -s "https://2sc.prestoai.cn/?nocache=$(date +%s)" | grep -E '3,842|每日�
 | Docker web 构建 | 把 `const CACHE = 'presto-bible-…'` 改成 `presto-bible-${NEXT_PUBLIC_APP_VERSION}`（git short SHA） |
 | `release.sh` | 校验本机 `/sw.js` 含该 CACHE，且 `Cache-Control` 含 `no-store`/`no-cache`；公网同查（失败告警） |
 | Next / Nginx | `location = /sw.js` → `no-store`；勿让宝塔 `\.js$` 规则长缓存 |
-| 风景壁纸 | `location ^~ /daily-wallpapers/` 与 `/rail-scenes/` → **长缓存**；勿落入 `location /` 的 `no-cache always`（会盖掉 Next headers，壳上首页背景常重下失败） |
+| 风景壁纸 | **middleware 勿匹配** `/daily-wallpapers/`、`/rail-scenes/`（曾误加全局 no-store）；`next.config` 长缓存 + Nginx `location ^~ …` 防 `location /` 的 no-cache always 盖掉 |
 | 客户端 | `PwaRegister`：`updateViaCache: 'none'` + 可见时 `update()` + `controllerchange` 带 `_nc` 刷新；`StaleShellGuard` 比对线上 `app-version` |
 
 **发版后自检**（服务器）：
@@ -245,9 +245,11 @@ curl -sI "https://2sc.prestoai.cn/sw.js" | grep -i cache-control
 curl -s "https://2sc.prestoai.cn/sw.js" | grep "const CACHE"
 # 期望 CACHE 含 $V，且 Cache-Control 含 no-store 或 no-cache
 
-# 壁纸：经 Nginx 后须长缓存（max-age≥1d），非 no-cache
+# 壁纸：本机 Next（:3002）与公网经 Nginx 均须长缓存（max-age≥1d），非 no-cache
+# middleware 已排除 /daily-wallpapers/、/rail-scenes/；Nginx 另有 ^~ 防 location / 盖掉
+curl -sI "http://127.0.0.1:3002/daily-wallpapers/scenery-01.jpg" | grep -iE 'cache-control|x-bible-cache'
 curl -sI "https://2sc.prestoai.cn/daily-wallpapers/scenery-01.jpg" | grep -iE 'cache-control|x-bible-cache'
-# 期望: public, max-age=2592000… 与 X-Bible-Cache: wallpaper-long
+# 期望: public, max-age=2592000… ；公网经 Nginx 时还可有 X-Bible-Cache: wallpaper-long
 ```
 
 **Nginx 壁纸放行**（一次运维，reload 后长期有效）：

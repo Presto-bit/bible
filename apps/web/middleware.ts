@@ -1,8 +1,26 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-/** 请求到达 Next 时禁止 CDN/Nginx 缓存 HTML（若外层仍缓存 /，须在宝塔关闭全站缓存） */
+/** 固定名静态资源：须走 next.config 长缓存，禁止本 middleware 盖成 no-store */
+function isLongCacheAsset(pathname: string): boolean {
+  return (
+    pathname.startsWith('/daily-wallpapers/')
+    || pathname.startsWith('/rail-scenes/')
+    || pathname.startsWith('/downloads/')
+    || pathname.startsWith('/.well-known/')
+  );
+}
+
+/**
+ * 到达 Next 的 HTML/页面：禁止 CDN/反代长缓存（发版后立刻可见）。
+ * 勿对风景壁纸 / 场景图下手——否则 no-store 会盖掉 next.config 的 max-age，
+ * 且经 Nginx location / 后表现为「短/无缓存」。
+ */
 export function middleware(request: NextRequest) {
+  if (isLongCacheAsset(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
+
   const response = NextResponse.next();
   response.headers.set(
     'Cache-Control',
@@ -18,5 +36,8 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|icon-|apple-touch|manifest|sw\\.js).*)'],
+  // 与 isLongCacheAsset + 静态壳资源对齐；matcher 排除后中间件不进入
+  matcher: [
+    '/((?!_next/static|_next/image|favicon\\.ico|icon-|apple-touch|manifest|sw\\.js|daily-wallpapers/|rail-scenes/|downloads/|\\.well-known/).*)',
+  ],
 };

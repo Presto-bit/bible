@@ -144,8 +144,10 @@ assert_sw_fresh() {
   return 0
 }
 
-# 风景壁纸须能被浏览器长缓存；nginx location / 若 no-cache always 会盖掉 Next headers
-# 仅告警不阻断（避免未 reload nginx 的发版全失败）
+# 风景壁纸须能被浏览器长缓存。
+# 历史坑：① middleware 全站 no-store（含 wallpaper，本机 3002 也中招）；
+# ② nginx location / 的 no-cache always 盖掉 Next headers。
+# 仅告警不阻断（避免未重建 web / 未 reload nginx 的发版全失败）
 # $1=base URL  $2=label
 assert_wallpaper_long_cache() {
   local base="${1%/}"
@@ -168,10 +170,10 @@ assert_wallpaper_long_cache() {
     return 0
   fi
   if [[ "$cache_lc" =~ (no-store|no-cache) ]]; then
-    log "⚠️  $label 壁纸仍为短/无缓存（${cache_h:-缺失}）。Nginx location / 的 no-cache 可能盖住了 Next；请合并 deploy/nginx-*.conf 中 ^~ /daily-wallpapers/ 与 /rail-scenes/ 后 nginx -t && reload"
+    log "⚠️  $label 壁纸仍为短/无缓存（${cache_h:-缺失}）。优先查 middleware 是否未排除 daily-wallpapers；其次 deploy/nginx ^~ /daily-wallpapers/ 后 nginx -t && reload"
     return 1
   fi
-  log "⚠️  $label 壁纸 Cache-Control 过短或缺失（${cache_h:-无}）；期望 max-age≥86400（见 deploy/nginx + next.config）"
+  log "⚠️  $label 壁纸 Cache-Control 过短或缺失（${cache_h:-无}）；期望 max-age≥86400（middleware 排除 + next.config + deploy/nginx）"
   return 1
 }
 
