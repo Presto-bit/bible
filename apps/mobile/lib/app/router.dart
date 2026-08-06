@@ -20,6 +20,7 @@ import '../features/social/discover_screen.dart';
 import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
 import '../features/bible/wrapped_screen.dart';
+import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
 import '../features/knowledge/knowledge_explore.dart';
 import '../features/assistant/knowledge_bases_screen.dart';
@@ -150,6 +151,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/dictionary',
           builder: (context, state) => const DictionaryScreen()),
+      GoRoute(
+          path: '/notes',
+          builder: (context, state) => const NotesScreen()),
       GoRoute(
           path: '/search',
           builder: (context, state) => const SearchScreen()),

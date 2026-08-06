@@ -9,6 +9,7 @@ class H5Whitelist {
     '/campaigns',
     '/campaign',
     '/pray',
+    '/search/series',
     '/help',
     '/feedback',
     '/legal',

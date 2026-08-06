@@ -24,6 +24,7 @@ import '../bible/bible_repository.dart';
 import '../bible/models.dart';
 import '../bible/reading_repository.dart';
 import '../bible/reader_screen.dart' show readerJumpProvider;
+import 'daily_verse_react_sheet.dart';
 import 'daily_verse_wallpaper_screen.dart';
 import 'hero_b_campaign.dart';
 import 'home_hero_carousel.dart';
@@ -46,6 +47,9 @@ class DailyVerse {
     required this.liked,
     required this.likesCount,
     required this.sharesCount,
+    this.reactsCount = 0,
+    this.myReact,
+    this.topPresets = const [],
   });
   final String ref;
   final String theme;
@@ -58,6 +62,9 @@ class DailyVerse {
   final bool liked;
   final int likesCount;
   final int sharesCount;
+  final int reactsCount;
+  final DailyVerseReactPreset? myReact;
+  final List<DailyVerseReactPreset> topPresets;
 
   factory DailyVerse.fromJson(Map<String, dynamic> j) {
     final book = ((j['book'] ?? '') as String).trim().toUpperCase();
@@ -67,6 +74,17 @@ class DailyVerse {
     final vs = (j['verse_start'] is num)
         ? (j['verse_start'] as num).toInt()
         : int.tryParse('${j['verse_start']}') ?? 0;
+    final tops = <DailyVerseReactPreset>[];
+    final tp = j['top_presets'];
+    if (tp is List) {
+      for (final e in tp) {
+        if (e is Map) {
+          final p = DailyVerseReactPreset.fromJson(
+              Map<String, dynamic>.from(e));
+          if (p.id.isNotEmpty) tops.add(p);
+        }
+      }
+    }
     return DailyVerse(
       ref: (j['ref'] ?? '') as String,
       theme: (j['theme'] ?? '') as String,
@@ -81,6 +99,11 @@ class DailyVerse {
       liked: (j['liked'] ?? false) as bool,
       likesCount: (j['likes_count'] ?? 0) as int,
       sharesCount: (j['shares_count'] ?? 0) as int,
+      reactsCount: (j['reacts_count'] is num)
+          ? (j['reacts_count'] as num).toInt()
+          : 0,
+      myReact: parseReactPreset(j['my_react']),
+      topPresets: tops,
     );
   }
 }
@@ -489,6 +512,9 @@ class HomeScreen extends ConsumerWidget {
                     verseStart: v.verseStart,
                     initialLiked: v.liked,
                     initialLikeCount: v.likesCount,
+                    initialMyReact: v.myReact,
+                    initialReactsCount: v.reactsCount,
+                    initialTopPresets: v.topPresets,
                   );
                   return HomeHeroCarousel(
                     verseSlide: verseCard,
@@ -600,8 +626,8 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
         child: ListTile(
           leading:
               Icon(Icons.group_add_outlined, color: AppColors.accentDeep),
-          title: Text('建群'),
-          subtitle: Text('创建共读群', style: TextStyle(fontSize: 11)),
+          title: Text('创建群'),
+          subtitle: Text('发起共读群', style: TextStyle(fontSize: 11)),
           contentPadding: EdgeInsets.zero,
         ),
       ),
@@ -840,6 +866,9 @@ class _VerseCard extends ConsumerStatefulWidget {
     required this.verseStart,
     required this.initialLiked,
     required this.initialLikeCount,
+    this.initialMyReact,
+    this.initialReactsCount = 0,
+    this.initialTopPresets = const [],
   });
   final int day;
   final String theme;
@@ -850,6 +879,9 @@ class _VerseCard extends ConsumerStatefulWidget {
   final int verseStart;
   final bool initialLiked;
   final int initialLikeCount;
+  final DailyVerseReactPreset? initialMyReact;
+  final int initialReactsCount;
+  final List<DailyVerseReactPreset> initialTopPresets;
 
   @override
   ConsumerState<_VerseCard> createState() => _VerseCardState();
@@ -860,13 +892,18 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   late int _likeCount;
   bool _likeBusy = false;
   bool _holdLocalEngagement = false;
-  String? _myReact;
+  DailyVerseReactPreset? _myReact;
+  int _reactsCount = 0;
+  List<DailyVerseReactPreset> _topPresets = const [];
 
   @override
   void initState() {
     super.initState();
     _liked = widget.initialLiked;
     _likeCount = widget.initialLikeCount;
+    _myReact = widget.initialMyReact;
+    _reactsCount = widget.initialReactsCount;
+    _topPresets = widget.initialTopPresets;
   }
 
   @override
@@ -876,7 +913,9 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
       _liked = widget.initialLiked;
       _likeCount = widget.initialLikeCount;
       _holdLocalEngagement = false;
-      _myReact = null;
+      _myReact = widget.initialMyReact;
+      _reactsCount = widget.initialReactsCount;
+      _topPresets = widget.initialTopPresets;
       return;
     }
     if (_likeBusy || _holdLocalEngagement) {
@@ -892,6 +931,12 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
         oldWidget.initialLikeCount != widget.initialLikeCount) {
       _liked = widget.initialLiked;
       _likeCount = widget.initialLikeCount;
+    }
+    if (oldWidget.initialMyReact?.id != widget.initialMyReact?.id ||
+        oldWidget.initialReactsCount != widget.initialReactsCount) {
+      _myReact = widget.initialMyReact;
+      _reactsCount = widget.initialReactsCount;
+      _topPresets = widget.initialTopPresets;
     }
   }
 
@@ -962,7 +1007,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
           theme: widget.theme,
           liked: _liked,
           likeCount: _likeCount,
-          myReact: _myReact,
+          myReact: _myReact?.label,
           onToggleLike: _likeBusy
               ? null
               : () {
@@ -1006,43 +1051,23 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   }
 
   Future<void> _openReact() async {
-    const presets = ['阿们', '受安慰', '力量', '感恩', '平安'];
-    final picked = await showModalBottomSheet<String>(
+    if (widget.day < 1) return;
+    await showDailyVerseReactSheet(
       context: context,
-      backgroundColor: AppColors.paper,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('回应今日经文',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final p in presets)
-                    ActionChip(
-                      label: Text(p),
-                      backgroundColor: _myReact == p
-                          ? AppColors.accentWash
-                          : AppColors.surface,
-                      onPressed: () => Navigator.pop(ctx, p),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+      ref: ref,
+      day: widget.day,
+      myReact: _myReact,
+      reactsCount: _reactsCount,
+      topPresets: _topPresets,
+      onChanged: (next) {
+        if (!mounted) return;
+        setState(() {
+          _myReact = next.myReact;
+          _reactsCount = next.reactsCount;
+          _topPresets = next.topPresets;
+        });
+      },
     );
-    if (picked != null && mounted) setState(() => _myReact = picked);
   }
 
   @override
@@ -1153,7 +1178,9 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                             const SizedBox(width: 4),
                             _HeroAction(
                               icon: Icons.chat_bubble_outline,
-                              label: _myReact,
+                              label: _myReact?.emoji.isNotEmpty == true
+                                  ? _myReact!.emoji
+                                  : (_myReact?.label),
                               active: _myReact != null,
                               onTap: _openReact,
                             ),

@@ -12,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 import '../core/api_client.dart';
 import '../core/config.dart';
 import '../core/gamification.dart';
+import '../core/profile_footprint.dart';
 import '../core/theme.dart';
 import '../core/widgets/avatar_bubble.dart';
 import '../core/widgets/sync_migrate_sheet.dart';
@@ -437,13 +438,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           orElse: () => const <BadgeDef>[],
         );
 
-    int? milestone;
-    for (final m in const [7, 30, 100, 365]) {
-      if (streak == m) {
-        milestone = m;
-        break;
-      }
-    }
+    final seen = readFootprintSeen(prefs);
+    final thoughtNew =
+        footprintHasNew(seen, 'thoughts', thoughts.length);
+    final markNew = footprintHasNew(seen, 'marks', highlights);
+    final badgeNew = footprintHasNew(seen, 'badges', badgeCount);
+
+    final milestone = pendingStreakMilestone(prefs, streak);
 
     return Scaffold(
       body: SafeArea(
@@ -650,10 +651,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Share.share(
                           '我在彼爱已同行读经 $milestone 天。愿话语继续同行。',
                         );
+                        await markStreakMilestoneShared(prefs, milestone!);
+                        if (mounted) setState(() {});
                       },
                       child: const Text('分享'),
                     ),
@@ -685,18 +688,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   count: thoughts.length,
                   value: thoughtPreview.isEmpty ? '写下第一句' : thoughtPreview,
                   empty: thoughtPreview.isEmpty,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const NotesScreen()),
-                  ),
+                  isNew: thoughtNew,
+                  onTap: () async {
+                    await markFootprintSeen(
+                        prefs, 'thoughts', thoughts.length);
+                    if (!context.mounted) return;
+                    context.push('/notes');
+                  },
                 ),
                 _FootprintCell(
                   kind: '划线',
                   count: highlights,
                   value: markPreview.isEmpty ? '去读经划线' : markPreview,
                   empty: markPreview.isEmpty,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const NotesScreen()),
-                  ),
+                  isNew: markNew,
+                  onTap: () async {
+                    await markFootprintSeen(prefs, 'marks', highlights);
+                    if (!context.mounted) return;
+                    context.push('/notes');
+                  },
                 ),
                 _FootprintCell(
                   kind: '成就',
@@ -704,9 +714,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   value: badgeCount == 0 ? '去解锁第一枚' : '',
                   empty: badgeCount == 0,
                   hideValue: badgeCount > 0,
+                  isNew: badgeNew,
                   badgeIcons: doneBadges.map((b) => b.icon).toList(),
-                  onTap: () {
+                  onTap: () async {
+                    await markFootprintSeen(prefs, 'badges', badgeCount);
+                    if (!mounted) return;
                     ref.read(badgesProvider).whenData(_showBadgeGallery);
+                    setState(() {});
                   },
                 ),
                 _FootprintCell(
@@ -856,6 +870,7 @@ class _FootprintCell extends StatelessWidget {
     required this.empty,
     required this.onTap,
     this.hideValue = false,
+    this.isNew = false,
     this.badgeIcons = const [],
   });
 
@@ -864,6 +879,7 @@ class _FootprintCell extends StatelessWidget {
   final String value;
   final bool empty;
   final bool hideValue;
+  final bool isNew;
   final List<String> badgeIcons;
   final VoidCallback onTap;
 
@@ -885,6 +901,17 @@ class _FootprintCell extends StatelessWidget {
                   color: AppColors.inkFaint,
                 ),
               ),
+              if (isNew) ...[
+                const SizedBox(width: 6),
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: const BoxDecoration(
+                    color: AppColors.accentDeep,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
               const Spacer(),
               if (count > 0)
                 Text(

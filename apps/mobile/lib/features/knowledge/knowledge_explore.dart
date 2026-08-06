@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/config.dart';
+import '../../core/open_h5.dart';
 import '../../core/ref_label.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
@@ -19,12 +20,37 @@ class KnowledgeHub extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    const items = [
-      ('地图故事', Icons.map_outlined, '/search/map'),
-      ('历史时间线', Icons.timeline, '/search/timeline'),
-      ('关系专题', Icons.hub_outlined, '/search/graph'),
-      ('圣经图鉴', Icons.account_tree_outlined, '/search/diagrams'),
-      ('圣经词典', Icons.menu_book_outlined, '/dictionary'),
+    final items = <(String, IconData, VoidCallback)>[
+      (
+        '出埃及故事',
+        Icons.auto_stories_outlined,
+        () => openH5IfAllowed(context, '/search/series/exodus'),
+      ),
+      (
+        '地图故事',
+        Icons.map_outlined,
+        () => context.push('/search/map'),
+      ),
+      (
+        '历史时间线',
+        Icons.timeline,
+        () => context.push('/search/timeline'),
+      ),
+      (
+        '关系专题',
+        Icons.hub_outlined,
+        () => context.push('/search/graph'),
+      ),
+      (
+        '圣经图鉴',
+        Icons.account_tree_outlined,
+        () => context.push('/search/diagrams'),
+      ),
+      (
+        '圣经词典',
+        Icons.menu_book_outlined,
+        () => context.push('/dictionary'),
+      ),
     ];
     return SizedBox(
       height: 108,
@@ -33,11 +59,11 @@ class KnowledgeHub extends ConsumerWidget {
         itemCount: items.length,
         separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (_, i) {
-          final (label, icon, route) = items[i];
+          final (label, icon, onTap) = items[i];
           return SizedBox(
             width: 132,
             child: PaperCard(
-              onTap: () => context.push(route),
+              onTap: onTap,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

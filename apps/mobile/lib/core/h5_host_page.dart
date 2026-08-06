@@ -281,19 +281,37 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   }
 
   bool _isNativePath(String p) {
+    if (p.startsWith('/search/series')) return false;
     return p == '/reader' ||
         p.startsWith('/reader/') ||
         p == '/assistant' ||
-        p.startsWith('/assistant/');
+        p.startsWith('/assistant/') ||
+        p == '/plans' ||
+        p.startsWith('/plans/') ||
+        p == '/challenge' ||
+        p.startsWith('/challenge/') ||
+        p == '/search' ||
+        (p.startsWith('/search/') && !p.startsWith('/search/series')) ||
+        p == '/dictionary' ||
+        p.startsWith('/dictionary/') ||
+        p == '/wrapped' ||
+        p.startsWith('/wrapped') ||
+        p == '/notes' ||
+        p.startsWith('/notes/') ||
+        p == '/profile/appearance' ||
+        p == '/knowledge-bases' ||
+        p.startsWith('/knowledge-bases/');
   }
 
   void _openNativeFromWeb(Uri u) {
     final p = u.path;
+    final qp = u.queryParameters;
+
     if (p.startsWith('/assistant')) {
       ref.read(navIndexProvider.notifier).set(2);
       context.push(Uri(
         path: '/assistant',
-        queryParameters: u.queryParameters,
+        queryParameters: qp,
       ).toString());
       return;
     }
@@ -301,8 +319,46 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       ref.read(navIndexProvider.notifier).set(1);
       context.push(Uri(
         path: '/reader',
-        queryParameters: u.queryParameters,
+        queryParameters: qp,
       ).toString());
+      return;
+    }
+    if (p == '/notes' || p.startsWith('/notes/')) {
+      context.push('/notes');
+      return;
+    }
+    if (p == '/plans' || p.startsWith('/plans/')) {
+      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
+          .toString());
+      return;
+    }
+    if (p == '/challenge' || p.startsWith('/challenge/')) {
+      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
+          .toString());
+      return;
+    }
+    if (p == '/search' ||
+        (p.startsWith('/search/') && !p.startsWith('/search/series'))) {
+      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
+          .toString());
+      return;
+    }
+    if (p == '/dictionary' || p.startsWith('/dictionary/')) {
+      context.push('/dictionary');
+      return;
+    }
+    if (p == '/wrapped' || p.startsWith('/wrapped')) {
+      context.push(Uri(path: '/wrapped', queryParameters: qp.isEmpty ? null : qp)
+          .toString());
+      return;
+    }
+    if (p == '/profile/appearance') {
+      context.push('/profile/appearance');
+      return;
+    }
+    if (p == '/knowledge-bases' || p.startsWith('/knowledge-bases/')) {
+      context.push(Uri(path: p, queryParameters: qp.isEmpty ? null : qp)
+          .toString());
     }
   }
 

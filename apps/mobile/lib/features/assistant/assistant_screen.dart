@@ -1155,7 +1155,7 @@ class _ComposerState extends State<_Composer> {
       if (mounted) {
         setState(() => _voiceMode = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('无法使用语音输入，请检查麦克风权限')),
+          const SnackBar(content: Text('当前设备无法使用语音，请改用键盘输入')),
         );
       }
       return;

@@ -1,7 +1,7 @@
 /// App Link / 通知 payload → go_router 路径。
 ///
 /// 规则：
-/// - 白名单 H5 → `/h5?path=…`
+/// - 白名单 H5 → `/h5?path=…`（含 /pray、/search/series…）
 /// - 原生 Tab 面与既有路由 → 对应 location
 /// - 读经/小爱锚点保留 query
 library;
@@ -50,9 +50,16 @@ class DeepLink {
         // 根发现用 Tab（壳底栏 + 内嵌 H5）
         if (qp.isEmpty) return 'peiai://tab/3';
         return _h5(uri.replace(path: path));
+      case '/notes':
+        return '/notes';
     }
 
-    // 白名单 H5（IM / 活动 / 协议 / 设置）
+    // 故事图册等：优先 H5（勿落入下方 /search/* 原生）
+    if (path.startsWith('/search/series')) {
+      return _h5(uri.replace(path: path));
+    }
+
+    // 白名单 H5（IM / 活动 / 协议 / 设置 / 祷告）
     if (H5Whitelist.allows(path)) {
       return _h5(uri.replace(path: path));
     }
@@ -83,9 +90,10 @@ class DeepLink {
       '/wrapped',
       '/knowledge-bases',
       '/profile/appearance',
+      '/notes',
     };
     if (known.contains(path) ||
-        path.startsWith('/search/') ||
+        (path.startsWith('/search/') && !path.startsWith('/search/series')) ||
         path.startsWith('/knowledge-bases/')) {
       return uri.hasQuery ? '$path?${uri.query}' : path;
     }

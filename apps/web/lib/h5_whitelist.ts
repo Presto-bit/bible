@@ -1,6 +1,7 @@
 /**
  * 安卓 Flutter 壳允许嵌 H5 的路径白名单（与 PRODUCT §24 对齐）。
  * 白名单外不得随手嵌 Web。
+ * 变更须同步 apps/mobile/lib/core/h5_whitelist.dart。
  */
 
 export type H5Surface =
@@ -9,7 +10,9 @@ export type H5Surface =
   | 'legal_help'
   | 'profile_secondary'
   | 'settings_web'
-  | 'friend_group';
+  | 'friend_group'
+  | 'pray'
+  | 'story_series';
 
 export type H5WhitelistEntry = {
   surface: H5Surface;
@@ -18,11 +21,17 @@ export type H5WhitelistEntry = {
   note?: string;
 };
 
-/** 初版白名单：新增须同步 PRODUCT §24.3 与 apps/mobile h5_whitelist.dart */
+/** 白名单：新增须同步 PRODUCT §24.3 与 apps/mobile h5_whitelist.dart */
 export const H5_WHITELIST: readonly H5WhitelistEntry[] = [
   { surface: 'discover_im', pathPrefix: '/discover', note: '发现/IM 全链路' },
   { surface: 'campaign', pathPrefix: '/campaigns', note: '活动运营落地' },
   { surface: 'campaign', pathPrefix: '/campaign', note: '活动别名' },
+  { surface: 'pray', pathPrefix: '/pray', note: '祷告会话（H5 单源）' },
+  {
+    surface: 'story_series',
+    pathPrefix: '/search/series',
+    note: '故事图册（出埃及等）',
+  },
   { surface: 'legal_help', pathPrefix: '/help', note: '帮助中心' },
   { surface: 'legal_help', pathPrefix: '/feedback', note: '反馈' },
   { surface: 'legal_help', pathPrefix: '/legal', note: '协议/隐私' },
