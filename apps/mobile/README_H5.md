@@ -46,6 +46,14 @@ flutter build apk --release \
 - 打包时尽量先关模拟器
 - 日常用 **debug / FAST_BUILD**，官网再用全量
 
+**SDK 平台**
+
+- 若报 `Failed to find Platform SDK with path: platforms;android-35`：多半是本机  
+  `~/Library/Android/sdk/platforms/android-35` **目录名是 35、内容却是 36**（装混了）。  
+  用 Android Studio → SDK Manager 卸载并重装 **Android 15 (API 35)** Platform，或把正确 platform 拷回该目录。  
+  仓库 `apps/mobile/.android-sdk-shim/platforms/android-35` 可作为完好模板。
+- KGP / Built-in Kotlin 文案只是 **警告**，不是当前失败原因；等插件升级即可。
+
 - **体积 P0**：仅 `arm64-v8a` + Gradle minify/shrinkResources；32 位：`TARGET_PLATFORM=android-arm ./scripts/publish_flutter_apk.sh`
 - applicationId：`cn.prestoai.peiai`
 - 版本：`pubspec.yaml` 的 `version: name+code`（如 `3.0.2+32`）

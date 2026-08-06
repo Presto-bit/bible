@@ -46,3 +46,5 @@ app.*.map.json
 
 # Local SDK shim (platform-35 bootstrap for machines without android-35)
 .android-sdk-shim/
+# Local Maven cache for Flutter embedding (built from Gradle cache when network TLS fails)
+/android/.local-maven/
