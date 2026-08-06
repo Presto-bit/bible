@@ -23,18 +23,20 @@ import '../notes/notes_for_chapter.dart';
 import '../notes/notes_repository.dart';
 import 'bible_repository.dart';
 import 'content_repository.dart';
+import 'dictionary_match.dart';
+import 'entity_knowledge_sheet.dart';
 import 'markings_repository.dart';
 import 'models.dart';
 import 'outlines.dart';
 import 'paragraphs.dart';
-import '../social/share_to_social_sheet.dart';
 import 'reader_focus_bar.dart';
-import 'reader_tools_sheet.dart';
 import 'reader_marking_models.dart';
 import 'reader_preferences.dart';
 import 'reader_thoughts_sheet.dart';
 import 'reading_repository.dart';
 import 'thoughts_repository.dart';
+import 'verse_card_sheet.dart';
+import 'verse_compare_sheet.dart';
 
 /// 阅读字号（对齐 H5 中/大/特大）。
 enum ReaderFontSize { medium, large, xlarge }
@@ -857,10 +859,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
       chapter: widget.chapter,
     )));
     final dictList = ref.watch(dictionaryProvider('')).value ?? const [];
-    final dict = <String, DictEntity>{
-      for (final e in dictList)
-        if (e.name.length >= 2) e.name: e,
-    };
+    final dictIndex = buildDictIndex(dictList);
+    final dictKeys = dictSortedKeys(dictIndex);
     final outline = outlineFor(widget.book.id, widget.chapter);
     final sectionByVerse = {for (final s in outline) s.verse: s.title};
     final progress = bookProgressInBible(
@@ -906,7 +906,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
         ch,
         theme,
         verseNo,
-        dict,
+        dictIndex,
+        dictKeys,
         highlights,
         sectionByVerse,
         ctx,
@@ -947,7 +948,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                         _cachedChapter!,
                         theme,
                         verseNo,
-                        dict,
+                        dictIndex,
+                        dictKeys,
                         highlights,
                         sectionByVerse,
                         ctx,
@@ -987,16 +989,10 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 underlinesEnabled: toggles.underlines,
                 thoughtsEnabled: toggles.thoughts,
                 onLightAi: () {
+                  final text = _selectionText(async.value);
                   _clearSelection();
-                  widget.onAskAi(
-                      _refStr, _refLabel, _selectionText(async.value), false);
+                  widget.onAskAi(_refStr, _refLabel, text, false);
                 },
-                onTools: () => showReaderToolsSheet(
-                  context,
-                  refParam: _selectionRefStr,
-                  refLabel: _refLabel,
-                  sourceText: _selectionText(async.value),
-                ),
                 onCopy: () {
                   final t = _selectionText(async.value);
                   Clipboard.setData(
@@ -1006,21 +1002,33 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                         content: Text('已复制'),
                         duration: Duration(milliseconds: 1200)),
                   );
+                  _clearSelection();
                 },
                 onThought: () {
                   _writeThought(async.value);
                   _clearSelection();
                 },
-                onWriteNote: () => _promptMarkNote(_selectionRefStr),
-                onShare: () {
-                  showShareToSocialSheet(
-                    context,
-                    ref,
-                    refText: _selectionRefStr,
-                    refLabel: _refLabel,
-                    body: _selectionText(async.value),
-                  );
+                onVerseCard: () {
+                  final t = _selectionText(async.value);
+                  final label = _refLabel;
                   _clearSelection();
+                  showVerseCardSheet(
+                    context,
+                    refLabel: label,
+                    text: t,
+                  );
+                },
+                onCompare: () {
+                  final refParam = _selectionRefStr;
+                  final label = _refLabel;
+                  final text = _selectionText(async.value);
+                  _clearSelection();
+                  showVerseCompareSheet(
+                    context,
+                    refParam: refParam,
+                    refLabel: label,
+                    selectionText: text,
+                  );
                 },
                 onPickColor: (c) {
                   _pickHighlightColor(c);
@@ -1038,7 +1046,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     Chapter ch,
     ReaderExperienceTheme theme,
     ReaderVerseNumberMode verseNo,
-    Map<String, DictEntity> dict,
+    Map<String, List<DictEntity>> dictIndex,
+    List<String> dictKeys,
     Map<String, HighlightMark> highlights,
     Map<int, String> sectionByVerse,
     ChapterContextInfo? ctx,
@@ -1214,6 +1223,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             thoughtsByVerse: thoughtsByVerse,
             notesByVerse: notesByVerse,
             fontFamily: fontFamily,
+            dictIndex: dictIndex,
+            dictKeys: dictKeys,
             selectionAnchorVerse: _selectionAnchorVerse,
             selectionAnchorKey: _selectionAnchorKey,
             resumeFlashVerse: _resumeFlashVerse,
@@ -1222,6 +1233,13 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             onStart: _startSelect,
             onToggle: _toggleSelect,
             onOpenThoughts: _openThoughtsForVerse,
+            onOpenDict: (entity, name) {
+              showEntityKnowledgeSheet(
+                context,
+                entity: entity,
+                displayName: name,
+              );
+            },
           );
         },
       ),
@@ -1482,6 +1500,8 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.thoughtsByVerse,
     required this.notesByVerse,
     required this.fontFamily,
+    required this.dictIndex,
+    required this.dictKeys,
     this.selectionAnchorVerse,
     this.selectionAnchorKey,
     this.resumeFlashVerse,
@@ -1490,6 +1510,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
     required this.onStart,
     required this.onToggle,
     required this.onOpenThoughts,
+    required this.onOpenDict,
   });
 
   final BibleBook book;
@@ -1504,6 +1525,8 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final Map<int, int> thoughtsByVerse;
   final Map<int, List<Note>> notesByVerse;
   final ReaderFontFamily fontFamily;
+  final Map<String, List<DictEntity>> dictIndex;
+  final List<String> dictKeys;
   final int? selectionAnchorVerse;
   final GlobalKey? selectionAnchorKey;
   final int? resumeFlashVerse;
@@ -1512,6 +1535,7 @@ class _ParagraphBlock extends ConsumerStatefulWidget {
   final void Function(int verse) onStart;
   final void Function(int verse) onToggle;
   final void Function(int verse, String text) onOpenThoughts;
+  final void Function(DictEntity entity, String name) onOpenDict;
 
   @override
   ConsumerState<_ParagraphBlock> createState() => _ParagraphBlockState();
@@ -1662,11 +1686,52 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
           ),
         ));
       } else {
-        spans.add(TextSpan(
-          text: verseLabel.toString(),
-          recognizer: rec,
-          style: verseStyle,
-        ));
+        // 节号 + 正文；正文内专名可点（对齐 PWA proper-noun）
+        if (widget.verseNo != ReaderVerseNumberMode.hidden) {
+          spans.add(TextSpan(
+            text: '${v.verse} ',
+            recognizer: rec,
+            style: verseStyle,
+          ));
+        }
+        if (selectionActive || widget.dictKeys.isEmpty) {
+          spans.add(TextSpan(
+            text: '${v.text} ',
+            recognizer: rec,
+            style: verseStyle,
+          ));
+        } else {
+          final tokens =
+              splitDictTokens(v.text, widget.dictIndex, widget.dictKeys);
+          for (final token in tokens) {
+            if (token.entity != null) {
+              final ent = token.entity!;
+              final name = token.text;
+              final dictRec = TapGestureRecognizer()
+                ..onTap = () => widget.onOpenDict(ent, name);
+              _recognizers.add(dictRec);
+              spans.add(TextSpan(
+                text: name,
+                recognizer: dictRec,
+                style: verseStyle.copyWith(
+                  color: AppColors.accentDeep,
+                  decoration: TextDecoration.underline,
+                  decorationColor:
+                      AppColors.accentDeep.withValues(alpha: 0.45),
+                  decorationStyle: TextDecorationStyle.dotted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ));
+            } else {
+              spans.add(TextSpan(
+                text: token.text,
+                recognizer: rec,
+                style: verseStyle,
+              ));
+            }
+          }
+          spans.add(TextSpan(text: ' ', style: verseStyle, recognizer: rec));
+        }
       }
 
       final note = widget.notesByVerse[v.verse]?.firstOrNull;

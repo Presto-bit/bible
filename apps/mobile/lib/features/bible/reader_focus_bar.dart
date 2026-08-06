@@ -1,4 +1,4 @@
-/// 选中经文工具条：对齐 PWA（想法 / 划线 / 复制 / 分享 / 小爱）。
+/// 选中经文工具条：对齐 PWA（想法 / 划线 / 复制 / 金句卡 / 对照 / 小爱）。
 library;
 
 import 'package:flutter/material.dart';
@@ -11,11 +11,10 @@ class ReaderFocusBar extends StatefulWidget {
     super.key,
     required this.currentMark,
     required this.onLightAi,
-    required this.onTools,
     required this.onCopy,
     required this.onThought,
-    required this.onWriteNote,
-    required this.onShare,
+    required this.onVerseCard,
+    required this.onCompare,
     required this.onPickColor,
     required this.onClearMark,
     required this.onClose,
@@ -25,11 +24,10 @@ class ReaderFocusBar extends StatefulWidget {
 
   final HighlightMark? currentMark;
   final VoidCallback onLightAi;
-  final VoidCallback onTools;
   final VoidCallback onCopy;
   final VoidCallback onThought;
-  final VoidCallback onWriteNote;
-  final VoidCallback onShare;
+  final VoidCallback onVerseCard;
+  final VoidCallback onCompare;
   final void Function(String color) onPickColor;
   final VoidCallback onClearMark;
   final VoidCallback onClose;
@@ -51,7 +49,7 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
       borderRadius: BorderRadius.circular(14),
       color: AppColors.surface,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(6, 6, 6, 8),
+        padding: const EdgeInsets.fromLTRB(4, 6, 4, 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -122,9 +120,14 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
                     onTap: widget.onCopy,
                   ),
                   _iconBtn(
-                    icon: Icons.ios_share_outlined,
-                    label: '分享',
-                    onTap: widget.onShare,
+                    icon: Icons.crop_landscape_outlined,
+                    label: '金句卡',
+                    onTap: widget.onVerseCard,
+                  ),
+                  _iconBtn(
+                    icon: Icons.compare_arrows,
+                    label: '对照',
+                    onTap: widget.onCompare,
                   ),
                   _iconBtn(
                     icon: Icons.auto_awesome,
@@ -156,7 +159,7 @@ class _ReaderFocusBarState extends State<ReaderFocusBar> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

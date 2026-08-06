@@ -29,6 +29,7 @@ import 'bible_repository.dart';
 import 'bible_summary.dart';
 import 'models.dart';
 import 'reader_experience.dart';
+import 'reader_loc_popover.dart';
 import 'reader_settings_menu.dart';
 import '../plans/plans_repository.dart';
 import 'reading_repository.dart';
@@ -77,6 +78,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
   String? _compareVersionId;
   String? _mainVersionId;
   PlanReadingMeta? _planMeta;
+  final _locKey = GlobalKey();
 
   @override
   void initState() {
@@ -187,6 +189,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             ),
             Container(width: 1, height: 14, color: AppColors.line),
             InkWell(
+              key: _locKey,
               onTap: () {
                 _onReaderInteract();
                 _pickBookChapter(context);
@@ -631,14 +634,17 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
 
   Future<void> _pickBookChapter(BuildContext context) async {
     final books = ref.read(booksProvider).value;
-    if (books == null) return;
-    final picked = await showModalBottomSheet<({BibleBook book, int chapter})>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      builder: (_) => _BookSheet(books: books, planSteps: _planMeta?.steps),
+    final book = _book;
+    if (books == null || book == null) return;
+    final picked = await showReaderLocPopover(
+      context,
+      anchorKey: _locKey,
+      books: books,
+      currentBook: book,
+      currentChapter: _chapter,
+      planSteps: _planMeta?.steps,
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() {
         _book = picked.book;
         _chapter = picked.chapter;
@@ -666,205 +672,6 @@ const Map<String, String> _kBookAbbr = {
 
 String bibleBookAbbr(String name) =>
     _kBookAbbr[name] ?? (name.isEmpty ? '' : name.substring(0, 1));
-
-class _BookSheet extends StatefulWidget {
-  const _BookSheet({required this.books, this.planSteps});
-  final List<BibleBook> books;
-  final List<PlanStep>? planSteps;
-
-  @override
-  State<_BookSheet> createState() => _BookSheetState();
-}
-
-class _BookSheetState extends State<_BookSheet> {
-  @override
-  Widget build(BuildContext context) {
-    final planIds = widget.planSteps != null && widget.planSteps!.isNotEmpty
-        ? planBooksInSteps(widget.planSteps!).toSet()
-        : null;
-    final filtered = planIds == null
-        ? widget.books
-        : widget.books.where((b) => planIds.contains(b.id)).toList();
-    final ot = filtered.where((b) => b.isOldTestament).toList();
-    final nt = filtered.where((b) => !b.isOldTestament).toList();
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.7,
-      maxChildSize: 0.92,
-      builder: (_, controller) => ListView(
-        controller: controller,
-        padding: const EdgeInsets.all(16),
-        children: [
-          Center(
-            child: Text(
-              widget.planSteps != null ? '圣经目录 · 计划模式' : '圣经目录',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-          ),
-          if (widget.planSteps != null) ...[
-            const SizedBox(height: 6),
-            const Text(
-              '仅显示今日计划经卷与章节',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: AppColors.inkSoft),
-            ),
-          ],
-          const SizedBox(height: 12),
-          if (ot.isNotEmpty) _section('旧约', ot),
-          if (nt.isNotEmpty) _section('新约', nt),
-        ],
-      ),
-    );
-  }
-
-  Widget _section(String title, List<BibleBook> books) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Text(title,
-              style: const TextStyle(
-                  color: AppColors.ink,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
-        ),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 8,
-            childAspectRatio: 1.55,
-          ),
-          itemCount: books.length,
-          itemBuilder: (_, i) {
-            final b = books[i];
-            return GestureDetector(
-              onTap: () => _pickChapter(b),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.line),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(bibleBookAbbr(b.name),
-                        style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            height: 1.2,
-                            color: AppColors.ink)),
-                    const SizedBox(height: 2),
-                    Text(b.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 10, color: AppColors.inkSoft)),
-                    const SizedBox(height: 1),
-                    Text('${b.chapterCount} 章',
-                        style: const TextStyle(
-                            fontSize: 9, color: AppColors.inkFaint)),
-                  ],
-                ),
-              ),
-            );
-          },
-        ),
-        const SizedBox(height: 8),
-      ],
-    );
-  }
-
-  Future<void> _pickChapter(BibleBook book) async {
-    if (widget.planSteps != null &&
-        !isChapterInPlan(widget.planSteps!, book.id, 1) &&
-        allowedChaptersForBook(widget.planSteps!, book.id).isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('该经卷不在今日计划内')),
-        );
-      }
-      return;
-    }
-    final chapter = await showModalBottomSheet<int>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      builder: (_) => _ChapterGrid(book: book, planSteps: widget.planSteps),
-    );
-    if (chapter != null && mounted) {
-      if (widget.planSteps != null &&
-          !isChapterInPlan(widget.planSteps!, book.id, chapter)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('该章节不在今日计划内')),
-        );
-        return;
-      }
-      Navigator.pop(context, (book: book, chapter: chapter));
-    }
-  }
-}
-
-class _ChapterGrid extends StatelessWidget {
-  const _ChapterGrid({required this.book, this.planSteps});
-  final BibleBook book;
-  final List<PlanStep>? planSteps;
-
-  @override
-  Widget build(BuildContext context) {
-    final allowed = planSteps != null && planSteps!.isNotEmpty
-        ? allowedChaptersForBook(planSteps!, book.id).toSet()
-        : null;
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${book.name} · 共 ${book.chapterCount} 章',
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
-            Flexible(
-              child: GridView.builder(
-                shrinkWrap: true,
-                gridDelegate:
-                    const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 6,
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                ),
-                itemCount: book.chapterCount,
-                itemBuilder: (_, i) {
-                  final n = i + 1;
-                  final disabled = allowed != null && !allowed.contains(n);
-                  return GestureDetector(
-                    onTap: disabled ? null : () => Navigator.pop(context, n),
-                    child: Opacity(
-                      opacity: disabled ? 0.35 : 1,
-                      child: Container(
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.line),
-                        ),
-                        child: Text('$n'),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.message, required this.onRetry});

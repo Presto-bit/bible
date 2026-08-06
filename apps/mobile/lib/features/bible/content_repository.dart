@@ -37,21 +37,36 @@ class CrossrefResult {
 
 class DictEntity {
   DictEntity({
+    required this.id,
     required this.name,
     required this.type,
     required this.summary,
     required this.refs,
+    this.aliases = const [],
+    this.disambiguation,
   });
+  final String id;
   final String name;
   final String type;
   final String summary;
   final List<String> refs;
-  factory DictEntity.fromJson(Map<String, dynamic> j) => DictEntity(
-        name: (j['name'] ?? '') as String,
-        type: (j['type'] ?? '') as String,
-        summary: (j['summary'] ?? '') as String,
-        refs: ((j['refs'] ?? []) as List).map((e) => '$e').toList(),
-      );
+  final List<String> aliases;
+  final String? disambiguation;
+
+  factory DictEntity.fromJson(Map<String, dynamic> j) {
+    final name = (j['name'] ?? '') as String;
+    return DictEntity(
+      id: ((j['id'] ?? name) as String).trim().isEmpty
+          ? name
+          : (j['id'] as String? ?? name),
+      name: name,
+      type: (j['type'] ?? '') as String,
+      summary: (j['summary'] ?? '') as String,
+      refs: ((j['refs'] ?? []) as List).map((e) => '$e').toList(),
+      aliases: ((j['aliases'] ?? []) as List).map((e) => '$e').toList(),
+      disambiguation: j['disambiguation'] as String?,
+    );
+  }
 }
 
 class ContentRepository {
