@@ -583,40 +583,69 @@ class _EmptyHint extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '小爱',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: AppColors.inkFaint,
-              letterSpacing: 0.4,
+          Center(
+            child: Container(
+              width: 52,
+              height: 52,
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColors.accentWash,
+                    AppColors.paper.withValues(alpha: 0),
+                  ],
+                ),
+              ),
+              child: Icon(
+                Icons.auto_awesome,
+                size: 22,
+                color: AppColors.accentDeep.withValues(alpha: 0.85),
+              ),
+            ),
+          ),
+          const Center(
+            child: Text(
+              '小爱',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.inkFaint,
+                letterSpacing: 0.4,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Center(
+            child: Text(
+              '一起把经文聊明白',
+              style: TextStyle(
+                color: AppColors.ink,
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                height: 1.25,
+              ),
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            '一起把经文聊明白',
-            style: TextStyle(
-              color: AppColors.ink,
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              height: 1.25,
+          Center(
+            child: Text(
+              hasAnchor
+                  ? '已锚定 $anchor · 结合释经资料回答'
+                  : '结合释经资料回答 · 点下面试试（需联网）',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: AppColors.inkSoft,
+                fontSize: 12.5,
+                height: 1.35,
+              ),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            hasAnchor
-                ? '已锚定 $anchor · 结合释经资料回答'
-                : '结合释经资料回答 · 点下面试试（需联网）',
-            style: const TextStyle(
-              color: AppColors.inkSoft,
-              fontSize: 12.5,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 6,
             runSpacing: 6,
+            alignment: WrapAlignment.center,
             children: _demos
                 .map(
                   (d) => _QuickPill(

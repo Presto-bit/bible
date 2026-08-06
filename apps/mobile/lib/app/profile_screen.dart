@@ -724,7 +724,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                 ),
                 _FootprintCell(
-                  kind: '进行中',
+                  kind: '旅程',
                   count: 0,
                   value: journeyPct > 0
                       ? '通读 $journeyPct% · 继续'

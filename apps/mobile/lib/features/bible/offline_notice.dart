@@ -123,43 +123,51 @@ class OfflineStatusBar extends ConsumerWidget {
         : '圣经与笔记可用 · 未装经库时离线无法读经';
 
     return Material(
-      color: AppColors.goldWash,
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      '当前离线 · 圣经与笔记可用',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink,
+      color: AppColors.paper,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.line.withValues(alpha: 0.9)),
+          ),
+          color: AppColors.goldWash.withValues(alpha: 0.55),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        '当前离线 · 圣经与笔记可用',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.ink,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      packLabel,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: AppColors.inkSoft,
+                      const SizedBox(height: 2),
+                      Text(
+                        packLabel,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: AppColors.inkSoft,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              if (!packReady)
-                TextButton(
-                  onPressed: () => showOfflineDownloadSheet(context, ref),
-                  child: const Text('下载', style: TextStyle(fontSize: 12)),
-                ),
-            ],
+                if (!packReady)
+                  TextButton(
+                    onPressed: () => showOfflineDownloadSheet(context, ref),
+                    child: const Text('下载', style: TextStyle(fontSize: 12)),
+                  ),
+              ],
+            ),
           ),
         ),
       ),

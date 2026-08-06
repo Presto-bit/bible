@@ -14,8 +14,21 @@ extension ReaderFontFamilyX on ReaderFontFamily {
         ReaderFontFamily.sans => '黑体',
       };
   String? get fontFamily => switch (this) {
-        ReaderFontFamily.serif => 'Georgia',
+        // 中文衬线优先 Noto/宋体，无则回落 Georgia（英文衬线）
+        ReaderFontFamily.serif => 'Noto Serif SC',
         ReaderFontFamily.sans => null,
+      };
+
+  /// fontFamilyFallback 给 TextStyle 用。
+  List<String> get fontFamilyFallback => switch (this) {
+        ReaderFontFamily.serif => const [
+            'Source Han Serif SC',
+            'Songti SC',
+            'Noto Serif',
+            'Georgia',
+            'serif',
+          ],
+        ReaderFontFamily.sans => const ['Noto Sans SC', 'PingFang SC', 'sans-serif'],
       };
 }
 
@@ -129,7 +142,7 @@ class ReaderPreferences {
 
   Future<void> markChapterCompleteTipShown(String bookId, int chapter) async {
     final key = '${bookId.toUpperCase()}.$chapter';
-    final raw = [...(_prefs.getStringList(_chapterTipShownKey) ?? const [])];
+    final raw = List<String>.from(_prefs.getStringList(_chapterTipShownKey) ?? const <String>[]);
     if (raw.contains(key)) return;
     raw.add(key);
     // 控制增长：只留最近 120 条

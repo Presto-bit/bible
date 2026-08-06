@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/badge_stats.dart';
 import '../../core/theme.dart';
 import '../social/social_repository.dart';
+import 'reader_sheet.dart';
 
 const _checkinBodyMax = 120;
 const _checkinDefaultBody = '完成今日打卡 ✓';
@@ -30,13 +31,9 @@ Future<void> showGroupCheckinSheet(
   required String bookName,
   required int chapter,
 }) {
-  return showModalBottomSheet<void>(
+  return showReaderSheet<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
+    heightFactor: 0.72,
     builder: (_) => _GroupCheckinBody(
       bookId: bookId,
       bookName: bookName,

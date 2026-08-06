@@ -284,6 +284,12 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     root.setAttribute('data-peiai-theme', '${dark ? 'dark' : 'light'}');
     root.setAttribute('data-theme', '${dark ? 'dark' : 'light'}');
     root.style.setProperty('--shell-inset-top', '${top.toStringAsFixed(1)}px');
+    // 底栏由宿主限制 WebView 高度；补 token 防 100dvh 与浮动 Tab 缝
+    root.style.setProperty('--shell-inset-bottom', '0px');
+    root.style.setProperty('--tabbar-inner', '0px');
+    root.style.setProperty('--tabbar-float-gap', '0px');
+    root.style.setProperty('--tabbar-safe', '0px');
+    root.style.setProperty('--tabbar-h', '0px');
   } catch (e) {}
 })();
 ''');

@@ -1,4 +1,5 @@
-/// 首启动引导（S0–S3）：欢迎 → 昵称 → 目标 → 完成。
+/// 首启动引导：欢迎 → 昵称 → 进入首页。
+/// 不收集阅读目标 / 使用目的，避免开箱多步阻力。
 library;
 
 import 'package:flutter/material.dart';
@@ -10,9 +11,8 @@ import '../../core/theme.dart';
 
 const onboardingDoneKey = 'onboarding_done';
 const onboardingNameKey = 'onboarding_name';
+/// 历史键：旧版可能写过目标，读取方仍可兼容；新引导不再写入。
 const onboardingGoalKey = 'onboarding_goal';
-
-const _goals = ['每天读一章', '通读新约', '通读全本', '背诵经文', '安静默想'];
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
@@ -24,8 +24,10 @@ class OnboardingScreen extends ConsumerStatefulWidget {
 class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _controller = PageController();
   final _name = TextEditingController();
-  String? _goal;
   int _page = 0;
+  bool _finishing = false;
+
+  static const _pageCount = 2;
 
   @override
   void dispose() {
@@ -33,8 +35,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     _name.dispose();
     super.dispose();
   }
-
-  bool _finishing = false;
 
   Future<void> _finish() async {
     if (_finishing) return;
@@ -44,14 +44,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     if (_name.text.trim().isNotEmpty) {
       await prefs.setString(onboardingNameKey, _name.text.trim());
     }
-    if (_goal != null) await prefs.setString(onboardingGoalKey, _goal!);
     if (!mounted) return;
     // 必须离开 /onboarding，否则同一 location 不会重建 AppShell
     context.go('/');
   }
 
   void _next() {
-    if (_page < 2) {
+    if (_page < _pageCount - 1) {
       _controller.nextPage(
           duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
     } else {
@@ -61,6 +60,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final onNamePage = _page == 1;
     return Scaffold(
       backgroundColor: AppColors.paper,
       body: SafeArea(
@@ -83,10 +83,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     title: '欢迎来到彼爱',
                     body: '安静读经，在话语中相遇。\n小爱随时为你解经、陪你默想。',
                   ),
-                  _NameSlide(controller: _name),
-                  _GoalSlide(
-                    selected: _goal,
-                    onSelect: (g) => setState(() => _goal = g),
+                  _NameSlide(
+                    controller: _name,
+                    onSubmit: _finish,
                   ),
                 ],
               ),
@@ -94,7 +93,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                3,
+                _pageCount,
                 (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -114,7 +113,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     backgroundColor: AppColors.accentDeep,
                     minimumSize: const Size.fromHeight(50)),
                 onPressed: _next,
-                child: Text(_page < 2 ? '下一步' : '开始'),
+                child: Text(onNamePage ? '进入' : '下一步'),
               ),
             ),
           ],
@@ -156,8 +155,9 @@ class _Slide extends StatelessWidget {
 }
 
 class _NameSlide extends StatelessWidget {
-  const _NameSlide({required this.controller});
+  const _NameSlide({required this.controller, this.onSubmit});
   final TextEditingController controller;
+  final VoidCallback? onSubmit;
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -178,50 +178,12 @@ class _NameSlide extends StatelessWidget {
           TextField(
             controller: controller,
             textAlign: TextAlign.center,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => onSubmit?.call(),
             decoration: const InputDecoration(
               hintText: '你的昵称',
               border: OutlineInputBorder(),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GoalSlide extends StatelessWidget {
-  const _GoalSlide({required this.selected, required this.onSelect});
-  final String? selected;
-  final ValueChanged<String> onSelect;
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Text('你的读经目标？',
-              style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.ink)),
-          const SizedBox(height: 8),
-          const Text('小爱会据此为你推荐计划与默想。',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.inkFaint)),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            alignment: WrapAlignment.center,
-            children: _goals
-                .map((g) => ChoiceChip(
-                      label: Text(g),
-                      selected: selected == g,
-                      selectedColor: AppColors.accentWash,
-                      onSelected: (_) => onSelect(g),
-                    ))
-                .toList(),
           ),
         ],
       ),

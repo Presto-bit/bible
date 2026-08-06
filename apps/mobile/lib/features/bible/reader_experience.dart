@@ -43,6 +43,7 @@ import 'verse_card_sheet.dart';
 import 'verse_compare_sheet.dart';
 import 'verse_diff.dart';
 import 'verse_words.dart';
+import '../../core/peiai_haptics.dart';
 
 /// 阅读字号（对齐 H5 中/大/特大）。
 enum ReaderFontSize { medium, large, xlarge }
@@ -300,6 +301,8 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   bool _planDayFinishScheduled = false;
   Chapter? _cachedChapter;
   Chapter? _liveChapter;
+  /// 横滑翻章 peek（0=中间，负=下一章预览感，正=上一章）
+  double _pageDragDx = 0;
 
   @override
   void initState() {
@@ -514,6 +517,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   // 长按：进入选中（整节）。
   void _startSelect(int verse, String text) {
     widget.onInteract();
+    peiaiHapticSelection(context);
     final range = wholeVerseRange(verse, text);
     setState(() {
       _wordRange = range;
@@ -526,6 +530,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
   // 词块长按：半节/词选起点。
   void _startWordSelect(int verse, int start, int end) {
     widget.onInteract();
+    peiaiHapticSelection(context);
     final a = WordAnchor(verse: verse, start: start, end: end);
     setState(() {
       _wordRange = WordRange(anchor: a, focus: a);
@@ -1343,17 +1348,41 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
     final segmentFooter = _planSegmentFooter();
     final planHead = widget.planMeta != null ? 1 : 0;
     final planTail = segmentFooter != null ? 1 : 0;
+    final reduceMotion = peiaiReduceMotion(context);
 
     return GestureDetector(
+      onHorizontalDragUpdate: pageTurn == ReaderPageTurn.swipe && !reduceMotion
+          ? (d) {
+              setState(() {
+                _pageDragDx =
+                    (_pageDragDx + d.delta.dx).clamp(-88.0, 88.0);
+              });
+            }
+          : null,
       onHorizontalDragEnd: pageTurn == ReaderPageTurn.swipe
           ? (d) {
               widget.onInteract();
               final v = d.primaryVelocity ?? 0;
-              if (v < -250) widget.onNav(1);
-              if (v > 250) widget.onNav(-1);
+              final dx = _pageDragDx;
+              setState(() => _pageDragDx = 0);
+              if (v < -250 || dx < -48) {
+                peiaiHapticLight(context);
+                widget.onNav(1);
+              } else if (v > 250 || dx > 48) {
+                peiaiHapticLight(context);
+                widget.onNav(-1);
+              }
             }
           : null,
-      child: ListView.builder(
+      onHorizontalDragCancel: () {
+        if (_pageDragDx != 0) setState(() => _pageDragDx = 0);
+      },
+      child: Transform.translate(
+        offset: Offset(_pageDragDx * 0.22, 0),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            ListView.builder(
         controller: _scroll,
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
         itemCount: rows.length + 1 + planHead + planTail,
@@ -1388,29 +1417,66 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             );
           }
           if (i == planHead) {
+            final era = ctx?.era;
+            final place = ctx?.place;
+            final summaryLine = ctx?.summary;
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () => _showChapterSummary(initialTab: 'book'),
-                    child: Text(widget.book.name,
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: theme.ink)),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      GestureDetector(
+                        onTap: () => _showChapterSummary(initialTab: 'book'),
+                        child: Text(widget.book.name,
+                            style: TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w700,
+                                color: theme.ink,
+                                fontFamily: fontFamily.fontFamily,
+                                fontFamilyFallback:
+                                    fontFamily.fontFamilyFallback)),
+                      ),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: () => _showChapterSummary(initialTab: 'chapter'),
+                        child: Text('第 ${widget.chapter} 章',
+                            style: TextStyle(
+                                fontSize: 13,
+                                color: theme.ink.withValues(alpha: 0.55))),
+                      ),
+                      const Spacer(),
+                    ],
                   ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () => _showChapterSummary(initialTab: 'chapter'),
-                    child: Text('第 ${widget.chapter} 章',
-                        style: TextStyle(
-                            fontSize: 13,
-                            color: theme.ink.withValues(alpha: 0.55))),
-                  ),
-                  const Spacer(),
+                  if (era != null || place != null || summaryLine != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      [
+                        if (era != null) era,
+                        if (place != null) place,
+                      ].join(' · '),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: theme.ink.withValues(alpha: 0.42),
+                        height: 1.35,
+                      ),
+                    ),
+                    if (summaryLine != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(
+                          summaryLine,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: theme.ink.withValues(alpha: 0.48),
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                  ],
                 ],
               ),
             );
@@ -1467,6 +1533,30 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             },
           );
         },
+            ),
+            if (_pageDragDx.abs() > 12)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                left: _pageDragDx > 0 ? 0 : null,
+                right: _pageDragDx < 0 ? 0 : null,
+                child: IgnorePointer(
+                  child: Container(
+                    width: 28,
+                    alignment: Alignment.center,
+                    color: theme.background.withValues(alpha: 0.55),
+                    child: Icon(
+                      _pageDragDx > 0
+                          ? Icons.chevron_left
+                          : Icons.chevron_right,
+                      color: theme.ink.withValues(alpha: 0.35),
+                      size: 22,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1530,7 +1620,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
             style: p.diff
                 ? (diffStyle ??
                     base.copyWith(
-                      backgroundColor: const Color(0x33D97706),
+                      backgroundColor: const Color(0x22C4A35A),
                       color: base.color,
                     ))
                 : (selected ? base.copyWith(background: selBg) : base),
@@ -1633,7 +1723,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 style: mainBase.copyWith(
                   backgroundColor: isSel
                       ? AppColors.accentWash
-                      : const Color(0x22D97706),
+                      : const Color(0x18B8860B),
                 ),
               ));
             } else {
@@ -1659,7 +1749,7 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
               compareSpans.add(TextSpan(
                 text: '$parallelT ',
                 style: parallelBase.copyWith(
-                  backgroundColor: const Color(0x22D97706),
+                  backgroundColor: const Color(0x18B8860B),
                 ),
               ));
             } else {
@@ -1667,6 +1757,9 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                 text: parallelT,
                 diffs: diff.parallel,
                 base: parallelBase,
+                diffStyle: parallelBase.copyWith(
+                  backgroundColor: const Color(0x22C4A35A),
+                ),
               ));
             }
           }
@@ -1782,8 +1875,53 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
       fontSize: fontPx,
       height: widget.poetry ? 2.1 : 1.85,
       fontFamily: widget.fontFamily.fontFamily,
+      fontFamilyFallback: widget.fontFamily.fontFamilyFallback,
     );
-    const selBg = Color(0x473390FF);
+    const selBg = Color(0x333390FF);
+    final marginMode = widget.verseNo == ReaderVerseNumberMode.margin;
+
+    if (marginMode) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final v in widget.paragraph.verses)
+            _MarginVerseRow(
+              verse: v,
+              book: widget.book,
+              chapter: widget.chapter,
+              baseStyle: baseStyle,
+              fontPx: fontPx,
+              selectionActive: selectionActive,
+              dimmedInk: dimmedInk,
+              selBg: selBg,
+              wordRange: widget.wordRange,
+              selected: widget.selected,
+              markInfo: widget.underlinesEnabled
+                  ? markForVerse(widget.highlightMarks, widget.book.id,
+                      widget.chapter, v.verse)
+                  : null,
+              resumeFlash: widget.resumeFlashVerse == v.verse,
+              anchorKey: v.verse == widget.selectionAnchorVerse
+                  ? widget.selectionAnchorKey
+                  : (widget.resumeFlashVerse == v.verse
+                      ? widget.resumeAnchorKey
+                      : null),
+              dictIndex: widget.dictIndex,
+              dictKeys: widget.dictKeys,
+              notes: widget.notesByVerse[v.verse],
+              thoughtsCount: widget.thoughtsByVerse[v.verse] ?? 0,
+              thoughtsEnabled: widget.thoughtsEnabled,
+              onStart: widget.onStart,
+              onToggle: widget.onToggle,
+              onWordStart: widget.onWordStart,
+              onWordExtend: widget.onWordExtend,
+              onOpenDict: widget.onOpenDict,
+              onViewNote: widget.onViewNote,
+              onOpenThoughts: widget.onOpenThoughts,
+            ),
+        ],
+      );
+    }
 
     final spans = <InlineSpan>[];
     var hasThoughtLine = false;
@@ -1806,8 +1944,8 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
               ? widget.resumeAnchorKey
               : null;
 
-      // 节号：长按整节 / 选中态点按扩展
-      if (widget.verseNo != ReaderVerseNumberMode.hidden) {
+      // 节号：inline 内嵌；margin 在 _MarginVerseRow；hidden 不画
+      if (widget.verseNo == ReaderVerseNumberMode.inline) {
         final noRec = selectionActive
             ? (TapGestureRecognizer()
               ..onTap = () => widget.onToggle(v.verse, v.text))
@@ -2004,6 +2142,158 @@ class _ParagraphBlockState extends ConsumerState<_ParagraphBlock> {
   }
 }
 
+/// 行首节号（margin 模式）：左 28px 节号 + 右正文。
+class _MarginVerseRow extends StatelessWidget {
+  const _MarginVerseRow({
+    required this.verse,
+    required this.book,
+    required this.chapter,
+    required this.baseStyle,
+    required this.fontPx,
+    required this.selectionActive,
+    required this.dimmedInk,
+    required this.selBg,
+    required this.wordRange,
+    required this.selected,
+    required this.markInfo,
+    required this.resumeFlash,
+    required this.anchorKey,
+    required this.dictIndex,
+    required this.dictKeys,
+    required this.notes,
+    required this.thoughtsCount,
+    required this.thoughtsEnabled,
+    required this.onStart,
+    required this.onToggle,
+    required this.onWordStart,
+    required this.onWordExtend,
+    required this.onOpenDict,
+    required this.onViewNote,
+    required this.onOpenThoughts,
+  });
+
+  final Verse verse;
+  final BibleBook book;
+  final int chapter;
+  final TextStyle baseStyle;
+  final double fontPx;
+  final bool selectionActive;
+  final Color dimmedInk;
+  final Color selBg;
+  final WordRange? wordRange;
+  final Set<int> selected;
+  final VerseMarkInfo? markInfo;
+  final bool resumeFlash;
+  final GlobalKey? anchorKey;
+  final Map<String, List<DictEntity>> dictIndex;
+  final List<String> dictKeys;
+  final List<Note>? notes;
+  final int thoughtsCount;
+  final bool thoughtsEnabled;
+  final void Function(int verse, String text) onStart;
+  final void Function(int verse, String text) onToggle;
+  final void Function(int verse, int start, int end) onWordStart;
+  final void Function(int verse, int start, int end) onWordExtend;
+  final void Function(DictEntity entity, String name) onOpenDict;
+  final void Function(Note note) onViewNote;
+  final void Function(int verse, String text) onOpenThoughts;
+
+  @override
+  Widget build(BuildContext context) {
+    final v = verse;
+    final verseInSel = selected.contains(v.verse);
+    final mark = markInfo?.mark;
+    final words = sliceVerseWords(v.text);
+    final bodyChildren = <InlineSpan>[];
+    for (final w in words) {
+      final activeWord = wordRange != null &&
+          wordOverlapsRange(v.verse, w.start, w.end, wordRange!);
+      final mi = markInfo;
+      final markOnWord = mark != null &&
+          (mi?.spanStart == null ||
+              (w.start < (mi!.spanEnd ?? 0) && w.end > (mi.spanStart ?? 0)));
+      var wordStyle = baseStyle;
+      if (activeWord) {
+        wordStyle = baseStyle.copyWith(backgroundColor: selBg);
+      } else if (selectionActive && !verseInSel) {
+        wordStyle = baseStyle.copyWith(color: dimmedInk);
+      } else if (markOnWord) {
+        wordStyle =
+            applyHighlightStyle(baseStyle, mark: mark!, disabled: false);
+      }
+      if (resumeFlash) {
+        wordStyle = wordStyle.copyWith(
+          backgroundColor: AppColors.accent.withValues(alpha: 0.28),
+        );
+      }
+      bodyChildren.add(TextSpan(text: w.text, style: wordStyle));
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onLongPress:
+                selectionActive ? null : () => onStart(v.verse, v.text),
+            onTap: selectionActive ? () => onToggle(v.verse, v.text) : null,
+            child: SizedBox(
+              width: 28,
+              child: Text(
+                '${v.verse}',
+                textAlign: TextAlign.right,
+                style: baseStyle.copyWith(
+                  fontSize: fontPx * 0.72,
+                  fontWeight: FontWeight.w600,
+                  color: selectionActive && !verseInSel
+                      ? dimmedInk
+                      : AppColors.accentDeep.withValues(alpha: 0.75),
+                  height: baseStyle.height,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              onLongPress: selectionActive
+                  ? null
+                  : () => onStart(v.verse, v.text),
+              onTap: selectionActive ? () => onToggle(v.verse, v.text) : null,
+              child: Container(
+                key: anchorKey,
+                padding: const EdgeInsets.only(right: 4),
+                child: RichText(
+                  textAlign: TextAlign.justify,
+                  text: TextSpan(style: baseStyle, children: bodyChildren),
+                ),
+              ),
+            ),
+          ),
+          if (notes?.firstOrNull != null)
+            GestureDetector(
+              onTap: () => onViewNote(notes!.first),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 2, top: 2),
+                child: Icon(Icons.sticky_note_2_outlined,
+                    size: 12,
+                    color: AppColors.accentDeep.withValues(alpha: 0.5)),
+              ),
+            ),
+          if (thoughtsEnabled && thoughtsCount > 0)
+            GestureDetector(
+              onTap: () => onOpenThoughts(v.verse, v.text),
+              child: const Padding(
+                padding: EdgeInsets.only(left: 2, top: 2),
+                child: Icon(Icons.notes, size: 12, color: AppColors.inkFaint),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 /// 简单词典词条命中（整词精确/前缀）。
 (DictEntity, String)? matchDictToken(
   String text,
@@ -2066,58 +2356,67 @@ class _ChapterGuideTipBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(12),
-      color: AppColors.surface,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        child: Row(
-          children: [
-            Text('✦',
-                style: TextStyle(
-                    color: AppColors.accentDeep.withValues(alpha: 0.85),
-                    fontSize: 14)),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                compact
-                    ? '第 $chapter 章导读'
-                    : '30 秒章导读 · $bookName 第 $chapter 章',
-                style: const TextStyle(fontSize: 13, color: AppColors.ink),
+      elevation: 0.5,
+      shadowColor: AppColors.ink.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(10),
+      color: AppColors.paper,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.line.withValues(alpha: 0.85)),
+          color: AppColors.goldWash.withValues(alpha: 0.35),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 9, 6, 9),
+          child: Row(
+            children: [
+              Text('✦',
+                  style: TextStyle(
+                      color: AppColors.accentDeep.withValues(alpha: 0.8),
+                      fontSize: 13)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  compact
+                      ? '第 $chapter 章导读'
+                      : '30 秒章导读 · $bookName 第 $chapter 章',
+                  style: const TextStyle(
+                      fontSize: 12.5, color: AppColors.inkSoft, height: 1.35),
+                ),
               ),
-            ),
-            TextButton(
-              onPressed: onOpen,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.accentDeep,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('打开', style: TextStyle(fontSize: 13)),
-            ),
-            TextButton(
-              onPressed: onSkipSession,
-              style: TextButton.styleFrom(
-                foregroundColor: AppColors.inkFaint,
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text('本次忽略', style: TextStyle(fontSize: 12)),
-            ),
-            if (!compact)
               TextButton(
-                onPressed: onDisableForever,
+                onPressed: onOpen,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentDeep,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('打开', style: TextStyle(fontSize: 12.5)),
+              ),
+              TextButton(
+                onPressed: onSkipSession,
                 style: TextButton.styleFrom(
                   foregroundColor: AppColors.inkFaint,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
-                child: const Text('不再提示', style: TextStyle(fontSize: 12)),
+                child: const Text('本次忽略', style: TextStyle(fontSize: 11.5)),
               ),
-          ],
+              if (!compact)
+                TextButton(
+                  onPressed: onDisableForever,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.inkFaint,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: const Text('不再提示', style: TextStyle(fontSize: 11.5)),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -2144,46 +2443,58 @@ class _ChapterCompleteTip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      elevation: 6,
-      borderRadius: BorderRadius.circular(14),
-      color: AppColors.surface,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                '本章读完 · $bookName 第 $chapter 章',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink,
+      elevation: 0.5,
+      shadowColor: AppColors.ink.withValues(alpha: 0.08),
+      borderRadius: BorderRadius.circular(12),
+      color: AppColors.paper,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.line.withValues(alpha: 0.9)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 11, 8, 11),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '本章读完 · $bookName 第 $chapter 章',
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.inkSoft,
+                  ),
                 ),
               ),
-            ),
-            TextButton(
-              onPressed: onThought,
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: AppColors.accentDeep,
+              TextButton(
+                onPressed: onThought,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentDeep,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(meditate ? '写想法' : '留一句',
+                    style: const TextStyle(fontSize: 12.5)),
               ),
-              child: Text(meditate ? '写想法' : '写想法'),
-            ),
-            TextButton(
-              onPressed: onNext,
-              style: TextButton.styleFrom(
-                visualDensity: VisualDensity.compact,
-                foregroundColor: AppColors.accentDeep,
+              TextButton(
+                onPressed: onNext,
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColors.accentDeep,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('下一章', style: TextStyle(fontSize: 12.5)),
               ),
-              child: const Text('下一章'),
-            ),
-            IconButton(
-              onPressed: onDismiss,
-              icon: const Icon(Icons.close, size: 18, color: AppColors.inkFaint),
-              visualDensity: VisualDensity.compact,
-              tooltip: '关闭',
-            ),
-          ],
+              IconButton(
+                onPressed: onDismiss,
+                icon: const Icon(Icons.close, size: 18),
+                visualDensity: VisualDensity.compact,
+                color: AppColors.inkFaint,
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -29,11 +29,14 @@ import 'bible_repository.dart';
 import 'models.dart';
 import 'reader_experience.dart';
 import 'reader_loc_popover.dart';
+import 'reader_preferences.dart';
 import 'reader_settings_menu.dart';
+import 'reader_sheet.dart';
 import 'summary_sheet.dart';
 import 'group_checkin_sheet.dart';
 import '../plans/plans_repository.dart';
 import 'reading_repository.dart';
+import '../../core/peiai_haptics.dart';
 
 /// 阅读器跳转目标（串珠/词典点选后跳章）。
 class ReaderJumpNotifier extends Notifier<({String book, int chapter})?> {
@@ -267,28 +270,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             icon: const Icon(Icons.more_vert),
             onPressed: () {
               _onOpenOverlay();
-              showReaderSettingsSheet(
-                context,
-                ref,
-                onLayoutApplied: (mainId, compareId, label) {
-                  final prefs = ref.read(prefsProvider);
-                  setState(() {
-                    _mainVersionId = mainId;
-                    _compareVersionId = compareId;
-                    _versionLabel = label;
-                  });
-                  if (mainId == null) {
-                    prefs.remove('reader_main_version');
-                  } else {
-                    prefs.setString('reader_main_version', mainId);
-                  }
-                  if (compareId == null) {
-                    prefs.remove('reader_parallel_version');
-                  } else {
-                    prefs.setString('reader_parallel_version', compareId);
-                  }
-                },
-              );
+              _showReaderMoreMenu(context);
             },
           ),
         ],
@@ -375,66 +357,128 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         },
       ),
       ),
-      // PWA 沉浸时仍保留 FAB
-      floatingActionButton: _book == null
-          ? null
-          : Padding(
-              padding: const EdgeInsets.only(bottom: 4, right: 4),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (_planMeta != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: FloatingActionButton.small(
-                        heroTag: 'reader-plan-exit',
-                        backgroundColor: AppColors.surface,
-                        foregroundColor: AppColors.inkSoft,
-                        onPressed: () {
-                          _revealChrome();
-                          setState(() => _planMeta = null);
-                        },
-                        child: const Text('退出', style: TextStyle(fontSize: 12)),
-                      ),
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: FloatingActionButton.small(
-                      heroTag: 'reader-checkin',
-                      backgroundColor: AppColors.surface,
-                      foregroundColor: AppColors.accentDeep,
-                      tooltip: '打卡到共读群',
-                      onPressed: () {
-                        final b = _book;
-                        if (b == null) return;
-                        _onOpenOverlay();
-                        showGroupCheckinSheet(
-                          context,
-                          ref,
-                          bookId: b.id,
-                          bookName: b.name,
-                          chapter: _chapter,
-                        );
-                      },
-                      child: const Icon(Icons.groups_outlined, size: 20),
-                    ),
-                  ),
-                  FloatingActionButton(
-                    heroTag: 'reader-xiaoai',
-                    backgroundColor: AppColors.accentDeep,
-                    foregroundColor: Colors.white,
-                    onPressed: () {
-                      _onOpenOverlay();
-                      _openXiaoAiSheet(context);
-                    },
-                    child: const Icon(Icons.auto_awesome, size: 22),
-                  ),
-                ],
-              ),
-            ),
+      // 沉浸 / 专注：仅小爱一颗；打卡并入 ⋮，勿扰纸面
+      floatingActionButton: _book == null ? null : _readerFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
+  }
+
+  /// 沉浸/专注：只留小爱；chrome 展开时加计划退出。打卡走 ⋮。
+  Widget _readerFab() {
+    final mode = ref.watch(readingModeProvider);
+    final focusQuiet = mode == ReadingMode.focus || _chromeHidden;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4, right: 4),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!focusQuiet && _planMeta != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FloatingActionButton.small(
+                heroTag: 'reader-plan-exit',
+                backgroundColor: AppColors.paper,
+                foregroundColor: AppColors.inkSoft,
+                elevation: 1.5,
+                onPressed: () {
+                  _revealChrome();
+                  setState(() => _planMeta = null);
+                },
+                child: const Text('退出', style: TextStyle(fontSize: 12)),
+              ),
+            ),
+          FloatingActionButton(
+            heroTag: 'reader-xiaoai',
+            mini: focusQuiet,
+            backgroundColor: AppColors.accentDeep,
+            foregroundColor: Colors.white,
+            elevation: focusQuiet ? 1.5 : 3,
+            onPressed: () {
+              peiaiHapticLight(context);
+              _onOpenOverlay();
+              _openXiaoAiSheet(context);
+            },
+            child: const Icon(Icons.auto_awesome, size: 22),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showReaderMoreMenu(BuildContext context) async {
+    final pick = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 8),
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: AppColors.line,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.groups_outlined),
+              title: const Text('打卡到共读群'),
+              onTap: () => Navigator.pop(ctx, 'checkin'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.tune),
+              title: const Text('阅读设置'),
+              onTap: () => Navigator.pop(ctx, 'settings'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    if (pick == 'checkin') {
+      final b = _book;
+      if (b == null) return;
+      peiaiHapticSelection(context);
+      await showGroupCheckinSheet(
+        context,
+        ref,
+        bookId: b.id,
+        bookName: b.name,
+        chapter: _chapter,
+      );
+      return;
+    }
+    if (pick == 'settings') {
+      await showReaderSettingsSheet(
+        context,
+        ref,
+        onLayoutApplied: (mainId, compareId, label) {
+          final prefs = ref.read(prefsProvider);
+          setState(() {
+            _mainVersionId = mainId;
+            _compareVersionId = compareId;
+            _versionLabel = label;
+          });
+          if (mainId == null) {
+            prefs.remove('reader_main_version');
+          } else {
+            prefs.setString('reader_main_version', mainId);
+          }
+          if (compareId == null) {
+            prefs.remove('reader_parallel_version');
+          } else {
+            prefs.setString('reader_parallel_version', compareId);
+          }
+        },
+      );
+    }
   }
 
   void _openXiaoAiSheet(
@@ -449,10 +493,8 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
     if (b == null) return;
     final r = refStr ?? '${b.id}.$_chapter';
     final label = refLabel ?? '${bibleBookAbbr(b.name)} $_chapter';
-    showModalBottomSheet(
+    showReaderSheet(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
       builder: (_) => _XiaoAiHalfSheet(
         refStr: r,
         refLabel: label,

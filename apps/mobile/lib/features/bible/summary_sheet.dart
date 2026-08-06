@@ -8,6 +8,7 @@ import '../../core/api_client.dart';
 import '../../core/theme.dart';
 import 'bible_summary.dart';
 import 'content_repository.dart';
+import 'reader_sheet.dart';
 
 Future<void> showBibleSummarySheet(
   BuildContext context,
@@ -17,13 +18,8 @@ Future<void> showBibleSummarySheet(
   required int chapter,
   String initialTab = 'chapter', // chapter | book
 }) {
-  return showModalBottomSheet<void>(
+  return showReaderSheet<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: AppColors.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
     builder: (ctx) => _SummarySheetBody(
       bookId: bookId,
       bookName: bookName,
