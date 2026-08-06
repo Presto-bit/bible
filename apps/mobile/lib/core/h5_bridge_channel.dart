@@ -58,6 +58,22 @@ void attachPeiaiJsChannel(
           });
         } else if (type == 'close_h5') {
           if (context.mounted && context.canPop()) context.pop();
+        } else if (type == 'go_back') {
+          // IM 内页：优先 Web 历史
+        } else if (type == 'open_path') {
+          final path = '${data['path'] ?? ''}'.trim();
+          if (path.isEmpty || !context.mounted) return;
+          if (path.startsWith('/reader')) {
+            ref.read(navIndexProvider.notifier).set(1);
+          } else if (path.startsWith('/assistant')) {
+            ref.read(navIndexProvider.notifier).set(2);
+          } else if (path.startsWith('/discover')) {
+            ref.read(navIndexProvider.notifier).set(3);
+            return;
+          }
+          Future.microtask(() {
+            if (context.mounted) context.push(path);
+          });
         }
       } catch (e) {
         if (kDebugMode) debugPrint('PeiaiFlutter channel: $e');

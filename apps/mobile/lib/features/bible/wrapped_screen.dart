@@ -5,19 +5,41 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/database/app_database.dart' show Note, Bookmark;
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
 import '../notes/notes_repository.dart';
 import 'markings_repository.dart';
+import 'reader_marking_models.dart';
 import 'reading_repository.dart';
 import 'wrapped.dart';
 
 final wrappedStatsProvider =
     FutureProvider.family<WrappedStats, String>((ref, period) async {
   final review = await ref.watch(reviewDataProvider.future);
-  final notes = await ref.watch(notesStreamProvider.future);
-  final bookmarks = await ref.watch(bookmarksProvider.future);
-  final highlights = await ref.watch(highlightMapProvider.future);
+
+  // 先拿当前缓存；再等短暂
+  var notes = ref.read(notesStreamProvider).value ?? const <Note>[];
+  var bookmarks = ref.read(bookmarksProvider).value ?? const <Bookmark>[];
+  var highlights =
+      ref.read(highlightMapProvider).value ?? const <String, HighlightMark>{};
+
+  try {
+    notes = await ref
+        .watch(notesStreamProvider.future)
+        .timeout(const Duration(seconds: 2), onTimeout: () => notes);
+  } catch (_) {}
+  try {
+    bookmarks = await ref
+        .watch(bookmarksProvider.future)
+        .timeout(const Duration(seconds: 2), onTimeout: () => bookmarks);
+  } catch (_) {}
+  try {
+    highlights = await ref
+        .watch(highlightMapProvider.future)
+        .timeout(const Duration(seconds: 2), onTimeout: () => highlights);
+  } catch (_) {}
+
   final range = _periodRange(period);
   final noteCount = notes
       .where((n) =>
@@ -67,8 +89,9 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
   Widget build(BuildContext context) {
     final async = ref.watch(wrappedStatsProvider(_period));
     return Scaffold(
+      backgroundColor: AppColors.paper,
       appBar: AppBar(
-        title: const Text('读经回顾'),
+        title: const Text('故事回顾'),
         actions: [
           async.maybeWhen(
             data: (s) => IconButton(
@@ -81,7 +104,23 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('$e')),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('$e', textAlign: TextAlign.center),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: () =>
+                      ref.invalidate(wrappedStatsProvider(_period)),
+                  child: const Text('重试'),
+                ),
+              ],
+            ),
+          ),
+        ),
         data: (s) => ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
           children: [
@@ -122,43 +161,46 @@ class _WrappedScreenState extends ConsumerState<WrappedScreen> {
     return ChoiceChip(
       label: Text(label),
       selected: active,
-      onSelected: (_) => setState(() => _period = period),
       selectedColor: AppColors.accentWash,
+      onSelected: (_) => setState(() => _period = period),
     );
   }
 
   Widget _statGrid(WrappedStats s) {
-    final tiles = [
+    final items = <(String, String)>[
+      ('阅读时长', '${s.totalMinutes} 分'),
       ('活跃天数', '${s.activeDays}'),
-      ('读经分钟', '${s.totalMinutes}'),
-      ('读过章数', '${s.chapters}'),
       ('连续打卡', '${s.streak}'),
+      ('章节', '${s.chapters}'),
       ('笔记', '${s.notesCount}'),
       ('收藏', '${s.favoritesCount}'),
       ('划线', '${s.marksCount}'),
     ];
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 10,
-      childAspectRatio: 1.6,
-      children: tiles
-          .map((t) => PaperCard(
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: items
+          .map(
+            (e) => SizedBox(
+              width: (MediaQuery.of(context).size.width - 16 * 2 - 10) / 2,
+              child: PaperCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(t.$1,
+                    Text(e.$1,
                         style: const TextStyle(
                             fontSize: 12, color: AppColors.inkFaint)),
-                    const SizedBox(height: 4),
-                    Text(t.$2,
-                        style: AppTypography.stat.copyWith(fontSize: 22)),
+                    const SizedBox(height: 6),
+                    Text(e.$2,
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink)),
                   ],
                 ),
-              ))
+              ),
+            ),
+          )
           .toList(),
     );
   }

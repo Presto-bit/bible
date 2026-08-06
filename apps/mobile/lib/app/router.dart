@@ -19,6 +19,7 @@ import '../features/plans/plans_screen.dart';
 import '../features/social/discover_screen.dart';
 import '../features/bible/dictionary_screen.dart';
 import '../features/search/search_screen.dart';
+import '../features/bible/reading_report_screen.dart';
 import '../features/bible/wrapped_screen.dart';
 import '../features/notes/notes_screen.dart';
 import '../features/settings/appearance_screen.dart';
@@ -109,9 +110,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
           path: '/report',
-          builder: (context, state) => const H5HostPage(
-                path: '/report',
-              )),
+          builder: (context, state) => const ReadingReportScreen()),
       GoRoute(
         path: '/help',
         builder: (context, state) => const H5HostPage(

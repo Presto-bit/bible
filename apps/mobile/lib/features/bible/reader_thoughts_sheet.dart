@@ -1,4 +1,4 @@
-/// 经文想法：写想法 + 查看全部（下滑关闭）。
+/// 经文想法：写想法 + 查看全部（对齐 PWA ThoughtWriteSheet 可见范围）。
 library;
 
 import 'package:flutter/material.dart';
@@ -14,64 +14,113 @@ Future<void> showWriteThoughtSheet(
   required String refLabel,
 }) async {
   final controller = TextEditingController();
-  final text = await showModalBottomSheet<String>(
+  var visibility = ThoughtVisibility.public;
+
+  final result = await showModalBottomSheet<({String body, ThoughtVisibility vis})>(
     context: context,
     isScrollControlled: true,
+    isDismissible: true,
+    enableDrag: true,
     backgroundColor: AppColors.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
     ),
-    builder: (ctx) => Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 18,
-        bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('写想法 · $refLabel',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: AppColors.ink)),
-          const SizedBox(height: 6),
-          const Text('想法将公开给读同一节经文的人',
-              style: TextStyle(fontSize: 12, color: AppColors.inkFaint)),
-          const SizedBox(height: 12),
-          TextField(
-            controller: controller,
-            autofocus: true,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              hintText: '写下你的领受、疑问或祷告…',
-              border: OutlineInputBorder(),
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (ctx, setLocal) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 12,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
             ),
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.accentDeep),
-              child: const Text('发布'),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.line,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                Text('写想法 · $refLabel',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: AppColors.ink)),
+                const SizedBox(height: 10),
+                Text(
+                  visibilityHint(visibility),
+                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  children: ThoughtVisibility.values.map((v) {
+                    return ChoiceChip(
+                      avatar: Icon(
+                        switch (v) {
+                          ThoughtVisibility.public => Icons.public,
+                          ThoughtVisibility.friends => Icons.group_outlined,
+                          ThoughtVisibility.private => Icons.lock_outline,
+                        },
+                        size: 16,
+                      ),
+                      label: Text(visibilityLabel(v)),
+                      selected: visibility == v,
+                      onSelected: (_) => setLocal(() => visibility = v),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  autofocus: true,
+                  maxLines: 5,
+                  decoration: const InputDecoration(
+                    hintText: '写下你的领受、疑问或祷告…',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton(
+                    onPressed: () => Navigator.pop(
+                      ctx,
+                      (body: controller.text, vis: visibility),
+                    ),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.accentDeep),
+                    child: const Text('发布'),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
-    ),
+          );
+        },
+      );
+    },
   );
   controller.dispose();
-  if (text == null || text.trim().isEmpty) return;
-  await ref.read(thoughtsRepoProvider).addThought(refStr, text.trim());
+  if (result == null || result.body.trim().isEmpty) return;
+  await ref.read(thoughtsRepoProvider).addThought(
+        refStr,
+        result.body.trim(),
+        visibility: result.vis,
+      );
   if (context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('想法已发布'),
-        duration: Duration(milliseconds: 1200),
+      SnackBar(
+        content: Text('想法已发布 · ${visibilityLabel(result.vis)}'),
+        duration: const Duration(milliseconds: 1200),
         behavior: SnackBarBehavior.floating,
       ),
     );
@@ -178,6 +227,12 @@ Future<void> showThoughtsListSheet(
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 13)),
+                                const SizedBox(width: 8),
+                                Text(
+                                  visibilityLabel(t.visibility),
+                                  style: const TextStyle(
+                                      fontSize: 11, color: AppColors.inkFaint),
+                                ),
                                 const Spacer(),
                                 Text(
                                   _timeLabel(t.createdAtMs),
@@ -206,14 +261,14 @@ Future<void> showThoughtsListSheet(
                                         : Icons.favorite_border,
                                     size: 16,
                                     color: liked
-                                        ? AppColors.accentDeep
+                                        ? const Color(0xFFB1554A)
                                         : AppColors.inkFaint,
                                   ),
                                   const SizedBox(width: 4),
                                   Text('${t.likesCount}',
                                       style: const TextStyle(
                                           fontSize: 12,
-                                          color: AppColors.inkSoft)),
+                                          color: AppColors.inkFaint)),
                                 ],
                               ),
                             ),
@@ -233,5 +288,9 @@ Future<void> showThoughtsListSheet(
 
 String _timeLabel(int ms) {
   final d = DateTime.fromMillisecondsSinceEpoch(ms);
-  return '${d.month}/${d.day} ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  final now = DateTime.now();
+  if (d.year == now.year && d.month == now.month && d.day == now.day) {
+    return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+  }
+  return '${d.month}/${d.day}';
 }

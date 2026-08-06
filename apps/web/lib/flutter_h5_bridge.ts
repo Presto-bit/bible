@@ -12,7 +12,9 @@ export const SESSION_TOKEN_KEY = 'presto_session_token';
 type PeiaiNativePayload =
   | { type: 'open_assistant'; ref?: string; q?: string; question?: string }
   | { type: 'open_reader'; book?: string; chapter?: string | number }
-  | { type: 'close_h5' };
+  | { type: 'open_path'; path: string }
+  | { type: 'close_h5' }
+  | { type: 'go_back' };
 
 declare global {
   interface Window {

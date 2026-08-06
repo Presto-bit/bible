@@ -37,9 +37,19 @@ Future<void> showVerseCompareSheet(
 }
 
 bool _hasVerseRef(String refParam) {
-  return RegExp(r'\.\d+\.\d+').hasMatch(refParam) ||
-      RegExp(r':\d+\s*$').hasMatch(refParam) ||
-      RegExp(r':\d+[-–]').hasMatch(refParam);
+  // 去掉 @span 再判（JHN.3.16@12-45）
+  final raw = refParam.split('@').first.trim();
+  if (raw.isEmpty) return false;
+  // OSIS：BOOK.ch.v 或 BOOK.ch.v-v2
+  if (RegExp(r'^[A-Za-z0-9]+\.\d+\.\d+(-\d+)?$').hasMatch(raw)) return true;
+  // 中文标签尾：3:16
+  if (RegExp(r'\d+:\d+').hasMatch(raw)) return true;
+  return false;
+}
+
+String _compareApiRef(String refParam) {
+  // API 只要 OSIS 基本 ref，去掉 span
+  return refParam.split('@').first.trim();
 }
 
 class _VerseCompareBody extends ConsumerStatefulWidget {
@@ -71,10 +81,11 @@ class _VerseCompareBodyState extends ConsumerState<_VerseCompareBody> {
   }
 
   Future<List<VerseRendition>> _load() {
-    if (!_hasVerseRef(widget.refParam)) {
+    final apiRef = _compareApiRef(widget.refParam);
+    if (!_hasVerseRef(apiRef)) {
       return Future.error(StateError('请选中具体经节后再打开对照'));
     }
-    return ref.read(bibleRepoProvider).compare(widget.refParam);
+    return ref.read(bibleRepoProvider).compare(apiRef);
   }
 
   @override

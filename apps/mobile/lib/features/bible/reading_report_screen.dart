@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../app/app_shell.dart' show navIndexProvider;
 import '../../core/theme.dart';
@@ -138,7 +139,15 @@ class _ReadingReportScreenState extends ConsumerState<ReadingReportScreen> {
     };
 
     return Scaffold(
-      appBar: AppBar(title: const Text('读经回顾')),
+      appBar: AppBar(
+        title: const Text('读经回顾'),
+        actions: [
+          TextButton(
+            onPressed: () => context.push('/wrapped'),
+            child: const Text('故事回顾 ›', style: TextStyle(fontSize: 13)),
+          ),
+        ],
+      ),
       body: reviewAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('$e')),

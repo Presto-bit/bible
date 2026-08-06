@@ -14,6 +14,28 @@ export '../../core/mark_ref.dart' show selectionRef;
 
 const _thoughtsKey = 'verse_thoughts_v1';
 
+enum ThoughtVisibility { public, friends, private }
+
+String visibilityLabel(ThoughtVisibility v) => switch (v) {
+      ThoughtVisibility.public => '公开',
+      ThoughtVisibility.friends => '好友',
+      ThoughtVisibility.private => '仅自己',
+    };
+
+String visibilityHint(ThoughtVisibility v) => switch (v) {
+      ThoughtVisibility.public => '公开给读同一节经文的人',
+      ThoughtVisibility.friends => '仅好友可见',
+      ThoughtVisibility.private => '仅自己可见，不上云分享',
+    };
+
+ThoughtVisibility _parseVisibility(dynamic raw, {bool? legacyShared}) {
+  if (raw == 'public' || raw == 'friends' || raw == 'private') {
+    return ThoughtVisibility.values.byName(raw as String);
+  }
+  if (legacyShared == false) return ThoughtVisibility.private;
+  return ThoughtVisibility.public;
+}
+
 class VerseThoughtData {
   VerseThoughtData({
     required this.id,
@@ -24,6 +46,7 @@ class VerseThoughtData {
     required this.likesCount,
     required this.likedBy,
     required this.isShared,
+    required this.visibility,
     required this.createdAtMs,
   });
 
@@ -35,11 +58,13 @@ class VerseThoughtData {
   final int likesCount;
   final List<String> likedBy;
   final bool isShared;
+  final ThoughtVisibility visibility;
   final int createdAtMs;
 
   VerseThoughtData copyWith({
     int? likesCount,
     List<String>? likedBy,
+    ThoughtVisibility? visibility,
   }) =>
       VerseThoughtData(
         id: id,
@@ -50,6 +75,7 @@ class VerseThoughtData {
         likesCount: likesCount ?? this.likesCount,
         likedBy: likedBy ?? this.likedBy,
         isShared: isShared,
+        visibility: visibility ?? this.visibility,
         createdAtMs: createdAtMs,
       );
 
@@ -61,21 +87,29 @@ class VerseThoughtData {
         'authorName': authorName,
         'likesCount': likesCount,
         'likedBy': likedBy,
-        'isShared': isShared,
+        'isShared': visibility != ThoughtVisibility.private,
+        'visibility': visibility.name,
         'createdAtMs': createdAtMs,
       };
 
-  factory VerseThoughtData.fromJson(Map<String, dynamic> j) => VerseThoughtData(
-        id: j['id'] as String,
-        ref: j['ref'] as String,
-        body: j['body'] as String,
-        authorId: j['authorId'] as String,
-        authorName: (j['authorName'] ?? '') as String,
-        likesCount: (j['likesCount'] ?? 0) as int,
-        likedBy: ((j['likedBy'] ?? []) as List).cast<String>(),
-        isShared: (j['isShared'] ?? true) as bool,
-        createdAtMs: (j['createdAtMs'] ?? 0) as int,
-      );
+  factory VerseThoughtData.fromJson(Map<String, dynamic> j) {
+    final vis = _parseVisibility(
+      j['visibility'],
+      legacyShared: j['isShared'] as bool?,
+    );
+    return VerseThoughtData(
+      id: j['id'] as String,
+      ref: j['ref'] as String,
+      body: j['body'] as String,
+      authorId: j['authorId'] as String,
+      authorName: (j['authorName'] ?? '') as String,
+      likesCount: (j['likesCount'] ?? 0) as int,
+      likedBy: ((j['likedBy'] ?? []) as List).cast<String>(),
+      isShared: vis != ThoughtVisibility.private,
+      visibility: vis,
+      createdAtMs: (j['createdAtMs'] ?? 0) as int,
+    );
+  }
 }
 
 List<VerseThoughtData> _readAll(SharedPreferences prefs) {
@@ -191,15 +225,22 @@ class ThoughtsRepository {
       likesCount: t.likesCount,
       likedBy: t.likedBy,
       isShared: t.isShared,
+      visibility: t.visibility,
       createdAtMs: t.createdAtMs,
     );
     await _writeAll(_prefs, rows);
     _notify();
   }
 
-  Future<VerseThoughtData> addThought(String ref, String body,
-      {bool shared = true}) async {
+  Future<VerseThoughtData> addThought(
+    String ref,
+    String body, {
+    bool shared = true,
+    ThoughtVisibility? visibility,
+  }) async {
     final rows = _readAll(_prefs);
+    final vis = visibility ??
+        (shared ? ThoughtVisibility.public : ThoughtVisibility.private);
     final row = VerseThoughtData(
       id: _uuid.v4(),
       ref: ref,
@@ -208,7 +249,8 @@ class ThoughtsRepository {
       authorName: _userName,
       likesCount: 0,
       likedBy: const [],
-      isShared: shared,
+      isShared: vis != ThoughtVisibility.private,
+      visibility: vis,
       createdAtMs: DateTime.now().millisecondsSinceEpoch,
     );
     rows.add(row);

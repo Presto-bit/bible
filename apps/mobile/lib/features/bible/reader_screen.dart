@@ -270,7 +270,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
             icon: const Icon(Icons.more_vert),
             onPressed: () {
               _onOpenOverlay();
-              _showReaderMoreMenu(context);
+              _openReaderSettings(context);
             },
           ),
         ],
@@ -357,18 +357,61 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         },
       ),
       ),
-      // 沉浸 / 专注：仅小爱一颗；打卡并入 ⋮，勿扰纸面
+      // 对齐 PWA：打卡小图标在小爱 FAB 上方；沉浸时打卡收进小爱旁微型
       floatingActionButton: _book == null ? null : _readerFab(),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 
-  /// 沉浸/专注：只留小爱；chrome 展开时加计划退出。打卡走 ⋮。
+  /// ⋮ 直接打开阅读设置（可下滑/点遮罩关闭）；打卡走独立 FAB。
+  Future<void> _openReaderSettings(BuildContext context) async {
+    await showReaderSettingsSheet(
+      context,
+      ref,
+      onLayoutApplied: (mainId, compareId, label) {
+        final prefs = ref.read(prefsProvider);
+        setState(() {
+          _mainVersionId = mainId;
+          _compareVersionId = compareId;
+          _versionLabel = label;
+        });
+        if (mainId == null) {
+          prefs.remove('reader_main_version');
+        } else {
+          prefs.setString('reader_main_version', mainId);
+        }
+        if (compareId == null) {
+          prefs.remove('reader_parallel_version');
+        } else {
+          prefs.setString('reader_parallel_version', compareId);
+        }
+      },
+    );
+  }
+
+  Future<void> _openCheckin() async {
+    final b = _book;
+    if (b == null) return;
+    peiaiHapticSelection(context);
+    _onOpenOverlay();
+    await showGroupCheckinSheet(
+      context,
+      ref,
+      bookId: b.id,
+      bookName: b.name,
+      chapter: _chapter,
+    );
+  }
+
   Widget _readerFab() {
     final mode = ref.watch(readingModeProvider);
     final focusQuiet = mode == ReadingMode.focus || _chromeHidden;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4, right: 4),
+      padding: EdgeInsets.only(
+        // 沉浸时底栏已收，FAB 贴安全区即可，勿再垫一颗 tabbar 高度
+        bottom: focusQuiet ? 2 : 4,
+        right: 4,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -388,6 +431,20 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
                 child: const Text('退出', style: TextStyle(fontSize: 12)),
               ),
             ),
+          // 打卡在小爱上方（对齐 PWA check-in 按钮栈）
+          if (!focusQuiet)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FloatingActionButton.small(
+                heroTag: 'reader-checkin',
+                backgroundColor: AppColors.paper,
+                foregroundColor: AppColors.accentDeep,
+                elevation: 1.5,
+                tooltip: '打卡到共读群',
+                onPressed: _openCheckin,
+                child: const Icon(Icons.groups_outlined, size: 20),
+              ),
+            ),
           FloatingActionButton(
             heroTag: 'reader-xiaoai',
             mini: focusQuiet,
@@ -404,81 +461,6 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen>
         ],
       ),
     );
-  }
-
-  void _showReaderMoreMenu(BuildContext context) async {
-    final pick = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const SizedBox(height: 8),
-            Container(
-              width: 36,
-              height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.line,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.groups_outlined),
-              title: const Text('打卡到共读群'),
-              onTap: () => Navigator.pop(ctx, 'checkin'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.tune),
-              title: const Text('阅读设置'),
-              onTap: () => Navigator.pop(ctx, 'settings'),
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-    if (!context.mounted) return;
-    if (pick == 'checkin') {
-      final b = _book;
-      if (b == null) return;
-      peiaiHapticSelection(context);
-      await showGroupCheckinSheet(
-        context,
-        ref,
-        bookId: b.id,
-        bookName: b.name,
-        chapter: _chapter,
-      );
-      return;
-    }
-    if (pick == 'settings') {
-      await showReaderSettingsSheet(
-        context,
-        ref,
-        onLayoutApplied: (mainId, compareId, label) {
-          final prefs = ref.read(prefsProvider);
-          setState(() {
-            _mainVersionId = mainId;
-            _compareVersionId = compareId;
-            _versionLabel = label;
-          });
-          if (mainId == null) {
-            prefs.remove('reader_main_version');
-          } else {
-            prefs.setString('reader_main_version', mainId);
-          }
-          if (compareId == null) {
-            prefs.remove('reader_parallel_version');
-          } else {
-            prefs.setString('reader_parallel_version', compareId);
-          }
-        },
-      );
-    }
   }
 
   void _openXiaoAiSheet(
@@ -980,6 +962,31 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (widget.selectionText.trim().isNotEmpty)
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.goldWash.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.line),
+                      ),
+                      child: Text(
+                        '「${widget.selectionText.trim()}」',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.55,
+                          color: AppColors.inkSoft,
+                          fontFamily: 'Songti SC',
+                          fontFamilyFallback: [
+                            'STSong',
+                            'Noto Serif SC',
+                            'serif'
+                          ],
+                        ),
+                      ),
+                    ),
                   if (_answer.isEmpty && _busy)
                     const Row(
                       children: [
@@ -1013,9 +1020,12 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                     )
                   else
                     AnswerText(
-                        text: _cleanAnswer.isEmpty ? '暂无内容' : _cleanAnswer),
-                  if (!_busy &&
-                      _citations.isNotEmpty &&
+                        text: _cleanAnswer.isEmpty
+                            ? (_busy ? '' : '暂无内容')
+                            : _cleanAnswer,
+                        fontSize: 16),
+                  // 引用轨：有 meta 即展示（流式中途也显示，对齐 PWA CitationEvidenceRail）
+                  if (_citations.isNotEmpty &&
                       !_cleanAnswer.startsWith('⚠️'))
                     Padding(
                       padding: const EdgeInsets.only(top: 12),
@@ -1044,7 +1054,21 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!_busy &&
+                      _citations.isNotEmpty &&
+                      !_cleanAnswer.startsWith('⚠️'))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Text(
+                        '已结束 · 参考 ${_citations.length} 条来源',
+                        style: const TextStyle(
+                            fontSize: 11, color: AppColors.inkFaint),
+                      ),
+                    ),
+                  Row(
                 children: [
                   if (!_busy && _cleanAnswer.isNotEmpty && !_cleanAnswer.startsWith('⚠️'))
                     Expanded(
@@ -1056,7 +1080,7 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                   if (!_busy && _cleanAnswer.isNotEmpty && !_cleanAnswer.startsWith('⚠️'))
                     const SizedBox(width: 10),
                   Expanded(
-                    flex: _busy || _cleanAnswer.isEmpty || _cleanAnswer.startsWith('⚠️') ? 1 : 1,
+                    flex: 1,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: AppColors.accentDeep,
@@ -1066,6 +1090,8 @@ class _XiaoAiHalfSheetState extends ConsumerState<_XiaoAiHalfSheet> {
                           style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
                   ),
+                ],
+              ),
                 ],
               ),
             ),
@@ -1086,38 +1112,64 @@ class _HalfSheetCitations extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '已参考 ${citations.length} 条释经资料',
+          '参考来源 · ${citations.length} 条',
           style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
         ),
         const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: citations
-              .map((c) => InkWell(
-                    onTap: () {
-                      ref.read(badgeStatsRecorderProvider).recordCitationClick();
-                      showModalBottomSheet<void>(
-                        context: context,
-                        isScrollControlled: true,
-                        showDragHandle: true,
-                        builder: (_) => _HalfSheetCitationDetail(citation: c),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.goldWash,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text('[${c.n}] ${c.title}',
+        SizedBox(
+          height: 88,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: citations.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (_, i) {
+              final c = citations[i];
+              final snip = (c.snippet ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+              return InkWell(
+                onTap: () {
+                  ref.read(badgeStatsRecorderProvider).recordCitationClick();
+                  showModalBottomSheet<void>(
+                    context: context,
+                    isScrollControlled: true,
+                    showDragHandle: true,
+                    builder: (_) => _HalfSheetCitationDetail(citation: c),
+                  );
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  width: 168,
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+                  decoration: BoxDecoration(
+                    color: AppColors.goldWash,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.line),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('[${c.n}] ${c.title}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                              fontSize: 11, color: AppColors.gold)),
-                    ),
-                  ))
-              .toList(),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.gold)),
+                      if (snip.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          snip.length > 48 ? '${snip.substring(0, 48)}…' : snip,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 11, height: 1.3, color: AppColors.inkSoft),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
         ),
       ],
     );

@@ -108,12 +108,13 @@ final sessionRepoProvider = Provider<SessionRepository>((ref) =>
     SessionRepository(ref.read(dbProvider), ref.read(syncEngineProvider)));
 
 final sessionsStreamProvider = StreamProvider<List<AiSession>>((ref) async* {
+  // 立刻 yield，避免历史抽屉一直 loading
+  yield const <AiSession>[];
   try {
     await for (final list in ref.read(sessionRepoProvider).watchSessions()) {
       yield list;
     }
   } catch (_) {
-    // Drift / SQLite 异常时给空列表，避免历史抽屉整页报错
     yield const <AiSession>[];
   }
 });

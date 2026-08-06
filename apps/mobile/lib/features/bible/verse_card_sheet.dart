@@ -38,9 +38,8 @@ class _VerseCardSheet extends StatelessWidget {
   final String versionLabel;
 
   String get _quote {
-    final t = text.trim();
-    if (t.length <= 160) return t;
-    return '${t.substring(0, 159)}…';
+    // 完整展示选区经文（对齐 PWA），不再截断 160 字
+    return text.trim();
   }
 
   Future<void> _share(BuildContext context) async {
@@ -118,24 +117,33 @@ class _VerseCardSheet extends StatelessWidget {
                         padding: const EdgeInsets.all(22),
                         child: Column(
                           children: [
-                            const Spacer(),
-                            Text(
-                              '「$_quote」',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontFamily: 'Songti SC',
-                                fontFamilyFallback: [
-                                  'STSong',
-                                  'Noto Serif SC',
-                                  'serif'
-                                ],
-                                color: Colors.white,
-                                fontSize: 20,
-                                height: 1.65,
-                                fontWeight: FontWeight.w500,
+                            const Spacer(flex: 1),
+                            Flexible(
+                              flex: 4,
+                              child: SingleChildScrollView(
+                                child: Text(
+                                  '「$_quote」',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontFamily: 'Songti SC',
+                                    fontFamilyFallback: const [
+                                      'STSong',
+                                      'Noto Serif SC',
+                                      'serif'
+                                    ],
+                                    color: Colors.white,
+                                    fontSize: _quote.length > 100
+                                        ? 15
+                                        : _quote.length > 60
+                                            ? 17
+                                            : 20,
+                                    height: 1.6,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
                               ),
                             ),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 12),
                             if (refLabel.isNotEmpty)
                               Text(
                                 refLabel,
@@ -154,7 +162,7 @@ class _VerseCardSheet extends StatelessWidget {
                                 fontSize: 11,
                               ),
                             ),
-                            const Spacer(),
+                            const Spacer(flex: 1),
                             Text(
                               '彼爱 · 安静读经',
                               style: TextStyle(

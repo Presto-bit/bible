@@ -639,6 +639,7 @@ class _NotesScreenState extends ConsumerState<NotesScreen> {
         likesCount: t.likesCount,
         likedBy: t.likedBy,
         isShared: t.isShared,
+        visibility: t.visibility,
         createdAtMs: t.createdAtMs,
       );
     });

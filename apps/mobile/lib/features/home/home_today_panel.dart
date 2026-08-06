@@ -184,40 +184,53 @@ class _PrimaryCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    // 尽量单行：过长标题用略小字号+省略
-                    Text(
-                      slot.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: slot.title.length > 12 ? 13.5 : 15,
-                        height: 1.2,
-                      ),
+                    // 自适应字号：短文单行，长文缩小并最多 2 行兜底，避免被遮挡
+                    LayoutBuilder(
+                      builder: (context, c) {
+                        final title = slot.title;
+                        final long = title.characters.length > 10;
+                        final veryLong = title.characters.length > 16;
+                        return Text(
+                          title,
+                          maxLines: veryLong ? 2 : 1,
+                          softWrap: veryLong,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: veryLong
+                                ? 12
+                                : long
+                                    ? 13
+                                    : 14.5,
+                            height: 1.22,
+                          ),
+                        );
+                      },
                     ),
                     if (slot.sub.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Text(
                         slot.sub,
-                        maxLines: 1,
+                        maxLines: slot.sub.characters.length > 18 ? 2 : 1,
+                        softWrap: slot.sub.characters.length > 18,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.82),
-                          fontSize: 11.5,
+                          fontSize: slot.sub.characters.length > 14 ? 10.5 : 11.5,
                           height: 1.2,
                         ),
                       ),
                     ],
                     if (slot.cta != null) ...[
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         slot.cta!,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.95),
-                          fontSize: 11.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

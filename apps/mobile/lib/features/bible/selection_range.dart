@@ -10,12 +10,27 @@ class WordAnchor {
   final int verse;
   final int start;
   final int end;
+
+  @override
+  bool operator ==(Object other) =>
+      other is WordAnchor &&
+      other.verse == verse &&
+      other.start == start &&
+      other.end == end;
+
+  @override
+  int get hashCode => Object.hash(verse, start, end);
 }
 
 class WordRange {
   const WordRange({required this.anchor, required this.focus});
   final WordAnchor anchor;
   final WordAnchor focus;
+}
+
+bool wordRangesEqual(WordRange? a, WordRange? b) {
+  if (a == null || b == null) return a == b;
+  return a.anchor == b.anchor && a.focus == b.focus;
 }
 
 ({List<int> verses, WordAnchor anchor, WordAnchor focus}) normalizeWordRange(
@@ -59,7 +74,8 @@ String textFromWordRange(
     if (loV == hiV) {
       final lo = n.anchor.start < n.focus.start ? n.anchor.start : n.focus.start;
       final hi = n.anchor.end > n.focus.end ? n.anchor.end : n.focus.end;
-      buf.write(text.substring(lo.clamp(0, text.length), hi.clamp(0, text.length)));
+      buf.write(text.substring(
+          lo.clamp(0, text.length), hi.clamp(0, text.length)));
     } else if (v == loV) {
       buf.write(text.substring(n.anchor.start.clamp(0, text.length)));
     } else if (v == hiV) {
@@ -89,6 +105,42 @@ bool wordOverlapsRange(
   if (verse == loV) return wordEnd > n.anchor.start;
   if (verse == hiV) return wordStart < n.focus.end;
   return true;
+}
+
+/// 选区左右端（圆角），对齐 PWA wordSelectionEdge。
+({bool left, bool right}) wordSelectionEdge(
+  int verse,
+  int wordStart,
+  int wordEnd,
+  WordRange range,
+) {
+  if (!wordOverlapsRange(verse, wordStart, wordEnd, range)) {
+    return (left: false, right: false);
+  }
+  final n = normalizeWordRange(range);
+  final loV = n.anchor.verse;
+  final hiV = n.focus.verse;
+  if (loV == hiV) {
+    final lo = n.anchor.start < n.focus.start ? n.anchor.start : n.focus.start;
+    final hi = n.anchor.end > n.focus.end ? n.anchor.end : n.focus.end;
+    return (
+      left: wordStart <= lo && wordEnd > lo,
+      right: wordStart < hi && wordEnd >= hi,
+    );
+  }
+  if (verse == loV) {
+    return (
+      left: wordStart <= n.anchor.start && wordEnd > n.anchor.start,
+      right: true,
+    );
+  }
+  if (verse == hiV) {
+    return (
+      left: true,
+      right: wordStart < n.focus.end && wordEnd >= n.focus.end,
+    );
+  }
+  return (left: true, right: true);
 }
 
 WordRange wholeVerseRange(int verse, String text) => WordRange(

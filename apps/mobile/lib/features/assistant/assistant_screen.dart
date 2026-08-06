@@ -670,11 +670,28 @@ class _QuickPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      backgroundColor: AppColors.accentWash,
-      side: const BorderSide(color: AppColors.line),
-      onPressed: onTap,
+    return Material(
+      color: AppColors.accentWash,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 280),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: AppColors.line),
+          ),
+          child: Text(
+            label,
+            maxLines: 2,
+            softWrap: true,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12.5, height: 1.25, color: AppColors.ink),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -705,13 +722,71 @@ class _AnchorChip extends StatelessWidget {
   }
 }
 
-class _SessionListSheet extends ConsumerWidget {
+class _SessionListSheet extends ConsumerStatefulWidget {
   const _SessionListSheet({this.onNew});
   final VoidCallback? onNew;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final sessions = ref.watch(sessionsStreamProvider);
+  ConsumerState<_SessionListSheet> createState() => _SessionListSheetState();
+}
+
+class _SessionListSheetState extends ConsumerState<_SessionListSheet> {
+  List<AiSession>? _snapshot;
+  Object? _err;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOnce();
+  }
+
+  Future<void> _loadOnce() async {
+    try {
+      final list =
+          await ref.read(sessionRepoProvider).watchSessions().first.timeout(
+                const Duration(seconds: 4),
+                onTimeout: () => const <AiSession>[],
+              );
+      if (mounted) setState(() {
+        _snapshot = list;
+        _err = null;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _snapshot = const [];
+          _err = e;
+        });
+      }
+    }
+  }
+
+  Future<void> _rename(AiSession s) async {
+    final c = TextEditingController(text: s.title);
+    final v = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('重命名会话'),
+        content: TextField(controller: c, autofocus: true),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, c.text),
+              child: const Text('确定')),
+        ],
+      ),
+    );
+    if (v != null && v.trim().isNotEmpty) {
+      await ref.read(sessionRepoProvider).rename(s, v.trim());
+      await _loadOnce();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final live = ref.watch(sessionsStreamProvider).asData?.value;
+    final list = (live != null && live.isNotEmpty) ? live : _snapshot;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 12, 8),
       child: Column(
@@ -723,63 +798,67 @@ class _SessionListSheet extends ConsumerWidget {
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
               const Spacer(),
               IconButton(
+                tooltip: '刷新',
+                icon: const Icon(Icons.refresh, size: 20),
+                onPressed: _loadOnce,
+              ),
+              IconButton(
                 tooltip: '新会话',
                 icon: const Icon(Icons.add_comment_outlined,
                     color: AppColors.accentDeep),
                 onPressed: () {
                   Navigator.pop(context);
-                  onNew?.call();
+                  widget.onNew?.call();
                 },
               ),
             ],
           ),
           const SizedBox(height: 4),
           Expanded(
-            child: sessions.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Center(
-                child: Text('还没有会话',
-                    style: TextStyle(color: AppColors.inkFaint)),
-              ),
-              data: (list) {
-                if (list.isEmpty) {
-                  return const Center(
-                    child: Text('还没有会话',
-                        style: TextStyle(color: AppColors.inkFaint)),
-                  );
-                }
-                return ListView.builder(
-                  itemCount: list.length,
-                  itemBuilder: (_, i) {
-                    final s = list[i];
-                    return ListTile(
-                      leading: const Icon(Icons.chat_bubble_outline,
-                          color: AppColors.accentDeep),
-                      title: Text(s.title,
-                          maxLines: 1, overflow: TextOverflow.ellipsis),
-                      subtitle: s.anchorRef != null
-                          ? Text('锚定 ${s.anchorRef}',
-                              style: const TextStyle(fontSize: 12))
-                          : null,
-                      trailing: PopupMenuButton<String>(
-                        onSelected: (v) async {
-                          if (v == 'rename') {
-                            await _rename(context, ref, s);
-                          } else if (v == 'delete') {
-                            await ref.read(sessionRepoProvider).delete(s);
-                          }
+            child: list == null
+                ? const Center(child: CircularProgressIndicator())
+                : list.isEmpty
+                    ? Center(
+                        child: Text(
+                          _err != null ? '暂时无法加载会话' : '还没有会话',
+                          style: const TextStyle(color: AppColors.inkFaint),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: list.length,
+                        itemBuilder: (_, i) {
+                          final s = list[i];
+                          return ListTile(
+                            leading: const Icon(Icons.chat_bubble_outline,
+                                color: AppColors.accentDeep),
+                            title: Text(s.title,
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: s.anchorRef != null
+                                ? Text('锚定 ${s.anchorRef}',
+                                    style: const TextStyle(fontSize: 12))
+                                : null,
+                            trailing: PopupMenuButton<String>(
+                              onSelected: (v) async {
+                                if (v == 'rename') {
+                                  await _rename(s);
+                                } else if (v == 'delete') {
+                                  await ref
+                                      .read(sessionRepoProvider)
+                                      .delete(s);
+                                  await _loadOnce();
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                    value: 'rename', child: Text('重命名')),
+                                PopupMenuItem(
+                                    value: 'delete', child: Text('删除')),
+                              ],
+                            ),
+                            onTap: () => Navigator.pop(context, s),
+                          );
                         },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'rename', child: Text('重命名')),
-                          PopupMenuItem(value: 'delete', child: Text('删除')),
-                        ],
                       ),
-                      onTap: () => Navigator.pop(context, s),
-                    );
-                  },
-                );
-              },
-            ),
           ),
           const Padding(
             padding: EdgeInsets.fromLTRB(4, 10, 4, 4),
@@ -794,29 +873,7 @@ class _SessionListSheet extends ConsumerWidget {
       ),
     );
   }
-
-  Future<void> _rename(
-      BuildContext context, WidgetRef ref, AiSession s) async {
-    final c = TextEditingController(text: s.title);
-    final v = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('重命名会话'),
-        content: TextField(controller: c, autofocus: true),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('取消')),
-          FilledButton(
-              onPressed: () => Navigator.pop(ctx, c.text),
-              child: const Text('确定')),
-        ],
-      ),
-    );
-    if (v != null && v.trim().isNotEmpty) {
-      await ref.read(sessionRepoProvider).rename(s, v.trim());
-    }
-  }
 }
-
 
 class _Bubble extends ConsumerWidget {
   const _Bubble({
@@ -1293,24 +1350,43 @@ class _ComposerState extends State<_Composer> {
           children: [
             if (chips.isNotEmpty)
               SizedBox(
-                height: 34,
+                height: 36,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   itemCount: chips.length,
                   separatorBuilder: (_, __) => const SizedBox(width: 6),
                   itemBuilder: (_, i) {
                     final c = chips[i];
-                    return ActionChip(
-                      label: Text(c.$1, style: const TextStyle(fontSize: 12)),
-                      backgroundColor: AppColors.surface,
-                      side: const BorderSide(color: AppColors.line),
-                      onPressed: widget.disabled || widget.onChip == null
-                          ? null
-                          : () => widget.onChip!(
-                                c.$3,
-                                mode: c.$2,
-                                scene: chipSceneForLabel(c.$1),
-                              ),
+                    return Material(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(999),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(999),
+                        onTap: widget.disabled || widget.onChip == null
+                            ? null
+                            : () => widget.onChip!(
+                                  c.$3,
+                                  mode: c.$2,
+                                  scene: chipSceneForLabel(c.$1),
+                                ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(color: AppColors.line),
+                          ),
+                          child: Text(
+                            c.$1,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: widget.disabled
+                                  ? AppColors.inkFaint
+                                  : AppColors.ink,
+                            ),
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ),

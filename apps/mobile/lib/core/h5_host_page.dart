@@ -29,12 +29,22 @@ class H5HostPage extends ConsumerStatefulWidget {
     this.showAppBar = false,
     this.title,
     this.embedInTab = false,
+    this.tabIndex,
+    this.forceOffline = false,
+    this.offlineTitle = '当前离线',
+    this.offlineBody = '此页需联网使用。恢复网络后点重试。',
   });
 
   final String path;
   final bool showAppBar;
   final String? title;
   final bool embedInTab;
+
+  /// 若为底栏 Tab，在切回此 index 时重灌 session / 视口。
+  final int? tabIndex;
+  final bool forceOffline;
+  final String offlineTitle;
+  final String offlineBody;
 
   @override
   ConsumerState<H5HostPage> createState() => _H5HostPageState();
@@ -97,6 +107,30 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (c == null) return;
     final token = await ref.read(sessionProvider).token();
     await _runBridgeJs(c, token);
+    await _injectViewportMetrics();
+    // IM/发现：回前台时通知 H5 可重拉未读（若页面监听）
+    try {
+      await c.runJavaScript('''
+(function(){
+  try {
+    window.dispatchEvent(new CustomEvent('peiai-flutter-resume'));
+    if (typeof window.__PEIAI_ON_RESUME__ === 'function') window.__PEIAI_ON_RESUME__();
+  } catch (e) {}
+})();
+''');
+    } catch (_) {}
+  }
+
+  @override
+  void didUpdateWidget(H5HostPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+  if (oldWidget.forceOffline && !widget.forceOffline) {
+      setState(() {
+        _error = null;
+        _loading = true;
+      });
+      unawaited(_bootstrap());
+    }
   }
 
   Future<void> _injectViewportMetrics() async {
@@ -128,6 +162,13 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
   }
 
   Future<void> _bootstrap() async {
+    if (widget.forceOffline) {
+      setState(() {
+        _error = widget.offlineBody;
+        _loading = false;
+      });
+      return;
+    }
     final path = widget.path.startsWith('/') ? widget.path : '/${widget.path}';
     final pathOnly = path.split('?').first;
     if (!H5Whitelist.allows(pathOnly)) {
@@ -175,6 +216,7 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
               }
               await _runBridgeJs(c, token);
               await _injectViewportMetrics();
+              await _injectImPolish(c);
             } else if (mounted) {
               setState(() {
                 _loading = false;
@@ -187,7 +229,9 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
             if (!(err.isForMainFrame ?? true)) return;
             setState(() {
               _loading = false;
-              _error = '页面加载失败，请检查网络后重试';
+              _error = widget.forceOffline
+                  ? widget.offlineBody
+                  : '页面加载失败，请检查网络后重试';
             });
           },
           onNavigationRequest: (req) {
@@ -223,6 +267,10 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
     if (platform is AndroidWebViewController) {
       await platform.setMediaPlaybackRequiresUserGesture(false);
       await platform.setOnShowFileSelector(_pickFiles);
+      // 私聊/群聊手势手感：允许内容中多点与垂直滚动
+      try {
+        await platform.setTextZoom(100);
+      } catch (_) {}
     }
 
     try {
@@ -240,6 +288,39 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       _controller = controller;
       _error = null;
     });
+  }
+
+  /// IM 细节：输入栏、软键盘、禁止双 Tab 未读角标误伤宿主。
+  Future<void> _injectImPolish(WebViewController c) async {
+    await c.runJavaScript('''
+(function(){
+  try {
+    var root = document.documentElement;
+    root.classList.add('android-flutter-h5-im');
+    // 宿主已有胶囊底栏：禁 Web 内 badge 跳动与 fixed 底栏
+    var style = document.getElementById('peiai-flutter-im-polish');
+    if (!style) {
+      style = document.createElement('style');
+      style.id = 'peiai-flutter-im-polish';
+      style.textContent = ''
+        + 'html.android-flutter-h5 .bottom-tabs,'
+        + 'html.android-flutter-h5 nav.app-tabbar,'
+        + 'html.android-flutter-h5 .app-bottom-tabs { display:none !important; }'
+        + 'html.android-flutter-h5 body { overscroll-behavior-y: contain; }'
+        + 'html.android-flutter-h5.im-keyboard .im-composer-bar,'
+        + 'html.android-flutter-h5 body.im-keyboard .im-composer-bar {'
+        + '  bottom: var(--im-kb-inset, 0px) !important;'
+        + '  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));'
+        + '}'
+        + 'html.android-flutter-h5 .dm-thread, html.android-flutter-h5 .group-chat-body {'
+        + '  padding-bottom: calc(12px + var(--im-kb-inset, 0px));'
+        + '}';
+      document.head.appendChild(style);
+    }
+    // 左缘返回：通知可能的 SPA history（touch 可选，系统返回已走 goBack）
+  } catch (e) {}
+})();
+''');
   }
 
   Future<List<String>> _pickFiles(FileSelectorParams params) async {
@@ -453,11 +534,28 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
       unawaited(ref.read(sessionProvider).token().then((t) => _runBridgeJs(c, t)));
     });
 
+    // 发现等 Tab：从读经/小爱切回时重灌登录态与软键盘量度
+    if (widget.tabIndex != null) {
+      ref.listen(navIndexProvider, (prev, next) {
+        if (next != widget.tabIndex) return;
+        if (prev == next) return;
+        unawaited(_reinjectSession());
+        if (widget.forceOffline) return;
+        // 若曾失败且此刻可能已联网，不自动刷（避免打断会话）；仅 reinject
+      });
+    }
+
     final themeId = ref.watch(appThemeProvider);
     final bg = peiaiPaperFor(themeId);
     final inkFaint = context.peiaiInkFaint;
 
-    Widget body = _error != null
+    final isOfflineBanner = widget.forceOffline ||
+        (_error != null &&
+            (_error!.contains('网络') ||
+                _error!.contains('离线') ||
+                _error == widget.offlineBody));
+
+    Widget body = (widget.forceOffline || _error != null)
         ? ColoredBox(
             color: bg,
             child: Center(
@@ -466,30 +564,53 @@ class _H5HostPageState extends ConsumerState<H5HostPage>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    Icon(
+                      isOfflineBanner
+                          ? Icons.cloud_off_outlined
+                          : Icons.error_outline,
+                      size: 36,
+                      color: inkFaint,
+                    ),
+                    const SizedBox(height: 12),
                     Text(
-                      _error!,
+                      isOfflineBanner ? widget.offlineTitle : '无法打开页面',
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '若刚刚断网，消息可能尚未发出；联网后请重试本页。',
+                      widget.forceOffline
+                          ? widget.offlineBody
+                          : (_error ?? widget.offlineBody),
                       textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: inkFaint,
+                            height: 1.45,
                           ),
                     ),
+                    if (isOfflineBanner) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '圣经与本地笔记仍可用；共读消息需联网。',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: inkFaint,
+                            ),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     FilledButton(
-                      onPressed: () {
-                        setState(() {
-                          _error = null;
-                          _loading = true;
-                          _hadFirstPaint = false;
-                        });
-                        _bootstrap();
-                      },
-                      child: const Text('重试'),
+                      onPressed: widget.forceOffline
+                          ? null
+                          : () {
+                              setState(() {
+                                _error = null;
+                                _loading = true;
+                                _hadFirstPaint = false;
+                              });
+                              _bootstrap();
+                            },
+                      child: Text(widget.forceOffline ? '等待网络…' : '重试'),
                     ),
                   ],
                 ),
