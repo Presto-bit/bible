@@ -60,7 +60,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
     // 键盘弹起时不额外叠 safe（与 PWA vv 逻辑一致：优先 keyboard）
     final kb = MediaQuery.viewInsetsOf(context).bottom;
-    final barBottomPad = kb > 0 ? 8.0 : (8 + safeBottom.clamp(0.0, 24.0));
+    final barBottomPad = kb > 0 ? 8.0 : (8.0 + safeBottom);
 
     return SyncLifecycle(
       child: AnnotatedRegion<SystemUiOverlayStyle>(

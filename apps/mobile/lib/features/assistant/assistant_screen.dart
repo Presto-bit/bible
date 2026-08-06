@@ -667,25 +667,9 @@ class _SessionListSheet extends ConsumerWidget {
           Expanded(
             child: sessions.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('$e',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: AppColors.inkSoft, fontSize: 13)),
-                      const SizedBox(height: 12),
-                      TextButton(
-                        onPressed: () =>
-                            ref.invalidate(sessionsStreamProvider),
-                        child: const Text('重试'),
-                      ),
-                    ],
-                  ),
-                ),
+              error: (_, __) => const Center(
+                child: Text('还没有会话',
+                    style: TextStyle(color: AppColors.inkFaint)),
               ),
               data: (list) {
                 if (list.isEmpty) {

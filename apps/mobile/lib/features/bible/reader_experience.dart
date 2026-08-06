@@ -985,8 +985,12 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                     ? _currentSelectionMark(highlights)
                     : null,
                 underlinesEnabled: toggles.underlines,
-                onLightAi: () => widget.onAskAi(
-                    _refStr, _refLabel, _selectionText(async.value), false),
+                thoughtsEnabled: toggles.thoughts,
+                onLightAi: () {
+                  _clearSelection();
+                  widget.onAskAi(
+                      _refStr, _refLabel, _selectionText(async.value), false);
+                },
                 onTools: () => showReaderToolsSheet(
                   context,
                   refParam: _selectionRefStr,
@@ -1003,16 +1007,24 @@ class _ReaderChapterBodyState extends ConsumerState<ReaderChapterBody> {
                         duration: Duration(milliseconds: 1200)),
                   );
                 },
-                onThought: () => _writeThought(async.value),
+                onThought: () {
+                  _writeThought(async.value);
+                  _clearSelection();
+                },
                 onWriteNote: () => _promptMarkNote(_selectionRefStr),
-                onShare: () => showShareToSocialSheet(
-                  context,
-                  ref,
-                  refText: _selectionRefStr,
-                  refLabel: _refLabel,
-                  body: _selectionText(async.value),
-                ),
-                onPickColor: _pickHighlightColor,
+                onShare: () {
+                  showShareToSocialSheet(
+                    context,
+                    ref,
+                    refText: _selectionRefStr,
+                    refLabel: _refLabel,
+                    body: _selectionText(async.value),
+                  );
+                  _clearSelection();
+                },
+                onPickColor: (c) {
+                  _pickHighlightColor(c);
+                },
                 onClearMark: _clearHighlight,
                 onClose: _clearSelection,
               ),

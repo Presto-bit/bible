@@ -13,6 +13,7 @@ import '../../core/api_client.dart';
 import '../../core/daily_verse_engagement.dart';
 import '../../core/daily_verse_wallpaper.dart';
 import '../../core/gamification.dart';
+import '../../core/home_greeting.dart';
 import '../../core/open_h5.dart';
 import '../../core/theme.dart';
 import '../../core/widgets/paper_card.dart';
@@ -37,6 +38,9 @@ class DailyVerse {
     required this.ref,
     required this.theme,
     required this.text,
+    required this.book,
+    required this.chapter,
+    required this.verseStart,
     required this.osisRef,
     required this.day,
     required this.liked,
@@ -46,6 +50,9 @@ class DailyVerse {
   final String ref;
   final String theme;
   final String text;
+  final String book;
+  final int chapter;
+  final int verseStart;
   final String osisRef;
   final int day;
   final bool liked;
@@ -53,14 +60,23 @@ class DailyVerse {
   final int sharesCount;
 
   factory DailyVerse.fromJson(Map<String, dynamic> j) {
-    final book = (j['book'] ?? '') as String;
-    final ch = j['chapter'];
-    final vs = j['verse_start'];
+    final book = ((j['book'] ?? '') as String).trim().toUpperCase();
+    final ch = (j['chapter'] is num)
+        ? (j['chapter'] as num).toInt()
+        : int.tryParse('${j['chapter']}') ?? 0;
+    final vs = (j['verse_start'] is num)
+        ? (j['verse_start'] as num).toInt()
+        : int.tryParse('${j['verse_start']}') ?? 0;
     return DailyVerse(
       ref: (j['ref'] ?? '') as String,
       theme: (j['theme'] ?? '') as String,
       text: (j['text'] ?? '') as String,
-      osisRef: book.isNotEmpty ? '$book.$ch.$vs' : '',
+      book: book,
+      chapter: ch,
+      verseStart: vs,
+      osisRef: book.isNotEmpty && ch > 0
+          ? (vs > 0 ? '$book.$ch.$vs' : '$book.$ch')
+          : '',
       day: (j['day'] ?? 0) as int,
       liked: (j['liked'] ?? false) as bool,
       likesCount: (j['likes_count'] ?? 0) as int,
@@ -400,6 +416,7 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
             children: [
               _GreetingHeader(
+                welcomeBack: welcomeBack,
                 onSearch: () => Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const SearchScreen()),
                 ),
@@ -467,6 +484,9 @@ class HomeScreen extends ConsumerWidget {
                     theme: v.theme.isEmpty ? '每日经文' : v.theme,
                     ref: v.ref,
                     text: v.text,
+                    book: v.book,
+                    chapter: v.chapter,
+                    verseStart: v.verseStart,
                     initialLiked: v.liked,
                     initialLikeCount: v.likesCount,
                   );
@@ -614,8 +634,12 @@ void _showAnchoredPlusMenu(BuildContext context, GlobalKey anchorKey) {
 }
 
 class _GreetingHeader extends ConsumerStatefulWidget {
-  const _GreetingHeader({required this.onSearch});
+  const _GreetingHeader({
+    required this.onSearch,
+    this.welcomeBack = false,
+  });
   final VoidCallback onSearch;
+  final bool welcomeBack;
 
   @override
   ConsumerState<_GreetingHeader> createState() => _GreetingHeaderState();
@@ -626,14 +650,7 @@ class _GreetingHeaderState extends ConsumerState<_GreetingHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final hour = DateTime.now().hour;
-    final base = hour < 6
-        ? '夜深了'
-        : hour < 12
-            ? '早安'
-            : hour < 18
-                ? '午安'
-                : '晚安';
+    final base = homeGreeting(welcomeBack: widget.welcomeBack);
     final name = ref.watch(prefsProvider).getString('onboarding_name');
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
@@ -742,25 +759,7 @@ class _BelowFold extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final summary = ref.watch(discoverSummaryProvider);
-    final groups = ref.watch(myGroupsProvider);
-    final groupLine = summary.maybeWhen(
-      data: (s) {
-        final pending = (s['groups_pending_checkin'] as num?)?.toInt() ?? 0;
-        if (pending > 0) return '$pending 个群待打卡';
-        return null;
-      },
-      orElse: () => null,
-    );
-    final groupName = groups.maybeWhen(
-      data: (list) => list.isNotEmpty ? list.first.name : null,
-      orElse: () => null,
-    );
-    final socialText = groupLine != null
-        ? groupLine
-        : groupName != null
-            ? '$groupName · 一起去发现'
-            : '创建或加入共读群';
+    // 对齐 PWA：成长区下不再叠「小组」横条（群已在今日推荐副卡）
     final now = DateTime.now();
     final lastDay = DateTime(now.year, now.month + 1, 0).day;
     final monthReviewWindow = now.day >= lastDay - 2;
@@ -769,23 +768,7 @@ class _BelowFold extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        PaperCard(
-          onTap: onOpenDiscover,
-          child: Row(
-            children: [
-              const _Pill('小组'),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(socialText,
-                    style: const TextStyle(fontSize: 13, color: AppColors.ink)),
-              ),
-              const Text('去发现 ›',
-                  style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
-            ],
-          ),
-        ),
-        if (monthReviewWindow) ...[
-          const SizedBox(height: 10),
+        if (monthReviewWindow)
           PaperCard(
             onTap: onOpenReview,
             child: Row(
@@ -800,9 +783,8 @@ class _BelowFold extends ConsumerWidget {
                     style: TextStyle(color: AppColors.inkFaint, fontSize: 12)),
               ],
             ),
-          ),
-        ] else if (yearReviewWindow) ...[
-          const SizedBox(height: 10),
+          )
+        else if (yearReviewWindow)
           PaperCard(
             onTap: () => context.push('/wrapped'),
             child: Row(
@@ -818,7 +800,6 @@ class _BelowFold extends ConsumerWidget {
               ],
             ),
           ),
-        ],
         const SizedBox(height: 18),
         const Center(
           child: Text(
@@ -854,6 +835,9 @@ class _VerseCard extends ConsumerStatefulWidget {
     required this.theme,
     required this.ref,
     required this.text,
+    required this.book,
+    required this.chapter,
+    required this.verseStart,
     required this.initialLiked,
     required this.initialLikeCount,
   });
@@ -861,6 +845,9 @@ class _VerseCard extends ConsumerStatefulWidget {
   final String theme;
   final String ref;
   final String text;
+  final String book;
+  final int chapter;
+  final int verseStart;
   final bool initialLiked;
   final int initialLikeCount;
 
@@ -952,6 +939,17 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
     }
   }
 
+  void _openReader() {
+    final book = widget.book.trim().toUpperCase();
+    final ch = widget.chapter;
+    if (book.isEmpty || ch < 1) return;
+    final verse = widget.verseStart > 0 ? widget.verseStart : 1;
+    // 写入进度 → 阅读页轻闪定位
+    ref.read(readingRepoProvider).record(book, ch, verse: verse);
+    ref.read(readerJumpProvider.notifier).jump(book, ch);
+    ref.read(navIndexProvider.notifier).set(1);
+  }
+
   void _openWallpaper() {
     if (widget.text.isEmpty) return;
     Navigator.of(context).push(
@@ -962,6 +960,24 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
           ref: widget.ref,
           text: widget.text,
           theme: widget.theme,
+          liked: _liked,
+          likeCount: _likeCount,
+          myReact: _myReact,
+          onToggleLike: _likeBusy
+              ? null
+              : () {
+                  _toggleLike();
+                },
+          onOpenReact: () {
+            _openReact();
+          },
+          onAskXiaoAi: () {
+            Navigator.of(context).pop();
+            _askXiaoAi();
+          },
+          onShare: () {
+            _share();
+          },
         ),
       ),
     );
@@ -1033,6 +1049,7 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
   Widget build(BuildContext context) {
     final wall = dailyVerseWallpaperUrl(widget.day < 1 ? 1 : widget.day);
     final h = homeHeroVerseHeight(context);
+    final canRead = widget.book.isNotEmpty && widget.chapter > 0;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -1067,77 +1084,91 @@ class _VerseCardState extends ConsumerState<_VerseCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Text(
-                            '每日经文',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.78),
-                              fontSize: 12,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                        ],
+                      Text(
+                        '每日经文',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.78),
+                          fontSize: 12,
+                          letterSpacing: 0.6,
+                        ),
                       ),
                       const Spacer(),
-                      if (widget.ref.isNotEmpty)
-                        Text(
-                          widget.ref,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.88),
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      const SizedBox(height: 6),
-                      Text(
-                        widget.text.isEmpty
-                            ? '内容加载失败，下拉重试'
-                            : '「${widget.text}」',
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontFamily: 'Songti SC',
-                          fontFamilyFallback: [
-                            'STSong',
-                            'Noto Serif SC',
-                            'serif'
+                      // 点经文 → 读经；点空白 → 壁纸（外层 InkWell）
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: canRead
+                            ? () {
+                                _openReader();
+                              }
+                            : null,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (widget.ref.isNotEmpty)
+                              Text(
+                                widget.ref,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.88),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            const SizedBox(height: 6),
+                            Text(
+                              widget.text.isEmpty
+                                  ? '内容加载失败，下拉重试'
+                                  : formatDailyVerseQuote(widget.text),
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: 'Songti SC',
+                                fontFamilyFallback: [
+                                  'STSong',
+                                  'Noto Serif SC',
+                                  'serif'
+                                ],
+                                fontSize: 17,
+                                height: 1.55,
+                                letterSpacing: 0.3,
+                                color: Colors.white,
+                              ),
+                            ),
                           ],
-                          fontSize: 17,
-                          height: 1.55,
-                          letterSpacing: 0.3,
-                          color: Colors.white,
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _HeroAction(
-                            icon: _liked
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            label: _likeCount > 0 ? '$_likeCount' : null,
-                            active: _liked,
-                            onTap: _likeBusy ? null : _toggleLike,
-                          ),
-                          const SizedBox(width: 4),
-                          _HeroAction(
-                            icon: Icons.chat_bubble_outline,
-                            label: _myReact,
-                            active: _myReact != null,
-                            onTap: _openReact,
-                          ),
-                          const SizedBox(width: 4),
-                          _HeroAction(
-                            icon: Icons.auto_awesome_outlined,
-                            onTap: _askXiaoAi,
-                          ),
-                          const SizedBox(width: 4),
-                          _HeroAction(
-                            icon: Icons.ios_share_outlined,
-                            onTap: () => _share(),
-                          ),
-                        ],
+                      // 阻止穿透到壁纸
+                      GestureDetector(
+                        onTap: () {},
+                        child: Row(
+                          children: [
+                            _HeroAction(
+                              icon: _liked
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              label: _likeCount > 0 ? '$_likeCount' : null,
+                              active: _liked,
+                              onTap: _likeBusy ? null : _toggleLike,
+                            ),
+                            const SizedBox(width: 4),
+                            _HeroAction(
+                              icon: Icons.chat_bubble_outline,
+                              label: _myReact,
+                              active: _myReact != null,
+                              onTap: _openReact,
+                            ),
+                            const SizedBox(width: 4),
+                            _HeroAction(
+                              icon: Icons.auto_awesome_outlined,
+                              onTap: _askXiaoAi,
+                            ),
+                            const SizedBox(width: 4),
+                            _HeroAction(
+                              icon: Icons.ios_share_outlined,
+                              onTap: () => _share(),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -1287,7 +1318,7 @@ class _GrowthStack extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var i = 0; i < rows.length; i++) ...[
-          if (i > 0) const SizedBox(height: 16),
+          if (i > 0) const SizedBox(height: 12),
           rows[i],
         ],
       ],
@@ -1330,12 +1361,12 @@ class _MediaGrowthRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: SizedBox(
-          height: 88,
+          height: 80,
           child: Row(
             children: [
               SizedBox(
-                width: 72,
-                height: 72,
+                width: 68,
+                height: 68,
                 child: Stack(
                   children: [
                     ClipRRect(
@@ -1345,17 +1376,17 @@ class _MediaGrowthRow extends StatelessWidget {
                         child: hasImage
                             ? Image.network(
                                 imageUrl!,
-                                width: 72,
-                                height: 72,
+                                width: 68,
+                                height: 68,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => Center(
                                   child: Icon(icon,
-                                      color: AppColors.accentDeep, size: 26),
+                                      color: AppColors.accentDeep, size: 24),
                                 ),
                               )
                             : Center(
                                 child: Icon(icon,
-                                    color: AppColors.accentDeep, size: 26),
+                                    color: AppColors.accentDeep, size: 24),
                               ),
                       ),
                     ),

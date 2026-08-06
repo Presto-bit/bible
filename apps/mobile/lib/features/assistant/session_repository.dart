@@ -17,7 +17,8 @@ class SessionRepository {
   final dynamic _sync;
   static const _uuid = Uuid();
 
-  Stream<List<AiSession>> watchSessions() => _db.watchSessions();
+  Stream<List<AiSession>> watchSessions() =>
+      _db.watchSessions().handleError((_, __) {});
   Stream<List<ChatMessage>> watchMessages(String sid) =>
       _db.watchMessages(sid);
   Future<AiSession?> session(String id) => _db.sessionById(id);
@@ -34,7 +35,11 @@ class SessionRepository {
       updatedAtMs: now,
     );
     await _db.into(_db.aiSessions).insertOnConflictUpdate(s);
-    await _sync.enqueueAiSession(s, isDelete: false);
+    try {
+      await _sync.enqueueAiSession(s, isDelete: false);
+    } catch (_) {
+      // 云同步失败不阻断本地会话
+    }
     return id;
   }
 
@@ -43,7 +48,9 @@ class SessionRepository {
     final next =
         s.copyWith(title: title, version: s.version + 1, updatedAtMs: now);
     await _db.into(_db.aiSessions).insertOnConflictUpdate(next);
-    await _sync.enqueueAiSession(next, isDelete: false);
+    try {
+      await _sync.enqueueAiSession(next, isDelete: false);
+    } catch (_) {}
   }
 
   Future<void> delete(AiSession s) async {
@@ -52,7 +59,9 @@ class SessionRepository {
         s.copyWith(deleted: true, version: s.version + 1, updatedAtMs: now);
     await _db.into(_db.aiSessions).insertOnConflictUpdate(next);
     await _db.deleteMessages(s.id);
-    await _sync.enqueueAiSession(next, isDelete: true);
+    try {
+      await _sync.enqueueAiSession(next, isDelete: true);
+    } catch (_) {}
   }
 
   /// 首条用户消息后用其内容作为会话标题（仍为默认标题时）。
@@ -98,8 +107,16 @@ class SessionRepository {
 final sessionRepoProvider = Provider<SessionRepository>((ref) =>
     SessionRepository(ref.read(dbProvider), ref.read(syncEngineProvider)));
 
-final sessionsStreamProvider = StreamProvider<List<AiSession>>(
-    (ref) => ref.read(sessionRepoProvider).watchSessions());
+final sessionsStreamProvider = StreamProvider<List<AiSession>>((ref) async* {
+  try {
+    await for (final list in ref.read(sessionRepoProvider).watchSessions()) {
+      yield list;
+    }
+  } catch (_) {
+    // Drift / SQLite 异常时给空列表，避免历史抽屉整页报错
+    yield const <AiSession>[];
+  }
+});
 
 List<Citation> citationsFromJson(String json) {
   final raw = json.trim();

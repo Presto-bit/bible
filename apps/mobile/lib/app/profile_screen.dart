@@ -26,6 +26,7 @@ import '../features/bible/reading_repository.dart';
 import '../features/notes/notes_repository.dart' show profileSyncProvider;
 import '../features/notes/notes_screen.dart';
 import '../features/bible/offline_download_sheet.dart';
+import '../features/bible/offline_bible.dart';
 import '../core/widgets/paper_card.dart';
 import '../core/notifications.dart';
 import '../core/notif_prefs.dart';
@@ -449,9 +450,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            // 顶栏：分享 | 设置
+            // 顶栏：右侧 [分享][设置] 分组（分享在设置左边）
             Row(
               children: [
+                const Spacer(),
                 IconButton(
                   tooltip: '分享彼爱',
                   onPressed: () {
@@ -462,7 +464,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   },
                   icon: const Icon(Icons.ios_share_outlined, size: 22),
                 ),
-                const Spacer(),
                 IconButton(
                   tooltip: '设置',
                   onPressed: _openSettings,
@@ -761,40 +762,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 );
               },
             ),
-            const SizedBox(height: 14),
-            PaperCard(
-              onTap: _openSupport,
-              child: const Row(
-                children: [
-                  Icon(Icons.support_agent_outlined,
-                      color: AppColors.accentDeep, size: 20),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text('帮助与反馈',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                  Text('官方客服 ›',
-                      style:
-                          TextStyle(fontSize: 12, color: AppColors.inkFaint)),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            PaperCard(
-              onTap: () => context.push('/profile/licenses'),
-              child: const Row(
-                children: [
-                  Icon(Icons.gavel_outlined,
-                      color: AppColors.accentDeep, size: 20),
-                  SizedBox(width: 10),
-                  Expanded(
-                    child: Text('协议与开源许可',
-                        style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
-                  Icon(Icons.chevron_right, color: AppColors.inkFaint),
-                ],
-              ),
-            ),
+            // 帮助/协议已迁入设置（与 PWA ProfileSettings 一致）
             if (auth.signedIn) ...[
               const SizedBox(height: 16),
               SizedBox(
@@ -959,7 +927,7 @@ class _FootprintCell extends StatelessWidget {
   }
 }
 
-class _ShortcutTabs extends StatelessWidget {
+class _ShortcutTabs extends ConsumerStatefulWidget {
   const _ShortcutTabs({
     required this.onWarmup,
     required this.onRemind,
@@ -973,38 +941,146 @@ class _ShortcutTabs extends StatelessWidget {
   final VoidCallback? onRemindLongPress;
 
   @override
+  ConsumerState<_ShortcutTabs> createState() => _ShortcutTabsState();
+}
+
+class _ShortcutTabsState extends ConsumerState<_ShortcutTabs> {
+  /// challenge | remind | offline — 对齐 PWA 常用 tab 面板
+  String _tab = 'challenge';
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.line),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _ShortcutTabItem(
-              label: '今日温习',
-              onTap: onWarmup,
-            ),
+    final prefs = ref.watch(prefsProvider);
+    final installed =
+        ref.watch(offlineInstalledProvider).maybeWhen(data: (v) => v, orElse: () => false);
+    final remindOn = NotifPrefs.dailyEnabled(prefs);
+    final hour = NotifPrefs.dailyHour(prefs);
+    final minute = NotifPrefs.dailyMinute(prefs);
+    final timeLabel =
+        '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.line),
           ),
-          Container(width: 1, height: 36, color: AppColors.line),
-          Expanded(
-            child: _ShortcutTabItem(
-              label: '提醒',
-              onTap: onRemind,
-              onLongPress: onRemindLongPress,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: _ShortcutTabItem(
+                  label: '今日温习',
+                  active: _tab == 'challenge',
+                  onTap: () => setState(() => _tab = 'challenge'),
+                ),
+              ),
+              Container(width: 1, height: 36, color: AppColors.line),
+              Expanded(
+                child: _ShortcutTabItem(
+                  label: '提醒',
+                  active: _tab == 'remind',
+                  onTap: () => setState(() => _tab = 'remind'),
+                  onLongPress: widget.onRemindLongPress,
+                ),
+              ),
+              Container(width: 1, height: 36, color: AppColors.line),
+              Expanded(
+                child: _ShortcutTabItem(
+                  label: '离线',
+                  active: _tab == 'offline',
+                  onTap: () => setState(() => _tab = 'offline'),
+                ),
+              ),
+            ],
           ),
-          Container(width: 1, height: 36, color: AppColors.line),
-          Expanded(
-            child: _ShortcutTabItem(
-              label: '离线',
-              onTap: onOffline,
-            ),
+        ),
+        const SizedBox(height: 10),
+        PaperCard(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (_tab == 'challenge') ...[
+                const Text(
+                  '五道轻问，巩固读过的经文',
+                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  '不是考试；答错后会优先再遇见',
+                  style: TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accentDeep),
+                      onPressed: widget.onWarmup,
+                      child: const Text('开始温习'),
+                    ),
+                    const SizedBox(width: 12),
+                    TextButton(
+                      onPressed: widget.onWarmup,
+                      child: const Text('温习页 ›'),
+                    ),
+                  ],
+                ),
+              ] else if (_tab == 'remind') ...[
+                Text(
+                  remindOn ? '每日 $timeLabel 提醒你读经' : '读经提醒默认关闭',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  remindOn ? '轻声提醒，不制造落后感' : '需要时再打开，可随时关闭',
+                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.accentDeep),
+                      onPressed: widget.onRemind,
+                      child: Text(remindOn ? '管理提醒' : '开启提醒'),
+                    ),
+                    const SizedBox(width: 12),
+                    TextButton(
+                      onPressed: widget.onRemind,
+                      child: const Text('提醒与勿扰 ›'),
+                    ),
+                  ],
+                ),
+              ] else ...[
+                Text(
+                  installed ? '离线圣经已就绪' : '离线圣经未下载',
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w700, fontSize: 15),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  installed
+                      ? '可在无网时继续读经；也可管理译本与资料'
+                      : '下载后无网也能读；资料包可按需管理',
+                  style: const TextStyle(fontSize: 12, color: AppColors.inkFaint),
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.accentDeep),
+                  onPressed: widget.onOffline,
+                  child: Text(installed ? '管理离线包' : '下载离线包'),
+                ),
+              ],
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -1014,10 +1090,12 @@ class _ShortcutTabItem extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.onLongPress,
+    this.active = false,
   });
   final String label;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
@@ -1025,15 +1103,19 @@ class _ShortcutTabItem extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: active ? AppColors.accentWash.withValues(alpha: 0.55) : null,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Center(
           child: Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.ink,
+              color: active ? AppColors.accentDeep : AppColors.ink,
             ),
           ),
         ),
@@ -1190,7 +1272,7 @@ class _SettingsSheet extends ConsumerWidget {
               const SizedBox(height: 8),
               _InfoTile(label: '后端地址', value: AppConfig.baseUrl),
               const SizedBox(height: 8),
-              _row('协议与开源许可', '官网页', onTap: () {
+              _row('数据与来源许可', '经文与资料出处', onTap: () {
                 Navigator.pop(context);
                 context.push('/profile/licenses');
               }),

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme.dart';
 import 'offline_bible.dart';
 import 'offline_catalog.dart';
+import 'offline_notice.dart' show offlineCardDismissedProvider;
 
 Future<void> showOfflineDownloadSheet(BuildContext context, WidgetRef ref) {
   return showModalBottomSheet<void>(
@@ -172,6 +173,8 @@ class _OfflineDownloadBodyState extends ConsumerState<_OfflineDownloadBody> {
     try {
       await future;
       ref.invalidate(offlineInstalledProvider);
+      // 同步清除 dismiss 状态，阅读器卡片也能立刻隐藏
+      ref.read(offlineCardDismissedProvider.notifier).clear();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('离线经包已就绪')),

@@ -89,22 +89,16 @@ class OfflineBibleService {
     }
   }
 
-  bool get isInstalled => loadMeta() != null && _sqliteFileSync()?.existsSync() == true;
-
-  File? _sqliteFileSync() {
-    try {
-      // sync path only when dir already resolved — best-effort
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
   Future<bool> checkInstalled() async {
     final meta = loadMeta();
     if (meta == null) return false;
     final f = await _sqliteFile();
-    return f.existsSync();
+    final ok = f.existsSync() && f.lengthSync() > 1024;
+    // 装妥后允许阅读器内再提示（误删经包等）
+    if (ok) {
+      await _prefs.remove('offline_bible_card_dismissed_v1');
+    }
+    return ok;
   }
 
   Database? _openDb(File file) {
@@ -213,6 +207,7 @@ class OfflineBibleService {
       close();
       _downloadProgress = 1;
       _downloadError = null;
+      await _prefs.remove('offline_bible_card_dismissed_v1');
     } catch (e) {
       _downloadError = '$e';
       rethrow;

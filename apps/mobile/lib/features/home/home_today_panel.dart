@@ -111,9 +111,8 @@ class HomeTodayPanel extends StatelessWidget {
 enum _SideTone { group, prayer }
 
 String _coverFor(HomeTodaySlot slot) {
-  if (slot.coverUrl != null && slot.coverUrl!.startsWith('http')) {
-    return slot.coverUrl!;
-  }
+  final resolved = resolveCampaignCoverUrl(slot.coverUrl);
+  if (resolved != null) return resolved;
   // 稳定风景：用 slot id 哈希选 illustration
   final h = slot.id.hashCode.abs();
   final day = (h % illustrationFiles.length) + 1;
@@ -287,7 +286,7 @@ class _SideCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Container(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
@@ -297,6 +296,7 @@ class _SideCard extends StatelessWidget {
               ),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
                   child: Column(
@@ -304,6 +304,8 @@ class _SideCard extends StatelessWidget {
                     children: [
                       Text(
                         slot.tag,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -313,20 +315,22 @@ class _SideCard extends StatelessWidget {
                       const Spacer(),
                       Text(
                         slot.title,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          fontSize: 13,
+                          fontSize: 12.5,
+                          height: 1.25,
                           color: muted ? AppColors.inkFaint : AppColors.ink,
                         ),
                       ),
+                      const SizedBox(height: 2),
                       Text(
                         slot.cta ?? slot.sub,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.5,
                           color: muted
                               ? AppColors.inkFaint.withValues(alpha: 0.8)
                               : AppColors.inkFaint,
@@ -335,30 +339,43 @@ class _SideCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (slot.badge != null && slot.badge!.isNotEmpty)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      slot.badge!,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: accent,
+                if (slot.badge != null && slot.badge!.isNotEmpty) ...[
+                  const SizedBox(width: 4),
+                  Align(
+                    alignment: Alignment.center,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 40),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          slot.badge!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                            color: accent,
+                          ),
+                        ),
                       ),
                     ),
-                  )
-                else
-                  Icon(
-                    tone == _SideTone.group
-                        ? Icons.groups_outlined
-                        : Icons.volunteer_activism_outlined,
-                    size: 18,
-                    color: accent.withValues(alpha: 0.55),
+                  ),
+                ] else
+                  Padding(
+                    padding: const EdgeInsets.only(left: 2),
+                    child: Icon(
+                      tone == _SideTone.group
+                          ? Icons.groups_outlined
+                          : Icons.volunteer_activism_outlined,
+                      size: 16,
+                      color: accent.withValues(alpha: 0.55),
+                    ),
                   ),
               ],
             ),
